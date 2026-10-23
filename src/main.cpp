@@ -62,6 +62,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return Fail();
     }
     SDL_Log("Hello world");
+    if (app->smoke_test)
+    {
+        SDL_Log("SOTN_SMOKE_TEST: START");
+    }
     return SDL_APP_CONTINUE;
 }
 

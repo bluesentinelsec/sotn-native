@@ -8,7 +8,7 @@ subprocess.run(["adb", "install", "-r", sys.argv[1]], check=True)
 subprocess.run(["adb", "logcat", "-c"], check=True)
 subprocess.run([
     "adb", "shell", "am", "start", "-W", "-n",
-    "org.bluesentinelsec.sotn/.MainActivity", "--es", "SDL_ENV.SOTN_SMOKE_TEST", "1",
+    "org.bluesentinelsec.sotn/.MainActivity", "--ez", "smoke_test", "true",
 ], check=True)
 deadline = time.monotonic() + 60
 while time.monotonic() < deadline:

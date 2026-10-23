@@ -1,7 +1,6 @@
 """Run the actual app in a disposable iOS Simulator and check its result."""
 
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -26,10 +25,9 @@ try:
     simctl("boot", udid)
     simctl("bootstatus", udid, "-b", timeout=240)
     simctl("install", udid, str(app))
-    environment = dict(os.environ, SIMCTL_CHILD_SOTN_SMOKE_TEST="1")
     result = subprocess.run([
-        "xcrun", "simctl", "launch", "--console", udid, "org.bluesentinelsec.sotn-native",
-    ], env=environment, text=True, capture_output=True, timeout=90)
+        "xcrun", "simctl", "launch", "--console", udid, "org.bluesentinelsec.sotn-native", "--smoke-test",
+    ], text=True, capture_output=True, timeout=90)
     output = result.stdout + result.stderr
     print(output)
     if result.returncode != 0 or "SOTN_SMOKE_TEST: PASS" not in output:
