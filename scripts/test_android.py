@@ -5,7 +5,7 @@ import subprocess
 import time
 
 def wait_for_aosp_theme():
-    """Wait for the CI emulator's asynchronous initial resource-overlay transaction."""
+    """Activate a deterministic CI palette before resource changes can interrupt SDL."""
     required = {f"com.android.systemui:{name}" for name in ("neutral", "accent", "dynamic")}
     deadline = time.monotonic() + 60
     output = ""
@@ -13,9 +13,15 @@ def wait_for_aosp_theme():
         output = subprocess.check_output([
             "adb", "shell", "cmd", "overlay", "list", "--user", "0", "android",
         ], text=True, timeout=10)
-        enabled = {line.strip()[4:] for line in output.splitlines()
-                   if line.strip().startswith("[x] ")}
-        if required <= enabled:
+        registered = {line.strip()[4:] for line in output.splitlines()
+                      if line.strip().startswith(("[x] ", "[ ] "))}
+        if required <= registered:
+            # AOSP may leave already-matching overlays registered but disabled.
+            # Enable the initial palette explicitly on this disposable emulator.
+            for overlay in sorted(required):
+                subprocess.run([
+                    "adb", "shell", "cmd", "overlay", "enable", "--user", "0", overlay,
+                ], check=True, timeout=10)
             return
         time.sleep(1)
     raise SystemExit("Android emulator theme setup timed out:\n" + output)
