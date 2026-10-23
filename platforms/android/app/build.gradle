@@ -23,6 +23,7 @@ android {
         }
     }
     buildTypes { release { minifyEnabled false } }
+    packaging { jniLibs { useLegacyPackaging = true } }
     sourceSets { main { java.srcDirs += sdlJavaDir } }
     externalNativeBuild {
         cmake { path new File(repositoryRoot, "CMakeLists.txt"); version "3.31.6" }
