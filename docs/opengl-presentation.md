@@ -48,11 +48,12 @@ windows skip drawing. Straight-alpha blending handles preview transparency;
 it does not stand in for PS1 primitive semi-transparency or dithering. SDL's
 callback loop owns frame pacing, independently of this presentation layer.
 
-The save-icon decoder reads palette and pixel offsets described by pinned
-`config/assets.us.yaml` in sotn-decomp. These offsets, dimensions, and counts
-are metadata; all actual color and pixel bytes come from the user's validated
-DRA view. It checks input/output bounds, decodes little-endian RGB555 colors
-and low-nibble-first 4-bit indices, and leaves output untouched on error.
+The save-icon decoder uses pixel offsets from pinned `config/assets.us.yaml`
+in sotn-decomp and the palette stride used by `src/save_mgr.h:GetSavePalette`.
+These offsets, dimensions, and counts are metadata; all actual color and pixel
+bytes come from the user's validated DRA view. It checks input/output bounds,
+decodes little-endian RGB555 colors and low-nibble-first 4-bit indices, and
+leaves output untouched on error.
 
 ## Automated checks
 
