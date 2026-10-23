@@ -15,14 +15,24 @@ READY = "\n".join(f"[x] com.android.systemui:{name}"
 
 
 class AndroidReadinessTest(unittest.TestCase):
-    def test_disabled_overlay_does_not_satisfy_readiness(self):
-        pending = READY.replace("[x] com.android.systemui:dynamic", "[ ] com.android.systemui:dynamic")
+    def test_missing_overlay_does_not_satisfy_readiness(self):
+        pending = READY.replace("[x] com.android.systemui:dynamic", "")
         with patch.object(harness.subprocess, "check_output", side_effect=[pending, READY]) as read, \
+             patch.object(harness.subprocess, "run") as enable, \
              patch.object(harness.time, "monotonic", return_value=0), \
              patch.object(harness.time, "sleep") as sleep:
             harness.wait_for_aosp_theme()
         self.assertEqual(read.call_count, 2)
+        self.assertEqual(enable.call_count, 3)
         sleep.assert_called_once_with(1)
+
+    def test_registered_disabled_palette_is_activated(self):
+        with patch.object(harness.subprocess, "check_output", return_value=READY.replace("[x]", "[ ]")), \
+             patch.object(harness.subprocess, "run") as enable, \
+             patch.object(harness.time, "monotonic", return_value=0):
+            harness.wait_for_aosp_theme()
+        self.assertEqual({call.args[0][-1] for call in enable.call_args_list},
+                         {f"com.android.systemui:{name}" for name in ("neutral", "accent", "dynamic")})
 
     def test_timeout_fails_with_setup_diagnostics(self):
         with patch.object(harness.subprocess, "check_output", return_value="[ ] pending"), \
