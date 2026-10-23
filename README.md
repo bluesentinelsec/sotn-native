@@ -2,8 +2,9 @@
 
 An original, asset-free SDL3 bootstrap for a future personal and educational
 native-port study of *Castlevania: Symphony of the Night*. **This is currently
-a Hello world app; it does not run or convert the game.** It logs `Hello world`
-through `SDL_Log` and renders the same greeting in a window or browser canvas.
+a bootstrap with private core-data validation; it does not run or convert the
+game.** It logs `Hello world` through `SDL_Log` and renders the same greeting
+in a window or browser canvas.
 
 No ROM, BIOS, extracted data, game code, artwork, or audio is distributed.
 Future game functionality will require users to supply their own game dump.
@@ -19,6 +20,21 @@ The selected approach is a **decompilation-based native port**. The initial
 [feasibility report and milestones](docs/native-port-plan.md) describe the
 pinned upstream experiment, private reference checks, and remaining integration
 work. That experiment is separate from this repository's Hello world app.
+
+The C app can now read and validate five core files from an extracted US dump:
+
+```sh
+# macOS; use build/debug/bin/sotn-native on Linux or sotn-native.exe on Windows.
+build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
+  --game-data /path/to/private/extracted/us --validate-only
+```
+
+This command exits before graphics initialization and returns failure for
+missing, wrong-sized, or checksum-mismatched files. Omit `--validate-only` to
+retain the validated snapshot while the bootstrap runs. This does not launch
+gameplay. See [private data loading](docs/private-data.md) for the supported
+files, ownership contract, and current limits. Normal builds and tests need no
+game inputs.
 
 ## Desktop
 
