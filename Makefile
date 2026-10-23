@@ -4,7 +4,7 @@ BUILD_DIR ?= build/debug
 CMAKE_FLAGS ?=
 JOBS ?= 4
 
-.PHONY: debug release configure build run test package web android ios fmt clean
+.PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)
 build: configure
@@ -17,6 +17,8 @@ run: build
 	cmake --build $(BUILD_DIR) --config $(CONFIG) --target run
 test: build
 	ctest --test-dir $(BUILD_DIR) -C $(CONFIG) --output-on-failure
+sanitizer:
+	$(MAKE) test CONFIG=Debug BUILD_DIR=build/sanitizer CMAKE_FLAGS="$(CMAKE_FLAGS) -DSOTN_ENABLE_SANITIZERS=ON"
 package:
 	$(MAKE) build CONFIG=Release BUILD_DIR=build/release
 	ctest --test-dir build/release -C Release --output-on-failure
@@ -31,6 +33,6 @@ ios:
 	cmake -S . -B build/ios-simulator -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
 	cmake --build build/ios-simulator --parallel $(JOBS)
 fmt:
-	clang-format -i src/main.cpp
+	clang-format -i src/main.c
 clean:
 	cmake -E rm -rf build dist

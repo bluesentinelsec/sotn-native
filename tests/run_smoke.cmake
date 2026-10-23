@@ -1,0 +1,13 @@
+cmake_minimum_required(VERSION 3.24)
+if(NOT DEFINED APP)
+  message(FATAL_ERROR "APP must name the executable to test")
+endif()
+execute_process(COMMAND "${APP}" --smoke-test
+  RESULT_VARIABLE status OUTPUT_VARIABLE output ERROR_VARIABLE errors TIMEOUT 15)
+message("${output}${errors}")
+if(NOT "${status}" STREQUAL "0")
+  message(FATAL_ERROR "App smoke test failed: ${status}")
+endif()
+if(NOT "${output}${errors}" MATCHES "SOTN_SMOKE_TEST: PASS")
+  message(FATAL_ERROR "App exited without completing its rendering smoke test")
+endif()

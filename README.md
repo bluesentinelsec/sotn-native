@@ -9,9 +9,15 @@ No ROM, BIOS, extracted data, game code, artwork, or audio is distributed.
 Future game functionality will require users to supply their own game dump.
 This project is unofficial and is not affiliated with Konami or Sony.
 
+The project uses **C17**. Phase 1 preserves the original game experience, with
+desktop correctness established first and required web/mobile adaptations kept
+explicit. Modern conveniences follow a proven authentic foundation. See
+[project goals](docs/project-goals.md) for release direction and
+[AGENTS.md](AGENTS.md) for engineering and collaboration standards.
+
 ## Desktop
 
-Requires CMake 3.24+, a C++20 compiler, GNU Make, Python 3, and the platform SDK.
+Requires CMake 3.24+, a C17 compiler, GNU Make, Python 3, and the platform SDK.
 The first configure downloads checksum-pinned **SDL 3.4.18** from its official
 release. On macOS, install Xcode's command-line tools; on Windows, use a Visual
 Studio developer shell. Windows users can run the CMake commands directly.
@@ -20,6 +26,7 @@ Studio developer shell. Windows users can run the CMake commands directly.
 make                 # Debug build in build/debug
 make run             # Open the app; Escape or the window close button quits
 make test            # Run the app's headless render smoke test and repository guard
+make sanitizer       # Linux: run tests with ASan and UBSan, including SDL instrumentation
 make package         # Build/test Release and produce a versioned ZIP in dist/
 ```
 
@@ -60,6 +67,7 @@ or an ignored `platforms/android/local.properties` file.
 
 CI builds and runs the actual app on Linux, macOS, Windows, a headless browser,
 an Android emulator, and an iOS Simulator. Desktop jobs cover Debug and Release.
+Linux also runs the app and SDL under AddressSanitizer and UndefinedBehaviorSanitizer.
 Packages are uploaded as workflow artifacts. Tagged `vX.Y.Z` releases run the
 same checks, require the tag to match `VERSION`, and attach the resulting ZIPs
 and APKs to a GitHub Release. Device iOS signing remains a downstream task.
@@ -78,7 +86,7 @@ approved binary in the source tree is the checksum-verified Gradle wrapper.
 These checks support source review; they cannot establish the provenance of
 arbitrarily renamed text. Review every staged file before pushing.
 
-Edit `VERSION` for the next release. Run `make fmt` for C++ formatting and
+Edit `VERSION` for the next release. Run `make fmt` for C formatting and
 `python3 -m unittest discover -s tests` for the repository-policy tests.
 
 Original scaffold code uses the [zlib license](LICENSE). See

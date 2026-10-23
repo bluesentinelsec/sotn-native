@@ -12,7 +12,12 @@ spec.loader.exec_module(policy)
 
 class RepositoryPolicyTest(unittest.TestCase):
     def test_original_source_is_allowed(self):
-        self.assertIsNone(policy.violation("src/main.cpp", b"int main() {}"))
+        self.assertIsNone(policy.violation("src/main.c", b"int main(void) { return 0; }"))
+
+    def test_cpp_source_is_rejected(self):
+        for name in ["src/main.cpp", "include/app.hpp", "src/core.cxx"]:
+            with self.subTest(name=name):
+                self.assertIsNotNone(policy.violation(name, b"source"))
 
     def test_game_data_is_rejected_case_insensitively(self):
         for name in ["SCPH1001.BIN", "game.cue", "disc.7z", "music.wav", "texture.TIM"]:

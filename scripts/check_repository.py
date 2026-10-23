@@ -19,6 +19,8 @@ WRAPPER_SHA256 = "2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed8408884480
 def violation(name, content):
     """Return a policy violation for a tracked path and its staged bytes, if any."""
     path = Path(name.lower())
+    if path.suffix in {".cpp", ".cxx", ".cc", ".hpp", ".hxx", ".hh"}:
+        return "C++ source is not allowed in this C project"
     if BLOCKED_DIRS.intersection(path.parts):
         return "private input directory"
     if path.suffix in BLOCKED_SUFFIXES:

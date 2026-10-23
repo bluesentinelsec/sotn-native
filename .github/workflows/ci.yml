@@ -77,6 +77,23 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
+  sanitizers:
+    name: Linux (ASan / UBSan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Build the instrumented app and SDL
+        run: >-
+          make sanitizer JOBS=4
+          CMAKE_FLAGS="-G Ninja -DSDL_UNIX_CONSOLE_BUILD=ON"
+
   web:
     name: Web (Emscripten / browser)
     runs-on: ubuntu-24.04

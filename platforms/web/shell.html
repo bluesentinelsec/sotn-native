@@ -18,10 +18,17 @@
   <p>SDL3 development bootstrap. No game data is included.</p>
 </main>
 <script>
+  function report(message) {
+    console.log(message);
+    if (message.includes('SOTN_SMOKE_TEST: PASS')) {
+      document.body.dataset.smokeResult = 'pass';
+    }
+  }
   var Module = {
     canvas: document.getElementById('canvas'),
-    print: console.log,
-    printErr: console.error,
+    arguments: new URLSearchParams(window.location.search).has('smoke-test') ? ['--smoke-test'] : [],
+    print: report,
+    printErr: report,
     onAbort: function () { document.body.dataset.smokeResult = 'fail'; }
   };
 </script>
