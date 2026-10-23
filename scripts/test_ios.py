@@ -46,12 +46,21 @@ def wait_for_report(report, timeout=90):
     raise SystemExit(f"iOS rendering/cleanup smoke test timed out; last report: {last!r}")
 
 
+def select_runtime(runtimes, sdk_version):
+    identifier = "com.apple.CoreSimulator.SimRuntime.iOS-" + sdk_version.strip().replace(".", "-")
+    runtime = next((r for r in runtimes if r.get("isAvailable") and
+                    r["identifier"] == identifier), None)
+    if runtime is None:
+        raise SystemExit(f"Install the iOS {sdk_version.strip()} Simulator runtime for the active Xcode SDK")
+    return runtime
+
+
 def run_smoke(app):
     runtimes = json.loads(simctl("list", "runtimes", "-j"))["runtimes"]
-    runtime = next((r for r in reversed(runtimes) if r.get("isAvailable") and
-                    r["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-")), None)
-    if runtime is None:
-        raise SystemExit("Install an iOS Simulator runtime in Xcode first")
+    sdk = subprocess.check_output(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"],
+                                  text=True, timeout=60).strip()
+    runtime = select_runtime(runtimes, sdk)
+    print(f"Testing iOS SDK {sdk} with {runtime['identifier']}", flush=True)
     types = runtime.get("supportedDeviceTypes") or json.loads(
         simctl("list", "devicetypes", "-j"))["devicetypes"]
     device = next(d for d in types if d["name"].startswith("iPhone"))
