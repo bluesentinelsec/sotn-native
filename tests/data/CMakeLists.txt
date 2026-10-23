@@ -1,0 +1,10 @@
+add_executable(sotn-data-tests test_data.c)
+sotn_configure_c_target(sotn-data-tests)
+target_include_directories(sotn-data-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/data")
+target_link_libraries(sotn-data-tests PRIVATE sotn-data)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fixture")
+add_test(NAME game-data COMMAND sotn-data-tests "${CMAKE_CURRENT_BINARY_DIR}/fixture")
+set_tests_properties(game-data PROPERTIES TIMEOUT 20)
+add_test(NAME game-data-cli COMMAND ${Python3_EXECUTABLE}
+  "${PROJECT_SOURCE_DIR}/tests/data/test_cli.py" "$<TARGET_FILE:sotn-native>")
+set_tests_properties(game-data-cli PROPERTIES TIMEOUT 30)

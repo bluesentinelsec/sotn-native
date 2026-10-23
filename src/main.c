@@ -2,6 +2,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <sotn/game_data.h>
 #include <stdbool.h>
 
 /** @brief Application-owned SDL resources, released by SDL_AppQuit. */
@@ -9,6 +10,7 @@ typedef struct App
 {
     SDL_Window *window;
     SDL_Renderer *renderer;
+    SotnGameData *game_data;
     bool smoke_test;
     Uint32 frames;
 } App;
@@ -36,11 +38,56 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     *appstate = app;
     app->smoke_test = SDL_getenv("SOTN_SMOKE_TEST") != NULL;
+    const char *game_directory = NULL;
+    bool validate_only = false;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
         {
             app->smoke_test = true;
+        }
+        else if (SDL_strcmp(argv[i], "--game-data") == 0)
+        {
+            if (game_directory != NULL || i + 1 >= argc || argv[i + 1][0] == '\0' ||
+                SDL_strncmp(argv[i + 1], "--", 2) == 0)
+            {
+                SDL_SetError("--game-data requires one directory and may appear only once");
+                return Fail("Invalid arguments");
+            }
+            game_directory = argv[++i];
+        }
+        else if (SDL_strcmp(argv[i], "--validate-only") == 0)
+        {
+            validate_only = true;
+        }
+        else if (SDL_strcmp(argv[i], "--help") == 0)
+        {
+            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only] [--smoke-test]");
+            return SDL_APP_SUCCESS;
+        }
+        else
+        {
+            SDL_SetError("Unknown argument '%s'; use --help", argv[i]);
+            return Fail("Invalid arguments");
+        }
+    }
+    if (validate_only && game_directory == NULL)
+    {
+        SDL_SetError("--validate-only requires --game-data DIR");
+        return Fail("Invalid arguments");
+    }
+    if (game_directory != NULL)
+    {
+        if (!SotnGameData_Open(game_directory, &app->game_data))
+        {
+            return Fail("Cannot load game data");
+        }
+        SDL_Log("SOTN_GAME_DATA: PASS (%s, %d core files)", SotnGameData_ReferenceId(),
+                (int)SOTN_GAME_FILE_COUNT);
+        SDL_Log("Core data loaded; game logic is not integrated yet.");
+        if (validate_only)
+        {
+            return SDL_APP_SUCCESS;
         }
     }
     SDL_SetAppMetadata("SOTN Native", SOTN_VERSION, "org.bluesentinelsec.sotn-native");
@@ -95,6 +142,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
         !SDL_SetRenderDrawColor(app->renderer, 240, 226, 182, 255) ||
         !SDL_RenderDebugText(app->renderer, 276, 160, "Hello world") ||
         !SDL_RenderDebugText(app->renderer, 176, 184, "SOTN Native - development bootstrap") ||
+        (app->game_data != NULL &&
+         !SDL_RenderDebugText(app->renderer, 176, 208,
+                              "US core data loaded - game integration pending")) ||
         !SDL_RenderPresent(app->renderer))
     {
         return Fail("Cannot render the bootstrap frame");
@@ -120,6 +170,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     {
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
+        SotnGameData_Close(app->game_data);
         SDL_free(app);
     }
     SDL_Quit();

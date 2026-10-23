@@ -33,6 +33,6 @@ ios:
 	cmake -S . -B build/ios-simulator -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
 	cmake --build build/ios-simulator --parallel $(JOBS)
 fmt:
-	clang-format -i src/main.c
+	clang-format -i src/main.c modules/data/game_data.c modules/data/sha1.c modules/data/data_internal.h modules/data/include/sotn/game_data.h tests/data/test_data.c
 clean:
 	cmake -E rm -rf build dist

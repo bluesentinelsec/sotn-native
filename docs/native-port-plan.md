@@ -7,8 +7,9 @@ services it needs. Preserve the US PS1 experience before adding enhancements.
 Keep original simulation timing, integer/fixed-point behavior, audiovisual
 presentation, game rules, and ordinary saves as the reference.
 
-The repository's app remains the C17 Hello world bootstrap. No game code or
-assets have been imported. An isolated upstream build under ignored `.tools/`
+The repository's app remains the C17 bootstrap, now with an original
+[private core-data loader](private-data.md). No game code or assets have been
+imported. An isolated upstream build under ignored `.tools/`
 provides an executable baseline for evaluating the route; it is not our port
 and must not be packaged or published as a project release.
 
@@ -125,6 +126,7 @@ an alternate entrypoint or renderer in this project's build.
    Keep enhancements out of this milestone. Web/mobile builds stay green;
    game-specific adaptations follow the proven desktop foundation.
 
-The next implementation PR should establish the private data-loading boundary
-and a reviewed C/OpenGL compatibility slice. Do not bulk-vendor the upstream
+The private data-loading boundary is implemented for the five core reference
+files. The next implementation slice is reviewed C/OpenGL compatibility and
+game logic with runtime-loaded data. Do not bulk-vendor the upstream
 repository or mark a full game port complete after a demo or isolated room.

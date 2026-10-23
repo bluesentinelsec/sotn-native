@@ -5,6 +5,8 @@
 Build a native, personal and educational *Symphony of the Night* port that
 preserves the original experience and creates a foundation for later improvements.
 The repository currently contains a C17 SDL3 bootstrap, not a working game port.
+Its original `modules/data/` library validates private core files; read
+[docs/private-data.md](docs/private-data.md) before extending that boundary.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
 The selected route is a **decompilation-based native port**; read the current
 [feasibility report](docs/native-port-plan.md) and pinned
