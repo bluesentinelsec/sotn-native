@@ -17,7 +17,8 @@ COMPLETE = "SOTN_SMOKE_TEST: PASS\nSOTN_SMOKE_TEST: CLEANUP_COMPLETE\n"
 
 
 def simctl(*args, **kwargs):
-    kwargs.setdefault("timeout", 60)
+    # CoreSimulator service discovery is also cold-start work on hosted runners.
+    kwargs.setdefault("timeout", 180)
     print(f"simctl {' '.join(args)}", flush=True)
     try:
         output = subprocess.check_output(["xcrun", "simctl", *args], text=True, **kwargs)
