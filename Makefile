@@ -28,8 +28,8 @@ web:
 android:
 	cd platforms/android && ./gradlew :app:assembleDebug :app:assembleRelease
 ios:
-	cmake -S . -B build/ios -G Xcode -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
-	cmake --build build/ios --config Release --parallel $(JOBS)
+	cmake -S . -B build/ios-simulator -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
+	cmake --build build/ios-simulator --parallel $(JOBS)
 fmt:
 	clang-format -i src/main.cpp
 clean:

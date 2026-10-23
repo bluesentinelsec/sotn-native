@@ -48,7 +48,7 @@ make android         # Debug APK and unsigned Release APK
 
 # iOS: Xcode with an installed iOS Simulator runtime.
 make ios             # Unsigned simulator app
-python3 scripts/test_ios.py build/ios/bin/Release/sotn-native.app
+python3 scripts/test_ios.py build/ios-simulator/bin/sotn-native.app
 ```
 
 Android outputs are in `platforms/android/app/build/outputs/apk/`. Release

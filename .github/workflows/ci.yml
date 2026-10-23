@@ -146,13 +146,13 @@ jobs:
       - name: Build simulator and unsigned device apps
         run: |
           for sdk in iphonesimulator iphoneos; do
-            cmake -S . -B "build/${sdk}" -G Xcode -DCMAKE_SYSTEM_NAME=iOS \
+            cmake -S . -B "build/${sdk}" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=iOS \
               -DCMAKE_OSX_SYSROOT="${sdk}" -DCMAKE_OSX_ARCHITECTURES=arm64 \
               -DCMAKE_OSX_DEPLOYMENT_TARGET=15.0
             cmake --build "build/${sdk}" --config Release --parallel 4
           done
       - name: Run the app in iOS Simulator
-        run: python3 scripts/test_ios.py build/iphonesimulator/bin/Release/sotn-native.app
+        run: python3 scripts/test_ios.py build/iphonesimulator/bin/sotn-native.app
       - name: Package simulator and unsigned device apps
         run: |
           cpack --config build/iphonesimulator/CPackConfig.cmake -C Release
