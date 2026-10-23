@@ -28,6 +28,9 @@ this repository's normal build; they do not yet provide gameplay. See
 The [runtime stage loader](docs/stage-data.md) decodes Laboratory room/layer
 tables directly from the user's validated overlay and verifies its graphics file
 on demand; `--inspect-laboratory` exercises that boundary without launching video.
+The [Laboratory presentation diagnostic](docs/laboratory-presentation.md) now
+shows original room tilemaps through this executable, using `--preview-laboratory`.
+It does not run player or enemy gameplay.
 
 The C app can now read and validate five core files from an extracted US dump:
 

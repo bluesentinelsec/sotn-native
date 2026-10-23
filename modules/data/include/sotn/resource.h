@@ -7,6 +7,8 @@
 typedef enum SotnResourceId
 {
     SOTN_RESOURCE_LAB_GRAPHICS = 0, /**< US ST/NZ0/F_NZ0.BIN tiles and palettes. */
+    SOTN_RESOURCE_COMMON_GRAPHICS,  /**< US BIN/F_GAME.BIN common textures and palettes. */
+    SOTN_RESOURCE_ALUCARD_GRAPHICS, /**< US BIN/ARC_F.BIN player sprite sheets. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

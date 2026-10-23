@@ -15,6 +15,9 @@ graphics-decoding algorithms. Read [docs/game-core.md](docs/game-core.md) for
 their provenance and scope; player and stage gameplay are not integrated yet.
 The core stage parser and on-demand data resources are documented in
 [docs/stage-data.md](docs/stage-data.md); runtime tables must stay in private files.
+Runtime tile/sprite presentation and the animation cursor are described in
+[docs/laboratory-presentation.md](docs/laboratory-presentation.md). Its tile
+preview is a graphics diagnostic, not a gameplay playtest.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
 The selected route is a **decompilation-based native port**; read the current
 [feasibility report](docs/native-port-plan.md) and pinned

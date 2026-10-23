@@ -13,8 +13,13 @@
   sotn-decomp commit `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.
   `modules/core/collision.c` derives from `src/dra/collider.c`;
   `modules/core/decompress.c` derives from the graphics decoder in
-  `src/dra/4AEA4.c`. Each file identifies its provenance and modifications are
-  described in [docs/game-core.md](docs/game-core.md). Packages include the
+  `src/dra/4AEA4.c`. `modules/core/animation.c` adapts `src/dra/alu_anim.c`.
+  `modules/render/tilemap.c` adapts the tile renderer in `src/dra/4CE2C.c` and
+  tile upload layout in `src/pc/sim_pc.c`. `modules/render/alucard_sprite.c`
+  adapts the sprite-sheet path in `src/dra/4B758.c` and ARC pointer loading in
+  `src/pc/pl_arc.c`. Each file identifies its origin. Adaptations are described
+  in [game-core integration](docs/game-core.md) and
+  [runtime presentation](docs/laboratory-presentation.md). Packages include the
   [full license](licenses/AGPL-3.0-or-later.txt); binaries linking this code are
   subject to AGPL requirements, including corresponding source availability.
   Source: https://github.com/Xeeynamo/sotn-decomp/tree/7bc54d8157b6bed77e6bd15e5db9461a734fe1e5

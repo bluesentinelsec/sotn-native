@@ -3,7 +3,7 @@ CONFIG ?= Debug
 BUILD_DIR ?= build/debug
 CMAKE_FLAGS ?=
 JOBS ?= 4
-SOTN_FORMAT_SOURCES := src/main.c \
+SOTN_FORMAT_SOURCES := src/main.c src/lab_preview.c src/lab_preview.h \
   modules/data/game_data.c \
   modules/data/sha1.c \
   modules/data/resource.c \
@@ -17,17 +17,25 @@ SOTN_FORMAT_SOURCES := src/main.c \
   modules/render/layout.c \
   modules/render/layout.h \
   modules/render/save_icon.c \
+  modules/render/tilemap.c \
+  modules/render/alucard_sprite.c \
   modules/render/shaders.h \
   modules/render/include/sotn/presenter.h \
   modules/render/include/sotn/save_icon.h \
-  tests/render/test_images.c
+  modules/render/include/sotn/tilemap.h \
+  modules/render/include/sotn/alucard_sprite.h \
+  tests/render/test_images.c \
+  tests/render/test_tilemap.c
 SOTN_FORMAT_SOURCES += modules/core/collision.c \
+  modules/core/animation.c \
   modules/core/decompress.c \
   modules/core/stage.c \
   modules/core/include/sotn/collision.h \
+  modules/core/include/sotn/animation.h \
   modules/core/include/sotn/decompress.h \
   modules/core/include/sotn/stage.h \
   tests/core/test_core.c \
+  tests/core/test_animation.c \
   tests/core/test_stage.c
 
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
