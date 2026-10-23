@@ -13,6 +13,17 @@ spec.loader.exec_module(harness)
 
 
 class IOSReportTest(unittest.TestCase):
+    def test_runtime_matches_active_sdk_instead_of_newest_installed(self):
+        runtimes = [{"identifier": f"com.apple.CoreSimulator.SimRuntime.iOS-{version}",
+                     "isAvailable": True} for version in ("18-5", "18-6", "26-2")]
+        self.assertEqual(harness.select_runtime(runtimes, "18.5"), runtimes[0])
+        self.assertEqual(harness.select_runtime(runtimes, "26.2"), runtimes[2])
+        with self.assertRaisesRegex(SystemExit, "18.4 Simulator runtime"):
+            harness.select_runtime(runtimes, "18.4")
+        runtimes[0]["isAvailable"] = False
+        with self.assertRaisesRegex(SystemExit, "18.5 Simulator runtime"):
+            harness.select_runtime(runtimes, "18.5")
+
     def test_frames_without_cleanup_do_not_pass(self):
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / "result.txt"
