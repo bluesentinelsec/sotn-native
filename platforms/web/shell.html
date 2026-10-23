@@ -23,13 +23,20 @@
     if (message.includes('SOTN_SMOKE_TEST: PASS')) {
       document.body.dataset.smokeResult = 'pass';
     }
+    if (message.includes('SOTN_GRAPHICS_TEST: PASS')) {
+      document.body.dataset.graphicsResult = 'pass';
+    }
   }
   var Module = {
     canvas: document.getElementById('canvas'),
-    arguments: new URLSearchParams(window.location.search).has('smoke-test') ? ['--smoke-test'] : [],
+    arguments: new URLSearchParams(window.location.search).has('graphics-test') ? ['--graphics-test'] :
+      new URLSearchParams(window.location.search).has('smoke-test') ? ['--smoke-test'] : [],
     print: report,
     printErr: report,
-    onAbort: function () { document.body.dataset.smokeResult = 'fail'; }
+    onAbort: function () {
+      document.body.dataset.smokeResult = 'fail';
+      document.body.dataset.graphicsResult = 'fail';
+    }
   };
 </script>
 {{{ SCRIPT }}}

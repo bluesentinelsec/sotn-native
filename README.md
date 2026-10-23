@@ -36,6 +36,20 @@ gameplay. See [private data loading](docs/private-data.md) for the supported
 files, ownership contract, and current limits. Normal builds and tests need no
 game inputs.
 
+The OpenGL presentation slice can also display original save icons from those
+validated files. It is an asset preview, not gameplay:
+
+```sh
+build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
+  --game-data /path/to/private/extracted/us --preview-save-icons
+```
+
+Use Left/Right to select an icon, resize the window to check scaling, and Escape
+to quit. Each icon shows its three original frames stacked vertically. Run
+the executable with `--graphics-test` for real framebuffer checks without game
+data. See [OpenGL presentation](docs/opengl-presentation.md) for requirements
+and the separate upstream OpenGL gameplay comparison command.
+
 ## Desktop
 
 Requires CMake 3.24+, a C17 compiler, GNU Make, Python 3, and the platform SDK.
@@ -89,6 +103,10 @@ or an ignored `platforms/android/local.properties` file.
 CI builds and runs the actual app on Linux, macOS, Windows, a headless browser,
 an Android emulator, and an iOS Simulator. Desktop jobs cover Debug and Release.
 Linux also runs the app and SDL under AddressSanitizer and UndefinedBehaviorSanitizer.
+Desktop jobs run real OpenGL framebuffer checks; the browser also checks WebGL2.
+Windows CI uses a checksum-pinned software driver isolated under `build/`;
+it is never included in release packages. Mobile jobs compile the GLES path
+and retain their platform rendering smoke tests.
 Packages are uploaded as workflow artifacts. Tagged `vX.Y.Z` releases run the
 same checks, require the tag to match `VERSION`, and attach the resulting ZIPs
 and APKs to a GitHub Release. Device iOS signing remains a downstream task.

@@ -7,6 +7,9 @@ preserves the original experience and creates a foundation for later improvement
 The repository currently contains a C17 SDL3 bootstrap, not a working game port.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
+Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
+shaders; [docs/opengl-presentation.md](docs/opengl-presentation.md) describes
+the asset preview and graphics checks. It does not implement PS1 game logic.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
 The selected route is a **decompilation-based native port**; read the current
 [feasibility report](docs/native-port-plan.md) and pinned

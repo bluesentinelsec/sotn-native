@@ -19,6 +19,7 @@ include(cmake/Dependencies.cmake)
 include(cmake/ProjectOptions.cmake)
 include(cmake/ReferenceData.cmake)
 add_subdirectory(modules/data)
+add_subdirectory(modules/render)
 
 if(ANDROID)
   # SDL's Android HID backend needs the static C++ runtime; application sources remain C.
@@ -34,7 +35,7 @@ if(ANDROID)
 else()
   add_executable(sotn-native src/main.c)
 endif()
-target_link_libraries(sotn-native PRIVATE sotn-data)
+target_link_libraries(sotn-native PRIVATE sotn-render)
 sotn_configure_c_target(sotn-native)
 target_compile_definitions(sotn-native PRIVATE SOTN_VERSION="${PROJECT_VERSION}")
 
@@ -58,7 +59,7 @@ if(EMSCRIPTEN)
   set_target_properties(sotn-native PROPERTIES OUTPUT_NAME index SUFFIX .html)
   target_link_options(sotn-native PRIVATE
     "--shell-file=${CMAKE_CURRENT_SOURCE_DIR}/platforms/web/shell.html"
-    -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1
+    -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
   )
   set_property(TARGET sotn-native APPEND PROPERTY LINK_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/platforms/web/shell.html")
@@ -73,6 +74,7 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
     TIMEOUT 20)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_subdirectory(tests/data)
+  add_subdirectory(tests/render)
   add_test(NAME repository-policy-tests COMMAND ${Python3_EXECUTABLE}
     -m unittest discover -s "${CMAKE_CURRENT_SOURCE_DIR}/tests" -v)
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")

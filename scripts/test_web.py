@@ -19,16 +19,18 @@ server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
 thread = threading.Thread(target=server.serve_forever, daemon=True)
 thread.start()
 try:
-    with tempfile.TemporaryDirectory(prefix="sotn-browser-") as profile:
-        result = subprocess.run([
-            chrome, "--headless=new", "--no-sandbox", "--use-angle=swiftshader",
-            "--enable-unsafe-swiftshader", "--disable-dev-shm-usage", "--dump-dom",
-            "--virtual-time-budget=15000", "--timeout=20000", f"--user-data-dir={profile}",
-            f"http://127.0.0.1:{server.server_port}/index.html?smoke-test=1",
-        ], capture_output=True, text=True, timeout=90)
-        if result.returncode != 0 or 'data-smoke-result="pass"' not in result.stdout:
-            raise SystemExit("Browser rendering smoke test failed:\n" + result.stderr + result.stdout)
-        print("Browser rendering smoke test passed.")
+    for mode, marker in [("smoke-test", 'data-smoke-result="pass"'),
+                         ("graphics-test", 'data-graphics-result="pass"')]:
+        with tempfile.TemporaryDirectory(prefix="sotn-browser-") as profile:
+            result = subprocess.run([
+                chrome, "--headless=new", "--no-sandbox", "--use-angle=swiftshader",
+                "--enable-unsafe-swiftshader", "--disable-dev-shm-usage", "--dump-dom",
+                "--virtual-time-budget=15000", "--timeout=20000", f"--user-data-dir={profile}",
+                f"http://127.0.0.1:{server.server_port}/index.html?{mode}=1",
+            ], capture_output=True, text=True, timeout=90)
+            if result.returncode != 0 or marker not in result.stdout:
+                raise SystemExit(f"Browser {mode} failed:\n" + result.stderr + result.stdout)
+            print(f"Browser {mode} passed.")
 finally:
     server.shutdown()
     server.server_close()

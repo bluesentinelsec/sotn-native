@@ -52,7 +52,10 @@ jobs:
             libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev \
             libxtst-dev libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev \
             libgles2-mesa-dev libegl1-mesa-dev libdbus-1-dev libudev-dev \
-            libwayland-dev libdecor-0-dev libpipewire-0.3-dev
+            libwayland-dev libdecor-0-dev libpipewire-0.3-dev xvfb xauth libgl1-mesa-dri libglx-mesa0
+      - name: Windows software OpenGL for tests only
+        if: runner.os == 'Windows'
+        run: python3 scripts/setup_windows_mesa.py build/test-tools/mesa
       - name: Build and test Debug and Release
         run: |
           for config in Debug Release; do
@@ -60,6 +63,11 @@ jobs:
             cmake -S . -B "${directory}" -G Ninja -DCMAKE_BUILD_TYPE="${config}"
             cmake --build "${directory}" --parallel 4
             ctest --test-dir "${directory}" --output-on-failure
+            case "${RUNNER_OS}" in
+              macOS) python3 scripts/test_graphics.py "${directory}/bin/sotn-native.app/Contents/MacOS/sotn-native" ;;
+              Windows) python3 scripts/test_graphics.py "${directory}/bin/sotn-native.exe" --mesa-dir build/test-tools/mesa/x64 ;;
+              Linux) LIBGL_ALWAYS_SOFTWARE=true xvfb-run -a python3 scripts/test_graphics.py "${directory}/bin/sotn-native" ;;
+            esac
           done
       - name: Verify static SDL linkage
         run: |

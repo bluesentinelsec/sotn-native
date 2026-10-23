@@ -1,0 +1,6 @@
+add_executable(sotn-image-tests test_images.c)
+sotn_configure_c_target(sotn-image-tests)
+target_link_libraries(sotn-image-tests PRIVATE sotn-render)
+target_include_directories(sotn-image-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/render")
+add_test(NAME image-decoding COMMAND sotn-image-tests)
+set_tests_properties(image-decoding PROPERTIES TIMEOUT 20)

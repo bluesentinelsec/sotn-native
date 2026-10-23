@@ -127,6 +127,9 @@ an alternate entrypoint or renderer in this project's build.
    game-specific adaptations follow the proven desktop foundation.
 
 The private data-loading boundary is implemented for the five core reference
-files. The next implementation slice is reviewed C/OpenGL compatibility and
-game logic with runtime-loaded data. Do not bulk-vendor the upstream
+files. An original [OpenGL presentation slice](opengl-presentation.md) now
+displays private save icons and tests real framebuffer output. The separate
+upstream comparison build also runs the lab through its OpenGL backend on macOS.
+The next gameplay slice still requires reviewed C compatibility, game logic,
+and runtime-loaded data tables. Do not bulk-vendor the upstream
 repository or mark a full game port complete after a demo or isolated room.
