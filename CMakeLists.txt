@@ -36,7 +36,7 @@ if(ANDROID)
 else()
   add_executable(sotn-native src/main.c)
 endif()
-target_link_libraries(sotn-native PRIVATE sotn-render)
+target_link_libraries(sotn-native PRIVATE sotn-render sotn-core)
 sotn_configure_c_target(sotn-native)
 target_compile_definitions(sotn-native PRIVATE SOTN_VERSION="${PROJECT_VERSION}")
 

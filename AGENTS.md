@@ -13,6 +13,8 @@ the asset preview and graphics checks. It does not implement PS1 game logic.
 The `modules/core/` library now contains adapted reconstructed collision and
 graphics-decoding algorithms. Read [docs/game-core.md](docs/game-core.md) for
 their provenance and scope; player and stage gameplay are not integrated yet.
+The core stage parser and on-demand data resources are documented in
+[docs/stage-data.md](docs/stage-data.md); runtime tables must stay in private files.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
 The selected route is a **decompilation-based native port**; read the current
 [feasibility report](docs/native-port-plan.md) and pinned

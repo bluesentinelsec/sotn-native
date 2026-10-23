@@ -21,6 +21,9 @@ cases = [
     (["--game-data", ".", "--game-data", "."], "may appear only once"),
     (["--preview-save-icons"], "requires --game-data"),
     (["--graphics-test", "--game-data", "."], "runs separately"),
+    (["--inspect-laboratory"], "requires --game-data"),
+    (["--inspect-laboratory", "--game-data", ".", "--validate-only"], "inspection mode"),
+    (["--inspect-laboratory", "--game-data", ".", "--preview-save-icons"], "inspection mode"),
 ]
 with tempfile.TemporaryDirectory() as directory:
     cases += [

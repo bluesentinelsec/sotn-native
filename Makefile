@@ -6,8 +6,10 @@ JOBS ?= 4
 SOTN_FORMAT_SOURCES := src/main.c \
   modules/data/game_data.c \
   modules/data/sha1.c \
+  modules/data/resource.c \
   modules/data/data_internal.h \
   modules/data/include/sotn/game_data.h \
+  modules/data/include/sotn/resource.h \
   tests/data/test_data.c \
   modules/render/presenter.c \
   modules/render/gl_api.c \
@@ -21,9 +23,12 @@ SOTN_FORMAT_SOURCES := src/main.c \
   tests/render/test_images.c
 SOTN_FORMAT_SOURCES += modules/core/collision.c \
   modules/core/decompress.c \
+  modules/core/stage.c \
   modules/core/include/sotn/collision.h \
   modules/core/include/sotn/decompress.h \
-  tests/core/test_core.c
+  modules/core/include/sotn/stage.h \
+  tests/core/test_core.c \
+  tests/core/test_stage.c
 
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:

@@ -4,7 +4,9 @@
 
 #include <sotn/game_data.h>
 #include <sotn/presenter.h>
+#include <sotn/resource.h>
 #include <sotn/save_icon.h>
+#include <sotn/stage.h>
 #include <stdbool.h>
 
 /** @brief Application-owned SDL resources, released by SDL_AppQuit. */
@@ -36,6 +38,39 @@ static bool UpdatePreview(App *app)
                                   SOTN_SAVE_ICON_WIDTH, SOTN_SAVE_ICON_HEIGHT);
 }
 
+static bool InspectLaboratory(const SotnGameData *data, const char *directory)
+{
+    SotnDataView image = {0};
+    SotnStage *stage = NULL;
+    if (!SotnGameData_GetFile(data, SOTN_GAME_NZ0, &image) || !SotnStage_Open(image, &stage))
+        return false;
+    SotnResource *tiles = NULL;
+    if (!SotnResource_Open(directory, SOTN_RESOURCE_LAB_GRAPHICS, &tiles))
+    {
+        SotnStage_Close(stage);
+        return false;
+    }
+    Uint32 transitions = 0;
+    const Uint32 count = SotnStage_RoomCount(stage);
+    for (Uint32 i = 0; i < count; ++i)
+    {
+        SotnStageRoom room = {0};
+        if (!SotnStage_GetRoom(stage, i, &room))
+        {
+            SotnResource_Close(tiles);
+            SotnStage_Close(stage);
+            return false;
+        }
+        if (room.transition)
+            ++transitions;
+    }
+    SDL_Log("SOTN_LABORATORY_DATA: PASS (%u rooms, %u cross-stage transitions)",
+            (unsigned int)count, (unsigned int)transitions);
+    SotnStage_Close(stage);
+    SotnResource_Close(tiles);
+    return true;
+}
+
 /**
  * @brief Initialize the application and its display.
  * @param appstate Receives owned state retained until SDL_AppQuit, including on failure.
@@ -57,6 +92,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool validate_only = false;
     bool graphics_test = false;
     bool preview_icons = false;
+    bool inspect_lab = false;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -85,9 +121,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             preview_icons = true;
         }
+        else if (SDL_strcmp(argv[i], "--inspect-laboratory") == 0)
+        {
+            inspect_lab = true;
+        }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
-            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons] "
+            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
+                    "| --inspect-laboratory] "
                     "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
@@ -103,9 +144,12 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return Fail("Invalid arguments");
     }
     if ((preview_icons && (game_directory == NULL || validate_only)) ||
-        (graphics_test && (game_directory != NULL || preview_icons || validate_only)))
+        (graphics_test &&
+         (game_directory != NULL || preview_icons || validate_only || inspect_lab)) ||
+        (inspect_lab && (game_directory == NULL || preview_icons || validate_only)))
     {
         SDL_SetError("--preview-save-icons requires --game-data and display mode; "
+                     "--inspect-laboratory requires --game-data and a separate inspection mode; "
                      "--graphics-test runs separately without game inputs");
         return Fail("Invalid arguments");
     }
@@ -117,11 +161,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
         SDL_Log("SOTN_GAME_DATA: PASS (%s, %d core files)", SotnGameData_ReferenceId(),
                 (int)SOTN_GAME_FILE_COUNT);
-        SDL_Log("Core data loaded; game logic is not integrated yet.");
+        SDL_Log("Core data loaded; player and stage gameplay are not integrated yet.");
         if (validate_only)
         {
             return SDL_APP_SUCCESS;
         }
+        if (inspect_lab)
+            return InspectLaboratory(app->game_data, game_directory)
+                       ? SDL_APP_SUCCESS
+                       : Fail("Cannot decode Laboratory data");
     }
     SDL_SetAppMetadata("SOTN Native", SOTN_VERSION, "org.bluesentinelsec.sotn-native");
     SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, "60");

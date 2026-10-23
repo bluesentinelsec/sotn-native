@@ -37,12 +37,12 @@ bool SotnData_ReadVerified(SDL_IOStream *stream, Uint8 *buffer, const SotnDataSp
     SotnData_Sha1(buffer, spec->size, digest);
     if (SDL_strcmp(digest, spec->sha1) != 0)
     {
-        return SDL_SetError("reference checksum mismatch; supply the unmodified US core file");
+        return SDL_SetError("reference checksum mismatch; supply the unmodified US reference file");
     }
     return true;
 }
 
-static bool LoadFile(const char *directory, const SotnDataSpec *spec, Uint8 *buffer)
+bool SotnData_LoadFile(const char *directory, const SotnDataSpec *spec, Uint8 *buffer)
 {
     char *path = NULL;
     if (SDL_asprintf(&path, "%s/%s", directory, spec->path) < 0)
@@ -118,7 +118,7 @@ bool SotnData_OpenReference(const char *directory, const SotnDataSpec specs[SOTN
     size_t offset = 0;
     for (size_t i = 0; i < SOTN_GAME_FILE_COUNT; ++i)
     {
-        if (!LoadFile(directory, &specs[i], data->arena + offset))
+        if (!SotnData_LoadFile(directory, &specs[i], data->arena + offset))
         {
             SotnGameData_Close(data);
             return false;
@@ -163,4 +163,14 @@ void SotnGameData_Close(SotnGameData *data)
 const char *SotnGameData_ReferenceId(void)
 {
     return SOTN_REFERENCE_ID;
+}
+
+const SotnDataSpec *SotnData_ResourceSpec(SotnResourceId id)
+{
+    if ((unsigned int)id >= (unsigned int)SOTN_RESOURCE_COUNT)
+    {
+        SDL_SetError("Unsupported game resource ID");
+        return NULL;
+    }
+    return &reference_resources[id];
 }
