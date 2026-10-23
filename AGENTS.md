@@ -6,6 +6,9 @@ Build a native, personal and educational *Symphony of the Night* port that
 preserves the original experience and creates a foundation for later improvements.
 The repository currently contains a C17 SDL3 bootstrap, not a working game port.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
+The selected route is a **decompilation-based native port**; read the current
+[feasibility report](docs/native-port-plan.md) and pinned
+[reference manifest](config/reference-us.json) before importing code or data.
 
 - **Phase 1: authenticity first.** Preserve gameplay, timing, controls, audiovisual
   behavior, progression, and save behavior. Prove the desktop experience first.
