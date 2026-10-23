@@ -19,8 +19,8 @@ runtime = next((r for r in reversed(runtimes) if r.get("isAvailable") and
                 r["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-")), None)
 if runtime is None:
     raise SystemExit("Install an iOS Simulator runtime in Xcode first")
-types = json.loads(simctl("list", "devicetypes", "-j"))["devicetypes"]
-device = next(d for d in reversed(types) if d["name"].startswith("iPhone"))
+types = runtime.get("supportedDeviceTypes") or json.loads(simctl("list", "devicetypes", "-j"))["devicetypes"]
+device = next(d for d in types if d["name"].startswith("iPhone"))
 udid = simctl("create", "SOTN Native smoke test", device["identifier"], runtime["identifier"]).strip()
 try:
     simctl("boot", udid)

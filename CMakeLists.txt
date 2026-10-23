@@ -32,7 +32,7 @@ endif()
 
 if(APPLE)
   if(CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    set(SOTN_IOS_PLIST "<key>LSRequiresIPhoneOS</key><true/><key>UILaunchScreen</key><dict/>")
+    set(SOTN_IOS_PLIST "<key>LSRequiresIPhoneOS</key><true/><key>UILaunchScreen</key><dict/><key>UIApplicationSupportsIndirectInputEvents</key><true/>")
   endif()
   set_target_properties(sotn-native PROPERTIES
     MACOSX_BUNDLE TRUE

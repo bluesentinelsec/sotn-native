@@ -23,7 +23,7 @@ try:
         result = subprocess.run([
             chrome, "--headless=new", "--no-sandbox", "--use-angle=swiftshader",
             "--enable-unsafe-swiftshader", "--disable-dev-shm-usage", "--dump-dom",
-            "--virtual-time-budget=15000", f"--user-data-dir={profile}",
+            "--virtual-time-budget=15000", "--timeout=20000", f"--user-data-dir={profile}",
             f"http://127.0.0.1:{server.server_port}/index.html?smoke-test=1",
         ], capture_output=True, text=True, timeout=90)
         if result.returncode != 0 or 'data-smoke-result="pass"' not in result.stdout:
