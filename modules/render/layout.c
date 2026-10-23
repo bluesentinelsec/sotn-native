@@ -15,9 +15,13 @@ bool SotnRender_FitImage(int window_width, int window_height, int width, int hei
     }
     else
     {
-        out->w = window_width;
-        out->h = (int)((Sint64)window_width * height / width);
-        if (out->h > window_height)
+        /* Compare before narrowing: the unconstrained dimension may exceed int. */
+        if ((Sint64)window_width * height <= (Sint64)window_height * width)
+        {
+            out->w = window_width;
+            out->h = (int)((Sint64)window_width * height / width);
+        }
+        else
         {
             out->h = window_height;
             out->w = (int)((Sint64)window_height * width / height);

@@ -68,6 +68,8 @@ static bool TestLayout(void)
         {1, 1, 16, 48, {0, 0, 1, 1}},
         {1, 1, 48, 16, {0, 0, 1, 1}},
         {SDL_MAX_SINT32, 2, SDL_MAX_SINT32, SDL_MAX_SINT32, {1073741822, 0, 2, 2}},
+        {SDL_MAX_SINT32, 1, 1, 65536, {1073741823, 0, 1, 1}},
+        {1, SDL_MAX_SINT32, 65536, 1, {0, 1073741823, 1, 1}},
     };
     SDL_Rect rect = {0};
     for (size_t i = 0; i < SDL_arraysize(cases); ++i)
