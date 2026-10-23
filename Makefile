@@ -25,18 +25,25 @@ SOTN_FORMAT_SOURCES := src/main.c src/lab_preview.c src/lab_preview.h \
   modules/render/include/sotn/tilemap.h \
   modules/render/include/sotn/alucard_sprite.h \
   tests/render/test_images.c \
-  tests/render/test_tilemap.c
+  tests/render/test_tilemap.c tests/game/test_input.c
 SOTN_FORMAT_SOURCES += modules/core/collision.c \
   modules/core/animation.c \
   modules/core/decompress.c \
   modules/core/stage.c \
+  modules/core/player.c \
+  modules/core/player_sensors.c \
+  modules/core/player_internal.h \
   modules/core/include/sotn/collision.h \
   modules/core/include/sotn/animation.h \
   modules/core/include/sotn/decompress.h \
   modules/core/include/sotn/stage.h \
+  modules/core/include/sotn/player.h \
   tests/core/test_core.c \
   tests/core/test_animation.c \
+  tests/core/test_player.c \
   tests/core/test_stage.c
+SOTN_FORMAT_SOURCES += modules/game/laboratory.c modules/game/input.c modules/game/input.h \
+  modules/game/include/sotn/laboratory.h
 
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:

@@ -4,7 +4,9 @@
 
 Build a native, personal and educational *Symphony of the Night* port that
 preserves the original experience and creates a foundation for later improvements.
-The repository currently contains a C17 SDL3 bootstrap, not a working game port.
+The C17 SDL3 app includes a limited Laboratory movement checkpoint, not a
+complete working game port. `--laboratory` launches our executable with runtime
+data; combat, enemies, sound, saves, scripts, and full progression are absent.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -12,7 +14,8 @@ shaders; [docs/opengl-presentation.md](docs/opengl-presentation.md) describes
 the asset preview and graphics checks. It does not implement PS1 game logic.
 The `modules/core/` library now contains adapted reconstructed collision and
 graphics-decoding algorithms. Read [docs/game-core.md](docs/game-core.md) for
-their provenance and scope; player and stage gameplay are not integrated yet.
+their provenance and scope. Normal Alucard movement and collision sensors are
+integrated; [movement integration](docs/laboratory-movement.md) describes their limits.
 The core stage parser and on-demand data resources are documented in
 [docs/stage-data.md](docs/stage-data.md); runtime tables must stay in private files.
 Runtime tile/sprite presentation and the animation cursor are described in

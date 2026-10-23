@@ -14,6 +14,11 @@
   `modules/core/collision.c` derives from `src/dra/collider.c`;
   `modules/core/decompress.c` derives from the graphics decoder in
   `src/dra/4AEA4.c`. `modules/core/animation.c` adapts `src/dra/alu_anim.c`.
+  `modules/core/player.c` adapts normal-form movement paths from
+  `src/dra/6DF70.c`, `6E42C.c`, `6FDF8.c`, `71830.c`, and `692E8.c`;
+  `modules/core/player_sensors.c` adapts `6BF64.c`, `70394.c`, and the
+  normal-form collision path in `692E8.c`. See
+  [movement integration](docs/laboratory-movement.md) for scope and validation.
   `modules/render/tilemap.c` adapts the tile renderer in `src/dra/4CE2C.c` and
   tile upload layout in `src/pc/sim_pc.c`. `modules/render/alucard_sprite.c`
   adapts the sprite-sheet path in `src/dra/4B758.c` and ARC pointer loading in

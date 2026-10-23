@@ -7,11 +7,17 @@ services it needs. Preserve the US PS1 experience before adding enhancements.
 Keep original simulation timing, integer/fixed-point behavior, audiovisual
 presentation, game rules, and ordinary saves as the reference.
 
-The repository's app remains the C17 bootstrap, now with an original
-[private core-data loader](private-data.md). No game code or assets have been
-imported. An isolated upstream build under ignored `.tools/`
-provides an executable baseline for evaluating the route; it is not our port
-and must not be packaged or published as a project release.
+This repository now builds its own C17/SDL3/OpenGL movement checkpoint in
+Alchemy Laboratory. It integrates reviewed reconstructed collision, animation,
+and normal Alucard movement paths, with original runtime data supplied privately
+by the user. Read [movement integration](laboratory-movement.md) for the supported
+subset and [presentation](laboratory-presentation.md) for graphics limitations.
+
+Combat, enemies/entities, sound, saves, original camera/timing, scripts, and
+full-game progression remain unimplemented. The first authentic playable
+project milestone is still incomplete. Build and playtest our executable;
+the earlier isolated comparison checkout is only source/reference material
+and is not a project deliverable.
 
 ## Pinned reference
 
@@ -59,54 +65,22 @@ Sources: [upstream PC-port guide](https://github.com/Xeeynamo/sotn-decomp/wiki/P
 [backend license inventory](https://github.com/Xeeynamo/psyz/blob/b52003e55c0d1b20719e984dd19bd4d760eeb14a/LICENSE),
 [backend decomp license](https://github.com/Xeeynamo/psyz/blob/b52003e55c0d1b20719e984dd19bd4d760eeb14a/decomp/LICENSE).
 
-## Reproduce the private upstream experiment
+## Earlier feasibility experiment
 
-This is a developer experiment on macOS, separate from normal `make`, CI,
-packaging, and releases. It requires Xcode command-line tools, Git, CMake,
-Ninja, Go 1.24 or newer, and Rust/Cargo. The tested Rust compiler was 1.99.1.
-Go and Rust build host tools; the native game source is C.
+The initial private experiment compiled the pinned comparison source and ran
+its scripted prologue, exposing missing services and portability issues. That
+proved the selected reconstruction route could run native C; it did not
+integrate a game into this project or establish parity. Earlier comparison
+playtests must not be counted as validation of our executable.
 
-The pinned source built successfully on macOS arm64 with AppleClang 21.0.0,
-and scripted prologue playback (`--demo 0`) exited successfully using the
-local reference dump and dummy audio. Runtime logs include unimplemented
-service messages and a tileset-size warning, so successful playback is not
-an assertion of visual, audio, or gameplay fidelity. Audio output was not
-listened to during this automated check.
-
-```sh
-git clone https://github.com/Xeeynamo/sotn-decomp.git .tools/sotn-decomp
-git -C .tools/sotn-decomp checkout --detach 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5
-git -C .tools/sotn-decomp submodule update --init tools/psyz
-git -C .tools/sotn-decomp/tools/psyz submodule update --init --depth 1 external/SDL
-```
-
-Place or link the user's own BIN tracks and CUE in the ignored upstream
-`disks/` directory. Name the CUE `sotn.us.cue`; keep its referenced track names
-valid relative to that directory. Do not download game inputs or obtain
-upstream's private CI dependency archive.
-
-From the upstream checkout:
-
-```sh
-make extract_disk
-make extract_assets build_assets
-python3 ../../scripts/verify_reference.py disks/us
-cmake -S . -B build/pc -G Ninja -DENABLE_ASAN=OFF
-cmake --build build/pc --parallel 6
-SDL_AUDIODRIVER=dummy ./build/pc/sotn --disk disks/sotn.us.cue \
-  --demo 0 --replay-fast --replay-and-exit
-```
-
-`ENABLE_ASAN=OFF` reproduces upstream's desktop CI configuration for the
-baseline only. It does not relax this project's sanitizer requirements or
-establish that upstream is memory-safe. Keep generated includes, binaries,
-screenshots, saves, and logs inside ignored directories. The experiment uses
-upstream's SDL GPU renderer on macOS and its own entrypoint; neither becomes
-an alternate entrypoint or renderer in this project's build.
+Keep the comparison checkout, generated files, and private inputs ignored.
+Use the project's normal CMake/Make build and the LLDB playtest command in the
+README for subsequent integration work. Do not package or publish a separate
+reference executable as this project.
 
 ## Milestones and acceptance
 
-1. **Feasibility baseline (this pass).** Pin upstream and reference inputs,
+1. **Feasibility baseline (completed).** Pin upstream and reference inputs,
    compile privately, exercise the scripted prologue, and record real gaps.
    A successful scripted run proves that path runs; it does not prove parity.
 2. **First playable project build.** Keep `src/main.c` as the entrypoint. Import
@@ -126,10 +100,14 @@ an alternate entrypoint or renderer in this project's build.
    Keep enhancements out of this milestone. Web/mobile builds stay green;
    game-specific adaptations follow the proven desktop foundation.
 
-The private data-loading boundary is implemented for the five core reference
-files. An original [OpenGL presentation slice](opengl-presentation.md) now
-displays private save icons and tests real framebuffer output. The separate
-upstream comparison build also runs the lab through its OpenGL backend on macOS.
-The next gameplay slice still requires reviewed C compatibility, game logic,
-and runtime-loaded data tables. Do not bulk-vendor the upstream
-repository or mark a full game port complete after a demo or isolated room.
+The private data boundary, native collision/decompression, stage tables,
+tile/sprite presentation, animation cursor, and normal movement checkpoint are
+implemented in this repository. These changes form a dependency stack: core,
+data, presentation, then movement. Leave PRs unmerged until the user playtests
+our executable and approves; merge dependencies first afterward.
+
+Next, integrate original Laboratory entities/combat and audio, replacing
+remaining development camera/timing and stage-entry behavior with reviewed
+original paths. Use synthetic public regression tests and private input
+comparisons. Do not bulk-vendor the reference repository or mark a full game
+port complete after a demo or isolated room.
