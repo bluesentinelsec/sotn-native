@@ -2,7 +2,6 @@
 
 import argparse
 import subprocess
-import sys
 import time
 
 def wait_for_aosp_theme():
