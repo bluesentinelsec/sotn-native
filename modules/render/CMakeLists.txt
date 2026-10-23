@@ -2,6 +2,8 @@ add_library(sotn-render STATIC
   presenter.c
   gl_api.c
   gl_api.h
+  layout.c
+  layout.h
   save_icon.c
   shaders.h
   include/sotn/presenter.h

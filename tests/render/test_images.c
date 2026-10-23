@@ -1,4 +1,6 @@
+#include "layout.h"
 #include <SDL3/SDL.h>
+#include <sotn/presenter.h>
 #include <sotn/save_icon.h>
 
 #define CHECK(condition)                                                                           \
@@ -53,9 +55,52 @@ static bool TestDecoding(void)
     return true;
 }
 
+static bool TestLayout(void)
+{
+    static const struct
+    {
+        int window_w, window_h, image_w, image_h;
+        SDL_Rect expected;
+    } cases[] = {
+        {96, 64, 2, 2, {16, 0, 64, 64}},
+        {1000, 600, 320, 240, {180, 60, 640, 480}},
+        {100, 80, 320, 240, {0, 2, 100, 75}},
+        {1, 1, 16, 48, {0, 0, 1, 1}},
+        {1, 1, 48, 16, {0, 0, 1, 1}},
+        {SDL_MAX_SINT32, 2, SDL_MAX_SINT32, SDL_MAX_SINT32, {1073741822, 0, 2, 2}},
+    };
+    SDL_Rect rect = {0};
+    for (size_t i = 0; i < SDL_arraysize(cases); ++i)
+    {
+        CHECK(SotnRender_FitImage(cases[i].window_w, cases[i].window_h, cases[i].image_w,
+                                  cases[i].image_h, &rect));
+        CHECK(rect.x == cases[i].expected.x && rect.y == cases[i].expected.y &&
+              rect.w == cases[i].expected.w && rect.h == cases[i].expected.h);
+    }
+    CHECK(!SotnRender_FitImage(0, 1, 1, 1, &rect));
+    CHECK(!SotnRender_FitImage(1, -1, 1, 1, &rect));
+    CHECK(!SotnRender_FitImage(1, 1, 0, 1, &rect));
+    CHECK(!SotnRender_FitImage(1, 1, 1, 1, NULL));
+    return true;
+}
+
+static bool TestInvalidPresenterArguments(void)
+{
+    SotnPresenter *presenter = NULL;
+    Uint8 pixel[4] = {0};
+    CHECK(!SotnPresenter_Create(NULL, 1, 1, &presenter));
+    CHECK(presenter == NULL);
+    CHECK(!SotnPresenter_Create("invalid", 0, 1, &presenter));
+    CHECK(!SotnPresenter_Create("invalid", 1, 1, NULL));
+    CHECK(!SotnPresenter_SetImage(NULL, pixel, sizeof(pixel), 1, 1));
+    CHECK(!SotnPresenter_Draw(NULL));
+    SotnPresenter_Destroy(NULL);
+    return true;
+}
+
 int main(void)
 {
-    if (!TestDecoding())
+    if (!TestDecoding() || !TestLayout() || !TestInvalidPresenterArguments())
         return 1;
     SDL_Log("SOTN_IMAGE_TEST: PASS");
     return 0;

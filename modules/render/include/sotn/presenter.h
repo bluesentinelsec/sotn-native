@@ -26,6 +26,7 @@ bool SotnPresenter_Create(const char *title, int width, int height, SotnPresente
  * @param width Positive image width, within the driver's limit.
  * @param height Positive image height, within the driver's limit.
  * @return True on success or false with an SDL error. Images are bounded to 64 MiB.
+ * Invalid input or a failed upload leaves the previous image selected.
  */
 bool SotnPresenter_SetImage(SotnPresenter *presenter, const Uint8 *pixels, size_t size, int width,
                             int height);

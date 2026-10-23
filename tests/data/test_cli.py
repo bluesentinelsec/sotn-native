@@ -19,6 +19,8 @@ cases = [
     (["--validate-only"], "requires --game-data"),
     (["--unknown"], "Unknown argument"),
     (["--game-data", ".", "--game-data", "."], "may appear only once"),
+    (["--preview-save-icons"], "requires --game-data"),
+    (["--graphics-test", "--game-data", "."], "runs separately"),
 ]
 with tempfile.TemporaryDirectory() as directory:
     cases += [

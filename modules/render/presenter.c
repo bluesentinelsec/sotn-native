@@ -1,4 +1,5 @@
 #include "gl_api.h"
+#include "layout.h"
 #include "shaders.h"
 #include <sotn/presenter.h>
 
@@ -15,40 +16,19 @@ struct SotnPresenter
     int height;
 };
 
-typedef struct Viewport
-{
-    int x, y, width, height;
-} Viewport;
-
-static Viewport FitImage(int window_width, int window_height, int width, int height)
-{
-    Viewport box = {0};
-    const int scale = SDL_min(window_width / width, window_height / height);
-    if (scale > 0)
-    {
-        box.width = width * scale;
-        box.height = height * scale;
-    }
-    else
-    {
-        box.width = window_width;
-        box.height = (int)((Sint64)window_width * height / width);
-        if (box.height > window_height)
-        {
-            box.height = window_height;
-            box.width = (int)((Sint64)window_height * width / height);
-        }
-    }
-    box.x = (window_width - box.width) / 2;
-    box.y = (window_height - box.height) / 2;
-    return box;
-}
-
 static bool CheckGl(SotnPresenter *presenter, const char *operation)
 {
     const GLenum error = presenter->gl.GetError();
     return error == GL_NO_ERROR ||
            SDL_SetError("%s: OpenGL error 0x%x", operation, (unsigned int)error);
+}
+
+static bool DestroyAfterError(SotnPresenter *presenter)
+{
+    char detail[1024] = {0};
+    SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+    SotnPresenter_Destroy(presenter);
+    return SDL_SetError("%s", detail);
 }
 
 static GLuint CompileShader(SotnPresenter *presenter, GLenum kind, const char *source)
@@ -132,12 +112,6 @@ static bool CreateResources(SotnPresenter *presenter)
     gl->EnableVertexAttribArray(1);
     gl->VertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(GLfloat),
                             (const void *)(uintptr_t)(2 * sizeof(GLfloat)));
-    gl->GenTextures(1, &presenter->texture);
-    gl->BindTexture(GL_TEXTURE_2D, presenter->texture);
-    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     gl->Enable(GL_BLEND);
     gl->BlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     return CheckGl(presenter, "Cannot create presentation resources");
@@ -165,7 +139,9 @@ bool SotnPresenter_Create(const char *title, int width, int height, SotnPresente
     if (!SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, profile) ||
         !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) ||
         !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, minor) ||
-        !SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) || !SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8))
+        !SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8) || !SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8) ||
+        !SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8) || !SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) ||
+        !SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8))
     {
         return false;
     }
@@ -183,8 +159,7 @@ bool SotnPresenter_Create(const char *title, int width, int height, SotnPresente
     }
     if (presenter->context == NULL || !SotnGlApi_Load(&presenter->gl))
     {
-        SotnPresenter_Destroy(presenter);
-        return false;
+        return DestroyAfterError(presenter);
     }
     GLint major = 0, actual_minor = 0;
     presenter->gl.GetIntegerv(GL_MAJOR_VERSION, &major);
@@ -198,8 +173,7 @@ bool SotnPresenter_Create(const char *title, int width, int height, SotnPresente
             (const char *)presenter->gl.GetString(GL_RENDERER));
     if (!CreateResources(presenter))
     {
-        SotnPresenter_Destroy(presenter);
-        return false;
+        return DestroyAfterError(presenter);
     }
     /* Driver swap pacing is optional; SDL's callback rate owns application frame pacing. */
     SDL_GL_SetSwapInterval(0);
@@ -227,14 +201,23 @@ bool SotnPresenter_SetImage(SotnPresenter *presenter, const Uint8 *pixels, size_
     {
         return SDL_SetError("Presentation image exceeds the driver's texture limit");
     }
+    GLuint texture = 0;
+    gl->GenTextures(1, &texture);
     gl->ActiveTexture(GL_TEXTURE0);
-    gl->BindTexture(GL_TEXTURE_2D, presenter->texture);
+    gl->BindTexture(GL_TEXTURE_2D, texture);
+    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    gl->TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     gl->PixelStorei(GL_UNPACK_ALIGNMENT, 1);
     gl->TexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
     if (!CheckGl(presenter, "Cannot upload presentation image"))
     {
+        gl->DeleteTextures(1, &texture);
         return false;
     }
+    gl->DeleteTextures(1, &presenter->texture);
+    presenter->texture = texture;
     presenter->width = width;
     presenter->height = height;
     return true;
@@ -246,6 +229,8 @@ static bool DrawFrame(SotnPresenter *presenter, bool swap)
     {
         return SDL_SetError("No presentation image has been uploaded");
     }
+    if (SDL_GetWindowFlags(presenter->window) & SDL_WINDOW_MINIMIZED)
+        return true;
     if (!SDL_GL_MakeCurrent(presenter->window, presenter->context))
     {
         return false;
@@ -259,11 +244,13 @@ static bool DrawFrame(SotnPresenter *presenter, bool swap)
     {
         return true;
     }
-    const Viewport box = FitImage(width, height, presenter->width, presenter->height);
+    SDL_Rect box = {0};
+    if (!SotnRender_FitImage(width, height, presenter->width, presenter->height, &box))
+        return false;
     SotnGlApi *gl = &presenter->gl;
     gl->ClearColor(17.0f / 255.0f, 22.0f / 255.0f, 38.0f / 255.0f, 1.0f);
     gl->Clear(GL_COLOR_BUFFER_BIT);
-    gl->Viewport(box.x, box.y, box.width, box.height);
+    gl->Viewport(box.x, box.y, box.w, box.h);
     gl->UseProgram(presenter->program);
     gl->ActiveTexture(GL_TEXTURE0);
     gl->BindTexture(GL_TEXTURE_2D, presenter->texture);
@@ -287,15 +274,17 @@ void SotnPresenter_Destroy(SotnPresenter *presenter)
     {
         if (presenter->context != NULL)
         {
-            SDL_GL_MakeCurrent(presenter->window, presenter->context);
-            if (presenter->texture != 0)
-                presenter->gl.DeleteTextures(1, &presenter->texture);
-            if (presenter->vertices != 0)
-                presenter->gl.DeleteBuffers(1, &presenter->vertices);
-            if (presenter->vertex_array != 0)
-                presenter->gl.DeleteVertexArrays(1, &presenter->vertex_array);
-            if (presenter->program != 0)
-                presenter->gl.DeleteProgram(presenter->program);
+            if (SDL_GL_MakeCurrent(presenter->window, presenter->context))
+            {
+                if (presenter->texture != 0)
+                    presenter->gl.DeleteTextures(1, &presenter->texture);
+                if (presenter->vertices != 0)
+                    presenter->gl.DeleteBuffers(1, &presenter->vertices);
+                if (presenter->vertex_array != 0)
+                    presenter->gl.DeleteVertexArrays(1, &presenter->vertex_array);
+                if (presenter->program != 0)
+                    presenter->gl.DeleteProgram(presenter->program);
+            }
             SDL_GL_DestroyContext(presenter->context);
         }
         SDL_DestroyWindow(presenter->window);
@@ -329,20 +318,20 @@ bool SotnPresenter_SelfTest(void)
             return false;
         const bool rejected = !SotnPresenter_SetImage(presenter, pixels, 1, 2, 2);
         bool valid = rejected && SotnPresenter_SetImage(presenter, pixels, sizeof(pixels), 2, 2) &&
+                     !SotnPresenter_SetImage(presenter, pixels, 1, 2, 2) &&
                      DrawFrame(presenter, false);
         int width = 0, height = 0;
         if (valid)
             valid = SDL_GetWindowSizeInPixels(presenter->window, &width, &height);
         if (valid)
         {
-            const Viewport box = FitImage(width, height, 2, 2);
+            SDL_Rect box = {0};
+            valid = SotnRender_FitImage(width, height, 2, 2, &box);
             valid =
-                CheckPixel(presenter, box.x + box.width / 4, box.y + box.height * 3 / 4, pixels) &&
-                CheckPixel(presenter, box.x + box.width * 3 / 4, box.y + box.height * 3 / 4,
-                           pixels + 4) &&
-                CheckPixel(presenter, box.x + box.width / 4, box.y + box.height / 4, pixels + 8) &&
-                CheckPixel(presenter, box.x + box.width * 3 / 4, box.y + box.height / 4,
-                           background) &&
+                valid && CheckPixel(presenter, box.x + box.w / 4, box.y + box.h * 3 / 4, pixels) &&
+                CheckPixel(presenter, box.x + box.w * 3 / 4, box.y + box.h * 3 / 4, pixels + 4) &&
+                CheckPixel(presenter, box.x + box.w / 4, box.y + box.h / 4, pixels + 8) &&
+                CheckPixel(presenter, box.x + box.w * 3 / 4, box.y + box.h / 4, background) &&
                 CheckPixel(presenter, 0, 0, background);
         }
         char detail[1024] = {0};

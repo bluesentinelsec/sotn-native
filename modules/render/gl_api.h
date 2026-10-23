@@ -2,7 +2,17 @@
 #define SOTN_GL_API_H
 
 #include <SDL3/SDL.h>
+#if defined(SDL_PLATFORM_IOS)
+#include <OpenGLES/ES3/gl.h>
+#elif defined(SDL_PLATFORM_ANDROID) || defined(SDL_PLATFORM_EMSCRIPTEN)
+#include <GLES3/gl3.h>
+#else
 #include <SDL3/SDL_opengl.h>
+#endif
+
+#ifndef APIENTRY
+#define APIENTRY GL_APIENTRY
+#endif
 
 typedef const GLubyte *(APIENTRY *GlGetString)(GLenum name);
 typedef void(APIENTRY *GlGetIntegerv)(GLenum name, GLint *value);
