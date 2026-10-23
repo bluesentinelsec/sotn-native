@@ -81,7 +81,7 @@ static void CheckFloor(SotnPlayer *player)
             }
             argX = Wrap16(*xPosPtr + player->floor_sensors[i].x);
             argY = Wrap16(*yPosPtr + player->floor_sensors[i].y);
-            argY += (player->floor[i].top - 1);
+            argY = Wrap16((Sint64)argY + player->floor[i].top - 1);
             Query(player, argX, argY, &collider);
             if ((player->status & PLAYER_STATUS_MIST_FORM) &&
                 (collider.effects & SOTN_EFFECT_MIST_ONLY))
@@ -117,7 +117,8 @@ static void CheckFloor(SotnPlayer *player)
                     *vram_ptr |= ((var_s1 & (SOTN_EFFECT_SLOPE_LEFT | SOTN_EFFECT_SLOPE_QUARTER |
                                              SOTN_EFFECT_SLOPE_HALF)) +
                                   0x7FFF + 2);
-                    *yPosPtr += player->floor[i].tile_top + collider.top - 1 + sp5e;
+                    *yPosPtr = Wrap16((Sint64)*yPosPtr + player->floor[i].tile_top + collider.top -
+                                      1 + sp5e);
                     return;
                 }
                 if ((i == 2) && ((var_s1 & (SOTN_EFFECT_SLOPE_FLOOR | SOTN_EFFECT_SLOPE_LEFT |
@@ -152,7 +153,7 @@ static void CheckFloor(SotnPlayer *player)
         *vram_ptr |= 0x11;
         if ((player->frame_number & 3) == 0)
         {
-            (*yPosPtr)++;
+            *yPosPtr = Wrap16((Sint64)*yPosPtr + 1);
         }
         return;
     }
@@ -318,7 +319,8 @@ static void CheckCeiling(SotnPlayer *player)
                                   ((var_s1 >> 4) & (0x0400 | 0x0200 | 0x0100)));
                     if (!(*vram_ptr & 1))
                     {
-                        *yPosPtr += player->ceiling[i].tile_bottom + collider.bottom + 1;
+                        *yPosPtr = Wrap16((Sint64)*yPosPtr + player->ceiling[i].tile_bottom +
+                                          collider.bottom + 1);
                     }
                     return;
                 }
@@ -344,7 +346,8 @@ static void CheckCeiling(SotnPlayer *player)
                               ((var_s1 >> 4) & (0x0400 | 0x0200 | 0x0100)));
                 if (!(*vram_ptr & 1))
                 {
-                    *yPosPtr += player->ceiling[i].tile_bottom + collider.bottom + 1;
+                    *yPosPtr = Wrap16((Sint64)*yPosPtr + player->ceiling[i].tile_bottom +
+                                      collider.bottom + 1);
                 }
                 return;
             }
@@ -420,7 +423,8 @@ static void CheckCeiling(SotnPlayer *player)
                 {
                     if (!(*vram_ptr & 1))
                     {
-                        *yPosPtr += collider.bottom + player->ceiling[i].tile_top;
+                        *yPosPtr = Wrap16((Sint64)*yPosPtr + collider.bottom +
+                                          player->ceiling[i].tile_top);
                     }
                     *vram_ptr |= temp_fp;
                     return;
