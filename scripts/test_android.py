@@ -1,0 +1,23 @@
+"""Install the bootstrap APK and require its native rendering smoke test to pass."""
+
+import subprocess
+import sys
+import time
+
+subprocess.run(["adb", "install", "-r", sys.argv[1]], check=True)
+subprocess.run(["adb", "logcat", "-c"], check=True)
+subprocess.run([
+    "adb", "shell", "am", "start", "-W", "-n",
+    "org.bluesentinelsec.sotn/.MainActivity", "--es", "SDL_ENV.SOTN_SMOKE_TEST", "1",
+], check=True)
+deadline = time.monotonic() + 60
+while time.monotonic() < deadline:
+    output = subprocess.check_output(["adb", "logcat", "-d"], text=True)
+    if "SOTN_SMOKE_TEST: PASS" in output:
+        print("Android rendering smoke test passed.")
+        break
+    if "FATAL EXCEPTION" in output or "Fatal signal" in output:
+        raise SystemExit(output)
+    time.sleep(1)
+else:
+    raise SystemExit("Android smoke test timed out:\n" + output)

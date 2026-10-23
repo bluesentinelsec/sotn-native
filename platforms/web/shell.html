@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SOTN Native — development bootstrap</title>
+  <style>
+    body { margin: 0; background: #111626; color: #f0e2b6; font: 16px system-ui; }
+    main { max-width: 960px; margin: 4vh auto; padding: 20px; }
+    canvas { width: 100%; aspect-ratio: 16 / 9; display: block; }
+    p { color: #aeb6c9; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>SOTN Native</h1>
+  <canvas id="canvas" tabindex="0" aria-label="SDL3 development bootstrap"></canvas>
+  <p>SDL3 development bootstrap. No game data is included.</p>
+</main>
+<script>
+  var Module = {
+    canvas: document.getElementById('canvas'),
+    print: console.log,
+    printErr: console.error,
+    onAbort: function () { document.body.dataset.smokeResult = 'fail'; }
+  };
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

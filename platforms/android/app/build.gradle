@@ -1,0 +1,39 @@
+plugins { id "com.android.application" }
+
+def repositoryRoot = rootProject.projectDir.toPath().resolve("../..").toFile().canonicalFile
+def sdlJavaDir = file("${layout.buildDirectory.get()}/generated/sdl-java")
+
+android {
+    namespace "org.bluesentinelsec.sotn"
+    compileSdk 35
+    ndkVersion "28.2.13676358"
+    defaultConfig {
+        applicationId "org.bluesentinelsec.sotn"
+        minSdk 23
+        targetSdk 35
+        versionCode 1
+        versionName new File(repositoryRoot, "VERSION").text.trim()
+        ndk { abiFilters "arm64-v8a", "x86_64" }
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_STL=c++_static", "-DBUILD_TESTING=OFF",
+                          "-DSOTN_ANDROID_JAVA_DIR=${sdlJavaDir.absolutePath}"
+                targets "sotn-native"
+            }
+        }
+    }
+    buildTypes { release { minifyEnabled false } }
+    sourceSets { main { java.srcDirs += sdlJavaDir } }
+    externalNativeBuild {
+        cmake { path new File(repositoryRoot, "CMakeLists.txt"); version "3.24.0" }
+    }
+}
+
+// SDL's pinned Java glue must exist before Java compilation, including clean builds.
+tasks.configureEach { task ->
+    if (task.name.startsWith("configureCMake")) {
+        tasks.matching { it.name ==~ /compile.*JavaWithJavac/ }.configureEach {
+            dependsOn(task)
+        }
+    }
+}
