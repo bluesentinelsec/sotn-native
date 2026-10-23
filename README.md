@@ -15,6 +15,11 @@ explicit. Modern conveniences follow a proven authentic foundation. See
 [project goals](docs/project-goals.md) for release direction and
 [AGENTS.md](AGENTS.md) for engineering and collaboration standards.
 
+The selected approach is a **decompilation-based native port**. The initial
+[feasibility report and milestones](docs/native-port-plan.md) describe the
+pinned upstream experiment, private reference checks, and remaining integration
+work. That experiment is separate from this repository's Hello world app.
+
 ## Desktop
 
 Requires CMake 3.24+, a C17 compiler, GNU Make, Python 3, and the platform SDK.
