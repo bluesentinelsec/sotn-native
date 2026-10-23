@@ -17,7 +17,6 @@ run: build
 	cmake --build $(BUILD_DIR) --config $(CONFIG) --target run
 test: build
 	ctest --test-dir $(BUILD_DIR) -C $(CONFIG) --output-on-failure
-	python3 scripts/check_repository.py
 package:
 	$(MAKE) build CONFIG=Release BUILD_DIR=build/release
 	ctest --test-dir build/release -C Release --output-on-failure

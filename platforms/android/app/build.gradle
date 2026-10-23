@@ -25,12 +25,12 @@ android {
     buildTypes { release { minifyEnabled false } }
     sourceSets { main { java.srcDirs += sdlJavaDir } }
     externalNativeBuild {
-        cmake { path new File(repositoryRoot, "CMakeLists.txt"); version "3.24.0" }
+        cmake { path new File(repositoryRoot, "CMakeLists.txt"); version "3.31.6" }
     }
 }
 
 // SDL's pinned Java glue must exist before Java compilation, including clean builds.
-tasks.configureEach { task ->
+tasks.whenTaskAdded { task ->
     if (task.name.startsWith("configureCMake")) {
         tasks.matching { it.name ==~ /compile.*JavaWithJavac/ }.configureEach {
             dependsOn(task)

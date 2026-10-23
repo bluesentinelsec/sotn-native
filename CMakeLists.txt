@@ -62,6 +62,13 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
   set_tests_properties(hello-world PROPERTIES
     ENVIRONMENT "SDL_VIDEODRIVER=dummy;SDL_AUDIODRIVER=dummy"
     PASS_REGULAR_EXPRESSION "SOTN_SMOKE_TEST: PASS" TIMEOUT 20)
+  find_package(Python3 REQUIRED COMPONENTS Interpreter)
+  add_test(NAME repository-policy-tests COMMAND ${Python3_EXECUTABLE}
+    -m unittest discover -s "${CMAKE_CURRENT_SOURCE_DIR}/tests" -v)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
+    add_test(NAME repository-policy COMMAND ${Python3_EXECUTABLE}
+      "${CMAKE_CURRENT_SOURCE_DIR}/scripts/check_repository.py")
+  endif()
 endif()
 
 if(NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT EMSCRIPTEN)
