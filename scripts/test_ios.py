@@ -18,7 +18,17 @@ COMPLETE = "SOTN_SMOKE_TEST: PASS\nSOTN_SMOKE_TEST: CLEANUP_COMPLETE\n"
 
 def simctl(*args, **kwargs):
     kwargs.setdefault("timeout", 60)
-    return subprocess.check_output(["xcrun", "simctl", *args], text=True, **kwargs)
+    print(f"simctl {' '.join(args)}", flush=True)
+    try:
+        output = subprocess.check_output(["xcrun", "simctl", *args], text=True, **kwargs)
+    except subprocess.TimeoutExpired as error:
+        for partial in (error.stdout, error.stderr):
+            if partial:
+                print(partial.decode(errors="replace") if isinstance(partial, bytes) else partial,
+                      flush=True)
+        raise
+    print(output, end="", flush=True)
+    return output
 
 
 def wait_for_report(report, timeout=90):
@@ -48,15 +58,15 @@ def run_smoke(app):
     udid = simctl("create", "SOTN Native smoke test", device["identifier"], runtime["identifier"]).strip()
     try:
         simctl("boot", udid)
-        simctl("bootstatus", udid, "-b", timeout=240)
-        simctl("install", udid, str(app))
+        simctl("bootstatus", udid, "-bd", timeout=300)
+        simctl("install", udid, str(app), timeout=240)
         container = Path(simctl("get_app_container", udid, BUNDLE, "data").strip())
         report = container / "Library/Application Support/bluesentinelsec/sotn-native/smoke-result.txt"
         if report.exists():
             raise SystemExit("Fresh simulator unexpectedly contains a stale smoke report")
         env = os.environ.copy()
         env["SIMCTL_CHILD_SOTN_SMOKE_REPORT"] = "1"
-        print(simctl("launch", udid, BUNDLE, "--smoke-test", env=env), end="", flush=True)
+        simctl("launch", udid, BUNDLE, "--smoke-test", env=env, timeout=180)
         try:
             wait_for_report(report)
         except SystemExit:
@@ -65,8 +75,11 @@ def run_smoke(app):
                            check=False, timeout=30)
             raise
     finally:
-        subprocess.run(["xcrun", "simctl", "shutdown", udid], check=False, timeout=60)
-        subprocess.run(["xcrun", "simctl", "delete", udid], check=False, timeout=60)
+        for operation in ("shutdown", "delete"):
+            try:
+                subprocess.run(["xcrun", "simctl", operation, udid], check=False, timeout=60)
+            except subprocess.TimeoutExpired:
+                print(f"Warning: simulator {operation} timed out for {udid}", file=sys.stderr)
 
 
 if __name__ == "__main__":
