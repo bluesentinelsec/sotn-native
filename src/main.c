@@ -3,6 +3,8 @@
 #include <SDL3/SDL_main.h>
 
 #include <sotn/game_data.h>
+#include <sotn/presenter.h>
+#include <sotn/save_icon.h>
 #include <stdbool.h>
 
 /** @brief Application-owned SDL resources, released by SDL_AppQuit. */
@@ -11,6 +13,9 @@ typedef struct App
     SDL_Window *window;
     SDL_Renderer *renderer;
     SotnGameData *game_data;
+    SotnPresenter *presenter;
+    Uint8 preview_pixels[SOTN_SAVE_ICON_RGBA_SIZE];
+    Uint32 preview_index;
     bool smoke_test;
     Uint32 frames;
 } App;
@@ -19,6 +24,16 @@ static SDL_AppResult Fail(const char *operation)
 {
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s: %s", operation, SDL_GetError());
     return SDL_APP_FAILURE;
+}
+
+static bool UpdatePreview(App *app)
+{
+    SotnDataView dra = {0};
+    return SotnGameData_GetFile(app->game_data, SOTN_GAME_DRA, &dra) &&
+           SotnSaveIcon_Decode(dra, app->preview_index, app->preview_pixels,
+                               sizeof(app->preview_pixels)) &&
+           SotnPresenter_SetImage(app->presenter, app->preview_pixels, sizeof(app->preview_pixels),
+                                  SOTN_SAVE_ICON_WIDTH, SOTN_SAVE_ICON_HEIGHT);
 }
 
 /**
@@ -40,6 +55,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     app->smoke_test = SDL_getenv("SOTN_SMOKE_TEST") != NULL;
     const char *game_directory = NULL;
     bool validate_only = false;
+    bool graphics_test = false;
+    bool preview_icons = false;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -60,9 +77,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             validate_only = true;
         }
+        else if (SDL_strcmp(argv[i], "--graphics-test") == 0)
+        {
+            graphics_test = true;
+        }
+        else if (SDL_strcmp(argv[i], "--preview-save-icons") == 0)
+        {
+            preview_icons = true;
+        }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
-            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only] [--smoke-test]");
+            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons] "
+                    "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
         else
@@ -74,6 +100,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     if (validate_only && game_directory == NULL)
     {
         SDL_SetError("--validate-only requires --game-data DIR");
+        return Fail("Invalid arguments");
+    }
+    if ((preview_icons && (game_directory == NULL || validate_only)) ||
+        (graphics_test && (game_directory != NULL || preview_icons || validate_only)))
+    {
+        SDL_SetError("--preview-save-icons requires --game-data and display mode; "
+                     "--graphics-test runs separately without game inputs");
         return Fail("Invalid arguments");
     }
     if (game_directory != NULL)
@@ -96,6 +129,25 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     {
         return Fail("Cannot initialize SDL video");
     }
+    if (graphics_test)
+    {
+        if (!SotnPresenter_SelfTest())
+            return Fail("OpenGL presentation test failed");
+        SDL_Log("SOTN_GRAPHICS_TEST: PASS");
+        return SDL_APP_SUCCESS;
+    }
+    if (preview_icons)
+    {
+        if (!SotnPresenter_Create("SOTN save icons - Left/Right selects, Esc quits", 960, 540,
+                                  &app->presenter) ||
+            !UpdatePreview(app))
+        {
+            return Fail("Cannot create OpenGL asset preview");
+        }
+        if (app->smoke_test)
+            SDL_Log("SOTN_SMOKE_TEST: START");
+        return SDL_APP_CONTINUE;
+    }
     const SDL_WindowFlags flags = SDL_WINDOW_RESIZABLE;
     if (!SDL_CreateWindowAndRenderer("SOTN Native", 960, 540, flags, &app->window,
                                      &app->renderer) ||
@@ -114,17 +166,27 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
 
 /**
  * @brief Handle close and keyboard events.
- * @param appstate Borrowed application state; unused by this callback.
+ * @param appstate Borrowed application state.
  * @param event Borrowed event supplied by SDL.
  * @return SDL_APP_SUCCESS when quitting, otherwise SDL_APP_CONTINUE.
  */
 SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 {
-    (void)appstate;
+    App *app = appstate;
     if (event->type == SDL_EVENT_QUIT ||
         (event->type == SDL_EVENT_KEY_DOWN && event->key.key == SDLK_ESCAPE))
     {
         return SDL_APP_SUCCESS;
+    }
+    if (app->presenter != NULL && event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
+        (event->key.key == SDLK_LEFT || event->key.key == SDLK_RIGHT))
+    {
+        const Uint32 step = event->key.key == SDLK_RIGHT ? 1U : SOTN_SAVE_ICON_COUNT - 1U;
+        app->preview_index = (app->preview_index + step) % SOTN_SAVE_ICON_COUNT;
+        if (!UpdatePreview(app))
+            return Fail("Cannot update save-icon preview");
+        SDL_Log("Save icon %u of %u", (unsigned int)app->preview_index + 1U,
+                (unsigned int)SOTN_SAVE_ICON_COUNT);
     }
     return SDL_APP_CONTINUE;
 }
@@ -137,15 +199,20 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     App *app = appstate;
-    if (!SDL_SetRenderDrawColor(app->renderer, 17, 22, 38, 255) ||
-        !SDL_RenderClear(app->renderer) ||
-        !SDL_SetRenderDrawColor(app->renderer, 240, 226, 182, 255) ||
-        !SDL_RenderDebugText(app->renderer, 276, 160, "Hello world") ||
-        !SDL_RenderDebugText(app->renderer, 176, 184, "SOTN Native - development bootstrap") ||
-        (app->game_data != NULL &&
-         !SDL_RenderDebugText(app->renderer, 176, 208,
-                              "US core data loaded - game integration pending")) ||
-        !SDL_RenderPresent(app->renderer))
+    if (app->presenter != NULL)
+    {
+        if (!SotnPresenter_Draw(app->presenter))
+            return Fail("Cannot present save icon");
+    }
+    else if (!SDL_SetRenderDrawColor(app->renderer, 17, 22, 38, 255) ||
+             !SDL_RenderClear(app->renderer) ||
+             !SDL_SetRenderDrawColor(app->renderer, 240, 226, 182, 255) ||
+             !SDL_RenderDebugText(app->renderer, 276, 160, "Hello world") ||
+             !SDL_RenderDebugText(app->renderer, 176, 184, "SOTN Native - development bootstrap") ||
+             (app->game_data != NULL &&
+              !SDL_RenderDebugText(app->renderer, 176, 208,
+                                   "US core data loaded - game integration pending")) ||
+             !SDL_RenderPresent(app->renderer))
     {
         return Fail("Cannot render the bootstrap frame");
     }
@@ -168,6 +235,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
     (void)result;
     if (app != NULL)
     {
+        SotnPresenter_Destroy(app->presenter);
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
         SotnGameData_Close(app->game_data);
