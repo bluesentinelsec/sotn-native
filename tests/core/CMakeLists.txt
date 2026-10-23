@@ -1,0 +1,5 @@
+add_executable(sotn-core-tests test_core.c)
+sotn_configure_c_target(sotn-core-tests)
+target_link_libraries(sotn-core-tests PRIVATE sotn-core)
+add_test(NAME game-core COMMAND sotn-core-tests)
+set_tests_properties(game-core PROPERTIES TIMEOUT 20)

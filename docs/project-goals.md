@@ -3,7 +3,8 @@
 SOTN Native exists to bring an authentic *Symphony of the Night* experience to
 native PC platforms and create a clean foundation for modern conveniences.
 The project is a personal and educational effort. It currently provides an
-asset-free SDL3 bootstrap; game conversion has not started.
+asset-free SDL3 foundation with private-data loading, OpenGL presentation, and
+initial reconstructed game algorithms; player and stage gameplay remain in progress.
 
 Users must supply their own game dump. Public source, tests, and releases must
 contain no ROM, BIOS, extracted game binaries, or copyrighted game assets.
