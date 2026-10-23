@@ -5,6 +5,11 @@ import sys
 import time
 
 subprocess.run(["adb", "install", "-r", sys.argv[1]], check=True)
+# Cold-boot setup can replace system resource overlays and recreate SDLActivity.
+# Drain boot/package broadcasts before starting the rendering test.
+subprocess.run([
+    "adb", "shell", "am", "wait-for-broadcast-idle", "--flush-broadcast-loopers",
+], check=True, timeout=60)
 subprocess.run(["adb", "logcat", "-c"], check=True)
 subprocess.run([
     "adb", "shell", "am", "start", "-W", "-n",
