@@ -27,6 +27,14 @@ def run_smoke(apk, wait_for_theme=False):
     # Theme generation runs asynchronously, outside the broadcast queues. Once its
     # overlays are enabled, drain their package notifications before app launch.
     if wait_for_theme:
+        # The disposable AOSP image can still be in SDK setup even after its
+        # boot-completed property is set. Theme application waits for user setup.
+        for command in [
+            ["settings", "put", "global", "device_provisioned", "1"],
+            ["settings", "put", "secure", "user_setup_complete", "1"],
+            ["am", "start", "-W", "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME"],
+        ]:
+            subprocess.run(["adb", "shell", *command], check=True, timeout=30)
         wait_for_aosp_theme()
     subprocess.run([
         "adb", "shell", "am", "wait-for-broadcast-idle", "--flush-broadcast-loopers",

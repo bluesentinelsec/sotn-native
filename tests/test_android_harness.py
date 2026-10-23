@@ -36,5 +36,6 @@ class AndroidReadinessTest(unittest.TestCase):
              patch.object(harness.subprocess, "run") as run:
             with self.assertRaisesRegex(SystemExit, "setup failed"):
                 harness.run_smoke("synthetic.apk", wait_for_theme=True)
-        self.assertEqual(run.call_count, 1)
-        self.assertEqual(run.call_args.args[0], ["adb", "install", "-r", "synthetic.apk"])
+        self.assertEqual(run.call_args_list[0].args[0], ["adb", "install", "-r", "synthetic.apk"])
+        self.assertTrue(all("org.bluesentinelsec.sotn/.MainActivity" not in call.args[0]
+                            for call in run.call_args_list))
