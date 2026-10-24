@@ -22,6 +22,9 @@
   `modules/core/room_actors.c` adapts scrolling spawns from `src/st/create_entity.h`
   and stage persistence from `src/st/st_common.h`; the runtime layout parser
   is original project code. See [actor integration](docs/laboratory-actors.md).
+  `modules/render/actor_graphics.c` adapts bounded graphics-bank uploads,
+  bulk palettes, and multipart drawing from `src/dra/4AEA4.c`, `4A538.c`,
+  and `4B758.c`.
   `modules/render/tilemap.c` adapts the tile renderer in `src/dra/4CE2C.c` and
   tile upload layout in `src/pc/sim_pc.c`. `modules/render/alucard_sprite.c`
   adapts the sprite-sheet path in `src/dra/4B758.c` and ARC pointer loading in

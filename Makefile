@@ -19,6 +19,8 @@ SOTN_FORMAT_SOURCES := src/main.c src/lab_preview.c src/lab_preview.h \
   modules/render/save_icon.c \
   modules/render/tilemap.c \
   modules/render/alucard_sprite.c \
+  modules/render/actor_graphics.c modules/render/include/sotn/actor_graphics.h \
+  tests/render/test_actor_graphics.c \
   modules/render/shaders.h \
   modules/render/include/sotn/presenter.h \
   modules/render/include/sotn/save_icon.h \
