@@ -7,6 +7,8 @@ add_library(sotn-core STATIC
   room_actors.c
   actors.c
   combat.c
+  equipment.c
+  include/sotn/equipment.h
   player.c
   player_sensors.c
   player_internal.h

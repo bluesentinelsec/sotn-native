@@ -463,8 +463,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         const Uint16 stats[4] = {6, 6, 6, 6};
         Uint16 damage = 0;
         if (actor->state.hit_points != 0x7fff && actor->state.hit_points != 0 &&
-            !SotnCombat_Damage(actor->enemy, 6, player.attack.element, 0, stats, 1,
-                               &actors->combat_random, &damage))
+            !SotnCombat_Damage(actor->enemy, player.attack.power, player.attack.element,
+                               player.attack.critical_rate, stats, 1, &actors->combat_random,
+                               &damage))
             return false;
         actor->hit_params = player.attack.hit_effect & 127;
         actor->cooldown[hand] = player.attack.invincibility_frames;
@@ -903,7 +904,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     ++actors->ticks;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
-    if (player.attack.sound && !Sound(actors, 0x60c))
+    if (player.attack.sound && !Sound(actors, player.attack.sound_id))
         return false;
     const Sint32 dx = camera_x - actors->camera_x, dy = camera_y - actors->camera_y;
     for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)

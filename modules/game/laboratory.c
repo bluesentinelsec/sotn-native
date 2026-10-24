@@ -15,7 +15,7 @@ struct SotnLaboratory
     SotnStage *stage;
     SotnStageRoom room;
     SotnDataView dra, nz0;
-    SotnResource *tiles, *common, *arc;
+    SotnResource *tiles, *common, *arc, *weapons;
     SotnPlayer *player;
     SotnActors *actors;
     SotnActorLayout *actor_layout;
@@ -223,6 +223,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_LAB_GRAPHICS, &session->tiles) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_COMMON_GRAPHICS, &session->common) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_ALUCARD_GRAPHICS, &session->arc) ||
+        !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
         !SotnPlayer_Create(session->dra, session->room.foreground.collision, 32, 135,
                            &session->player) ||
         !SotnPlayer_Tick(session->player, 0) ||
@@ -231,7 +232,8 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                   (SotnTileSources){SotnResource_View(session->tiles),
                                                     SotnResource_View(session->common)},
                                   &session->actor_graphics) ||
-        !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
+        !SotnLaboratory_SetEquipment(session, 86, 0) || !EnterActors(session) ||
+        !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory))
@@ -244,13 +246,33 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Laboratory development start: room %u", (unsigned int)start_room);
-    SDL_Log("Laboratory combat checkpoint: empty-hand attacks, Bloody Zombie damage/death, "
+    SDL_Log("Laboratory combat checkpoint: Gladius/Mace and empty-hand attacks, Bloody Zombie "
+            "damage/death, "
             "physical player damage, candles, and heart/gold/subweapon collection. "
-            "Original sound effects and Laboratory music are enabled; weapons, reverb, full "
+            "Original sound effects and Laboratory music are enabled; reverb, full "
             "effects, saves, "
             "scripts, and original camera remain incomplete.");
-    SDL_Log("Development profile: 70 HP, base stats 6, empty equipment, Cube of Zoe enabled.");
+    SDL_Log("Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
     *out = session;
+    return true;
+}
+
+bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 right)
+{
+    if (session == NULL)
+        return SDL_InvalidParamError("laboratory");
+    SotnEquipment equipment[2] = {0};
+    const SotnDataView weapons = SotnResource_View(session->weapons);
+    if (!SotnEquipment_Read(session->dra, left, &equipment[0]) ||
+        !SotnEquipment_Read(session->dra, right, &equipment[1]) ||
+        !SotnPlayer_SetEquipment(session->player, weapons, left, right))
+        return false;
+    for (Uint32 hand = 0; hand < 2; ++hand)
+        if (!SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment[hand]))
+            return false;
+    session->dirty = true;
+    SDL_Log("Development hand equipment: left %u, right %u (0 empty, 86 Gladius, 128 Mace)", left,
+            right);
     return true;
 }
 
@@ -292,9 +314,28 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     if (!SotnAlucard_DecodeSprite(session->dra, SotnResource_View(session->arc),
                                   player.animation.sprite, &alucard))
         return false;
-    bool player_drawn = false;
+    bool player_drawn = false, weapon_drawn = false;
     for (Uint32 i = 0; i <= count; ++i)
     {
+        if (!weapon_drawn && (i == count || list[i].priority < 0x7e))
+        {
+            if (player.attack.equipment != 0 && player.attack.sprite != 0)
+            {
+                const bool right = player.attack.right_hand;
+                const SotnActorSprite weapon = {
+                    .animation_set = right ? 18 : 16,
+                    .frame = player.attack.sprite,
+                    .palette = (Uint16)(right ? 0x128 : 0x110),
+                    .texture_offset = (Uint16)(right ? 0x66 : 0x64),
+                    .blend_mode = (Uint16)(player.attack.equipment == 86 ? 0x30 : 0),
+                    .facing_left = player.facing_left};
+                if (!SotnActorGraphics_Draw(session->actor_graphics, weapon,
+                                            Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,
+                                            session->frame, SOTN_FRAME_PIXELS))
+                    return false;
+            }
+            weapon_drawn = true;
+        }
         if (!player_drawn && (i == count || list[i].priority < 0x80))
         {
             if (!SotnAlucard_DrawSprite(&alucard, SotnResource_View(session->common),
@@ -414,6 +455,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnActorLayout_Close(session->actor_layout);
         SotnActorGraphics_Destroy(session->actor_graphics);
         SotnPlayer_Close(session->player);
+        SotnResource_Close(session->weapons);
         SotnResource_Close(session->arc);
         SotnResource_Close(session->common);
         SotnResource_Close(session->tiles);

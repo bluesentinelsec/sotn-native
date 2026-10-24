@@ -6,7 +6,7 @@ The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
 red-eye busts, globe tables, selected unarmed combat, candle pickups,
 and original sound effects/Laboratory music.
-Equipped weapons, complete damage/item/audio behavior, saves, full actor/effect
+Other equipped weapons, complete damage/item/audio behavior, saves, full actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
@@ -48,10 +48,14 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
 Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
-Xbox **X/B** perform empty-hand attacks. Ability inputs remain unsupported.
+Xbox **X/B** use the equipped hands (default: Gladius left, empty right). Ability inputs remain unsupported.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
+Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,
+`sword` for Gladius/empty, or `unarmed` for the earlier test. Inventory menus
+and other weapons remain incomplete.
+
 Omit `--laboratory-room 3` to use the earlier room-1 entry start. These starts
 do not run the title screen or original progression. The development combat profile supports zombie damage/death, candle breaks,
 and heart/gold/subweapon collection. Alucard takes physical damage; death ends

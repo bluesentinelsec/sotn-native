@@ -36,8 +36,8 @@ typedef struct SotnActorCombat
  * @param out Receives ownership, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid input or allocation failure.
  * @note This checkpoint includes candles, red-eye busts, globe tables, and Bloody Zombie
- * motion, empty-hand combat, death, and candle/prize collection in a development profile.
- * Audio, complete primitives, equipped weapons, and other actor families remain incomplete.
+ * motion, selected hand combat, death, and candle/prize collection in a development profile.
+ * Complete audio/primitives, other equipped weapons, and other actor families remain incomplete.
  */
 bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out);
 /**
