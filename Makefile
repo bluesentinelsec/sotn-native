@@ -94,14 +94,18 @@ SOTN_FORMAT_SOURCES += modules/core/actors_internal.h modules/core/actor_doors.c
 	  modules/core/actor_mechanisms.c \
 	  modules/core/actor_collision.c modules/core/enemy_skeleton.c
 
-SOTN_FORMAT_SOURCES += tests/core/test_world.c \
+SOTN_FORMAT_SOURCES += tests/core/test_camera.c \
+	  tests/core/test_world.c \
 	  tests/core/test_enemy.c
 
 SOTN_FORMAT_SOURCES += modules/core/actor_primitives.c modules/core/enemy_knight.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_spittle.c
 
-SOTN_FORMAT_SOURCES += modules/core/world.c modules/core/include/sotn/world.h
+SOTN_FORMAT_SOURCES += modules/core/camera.c \
+	  modules/core/include/sotn/camera.h \
+	  modules/core/actor_camera.c \
+	  modules/core/world.c modules/core/include/sotn/world.h
 
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:

@@ -2,6 +2,7 @@
 #define SOTN_ACTORS_H
 
 #include <sotn/actor_layout.h>
+#include <sotn/camera.h>
 #include <sotn/player.h>
 #include <sotn/world.h>
 
@@ -24,6 +25,10 @@ typedef struct SotnActorMotion
     Uint32 contacts;             /**< Original ground/ceiling/wall plus object-contact bits. */
     bool halt_vertical, protect; /**< Original door/event velocity stop and 32-tick protection. */
 } SotnActorMotion;
+/** @brief Borrow the scene camera for original room-lock actors; NULL selects a room fallback.
+ * @param actors Borrowed simulation. @param camera Borrowed writable scene-owned state.
+ * @return Success or SDL error. The camera must outlive the actors. */
+bool SotnActors_SetCamera(SotnActors *actors, SotnCamera *camera);
 /** @brief Borrow persistent castle progress through actor destruction; NULL selects empty state.
  * @param actors Borrowed simulation. @param world Borrowed writable validated state.
  * @return Success or SDL error; does not take ownership. */

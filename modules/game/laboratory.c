@@ -21,6 +21,7 @@ struct SotnLaboratory
     SotnStage *stage;
     SotnStageRoom room;
     SotnWorldState world;
+    SotnCamera camera;
     SotnDataView dra, nz0;
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
@@ -123,10 +124,9 @@ static Sint32 Pixel(Sint32 fixed)
 
 static void Camera(const SotnLaboratory *session, SotnPlayerState player, Sint32 *x, Sint32 *y)
 {
-    const Sint32 max_x = (Sint32)session->room.foreground.collision.width * 16 - SOTN_FRAME_WIDTH;
-    const Sint32 max_y = (Sint32)session->room.foreground.collision.height * 16 - SOTN_FRAME_HEIGHT;
-    *x = SDL_clamp(Pixel(player.x) - 128, 0, SDL_max(0, max_x));
-    *y = SDL_clamp(Pixel(player.y) - 128, 0, SDL_max(0, max_y));
+    (void)player;
+    *x = session->camera.x;
+    *y = session->camera.y;
 }
 
 static bool EnterActors(SotnLaboratory *session)
@@ -136,6 +136,13 @@ static bool EnterActors(SotnLaboratory *session)
     if (!SotnPlayer_GetState(session->player, &player) ||
         !SotnActorLayout_Open(session->nz0, session->room.object_layout_id, &layout))
         return false;
+    if (!SotnCamera_Enter(&session->camera, session->room.foreground.collision.width * 16,
+                          session->room.foreground.collision.height * 16, Pixel(player.x),
+                          Pixel(player.y)))
+    {
+        SotnActorLayout_Close(layout);
+        return false;
+    }
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
     if ((session->room.object_graphics_id != 0 &&
@@ -201,6 +208,8 @@ static bool TickActors(SotnLaboratory *session)
 {
     SotnPlayerState player = {0};
     if (!SotnPlayer_GetState(session->player, &player))
+        return false;
+    if (!SotnCamera_Tick(&session->camera, Pixel(player.x), Pixel(player.y), false))
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
@@ -450,6 +459,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
+        !SotnActors_SetCamera(session->actors, &session->camera) ||
         !SotnActors_SetWorld(session->actors, &session->world) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
         !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
@@ -691,7 +701,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     bool player_drawn = false, weapon_drawn = false;
     for (Uint32 i = 0; i <= count; ++i)
     {
-        if (!weapon_drawn && (i == count || list[i].priority < 0x7e))
+        if (!weapon_drawn && (i == count || list[i].priority < 0x92))
         {
             if (player.attack.equipment != 0 && player.attack.sprite != 0)
             {
@@ -710,7 +720,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             weapon_drawn = true;
         }
-        if (!player_drawn && (i == count || list[i].priority < 0x80))
+        if (!player_drawn && (i == count || list[i].priority < 0x94))
         {
             if (!SotnAlucard_DrawDeath(
                     &alucard,

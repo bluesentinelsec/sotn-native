@@ -38,7 +38,9 @@ bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset)
     actor->state.hitbox_width = enemy.bytes[34];
     actor->state.hitbox_height = enemy.bytes[35];
     actor->state.flags = Read32(enemy.bytes + 36);
-    actor->state.priority = 0x74;
+    actor->state.hitbox_x = actor->state.hitbox_y = 0;
+    if (actor->state.priority == 0)
+        actor->state.priority = 0x88;
     ++actor->state.step;
     actor->substep = 0;
     return true;
@@ -1054,6 +1056,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->pose = actor->remaining = 0;
         }
         return ActorAnimate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
+    case 0x12:
+        return ActorCamera(actors, actor);
     case 5:
     case 0x4a:
         return ActorDoor(actors, actor);
@@ -1118,6 +1122,7 @@ bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out)
         return false;
     }
     actors->world = &actors->fallback_world;
+    actors->camera = &actors->fallback_camera;
     *out = actors;
     return true;
 }
@@ -1146,6 +1151,13 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_free(actors->mutable_tiles);
     actors->mutable_tiles = tiles;
     actors->map = map;
+    if (actors->camera == &actors->fallback_camera)
+    {
+        // Synthetic collision fixtures may be smaller than a screen; their camera is unused.
+        const Uint32 w = ((map.width + 15) / 16) * 256, h = ((map.height + 15) / 16) * 256;
+        if (!SotnCamera_Enter(actors->camera, w, h, camera_x + 128, camera_y + 136))
+            return false;
+    }
     actors->map.tiles = (SotnDataView){tiles, bytes};
     actors->camera_x = camera_x;
     actors->camera_y = camera_y;
@@ -1417,5 +1429,13 @@ bool SotnActors_GetControl(const SotnActors *s, SotnActorControl *out)
     if (s == NULL || out == NULL)
         return SDL_SetError("Stage control requires actors and output");
     *out = s->control;
+    return true;
+}
+
+bool SotnActors_SetCamera(SotnActors *s, SotnCamera *camera)
+{
+    if (s == NULL)
+        return SDL_InvalidParamError("actors");
+    s->camera = camera != NULL ? camera : &s->fallback_camera;
     return true;
 }
