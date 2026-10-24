@@ -202,7 +202,7 @@ static bool TestCombat(Fixture *fixture)
     CHECK(SotnActors_Get(actors, 0, &state) && state.generation == 0);
     CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
     CHECK(SotnActors_Tick(actors, player, 0, 0));
-    CHECK(SotnActors_Get(actors, 0, &state) && state.generation == 0);
+    CHECK(SotnActors_Get(actors, 0, &state) && state.generation != 0 && state.id == 1);
     CHECK(SotnActors_Tick(actors, player, 0, 0));
     player.x = 142 * 65536;
     player.attack.active = true;

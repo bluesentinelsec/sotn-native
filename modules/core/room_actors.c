@@ -101,6 +101,7 @@ bool SotnRoomActors_Enter(SotnRoomActors *actors, const SotnActorLayout *layout,
     if (actors == NULL || layout == NULL || !CameraValid(camera_x, camera_y))
         return SDL_SetError("Room actor entry requires a layout and bounded camera position");
     actors->layout = layout;
+    SDL_memset(actors->persistent, 0, sizeof(actors->persistent));
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
     actors->camera[0] = camera_x;
     actors->camera[1] = camera_y;

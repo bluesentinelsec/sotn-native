@@ -55,7 +55,7 @@ bool SotnActorLayout_Get(const SotnActorLayout *layout, bool vertical, Uint32 in
 bool SotnRoomActors_Create(SotnRoomActors **out);
 /**
  * @brief Clear room slots and initialize the original scrolling spawn cursors.
- * @param actors Borrowed owned spawn state; stage persistence is retained.
+ * @param actors Borrowed owned spawn state; temporary destruction flags reset on entry.
  * @param layout Borrowed validated layout, alive until next entry or destruction.
  * @param camera_x Nonnegative room-local scroll X, at most 16384 pixels.
  * @param camera_y Nonnegative room-local scroll Y, at most 16384 pixels.
@@ -87,9 +87,10 @@ bool SotnRoomActors_Get(const SotnRoomActors *actors, Uint32 slot, SotnActorPlac
  * @brief Release a slot after its behavior destroys an actor.
  * @param actors Borrowed spawn state.
  * @param slot Original stage-relative slot, below SOTN_STAGE_ACTOR_SLOTS.
- * @param permanent Apply the actor's original persistence bit, when nonzero.
+ * @param permanent Apply the actor's original destruction bit within this room, when nonzero.
  * @return True on success, false with SDL_GetError() for invalid arguments.
- * @note Persistence lives for this stage session; save-file persistence is not implemented.
+ * @note Destruction bits last until room entry. Permanent character/castle progress is owned
+ * separately.
  */
 bool SotnRoomActors_Release(SotnRoomActors *actors, Uint32 slot, bool permanent);
 /** @brief Destroy spawn state, leaving its borrowed layout alive. @param actors Owned state or

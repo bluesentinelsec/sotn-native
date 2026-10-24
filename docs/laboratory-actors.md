@@ -15,13 +15,17 @@ has a 512-record budget. Weighted layouts fail explicitly; all 53 layouts in
 the selected US Laboratory are static. Close metadata before the backing data.
 
 `SotnRoomActors` owns 192 stage-relative slots, bounded directional cursors,
-and stage-session persistence flags. It borrows one validated layout at a time.
+and room-local destruction flags. It borrows one validated layout at a time.
 Entry uses the original X/Y visibility margins; scrolling traverses the original
 sorted lists with their inclusive edge and direction-reversal rules. Normal
 placements retain occupied slots; forced placements replace them. A spawn
 generation lets behavior code distinguish a replacement from an existing actor.
 Releasing an actor inside a stationary view does not make it respawn every tick.
-Persistent destruction suppresses its original flag across room entries.
+Destruction suppresses respawning during scrolling within the current room.
+Room entry clears these temporary bits, matching `src/dra/5087C.c:func_800F2404`.
+Layouts reuse their bit indices, so retaining them across rooms can suppress unrelated
+actors (including the boss manager). Permanent pickups and castle events use separately
+owned character/world state; these temporary bits never enter ordinary saves.
 
 This component supplies placement/lifecycle state. Behavior and rendering use
 these slots in the native scene described below. It does not itself implement
