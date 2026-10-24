@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  character.c
+  include/sotn/character.h
   collision.c
   animation.c
   decompress.c
