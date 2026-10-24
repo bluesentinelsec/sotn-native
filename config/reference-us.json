@@ -47,6 +47,10 @@
     "ST/NZ0/SD_ZKNZ0.VB": {
       "size": 56976,
       "sha1": "efe5f7c546d70767fb1d8df6cfded9d87598f75b"
+    },
+    "BIN/WEAPON0.BIN": {
+      "size": 1691648,
+      "sha1": "b8dcd64f95d197d3f59ab3e46f67897ecdc477cb"
     }
   },
   "sizes": {

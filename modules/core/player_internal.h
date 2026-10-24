@@ -2,6 +2,7 @@
 #define SOTN_PLAYER_INTERNAL_H
 
 #include <SDL3/SDL.h>
+#include <sotn/equipment.h>
 #include <sotn/player.h>
 
 typedef union PlayerFixed {
@@ -36,6 +37,10 @@ struct SotnPlayer
     Uint16 attack_mode, attack_button;
     Uint8 attack_lock;
     SotnPlayerAttack attack;
+    SotnDataView weapons;
+    SotnEquipment attack_equipment;
+    Uint16 equipment[2];
+    Uint8 attack_critical;
     Uint16 hp, invincibility, sound;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;

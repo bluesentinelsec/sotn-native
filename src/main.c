@@ -117,6 +117,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool play_lab = false;
     bool chose_lab_room = false;
     Uint32 lab_room = 1;
+    const char *lab_loadout = NULL;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -157,6 +158,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             play_lab = true;
         }
+        else if (SDL_strcmp(argv[i], "--laboratory-loadout") == 0)
+        {
+            if (lab_loadout != NULL || i + 1 >= argc ||
+                (SDL_strcmp(argv[i + 1], "unarmed") != 0 && SDL_strcmp(argv[i + 1], "sword") != 0 &&
+                 SDL_strcmp(argv[i + 1], "mace") != 0 && SDL_strcmp(argv[i + 1], "dual") != 0))
+            {
+                SDL_SetError("--laboratory-loadout requires unarmed, sword, mace, or dual once");
+                return Fail("Invalid arguments");
+            }
+            lab_loadout = argv[++i];
+        }
         else if (SDL_strcmp(argv[i], "--laboratory-room") == 0)
         {
             if (chose_lab_room || i + 1 >= argc ||
@@ -172,7 +184,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                     "| --inspect-laboratory | --preview-laboratory | --laboratory] "
-                    "[--laboratory-room 1|3] [--smoke-test] | --graphics-test");
+                    "[--laboratory-room 1|3] [--laboratory-loadout unarmed|sword|mace|dual] "
+                    "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
         else
@@ -181,9 +194,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("Invalid arguments");
         }
     }
-    if (chose_lab_room && !play_lab)
+    if ((chose_lab_room || lab_loadout != NULL) && !play_lab)
     {
-        SDL_SetError("--laboratory-room requires --laboratory");
+        SDL_SetError("Selected Laboratory option requires --laboratory");
         return Fail("Invalid arguments");
     }
     if (validate_only && game_directory == NULL)
@@ -249,6 +262,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     {
         if (!SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game))
             return Fail("Cannot open Laboratory actor checkpoint");
+        if (lab_loadout != NULL)
+        {
+            const Uint16 left = SDL_strcmp(lab_loadout, "unarmed") == 0 ? 0
+                                : SDL_strcmp(lab_loadout, "mace") == 0  ? 128
+                                                                        : 86;
+            const Uint16 right = SDL_strcmp(lab_loadout, "dual") == 0 ? 128 : 0;
+            if (!SotnLaboratory_SetEquipment(app->game, left, right))
+                return Fail("Cannot select Laboratory loadout");
+        }
         if (app->smoke_test)
             SDL_Log("SOTN_SMOKE_TEST: START");
         return SDL_APP_CONTINUE;

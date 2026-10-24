@@ -11,6 +11,7 @@
 struct SotnActorGraphics
 {
     SotnDataView dra, nz0;
+    SotnDataView weapon[2];
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
 };
@@ -206,19 +207,55 @@ bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank)
     return complete;
 }
 
+bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
+                                  SotnEquipment equipment)
+{
+    if (graphics == NULL || hand > 1)
+        return SDL_SetError("Weapon graphics require a hand index of zero or one");
+    if (equipment.id == 0)
+    {
+        graphics->weapon[hand] = (SotnDataView){0};
+        return true;
+    }
+    SotnDataView overlay = {0}, pointer = {0}, colors = {0};
+    if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
+        return false;
+    const Uint32 address = equipment.family == 0 ? 0x8017b0bcU : 0x8017abd4U;
+    if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
+        !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), 7 * 16 * 2, 2, &colors))
+        return false;
+    const size_t pixels = (size_t)equipment.family * 0x7000;
+    if (pixels > weapons.size || 0x4000 > weapons.size - pixels)
+        return SDL_SetError("Weapon texture is truncated");
+    Upload(graphics, 576, 256 + hand * 128, 64, 128, weapons.bytes + pixels);
+    for (Uint32 i = 0; i < 7 * 16; ++i)
+    {
+        const Uint32 index = 0x1100 + hand * 0x180 + i;
+        Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, colors.bytes + i * 2);
+    }
+    graphics->weapon[hand] = overlay;
+    return true;
+}
+
 static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out)
 {
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
-    const SotnDataView image = stage ? graphics->nz0 : graphics->dra;
-    const Uint32 base = stage ? 0x80180000U : 0x800a0000U;
+    const bool weapon = !stage && (bank == 16 || bank == 18);
+    const SotnDataView image = weapon  ? graphics->weapon[bank == 18 ? 1 : 0]
+                               : stage ? graphics->nz0
+                                       : graphics->dra;
+    const Uint32 base = weapon ? 0x8017a000U : stage ? 0x80180000U : 0x800a0000U;
     SotnDataView table = {0}, first = {0};
-    if (bank == 0 || bank >= (stage ? 24U : 18U) || (!stage && (bank == 1 || bank == 13)))
+    if (bank == 0 || (!weapon && bank >= (stage ? 24U : 18U)) ||
+        (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
-    const Uint32 table_address = stage ? Read32(graphics->nz0.bytes + 20) : base + 0x3b70;
-    if (!Resolve(image, base, table_address, (stage ? 24U : 18U) * 4, 4, &table))
+    const Uint32 table_address = weapon  ? base + 0x40
+                                 : stage ? Read32(graphics->nz0.bytes + 20)
+                                         : base + 0x3b70;
+    if (!weapon && !Resolve(image, base, table_address, (stage ? 24U : 18U) * 4, 4, &table))
         return false;
-    const Uint32 address = Read32(table.bytes + bank * 4);
+    const Uint32 address = weapon ? table_address : Read32(table.bytes + bank * 4);
     if (!Resolve(image, base, address, 8, 4, &table))
         return false;
     const Uint32 first_address = Read32(table.bytes + 4);

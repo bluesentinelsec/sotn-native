@@ -93,3 +93,9 @@ or game instrument/event tables are included.
 PSY-Z's `psyz/src/psyz/libcd.c` at the same backend revision under MPL-2.0.
 The native stream loader and SDL rate-conversion boundary replace platform/SDK
 services. No game music, CD sectors, or soundtrack metadata arrays are included.
+
+Selected Gladius/Mace integration additionally adapts `src/weapon/w_000.c`,
+`w_002.c`, `shared.h`, and selected `src/dra/menu.c:CalcAttack` and
+`5D5BC.c:GetEquipProperties` paths at the pinned reconstruction revision under
+AGPL-3.0-or-later. Equipment records, weapon overlays, frame/hitbox tables,
+palettes, and pixels remain private runtime inputs.

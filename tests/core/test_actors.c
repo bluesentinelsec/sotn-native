@@ -182,6 +182,7 @@ static bool TestCombat(Fixture *fixture)
     player.animation.hitbox_height = 20;
     CHECK(SotnActors_Tick(actors, player, 0, 0));
     player.attack = (SotnPlayerAttack){.offset_x = 18,
+                                       .power = 6,
                                        .width = 10,
                                        .height = 8,
                                        .hit_type = 2,

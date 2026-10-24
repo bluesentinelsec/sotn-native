@@ -15,13 +15,18 @@ typedef struct SotnLaboratory SotnLaboratory;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() on unsupported or missing data.
  * @pre SDL video is initialized and calls occur on the main thread.
- * @note Supports selected unarmed combat, candle prizes, original sound effects, and
- * streaming Laboratory music in an explicit development profile. Equipped weapons, full
+ * @note Supports selected empty-hand/Gladius/Mace combat, candle prizes, original sound effects,
+ * and streaming Laboratory music in an explicit development profile. Other weapons, full
  * effects/audio parity, saves/continue, scripts, original camera/timing, and progression
  * remain incomplete.
  */
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out);
+
+/** @brief Select supported development hand equipment; no inventory menu is implied.
+ * @param laboratory Borrowed session. @param left Left-hand item ID. @param right Right-hand ID.
+ * @return Success, or false with SDL_GetError(); stop after resource failure. */
+bool SotnLaboratory_SetEquipment(SotnLaboratory *laboratory, Uint16 left, Uint16 right);
 
 /**
  * @brief Advance one game tick using explicitly supplied original button bits.

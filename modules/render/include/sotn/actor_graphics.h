@@ -1,6 +1,7 @@
 #ifndef SOTN_ACTOR_GRAPHICS_H
 #define SOTN_ACTOR_GRAPHICS_H
 
+#include <sotn/equipment.h>
 #include <sotn/tilemap.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
@@ -32,6 +33,13 @@ bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSource
  * @note Handles bounded raw and dictionary/RLE uploads; validates all transfers before applying.
  */
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
+/** @brief Load a hand's supported weapon texture, palettes, and multipart definitions.
+ * @param graphics Borrowed owned texture memory. @param weapons Borrowed WEAPON0.BIN; alive
+ * until replacement or graphics destruction. @param hand Left (0) or right (1).
+ * @param equipment Copied supported hand-item metadata; zero clears the hand's sprite bank.
+ * @return Success, or false with SDL_GetError() and unchanged texture memory on bad references. */
+bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
+                                  SotnEquipment equipment);
 /**
  * @brief Draw original common/stage multipart sprites into the shared RGB555 frame.
  * @param graphics Borrowed initialized texture memory and immutable source images.

@@ -4,7 +4,7 @@
 #include <sotn/animation.h>
 #include <sotn/collision.h>
 
-/** @brief Original PS1 button bits accepted by normal Alucard and unarmed attacks. */
+/** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_JUMP = 0x0040,
@@ -27,13 +27,14 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HIT = 10
 } SotnPlayerStep;
 
-/** @brief Runtime unarmed hitbox, in whole pixels relative to Alucard's origin. */
+/** @brief Runtime supported hand-attack hitbox, in whole pixels relative to Alucard's origin. */
 typedef struct SotnPlayerAttack
 {
     Sint16 offset_x, offset_y;
     Uint16 width, height, element, hit_type, hit_effect, stun_frames;
     Uint8 invincibility_frames, critical_rate;
     bool active, right_hand, sound;
+    Uint16 power, sound_id, equipment, sprite;
 } SotnPlayerAttack;
 
 /** @brief Read-only copy of a player's current normal-movement state. */
@@ -62,8 +63,8 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Empty-hand attack animations/hitboxes are supported. Ordinary physical damage is supported
- * separately by SotnPlayer_Damage. Equipped weapons, transformations, and stage scripts are not
+ * Empty-hand and Gladius/Mace attacks are supported. Ordinary physical damage is supported
+ * separately by SotnPlayer_Damage. Other weapons, transformations, and stage scripts are not
  * implemented here.
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
@@ -77,6 +78,15 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
  * @note Caller owns pacing. One call advances one game tick independently of rendering.
  */
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons);
+
+/** @brief Set the checkpoint's hand equipment without changing movement or health.
+ * @param player Borrowed simulation; an active attack must finish first.
+ * @param weapons Borrowed immutable WEAPON0.BIN, alive until equipment is replaced or player
+ * closes.
+ * @param left Original left-hand item ID. @param right Original right-hand item ID.
+ * @return Success, or false with SDL_GetError() and unchanged state for unsupported items.
+ * @note Supports empty hands, Gladius, and Mace; this is not an inventory menu. */
+bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 left, Uint16 right);
 
 /**
  * @brief Rebase an existing player into an adjacent room without resetting motion.

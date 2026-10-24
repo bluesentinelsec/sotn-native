@@ -14,7 +14,7 @@
 
 typedef struct Fixture
 {
-    Uint8 nz0[0x2000], dra[0x4000], stage[0x40000], common[0x42000];
+    Uint8 nz0[0x2000], dra[0x4000], stage[0x40000], common[0x42000], weapons[0x15000];
     Uint16 frame[SOTN_FRAME_PIXELS];
 } Fixture;
 
@@ -237,13 +237,55 @@ static bool TestDepthsAndOrdering(Fixture *fixture)
     return true;
 }
 
+static bool TestWeapons(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    const SotnDataView weapons = {fixture->weapons, sizeof(fixture->weapons)};
+    for (Uint32 family = 0; family <= 2; family += 2)
+    {
+        Uint8 *overlay = fixture->weapons + family * 0x7000 + 0x4000;
+        Put32(overlay + 0x44, 0x8017a048);
+        Put16(overlay + 0x48, 1);
+        Uint8 *part = overlay + 0x4a;
+        Put16(part + 6, 4);
+        Put16(part + 8, 1);
+        Put16(part + 18, 4);
+        Put16(part + 20, 1);
+        Put32(overlay + (family == 0 ? 0x10bc : 0xbd4), 0x8017b100);
+        Put16(overlay + 0x1102, 31);
+        fixture->weapons[family * 0x7000] = 0x11;
+        fixture->weapons[family * 0x7000 + 1] = 0x11;
+    }
+    SotnActorGraphics *graphics = NULL;
+    CHECK(Create(fixture, &graphics));
+    for (Uint32 hand = 0; hand < 2; ++hand)
+    {
+        const SotnEquipment equipment = {.id = (Uint16)(hand == 0 ? 86 : 128),
+                                         .family = (Uint8)(hand * 2)};
+        CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand, equipment));
+        ClearFrame(fixture);
+        const SotnActorSprite sprite = {.animation_set = (Uint16)(hand == 0 ? 16 : 18),
+                                        .frame = 1,
+                                        .palette = (Uint16)(hand == 0 ? 0x110 : 0x128),
+                                        .texture_offset = (Uint16)(hand == 0 ? 0x64 : 0x66)};
+        CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
+        CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
+        CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 19] == 31);
+        CHECK(!SotnActorGraphics_LoadWeapon(graphics, (SotnDataView){0}, hand, equipment));
+        CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand, (SotnEquipment){0}));
+        CHECK(!SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
+    }
+    SotnActorGraphics_Destroy(graphics);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed =
-        TestSprites(fixture) && TestFailures(fixture) && TestDepthsAndOrdering(fixture);
+    const bool passed = TestSprites(fixture) && TestFailures(fixture) &&
+                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
