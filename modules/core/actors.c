@@ -38,7 +38,9 @@ bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset)
     actor->state.hitbox_width = enemy.bytes[34];
     actor->state.hitbox_height = enemy.bytes[35];
     actor->state.flags = Read32(enemy.bytes + 36);
-    actor->state.priority = 0x74;
+    actor->state.hitbox_x = actor->state.hitbox_y = 0;
+    if (actor->state.priority == 0)
+        actor->state.priority = 0x88;
     ++actor->state.step;
     actor->substep = 0;
     return true;

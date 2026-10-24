@@ -63,6 +63,13 @@ static bool Map(void)
 }
 static bool Collision(SotnActors *s)
 {
+    Actor initialized = {0};
+    CHECK(ActorInitialize(s, &initialized, 0xbf8));
+    CHECK(initialized.state.priority == 0x88);
+    initialized.state.priority = 0x92;
+    initialized.state.hitbox_x = 12;
+    CHECK(ActorInitialize(s, &initialized, 0xbf8));
+    CHECK(initialized.state.priority == 0x92 && initialized.state.hitbox_x == 0);
     Actor a = {.state = {.x = 128 * 65536, .y = 120 * 65536}};
     s->player =
         (SotnPlayerState){.x = 128 * 65536, .y = 94 * 65536, .solid_width = 7, .solid_height = 24};
