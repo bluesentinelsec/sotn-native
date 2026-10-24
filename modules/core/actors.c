@@ -362,6 +362,30 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
                            attack ? player.attack.height : player.animation.hitbox_height};
 }
 
+static bool EnemyHitbox(Uint16 id)
+{
+    switch (id)
+    {
+    case 0x26:
+    case 0x27:
+    case 0x29:
+    case 0x2a:
+    case 0x2b:
+    case 0x2e:
+    case 0x2f:
+    case 0x31:
+    case 0x33:
+    case 0x40:
+    case 0x41:
+    case 0x42:
+    case 0x43:
+    case 0x45:
+    case 0x46:
+        return true;
+    default:
+        return false;
+    }
+}
 static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     if (player.step == SOTN_PLAYER_KILL || actor->state.step == 0 || actor->state.unsupported ||
@@ -370,13 +394,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     for (Uint32 i = 0; i < SDL_arraysize(actor->cooldown); ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
-    if (actor->state.id != 1 && actor->state.id != 0x2b && actor->state.id != 3 &&
-        actor->state.id != 0xa && actor->state.id != 0x34 && actor->state.id != 0x26 &&
-        actor->state.id != 0x27 && actor->state.id != 0x2e && actor->state.id != 0x2f &&
-        actor->state.id != 0x29 && actor->state.id != 0x2a && actor->state.id != 0x31 &&
-        actor->state.id != 0x33 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
-        actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
-        actor->state.id != 0x48 && actor->state.id != 0x1c)
+    if (!EnemyHitbox(actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
+        actor->state.id != 0xa && actor->state.id != 0x34 && actor->state.id != 0x17 &&
+        actor->state.id != 0x18 && actor->state.id != 0x1a && actor->state.id != 0x25 &&
+        actor->state.id != 0x20 && actor->state.id != 0x48 && actor->state.id != 0x1c)
         return true;
     const SotnCombatBox target = {Pixel(actor->state.x) + (actor->state.facing_left
                                                                ? -actor->state.hitbox_x
@@ -436,6 +457,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                              source.attack.element, source.attack.critical_rate,
                                              stats, luck, 1, &actors->combat_random, &damage))
                 return false;
+            actor->hit_flags = source.attack.hit_type;
             actor->hit_params = source.attack.hit_effect & 127;
             if (channel >= 2)
             {
@@ -447,10 +469,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     return false;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
-            if ((actor->state.id == 0x2b || actor->state.id == 0x26 || actor->state.id == 0x27 ||
-                 actor->state.id == 0x2e || actor->state.id == 0x2f || actor->state.id == 0x29 ||
-                 actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33) &&
-                damage != 0xc000)
+            if (EnemyHitbox(actor->state.id) && damage != 0xc000)
             {
                 if (damage & 0x8000)
                     actor->state.hit_points =
@@ -500,10 +519,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if ((actor->state.id == 3 || actor->state.id == 0xa) && actor->state.step > 1 &&
             actor->state.step < 5 && actor->timer == 0)
             actor->state.step = 5;
-        else if ((actor->state.id == 0x2b || actor->state.id == 0x26 || actor->state.id == 0x27 ||
-                  actor->state.id == 0x2e || actor->state.id == 0x2f || actor->state.id == 0x29 ||
-                  actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33 ||
-                  actor->state.id == 0x1a || actor->state.id == 0x25) &&
+        else if ((EnemyHitbox(actor->state.id) || actor->state.id == 0x1a ||
+                  actor->state.id == 0x25) &&
                  actor->attack > actors->combat.contact_damage)
         {
             actors->combat.contact_damage = actor->attack;
@@ -1056,6 +1073,22 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->pose = actor->remaining = 0;
         }
         return ActorAnimate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
+    case 0x49:
+        return ActorBossReward(actors, actor);
+    case 0x38:
+        return ActorBossPuff(actors, actor);
+    case 0x3e:
+    case 0x3f:
+        return ActorBossEvent(actors, actor);
+    case 0x40:
+    case 0x41:
+    case 0x42:
+        return ActorSlogra(actors, actor);
+    case 0x43:
+    case 0x44:
+    case 0x45:
+    case 0x46:
+        return ActorGaibon(actors, actor);
     case 0x12:
         return ActorCamera(actors, actor);
     case 5:
@@ -1193,6 +1226,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
+    actors->combat.music_change = false;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
     if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))
@@ -1282,7 +1316,10 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
                                 next.state.step, detail);
         }
         if (!frozen)
+        {
             next.hit_params = 0;
+            next.hit_flags = 0;
+        }
         if (next.permanent)
         {
             if (!SotnRoomActors_Release(actors->spawns, i, true))
@@ -1437,5 +1474,17 @@ bool SotnActors_SetCamera(SotnActors *s, SotnCamera *camera)
     if (s == NULL)
         return SDL_InvalidParamError("actors");
     s->camera = camera != NULL ? camera : &s->fallback_camera;
+    return true;
+}
+
+bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint32 seconds,
+                            bool music_playing)
+{
+    if (s == NULL || executable.bytes == NULL || executable.size < 0x22a10 + 2050 ||
+        seconds > 99999U * 3600)
+        return SDL_SetError("Stage services require private SDK tables and bounded game seconds");
+    s->executable = executable;
+    s->game_seconds = seconds;
+    s->music_playing = music_playing;
     return true;
 }

@@ -32,6 +32,8 @@ static bool Playback(const char *directory)
         dra[o + 10] = 127;
         Put32(dra, o + 12, id == 46 ? 1 : 0);
     }
+    for (Uint32 id = 29; id <= 30; ++id)
+        SDL_memcpy(dra + 0x1d224 + id * 16, dra + 0x1d224 + (id + 17) * 16, 16);
     Uint8 *raw = SDL_calloc(2, SOTN_CD_SECTOR_BYTES);
     CHECK(raw != NULL);
     for (Uint32 i = 0; i < 2; i++)
@@ -77,6 +79,10 @@ static bool Playback(const char *directory)
     }
     CHECK(intro > 0 && loop > intro * 2);
     CHECK(!SotnMusic_Tick(music, pcm, 1));
+    SotnMusic_Destroy(music);
+    CHECK(SotnMusic_CreateBoss(image, stream, &music));
+    for (Uint32 i = 0; i < 6; ++i)
+        CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
     SotnMusic_Destroy(music);
     SotnStream_Close(stream);
     CHECK(!SotnMusic_Create((SotnDataView){0}, NULL, &music) && music == NULL);

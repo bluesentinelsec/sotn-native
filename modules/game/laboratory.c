@@ -22,7 +22,7 @@ struct SotnLaboratory
     SotnStageRoom room;
     SotnWorldState world;
     SotnCamera camera;
-    SotnDataView dra, nz0;
+    SotnDataView dra, nz0, executable;
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
     SotnActors *actors;
@@ -88,6 +88,27 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
 {
     if (session->sound == NULL)
         return true;
+    if (combat->music_change)
+    {
+        SotnMusic *next = NULL;
+        if (combat->music != 0)
+        {
+            if (combat->music == 0x31d)
+            {
+                if (!SotnMusic_CreateBoss(session->dra, session->music_stream, &next))
+                    return false;
+            }
+            else if (combat->music == 0x32e)
+            {
+                if (!SotnMusic_Create(session->dra, session->music_stream, &next))
+                    return false;
+            }
+            else
+                return SDL_SetError("Unsupported Laboratory event music request");
+        }
+        SotnMusic_Destroy(session->music);
+        session->music = next;
+    }
     for (Uint32 i = 0; i < combat->sound_count; ++i)
         if (!SotnSound_Queue(session->sound, combat->sounds[i]))
             return false;
@@ -220,7 +241,9 @@ static bool TickActors(SotnLaboratory *session)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
-    if (!SotnActors_SetButtons(session->actors, session->scene_buttons) ||
+    if (!SotnActors_SetServices(session->actors, session->executable,
+                                (Uint32)(session->simulation_ticks / 60), session->music != NULL) ||
+        !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
@@ -420,6 +443,12 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
     return SDL_SetError("Player reached an unsupported Laboratory room boundary");
 }
 
+static bool PrimeAudio(SotnLaboratory *session)
+{
+    SotnActorCombat combat = {0};
+    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0);
+}
+
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out)
 {
@@ -427,17 +456,18 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         return SDL_InvalidParamError("out");
     *out = NULL;
     if (start_room != 1 && start_room != 3 && start_room != 4 && start_room != 5 &&
-        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 17 &&
-        start_room != 18 && start_room != 20 && start_room != 22 && start_room != 23 &&
-        start_room != 24 && start_room != 25)
+        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 14 &&
+        start_room != 16 && start_room != 17 && start_room != 18 && start_room != 20 &&
+        start_room != 22 && start_room != 23 && start_room != 24 && start_room != 25)
         return SDL_SetError("Laboratory development starts are currently room 1, 3, 4, 5, 6, 9, "
-                            "10, 17, 18, 20, 22, 23, 24, or 25");
+                            "10, 14, 16, 17, 18, 20, 22, 23, 24, or 25");
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
     session->room_index = start_room;
     session->mp = 20;
-    if (!SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
+    if (!SotnGameData_GetFile(data, SOTN_GAME_MAIN, &session->executable) ||
+        !SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
         !SotnGameData_GetFile(data, SOTN_GAME_NZ0, &session->nz0) ||
         !SotnCharacter_Create(session->dra, &session->character) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
@@ -477,7 +507,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter) ||
-        !OpenAudio(session, directory) || !EnterSaveRoom(session))
+        !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
@@ -642,7 +672,11 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
                                  .y = {top, top, bottom, bottom},
                                  .page = p.page,
                                  .palette = p.palette,
-                                 .blend = p.blend};
+                                 .blend = p.blend,
+                                 .tint = p.modulate,
+                                 .red = p.red,
+                                 .green = p.green,
+                                 .blue = p.blue};
             for (Uint32 uv = 0; uv < 4; ++uv)
             {
                 q.u[uv] = p.u[uv];
@@ -750,14 +784,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
         if (!DrawActorPrimitives(session, actor, camera_x, camera_y))
             return false;
-        if (!(actor.rotated
-                  ? SotnActorGraphics_DrawRotated(session->actor_graphics, sprite,
-                                                  Pixel(actor.x) - camera_x,
-                                                  Pixel(actor.y) - camera_y, actor.rotation,
-                                                  session->frame, SOTN_FRAME_PIXELS)
-                  : SotnActorGraphics_Draw(session->actor_graphics, sprite,
-                                           Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
-                                           session->frame, SOTN_FRAME_PIXELS)))
+        if (!SotnActorGraphics_DrawTransform(
+                session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
+                Pixel(actor.y) - camera_y,
+                (SotnSpriteTransform){
+                    actor.rotated ? actor.rotation : 0, actor.scale_x ? actor.scale_x : 256,
+                    actor.scale_y ? actor.scale_y : 256, actor.opacity ? actor.opacity : 128},
+                session->frame, SOTN_FRAME_PIXELS))
             return false;
     }
     return true;

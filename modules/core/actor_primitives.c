@@ -75,7 +75,7 @@ bool ActorStageParts(SotnActors *s, const Actor *a, SotnDataView *out)
         !Resolve(s->nz0, Read32(frames.bytes + a->state.frame * 4), 2, 2, &header))
         return false;
     const Uint16 count = Read16(header.bytes);
-    if (count == 0 || count > ACTOR_PRIMITIVE_LIMIT)
+    if (count == 0 || count > ACTOR_SPRITE_PART_LIMIT)
         return SDL_SetError("Actor death frame exceeds the native part budget");
     return Resolve(s->nz0, Read32(frames.bytes + a->state.frame * 4), 2 + (size_t)count * 22, 2,
                    out);

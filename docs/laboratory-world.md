@@ -106,10 +106,48 @@ revision (`src/dra/5087C.c:func_800F0CD8`). Lock logic follows
 `src/st/e_lock_camera.h`; its tables remain private. These do not yet prove room
 loading/fade, scripted event, background-animation, or full camera parity.
 
+## Paired boss encounter
+
+The original room manager now seals the Laboratory encounter, starts Slogra and
+Gaibon in their reserved slots, records the visited/defeated event, reopens its
+blocks, and requests the original boss/area music transitions. Slogra walks,
+pokes/fires his spear, reacts to hits, loses his spear at low health, and joins
+Gaibon's pickup/plunge attack. Gaibon flies, fires small/large projectiles,
+lands/shoots, transforms at low health, and completes his death sequence. Their
+physical hitboxes, damage/death, EXP, and supported sound requests use the shared
+combat/character services. Attached spear/leg entities validate their parent generation.
+
+The victory effect retains the original radius/angle/scale updates and its
+conversion to the original Life Max Up. Each of the original drawable/data pairs
+uses one native record: 193 owned primitives represent 385 PS1 records. Exhaustion
+retains the original fallback that still produces the gameplay drop. Negative
+scales and reversed projected corners are supported. Completion and room replacement
+release every owned primitive. Projectile scaling, rotation, fading, opaque puffs,
+and reward tinting draw from the user's original artwork/palettes.
+
+The quantized SDK angle table remains in the user's verified boot executable.
+Private comparisons matched 200,000 bounded directions and 20,000 reward projection
+cases against the pinned reconstructed implementations. Public synthetic tests cover
+the paired state transitions, pickup/plunge, low-health phases, projectiles, defeat,
+room unlocking, reward/drop ownership, parent expiry/bounds, scale/color rendering,
+and boss music decoding. A native LLDB run exercised both kills, the music changes,
+and reward collection, increasing maximum HP by five. That integration run used
+an explicit private high-health/strength test profile; ordinary starts retain the
+existing development character.
+
+Development room 16 enters the boss room from its safe left entrance. Room 14
+exposes secret obstacles. These remain checkpoints, not original new-game starts.
+Temporary destruction bits reset on room entry, matching the original; they must
+never suppress unrelated rooms' actors or enter ordinary saves. Permanent progress
+belongs to character/world state instead.
+
+Whole-encounter input/replay parity, full GTE/GPU effects/ordering, camera shake,
+reverb/positional mixing, complete status ailments, Maria/castle scripts, room-load
+fades, and other stages remain incomplete. The checkpoint is not a complete area
+or full-game parity claim.
+
 ## Remaining work in the authorized milestone
 
-- Original room event ordering; Slogra/Gaibon coordination,
-  projectiles, room sealing, victory/unlocking, reward, and music transitions.
 - Map exploration and original permanent event flags retained by ordinary save/load,
   with explicit migration from existing native saves.
 - A repeatable native traversal/boss/save/load run, sanitizer checks, platform CI,

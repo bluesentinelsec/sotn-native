@@ -62,6 +62,20 @@ bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite s
  * @return Success or SDL error; invalid private references leave the frame unchanged. */
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count);
+/** @brief Original affine scale/rotation/color, with 256 as unit scale and 128 as neutral color. */
+typedef struct SotnSpriteTransform
+{
+    Sint16 rotation;
+    Uint16 scale_x, scale_y, opacity;
+} SotnSpriteTransform;
+/** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
+ * @param graphics Borrowed texture service. @param sprite Private sprite selection.
+ * @param x Screen anchor. @param y Screen anchor. @param transform Scale 1..1024, color 0..255.
+ * @param frame Full writable frame. @param count Available pixels.
+ * @return Success or SDL error; invalid references leave the frame unchanged. */
+bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                     Sint32 x, Sint32 y, SotnSpriteTransform transform,
+                                     Uint16 *frame, size_t count);
 /** @brief Affine textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
  */
 typedef struct SotnTextureQuad
@@ -69,7 +83,9 @@ typedef struct SotnTextureQuad
     Sint32 x[4], y[4];
     Uint16 u[4], v[4]; /**< Texture edges 0..256, including the mirrored page boundary. */
     Uint16 page, palette;
-    bool blend;
+    bool blend, modulate, tint;
+    Uint8 red, green, blue;
+    Uint8 opacity; /**< Color multiplier, 128 neutral, used only when modulate is true. */
 } SotnTextureQuad;
 /** @brief Draw a bounded affine projectile primitive from already loaded private texture memory.
  * @param graphics Borrowed texture service. @param quad Copied quad, coordinates within +/-2048.
