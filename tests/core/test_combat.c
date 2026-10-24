@@ -55,6 +55,13 @@ static bool Damage(void)
     CHECK(!SotnCombat_Damage(enemy, 1000, 0, 0, stats, 1, &random, &result));
     CHECK(random == saved && result == saved_result);
     CHECK(!SotnCombat_Damage(enemy, 6, 0, 0, NULL, 1, &random, &result));
+    random = 0;
+    CHECK(SotnCombat_DamageAttributes(enemy, 10, 0, 255, stats, 50, 1, &random, &result));
+    CHECK(result == 0x4026 && random == 0xc21f1c8aU);
+    const Uint32 previous = random;
+    const Uint16 previous_result = result;
+    CHECK(!SotnCombat_DamageAttributes(enemy, 10, 0, 255, stats, 0, 1, &random, &result));
+    CHECK(random == previous && result == previous_result);
     return true;
 }
 

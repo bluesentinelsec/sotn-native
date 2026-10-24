@@ -17,6 +17,7 @@ typedef struct Actor
     Uint16 attack, attack_element, stun, hit_params, life_timer;
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
+    Uint16 collectible;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -30,6 +31,7 @@ struct SotnActors
     Uint32 random, combat_random, ticks, effect_serial;
     SotnActorCombat combat;
     bool entered;
+    SotnCharacter *character;
 };
 
 static Uint16 Read16(const Uint8 *bytes)
@@ -445,7 +447,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     for (Uint32 i = 0; i < 2; ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
-    if (actor->state.id != 1 && actor->state.id != 0x2b && actor->state.id != 3)
+    if (actor->state.id != 1 && actor->state.id != 0x2b && actor->state.id != 3 &&
+        actor->state.id != 0xa && actor->state.id != 0x34)
         return true;
     const SotnCombatBox target = {Pixel(actor->state.x) + (actor->state.facing_left
                                                                ? -actor->state.hitbox_x
@@ -461,12 +464,22 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         (actor->state.hitbox_state & player.attack.hit_type & 0x3e) &&
         SotnCombat_Overlap(attacker, target))
     {
-        const Uint16 stats[4] = {6, 6, 6, 6};
+        Uint16 stats[4] = {6, 6, 6, 6};
+        Uint16 luck = 6;
+        if (actors->character != NULL)
+        {
+            SotnCharacterStats attributes = {0};
+            SotnCharacterState progress = {0};
+            if (!SotnCharacter_Get(actors->character, &progress, &attributes))
+                return false;
+            SDL_memcpy(stats, progress.base, sizeof(stats));
+            luck = attributes.total[3];
+        }
         Uint16 damage = 0;
         if (actor->state.hit_points != 0x7fff && actor->state.hit_points != 0 &&
-            !SotnCombat_Damage(actor->enemy, player.attack.power, player.attack.element,
-                               player.attack.critical_rate, stats, 1, &actors->combat_random,
-                               &damage))
+            !SotnCombat_DamageAttributes(actor->enemy, player.attack.power, player.attack.element,
+                                         player.attack.critical_rate, stats, luck, 1,
+                                         &actors->combat_random, &damage))
             return false;
         actor->hit_params = player.attack.hit_effect & 127;
         actor->cooldown[hand] = player.attack.invincibility_frames;
@@ -490,11 +503,12 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         return true;
     }
-    if ((actor->state.hitbox_state & 1) && (actor->state.id == 3 || !player.invulnerable) &&
+    if ((actor->state.hitbox_state & 1) &&
+        (actor->state.id == 3 || actor->state.id == 0xa || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
     {
-        if (actor->state.id == 3 && actor->state.step > 1 && actor->state.step < 5 &&
-            actor->timer == 0)
+        if ((actor->state.id == 3 || actor->state.id == 0xa) && actor->state.step > 1 &&
+            actor->state.step < 5 && actor->timer == 0)
             actor->state.step = 5;
         else if (actor->state.id == 0x2b && actor->attack > actors->combat.contact_damage)
         {
@@ -593,6 +607,8 @@ static bool PrizeGround(SotnActors *actors, Actor *actor, Uint16 item, bool rest
     }
     return resting || item == 0 || PrizeSides(actors, actor);
 }
+
+static bool Collectible(SotnActors *actors, Actor *actor);
 
 static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
@@ -707,6 +723,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return true;
             }
         }
+        if (!Collectible(actors, actor))
+            return false;
         actor->remove = true;
         return true;
     }
@@ -749,6 +767,140 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     }
 }
 
+static bool Collectible(SotnActors *actors, Actor *actor)
+{
+    if (actor->collectible == 0 || actors->character == NULL)
+        return true;
+    SotnCharacterState state = {0};
+    if (!SotnCharacter_Get(actors->character, &state, NULL))
+        return false;
+    const Uint32 index = actor->collectible - 1U;
+    if (index >= 11)
+        return SDL_SetError("Laboratory item persistence index exceeds its original table");
+    state.laboratory_items[index / 8] |= (Uint8)(1U << (index & 7));
+    return SotnCharacter_Restore(actors->character, &state);
+}
+
+static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState player)
+{
+    (void)player;
+    if (actors->character == NULL)
+    {
+        actor->state.unsupported = true;
+        return true;
+    }
+    const Uint16 id = actor->state.parameters & 0x7fff;
+    if (id >= SOTN_HAND_ITEMS + SOTN_BODY_ITEMS)
+        return SDL_SetError("Equipment drop exceeds both original item tables");
+    switch (actor->state.step)
+    {
+    case 0:
+        if (!Initialize(actors, actor, 0xbd4))
+            return false;
+        actor->state.priority = 0x80;
+        actor->state.animation_set = 0;
+        actor->state.frame = 0;
+        actor->state.blend_mode = 0;
+        return true;
+    case 1: {
+        SotnCollider collider = {0};
+        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y), &collider))
+            return false;
+        if (collider.effects & (SOTN_EFFECT_BLOCK | SOTN_EFFECT_SINK))
+            actor->remove = true;
+        else
+        {
+            actor->state.step = 2;
+            actor->state.hitbox_width = actor->state.hitbox_height = 7;
+            actor->timer = 0;
+        }
+        return true;
+    }
+    case 2: {
+        SotnCollider collider = {0};
+        if (actor->vy < 0)
+        {
+            if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) - 7, &collider))
+                return false;
+            if (collider.effects & SOTN_EFFECT_SOLID)
+                actor->vy = 0;
+        }
+        actor->state.x += actor->vx;
+        actor->state.y += actor->vy;
+        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) + 7, &collider))
+            return false;
+        if ((collider.effects & SOTN_EFFECT_SOLID) && actor->vy > 0)
+        {
+            actor->vx = actor->vy = 0;
+            ShiftY(actor, collider.top);
+            actor->life_timer = 240;
+            actor->state.step = 3;
+        }
+        else
+            actor->vy = SDL_min(6 * 65536, actor->vy + 16384);
+        return PrizeSides(actors, actor);
+    }
+    case 3:
+    case 4:
+        if (!PrizeGround(actors, actor, 1, true))
+            return false;
+        if (!(actor->state.parameters & 0x8000) && --actor->life_timer == 0)
+        {
+            if (actor->state.step == 3)
+            {
+                actor->state.step = 4;
+                actor->life_timer = 80;
+            }
+            else
+                actor->remove = true;
+        }
+        return true;
+    case 5: {
+        const bool body = id >= SOTN_HAND_ITEMS;
+        const Uint16 item_id = body ? (Uint16)(id - SOTN_HAND_ITEMS) : id;
+        SotnItem item = {0};
+        char name[161] = {0};
+        if (!SotnCharacter_Collect(actors->character, body, item_id) ||
+            !Collectible(actors, actor) || !SotnItem_Read(actors->dra, body, item_id, &item) ||
+            !SotnItem_Name(item, name, sizeof(name)) || !Sound(actors, 0x67d))
+            return false;
+        SDL_Log("Obtained %s", name);
+        actor->remove = true;
+        return true;
+    }
+    default:
+        return SDL_SetError("Equipment drop entered an unsupported state");
+    }
+}
+
+static bool PersistentPrize(SotnActors *actors, Actor *actor, SotnPlayerState player)
+{
+    if (actors->character == NULL)
+    {
+        actor->state.unsupported = true;
+        return true;
+    }
+    const Uint16 index = actor->state.parameters;
+    if (index >= 11)
+        return SDL_SetError("Persistent Laboratory drop index exceeds its original table");
+    SotnCharacterState state = {0};
+    SotnDataView prize = {0};
+    if (!SotnCharacter_Get(actors->character, &state, NULL))
+        return false;
+    if (state.laboratory_items[index / 8] & (1U << (index & 7)))
+    {
+        actor->remove = true;
+        return true;
+    }
+    if (!Slice(actors->nz0, 0x13b0 + (size_t)index * 2, 2, &prize))
+        return false;
+    const Uint16 id = Read16(prize.bytes);
+    actor->collectible = (Uint16)(index + 1);
+    actor->state.id = (Uint16)(id < 128 ? 3 : 0xa);
+    actor->state.parameters = (Uint16)((id < 128 ? id : id - 128) | 0x8000);
+    return id < 128 ? Prize(actors, actor, player) : EquipmentPrize(actors, actor, player);
+}
+
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
@@ -783,6 +935,10 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     }
     case 3:
         return Prize(actors, actor, player);
+    case 0xa:
+        return EquipmentPrize(actors, actor, player);
+    case 0xc:
+        return PersistentPrize(actors, actor, player);
     case 1: {
         const Uint32 type = actor->state.parameters >> 12;
         SotnDataView table = {0};
@@ -801,6 +957,11 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     return false;
                 actor->state.id = 3;
                 actor->state.parameters &= 0xfff;
+                if (actor->state.parameters >= 128)
+                {
+                    actor->state.id = 0xa;
+                    actor->state.parameters -= 128;
+                }
                 actor->state.step = actor->pose = actor->remaining = 0;
                 actor->state.frame = 0;
                 actor->dynamic = actor->permanent = true;
@@ -840,8 +1001,45 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             if (!Initialize(actors, actor, 0xcc4))
                 return false;
             actor->state.priority = 0x6a;
+            if (actors->character != NULL)
+            {
+                actor->state.hitbox_width = 8;
+                actor->state.hitbox_height = 12;
+                actor->state.hitbox_y = -10;
+                actor->state.hitbox_state = 2;
+            }
         }
-        return Animate(actors, actor, 0xef0, &animation);
+        if (actors->character != NULL && actor->state.step == 1 && actor->hit_params != 0)
+        {
+            SotnDataView index = {0};
+            if (actor->state.parameters >= 5 ||
+                !Slice(actors->nz0, 0xf10 + actor->state.parameters * 2U, 2, &index) ||
+                !Sound(actors, 0x635))
+                return false;
+            /* next is a copied actor during Tick, so locate its stable generation. */
+            size_t parent = SOTN_STAGE_ACTOR_SLOTS;
+            for (size_t i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
+                if (actors->slots[i].state.generation == actor->state.generation)
+                {
+                    parent = i;
+                    break;
+                }
+            if (parent + 1 >= SOTN_STAGE_ACTOR_SLOTS)
+                return SDL_SetError("Globe table lacks its original reserved child slot");
+            Actor *child = &actors->slots[parent + 1];
+            if (child->state.generation != 0)
+                return SDL_SetError("Globe table child slot is occupied");
+            *child = (Actor){.state = {.x = actor->state.x,
+                                       .y = actor->state.y,
+                                       .id = 0xc,
+                                       .parameters = Read16(index.bytes),
+                                       .generation = 0x80000000U | ++actors->effect_serial},
+                             .dynamic = true};
+            actor->state.step = 2;
+            actor->state.hitbox_state = 0;
+            actor->pose = actor->remaining = 0;
+        }
+        return Animate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
     case 0x2b:
         return Zombie(actors, actor, player);
     default:
@@ -902,6 +1100,17 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     const Sint64 max_y = ((Sint64)actors->map.height * 16 + 256) * 65536;
     if (player.x < min_position || player.x > max_x || player.y < min_position || player.y > max_y)
         return SDL_SetError("Laboratory actors require a player within the bounded current room");
+    if (actors->character != NULL)
+    {
+        SotnCharacterState state = {0};
+        if (!SotnCharacter_Get(actors->character, &state, NULL))
+            return false;
+        actors->combat.hearts = state.hearts;
+        actors->combat.hearts_max = state.hearts_max;
+        actors->combat.subweapon = state.subweapon;
+        actors->combat.gold = state.gold;
+        actors->combat.kills = state.kills;
+    }
     ++actors->ticks;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
@@ -999,6 +1208,18 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             return SDL_SetError("Laboratory actor motion left the bounded room region");
         *actor = next;
     }
+    if (actors->character != NULL)
+    {
+        SotnCharacterState state = {0};
+        if (!SotnCharacter_Get(actors->character, &state, NULL))
+            return false;
+        state.hearts = actors->combat.hearts;
+        state.subweapon = actors->combat.subweapon;
+        state.gold = actors->combat.gold;
+        state.kills = actors->combat.kills;
+        if (!SotnCharacter_Restore(actors->character, &state))
+            return false;
+    }
     return true;
 }
 
@@ -1039,6 +1260,14 @@ bool SotnActors_Restore(SotnActors *actors, SotnActorProgress progress)
     actors->combat.kills = progress.kills;
     actors->random = progress.random;
     actors->combat_random = progress.combat_random;
+    return true;
+}
+
+bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character)
+{
+    if (actors == NULL)
+        return SDL_InvalidParamError("actors");
+    actors->character = character;
     return true;
 }
 

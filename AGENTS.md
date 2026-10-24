@@ -7,7 +7,7 @@ preserves the original experience and creates a foundation for later improvement
 The C17 SDL3 app includes a limited Laboratory actor checkpoint, not a complete
 working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
-Bloody Zombies run active motion/attack animations. Selected empty-hand and Gladius/Mace combat, physical damage, candle drops, and collection are
+Bloody Zombies run active motion/attack animations. Selected empty-hand and Basilard/Gladius/Mace combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Other equipped weapons,
 complete effects/audio, full progression saves, scripts, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
@@ -173,3 +173,8 @@ subweapon from private artwork/tables. MP remains an explicit full development v
 
 The [native sound service](docs/laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
+
+The [character inventory](docs/character-inventory.md) now connects original pickups,
+selected pause/equipment panels, body stats, physical defense, and cape colors.
+Spells/relic/settings/familiar menus remain unavailable. Version 1/2 save files
+still cover the earlier checkpoint; the following stack expands persistence.

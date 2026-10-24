@@ -4,9 +4,10 @@ A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
 The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
-red-eye busts, globe tables, selected empty-hand/Gladius/Mace combat, candle pickups,
+red-eye busts, globe tables, selected empty-hand/Basilard/Gladius/Mace combat, candle pickups,
 the original Alucard HUD, physical death/game over, native save-room support,
 and original sound effects/Laboratory music.
+[Inventory and equipment](docs/character-inventory.md) now connect owned pickups to combat stats.
 Other equipped weapons, complete damage/item/audio behavior, full inventory/progression saves, actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
@@ -49,7 +50,9 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
 Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
-Xbox **X/B** use the equipped hands (default: Gladius left, empty right). Ability inputs remain unsupported.
+Xbox **X/B** use the equipped hands (default: Gladius left, empty right).
+**Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
+or Xbox A selects and keyboard A/Xbox Y goes back. Ability inputs remain unsupported.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
