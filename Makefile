@@ -34,6 +34,7 @@ SOTN_FORMAT_SOURCES += modules/core/collision.c \
   modules/core/stage.c \
   modules/core/actor_layout.c modules/core/room_actors.c \
   modules/core/actors.c modules/core/include/sotn/actors.h tests/core/test_actors.c \
+  modules/core/combat.c modules/core/include/sotn/combat.h tests/core/test_combat.c \
   modules/core/include/sotn/actor_layout.h tests/core/test_actor_layout.c \
   modules/core/player.c \
   modules/core/player_sensors.c \

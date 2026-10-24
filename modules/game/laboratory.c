@@ -25,6 +25,8 @@ struct SotnLaboratory
     Uint64 last_time, clock_units;
     bool dirty, paused;
     bool warned_actors[0x4e];
+    Uint16 displayed_hp, displayed_hearts, displayed_subweapon;
+    Uint32 displayed_gold;
 };
 
 static Sint32 Pixel(Sint32 fixed)
@@ -72,6 +74,24 @@ static bool TickActors(SotnLaboratory *session)
     Camera(session, player, &camera_x, &camera_y);
     if (!SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
+    SotnActorCombat combat = {0};
+    if (!SotnActors_GetCombat(session->actors, &combat) ||
+        !SotnPlayer_Damage(session->player, combat.contact_damage, combat.contact_x,
+                           combat.contact_velocity))
+        return false;
+    if (!SotnPlayer_GetState(session->player, &player))
+        return false;
+    if (player.hp != session->displayed_hp || combat.hearts != session->displayed_hearts ||
+        combat.gold != session->displayed_gold || combat.subweapon != session->displayed_subweapon)
+    {
+        SDL_Log("Development inventory: HP %u/%u, hearts %u/%u, gold %u, subweapon %u", player.hp,
+                player.hp_max, combat.hearts, combat.hearts_max, (unsigned int)combat.gold,
+                combat.subweapon);
+        session->displayed_hp = player.hp;
+        session->displayed_hearts = combat.hearts;
+        session->displayed_gold = combat.gold;
+        session->displayed_subweapon = combat.subweapon;
+    }
     for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
     {
         SotnActorState state = {0};
@@ -157,7 +177,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                                     SotnResource_View(session->common)},
                                   &session->actor_graphics) ||
         !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
-        !SotnPresenter_Create("SOTN Native - Laboratory actor checkpoint (development)", 1024, 960,
+        !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter))
     {
         char detail[512] = {0};
@@ -168,10 +188,10 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Laboratory development start: room %u", (unsigned int)start_room);
-    SDL_Log("Laboratory actor checkpoint: candles, busts, globe tables, and Bloody Zombie "
-            "motion/animation; "
-            "combat, drops, audio, other actors/effects, saves, scripts, and original camera "
-            "remain incomplete.");
+    SDL_Log("Laboratory combat checkpoint: empty-hand attacks, Bloody Zombie damage/death, "
+            "physical player damage, candles, and heart/gold/subweapon collection. "
+            "Weapons, audio, full effects, saves, scripts, and original camera remain incomplete.");
+    SDL_Log("Development profile: 70 HP, base stats 6, empty equipment, Cube of Zoe enabled.");
     *out = session;
     return true;
 }

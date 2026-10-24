@@ -140,6 +140,86 @@ static bool TestBehaviors(Fixture *fixture)
     return true;
 }
 
+static bool TestCombat(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    Put16(fixture->nz0, 0x310, 0x100);
+    Put16(fixture->dra, 0x20c, 2);
+    fixture->dra[0x222] = 8;
+    fixture->dra[0x223] = 8;
+    fixture->nz0[0xe24] = 8;
+    Put16(fixture->nz0, 0xbd4, 3);
+    Put16(fixture->nz0, 0xbdc, 2);
+    Put16(fixture->dra, 0x25c, 1);
+    fixture->dra[0x272] = 6;
+    fixture->dra[0x273] = 7;
+    Put32(fixture->nz0, 0x1d3c, 0x80180f10);
+    const Uint8 prize_animation[] = {1, 14, 0, 0};
+    SDL_memcpy(fixture->nz0 + 0xf10, prize_animation, sizeof(prize_animation));
+    fixture->nz0[0x1da4] = 1;
+    Put32(fixture->nz0, 0x1e54, 0x80180f10);
+    Put32(fixture->nz0, 0x1e5c, 0x80180f10);
+    Put32(fixture->nz0, 0x1da8, 0xffff0000);
+    Put32(fixture->nz0, 0x1db0, 0xfffe8000);
+    Put16(fixture->nz0, 0xc84, 1);
+    Put16(fixture->dra, 0x22c, 12);
+    Put16(fixture->dra, 0x234, 3);
+    fixture->dra[0x24a] = 4;
+    fixture->dra[0x24b] = 22;
+    const Uint8 end[] = {1, 20, 255, 0};
+    SDL_memcpy(fixture->nz0 + 0x2320, end, sizeof(end));
+    SDL_memcpy(fixture->nz0 + 0x2334, end, sizeof(end));
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)},
+                            (SotnDataView){fixture->nz0, sizeof(fixture->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){fixture->nz0, sizeof(fixture->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    SotnPlayerState player = {0};
+    player.x = 22 * 65536;
+    player.y = 140 * 65536;
+    player.animation.hitbox_width = 4;
+    player.animation.hitbox_height = 20;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    player.attack = (SotnPlayerAttack){.offset_x = 18,
+                                       .width = 10,
+                                       .height = 8,
+                                       .hit_type = 2,
+                                       .hit_effect = 1,
+                                       .invincibility_frames = 8,
+                                       .active = true};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnActorState state = {0};
+    CHECK(SotnActors_Get(actors, 0, &state) && state.id == 3);
+    player.attack.active = false;
+    for (Uint32 i = 0; i < 30; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnActorCombat combat = {0};
+    CHECK(SotnActors_GetCombat(actors, &combat) && combat.hearts == 11);
+    CHECK(SotnActors_Get(actors, 0, &state) && state.generation == 0);
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 0, &state) && state.generation == 0);
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    player.x = 142 * 65536;
+    player.attack.active = true;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &state) && state.hit_points == 6);
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &state) && state.hit_points == 6);
+    for (Uint32 i = 0; i < 8; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &state) && state.hit_points == 0 && state.step >= 8);
+    player.attack.active = false;
+    for (Uint32 i = 0; i < 70; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &state) && state.generation == 0);
+    CHECK(SotnActors_GetCombat(actors, &combat) && combat.kills == 1 && combat.hearts == 11);
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -165,7 +245,7 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestBehaviors(fixture) && TestFailures(fixture);
+    const bool passed = TestBehaviors(fixture) && TestCombat(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

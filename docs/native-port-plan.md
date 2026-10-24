@@ -14,7 +14,9 @@ by the user. Read [movement integration](laboratory-movement.md) for the support
 subset, [actor integration](laboratory-actors.md) for selected room behaviors,
 and [presentation](laboratory-presentation.md) for graphics limitations.
 
-Combat/damage, drops, complete actors/effects, sound, saves, original camera/timing,
+Selected combat and candle drops/collection are integrated in a development profile;
+see [combat limitations](laboratory-combat.md). Complete actors/effects, sound,
+saves, original camera/timing,
 scripts, and full-game progression remain incomplete. The first authentic playable
 project milestone is still incomplete. Build and playtest our executable;
 the earlier isolated comparison checkout is only source/reference material
