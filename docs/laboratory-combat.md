@@ -31,7 +31,7 @@ appear in SDL logs; the original HUD is not implemented.
 
 Equipped weapons, subweapon use, inventory menus, experience/level progression,
 enemy loot, original blood/glow/hit primitives, all elemental player damage,
-full shared random-state consumption, startup, and audio remain incomplete.
+full shared random-state consumption, startup, and complete audio parity remain incomplete.
 Subweapon swapping retains the previous pickup and its toss/recovery timing;
 its sparkle primitive is omitted. Unsupported vessels remain marked unsupported.
 Do not describe this checkpoint as a complete or fully authentic game port.

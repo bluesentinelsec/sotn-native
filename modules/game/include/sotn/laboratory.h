@@ -15,9 +15,10 @@ typedef struct SotnLaboratory SotnLaboratory;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() on unsupported or missing data.
  * @pre SDL video is initialized and calls occur on the main thread.
- * @note Supports selected original actor motion/animation. Combat, drops, audio,
- * other actor families/effects, saves, scripts, original camera, and full progression are
- * incomplete.
+ * @note Supports selected unarmed combat, candle prizes, original sound effects, and
+ * streaming Laboratory music in an explicit development profile. Equipped weapons, full
+ * effects/audio parity, saves/continue, scripts, original camera/timing, and progression
+ * remain incomplete.
  */
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out);

@@ -2,16 +2,16 @@
 
 A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
-The project's executable now runs a limited actor checkpoint in the Alchemy
+The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
 red-eye busts, globe tables, selected unarmed combat, candle pickups,
 and original sound effects/Laboratory music.
-Combat, damage, item collection, audio, saves, complete actor/effect support,
-stage scripts, and full-game progression remain incomplete. This is not yet an
+Equipped weapons, complete damage/item/audio behavior, saves, full actor/effect
+support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
-The actor checkpoint requires users to supply their own supported game dump.
+The combat checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.
 
 The project uses **C17**. Phase 1 preserves the original game experience, with
