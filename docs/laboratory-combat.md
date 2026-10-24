@@ -29,7 +29,8 @@ the original unbuffed STR contribution, and the selected luck/critical calculati
 a recovered save. Alucard takes ordinary physical contact damage, runs hit
 reactions, and has recovery invulnerability. Reaching zero HP stops with a clear
 message because death/continue and saves remain unintegrated. Inventory changes
-appear in SDL logs; the original HUD is not implemented.
+appear in SDL logs and the [original HUD](laboratory-hud.md) displays HP, MP, hearts,
+and subweapon state.
 
 Other equipped weapons, subweapon use, inventory menus, experience/level progression,
 enemy loot, original blood/glow/hit primitives, all elemental player damage,

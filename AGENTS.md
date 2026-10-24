@@ -161,5 +161,8 @@ The selected route is a **decompilation-based native port**; read the current
   Include a brief validation result. Leave implementation details in the code
   unless a reviewer needs them to understand a material tradeoff.
 
+The [original HUD](docs/laboratory-hud.md) presents HP, MP, hearts, and the collected
+subweapon from private artwork/tables. MP remains an explicit full development value.
+
 The [native sound service](docs/laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

@@ -99,3 +99,8 @@ Selected Gladius/Mace integration additionally adapts `src/weapon/w_000.c`,
 `5D5BC.c:GetEquipProperties` paths at the pinned reconstruction revision under
 AGPL-3.0-or-later. Equipment records, weapon overlays, frame/hitbox tables,
 palettes, and pixels remain private runtime inputs.
+
+Original HUD presentation adapts selected `src/dra/5F60C.c` HUD/counter paths
+and `4A538.c` palette behavior at the same pinned reconstruction revision under
+AGPL-3.0-or-later. Layout, glyphs, artwork, palettes, and animation definitions
+remain private runtime data; none are compiled into public binaries.

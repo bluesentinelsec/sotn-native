@@ -4,7 +4,8 @@ A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
 The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
-red-eye busts, globe tables, selected unarmed combat, candle pickups,
+red-eye busts, globe tables, selected empty-hand/Gladius/Mace combat, candle pickups,
+the original Alucard HUD,
 and original sound effects/Laboratory music.
 Other equipped weapons, complete damage/item/audio behavior, saves, full actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
@@ -61,6 +62,7 @@ do not run the title screen or original progression. The development combat prof
 and heart/gold/subweapon collection. Alucard takes physical damage; death ends
 the checkpoint because continue/save flow is incomplete. See
 [combat integration](docs/laboratory-combat.md) for the development loadout and limits.
+The [original HUD](docs/laboratory-hud.md) shows HP, MP, hearts, and the subweapon.
 Unsupported actor families emit a warning and are omitted from this checkpoint.
 The camera and fixed 60-tick pacing are development
 adapters. See [actor integration](docs/laboratory-actors.md) and
