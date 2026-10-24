@@ -7,8 +7,9 @@ preserves the original experience and creates a foundation for later improvement
 The C17 SDL3 app includes a limited Laboratory actor checkpoint, not a complete
 working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
-Bloody Zombies run active motion/attack animations. Combat/damage, drops, sound,
-other actor/effect families, saves, scripts, and full progression remain incomplete.
+Bloody Zombies run active motion/attack animations. Selected empty-hand combat, physical damage, candle drops, and collection are
+integrated; read [combat scope](docs/laboratory-combat.md). Equipped weapons,
+complete effects, sound, saves, scripts, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES

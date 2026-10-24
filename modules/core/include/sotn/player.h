@@ -23,7 +23,8 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_WALK,
     SOTN_PLAYER_CROUCH,
     SOTN_PLAYER_FALL,
-    SOTN_PLAYER_JUMP
+    SOTN_PLAYER_JUMP,
+    SOTN_PLAYER_HIT = 10
 } SotnPlayerStep;
 
 /** @brief Runtime unarmed hitbox, in whole pixels relative to Alucard's origin. */
@@ -44,6 +45,8 @@ typedef struct SotnPlayerState
     SotnPlayerStep step;
     bool facing_left;
     SotnPlayerAttack attack;
+    Uint16 hp, hp_max;
+    bool invulnerable;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -58,8 +61,9 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Empty-hand attack animations/hitboxes are supported. Equipped weapons, damage resolution,
- * transformations, and stage scripts are not implemented here.
+ * Empty-hand attack animations/hitboxes are supported. Ordinary physical damage is supported
+ * separately by SotnPlayer_Damage. Equipped weapons, transformations, and stage scripts are not
+ * implemented here.
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
                        SotnPlayer **out);
@@ -91,6 +95,17 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
  * @return True on success, false with SDL_GetError() for invalid arguments.
  */
 bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out);
+
+/** @brief Apply ordinary physical contact damage to the empty-equipment development player.
+ * @param player Borrowed simulation, with a 70-HP development profile.
+ * @param amount Incoming original attack, 1..9999; zero does nothing.
+ * @param source_x Whole-pixel source hitbox center within the room margin.
+ * @param source_velocity Original signed 16.16 source velocity.
+ * @return Success, or false with SDL_GetError() on invalid input, data failure, or death.
+ * @note Preserves normal physical hit reactions and recovery invulnerability. Elemental
+ * ailments, equipped defenses, and death/continue flow remain incomplete. Death sets HP to zero
+ * and stops the development session explicitly. Other failures leave state unchanged. */
+bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

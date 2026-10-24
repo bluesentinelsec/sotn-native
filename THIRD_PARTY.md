@@ -63,3 +63,9 @@ The empty-hand player dependency additionally adapts the selected
 `EntityUnarmedAttack` and `UpdateUnarmedAnim` paths in `src/dra/7879C.c` and
 `alu_anim.c` at the same pinned reconstructed C revision, under
 AGPL-3.0-or-later. Their animation/hitbox tables remain private runtime data.
+
+The selected Laboratory combat paths additionally adapt `src/st/collision.h`,
+`e_collect.h`, `collect_subweapon.h`, and `src/dra/5D5BC.c` (`DealDamage`),
+including original physical player-hit paths in `71830.c`. They retain
+AGPL-3.0-or-later attribution at the same pinned revision. Game tables and
+sound samples are not included.

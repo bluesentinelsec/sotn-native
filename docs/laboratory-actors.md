@@ -96,8 +96,9 @@ Actors render with stage/common palettes and multipart textures in priority
 order around Alucard. Known unsupported families are exposed as unsupported
 and emit one native warning per ID; malformed supported data still stops the session.
 
-This checkpoint does **not** implement combat/damage, item drops/collection,
-audio, zombie hit/death behavior, blade-blood particles, globe glow primitives,
+The following [combat checkpoint](laboratory-combat.md) adds empty-hand hits,
+zombie hit/death behavior, physical player damage, and candle drops/collection.
+It still omits audio, blade-blood particles, globe glow primitives,
 the remaining actor families, puzzle/door interaction, complete GPU ordering,
 ordinary saves, or original startup/camera/timing. Enemy attacks are visual;
 they do not damage Alucard. An omitted actor is not evidence of completed parity.

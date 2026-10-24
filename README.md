@@ -46,14 +46,16 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 ```
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
-Xbox controls use the d-pad or left stick and **A** to jump. Attack/ability
-inputs are ignored with one warning per session until those actions are integrated.
+Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
+Xbox **X/B** perform empty-hand attacks. Ability inputs remain unsupported.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
 Omit `--laboratory-room 3` to use the earlier room-1 entry start. These starts
-do not run the title screen or original progression. Combat and item collection
-remain unavailable; enemy attacks currently animate without damaging Alucard.
+do not run the title screen or original progression. The development combat profile supports zombie damage/death, candle breaks,
+and heart/gold/subweapon collection. Alucard takes physical damage; death ends
+the checkpoint because continue/save flow is incomplete. See
+[combat integration](docs/laboratory-combat.md) for the development loadout and limits.
 Unsupported actor families emit a warning and are omitted from this checkpoint.
 The camera and fixed 60-tick pacing are development
 adapters. See [actor integration](docs/laboratory-actors.md) and
