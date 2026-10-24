@@ -647,6 +647,47 @@ static void CrouchTick(SotnPlayer *player)
     }
 }
 
+// Selected ordinary physical PlayerStepKill path; elemental deaths remain separate work.
+static void DeathTick(SotnPlayer *player)
+{
+    if (player->death.phase == 1)
+    {
+        if (player->death.red < 248)
+            ++player->death.red;
+        if (player->death.blue > 8)
+            --player->death.blue;
+        player->vy += 5632;
+        if (player->vy > 16384)
+            player->vy = 4096;
+        if (player->animation.remaining < 0)
+        {
+            player->death.phase = 2;
+            player->death.timer = 64;
+        }
+    }
+    else if (player->death.phase == 2)
+    {
+        for (Uint32 i = 0; i < 4; ++i)
+        {
+            const Uint16 cell = player->death.cursor;
+            player->death.mask[cell / 8] |= (Uint8)(1U << (cell & 7));
+            player->death.cursor = (Uint16)((cell + 35) & 255);
+        }
+        if (--player->death.timer == 0)
+        {
+            player->vy = 0;
+            player->death.phase = 128;
+        }
+    }
+    Decelerate(player, 1024);
+    if (player->animation.pose >= 15)
+    {
+        if (player->animation.pose == 22 && player->animation.remaining == 1)
+            player->death.rotation -= 256;
+        player->death.rotation = (Sint16)SDL_max(-640, player->death.rotation - 6);
+    }
+}
+
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
     const Uint16 supported = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN |
@@ -665,7 +706,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
         if (next.timers[i] != 0)
             --next.timers[i];
-    next.tight_space = SotnPlayer_TightSpace(&next);
+    if (next.step != SOTN_PLAYER_KILL)
+        next.tight_space = SotnPlayer_TightSpace(&next);
     if (next.failed)
         return false;
     next.previous_step = next.step;
@@ -702,6 +744,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             if (Direction(&next))
                 SetSpeed(&next, 49152);
         }
+        break;
+    case SOTN_PLAYER_KILL:
+        DeathTick(&next);
         break;
     case SOTN_PLAYER_HIT:
         next.invincibility = 12;
@@ -741,7 +786,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     }
     if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next))
         return false;
-    SotnPlayer_Collide(&next);
+    if (next.step == SOTN_PLAYER_KILL)
+    {
+        next.x.value += next.vx;
+        next.y.value += next.vy;
+    }
+    else
+        SotnPlayer_Collide(&next);
     if (next.failed)
         return false;
     if (!PositionValid(next.map, next.x.value, next.y.value))
@@ -832,8 +883,10 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->attack,
                              player->hp,
                              70,
-                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT,
-                             player->sound};
+                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
+                                 player->step == SOTN_PLAYER_KILL,
+                             player->sound,
+                             player->death};
     return true;
 }
 
@@ -842,15 +895,11 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Player damage requires a bounded physical attack and source");
-    if (amount == 0 || player->invincibility != 0 || player->step == SOTN_PLAYER_HIT)
+    if (amount == 0 || player->hp == 0 || player->invincibility != 0 ||
+        player->step == SOTN_PLAYER_HIT)
         return true;
-    if (player->hp <= amount)
-    {
-        player->hp = 0;
-        return SDL_SetError("Alucard died; this development checkpoint has no death/continue flow");
-    }
     SotnPlayer next = *player;
-    next.hp = (Uint16)(next.hp - amount);
+    next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     const Sint32 center_x =
         next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
     const Sint32 delta = center_x - source_x;
@@ -859,6 +908,19 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     ClearAttack(&next);
     next.movement_flags = 0;
     next.invincibility = 12;
+    if (next.hp == 0)
+    {
+        next.step = SOTN_PLAYER_KILL;
+        next.death = (SotnPlayerDeath){.phase = 1, .red = 128, .blue = 128};
+        next.vx = right ? 81920 : -81920;
+        next.vy = -212992;
+        next.sound = 0x6f6;
+        Animate(&next, 0xc0);
+        if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+            return false;
+        *player = next;
+        return true;
+    }
     const bool strong = (Uint32)amount * 20 > 70;
     const Uint16 pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1) + (strong ? 3 : 5));
     const Uint8 *sound = NULL;

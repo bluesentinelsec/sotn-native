@@ -161,6 +161,10 @@ The selected route is a **decompilation-based native port**; read the current
   Include a brief validation result. Leave implementation details in the code
   unless a reviewer needs them to understand a material tradeoff.
 
+The [physical death/game-over flow](docs/laboratory-game-over.md) now runs the selected
+original presentation and exits successfully after its fade. Title/file selection,
+ordinary saves, elemental deaths, and complete effects remain incomplete.
+
 The [original HUD](docs/laboratory-hud.md) presents HP, MP, hearts, and the collected
 subweapon from private artwork/tables. MP remains an explicit full development value.
 

@@ -15,6 +15,7 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_LAB_AUDIO_HEADER,     /**< US Laboratory instrument metadata. */
     SOTN_RESOURCE_LAB_AUDIO_BODY,       /**< US Laboratory sample data. */
     SOTN_RESOURCE_WEAPON_GRAPHICS,      /**< US BIN/WEAPON0.BIN weapon data and textures. */
+    SOTN_RESOURCE_GAME_OVER,            /**< US BIN/F_GO.BIN game-over artwork. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

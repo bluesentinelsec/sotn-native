@@ -61,6 +61,10 @@ bool SotnLaboratory_Iterate(SotnLaboratory *laboratory);
  */
 bool SotnLaboratory_Draw(SotnLaboratory *laboratory);
 
+/** @brief Query completion of the selected original game-over presentation.
+ * @param laboratory Borrowed session or NULL. @return True after the fade has finished. */
+bool SotnLaboratory_Finished(const SotnLaboratory *laboratory);
+
 /**
  * @brief Release session resources before closing the application's core snapshot.
  * @param laboratory Owned session, or NULL.

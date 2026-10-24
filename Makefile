@@ -63,6 +63,8 @@ SOTN_FORMAT_SOURCES += modules/core/equipment.c modules/core/include/sotn/equipm
 
 SOTN_FORMAT_SOURCES += modules/render/hud.c modules/render/include/sotn/hud.h tests/render/test_hud.c
 
+SOTN_FORMAT_SOURCES += modules/render/game_over.c modules/render/include/sotn/game_over.h tests/render/test_game_over.c
+
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)

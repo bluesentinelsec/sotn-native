@@ -5,6 +5,8 @@ add_library(sotn-render STATIC
   layout.c
   layout.h
   save_icon.c
+  game_over.c
+  include/sotn/game_over.h
   hud.c
   include/sotn/hud.h
   tilemap.c

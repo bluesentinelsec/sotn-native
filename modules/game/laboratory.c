@@ -2,6 +2,7 @@
 #include <sotn/actor_graphics.h>
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
+#include <sotn/game_over.h>
 #include <sotn/hud.h>
 #include <sotn/laboratory.h>
 #include <sotn/music.h>
@@ -16,13 +17,15 @@ struct SotnLaboratory
     SotnStage *stage;
     SotnStageRoom room;
     SotnDataView dra, nz0;
-    SotnResource *tiles, *common, *arc, *weapons;
+    SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
     SotnActors *actors;
     SotnActorLayout *actor_layout;
     SotnActorGraphics *actor_graphics;
     SotnPresenter *presenter;
     SotnHud *hud;
+    SotnGameOver *game_over;
+    Uint16 scene_buttons;
     LaboratoryInput input;
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
@@ -72,7 +75,7 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
         return false;
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
-    if (!SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
+    if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
         return false;
     if (session->music != NULL)
     {
@@ -229,6 +232,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_COMMON_GRAPHICS, &session->common) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_ALUCARD_GRAPHICS, &session->arc) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
+        !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(session->dra, session->room.foreground.collision, 32, 135,
                            &session->player) ||
         !SotnPlayer_Tick(session->player, 0) ||
@@ -287,11 +291,37 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    const bool start =
+        (buttons & SOTN_BUTTON_START) && !(session->scene_buttons & SOTN_BUTTON_START);
+    session->scene_buttons = buttons;
+    if (session->game_over != NULL)
+    {
+        const SotnActorCombat combat = {0};
+        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0))
+            return false;
+        session->dirty = true;
+        return true;
+    }
     SotnPlayerState state = {0};
-    if (!SotnPlayer_Tick(session->player, buttons) ||
-        !SotnPlayer_GetState(session->player, &state) || !Transition(session, &state) ||
-        !TickActors(session))
+    if (!SotnPlayer_Tick(session->player, (Uint16)(buttons & (Uint16)~SOTN_BUTTON_START)) ||
+        !SotnPlayer_GetState(session->player, &state) ||
+        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)) || !TickActors(session))
         return false;
+    if (state.death.phase == 128)
+    {
+        session->dirty = true;
+        if (!SotnLaboratory_Draw(session) ||
+            !SotnGameOver_Create(SotnResource_View(session->game_over_art), session->frame,
+                                 SOTN_FRAME_PIXELS, &session->game_over))
+            return false;
+        SotnMusic_Destroy(session->music);
+        session->music = NULL;
+        if (!SotnMusic_CreateGameOver(session->dra, session->music_stream, &session->music) ||
+            !SotnPlayback_Reset(session->audio))
+            return false;
+        SDL_Log("Alucard died: original game-over presentation. Enter/gamepad Start advances after "
+                "the reveal; title/menu flow remains unintegrated.");
+    }
     session->dirty = true;
     return true;
 }
@@ -345,9 +375,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (!player_drawn && (i == count || list[i].priority < 0x80))
         {
-            if (!SotnAlucard_DrawSprite(&alucard, SotnResource_View(session->common),
-                                        Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,
-                                        player.facing_left, session->frame, SOTN_FRAME_PIXELS))
+            if (!SotnAlucard_DrawDeath(&alucard, SotnResource_View(session->common),
+                                       Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,
+                                       player.facing_left, player.death, session->frame,
+                                       SOTN_FRAME_PIXELS))
                 return false;
             player_drawn = true;
         }
@@ -363,26 +394,33 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     return true;
 }
 
+static bool DrawGameplay(SotnLaboratory *session)
+{
+    SotnPlayerState state = {0};
+    if (!SotnPlayer_GetState(session->player, &state))
+        return false;
+    Sint32 camera_x = 0, camera_y = 0;
+    Camera(session, state, &camera_x, &camera_y);
+    const SotnTileSources sources = {SotnResource_View(session->tiles),
+                                     SotnResource_View(session->common)};
+    SDL_memset(session->frame, 0, sizeof(session->frame));
+    return SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
+                            SOTN_FRAME_PIXELS) &&
+           SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y, session->frame,
+                            SOTN_FRAME_PIXELS) &&
+           DrawActorsAndPlayer(session, state, camera_x, camera_y) &&
+           SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS);
+}
+
 bool SotnLaboratory_Draw(SotnLaboratory *session)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
     if (session->dirty)
     {
-        SotnPlayerState state = {0};
-        if (!SotnPlayer_GetState(session->player, &state))
-            return false;
-        Sint32 camera_x = 0, camera_y = 0;
-        Camera(session, state, &camera_x, &camera_y);
-        const SotnTileSources sources = {SotnResource_View(session->tiles),
-                                         SotnResource_View(session->common)};
-        SDL_memset(session->frame, 0, sizeof(session->frame));
-        if (!SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y,
-                              session->frame, SOTN_FRAME_PIXELS) ||
-            !SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y,
-                              session->frame, SOTN_FRAME_PIXELS) ||
-            !DrawActorsAndPlayer(session, state, camera_x, camera_y) ||
-            !SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) ||
+        if (!(session->game_over != NULL
+                  ? SotnGameOver_Draw(session->game_over, session->frame, SOTN_FRAME_PIXELS)
+                  : DrawGameplay(session)) ||
             !SotnFrame_ToRgba(session->frame, SOTN_FRAME_PIXELS, session->rgba,
                               sizeof(session->rgba)) ||
             !SotnPresenter_SetImage(session->presenter, session->rgba, sizeof(session->rgba),
@@ -391,6 +429,11 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
         session->dirty = false;
     }
     return SotnPresenter_Draw(session->presenter);
+}
+
+bool SotnLaboratory_Finished(const SotnLaboratory *session)
+{
+    return session != NULL && SotnGameOver_Finished(session->game_over);
 }
 
 bool SotnLaboratory_Event(SotnLaboratory *session, const SDL_Event *event)
@@ -451,9 +494,11 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 {
     if (session != NULL)
     {
+        SotnGameOver_Destroy(session->game_over);
+        SotnResource_Close(session->game_over_art);
         SotnHud_Destroy(session->hud);
-        SotnPlayback_Destroy(session->audio);
         SotnMusic_Destroy(session->music);
+        SotnPlayback_Destroy(session->audio);
         SotnStream_Close(session->music_stream);
         SotnSound_Destroy(session->sound);
         for (Uint32 i = 0; i < 5; ++i)

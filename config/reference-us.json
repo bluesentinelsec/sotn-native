@@ -51,6 +51,10 @@
     "BIN/WEAPON0.BIN": {
       "size": 1691648,
       "sha1": "b8dcd64f95d197d3f59ab3e46f67897ecdc477cb"
+    },
+    "BIN/F_GO.BIN": {
+      "size": 114688,
+      "sha1": "fa0556554d4b4e68410cf0270cb826b4a42f36ff"
     }
   },
   "sizes": {

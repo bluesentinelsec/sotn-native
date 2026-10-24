@@ -15,6 +15,11 @@ typedef struct SotnMusic SotnMusic;
  * @note Supports the selected 4-bit stereo 37.8 kHz XA path. The SDL rate converter is a
  * temporary service; original CD interpolation/timing parity is not established. */
 bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out);
+/** @brief Play the original US game-over music once, then return silence.
+ * @param dra Borrowed immutable DRA. @param stream Borrowed verified music container.
+ * @param out Receives ownership, NULL on failure. @return Success, or false with SDL_GetError().
+ * @note Both borrowed inputs must outlive playback. */
+bool SotnMusic_CreateGameOver(SotnDataView dra, SotnStream *stream, SotnMusic **out);
 /** @brief Decode and return one development tick of stereo 44.1 kHz music.
  * @param music Borrowed owned playback state, advanced on success.
  * @param pcm Receives SOTN_SOUND_FRAMES * 2 initialized signed samples.
