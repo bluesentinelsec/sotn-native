@@ -16,7 +16,8 @@ string(REPLACE [=[        AudioQueueFlush(device->hidden->audioQueue);
             AudioQueueFlush(device->hidden->audioQueue);
             AudioQueueStop(device->hidden->audioQueue, 0);
         }]=] content "${content}")
-file(WRITE "${source}" "${content}")
+# Keep the byte fingerprint identical on Windows hosts as well as macOS/Linux.
+file(CONFIGURE OUTPUT "${source}" CONTENT "@content@" @ONLY NEWLINE_STYLE UNIX)
 file(SHA256 "${source}" digest)
 if(NOT digest STREQUAL "215e4192c701fd70f663d9c3660b02010c59be53bc44de63a1cc669b2cf3b301")
   message(FATAL_ERROR "SDL CoreAudio playback shutdown patch did not produce the expected source")
