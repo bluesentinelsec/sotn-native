@@ -5,6 +5,8 @@ add_library(sotn-render STATIC
   layout.c
   layout.h
   save_icon.c
+  hud.c
+  include/sotn/hud.h
   tilemap.c
   alucard_sprite.c
   actor_graphics.c
