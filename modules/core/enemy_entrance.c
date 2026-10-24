@@ -147,7 +147,7 @@ static bool Spawner(SotnActors *s, Actor *a)
         a->state.flags &= 0x2000;
         a->timer = 1;
     }
-    if (s->world->flags[55] && a->timer && --a->timer == 0)
+    if (s->world->flags[SOTN_ENTRANCE_ON] && a->timer && --a->timer == 0)
     {
         Actor *child = NULL;
         a->state.x = (s->camera_x + 128) * 65536;
@@ -226,10 +226,60 @@ static bool Puff(SotnActors *s, Actor *a)
     return true;
 }
 
+// e_background_lightning.h: first-hallway progression and music trigger.
+// Palette lightning/thunder/cloud presentation remains a separate effects integration.
+static bool Hallway(SotnActors *s, Actor *a)
+{
+    if (a->state.step == 0)
+    {
+        if (!ActorInitialize(s, a, 0xadc))
+            return false;
+        if (a->state.parameters & 256)
+            a->state.step = 4;
+        else if (s->world->flags[SOTN_ENTRANCE_ON])
+            a->state.parameters = 0;
+        if (a->state.parameters == 1)
+        {
+            s->combat.music_change = true;
+            s->combat.music = 0x32c;
+        }
+    }
+    if (a->state.parameters == 1 && a->state.step == 1 && Pixel(s->player.x) > 768)
+    {
+        s->world->flags[SOTN_ENTRANCE_ON] = 1;
+        s->combat.music_change = true;
+        s->combat.music = 0x30f;
+        SetStep(a, 2);
+    }
+    if (a->state.step == 2)
+    {
+        Uint8 animation = 0;
+        a->state.frame = 0;
+        if (!ActorAnimate(s, a, 0xfbc, &animation))
+            return false;
+        if (animation == 0)
+        {
+            a->state.parameters = 0;
+            SetStep(a, 1);
+        }
+    }
+    a->state.frame = 0;
+    return true;
+}
+
 bool ActorEntrance(SotnActors *s, Actor *a)
 {
     switch (a->state.id)
     {
+    case 0x17:
+        return Hallway(s, a);
+    case 0x57:
+    case 0x58:
+    case 0x59:
+    case 0x5a:
+    case 0x5b:
+    case 0x5e:
+        return ActorDeath(s, a);
     case 5:
         return ActorDoor(s, a);
     case 0x12:

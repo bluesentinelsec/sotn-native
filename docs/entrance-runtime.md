@@ -24,7 +24,8 @@ NO3 is the first visit; NP3 (stage 7) is the later Entrance variant. Loading its
 assets through the stage catalog does not implement its different enemy cast.
 Both Merman variants now swim, jump, walk, lunge/backflip, attack, take damage,
 and die; the water-room spawner, fireballs, jump trails and selected splash/death
-effects run. Death's event/dialogue, route obstacles and connected-stage
+effects run. [Death's selected opening event](entrance-death.md) now runs with original speech,
+portraits, animations and targeted theft. Route obstacles and connected-stage
 progression remain subsequent work in this batch. Fire Wargs have no placements
 on this selected first-visit route and remain unsupported. Unsupported actors are logged
 once by stage and original ID. Do not call Entrance complete.
@@ -32,7 +33,7 @@ once by stage and original ID. Do not call Entrance complete.
 The selected sound bank is `ST/NO3/SD_ZKNO3.VH`/`.VB`; exact size/SHA-1 metadata
 identifies the local US dump without publishing sample bytes. Outdoor wind and
 Dracula's Castle track constructors use private DRA intro/loop metadata. The
-scene starts with wind; Death's music transition requires event integration.
+scene selects wind/quiet wind/castle music and performs Death's music transition.
 
 Public synthetic tests cover profile/ID boundaries, bat proximity and flight,
 zombie emergence/sinking/death and gated spawning, Warg attack/death transitions,

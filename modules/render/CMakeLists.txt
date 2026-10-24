@@ -1,4 +1,6 @@
 add_library(sotn-render STATIC
+  dialogue.c
+  include/sotn/dialogue_renderer.h
   launch_renderer.c
   include/sotn/launch_renderer.h
   castle_map.c

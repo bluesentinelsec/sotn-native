@@ -1226,6 +1226,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     }
     SDL_free(actors->mutable_tiles);
     actors->mutable_tiles = tiles;
+    SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));
     actors->map = map;
     if (actors->camera == &actors->fallback_camera)
     {
@@ -1270,6 +1271,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
     actors->combat.music_change = false;
+    actors->combat.voice_change = false;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
     if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))

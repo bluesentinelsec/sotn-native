@@ -14,9 +14,12 @@ typedef struct SotnWorldState
     bool laboratory_boss_visited;
     Uint32 laboratory_boss_time;
 } SotnWorldState;
-/** @brief Original US permanent Laboratory flag indices, not private table contents. */
+/** @brief Original US permanent stage flag indices, not private table contents. */
 typedef enum SotnWorldFlag
 {
+    SOTN_ENTRANCE_DEATH = 53,
+    SOTN_ENTRANCE_ON = 55,
+    SOTN_ENTRANCE_STAIRS = 56,
     SOTN_LAB_SECRET_WALL = 129,
     SOTN_LAB_SECRET_FLOOR = 130,
     SOTN_LAB_CANNON = 131,

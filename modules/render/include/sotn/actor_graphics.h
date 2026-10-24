@@ -33,6 +33,12 @@ bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSource
  * @note Handles bounded raw and dictionary/RLE uploads; validates all transfers before applying.
  */
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
+/** @brief Upload one original 48x72 eight-bit dialogue portrait from the borrowed overlay.
+ * @param graphics Owned texture memory. @param offset Checked stage-relative pixel offset.
+ * @param slot Original portrait slot 0 or 1. @return Success or SDL error; unchanged on error.
+ * Portrait palettes must already be installed by the stage's bulk palette loader.
+ */
+bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *graphics, Uint32 offset, Uint16 slot);
 /** @brief Load a hand's supported weapon texture, palettes, and multipart definitions.
  * @param graphics Borrowed owned texture memory. @param weapons Borrowed WEAPON0.BIN; alive
  * until replacement or graphics destruction. @param hand Left (0) or right (1).

@@ -107,6 +107,31 @@ static bool Playback(const char *directory)
     SotnMusic_Destroy(music);
     SotnPlayback_Destroy(playback);
     SotnStream_Close(stream);
+    Uint8 *finite = SDL_calloc(5, SOTN_CD_SECTOR_BYTES);
+    CHECK(finite != NULL);
+    for (Uint32 i = 0; i < 5; ++i)
+        SDL_memcpy(finite + i * SOTN_CD_SECTOR_BYTES, raw, SOTN_CD_SECTOR_BYTES);
+    char finite_hash[41] = {0};
+    SotnData_Sha1(finite, 5 * SOTN_CD_SECTOR_BYTES, finite_hash);
+    CHECK(SDL_SaveFile(path, finite, 5 * SOTN_CD_SECTOR_BYTES));
+    const SotnDataSpec finite_spec = {"music.txt", 5 * SOTN_CD_SECTOR_BYTES, finite_hash};
+    CHECK(SotnData_OpenStreamSpec(directory, &finite_spec, &stream));
+    const size_t speech = 0x1d224 + 95 * 16;
+    SDL_memcpy(dra + speech, dra + game_over, 16);
+    Put32(dra, speech + 4, 16); // Exactly five XA sectors; SDL must flush its resampling tail.
+    CHECK(SotnMusic_CreateDeathSpeech(image, stream, 0x35f, &music));
+    CHECK(SotnMusic_Playing(music) && !SotnMusic_Playing(NULL));
+    for (Uint32 tick = 0; tick < 16; ++tick)
+        CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+    CHECK(!SotnMusic_Playing(music));
+    CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+    for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+        CHECK(pcm[i] == 0);
+    SotnMusic_Destroy(music);
+    CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x35e, &music) && music == NULL);
+    CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x364, &music) && music == NULL);
+    SotnStream_Close(stream);
+    SDL_free(finite);
     raw[19] = raw[23] = 0;
     SotnData_Sha1(raw, SOTN_CD_SECTOR_BYTES * 2, digest);
     CHECK(SDL_SaveFile(path, raw, SOTN_CD_SECTOR_BYTES * 2));

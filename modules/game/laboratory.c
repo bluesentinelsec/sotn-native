@@ -3,6 +3,7 @@
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
 #include <sotn/castle_map.h>
+#include <sotn/dialogue_renderer.h>
 #include <sotn/game_over.h>
 #include <sotn/hud.h>
 #include <sotn/inventory.h>
@@ -75,7 +76,9 @@ struct SotnLaboratory
     SotnSound *sound;
     SotnPlayback *audio;
     SotnStream *music_stream;
-    SotnMusic *music;
+    SotnMusic *music, *speech;
+    SotnDialogueState dialogue;
+    Uint32 portrait_offsets[2];
 };
 
 static SotnDataView StageGraphics(const SotnLaboratory *session)
@@ -117,7 +120,9 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     SDL_Log("Verifying private music container for stage %u...", session->stage_id);
     if (!SotnStream_OpenMusic(directory, &session->music_stream) ||
         !(session->stage_id == 65
-              ? SotnMusic_CreateEntrance(session->dra, session->music_stream, false,
+              ? SotnMusic_CreateEntrance(session->dra, session->music_stream,
+                                         session->world.flags[SOTN_ENTRANCE_ON] != 0 ||
+                                             session->world.flags[SOTN_ENTRANCE_DEATH] != 0,
                                          &session->music)
               : SotnMusic_Create(session->dra, session->music_stream, &session->music)))
         return false;
@@ -138,6 +143,16 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
                 if (!SotnMusic_CreateBoss(session->dra, session->music_stream, &next))
                     return false;
             }
+            else if (combat->music == 0x30f)
+            {
+                if (!SotnMusic_CreateEntrance(session->dra, session->music_stream, true, &next))
+                    return false;
+            }
+            else if (combat->music == 0x32c)
+            {
+                if (!SotnMusic_CreateEntranceQuiet(session->dra, session->music_stream, &next))
+                    return false;
+            }
             else if (combat->music == 0x32e)
             {
                 if (!SotnMusic_Create(session->dra, session->music_stream, &next))
@@ -148,6 +163,14 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         }
         SotnMusic_Destroy(session->music);
         session->music = next;
+    }
+    if (combat->voice_change)
+    {
+        SotnMusic *next = NULL;
+        if (!SotnMusic_CreateDeathSpeech(session->dra, session->music_stream, combat->voice, &next))
+            return false;
+        SotnMusic_Destroy(session->speech);
+        session->speech = next;
     }
     for (Uint32 i = 0; i < combat->sound_count; ++i)
         if (!SotnSound_Queue(session->sound, combat->sounds[i]))
@@ -174,6 +197,14 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             return false;
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
             pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + music[i], -32768, 32767);
+    }
+    if (SotnMusic_Playing(session->speech))
+    {
+        Sint16 speech[SOTN_SOUND_FRAMES * 2] = {0};
+        if (!SotnMusic_Tick(session->speech, speech, SDL_arraysize(speech)))
+            return false;
+        for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+            pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + speech[i], -32768, 32767);
     }
     return SotnPlayback_Queue(session->audio, pcm, SDL_arraysize(pcm));
 }
@@ -301,9 +332,15 @@ static bool TickActors(SotnLaboratory *session)
     if (!SotnActors_SetServices(session->actors, session->executable,
                                 (Uint32)(session->simulation_ticks / 60), session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
+        !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
         !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
+    if (!SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech),
+                             &session->dialogue))
+        return false;
+    if (session->dialogue.background_enabled)
+        session->room.background.flags |= 1;
     SotnActorMotion motion = {0};
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
@@ -553,11 +590,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint1
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(
             session->dra, session->room.foreground.collision,
-            stage_id == 65                                                                ? 128
-            : start_room >= 22                                                            ? 128
+            stage_id == 65     ? (start_room == 11 ? 16 : 128)
+            : start_room >= 22 ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
                                                                                           : 32,
-            135, &session->player) ||
+            stage_id == 65 && start_room == 11 ? 388 : 135, &session->player) ||
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
                                &session->subweapons) ||
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
@@ -848,7 +885,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
         if (state.generation == 0 || state.unsupported ||
-            (state.frame == 0 && state.id != 0xa && state.primitive_count == 0) ||
+            (state.frame == 0 && state.id != 0xa &&
+             !(session->stage_id == 65 && state.id == 0x59) && state.primitive_count == 0) ||
             (state.id == 0xa &&
              (state.step < 2 || (state.step == 4 && (session->simulation_ticks & 2)))))
             continue;
@@ -913,6 +951,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (session->stage_id == 65 && actor.id == 0x59 && actor.step >= 3 &&
+            !SotnDialogueRenderer_Item(session->dra, session->nz0, actor.parameters,
+                                       Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
+                                       (Uint16)(actor.scale_x / 16), (Uint16)(actor.scale_y / 16),
+                                       actor.step == 4 && (session->simulation_ticks & 2),
+                                       session->frame, SOTN_FRAME_PIXELS))
+            return false;
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
         if (!DrawActorPrimitives(session, actor, camera_x, camera_y))
@@ -929,6 +974,21 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     return true;
 }
 
+static bool DrawDialogue(SotnLaboratory *session)
+{
+    for (Uint16 i = 0; i < 2; ++i)
+        if (session->dialogue.portraits[i] &&
+            session->portrait_offsets[i] != session->dialogue.portraits[i])
+        {
+            if (!SotnActorGraphics_LoadPortrait(session->actor_graphics,
+                                                session->dialogue.portraits[i], i))
+                return false;
+            session->portrait_offsets[i] = session->dialogue.portraits[i];
+        }
+    return SotnDialogueRenderer_Draw(session->actor_graphics, session->dialogue, session->frame,
+                                     SOTN_FRAME_PIXELS);
+}
+
 static bool DrawGameplay(SotnLaboratory *session)
 {
     SotnPlayerState state = {0};
@@ -940,6 +1000,8 @@ static bool DrawGameplay(SotnLaboratory *session)
     SDL_memset(session->frame, 0, sizeof(session->frame));
     return SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
+           SotnDialogueRenderer_Background(session->dialogue.fade, session->frame,
+                                           SOTN_FRAME_PIXELS) &&
            SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
@@ -952,7 +1014,7 @@ static bool DrawGameplay(SotnLaboratory *session)
            (!session->save_room ||
             SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, true,
                                        session->frame, SOTN_FRAME_PIXELS)) &&
-           SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) &&
+           SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) && DrawDialogue(session) &&
            (!session->save_room ||
             SotnSavePointRenderer_Dialog(session->save_renderer, session->save_point,
                                          session->input.pad != NULL, session->frame,
@@ -1111,6 +1173,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnSaveStore_Destroy(session->saves);
         SotnSavePointRenderer_Destroy(session->save_renderer);
         SotnHud_Destroy(session->hud);
+        SotnMusic_Destroy(session->speech);
         SotnMusic_Destroy(session->music);
         SotnPlayback_Destroy(session->audio);
         SotnStream_Close(session->music_stream);

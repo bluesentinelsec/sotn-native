@@ -21,6 +21,19 @@ bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out);
  * @param out Receives ownership or NULL. @return Success or SDL error.
  */
 bool SotnMusic_CreateEntrance(SotnDataView dra, SotnStream *stream, bool castle, SotnMusic **out);
+/** @brief Start the original quiet wind at the first Entrance hallway.
+ * @param dra Borrowed DRA. @param stream Borrowed verified XA container.
+ * @param out Receives ownership or NULL. @return Success or SDL error.
+ */
+bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMusic **out);
+/** @brief Play one of the original opening Death dialogue XA clips once.
+ * @param dra Borrowed DRA. @param stream Borrowed verified XA container.
+ * @param id Original sound ID 0x35f..0x363. @param out Receives ownership or NULL.
+ * @return Success or SDL error. Both borrowed inputs must outlive playback.
+ */
+bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out);
+/** @brief Whether playback has remaining ticks; NULL and completed speech report false. */
+bool SotnMusic_Playing(const SotnMusic *music);
 /** @brief Start original Slogra/Gaibon boss music with its private introduction/loop metadata.
  * @param dra Borrowed verified US DRA, alive through playback. @param stream Borrowed verified
  * music container, alive through playback. @param out Owned playback, NULL on failure.

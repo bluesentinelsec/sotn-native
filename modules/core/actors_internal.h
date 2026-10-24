@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <sotn/actors.h>
 #include <sotn/combat.h>
+#include <sotn/dialogue.h>
 #include <sotn/game_math.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
@@ -61,6 +62,12 @@ typedef struct Actor
     } merman;
     struct
     {
+        Sint32 x, y;
+        Uint16 timer, phase, scythe;
+        bool direction;
+    } death;
+    struct
+    {
         Sint32 base_y;
         Uint16 count, target;
         bool pressed, changed;
@@ -102,6 +109,14 @@ struct SotnActors
     bool call_elevator, cannon_fired;
     Uint32 boss_flags, game_seconds;
     bool music_playing;
+    struct
+    {
+        SotnDialogueState display;
+        size_t script, events;
+        Uint32 flags;
+        Uint16 wait, speed, event_timer;
+        bool active, events_active, voice_playing;
+    } death_event;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
     ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
@@ -216,6 +231,7 @@ bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorEntrance(SotnActors *actors, Actor *actor);
 bool ActorWarg(SotnActors *actors, Actor *actor);
 bool ActorMerman(SotnActors *actors, Actor *actor);
+bool ActorDeath(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
  * profiles. Offsets identify private tables; actor IDs always retain their stage meaning. */

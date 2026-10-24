@@ -3,7 +3,7 @@
 
 #include <sotn/game_data.h>
 
-/** @brief Borrowed private sound-bank inputs for the supported US Laboratory. */
+/** @brief Borrowed private sound-bank inputs for a supported US stage. */
 typedef struct SotnSoundSources
 {
     SotnDataView dra, common_body, player_header, player_body, stage_header, stage_body;
@@ -26,7 +26,8 @@ enum
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
 /** @brief Queue an original sound-effect ID for the next simulation tick.
- * @param sound Borrowed owned simulation. @param id Original US ID, 0x601..0x8e0.
+ * @param sound Borrowed owned simulation. @param id Original US ID, 0x601..0x8e0, or 0xa1 to
+ * release ambience channels 20/21.
  * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue. */
 bool SotnSound_Queue(SotnSound *sound, Uint16 id);
 /** @brief Advance scripts/voices and render one tick of signed native-endian stereo PCM.

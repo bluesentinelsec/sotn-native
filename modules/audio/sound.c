@@ -202,14 +202,14 @@ static bool Event(SotnSound *sound, Uint16 id)
         return true;
     }
     Uint32 voice = 22;
-    if (data[4] == 1)
+    if (data[4] == 3)
         voice = 20;
     else if (data[4] == 2)
     {
         sound->voices[22].key_off = sound->voices[23].key_off = 1;
         return true;
     }
-    else if (data[4] == 4)
+    else if (data[4] == 0)
     {
         Uint32 slot = 4;
         for (Uint32 i = 0; i < 4; ++i)
@@ -230,7 +230,7 @@ static bool Event(SotnSound *sound, Uint16 id)
         sound->priority[slot] = data[6];
         voice = 12 + slot * 2;
     }
-    else if (data[4] != 0)
+    else if (data[4] != 1)
         return SDL_SetError("Sound event requests an unintegrated channel mode");
     return Pair(sound, voice, data[0], data[1], data[5], data[2], volume);
 }
@@ -259,7 +259,8 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
 
 bool SotnSound_Queue(SotnSound *sound, Uint16 id)
 {
-    if (sound == NULL || id <= 0x600 || id > 0x8e0 || sound->queued >= SDL_arraysize(sound->queue))
+    if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1) ||
+        sound->queued >= SDL_arraysize(sound->queue))
         return SDL_SetError("Sound event is invalid or the bounded queue is full");
     sound->queue[sound->queued++] = id;
     return true;
@@ -270,7 +271,16 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
     if (sound == NULL || pcm == NULL || count < SOTN_SOUND_FRAMES * 2)
         return SDL_SetError("Sound tick requires state and a full stereo PCM buffer");
     for (Uint32 i = 0; i < sound->queued; ++i)
-        if (!Event(sound, sound->queue[i]))
+        if (sound->queue[i] == 0xa1)
+        {
+            for (Uint32 v = 20; v <= 21; ++v)
+            {
+                sound->registers[v].adsr[1] = (Uint16)((sound->registers[v].adsr[1] & ~31U) | 14);
+                sound->voices[v].adsr_hi = sound->registers[v].adsr[1];
+                sound->voices[v].key_off = 1;
+            }
+        }
+        else if (!Event(sound, sound->queue[i]))
             return false;
     sound->queued = 0;
     for (Uint32 i = 0; i < 3; ++i)
