@@ -17,6 +17,7 @@ int main(void)
     Uint16 *frame = SDL_calloc(SOTN_FRAME_PIXELS, sizeof(*frame));
     CHECK(dra && common && rgba && frame);
     TestCharacter_Fill(dra);
+    TestCharacter_Progression(dra);
     SDL_memset(dra + 0x25324, 0x11, 128);
     dra[0x388d4 + 2] = 31;
     for (Uint32 i = 0; i < 4096; ++i)
@@ -51,6 +52,7 @@ int main(void)
     TestCharacter_Put32(dra + 0x3504, 0x1006);
     TestCharacter_Put32(dra + 0x3508, 4);
     TestCharacter_Put32(dra + 0x350c, 0x800a3600);
+    SDL_memset(dra + 0x3600, 0, 8);
     dra[0x3600] = 31;
     dra[0x3602] = 7;
     Uint16 colors[4] = {0};

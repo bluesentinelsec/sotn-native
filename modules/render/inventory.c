@@ -165,6 +165,11 @@ bool SotnInventoryRenderer_Draw(SotnInventoryRenderer *r, SotnInventoryMenu menu
             Text(r, labels[i], 32, 144 + (Sint32)i * 14, 0x7fff);
             Number(r, stats.total[i], 88, 144 + (Sint32)i * 14);
         }
+        Uint32 remaining = 0;
+        if (!SotnCharacter_NextLevel(c, &remaining))
+            return false;
+        Text(r, "NEXT", 128, 200, 0x7fff);
+        Number(r, remaining, 168, 200);
         Text(r, "EXP", 128, 144, 0x7fff);
         Number(r, state.experience, 160, 144);
         Text(r, "GOLD", 128, 164, 0x7fff);

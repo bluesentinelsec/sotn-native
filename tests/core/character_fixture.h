@@ -10,7 +10,7 @@ static void TestCharacter_Put32(Uint8 *p, Uint32 v)
 static void TestCharacter_Fill(Uint8 *dra)
 {
     TestCharacter_Put32(dra + 0xc0, 0x800a0500);
-    TestCharacter_Put32(dra + 0xc4, 0x800a2800);
+    TestCharacter_Put32(dra + 0xc4, 0x800a3400);
     dra[0x180] = 'T' - 32;
     dra[0x181] = 'e' - 32;
     dra[0x182] = 's' - 32;
@@ -20,15 +20,23 @@ static void TestCharacter_Fill(Uint8 *dra)
     for (Uint32 body = 0; body < 2; ++body)
         for (Uint32 id = 0; id < (body ? 90U : 169U); ++id)
         {
-            Uint8 *p = dra + (body ? 0x2800 + id * 32 : 0x500 + id * 52);
+            Uint8 *p = dra + (body ? 0x3400 + id * 32 : 0x500 + id * 52);
             SDL_memset(p, 0, body ? 32U : 52U);
             TestCharacter_Put32(p, 0x800a0180);
             TestCharacter_Put32(p + 4, 0x800a0190);
             if (body)
                 p[28] = (Uint8)(id == 26 ? 0 : id == 48 ? 2 : id == 57 ? 3 : 1);
         }
-    dra[0x2800 + 1 * 32 + 10] = 3;
-    dra[0x2800 + 1 * 32 + 12] = 2;
-    dra[0x2800 + 2 * 32 + 10] = 2;
+    dra[0x3400 + 1 * 32 + 10] = 3;
+    dra[0x3400 + 1 * 32 + 12] = 2;
+    dra[0x3400 + 2 * 32 + 10] = 2;
+}
+/* Synthetic progression only; requires a caller-owned image of at least 0xc910 bytes. */
+static inline void TestCharacter_Progression(Uint8 *dra)
+{
+    for (Uint32 i = 0; i < 100; ++i)
+        TestCharacter_Put32(dra + 0xc780 + i * 4, i < 2 ? 0 : (i - 1) * 10);
+    for (Uint32 i = 0; i < 10; ++i)
+        TestCharacter_Put32(dra + 0x2ec0 + i * 4, 1);
 }
 #endif

@@ -178,3 +178,7 @@ The [character inventory](docs/character-inventory.md) now connects original pic
 selected pause/equipment panels, body stats, physical defense, and cape colors.
 Spells/relic/settings/familiar menus remain unavailable. Version 1/2 save files
 still cover the earlier checkpoint; the following stack expands persistence.
+
+[Character progression](docs/character-progression.md) now awards level-adjusted
+enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
+Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.

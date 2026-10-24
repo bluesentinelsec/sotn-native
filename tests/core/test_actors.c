@@ -15,7 +15,7 @@
 
 typedef struct Fixture
 {
-    Uint8 dra[0x4000], nz0[0x3000], tiles[32 * 16 * 2], types[2];
+    Uint8 dra[0xd000], nz0[0x3000], tiles[32 * 16 * 2], types[2];
 } Fixture;
 
 static void Put16(Uint8 *image, size_t offset, Uint16 value)
@@ -268,6 +268,57 @@ static bool TestEquipmentPickup(Fixture *f)
     return true;
 }
 
+static bool TestExperienceReward(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    TestCharacter_Fill(f->dra);
+    TestCharacter_Progression(f->dra);
+    Put16(f->nz0, 0x30e, 0x2b);
+    Put16(f->nz0, 0x310, 0);
+    Put16(f->nz0, 0x314, 0xffff);
+    Put16(f->nz0, 0x316, 0xffff);
+    Put16(f->dra, 0x204, 1);
+    Put16(f->dra, 0x20c, 3);
+    Put16(f->dra, 0x216, 1);
+    Put16(f->dra, 0x218, 10);
+    f->dra[0x222] = 8;
+    f->dra[0x223] = 12;
+    const Uint8 end_animation[] = {1, 20, 255, 0};
+    SDL_memcpy(f->nz0 + 0x2334, end_animation, sizeof(end_animation));
+    SDL_memcpy(f->nz0 + 0xf20, end_animation, sizeof(end_animation));
+    Put32(f->nz0, 0x1e5c, 0x80180f20);
+    SotnCharacter *c = NULL;
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, nz0 = {f->nz0, sizeof(f->nz0)};
+    CHECK(SotnCharacter_Create(dra, &c));
+    CHECK(SotnActors_Create(dra, nz0, &actors));
+    CHECK(SotnActors_SetCharacter(actors, c));
+    CHECK(SotnActorLayout_Open(nz0, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 40 * 65536,
+                                    .y = 135 * 65536,
+                                    .hp = 70,
+                                    .attack = {.active = true,
+                                               .power = 6,
+                                               .hit_type = 2,
+                                               .hit_effect = 1,
+                                               .element = 0x20,
+                                               .width = 32,
+                                               .height = 32},
+                                    .animation = {.hitbox_width = 8, .hitbox_height = 20}};
+    for (Uint32 i = 0; i < 20; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnCharacterState state = {0};
+    CHECK(SotnCharacter_Get(c, &state, NULL));
+    CHECK(state.experience == 10 && state.level == 2 && state.hp_max == 71 && state.mp_max == 24 &&
+          state.kills == 1);
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    SotnCharacter_Destroy(c);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -294,7 +345,8 @@ int main(void)
     if (fixture == NULL)
         return 1;
     const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
-                        TestEquipmentPickup(fixture) && TestFailures(fixture);
+                        TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
+                        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
