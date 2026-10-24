@@ -5,9 +5,9 @@ A C17/SDL3 native-port project for personal and educational study of
 The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
 red-eye busts, globe tables, selected empty-hand/Gladius/Mace combat, candle pickups,
-the original Alucard HUD,
+the original Alucard HUD, physical death/game over, native save-room support,
 and original sound effects/Laboratory music.
-Other equipped weapons, complete damage/item/audio behavior, saves, full actor/effect
+Other equipped weapons, complete damage/item/audio behavior, full inventory/progression saves, actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
@@ -62,15 +62,19 @@ do not run the title screen or original progression. The development combat prof
 and heart/gold/subweapon collection. Physical death now runs the
 [death/game-over presentation](docs/laboratory-game-over.md); Enter/Xbox Start
 advances after the reveal. The checkpoint exits successfully after its fade,
-because title/file selection and save flow remain incomplete. See
+because title/file selection remain incomplete. Load an ordinary room save with
+`--laboratory-continue SLOT`. See
 [combat integration](docs/laboratory-combat.md) for the development loadout and limits.
 The [original HUD](docs/laboratory-hud.md) shows HP, MP, hearts, and the subweapon.
 Unsupported actor families emit a warning and are omitted from this checkpoint.
 The camera and fixed 60-tick pacing are development
 adapters. See [actor integration](docs/laboratory-actors.md) and
 [movement integration](docs/laboratory-movement.md) for behavior and known gaps.
-The [native save storage boundary](docs/native-saves.md) now has versioned slots
-and checked file replacement; save-room gameplay is the next integration.
+The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
+supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct
+save-room start, press Up at the point, then follow confirmation prompts. X/Space
+or Enter confirms; A cancels (Xbox A/Y). Relaunch with `--laboratory-continue 1`
+to load slot 1. See the [storage format and platform limits](docs/native-saves.md).
 Public builds and tests need no game data.
 
 The C app can now read and validate five core files from an extracted US dump:

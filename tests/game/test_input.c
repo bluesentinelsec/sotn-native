@@ -98,6 +98,9 @@ static bool TestVirtualPad(LaboratoryInput *input, SDL_JoystickID id)
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, true));
     SDL_UpdateGamepads();
     CHECK(LaboratoryInput_Buttons(input) == (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND));
+    input->menu_open = true;
+    CHECK((LaboratoryInput_Buttons(input) & SOTN_BUTTON_CANCEL) != 0);
+    input->menu_open = false;
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_WEST, false));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, false));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, true));

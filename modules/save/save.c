@@ -53,7 +53,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return SDL_SetError("Save requires supported Laboratory state and a full record buffer");
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 1);
+    Put32(record + 8, 2);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x00067);
     Put32(record + 20, state.room);
@@ -67,6 +67,9 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     Put32(record + 40, state.kills);
     Put32(record + 44, (Uint32)state.ticks);
     Put32(record + 48, (Uint32)(state.ticks >> 32));
+    Put32(record + 52, state.player_random);
+    Put32(record + 56, state.actor_random);
+    Put32(record + 60, state.combat_random);
     Put32(record + 76, Checksum(record));
     SDL_memcpy(bytes, record, sizeof(record));
     return true;
@@ -79,13 +82,14 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
     if (SDL_memcmp(bytes, "SOTNNSAV", 8) != 0)
         return SDL_SetError(
             "Save is not a native Laboratory record; PS1 memory cards are unsupported");
-    if (Read32(bytes + 8) != 1)
+    const Uint32 version = Read32(bytes + 8);
+    if (version != 1 && version != 2)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             Read32(bytes + 8));
     if (Read32(bytes + 12) != SOTN_SAVE_BYTES || Read32(bytes + 16) != 0x00067 ||
         Read32(bytes + 76) != Checksum(bytes))
         return SDL_SetError("Save region, length, or checksum is invalid; original file retained");
-    for (Uint32 i = 52; i < 76; ++i)
+    for (Uint32 i = version == 1 ? 52U : 64U; i < 76; ++i)
         if (bytes[i] != 0)
             return SDL_SetError("Save contains unsupported reserved state");
     const SotnSaveState state = {.room = Read32(bytes + 20),
@@ -97,7 +101,10 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                                  .right_hand = Read16(bytes + 34),
                                  .gold = Read32(bytes + 36),
                                  .kills = Read32(bytes + 40),
-                                 .ticks = Read32(bytes + 44) | (Uint64)Read32(bytes + 48) << 32};
+                                 .ticks = Read32(bytes + 44) | (Uint64)Read32(bytes + 48) << 32,
+                                 .player_random = version == 2 ? Read32(bytes + 52) : 0,
+                                 .actor_random = version == 2 ? Read32(bytes + 56) : 0,
+                                 .combat_random = version == 2 ? Read32(bytes + 60) : 0};
     if (!Valid(state))
         return SDL_SetError("Save contains state outside this supported Laboratory checkpoint");
     *out = state;

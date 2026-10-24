@@ -91,6 +91,22 @@ static bool InspectLaboratory(const SotnGameData *data, const char *directory)
     return true;
 }
 
+static bool LaboratoryNumber(const char *text, Uint32 *out)
+{
+    const size_t length = SDL_strlen(text);
+    if (length == 0 || length > 2 || text[0] < '1' || text[0] > '9')
+        return false;
+    Uint32 value = 0;
+    for (size_t i = 0; i < length; ++i)
+    {
+        if (text[i] < '0' || text[i] > '9')
+            return false;
+        value = value * 10 + (Uint32)(text[i] - '0');
+    }
+    *out = value;
+    return true;
+}
+
 /**
  * @brief Initialize the application and its display.
  * @param appstate Receives owned state retained until SDL_AppQuit, including on failure.
@@ -116,7 +132,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool preview_lab = false;
     bool play_lab = false;
     bool chose_lab_room = false;
-    Uint32 lab_room = 1;
+    Uint32 lab_room = 1, lab_slot = 0;
     const char *lab_loadout = NULL;
     for (int i = 1; i < argc; ++i)
     {
@@ -172,19 +188,34 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--laboratory-room") == 0)
         {
             if (chose_lab_room || i + 1 >= argc ||
-                (SDL_strcmp(argv[i + 1], "1") != 0 && SDL_strcmp(argv[i + 1], "3") != 0))
+                (!LaboratoryNumber(argv[i + 1], &lab_room) ||
+                 (lab_room != 1 && lab_room != 3 && lab_room != 23 && lab_room != 24 &&
+                  lab_room != 25)))
             {
-                SDL_SetError("--laboratory-room requires 1 or 3 and may appear only once");
+                SDL_SetError(
+                    "--laboratory-room requires 1, 3, 23, 24, or 25 and may appear only once");
                 return Fail("Invalid arguments");
             }
-            lab_room = SDL_strcmp(argv[++i], "3") == 0 ? 3U : 1U;
+            ++i;
             chose_lab_room = true;
+        }
+        else if (SDL_strcmp(argv[i], "--laboratory-continue") == 0)
+        {
+            if (lab_slot != 0 || i + 1 >= argc || !LaboratoryNumber(argv[i + 1], &lab_slot) ||
+                lab_slot > 15)
+            {
+                SDL_SetError(
+                    "--laboratory-continue requires a slot 1..15 and may appear only once");
+                return Fail("Invalid arguments");
+            }
+            ++i;
         }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
             SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                     "| --inspect-laboratory | --preview-laboratory | --laboratory] "
-                    "[--laboratory-room 1|3] [--laboratory-loadout unarmed|sword|mace|dual] "
+                    "[--laboratory-room 1|3|23|24|25] [--laboratory-continue SLOT] "
+                    "[--laboratory-loadout unarmed|sword|mace|dual] "
                     "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
@@ -194,9 +225,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("Invalid arguments");
         }
     }
-    if ((chose_lab_room || lab_loadout != NULL) && !play_lab)
+    if ((chose_lab_room || lab_loadout != NULL || lab_slot != 0) && !play_lab)
     {
         SDL_SetError("Selected Laboratory option requires --laboratory");
+        return Fail("Invalid arguments");
+    }
+    if (lab_slot != 0 && (chose_lab_room || lab_loadout != NULL))
+    {
+        SDL_SetError("--laboratory-continue cannot combine with room or loadout selection");
         return Fail("Invalid arguments");
     }
     if (validate_only && game_directory == NULL)
@@ -260,7 +296,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     if (play_lab)
     {
-        if (!SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game))
+        if (!(lab_slot != 0
+                  ? SotnLaboratory_Continue(app->game_data, game_directory, lab_slot, &app->game)
+                  : SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game)))
             return Fail("Cannot open Laboratory actor checkpoint");
         if (lab_loadout != NULL)
         {

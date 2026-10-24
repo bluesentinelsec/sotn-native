@@ -29,7 +29,7 @@ bool LaboratoryInput_Event(LaboratoryInput *input, const SDL_Event *event)
                                  input->pad != NULL &&
                                  event->gbutton.which == SDL_GetGamepadID(input->pad) &&
                                  event->gbutton.button == SDL_GAMEPAD_BUTTON_NORTH;
-    if (!input->warned_unsupported && (unsupported_key || unsupported_pad))
+    if (!input->menu_open && !input->warned_unsupported && (unsupported_key || unsupported_pad))
     {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "Ability controls are not implemented in this combat checkpoint; "
@@ -76,7 +76,10 @@ Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
 
 Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
 {
-    Uint16 buttons = LaboratoryInput_KeyboardButtons(SDL_GetKeyboardState(NULL));
+    const bool *keys = SDL_GetKeyboardState(NULL);
+    Uint16 buttons = LaboratoryInput_KeyboardButtons(keys);
+    if (input->menu_open && keys[SDL_SCANCODE_A])
+        buttons |= SOTN_BUTTON_CANCEL;
     if (input->pad != NULL)
     {
         const Sint16 x = SDL_GetGamepadAxis(input->pad, SDL_GAMEPAD_AXIS_LEFTX);
@@ -89,6 +92,8 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_UP;
         if (y > 16000 || SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
             buttons |= SOTN_BUTTON_DOWN;
+        if (input->menu_open && SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_NORTH))
+            buttons |= SOTN_BUTTON_CANCEL;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_START))
             buttons |= SOTN_BUTTON_START;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_SOUTH))

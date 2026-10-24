@@ -1018,6 +1018,30 @@ bool SotnActors_GetCombat(const SotnActors *actors, SotnActorCombat *out)
     return true;
 }
 
+bool SotnActors_GetProgress(const SotnActors *actors, SotnActorProgress *out)
+{
+    if (actors == NULL || !actors->entered || out == NULL)
+        return SDL_SetError("Actor progress requires an entered simulation and output");
+    *out =
+        (SotnActorProgress){actors->combat.hearts, actors->combat.subweapon, actors->combat.gold,
+                            actors->combat.kills,  actors->random,           actors->combat_random};
+    return true;
+}
+
+bool SotnActors_Restore(SotnActors *actors, SotnActorProgress progress)
+{
+    if (actors == NULL || !actors->entered || progress.hearts > 50 || progress.subweapon > 9 ||
+        progress.gold > 999999)
+        return SDL_SetError("Actor progress is outside the supported development profile");
+    actors->combat.hearts = progress.hearts;
+    actors->combat.subweapon = progress.subweapon;
+    actors->combat.gold = progress.gold;
+    actors->combat.kills = progress.kills;
+    actors->random = progress.random;
+    actors->combat_random = progress.combat_random;
+    return true;
+}
+
 void SotnActors_Destroy(SotnActors *actors)
 {
     if (actors != NULL)

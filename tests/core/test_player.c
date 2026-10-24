@@ -211,6 +211,11 @@ static bool TestDamage(Fixture *fixture)
     CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.invulnerable);
     CHECK(!SotnPlayer_Damage(player, 10, SDL_MIN_SINT32, 0));
     CHECK(State(player, &state) && state.hp == 67);
+    CHECK(SotnPlayer_Restore(player, 67, 12345));
+    CHECK(State(player, &state) && state.hp == 67 && state.random == 12345);
+    CHECK(!SotnPlayer_Restore(player, 71, 0));
+    CHECK(!SotnPlayer_Restore(player, 0, 0));
+    CHECK(State(player, &state) && state.hp == 67 && state.random == 12345);
     Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0xfffffffc);
     CHECK(!SotnPlayer_Damage(player, 67, 80, 0));
     CHECK(State(player, &state) && state.hp == 67);
@@ -224,6 +229,7 @@ static bool TestDamage(Fixture *fixture)
     for (Uint32 i = 0; i < 32; ++i)
         CHECK(state.death.mask[i] == 255);
     CHECK(SotnPlayer_Damage(player, 10, 80, 0));
+    CHECK(!SotnPlayer_Restore(player, 70, 0));
     SotnPlayer_Close(player);
     return true;
 }

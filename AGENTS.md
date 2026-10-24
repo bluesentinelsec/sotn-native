@@ -9,7 +9,7 @@ working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
 Bloody Zombies run active motion/attack animations. Selected empty-hand and Gladius/Mace combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Other equipped weapons,
-complete effects/audio, saves, scripts, and full progression remain incomplete.
+complete effects/audio, full progression saves, scripts, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -163,7 +163,10 @@ The selected route is a **decompilation-based native port**; read the current
 
 The [physical death/game-over flow](docs/laboratory-game-over.md) now runs the selected
 original presentation and exits successfully after its fade. Title/file selection,
-ordinary saves, elemental deaths, and complete effects remain incomplete.
+elemental deaths and complete effects remain incomplete. The
+[save-room checkpoint](docs/laboratory-save-rooms.md) now restores HP/MP and persists
+supported progress to fifteen native slots; `--laboratory-continue SLOT` loads one.
+Full title/file menus, map/inventory/progression persistence, and PS1 cards remain incomplete.
 
 The [original HUD](docs/laboratory-hud.md) presents HP, MP, hearts, and the collected
 subweapon from private artwork/tables. MP remains an explicit full development value.

@@ -3,13 +3,14 @@
 
 #include <SDL3/SDL.h>
 
-/** @brief Version-one native Laboratory save; contains supported state, never artwork/data files.
+/** @brief Version-two native Laboratory save; contains supported state, never artwork/data files.
  */
 typedef struct SotnSaveState
 {
     Uint32 room, gold, kills;
     Uint16 hp, mp, hearts, subweapon, left_hand, right_hand;
     Uint64 ticks;
+    Uint32 player_random, actor_random, combat_random;
 } SotnSaveState;
 
 enum

@@ -14,6 +14,15 @@ for option, value in [("ASAN_OPTIONS", "exitcode=86"),
                       ("UBSAN_OPTIONS", "exitcode=87:halt_on_error=1")]:
     environment[option] = f"{environment.get(option, '')}:{value}".lstrip(":")
 cases = [
+    (["--laboratory-continue", "1"], "requires --laboratory"),
+    (["--laboratory-continue"], "requires a slot"),
+    (["--laboratory-continue", "0"], "requires a slot"),
+    (["--laboratory-continue", "16"], "requires a slot"),
+    (["--laboratory-continue", "-1"], "requires a slot"),
+    (["--laboratory-continue", "999999999999999999"], "requires a slot"),
+    (["--laboratory", "--laboratory-continue", "1", "--laboratory-room", "23"], "cannot combine"),
+    (["--laboratory", "--laboratory-continue", "1", "--laboratory-loadout", "dual"], "cannot combine"),
+    (["--laboratory-continue", "1", "--laboratory-continue", "2"], "only once"),
     (["--game-data"], "requires one directory"),
     (["--game-data", "--validate-only"], "requires one directory"),
     (["--validate-only"], "requires --game-data"),
@@ -33,9 +42,9 @@ cases = [
     (["--laboratory-loadout"], "requires unarmed"),
     (["--laboratory-loadout", "unknown"], "requires unarmed"),
     (["--laboratory-loadout", "dual", "--laboratory-loadout", "sword"], "once"),
-    (["--laboratory-room"], "requires 1 or 3"),
-    (["--laboratory-room", "-1"], "requires 1 or 3"),
-    (["--laboratory-room", "4294967296"], "requires 1 or 3"),
+    (["--laboratory-room"], "requires 1, 3, 23, 24, or 25"),
+    (["--laboratory-room", "-1"], "requires 1, 3, 23, 24, or 25"),
+    (["--laboratory-room", "4294967296"], "requires 1, 3, 23, 24, or 25"),
     (["--laboratory-room", "3", "--laboratory-room", "1"], "only once"),
 ]
 with tempfile.TemporaryDirectory() as directory:
