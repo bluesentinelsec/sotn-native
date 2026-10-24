@@ -307,15 +307,12 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
     if (!SotnPlayer_GetState(session->player, &player) ||
         !SotnActors_GetProgress(session->actors, &progress))
         return false;
+    SotnCharacterState character = {0};
+    if (!SotnCharacter_Get(session->character, &character, NULL))
+        return false;
+    character.hp = player.hp;
     *out = (SotnSaveState){.room = session->room_index,
-                           .hp = player.hp,
-                           .mp = session->mp,
-                           .hearts = progress.hearts,
-                           .subweapon = progress.subweapon,
-                           .gold = progress.gold,
-                           .kills = progress.kills,
-                           .left_hand = session->hands[0],
-                           .right_hand = session->hands[1],
+                           .character = character,
                            .ticks = session->simulation_ticks,
                            .player_random = player.random,
                            .actor_random = progress.random,
@@ -475,6 +472,8 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         "reverb, full "
         "effects, full progression, "
         "scripts, and original camera remain incomplete.");
+    SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
+            "and version-three ordinary saves.");
     SDL_Log("Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
     *out = session;
     return true;
@@ -833,38 +832,23 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
 {
-    SotnCharacterState legacy = {0};
-    if (!SotnCharacter_Get(session->character, &legacy, NULL))
-        return false;
-    legacy.hp = state.hp;
-    legacy.mp = state.mp;
-    legacy.hearts = state.hearts;
-    legacy.gold = state.gold;
-    legacy.kills = state.kills;
-    legacy.subweapon = state.subweapon;
-    legacy.equipment[0] = state.left_hand;
-    legacy.equipment[1] = state.right_hand;
-    SDL_memset(legacy.hand_count, 0, sizeof(legacy.hand_count));
-    SDL_memset(legacy.body_count, 0, sizeof(legacy.body_count));
-    if (!SotnCharacter_Restore(session->character, &legacy))
-        return false;
-    const SotnActorProgress progress = {state.hearts, state.subweapon,    state.gold,
-                                        state.kills,  state.actor_random, state.combat_random};
-    if (!SotnLaboratory_SetEquipment(session, state.left_hand, state.right_hand) ||
-        !SotnPlayer_Restore(session->player, state.hp, state.player_random) ||
+    const SotnCharacterState *c = &state.character;
+    const SotnActorProgress progress = {c->hearts, c->subweapon,       c->gold,
+                                        c->kills,  state.actor_random, state.combat_random};
+    if (!SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
+        !SotnPlayer_Restore(session->player, c->hp, state.player_random) ||
         !SotnActors_Restore(session->actors, progress))
-    {
         return false;
-    }
     SotnHud_Destroy(session->hud);
     session->hud = NULL;
-    if (!SotnHud_Create(session->dra, SotnResource_View(session->common),
-                        (SotnHudStatus){state.hp, 70, state.mp, 20, state.hearts, state.subweapon},
-                        &session->hud))
+    if (!SotnHud_Create(
+            session->dra, SotnResource_View(session->common),
+            (SotnHudStatus){c->hp, c->hp_max, c->mp, c->mp_max, c->hearts, c->subweapon},
+            &session->hud))
     {
         return false;
     }
-    session->mp = state.mp;
+    session->mp = c->mp;
     session->simulation_ticks = state.ticks;
     session->save_point.slot = (Uint8)slot;
     return true;
@@ -893,8 +877,10 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
     session->saves = store;
     if (!RestoreSession(session, state, slot))
     {
+        char detail[512] = {0};
+        SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
         SotnLaboratory_Destroy(session);
-        return false;
+        return SDL_SetError("Cannot restore native slot %u: %s", slot, detail);
     }
     SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
     *out = session;

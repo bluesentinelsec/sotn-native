@@ -1324,9 +1324,19 @@ bool SotnActors_GetProgress(const SotnActors *actors, SotnActorProgress *out)
 
 bool SotnActors_Restore(SotnActors *actors, SotnActorProgress progress)
 {
-    if (actors == NULL || !actors->entered || progress.hearts > 50 || progress.subweapon > 9 ||
-        progress.gold > 999999)
-        return SDL_SetError("Actor progress is outside the supported development profile");
+    if (actors == NULL || !actors->entered)
+        return SDL_SetError("Actor progress requires an entered stage");
+    Uint16 maximum = 50;
+    if (actors->character != NULL)
+    {
+        SotnCharacterState state = {0};
+        if (!SotnCharacter_Get(actors->character, &state, NULL))
+            return false;
+        maximum = state.hearts_max;
+    }
+    if (progress.hearts > maximum || progress.subweapon > 9 || progress.gold > 999999)
+        return SDL_SetError("Actor progress is outside the supported character bounds");
+    actors->combat.hearts_max = maximum;
     actors->combat.hearts = progress.hearts;
     actors->combat.subweapon = progress.subweapon;
     actors->combat.gold = progress.gold;

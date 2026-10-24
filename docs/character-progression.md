@@ -34,6 +34,5 @@ The adapted paths are `src/dra/5D5BC.c:CheckAndDoLevelUp`, `func_800FE044`,
 pinned reconstructed revision under AGPL-3.0-or-later. All thresholds, HP growth,
 enemy definitions, artwork, and sound data remain private inputs.
 
-The following stacked save migration will retain inventory and progression.
-Version 1/2 native saves still represent their earlier limited development profile;
-do not treat those records as persistence for this newly integrated state.
+Version 3 [native saves](native-saves.md) retain supported character inventory and
+progression. Versions 1/2 migrate explicitly from their earlier limited profile.

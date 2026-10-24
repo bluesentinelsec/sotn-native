@@ -10,7 +10,7 @@ and original sound effects/Laboratory music.
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.
-Other equipped weapons, complete damage/item/audio behavior, full inventory/progression saves, actor/effect
+Other equipped weapons, complete damage/item/audio behavior, map/script persistence, actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 

@@ -94,23 +94,24 @@ bool SotnSaveStore_Read(const SotnSaveStore *store, Uint32 slot, SotnSaveState *
         return false;
     SDL_PathInfo info = {0};
     if (!SDL_GetPathInfo(path, &info) || info.type != SDL_PATHTYPE_FILE ||
-        info.size != SOTN_SAVE_BYTES)
+        (info.size != SOTN_SAVE_BYTES && info.size != SOTN_SAVE_LEGACY_BYTES))
     {
         SDL_free(path);
-        return SDL_SetError("Cannot load Laboratory slot %u: expected a regular %d-byte save", slot,
-                            SOTN_SAVE_BYTES);
+        return SDL_SetError(
+            "Cannot load Laboratory slot %u: expected a regular %d- or %d-byte save", slot,
+            SOTN_SAVE_BYTES, SOTN_SAVE_LEGACY_BYTES);
     }
     SDL_IOStream *io = SDL_IOFromFile(path, "rb");
     SDL_free(path);
     if (io == NULL)
         return false;
     Uint8 bytes[SOTN_SAVE_BYTES] = {0}, extra = 0;
-    const bool read = SDL_ReadIO(io, bytes, sizeof(bytes)) == sizeof(bytes) &&
+    const bool read = SDL_ReadIO(io, bytes, (size_t)info.size) == (size_t)info.size &&
                       SDL_ReadIO(io, &extra, 1) == 0 && SDL_GetIOStatus(io) == SDL_IO_STATUS_EOF;
     const bool closed = SDL_CloseIO(io);
     if (!read || !closed)
         return SDL_SetError("Cannot finish reading Laboratory slot %u", slot);
-    return SotnSave_Decode(bytes, sizeof(bytes), out);
+    return SotnSave_Decode(bytes, (size_t)info.size, out);
 }
 
 bool SotnSaveStore_Write(SotnSaveStore *store, Uint32 slot, SotnSaveState state)

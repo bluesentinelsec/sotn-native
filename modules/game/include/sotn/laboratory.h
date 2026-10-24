@@ -72,7 +72,8 @@ bool SotnLaboratory_Draw(SotnLaboratory *laboratory);
  * @param data Borrowed core snapshot. @param directory Private runtime resource directory.
  * @param slot Native slot, 1..15. @param out Receives ownership, NULL on failure.
  * @return Success, or false with SDL_GetError(); existing save remains unchanged.
- * @note Respawns transient actors; full inventory/map/progression and PS1 cards are unsupported. */
+ * @note Respawns transient actors; restores supported character/inventory progress; map/scripts and
+ * PS1 cards remain unsupported. */
 bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
                              SotnLaboratory **out);
 
