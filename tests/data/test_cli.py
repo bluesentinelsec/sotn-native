@@ -28,6 +28,11 @@ cases = [
     (["--preview-laboratory", "--game-data", ".", "--validate-only"], "Choose one"),
     (["--laboratory"], "requires --game-data"),
     (["--laboratory", "--game-data", ".", "--preview-laboratory"], "Choose one"),
+    (["--laboratory-room", "3"], "requires --laboratory"),
+    (["--laboratory-room"], "requires 1 or 3"),
+    (["--laboratory-room", "-1"], "requires 1 or 3"),
+    (["--laboratory-room", "4294967296"], "requires 1 or 3"),
+    (["--laboratory-room", "3", "--laboratory-room", "1"], "only once"),
 ]
 with tempfile.TemporaryDirectory() as directory:
     cases += [

@@ -8,16 +8,19 @@
 typedef struct SotnLaboratory SotnLaboratory;
 
 /**
- * @brief Create the project's normal-Alucard movement integration checkpoint.
+ * @brief Create the project's Laboratory actor integration checkpoint.
  * @param data Borrowed verified core snapshot, alive until after session destruction.
  * @param directory Borrowed private resource directory used only during initialization.
+ * @param start_room Verified development start: room 1 (entry) or 3 (zombie corridor).
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() on unsupported or missing data.
  * @pre SDL video is initialized and calls occur on the main thread.
- * @note Starts in development room 1. Combat, enemies, audio, saves, stage scripts,
- * original camera behavior, and full-game progression are not implemented.
+ * @note Supports selected original actor motion/animation. Combat, drops, audio,
+ * other actor families/effects, saves, scripts, original camera, and full progression are
+ * incomplete.
  */
-bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, SotnLaboratory **out);
+bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
+                           SotnLaboratory **out);
 
 /**
  * @brief Advance one game tick using explicitly supplied original button bits.

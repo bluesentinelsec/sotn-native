@@ -8,16 +8,18 @@ assets are linked into the app or copied into packages.
 
 ## Current behavior
 
-The checkpoint starts normal Alucard at development room 1, position (32,135).
+The checkpoint starts normal Alucard at development room 1, position (32,135),
+or the verified room-3 corridor start with `--laboratory-room 3`.
 It supports standing, looking up, walking, turning, crouching, jumping, falling,
 landing, one-way platform drop-through, slope/wall/ceiling collision, and
 transitions between adjacent Laboratory rooms. Motion uses original 16.16
 fixed-point values and sensor rules; animation uses the private DRA tables.
 The native session renders the existing tile/sprite pipeline through OpenGL.
 
-This is a movement integration checkpoint. It does not implement the original
-game startup, stage scripts/entities, enemies, combat, equipment, damage, HUD,
-audio, saves, transformations, or full-game progression. Reaching an
+The [actor checkpoint](laboratory-actors.md) now adds selected original room
+objects and Bloody Zombie active motion/animation to this movement foundation.
+Original game startup, complete stage actors/scripts, combat, equipment, damage,
+HUD, audio, saves, transformations, and full-game progression remain incomplete. Reaching an
 unsupported external stage/boundary fails with a clear message. Movement
 support does not establish parity for the full original player state machine.
 
@@ -90,7 +92,7 @@ transitioned from room 1 to room 2. Actual framebuffer captures were inspected
 locally and remain ignored, alongside all private inputs and test tools.
 
 Before calling this the first authentic playable project milestone, integrate
-combat/entities, audio, original timing/camera and entry scripts, then compare
+combat, remaining entities/effects, audio, original timing/camera and entry scripts, then compare
 a repeatable sequence with the original. Broader progression and ordinary
 save/load follow. Human playtesting of this checkpoint evaluates its limited
 movement and rendering; it cannot establish those missing features.

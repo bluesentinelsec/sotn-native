@@ -25,6 +25,9 @@
   `modules/render/actor_graphics.c` adapts bounded graphics-bank uploads,
   bulk palettes, and multipart drawing from `src/dra/4AEA4.c`, `4A538.c`,
   and `4B758.c`.
+  `modules/core/actors.c` adapts selected intact object and active Bloody Zombie
+  paths from `src/st/nz0/e_breakable.c`, `e_red_eye_bust.c`, `e_nz0_room2.c`,
+  `src/st/e_bloody_zombie.h`, `animate_entity.h`, `st_common.h`, and `st_update.h`.
   `modules/render/tilemap.c` adapts the tile renderer in `src/dra/4CE2C.c` and
   tile upload layout in `src/pc/sim_pc.c`. `modules/render/alucard_sprite.c`
   adapts the sprite-sheet path in `src/dra/4B758.c` and ARC pointer loading in

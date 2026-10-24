@@ -4,9 +4,11 @@
 
 Build a native, personal and educational *Symphony of the Night* port that
 preserves the original experience and creates a foundation for later improvements.
-The C17 SDL3 app includes a limited Laboratory movement checkpoint, not a
-complete working game port. `--laboratory` launches our executable with runtime
-data; combat, enemies, sound, saves, scripts, and full progression are absent.
+The C17 SDL3 app includes a limited Laboratory actor checkpoint, not a complete
+working game port. `--laboratory` launches our executable with runtime data;
+`--laboratory-room 3` selects the zombie corridor. Selected actors animate and
+Bloody Zombies run active motion/attack animations. Combat/damage, drops, sound,
+other actor/effect families, saves, scripts, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -19,8 +21,8 @@ integrated; [movement integration](docs/laboratory-movement.md) describes their 
 The core stage parser and on-demand data resources are documented in
 [docs/stage-data.md](docs/stage-data.md); runtime tables must stay in private files.
 Actor placement decoding and scrolling/persistence state are described in
-[docs/laboratory-actors.md](docs/laboratory-actors.md); their behavior/rendering
-integration must not be confused with the standalone placement foundation.
+[docs/laboratory-actors.md](docs/laboratory-actors.md), including selected behavior
+and rendering integration. Do not describe visual attack animations as implemented combat.
 Runtime tile/sprite presentation and the animation cursor are described in
 [docs/laboratory-presentation.md](docs/laboratory-presentation.md). Its tile
 preview is a graphics diagnostic, not a gameplay playtest.
