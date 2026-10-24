@@ -17,20 +17,20 @@ bool SotnLaboratory_TestProfile(SotnLaboratory *laboratory, const char *name);
  * @brief Create the project's Laboratory actor integration checkpoint.
  * @param data Borrowed verified core snapshot, alive until after session destruction.
  * @param directory Borrowed private resource directory used only during initialization.
- * @param start_room Verified development start: room 1 (entry), 3 (zombie corridor), or 23..25
- * (save rooms).
+ * @param start_room Verified development room: 1, 3..6, 9, 10, 14, 16..18, 20, or 22..25.
+ * Room 16 starts at the boss entrance; rooms 23..25 are save rooms.
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() on unsupported or missing data.
  * @pre SDL video is initialized and calls occur on the main thread.
- * @note Supports selected empty-hand/Gladius/Mace combat, candle prizes, original sound effects,
- * and streaming Laboratory music in an explicit development profile. Other weapons, full
- * effects/audio parity, full progression saves, scripts, original camera/timing, and progression
- * remain incomplete.
+ * @note Integrates selected weapons/enemies, mechanisms, paired bosses, camera follow/locks,
+ * original sound requests/music, and ordinary Laboratory saves in a development profile.
+ * Complete effects/audio, castle scripts, other stages, and whole-game/timing parity remain
+ * incomplete. Private runtime inputs remain borrowed and are never distributed.
  */
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out);
 
-/** @brief Select supported development hand equipment; no inventory menu is implied.
+/** @brief Select supported development hand equipment and synchronize character ownership.
  * @param laboratory Borrowed session. @param left Left-hand item ID. @param right Right-hand ID.
  * @return Success, or false with SDL_GetError(); stop after resource failure. */
 bool SotnLaboratory_SetEquipment(SotnLaboratory *laboratory, Uint16 left, Uint16 right);
@@ -72,8 +72,9 @@ bool SotnLaboratory_Draw(SotnLaboratory *laboratory);
  * @param data Borrowed core snapshot. @param directory Private runtime resource directory.
  * @param slot Native slot, 1..15. @param out Receives ownership, NULL on failure.
  * @return Success, or false with SDL_GetError(); existing save remains unchanged.
- * @note Respawns transient actors; restores supported character/inventory progress; map/scripts and
- * PS1 cards remain unsupported. */
+ * @note Respawns transient actors after installing supported character, exploration, and permanent
+ * Laboratory event progress. Map UI, full castle scripts, and PS1 cards remain unsupported. Pins
+ * saved RNG streams after room initialization rather than serializing transient execution state. */
 bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
                              SotnLaboratory **out);
 

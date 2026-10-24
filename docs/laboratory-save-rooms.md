@@ -39,13 +39,14 @@ records fail clearly and remain untouched.
 
 ## Persistent state and limits
 
-The version-three [native format](native-saves.md) retains supported inventory,
+The version-four [native format](native-saves.md) retains supported inventory,
 seven equipment slots, EXP/level/base stats, current/max resources, permanent
-Laboratory item bits, subweapon, gold/kills, room/time, and four owned RNG streams.
+Laboratory item bits, subweapon, gold/kills, room/time, four owned RNG streams, packed exploration, and permanent Laboratory
+events including secret/cannon shortcuts and the defeated paired boss.
 Loading recreates a fresh session at the saved point; temporary enemy/candle and
 projectile state reset. This is an ordinary room save, not an execution snapshot.
 Empty hands, Basilard, Gladius, Mace, and the selected supported body equipment
-can be restored. Map exploration, relic progression, castle scripts, other stages,
+can be restored. Map UI, relic progression, castle scripts, other stages,
 and PS1 memory-card import/export remain unintegrated.
 
 The native fifteen-slot bank and text dialogs adapt memory-card hardware/file

@@ -1,6 +1,6 @@
 # Laboratory traversal milestone
 
-The next native milestone is one complete Laboratory route with working room
+This native milestone targets one complete Laboratory route with working room
 mechanisms, the original camera/events, the paired boss encounter, and persistent
 map/event progress. The executable and all tests belong to this repository.
 Private runtime files remain the source of every animation, actor definition,
@@ -26,7 +26,7 @@ elemental ailments, and global RNG parity still need separate validation.
 
 Development rooms 10, 18, and 20 expose the added families. These are explicit
 checkpoints with the existing development character, not original stage entry.
-The original saved character/inventory format is unchanged by this enemy slice.
+The enemy slice preserves the existing character/inventory behavior.
 
 Public synthetic checks cover skeleton attack/bone creation, sword hitboxes,
 collapse/reassembly, axe rotation/return/arc, attached-parent expiry, acid splash
@@ -59,7 +59,7 @@ standing, ceiling, and wall contact after the player update. A moving platform
 carries the player without resetting movement/animation.
 
 The cannon lever fires its shot, opens the shortcut, and retains its permanent
-flag within the session. Secret wall/floor obstacles require the original three
+flag across ordinary saves. Secret wall/floor obstacles require the original three
 hits and reset interval, replace their private tile patches, and retain their
 open flags across room reentry. Selected debris and palette-tagged explosions
 run; complete intense explosions, camera shake, secret-map reveal effects,
@@ -87,8 +87,7 @@ Adapted logic: `src/st/nz0/e_nz0_room2.c`, `e_puzzle.c`, `e_elevator.c`,
 `e_elevator2.c`, `e_cannon.c`, `e_left_secret_room_wall.c`, and shared
 `st_common.h`, `e_red_door.h`, `e_sealed_door.h`, `e_collect.h`, plus packed
 map visitation from `src/dra/5087C.c:func_800F2014`, at the same pinned revision
-and AGPL-3.0-or-later license above. Progress is session-owned here; ordinary
-save format remains v3 until the world-persistence slice lands.
+and AGPL-3.0-or-later license above. Progress is scene-owned and retained by the version-four ordinary save format.
 
 ## Camera integration
 
@@ -146,12 +145,29 @@ reverb/positional mixing, complete status ailments, Maria/castle scripts, room-l
 fades, and other stages remain incomplete. The checkpoint is not a complete area
 or full-game parity claim.
 
-## Remaining work in the authorized milestone
+## Persistent exploration and events
 
-- Map exploration and original permanent event flags retained by ordinary save/load,
-  with explicit migration from existing native saves.
-- A repeatable native traversal/boss/save/load run, sanitizer checks, platform CI,
-  and a local LLDB playtest helper. Stacked PRs remain unmerged until playtested.
+The [version-four ordinary save](native-saves.md) stores packed map exploration,
+its checked cell count, original-sized castle progress flags, boss visitation,
+and the boss time record alongside character progress. The scene reveals cells
+at simulation time using foreground castle coordinates; hidden-map layers do
+not reveal cells. Map artwork/UI and secret-passage drawing remain incomplete.
 
-Other stages, complete new-game/prologue progression, and complete game parity
-remain outside this Laboratory milestone. Unsupported paths must stay explicit.
+Continue installs progress before actors initialize. Secret wall/floor and cannon
+shortcuts retain their open state, and the defeated pair does not respawn. Existing
+v1/v2/v3 saves migrate explicitly with zero world progress because they never stored
+it. Temporary actors, door/switch/lift execution state, and destruction bits are
+recreated rather than serialized.
+
+Other stages, Maria/castle scripts, complete new-game/prologue progression, and
+complete game parity remain outside this Laboratory milestone. Unsupported paths
+stay explicit. Stacked PRs remain unmerged until the user playtests this build.
+
+A private native LLDB sequence defeated both bosses, collected the Life Max Up,
+fired the cannon, crossed an automatic door, rode the lift, broke the secret wall,
+and saved at the original point. A fresh session restored byte-identical ordinary
+progress (including fourteen explored cells), kept the boss defeated and secret
+wall absent, and retained the cannon event. Mechanism sections used explicit room
+starts; this is an integration sequence, not an uninterrupted whole-area replay.
+The boss section used the documented private high-health/strength fixture. Public
+tests and sanitizer checks use synthetic inputs; private inputs are never CI artifacts.

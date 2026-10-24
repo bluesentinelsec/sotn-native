@@ -94,12 +94,13 @@ bool SotnSaveStore_Read(const SotnSaveStore *store, Uint32 slot, SotnSaveState *
         return false;
     SDL_PathInfo info = {0};
     if (!SDL_GetPathInfo(path, &info) || info.type != SDL_PATHTYPE_FILE ||
-        (info.size != SOTN_SAVE_BYTES && info.size != SOTN_SAVE_LEGACY_BYTES))
+        (info.size != SOTN_SAVE_BYTES && info.size != SOTN_SAVE_V3_BYTES &&
+         info.size != SOTN_SAVE_LEGACY_BYTES))
     {
         SDL_free(path);
         return SDL_SetError(
-            "Cannot load Laboratory slot %u: expected a regular %d- or %d-byte save", slot,
-            SOTN_SAVE_BYTES, SOTN_SAVE_LEGACY_BYTES);
+            "Cannot load Laboratory slot %u: expected a regular %d-, %d-, or %d-byte save", slot,
+            SOTN_SAVE_BYTES, SOTN_SAVE_V3_BYTES, SOTN_SAVE_LEGACY_BYTES);
     }
     SDL_IOStream *io = SDL_IOFromFile(path, "rb");
     SDL_free(path);

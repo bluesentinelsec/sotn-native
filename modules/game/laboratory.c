@@ -225,12 +225,28 @@ static bool ApplyCharacter(SotnLaboratory *session)
     return SotnPlayer_SetCharacter(session->player, &state, stats);
 }
 
+// dra/5087C.c:func_800F2014. Map drawing/secret-wall pixels remain a separate renderer.
+static bool VisitMap(SotnLaboratory *session)
+{
+    SotnPlayerState player = {0};
+    if (!SotnPlayer_GetState(session->player, &player))
+        return false;
+    const SotnStageLayer layer = session->room.foreground;
+    const Sint32 x = Pixel(player.x), y = Pixel(player.y);
+    if ((layer.parameters & 0x10) || x < 0 || y < 0 || x >= (Sint32)layer.collision.width * 16 ||
+        y >= (Sint32)layer.collision.height * 16)
+        return true; // Cross-room overshoot is resolved before revealing another room.
+    return SotnWorld_Visit(&session->world, (Sint32)layer.left + x / 256,
+                           (Sint32)layer.top + y / 256, false);
+}
+
 static bool TickActors(SotnLaboratory *session)
 {
     SotnPlayerState player = {0};
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
-    if (!SotnCamera_Tick(&session->camera, Pixel(player.x), Pixel(player.y), false))
+    if (!VisitMap(session) ||
+        !SotnCamera_Tick(&session->camera, Pixel(player.x), Pixel(player.y), false))
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
@@ -356,6 +372,7 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
     character.hp = player.hp;
     *out = (SotnSaveState){.room = session->room_index,
                            .character = character,
+                           .world = session->world,
                            .ticks = session->simulation_ticks,
                            .player_random = player.random,
                            .actor_random = progress.random,
@@ -449,8 +466,11 @@ static bool PrimeAudio(SotnLaboratory *session)
     return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0);
 }
 
-bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
-                           SotnLaboratory **out)
+static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
+static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot);
+
+static bool CreateSession(const SotnGameData *data, const char *directory, Uint32 start_room,
+                          const SotnSaveState *saved, Uint32 slot, SotnLaboratory **out)
 {
     if (out == NULL)
         return SDL_InvalidParamError("out");
@@ -464,6 +484,11 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
+    if (saved != NULL)
+    {
+        session->world = saved->world;
+        session->simulation_ticks = saved->ticks;
+    }
     session->room_index = start_room;
     session->mp = 20;
     if (!SotnGameData_GetFile(data, SOTN_GAME_MAIN, &session->executable) ||
@@ -504,7 +529,9 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
                         (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
-        !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
+        (saved != NULL && !RestoreCharacter(session, *saved)) || !EnterActors(session) ||
+        !TickActors(session) || (saved != NULL && !RestoreSession(session, *saved, slot)) ||
+        !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
@@ -517,19 +544,22 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Laboratory development start: room %u", (unsigned int)start_room);
-    SDL_Log(
-        "Laboratory combat checkpoint: Basilard/Gladius/Mace and empty-hand attacks, Bloody Zombie "
-        "damage/death, "
-        "physical player damage, candles, and heart/gold/subweapon collection. "
-        "Original sound effects, HUD, physical game over, and native save rooms are enabled; "
-        "reverb, full "
-        "effects, full progression, "
-        "scripts, and original camera remain incomplete.");
+    SDL_Log("Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
+            "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
+            "Maria/castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-three ordinary saves.");
-    SDL_Log("Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
+            "and version-four saves with explored cells and permanent Laboratory events.");
+    if (saved == NULL)
+        SDL_Log(
+            "Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
     *out = session;
     return true;
+}
+
+bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
+                           SotnLaboratory **out)
+{
+    return CreateSession(data, directory, start_room, NULL, 0, out);
 }
 
 bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 right)
@@ -951,14 +981,21 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
     }
 }
 
+static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state)
+{
+    const SotnCharacterState *c = &state.character;
+    if (!SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
+        !SotnPlayer_Restore(session->player, c->hp, state.player_random))
+        return false;
+    return true;
+}
+
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
 {
     const SotnCharacterState *c = &state.character;
     const SotnActorProgress progress = {c->hearts, c->subweapon,       c->gold,
                                         c->kills,  state.actor_random, state.combat_random};
-    if (!SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
-        !SotnPlayer_Restore(session->player, c->hp, state.player_random) ||
-        !SotnActors_Restore(session->actors, progress))
+    if (!RestoreCharacter(session, state) || !SotnActors_Restore(session->actors, progress))
         return false;
     SotnHud_Destroy(session->hud);
     session->hud = NULL;
@@ -989,20 +1026,13 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
         return false;
     }
     SotnLaboratory *session = NULL;
-    if (!SotnLaboratory_Create(data, directory, state.room, &session))
+    if (!CreateSession(data, directory, state.room, &state, slot, &session))
     {
         SotnSaveStore_Destroy(store);
         return false;
     }
     SotnSaveStore_Destroy(session->saves);
     session->saves = store;
-    if (!RestoreSession(session, state, slot))
-    {
-        char detail[512] = {0};
-        SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
-        SotnLaboratory_Destroy(session);
-        return SDL_SetError("Cannot restore native slot %u: %s", slot, detail);
-    }
     SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
     *out = session;
     return true;
