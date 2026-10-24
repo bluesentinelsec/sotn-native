@@ -150,7 +150,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool preview_icons = false;
     bool inspect_lab = false;
     bool preview_lab = false;
-    bool play_lab = false, play_menu = false;
+    bool play_lab = false, play_menu = false, play_entrance = false;
+    Uint32 entrance_room = 0;
+    bool chose_entrance_room = false;
     bool chose_lab_room = false;
     Uint32 lab_room = 1, lab_slot = 0;
     const char *lab_loadout = NULL;
@@ -206,6 +208,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--play") == 0)
         {
             play_menu = true;
+        }
+        else if (SDL_strcmp(argv[i], "--entrance") == 0)
+        {
+            play_entrance = true;
+        }
+        else if (SDL_strcmp(argv[i], "--entrance-room") == 0)
+        {
+            char *end = NULL;
+            const unsigned long parsed = i + 1 < argc ? SDL_strtoul(argv[++i], &end, 10) : 32;
+            if (chose_entrance_room || end == NULL || *end != '\0' || parsed > 27)
+            {
+                SDL_SetError("--entrance-room requires an original room 0..27 once");
+                return Fail("Invalid arguments");
+            }
+            chose_entrance_room = true;
+            entrance_room = (Uint32)parsed;
         }
         else if (SDL_strcmp(argv[i], "--laboratory") == 0)
         {
@@ -271,7 +289,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             SDL_Log(
                 "Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                 "| --inspect-laboratory | --inspect-stage CODE | --preview-laboratory | "
-                "--laboratory] "
+                "--laboratory | --entrance] [--entrance-room 0..27] "
                 "[--laboratory-room 1|3|4|5|6|9|10|14|16|17|18|20|22|23|24|25] "
                 "[--laboratory-continue "
                 "SLOT] "
@@ -285,6 +303,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             SDL_SetError("Unknown argument '%s'; use --help", argv[i]);
             return Fail("Invalid arguments");
         }
+    }
+    if (chose_entrance_room && !play_entrance)
+    {
+        SDL_SetError("--entrance-room requires --entrance");
+        return Fail("Invalid arguments");
     }
     if ((chose_lab_room || lab_loadout != NULL || lab_slot != 0 || lab_test_profile != NULL) &&
         !play_lab)
@@ -306,7 +329,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     const unsigned int modes = (validate_only ? 1U : 0U) + (preview_icons ? 1U : 0U) +
                                (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
                                (play_lab ? 1U : 0U) + (play_menu ? 1U : 0U) +
-                               (inspect_stage != NULL ? 1U : 0U);
+                               (play_entrance ? 1U : 0U) + (inspect_stage != NULL ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
@@ -363,9 +386,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("SOTN_GRAPHICS_TEST: PASS");
         return SDL_APP_SUCCESS;
     }
-    if (play_lab || play_menu)
+    if (play_lab || play_menu || play_entrance)
     {
-        if (!(lab_slot != 0
+        if (!(play_entrance ? SotnLaboratory_CreateEntrance(app->game_data, game_directory,
+                                                            entrance_room, &app->game)
+              : lab_slot != 0
                   ? SotnLaboratory_Continue(app->game_data, game_directory, lab_slot, &app->game)
                   : SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game)))
             return Fail("Cannot open Laboratory actor checkpoint");

@@ -32,7 +32,7 @@ static bool Resolve(SotnDataView image, Uint32 address, size_t size, Uint32 alig
 }
 
 static bool ReadList(SotnDataView image, Uint32 address, unsigned int axis, SotnDataView *out,
-                     Uint32 *count)
+                     Uint32 *count, Uint16 id_limit)
 {
     SotnDataView first = {0};
     if (!Resolve(image, address, 10, 2, &first))
@@ -56,7 +56,7 @@ static bool ReadList(SotnDataView image, Uint32 address, unsigned int axis, Sotn
         const Uint16 raw_id = Read16(record + 4), id = raw_id & 0x3ff;
         const Uint16 mode = raw_id & 0xe000;
         if (i == MAX_PLACEMENTS || Read16(record) > 32767 || Read16(record + 2) > 32767 ||
-            coordinate < previous || id == 0 || id >= 0x4e ||
+            coordinate < previous || id == 0 || id >= id_limit ||
             (Read16(record + 6) & 255) >= SOTN_STAGE_ACTOR_SLOTS ||
             (mode != 0 && mode != 0x8000 && mode != 0xa000))
             return SDL_SetError(
@@ -68,9 +68,18 @@ static bool ReadList(SotnDataView image, Uint32 address, unsigned int axis, Sotn
 
 bool SotnActorLayout_Open(SotnDataView image, Uint32 index, SotnActorLayout **out)
 {
+    return SotnActorLayout_OpenStage(image, 12, index, out);
+}
+
+bool SotnActorLayout_OpenStage(SotnDataView image, Uint16 stage_id, Uint32 index,
+                               SotnActorLayout **out)
+{
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
+    if (stage_id != 12 && stage_id != 65)
+        return SDL_SetError("Actor layouts do not support stage %u", stage_id);
+    const Uint16 id_limit = stage_id == 65 ? 0x63 : 0x4e;
     if (image.bytes == NULL || image.size < 32 || image.size > 0x80000 || index >= LAYOUT_COUNT)
         return SDL_SetError(
             "Actor layouts require a bounded US Laboratory image and layout ID below 53");
@@ -80,9 +89,9 @@ bool SotnActorLayout_Open(SotnDataView image, Uint32 index, SotnActorLayout **ou
     SotnActorLayout candidate = {0};
     Uint32 vertical_count = 0;
     if (!ReadList(image, Read32(tables.bytes + (size_t)index * 4), 0, &candidate.lists[0],
-                  &candidate.count) ||
+                  &candidate.count, id_limit) ||
         !ReadList(image, Read32(tables.bytes + (LAYOUT_COUNT + (size_t)index) * 4), 1,
-                  &candidate.lists[1], &vertical_count))
+                  &candidate.lists[1], &vertical_count, id_limit))
         return false;
     if (vertical_count != candidate.count)
         return SDL_SetError("Laboratory actor layout lists have different placement counts");

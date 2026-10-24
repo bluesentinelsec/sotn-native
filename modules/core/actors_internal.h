@@ -49,6 +49,13 @@ typedef struct Actor
     } enemy_state;
     struct
     {
+        Sint32 anchor_x;
+        Sint16 attack_timer;
+        Uint16 timer, decision;
+        bool backward;
+    } warg;
+    struct
+    {
         Sint32 base_y;
         Uint16 count, target;
         bool pressed, changed;
@@ -77,6 +84,7 @@ typedef struct Actor
 struct SotnActors
 {
     SotnDataView dra, nz0, executable;
+    Uint16 stage_id, entrance_scimitars;
     SotnCollisionMap map;
     Uint8 *mutable_tiles;
     SotnWorldState fallback_world, *world;
@@ -200,6 +208,15 @@ bool ActorTilePatch(SotnActors *actors, Uint32 index, Uint32 rows, Uint32 column
 bool ActorSprite(SotnActors *actors, Actor *actor, Uint16 index, Sint32 x, Sint32 y, Uint8 u,
                  Uint8 v, Uint16 width, Uint16 height, Uint16 page, Uint16 palette);
 bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorEntrance(SotnActors *actors, Actor *actor);
+bool ActorWarg(SotnActors *actors, Actor *actor);
+
+/* These services accept only validated Laboratory (12) or first-visit Entrance (65)
+ * profiles. Offsets identify private tables; actor IDs always retain their stage meaning. */
+static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance)
+{
+    return actors->stage_id == 65 ? entrance : laboratory;
+}
 
 static inline Uint32 ActorRandom(SotnActors *actors)
 {

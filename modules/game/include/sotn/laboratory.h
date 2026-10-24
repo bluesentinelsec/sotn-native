@@ -30,6 +30,14 @@ bool SotnLaboratory_TestProfile(SotnLaboratory *laboratory, const char *name);
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out);
 
+/** @brief Create a first-visit Entrance development session, never an original new game.
+ * @param data Borrowed verified snapshot. @param directory Private runtime directory.
+ * @param room Original room index. @param out Receives ownership or NULL.
+ * @return Success or SDL error. Current checkpoint character and incomplete actors are explicit.
+ */
+bool SotnLaboratory_CreateEntrance(const SotnGameData *data, const char *directory, Uint32 room,
+                                   SotnLaboratory **out);
+
 /** @brief Select supported development hand equipment and synchronize character ownership.
  * @param laboratory Borrowed session. @param left Left-hand item ID. @param right Right-hand ID.
  * @return Success, or false with SDL_GetError(); stop after resource failure. */

@@ -59,6 +59,14 @@
     "F_MAP.BIN": {
       "size": 32768,
       "sha1": "db60e9cac13ed6bcf93b0d7b1625ee2d0dc1b0bd"
+    },
+    "ST/NO3/SD_ZKNO3.VH": {
+      "size": 7200,
+      "sha1": "f637451a0d4d8e5978bed4416f3756c364a57ee8"
+    },
+    "ST/NO3/SD_ZKNO3.VB": {
+      "size": 105168,
+      "sha1": "5837244a95a69a0b8b6b4b76366a83b73bec599f"
     }
   },
   "sizes": {
