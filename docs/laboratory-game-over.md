@@ -16,8 +16,8 @@ ordering, and original timing parity remain unproven.
 
 The current checkpoint ends successfully after the fade: original title/file
 selection menus and full progression are not integrated. It does not invent an
-automatic respawn or claim that the original title flow works. Save-room loading
-is a separate integration step.
+automatic respawn or claim that the original title flow works. The [native save-room checkpoint](laboratory-save-rooms.md) supplies explicit
+`--laboratory-continue SLOT` loading on the next launch.
 
 The additional private input is `BIN/F_GO.BIN`, 114,688 bytes,
 SHA-1 `fa0556554d4b4e68410cf0270cb826b4a42f36ff`. Its artwork and palette bytes

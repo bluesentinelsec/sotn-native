@@ -8,6 +8,7 @@
 typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_START = 0x0008,
+    SOTN_BUTTON_CANCEL = 0x0010,
     SOTN_BUTTON_JUMP = 0x0040,
     SOTN_BUTTON_RIGHT_HAND = 0x0020,
     SOTN_BUTTON_LEFT_HAND = 0x0080,
@@ -60,6 +61,8 @@ typedef struct SotnPlayerState
     bool invulnerable;
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
+    bool looking_up;
+    Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -129,6 +132,11 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out);
  * ailments and equipped defenses remain incomplete. Lethal physical damage enters the original
  * selected death animation/dissolution; phase 128 signals completion to the scene. */
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
+
+/** @brief Restore supported health and random state on a living, non-attacking player.
+ * @param player Borrowed simulation. @param hp Health, 1..70. @param random Saved RNG state.
+ * @return Success, or false with SDL_GetError() and unchanged state on invalid input. */
+bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

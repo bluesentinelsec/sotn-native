@@ -9,6 +9,8 @@ add_library(sotn-core STATIC
   combat.c
   equipment.c
   include/sotn/equipment.h
+  save_point.c
+  include/sotn/save_point.h
   player.c
   player_sensors.c
   player_internal.h

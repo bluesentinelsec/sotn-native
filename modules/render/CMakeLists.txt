@@ -5,6 +5,8 @@ add_library(sotn-render STATIC
   layout.c
   layout.h
   save_icon.c
+  save_point.c
+  include/sotn/save_point_renderer.h
   game_over.c
   include/sotn/game_over.h
   hud.c
