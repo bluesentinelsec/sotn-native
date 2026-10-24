@@ -9,7 +9,7 @@ working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
 Bloody Zombies run active motion/attack animations. Selected empty-hand and Basilard/Gladius/Mace combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Other equipped weapons,
-complete effects/audio, castle scripts, map persistence, and full progression remain incomplete.
+complete effects/audio, castle scripts, map UI, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -166,7 +166,7 @@ original presentation and exits successfully after its fade. Title/file selectio
 elemental deaths and complete effects remain incomplete. The
 [save-room checkpoint](docs/laboratory-save-rooms.md) now restores HP/MP and persists
 supported progress to fifteen native slots; `--laboratory-continue SLOT` loads one.
-Full title/file menus, map/full-game progression persistence, and PS1 cards remain incomplete.
+Full title/file menus, full-game progression persistence, and PS1 cards remain incomplete.
 
 The [original HUD](docs/laboratory-hud.md) presents HP, MP, hearts, and the collected
 subweapon from private artwork/tables. Supported progression now updates maxima and MP recovery.
@@ -176,8 +176,8 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 3 saves retain this
-supported progress; versions 1/2 migrate from their earlier limited profile.
+Spells/relic/settings/familiar menus remain unavailable. Version 4 saves retain this
+supported progress; versions 1/2/3 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
@@ -187,14 +187,17 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 3 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 4 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
-owned RNG streams. Versions 1/2 migrate explicitly; no transient actor/projectile state,
-map/script progression, or PS1 memory-card support is implied.
+owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3
+migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1
+memory-card support remain incomplete.
 
 The [Laboratory traversal milestone](docs/laboratory-world.md) now adds Skeleton,
 Bone Scimitar, Blood Skeleton, Axe Knight, and Spittle Bone behavior/projectiles.
 Room switches/spikes, boxes, lifts, selected doors, cannon/secret obstacles now run.
 Normal camera follow and room locks now advance independently of rendering.
 The paired boss encounter now includes attacks, coordination, defeat, reward, and music changes.
-Saved map/event progress is the remaining work in the currently authorized milestone; do not call the area complete.
+Ordinary saves retain map exploration and permanent Laboratory events. Map UI, Maria/castle
+scripts, whole-encounter replay parity, full effects/audio, and other stages remain incomplete;
+do not call the area complete.

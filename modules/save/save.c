@@ -41,7 +41,7 @@ static bool Valid(SotnSaveState state)
     if ((state.room != 23 && state.room != 24 && state.room != 25) || state.character.hp == 0 ||
         state.ticks > 99999ULL * 3600 * 60)
         return SDL_SetError("Save requires a living character in a supported Laboratory save room");
-    return SotnCharacter_Validate(&state.character);
+    return SotnCharacter_Validate(&state.character) && SotnWorld_Validate(&state.world);
 }
 static void WriteCharacter(Uint8 *p, const SotnCharacterState *s)
 {
@@ -96,7 +96,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 3);
+    Put32(record + 8, 4);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -106,7 +106,12 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     Put32(record + 36, state.actor_random);
     Put32(record + 40, state.combat_random);
     WriteCharacter(record, &state.character);
-    Put32(record + 764, Checksum(record, 764));
+    SDL_memcpy(record + 624, state.world.flags, SOTN_CASTLE_FLAGS);
+    SDL_memcpy(record + 1392, state.world.map, SOTN_CASTLE_MAP);
+    Put16(record + 3440, state.world.rooms);
+    record[3442] = state.world.laboratory_boss_visited ? 1 : 0;
+    Put32(record + 3444, state.world.laboratory_boss_time);
+    Put32(record + SOTN_SAVE_BYTES - 4, Checksum(record, SOTN_SAVE_BYTES - 4));
     SDL_memcpy(bytes, record, sizeof(record));
     return true;
 }
@@ -147,22 +152,26 @@ static bool Legacy(const Uint8 *p, Uint32 version, SotnSaveState *out)
 }
 bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
 {
-    if (bytes == NULL || out == NULL || (size != SOTN_SAVE_BYTES && size != SOTN_SAVE_LEGACY_BYTES))
+    if (bytes == NULL || out == NULL ||
+        (size != SOTN_SAVE_BYTES && size != SOTN_SAVE_V3_BYTES && size != SOTN_SAVE_LEGACY_BYTES))
         return SDL_SetError("Save file is missing or has an invalid record size");
     if (SDL_memcmp(bytes, "SOTNNSAV", 8) != 0)
         return SDL_SetError(
             "Save is not a native Laboratory record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
-    if (version != 1 && version != 2 && version != 3)
+    if (version != 1 && version != 2 && version != 3 && version != 4)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
-    const size_t expected = version == 3 ? SOTN_SAVE_BYTES : SOTN_SAVE_LEGACY_BYTES;
+    const size_t expected = version == 4   ? SOTN_SAVE_BYTES
+                            : version == 3 ? SOTN_SAVE_V3_BYTES
+                                           : SOTN_SAVE_LEGACY_BYTES;
     if (size != expected || Read32(bytes + 12) != expected || Read32(bytes + 16) != 0x67 ||
         Read32(bytes + size - 4) != Checksum(bytes, size - 4))
         return SDL_SetError("Save region, length, or checksum is invalid; original file retained");
     if (version < 3)
         return Legacy(bytes, version, out);
-    if (!Zeroes(bytes, 44, 48) || !Zeroes(bytes, 86, 88) || !Zeroes(bytes, 624, 764))
+    if (!Zeroes(bytes, 44, 48) || !Zeroes(bytes, 86, 88) ||
+        (version == 3 && !Zeroes(bytes, 624, 764)))
         return false;
     SotnSaveState state = {.room = Read32(bytes + 20),
                            .ticks = Read32(bytes + 24) | (Uint64)Read32(bytes + 28) << 32,
@@ -170,6 +179,16 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                            .actor_random = Read32(bytes + 36),
                            .combat_random = Read32(bytes + 40),
                            .character = ReadCharacter(bytes)};
+    if (version == 4)
+    {
+        if (bytes[3442] > 1 || !Zeroes(bytes, 3443, 3444) || !Zeroes(bytes, 3448, 4092))
+            return SDL_SetError("Saved world contains unsupported reserved state");
+        SDL_memcpy(state.world.flags, bytes + 624, SOTN_CASTLE_FLAGS);
+        SDL_memcpy(state.world.map, bytes + 1392, SOTN_CASTLE_MAP);
+        state.world.rooms = Read16(bytes + 3440);
+        state.world.laboratory_boss_visited = bytes[3442] != 0;
+        state.world.laboratory_boss_time = Read32(bytes + 3444);
+    }
     if (!Valid(state))
         return false;
     *out = state;
