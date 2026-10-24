@@ -92,8 +92,11 @@ static bool TestLayoutAndSpawn(Fixture *fixture)
     CHECK(SotnRoomActors_Scroll(actors, 1, 112));
     CHECK(ReadSlot(actors, 2, &generation) && generation != 0);
     CHECK(SotnRoomActors_Release(actors, 0, true));
-    CHECK(SotnRoomActors_Enter(actors, layout, 0, 0));
+    CHECK(SotnRoomActors_Scroll(actors, 500, 0));
+    CHECK(SotnRoomActors_Scroll(actors, 0, 0));
     CHECK(ReadSlot(actors, 0, &generation) && generation == 0);
+    CHECK(SotnRoomActors_Enter(actors, layout, 0, 0));
+    CHECK(ReadSlot(actors, 0, &generation) && generation != 0);
     CHECK(SotnRoomActors_Scroll(actors, 280, 212));
     CHECK(SotnRoomActors_Get(actors, 0, &placement, &generation));
     CHECK(generation != 0 && placement.parameters == 9);

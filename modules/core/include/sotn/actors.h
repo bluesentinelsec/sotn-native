@@ -121,7 +121,8 @@ bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out);
  * @param camera_x Room-local camera X, 0..16384.
  * @param camera_y Room-local camera Y, 0..16384.
  * @return True on success, false with SDL_GetError() on invalid input.
- * @note Clears room actors while preserving stage-session persistence and random state.
+ * @note Clears room actors/destruction flags while preserving explicit world progress and RNG
+ * state.
  */
 bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCollisionMap map,
                       Sint32 camera_x, Sint32 camera_y);
