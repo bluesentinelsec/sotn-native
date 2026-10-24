@@ -47,8 +47,11 @@ On a crash, run `thread backtrace all` in LLDB; `quit` leaves the debugger.
 | Jump | X or Space | A |
 | Quit | Escape | Window close |
 
-Z/D and controller attack/ability buttons are reserved original inputs; the
-current core rejects them explicitly. Optional controller-open failures retain
+Z/D and controller attack/ability buttons are reserved original inputs. The
+native input adapter ignores them and logs one warning per session, leaving
+movement and jumping available. The core still rejects unsupported raw input
+from direct API/replay callers; ignoring a native button does not implement
+its game action. Optional controller-open failures retain
 keyboard control and log a warning. Rebinding and vibration remain future work.
 
 ## Source and boundaries
@@ -75,7 +78,8 @@ from the reconstructed simulation and the thin `src/main.c` callback entrypoint.
 Public synthetic tests cover fixed-point walking/jump release/landing, crouch
 recovery, direction priority, walls, deterministic replay, room rebasing,
 unsupported input atomicity, malformed data, and SDL virtual-controller
-mapping/dead zones/disconnection. They need no game assets.
+mapping/dead zones/disconnection, ignored attack/ability inputs alongside
+movement/jump, and the single-session warning. They need no game assets.
 
 Local checks against unchanged pinned collision/sensor routines matched
 131,072 synthetic cases spanning all 256 collision codes, tile positions,

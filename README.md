@@ -44,7 +44,7 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
 Xbox controls use the d-pad or left stick and **A** to jump. Attack/ability
-inputs are unsupported and stop this development session with a clear error.
+inputs are ignored with one warning per session until those actions are integrated.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The session starts directly in development room 1; it does not run the title
