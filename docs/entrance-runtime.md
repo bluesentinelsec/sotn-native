@@ -22,8 +22,11 @@ are not enabled by this slice. The native launcher still offers Laboratory.
 
 NO3 is the first visit; NP3 (stage 7) is the later Entrance variant. Loading its
 assets through the stage catalog does not implement its different enemy cast.
-Mermen, Fire Wargs, Death's event/dialogue, route obstacles and connected-stage
-progression remain subsequent work in this batch. Unsupported actors are logged
+Both Merman variants now swim, jump, walk, lunge/backflip, attack, take damage,
+and die; the water-room spawner, fireballs, jump trails and selected splash/death
+effects run. Death's event/dialogue, route obstacles and connected-stage
+progression remain subsequent work in this batch. Fire Wargs have no placements
+on this selected first-visit route and remain unsupported. Unsupported actors are logged
 once by stage and original ID. Do not call Entrance complete.
 
 The selected sound bank is `ST/NO3/SD_ZKNO3.VH`/`.VB`; exact size/SHA-1 metadata
@@ -33,17 +36,27 @@ scene starts with wind; Death's music transition requires event integration.
 
 Public synthetic tests cover profile/ID boundaries, bat proximity and flight,
 zombie emergence/sinking/death and gated spawning, Warg attack/death transitions,
+Merman projectile/recoil/spawner paths, splash ownership, invalid variants,
 and invalid profiles. Private LLDB checks enter and draw eleven original rooms.
+A separate 1,800-tick private water-room check used a 999-HP test fixture and
+exercised both Mermen, attacks, damage, projectiles, and selected effects; it is
+not an ordinary-profile playtest.
 Those checks are explicit room starts, not an uninterrupted replay or parity proof.
 Warg death retains its two-pass duration, but the original framebuffer-feedback
 silhouette and recoil dust are not fully presented. Complete effects/audio,
 original GPU ordering, drops and global timing/RNG parity remain incomplete.
 
 Adapted behavior comes from AGPL-3.0-or-later `src/st/e_bat.h`, `e_zombie.h`,
-`e_bone_scimitar.h`, `no3/e_warg.c`, `entity_lock_camera.h`, shared collection,
+`e_bone_scimitar.h`, `no3/e_warg.c`, `e_merman.h`, `e_merman2.h`, `e_misc.h`,
+`entity_lock_camera.h`, shared collection,
 breakable, door, and explosion-puff services at reconstructed revision
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`. All arrays stay in private images.
 The special US Bone Scimitar's full piece parameter originally indexes beyond
 its rotation array into adjacent room bytes. The native path preserves that
 serialized-image read with checked image bounds, without an out-of-bounds C
 array access. Related actors use native slot/generation ownership.
+
+Merman death fragments, blue jump quads, and spray use the bounded native
+primitive service. Exact PS1 primitive deformation, priority and color feedback
+(including the second Merman's death quad and fire-spit flash) remain audiovisual
+parity work. No game tables, sprites, or sound samples are embedded.

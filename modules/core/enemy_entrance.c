@@ -237,6 +237,19 @@ bool ActorEntrance(SotnActors *s, Actor *a)
     case 0x61:
     case 0x62:
         return Puff(s, a);
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+    case 0x3f:
+    case 0x40:
+    case 0x43:
+    case 0x44:
+    case 0x41:
+    case 0x42:
+    case 0x45:
+        return ActorMerman(s, a);
     case 0x46:
     case 0x47:
         return ActorSkeleton(s, a, s->player);

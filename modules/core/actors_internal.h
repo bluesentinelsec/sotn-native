@@ -56,6 +56,11 @@ typedef struct Actor
     } warg;
     struct
     {
+        Uint16 palette, timer, timer2, rotation;
+        bool underwater, ignore_collision;
+    } merman;
+    struct
+    {
         Sint32 base_y;
         Uint16 count, target;
         bool pressed, changed;
@@ -210,6 +215,7 @@ bool ActorSprite(SotnActors *actors, Actor *actor, Uint16 index, Sint32 x, Sint3
 bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorEntrance(SotnActors *actors, Actor *actor);
 bool ActorWarg(SotnActors *actors, Actor *actor);
+bool ActorMerman(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
  * profiles. Offsets identify private tables; actor IDs always retain their stage meaning. */
