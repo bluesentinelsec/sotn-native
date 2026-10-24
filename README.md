@@ -59,8 +59,10 @@ and other weapons remain incomplete.
 
 Omit `--laboratory-room 3` to use the earlier room-1 entry start. These starts
 do not run the title screen or original progression. The development combat profile supports zombie damage/death, candle breaks,
-and heart/gold/subweapon collection. Alucard takes physical damage; death ends
-the checkpoint because continue/save flow is incomplete. See
+and heart/gold/subweapon collection. Physical death now runs the
+[death/game-over presentation](docs/laboratory-game-over.md); Enter/Xbox Start
+advances after the reveal. The checkpoint exits successfully after its fade,
+because title/file selection and save flow remain incomplete. See
 [combat integration](docs/laboratory-combat.md) for the development loadout and limits.
 The [original HUD](docs/laboratory-hud.md) shows HP, MP, hearts, and the subweapon.
 Unsupported actor families emit a warning and are omitted from this checkpoint.

@@ -104,3 +104,8 @@ Original HUD presentation adapts selected `src/dra/5F60C.c` HUD/counter paths
 and `4A538.c` palette behavior at the same pinned reconstruction revision under
 AGPL-3.0-or-later. Layout, glyphs, artwork, palettes, and animation definitions
 remain private runtime data; none are compiled into public binaries.
+
+Selected physical death and game-over presentation additionally adapt
+`src/dra/71830.c:PlayerStepKill` and `game_handlers.c:HandleGameOver`/
+`func_800E5358` at the pinned reconstruction revision under AGPL-3.0-or-later.
+Game-over bitmaps, palettes, animation frames, and music remain private inputs.

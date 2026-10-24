@@ -41,6 +41,7 @@ struct SotnPlayer
     SotnEquipment attack_equipment;
     Uint16 equipment[2];
     Uint8 attack_critical;
+    SotnPlayerDeath death;
     Uint16 hp, invincibility, sound;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;

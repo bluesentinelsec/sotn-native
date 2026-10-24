@@ -27,8 +27,9 @@ The explicit development profile has 70 HP, base stats of 6, no armor/accessorie
 critical rate is zero. Equipped attacks use runtime item attack/element metadata,
 the original unbuffed STR contribution, and the selected luck/critical calculation. This enables testing; it is not original stage entry or
 a recovered save. Alucard takes ordinary physical contact damage, runs hit
-reactions, and has recovery invulnerability. Reaching zero HP stops with a clear
-message because death/continue and saves remain unintegrated. Inventory changes
+reactions, and has recovery invulnerability. Reaching zero HP runs the selected
+[physical death/game-over path](laboratory-game-over.md). Title/file selection
+and saves remain unintegrated. Inventory changes
 appear in SDL logs and the [original HUD](laboratory-hud.md) displays HP, MP, hearts,
 and subweapon state.
 

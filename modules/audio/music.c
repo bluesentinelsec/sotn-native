@@ -18,7 +18,7 @@ struct SotnMusic
     MusicTrack intro, loop;
     Uint32 sector, remaining;
     Sint32 history[2][2];
-    bool looping;
+    bool looping, once;
 };
 
 static Uint32 Read32(const Uint8 *p)
@@ -34,7 +34,7 @@ static bool Track(SotnDataView dra, Uint32 id, Uint32 sectors, MusicTrack *out)
     const Uint8 *record = dra.bytes + offset;
     const Uint32 start = Read32(record), duration = Read32(record + 4);
     if (start >= sectors || record[9] >= sectors - start || duration == 0 || duration > 432000 ||
-        record[10] > 127 || Read32(record + 12) > 1)
+        record[10] > 127 || Read32(record + 12) > 2)
         return SDL_SetError("Laboratory music start/duration/filter is invalid");
     *out =
         (MusicTrack){start + record[9], duration, record[8], (Uint8)(record[9] % 16), record[10]};
@@ -99,7 +99,8 @@ static bool Feed(SotnMusic *music)
     return SDL_SetError("No matching Laboratory music sector within the bounded scan window");
 }
 
-bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out)
+static bool Create(SotnDataView dra, SotnStream *stream, Uint32 intro, Uint32 loop, bool once,
+                   SotnMusic **out)
 {
     if (out == NULL)
         return SDL_InvalidParamError("out");
@@ -108,8 +109,9 @@ bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out)
     if (music == NULL)
         return false;
     music->stream = stream;
-    if (!Track(dra, 46, SotnStream_Sectors(stream), &music->intro) ||
-        !Track(dra, 47, SotnStream_Sectors(stream), &music->loop))
+    music->once = once;
+    if (!Track(dra, intro, SotnStream_Sectors(stream), &music->intro) ||
+        !Track(dra, loop, SotnStream_Sectors(stream), &music->loop))
     {
         SotnMusic_Destroy(music);
         return false;
@@ -128,10 +130,25 @@ bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out)
     return true;
 }
 
+bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out)
+{
+    return Create(dra, stream, 46, 47, false, out);
+}
+
+bool SotnMusic_CreateGameOver(SotnDataView dra, SotnStream *stream, SotnMusic **out)
+{
+    return Create(dra, stream, 62, 62, true, out);
+}
+
 bool SotnMusic_Tick(SotnMusic *music, Sint16 *pcm, size_t count)
 {
     if (music == NULL || pcm == NULL || count < SOTN_SOUND_FRAMES * 2)
         return SDL_SetError("Music tick requires playback state and a full stereo PCM buffer");
+    if (music->remaining == 0 && music->once)
+    {
+        SDL_memset(pcm, 0, SOTN_SOUND_FRAMES * 2 * sizeof(*pcm));
+        return true;
+    }
     if (music->remaining == 0)
     {
         music->looping = true;

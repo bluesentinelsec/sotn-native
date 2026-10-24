@@ -1,6 +1,7 @@
 #ifndef SOTN_ALUCARD_SPRITE_H
 #define SOTN_ALUCARD_SPRITE_H
 
+#include <sotn/player.h>
 #include <sotn/tilemap.h>
 
 /** @brief One original Alucard frame borrowing packed pixels from ARC_F.BIN. */
@@ -37,5 +38,14 @@ bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
  */
 bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
                             Sint32 y, bool facing_left, Uint16 *frame, size_t count);
+/** @brief Draw the selected physical-death tint, rotation, and original dissolve mask.
+ * @param sprite Borrowed decoded sprite. @param common Borrowed verified base palettes.
+ * @param x Screen anchor X. @param y Screen anchor Y. @param facing_left Original mirror flag.
+ * @param death Copied physical-death cursor. @param frame Writable full RGB555 framebuffer.
+ * @param count Available pixels, at least SOTN_FRAME_PIXELS.
+ * @return Success, or false with SDL_GetError() and unchanged output on invalid inputs.
+ * @note CPU rotation replaces GTE services; complete transform/raster parity remains unproven. */
+bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
+                           bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count);
 
 #endif

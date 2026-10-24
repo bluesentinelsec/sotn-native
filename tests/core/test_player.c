@@ -195,6 +195,7 @@ static bool TestDamage(Fixture *fixture)
     const SotnCollisionMap map = MakeFixture(fixture);
     for (Uint32 id = 0x31; id <= 0x34; ++id)
         Put32(fixture->dra, 0x101b8 + id * 4, 0x800a0200);
+    Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0x800a0200);
     SotnPlayer *player = NULL;
     CHECK(SotnPlayer_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)}, map, 64, 135,
                             &player));
@@ -210,8 +211,19 @@ static bool TestDamage(Fixture *fixture)
     CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.invulnerable);
     CHECK(!SotnPlayer_Damage(player, 10, SDL_MIN_SINT32, 0));
     CHECK(State(player, &state) && state.hp == 67);
+    Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0xfffffffc);
     CHECK(!SotnPlayer_Damage(player, 67, 80, 0));
-    CHECK(State(player, &state) && state.hp == 0);
+    CHECK(State(player, &state) && state.hp == 67);
+    Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0x800a0200);
+    CHECK(SotnPlayer_Damage(player, 67, 80, 0));
+    CHECK(State(player, &state) && state.hp == 0 && state.step == SOTN_PLAYER_KILL &&
+          state.invulnerable);
+    for (Uint32 tick = 0; tick < 300; ++tick)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT));
+    CHECK(State(player, &state) && state.death.phase == 128);
+    for (Uint32 i = 0; i < 32; ++i)
+        CHECK(state.death.mask[i] == 255);
+    CHECK(SotnPlayer_Damage(player, 10, 80, 0));
     SotnPlayer_Close(player);
     return true;
 }

@@ -354,6 +354,12 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
         if (!SotnLaboratory_Iterate(app->game))
             return Fail("Laboratory development checkpoint stopped");
+        if (SotnLaboratory_Finished(app->game))
+        {
+            SDL_Log("Laboratory game-over checkpoint completed; title/menu integration remains "
+                    "incomplete.");
+            return SDL_APP_SUCCESS;
+        }
     }
     else if (app->laboratory != NULL)
     {

@@ -2,6 +2,7 @@
 // Adapted from sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5,
 // src/dra/4B758.c sprite-sheet branch and src/pc/pl_arc.c pointer-table loading.
 #include <SDL3/SDL_error.h>
+#include <SDL3/SDL_stdinc.h>
 #include <sotn/alucard_sprite.h>
 
 static Uint16 Read16(const Uint8 *bytes)
@@ -94,5 +95,52 @@ bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common
                 frame[(size_t)py * SOTN_FRAME_WIDTH + (size_t)px] = color;
         }
     }
+    return true;
+}
+
+bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
+                           bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count)
+{
+    if (death.phase == 0)
+        return SotnAlucard_DrawSprite(sprite, common, x, y, facing_left, frame, count);
+    if (sprite == NULL || frame == NULL || count < SOTN_FRAME_PIXELS ||
+        (death.phase != 1 && death.phase != 2 && death.phase != 128) || death.red < 128 ||
+        death.red > 248 || death.blue < 8 || death.blue > 128 || death.rotation < -640 ||
+        death.rotation > 0 || common.bytes == NULL || common.size != 0x42000)
+        return SDL_SetError("Physical-death rendering requires bounded sprite/effect state");
+    if (death.phase == 128 || (sprite->width == 0 && sprite->height == 0))
+        return true;
+    if (sprite->width == 0 || sprite->width > 255 || sprite->height == 0 || sprite->height > 255 ||
+        sprite->pixels.bytes == NULL ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2 || sprite->width % 4 != 0)
+        return SDL_SetError("Physical-death sprite has invalid packed pixel dimensions");
+    const double angle = (double)death.rotation * 6.283185307179586 / 4096.0;
+    const Sint32 cosine = (Sint32)SDL_lround(SDL_cos(angle) * 4096.0);
+    const Sint32 sine = (Sint32)SDL_lround(SDL_sin(angle) * 4096.0);
+    for (Sint32 py = 0; py < SOTN_FRAME_HEIGHT; ++py)
+        for (Sint32 px = 0; px < SOTN_FRAME_WIDTH; ++px)
+        {
+            const Sint64 dx = (Sint64)px - x, dy = (Sint64)py - y;
+            const Sint64 local_x = (dx * cosine + dy * sine) / 4096;
+            const Sint64 local_y = (-dx * sine + dy * cosine) / 4096;
+            const Sint64 sx = (facing_left ? -local_x : local_x) - sprite->pivot_x;
+            const Sint64 sy = local_y - sprite->pivot_y;
+            if (sx < 0 || sy < 0 || sx >= sprite->width || sy >= sprite->height)
+                continue;
+            const Uint32 cell = ((Uint32)sy & 15) * 16 + ((Uint32)sx & 15);
+            if (death.mask[cell / 8] & (1U << (cell & 7)))
+                continue;
+            const size_t pixel = (size_t)sy * sprite->width + (size_t)sx;
+            const Uint8 index = (sprite->pixels.bytes[pixel / 2] >> ((pixel & 1) * 4)) & 15;
+            const Uint16 color = Read16(common.bytes + 0x40000 + (size_t)index * 2);
+            if (color != 0)
+            {
+                const Uint32 red = SDL_min(31U, (color & 31U) * death.red / 128);
+                const Uint32 green = ((color >> 5) & 31U) * death.blue / 128;
+                const Uint32 blue = ((color >> 10) & 31U) * death.blue / 128;
+                frame[(size_t)py * SOTN_FRAME_WIDTH + (size_t)px] =
+                    (Uint16)((color & 0x8000) | red | (green << 5) | (blue << 10));
+            }
+        }
     return true;
 }
