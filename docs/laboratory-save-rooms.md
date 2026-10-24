@@ -39,14 +39,14 @@ records fail clearly and remain untouched.
 
 ## Persistent state and limits
 
-The [native format](native-saves.md) retains the supported development profile:
-room, HP/MP, hearts, subweapon, hand equipment, gold, kills, elapsed simulation
-ticks, and owned player/actor/combat random streams. Loading creates a fresh
-session at the saved point; temporary enemy/candle flags reset. This is an
-ordinary room save, not an arbitrary execution snapshot or save state. Supported
-weapons remain empty hands, Gladius, and Mace. Stats stay at the explicit current
-profile; full inventory, map, relic progression, XP, scripts, other stages, and
-PS1 memory-card import/export remain unintegrated.
+The version-three [native format](native-saves.md) retains supported inventory,
+seven equipment slots, EXP/level/base stats, current/max resources, permanent
+Laboratory item bits, subweapon, gold/kills, room/time, and four owned RNG streams.
+Loading recreates a fresh session at the saved point; temporary enemy/candle and
+projectile state reset. This is an ordinary room save, not an execution snapshot.
+Empty hands, Basilard, Gladius, Mace, and the selected supported body equipment
+can be restored. Map exploration, relic progression, castle scripts, other stages,
+and PS1 memory-card import/export remain unintegrated.
 
 The native fifteen-slot bank and text dialogs adapt memory-card hardware/file
 selection to the filesystem. Full original card-port/title menus and save-file

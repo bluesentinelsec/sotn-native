@@ -252,7 +252,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     if (lab_slot != 0 && (chose_lab_room || lab_loadout != NULL || lab_test_profile != NULL))
     {
-        SDL_SetError("--laboratory-continue cannot combine with room or loadout selection");
+        SDL_SetError(
+            "--laboratory-continue cannot combine with room, loadout, or test-profile selection");
         return Fail("Invalid arguments");
     }
     if (validate_only && game_directory == NULL)

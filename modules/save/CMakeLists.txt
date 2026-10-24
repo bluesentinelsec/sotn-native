@@ -6,4 +6,4 @@ add_library(sotn-save STATIC
 )
 sotn_configure_c_target(sotn-save)
 target_include_directories(sotn-save PUBLIC include)
-target_link_libraries(sotn-save PUBLIC sotn-data)
+target_link_libraries(sotn-save PUBLIC sotn-core)
