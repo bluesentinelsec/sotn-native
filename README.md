@@ -2,14 +2,15 @@
 
 A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
-The project's executable now runs a limited Alucard movement checkpoint in the
-Alchemy Laboratory: walking, crouching, jumping, collision, original animation
-frames, and adjacent room transitions. Combat, enemies, audio, saves, stage
-scripts, and full-game progression remain unimplemented. This is not yet an
+The project's executable now runs a limited actor checkpoint in the Alchemy
+Laboratory: Alucard movement, adjacent room transitions, animated candles,
+red-eye busts, globe tables, and Bloody Zombie movement/attack animations.
+Combat, damage, item collection, audio, saves, complete actor/effect support,
+stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
-The movement checkpoint requires users to supply their own supported game dump.
+The actor checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.
 
 The project uses **C17**. Phase 1 preserves the original game experience, with
@@ -33,16 +34,15 @@ on demand; `--inspect-laboratory` exercises that boundary without launching vide
 The [Laboratory presentation diagnostic](docs/laboratory-presentation.md) now
 shows original room tilemaps through this executable, using `--preview-laboratory`.
 It does not run player or enemy gameplay.
-The [actor placement foundation](docs/laboratory-actors.md) now validates original
-room spawn lists and implements scrolling/slot persistence rules. The inspection
-mode checks these lists; visible actor behavior remains a separate integration step.
+The [actor integration](docs/laboratory-actors.md) loads original room placements,
+graphics, and selected behaviors. Its inspection mode validates every layout.
 
-## Laboratory movement checkpoint
+## Laboratory actor checkpoint
 
 Build and launch this project's Debug executable through LLDB (macOS):
 
 ```sh
-make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory
+make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory --laboratory-room 3
 ```
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
@@ -50,10 +50,15 @@ Xbox controls use the d-pad or left stick and **A** to jump. Attack/ability
 inputs are ignored with one warning per session until those actions are integrated.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
-The session starts directly in development room 1; it does not run the title
-screen or original progression. The camera and fixed 60-tick pacing are development
-adapters. See [movement integration](docs/laboratory-movement.md) for required
-inputs, supported behavior, and known gaps. Public builds and tests need no game data.
+The command starts directly in development room 3, with zombies and candles.
+Omit `--laboratory-room 3` to use the earlier room-1 entry start. These starts
+do not run the title screen or original progression. Combat and item collection
+remain unavailable; enemy attacks currently animate without damaging Alucard.
+Unsupported actor families emit a warning and are omitted from this checkpoint.
+The camera and fixed 60-tick pacing are development
+adapters. See [actor integration](docs/laboratory-actors.md) and
+[movement integration](docs/laboratory-movement.md) for behavior and known gaps.
+Public builds and tests need no game data.
 
 The C app can now read and validate five core files from an extracted US dump:
 

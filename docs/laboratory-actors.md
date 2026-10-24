@@ -23,11 +23,10 @@ generation lets behavior code distinguish a replacement from an existing actor.
 Releasing an actor inside a stationary view does not make it respawn every tick.
 Persistent destruction suppresses its original flag across room entries.
 
-This is a placement/lifecycle dependency. It does not yet update or draw actors
-in `--laboratory`, implement their collision or combat, or provide saved-game
-persistence. Behavior-driven culling, sprite rendering, objects, and enemies
-must use these slots in subsequent integration changes. Current movement
-limitations still apply; see [movement integration](laboratory-movement.md).
+This component supplies placement/lifecycle state. Behavior and rendering use
+these slots in the native scene described below. It does not itself implement
+combat or saved-game persistence. Current movement limitations still apply;
+see [movement integration](laboratory-movement.md).
 
 Inspect actual private actor data through the project's executable:
 
@@ -79,3 +78,56 @@ AGPL-3.0-or-later attribution. Public synthetic tests cover raw/compressed uploa
 truncated/unsupported references, and atomic failures. A local private check
 successfully loads all 25 Laboratory graphics banks and draws normal candle,
 skeleton, and zombie frames. No source or package contains those textures.
+
+## Native actor checkpoint
+
+`--laboratory` now runs selected original actor behaviors on the same fixed
+simulation ticks as the player. The shared room camera drives original spawn
+and culling margins; drawing does not advance actors. It initializes sprite
+attributes and lifetime flags from runtime EInit and enemy-definition records,
+reads byte-pair animation streams directly from NZ0, and decodes graphics as
+rooms change. Normal and forced slot generations reset behavior state correctly.
+
+Supported families are candles (intact normal animation), red-eye busts, intact
+globe tables, and Bloody Zombie initialization, landing, walking, turning,
+chasing, and attack animation. Zombie movement uses original floor/slope/wall
+sensors and velocities. Random consumption is preserved in its active path.
+Actors render with stage/common palettes and multipart textures in priority
+order around Alucard. Known unsupported families are exposed as unsupported
+and emit one native warning per ID; malformed supported data still stops the session.
+
+This checkpoint does **not** implement combat/damage, item drops/collection,
+audio, zombie hit/death behavior, blade-blood particles, globe glow primitives,
+the remaining actor families, puzzle/door interaction, complete GPU ordering,
+ordinary saves, or original startup/camera/timing. Enemy attacks are visual;
+they do not damage Alucard. An omitted actor is not evidence of completed parity.
+
+For a direct actor playtest, choose the verified development start in room 3:
+
+```sh
+make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory --laboratory-room 3
+```
+
+Arrows move/crouch, X or Space jumps, and Escape quits. Z/D remain unsupported
+actions and warn once without ending the session. Use `thread backtrace all`
+at an LLDB crash stop. Room 1 remains the default entry checkpoint; these
+development starts are not original game progression or entry scripts.
+
+`modules/core/actors.c` adapts selected paths in `src/st/nz0/e_breakable.c`,
+`e_red_eye_bust.c`, `e_nz0_room2.c`, `src/st/e_bloody_zombie.h`,
+`animate_entity.h`, `st_common.h`, and `st_update.h`, retaining AGPL notices.
+Offsets identify tables in the pinned US image; no animation or enemy tables
+are imported into source. The core borrows immutable images/layout/maps and
+owns its slots. Close the core before closing its current layout or game snapshot.
+
+Synthetic tests cover initialization, byte-animation timing, landing, walking,
+chase/attack transitions, unsupported actors, culling/reentry, bad references,
+and camera/player bounds. A private comparison matched 32,768 ticks of the
+unchanged active Bloody Zombie routines with damage, audio, and effect allocations
+excluded. It compared positions, velocities, flags, steps, timers, poses,
+frames, facing, and random state. This is active-path evidence, not complete
+enemy or combat parity. A private native 600-tick room-3 sequence showed both
+candles and zombies; framebuffer captures were inspected locally and stay ignored.
+Additional private checks advanced selected behaviors for 7,424 updates and
+12,678 draw calls across all 29 non-transition rooms and camera corners.
+Unsupported actor families were excluded explicitly; this is not full-room parity.

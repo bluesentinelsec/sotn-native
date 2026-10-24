@@ -115,6 +115,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool inspect_lab = false;
     bool preview_lab = false;
     bool play_lab = false;
+    bool chose_lab_room = false;
+    Uint32 lab_room = 1;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -155,11 +157,22 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             play_lab = true;
         }
+        else if (SDL_strcmp(argv[i], "--laboratory-room") == 0)
+        {
+            if (chose_lab_room || i + 1 >= argc ||
+                (SDL_strcmp(argv[i + 1], "1") != 0 && SDL_strcmp(argv[i + 1], "3") != 0))
+            {
+                SDL_SetError("--laboratory-room requires 1 or 3 and may appear only once");
+                return Fail("Invalid arguments");
+            }
+            lab_room = SDL_strcmp(argv[++i], "3") == 0 ? 3U : 1U;
+            chose_lab_room = true;
+        }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
             SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                     "| --inspect-laboratory | --preview-laboratory | --laboratory] "
-                    "[--smoke-test] | --graphics-test");
+                    "[--laboratory-room 1|3] [--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
         else
@@ -167,6 +180,11 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             SDL_SetError("Unknown argument '%s'; use --help", argv[i]);
             return Fail("Invalid arguments");
         }
+    }
+    if (chose_lab_room && !play_lab)
+    {
+        SDL_SetError("--laboratory-room requires --laboratory");
+        return Fail("Invalid arguments");
     }
     if (validate_only && game_directory == NULL)
     {
@@ -229,8 +247,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     if (play_lab)
     {
-        if (!SotnLaboratory_Create(app->game_data, game_directory, &app->game))
-            return Fail("Cannot open Laboratory movement checkpoint");
+        if (!SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game))
+            return Fail("Cannot open Laboratory actor checkpoint");
         if (app->smoke_test)
             SDL_Log("SOTN_SMOKE_TEST: START");
         return SDL_APP_CONTINUE;
@@ -313,7 +331,7 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     if (app->game != NULL)
     {
         if (!SotnLaboratory_Iterate(app->game))
-            return Fail("Laboratory movement checkpoint stopped");
+            return Fail("Laboratory development checkpoint stopped");
     }
     else if (app->laboratory != NULL)
     {

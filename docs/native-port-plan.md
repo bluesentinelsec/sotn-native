@@ -7,14 +7,15 @@ services it needs. Preserve the US PS1 experience before adding enhancements.
 Keep original simulation timing, integer/fixed-point behavior, audiovisual
 presentation, game rules, and ordinary saves as the reference.
 
-This repository now builds its own C17/SDL3/OpenGL movement checkpoint in
+This repository now builds its own C17/SDL3/OpenGL actor checkpoint in
 Alchemy Laboratory. It integrates reviewed reconstructed collision, animation,
 and normal Alucard movement paths, with original runtime data supplied privately
 by the user. Read [movement integration](laboratory-movement.md) for the supported
-subset and [presentation](laboratory-presentation.md) for graphics limitations.
+subset, [actor integration](laboratory-actors.md) for selected room behaviors,
+and [presentation](laboratory-presentation.md) for graphics limitations.
 
-Combat, enemies/entities, sound, saves, original camera/timing, scripts, and
-full-game progression remain unimplemented. The first authentic playable
+Combat/damage, drops, complete actors/effects, sound, saves, original camera/timing,
+scripts, and full-game progression remain incomplete. The first authentic playable
 project milestone is still incomplete. Build and playtest our executable;
 the earlier isolated comparison checkout is only source/reference material
 and is not a project deliverable.
@@ -101,12 +102,13 @@ reference executable as this project.
    game-specific adaptations follow the proven desktop foundation.
 
 The private data boundary, native collision/decompression, stage tables,
-tile/sprite presentation, animation cursor, and normal movement checkpoint are
-implemented in this repository. These changes form a dependency stack: core,
-data, presentation, then movement. Leave PRs unmerged until the user playtests
+tile/sprite presentation, animation cursor, normal movement, actor placements,
+and selected Laboratory actor behaviors are implemented in this repository.
+These changes form a dependency stack through movement, actor data, actor
+graphics, and scene integration. Leave PRs unmerged until the user playtests
 our executable and approves; merge dependencies first afterward.
 
-Next, integrate original Laboratory entities/combat and audio, replacing
+Next, integrate combat/damage, drops, the remaining Laboratory actors/effects, and audio, replacing
 remaining development camera/timing and stage-entry behavior with reviewed
 original paths. Use synthetic public regression tests and private input
 comparisons. Do not bulk-vendor the reference repository or mark a full game

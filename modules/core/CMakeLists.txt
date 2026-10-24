@@ -5,6 +5,7 @@ add_library(sotn-core STATIC
   stage.c
   actor_layout.c
   room_actors.c
+  actors.c
   player.c
   player_sensors.c
   player_internal.h
@@ -13,6 +14,7 @@ add_library(sotn-core STATIC
   include/sotn/decompress.h
   include/sotn/stage.h
   include/sotn/actor_layout.h
+  include/sotn/actors.h
   include/sotn/player.h
 )
 sotn_configure_c_target(sotn-core)
