@@ -13,6 +13,12 @@ add_library(sotn-core STATIC
   room_actors.c
   actors.c
   actors_internal.h
+  world.c
+  include/sotn/world.h
+  actor_doors.c
+  actor_cannon.c
+  actor_objects.c
+  actor_mechanisms.c
   actor_collision.c
   actor_primitives.c
   enemy_knight.c

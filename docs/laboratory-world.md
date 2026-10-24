@@ -43,10 +43,55 @@ The original field-sensor helper omits a return when horizontal speed is zero;
 its native no-collision result is initialized explicitly. Parent ownership and
 private-data bounds replace raw entity/data pointers.
 
+## Room mechanisms
+
+The room service owns a writable copy of foreground tile IDs. The player,
+projectiles, actors, and tile renderer borrow that same copy, so opening an
+obstacle changes both its appearance and collision. Definition/UV/animation
+and patch tables remain in the user's private images. Room replacement validates
+and allocates its tile storage before replacing the previous owner.
+
+Normal floor buttons toggle their adjacent spikes. The movable-box puzzle has
+its two switches, rising/retracting spikes, and pushable box. The Blood Skeleton
+button operates the short lift; the main lift follows the three original stops
+and Up/Down controls or call buttons. Original object sensor extents resolve
+standing, ceiling, and wall contact after the player update. A moving platform
+carries the player without resetting movement/animation.
+
+The cannon lever fires its shot, opens the shortcut, and retains its permanent
+flag within the session. Secret wall/floor obstacles require the original three
+hits and reset interval, replace their private tile patches, and retain their
+open flags across room reentry. Selected debris and palette-tagged explosions
+run; complete intense explosions, camera shake, secret-map reveal effects,
+and original GPU ordering/shading still need integration or parity checks.
+
+Red doors change their collision tiles, animate opening/closing, and own short
+simulated-pad/protection intervals for automatic traversal. The blue door stays
+locked without the Jewel of Open, which the current character checkpoint cannot
+obtain; its original message box is not yet presented (the condition is logged).
+Other stages remain unsupported beyond their transition boundary.
+
+Public synthetic checks exercise contact direction, bounded shoves/patches,
+immutable source ownership, switch/spike toggling, lift carry/stops, cannon
+activation/opening, three-hit secret persistence, door opening/crossing states,
+and packed exploration validation. Native private-data checks exercised the
+rendered cannon, switches, box puzzle, and lift with sound. These checks prove
+those exercised paths, not full timing or audiovisual parity.
+
+The cannon's original comparison-of-a-boolean is preserved. The box puzzle's
+one-element-before-array read is replaced by an initialized zero sentinel;
+this required memory-safety adaptation is explicit rather than an unchecked
+native read. Original sensor math uses widened, bounded native intermediates.
+
+Adapted logic: `src/st/nz0/e_nz0_room2.c`, `e_puzzle.c`, `e_elevator.c`,
+`e_elevator2.c`, `e_cannon.c`, `e_left_secret_room_wall.c`, and shared
+`st_common.h`, `e_red_door.h`, `e_sealed_door.h`, `e_collect.h`, plus packed
+map visitation from `src/dra/5087C.c:func_800F2014`, at the same pinned revision
+and AGPL-3.0-or-later license above. Progress is session-owned here; ordinary
+save format remains v3 until the world-persistence slice lands.
+
 ## Remaining work in the authorized milestone
 
-- Original doors, lifts, floor buttons/spikes, movable blocks, cannon and secret
-  obstacles, and the associated mutable collision/tile state.
 - Original camera constraints and room event ordering; Slogra/Gaibon coordination,
   projectiles, room sealing, victory/unlocking, reward, and music transitions.
 - Map exploration and original permanent event flags retained by ordinary save/load,

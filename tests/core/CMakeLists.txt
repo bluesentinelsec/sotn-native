@@ -76,3 +76,10 @@ target_include_directories(sotn-enemy-tests PRIVATE "${PROJECT_SOURCE_DIR}/modul
 target_link_libraries(sotn-enemy-tests PRIVATE sotn-core)
 add_test(NAME laboratory-enemies COMMAND sotn-enemy-tests)
 set_tests_properties(laboratory-enemies PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-world-tests test_world.c)
+sotn_configure_c_target(sotn-world-tests)
+target_include_directories(sotn-world-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-world-tests PRIVATE sotn-core)
+add_test(NAME laboratory-world COMMAND sotn-world-tests)
+set_tests_properties(laboratory-world PROPERTIES TIMEOUT 20)

@@ -3,9 +3,42 @@
 
 #include <sotn/actor_layout.h>
 #include <sotn/player.h>
+#include <sotn/world.h>
 
 /** @brief Owned development actor simulation, borrowing private images and room data. */
 typedef struct SotnActors SotnActors;
+
+/** @brief Original short simulated-pad interval used by stage door/event scripts. */
+typedef struct SotnActorControl
+{
+    Uint16 buttons, timer;
+} SotnActorControl;
+/** @brief Copy current script-owned pad interval; timer zero permits user control.
+ * @param actors Borrowed simulation. @param out Copied initialized result.
+ * @return Success or SDL error. */
+bool SotnActors_GetControl(const SotnActors *actors, SotnActorControl *out);
+/** @brief Original object shoves accumulated after the player update. */
+typedef struct SotnActorMotion
+{
+    Sint32 x, y;                 /**< Signed 16.16 displacement, at most 64 pixels per axis. */
+    Uint32 contacts;             /**< Original ground/ceiling/wall plus object-contact bits. */
+    bool halt_vertical, protect; /**< Original door/event velocity stop and 32-tick protection. */
+} SotnActorMotion;
+/** @brief Borrow persistent castle progress through actor destruction; NULL selects empty state.
+ * @param actors Borrowed simulation. @param world Borrowed writable validated state.
+ * @return Success or SDL error; does not take ownership. */
+bool SotnActors_SetWorld(SotnActors *actors, SotnWorldState *world);
+/** @brief Set held original pad bits for room mechanisms. @param actors Borrowed simulation.
+ * @param buttons Original pad bits. @return Success or SDL error. */
+bool SotnActors_SetButtons(SotnActors *actors, Uint16 buttons);
+/** @brief Borrow current mutable room map, valid until next entry/destruction.
+ * @param actors Entered simulation. @param out Receives read-only view; never free it.
+ * @return Success or SDL error. */
+bool SotnActors_GetMap(const SotnActors *actors, SotnCollisionMap *out);
+/** @brief Copy this tick's object shoves for applying once after actor updates.
+ * @param actors Entered simulation. @param out Receives copied motion.
+ * @return Success or SDL error. */
+bool SotnActors_GetMotion(const SotnActors *actors, SotnActorMotion *out);
 
 /** @brief Copied actor state used by native presentation and replay inspection. */
 typedef struct SotnActorState
@@ -79,7 +112,7 @@ bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out);
  * @brief Enter a room using its immutable layout and collision data.
  * @param actors Borrowed owned simulation.
  * @param layout Borrowed validated placement lists, alive until next entry or destruction.
- * @param map Borrowed immutable room collision map with the same lifetime.
+ * @param map Borrowed room map; tile IDs are copied, definitions remain borrowed until next entry.
  * @param camera_x Room-local camera X, 0..16384.
  * @param camera_y Room-local camera Y, 0..16384.
  * @return True on success, false with SDL_GetError() on invalid input.

@@ -20,6 +20,7 @@ struct SotnLaboratory
 {
     SotnStage *stage;
     SotnStageRoom room;
+    SotnWorldState world;
     SotnDataView dra, nz0;
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
@@ -148,6 +149,10 @@ static bool EnterActors(SotnLaboratory *session)
     }
     SotnActorLayout_Close(session->actor_layout);
     session->actor_layout = layout;
+    if (!SotnActors_GetMap(session->actors, &session->room.foreground.collision) ||
+        !SotnPlayer_ChangeRoom(session->player, session->room.foreground.collision, 0, 0) ||
+        !SotnSubweapons_Enter(session->subweapons, session->room.foreground.collision))
+        return false;
     return true;
 }
 
@@ -206,8 +211,14 @@ static bool TickActors(SotnLaboratory *session)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
-    if (!SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
+    if (!SotnActors_SetButtons(session->actors, session->scene_buttons) ||
+        !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
+        return false;
+    SotnActorMotion motion = {0};
+    if (!SotnActors_GetMotion(session->actors, &motion) ||
+        !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
+        (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)))
         return false;
     SotnActorCombat combat = {0};
     SotnCharacterStats attributes = {0};
@@ -376,7 +387,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
     for (Uint32 i = 0; i < SotnStage_RoomCount(session->stage); ++i)
     {
         SotnStageRoom room = {0};
-        if (!SotnStage_GetRoom(session->stage, i, &room))
+        if (!SotnStage_GetRoomDefinitions(session->stage, i, 2048, &room))
             return false;
         if (world_x < (Sint32)room.left * 256 || world_x >= ((Sint32)room.right + 1) * 256 ||
             world_y < (Sint32)room.top * 256 || world_y >= ((Sint32)room.bottom + 1) * 256)
@@ -407,10 +418,11 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         return SDL_InvalidParamError("out");
     *out = NULL;
     if (start_room != 1 && start_room != 3 && start_room != 4 && start_room != 5 &&
-        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 18 &&
-        start_room != 20 && start_room != 23 && start_room != 24 && start_room != 25)
+        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 17 &&
+        start_room != 18 && start_room != 20 && start_room != 22 && start_room != 23 &&
+        start_room != 24 && start_room != 25)
         return SDL_SetError("Laboratory development starts are currently room 1, 3, 4, 5, 6, 9, "
-                            "10, 18, 20, 23, 24, or 25");
+                            "10, 17, 18, 20, 22, 23, 24, or 25");
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
@@ -420,7 +432,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnGameData_GetFile(data, SOTN_GAME_NZ0, &session->nz0) ||
         !SotnCharacter_Create(session->dra, &session->character) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
-        !SotnStage_GetRoom(session->stage, session->room_index, &session->room) ||
+        !SotnStage_GetRoomDefinitions(session->stage, session->room_index, 2048, &session->room) ||
         session->room.transition ||
         !SotnResource_Open(directory, SOTN_RESOURCE_LAB_GRAPHICS, &session->tiles) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_COMMON_GRAPHICS, &session->common) ||
@@ -429,7 +441,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(
             session->dra, session->room.foreground.collision,
-            start_room >= 23                                                              ? 128
+            start_room >= 22                                                              ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
                                                                                           : 32,
             135, &session->player) ||
@@ -438,6 +450,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
+        !SotnActors_SetWorld(session->actors, &session->world) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
         !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
         !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
@@ -532,8 +545,12 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnPlayerState state = {0};
     if (!SotnPlayer_GetState(session->player, &state))
         return false;
+    SotnActorControl control = {0};
+    if (!SotnActors_GetControl(session->actors, &control))
+        return false;
     const bool owns_save = session->save_room && session->save_point.phase != SOTN_SAVE_POINT_IDLE;
-    if (session->menu.phase != SOTN_MENU_CLOSED || (start && state.can_pause && !owns_save))
+    if (session->menu.phase != SOTN_MENU_CLOSED ||
+        (start && state.can_pause && !owns_save && control.timer == 0))
     {
         Uint16 sound = 0;
         bool changed = false;
@@ -552,6 +569,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->menu.previous = buttons;
     Uint16 player_buttons =
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
+    if (control.timer)
+        player_buttons = control.buttons;
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     if (!SotnPlayer_Tick(session->player, player_buttons) ||

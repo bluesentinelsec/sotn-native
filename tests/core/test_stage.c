@@ -54,6 +54,12 @@ static bool TestStage(void)
     CHECK(room.foreground.collision.width == 32 && room.foreground.collision.height == 16);
     CHECK(room.foreground.collision.tiles.size == 1024);
     CHECK(room.foreground.collision.types.size == 2 && room.foreground.priority == 0x60);
+    CHECK(SotnStage_GetRoomDefinitions(stage, 0, 16, &room));
+    CHECK(room.foreground.collision.types.size == 16 && room.foreground.pages.size == 16);
+    room.left = 33;
+    CHECK(!SotnStage_GetRoomDefinitions(stage, 0, 4097, &room) && room.left == 33);
+    CHECK(!SotnStage_GetRoomDefinitions(stage, 0, 512, &room) && room.left == 33);
+    CHECK(SotnStage_GetRoom(stage, 0, &room));
     CHECK(room.foreground.flags == 3 && room.foreground.parameters == 1);
     SotnCollider collider = {0};
     CHECK(SotnCollision_Query(&room.foreground.collision, 0, 0, &collider));
