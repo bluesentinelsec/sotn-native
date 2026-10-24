@@ -6,6 +6,7 @@ typedef struct LaboratoryInput
 {
     SDL_Gamepad *pad;
     bool initialized;
+    bool menu_open;
     bool warned_unsupported;
 } LaboratoryInput;
 

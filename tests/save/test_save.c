@@ -21,7 +21,10 @@ static bool Codec(void)
                                  .right_hand = 128,
                                  .gold = 12345,
                                  .kills = 7,
-                                 .ticks = 0x100000002ULL};
+                                 .ticks = 0x100000002ULL,
+                                 .player_random = 42,
+                                 .actor_random = 999,
+                                 .combat_random = 123};
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
     CHECK(record[24] == 70 && record[36] == 57 && record[37] == 48 && record[44] == 2 &&
@@ -30,12 +33,13 @@ static bool Codec(void)
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded));
     CHECK(decoded.room == state.room && decoded.hp == 70 && decoded.gold == state.gold &&
           decoded.ticks == state.ticks && decoded.right_hand == 128 && decoded.hearts == 11 &&
-          decoded.subweapon == 3);
-    record[8] = 2;
+          decoded.subweapon == 3 && decoded.player_random == 42 && decoded.actor_random == 999 &&
+          decoded.combat_random == 123);
+    record[8] = 3;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 1;
+    record[8] = 2;
     record[28] ^= 1;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(!SotnSave_Decode(record, sizeof(record) - 1, &decoded));
@@ -44,6 +48,17 @@ static bool Codec(void)
     CHECK(!SotnSave_Encode(state, record, 1));
     CHECK(!SotnSave_Decode(NULL, sizeof(record), &decoded));
     CHECK(!SotnSave_Decode(record, sizeof(record), NULL));
+    /* Independent Python struct/zlib fixture for the explicit version-one migration. */
+    const Uint8 version_one[80] = {
+        0x53, 0x4f, 0x54, 0x4e, 0x4e, 0x53, 0x41, 0x56, 0x01, 0x00, 0x00, 0x00, 0x50, 0x00,
+        0x00, 0x00, 0x67, 0x00, 0x00, 0x00, 0x17, 0x00, 0x00, 0x00, 0x46, 0x00, 0x14, 0x00,
+        0x0a, 0x00, 0x00, 0x00, 0x56, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x01, 0x00,
+        0x00, 0x00, 0x7b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x90, 0x1e, 0xcc};
+    CHECK(SotnSave_Decode(version_one, sizeof(version_one), &decoded));
+    CHECK(decoded.hp == 70 && decoded.gold == 100 && decoded.ticks == 123 &&
+          decoded.player_random == 0 && decoded.actor_random == 0 && decoded.combat_random == 0);
     return true;
 }
 

@@ -29,6 +29,23 @@ typedef struct SotnActorCombat
     Sint32 contact_x, contact_velocity;
 } SotnActorCombat;
 
+/** @brief Supported ordinary-save progress; transient room actors are excluded. */
+typedef struct SotnActorProgress
+{
+    Uint16 hearts, subweapon;
+    Uint32 gold, kills, random, combat_random;
+} SotnActorProgress;
+
+/** @brief Copy supported progress and owned RNG streams.
+ * @param actors Borrowed entered simulation. @param out Copied progress on success.
+ * @return Success, or false with SDL_GetError() and unchanged output. */
+bool SotnActors_GetProgress(const SotnActors *actors, SotnActorProgress *out);
+/** @brief Restore supported progress on a freshly entered save room.
+ * @param actors Borrowed simulation. @param progress Validated supported progress.
+ * @return Success, or false with SDL_GetError() and unchanged state on invalid input.
+ * @note Caller recreates the session when loading; this does not restore temporary actor flags. */
+bool SotnActors_Restore(SotnActors *actors, SotnActorProgress progress);
+
 /**
  * @brief Initialize the supported normal Laboratory actor behaviors.
  * @param dra Borrowed immutable US main image, alive until destruction.

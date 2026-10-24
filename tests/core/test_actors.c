@@ -216,6 +216,14 @@ static bool TestCombat(Fixture *fixture)
         CHECK(SotnActors_Tick(actors, player, 0, 0));
     CHECK(SotnActors_Get(actors, 3, &state) && state.generation == 0);
     CHECK(SotnActors_GetCombat(actors, &combat) && combat.kills == 1 && combat.hearts == 11);
+    const SotnActorProgress saved = {23, 3, 777, 9, 123, 456};
+    SotnActorProgress progress = {0};
+    CHECK(SotnActors_Restore(actors, saved));
+    CHECK(SotnActors_GetProgress(actors, &progress));
+    CHECK(progress.hearts == 23 && progress.subweapon == 3 && progress.gold == 777 &&
+          progress.kills == 9 && progress.random == 123 && progress.combat_random == 456);
+    CHECK(!SotnActors_Restore(actors, (SotnActorProgress){.hearts = 51}));
+    CHECK(SotnActors_GetProgress(actors, &progress) && progress.gold == 777);
     SotnActors_Destroy(actors);
     SotnActorLayout_Close(layout);
     return true;

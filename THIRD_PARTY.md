@@ -109,3 +109,10 @@ Selected physical death and game-over presentation additionally adapt
 `src/dra/71830.c:PlayerStepKill` and `game_handlers.c:HandleGameOver`/
 `func_800E5358` at the pinned reconstruction revision under AGPL-3.0-or-later.
 Game-over bitmaps, palettes, animation frames, and music remain private inputs.
+
+Selected save-point activation/centering/coffin clocks and mesh presentation adapt
+`src/dra/62DEC.c`, `6DF70.c:func_8010E334`, and `menu.c:MenuDrawChar` at the same
+pinned reconstruction revision under AGPL-3.0-or-later. Meshes, UV arrays, font,
+texture pixels, and palette records remain private runtime inputs. Native storage
+and slot-selection adapters are original project code. See
+[save-room scope](docs/laboratory-save-rooms.md) for parity and platform limits.

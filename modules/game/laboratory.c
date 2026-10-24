@@ -10,6 +10,8 @@
 #include <sotn/player.h>
 #include <sotn/presenter.h>
 #include <sotn/resource.h>
+#include <sotn/save.h>
+#include <sotn/save_point_renderer.h>
 #include <sotn/sound.h>
 
 struct SotnLaboratory
@@ -25,7 +27,12 @@ struct SotnLaboratory
     SotnPresenter *presenter;
     SotnHud *hud;
     SotnGameOver *game_over;
-    Uint16 scene_buttons;
+    Uint16 scene_buttons, mp, hands[2];
+    Uint64 simulation_ticks;
+    SotnSaveStore *saves;
+    SotnSavePoint save_point;
+    SotnSavePointRenderer *save_renderer;
+    bool save_room;
     LaboratoryInput input;
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
@@ -77,7 +84,7 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
         return false;
-    if (session->music != NULL)
+    if (session->music != NULL && (!session->save_room || session->game_over != NULL))
     {
         Sint16 music[SOTN_SOUND_FRAMES * 2] = {0};
         if (!SotnMusic_Tick(session->music, music, SDL_arraysize(music)))
@@ -138,11 +145,7 @@ static bool TickActors(SotnLaboratory *session)
         !SotnPlayer_Damage(session->player, combat.contact_damage, combat.contact_x,
                            combat.contact_velocity))
         return false;
-    if (!SotnPlayer_GetState(session->player, &player) ||
-        (session->hud != NULL &&
-         !SotnHud_Tick(session->hud, (SotnHudStatus){player.hp, player.hp_max, 20, 20,
-                                                     combat.hearts, combat.subweapon})) ||
-        !TickAudio(session, &combat, player.sound))
+    if (!SotnPlayer_GetState(session->player, &player))
         return false;
     if (player.hp != session->displayed_hp || combat.hearts != session->displayed_hearts ||
         combat.gold != session->displayed_gold || combat.subweapon != session->displayed_subweapon)
@@ -177,6 +180,109 @@ static bool TickActors(SotnLaboratory *session)
     return true;
 }
 
+static bool EnterSaveRoom(SotnLaboratory *session)
+{
+    const bool was_save_room = session->save_room;
+    session->save_room = (session->room.foreground.parameters & 0x20) != 0;
+    session->input.menu_open = false;
+    if (session->save_room)
+    {
+        Uint16 occupied = 0;
+        if (session->saves == NULL && !SotnSaveStore_Create(&session->saves))
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot open native saves: %s",
+                         SDL_GetError());
+        if (session->saves != NULL)
+            for (Uint32 slot = 1; slot <= SOTN_SAVE_SLOTS; ++slot)
+            {
+                bool exists = false;
+                if (!SotnSaveStore_Exists(session->saves, slot, &exists))
+                    return false;
+                if (exists)
+                    occupied |= (Uint16)(1U << (slot - 1));
+            }
+        if (!SotnSavePoint_Reset(&session->save_point, SOTN_SAVE_SLOTS,
+                                 session->save_point.slot == 0 ? 1 : session->save_point.slot,
+                                 occupied))
+            return false;
+    }
+    if (session->audio != NULL && was_save_room != session->save_room)
+    {
+        if (!SotnPlayback_Reset(session->audio))
+            return false;
+        if (!session->save_room)
+        {
+            SotnMusic_Destroy(session->music);
+            session->music = NULL;
+            if (!SotnMusic_Create(session->dra, session->music_stream, &session->music))
+                return false;
+        }
+    }
+    return true;
+}
+
+static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
+{
+    SotnPlayerState player = {0};
+    SotnActorProgress progress = {0};
+    if (!SotnPlayer_GetState(session->player, &player) ||
+        !SotnActors_GetProgress(session->actors, &progress))
+        return false;
+    *out = (SotnSaveState){.room = session->room_index,
+                           .hp = player.hp,
+                           .mp = session->mp,
+                           .hearts = progress.hearts,
+                           .subweapon = progress.subweapon,
+                           .gold = progress.gold,
+                           .kills = progress.kills,
+                           .left_hand = session->hands[0],
+                           .right_hand = session->hands[1],
+                           .ticks = session->simulation_ticks,
+                           .player_random = player.random,
+                           .actor_random = progress.random,
+                           .combat_random = progress.combat_random};
+    return true;
+}
+
+static bool TickSaveRoom(SotnLaboratory *session, Uint16 buttons)
+{
+    if (!session->save_room)
+        return true;
+    SotnPlayerState player = {0};
+    SotnSavePointAction action = {0};
+    if (!SotnPlayer_GetState(session->player, &player) ||
+        !SotnSavePoint_Tick(&session->save_point, player, buttons, &action))
+        return false;
+    if (action.heal)
+    {
+        if (!SotnPlayer_Restore(session->player, 70, player.random))
+            return false;
+        session->mp = 20;
+    }
+    if (action.sound != 0 && !SotnSound_Queue(session->sound, action.sound))
+        return false;
+    if (action.write)
+    {
+        SotnSaveState state = {0};
+        if (!SaveState(session, &state))
+            return false;
+        if (session->saves == NULL && !SotnSaveStore_Create(&session->saves))
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot open native saves: %s",
+                         SDL_GetError());
+        const bool saved = session->saves != NULL &&
+                           SotnSaveStore_Write(session->saves, session->save_point.slot, state);
+        if (!saved)
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Save slot %u failed: %s",
+                         session->save_point.slot, SDL_GetError());
+        else
+            SDL_Log("Saved Laboratory room %u to native slot %u", session->room_index,
+                    session->save_point.slot);
+        if (!SotnSavePoint_Complete(&session->save_point, saved))
+            return false;
+    }
+    session->input.menu_open = SotnSavePoint_Menu(&session->save_point);
+    return true;
+}
+
 static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 {
     const Sint32 local_x = Pixel(state->x), local_y = Pixel(state->y);
@@ -203,7 +309,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             return false;
         session->room = room;
         session->room_index = i;
-        if (!EnterActors(session))
+        if (!EnterActors(session) || !EnterSaveRoom(session))
             return false;
         SDL_Log("Laboratory checkpoint: room %u", (unsigned int)i);
         return true;
@@ -217,12 +323,14 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (start_room != 1 && start_room != 3)
-        return SDL_SetError("Laboratory development starts are currently room 1 or 3");
+    if (start_room != 1 && start_room != 3 && start_room != 23 && start_room != 24 &&
+        start_room != 25)
+        return SDL_SetError("Laboratory development starts are currently room 1, 3, 23, 24, or 25");
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
     session->room_index = start_room;
+    session->mp = 20;
     if (!SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
         !SotnGameData_GetFile(data, SOTN_GAME_NZ0, &session->nz0) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
@@ -233,8 +341,8 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_ALUCARD_GRAPHICS, &session->arc) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
-        !SotnPlayer_Create(session->dra, session->room.foreground.collision, 32, 135,
-                           &session->player) ||
+        !SotnPlayer_Create(session->dra, session->room.foreground.collision,
+                           start_room >= 23 ? 128 : 32, 135, &session->player) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
         !SotnActorGraphics_Create(session->dra, session->nz0,
@@ -242,12 +350,14 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                                     SotnResource_View(session->common)},
                                   &session->actor_graphics) ||
         !SotnLaboratory_SetEquipment(session, 86, 0) ||
+        !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
+                                      &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
                         (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
         !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter) ||
-        !OpenAudio(session, directory))
+        !OpenAudio(session, directory) || !EnterSaveRoom(session))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
@@ -260,8 +370,9 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     SDL_Log("Laboratory combat checkpoint: Gladius/Mace and empty-hand attacks, Bloody Zombie "
             "damage/death, "
             "physical player damage, candles, and heart/gold/subweapon collection. "
-            "Original sound effects and Laboratory music are enabled; reverb, full "
-            "effects, saves, "
+            "Original sound effects, HUD, physical game over, and native save rooms are enabled; "
+            "reverb, full "
+            "effects, full progression, "
             "scripts, and original camera remain incomplete.");
     SDL_Log("Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
     *out = session;
@@ -281,6 +392,8 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
     for (Uint32 hand = 0; hand < 2; ++hand)
         if (!SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment[hand]))
             return false;
+    session->hands[0] = left;
+    session->hands[1] = right;
     session->dirty = true;
     SDL_Log("Development hand equipment: left %u, right %u (0 empty, 86 Gladius, 128 Mace)", left,
             right);
@@ -303,9 +416,23 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return true;
     }
     SotnPlayerState state = {0};
-    if (!SotnPlayer_Tick(session->player, (Uint16)(buttons & (Uint16)~SOTN_BUTTON_START)) ||
+    if (!SotnPlayer_GetState(session->player, &state))
+        return false;
+    Uint16 player_buttons =
+        session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
+    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL);
+    session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
+    if (!SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
-        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)) || !TickActors(session))
+        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)) || !TickActors(session) ||
+        !TickSaveRoom(session, buttons))
+        return false;
+    SotnActorCombat combat = {0};
+    if (!SotnPlayer_GetState(session->player, &state) ||
+        !SotnActors_GetCombat(session->actors, &combat) ||
+        !SotnHud_Tick(session->hud, (SotnHudStatus){state.hp, state.hp_max, session->mp, 20,
+                                                    combat.hearts, combat.subweapon}) ||
+        !TickAudio(session, &combat, state.sound))
         return false;
     if (state.death.phase == 128)
     {
@@ -408,8 +535,18 @@ static bool DrawGameplay(SotnLaboratory *session)
                             SOTN_FRAME_PIXELS) &&
            SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
+           (!session->save_room ||
+            SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, false,
+                                       session->frame, SOTN_FRAME_PIXELS)) &&
            DrawActorsAndPlayer(session, state, camera_x, camera_y) &&
-           SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS);
+           (!session->save_room ||
+            SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, true,
+                                       session->frame, SOTN_FRAME_PIXELS)) &&
+           SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) &&
+           (!session->save_room ||
+            SotnSavePointRenderer_Dialog(session->save_renderer, session->save_point,
+                                         session->input.pad != NULL, session->frame,
+                                         SOTN_FRAME_PIXELS));
 }
 
 bool SotnLaboratory_Draw(SotnLaboratory *session)
@@ -496,6 +633,8 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
     {
         SotnGameOver_Destroy(session->game_over);
         SotnResource_Close(session->game_over_art);
+        SotnSaveStore_Destroy(session->saves);
+        SotnSavePointRenderer_Destroy(session->save_renderer);
         SotnHud_Destroy(session->hud);
         SotnMusic_Destroy(session->music);
         SotnPlayback_Destroy(session->audio);
@@ -516,4 +655,59 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnStage_Close(session->stage);
         SDL_free(session);
     }
+}
+
+static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
+{
+    const SotnActorProgress progress = {state.hearts, state.subweapon,    state.gold,
+                                        state.kills,  state.actor_random, state.combat_random};
+    if (!SotnLaboratory_SetEquipment(session, state.left_hand, state.right_hand) ||
+        !SotnPlayer_Restore(session->player, state.hp, state.player_random) ||
+        !SotnActors_Restore(session->actors, progress))
+    {
+        return false;
+    }
+    SotnHud_Destroy(session->hud);
+    session->hud = NULL;
+    if (!SotnHud_Create(session->dra, SotnResource_View(session->common),
+                        (SotnHudStatus){state.hp, 70, state.mp, 20, state.hearts, state.subweapon},
+                        &session->hud))
+    {
+        return false;
+    }
+    session->mp = state.mp;
+    session->simulation_ticks = state.ticks;
+    session->save_point.slot = (Uint8)slot;
+    return true;
+}
+
+bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
+                             SotnLaboratory **out)
+{
+    if (out == NULL)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    SotnSaveStore *store = NULL;
+    SotnSaveState state = {0};
+    if (!SotnSaveStore_Create(&store) || !SotnSaveStore_Read(store, slot, &state))
+    {
+        SotnSaveStore_Destroy(store);
+        return false;
+    }
+    SotnLaboratory *session = NULL;
+    if (!SotnLaboratory_Create(data, directory, state.room, &session))
+    {
+        SotnSaveStore_Destroy(store);
+        return false;
+    }
+    SotnSaveStore_Destroy(session->saves);
+    session->saves = store;
+    if (!RestoreSession(session, state, slot))
+    {
+        SotnLaboratory_Destroy(session);
+        return false;
+    }
+    SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
+    *out = session;
+    return true;
 }

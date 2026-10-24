@@ -886,7 +886,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
                                  player->step == SOTN_PLAYER_KILL,
                              player->sound,
-                             player->death};
+                             player->death,
+                             player->step == SOTN_PLAYER_STAND && player->substep == 1,
+                             player->damage_random};
     return true;
 }
 
@@ -964,6 +966,16 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
         return false;
     *player = next;
+    return true;
+}
+
+bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random)
+{
+    if (player == NULL || hp == 0 || hp > 70 || player->step == SOTN_PLAYER_KILL ||
+        player->attack_mode != 0)
+        return SDL_SetError("Health restore requires a living, non-attacking player and HP 1..70");
+    player->hp = hp;
+    player->damage_random = random;
     return true;
 }
 
