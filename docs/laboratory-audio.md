@@ -10,8 +10,23 @@ No sound samples, instrument definitions, or game scripts are compiled into the 
 The scene produces stereo 44.1 kHz PCM on simulation ticks and sends it to SDL3's
 playback stream. It opens the user's default device, clears stale buffered audio
 after debugger gaps, and pauses/clears playback when the scene loses focus.
+Private data verification and decoder initialization finish before the device
+opens. Playback starts only after the first PCM tick is queued; focus changes
+and debugger gaps rearm this same behavior instead of resuming an empty stream.
 Device initialization errors stop with the SDL error; they do not silently produce
 a supposedly complete silent build. The simulated voices freeze while paused.
+
+On macOS, a guarded adjustment to pinned SDL avoids a redundant asynchronous
+playback stop before queue disposal. An SDL-only playback/close reproduction and
+native LLDB launches previously logged `AudioQueueInternalStop_Sync -66671`;
+disposal without the pending stop removed that warning across 20 device lifecycles
+and local game launches. A paced native session also exercised focus loss, resume,
+a debugger-sized gap, and shutdown under LLDB.
+Startup CoreAudio scheduling warnings can still occur under LLDB. These checks
+do not establish that every OS diagnostic is harmless or prove audio parity.
+Synthetic device tests cover paused creation, invalid PCM, focus/debugger reset,
+repeated playback/close, initialization failure, and SDL subsystem ownership.
+CI also checks patch application, repeatability, and rejection of source drift.
 
 Additional private resources are required under the same game-data root:
 `SD_J010.VB`, `VAB/SD_ALK.VH`, `VAB/SD_ALK.VB`,

@@ -4,6 +4,7 @@
 #include <sotn/alucard_sprite.h>
 #include <sotn/laboratory.h>
 #include <sotn/music.h>
+#include <sotn/playback.h>
 #include <sotn/player.h>
 #include <sotn/presenter.h>
 #include <sotn/resource.h>
@@ -31,8 +32,7 @@ struct SotnLaboratory
     Uint32 displayed_gold;
     SotnResource *sound_resources[5];
     SotnSound *sound;
-    SDL_AudioStream *audio;
-    bool audio_initialized;
+    SotnPlayback *audio;
     SotnStream *music_stream;
     SotnMusic *music;
 };
@@ -51,17 +51,13 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[2]),
                                       SotnResource_View(session->sound_resources[3]),
                                       SotnResource_View(session->sound_resources[4])};
-    if (!SotnSound_Create(sources, &session->sound) || !SDL_InitSubSystem(SDL_INIT_AUDIO))
-        return false;
-    session->audio_initialized = true;
-    const SDL_AudioSpec spec = {.format = SDL_AUDIO_S16, .channels = 2, .freq = 44100};
-    session->audio =
-        SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
-    if (session->audio == NULL || !SDL_ResumeAudioStreamDevice(session->audio))
+    if (!SotnSound_Create(sources, &session->sound))
         return false;
     SDL_Log("Verifying private music container before streaming Laboratory music...");
-    return SotnStream_OpenMusic(directory, &session->music_stream) &&
-           SotnMusic_Create(session->dra, session->music_stream, &session->music);
+    if (!SotnStream_OpenMusic(directory, &session->music_stream) ||
+        !SotnMusic_Create(session->dra, session->music_stream, &session->music))
+        return false;
+    return SotnPlayback_Create(&session->audio);
 }
 
 static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound)
@@ -84,12 +80,7 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
             pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + music[i], -32768, 32767);
     }
-    const int queued = SDL_GetAudioStreamQueued(session->audio);
-    if (queued < 0)
-        return false;
-    if (queued > 44100 && !SDL_ClearAudioStream(session->audio))
-        return false;
-    return SDL_PutAudioStreamData(session->audio, pcm, sizeof(pcm));
+    return SotnPlayback_Queue(session->audio, pcm, SDL_arraysize(pcm));
 }
 
 static Sint32 Pixel(Sint32 fixed)
@@ -374,13 +365,8 @@ bool SotnLaboratory_Event(SotnLaboratory *session, const SDL_Event *event)
     }
     session->last_time = SDL_GetTicksNS();
     session->clock_units = 0;
-    if (session->audio != NULL)
-    {
-        if (!SDL_ClearAudioStream(session->audio))
-            return false;
-        return session->paused ? SDL_PauseAudioStreamDevice(session->audio)
-                               : SDL_ResumeAudioStreamDevice(session->audio);
-    }
+    if (session->audio != NULL && !SotnPlayback_Reset(session->audio))
+        return false;
     return true;
 }
 
@@ -406,7 +392,7 @@ bool SotnLaboratory_Iterate(SotnLaboratory *session)
     else
     {
         session->clock_units = 0;
-        if (session->audio != NULL && !SDL_ClearAudioStream(session->audio))
+        if (session->audio != NULL && !SotnPlayback_Reset(session->audio))
             return false;
     }
     return SotnLaboratory_Draw(session);
@@ -416,14 +402,12 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 {
     if (session != NULL)
     {
-        SDL_DestroyAudioStream(session->audio);
+        SotnPlayback_Destroy(session->audio);
         SotnMusic_Destroy(session->music);
         SotnStream_Close(session->music_stream);
         SotnSound_Destroy(session->sound);
         for (Uint32 i = 0; i < 5; ++i)
             SotnResource_Close(session->sound_resources[i]);
-        if (session->audio_initialized)
-            SDL_QuitSubSystem(SDL_INIT_AUDIO);
         SotnPresenter_Destroy(session->presenter);
         LaboratoryInput_Quit(&session->input);
         SotnActors_Destroy(session->actors);
