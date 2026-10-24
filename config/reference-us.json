@@ -16,6 +16,14 @@
     "ST/NZ0/NZ0.BIN": "b10b9c2be721cf9cbed3aa94be468ba9e23bc68b"
   },
   "resources": {
+    "BIN/F_GAME.BIN": {
+      "size": 270336,
+      "sha1": "a88e8f88078fd42f7198bd6f3becbd0c798d5541"
+    },
+    "BIN/ARC_F.BIN": {
+      "size": 203756,
+      "sha1": "3b1fafe6f6f14b2bda18510441e8c385edf07341"
+    },
     "ST/NZ0/F_NZ0.BIN": {
       "size": 262144,
       "sha1": "89c5e97cb917121255d3a1a810c1d8ae098ebf8b"

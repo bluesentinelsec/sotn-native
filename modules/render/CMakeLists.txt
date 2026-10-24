@@ -5,10 +5,14 @@ add_library(sotn-render STATIC
   layout.c
   layout.h
   save_icon.c
+  tilemap.c
+  alucard_sprite.c
   shaders.h
   include/sotn/presenter.h
   include/sotn/save_icon.h
+  include/sotn/tilemap.h
+  include/sotn/alucard_sprite.h
 )
 sotn_configure_c_target(sotn-render)
 target_include_directories(sotn-render PUBLIC include)
-target_link_libraries(sotn-render PUBLIC sotn-data)
+target_link_libraries(sotn-render PUBLIC sotn-core)

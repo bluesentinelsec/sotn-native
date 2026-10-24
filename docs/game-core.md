@@ -2,8 +2,9 @@
 
 The `sotn-core` C17 library starts integrating reconstructed game behavior into
 this repository. It is compiled by the normal CMake/Make build on every target.
-The first slice contains tile collision and compressed graphics decoding;
-it does not yet implement player updates, a game loop, or a playable room.
+The core now includes tile collision, compressed graphics decoding, runtime stage
+tables, and the original Alucard animation cursor. It does not yet implement
+player updates, a game loop, or a playable room.
 
 ## Provenance and distribution
 
@@ -13,6 +14,8 @@ sotn-decomp commit `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`:
 - `src/dra/collider.c:CheckCollision` supplies the tile collision rules.
 - `src/dra/4AEA4.c:DecompressData`, `DecompressReadNibble`, and
   `DecompressWriteNibble` supply the graphics stream semantics.
+- `src/dra/alu_anim.c:SetPlayerAnim`, `func_8010DA70`, and `PlayAnimation`
+  supply the animation cursor and runtime table semantics.
 
 The adapted files retain SPDX identifiers and identify their origin. The full
 license is in [licenses/AGPL-3.0-or-later.txt](../licenses/AGPL-3.0-or-later.txt).
