@@ -69,6 +69,8 @@ Unsupported actor families emit a warning and are omitted from this checkpoint.
 The camera and fixed 60-tick pacing are development
 adapters. See [actor integration](docs/laboratory-actors.md) and
 [movement integration](docs/laboratory-movement.md) for behavior and known gaps.
+The [native save storage boundary](docs/native-saves.md) now has versioned slots
+and checked file replacement; save-room gameplay is the next integration.
 Public builds and tests need no game data.
 
 The C app can now read and validate five core files from an extracted US dump:
