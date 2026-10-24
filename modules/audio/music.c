@@ -183,3 +183,8 @@ void SotnMusic_Destroy(SotnMusic *music)
         SDL_free(music);
     }
 }
+
+bool SotnMusic_CreateBoss(SotnDataView dra, SotnStream *stream, SotnMusic **out)
+{
+    return Create(dra, stream, 29, 30, false, out);
+}

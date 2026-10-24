@@ -13,6 +13,15 @@ add_library(sotn-core STATIC
   room_actors.c
   actors.c
   actors_internal.h
+  boss_projection.c
+  boss_projection.h
+  boss_reward.c
+  boss_effects.c
+  boss_event.c
+  boss_slogra.c
+  boss_gaibon.c
+  game_math.c
+  include/sotn/game_math.h
   camera.c
   include/sotn/camera.h
   actor_camera.c

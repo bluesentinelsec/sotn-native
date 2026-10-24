@@ -15,6 +15,11 @@ typedef struct SotnMusic SotnMusic;
  * @note Supports the selected 4-bit stereo 37.8 kHz XA path. The SDL rate converter is a
  * temporary service; original CD interpolation/timing parity is not established. */
 bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out);
+/** @brief Start original Slogra/Gaibon boss music with its private introduction/loop metadata.
+ * @param dra Borrowed verified US DRA, alive through playback. @param stream Borrowed verified
+ * music container, alive through playback. @param out Owned playback, NULL on failure.
+ * @return Success or SDL error. Uses the same selected XA decoder as Laboratory music. */
+bool SotnMusic_CreateBoss(SotnDataView dra, SotnStream *stream, SotnMusic **out);
 /** @brief Play the original US game-over music once, then return silence.
  * @param dra Borrowed immutable DRA. @param stream Borrowed verified music container.
  * @param out Receives ownership, NULL on failure. @return Success, or false with SDL_GetError().

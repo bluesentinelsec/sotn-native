@@ -3,13 +3,15 @@
 #include <SDL3/SDL.h>
 #include <sotn/actors.h>
 #include <sotn/combat.h>
+#include <sotn/game_math.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
 
 enum
 {
     ACTOR_PRIMITIVE_CAPACITY = 512,
-    ACTOR_PRIMITIVE_LIMIT = 32
+    ACTOR_PRIMITIVE_LIMIT = 193,
+    ACTOR_SPRITE_PART_LIMIT = 32
 };
 typedef struct ActorPrimitive
 {
@@ -17,14 +19,20 @@ typedef struct ActorPrimitive
     Sint32 vx, vy;
     Uint32 owner;
     Uint16 timer, phase;
+    struct
+    {
+        Sint32 radius, speed;
+        Sint16 x, y, z, scale;
+    } reward;
 } ActorPrimitive;
 typedef struct Actor
 {
     SotnActorState state;
     Sint32 vx, vy;
     Uint16 pose, remaining, timer, substep;
+    size_t animation_stream;
     Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS];
-    Uint16 attack, attack_element, stun, hit_params, life_timer, level, experience;
+    Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
     Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
@@ -51,12 +59,24 @@ typedef struct Actor
         Uint16 pending, timer, side;
         bool horizontal;
     } camera;
+    struct
+    {
+        Uint16 maximum, timer, flag, attack_mode;
+        Sint16 angle;
+        Sint32 speed;
+        bool near_death, pickup, ascending;
+    } boss;
+    struct
+    {
+        Uint16 groups, cadence;
+        Sint32 flash;
+    } reward;
     bool dynamic, remove, permanent;
 } Actor;
 
 struct SotnActors
 {
-    SotnDataView dra, nz0;
+    SotnDataView dra, nz0, executable;
     SotnCollisionMap map;
     Uint8 *mutable_tiles;
     SotnWorldState fallback_world, *world;
@@ -67,6 +87,8 @@ struct SotnActors
     Uint16 buttons, puzzle_flags, elevator_target;
     Sint16 puzzle_height[3];
     bool call_elevator, cannon_fired;
+    Uint32 boss_flags, game_seconds;
+    bool music_playing;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
     ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
@@ -158,6 +180,13 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16
 void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
 bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorSlogra(SotnActors *actors, Actor *actor);
+bool ActorGaibon(SotnActors *actors, Actor *actor);
+bool ActorBossReward(SotnActors *actors, Actor *actor);
+bool ActorBossPuff(SotnActors *actors, Actor *actor);
+bool ActorBossEvent(SotnActors *actors, Actor *actor);
+bool ActorBossBox(SotnActors *actors, Actor *actor, size_t boxes, Uint32 count, size_t lookup,
+                  Uint32 frames);
 bool ActorCamera(SotnActors *actors, Actor *actor);
 bool ActorDoor(SotnActors *actors, Actor *actor);
 bool ActorCannon(SotnActors *actors, Actor *actor);

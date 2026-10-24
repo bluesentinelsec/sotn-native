@@ -293,6 +293,11 @@ static bool TestQuad(Fixture *fixture)
                          .palette = 512};
     CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[0] == 31 && fixture->frame[1] == 0x8000 && fixture->frame[2] == 0x83e0);
+    q.modulate = true;
+    q.opacity = 64;
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 15 && fixture->frame[1] == 0x8000 && fixture->frame[2] == 0x81e0);
+    q.modulate = false;
     const Uint16 first = fixture->frame[0];
     q.page = 0x1ff;
     CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
@@ -321,6 +326,22 @@ static bool TestRotation(Fixture *fixture)
     CHECK(fixture->frame[20 * SOTN_FRAME_WIDTH + 20] == 0x8000);
     CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 0x83e0);
     CHECK(fixture->frame[22 * SOTN_FRAME_WIDTH + 20] == 7);
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
+                                          (SotnSpriteTransform){1024, 256, 256, 64}, fixture->frame,
+                                          SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 20] == 15);
+    CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 0x81e0);
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
+                                          (SotnSpriteTransform){0, 512, 256, 128}, fixture->frame,
+                                          SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 18] == 31 &&
+          fixture->frame[19 * SOTN_FRAME_WIDTH + 19] == 31);
+    const Uint16 preserved = fixture->frame[19 * SOTN_FRAME_WIDTH + 18];
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, (SotnSpriteTransform){0, 0, 256, 128},
+                                           fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 18] == preserved);
     sprite.facing_left = true;
     ClearFrame(fixture);
     CHECK(

@@ -90,3 +90,16 @@ target_include_directories(sotn-camera-tests PRIVATE "${PROJECT_SOURCE_DIR}/modu
 target_link_libraries(sotn-camera-tests PRIVATE sotn-core)
 add_test(NAME laboratory-camera COMMAND sotn-camera-tests)
 set_tests_properties(laboratory-camera PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-game-math-tests test_game_math.c)
+sotn_configure_c_target(sotn-game-math-tests)
+target_link_libraries(sotn-game-math-tests PRIVATE sotn-core)
+add_test(NAME original-game-math COMMAND sotn-game-math-tests)
+set_tests_properties(original-game-math PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-boss-tests test_boss.c)
+sotn_configure_c_target(sotn-boss-tests)
+target_include_directories(sotn-boss-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-boss-tests PRIVATE sotn-core)
+add_test(NAME laboratory-boss COMMAND sotn-boss-tests)
+set_tests_properties(laboratory-boss PROPERTIES TIMEOUT 20)

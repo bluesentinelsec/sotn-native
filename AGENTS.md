@@ -196,4 +196,5 @@ The [Laboratory traversal milestone](docs/laboratory-world.md) now adds Skeleton
 Bone Scimitar, Blood Skeleton, Axe Knight, and Spittle Bone behavior/projectiles.
 Room switches/spikes, boxes, lifts, selected doors, cannon/secret obstacles now run.
 Normal camera follow and room locks now advance independently of rendering.
-Room events, the boss, and saved map/event progress are the remaining work in the currently authorized milestone; do not call the area complete.
+The paired boss encounter now includes attacks, coordination, defeat, reward, and music changes.
+Saved map/event progress is the remaining work in the currently authorized milestone; do not call the area complete.

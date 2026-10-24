@@ -324,7 +324,8 @@ static bool Texel(const SotnActorGraphics *graphics, Uint32 page, Uint32 palette
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                      size_t count, bool write);
 static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, const Uint8 *part,
-                 Sint32 x, Sint32 y, Uint16 *frame, bool write, const Sint16 *rotation)
+                 Sint32 x, Sint32 y, Uint16 *frame, bool write,
+                 const SotnSpriteTransform *transform)
 {
     const Uint32 flags = Read16(part);
     Sint32 pivot_x = Signed16(part + 2), pivot_y = Signed16(part + 4);
@@ -392,18 +393,20 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
     const Sint64 top = (Sint64)y + pivot_y;
     const Uint32 palette = (sprite.palette & 0x8000) ? sprite.palette & 0x7fff
                                                      : (Uint32)sprite.palette + Read16(part + 10);
-    if (rotation != NULL)
+    if (transform != NULL)
     {
         if (x < -65536 || x > 65536 || y < -65536 || y > 65536)
             return true;
-        const double radians = *rotation * (SDL_PI_D / 2048.0);
+        const double radians = transform->rotation * (SDL_PI_D / 2048.0);
         const double sine = SDL_sin(radians), cosine = SDL_cos(radians);
         const Sint32 left_local = sprite.facing_left ? -pivot_x - width + 1 : pivot_x;
         const Sint32 right_local = left_local + width;
         const Sint32 bottom_local = pivot_y + height;
         SotnTextureQuad q = {.u = {(Uint8)u0, (Uint8)u1, (Uint8)u0, (Uint8)u1},
                              .v = {(Uint8)v0, (Uint8)v0, (Uint8)v1, (Uint8)v1},
-                             .page = (Uint16)page,
+                             .page = (Uint16)(page + (sprite.blend_mode & 0x60)),
+                             .modulate = true,
+                             .opacity = (Uint8)transform->opacity,
                              .palette = (Uint16)palette,
                              .blend = sprite.blend_mode != 0};
         if (u1 < u0)
@@ -416,8 +419,10 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
         const Sint32 ys[3] = {pivot_y, pivot_y, bottom_local};
         for (Uint32 i = 0; i < 3; ++i)
         {
-            q.x[i] = x + (Sint32)SDL_round(xs[i] * cosine - ys[i] * sine);
-            q.y[i] = y + (Sint32)SDL_round(xs[i] * sine + ys[i] * cosine);
+            q.x[i] = x + (Sint32)SDL_round((xs[i] * transform->scale_x / 256.0) * cosine -
+                                           (ys[i] * transform->scale_y / 256.0) * sine);
+            q.y[i] = y + (Sint32)SDL_round((xs[i] * transform->scale_x / 256.0) * sine +
+                                           (ys[i] * transform->scale_y / 256.0) * cosine);
         }
         q.x[3] = q.x[1] + q.x[2] - q.x[0];
         q.y[3] = q.y[1] + q.y[2] - q.y[0];
@@ -462,7 +467,7 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
 }
 
 static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x, Sint32 y,
-                 Uint16 *frame, size_t count, const Sint16 *rotation)
+                 Uint16 *frame, size_t count, const SotnSpriteTransform *transform)
 {
     if (graphics == NULL || frame == NULL || count < SOTN_FRAME_PIXELS)
         return SDL_SetError("Actor drawing requires initialized graphics and a full framebuffer");
@@ -479,7 +484,7 @@ static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint
                 const Uint8 *part = definition.bytes + 2 + (size_t)(i - 1) * 22;
                 if (((Read16(part) & 0x100) != 0) != (priority != 0))
                     continue;
-                if (!Part(graphics, sprite, part, x, y, frame, pass != 0, rotation))
+                if (!Part(graphics, sprite, part, x, y, frame, pass != 0, transform))
                     return false;
             }
     return true;
@@ -533,6 +538,19 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                                         SDL_GetError());
                 if (write && pass != 0 && color != 0)
                 {
+                    if (q.modulate || q.tint)
+                    {
+                        Uint16 tinted = color & 0x8000;
+                        for (Uint32 shift = 0; shift < 15; shift += 5)
+                            tinted |= (Uint16)(SDL_min(31, ((color >> shift) & 31) *
+                                                               (q.tint ? (shift == 0   ? q.red
+                                                                          : shift == 5 ? q.green
+                                                                                       : q.blue)
+                                                                       : q.opacity) /
+                                                               128)
+                                               << shift);
+                        color = tinted;
+                    }
                     const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
                     frame[pixel] = q.blend && (color & 0x8000)
                                        ? Blend(frame[pixel], color, (q.page >> 5) & 3)
@@ -550,10 +568,24 @@ bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite s
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count)
 {
-    return Draw(graphics, sprite, x, y, frame, count, (angle & 4095) == 0 ? NULL : &angle);
+    const SotnSpriteTransform transform = {angle, 256, 256, 128};
+    return Draw(graphics, sprite, x, y, frame, count, (angle & 4095) == 0 ? NULL : &transform);
 }
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                             size_t count)
 {
     return QuadDraw(graphics, q, frame, count, true);
+}
+
+bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
+                                     Sint32 y, SotnSpriteTransform transform, Uint16 *frame,
+                                     size_t count)
+{
+    if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x > 1024 ||
+        transform.scale_y > 1024 || transform.opacity > 255)
+        return SDL_SetError("Actor transform exceeds the bounded original scales or color");
+    if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
+        transform.opacity == 128)
+        return Draw(g, sprite, x, y, frame, count, NULL);
+    return Draw(g, sprite, x, y, frame, count, &transform);
 }

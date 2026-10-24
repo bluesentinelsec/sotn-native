@@ -286,7 +286,7 @@ static bool Knight(Fixture *f)
     CHECK(knight.remove);
     ActorPrimitivesClear(s, &knight);
     CHECK(s->primitives[knight.primitive[0]].owner == 0);
-    CHECK(!SotnActors_GetPrimitive(s, 7, 32, &copy));
+    CHECK(!SotnActors_GetPrimitive(s, 7, ACTOR_PRIMITIVE_LIMIT, &copy));
     SotnActors_Destroy(s);
     SotnActorLayout_Close(layout);
     return true;

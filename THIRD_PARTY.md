@@ -156,3 +156,20 @@ Normal camera follow in `modules/core/camera.c` and bounded camera-lock behavior
 in `actor_camera.c` adapt `src/dra/5087C.c:func_800F0CD8` and
 `src/st/e_lock_camera.h` at that pinned reconstructed revision
 (AGPL-3.0-or-later). Public tests use synthetic bounds and tables.
+
+The paired Laboratory boss runtime adapts `src/st/nz0/slogra.c`, `gaibon.c`,
+`bossfight.c`, and shared `st/e_life_up.h` / `e_explosion_puff_opaque.h` at
+reconstructed revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`
+(AGPL-3.0-or-later). Animation, hitbox, reward, art, audio, and SDK lookup tables
+remain private runtime input. Native reward ownership packs the original drawable/data
+primitive pairs into initialized C records.
+
+`modules/core/game_math.c` follows the MIT-licensed reconstructed
+`src/main/psxsdk/libgte/ratan.c` at that revision, using the user's boot image
+for its quantized lookup. The [SDK/decomp MIT notice](licenses/PSY-Z-decomp-MIT.txt)
+retains the reconstruction contributors' attribution. No SDK table is embedded.
+`modules/core/boss_projection.c` adapts the selected matrix column and UNR divider
+from PSY-Z `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
+`psyz/src/psyz/libgte.c` (MPL-2.0); the [MPL notice](licenses/MPL-2.0.txt) is packaged.
+Its reciprocal estimates are generated mathematically. It supplies a bounded reward
+projection path, not a general PS1/GTE emulator.

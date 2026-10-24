@@ -10,8 +10,8 @@ and original sound effects/Laboratory music.
 [Laboratory traversal](docs/laboratory-world.md) includes skeletons, Axe Knights, Spittle Bones,
 room switches/spikes, movable boxes, lifts, doors, and cannon/secret obstacles.
 Development rooms 17 and 22 expose the box puzzle and three-stop lift.
-Normal camera follow/locks are integrated; the boss encounter, room events, and
-saved world progress remain in development.
+Normal camera follow/locks and the Slogra/Gaibon encounter are integrated.
+Saved world progress remains in development; this is a selected checkpoint, not a complete port.
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.
