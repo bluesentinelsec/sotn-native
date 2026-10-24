@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Adapted normal-form movement paths from sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5:
-// src/dra/6DF70.c, 6E42C.c, 6FDF8.c, 71830.c, and 692E8.c.
+// src/dra/6DF70.c, 6E42C.c, 6FDF8.c, 71830.c, 692E8.c,
+// and selected unarmed paths in 7879C.c and alu_anim.c.
 #include "player_internal.h"
 
 enum
@@ -198,9 +199,128 @@ static void Jump(SotnPlayer *player)
     player->movement_flags &= ~1U;
 }
 
+static bool AttackView(SotnPlayer *player, Uint64 address, size_t size, const Uint8 **out)
+{
+    if (player->dra.bytes == NULL || address < 0x800a0000 || address > SDL_MAX_UINT32 ||
+        (address & 1) != 0)
+        return SDL_SetError("Unarmed attack references an invalid private DRA address");
+    const size_t offset = address - 0x800a0000;
+    if (offset > player->dra.size || size > player->dra.size - offset)
+        return SDL_SetError("Unarmed attack references data outside private DRA");
+    *out = player->dra.bytes + offset;
+    return true;
+}
+
+static Uint16 Attack16(const Uint8 *bytes)
+{
+    return (Uint16)(bytes[0] | (Uint16)bytes[1] << 8);
+}
+
+static Uint32 Attack32(const Uint8 *bytes)
+{
+    return bytes[0] | (Uint32)bytes[1] << 8 | (Uint32)bytes[2] << 16 | (Uint32)bytes[3] << 24;
+}
+
+static void ClearAttack(SotnPlayer *player)
+{
+    player->attack_mode = 0;
+    player->attack = (SotnPlayerAttack){0};
+}
+
+// Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
+static bool StartAttack(SotnPlayer *player)
+{
+    const Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
+    if (pressed == 0 || (player->attack_mode & 0x8000))
+        return false;
+    const Uint8 *pointer = NULL, *equipment = NULL;
+    if (!AttackView(player, 0x800a00c0, 4, &pointer) ||
+        !AttackView(player, Attack32(pointer), 50, &equipment))
+    {
+        player->failed = true;
+        return true;
+    }
+    if (equipment[0x11] != 0 || equipment[0x12] != 0x24 || equipment[0x15] > 8)
+    {
+        player->failed = true;
+        SDL_SetError("Private equipment zero is not the supported US unarmed definition");
+        return true;
+    }
+    Uint16 variant = (player->contact & 0x20) ? 1 : 0;
+    if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
+    {
+        player->vx = player->vx >= 0 ? player->vx / 2 : -((-player->vx + 1) / 2);
+        player->step = SOTN_PLAYER_STAND;
+    }
+    else if (player->step == SOTN_PLAYER_CROUCH)
+    {
+        variant = (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT)) ? 3 : 2;
+        if (player->tight_space == 0 && player->substep == 2)
+        {
+            variant = (player->contact & 0x20) ? 1 : 0;
+            player->step = SOTN_PLAYER_STAND;
+        }
+    }
+    else
+    {
+        variant = player->vy > 0 ? 5 : 4;
+        if (player->vy > 0 && (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT)) &&
+            (player->buttons & SOTN_BUTTON_DOWN))
+            variant = 6;
+    }
+    Animate(player, (Uint16)(equipment[0x12] + variant));
+    player->substep = 0x40;
+    player->attack_mode = 0x8001;
+    player->attack_lock = equipment[0x15];
+    player->attack_button =
+        pressed == SOTN_BUTTON_RIGHT_HAND ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
+    return true;
+}
+
+static bool ReadAttack(SotnPlayer *player)
+{
+    player->attack = (SotnPlayerAttack){0};
+    if (player->attack_mode == 0 || player->animation.id < 0x24 || player->animation.id > 0x2a ||
+        player->animation.remaining < 0)
+        return true;
+    const Uint8 *descriptor = NULL, *pointer = NULL, *frame = NULL, *box = NULL, *equipment = NULL;
+    if (!AttackView(player, 0x800ad53c, 16, &descriptor) ||
+        !AttackView(player, (Uint64)Attack32(descriptor) + (player->animation.id - 0x24U) * 4, 4,
+                    &pointer))
+        return false;
+    if (player->animation.pose >= 32 ||
+        !AttackView(player, (Uint64)Attack32(pointer) + (Uint32)player->animation.pose * 2, 2,
+                    &frame))
+        return SDL_SetError("Unarmed attack exceeds its bounded frame stream");
+    const Uint16 packed = Attack16(frame);
+    if (packed == 0xffff)
+        return true;
+    const Uint32 property = (packed >> 9) & 127;
+    if (property >= 12 ||
+        !AttackView(player, (Uint64)Attack32(descriptor + 4) + property * 4, 4, &box) ||
+        !AttackView(player, 0x800a00c0, 4, &pointer) ||
+        !AttackView(player, Attack32(pointer), 50, &equipment))
+        return SDL_SetError("Unarmed hitbox or equipment data is invalid");
+    player->attack.offset_x = (Sint16)(box[0] < 128 ? box[0] : (Sint32)box[0] - 256);
+    player->attack.offset_y = (Sint16)(box[1] < 128 ? box[1] : (Sint32)box[1] - 256);
+    player->attack.width = box[2];
+    player->attack.height = box[3];
+    player->attack.element = Attack16(equipment + 12);
+    player->attack.hit_type = Attack16(equipment + 40);
+    player->attack.hit_effect = Attack16(equipment + 42);
+    player->attack.stun_frames = Attack16(equipment + 38);
+    player->attack.invincibility_frames = equipment[26];
+    player->attack.critical_rate = (Uint8)SDL_min(255, Attack16(equipment + 48));
+    player->attack.right_hand = player->attack_button == SOTN_BUTTON_RIGHT_HAND;
+    player->attack.active = box[2] != 0 && box[3] != 0;
+    player->attack.sound =
+        player->animation.remaining == 1 && player->animation.pose == descriptor[13];
+    return true;
+}
+
 static bool Transitions(SotnPlayer *player, Uint32 flags)
 {
-    if (flags & 8)
+    if ((flags & 8) && player->attack_mode == 0)
         (void)Direction(player);
     Sint32 gravity = (flags & 0x8000) ? GRAVITY : 0;
     if (flags & 0x10000)
@@ -217,21 +337,27 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
             Walk(player, true);
         else
             Land(player, 0);
+        ClearAttack(player);
         return true;
     }
     if ((flags & 4) && !(player->contact & 1))
     {
         Fall(player);
+        ClearAttack(player);
         return true;
     }
-    if ((flags & 0x10) && (player->tapped & SOTN_BUTTON_JUMP))
+    if ((flags & 0x1000) && StartAttack(player))
+        return true;
+    if ((flags & 0x10) && !(player->attack_mode & 0x8000) && (player->tapped & SOTN_BUTTON_JUMP))
     {
         Jump(player);
+        ClearAttack(player);
         return true;
     }
-    if ((flags & 0x2000) && (player->buttons & SOTN_BUTTON_DOWN))
+    if ((flags & 0x2000) && !(player->attack_mode & 0x8000) && (player->buttons & SOTN_BUTTON_DOWN))
     {
         Crouch(player, 2, 0);
+        ClearAttack(player);
         return true;
     }
     return false;
@@ -242,6 +368,39 @@ static void StandTick(SotnPlayer *player)
     if (Transitions(player, 0x4301c))
         return;
     Decelerate(player, 8192);
+    if (player->attack_mode != 0)
+    {
+        if (player->animation.pose < player->attack_lock)
+        {
+            if (player->animation.pose < 2)
+            {
+                (void)Direction(player);
+                if (player->buttons & SOTN_BUTTON_DOWN)
+                {
+                    player->step = SOTN_PLAYER_CROUCH;
+                    player->animation.id = 0x26;
+                }
+            }
+            return;
+        }
+        player->attack_mode &= 0x7fff;
+        if (player->animation.pose == 7)
+        {
+            if (player->buttons & player->attack_button)
+                player->animation.remaining = 2;
+            else
+            {
+                Land(player, 0);
+                ClearAttack(player);
+            }
+        }
+        if (Direction(player))
+        {
+            Walk(player, false);
+            ClearAttack(player);
+        }
+        return;
+    }
     if (player->substep == 1 && !(player->buttons & SOTN_BUTTON_UP))
         Land(player, 0);
     if ((player->buttons & SOTN_BUTTON_UP) && player->substep == 0)
@@ -268,6 +427,20 @@ static void JumpTick(SotnPlayer *player)
     }
     if (Transitions(player, 0x11029))
         return;
+    if (player->attack_mode != 0)
+    {
+        if (player->buttons & SOTN_BUTTON_LEFT)
+            player->vx = -WALK_SPEED;
+        if (player->buttons & SOTN_BUTTON_RIGHT)
+            player->vx = WALK_SPEED;
+        if (player->animation.remaining < 0)
+        {
+            player->substep = player->vy > FIX_ONE ? 1 : 0;
+            Animate(player, player->vy > FIX_ONE ? 31 : 27);
+            ClearAttack(player);
+        }
+        return;
+    }
     const int direction = Direction(player);
     if (direction != 0)
     {
@@ -289,7 +462,7 @@ static void JumpTick(SotnPlayer *player)
 
 static void CrouchTick(SotnPlayer *player)
 {
-    if (player->tapped & SOTN_BUTTON_JUMP)
+    if ((player->tapped & SOTN_BUTTON_JUMP) && !(player->attack_mode & 0x8000))
     {
         if (player->buttons & SOTN_BUTTON_DOWN)
         {
@@ -309,6 +482,40 @@ static void CrouchTick(SotnPlayer *player)
     if (Transitions(player, 0x100c))
         return;
     Decelerate(player, 8192);
+    if (player->attack_mode != 0)
+    {
+        if (player->animation.pose < player->attack_lock)
+        {
+            if (player->animation.pose < 2)
+            {
+                (void)Direction(player);
+                if (!(player->buttons & SOTN_BUTTON_DOWN) && player->tight_space == 0)
+                {
+                    player->step = SOTN_PLAYER_STAND;
+                    player->animation.id = 0x24;
+                }
+            }
+            return;
+        }
+        player->attack_mode &= 0x7fff;
+        if (player->animation.pose == 7)
+        {
+            if (player->buttons & player->attack_button)
+                player->animation.remaining = 2;
+            else
+            {
+                Crouch(player, 0, 0);
+                ClearAttack(player);
+            }
+        }
+        if (!(player->buttons & SOTN_BUTTON_DOWN))
+        {
+            Animate(player, 19);
+            player->substep = 2;
+            ClearAttack(player);
+        }
+        return;
+    }
     Uint32 flags = 0;
     switch (player->substep)
     {
@@ -392,11 +599,12 @@ static void CrouchTick(SotnPlayer *player)
 
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
-    const Uint16 supported =
-        SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN | SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP;
+    const Uint16 supported = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN |
+                             SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND |
+                             SOTN_BUTTON_RIGHT_HAND;
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
-        return SDL_SetError(
-            "This player slice supports normal movement; combat and abilities are not integrated");
+        return SDL_SetError("This player slice supports normal movement and empty-hand attacks; "
+                            "abilities are not integrated");
     SotnPlayer next = *player;
     next.failed = false;
     next.turned = false;
@@ -442,7 +650,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     default:
         return SDL_SetError("Unsupported Alucard movement state");
     }
-    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next))
         return false;
     SotnPlayer_Collide(&next);
     if (next.failed)
@@ -506,7 +714,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         return SDL_SetError("Player state requires a simulation and output");
     *out = (SotnPlayerState){player->x.value, player->y.value,         player->vx,
                              player->vy,      (Uint32)player->contact, player->animation,
-                             player->step,    player->facing_left};
+                             player->step,    player->facing_left,     player->attack};
     return true;
 }
 
