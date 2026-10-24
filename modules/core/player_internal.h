@@ -36,6 +36,8 @@ struct SotnPlayer
     Uint16 attack_mode, attack_button;
     Uint8 attack_lock;
     SotnPlayerAttack attack;
+    Uint16 hp, invincibility;
+    Uint32 damage_random;
     Uint8 timers[8], tight_space;
     bool facing_left, turned, fixed_stage, collision_disabled, failed;
     SotnCollider floor[4], ceiling[4], wall[14];

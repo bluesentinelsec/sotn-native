@@ -15,7 +15,19 @@ typedef struct SotnActorState
     Uint16 id, parameters, step, animation_set, frame, palette, texture_offset, blend_mode,
         priority;
     bool facing_left, unsupported;
+    Sint16 hit_points, hitbox_x, hitbox_y;
+    Uint16 hitbox_width, hitbox_height, hitbox_state;
 } SotnActorState;
+
+/** @brief Per-tick game sound requests and development inventory/contact state. */
+typedef struct SotnActorCombat
+{
+    Uint16 sounds[256]; /**< Original sound IDs; only sound_count entries are initialized. */
+    Uint16 sound_count, hearts, hearts_max, subweapon;
+    Uint32 gold, kills;
+    Uint16 contact_damage;
+    Sint32 contact_x, contact_velocity;
+} SotnActorCombat;
 
 /**
  * @brief Initialize the supported normal Laboratory actor behaviors.
@@ -24,8 +36,8 @@ typedef struct SotnActorState
  * @param out Receives ownership, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid input or allocation failure.
  * @note This checkpoint includes candles, red-eye busts, globe tables, and Bloody Zombie
- * active motion/animation. Combat, drops, audio, primitive effects, and other actors are
- * incomplete.
+ * motion, empty-hand combat, death, and candle/prize collection in a development profile.
+ * Audio, complete primitives, equipped weapons, and other actor families remain incomplete.
  */
 bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out);
 /**
@@ -59,6 +71,11 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
  * @return True on success, false with SDL_GetError() for invalid arguments.
  */
 bool SotnActors_Get(const SotnActors *actors, Uint32 slot, SotnActorState *out);
+/** @brief Copy this tick's sound/contact requests and the stage's development inventory.
+ * @param actors Borrowed entered simulation. @param out Receives copied state on success.
+ * @return Success, or false with SDL_GetError() for invalid arguments.
+ * @note Requests are replaced on the next Tick. Inventory is a development profile, not a save. */
+bool SotnActors_GetCombat(const SotnActors *actors, SotnActorCombat *out);
 /** @brief Release actor state without freeing borrowed images/layout/map. @param actors Owned
  * simulation or NULL. */
 void SotnActors_Destroy(SotnActors *actors);

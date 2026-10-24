@@ -4,6 +4,7 @@
 // src/dra/6DF70.c, 6E42C.c, 6FDF8.c, 71830.c, 692E8.c,
 // and selected unarmed paths in 7879C.c and alu_anim.c.
 #include "player_internal.h"
+#include <sotn/combat.h>
 
 enum
 {
@@ -476,6 +477,7 @@ static void CrouchTick(SotnPlayer *player)
         if (!player->tight_space)
         {
             Jump(player);
+            ClearAttack(player);
             return;
         }
     }
@@ -618,6 +620,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (next.failed)
         return false;
     next.previous_step = next.step;
+    if (next.invincibility)
+        --next.invincibility;
     switch (next.step)
     {
     case SOTN_PLAYER_STAND:
@@ -639,12 +643,48 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         break;
     case SOTN_PLAYER_FALL:
         if (next.timers[5] && (next.tapped & SOTN_BUTTON_JUMP))
+        {
             Jump(&next);
+            ClearAttack(&next);
+        }
         else if (!Transitions(&next, 0x9029))
         {
             Decelerate(&next, 4096);
             if (Direction(&next))
                 SetSpeed(&next, 49152);
+        }
+        break;
+    case SOTN_PLAYER_HIT:
+        next.invincibility = 12;
+        if (next.substep == 1)
+        {
+            next.vy = SDL_min(7 * FIX_ONE,
+                              next.vy + (next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY));
+            if ((next.contact & 2) && next.vy < -FIX_ONE)
+                next.vy = -FIX_ONE;
+            if (next.vy >= 0 && (next.contact & 1))
+            {
+                Crouch(&next, 3, next.vx);
+                next.invincibility = 12;
+            }
+            else if (next.animation.remaining < 0)
+            {
+                Animate(&next, 28);
+                next.facing_left = !next.facing_left;
+            }
+        }
+        else
+        {
+            Decelerate(&next, 8192);
+            if (!(next.contact & 1))
+                Fall(&next);
+            else if (next.animation.remaining < 0)
+            {
+                if (next.substep == 6)
+                    Land(&next, 0);
+                else
+                    Crouch(&next, 0, next.vx);
+            }
         }
         break;
     default:
@@ -676,6 +716,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     if (player == NULL)
         return false;
     player->dra = dra;
+    player->hp = 70;
     player->map = map;
     player->x.value = (Sint32)start_x;
     player->y.value = (Sint32)start_y;
@@ -712,9 +753,83 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
 {
     if (player == NULL || out == NULL)
         return SDL_SetError("Player state requires a simulation and output");
-    *out = (SotnPlayerState){player->x.value, player->y.value,         player->vx,
-                             player->vy,      (Uint32)player->contact, player->animation,
-                             player->step,    player->facing_left,     player->attack};
+    *out = (SotnPlayerState){player->x.value,
+                             player->y.value,
+                             player->vx,
+                             player->vy,
+                             (Uint32)player->contact,
+                             player->animation,
+                             player->step,
+                             player->facing_left,
+                             player->attack,
+                             player->hp,
+                             70,
+                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT};
+    return true;
+}
+
+bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
+{
+    if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
+        source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
+        return SDL_SetError("Player damage requires a bounded physical attack and source");
+    if (amount == 0 || player->invincibility != 0 || player->step == SOTN_PLAYER_HIT)
+        return true;
+    if (player->hp <= amount)
+    {
+        player->hp = 0;
+        return SDL_SetError("Alucard died; this development checkpoint has no death/continue flow");
+    }
+    SotnPlayer next = *player;
+    next.hp = (Uint16)(next.hp - amount);
+    const Sint32 center_x =
+        next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
+    const Sint32 delta = center_x - source_x;
+    const bool right =
+        SDL_abs(delta) < 16 && source_velocity != 0 ? source_velocity > 0 : delta >= 0;
+    ClearAttack(&next);
+    next.movement_flags = 0;
+    next.invincibility = 12;
+    const bool strong = (Uint32)amount * 20 > 70;
+    Uint16 animation = 0;
+    if (strong || next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
+    {
+        next.vx = strong ? 109226 : 81920;
+        next.vy = strong ? ((next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
+                                ? -3 * FIX_ONE
+                                : -4 * FIX_ONE)
+                         : -2 * FIX_ONE;
+        (void)SotnCombat_Random(&next.damage_random);
+        const Uint16 value = SotnCombat_Random(&next.damage_random);
+        animation = (Uint16)(0x2e + value % 3);
+        if (strong && value % 16 == 0)
+            animation = 0x40;
+        next.substep = 1;
+    }
+    else
+    {
+        next.vx = 163840;
+        next.vy = 0;
+        if (next.step == SOTN_PLAYER_CROUCH)
+        {
+            animation = 35;
+            next.substep = 7;
+        }
+        else
+        {
+            (void)SotnCombat_Random(&next.damage_random);
+            animation = (Uint16)(0x31 + (SotnCombat_Random(&next.damage_random) & 1) +
+                                 (right != next.facing_left ? 2 : 0));
+            next.substep = 6;
+        }
+    }
+    if (!right)
+        next.vx = -next.vx;
+    next.step = SOTN_PLAYER_HIT;
+    Animate(&next, animation);
+    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+        return false;
+    *player = next;
     return true;
 }
 
