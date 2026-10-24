@@ -1,13 +1,15 @@
 # SOTN Native
 
 A C17/SDL3 native-port project for personal and educational study of
-*Castlevania: Symphony of the Night*. **Game integration is in progress;
-this executable does not yet provide gameplay.** The current app validates
-private core data and previews save icons through OpenGL. Its default mode
-still displays the bootstrap greeting.
+*Castlevania: Symphony of the Night*. **Game integration is in progress.**
+The project's executable now runs a limited Alucard movement checkpoint in the
+Alchemy Laboratory: walking, crouching, jumping, collision, original animation
+frames, and adjacent room transitions. Combat, enemies, audio, saves, stage
+scripts, and full-game progression remain unimplemented. This is not yet an
+authentic playable game build. Its default mode still displays the bootstrap greeting.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
-Future game functionality will require users to supply their own game dump.
+The movement checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.
 
 The project uses **C17**. Phase 1 preserves the original game experience, with
@@ -18,12 +20,12 @@ explicit. Modern conveniences follow a proven authentic foundation. See
 
 The selected approach is a **decompilation-based native port**. The initial
 [feasibility report and milestones](docs/native-port-plan.md) describe the
-pinned upstream experiment, private reference checks, and remaining integration
-work. That experiment is separate from this repository's Hello world app.
+pinned reconstructed C reference, private input checks, and remaining integration
+work. Build and playtest this repository's executable through CMake/Make.
 
 Native integration has started with the reconstructed collision and graphics
 decoding algorithms in `modules/core/`. These compile and run tests through
-this repository's normal build; they do not yet provide gameplay. See
+this repository's normal build. See
 [game-core integration](docs/game-core.md) for scope, provenance, and validation.
 The [runtime stage loader](docs/stage-data.md) decodes Laboratory room/layer
 tables directly from the user's validated overlay and verifies its graphics file
@@ -32,11 +34,29 @@ The [Laboratory presentation diagnostic](docs/laboratory-presentation.md) now
 shows original room tilemaps through this executable, using `--preview-laboratory`.
 It does not run player or enemy gameplay.
 
+## Laboratory movement checkpoint
+
+Build and launch this project's Debug executable through LLDB (macOS):
+
+```sh
+make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory
+```
+
+Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
+Xbox controls use the d-pad or left stick and **A** to jump. Attack/ability
+inputs are ignored with one warning per session until those actions are integrated.
+At a crash, enter `thread backtrace all` in LLDB and share its output.
+
+The session starts directly in development room 1; it does not run the title
+screen or original progression. The camera and fixed 60-tick pacing are development
+adapters. See [movement integration](docs/laboratory-movement.md) for required
+inputs, supported behavior, and known gaps. Public builds and tests need no game data.
+
 The C app can now read and validate five core files from an extracted US dump:
 
 ```sh
 # macOS; use build/debug/bin/sotn-native on Linux or sotn-native.exe on Windows.
-build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
+lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
   --game-data /path/to/private/extracted/us --validate-only
 ```
 
@@ -51,7 +71,7 @@ The OpenGL presentation slice can also display original save icons from those
 validated files. It is an asset preview, not gameplay:
 
 ```sh
-build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
+lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
   --game-data /path/to/private/extracted/us --preview-save-icons
 ```
 
@@ -69,11 +89,14 @@ Studio developer shell. Windows users can run the CMake commands directly.
 
 ```sh
 make                 # Debug build in build/debug
-make run             # Open the app; Escape or the window close button quits
 make test            # Run the app's headless render smoke test and repository guard
 make sanitizer       # Linux: run tests with ASan and UBSan, including SDL instrumentation
 make package         # Build/test Release and produce a versioned ZIP in dist/
 ```
+
+Use the LLDB command above for game playtests. On Linux, use
+`build/debug/bin/sotn-native`; on Windows, use `build/debug/bin/sotn-native.exe`
+(or the configuration subdirectory produced by your generator).
 
 CMake is the source of build logic; Make is a convenience wrapper:
 

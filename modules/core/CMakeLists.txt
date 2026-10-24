@@ -3,10 +3,14 @@ add_library(sotn-core STATIC
   animation.c
   decompress.c
   stage.c
+  player.c
+  player_sensors.c
+  player_internal.h
   include/sotn/collision.h
   include/sotn/animation.h
   include/sotn/decompress.h
   include/sotn/stage.h
+  include/sotn/player.h
 )
 sotn_configure_c_target(sotn-core)
 target_include_directories(sotn-core PUBLIC include)

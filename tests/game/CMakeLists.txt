@@ -1,0 +1,6 @@
+add_executable(sotn-input-tests test_input.c)
+sotn_configure_c_target(sotn-input-tests)
+target_include_directories(sotn-input-tests PRIVATE "${CMAKE_SOURCE_DIR}/modules/game")
+target_link_libraries(sotn-input-tests PRIVATE sotn-game)
+add_test(NAME gamepad-input COMMAND sotn-input-tests)
+set_tests_properties(gamepad-input PROPERTIES TIMEOUT 20)

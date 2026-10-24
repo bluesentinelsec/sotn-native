@@ -1,0 +1,155 @@
+#include <SDL3/SDL.h>
+#include <sotn/player.h>
+
+#define CHECK(condition)                                                                           \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(condition))                                                                          \
+        {                                                                                          \
+            SDL_LogError(SDL_LOG_CATEGORY_TEST, "Line %d: %s: %s", __LINE__, #condition,           \
+                         SDL_GetError());                                                          \
+            return false;                                                                          \
+        }                                                                                          \
+    } while (0)
+
+typedef struct Fixture
+{
+    Uint8 dra[0x11000], tiles[32 * 16 * 2], types[2];
+} Fixture;
+
+static void Put32(Uint8 *image, size_t offset, Uint32 value)
+{
+    for (unsigned int i = 0; i < 4; ++i)
+        image[offset + i] = (Uint8)(value >> (i * 8));
+}
+
+static SotnCollisionMap MakeFixture(Fixture *fixture)
+{
+    SDL_memset(fixture, 0, sizeof(*fixture));
+    for (size_t i = 0; i < 247; ++i)
+        Put32(fixture->dra, 0x101b8 + i * 4, 0x800a0100);
+    for (Uint32 pose = 0; pose < 6; ++pose)
+    {
+        Put32(fixture->dra, 0x100 + pose * 4, 2 | (pose + 1) << 16);
+        Put32(fixture->dra, 0x200 + pose * 4, 1 | (pose + 1) << 16);
+    }
+    Put32(fixture->dra, 0x118, 0);
+    Put32(fixture->dra, 0x218, 0x0000ffff);
+    const Uint16 holds[] = {16, 19, 21, 35};
+    for (size_t i = 0; i < SDL_arraysize(holds); ++i)
+        Put32(fixture->dra, 0x101b8 + (size_t)holds[i] * 4, 0x800a0200);
+    fixture->types[1] = 3;
+    for (size_t y = 10; y < 16; ++y)
+        for (size_t x = 0; x < 32; ++x)
+            fixture->tiles[(y * 32 + x) * 2] = 1;
+    return (SotnCollisionMap){
+        {fixture->tiles, sizeof(fixture->tiles)}, {fixture->types, sizeof(fixture->types)}, 32, 16};
+}
+
+static bool State(SotnPlayer *player, SotnPlayerState *out)
+{
+    CHECK(SotnPlayer_GetState(player, out));
+    return true;
+}
+
+static bool TestMovement(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    SotnPlayer *player = NULL;
+    CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
+    CHECK(state.y == 135 * 65536 && (state.contacts & 1) != 0);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT) && State(player, &state));
+    CHECK(state.x == 64 * 65536 + 98304 && state.velocity_x == 98304);
+    CHECK(state.step == SOTN_PLAYER_WALK && !state.facing_left);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT) && State(player, &state));
+    CHECK(!state.facing_left && state.velocity_x == 98304);
+    CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
+    CHECK(state.step == SOTN_PLAYER_STAND && state.velocity_x == 0);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP) && State(player, &state));
+    CHECK(state.step == SOTN_PLAYER_JUMP && state.velocity_y == -319488);
+    CHECK(state.y == 135 * 65536 - 319488);
+    CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
+    CHECK(state.velocity_y == -65536 + 11264);
+    for (int i = 0; i < 100; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state));
+    CHECK(state.y == 135 * 65536 && state.step == SOTN_PLAYER_STAND);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN) && State(player, &state));
+    CHECK(state.step == SOTN_PLAYER_CROUCH);
+    for (int i = 0; i < 15; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN));
+    for (int i = 0; i < 20; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state));
+    CHECK(state.step == SOTN_PLAYER_STAND);
+    const Sint32 before_x = state.x, before_y = state.y;
+    CHECK(!SotnPlayer_Tick(player, 0x0080));
+    CHECK(State(player, &state) && state.x == before_x && state.y == before_y);
+    CHECK(SotnPlayer_ChangeRoom(player, map, 16, 0));
+    CHECK(State(player, &state) && state.x == before_x + 16 * 65536);
+    CHECK(!SotnPlayer_ChangeRoom(player, map, SDL_MIN_SINT32, 0));
+    CHECK(State(player, &state) && state.x == before_x + 16 * 65536);
+    SotnPlayer_Close(player);
+    return true;
+}
+
+static bool TestWallsAndReplay(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    for (size_t y = 4; y < 10; ++y)
+        fixture->tiles[(y * 32 + 12) * 2] = 1;
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    SotnPlayer *a = NULL, *b = NULL;
+    CHECK(SotnPlayer_Create(dra, map, 64, 135, &a));
+    CHECK(SotnPlayer_Create(dra, map, 64, 135, &b));
+    for (int tick = 0; tick < 300; ++tick)
+    {
+        Uint16 buttons = SOTN_BUTTON_RIGHT;
+        if (tick > 30 && tick < 50)
+            buttons |= SOTN_BUTTON_JUMP;
+        CHECK(SotnPlayer_Tick(a, buttons) && SotnPlayer_Tick(b, buttons));
+        SotnPlayerState first = {0}, second = {0};
+        CHECK(State(a, &first) && State(b, &second));
+        CHECK(first.x == second.x && first.y == second.y && first.contacts == second.contacts);
+        CHECK(first.animation.id == second.animation.id &&
+              first.animation.pose == second.animation.pose);
+        CHECK(first.x <= 185 * 65536);
+    }
+    SotnPlayerState last = {0};
+    CHECK(State(a, &last) && (last.contacts & 4) != 0);
+    SotnPlayer_Close(a);
+    SotnPlayer_Close(b);
+    return true;
+}
+
+static bool TestFailures(Fixture *fixture)
+{
+    SotnCollisionMap map = MakeFixture(fixture);
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    SotnPlayer *player = NULL;
+    CHECK(!SotnPlayer_Create(dra, map, SDL_MAX_SINT32, 0, &player) && player == NULL);
+    CHECK(!SotnPlayer_Create((SotnDataView){0}, map, 64, 135, &player) && player == NULL);
+    map.width = SDL_MAX_UINT32;
+    CHECK(!SotnPlayer_Create(dra, map, 0, 0, &player) && player == NULL);
+    CHECK(!SotnPlayer_Tick(NULL, 0));
+    CHECK(!SotnPlayer_GetState(NULL, NULL));
+    SotnPlayer_Close(NULL);
+    return true;
+}
+
+int main(void)
+{
+    Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
+    if (fixture == NULL)
+        return 1;
+    const bool passed =
+        TestMovement(fixture) && TestWallsAndReplay(fixture) && TestFailures(fixture);
+    SDL_free(fixture);
+    if (!passed)
+        return 1;
+    SDL_Log("SOTN_PLAYER_TEST: PASS");
+    return 0;
+}

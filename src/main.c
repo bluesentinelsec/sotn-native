@@ -4,6 +4,7 @@
 #include <SDL3/SDL_main.h>
 
 #include <sotn/game_data.h>
+#include <sotn/laboratory.h>
 #include <sotn/presenter.h>
 #include <sotn/resource.h>
 #include <sotn/save_icon.h>
@@ -18,6 +19,7 @@ typedef struct App
     SotnGameData *game_data;
     SotnPresenter *presenter;
     LabPreview *laboratory;
+    SotnLaboratory *game;
     Uint8 preview_pixels[SOTN_SAVE_ICON_RGBA_SIZE];
     Uint32 preview_index;
     bool smoke_test;
@@ -97,6 +99,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool preview_icons = false;
     bool inspect_lab = false;
     bool preview_lab = false;
+    bool play_lab = false;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -133,10 +136,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             preview_lab = true;
         }
+        else if (SDL_strcmp(argv[i], "--laboratory") == 0)
+        {
+            play_lab = true;
+        }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
             SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
-                    "| --inspect-laboratory | --preview-laboratory] "
+                    "| --inspect-laboratory | --preview-laboratory | --laboratory] "
                     "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
@@ -152,13 +159,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         return Fail("Invalid arguments");
     }
     const unsigned int modes = (validate_only ? 1U : 0U) + (preview_icons ? 1U : 0U) +
-                               (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U);
+                               (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
+                               (play_lab ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
-        SDL_SetError("Choose one data inspection mode: --validate-only, --preview-save-icons, "
-                     "--inspect-laboratory, or --preview-laboratory; each requires --game-data; "
-                     "--graphics-test runs separately without game inputs");
+        SDL_SetError(
+            "Choose one display or inspection mode: --validate-only, --preview-save-icons, "
+            "--inspect-laboratory, --preview-laboratory, or --laboratory; each requires "
+            "--game-data; "
+            "--graphics-test runs separately without game inputs");
         return Fail("Invalid arguments");
     }
     if (game_directory != NULL)
@@ -169,7 +179,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
         SDL_Log("SOTN_GAME_DATA: PASS (%s, %d core files)", SotnGameData_ReferenceId(),
                 (int)SOTN_GAME_FILE_COUNT);
-        SDL_Log("Core data loaded; player and stage gameplay are not integrated yet.");
+        SDL_Log("Core reference data loaded.");
         if (validate_only)
         {
             return SDL_APP_SUCCESS;
@@ -201,6 +211,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("OpenGL presentation test failed");
         SDL_Log("SOTN_GRAPHICS_TEST: PASS");
         return SDL_APP_SUCCESS;
+    }
+    if (play_lab)
+    {
+        if (!SotnLaboratory_Create(app->game_data, game_directory, &app->game))
+            return Fail("Cannot open Laboratory movement checkpoint");
+        if (app->smoke_test)
+            SDL_Log("SOTN_SMOKE_TEST: START");
+        return SDL_APP_CONTINUE;
     }
     if (preview_lab)
     {
@@ -252,6 +270,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         return SDL_APP_SUCCESS;
     }
+    if (app->game != NULL && !SotnLaboratory_Event(app->game, event))
+        return Fail("Cannot handle Laboratory input");
     if (app->laboratory != NULL && !LabPreview_Event(app->laboratory, event))
         return Fail("Cannot change Laboratory tile preview");
     if (app->presenter != NULL && event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
@@ -275,7 +295,12 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     App *app = appstate;
-    if (app->laboratory != NULL)
+    if (app->game != NULL)
+    {
+        if (!SotnLaboratory_Iterate(app->game))
+            return Fail("Laboratory movement checkpoint stopped");
+    }
+    else if (app->laboratory != NULL)
     {
         if (!LabPreview_Draw(app->laboratory))
             return Fail("Cannot render Laboratory tile preview");
@@ -321,6 +346,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         SotnPresenter_Destroy(app->presenter);
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
+        SotnLaboratory_Destroy(app->game);
         LabPreview_Destroy(app->laboratory);
         SotnGameData_Close(app->game_data);
         SDL_free(app);
