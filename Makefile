@@ -30,6 +30,8 @@ SOTN_FORMAT_SOURCES += modules/core/collision.c \
   modules/core/animation.c \
   modules/core/decompress.c \
   modules/core/stage.c \
+  modules/core/actor_layout.c modules/core/room_actors.c \
+  modules/core/include/sotn/actor_layout.h tests/core/test_actor_layout.c \
   modules/core/player.c \
   modules/core/player_sensors.c \
   modules/core/player_internal.h \

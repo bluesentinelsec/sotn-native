@@ -19,6 +19,9 @@
   `modules/core/player_sensors.c` adapts `6BF64.c`, `70394.c`, and the
   normal-form collision path in `692E8.c`. See
   [movement integration](docs/laboratory-movement.md) for scope and validation.
+  `modules/core/room_actors.c` adapts scrolling spawns from `src/st/create_entity.h`
+  and stage persistence from `src/st/st_common.h`; the runtime layout parser
+  is original project code. See [actor integration](docs/laboratory-actors.md).
   `modules/render/tilemap.c` adapts the tile renderer in `src/dra/4CE2C.c` and
   tile upload layout in `src/pc/sim_pc.c`. `modules/render/alucard_sprite.c`
   adapts the sprite-sheet path in `src/dra/4B758.c` and ARC pointer loading in

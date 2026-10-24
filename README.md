@@ -33,6 +33,9 @@ on demand; `--inspect-laboratory` exercises that boundary without launching vide
 The [Laboratory presentation diagnostic](docs/laboratory-presentation.md) now
 shows original room tilemaps through this executable, using `--preview-laboratory`.
 It does not run player or enemy gameplay.
+The [actor placement foundation](docs/laboratory-actors.md) now validates original
+room spawn lists and implements scrolling/slot persistence rules. The inspection
+mode checks these lists; visible actor behavior remains a separate integration step.
 
 ## Laboratory movement checkpoint
 
