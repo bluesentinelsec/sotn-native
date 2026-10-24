@@ -1476,7 +1476,11 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
             return true;
         }
     }
-    next->blocked_buttons = old->scene_buttons;
+    // Walking continues through connected rooms; held UI/action buttons require release.
+    const Uint16 directions =
+        SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT | SOTN_BUTTON_UP | SOTN_BUTTON_DOWN;
+    next->blocked_buttons =
+        travel ? (Uint16)(old->scene_buttons & (Uint16)~directions) : old->scene_buttons;
     old->music_stream = NULL;
     next->borrowed_music = false;
     *owner = next;

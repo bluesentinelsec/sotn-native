@@ -10,7 +10,9 @@ Other stage destinations still fail explicitly as unsupported native gameplay.
 ## Ownership and progress
 
 A connector latches one arrival and stops simulation catch-up until the app
-consumes it. The destination validates its overlay, artwork, sound bank, room,
+consumes it. Held movement continues through arrival; held menu/action buttons
+require release to prevent accidental activation in the new scene. The destination
+validates its overlay, artwork, sound bank, room,
 and arrival coordinates before replacing the active session. Character inventory,
 equipment, resources, EXP, world flags (including Death), exploration, elapsed
 time, and the four owned RNG states carry across. Destination transient actors,
