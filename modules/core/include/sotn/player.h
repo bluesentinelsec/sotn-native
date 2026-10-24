@@ -4,10 +4,12 @@
 #include <sotn/animation.h>
 #include <sotn/collision.h>
 
-/** @brief Original PS1 button bits accepted by the normal Alucard movement slice. */
+/** @brief Original PS1 button bits accepted by normal Alucard and unarmed attacks. */
 typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_JUMP = 0x0040,
+    SOTN_BUTTON_RIGHT_HAND = 0x0020,
+    SOTN_BUTTON_LEFT_HAND = 0x0080,
     SOTN_BUTTON_UP = 0x1000,
     SOTN_BUTTON_RIGHT = 0x2000,
     SOTN_BUTTON_DOWN = 0x4000,
@@ -24,6 +26,15 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_JUMP
 } SotnPlayerStep;
 
+/** @brief Runtime unarmed hitbox, in whole pixels relative to Alucard's origin. */
+typedef struct SotnPlayerAttack
+{
+    Sint16 offset_x, offset_y;
+    Uint16 width, height, element, hit_type, hit_effect, stun_frames;
+    Uint8 invincibility_frames, critical_rate;
+    bool active, right_hand, sound;
+} SotnPlayerAttack;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -32,6 +43,7 @@ typedef struct SotnPlayerState
     SotnAnimation animation;
     SotnPlayerStep step;
     bool facing_left;
+    SotnPlayerAttack attack;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -46,7 +58,8 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Equipment, combat, transformations, damage, and stage scripts are not implemented.
+ * Empty-hand attack animations/hitboxes are supported. Equipped weapons, damage resolution,
+ * transformations, and stage scripts are not implemented here.
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
                        SotnPlayer **out);

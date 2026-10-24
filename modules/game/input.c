@@ -23,20 +23,17 @@ bool LaboratoryInput_Init(LaboratoryInput *input)
 
 bool LaboratoryInput_Event(LaboratoryInput *input, const SDL_Event *event)
 {
-    const bool unsupported_key =
-        event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
-        (event->key.scancode == SDL_SCANCODE_Z || event->key.scancode == SDL_SCANCODE_D);
+    const bool unsupported_key = event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
+                                 event->key.scancode == SDL_SCANCODE_A;
     const bool unsupported_pad = event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
                                  input->pad != NULL &&
                                  event->gbutton.which == SDL_GetGamepadID(input->pad) &&
-                                 (event->gbutton.button == SDL_GAMEPAD_BUTTON_WEST ||
-                                  event->gbutton.button == SDL_GAMEPAD_BUTTON_NORTH ||
-                                  event->gbutton.button == SDL_GAMEPAD_BUTTON_EAST);
+                                 event->gbutton.button == SDL_GAMEPAD_BUTTON_NORTH;
     if (!input->warned_unsupported && (unsupported_key || unsupported_pad))
     {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Attack and ability controls are not implemented in this movement checkpoint; "
-                    "input ignored. Use arrows and X/Space, or the left stick/d-pad and A.");
+                    "Ability controls are not implemented in this combat checkpoint; "
+                    "input ignored. Z/D or gamepad X/B attack; X/Space or gamepad A jumps.");
         input->warned_unsupported = true;
     }
     if (event->type == SDL_EVENT_GAMEPAD_REMOVED && input->pad != NULL &&
@@ -68,6 +65,10 @@ Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
         buttons |= SOTN_BUTTON_DOWN;
     if (keys[SDL_SCANCODE_X] || keys[SDL_SCANCODE_SPACE])
         buttons |= SOTN_BUTTON_JUMP;
+    if (keys[SDL_SCANCODE_Z])
+        buttons |= SOTN_BUTTON_LEFT_HAND;
+    if (keys[SDL_SCANCODE_D])
+        buttons |= SOTN_BUTTON_RIGHT_HAND;
     return buttons;
 }
 
@@ -88,6 +89,10 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_DOWN;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_SOUTH))
             buttons |= SOTN_BUTTON_JUMP;
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_WEST))
+            buttons |= SOTN_BUTTON_LEFT_HAND;
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_EAST))
+            buttons |= SOTN_BUTTON_RIGHT_HAND;
     }
     return buttons;
 }
