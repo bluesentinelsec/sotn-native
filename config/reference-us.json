@@ -55,5 +55,11 @@
     "BIN/RIC.BIN": 236120,
     "ST/ST0/ST0.BIN": 271812,
     "ST/NZ0/NZ0.BIN": 309120
+  },
+  "streams": {
+    "SD/XA_STR1.": {
+      "size": 426483456,
+      "sha1": "7253b16593060f13645cdb0f32af8cd05a8ca244"
+    }
   }
 }

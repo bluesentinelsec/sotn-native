@@ -31,7 +31,7 @@ appear in SDL logs; the original HUD is not implemented.
 
 Equipped weapons, subweapon use, inventory menus, experience/level progression,
 enemy loot, original blood/glow/hit primitives, all elemental player damage,
-full shared random-state consumption, startup, and audio remain incomplete.
+full shared random-state consumption, startup, and complete audio parity remain incomplete.
 Subweapon swapping retains the previous pickup and its toss/recovery timing;
 its sparkle primitive is omitted. Unsupported vessels remain marked unsupported.
 Do not describe this checkpoint as a complete or fully authentic game port.
@@ -70,4 +70,4 @@ broke a candle, rendered its explosion/drop, and collected a heart (10 to 11).
 The targeted check is not an unmodified full gameplay replay.
 
 The [native sound service](laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

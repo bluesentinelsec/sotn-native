@@ -9,7 +9,7 @@ working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
 Bloody Zombies run active motion/attack animations. Selected empty-hand combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Equipped weapons,
-complete effects, sound, saves, scripts, and full progression remain incomplete.
+complete effects/audio, saves, scripts, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -162,4 +162,4 @@ The selected route is a **decompilation-based native port**; read the current
   unless a reviewer needs them to understand a material tradeoff.
 
 The [native sound service](docs/laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

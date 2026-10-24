@@ -110,11 +110,12 @@ These changes form a dependency stack through movement, actor data, actor
 graphics, and scene integration. Leave PRs unmerged until the user playtests
 our executable and approves; merge dependencies first afterward.
 
-Next, integrate combat/damage, drops, the remaining Laboratory actors/effects, and audio, replacing
-remaining development camera/timing and stage-entry behavior with reviewed
+Next, extend the selected combat profile with equipped weapons and ordinary death/continue,
+complete the remaining Laboratory actors/effects and audio services, and replace
+development camera/timing and stage-entry behavior with reviewed
 original paths. Use synthetic public regression tests and private input
 comparisons. Do not bulk-vendor the reference repository or mark a full game
 port complete after a demo or isolated room.
 
 The [native sound service](laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
