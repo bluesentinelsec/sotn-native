@@ -1,4 +1,6 @@
 add_library(sotn-render STATIC
+  inventory.c
+  include/sotn/inventory.h
   presenter.c
   gl_api.c
   gl_api.h

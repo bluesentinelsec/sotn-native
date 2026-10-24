@@ -81,7 +81,8 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .type = body ? Read16(p + 28) : 0,
                      .icon = Read16(p + (body ? 24 : 44)),
                      .palette = Read16(p + (body ? 26 : 46)),
-                     .supported = body ? BodySupported(id) : (id == 0 || id == 86 || id == 128)};
+                     .supported =
+                         body ? BodySupported(id) : (id == 0 || id == 18 || id == 86 || id == 128)};
     if (body)
     {
         if (item.type > 3)
@@ -135,13 +136,13 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
 {
     if (s == NULL || s->hp_max == 0 || s->hp_max > 9999 || s->hp > s->hp_max || s->mp_max == 0 ||
         s->mp_max > 9999 || s->mp > s->mp_max || s->hearts_max == 0 || s->hearts_max > 9999 ||
-        s->hearts > s->hearts_max || s->level == 0 || s->level > 99 || s->experience > 999999 ||
-        s->gold > 999999 || (s->laboratory_items[1] & 0xf8) != 0 ||
+        s->hearts > s->hearts_max || s->subweapon > 9 || s->level == 0 || s->level > 99 ||
+        s->experience > 999999 || s->gold > 999999 || (s->laboratory_items[1] & 0xf8) != 0 ||
         !Order(s->hand_order, SOTN_HAND_ITEMS) || !Order(s->body_order, SOTN_BODY_ITEMS))
         return SDL_SetError("Character progress has invalid bounds or inventory order");
     for (Uint32 i = 0; i < 4; ++i)
-        if (s->base[i] > 99)
-            return SDL_SetError("Character base stat exceeds 99");
+        if (s->base[i] == 0 || s->base[i] > 99)
+            return SDL_SetError("Character base stat is outside 1..99");
     for (Uint32 i = 0; i < 7; ++i)
         if (s->equipment[i] >= (i < 2 ? SOTN_HAND_ITEMS : SOTN_BODY_ITEMS))
             return SDL_SetError("Equipped item exceeds its table");
@@ -323,6 +324,13 @@ bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
     *c = next;
     return true;
 }
+bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
+{
+    if (c == NULL)
+        return SDL_InvalidParamError("character");
+    return SotnItem_Read(c->dra, body, id, out);
+}
+
 void SotnCharacter_Destroy(SotnCharacter *c)
 {
     SDL_free(c);

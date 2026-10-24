@@ -29,11 +29,12 @@ static Uint16 Root(Uint16 value)
     return result;
 }
 
-bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uint8 critical_rate,
-                       const Uint16 stats[4], Uint16 rooms, Uint32 *random, Uint16 *out)
+bool SotnCombat_DamageAttributes(SotnCombatEnemy enemy, Uint16 attack, Uint16 element,
+                                 Uint8 critical_rate, const Uint16 stats[4], Uint16 luck,
+                                 Uint16 rooms, Uint32 *random, Uint16 *out)
 {
     if (random == NULL || out == NULL || stats == NULL || attack > 999 || rooms > 1024 ||
-        enemy.defense < 0)
+        enemy.defense < 0 || luck == 0 || luck > 198)
         return SDL_SetError("Combat damage requires bounded original attributes and outputs");
     for (Uint32 i = 0; i < 4; ++i)
         if (stats[i] == 0 || stats[i] > 99)
@@ -77,7 +78,7 @@ bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uin
                 damage = (Uint16)(damage + Root(rooms));
                 break;
             default:
-                damage = (Uint16)(damage + SotnCombat_Random(&next_random) % stats[3] + 1);
+                damage = (Uint16)(damage + SotnCombat_Random(&next_random) % luck + 1);
                 break;
             }
             result = 0x4000;
@@ -88,4 +89,13 @@ bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uin
     *random = next_random;
     *out = result;
     return true;
+}
+
+bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uint8 critical_rate,
+                       const Uint16 stats[4], Uint16 rooms, Uint32 *random, Uint16 *out)
+{
+    if (stats == NULL)
+        return SDL_InvalidParamError("stats");
+    return SotnCombat_DamageAttributes(enemy, attack, element, critical_rate, stats, stats[3],
+                                       rooms, random, out);
 }

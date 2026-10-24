@@ -1,3 +1,4 @@
+#include "character_fixture.h"
 #include <SDL3/SDL.h>
 #include <sotn/actors.h>
 
@@ -229,6 +230,44 @@ static bool TestCombat(Fixture *fixture)
     return true;
 }
 
+static bool TestEquipmentPickup(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    TestCharacter_Fill(f->dra);
+    Put16(f->nz0, 0x30e, 0xc);
+    Put16(f->nz0, 0x310, 0);
+    Put16(f->nz0, 0x314, 0xffff);
+    Put16(f->nz0, 0x316, 0xffff);
+    Put16(f->nz0, 0x13b0, 128 + SOTN_HAND_ITEMS + 2);
+    Put16(f->dra, 0x20c, 1);
+    SotnCharacter *c = NULL;
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, nz0 = {f->nz0, sizeof(f->nz0)};
+    CHECK(SotnCharacter_Create(dra, &c));
+    CHECK(SotnActors_Create(dra, nz0, &actors));
+    CHECK(SotnActors_SetCharacter(actors, c));
+    CHECK(SotnActorLayout_Open(nz0, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 40 * 65536,
+                                    .y = 135 * 65536,
+                                    .hp = 70,
+                                    .animation = {.hitbox_width = 8, .hitbox_height = 20}};
+    for (Uint32 i = 0; i < 30; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnCharacterState state = {0};
+    CHECK(SotnCharacter_Get(c, &state, NULL) && state.body_count[2] == 1 &&
+          (state.laboratory_items[0] & 1));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    for (Uint32 i = 0; i < 30; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnCharacter_Get(c, &state, NULL) && state.body_count[2] == 1);
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    SotnCharacter_Destroy(c);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -254,7 +293,8 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestBehaviors(fixture) && TestCombat(fixture) && TestFailures(fixture);
+    const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
+                        TestEquipmentPickup(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

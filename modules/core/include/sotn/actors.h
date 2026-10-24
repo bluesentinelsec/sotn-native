@@ -93,6 +93,11 @@ bool SotnActors_Get(const SotnActors *actors, Uint32 slot, SotnActorState *out);
  * @return Success, or false with SDL_GetError() for invalid arguments.
  * @note Requests are replaced on the next Tick. Inventory is a development profile, not a save. */
 bool SotnActors_GetCombat(const SotnActors *actors, SotnActorCombat *out);
+/** @brief Borrow shared character ownership for inventory pickups and derived combat stats.
+ * @param actors Borrowed actor simulation. @param character Borrowed character, alive through
+ * actor destruction. @return Success or false with SDL_GetError(). NULL retains legacy test
+ * profile. */
+bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
 /** @brief Release actor state without freeing borrowed images/layout/map. @param actors Owned
  * simulation or NULL. */
 void SotnActors_Destroy(SotnActors *actors);
