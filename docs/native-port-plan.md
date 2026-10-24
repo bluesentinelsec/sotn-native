@@ -117,4 +117,4 @@ comparisons. Do not bulk-vendor the reference repository or mark a full game
 port complete after a demo or isolated room.
 
 The [native sound service](laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

@@ -58,16 +58,9 @@ static void HashBlock(Uint32 state[5], const Uint8 block[64])
     state[4] += e;
 }
 
-void SotnData_Sha1(const Uint8 *bytes, size_t size, char output[41])
+static void Finish(Uint32 state[5], const Uint8 *bytes, size_t size, Uint64 bit_length,
+                   char output[41])
 {
-    Uint32 state[5] = {0x67452301U, 0xefcdab89U, 0x98badcfeU, 0x10325476U, 0xc3d2e1f0U};
-    const Uint64 bit_length = (Uint64)size * 8U;
-    while (size >= 64)
-    {
-        HashBlock(state, bytes);
-        bytes += 64;
-        size -= 64;
-    }
     Uint8 tail[128] = {0};
     if (size != 0)
     {
@@ -92,4 +85,60 @@ void SotnData_Sha1(const Uint8 *bytes, size_t size, char output[41])
         output[i * 2 + 1] = hex[byte & 15];
     }
     output[40] = '\0';
+}
+
+void SotnData_Sha1(const Uint8 *bytes, size_t size, char output[41])
+{
+    Uint32 state[5] = {0x67452301U, 0xefcdab89U, 0x98badcfeU, 0x10325476U, 0xc3d2e1f0U};
+    const Uint64 bits = (Uint64)size * 8U;
+    while (size >= 64)
+    {
+        HashBlock(state, bytes);
+        bytes += 64;
+        size -= 64;
+    }
+    Finish(state, bytes, size, bits, output);
+}
+
+static bool ReadExact(SDL_IOStream *stream, Uint8 *buffer, size_t size)
+{
+    size_t read = 0;
+    while (read < size)
+    {
+        const size_t count = SDL_ReadIO(stream, buffer + read, size - read);
+        if (count == 0)
+            return SDL_SetError("Short read while fingerprinting private music");
+        read += count;
+    }
+    return true;
+}
+
+bool SotnData_VerifyStream(SDL_IOStream *stream, const SotnDataSpec *spec)
+{
+    if (stream == NULL || spec == NULL || spec->sha1 == NULL ||
+        spec->size > 1024U * 1024U * 1024U || SDL_GetIOSize(stream) != (Sint64)spec->size ||
+        SDL_SeekIO(stream, 0, SDL_IO_SEEK_SET) != 0)
+        return SDL_SetError("Music stream has an invalid reference size or cannot seek");
+    Uint32 state[5] = {0x67452301U, 0xefcdab89U, 0x98badcfeU, 0x10325476U, 0xc3d2e1f0U};
+    Uint8 scratch[32768] = {0};
+    size_t remaining = spec->size;
+    while (remaining >= 64)
+    {
+        const size_t size = SDL_min(sizeof(scratch), remaining - remaining % 64);
+        if (!ReadExact(stream, scratch, size))
+            return false;
+        for (size_t offset = 0; offset < size; offset += 64)
+            HashBlock(state, scratch + offset);
+        remaining -= size;
+    }
+    if (!ReadExact(stream, scratch, remaining))
+        return false;
+    char digest[41] = {0};
+    Finish(state, scratch, remaining, (Uint64)spec->size * 8, digest);
+    Uint8 extra = 0;
+    if (SDL_ReadIO(stream, &extra, 1) != 0 || SDL_GetIOStatus(stream) != SDL_IO_STATUS_EOF)
+        return SDL_SetError("Music changed size while checking its reference");
+    if (SDL_strcmp(digest, spec->sha1) != 0)
+        return SDL_SetError("Music reference checksum mismatch; supply the unmodified US file");
+    return SDL_SeekIO(stream, 0, SDL_IO_SEEK_SET) == 0;
 }

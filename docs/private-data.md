@@ -89,3 +89,11 @@ failures and reject false success without a working graphics driver.
 The same tests run under Linux ASan/UBSan in CI. Public tests require no game
 data. Real-file validation and combined loading/rendering checks run locally
 with the user's dump and do not establish whole-game parity.
+
+## Laboratory audio inputs
+
+The current combat playtest also needs the private sound resources listed in
+[laboratory-audio.md](laboratory-audio.md), including the raw-sector
+`SD/XA_STR1.` music container. Public manifests contain size/hash fingerprints
+only. Runtime streaming verifies that file once and keeps a bounded sector
+reader; never commit the container or decoded audio.

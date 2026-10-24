@@ -1,8 +1,10 @@
 add_library(sotn-audio STATIC
   sound.c
+  music.c
   voice.h
   gauss.h
   include/sotn/sound.h
+  include/sotn/music.h
 )
 sotn_configure_c_target(sotn-audio)
 target_include_directories(sotn-audio PUBLIC include)

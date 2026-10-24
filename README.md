@@ -4,7 +4,8 @@ A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
 The project's executable now runs a limited actor checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
-red-eye busts, globe tables, and Bloody Zombie movement/attack animations.
+red-eye busts, globe tables, selected unarmed combat, candle pickups,
+and original sound effects/Laboratory music.
 Combat, damage, item collection, audio, saves, complete actor/effect support,
 stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
@@ -37,7 +38,7 @@ It does not run player or enemy gameplay.
 The [actor integration](docs/laboratory-actors.md) loads original room placements,
 graphics, and selected behaviors. Its inspection mode validates every layout.
 
-## Laboratory actor checkpoint
+## Laboratory combat checkpoint
 
 Build and launch this project's Debug executable through LLDB (macOS):
 
@@ -175,4 +176,4 @@ Original scaffold code uses the [zlib license](LICENSE). See
 [THIRD_PARTY.md](THIRD_PARTY.md) for dependency provenance.
 
 The [native sound service](docs/laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

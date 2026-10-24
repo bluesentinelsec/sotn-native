@@ -70,4 +70,4 @@ broke a candle, rendered its explosion/drop, and collected a heart (10 to 11).
 The targeted check is not an unmodified full gameplay replay.
 
 The [native sound service](laboratory-audio.md) now plays selected original
-combat sound effects; music, reverb, and full audio parity remain incomplete.
+combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
