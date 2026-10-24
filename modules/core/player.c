@@ -5,6 +5,7 @@
 // and selected unarmed paths in 7879C.c and alu_anim.c.
 #include "player_internal.h"
 #include <sotn/combat.h>
+#include <sotn/subweapon.h>
 
 enum
 {
@@ -224,6 +225,7 @@ static Uint32 Attack32(const Uint8 *bytes)
 
 static void ClearAttack(SotnPlayer *player)
 {
+    player->subweapon_cast = false;
     player->attack_mode = 0;
     player->attack = (SotnPlayerAttack){0};
 }
@@ -232,7 +234,33 @@ static void ClearAttack(SotnPlayer *player)
 static bool StartAttack(SotnPlayer *player)
 {
     const Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
-    if (pressed == 0 || (player->attack_mode & 0x8000))
+    if (pressed == 0)
+        return false;
+    if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) && player->timers[0] == 0)
+    {
+        bool used = false;
+        Uint16 animation = 0;
+        SotnPlayerState state = {0};
+        if (!SotnPlayer_GetState(player, &state) ||
+            !SotnSubweapons_Use(player->subweapons, state, &used, &animation))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (used)
+        {
+            player->timers[0] = 4;
+            if (player->step == SOTN_PLAYER_STAND && player->attack_mode == 0)
+            {
+                Animate(player, (Uint16)(animation + ((player->contact & 0x20) ? 1 : 0)));
+                player->subweapon_cast = true;
+                player->subweapon_animation = player->animation.id;
+                player->substep = 1;
+            }
+            return true;
+        }
+    }
+    if (player->attack_mode & 0x8000)
         return false;
     const Uint32 hand = pressed == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
     SotnEquipment equipment = {0};
@@ -241,6 +269,7 @@ static bool StartAttack(SotnPlayer *player)
         player->failed = true;
         return true;
     }
+    player->subweapon_cast = false;
     player->attack_equipment = equipment;
     Sint32 critical = equipment.critical_rate;
     if (equipment.id != 0)
@@ -287,6 +316,8 @@ static bool StartAttack(SotnPlayer *player)
 static bool ReadAttack(SotnPlayer *player)
 {
     player->attack = (SotnPlayerAttack){0};
+    if (player->subweapon_cast)
+        return true;
     if (player->attack_mode != 0 && player->attack_equipment.id != 0)
     {
         SotnWeaponFrame weapon = {0};
@@ -406,6 +437,8 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
 
 static void StandTick(SotnPlayer *player)
 {
+    if (player->subweapon_cast && player->animation.id != player->subweapon_animation)
+        player->subweapon_cast = false;
     if (Transitions(player, 0x4301c))
         return;
     Decelerate(player, 8192);
@@ -1011,4 +1044,12 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
 void SotnPlayer_Close(SotnPlayer *player)
 {
     SDL_free(player);
+}
+
+bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service)
+{
+    if (player == NULL)
+        return SDL_InvalidParamError("player");
+    player->subweapons = service;
+    return true;
 }

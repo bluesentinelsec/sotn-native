@@ -55,6 +55,21 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
  */
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count);
+/** @brief Affine textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
+ */
+typedef struct SotnTextureQuad
+{
+    Sint32 x[4], y[4];
+    Uint8 u[4], v[4];
+    Uint16 page, palette;
+    bool blend;
+} SotnTextureQuad;
+/** @brief Draw a bounded affine projectile primitive from already loaded private texture memory.
+ * @param graphics Borrowed texture service. @param quad Copied quad, coordinates within +/-2048.
+ * @param frame Full RGB555 output. @param count Available pixels.
+ * @return Success or SDL error; invalid references leave the frame unchanged. */
+bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
+                            size_t count);
 /** @brief Release texture memory without freeing borrowed images. @param graphics Owned object or
  * NULL. */
 void SotnActorGraphics_Destroy(SotnActorGraphics *graphics);

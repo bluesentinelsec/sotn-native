@@ -7,14 +7,16 @@
 #include <SDL3/SDL_error.h>
 #include <sotn/actors.h>
 #include <sotn/combat.h>
+#include <sotn/subweapon.h>
 
 typedef struct Actor
 {
     SotnActorState state;
     Sint32 vx, vy;
     Uint16 pose, remaining, timer, substep;
-    Uint8 parallax, cooldown[2];
+    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS];
     Uint16 attack, attack_element, stun, hit_params, life_timer, level, experience;
+    Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
     Uint16 collectible;
@@ -32,6 +34,7 @@ struct SotnActors
     SotnActorCombat combat;
     bool entered;
     SotnCharacter *character;
+    SotnSubweapons *subweapons;
 };
 
 static Uint16 Read16(const Uint8 *bytes)
@@ -446,7 +449,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     if (player.step == SOTN_PLAYER_KILL || actor->state.step == 0 || actor->state.unsupported ||
         (actor->state.flags & 0x100))
         return true;
-    for (Uint32 i = 0; i < 2; ++i)
+    for (Uint32 i = 0; i < SDL_arraysize(actor->cooldown); ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
     if (actor->state.id != 1 && actor->state.id != 0x2b && actor->state.id != 3 &&
@@ -460,68 +463,105 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Sint32 screen_x = target.x - actors->camera_x, screen_y = target.y - actors->camera_y;
     if (screen_x <= -32 || screen_x >= 288 || screen_y <= -32 || screen_y >= 256)
         return true;
-    const Uint32 hand = player.attack.right_hand ? 1 : 0;
-    const SotnCombatBox attacker = PlayerBox(player, true);
-    if (player.attack.active && actor->cooldown[hand] == 0 &&
-        (actor->state.hitbox_state & player.attack.hit_type & 0x3e) &&
-        SotnCombat_Overlap(attacker, target))
+    for (Uint32 channel = 0; channel < 2 + SOTN_SUBWEAPON_SLOTS; ++channel)
     {
-        Uint16 stats[4] = {6, 6, 6, 6};
-        Uint16 luck = 6;
-        if (actors->character != NULL)
+        SotnPlayerState source = player;
+        if (channel < 2)
         {
-            SotnCharacterStats attributes = {0};
-            SotnCharacterState progress = {0};
-            if (!SotnCharacter_Get(actors->character, &progress, &attributes))
-                return false;
-            SDL_memcpy(stats, progress.base, sizeof(stats));
-            luck = attributes.total[3];
+            if (channel != (player.attack.right_hand ? 1U : 0U))
+                continue;
         }
-        Uint16 damage = 0;
-        if (actor->state.hit_points != 0x7fff && actor->state.hit_points != 0 &&
-            !SotnCombat_DamageAttributes(actor->enemy, player.attack.power, player.attack.element,
-                                         player.attack.critical_rate, stats, luck, 1,
-                                         &actors->combat_random, &damage))
-            return false;
-        actor->hit_params = player.attack.hit_effect & 127;
-        actor->cooldown[hand] = player.attack.invincibility_frames;
-        if (actor->state.id == 0x2b && damage != 0xc000)
+        else
         {
-            if (damage & 0x8000)
-                actor->state.hit_points =
-                    (Sint16)SDL_min(32767, actor->state.hit_points + (damage & 0x3fff));
-            else
+            if (actors->subweapons == NULL)
+                break;
+            SotnSubweaponState projectile = {0};
+            if (!SotnSubweapons_Get(actors->subweapons, channel - 2, &projectile))
+                return false;
+            if (actor->projectile_generation[channel - 2] != projectile.generation)
             {
-                actor->state.hit_points =
-                    (Sint16)SDL_max(-32768, actor->state.hit_points - (damage & 0x3fff));
-                if (actor->state.hit_points <= 0)
+                actor->projectile_generation[channel - 2] = projectile.generation;
+                actor->cooldown[channel] = 0;
+            }
+            if (projectile.generation == 0)
+                continue;
+            source.x = projectile.x;
+            source.y = projectile.y;
+            source.facing_left = projectile.facing_left;
+            source.attack = projectile.attack;
+        }
+        const Uint32 hand = channel;
+        const SotnCombatBox attacker = PlayerBox(source, true);
+        if (source.attack.active && actor->cooldown[hand] == 0 &&
+            (actor->state.hitbox_state & source.attack.hit_type & 0x3e) &&
+            SotnCombat_Overlap(attacker, target))
+        {
+            Uint16 stats[4] = {6, 6, 6, 6};
+            Uint16 luck = 6;
+            if (actors->character != NULL)
+            {
+                SotnCharacterStats attributes = {0};
+                SotnCharacterState progress = {0};
+                if (!SotnCharacter_Get(actors->character, &progress, &attributes))
+                    return false;
+                SDL_memcpy(stats, progress.base, sizeof(stats));
+                luck = attributes.total[3];
+            }
+            Uint16 damage = 0;
+            if (actor->state.hit_points != 0x7fff && actor->state.hit_points != 0 &&
+                !SotnCombat_DamageAttributes(actor->enemy, source.attack.power,
+                                             source.attack.element, source.attack.critical_rate,
+                                             stats, luck, 1, &actors->combat_random, &damage))
+                return false;
+            actor->hit_params = source.attack.hit_effect & 127;
+            if (channel >= 2)
+            {
+                Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+                if ((actor->hit_params == 3 && (actor->state.flags & 0x8000)) ||
+                    (actor->hit_params == 4 && (actor->state.flags & 0x4000)))
+                    flags = 2;
+                if (!SotnSubweapons_Hit(actors->subweapons, channel - 2, flags))
+                    return false;
+            }
+            actor->cooldown[hand] = source.attack.invincibility_frames;
+            if (actor->state.id == 0x2b && damage != 0xc000)
+            {
+                if (damage & 0x8000)
+                    actor->state.hit_points =
+                        (Sint16)SDL_min(32767, actor->state.hit_points + (damage & 0x3fff));
+                else
                 {
-                    actor->state.flags |= 0x100;
-                    ++actors->combat.kills;
-                    if (actors->character != NULL)
+                    actor->state.hit_points =
+                        (Sint16)SDL_max(-32768, actor->state.hit_points - (damage & 0x3fff));
+                    if (actor->state.hit_points <= 0)
                     {
-                        Uint16 levels = 0;
-                        if (!SotnCharacter_GainExperience(actors->character, actor->experience,
-                                                          actor->level, &levels))
-                            return false;
-                        if (levels != 0)
+                        actor->state.flags |= 0x100;
+                        ++actors->combat.kills;
+                        if (actors->character != NULL)
                         {
-                            SotnCharacterState progress = {0};
-                            if (!SotnCharacter_Get(actors->character, &progress, NULL))
+                            Uint16 levels = 0;
+                            if (!SotnCharacter_GainExperience(actors->character, actor->experience,
+                                                              actor->level, &levels))
                                 return false;
-                            actors->combat.hearts_max = progress.hearts_max;
-                            if (!Sound(actors, 0x687))
-                                return false;
-                            SDL_Log("Level up: %u (HP %u, MP %u, hearts %u)", progress.level,
-                                    progress.hp_max, progress.mp_max, progress.hearts_max);
+                            if (levels != 0)
+                            {
+                                SotnCharacterState progress = {0};
+                                if (!SotnCharacter_Get(actors->character, &progress, NULL))
+                                    return false;
+                                actors->combat.hearts_max = progress.hearts_max;
+                                if (!Sound(actors, 0x687))
+                                    return false;
+                                SDL_Log("Level up: %u (HP %u, MP %u, hearts %u)", progress.level,
+                                        progress.hp_max, progress.mp_max, progress.hearts_max);
+                            }
                         }
                     }
                 }
+                if (!(actor->state.flags & (0x400000 | 0x100)))
+                    actor->stun = source.attack.stun_frames;
             }
-            if (!(actor->state.flags & (0x400000 | 0x100)))
-                actor->stun = player.attack.stun_frames;
+            return true;
         }
-        return true;
     }
     if ((actor->state.hitbox_state & 1) &&
         (actor->state.id == 3 || actor->state.id == 0xa || !player.invulnerable) &&
@@ -1218,6 +1258,8 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             --next.stun;
             frozen = !(next.state.flags & 0x100000);
         }
+        if (SotnSubweapons_Frozen(actors->subweapons) && !(next.state.flags & (0x2000 | 0x100)))
+            frozen = frozen || !(next.state.flags & 0x200) || (actors->ticks & 3) != 0;
         if (!frozen && !next.state.unsupported && !Behavior(actors, &next, player))
             return false;
         if (!frozen)
@@ -1309,4 +1351,12 @@ void SotnActors_Destroy(SotnActors *actors)
         SotnRoomActors_Destroy(actors->spawns);
         SDL_free(actors);
     }
+}
+
+bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service)
+{
+    if (actors == NULL)
+        return SDL_InvalidParamError("actors");
+    actors->subweapons = service;
+    return true;
 }

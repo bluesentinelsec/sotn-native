@@ -1,4 +1,6 @@
 add_library(sotn-render STATIC
+  subweapon.c
+  include/sotn/subweapon_renderer.h
   inventory.c
   include/sotn/inventory.h
   presenter.c
