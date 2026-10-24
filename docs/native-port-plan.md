@@ -115,3 +115,6 @@ remaining development camera/timing and stage-entry behavior with reviewed
 original paths. Use synthetic public regression tests and private input
 comparisons. Do not bulk-vendor the reference repository or mark a full game
 port complete after a demo or isolated room.
+
+The [native sound service](laboratory-audio.md) now plays selected original
+combat sound effects; music, reverb, and full audio parity remain incomplete.

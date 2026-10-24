@@ -160,3 +160,6 @@ The selected route is a **decompilation-based native port**; read the current
   write PRs as **context > problem > solution**, emphasizing user experience.
   Include a brief validation result. Leave implementation details in the code
   unless a reviewer needs them to understand a material tradeoff.
+
+The [native sound service](docs/laboratory-audio.md) now plays selected original
+combat sound effects; music, reverb, and full audio parity remain incomplete.
