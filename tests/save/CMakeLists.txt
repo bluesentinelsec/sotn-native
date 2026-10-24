@@ -1,0 +1,7 @@
+add_executable(sotn-save-tests test_save.c)
+sotn_configure_c_target(sotn-save-tests)
+target_include_directories(sotn-save-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/save")
+target_link_libraries(sotn-save-tests PRIVATE sotn-save)
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fixture")
+add_test(NAME native-save-storage COMMAND sotn-save-tests "${CMAKE_CURRENT_BINARY_DIR}/fixture")
+set_tests_properties(native-save-storage PROPERTIES TIMEOUT 20)
