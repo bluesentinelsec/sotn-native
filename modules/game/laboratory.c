@@ -2,6 +2,7 @@
 #include <sotn/actor_graphics.h>
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
+#include <sotn/hud.h>
 #include <sotn/laboratory.h>
 #include <sotn/music.h>
 #include <sotn/playback.h>
@@ -21,6 +22,7 @@ struct SotnLaboratory
     SotnActorLayout *actor_layout;
     SotnActorGraphics *actor_graphics;
     SotnPresenter *presenter;
+    SotnHud *hud;
     LaboratoryInput input;
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
@@ -134,6 +136,9 @@ static bool TickActors(SotnLaboratory *session)
                            combat.contact_velocity))
         return false;
     if (!SotnPlayer_GetState(session->player, &player) ||
+        (session->hud != NULL &&
+         !SotnHud_Tick(session->hud, (SotnHudStatus){player.hp, player.hp_max, 20, 20,
+                                                     combat.hearts, combat.subweapon})) ||
         !TickAudio(session, &combat, player.sound))
         return false;
     if (player.hp != session->displayed_hp || combat.hearts != session->displayed_hearts ||
@@ -232,8 +237,10 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                   (SotnTileSources){SotnResource_View(session->tiles),
                                                     SotnResource_View(session->common)},
                                   &session->actor_graphics) ||
-        !SotnLaboratory_SetEquipment(session, 86, 0) || !EnterActors(session) ||
-        !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
+        !SotnLaboratory_SetEquipment(session, 86, 0) ||
+        !SotnHud_Create(session->dra, SotnResource_View(session->common),
+                        (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
+        !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory))
@@ -375,6 +382,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
             !SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y,
                               session->frame, SOTN_FRAME_PIXELS) ||
             !DrawActorsAndPlayer(session, state, camera_x, camera_y) ||
+            !SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) ||
             !SotnFrame_ToRgba(session->frame, SOTN_FRAME_PIXELS, session->rgba,
                               sizeof(session->rgba)) ||
             !SotnPresenter_SetImage(session->presenter, session->rgba, sizeof(session->rgba),
@@ -443,6 +451,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 {
     if (session != NULL)
     {
+        SotnHud_Destroy(session->hud);
         SotnPlayback_Destroy(session->audio);
         SotnMusic_Destroy(session->music);
         SotnStream_Close(session->music_stream);
