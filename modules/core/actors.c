@@ -4,87 +4,13 @@
 // e_red_eye_bust.c, e_nz0_room2.c; src/st/e_bloody_zombie.h,
 // animate_entity.h, st_common.h, st_update.h, collision.h, e_collect.h,
 // and collect_subweapon.h. No game tables are embedded.
+#include "actors_internal.h"
 #include <SDL3/SDL_error.h>
 #include <sotn/actors.h>
 #include <sotn/combat.h>
 #include <sotn/subweapon.h>
 
-typedef struct Actor
-{
-    SotnActorState state;
-    Sint32 vx, vy;
-    Uint16 pose, remaining, timer, substep;
-    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS];
-    Uint16 attack, attack_element, stun, hit_params, life_timer, level, experience;
-    Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
-    SotnCombatEnemy enemy;
-    Sint32 fall_speed, gravity;
-    Uint16 collectible;
-    bool dynamic, remove, permanent;
-} Actor;
-
-struct SotnActors
-{
-    SotnDataView dra, nz0;
-    SotnCollisionMap map;
-    SotnRoomActors *spawns;
-    Actor slots[SOTN_STAGE_ACTOR_SLOTS];
-    Sint32 camera_x, camera_y;
-    Uint32 random, combat_random, ticks, effect_serial;
-    SotnActorCombat combat;
-    bool entered;
-    SotnCharacter *character;
-    SotnSubweapons *subweapons;
-};
-
-static Uint16 Read16(const Uint8 *bytes)
-{
-    return (Uint16)(bytes[0] | (Uint16)bytes[1] << 8);
-}
-
-static Uint32 Read32(const Uint8 *bytes)
-{
-    return bytes[0] | (Uint32)bytes[1] << 8 | (Uint32)bytes[2] << 16 | (Uint32)bytes[3] << 24;
-}
-
-static Sint32 Signed16(const Uint8 *bytes)
-{
-    const Uint16 value = Read16(bytes);
-    return value < 32768 ? value : (Sint32)value - 65536;
-}
-
-static Sint32 Pixel(Sint32 value)
-{
-    return value >= 0 ? value / 65536 : (Sint32)(-((-(Sint64)value + 65535) / 65536));
-}
-
-static Sint32 Wrap16(Sint64 value)
-{
-    const Uint16 bits = (Uint16)(Uint64)value;
-    return bits < 32768 ? bits : (Sint32)bits - 65536;
-}
-
-static void ShiftY(Actor *actor, Sint64 delta)
-{
-    const Sint32 high = Wrap16((Sint64)Pixel(actor->state.y) + delta);
-    actor->state.y = (Sint32)((Sint64)high * 65536 + ((Uint32)actor->state.y & 65535));
-}
-
-static bool Slice(SotnDataView image, size_t offset, size_t size, SotnDataView *out)
-{
-    if (image.bytes == NULL || offset > image.size || size > image.size - offset)
-        return SDL_SetError("Laboratory actor table is outside its private image");
-    *out = (SotnDataView){image.bytes + offset, size};
-    return true;
-}
-
-static void SetStep(Actor *actor, Uint16 step)
-{
-    actor->state.step = step;
-    actor->substep = actor->pose = actor->remaining = 0;
-}
-
-static bool Initialize(SotnActors *actors, Actor *actor, size_t offset)
+bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset)
 {
     SotnDataView init = {0}, api = {0}, enemy = {0};
     if (!Slice(actors->nz0, offset, 10, &init) || !Slice(actors->dra, 0x98, 4, &api))
@@ -118,7 +44,7 @@ static bool Initialize(SotnActors *actors, Actor *actor, size_t offset)
     return true;
 }
 
-static bool Animate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result)
+bool ActorAnimate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result)
 {
     SotnDataView record = {0};
     if (actor->pose >= 512 || !Slice(actors->nz0, offset + (size_t)actor->pose * 2, 2, &record))
@@ -151,7 +77,7 @@ static bool Animate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *resu
     return true;
 }
 
-static bool Query(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out)
+bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out)
 {
     return SotnCollision_Query(&actors->map, x, y, out);
 }
@@ -174,13 +100,13 @@ static bool Ground(SotnActors *actors, Actor *actor, bool *landed)
             x = Wrap16((Sint64)x + Signed16(sensors.bytes + i * 4));
             y = Wrap16((Sint64)y + Signed16(sensors.bytes + i * 4 + 2));
             SotnCollider col = {0}, back = {0};
-            if (!Query(actors, x, y, &col))
+            if (!ActorQuery(actors, x, y, &col))
                 return false;
             if ((col.effects & SOTN_EFFECT_SLOPE_FLOOR) && i == 1)
             {
                 if (col.effects & SOTN_EFFECT_SOLID)
                 {
-                    if (!Query(actors, x, y - 8, &back))
+                    if (!ActorQuery(actors, x, y - 8, &back))
                         return false;
                     if (!(back.effects & SOTN_EFFECT_SOLID))
                     {
@@ -200,7 +126,7 @@ static bool Ground(SotnActors *actors, Actor *actor, bool *landed)
                     actor->state.flags &= ~0x10000000U;
                     return true;
                 }
-                if (!Query(actors, x, y - 8, &back))
+                if (!ActorQuery(actors, x, y - 8, &back))
                     return false;
                 if (!(back.effects & SOTN_EFFECT_SOLID))
                 {
@@ -227,7 +153,7 @@ static bool WalkCollision(SotnActors *actors, Actor *actor)
     Sint32 x = Wrap16((Sint64)Pixel(actor->state.x) + Signed16(sensors.bytes));
     Sint32 y = Wrap16((Sint64)Pixel(actor->state.y) + Signed16(sensors.bytes + 2));
     SotnCollider col = {0};
-    if (!Query(actors, x, y, &col))
+    if (!ActorQuery(actors, x, y, &col))
         return false;
     if (!(col.effects & SOTN_EFFECT_SOLID))
         return true;
@@ -237,7 +163,7 @@ static bool WalkCollision(SotnActors *actors, Actor *actor)
     const Sint32 sensor_x = Signed16(sensors.bytes + 4);
     x = Wrap16((Sint64)x + (actor->vx < 0 ? -sensor_x : sensor_x));
     y = Wrap16((Sint64)y + Signed16(sensors.bytes + 6) - 7);
-    if (!Query(actors, x, y, &col))
+    if (!ActorQuery(actors, x, y, &col))
         return false;
     if (col.effects & SOTN_EFFECT_SOLID)
     {
@@ -248,7 +174,7 @@ static bool WalkCollision(SotnActors *actors, Actor *actor)
         return true;
     }
     y = Wrap16((Sint64)y + 15);
-    if (!Query(actors, x, y, &col))
+    if (!ActorQuery(actors, x, y, &col))
         return false;
     if (!(col.effects & SOTN_EFFECT_SOLID))
     {
@@ -258,18 +184,7 @@ static bool WalkCollision(SotnActors *actors, Actor *actor)
     return true;
 }
 
-static Uint8 Side(const Actor *actor, SotnPlayerState player)
-{
-    return (Uint8)(Pixel(actor->state.x) > Pixel(player.x));
-}
-
-static Sint64 Distance(const Actor *actor, SotnPlayerState player)
-{
-    const Sint64 difference = (Sint64)Pixel(actor->state.x) - Pixel(player.x);
-    return difference < 0 ? -difference : difference;
-}
-
-static bool Sound(SotnActors *actors, Uint16 id)
+bool ActorSound(SotnActors *actors, Uint16 id)
 {
     if (actors->combat.sound_count >= SDL_arraysize(actors->combat.sounds))
         return SDL_SetError("Laboratory sound request budget exceeded");
@@ -277,7 +192,7 @@ static bool Sound(SotnActors *actors, Uint16 id)
     return true;
 }
 
-static bool Explosion(SotnActors *actors, const Actor *source, Uint16 kind)
+bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind)
 {
     for (Uint32 i = 160; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
     {
@@ -311,13 +226,13 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
     Uint8 animation = 0;
     if (actor->hit_params && (actor->state.step & 1))
     {
-        if (!Sound(actors, 0x746) || !Sound(actors, 0x748))
+        if (!ActorSound(actors, 0x746) || !ActorSound(actors, 0x748))
             return false;
         SetStep(actor, 6);
     }
     if ((actor->state.flags & 0x100) && actor->state.step < 8)
     {
-        if (!Sound(actors, 0x747))
+        if (!ActorSound(actors, 0x747))
             return false;
         actor->state.hitbox_state = 0;
         actor->state.flags &= ~0x20000000U;
@@ -326,7 +241,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
     switch (actor->state.step)
     {
     case 0:
-        if (!Initialize(actors, actor, 0xc7c))
+        if (!ActorInitialize(actors, actor, 0xc7c))
             return false;
         actor->state.hitbox_x = 1;
         actor->state.hitbox_y = 4;
@@ -346,7 +261,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->timer = 128;
             actor->substep = 1;
         }
-        if (!Animate(actors, actor, 0x22ec, &animation) || !WalkCollision(actors, actor))
+        if (!ActorAnimate(actors, actor, 0x22ec, &animation) || !WalkCollision(actors, actor))
             return false;
         actor->vx = actor->state.facing_left ? 24576 : -24576;
         if (--actor->timer == 0)
@@ -362,7 +277,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         break;
     case 3:
-        if (!Animate(actors, actor, 0x237c, &animation))
+        if (!ActorAnimate(actors, actor, 0x237c, &animation))
             return false;
         if (animation == 0)
             actor->state.facing_left = Side(actor, player) == 0;
@@ -374,15 +289,15 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SetStep(actor, 4);
         break;
     case 4:
-        if (!Animate(actors, actor, 0x22fc, &animation))
+        if (!ActorAnimate(actors, actor, 0x22fc, &animation))
             return false;
-        if ((animation & 0x80) && actor->pose == 10 && !Sound(actors, 0x60b))
+        if ((animation & 0x80) && actor->pose == 10 && !ActorSound(actors, 0x60b))
             return false;
         if (animation == 0)
             SetStep(actor, 1);
         break;
     case 6:
-        if (!Animate(actors, actor, 0x2320, &animation))
+        if (!ActorAnimate(actors, actor, 0x2320, &animation))
             return false;
         if (animation == 0)
         {
@@ -393,20 +308,20 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 8:
         if (actor->pose < 13)
         {
-            if ((actors->ticks & 7) == 0 && !Sound(actors, 0x749))
+            if ((actors->ticks & 7) == 0 && !ActorSound(actors, 0x749))
                 return false;
             actor->timer = 0;
         }
-        else if (actor->timer++ == 0 && !Sound(actors, 0x749))
+        else if (actor->timer++ == 0 && !ActorSound(actors, 0x749))
             return false;
-        if (!Animate(actors, actor, 0x2334, &animation))
+        if (!ActorAnimate(actors, actor, 0x2334, &animation))
             return false;
         if (animation == 0)
         {
             actor->timer = 64;
             actor->state.frame = 0;
             ++actor->state.step;
-            if (!Explosion(actors, actor, 2) || !Sound(actors, 0x693))
+            if (!ActorExplosion(actors, actor, 2) || !ActorSound(actors, 0x693))
                 return false;
         }
         break;
@@ -453,7 +368,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if (actor->cooldown[i])
             --actor->cooldown[i];
     if (actor->state.id != 1 && actor->state.id != 0x2b && actor->state.id != 3 &&
-        actor->state.id != 0xa && actor->state.id != 0x34)
+        actor->state.id != 0xa && actor->state.id != 0x34 && actor->state.id != 0x26 &&
+        actor->state.id != 0x27 && actor->state.id != 0x2e && actor->state.id != 0x2f &&
+        actor->state.id != 0x29 && actor->state.id != 0x2a && actor->state.id != 0x31 &&
+        actor->state.id != 0x33)
         return true;
     const SotnCombatBox target = {Pixel(actor->state.x) + (actor->state.facing_left
                                                                ? -actor->state.hitbox_x
@@ -524,7 +442,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     return false;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
-            if (actor->state.id == 0x2b && damage != 0xc000)
+            if ((actor->state.id == 0x2b || actor->state.id == 0x26 || actor->state.id == 0x27 ||
+                 actor->state.id == 0x2e || actor->state.id == 0x2f || actor->state.id == 0x29 ||
+                 actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33) &&
+                damage != 0xc000)
             {
                 if (damage & 0x8000)
                     actor->state.hit_points =
@@ -536,7 +457,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     if (actor->state.hit_points <= 0)
                     {
                         actor->state.flags |= 0x100;
-                        ++actors->combat.kills;
+                        if ((actor->state.flags & 0x1000) && actors->combat.kills < 999999)
+                            ++actors->combat.kills;
                         if (actors->character != NULL)
                         {
                             Uint16 levels = 0;
@@ -549,7 +471,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                 if (!SotnCharacter_Get(actors->character, &progress, NULL))
                                     return false;
                                 actors->combat.hearts_max = progress.hearts_max;
-                                if (!Sound(actors, 0x687))
+                                if (!ActorSound(actors, 0x687))
                                     return false;
                                 SDL_Log("Level up: %u (HP %u, MP %u, hearts %u)", progress.level,
                                         progress.hp_max, progress.mp_max, progress.hearts_max);
@@ -570,7 +492,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if ((actor->state.id == 3 || actor->state.id == 0xa) && actor->state.step > 1 &&
             actor->state.step < 5 && actor->timer == 0)
             actor->state.step = 5;
-        else if (actor->state.id == 0x2b && actor->attack > actors->combat.contact_damage)
+        else if ((actor->state.id == 0x2b || actor->state.id == 0x26 || actor->state.id == 0x27 ||
+                  actor->state.id == 0x2e || actor->state.id == 0x2f || actor->state.id == 0x29 ||
+                  actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33) &&
+                 actor->attack > actors->combat.contact_damage)
         {
             actors->combat.contact_damage = actor->attack;
             actors->combat.contact_x = target.x;
@@ -607,7 +532,7 @@ static bool PrizeSides(SotnActors *actors, Actor *actor)
         x = Wrap16((Sint64)x + (actor->vx < 0 ? dx : -dx));
         y = Wrap16((Sint64)y + Signed16(sensors.bytes + i * 4 + 2));
         SotnCollider col = {0};
-        if (!Query(actors, x, y, &col))
+        if (!ActorQuery(actors, x, y, &col))
             return false;
         if ((col.effects & SOTN_EFFECT_SIDE) &&
             (!(col.effects & SOTN_EFFECT_SLOPE_FLOOR) || i != 0))
@@ -626,7 +551,7 @@ static bool PrizeGround(SotnActors *actors, Actor *actor, Uint16 item, bool rest
     SotnCollider col = {0};
     if (actor->vy < 0 && !resting)
     {
-        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) - 7, &col))
+        if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y) - 7, &col))
             return false;
         if (col.effects & (SOTN_EFFECT_SOLID | SOTN_EFFECT_SINK))
             actor->vy = 0;
@@ -636,7 +561,7 @@ static bool PrizeGround(SotnActors *actors, Actor *actor, Uint16 item, bool rest
         actor->state.x += actor->vx;
         actor->state.y += actor->vy;
     }
-    if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) + 7, &col))
+    if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y) + 7, &col))
         return false;
     if ((col.effects & (SOTN_EFFECT_SOLID | SOTN_EFFECT_SINK)) &&
         (item == 0 || actor->vy > 0 || resting))
@@ -686,13 +611,13 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         Uint8 result = 0;
         if (!Slice(actors->nz0, 0x1d3c + (size_t)item * 4, 4, &pointer) ||
             Read32(pointer.bytes) < 0x80180000 ||
-            !Animate(actors, actor, Read32(pointer.bytes) - 0x80180000, &result))
+            !ActorAnimate(actors, actor, Read32(pointer.bytes) - 0x80180000, &result))
             return false;
     }
     switch (actor->state.step)
     {
     case 0:
-        if (!Initialize(actors, actor, 0xbd4))
+        if (!ActorInitialize(actors, actor, 0xbd4))
             return false;
         actor->state.priority = 0x6c;
         actor->state.blend_mode = 0;
@@ -710,7 +635,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         return true;
     case 1: {
         SotnCollider col = {0};
-        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y), &col))
+        if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y), &col))
             return false;
         if (col.effects & (SOTN_EFFECT_SOLID | SOTN_EFFECT_SINK | SOTN_EFFECT_SIDE))
             actor->remove = true;
@@ -746,7 +671,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnDataView prize = {0};
         if (item < 2)
         {
-            if (!Slice(actors->nz0, 0x1da4 + item, 1, &prize) || !Sound(actors, 0x67a))
+            if (!Slice(actors->nz0, 0x1da4 + item, 1, &prize) || !ActorSound(actors, 0x67a))
                 return false;
             actors->combat.hearts =
                 (Uint16)SDL_min(actors->combat.hearts_max, actors->combat.hearts + prize.bytes[0]);
@@ -754,7 +679,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         else if (item < 12)
         {
             if (!Slice(actors->nz0, 0x1d14 + (size_t)(item - 2) * 4, 4, &prize) ||
-                !Sound(actors, 0x6a9))
+                !ActorSound(actors, 0x6a9))
                 return false;
             const Uint32 amount = Read32(prize.bytes);
             if (amount > 999999)
@@ -764,7 +689,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         else if (item == 12 || item == 23)
         {
             if (!SotnCharacter_CollectVessel(actors->character, item == 23) ||
-                !Sound(actors, 0x67a))
+                !ActorSound(actors, 0x67a))
                 return false;
             SotnCharacterState profile = {0};
             if (!SotnCharacter_Get(actors->character, &profile, NULL))
@@ -775,7 +700,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         else
         {
             if (!Slice(actors->nz0, 0x1cc4 + (size_t)(item - 14) * 2, 2, &prize) ||
-                !Sound(actors, 0x67c))
+                !ActorSound(actors, 0x67c))
                 return false;
             const Uint16 previous = actors->combat.subweapon;
             actors->combat.subweapon = Read16(prize.bytes);
@@ -866,7 +791,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
     switch (actor->state.step)
     {
     case 0:
-        if (!Initialize(actors, actor, 0xbd4))
+        if (!ActorInitialize(actors, actor, 0xbd4))
             return false;
         actor->state.priority = 0x80;
         actor->state.animation_set = 0;
@@ -875,7 +800,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
         return true;
     case 1: {
         SotnCollider collider = {0};
-        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y), &collider))
+        if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y), &collider))
             return false;
         if (collider.effects & (SOTN_EFFECT_BLOCK | SOTN_EFFECT_SINK))
             actor->remove = true;
@@ -891,14 +816,14 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
         SotnCollider collider = {0};
         if (actor->vy < 0)
         {
-            if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) - 7, &collider))
+            if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y) - 7, &collider))
                 return false;
             if (collider.effects & SOTN_EFFECT_SOLID)
                 actor->vy = 0;
         }
         actor->state.x += actor->vx;
         actor->state.y += actor->vy;
-        if (!Query(actors, Pixel(actor->state.x), Pixel(actor->state.y) + 7, &collider))
+        if (!ActorQuery(actors, Pixel(actor->state.x), Pixel(actor->state.y) + 7, &collider))
             return false;
         if ((collider.effects & SOTN_EFFECT_SOLID) && actor->vy > 0)
         {
@@ -933,7 +858,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
         char name[161] = {0};
         if (!SotnCharacter_Collect(actors->character, body, item_id) ||
             !Collectible(actors, actor) || !SotnItem_Read(actors->dra, body, item_id, &item) ||
-            !SotnItem_Name(item, name, sizeof(name)) || !Sound(actors, 0x67d))
+            !SotnItem_Name(item, name, sizeof(name)) || !ActorSound(actors, 0x67d))
             return false;
         SDL_Log("Obtained %s", name);
         actor->remove = true;
@@ -981,10 +906,10 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         const Uint16 kind = actor->state.parameters;
         SotnDataView table = {0};
         if (kind > 4 || !Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table))
-            return SDL_SetError("Explosion references an invalid runtime type");
+            return SDL_SetError("ActorExplosion references an invalid runtime type");
         if (actor->state.step == 0)
         {
-            if (!Initialize(actors, actor, 0xbe0))
+            if (!ActorInitialize(actors, actor, 0xbe0))
                 return false;
             actor->state.animation_set = 2;
             actor->state.blend_mode = 0x30;
@@ -996,9 +921,11 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         const Sint32 velocity =
             bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
         actor->state.y += velocity;
-        if (!Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table) ||
-            Read32(table.bytes) < 0x80180000 ||
-            !Animate(actors, actor, Read32(table.bytes) - 0x80180000, &animation))
+        if (!Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table))
+            return false;
+        if (Read32(table.bytes) < 0x80180000)
+            return SDL_SetError("Explosion animation address is invalid");
+        if (!ActorAnimate(actors, actor, Read32(table.bytes) - 0x80180000, &animation))
             return false;
         if (animation == 0)
             actor->remove = true;
@@ -1020,11 +947,11 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const Uint32 address = Read32(table.bytes);
             if (address < 0x80180000)
                 return SDL_SetError("Breakable actor animation address is invalid");
-            if (!Animate(actors, actor, address - 0x80180000, &animation))
+            if (!ActorAnimate(actors, actor, address - 0x80180000, &animation))
                 return false;
             if (actor->hit_params)
             {
-                if (!Explosion(actors, actor, 0) || !Sound(actors, 0x634))
+                if (!ActorExplosion(actors, actor, 0) || !ActorSound(actors, 0x634))
                     return false;
                 actor->state.id = 3;
                 actor->state.parameters &= 0xfff;
@@ -1040,7 +967,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             }
             return true;
         }
-        if (!Initialize(actors, actor, 0xbc8) || !Slice(actors->nz0, 0xe34 + type * 2, 2, &table))
+        if (!ActorInitialize(actors, actor, 0xbc8) ||
+            !Slice(actors->nz0, 0xe34 + type * 2, 2, &table))
             return false;
         actor->state.animation_set = Read16(table.bytes);
         if (!Slice(actors->nz0, 0xe44 + type, 1, &table))
@@ -1060,7 +988,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 0x23:
         if (actor->state.step == 0)
         {
-            if (!Initialize(actors, actor, 0xc34))
+            if (!ActorInitialize(actors, actor, 0xc34))
                 return false;
             actor->state.frame = 7;
             actor->state.priority = 0x70;
@@ -1069,7 +997,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 0x34:
         if (actor->state.step == 0)
         {
-            if (!Initialize(actors, actor, 0xcc4))
+            if (!ActorInitialize(actors, actor, 0xcc4))
                 return false;
             actor->state.priority = 0x6a;
             if (actors->character != NULL)
@@ -1085,7 +1013,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SotnDataView index = {0};
             if (actor->state.parameters >= 5 ||
                 !Slice(actors->nz0, 0xf10 + actor->state.parameters * 2U, 2, &index) ||
-                !Sound(actors, 0x635))
+                !ActorSound(actors, 0x635))
                 return false;
             /* next is a copied actor during Tick, so locate its stable generation. */
             size_t parent = SOTN_STAGE_ACTOR_SLOTS;
@@ -1110,9 +1038,23 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->state.hitbox_state = 0;
             actor->pose = actor->remaining = 0;
         }
-        return Animate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
+        return ActorAnimate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
     case 0x2b:
         return Zombie(actors, actor, player);
+    case 0x29:
+    case 0x2a:
+        return ActorKnight(actors, actor, player);
+    case 0x31:
+    case 0x32:
+    case 0x33:
+        return ActorSpittle(actors, actor, player);
+    case 0x26:
+    case 0x27:
+    case 0x28:
+    case 0x2e:
+    case 0x2f:
+    case 0x30:
+        return ActorSkeleton(actors, actor, player);
     default:
         actor->state.unsupported = true;
         return true;
@@ -1158,6 +1100,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     actors->camera_y = camera_y;
     actors->entered = true;
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
+    SDL_memset(actors->primitives, 0, sizeof(actors->primitives));
     return true;
 }
 
@@ -1185,7 +1128,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     ++actors->ticks;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
-    if (player.attack.sound && !Sound(actors, player.attack.sound_id))
+    if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))
         return false;
     const Sint32 dx = camera_x - actors->camera_x, dy = camera_y - actors->camera_y;
     for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
@@ -1216,11 +1159,13 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         Actor *actor = &actors->slots[i];
         if (generation == 0 && !actor->dynamic)
         {
+            ActorPrimitivesClear(actors, actor);
             *actor = (Actor){0};
             continue;
         }
         if (generation != 0 && actor->state.generation != generation)
         {
+            ActorPrimitivesClear(actors, actor);
             *actor = (Actor){0};
             actor->state.generation = generation;
             actor->state.id = placement.id;
@@ -1228,6 +1173,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             actor->state.x = (Sint32)placement.x * 65536;
             actor->state.y = (Sint32)placement.y * 65536;
             actor->parallax = placement.variant;
+            actor->slot = (Uint16)i;
         }
         const Sint32 x = Pixel(actor->state.x) - camera_x, y = Pixel(actor->state.y) - camera_y;
         if (actor->state.step != 0)
@@ -1240,6 +1186,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             {
                 if (!SotnRoomActors_Release(actors->spawns, i, false))
                     return false;
+                ActorPrimitivesClear(actors, actor);
                 *actor = (Actor){0};
                 continue;
             }
@@ -1261,7 +1208,12 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         if (SotnSubweapons_Frozen(actors->subweapons) && !(next.state.flags & (0x2000 | 0x100)))
             frozen = frozen || !(next.state.flags & 0x200) || (actors->ticks & 3) != 0;
         if (!frozen && !next.state.unsupported && !Behavior(actors, &next, player))
-            return false;
+        {
+            char detail[256] = {0};
+            SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+            return SDL_SetError("Laboratory actor 0x%02x slot %u step %u: %s", next.state.id, i,
+                                next.state.step, detail);
+        }
         if (!frozen)
             next.hit_params = 0;
         if (next.permanent)
@@ -1272,6 +1224,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         }
         if (next.remove)
         {
+            ActorPrimitivesClear(actors, &next);
             if (!SotnRoomActors_Release(actors->spawns, i, false))
                 return false;
             next = (Actor){0};
@@ -1301,6 +1254,7 @@ bool SotnActors_Get(const SotnActors *actors, Uint32 slot, SotnActorState *out)
     if (actors == NULL || out == NULL || slot >= SOTN_STAGE_ACTOR_SLOTS)
         return SDL_SetError("Laboratory actor slot or output is invalid");
     *out = actors->slots[slot].state;
+    out->slot = (Uint16)slot;
     return true;
 }
 

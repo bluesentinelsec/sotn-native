@@ -134,3 +134,10 @@ Character progression additionally adapts `5D5BC.c:CheckAndDoLevelUp` and
 `func_800FE044`, `5F60C.c` MP regeneration, and `e_collect.h` Heart/Life Max Up
 collection at the same AGPL-3.0-or-later reconstruction. Experience/HP growth
 and enemy reward tables remain private runtime inputs.
+
+The additional native Laboratory enemy runtime in `modules/core/enemy_skeleton.c`,
+`enemy_knight.c`, `enemy_spittle.c`, and the shared actor collision services adapts
+reviewed algorithms from `src/st/e_skeleton.h`, `e_bone_scimitar.h`,
+`e_blood_skeleton.h`, `entity_axe_knight.h`, `st_common.h`, `e_misc.h`, and
+`src/st/nz0/e_spittle_bone.c` at the pinned reconstructed revision, under
+AGPL-3.0-or-later. Runtime definitions/arrays and artwork remain private inputs.

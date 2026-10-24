@@ -1,0 +1,160 @@
+#ifndef SOTN_ACTORS_INTERNAL_H
+#define SOTN_ACTORS_INTERNAL_H
+#include <SDL3/SDL.h>
+#include <sotn/actors.h>
+#include <sotn/combat.h>
+#include <sotn/subweapon.h>
+
+enum
+{
+    ACTOR_PRIMITIVE_CAPACITY = 512,
+    ACTOR_PRIMITIVE_LIMIT = 32
+};
+typedef struct ActorPrimitive
+{
+    SotnActorPrimitive state;
+    Sint32 vx, vy;
+    Uint32 owner;
+    Uint16 timer, phase;
+} ActorPrimitive;
+typedef struct Actor
+{
+    SotnActorState state;
+    Sint32 vx, vy;
+    Uint16 pose, remaining, timer, substep;
+    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS];
+    Uint16 attack, attack_element, stun, hit_params, life_timer, level, experience;
+    Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
+    SotnCombatEnemy enemy;
+    Sint32 fall_speed, gravity;
+    Uint16 collectible;
+    Uint16 slot, primitive[ACTOR_PRIMITIVE_LIMIT];
+    struct
+    {
+        Uint16 attack_timer, attack_index, timer, counter;
+        bool movement_facing;
+        Sint32 initial_x;
+        Sint16 angle_delta;
+        Uint16 owner_slot;
+        Uint32 owner_generation;
+    } enemy_state;
+    bool dynamic, remove, permanent;
+} Actor;
+
+struct SotnActors
+{
+    SotnDataView dra, nz0;
+    SotnCollisionMap map;
+    SotnRoomActors *spawns;
+    Actor slots[SOTN_STAGE_ACTOR_SLOTS];
+    ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
+    Sint32 camera_x, camera_y;
+    Uint32 random, combat_random, ticks, effect_serial;
+    SotnActorCombat combat;
+    bool entered;
+    SotnCharacter *character;
+    SotnSubweapons *subweapons;
+};
+
+static inline Uint16 Read16(const Uint8 *bytes)
+{
+    return (Uint16)(bytes[0] | (Uint16)bytes[1] << 8);
+}
+
+static inline Uint32 Read32(const Uint8 *bytes)
+{
+    return bytes[0] | (Uint32)bytes[1] << 8 | (Uint32)bytes[2] << 16 | (Uint32)bytes[3] << 24;
+}
+
+static inline Sint32 Signed16(const Uint8 *bytes)
+{
+    const Uint16 value = Read16(bytes);
+    return value < 32768 ? value : (Sint32)value - 65536;
+}
+
+static inline Sint32 Pixel(Sint32 value)
+{
+    return value >= 0 ? value / 65536 : (Sint32)(-((-(Sint64)value + 65535) / 65536));
+}
+
+static inline Sint32 Wrap16(Sint64 value)
+{
+    const Uint16 bits = (Uint16)(Uint64)value;
+    return bits < 32768 ? bits : (Sint32)bits - 65536;
+}
+
+static inline void ShiftY(Actor *actor, Sint64 delta)
+{
+    const Sint32 high = Wrap16((Sint64)Pixel(actor->state.y) + delta);
+    actor->state.y = (Sint32)((Sint64)high * 65536 + ((Uint32)actor->state.y & 65535));
+}
+
+static inline bool Slice(SotnDataView image, size_t offset, size_t size, SotnDataView *out)
+{
+    if (image.bytes == NULL || offset > image.size || size > image.size - offset)
+        return SDL_SetError("Laboratory actor table is outside its private image");
+    *out = (SotnDataView){image.bytes + offset, size};
+    return true;
+}
+
+static inline void SetStep(Actor *actor, Uint16 step)
+{
+    actor->state.step = step;
+    actor->substep = actor->pose = actor->remaining = 0;
+}
+
+static inline Uint8 Side(const Actor *actor, SotnPlayerState player)
+{
+    return (Uint8)(Pixel(actor->state.x) > Pixel(player.x));
+}
+
+static inline Sint64 Distance(const Actor *actor, SotnPlayerState player)
+{
+    const Sint64 difference = (Sint64)Pixel(actor->state.x) - Pixel(player.x);
+    return difference < 0 ? -difference : difference;
+}
+
+/* Shared bounded services for reconstructed stage behaviors. All byte views are borrowed;
+ * spawned actors are owned by the service and related through slot/generation, never pointers. */
+bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset);
+bool ActorAnimate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result);
+bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out);
+bool ActorSound(SotnActors *actors, Uint16 id);
+bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind);
+bool ActorGround(SotnActors *actors, Actor *actor, size_t sensors, Uint16 *result);
+bool ActorWalk(SotnActors *actors, Actor *actor, size_t sensors, Uint16 *result);
+bool ActorField(SotnActors *actors, Actor *actor, size_t sensors, Uint16 count, bool resolve,
+                Uint16 *result);
+bool ActorSpawn(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters, Uint32 begin,
+                Uint32 end, Actor **out);
+bool ActorSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
+                  Uint32 slot, Actor **out);
+bool ActorSpittle(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorCrawl(SotnActors *actors, Actor *actor, Uint8 state, Uint8 *out);
+bool ActorPrimitives(SotnActors *actors, Actor *actor, Uint16 count);
+ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16 index);
+void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
+bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
+bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
+
+static inline Uint32 ActorRandom(SotnActors *actors)
+{
+    actors->random = actors->random * 0x01010101U + 1U;
+    return actors->random >> 24;
+}
+static inline Sint32 Signed32(const Uint8 *p)
+{
+    const Uint32 bits = Read32(p);
+    return bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
+}
+static inline Sint32 ActorSin(Sint32 angle)
+{
+    return (Sint32)SDL_round(SDL_sin(((Uint32)angle & 4095) * (SDL_PI_D / 2048.0)) * 4096.0);
+}
+static inline Sint32 ActorShift(Sint64 value, Uint32 shift)
+{
+    const Sint64 divisor = (Sint64)1 << shift;
+    return (Sint32)(value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor));
+}
+#endif

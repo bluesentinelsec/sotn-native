@@ -12,6 +12,12 @@ add_library(sotn-core STATIC
   actor_layout.c
   room_actors.c
   actors.c
+  actors_internal.h
+  actor_collision.c
+  actor_primitives.c
+  enemy_knight.c
+  enemy_spittle.c
+  enemy_skeleton.c
   combat.c
   equipment.c
   include/sotn/equipment.h

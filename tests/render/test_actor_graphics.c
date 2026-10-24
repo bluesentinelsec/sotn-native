@@ -308,13 +308,43 @@ static bool TestQuad(Fixture *fixture)
     return true;
 }
 
+static bool TestRotation(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(fixture, &g) && SotnActorGraphics_LoadBank(g, 0));
+    SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+    ClearFrame(fixture);
+    CHECK(
+        SotnActorGraphics_DrawRotated(g, sprite, 20, 20, 1024, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 20] == 31);
+    CHECK(fixture->frame[20 * SOTN_FRAME_WIDTH + 20] == 0x8000);
+    CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 0x83e0);
+    CHECK(fixture->frame[22 * SOTN_FRAME_WIDTH + 20] == 7);
+    sprite.facing_left = true;
+    ClearFrame(fixture);
+    CHECK(
+        SotnActorGraphics_DrawRotated(g, sprite, 20, 20, 1024, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[18 * SOTN_FRAME_WIDTH + 20] == 7);
+    CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 20] == 0x83e0);
+    CHECK(fixture->frame[20 * SOTN_FRAME_WIDTH + 20] == 0x8000);
+    CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 31);
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_DrawRotated(g, sprite, SDL_MAX_SINT32, 20, 128, fixture->frame,
+                                        SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(fixture));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
-                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture);
+    const bool passed = TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
+                        TestWeapons(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

@@ -38,13 +38,15 @@ cases = [
     (["--laboratory"], "requires --game-data"),
     (["--laboratory", "--game-data", ".", "--preview-laboratory"], "Choose one"),
     (["--laboratory-room", "3"], "requires --laboratory"),
+    (["--laboratory-room", "18"], "requires --laboratory"),
+    (["--laboratory-room", "20"], "requires --laboratory"),
     (["--laboratory-loadout", "dual"], "requires --laboratory"),
     (["--laboratory-loadout"], "requires unarmed"),
     (["--laboratory-loadout", "unknown"], "requires unarmed"),
     (["--laboratory-loadout", "dual", "--laboratory-loadout", "sword"], "once"),
-    (["--laboratory-room"], "requires 1, 3, 4, 5, 6, 9, 10, 23, 24, or 25"),
-    (["--laboratory-room", "-1"], "requires 1, 3, 4, 5, 6, 9, 10, 23, 24, or 25"),
-    (["--laboratory-room", "4294967296"], "requires 1, 3, 4, 5, 6, 9, 10, 23, 24, or 25"),
+    (["--laboratory-room"], "requires 1, 3, 4, 5, 6, 9, 10, 18, 20, 23, 24, or 25"),
+    (["--laboratory-room", "-1"], "requires 1, 3, 4, 5, 6, 9, 10, 18, 20, 23, 24, or 25"),
+    (["--laboratory-room", "4294967296"], "requires 1, 3, 4, 5, 6, 9, 10, 18, 20, 23, 24, or 25"),
     (["--laboratory-room", "3", "--laboratory-room", "1"], "only once"),
 ]
 with tempfile.TemporaryDirectory() as directory:

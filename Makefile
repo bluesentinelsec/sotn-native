@@ -88,6 +88,14 @@ SOTN_FORMAT_SOURCES += modules/render/subweapon.c modules/render/include/sotn/su
 
 SOTN_FORMAT_SOURCES += tests/core/test_subweapon.c
 
+SOTN_FORMAT_SOURCES += modules/core/actors_internal.h modules/core/actor_collision.c modules/core/enemy_skeleton.c
+
+SOTN_FORMAT_SOURCES += tests/core/test_enemy.c
+
+SOTN_FORMAT_SOURCES += modules/core/actor_primitives.c modules/core/enemy_knight.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_spittle.c
+
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)

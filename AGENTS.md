@@ -191,3 +191,8 @@ Version 3 [ordinary native saves](docs/native-saves.md) now retain supported cha
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
 owned RNG streams. Versions 1/2 migrate explicitly; no transient actor/projectile state,
 map/script progression, or PS1 memory-card support is implied.
+
+The [Laboratory traversal milestone](docs/laboratory-world.md) now adds Skeleton,
+Bone Scimitar, Blood Skeleton, Axe Knight, and Spittle Bone behavior/projectiles.
+Room mechanisms, original camera/events, the boss, and saved map/event progress
+are the remaining work in the currently authorized milestone; do not call the area complete.

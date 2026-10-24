@@ -407,10 +407,10 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         return SDL_InvalidParamError("out");
     *out = NULL;
     if (start_room != 1 && start_room != 3 && start_room != 4 && start_room != 5 &&
-        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 23 &&
-        start_room != 24 && start_room != 25)
-        return SDL_SetError(
-            "Laboratory development starts are currently room 1, 3, 4, 5, 6, 9, 10, 23, 24, or 25");
+        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 18 &&
+        start_room != 20 && start_room != 23 && start_room != 24 && start_room != 25)
+        return SDL_SetError("Laboratory development starts are currently room 1, 3, 4, 5, 6, 9, "
+                            "10, 18, 20, 23, 24, or 25");
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
@@ -591,6 +591,56 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     return true;
 }
 
+static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
+                                Sint32 camera_y)
+{
+    for (Uint32 i = 0; i < actor.primitive_count; ++i)
+    {
+        SotnActorPrimitive p = {0};
+        if (!SotnActors_GetPrimitive(session->actors, actor.slot, i, &p))
+            return false;
+        if (!p.active)
+            continue;
+        const Sint32 x = Pixel(p.x) - camera_x, y = Pixel(p.y) - camera_y;
+        const Sint32 left = p.textured ? x - p.width / 2 : x,
+                     top = p.textured ? y - p.height / 2 : y;
+        const Sint32 right = left + p.width, bottom = top + p.height;
+        if (right <= 0 || left >= SOTN_FRAME_WIDTH || bottom <= 0 || top >= SOTN_FRAME_HEIGHT)
+            continue;
+        if (p.textured)
+        {
+            SotnTextureQuad q = {.x = {left, right, left, right},
+                                 .y = {top, top, bottom, bottom},
+                                 .page = p.page,
+                                 .palette = p.palette,
+                                 .blend = p.blend};
+            for (Uint32 uv = 0; uv < 4; ++uv)
+            {
+                q.u[uv] = p.u[uv];
+                q.v[uv] = p.v[uv];
+            }
+            if (!SotnActorGraphics_Quad(session->actor_graphics, q, session->frame,
+                                        SOTN_FRAME_PIXELS))
+                return false;
+        }
+        else
+        {
+            const Uint16 front =
+                (Uint16)((p.red / 8) | ((p.green / 8) << 5) | ((p.blue / 8) << 10));
+            for (Sint32 row = SDL_max(0, top); row < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++row)
+                for (Sint32 col = SDL_max(0, left); col < SDL_min(SOTN_FRAME_WIDTH, right); ++col)
+                {
+                    const size_t pixel = (size_t)row * SOTN_FRAME_WIDTH + (size_t)col;
+                    const Uint16 back = session->frame[pixel];
+                    session->frame[pixel] =
+                        p.blend ? (Uint16)(((back & 0x7bde) >> 1) + ((front & 0x7bde) >> 1))
+                                : front;
+                }
+        }
+    }
+    return true;
+}
+
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y)
 {
@@ -601,7 +651,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         SotnActorState state = {0};
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
-        if (state.generation == 0 || state.unsupported || (state.frame == 0 && state.id != 0xa) ||
+        if (state.generation == 0 || state.unsupported ||
+            (state.frame == 0 && state.id != 0xa && state.primitive_count == 0) ||
             (state.id == 0xa &&
              (state.step < 2 || (state.step == 4 && (session->simulation_ticks & 2)))))
             continue;
@@ -668,8 +719,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
-        if (!SotnActorGraphics_Draw(session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
-                                    Pixel(actor.y) - camera_y, session->frame, SOTN_FRAME_PIXELS))
+        if (!DrawActorPrimitives(session, actor, camera_x, camera_y))
+            return false;
+        if (!(actor.rotated
+                  ? SotnActorGraphics_DrawRotated(session->actor_graphics, sprite,
+                                                  Pixel(actor.x) - camera_x,
+                                                  Pixel(actor.y) - camera_y, actor.rotation,
+                                                  session->frame, SOTN_FRAME_PIXELS)
+                  : SotnActorGraphics_Draw(session->actor_graphics, sprite,
+                                           Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
+                                           session->frame, SOTN_FRAME_PIXELS)))
             return false;
     }
     return true;
