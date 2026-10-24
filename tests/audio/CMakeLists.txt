@@ -11,3 +11,14 @@ target_include_directories(sotn-music-tests PRIVATE "${PROJECT_SOURCE_DIR}/modul
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/fixture")
 add_test(NAME music-streaming COMMAND sotn-music-tests "${CMAKE_CURRENT_BINARY_DIR}/fixture")
 set_tests_properties(music-streaming PROPERTIES TIMEOUT 20)
+add_executable(sotn-playback-tests test_playback.c)
+sotn_configure_c_target(sotn-playback-tests)
+target_link_libraries(sotn-playback-tests PRIVATE sotn-audio)
+target_include_directories(sotn-playback-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/audio")
+add_test(NAME audio-playback COMMAND sotn-playback-tests)
+set_tests_properties(audio-playback PROPERTIES ENVIRONMENT "SDL_AUDIODRIVER=dummy" TIMEOUT 20)
+add_test(NAME sdl-audio-patch COMMAND "${CMAKE_COMMAND}"
+  "-DSDL_SOURCE=${sdl3_SOURCE_DIR}" "-DFIXTURE=${CMAKE_CURRENT_BINARY_DIR}/patch-fixture"
+  "-DPATCH=${PROJECT_SOURCE_DIR}/cmake/PatchSDLAudio.cmake"
+  -P "${CMAKE_CURRENT_SOURCE_DIR}/test_sdl_patch.cmake")
+set_tests_properties(sdl-audio-patch PROPERTIES TIMEOUT 20)

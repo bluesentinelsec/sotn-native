@@ -56,6 +56,9 @@ SOTN_FORMAT_SOURCES += modules/data/stream.c modules/data/include/sotn/stream.h 
 SOTN_FORMAT_SOURCES += modules/audio/sound.c modules/audio/voice.h modules/audio/gauss.h \
   modules/audio/include/sotn/sound.h tests/audio/test_sound.c
 
+SOTN_FORMAT_SOURCES += modules/audio/playback.c modules/audio/playback_internal.h \
+  modules/audio/include/sotn/playback.h tests/audio/test_playback.c
+
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)
