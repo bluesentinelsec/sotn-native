@@ -8,6 +8,7 @@ typedef struct SotnLaunchSlot
     bool exists, valid;
     Uint16 level, hp;
     Uint32 room;
+    Uint16 stage;
 } SotnLaunchSlot;
 /** @brief Draw the native checkpoint/Continue shell with the original common font.
  * @param common Borrowed verified F_GAME.BIN. @param menu Valid initialized controller.

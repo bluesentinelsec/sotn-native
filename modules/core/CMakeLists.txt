@@ -11,6 +11,8 @@ add_library(sotn-core STATIC
   animation.c
   decompress.c
   stage.c
+  stage_route.c
+  include/sotn/stage_route.h
   actor_layout.c
   room_actors.c
   actors.c

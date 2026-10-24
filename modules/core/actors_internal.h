@@ -230,14 +230,34 @@ bool ActorSprite(SotnActors *actors, Actor *actor, Uint16 index, Sint32 x, Sint3
 bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorEntrance(SotnActors *actors, Actor *actor);
 bool ActorWarg(SotnActors *actors, Actor *actor);
+bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorMerman(SotnActors *actors, Actor *actor);
 bool ActorDeath(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
- * profiles. Offsets identify private tables; actor IDs always retain their stage meaning. */
-static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance)
+ * or revisited Entrance (7) profiles. Offsets identify private tables; actor IDs always retain
+ * their stage meaning. */
+static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
+                                size_t revisited)
 {
-    return actors->stage_id == 65 ? entrance : laboratory;
+    return actors->stage_id == 65 ? entrance : actors->stage_id == 7 ? revisited : laboratory;
+}
+
+/* NO3 and NP3 keep their original raw entity IDs in state and placements. This selects
+ * the corresponding family only when a shared behavior creates an actor. */
+static inline Uint16 EntranceActorId(const SotnActors *s, Uint16 first_visit)
+{
+    if (s->stage_id != 7)
+        return first_visit;
+    if (first_visit >= 0x3a && first_visit <= 0x48)
+        return (Uint16)(first_visit - 8);
+    if (first_visit == 0x4c || first_visit == 0x4d)
+        return (Uint16)(first_visit - 10);
+    return first_visit == 0x62 ? 0x4d : first_visit;
+}
+static inline size_t EntranceTable(const SotnActors *s, size_t first_visit, size_t revisited)
+{
+    return s->stage_id == 7 ? revisited : first_visit;
 }
 
 static inline Uint32 ActorRandom(SotnActors *actors)

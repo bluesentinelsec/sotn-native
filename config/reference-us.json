@@ -67,6 +67,14 @@
     "ST/NO3/SD_ZKNO3.VB": {
       "size": 105168,
       "sha1": "5837244a95a69a0b8b6b4b76366a83b73bec599f"
+    },
+    "ST/NP3/SD_ZKNP3.VH": {
+      "size": 7200,
+      "sha1": "6cf3201d4e113d1de594ef5ab159c9ea7e4172bc"
+    },
+    "ST/NP3/SD_ZKNP3.VB": {
+      "size": 101648,
+      "sha1": "d64c0e1290940060f88ff76c6d1547f7b8f59887"
     }
   },
   "sizes": {

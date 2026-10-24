@@ -177,8 +177,8 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 4 saves retain this
-supported progress; versions 1/2/3 migrate explicitly from their earlier profiles.
+Spells/relic/settings/familiar menus remain unavailable. Version 5 saves retain this
+supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
@@ -188,9 +188,9 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 4 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 5 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
-owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3
+owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4
 migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1
 memory-card support remain incomplete.
 
@@ -221,6 +221,7 @@ development entry (`--entrance`, `--entrance-room 0..27`), bats, floor zombies,
 Wargs, both Mermen and their selected projectiles/splashes, and shared actors.
 [Death's selected event](docs/entrance-death.md) now runs with original speech,
 private portraits/text, targeted theft, and return of player control. Unused Fire
-Wargs, Entrance saves, and
-connected progression remain unintegrated in this slice. Keep stage identities
+Wargs and additional later-Entrance enemies remain unintegrated.
+[Connected stages](docs/connected-stages.md) now travel Entrance → Laboratory →
+later Entrance with character/world/time/RNG retention and stage-aware saves. Keep stage identities
 and original actor IDs distinct; do not describe the Entrance as complete.

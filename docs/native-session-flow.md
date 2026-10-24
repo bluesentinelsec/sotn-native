@@ -2,7 +2,7 @@
 
 `--play --game-data DIR` opens the native launch/Continue shell. Select Continue,
 choose one of fifteen ordinary slots, and confirm. Slots show validated level,
-HP, and Laboratory save room; missing and invalid slots stay distinguishable.
+HP, and stage/save room; missing and invalid slots stay distinguishable.
 An unavailable slot shows an error and never starts a fabricated game. The other
 choice explicitly starts the existing Laboratory development checkpoint.
 
@@ -19,8 +19,9 @@ window lifecycle use the existing SDL input/OpenGL presenter.
 
 This is a native filesystem adaptation with the private common font. It is
 **not** the original title screen, memory-card port/file menu, or a full new-game
-start. Prologue/Richter, initial Castle Entrance/Death events, original opening
-menus and title music still need integration. The UI labels the development
+start. Prologue/Richter, the original initial character profile, original opening
+menus and title music still need integration. The selected Entrance/Death checkpoint
+and connected Laboratory route are described in [connected stages](connected-stages.md). The UI labels the development
 checkpoint explicitly rather than pretending to offer those unimplemented paths.
 
 The app scans slots read-only. It checks the selected file again at load time;

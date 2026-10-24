@@ -9,15 +9,15 @@ bool ActorBossPuff(SotnActors *s, Actor *a)
     {
         const Uint16 kind = a->state.parameters & 15;
         SotnDataView config = {0};
-        if (kind >= 4 || !ActorInitialize(s, a, ActorTable(s, 0xbe0, 0xac4)) ||
-            !Slice(s->nz0, ActorTable(s, 0xfe0, 0x1c5c) + (size_t)kind * 12, 12, &config))
+        if (kind >= 4 || !ActorInitialize(s, a, ActorTable(s, 0xbe0, 0xac4, 0xa54)) ||
+            !Slice(s->nz0, ActorTable(s, 0xfe0, 0x1c5c, 0x129c) + (size_t)kind * 12, 12, &config))
             return false;
         const Uint32 address = Read32(config.bytes + 8);
         if (address < 0x80180000 || address - 0x80180000 >= s->nz0.size)
             return SDL_SetError("Boss puff animation address is outside private stage data");
         a->state.animation_set = Read16(config.bytes);
         a->state.texture_offset = Read16(config.bytes + 2);
-        a->state.palette = (Uint16)(Read16(config.bytes + 4) + (s->stage_id == 65 ? 0xd0 : 0x2e0));
+        a->state.palette = (Uint16)(Read16(config.bytes + 4) + (s->stage_id != 12 ? 0xd0 : 0x2e0));
         a->state.blend_mode = Read16(config.bytes + 6);
         a->animation_stream = address - 0x80180000;
         a->state.step = (Uint16)(kind + 1);
@@ -35,7 +35,7 @@ bool ActorBossPuff(SotnActors *s, Actor *a)
     {
         a->state.x += a->vx;
         a->state.y += a->vy;
-        a->vy = s->stage_id == 65 ? 65536 : -65536;
+        a->vy = s->stage_id != 12 ? 65536 : -65536;
     }
     else if (a->state.step == 2)
     {

@@ -38,9 +38,13 @@ static bool Zeroes(const Uint8 *bytes, size_t begin, size_t end)
 }
 static bool Valid(SotnSaveState state)
 {
-    if ((state.room != 23 && state.room != 24 && state.room != 25) || state.character.hp == 0 ||
-        state.ticks > 99999ULL * 3600 * 60)
-        return SDL_SetError("Save requires a living character in a supported Laboratory save room");
+    const bool save_room =
+        state.stage == 12   ? state.room == 23 || state.room == 24 || state.room == 25
+        : state.stage == 65 ? state.room == 25 || state.room == 26 || state.room == 27
+        : state.stage == 7  ? state.room == 22 || state.room == 23 || state.room == 24
+                            : false;
+    if (!save_room || state.character.hp == 0 || state.ticks > 99999ULL * 3600 * 60)
+        return SDL_SetError("Save requires a living character in a supported native save room");
     return SotnCharacter_Validate(&state.character) && SotnWorld_Validate(&state.world);
 }
 static void WriteCharacter(Uint8 *p, const SotnCharacterState *s)
@@ -96,7 +100,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 4);
+    Put32(record + 8, 5);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -105,6 +109,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     Put32(record + 32, state.player_random);
     Put32(record + 36, state.actor_random);
     Put32(record + 40, state.combat_random);
+    Put16(record + 44, state.stage);
     WriteCharacter(record, &state.character);
     SDL_memcpy(record + 624, state.world.flags, SOTN_CASTLE_FLAGS);
     SDL_memcpy(record + 1392, state.world.map, SOTN_CASTLE_MAP);
@@ -124,7 +129,8 @@ static bool Legacy(const Uint8 *p, Uint32 version, SotnSaveState *out)
         Read16(p + 30) > 9 || (left != 0 && left != 86 && left != 128) ||
         (right != 0 && right != 86 && right != 128))
         return SDL_SetError("Legacy save exceeds its supported development profile");
-    SotnSaveState state = {.room = Read32(p + 20),
+    SotnSaveState state = {.stage = 12,
+                           .room = Read32(p + 20),
                            .ticks = Read32(p + 44) | (Uint64)Read32(p + 48) << 32,
                            .player_random = version == 2 ? Read32(p + 52) : 0,
                            .actor_random = version == 2 ? Read32(p + 56) : 0,
@@ -156,13 +162,12 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         (size != SOTN_SAVE_BYTES && size != SOTN_SAVE_V3_BYTES && size != SOTN_SAVE_LEGACY_BYTES))
         return SDL_SetError("Save file is missing or has an invalid record size");
     if (SDL_memcmp(bytes, "SOTNNSAV", 8) != 0)
-        return SDL_SetError(
-            "Save is not a native Laboratory record; PS1 memory cards are unsupported");
+        return SDL_SetError("Save is not a native record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
-    if (version != 1 && version != 2 && version != 3 && version != 4)
+    if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
-    const size_t expected = version == 4   ? SOTN_SAVE_BYTES
+    const size_t expected = version >= 4   ? SOTN_SAVE_BYTES
                             : version == 3 ? SOTN_SAVE_V3_BYTES
                                            : SOTN_SAVE_LEGACY_BYTES;
     if (size != expected || Read32(bytes + 12) != expected || Read32(bytes + 16) != 0x67 ||
@@ -170,16 +175,17 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         return SDL_SetError("Save region, length, or checksum is invalid; original file retained");
     if (version < 3)
         return Legacy(bytes, version, out);
-    if (!Zeroes(bytes, 44, 48) || !Zeroes(bytes, 86, 88) ||
+    if (!Zeroes(bytes, version >= 5 ? 46U : 44U, 48) || !Zeroes(bytes, 86, 88) ||
         (version == 3 && !Zeroes(bytes, 624, 764)))
         return false;
-    SotnSaveState state = {.room = Read32(bytes + 20),
+    SotnSaveState state = {.stage = version >= 5 ? Read16(bytes + 44) : 12,
+                           .room = Read32(bytes + 20),
                            .ticks = Read32(bytes + 24) | (Uint64)Read32(bytes + 28) << 32,
                            .player_random = Read32(bytes + 32),
                            .actor_random = Read32(bytes + 36),
                            .combat_random = Read32(bytes + 40),
                            .character = ReadCharacter(bytes)};
-    if (version == 4)
+    if (version >= 4)
     {
         if (bytes[3442] > 1 || !Zeroes(bytes, 3443, 3444) || !Zeroes(bytes, 3448, 4092))
             return SDL_SetError("Saved world contains unsupported reserved state");

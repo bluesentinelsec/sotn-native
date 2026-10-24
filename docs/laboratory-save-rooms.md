@@ -39,7 +39,7 @@ records fail clearly and remain untouched.
 
 ## Persistent state and limits
 
-The version-four [native format](native-saves.md) retains supported inventory,
+The version-five [native format](native-saves.md) retains supported inventory,
 seven equipment slots, EXP/level/base stats, current/max resources, permanent
 Laboratory item bits, subweapon, gold/kills, room/time, four owned RNG streams, packed exploration, and permanent Laboratory
 events including secret/cannon shortcuts and the defeated paired boss.

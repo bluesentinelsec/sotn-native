@@ -34,7 +34,7 @@ typedef struct SotnRoomActors SotnRoomActors;
  */
 bool SotnActorLayout_Open(SotnDataView image, Uint32 index, SotnActorLayout **out);
 /** @brief Validate paired placement lists with the original stage's actor-ID boundary.
- * @param image Borrowed overlay, alive until Close(). @param stage_id 12 or 65.
+ * @param image Borrowed overlay, alive until Close(). @param stage_id 12, 65, or 7.
  * @param index Original layout ID, below 53. @param out Receives ownership or NULL.
  * @return Success or SDL error; unsupported stage identities fail explicitly.
  */

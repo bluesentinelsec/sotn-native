@@ -19,6 +19,8 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_CASTLE_MAP,            /**< US F_MAP.BIN castle blueprint. */
     SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, /**< US first-visit Entrance instrument metadata. */
     SOTN_RESOURCE_ENTRANCE_AUDIO_BODY,   /**< US first-visit Entrance sample data. */
+    SOTN_RESOURCE_RETURN_AUDIO_HEADER,   /**< US revisited Entrance instruments. */
+    SOTN_RESOURCE_RETURN_AUDIO_BODY,     /**< US revisited Entrance sample data. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

@@ -77,12 +77,12 @@ bool SotnActorLayout_OpenStage(SotnDataView image, Uint16 stage_id, Uint32 index
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65)
+    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
         return SDL_SetError("Actor layouts do not support stage %u", stage_id);
-    const Uint16 id_limit = stage_id == 65 ? 0x63 : 0x4e;
+    const Uint16 id_limit = stage_id == 65 ? 0x63 : stage_id == 7 ? 0x5c : 0x4e;
     if (image.bytes == NULL || image.size < 32 || image.size > 0x80000 || index >= LAYOUT_COUNT)
         return SDL_SetError(
-            "Actor layouts require a bounded US Laboratory image and layout ID below 53");
+            "Actor layouts require a bounded supported US stage image and layout ID below 53");
     SotnDataView tables = {0};
     if (!Resolve(image, Read32(image.bytes + 28), LAYOUT_COUNT * 8, 4, &tables))
         return false;

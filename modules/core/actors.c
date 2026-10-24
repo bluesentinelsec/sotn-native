@@ -87,7 +87,7 @@ bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out)
 static bool Ground(SotnActors *actors, Actor *actor, bool *landed)
 {
     SotnDataView sensors = {0};
-    if (!Slice(actors->nz0, 0x22d4, 16, &sensors))
+    if (!Slice(actors->nz0, ActorTable(actors, 0x22d4, 0, 0x25d4), 16, &sensors))
         return false;
     actor->state.x += actor->vx;
     actor->state.y += actor->vy;
@@ -148,7 +148,7 @@ static bool Ground(SotnActors *actors, Actor *actor, bool *landed)
 static bool WalkCollision(SotnActors *actors, Actor *actor)
 {
     SotnDataView sensors = {0};
-    if (!Slice(actors->nz0, 0x22e4, 8, &sensors))
+    if (!Slice(actors->nz0, ActorTable(actors, 0x22e4, 0, 0x25e4), 8, &sensors))
         return false;
     actor->state.x += actor->vx;
     ShiftY(actor, 3);
@@ -224,8 +224,10 @@ bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind)
     return true;
 }
 
-static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
+bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
+    if (actors->stage_id != 12 && actors->stage_id != 7)
+        return SDL_SetError("Bloody Zombie is not part of this stage profile");
     Uint8 animation = 0;
     if (actor->hit_params && (actor->state.step & 1))
     {
@@ -244,7 +246,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
     switch (actor->state.step)
     {
     case 0:
-        if (!ActorInitialize(actors, actor, 0xc7c))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xc7c, 0, 0xb38)))
             return false;
         actor->state.hitbox_x = 1;
         actor->state.hitbox_y = 4;
@@ -264,7 +266,8 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->timer = 128;
             actor->substep = 1;
         }
-        if (!ActorAnimate(actors, actor, 0x22ec, &animation) || !WalkCollision(actors, actor))
+        if (!ActorAnimate(actors, actor, ActorTable(actors, 0x22ec, 0, 0x25ec), &animation) ||
+            !WalkCollision(actors, actor))
             return false;
         actor->vx = actor->state.facing_left ? 24576 : -24576;
         if (--actor->timer == 0)
@@ -280,7 +283,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         break;
     case 3:
-        if (!ActorAnimate(actors, actor, 0x237c, &animation))
+        if (!ActorAnimate(actors, actor, ActorTable(actors, 0x237c, 0, 0x267c), &animation))
             return false;
         if (animation == 0)
             actor->state.facing_left = Side(actor, player) == 0;
@@ -292,7 +295,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SetStep(actor, 4);
         break;
     case 4:
-        if (!ActorAnimate(actors, actor, 0x22fc, &animation))
+        if (!ActorAnimate(actors, actor, ActorTable(actors, 0x22fc, 0, 0x25fc), &animation))
             return false;
         if ((animation & 0x80) && actor->pose == 10 && !ActorSound(actors, 0x60b))
             return false;
@@ -300,7 +303,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SetStep(actor, 1);
         break;
     case 6:
-        if (!ActorAnimate(actors, actor, 0x2320, &animation))
+        if (!ActorAnimate(actors, actor, ActorTable(actors, 0x2320, 0, 0x2620), &animation))
             return false;
         if (animation == 0)
         {
@@ -317,7 +320,7 @@ static bool Zombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         else if (actor->timer++ == 0 && !ActorSound(actors, 0x749))
             return false;
-        if (!ActorAnimate(actors, actor, 0x2334, &animation))
+        if (!ActorAnimate(actors, actor, ActorTable(actors, 0x2334, 0, 0x2634), &animation))
             return false;
         if (animation == 0)
         {
@@ -364,6 +367,9 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 7)
+        return id == 0x32 || id == 0x34 || id == 0x39 || id == 0x3a || id == 0x3e || id == 0x40 ||
+               id == 0x42 || id == 0x48;
     if (actors->stage_id == 65)
         return id == 0x2d || id == 0x2e || id == 0x3a || id == 0x3c || id == 0x3e || id == 0x41 ||
                id == 0x42 || id == 0x46 || id == 0x48 || id == 0x4a || id == 0x4b || id == 0x4c;
@@ -567,7 +573,7 @@ static bool PrizeSides(SotnActors *actors, Actor *actor)
     if (actor->vx == 0)
         return true;
     SotnDataView sensors = {0};
-    if (!Slice(actors->nz0, ActorTable(actors, 0x1d9c, 0x24e8), 8, &sensors))
+    if (!Slice(actors->nz0, ActorTable(actors, 0x1d9c, 0x24e8, 0x1e74), 8, &sensors))
         return false;
     Sint32 x = Pixel(actor->state.x), y = Pixel(actor->state.y);
     for (Uint32 i = 0; i < 2; ++i)
@@ -653,7 +659,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     {
         SotnDataView pointer = {0};
         Uint8 result = 0;
-        if (!Slice(actors->nz0, ActorTable(actors, 0x1d3c, 0x2488) + (size_t)item * 4, 4,
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1d3c, 0x2488, 0x1e14) + (size_t)item * 4, 4,
                    &pointer) ||
             Read32(pointer.bytes) < 0x80180000 ||
             !ActorAnimate(actors, actor, Read32(pointer.bytes) - 0x80180000, &result))
@@ -662,7 +668,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     switch (actor->state.step)
     {
     case 0:
-        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8)))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8, 0xa48)))
             return false;
         actor->state.priority = 0x6c;
         actor->state.blend_mode = 0;
@@ -671,7 +677,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SotnDataView old = {0};
             if (actors->combat.subweapon > 9 ||
                 !Slice(actors->nz0,
-                       ActorTable(actors, 0x1cd8, 0x2424) + actors->combat.subweapon * 2U, 2, &old))
+                       ActorTable(actors, 0x1cd8, 0x2424, 0x1db0) + actors->combat.subweapon * 2U,
+                       2, &old))
                 return SDL_SetError("Development subweapon ID is invalid");
             if (item == Read16(old.bytes))
                 item = actor->state.parameters = 1;
@@ -717,7 +724,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnDataView prize = {0};
         if (item < 2)
         {
-            if (!Slice(actors->nz0, ActorTable(actors, 0x1da4, 0x24f0) + item, 1, &prize) ||
+            if (!Slice(actors->nz0, ActorTable(actors, 0x1da4, 0x24f0, 0x1e7c) + item, 1, &prize) ||
                 !ActorSound(actors, 0x67a))
                 return false;
             actors->combat.hearts =
@@ -725,7 +732,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         else if (item < 12)
         {
-            if (!Slice(actors->nz0, ActorTable(actors, 0x1d14, 0x2460) + (size_t)(item - 2) * 4, 4,
+            if (!Slice(actors->nz0,
+                       ActorTable(actors, 0x1d14, 0x2460, 0x1dec) + (size_t)(item - 2) * 4, 4,
                        &prize) ||
                 !ActorSound(actors, 0x6a9))
                 return false;
@@ -747,7 +755,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         else
         {
-            if (!Slice(actors->nz0, ActorTable(actors, 0x1cc4, 0x2410) + (size_t)(item - 14) * 2, 2,
+            if (!Slice(actors->nz0,
+                       ActorTable(actors, 0x1cc4, 0x2410, 0x1d9c) + (size_t)(item - 14) * 2, 2,
                        &prize) ||
                 !ActorSound(actors, 0x67c))
                 return false;
@@ -756,8 +765,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
             if (previous != 0)
             {
                 if (previous > 9 ||
-                    !Slice(actors->nz0, ActorTable(actors, 0x1cd8, 0x2424) + previous * 2U, 2,
-                           &prize))
+                    !Slice(actors->nz0, ActorTable(actors, 0x1cd8, 0x2424, 0x1db0) + previous * 2U,
+                           2, &prize))
                     return SDL_SetError("Previous subweapon ID is invalid");
                 actor->state.parameters = Read16(prize.bytes);
                 actor->state.y = player.y + 12 * 65536;
@@ -842,7 +851,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
     switch (actor->state.step)
     {
     case 0:
-        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8)))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8, 0xa48)))
             return false;
         actor->state.priority = 0x80;
         actor->state.animation_set = 0;
@@ -951,7 +960,7 @@ static bool PersistentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pl
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
-    if (actors->stage_id == 65 && actor->state.id != 1 && actor->state.id != 2 &&
+    if (actors->stage_id != 12 && actor->state.id != 1 && actor->state.id != 2 &&
         actor->state.id != 3 && actor->state.id != 0xa && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
     switch (actor->state.id)
@@ -960,11 +969,12 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         const Uint16 kind = actor->state.parameters & 15;
         SotnDataView table = {0};
         if (kind > 4 ||
-            !Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0) + (size_t)kind * 4, 4, &table))
+            !Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
+                   &table))
             return SDL_SetError("ActorExplosion references an invalid runtime type");
         if (actor->state.step == 0)
         {
-            if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbe0, 0xac4)))
+            if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbe0, 0xac4, 0xa54)))
                 return false;
             actor->state.animation_set = 2;
             actor->state.blend_mode = 0x30;
@@ -978,13 +988,15 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->state.parameters = kind;
             return true;
         }
-        if (!Slice(actors->nz0, ActorTable(actors, 0x1da8, 0x24f4) + (size_t)kind * 4, 4, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1da8, 0x24f4, 0x1e80) + (size_t)kind * 4, 4,
+                   &table))
             return false;
         const Uint32 bits = Read32(table.bytes);
         const Sint32 velocity =
             bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
         actor->state.y += velocity;
-        if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0) + (size_t)kind * 4, 4, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
+                   &table))
             return false;
         if (Read32(table.bytes) < 0x80180000)
             return SDL_SetError("Explosion animation address is invalid");
@@ -1008,8 +1020,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 1: {
         const Uint32 type = actor->state.parameters >> 12;
         SotnDataView table = {0};
-        if (type >= (actors->stage_id == 65 ? 2U : 3U) ||
-            !Slice(actors->nz0, ActorTable(actors, 0xe04, 0xe50) + type * 4, 4, &table))
+        if (type >= (actors->stage_id != 12 ? 2U : 3U) ||
+            !Slice(actors->nz0, ActorTable(actors, 0xe04, 0xe50, 0xe28) + type * 4, 4, &table))
             return SDL_SetError("Breakable actor references an unsupported original subtype");
         if (actor->state.step != 0)
         {
@@ -1036,14 +1048,14 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             }
             return true;
         }
-        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbc8, 0xaac)) ||
-            !Slice(actors->nz0, ActorTable(actors, 0xe34, 0xe80) + type * 2, 2, &table))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbc8, 0xaac, 0xa3c)) ||
+            !Slice(actors->nz0, ActorTable(actors, 0xe34, 0xe80, 0xe58) + type * 2, 2, &table))
             return false;
         actor->state.animation_set = Read16(table.bytes);
-        if (!Slice(actors->nz0, ActorTable(actors, 0xe44, 0xe90) + type, 1, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0xe44, 0xe90, 0xe68) + type, 1, &table))
             return false;
         actor->state.blend_mode = table.bytes[0];
-        if (!Slice(actors->nz0, ActorTable(actors, 0xe24, 0xe70) + type, 1, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0xe24, 0xe70, 0xe48) + type, 1, &table))
             return false;
         actor->state.hitbox_height = table.bytes[0];
         actor->state.priority = 0x6c;
@@ -1148,7 +1160,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 0x48:
         return ActorMechanism(actors, actor);
     case 0x2b:
-        return Zombie(actors, actor, player);
+        return ActorBloodyZombie(actors, actor, player);
     case 0x29:
     case 0x2a:
         return ActorKnight(actors, actor, player);
@@ -1179,7 +1191,7 @@ bool SotnActors_CreateStage(SotnDataView dra, SotnDataView nz0, Uint16 stage_id,
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65)
+    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
         return SDL_SetError("Native actors do not support stage %u", stage_id);
     if (dra.bytes == NULL || dra.size < 0x9c || dra.size > 0x200000 || nz0.bytes == NULL ||
         nz0.size < 40 || nz0.size > 0x80000)

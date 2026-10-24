@@ -941,6 +941,14 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     return true;
 }
 
+bool SotnPlayer_SetArrivalFacing(SotnPlayer *player, bool facing_left)
+{
+    if (player == NULL)
+        return SDL_InvalidParamError("player");
+    player->facing_left = facing_left;
+    return true;
+}
+
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
 {
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||

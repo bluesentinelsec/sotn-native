@@ -17,7 +17,8 @@ int main(void)
     common[0x412c2] = 255;
     common[0x412c3] = 127;
     SotnLaunchSlot slots[15] = {{0}};
-    slots[14] = (SotnLaunchSlot){true, true, 5, 87, 23};
+    slots[14] = (SotnLaunchSlot){
+        .exists = true, .valid = true, .level = 5, .hp = 87, .room = 23, .stage = 12};
     SotnLaunchMenu m = {.slot = 15};
     CHECK(SotnLaunchRenderer_Draw((SotnDataView){common, sizeof(common)}, m, slots, NULL, frame,
                                   SOTN_FRAME_PIXELS));

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Skeleton, Bone Scimitar, Blood Skeleton, bones and death parts from
 // st/e_skeleton.h, e_bone_scimitar.h, e_blood_skeleton.h at sotn-decomp
-// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All arrays remain private NZ0 data.
+// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All arrays remain in private stage overlays.
 #include "actors_internal.h"
 static bool Read(SotnActors *s, size_t offset, size_t count, SotnDataView *out)
 {
@@ -16,16 +16,17 @@ static bool Pieces(SotnActors *s, Actor *a, bool scimitar)
     {
         Actor *p = NULL;
         SotnDataView t = {0}, x = {0}, y = {0}, vx = {0}, vy = {0};
-        if (!ActorSpawn(s, a, scimitar ? (s->stage_id == 65 ? 0x47 : 0x28) : 0x30,
+        if (!ActorSpawn(s, a,
+                        scimitar ? (s->stage_id != 12 ? EntranceActorId(s, 0x47) : 0x28) : 0x30,
                         (Uint16)(i | (scimitar ? a->state.parameters << 8 : 0)), 160, 192, &p))
             return false;
         if (p == NULL)
             break;
-        if (!Read(s, (scimitar ? ActorTable(s, 0x20f4, 0x3bb8) : 0x2430) + i, 1, &t) ||
-            !Read(s, (scimitar ? ActorTable(s, 0x2134, 0x3bf8) : 0x2468) + i * 2, 2, &x) ||
-            !Read(s, (scimitar ? ActorTable(s, 0x2144, 0x3c08) : 0x2474) + i * 2, 2, &y) ||
-            !Read(s, (scimitar ? ActorTable(s, 0x20fc, 0x3bc0) : 0x2438) + i * 4, 4, &vx) ||
-            !Read(s, (scimitar ? ActorTable(s, 0x2118, 0x3bdc) : 0x2450) + i * 4, 4, &vy))
+        if (!Read(s, (scimitar ? ActorTable(s, 0x20f4, 0x3bb8, 0x24c8) : 0x2430) + i, 1, &t) ||
+            !Read(s, (scimitar ? ActorTable(s, 0x2134, 0x3bf8, 0x2508) : 0x2468) + i * 2, 2, &x) ||
+            !Read(s, (scimitar ? ActorTable(s, 0x2144, 0x3c08, 0x2518) : 0x2474) + i * 2, 2, &y) ||
+            !Read(s, (scimitar ? ActorTable(s, 0x20fc, 0x3bc0, 0x24d0) : 0x2438) + i * 4, 4, &vx) ||
+            !Read(s, (scimitar ? ActorTable(s, 0x2118, 0x3bdc, 0x24ec) : 0x2450) + i * 4, 4, &vy))
             return false;
         p->timer = t.bytes[0];
         p->vx = Signed32(vx.bytes);
@@ -43,7 +44,7 @@ static bool Part(SotnActors *s, Actor *a, bool scimitar)
         return SDL_SetError("Skeleton piece index exceeds its private definition");
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc58, 0xb84) : 0xc94))
+        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc58, 0xb84, 0xaf0) : 0xc94))
             return false;
         a->state.frame = (Uint16)(id + (scimitar ? 16 : 15));
         if (scimitar)
@@ -65,7 +66,7 @@ static bool Part(SotnActors *s, Actor *a, bool scimitar)
     }
     SotnDataView rotation = {0};
     if (!Read(s,
-              (scimitar ? ActorTable(s, 0x20e4, 0x3ba8) : 0x2424) +
+              (scimitar ? ActorTable(s, 0x20e4, 0x3ba8, 0x24b8) : 0x2424) +
                   (scimitar && s->stage_id == 65 ? a->state.parameters : id) * 2U,
               2, &rotation))
         return false;
@@ -112,11 +113,12 @@ static bool Bone(SotnActors *s, Actor *a, SotnPlayerState player)
 static bool WalkCheck(SotnActors *s, Actor *a, SotnPlayerState player, bool scimitar)
 {
     Uint16 ground = 0, field = 0;
-    if (!ActorWalk(s, a, scimitar ? ActorTable(s, 0x216c, 0x3c30) : 0x24b8, &ground))
+    if (!ActorWalk(s, a, scimitar ? ActorTable(s, 0x216c, 0x3c30, 0x2540) : 0x24b8, &ground))
         return false;
     if (!scimitar && (ground & 0x60) == 0x60)
         a->state.x -= a->vx;
-    if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38) : 0x24c0, 3, false, &field))
+    if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548) : 0x24c0, 3, false,
+                    &field))
         return false;
     if ((scimitar && ground == 0x80) || (field & 2))
     {
@@ -146,7 +148,7 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc4c, 0xb78) : 0xc88))
+        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc4c, 0xb78, 0xae4) : 0xc88))
             return false;
         if (scimitar && a->state.parameters != 0)
         {
@@ -161,7 +163,8 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         a->enemy_state.attack_timer = 80;
         break;
     case 1:
-        if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20) : 0x24a8, &collision))
+        if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530) : 0x24a8,
+                         &collision))
             return false;
         if (collision != 0)
             SetStep(a, scimitar && a->state.parameters ? 6 : 2);
@@ -171,8 +174,8 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         if (!scimitar)
             a->state.facing_left = Side(a, player) == 0;
         if (!ActorAnimate(s, a,
-                          scimitar ? (a->state.step == 2 ? ActorTable(s, 0x2090, 0x3b54)
-                                                         : ActorTable(s, 0x20a0, 0x3b64))
+                          scimitar ? (a->state.step == 2 ? ActorTable(s, 0x2090, 0x3b54, 0x2464)
+                                                         : ActorTable(s, 0x20a0, 0x3b64, 0x2474))
                                    : (a->state.step == 2 ? 0x23dc : 0x23ec),
                           &anim))
             return false;
@@ -188,7 +191,7 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
             return false;
         break;
     case 4:
-        if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20b0, 0x3b74) : 0x23fc, &anim))
+        if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20b0, 0x3b74, 0x2484) : 0x23fc, &anim))
             return false;
         if (scimitar)
         {
@@ -216,7 +219,8 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
             SotnDataView timer = {0};
             const size_t index =
                 (size_t)(a->state.parameters & 1) * 4 + a->enemy_state.attack_index;
-            if (!Read(s, (scimitar ? ActorTable(s, 0x2154, 0x3c18) : 0x2480) + index, 1, &timer))
+            if (!Read(s, (scimitar ? ActorTable(s, 0x2154, 0x3c18, 0x2528) : 0x2480) + index, 1,
+                      &timer))
                 return false;
             a->enemy_state.attack_timer = timer.bytes[0];
         }
@@ -241,7 +245,8 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
     case 5:
         if (a->substep == 0)
         {
-            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20cc, 0x3b90) : 0x240c, &anim))
+            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20cc, 0x3b90, 0x24a0) : 0x240c,
+                              &anim))
                 return false;
             if (!(anim & 1))
             {
@@ -256,17 +261,19 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         }
         else if (a->substep == 1)
         {
-            if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20) : 0x24a8, &collision))
+            if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530) : 0x24a8,
+                             &collision))
                 return false;
             if (collision != 0)
                 ++a->substep;
-            if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38) : 0x24c0, 2, true,
-                            &collision))
+            if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548) : 0x24c0, 2,
+                            true, &collision))
                 return false;
         }
         else if (a->substep == 2)
         {
-            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20d8, 0x3b9c) : 0x2418, &anim))
+            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20d8, 0x3b9c, 0x24ac) : 0x2418,
+                              &anim))
                 return false;
             // The selected US Skeleton path intentionally lands on a nonzero animation result.
             if (scimitar ? anim == 0 : (anim & 1) != 0)
@@ -280,10 +287,11 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         {
             a->state.facing_left = Side(a, player) == 0;
             const bool forward = (a->vx < 0) != a->state.facing_left;
-            if (!ActorWalk(s, a, ActorTable(s, 0x216c, 0x3c30), &collision) ||
-                !ActorAnimate(
-                    s, a, forward ? ActorTable(s, 0x2090, 0x3b54) : ActorTable(s, 0x20a0, 0x3b64),
-                    &anim))
+            if (!ActorWalk(s, a, ActorTable(s, 0x216c, 0x3c30, 0x2540), &collision) ||
+                !ActorAnimate(s, a,
+                              forward ? ActorTable(s, 0x2090, 0x3b54, 0x2464)
+                                      : ActorTable(s, 0x20a0, 0x3b64, 0x2474),
+                              &anim))
                 return false;
             a->vx = a->substep == 0 ? 32768 : -32768;
             const Sint32 distance = Pixel(a->state.x) - a->enemy_state.initial_x;
@@ -440,8 +448,9 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
 }
 bool ActorSkeleton(SotnActors *s, Actor *a, SotnPlayerState player)
 {
-    if (s->stage_id == 65)
-        return a->state.id == 0x46 ? Skeleton(s, a, player, true) : Part(s, a, true);
+    if (s->stage_id != 12)
+        return a->state.id == EntranceActorId(s, 0x46) ? Skeleton(s, a, player, true)
+                                                       : Part(s, a, true);
     switch (a->state.id)
     {
     case 0x26:

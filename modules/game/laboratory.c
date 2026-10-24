@@ -18,6 +18,7 @@
 #include <sotn/save_point_renderer.h>
 #include <sotn/sound.h>
 #include <sotn/stage_assets.h>
+#include <sotn/stage_route.h>
 #include <sotn/subweapon_renderer.h>
 
 struct SotnLaboratory
@@ -25,6 +26,8 @@ struct SotnLaboratory
     SotnStage *stage;
     SotnStageAssets *stage_assets;
     Uint16 stage_id;
+    SotnStageRoute arrival;
+    bool stage_pending, borrowed_music;
     SotnLaunchMenu launcher;
     SotnLaunchSlot launch_slots[15];
     SotnLaunchAction launch_action;
@@ -81,6 +84,25 @@ struct SotnLaboratory
     Uint32 portrait_offsets[2];
 };
 
+typedef struct SessionStart
+{
+    Uint16 stage;
+    Uint32 room, slot;
+    const SotnSaveState *saved;
+    const SotnStageRoute *arrival;
+    SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
+} SessionStart;
+
+static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
+{
+    if (s->stage_id == 12)
+        return SotnMusic_Create(s->dra, s->music_stream, out);
+    return SotnMusic_CreateEntrance(s->dra, s->music_stream,
+                                    s->stage_id == 7 || s->world.flags[SOTN_ENTRANCE_ON] ||
+                                        s->world.flags[SOTN_ENTRANCE_DEATH],
+                                    out);
+}
+
 static SotnDataView StageGraphics(const SotnLaboratory *session)
 {
     return session->stage_assets != NULL ? SotnStageAssets_Graphics(session->stage_assets)
@@ -102,10 +124,12 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
 {
     const SotnResourceId ids[5] = {SOTN_RESOURCE_COMMON_AUDIO, SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,
                                    SOTN_RESOURCE_ALUCARD_AUDIO_BODY,
-                                   session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER
-                                                           : SOTN_RESOURCE_LAB_AUDIO_HEADER,
-                                   session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_BODY
-                                                           : SOTN_RESOURCE_LAB_AUDIO_BODY};
+                                   session->stage_id == 65  ? SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER
+                                   : session->stage_id == 7 ? SOTN_RESOURCE_RETURN_AUDIO_HEADER
+                                                            : SOTN_RESOURCE_LAB_AUDIO_HEADER,
+                                   session->stage_id == 65  ? SOTN_RESOURCE_ENTRANCE_AUDIO_BODY
+                                   : session->stage_id == 7 ? SOTN_RESOURCE_RETURN_AUDIO_BODY
+                                                            : SOTN_RESOURCE_LAB_AUDIO_BODY};
     for (Uint32 i = 0; i < 5; ++i)
         if (!SotnResource_Open(directory, ids[i], &session->sound_resources[i]))
             return false;
@@ -117,14 +141,13 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[4])};
     if (!SotnSound_Create(sources, &session->sound))
         return false;
-    SDL_Log("Verifying private music container for stage %u...", session->stage_id);
-    if (!SotnStream_OpenMusic(directory, &session->music_stream) ||
-        !(session->stage_id == 65
-              ? SotnMusic_CreateEntrance(session->dra, session->music_stream,
-                                         session->world.flags[SOTN_ENTRANCE_ON] != 0 ||
-                                             session->world.flags[SOTN_ENTRANCE_DEATH] != 0,
-                                         &session->music)
-              : SotnMusic_Create(session->dra, session->music_stream, &session->music)))
+    if (session->music_stream == NULL)
+    {
+        SDL_Log("Verifying private music container for stage %u...", session->stage_id);
+        if (!SotnStream_OpenMusic(directory, &session->music_stream))
+            return false;
+    }
+    if (!CreateStageMusic(session, &session->music))
         return false;
     return SotnPlayback_Create(&session->audio);
 }
@@ -400,8 +423,7 @@ static bool TickActors(SotnLaboratory *session)
 static bool EnterSaveRoom(SotnLaboratory *session)
 {
     const bool was_save_room = session->save_room;
-    session->save_room =
-        session->stage_id == 12 && (session->room.foreground.parameters & 0x20) != 0;
+    session->save_room = (session->room.foreground.parameters & 0x20) != 0;
     session->input.menu_open = false;
     if (session->save_room)
     {
@@ -431,7 +453,7 @@ static bool EnterSaveRoom(SotnLaboratory *session)
         {
             SotnMusic_Destroy(session->music);
             session->music = NULL;
-            if (!SotnMusic_Create(session->dra, session->music_stream, &session->music))
+            if (!CreateStageMusic(session, &session->music))
                 return false;
         }
     }
@@ -449,7 +471,8 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
     if (!SotnCharacter_Get(session->character, &character, NULL))
         return false;
     character.hp = player.hp;
-    *out = (SotnSaveState){.room = session->room_index,
+    *out = (SotnSaveState){.stage = session->stage_id,
+                           .room = session->room_index,
                            .character = character,
                            .world = session->world,
                            .ticks = session->simulation_ticks,
@@ -494,8 +517,8 @@ static bool TickSaveRoom(SotnLaboratory *session, Uint16 buttons)
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Save slot %u failed: %s",
                          session->save_point.slot, SDL_GetError());
         else
-            SDL_Log("Saved Laboratory room %u to native slot %u", session->room_index,
-                    session->save_point.slot);
+            SDL_Log("Saved stage %u room %u to native slot %u", session->stage_id,
+                    session->room_index, session->save_point.slot);
         if (!SotnSavePoint_Complete(&session->save_point, saved))
             return false;
     }
@@ -521,8 +544,17 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             world_y < (Sint32)room.top * 256 || world_y >= ((Sint32)room.bottom + 1) * 256)
             continue;
         if (room.transition)
-            return SDL_SetError(
-                "This development build cannot leave Laboratory for an unintegrated stage");
+        {
+            SotnStageRoute route = {0};
+            if (!SotnStageRoute_Read(session->dra, session->stage_id, room.layout_id, &route))
+                return false;
+            if (route.stage != 12 && route.stage != 65 && route.stage != 7)
+                return SDL_SetError(
+                    "Stage %u is outside this native Entrance/Laboratory checkpoint", route.stage);
+            session->arrival = route;
+            session->stage_pending = true;
+            return true;
+        }
         const Sint32 offset_x = ((Sint32)session->room.left - room.left) * 256;
         const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
@@ -533,10 +565,11 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         session->room_index = i;
         if (!EnterActors(session) || !EnterSaveRoom(session))
             return false;
-        SDL_Log("Laboratory checkpoint: room %u", (unsigned int)i);
+        SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
     }
-    return SDL_SetError("Player reached an unsupported Laboratory room boundary");
+    return SDL_SetError("Player reached an unsupported boundary in stage %u room %u",
+                        session->stage_id, session->room_index);
 }
 
 static bool PrimeAudio(SotnLaboratory *session)
@@ -548,14 +581,34 @@ static bool PrimeAudio(SotnLaboratory *session)
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot);
 
-static bool CreateSession(const SotnGameData *data, const char *directory, Uint16 stage_id,
-                          Uint32 start_room, const SotnSaveState *saved, Uint32 slot,
+static bool ValidateStart(const SotnLaboratory *session, SessionStart start)
+{
+    if (session->room.transition)
+        return SDL_SetError("Stage %u room %u is a connector, not a playable arrival",
+                            session->stage_id, session->room_index);
+    if (start.saved != NULL &&
+        (start.saved->stage != start.stage || start.saved->room != start.room))
+        return SDL_SetError("Saved stage and room do not match the requested native session");
+    if (start.arrival != NULL &&
+        (start.arrival->stage != start.stage || start.arrival->room != start.room ||
+         start.arrival->x >= session->room.foreground.collision.width * 16 ||
+         start.arrival->y >= session->room.foreground.collision.height * 16))
+        return SDL_SetError("Stage %u room %u arrival is outside its playable bounds", start.stage,
+                            start.room);
+    return true;
+}
+
+static bool CreateSession(const SotnGameData *data, const char *directory, SessionStart start,
                           SotnLaboratory **out)
 {
+    const Uint16 stage_id = start.stage;
+    const Uint32 start_room = start.room, slot = start.slot;
+    const SotnSaveState *saved = start.saved;
+
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65)
+    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
         return SDL_SetError("Native session does not support stage %u", stage_id);
     if (stage_id == 12 && start_room != 1 && start_room != 3 && start_room != 4 &&
         start_room != 5 && start_room != 6 && start_room != 9 && start_room != 10 &&
@@ -574,6 +627,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint1
     }
     session->directory = directory != NULL ? SDL_strdup(directory) : NULL;
     session->stage_id = stage_id;
+    session->music_stream = start.music;
+    session->borrowed_music = start.music != NULL;
     session->room_index = start_room;
     session->mp = 20;
     if (session->directory == NULL ||
@@ -583,21 +638,27 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint1
         !SotnCharacter_Create(session->dra, &session->character) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
         !SotnStage_GetRoomDefinitions(session->stage, session->room_index, 2048, &session->room) ||
-        session->room.transition ||
+        !ValidateStart(session, start) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_COMMON_GRAPHICS, &session->common) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_ALUCARD_GRAPHICS, &session->arc) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(
             session->dra, session->room.foreground.collision,
-            stage_id == 65     ? (start_room == 11 ? 16 : 128)
+            start.arrival      ? start.arrival->x
+            : stage_id == 65   ? (start_room == 11 ? 16 : 128)
             : start_room >= 22 ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
                                                                                           : 32,
-            stage_id == 65 && start_room == 11 ? 388 : 135, &session->player) ||
+            start.arrival                        ? start.arrival->y
+            : stage_id == 65 && start_room == 11 ? 388
+                                                 : 135,
+            &session->player) ||
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
                                &session->subweapons) ||
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
+        (start.arrival != NULL &&
+         !SotnPlayer_SetArrivalFacing(session->player, (start.arrival->x & 255) >= 128)) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_CreateStage(session->dra, session->nz0, stage_id, &session->actors) ||
         !SotnActors_SetCamera(session->actors, &session->camera) ||
@@ -618,28 +679,29 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint1
         (saved != NULL && !RestoreCharacter(session, *saved)) || !EnterActors(session) ||
         !TickActors(session) || (saved != NULL && !RestoreSession(session, *saved, slot)) ||
         !LaboratoryInput_Init(&session->input) ||
-        !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
+        !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
         SotnLaboratory_Destroy(session);
-        return SDL_SetError("Cannot initialize Laboratory actor checkpoint: %s", detail);
+        return SDL_SetError("Cannot initialize native stage %u room %u: %s", stage_id, start_room,
+                            detail);
     }
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
-    if (stage_id == 65)
-        SDL_Log("Entrance checkpoint: stage-specific enemies, common combat/pickups, and private "
-                "artwork/audio. Death, stage progression, complete actors/effects remain in "
-                "development.");
+    if (stage_id != 12)
+        SDL_Log("Entrance checkpoint: selected enemies, Death opening, common combat/pickups, "
+                "and connection to Laboratory. Complete actors/effects and other castle routes "
+                "remain incomplete.");
     else
         SDL_Log("Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
                 "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
                 "Maria/castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-four saves with explored cells and permanent Laboratory events.");
+            "and version-five saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
         SDL_Log(
             "Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
@@ -650,13 +712,19 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint1
 bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint32 start_room,
                            SotnLaboratory **out)
 {
-    return CreateSession(data, directory, 12, start_room, NULL, 0, out);
+    return CreateSession(data, directory, (SessionStart){.stage = 12, .room = start_room}, out);
 }
 
 bool SotnLaboratory_CreateEntrance(const SotnGameData *data, const char *directory, Uint32 room,
                                    SotnLaboratory **out)
 {
-    return CreateSession(data, directory, 65, room, NULL, 0, out);
+    return CreateSession(data, directory, (SessionStart){.stage = 65, .room = room}, out);
+}
+
+bool SotnLaboratory_CreateStage(const SotnGameData *data, const char *directory, Uint16 stage,
+                                Uint32 room, SotnLaboratory **out)
+{
+    return CreateSession(data, directory, (SessionStart){.stage = stage, .room = room}, out);
 }
 
 bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 right)
@@ -698,6 +766,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    if (session->stage_pending)
+        return true; // The application commits an arrival once, after its catch-up ticks.
     session->blocked_buttons &= buttons;
     buttons &= (Uint16)~session->blocked_buttons;
     const bool select =
@@ -784,7 +854,14 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     if (!SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
-        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)) || !TickActors(session) ||
+        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
+        return false;
+    if (session->stage_pending)
+    {
+        session->dirty = true;
+        return true;
+    }
+    if (!TickActors(session) ||
         !SotnCharacter_TickResources(session->character, session->simulation_ticks) ||
         !TickSaveRoom(session, buttons))
         return false;
@@ -1176,7 +1253,8 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnMusic_Destroy(session->speech);
         SotnMusic_Destroy(session->music);
         SotnPlayback_Destroy(session->audio);
-        SotnStream_Close(session->music_stream);
+        if (!session->borrowed_music)
+            SotnStream_Close(session->music_stream);
         SotnSound_Destroy(session->sound);
         for (Uint32 i = 0; i < 5; ++i)
             SotnResource_Close(session->sound_resources[i]);
@@ -1243,14 +1321,17 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
         return false;
     }
     SotnLaboratory *session = NULL;
-    if (!CreateSession(data, directory, 12, state.room, &state, slot, &session))
+    if (!CreateSession(
+            data, directory,
+            (SessionStart){.stage = state.stage, .room = state.room, .saved = &state, .slot = slot},
+            &session))
     {
         SotnSaveStore_Destroy(store);
         return false;
     }
     SotnSaveStore_Destroy(session->saves);
     session->saves = store;
-    SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
+    SDL_Log("Loaded native slot %u in stage %u room %u", slot, state.stage, state.room);
     *out = session;
     return true;
 }
@@ -1288,8 +1369,12 @@ bool SotnLaboratory_ShowLauncher(SotnLaboratory *session)
                 SotnSaveState saved = {0};
                 if (SotnSaveStore_Read(session->saves, i + 1, &saved))
                 {
-                    *summary = (SotnLaunchSlot){true, true, saved.character.level,
-                                                saved.character.hp, saved.room};
+                    *summary = (SotnLaunchSlot){.exists = true,
+                                                .valid = true,
+                                                .level = saved.character.level,
+                                                .hp = saved.character.hp,
+                                                .room = saved.room,
+                                                .stage = saved.stage};
                     session->launch_available |= (Uint16)(1U << i);
                 }
                 else
@@ -1306,6 +1391,8 @@ bool SotnLaboratory_ShowLauncher(SotnLaboratory *session)
     session->map_open = false;
     session->map_opacity = 0;
     session->menu = (SotnInventoryMenu){0};
+    SotnMusic_Destroy(session->speech);
+    session->speech = NULL;
     SotnMusic_Destroy(session->music);
     session->music = NULL;
     if (session->audio != NULL && !SotnPlayback_Reset(session->audio))
@@ -1322,26 +1409,52 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
         return SDL_SetError("Session update requires owned gameplay and core data");
     SotnLaboratory *old = *owner;
     const SotnLaunchAction action = old->launch_action;
+    const bool travel = old->stage_pending;
     old->launch_action = SOTN_LAUNCH_NONE;
-    if (action == SOTN_LAUNCH_NONE)
+    old->stage_pending = false;
+    if (action == SOTN_LAUNCH_NONE && !travel)
         return true;
     SotnSaveState saved = {0};
     const Uint32 slot = old->launcher.slot;
     SotnLaboratory *next = NULL;
     bool ready = false;
-    if (action == SOTN_LAUNCH_CHECKPOINT)
-        ready = CreateSession(data, old->directory, 12, 1, NULL, 0, &next);
+    if (travel && SaveState(old, &saved))
+    {
+        saved.stage = old->arrival.stage;
+        saved.room = old->arrival.room;
+        ready = CreateSession(data, old->directory,
+                              (SessionStart){.stage = saved.stage,
+                                             .room = saved.room,
+                                             .saved = &saved,
+                                             .arrival = &old->arrival,
+                                             .music = old->music_stream},
+                              &next);
+    }
+    else if (action == SOTN_LAUNCH_CHECKPOINT)
+        ready = CreateSession(data, old->directory,
+                              (SessionStart){.stage = 12, .room = 1, .music = old->music_stream},
+                              &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
-        ready = CreateSession(data, old->directory, 12, saved.room, &saved, slot, &next);
+        ready = CreateSession(data, old->directory,
+                              (SessionStart){.stage = saved.stage,
+                                             .room = saved.room,
+                                             .saved = &saved,
+                                             .slot = slot,
+                                             .music = old->music_stream},
+                              &next);
     if (!ready)
     {
-        LaunchError(old, SDL_GetError());
+        char detail[160] = {0};
+        SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+        if (travel && !SotnLaboratory_ShowLauncher(old))
+            return false;
+        LaunchError(old, detail);
         old->launcher.phase = SOTN_LAUNCH_ERROR;
         old->dirty = true;
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot change native session: %s",
                      old->launch_error);
-        return true; // The explicit error UI retains the previous owner and save file.
+        return true; // Preserve the previous owner and every ordinary save on failure.
     }
     if (old->saves != NULL)
     {
@@ -1350,20 +1463,28 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
         old->saves = NULL;
         if (!EnterSaveRoom(next))
         {
-            LaunchError(old, SDL_GetError());
-            old->launcher.phase = SOTN_LAUNCH_ERROR;
-            old->dirty = true;
+            char detail[160] = {0};
+            SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
             old->saves = next->saves;
             next->saves = NULL;
             SotnLaboratory_Destroy(next);
+            if (travel && !SotnLaboratory_ShowLauncher(old))
+                return false;
+            LaunchError(old, detail);
+            old->launcher.phase = SOTN_LAUNCH_ERROR;
+            old->dirty = true;
             return true;
         }
     }
     next->blocked_buttons = old->scene_buttons;
+    old->music_stream = NULL;
+    next->borrowed_music = false;
     *owner = next;
     SotnLaboratory_Destroy(old);
-    SDL_Log("Native session ready: %s",
-            action == SOTN_LAUNCH_LOAD ? "ordinary save loaded" : "Laboratory checkpoint");
+    SDL_Log("Native session ready: stage %u room %u (%s)", next->stage_id, next->room_index,
+            travel                       ? "connected arrival"
+            : action == SOTN_LAUNCH_LOAD ? "ordinary save"
+                                         : "checkpoint");
     return true;
 }
 
