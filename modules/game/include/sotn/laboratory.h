@@ -11,7 +11,8 @@ typedef struct SotnLaboratory SotnLaboratory;
  * @brief Create the project's Laboratory actor integration checkpoint.
  * @param data Borrowed verified core snapshot, alive until after session destruction.
  * @param directory Borrowed private resource directory used only during initialization.
- * @param start_room Verified development start: room 1 (entry), 3 (zombie corridor), or 23..25 (save rooms).
+ * @param start_room Verified development start: room 1 (entry), 3 (zombie corridor), or 23..25
+ * (save rooms).
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() on unsupported or missing data.
  * @pre SDL video is initialized and calls occur on the main thread.

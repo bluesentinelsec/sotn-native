@@ -116,3 +116,9 @@ pinned reconstruction revision under AGPL-3.0-or-later. Meshes, UV arrays, font,
 texture pixels, and palette records remain private runtime inputs. Native storage
 and slot-selection adapters are original project code. See
 [save-room scope](docs/laboratory-save-rooms.md) for parity and platform limits.
+
+`modules/core/character.c` adapts selected inventory acquisition/order, equipment
+exchange, and unbuffed attribute calculations from `src/dra/5D5BC.c` and `menu.c`
+at the pinned reconstruction revision under AGPL-3.0-or-later. Item records,
+names, descriptions, and icons remain private runtime inputs. Unsupported item
+behaviors are rejected at the equipment boundary.
