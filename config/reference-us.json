@@ -15,6 +15,12 @@
     "ST/ST0/ST0.BIN": "bc2fabbe5ef0d1288490b6f1ddbf11092a2c0c57",
     "ST/NZ0/NZ0.BIN": "b10b9c2be721cf9cbed3aa94be468ba9e23bc68b"
   },
+  "resources": {
+    "ST/NZ0/F_NZ0.BIN": {
+      "size": 262144,
+      "sha1": "89c5e97cb917121255d3a1a810c1d8ae098ebf8b"
+    }
+  },
   "sizes": {
     "SLUS_000.67": 563200,
     "DRA.BIN": 1153136,

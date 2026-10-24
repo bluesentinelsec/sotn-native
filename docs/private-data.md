@@ -1,10 +1,10 @@
 # Private core-data loading
 
-The C17 app reads five reference files from a user-selected, privately extracted
-US PS1 dump. This establishes the data boundary for future native game code.
-It does not integrate gameplay, implement disc extraction, or validate the
-entire disc. Public builds and packages contain filenames, sizes, and hashes;
-they contain no game bytes. No upstream game or PSY-Z code is imported here.
+The C17 app reads five core reference files from a user-selected, privately
+extracted US PS1 dump. Additional [stage resources](stage-data.md) load on demand
+with the same verified read path. This boundary does not implement disc extraction
+or validate the entire disc. Public builds and packages contain filenames, sizes,
+and hashes; they contain no game bytes. The data library is original C.
 
 ## Usage
 
@@ -76,7 +76,7 @@ hash is not evidence that a future parser handles every input safely.
 No persistent game files are written in this milestone. Ordinary save/load
 will need a separate `SDL_GetPrefPath` adapter with migration and failed-write
 tests. Raw BIN/CUE reading, additional game resources, native game logic,
-OpenGL presentation, and platform input selection remain later integration work.
+player updates and platform input selection remain later integration work.
 
 ## Validation
 

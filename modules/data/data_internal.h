@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL_iostream.h>
 #include <sotn/game_data.h>
+#include <sotn/resource.h>
 
 /* Internal seams allow synthetic tests to exercise the production loader. */
 typedef struct SotnDataSpec
@@ -16,5 +17,8 @@ bool SotnData_OpenReference(const char *directory, const SotnDataSpec specs[SOTN
                             SotnGameData **out);
 bool SotnData_ReadVerified(SDL_IOStream *stream, Uint8 *buffer, const SotnDataSpec *spec);
 void SotnData_Sha1(const Uint8 *bytes, size_t size, char output[41]);
+bool SotnData_LoadFile(const char *directory, const SotnDataSpec *spec, Uint8 *buffer);
+const SotnDataSpec *SotnData_ResourceSpec(SotnResourceId id);
+bool SotnData_OpenResourceSpec(const char *directory, const SotnDataSpec *spec, SotnResource **out);
 
 #endif

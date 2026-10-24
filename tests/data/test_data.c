@@ -204,9 +204,45 @@ static bool TestSnapshot(const char *directory)
     return true;
 }
 
+static bool TestResource(const char *directory)
+{
+    char *path = NULL;
+    CHECK(SDL_asprintf(&path, "%s/resource.txt", directory) >= 0);
+    CHECK(WriteFixture(path, "abc"));
+    SotnDataSpec spec = {"resource.txt", 3, abc_hash};
+    SotnResource *resource = NULL;
+    CHECK(SotnData_OpenResourceSpec(directory, &spec, &resource));
+    CHECK(resource != NULL);
+    CHECK(WriteFixture(path, "xyz"));
+    SotnDataView view = SotnResource_View(resource);
+    CHECK(view.size == 3 && SDL_memcmp(view.bytes, "abc", 3) == 0);
+    SotnResource_Close(resource);
+    resource = NULL;
+    CHECK(!SotnData_OpenResourceSpec(directory, &spec, &resource));
+    CHECK(resource == NULL && SDL_strstr(SDL_GetError(), "checksum mismatch") != NULL);
+    CHECK(WriteFixture(path, "abc-extra"));
+    CHECK(!SotnData_OpenResourceSpec(directory, &spec, &resource));
+    CHECK(SDL_strstr(SDL_GetError(), "size mismatch") != NULL);
+    spec.size = SIZE_MAX;
+    CHECK(!SotnData_OpenResourceSpec(directory, &spec, &resource));
+    CHECK(resource == NULL && SDL_strstr(SDL_GetError(), "budget") != NULL);
+    CHECK(!SotnResource_Open(directory, SOTN_RESOURCE_COUNT, &resource));
+    CHECK(!SotnResource_Open(directory, (SotnResourceId)-1, &resource));
+    CHECK(!SotnResource_Open(NULL, SOTN_RESOURCE_LAB_GRAPHICS, &resource));
+    CHECK(!SotnResource_Open("", SOTN_RESOURCE_LAB_GRAPHICS, &resource));
+    CHECK(!SotnResource_Open(directory, SOTN_RESOURCE_LAB_GRAPHICS, NULL));
+    view = SotnResource_View(NULL);
+    CHECK(view.bytes == NULL && view.size == 0);
+    CHECK(SDL_RemovePath(path));
+    SDL_free(path);
+    SotnResource_Close(NULL);
+    return true;
+}
+
 int main(int argc, char **argv)
 {
-    if (argc != 2 || !TestHash() || !TestStreams() || !TestSnapshot(argv[1]))
+    if (argc != 2 || !TestHash() || !TestStreams() || !TestSnapshot(argv[1]) ||
+        !TestResource(argv[1]))
     {
         return 1;
     }

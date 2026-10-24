@@ -25,6 +25,9 @@ Native integration has started with the reconstructed collision and graphics
 decoding algorithms in `modules/core/`. These compile and run tests through
 this repository's normal build; they do not yet provide gameplay. See
 [game-core integration](docs/game-core.md) for scope, provenance, and validation.
+The [runtime stage loader](docs/stage-data.md) decodes Laboratory room/layer
+tables directly from the user's validated overlay and verifies its graphics file
+on demand; `--inspect-laboratory` exercises that boundary without launching video.
 
 The C app can now read and validate five core files from an extracted US dump:
 
