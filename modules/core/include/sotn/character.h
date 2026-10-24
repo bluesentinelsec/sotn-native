@@ -83,6 +83,26 @@ bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
  * @param out Decoded metadata, unchanged on failure. @return Success or false with SDL_GetError().
  */
 bool SotnCharacter_Item(const SotnCharacter *character, bool body, Uint16 id, SotnItem *out);
+/** @brief Award original level-adjusted enemy EXP and process all resulting level gains.
+ * @param character Borrowed writable character. @param experience Enemy's original EXP reward.
+ * @param enemy_level Original enemy level, 0..99. @param levels Receives levels gained.
+ * @return Success or false with SDL_GetError(), leaving progress and RNG unchanged on failure.
+ * @note Uses private thresholds/HP growth and preserves recursive MP/stat RNG consumption order. */
+bool SotnCharacter_GainExperience(SotnCharacter *character, Uint16 experience, Uint16 enemy_level,
+                                  Uint16 *levels);
+/** @brief Read EXP needed for the next level; level 99 reports zero.
+ * @param character Borrowed character. @param remaining Output unchanged on failure.
+ * @return Success or false with SDL_GetError() for invalid/truncated progression tables. */
+bool SotnCharacter_NextLevel(const SotnCharacter *character, Uint32 *remaining);
+/** @brief Collect an original Heart/Life Max Up and update its resources.
+ * @param character Borrowed character. @param life True for Life Max Up, false for Heart Max Up.
+ * @return Success or false with SDL_GetError(); caps and full-heal behavior follow the selected
+ * original path. */
+bool SotnCharacter_CollectVessel(SotnCharacter *character, bool life);
+/** @brief Advance selected original MP regeneration at a gameplay tick, never a render call.
+ * @param character Borrowed living progress. @param ticks Gameplay clock.
+ * @return Success or false with SDL_GetError(); pause/menu callers do not invoke this function. */
+bool SotnCharacter_TickResources(SotnCharacter *character, Uint64 ticks);
 /** @brief Release character, retaining borrowed private bytes. @param character Owned or NULL. */
 void SotnCharacter_Destroy(SotnCharacter *character);
 #endif

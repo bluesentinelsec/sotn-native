@@ -129,3 +129,8 @@ equipment drops, persistent room pickups, and breakable globe paths additionally
 adapt `src/st/e_collect.h`, `nz0/e_nz0_room2.c`, and `st_common.h`. Basilard adapts
 selected `src/weapon/w_031.c` behavior. All use the same pinned reconstruction
 under AGPL-3.0-or-later. Private runtime definitions/pixels/palettes remain untracked.
+
+Character progression additionally adapts `5D5BC.c:CheckAndDoLevelUp` and
+`func_800FE044`, `5F60C.c` MP regeneration, and `e_collect.h` Heart/Life Max Up
+collection at the same AGPL-3.0-or-later reconstruction. Experience/HP growth
+and enemy reward tables remain private runtime inputs.

@@ -80,6 +80,8 @@ SOTN_FORMAT_SOURCES += modules/render/inventory.c modules/render/include/sotn/in
 
 SOTN_FORMAT_SOURCES += tests/core/character_fixture.h tests/core/test_inventory_menu.c tests/render/test_inventory.c
 
+SOTN_FORMAT_SOURCES += tests/core/test_progression.c
+
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)

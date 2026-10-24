@@ -52,7 +52,8 @@ The zero-effective-LCK remainder edge remains explicitly unsupported rather than
 invoking undefined C division. Elemental ailments and special item passives
 remain outside the supported physical-contact slice.
 
-Save-format expansion and subweapon/experience behavior follow in the next
+The [progression service](character-progression.md) now awards EXP and updates
+levels/resources. Save-format expansion and subweapon use follow in the next
 stacked integrations. Until that migration, native version 1/2 saves retain only
 the earlier checkpoint fields and do not preserve this new inventory.
 

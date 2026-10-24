@@ -415,11 +415,12 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_ALUCARD_GRAPHICS, &session->arc) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
-        !SotnPlayer_Create(session->dra, session->room.foreground.collision,
-                           start_room >= 23   ? 128
-                           : start_room == 10 ? 80
-                                              : 32,
-                           135, &session->player) ||
+        !SotnPlayer_Create(
+            session->dra, session->room.foreground.collision,
+            start_room >= 23                                                              ? 128
+            : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
+                                                                                          : 32,
+            135, &session->player) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
@@ -538,13 +539,19 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)) || !TickActors(session) ||
+        !SotnCharacter_TickResources(session->character, session->simulation_ticks) ||
         !TickSaveRoom(session, buttons))
         return false;
     SotnActorCombat combat = {0};
+    SotnCharacterState progress = {0};
+    if (!SotnCharacter_Get(session->character, &progress, NULL))
+        return false;
+    session->mp = progress.mp;
     if (!SotnPlayer_GetState(session->player, &state) ||
         !SotnActors_GetCombat(session->actors, &combat) ||
-        !SotnHud_Tick(session->hud, (SotnHudStatus){state.hp, state.hp_max, session->mp, 20,
-                                                    combat.hearts, combat.subweapon}) ||
+        !SotnHud_Tick(session->hud,
+                      (SotnHudStatus){state.hp, state.hp_max, session->mp, progress.mp_max,
+                                      combat.hearts, combat.subweapon}) ||
         !TickAudio(session, &combat, state.sound))
         return false;
     if (state.death.phase == 128)

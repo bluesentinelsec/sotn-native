@@ -4,6 +4,7 @@
 // Definitions, strings, icons, and progression tables remain private runtime inputs.
 #include <SDL3/SDL.h>
 #include <sotn/character.h>
+#include <sotn/combat.h>
 struct SotnCharacter
 {
     SotnDataView dra;
@@ -61,8 +62,8 @@ static bool BodySupported(Uint16 id)
 {
     /* These ordinary records need no unintegrated passive/transform services. */
     return id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 46 || id == 47 || id == 48 ||
-           id == 49 || id == 51 || id == 57 || (id >= 63 && id <= 73) || id == 77 || id == 79 ||
-           id == 82 || id == 85;
+           id == 49 || id == 51 || id == 57 || (id >= 63 && id <= 73) || id == 76 || id == 77 ||
+           id == 79 || id == 82 || id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -329,6 +330,140 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
     if (c == NULL)
         return SDL_InvalidParamError("character");
     return SotnItem_Read(c->dra, body, id, out);
+}
+
+static bool Progression(const SotnCharacter *c, SotnDataView *thresholds, SotnDataView *health)
+{
+    if (c == NULL || !Resolve(c->dra, 0x800ac780, 100 * 4, thresholds) ||
+        !Resolve(c->dra, 0x800a2ec0, 10 * 4, health))
+        return SDL_SetError("Progression requires bounded private level and HP tables");
+    Uint32 previous = 0;
+    for (Uint32 i = 0; i < 100; ++i)
+    {
+        const Uint32 value = Read32(thresholds->bytes + i * 4);
+        if (value > 999999 || (i < 2 && value != 0) || (i >= 2 && value <= previous))
+            return SDL_SetError("Private experience thresholds are invalid");
+        previous = value;
+    }
+    for (Uint32 i = 0; i < 10; ++i)
+        if (Read32(health->bytes + i * 4) > 9999)
+            return SDL_SetError("Private level HP gain exceeds the character limit");
+    return true;
+}
+bool SotnCharacter_NextLevel(const SotnCharacter *c, Uint32 *remaining)
+{
+    if (c == NULL || remaining == NULL)
+        return SDL_SetError("Next-level query requires character and output");
+    SotnDataView thresholds = {0}, health = {0};
+    if (!Progression(c, &thresholds, &health))
+        return false;
+    const Uint32 target = c->state.level == 99
+                              ? c->state.experience
+                              : Read32(thresholds.bytes + (c->state.level + 1U) * 4);
+    if (target < c->state.experience)
+        return SDL_SetError("Character EXP exceeds an unprocessed level threshold");
+    *remaining = target - c->state.experience;
+    return true;
+}
+bool SotnCharacter_GainExperience(SotnCharacter *c, Uint16 experience, Uint16 enemy_level,
+                                  Uint16 *levels)
+{
+    if (c == NULL || levels == NULL || enemy_level > 99)
+        return SDL_SetError("Enemy reward requires a character, level 0..99, and output");
+    *levels = 0;
+    if (experience == 0 || c->state.level == 99)
+        return true;
+    SotnDataView thresholds = {0}, health = {0};
+    if (!Progression(c, &thresholds, &health))
+        return false;
+    SotnCharacter next = *c;
+    Uint32 reward = experience;
+    if (next.state.level > enemy_level)
+    {
+        for (Uint32 i = enemy_level; i < next.state.level; ++i)
+            reward = reward * 2 / 3;
+        if (reward == 0)
+            reward = 1;
+    }
+    else
+    {
+        const Uint32 difference = SDL_min(5U, (Uint32)enemy_level - next.state.level);
+        for (Uint32 i = 0; i < difference; ++i)
+            reward += reward / 4;
+    }
+    next.state.experience =
+        SDL_min(Read32(thresholds.bytes + 99 * 4), next.state.experience + reward);
+    Uint16 gained = 0;
+    while (next.state.level < 99 &&
+           Read32(thresholds.bytes + (next.state.level + 1U) * 4) <= next.state.experience)
+    {
+        ++next.state.level;
+        ++gained;
+        const Uint32 hp = Read32(health.bytes + (next.state.level / 10U) * 4);
+        const Uint32 mp = 4 + (SotnCombat_Random(&next.state.random) & 1);
+        if (next.state.hp_max + hp > 9999 || next.state.mp_max + mp > 9999 ||
+            next.state.hearts_max + 2U > 9999)
+            return SDL_SetError("Level gain exceeds the integrated character resource bounds");
+        next.state.hp = (Uint16)(next.state.hp + hp);
+        next.state.hp_max = (Uint16)(next.state.hp_max + hp);
+        next.state.mp_max = (Uint16)(next.state.mp_max + mp);
+        next.state.hearts_max += 2;
+    }
+    /* The original recursion finishes all MP/HP gains before unwinding stat gains. */
+    for (Uint32 level = 0; level < gained; ++level)
+    {
+        Uint32 total = 0;
+        for (Uint32 stat = 0; stat < 4; ++stat)
+        {
+            const Uint16 gain = SotnCombat_Random(&next.state.random) & 1;
+            if (next.state.base[stat] + gain <= 99)
+            {
+                next.state.base[stat] += gain;
+                total += gain;
+            }
+        }
+        if (total < 2)
+        {
+            const Uint16 stat = SotnCombat_Random(&next.state.random) & 3;
+            next.state.base[stat] = (Uint16)SDL_min(99, next.state.base[stat] + 1);
+        }
+    }
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    *levels = gained;
+    return true;
+}
+bool SotnCharacter_CollectVessel(SotnCharacter *c, bool life)
+{
+    if (c == NULL)
+        return SDL_InvalidParamError("character");
+    if (life)
+    {
+        if (c->state.hp_max == 9999)
+            return true;
+        c->state.hp_max = (Uint16)SDL_min(9999, c->state.hp_max + 5);
+        c->state.hp = c->state.hp_max;
+    }
+    else
+    {
+        const Uint16 old = c->state.hearts_max;
+        c->state.hearts_max = (Uint16)SDL_min(9999, c->state.hearts_max + 5);
+        c->state.hearts = (Uint16)(c->state.hearts + c->state.hearts_max - old);
+    }
+    return true;
+}
+
+bool SotnCharacter_TickResources(SotnCharacter *c, Uint64 ticks)
+{
+    if (c == NULL)
+        return SDL_InvalidParamError("character");
+    if (c->state.hp == 0)
+        return true;
+    const bool pendant = c->state.equipment[5] == 76 || c->state.equipment[6] == 76;
+    if ((ticks & 63) == 0 || (pendant && (ticks & 63) == 31))
+        c->state.mp = (Uint16)SDL_min(c->state.mp_max, c->state.mp + 1);
+    return true;
 }
 
 void SotnCharacter_Destroy(SotnCharacter *c)

@@ -14,7 +14,7 @@ typedef struct Actor
     Sint32 vx, vy;
     Uint16 pose, remaining, timer, substep;
     Uint8 parallax, cooldown[2];
-    Uint16 attack, attack_element, stun, hit_params, life_timer;
+    Uint16 attack, attack_element, stun, hit_params, life_timer, level, experience;
     SotnCombatEnemy enemy;
     Sint32 fall_speed, gravity;
     Uint16 collectible;
@@ -98,6 +98,8 @@ static bool Initialize(SotnActors *actors, Actor *actor, size_t offset)
     actor->state.hit_points = (Sint16)Signed16(enemy.bytes + 4);
     actor->attack = Read16(enemy.bytes + 6);
     actor->attack_element = Read16(enemy.bytes + 8);
+    actor->level = Read16(enemy.bytes + 22);
+    actor->experience = Read16(enemy.bytes + 24);
     actor->enemy.defense = (Sint16)Signed16(enemy.bytes + 10);
     actor->state.hitbox_state = Read16(enemy.bytes + 12);
     actor->enemy.weaknesses = Read16(enemy.bytes + 14);
@@ -496,6 +498,24 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 {
                     actor->state.flags |= 0x100;
                     ++actors->combat.kills;
+                    if (actors->character != NULL)
+                    {
+                        Uint16 levels = 0;
+                        if (!SotnCharacter_GainExperience(actors->character, actor->experience,
+                                                          actor->level, &levels))
+                            return false;
+                        if (levels != 0)
+                        {
+                            SotnCharacterState progress = {0};
+                            if (!SotnCharacter_Get(actors->character, &progress, NULL))
+                                return false;
+                            actors->combat.hearts_max = progress.hearts_max;
+                            if (!Sound(actors, 0x687))
+                                return false;
+                            SDL_Log("Level up: %u (HP %u, MP %u, hearts %u)", progress.level,
+                                    progress.hp_max, progress.mp_max, progress.hearts_max);
+                        }
+                    }
                 }
             }
             if (!(actor->state.flags & (0x400000 | 0x100)))
@@ -615,7 +635,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     Uint16 item = actor->state.parameters & 0x7fff;
     if (item > 23)
         return SDL_SetError("Prize references an invalid original item ID");
-    if (item == 12 || item == 13 || item == 23)
+    if (item == 13 || ((item == 12 || item == 23) && actors->character == NULL))
     {
         actor->state.unsupported = true;
         return true;
@@ -636,7 +656,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return false;
         actor->state.priority = 0x6c;
         actor->state.blend_mode = 0;
-        if (item >= 14)
+        if (item >= 14 && item < 23)
         {
             SotnDataView old = {0};
             if (actors->combat.subweapon > 9 ||
@@ -700,6 +720,17 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
             if (amount > 999999)
                 return SDL_SetError("Gold prize exceeds the original wallet limit");
             actors->combat.gold = SDL_min(999999U, actors->combat.gold + amount);
+        }
+        else if (item == 12 || item == 23)
+        {
+            if (!SotnCharacter_CollectVessel(actors->character, item == 23) ||
+                !Sound(actors, 0x67a))
+                return false;
+            SotnCharacterState profile = {0};
+            if (!SotnCharacter_Get(actors->character, &profile, NULL))
+                return false;
+            actors->combat.hearts = profile.hearts;
+            actors->combat.hearts_max = profile.hearts_max;
         }
         else
         {
