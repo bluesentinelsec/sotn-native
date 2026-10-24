@@ -387,7 +387,7 @@ bool SotnCharacter_GainExperience(SotnCharacter *c, Uint16 experience, Uint16 en
     }
     else
     {
-        const Uint32 difference = SDL_min(5U, enemy_level - next.state.level);
+        const Uint32 difference = SDL_min(5U, (Uint32)enemy_level - next.state.level);
         for (Uint32 i = 0; i < difference; ++i)
             reward += reward / 4;
     }
