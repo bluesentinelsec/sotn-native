@@ -51,8 +51,8 @@ and PS1 memory-card import/export remain unintegrated.
 
 The native fifteen-slot bank and text dialogs adapt memory-card hardware/file
 selection to the filesystem. Full original card-port/title menus and save-file
-portraits/metadata are not implemented. Physical game over still exits after its
-fade; use the explicit Continue launch to load a saved session. Browser durable
+portraits/metadata are not implemented. Physical game over now returns to the native Continue shell after its fade.
+Use `--play` to open the shell directly; command-line Continue remains supported. Browser durable
 persistence remains unavailable until an adapter and reload tests exist.
 
 Mesh projection uses bounded CPU triangle rasterization in the existing RGBA/

@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  launch_menu.c
+  include/sotn/launch_menu.h
   subweapon.c
   include/sotn/subweapon.h
   inventory_menu.c

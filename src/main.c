@@ -150,7 +150,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool preview_icons = false;
     bool inspect_lab = false;
     bool preview_lab = false;
-    bool play_lab = false;
+    bool play_lab = false, play_menu = false;
     bool chose_lab_room = false;
     Uint32 lab_room = 1, lab_slot = 0;
     const char *lab_loadout = NULL;
@@ -202,6 +202,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--preview-laboratory") == 0)
         {
             preview_lab = true;
+        }
+        else if (SDL_strcmp(argv[i], "--play") == 0)
+        {
+            play_menu = true;
         }
         else if (SDL_strcmp(argv[i], "--laboratory") == 0)
         {
@@ -301,13 +305,15 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     const unsigned int modes = (validate_only ? 1U : 0U) + (preview_icons ? 1U : 0U) +
                                (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
-                               (play_lab ? 1U : 0U) + (inspect_stage != NULL ? 1U : 0U);
+                               (play_lab ? 1U : 0U) + (play_menu ? 1U : 0U) +
+                               (inspect_stage != NULL ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
         SDL_SetError(
             "Choose one display or inspection mode: --validate-only, --preview-save-icons, "
-            "--inspect-laboratory, --inspect-stage CODE, --preview-laboratory, or --laboratory; "
+            "--inspect-laboratory, --inspect-stage CODE, --preview-laboratory, --laboratory, or "
+            "--play; "
             "each requires "
             "--game-data; "
             "--graphics-test runs separately without game inputs");
@@ -357,12 +363,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("SOTN_GRAPHICS_TEST: PASS");
         return SDL_APP_SUCCESS;
     }
-    if (play_lab)
+    if (play_lab || play_menu)
     {
         if (!(lab_slot != 0
                   ? SotnLaboratory_Continue(app->game_data, game_directory, lab_slot, &app->game)
                   : SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game)))
             return Fail("Cannot open Laboratory actor checkpoint");
+        if (play_menu && !SotnLaboratory_ShowLauncher(app->game))
+            return Fail("Cannot open native Continue menu");
         if (lab_loadout != NULL)
         {
             const Uint16 left = SDL_strcmp(lab_loadout, "unarmed") == 0 ? 0
@@ -457,12 +465,10 @@ SDL_AppResult SDL_AppIterate(void *appstate)
     {
         if (!SotnLaboratory_Iterate(app->game))
             return Fail("Laboratory development checkpoint stopped");
-        if (SotnLaboratory_Finished(app->game))
-        {
-            SDL_Log("Laboratory game-over checkpoint completed; title/menu integration remains "
-                    "incomplete.");
-            return SDL_APP_SUCCESS;
-        }
+        if (SotnLaboratory_Finished(app->game) && !SotnLaboratory_ShowLauncher(app->game))
+            return Fail("Cannot return to native Continue menu");
+        if (!SotnLaboratory_UpdateSession(app->game_data, &app->game))
+            return Fail("Cannot update native session");
     }
     else if (app->laboratory != NULL)
     {

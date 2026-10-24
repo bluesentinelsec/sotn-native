@@ -162,11 +162,12 @@ The selected route is a **decompilation-based native port**; read the current
   unless a reviewer needs them to understand a material tradeoff.
 
 The [physical death/game-over flow](docs/laboratory-game-over.md) now runs the selected
-original presentation and exits successfully after its fade. Title/file selection,
+original presentation and returns to the native Continue shell after its fade. Original title/file selection,
 elemental deaths and complete effects remain incomplete. The
 [save-room checkpoint](docs/laboratory-save-rooms.md) now restores HP/MP and persists
 supported progress to fifteen native slots; `--laboratory-continue SLOT` loads one.
-Full title/file menus, full-game progression persistence, and PS1 cards remain incomplete.
+The native slot browser supports Continue; original title/card menus, full-game progression
+persistence, and PS1 cards remain incomplete.
 
 The [original HUD](docs/laboratory-hud.md) presents HP, MP, hearts, and the collected
 subweapon from private artwork/tables. Supported progression now updates maxima and MP recovery.
@@ -209,3 +210,8 @@ not native gameplay support or permission to send the player to an unintegrated 
 The [exploration map](docs/castle-map.md) now opens with Tab/M or Xbox Back/Select.
 It uses private blueprint/palette/passage data and saved exploration; full map and
 paused-stage presentation parity remain incomplete. Missing F_MAP.BIN fails explicitly on first use.
+
+The [native session shell](docs/native-session-flow.md) opens with `--play` and
+returns after game over. It supports read-only slot selection and transactional
+Continue, not the original title/new-game flow. Failed loads preserve the current
+owner and display an error. Future stage destinations still need native actor/script integration.

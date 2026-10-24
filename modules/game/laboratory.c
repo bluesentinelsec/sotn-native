@@ -7,6 +7,7 @@
 #include <sotn/hud.h>
 #include <sotn/inventory.h>
 #include <sotn/laboratory.h>
+#include <sotn/launch_renderer.h>
 #include <sotn/music.h>
 #include <sotn/playback.h>
 #include <sotn/player.h>
@@ -20,6 +21,12 @@
 struct SotnLaboratory
 {
     SotnStage *stage;
+    SotnLaunchMenu launcher;
+    SotnLaunchSlot launch_slots[15];
+    SotnLaunchAction launch_action;
+    Uint16 launch_available, blocked_buttons;
+    bool launch_active;
+    char launch_error[160];
     char *directory;
     SotnResource *map_art;
     SotnMapRenderer *map_renderer;
@@ -610,11 +617,23 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    session->blocked_buttons &= buttons;
+    buttons &= (Uint16)~session->blocked_buttons;
     const bool select =
         (buttons & SOTN_BUTTON_SELECT) && !(session->scene_buttons & SOTN_BUTTON_SELECT);
     const bool start =
         (buttons & SOTN_BUTTON_START) && !(session->scene_buttons & SOTN_BUTTON_START);
     session->scene_buttons = buttons;
+    if (session->launch_active)
+    {
+        if (!SotnLaunchMenu_Tick(&session->launcher, buttons, session->launch_available,
+                                 &session->launch_action))
+            return false;
+        session->dirty = true;
+        const SotnActorCombat silent = {0};
+        return TickAudio(session, &silent, 0);
+    }
+
     if (session->game_over != NULL)
     {
         const SotnActorCombat combat = {0};
@@ -711,7 +730,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             !SotnPlayback_Reset(session->audio))
             return false;
         SDL_Log("Alucard died: original game-over presentation. Enter/gamepad Start advances after "
-                "the reveal; title/menu flow remains unintegrated.");
+                "the reveal; Continue returns through the native menu. Original title/card menus "
+                "remain unintegrated.");
     }
     session->dirty = true;
     return true;
@@ -934,6 +954,19 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
         return SDL_InvalidParamError("laboratory");
     if (session->dirty)
     {
+        if (session->launch_active)
+        {
+            if (!SotnLaunchRenderer_Draw(SotnResource_View(session->common), session->launcher,
+                                         session->launch_slots, session->launch_error,
+                                         session->frame, SOTN_FRAME_PIXELS) ||
+                !SotnFrame_ToRgba(session->frame, SOTN_FRAME_PIXELS, session->rgba,
+                                  sizeof(session->rgba)) ||
+                !SotnPresenter_SetImage(session->presenter, session->rgba, sizeof(session->rgba),
+                                        SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT))
+                return false;
+            session->dirty = false;
+            return SotnPresenter_Draw(session->presenter);
+        }
         if (session->menu.phase != SOTN_MENU_CLOSED)
         {
             if (!SotnInventoryRenderer_Draw(session->inventory_renderer, session->menu,
@@ -963,7 +996,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
 
 bool SotnLaboratory_Finished(const SotnLaboratory *session)
 {
-    return session != NULL && SotnGameOver_Finished(session->game_over);
+    return session != NULL && !session->launch_active && SotnGameOver_Finished(session->game_over);
 }
 
 bool SotnLaboratory_Event(SotnLaboratory *session, const SDL_Event *event)
@@ -1110,6 +1143,118 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
     session->saves = store;
     SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
     *out = session;
+    return true;
+}
+
+static void LaunchError(SotnLaboratory *session, const char *detail)
+{
+    SDL_strlcpy(session->launch_error, detail, sizeof(session->launch_error));
+    for (size_t i = 0; session->launch_error[i]; ++i)
+        if ((Uint8)session->launch_error[i] < 32 || (Uint8)session->launch_error[i] > 126)
+            session->launch_error[i] = '?';
+}
+
+bool SotnLaboratory_ShowLauncher(SotnLaboratory *session)
+{
+    if (session == NULL)
+        return SDL_InvalidParamError("laboratory");
+    session->launch_available = 0;
+    session->launch_error[0] = '\0';
+    SDL_memset(session->launch_slots, 0, sizeof(session->launch_slots));
+    if (session->saves == NULL && !SotnSaveStore_Create(&session->saves))
+        LaunchError(session, SDL_GetError());
+    if (session->saves != NULL)
+        for (Uint32 i = 0; i < 15; ++i)
+        {
+            SotnLaunchSlot *summary = &session->launch_slots[i];
+            bool exists = false;
+            if (!SotnSaveStore_Exists(session->saves, i + 1, &exists))
+            {
+                LaunchError(session, SDL_GetError());
+                continue;
+            }
+            summary->exists = exists;
+            if (exists)
+            {
+                SotnSaveState saved = {0};
+                if (SotnSaveStore_Read(session->saves, i + 1, &saved))
+                {
+                    *summary = (SotnLaunchSlot){true, true, saved.character.level,
+                                                saved.character.hp, saved.room};
+                    session->launch_available |= (Uint16)(1U << i);
+                }
+                else
+                    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "Native slot %u cannot load: %s",
+                                i + 1, SDL_GetError());
+            }
+        }
+    const Uint32 selected = session->save_point.slot ? session->save_point.slot : 1;
+    if (!SotnLaunchMenu_Reset(&session->launcher, session->scene_buttons, selected))
+        return false;
+    session->launch_active = true;
+    session->launch_action = SOTN_LAUNCH_NONE;
+    session->input.menu_open = true;
+    session->map_open = false;
+    session->map_opacity = 0;
+    session->menu = (SotnInventoryMenu){0};
+    SotnMusic_Destroy(session->music);
+    session->music = NULL;
+    if (session->audio != NULL && !SotnPlayback_Reset(session->audio))
+        return false;
+    session->last_time = SDL_GetTicksNS();
+    session->clock_units = 0;
+    session->dirty = true;
+    return true;
+}
+
+bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **owner)
+{
+    if (data == NULL || owner == NULL || *owner == NULL)
+        return SDL_SetError("Session update requires owned gameplay and core data");
+    SotnLaboratory *old = *owner;
+    const SotnLaunchAction action = old->launch_action;
+    old->launch_action = SOTN_LAUNCH_NONE;
+    if (action == SOTN_LAUNCH_NONE)
+        return true;
+    SotnSaveState saved = {0};
+    const Uint32 slot = old->launcher.slot;
+    SotnLaboratory *next = NULL;
+    bool ready = false;
+    if (action == SOTN_LAUNCH_CHECKPOINT)
+        ready = CreateSession(data, old->directory, 1, NULL, 0, &next);
+    else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
+             SotnSaveStore_Read(old->saves, slot, &saved))
+        ready = CreateSession(data, old->directory, saved.room, &saved, slot, &next);
+    if (!ready)
+    {
+        LaunchError(old, SDL_GetError());
+        old->launcher.phase = SOTN_LAUNCH_ERROR;
+        old->dirty = true;
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot change native session: %s",
+                     old->launch_error);
+        return true; // The explicit error UI retains the previous owner and save file.
+    }
+    if (old->saves != NULL)
+    {
+        SotnSaveStore_Destroy(next->saves);
+        next->saves = old->saves;
+        old->saves = NULL;
+        if (!EnterSaveRoom(next))
+        {
+            LaunchError(old, SDL_GetError());
+            old->launcher.phase = SOTN_LAUNCH_ERROR;
+            old->dirty = true;
+            old->saves = next->saves;
+            next->saves = NULL;
+            SotnLaboratory_Destroy(next);
+            return true;
+        }
+    }
+    next->blocked_buttons = old->scene_buttons;
+    *owner = next;
+    SotnLaboratory_Destroy(old);
+    SDL_Log("Native session ready: %s",
+            action == SOTN_LAUNCH_LOAD ? "ordinary save loaded" : "Laboratory checkpoint");
     return true;
 }
 

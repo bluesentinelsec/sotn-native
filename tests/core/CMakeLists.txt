@@ -103,3 +103,8 @@ target_include_directories(sotn-boss-tests PRIVATE "${PROJECT_SOURCE_DIR}/module
 target_link_libraries(sotn-boss-tests PRIVATE sotn-core)
 add_test(NAME laboratory-boss COMMAND sotn-boss-tests)
 set_tests_properties(laboratory-boss PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-launch-menu-tests test_launch_menu.c)
+sotn_configure_c_target(sotn-launch-menu-tests)
+target_link_libraries(sotn-launch-menu-tests PRIVATE sotn-core)
+add_test(NAME native-launch-menu COMMAND sotn-launch-menu-tests)
