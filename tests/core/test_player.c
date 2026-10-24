@@ -86,7 +86,7 @@ static bool TestMovement(Fixture *fixture)
     CHECK(State(player, &state));
     CHECK(state.step == SOTN_PLAYER_STAND);
     const Sint32 before_x = state.x, before_y = state.y;
-    CHECK(!SotnPlayer_Tick(player, 0x0080));
+    CHECK(!SotnPlayer_Tick(player, 0x0010));
     CHECK(State(player, &state) && state.x == before_x && state.y == before_y);
     CHECK(SotnPlayer_ChangeRoom(player, map, 16, 0));
     CHECK(State(player, &state) && state.x == before_x + 16 * 65536);
@@ -125,6 +125,71 @@ static bool TestWallsAndReplay(Fixture *fixture)
     return true;
 }
 
+static bool TestAttacks(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    Put32(fixture->dra, 0xc0, 0x800a0800);
+    fixture->dra[0x811] = 0;
+    fixture->dra[0x812] = 0x24;
+    fixture->dra[0x815] = 5;
+    fixture->dra[0x81a] = 8;
+    fixture->dra[0x828] = 2;
+    Put32(fixture->dra, 0xd53c, 0x800a0900);
+    Put32(fixture->dra, 0xd540, 0x800a0a00);
+    fixture->dra[0xd549] = 1;
+    fixture->dra[0xa08] = 18;
+    fixture->dra[0xa09] = 240;
+    fixture->dra[0xa0a] = 10;
+    fixture->dra[0xa0b] = 7;
+    for (Uint32 i = 0; i < 7; ++i)
+    {
+        Put32(fixture->dra, 0x101b8 + (0x24 + i) * 4, 0x800a0300);
+        Put32(fixture->dra, 0x900 + i * 4, 0x800a0b00);
+    }
+    for (Uint32 i = 0; i < 9; ++i)
+    {
+        Put32(fixture->dra, 0x300 + i * 4, 2 | (i + 1) << 16);
+        fixture->dra[0xb00 + i * 2 + 1] = i >= 2 && i < 5 ? 4 : 0;
+    }
+    Put32(fixture->dra, 0x324, 0xffff);
+    SotnPlayer *player = NULL;
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND) && State(player, &state));
+    CHECK(state.animation.id == 0x24 && !state.attack.active);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_JUMP));
+    CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND);
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(player, &state) && state.attack.active);
+    CHECK(state.attack.offset_x == 18 && state.attack.offset_y == -16);
+    CHECK(state.attack.width == 10 && state.attack.height == 7 && !state.attack.right_hand);
+    for (Uint32 i = 0; i < 30; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(player, &state) && state.animation.pose == 7 && !state.attack.active);
+    for (Uint32 i = 0; i < 8; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state) && state.animation.id < 0x24);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT_HAND));
+    CHECK(State(player, &state) && state.animation.id == 0x26 && state.attack.right_hand);
+    for (Uint32 i = 0; i < 35; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(player, &state) && state.animation.id == 0x28);
+    for (Uint32 i = 0; i < 100; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.attack.active);
+    const Sint32 x = state.x;
+    Put32(fixture->dra, 0xc0, 0xfffffffc);
+    CHECK(!SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(player, &state) && state.x == x && !state.attack.active);
+    SotnPlayer_Close(player);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     SotnCollisionMap map = MakeFixture(fixture);
@@ -145,8 +210,8 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed =
-        TestMovement(fixture) && TestWallsAndReplay(fixture) && TestFailures(fixture);
+    const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
+                        TestAttacks(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

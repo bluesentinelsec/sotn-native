@@ -108,8 +108,8 @@ For a direct actor playtest, choose the verified development start in room 3:
 make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory --laboratory-room 3
 ```
 
-Arrows move/crouch, X or Space jumps, and Escape quits. Z/D remain unsupported
-actions and warn once without ending the session. Use `thread backtrace all`
+Arrows move/crouch, X or Space jumps, and Escape quits. Z/D now run empty-hand attacks; [combat integration](laboratory-combat.md) tracks
+their integration. Unsupported abilities warn once without ending the session. Use `thread backtrace all`
 at an LLDB crash stop. Room 1 remains the default entry checkpoint; these
 development starts are not original game progression or entry scripts.
 

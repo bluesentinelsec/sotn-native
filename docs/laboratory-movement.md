@@ -49,11 +49,10 @@ On a crash, run `thread backtrace all` in LLDB; `quit` leaves the debugger.
 | Jump | X or Space | A |
 | Quit | Escape | Window close |
 
-Z/D and controller attack/ability buttons are reserved original inputs. The
-native input adapter ignores them and logs one warning per session, leaving
-movement and jumping available. The core still rejects unsupported raw input
-from direct API/replay callers; ignoring a native button does not implement
-its game action. Optional controller-open failures retain
+Z/D and Xbox X/B now run empty-hand attacks; see [combat integration](laboratory-combat.md).
+Ability controls remain unsupported and warn once without ending the session.
+The core rejects unsupported raw input from direct API/replay callers.
+Optional controller-open failures retain
 keyboard control and log a warning. Rebinding and vibration remain future work.
 
 ## Source and boundaries

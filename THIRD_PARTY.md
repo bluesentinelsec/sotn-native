@@ -58,3 +58,8 @@ scaffold code; adapted components retain their stated licenses.
   directory, and unlicensed header sections. Resolve each proposed import's
   provenance before integration. Inventory:
   https://github.com/Xeeynamo/psyz/blob/b52003e55c0d1b20719e984dd19bd4d760eeb14a/LICENSE
+
+The empty-hand player dependency additionally adapts the selected
+`EntityUnarmedAttack` and `UpdateUnarmedAnim` paths in `src/dra/7879C.c` and
+`alu_anim.c` at the same pinned reconstructed C revision, under
+AGPL-3.0-or-later. Their animation/hitbox tables remain private runtime data.
