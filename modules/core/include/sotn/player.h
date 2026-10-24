@@ -47,6 +47,7 @@ typedef struct SotnPlayerState
     SotnPlayerAttack attack;
     Uint16 hp, hp_max;
     bool invulnerable;
+    Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */

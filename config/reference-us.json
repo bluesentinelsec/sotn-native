@@ -27,6 +27,26 @@
     "ST/NZ0/F_NZ0.BIN": {
       "size": 262144,
       "sha1": "89c5e97cb917121255d3a1a810c1d8ae098ebf8b"
+    },
+    "SD_J010.VB": {
+      "size": 269488,
+      "sha1": "01bdf63eee39ff07e1f04291f1d883dd3204625a"
+    },
+    "VAB/SD_ALK.VH": {
+      "size": 4128,
+      "sha1": "d85a65a45bcc7ffab824fcaef2a58f13db148446"
+    },
+    "VAB/SD_ALK.VB": {
+      "size": 57696,
+      "sha1": "4fc1173510a91fab28ce4e5cd1fae06d994408a0"
+    },
+    "ST/NZ0/SD_ZKNZ0.VH": {
+      "size": 6176,
+      "sha1": "deee4dea0adba9a8280fb7edb8f1bb759b4a7a64"
+    },
+    "ST/NZ0/SD_ZKNZ0.VB": {
+      "size": 56976,
+      "sha1": "efe5f7c546d70767fb1d8df6cfded9d87598f75b"
     }
   },
   "sizes": {

@@ -69,3 +69,18 @@ The selected Laboratory combat paths additionally adapt `src/st/collision.h`,
 including original physical player-hit paths in `71830.c`. They retain
 AGPL-3.0-or-later attribution at the same pinned revision. Game tables and
 sound samples are not included.
+
+## Selected native sound service
+
+`modules/audio/sound.c` adapts selected original event/script/channel paths in
+`src/dra/sound.c` under AGPL-3.0-or-later at the pinned game reconstruction.
+Its pitch/volume service follows PSY-Z's MIT-licensed `decomp/src/libsnd/vm_n2p.c`
+and `vm_nowon.c`; see `licenses/PSY-Z-decomp-MIT.txt`.
+
+`modules/audio/voice.h` adapts selected decoding/resampling/envelope code from
+[PSY-Z](https://github.com/Xeeynamo/psyz) revision
+`b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
+`psyz/src/psyz/spu_voice.h`, under MPL-2.0. The full license ships as
+`licenses/MPL-2.0.txt`. `gauss.h` retains the source's public-domain declaration
+for its mathematical coefficients. No SDK/platform headers, original samples,
+or game instrument/event tables are included.

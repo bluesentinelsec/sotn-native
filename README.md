@@ -173,3 +173,6 @@ Edit `VERSION` for the next release. Run `make fmt` for C formatting and
 
 Original scaffold code uses the [zlib license](LICENSE). See
 [THIRD_PARTY.md](THIRD_PARTY.md) for dependency provenance.
+
+The [native sound service](docs/laboratory-audio.md) now plays selected original
+combat sound effects; music, reverb, and full audio parity remain incomplete.

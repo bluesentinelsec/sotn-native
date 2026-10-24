@@ -1,0 +1,6 @@
+add_executable(sotn-audio-tests test_sound.c)
+sotn_configure_c_target(sotn-audio-tests)
+target_link_libraries(sotn-audio-tests PRIVATE sotn-audio)
+target_include_directories(sotn-audio-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/audio")
+add_test(NAME sound-simulation COMMAND sotn-audio-tests)
+set_tests_properties(sound-simulation PROPERTIES TIMEOUT 20)

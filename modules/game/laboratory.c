@@ -6,6 +6,7 @@
 #include <sotn/player.h>
 #include <sotn/presenter.h>
 #include <sotn/resource.h>
+#include <sotn/sound.h>
 
 struct SotnLaboratory
 {
@@ -27,7 +28,54 @@ struct SotnLaboratory
     bool warned_actors[0x4e];
     Uint16 displayed_hp, displayed_hearts, displayed_subweapon;
     Uint32 displayed_gold;
+    SotnResource *sound_resources[5];
+    SotnSound *sound;
+    SDL_AudioStream *audio;
+    bool audio_initialized;
 };
+
+static bool OpenAudio(SotnLaboratory *session, const char *directory)
+{
+    const SotnResourceId ids[5] = {SOTN_RESOURCE_COMMON_AUDIO, SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,
+                                   SOTN_RESOURCE_ALUCARD_AUDIO_BODY, SOTN_RESOURCE_LAB_AUDIO_HEADER,
+                                   SOTN_RESOURCE_LAB_AUDIO_BODY};
+    for (Uint32 i = 0; i < 5; ++i)
+        if (!SotnResource_Open(directory, ids[i], &session->sound_resources[i]))
+            return false;
+    const SotnSoundSources sources = {session->dra,
+                                      SotnResource_View(session->sound_resources[0]),
+                                      SotnResource_View(session->sound_resources[1]),
+                                      SotnResource_View(session->sound_resources[2]),
+                                      SotnResource_View(session->sound_resources[3]),
+                                      SotnResource_View(session->sound_resources[4])};
+    if (!SotnSound_Create(sources, &session->sound) || !SDL_InitSubSystem(SDL_INIT_AUDIO))
+        return false;
+    session->audio_initialized = true;
+    const SDL_AudioSpec spec = {.format = SDL_AUDIO_S16, .channels = 2, .freq = 44100};
+    session->audio =
+        SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, NULL, NULL);
+    return session->audio != NULL && SDL_ResumeAudioStreamDevice(session->audio);
+}
+
+static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound)
+{
+    if (session->sound == NULL)
+        return true;
+    for (Uint32 i = 0; i < combat->sound_count; ++i)
+        if (!SotnSound_Queue(session->sound, combat->sounds[i]))
+            return false;
+    if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
+        return false;
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    if (!SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
+        return false;
+    const int queued = SDL_GetAudioStreamQueued(session->audio);
+    if (queued < 0)
+        return false;
+    if (queued > 44100 && !SDL_ClearAudioStream(session->audio))
+        return false;
+    return SDL_PutAudioStreamData(session->audio, pcm, sizeof(pcm));
+}
 
 static Sint32 Pixel(Sint32 fixed)
 {
@@ -79,7 +127,8 @@ static bool TickActors(SotnLaboratory *session)
         !SotnPlayer_Damage(session->player, combat.contact_damage, combat.contact_x,
                            combat.contact_velocity))
         return false;
-    if (!SotnPlayer_GetState(session->player, &player))
+    if (!SotnPlayer_GetState(session->player, &player) ||
+        !TickAudio(session, &combat, player.sound))
         return false;
     if (player.hp != session->displayed_hp || combat.hearts != session->displayed_hearts ||
         combat.gold != session->displayed_gold || combat.subweapon != session->displayed_subweapon)
@@ -178,7 +227,8 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
                                   &session->actor_graphics) ||
         !EnterActors(session) || !TickActors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Laboratory combat checkpoint (development)", 1024, 960,
-                              &session->presenter))
+                              &session->presenter) ||
+        !OpenAudio(session, directory))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
@@ -190,7 +240,8 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     SDL_Log("Laboratory development start: room %u", (unsigned int)start_room);
     SDL_Log("Laboratory combat checkpoint: empty-hand attacks, Bloody Zombie damage/death, "
             "physical player damage, candles, and heart/gold/subweapon collection. "
-            "Weapons, audio, full effects, saves, scripts, and original camera remain incomplete.");
+            "Original sound effects are enabled; weapons, music, reverb, full effects, saves, "
+            "scripts, and original camera remain incomplete.");
     SDL_Log("Development profile: 70 HP, base stats 6, empty equipment, Cube of Zoe enabled.");
     *out = session;
     return true;
@@ -307,6 +358,13 @@ bool SotnLaboratory_Event(SotnLaboratory *session, const SDL_Event *event)
     }
     session->last_time = SDL_GetTicksNS();
     session->clock_units = 0;
+    if (session->audio != NULL)
+    {
+        if (!SDL_ClearAudioStream(session->audio))
+            return false;
+        return session->paused ? SDL_PauseAudioStreamDevice(session->audio)
+                               : SDL_ResumeAudioStreamDevice(session->audio);
+    }
     return true;
 }
 
@@ -330,7 +388,11 @@ bool SotnLaboratory_Iterate(SotnLaboratory *session)
         }
     }
     else
+    {
         session->clock_units = 0;
+        if (session->audio != NULL && !SDL_ClearAudioStream(session->audio))
+            return false;
+    }
     return SotnLaboratory_Draw(session);
 }
 
@@ -338,6 +400,12 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 {
     if (session != NULL)
     {
+        SDL_DestroyAudioStream(session->audio);
+        SotnSound_Destroy(session->sound);
+        for (Uint32 i = 0; i < 5; ++i)
+            SotnResource_Close(session->sound_resources[i]);
+        if (session->audio_initialized)
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
         SotnPresenter_Destroy(session->presenter);
         LaboratoryInput_Quit(&session->input);
         SotnActors_Destroy(session->actors);
