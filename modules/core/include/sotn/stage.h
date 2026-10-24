@@ -54,6 +54,14 @@ Uint32 SotnStage_RoomCount(const SotnStage *stage);
  */
 bool SotnStage_GetRoom(const SotnStage *stage, Uint32 index, SotnStageRoom *out);
 
+/** @brief Decode a room with explicitly bounded extra foreground tile definitions for mechanisms.
+ * @param stage Borrowed immutable stage. @param index Valid room index.
+ * @param definitions Minimum foreground definition extent, 0..4096; all four arrays must fit.
+ * @param out Room unchanged on failure. @return Success or SDL error.
+ * @note Does not mutate game files; the caller owns any writable tile copy. */
+bool SotnStage_GetRoomDefinitions(const SotnStage *stage, Uint32 index, Uint32 definitions,
+                                  SotnStageRoom *out);
+
 /**
  * @brief Release stage metadata without freeing its borrowed image.
  * @param stage Owned stage to release, or NULL.

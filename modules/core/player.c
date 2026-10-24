@@ -935,7 +935,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->step == SOTN_PLAYER_STAND && player->substep == 1,
                              player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
                                  player->step != SOTN_PLAYER_HIT,
-                             player->damage_random};
+                             player->damage_random,
+                             (Uint16)SDL_max(0, player->wall_sensors[0].x),
+                             (Uint16)SDL_max(0, player->floor_sensors[1].y - 1)};
     return true;
 }
 
@@ -1051,5 +1053,31 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service)
     if (player == NULL)
         return SDL_InvalidParamError("player");
     player->subweapons = service;
+    return true;
+}
+
+bool SotnPlayer_Displace(SotnPlayer *p, Sint32 dx, Sint32 dy, Uint32 contacts)
+{
+    if (p == NULL || dx < -64 * 65536 || dx > 64 * 65536 || dy < -64 * 65536 || dy > 64 * 65536 ||
+        (contacts & ~0x4fU) != 0)
+        return SDL_SetError("Stage-object displacement exceeds the bounded physical contacts");
+    const Sint64 x = (Sint64)p->x.value + dx, y = (Sint64)p->y.value + dy;
+    if (!PositionValid(p->map, x, y))
+        return SDL_SetError("Stage object pushed Alucard outside the room margin");
+    p->x.value = (Sint32)x;
+    p->y.value = (Sint32)y;
+    p->contact |= (Sint32)contacts;
+    return true;
+}
+
+bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
+{
+    if (p == NULL)
+        return SDL_InvalidParamError("player");
+    if (p->step == SOTN_PLAYER_KILL)
+        return true;
+    if (halt_vertical)
+        p->vy = 0;
+    p->invincibility = (Uint16)SDL_max(p->invincibility, 32);
     return true;
 }

@@ -194,5 +194,5 @@ map/script progression, or PS1 memory-card support is implied.
 
 The [Laboratory traversal milestone](docs/laboratory-world.md) now adds Skeleton,
 Bone Scimitar, Blood Skeleton, Axe Knight, and Spittle Bone behavior/projectiles.
-Room mechanisms, original camera/events, the boss, and saved map/event progress
-are the remaining work in the currently authorized milestone; do not call the area complete.
+Room switches/spikes, boxes, lifts, selected doors, cannon/secret obstacles now run.
+Original camera/events, the boss, and saved map/event progress are the remaining work in the currently authorized milestone; do not call the area complete.

@@ -64,6 +64,7 @@ typedef struct SotnPlayerState
     SotnPlayerDeath death;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
+    Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -155,6 +156,18 @@ bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random);
  * @note Does not reset movement, attacks, hit recovery, or owned damage RNG. */
 bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state,
                              SotnCharacterStats stats);
+
+/** @brief Apply stage-object displacement and contact flags after the original actor update.
+ * @param player Borrowed simulation. @param dx Signed 16.16 room displacement.
+ * @param dy Signed 16.16 room displacement. @param contacts Original stage-object contact bits.
+ * @return Success or SDL error, with unchanged state on invalid bounds. Does not reset animation.
+ */
+bool SotnPlayer_Displace(SotnPlayer *player, Sint32 dx, Sint32 dy, Uint32 contacts);
+
+/** @brief Apply the original short stage-event protection and optional vertical stop.
+ * @param player Borrowed living simulation. @param halt_vertical Clear vertical velocity.
+ * @return Success or SDL error; does not revive a dead player. */
+bool SotnPlayer_StageGuard(SotnPlayer *player, bool halt_vertical);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

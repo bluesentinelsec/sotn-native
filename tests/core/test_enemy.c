@@ -306,7 +306,7 @@ static bool Spittle(Fixture *f)
     f->nz0[0x2535] = 64;
     for (Uint32 x = 0; x < 32; ++x)
         for (Uint32 y = 0; y < 2; ++y)
-            f->tiles[(y * 32 + x) * 2] = 1;
+            CHECK(ActorTile(s, y * 32 + x, 1));
     SotnPlayerState player = {
         .x = 200 * 65536, .y = 135 * 65536, .hp = 70, .hp_max = 70, .invulnerable = true};
     CHECK(SotnActors_Tick(s, player, 0, 0));

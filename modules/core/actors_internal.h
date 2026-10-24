@@ -4,6 +4,7 @@
 #include <sotn/actors.h>
 #include <sotn/combat.h>
 #include <sotn/subweapon.h>
+#include <sotn/world.h>
 
 enum
 {
@@ -38,6 +39,12 @@ typedef struct Actor
         Uint16 owner_slot;
         Uint32 owner_generation;
     } enemy_state;
+    struct
+    {
+        Sint32 base_y;
+        Uint16 count, target;
+        bool pressed, changed;
+    } mechanism;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -45,6 +52,14 @@ struct SotnActors
 {
     SotnDataView dra, nz0;
     SotnCollisionMap map;
+    Uint8 *mutable_tiles;
+    SotnWorldState fallback_world, *world;
+    SotnPlayerState player;
+    SotnActorMotion motion;
+    SotnActorControl control;
+    Uint16 buttons, puzzle_flags, elevator_target;
+    Sint16 puzzle_height[3];
+    bool call_elevator, cannon_fired;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
     ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
@@ -136,6 +151,17 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16
 void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
 bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorDoor(SotnActors *actors, Actor *actor);
+bool ActorCannon(SotnActors *actors, Actor *actor);
+bool ActorMechanism(SotnActors *actors, Actor *actor);
+bool ActorObjectCollision(SotnActors *actors, const Actor *actor, Uint16 width, Uint16 height,
+                          Uint16 flags, Uint16 *result);
+bool ActorDisplace(SotnActors *actors, Sint32 dx, Sint32 dy, Uint32 contacts);
+bool ActorTile(SotnActors *actors, Uint32 index, Uint16 tile);
+bool ActorTilePatch(SotnActors *actors, Uint32 index, Uint32 rows, Uint32 columns, Uint32 stride,
+                    size_t offset);
+bool ActorSprite(SotnActors *actors, Actor *actor, Uint16 index, Sint32 x, Sint32 y, Uint8 u,
+                 Uint8 v, Uint16 width, Uint16 height, Uint16 page, Uint16 palette);
 bool ActorSkeleton(SotnActors *actors, Actor *actor, SotnPlayerState player);
 
 static inline Uint32 ActorRandom(SotnActors *actors)

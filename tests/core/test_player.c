@@ -201,6 +201,21 @@ static bool TestDamage(Fixture *fixture)
                             &player));
     SotnPlayerState state = {0};
     CHECK(State(player, &state) && state.hp == 70 && !state.invulnerable);
+    const Sint32 start_x = state.x, start_y = state.y;
+    CHECK(SotnPlayer_Displace(player, 65536, -65536, 0x41));
+    CHECK(State(player, &state) && state.x == start_x + 65536 && state.y == start_y - 65536 &&
+          (state.contacts & 0x41) == 0x41);
+    CHECK(!SotnPlayer_Displace(player, 65 * 65536, 0, 0));
+    CHECK(!SotnPlayer_Displace(player, 0, 0, 0x8000));
+    CHECK(State(player, &state) && state.x == start_x + 65536);
+    CHECK(SotnPlayer_Displace(player, -65536, 65536, 0));
+    CHECK(SotnPlayer_StageGuard(player, true));
+    CHECK(State(player, &state) && state.invulnerable && state.velocity_y == 0);
+    CHECK(SotnPlayer_Damage(player, 3, 80, 0));
+    CHECK(State(player, &state) && state.hp == 70);
+    for (Uint32 i = 0; i < 32; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state) && !state.invulnerable);
     CHECK(SotnPlayer_Damage(player, 3, 80, 0));
     CHECK(State(player, &state) && state.hp == 67 && state.invulnerable);
     CHECK(state.step == SOTN_PLAYER_HIT && state.velocity_x == -163840);

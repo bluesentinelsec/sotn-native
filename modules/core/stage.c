@@ -35,7 +35,8 @@ static bool Resolve(const SotnStage *stage, Uint32 address, size_t size, Uint32 
     return true;
 }
 
-static bool ReadLayer(const SotnStage *stage, Uint32 address, SotnStageLayer *out)
+static bool ReadLayer(const SotnStage *stage, Uint32 address, Uint32 minimum_definitions,
+                      SotnStageLayer *out)
 {
     SotnDataView record = {0};
     if (!Resolve(stage, address, 16, 4, &record))
@@ -67,7 +68,7 @@ static bool ReadLayer(const SotnStage *stage, Uint32 address, SotnStageLayer *ou
         if (id > max_id)
             max_id = id;
     }
-    const size_t definitions = (size_t)max_id + 1;
+    const size_t definitions = SDL_max((size_t)max_id + 1, (size_t)minimum_definitions);
     SotnDataView pointers = {0};
     if (!Resolve(stage, Read32(record.bytes + 4), 16, 4, &pointers) ||
         !Resolve(stage, Read32(pointers.bytes), definitions, 1, &layer.pages) ||
@@ -82,9 +83,10 @@ static bool ReadLayer(const SotnStage *stage, Uint32 address, SotnStageLayer *ou
     return true;
 }
 
-bool SotnStage_GetRoom(const SotnStage *stage, Uint32 index, SotnStageRoom *out)
+bool SotnStage_GetRoomDefinitions(const SotnStage *stage, Uint32 index, Uint32 definitions,
+                                  SotnStageRoom *out)
 {
-    if (stage == NULL || out == NULL || index >= stage->room_count)
+    if (stage == NULL || out == NULL || index >= stage->room_count || definitions > 4096)
         return SDL_SetError("Stage room index is outside the validated room table");
     const Uint8 *header = stage->image.bytes + stage->room_offset + (size_t)index * 8;
     SotnStageRoom room = {0};
@@ -103,8 +105,8 @@ bool SotnStage_GetRoom(const SotnStage *stage, Uint32 index, SotnStageRoom *out)
     {
         SotnDataView pair = {0};
         if (!Resolve(stage, stage->layer_address + (Uint32)room.layout_id * 8, 8, 4, &pair) ||
-            !ReadLayer(stage, Read32(pair.bytes), &room.foreground) ||
-            !ReadLayer(stage, Read32(pair.bytes + 4), &room.background))
+            !ReadLayer(stage, Read32(pair.bytes), definitions, &room.foreground) ||
+            !ReadLayer(stage, Read32(pair.bytes + 4), 0, &room.background))
             return false;
         if (!room.foreground.present)
             return SDL_SetError("Stage room is missing its foreground tile layer");
@@ -168,4 +170,9 @@ Uint32 SotnStage_RoomCount(const SotnStage *stage)
 void SotnStage_Close(SotnStage *stage)
 {
     SDL_free(stage);
+}
+
+bool SotnStage_GetRoom(const SotnStage *stage, Uint32 index, SotnStageRoom *out)
+{
+    return SotnStage_GetRoomDefinitions(stage, index, 0, out);
 }

@@ -206,12 +206,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             if (chose_lab_room || i + 1 >= argc ||
                 (!LaboratoryNumber(argv[i + 1], &lab_room) ||
                  (lab_room != 1 && lab_room != 3 && lab_room != 4 && lab_room != 5 &&
-                  lab_room != 6 && lab_room != 9 && lab_room != 10 && lab_room != 18 &&
-                  lab_room != 20 && lab_room != 23 && lab_room != 24 && lab_room != 25)))
+                  lab_room != 6 && lab_room != 9 && lab_room != 10 && lab_room != 17 &&
+                  lab_room != 18 && lab_room != 20 && lab_room != 22 && lab_room != 23 &&
+                  lab_room != 24 && lab_room != 25)))
             {
-                SDL_SetError(
-                    "--laboratory-room requires 1, 3, 4, 5, 6, 9, 10, 18, 20, 23, 24, or 25 and "
-                    "may appear only once");
+                SDL_SetError("--laboratory-room requires 1, 3, 4, 5, 6, 9, 10, 17, 18, 20, 22, 23, "
+                             "24, or 25 and "
+                             "may appear only once");
                 return Fail("Invalid arguments");
             }
             ++i;
@@ -233,7 +234,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             SDL_Log(
                 "Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                 "| --inspect-laboratory | --preview-laboratory | --laboratory] "
-                "[--laboratory-room 1|3|4|5|6|9|10|18|20|23|24|25] [--laboratory-continue SLOT] "
+                "[--laboratory-room 1|3|4|5|6|9|10|17|18|20|22|23|24|25] [--laboratory-continue "
+                "SLOT] "
                 "[--laboratory-loadout unarmed|sword|mace|dual] "
                 "[--laboratory-test-profile inventory|progression|dagger|axe|holy-water|stopwatch] "
                 "[--smoke-test] | --graphics-test");

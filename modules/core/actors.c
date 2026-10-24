@@ -211,6 +211,7 @@ bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind)
         effect->state.x = source->state.x;
         effect->state.y = source->state.y;
         effect->dynamic = true;
+        effect->slot = (Uint16)i;
         if (kind == 2)
         {
             effect->state.y += 16 * 65536;
@@ -371,7 +372,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 0xa && actor->state.id != 0x34 && actor->state.id != 0x26 &&
         actor->state.id != 0x27 && actor->state.id != 0x2e && actor->state.id != 0x2f &&
         actor->state.id != 0x29 && actor->state.id != 0x2a && actor->state.id != 0x31 &&
-        actor->state.id != 0x33)
+        actor->state.id != 0x33 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
+        actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
+        actor->state.id != 0x48 && actor->state.id != 0x1c)
         return true;
     const SotnCombatBox target = {Pixel(actor->state.x) + (actor->state.facing_left
                                                                ? -actor->state.hitbox_x
@@ -485,6 +488,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return true;
         }
     }
+    if ((actor->state.id == 0x20 || actor->state.id == 0x48) &&
+        SotnCombat_Overlap(PlayerBox(player, false), target))
+        actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
         (actor->state.id == 3 || actor->state.id == 0xa || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
@@ -494,7 +500,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->state.step = 5;
         else if ((actor->state.id == 0x2b || actor->state.id == 0x26 || actor->state.id == 0x27 ||
                   actor->state.id == 0x2e || actor->state.id == 0x2f || actor->state.id == 0x29 ||
-                  actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33) &&
+                  actor->state.id == 0x2a || actor->state.id == 0x31 || actor->state.id == 0x33 ||
+                  actor->state.id == 0x1a || actor->state.id == 0x25) &&
                  actor->attack > actors->combat.contact_damage)
         {
             actors->combat.contact_damage = actor->attack;
@@ -903,7 +910,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     switch (actor->state.id)
     {
     case 2: {
-        const Uint16 kind = actor->state.parameters;
+        const Uint16 kind = actor->state.parameters & 15;
         SotnDataView table = {0};
         if (kind > 4 || !Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table))
             return SDL_SetError("ActorExplosion references an invalid runtime type");
@@ -913,6 +920,14 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return false;
             actor->state.animation_set = 2;
             actor->state.blend_mode = 0x30;
+            if (actor->state.parameters & 0xf0)
+            {
+                actor->state.palette = 0x8195;
+                actor->state.blend_mode = 0x10;
+            }
+            if (actor->state.parameters & 0xff00)
+                actor->state.priority = (Uint16)(actor->state.parameters >> 8);
+            actor->state.parameters = kind;
             return true;
         }
         if (!Slice(actors->nz0, 0x1da8 + (size_t)kind * 4, 4, &table))
@@ -1039,6 +1054,27 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->pose = actor->remaining = 0;
         }
         return ActorAnimate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
+    case 5:
+    case 0x4a:
+        return ActorDoor(actors, actor);
+    case 0x1c:
+    case 0x1d:
+    case 0x1e:
+    case 0x1f:
+        return ActorCannon(actors, actor);
+    case 0x22:
+    case 0x17:
+    case 0x18:
+    case 0x19:
+    case 0x1a:
+    case 0x1b:
+    case 0x20:
+    case 0x21:
+    case 0x24:
+    case 0x25:
+    case 0x47:
+    case 0x48:
+        return ActorMechanism(actors, actor);
     case 0x2b:
         return Zombie(actors, actor, player);
     case 0x29:
@@ -1081,6 +1117,7 @@ bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out)
         SotnActors_Destroy(actors);
         return false;
     }
+    actors->world = &actors->fallback_world;
     *out = actors;
     return true;
 }
@@ -1092,10 +1129,24 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
         map.height > 1024)
         return SDL_SetError("Laboratory actors require a bounded room collision map");
     SotnCollider probe = {0};
-    if (!SotnCollision_Query(&map, 0, 0, &probe) ||
-        !SotnRoomActors_Enter(actors->spawns, layout, camera_x, camera_y))
+    if (!SotnCollision_Query(&map, 0, 0, &probe))
         return false;
+    const size_t bytes = (size_t)map.width * map.height * 2;
+    if (map.tiles.size < bytes || map.tiles.bytes == NULL)
+        return SDL_SetError("Room tile data is truncated");
+    Uint8 *tiles = SDL_malloc(bytes);
+    if (tiles == NULL)
+        return false;
+    SDL_memcpy(tiles, map.tiles.bytes, bytes);
+    if (!SotnRoomActors_Enter(actors->spawns, layout, camera_x, camera_y))
+    {
+        SDL_free(tiles);
+        return false;
+    }
+    SDL_free(actors->mutable_tiles);
+    actors->mutable_tiles = tiles;
     actors->map = map;
+    actors->map.tiles = (SotnDataView){tiles, bytes};
     actors->camera_x = camera_x;
     actors->camera_y = camera_y;
     actors->entered = true;
@@ -1125,6 +1176,10 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         actors->combat.gold = state.gold;
         actors->combat.kills = state.kills;
     }
+    if (actors->control.timer)
+        --actors->control.timer;
+    actors->player = player;
+    actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
@@ -1195,7 +1250,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
                 continue;
         }
         Actor next = *actor;
-        if (!Hit(actors, &next, player))
+        if (!Hit(actors, &next, actors->player))
             return false;
         if (next.state.id == 3 && next.timer != 0)
             --next.timer;
@@ -1207,7 +1262,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         }
         if (SotnSubweapons_Frozen(actors->subweapons) && !(next.state.flags & (0x2000 | 0x100)))
             frozen = frozen || !(next.state.flags & 0x200) || (actors->ticks & 3) != 0;
-        if (!frozen && !next.state.unsupported && !Behavior(actors, &next, player))
+        if (!frozen && !next.state.unsupported && !Behavior(actors, &next, actors->player))
         {
             char detail[256] = {0};
             SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
@@ -1313,6 +1368,7 @@ void SotnActors_Destroy(SotnActors *actors)
     if (actors != NULL)
     {
         SotnRoomActors_Destroy(actors->spawns);
+        SDL_free(actors->mutable_tiles);
         SDL_free(actors);
     }
 }
@@ -1322,5 +1378,44 @@ bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service)
     if (actors == NULL)
         return SDL_InvalidParamError("actors");
     actors->subweapons = service;
+    return true;
+}
+
+bool SotnActors_SetWorld(SotnActors *s, SotnWorldState *world)
+{
+    if (s == NULL)
+        return SDL_InvalidParamError("actors");
+    if (world != NULL && !SotnWorld_Validate(world))
+        return false;
+    s->world = world != NULL ? world : &s->fallback_world;
+    return true;
+}
+bool SotnActors_SetButtons(SotnActors *s, Uint16 buttons)
+{
+    if (s == NULL)
+        return SDL_InvalidParamError("actors");
+    s->buttons = buttons;
+    return true;
+}
+bool SotnActors_GetMap(const SotnActors *s, SotnCollisionMap *out)
+{
+    if (s == NULL || !s->entered || out == NULL)
+        return SDL_SetError("Room map requires an entered actor service and output");
+    *out = s->map;
+    return true;
+}
+bool SotnActors_GetMotion(const SotnActors *s, SotnActorMotion *out)
+{
+    if (s == NULL || !s->entered || out == NULL)
+        return SDL_SetError("Object motion requires an entered actor service and output");
+    *out = s->motion;
+    return true;
+}
+
+bool SotnActors_GetControl(const SotnActors *s, SotnActorControl *out)
+{
+    if (s == NULL || out == NULL)
+        return SDL_SetError("Stage control requires actors and output");
+    *out = s->control;
     return true;
 }

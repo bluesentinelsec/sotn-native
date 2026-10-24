@@ -141,3 +141,13 @@ reviewed algorithms from `src/st/e_skeleton.h`, `e_bone_scimitar.h`,
 `e_blood_skeleton.h`, `entity_axe_knight.h`, `st_common.h`, `e_misc.h`, and
 `src/st/nz0/e_spittle_bone.c` at the pinned reconstructed revision, under
 AGPL-3.0-or-later. Runtime definitions/arrays and artwork remain private inputs.
+
+The Laboratory room mechanism slice additionally adapts reviewed logic from
+`src/st/nz0/e_nz0_room2.c`, `e_puzzle.c`, `e_elevator.c`, `e_elevator2.c`,
+`e_cannon.c`, `e_left_secret_room_wall.c`, shared `st/e_red_door.h`,
+`e_sealed_door.h`, `st_common.h`, `e_collect.h`, and packed visitation from
+`src/dra/5087C.c`, at reconstructed revision
+`7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
+All original tables, art, and patches remain private runtime input. Native bounds,
+ownership, initialized puzzle sentinel, and tests are described in
+[the traversal milestone](docs/laboratory-world.md).
