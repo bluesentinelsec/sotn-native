@@ -1,6 +1,7 @@
 #include "data_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/music.h>
+#include <sotn/playback.h>
 
 #define CHECK(condition)                                                                           \
     do                                                                                             \
@@ -79,6 +80,27 @@ static bool Playback(const char *directory)
     SotnMusic_Destroy(music);
     SotnStream_Close(stream);
     CHECK(!SotnMusic_Create((SotnDataView){0}, NULL, &music) && music == NULL);
+    CHECK(SotnData_OpenStreamSpec(directory, &spec, &stream));
+    const size_t game_over = 0x1d224 + 62 * 16;
+    Put32(dra, game_over, 0);
+    Put32(dra, game_over + 4, 2);
+    dra[game_over + 8] = 1;
+    dra[game_over + 10] = 127;
+    Put32(dra, game_over + 12, 2);
+    SotnPlayback *playback = NULL;
+    CHECK(SotnPlayback_Create(&playback));
+    CHECK(SotnMusic_CreateGameOver(image, stream, &music));
+    for (Uint32 tick = 0; tick < 5; ++tick)
+    {
+        CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+        CHECK(SotnPlayback_Queue(playback, pcm, SDL_arraysize(pcm)));
+        if (tick >= 2)
+            for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+                CHECK(pcm[i] == 0);
+    }
+    SotnMusic_Destroy(music);
+    SotnPlayback_Destroy(playback);
+    SotnStream_Close(stream);
     raw[19] = raw[23] = 0;
     SotnData_Sha1(raw, SOTN_CD_SECTOR_BYTES * 2, digest);
     CHECK(SDL_SaveFile(path, raw, SOTN_CD_SECTOR_BYTES * 2));

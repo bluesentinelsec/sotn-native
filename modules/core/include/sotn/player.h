@@ -7,6 +7,7 @@
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
 {
+    SOTN_BUTTON_START = 0x0008,
     SOTN_BUTTON_JUMP = 0x0040,
     SOTN_BUTTON_RIGHT_HAND = 0x0020,
     SOTN_BUTTON_LEFT_HAND = 0x0080,
@@ -24,7 +25,8 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_CROUCH,
     SOTN_PLAYER_FALL,
     SOTN_PLAYER_JUMP,
-    SOTN_PLAYER_HIT = 10
+    SOTN_PLAYER_HIT = 10,
+    SOTN_PLAYER_KILL = 16
 } SotnPlayerStep;
 
 /** @brief Runtime supported hand-attack hitbox, in whole pixels relative to Alucard's origin. */
@@ -36,6 +38,14 @@ typedef struct SotnPlayerAttack
     bool active, right_hand, sound;
     Uint16 power, sound_id, equipment, sprite;
 } SotnPlayerAttack;
+
+/** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
+typedef struct SotnPlayerDeath
+{
+    Uint8 phase, red, blue, mask[32];
+    Uint16 timer, cursor;
+    Sint16 rotation;
+} SotnPlayerDeath;
 
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
@@ -49,6 +59,7 @@ typedef struct SotnPlayerState
     Uint16 hp, hp_max;
     bool invulnerable;
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
+    SotnPlayerDeath death;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -107,15 +118,16 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
  */
 bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out);
 
-/** @brief Apply ordinary physical contact damage to the empty-equipment development player.
+/** @brief Apply ordinary physical contact damage to the unarmored development player.
  * @param player Borrowed simulation, with a 70-HP development profile.
  * @param amount Incoming original attack, 1..9999; zero does nothing.
  * @param source_x Whole-pixel source hitbox center within the room margin.
  * @param source_velocity Original signed 16.16 source velocity.
- * @return Success, or false with SDL_GetError() on invalid input, data failure, or death.
+ * @return Success, or false with SDL_GetError() on invalid input or data failure; failure leaves
+ * state unchanged.
  * @note Preserves normal physical hit reactions and recovery invulnerability. Elemental
- * ailments, equipped defenses, and death/continue flow remain incomplete. Death sets HP to zero
- * and stops the development session explicitly. Other failures leave state unchanged. */
+ * ailments and equipped defenses remain incomplete. Lethal physical damage enters the original
+ * selected death animation/dissolution; phase 128 signals completion to the scene. */
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
 
 /**

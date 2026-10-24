@@ -439,7 +439,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
-    if (actor->state.step == 0 || actor->state.unsupported || (actor->state.flags & 0x100))
+    if (player.step == SOTN_PLAYER_KILL || actor->state.step == 0 || actor->state.unsupported ||
+        (actor->state.flags & 0x100))
         return true;
     for (Uint32 i = 0; i < 2; ++i)
         if (actor->cooldown[i])
