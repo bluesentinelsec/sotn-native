@@ -174,3 +174,8 @@ const SotnDataSpec *SotnData_ResourceSpec(SotnResourceId id)
     }
     return &reference_resources[id];
 }
+
+const SotnDataSpec *SotnData_MusicSpec(void)
+{
+    return &reference_music;
+}

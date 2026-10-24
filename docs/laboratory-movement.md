@@ -18,8 +18,10 @@ The native session renders the existing tile/sprite pipeline through OpenGL.
 
 The [actor checkpoint](laboratory-actors.md) now adds selected original room
 objects and Bloody Zombie active motion/animation to this movement foundation.
-Original game startup, complete stage actors/scripts, combat, equipment, damage,
-HUD, audio, saves, transformations, and full-game progression remain incomplete. Reaching an
+The [combat checkpoint](laboratory-combat.md) adds unarmed hits, selected damage/death,
+candle prizes, and [audio](laboratory-audio.md). Original startup, complete actors/scripts,
+equipped weapons, HUD, saves/continue, transformations, and full progression remain incomplete.
+Reaching an
 unsupported external stage/boundary fails with a clear message. Movement
 support does not establish parity for the full original player state machine.
 
@@ -91,7 +93,8 @@ transitioned from room 1 to room 2. Actual framebuffer captures were inspected
 locally and remain ignored, alongside all private inputs and test tools.
 
 Before calling this the first authentic playable project milestone, integrate
-combat, remaining entities/effects, audio, original timing/camera and entry scripts, then compare
+equipped weapons, remaining entities/effects, full audio behavior, original timing/camera
+and entry scripts, then compare
 a repeatable sequence with the original. Broader progression and ordinary
 save/load follow. Human playtesting of this checkpoint evaluates its limited
 movement and rendering; it cannot establish those missing features.

@@ -84,3 +84,8 @@ and `vm_nowon.c`; see `licenses/PSY-Z-decomp-MIT.txt`.
 `licenses/MPL-2.0.txt`. `gauss.h` retains the source's public-domain declaration
 for its mathematical coefficients. No SDK/platform headers, original samples,
 or game instrument/event tables are included.
+
+`modules/audio/music.c` additionally adapts selected XA decoding paths in
+PSY-Z's `psyz/src/psyz/libcd.c` at the same backend revision under MPL-2.0.
+The native stream loader and SDL rate-conversion boundary replace platform/SDK
+services. No game music, CD sectors, or soundtrack metadata arrays are included.
