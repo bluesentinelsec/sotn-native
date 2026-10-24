@@ -63,7 +63,8 @@ render caches are never trusted from disk.
 The Laboratory scene reveals cells once per simulation update using foreground
 castle coordinates and the original hidden-map flag. Repeated visits count once.
 The map preserves its original two-bit packing; the current scene adds exploration
-bits only. Map artwork, a map screen, and secret-passage drawing remain incomplete.
+bits only. The [map screen](castle-map.md) now presents those bits and secret passages using
+private original artwork; full map/presentation parity remains incomplete.
 
 Continue installs world and character progress before actors initialize, then
 restores owned RNG streams after initialization. Opened secret wall/floor and

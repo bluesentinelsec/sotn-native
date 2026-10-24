@@ -55,6 +55,10 @@
     "BIN/F_GO.BIN": {
       "size": 114688,
       "sha1": "fa0556554d4b4e68410cf0270cb826b4a42f36ff"
+    },
+    "F_MAP.BIN": {
+      "size": 32768,
+      "sha1": "db60e9cac13ed6bcf93b0d7b1625ee2d0dc1b0bd"
     }
   },
   "sizes": {

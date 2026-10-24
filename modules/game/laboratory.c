@@ -2,6 +2,7 @@
 #include <sotn/actor_graphics.h>
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
+#include <sotn/castle_map.h>
 #include <sotn/game_over.h>
 #include <sotn/hud.h>
 #include <sotn/inventory.h>
@@ -19,6 +20,12 @@
 struct SotnLaboratory
 {
     SotnStage *stage;
+    char *directory;
+    SotnResource *map_art;
+    SotnMapRenderer *map_renderer;
+    bool map_open;
+    Uint8 map_opacity;
+    Uint64 map_ticks;
     SotnStageRoom room;
     SotnWorldState world;
     SotnCamera camera;
@@ -489,9 +496,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Uint3
         session->world = saved->world;
         session->simulation_ticks = saved->ticks;
     }
+    session->directory = directory != NULL ? SDL_strdup(directory) : NULL;
     session->room_index = start_room;
     session->mp = 20;
-    if (!SotnGameData_GetFile(data, SOTN_GAME_MAIN, &session->executable) ||
+    if (session->directory == NULL ||
+        !SotnGameData_GetFile(data, SOTN_GAME_MAIN, &session->executable) ||
         !SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
         !SotnGameData_GetFile(data, SOTN_GAME_NZ0, &session->nz0) ||
         !SotnCharacter_Create(session->dra, &session->character) ||
@@ -601,6 +610,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    const bool select =
+        (buttons & SOTN_BUTTON_SELECT) && !(session->scene_buttons & SOTN_BUTTON_SELECT);
     const bool start =
         (buttons & SOTN_BUTTON_START) && !(session->scene_buttons & SOTN_BUTTON_START);
     session->scene_buttons = buttons;
@@ -619,6 +630,32 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnActors_GetControl(session->actors, &control))
         return false;
     const bool owns_save = session->save_room && session->save_point.phase != SOTN_SAVE_POINT_IDLE;
+    if (session->map_open || (select && state.can_pause && !owns_save && control.timer == 0 &&
+                              session->menu.phase == SOTN_MENU_CLOSED))
+    {
+        if (!session->map_open)
+        {
+            if (session->map_renderer == NULL &&
+                (!SotnResource_Open(session->directory, SOTN_RESOURCE_CASTLE_MAP,
+                                    &session->map_art) ||
+                 !SotnMapRenderer_Create(SotnResource_View(session->map_art),
+                                         SotnResource_View(session->common), session->dra,
+                                         &session->map_renderer)))
+                return false;
+            session->map_open = true;
+        }
+        else if (start || select)
+            session->map_open = false;
+        session->map_opacity = (Uint8)(session->map_open ? SDL_min(64, session->map_opacity + 8)
+                                                         : SDL_max(0, session->map_opacity - 8));
+        ++session->map_ticks;
+        const SotnActorCombat silent = {0};
+        session->dirty = true;
+        return TickAudio(session, &silent, 0);
+    }
+    if (session->map_opacity)
+        session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
+
     if (session->menu.phase != SOTN_MENU_CLOSED ||
         (start && state.can_pause && !owns_save && control.timer == 0))
     {
@@ -641,7 +678,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
     if (control.timer)
         player_buttons = control.buttons;
-    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL);
+    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     if (!SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
@@ -857,6 +894,40 @@ static bool DrawGameplay(SotnLaboratory *session)
                                          SOTN_FRAME_PIXELS));
 }
 
+static bool DrawMap(SotnLaboratory *session)
+{
+    if (session->map_opacity == 0 || session->game_over != NULL)
+        return true;
+    if (!SotnMapRenderer_Draw(session->map_renderer, &session->world, false, session->map_opacity,
+                              session->frame, SOTN_FRAME_PIXELS))
+        return false;
+    SotnPlayerState player = {0};
+    if (!SotnPlayer_GetState(session->player, &player))
+        return false;
+    if (session->room.foreground.parameters & 0x10)
+        return true;
+    const Sint32 cx = SDL_clamp((Sint32)session->room.foreground.left + Pixel(player.x) / 256, 0,
+                                63),
+                 cy =
+                     SDL_clamp((Sint32)session->room.foreground.top + Pixel(player.y) / 256, 0, 63);
+    Sint32 tick = 63 - (Sint32)(session->map_ticks & 63);
+    tick = 15 - ((tick * tick) >> 8);
+    if (tick == 0)
+        tick = 15;
+    const Sint32 x = cx * 4 - 14 + tick, y = cy * 4 - 13 + tick, size = 32 - tick * 2;
+    SotnTextureQuad cursor = {.x = {x, x + size, x, x + size},
+                              .y = {y, y, y + size, y + size},
+                              .u = {0, 32, 0, 32},
+                              .v = {0, 0, 32, 32},
+                              .page = 0x1a,
+                              .palette = 0x170,
+                              .blend = true,
+                              .modulate = true,
+                              .opacity = (Uint8)(tick * 16 * session->map_opacity / 64)};
+    return SotnActorGraphics_Quad(session->actor_graphics, cursor, session->frame,
+                                  SOTN_FRAME_PIXELS);
+}
+
 bool SotnLaboratory_Draw(SotnLaboratory *session)
 {
     if (session == NULL)
@@ -879,6 +950,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
         if (!(session->game_over != NULL
                   ? SotnGameOver_Draw(session->game_over, session->frame, SOTN_FRAME_PIXELS)
                   : DrawGameplay(session)) ||
+            !DrawMap(session) ||
             !SotnFrame_ToRgba(session->frame, SOTN_FRAME_PIXELS, session->rgba,
                               sizeof(session->rgba)) ||
             !SotnPresenter_SetImage(session->presenter, session->rgba, sizeof(session->rgba),
@@ -952,6 +1024,9 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 {
     if (session != NULL)
     {
+        SotnMapRenderer_Destroy(session->map_renderer);
+        SotnResource_Close(session->map_art);
+        SDL_free(session->directory);
         SotnGameOver_Destroy(session->game_over);
         SotnResource_Close(session->game_over_art);
         SotnInventoryRenderer_Destroy(session->inventory_renderer);

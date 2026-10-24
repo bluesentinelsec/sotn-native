@@ -3,7 +3,8 @@ CONFIG ?= Debug
 BUILD_DIR ?= build/debug
 CMAKE_FLAGS ?=
 JOBS ?= 4
-SOTN_FORMAT_SOURCES := modules/data/stage_assets.c modules/data/include/sotn/stage_assets.h \
+SOTN_FORMAT_SOURCES := modules/render/castle_map.c modules/render/include/sotn/castle_map.h tests/render/test_castle_map.c \
+  modules/data/stage_assets.c modules/data/include/sotn/stage_assets.h \
   tests/data/test_stage_assets.c \
   src/main.c src/lab_preview.c src/lab_preview.h \
   modules/data/game_data.c \

@@ -15,6 +15,12 @@
 static bool TestKeyboard(void)
 {
     bool keys[SDL_SCANCODE_COUNT] = {false};
+    keys[SDL_SCANCODE_TAB] = true;
+    CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_SELECT);
+    keys[SDL_SCANCODE_TAB] = false;
+    keys[SDL_SCANCODE_M] = true;
+    CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_SELECT);
+    keys[SDL_SCANCODE_M] = false;
     keys[SDL_SCANCODE_RETURN] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_START);
     keys[SDL_SCANCODE_RETURN] = false;
