@@ -72,6 +72,8 @@ SOTN_FORMAT_SOURCES += modules/core/save_point.c modules/core/include/sotn/save_
   modules/render/save_point.c modules/render/include/sotn/save_point_renderer.h \
   tests/core/test_save_point.c tests/render/test_save_point.c
 
+SOTN_FORMAT_SOURCES += modules/core/character.c modules/core/include/sotn/character.h tests/core/test_character.c
+
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)
