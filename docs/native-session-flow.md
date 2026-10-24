@@ -13,7 +13,8 @@ requiring a process restart or a command-line slot argument. Existing direct
 
 Keyboard: arrows select, X/Space or Enter confirms, A cancels, Escape quits.
 Xbox: d-pad/stick selects, A confirms, Y cancels. Held selection/confirm inputs
-are suppressed across screen/session transitions until released. Hotplug and
+are suppressed across screen/session transitions until released. A requested load
+stays pending across catch-up ticks until the application consumes it once. Hotplug and
 window lifecycle use the existing SDL input/OpenGL presenter.
 
 This is a native filesystem adaptation with the private common font. It is

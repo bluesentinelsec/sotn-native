@@ -626,7 +626,9 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->scene_buttons = buttons;
     if (session->launch_active)
     {
-        if (!SotnLaunchMenu_Tick(&session->launcher, buttons, session->launch_available,
+        // A render frame may run several ticks before the application consumes this request.
+        if (session->launch_action == SOTN_LAUNCH_NONE &&
+            !SotnLaunchMenu_Tick(&session->launcher, buttons, session->launch_available,
                                  &session->launch_action))
             return false;
         session->dirty = true;
