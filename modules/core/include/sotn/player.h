@@ -66,6 +66,8 @@ typedef struct SotnPlayerState
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
 } SotnPlayerState;
 
+typedef struct SotnSubweapons SotnSubweapons;
+
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
 
@@ -84,6 +86,11 @@ typedef struct SotnPlayer SotnPlayer;
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
                        SotnPlayer **out);
+
+/** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
+ * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.
+ */
+bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
 
 /**
  * @brief Advance one simulation tick with original movement and sensor rules.

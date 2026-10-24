@@ -279,12 +279,41 @@ static bool TestWeapons(Fixture *fixture)
     return true;
 }
 
+static bool TestQuad(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    SotnActorGraphics *graphics = NULL;
+    CHECK(Create(fixture, &graphics) && SotnActorGraphics_LoadBank(graphics, 0));
+    ClearFrame(fixture);
+    SotnTextureQuad q = {.x = {0, 4, 0, 4},
+                         .y = {0, 0, 1, 1},
+                         .u = {4, 8, 4, 8},
+                         .v = {64, 64, 65, 65},
+                         .page = 2,
+                         .palette = 512};
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[1] == 0x8000 && fixture->frame[2] == 0x83e0);
+    const Uint16 first = fixture->frame[0];
+    q.page = 0x1ff;
+    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[0] == first);
+    q.page = 2;
+    q.x[3] = 5;
+    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[0] == first);
+    q.x[3] = 4;
+    q.x[0] = SDL_MAX_SINT32;
+    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(graphics);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestSprites(fixture) && TestFailures(fixture) &&
+    const bool passed = TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
                         TestDepthsAndOrdering(fixture) && TestWeapons(fixture);
     SDL_free(fixture);
     if (!passed)

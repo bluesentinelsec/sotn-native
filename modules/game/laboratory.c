@@ -14,6 +14,7 @@
 #include <sotn/save.h>
 #include <sotn/save_point_renderer.h>
 #include <sotn/sound.h>
+#include <sotn/subweapon_renderer.h>
 
 struct SotnLaboratory
 {
@@ -23,6 +24,7 @@ struct SotnLaboratory
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
     SotnActors *actors;
+    SotnSubweapons *subweapons;
     SotnActorLayout *actor_layout;
     SotnActorGraphics *actor_graphics;
     SotnPresenter *presenter;
@@ -89,6 +91,16 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             return false;
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
         return false;
+    Uint16 sounds[64] = {0}, sound_count = 0;
+    if (session->subweapons != NULL)
+    {
+        if (!SotnSubweapons_Sounds(session->subweapons, sounds, SDL_arraysize(sounds),
+                                   &sound_count))
+            return false;
+        for (Uint16 i = 0; i < sound_count; ++i)
+            if (!SotnSound_Queue(session->sound, sounds[i]))
+                return false;
+    }
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
         return false;
@@ -194,7 +206,8 @@ static bool TickActors(SotnLaboratory *session)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
-    if (!SotnActors_Tick(session->actors, player, camera_x, camera_y))
+    if (!SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
+        !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
     SotnActorCombat combat = {0};
     SotnCharacterStats attributes = {0};
@@ -378,6 +391,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
             return false;
+        if (!SotnSubweapons_Enter(session->subweapons, room.foreground.collision))
+            return false;
         session->room = room;
         session->room_index = i;
         if (!EnterActors(session) || !EnterSaveRoom(session))
@@ -421,9 +436,13 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
                                                                                           : 32,
             135, &session->player) ||
+        !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
+                               &session->subweapons) ||
+        !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
+        !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
         !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->inventory_renderer) ||
         !SotnActorGraphics_Create(session->dra, session->nz0,
@@ -675,6 +694,9 @@ static bool DrawGameplay(SotnLaboratory *session)
             SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, false,
                                        session->frame, SOTN_FRAME_PIXELS)) &&
            DrawActorsAndPlayer(session, state, camera_x, camera_y) &&
+           SotnSubweapons_Draw(session->subweapons, session->actor_graphics, session->dra,
+                               session->simulation_ticks, camera_x, camera_y, session->frame,
+                               SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
             SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, true,
                                        session->frame, SOTN_FRAME_PIXELS)) &&
@@ -795,6 +817,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnPresenter_Destroy(session->presenter);
         LaboratoryInput_Quit(&session->input);
         SotnActors_Destroy(session->actors);
+        SotnSubweapons_Destroy(session->subweapons);
         SotnCharacter_Destroy(session->character);
         SotnActorLayout_Close(session->actor_layout);
         SotnActorGraphics_Destroy(session->actor_graphics);
@@ -875,5 +898,54 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
     }
     SDL_Log("Loaded native slot %u in Laboratory room %u", slot, state.room);
     *out = session;
+    return true;
+}
+
+bool SotnLaboratory_TestProfile(SotnLaboratory *session, const char *name)
+{
+    if (session == NULL || name == NULL)
+        return SDL_SetError("A named fresh-session test profile is required");
+    SotnCharacterState state = {0};
+    if (!SotnCharacter_Get(session->character, &state, NULL))
+        return false;
+    if (SDL_strcmp(name, "inventory") == 0)
+    {
+        const Uint16 hands[] = {18, 128};
+        const Uint16 body[] = {2, 27, 49, 77};
+        for (Uint32 i = 0; i < SDL_arraysize(hands); ++i)
+            if (!SotnCharacter_Collect(session->character, false, hands[i]))
+                return false;
+        for (Uint32 i = 0; i < SDL_arraysize(body); ++i)
+            if (!SotnCharacter_Collect(session->character, true, body[i]))
+                return false;
+    }
+    else if (SDL_strcmp(name, "progression") == 0)
+    {
+        Uint32 remaining = 0;
+        if (!SotnCharacter_NextLevel(session->character, &remaining))
+            return false;
+        if (remaining > 0)
+            state.experience += remaining - 1;
+        if (!SotnCharacter_Restore(session->character, &state))
+            return false;
+    }
+    else
+    {
+        const Uint16 subweapon = SDL_strcmp(name, "dagger") == 0       ? 1
+                                 : SDL_strcmp(name, "axe") == 0        ? 2
+                                 : SDL_strcmp(name, "holy-water") == 0 ? 3
+                                 : SDL_strcmp(name, "stopwatch") == 0  ? 6
+                                                                       : 0;
+        if (subweapon == 0)
+            return SDL_SetError("Unknown Laboratory test profile '%s'", name);
+        state.subweapon = subweapon;
+        state.hearts = state.hearts_max;
+        if (!SotnCharacter_Restore(session->character, &state))
+            return false;
+    }
+    if (!ApplyCharacter(session))
+        return false;
+    SDL_Log("Explicit development test profile: %s (granted checkpoint resources)", name);
+    session->dirty = true;
     return true;
 }

@@ -182,3 +182,7 @@ still cover the earlier checkpoint; the following stack expands persistence.
 [Character progression](docs/character-progression.md) now awards level-adjusted
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
 Heart/Life Max Up collection. Complete level-up effects and familiar EXP remain incomplete.
+
+The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagger, axe,
+holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
+Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.

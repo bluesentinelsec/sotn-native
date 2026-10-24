@@ -446,3 +446,53 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics)
 {
     SDL_free(graphics);
 }
+
+bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
+                            size_t count)
+{
+    if (graphics == NULL || frame == NULL || count < SOTN_FRAME_PIXELS || q.page > 0x1ff ||
+        ((q.page >> 7) & 3) == 3 || q.palette >= 768)
+        return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
+    Sint32 left = 2048, right = -2048, top = 2048, bottom = -2048;
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        if (q.x[i] < -2048 || q.x[i] > 2048 || q.y[i] < -2048 || q.y[i] > 2048)
+            return SDL_SetError("Projectile quad exceeds the bounded screen margin");
+        left = SDL_min(left, q.x[i]);
+        right = SDL_max(right, q.x[i]);
+        top = SDL_min(top, q.y[i]);
+        bottom = SDL_max(bottom, q.y[i]);
+    }
+    if (q.x[3] != q.x[1] + q.x[2] - q.x[0] || q.y[3] != q.y[1] + q.y[2] - q.y[0])
+        return SDL_SetError("Projectile quad must be affine");
+    const double ax = q.x[1] - q.x[0], ay = q.y[1] - q.y[0];
+    const double bx = q.x[2] - q.x[0], by = q.y[2] - q.y[0];
+    const double determinant = ax * by - ay * bx;
+    if (determinant == 0)
+        return true;
+    for (Uint32 pass = 0; pass < 2; ++pass)
+        for (Sint32 y = SDL_max(0, top); y < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++y)
+            for (Sint32 x = SDL_max(0, left); x < SDL_min(SOTN_FRAME_WIDTH, right); ++x)
+            {
+                const double dx = x + 0.5 - q.x[0], dy = y + 0.5 - q.y[0];
+                const double a = (dx * by - dy * bx) / determinant;
+                const double b = (ax * dy - ay * dx) / determinant;
+                if (a < 0 || a >= 1 || b < 0 || b >= 1)
+                    continue;
+                const double u = q.u[0] + a * (q.u[1] - q.u[0]) + b * (q.u[2] - q.u[0]);
+                const double v = q.v[0] + a * (q.v[1] - q.v[0]) + b * (q.v[2] - q.v[0]);
+                Uint16 color = 0;
+                if (u < 0 || u >= 256 || v < 0 || v >= 256 ||
+                    !Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))
+                    return SDL_SetError("Projectile texture reference is invalid: %s",
+                                        SDL_GetError());
+                if (pass != 0 && color != 0)
+                {
+                    const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
+                    frame[pixel] = q.blend && (color & 0x8000)
+                                       ? Blend(frame[pixel], color, (q.page >> 5) & 3)
+                                       : color;
+                }
+            }
+    return true;
+}
