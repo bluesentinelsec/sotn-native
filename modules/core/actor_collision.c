@@ -185,9 +185,9 @@ bool ActorCrawl(SotnActors *actors, Actor *actor, Uint8 arg0, Uint8 *out)
     Uint8 bits_45 = 0;
     Uint8 bits_23 = 0;
     Uint8 bits_67 = 0;
-    Uint16 collEff = 0;
-    Sint16 posX = 0;
-    Sint16 posY = 0;
+    Uint32 collEff = 0;
+    Sint32 posX = 0;
+    Sint32 posY = 0;
     Uint8 bits_01 = 0;
 
     actor->state.x += actor->vx;
