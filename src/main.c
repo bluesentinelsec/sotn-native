@@ -134,6 +134,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool chose_lab_room = false;
     Uint32 lab_room = 1, lab_slot = 0;
     const char *lab_loadout = NULL;
+    const char *lab_test_profile = NULL;
     for (int i = 1; i < argc; ++i)
     {
         if (SDL_strcmp(argv[i], "--smoke-test") == 0)
@@ -174,6 +175,21 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             play_lab = true;
         }
+        else if (SDL_strcmp(argv[i], "--laboratory-test-profile") == 0)
+        {
+            if (lab_test_profile != NULL || i + 1 >= argc ||
+                (SDL_strcmp(argv[i + 1], "inventory") != 0 &&
+                 SDL_strcmp(argv[i + 1], "progression") != 0 &&
+                 SDL_strcmp(argv[i + 1], "dagger") != 0 && SDL_strcmp(argv[i + 1], "axe") != 0 &&
+                 SDL_strcmp(argv[i + 1], "holy-water") != 0 &&
+                 SDL_strcmp(argv[i + 1], "stopwatch") != 0))
+            {
+                SDL_SetError("--laboratory-test-profile requires inventory, progression, dagger, "
+                             "axe, holy-water, or stopwatch once");
+                return Fail("Invalid arguments");
+            }
+            lab_test_profile = argv[++i];
+        }
         else if (SDL_strcmp(argv[i], "--laboratory-loadout") == 0)
         {
             if (lab_loadout != NULL || i + 1 >= argc ||
@@ -213,11 +229,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         }
         else if (SDL_strcmp(argv[i], "--help") == 0)
         {
-            SDL_Log("Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
-                    "| --inspect-laboratory | --preview-laboratory | --laboratory] "
-                    "[--laboratory-room 1|3|4|5|6|9|10|23|24|25] [--laboratory-continue SLOT] "
-                    "[--laboratory-loadout unarmed|sword|mace|dual] "
-                    "[--smoke-test] | --graphics-test");
+            SDL_Log(
+                "Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
+                "| --inspect-laboratory | --preview-laboratory | --laboratory] "
+                "[--laboratory-room 1|3|4|5|6|9|10|23|24|25] [--laboratory-continue SLOT] "
+                "[--laboratory-loadout unarmed|sword|mace|dual] "
+                "[--laboratory-test-profile inventory|progression|dagger|axe|holy-water|stopwatch] "
+                "[--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
         else
@@ -226,12 +244,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("Invalid arguments");
         }
     }
-    if ((chose_lab_room || lab_loadout != NULL || lab_slot != 0) && !play_lab)
+    if ((chose_lab_room || lab_loadout != NULL || lab_slot != 0 || lab_test_profile != NULL) &&
+        !play_lab)
     {
         SDL_SetError("Selected Laboratory option requires --laboratory");
         return Fail("Invalid arguments");
     }
-    if (lab_slot != 0 && (chose_lab_room || lab_loadout != NULL))
+    if (lab_slot != 0 && (chose_lab_room || lab_loadout != NULL || lab_test_profile != NULL))
     {
         SDL_SetError("--laboratory-continue cannot combine with room or loadout selection");
         return Fail("Invalid arguments");
@@ -310,6 +329,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             if (!SotnLaboratory_SetEquipment(app->game, left, right))
                 return Fail("Cannot select Laboratory loadout");
         }
+        if (lab_test_profile != NULL && !SotnLaboratory_TestProfile(app->game, lab_test_profile))
+            return Fail("Cannot apply Laboratory test profile");
         if (app->smoke_test)
             SDL_Log("SOTN_SMOKE_TEST: START");
         return SDL_APP_CONTINUE;

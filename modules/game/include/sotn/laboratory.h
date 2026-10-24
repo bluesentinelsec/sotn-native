@@ -7,6 +7,12 @@
 /** @brief Owned development Laboratory session, borrowing the application's core snapshot. */
 typedef struct SotnLaboratory SotnLaboratory;
 
+/** @brief Apply a named, explicit development fixture before play; never use for Continue.
+ * @param laboratory Borrowed fresh checkpoint. @param name inventory, progression, dagger,
+ * axe, holy-water, or stopwatch. @return Success or SDL error. Fixtures grant test resources;
+ * they are not an original new-game start or a gameplay enhancement. */
+bool SotnLaboratory_TestProfile(SotnLaboratory *laboratory, const char *name);
+
 /**
  * @brief Create the project's Laboratory actor integration checkpoint.
  * @param data Borrowed verified core snapshot, alive until after session destruction.

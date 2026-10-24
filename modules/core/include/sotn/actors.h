@@ -98,6 +98,9 @@ bool SotnActors_GetCombat(const SotnActors *actors, SotnActorCombat *out);
  * actor destruction. @return Success or false with SDL_GetError(). NULL retains legacy test
  * profile. */
 bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
+/** @brief Bind a borrowed projectile service, alive through actor destruction; NULL disables it.
+ * @param actors Borrowed actors. @param service Borrowed service. @return Success or SDL error. */
+bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);
 /** @brief Release actor state without freeing borrowed images/layout/map. @param actors Owned
  * simulation or NULL. */
 void SotnActors_Destroy(SotnActors *actors);
