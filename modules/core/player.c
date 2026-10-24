@@ -610,6 +610,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     SotnPlayer next = *player;
     next.failed = false;
     next.turned = false;
+    next.sound = 0;
     next.buttons = buttons;
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
@@ -764,7 +765,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->attack,
                              player->hp,
                              70,
-                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT};
+                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT,
+                             player->sound};
     return true;
 }
 
@@ -791,6 +793,11 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     next.movement_flags = 0;
     next.invincibility = 12;
     const bool strong = (Uint32)amount * 20 > 70;
+    const Uint16 pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1) + (strong ? 3 : 5));
+    const Uint8 *sound = NULL;
+    if (!AttackView(&next, 0x800acf84 + pain * 2U, 2, &sound))
+        return false;
+    next.sound = Attack16(sound);
     Uint16 animation = 0;
     if (strong || next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
     {
@@ -799,7 +806,6 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
                                 ? -3 * FIX_ONE
                                 : -4 * FIX_ONE)
                          : -2 * FIX_ONE;
-        (void)SotnCombat_Random(&next.damage_random);
         const Uint16 value = SotnCombat_Random(&next.damage_random);
         animation = (Uint16)(0x2e + value % 3);
         if (strong && value % 16 == 0)
@@ -817,7 +823,6 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         }
         else
         {
-            (void)SotnCombat_Random(&next.damage_random);
             animation = (Uint16)(0x31 + (SotnCombat_Random(&next.damage_random) & 1) +
                                  (right != next.facing_left ? 2 : 0));
             next.substep = 6;
