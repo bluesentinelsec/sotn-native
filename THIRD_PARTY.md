@@ -9,9 +9,19 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
-No Konami game code, artwork, audio, disc images, BIOS images, or extracted
-game data is included. The project license applies to original scaffold code;
-third-party components retain their own licenses.
+- **Reconstructed SoTN game algorithms**, AGPL-3.0-or-later, adapted from
+  sotn-decomp commit `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.
+  `modules/core/collision.c` derives from `src/dra/collider.c`;
+  `modules/core/decompress.c` derives from the graphics decoder in
+  `src/dra/4AEA4.c`. Each file identifies its provenance and modifications are
+  described in [docs/game-core.md](docs/game-core.md). Packages include the
+  [full license](licenses/AGPL-3.0-or-later.txt); binaries linking this code are
+  subject to AGPL requirements, including corresponding source availability.
+  Source: https://github.com/Xeeynamo/sotn-decomp/tree/7bc54d8157b6bed77e6bd15e5db9461a734fe1e5
+
+No original game source dumps, artwork, audio, disc images, BIOS images, or
+extracted game data are included. The project license applies to original
+scaffold code; adapted components retain their stated licenses.
 
 ## Testing and private comparisons
 

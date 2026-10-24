@@ -10,6 +10,9 @@ Its original `modules/data/` library validates private core files; read
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
 shaders; [docs/opengl-presentation.md](docs/opengl-presentation.md) describes
 the asset preview and graphics checks. It does not implement PS1 game logic.
+The `modules/core/` library now contains adapted reconstructed collision and
+graphics-decoding algorithms. Read [docs/game-core.md](docs/game-core.md) for
+their provenance and scope; player and stage gameplay are not integrated yet.
 Read [docs/project-goals.md](docs/project-goals.md) before planning conversion work.
 The selected route is a **decompilation-based native port**; read the current
 [feasibility report](docs/native-port-plan.md) and pinned
@@ -133,6 +136,12 @@ The selected route is a **decompilation-based native port**; read the current
   statements or serve as a change log.
 - Work on **feature branches** and use **`gh` to open pull requests**. Keep each
   PR focused and reviewable; do not merge unless the user authorizes it.
+- Current game-integration work uses stacked PRs. Leave them unmerged until the
+  user playtests and verifies the project build; merge dependencies first only
+  after that approval. This supersedes earlier blanket permission to merge on CI.
+- Give game build/run instructions through **LLDB**, so a crash leaves a useful
+  stack trace (`thread backtrace all`). Playtests must launch this repository's
+  executable built through its CMake/Make workflow.
 - Be succinct and use active voice in responses and PR descriptions. Generally
   write PRs as **context > problem > solution**, emphasizing user experience.
   Include a brief validation result. Leave implementation details in the code

@@ -19,6 +19,11 @@ SOTN_FORMAT_SOURCES := src/main.c \
   modules/render/include/sotn/presenter.h \
   modules/render/include/sotn/save_icon.h \
   tests/render/test_images.c
+SOTN_FORMAT_SOURCES += modules/core/collision.c \
+  modules/core/decompress.c \
+  modules/core/include/sotn/collision.h \
+  modules/core/include/sotn/decompress.h \
+  tests/core/test_core.c
 
 .PHONY: debug release configure build run test sanitizer package web android ios fmt clean
 configure:

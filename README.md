@@ -1,12 +1,12 @@
 # SOTN Native
 
-An original, asset-free SDL3 bootstrap for a future personal and educational
-native-port study of *Castlevania: Symphony of the Night*. **This is currently
-a bootstrap with private core-data validation; it does not run or convert the
-game.** It logs `Hello world` through `SDL_Log` and renders the same greeting
-in a window or browser canvas.
+A C17/SDL3 native-port project for personal and educational study of
+*Castlevania: Symphony of the Night*. **Game integration is in progress;
+this executable does not yet provide gameplay.** The current app validates
+private core data and previews save icons through OpenGL. Its default mode
+still displays the bootstrap greeting.
 
-No ROM, BIOS, extracted data, game code, artwork, or audio is distributed.
+No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 Future game functionality will require users to supply their own game dump.
 This project is unofficial and is not affiliated with Konami or Sony.
 
@@ -20,6 +20,11 @@ The selected approach is a **decompilation-based native port**. The initial
 [feasibility report and milestones](docs/native-port-plan.md) describe the
 pinned upstream experiment, private reference checks, and remaining integration
 work. That experiment is separate from this repository's Hello world app.
+
+Native integration has started with the reconstructed collision and graphics
+decoding algorithms in `modules/core/`. These compile and run tests through
+this repository's normal build; they do not yet provide gameplay. See
+[game-core integration](docs/game-core.md) for scope, provenance, and validation.
 
 The C app can now read and validate five core files from an extracted US dump:
 
@@ -47,8 +52,7 @@ build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \
 Use Left/Right to select an icon, resize the window to check scaling, and Escape
 to quit. Each icon shows its three original frames stacked vertically. Run
 the executable with `--graphics-test` for real framebuffer checks without game
-data. See [OpenGL presentation](docs/opengl-presentation.md) for requirements
-and the separate upstream OpenGL gameplay comparison command.
+data. See [OpenGL presentation](docs/opengl-presentation.md) for requirements.
 
 ## Desktop
 

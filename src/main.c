@@ -18,6 +18,7 @@ typedef struct App
     Uint32 preview_index;
     bool smoke_test;
     Uint32 frames;
+    char *smoke_report;
 } App;
 
 static SDL_AppResult Fail(const char *operation)
@@ -125,6 +126,16 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     SDL_SetAppMetadata("SOTN Native", SOTN_VERSION, "org.bluesentinelsec.sotn-native");
     SDL_SetHint(SDL_HINT_MAIN_CALLBACK_RATE, "60");
+    if (app->smoke_test && SDL_getenv("SOTN_SMOKE_REPORT") != NULL)
+    {
+        char *directory = SDL_GetPrefPath("bluesentinelsec", "sotn-native");
+        if (directory == NULL)
+            return Fail("Cannot locate smoke-test report directory");
+        const int length = SDL_asprintf(&app->smoke_report, "%ssmoke-result.txt", directory);
+        SDL_free(directory);
+        if (length < 0 || !SDL_SaveFile(app->smoke_report, "START\n", 6))
+            return Fail("Cannot initialize smoke-test report");
+    }
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         return Fail("Cannot initialize SDL video");
@@ -232,7 +243,9 @@ SDL_AppResult SDL_AppIterate(void *appstate)
 void SDL_AppQuit(void *appstate, SDL_AppResult result)
 {
     App *app = appstate;
-    (void)result;
+    char *report = app != NULL ? app->smoke_report : NULL;
+    const bool completed =
+        app != NULL && app->smoke_test && app->frames == 3 && result == SDL_APP_SUCCESS;
     if (app != NULL)
     {
         SotnPresenter_Destroy(app->presenter);
@@ -242,4 +255,12 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         SDL_free(app);
     }
     SDL_Quit();
+    if (report != NULL && completed)
+    {
+        static const char contents[] = "SOTN_SMOKE_TEST: PASS\nSOTN_SMOKE_TEST: CLEANUP_COMPLETE\n";
+        if (!SDL_SaveFile(report, contents, sizeof(contents) - 1))
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot write smoke-test report: %s",
+                         SDL_GetError());
+    }
+    SDL_free(report);
 }
