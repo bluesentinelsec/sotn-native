@@ -13,6 +13,9 @@ add_library(sotn-core STATIC
   room_actors.c
   actors.c
   actors_internal.h
+  camera.c
+  include/sotn/camera.h
+  actor_camera.c
   world.c
   include/sotn/world.h
   actor_doors.c

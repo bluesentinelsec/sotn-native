@@ -90,9 +90,25 @@ map visitation from `src/dra/5087C.c:func_800F2014`, at the same pinned revision
 and AGPL-3.0-or-later license above. Progress is session-owned here; ordinary
 save format remains v3 until the world-persistence slice lands.
 
+## Camera integration
+
+The normal camera now advances once during simulation, independently of draws.
+It preserves the original horizontal anchor, vertical 136-pixel anchor, four-pixel
+upward catch-up, and top/bottom margins. Camera-lock actors read their private
+hitbox/axis/property tables, change bounds on player crossings, and settle over
+the original sixteen-tick interval. Scene-owned constraints remain bounded to the
+current room. The standard player/entity drawing center uses the original 0x94.
+
+Synthetic tests cover follow direction, immediate follow, margins, invalid bounds,
+lock crossing/settling, and table rejection. A private comparison matched 200,000
+normal follow cases against the reconstructed camera block at the pinned
+revision (`src/dra/5087C.c:func_800F0CD8`). Lock logic follows
+`src/st/e_lock_camera.h`; its tables remain private. These do not yet prove room
+loading/fade, scripted event, background-animation, or full camera parity.
+
 ## Remaining work in the authorized milestone
 
-- Original camera constraints and room event ordering; Slogra/Gaibon coordination,
+- Original room event ordering; Slogra/Gaibon coordination,
   projectiles, room sealing, victory/unlocking, reward, and music transitions.
 - Map exploration and original permanent event flags retained by ordinary save/load,
   with explicit migration from existing native saves.

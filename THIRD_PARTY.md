@@ -151,3 +151,8 @@ The Laboratory room mechanism slice additionally adapts reviewed logic from
 All original tables, art, and patches remain private runtime input. Native bounds,
 ownership, initialized puzzle sentinel, and tests are described in
 [the traversal milestone](docs/laboratory-world.md).
+
+Normal camera follow in `modules/core/camera.c` and bounded camera-lock behavior
+in `actor_camera.c` adapt `src/dra/5087C.c:func_800F0CD8` and
+`src/st/e_lock_camera.h` at that pinned reconstructed revision
+(AGPL-3.0-or-later). Public tests use synthetic bounds and tables.

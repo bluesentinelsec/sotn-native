@@ -45,6 +45,12 @@ typedef struct Actor
         Uint16 count, target;
         bool pressed, changed;
     } mechanism;
+    struct
+    {
+        Sint32 target[4];
+        Uint16 pending, timer, side;
+        bool horizontal;
+    } camera;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -54,6 +60,7 @@ struct SotnActors
     SotnCollisionMap map;
     Uint8 *mutable_tiles;
     SotnWorldState fallback_world, *world;
+    SotnCamera fallback_camera, *camera;
     SotnPlayerState player;
     SotnActorMotion motion;
     SotnActorControl control;
@@ -151,6 +158,7 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16
 void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
 bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
+bool ActorCamera(SotnActors *actors, Actor *actor);
 bool ActorDoor(SotnActors *actors, Actor *actor);
 bool ActorCannon(SotnActors *actors, Actor *actor);
 bool ActorMechanism(SotnActors *actors, Actor *actor);

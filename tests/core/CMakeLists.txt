@@ -83,3 +83,10 @@ target_include_directories(sotn-world-tests PRIVATE "${PROJECT_SOURCE_DIR}/modul
 target_link_libraries(sotn-world-tests PRIVATE sotn-core)
 add_test(NAME laboratory-world COMMAND sotn-world-tests)
 set_tests_properties(laboratory-world PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-camera-tests test_camera.c)
+sotn_configure_c_target(sotn-camera-tests)
+target_include_directories(sotn-camera-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-camera-tests PRIVATE sotn-core)
+add_test(NAME laboratory-camera COMMAND sotn-camera-tests)
+set_tests_properties(laboratory-camera PROPERTIES TIMEOUT 20)
