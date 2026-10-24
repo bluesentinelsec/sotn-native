@@ -234,19 +234,24 @@ static bool StartAttack(SotnPlayer *player)
     const Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
     if (pressed == 0 || (player->attack_mode & 0x8000))
         return false;
-    const Uint8 *pointer = NULL, *equipment = NULL;
-    if (!AttackView(player, 0x800a00c0, 4, &pointer) ||
-        !AttackView(player, Attack32(pointer), 50, &equipment))
+    const Uint32 hand = pressed == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
+    SotnEquipment equipment = {0};
+    if (!SotnEquipment_Read(player->dra, player->equipment[hand], &equipment))
     {
         player->failed = true;
         return true;
     }
-    if (equipment[0x11] != 0 || equipment[0x12] != 0x24 || equipment[0x15] > 8)
+    player->attack_equipment = equipment;
+    Sint32 critical = equipment.critical_rate;
+    if (equipment.id != 0)
     {
-        player->failed = true;
-        SDL_SetError("Private equipment zero is not the supported US unarmed definition");
-        return true;
+        const Uint16 value = (Uint16)(12 + (SotnCombat_Random(&player->damage_random) & 15));
+        Sint32 root = 0;
+        while ((root + 1) * (root + 1) <= value)
+            ++root;
+        critical += root - 5;
     }
+    player->attack_critical = (Uint8)SDL_clamp(critical, 0, 255);
     Uint16 variant = (player->contact & 0x20) ? 1 : 0;
     if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
     {
@@ -265,14 +270,14 @@ static bool StartAttack(SotnPlayer *player)
     else
     {
         variant = player->vy > 0 ? 5 : 4;
-        if (player->vy > 0 && (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT)) &&
-            (player->buttons & SOTN_BUTTON_DOWN))
+        if (player->vy > 0 && (player->buttons & SOTN_BUTTON_DOWN) &&
+            (equipment.id != 0 || (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT))))
             variant = 6;
     }
-    Animate(player, (Uint16)(equipment[0x12] + variant));
-    player->substep = 0x40;
-    player->attack_mode = 0x8001;
-    player->attack_lock = equipment[0x15];
+    Animate(player, (Uint16)(equipment.animation + variant));
+    player->substep = (Uint16)(0x40 + equipment.kind);
+    player->attack_mode = (Uint16)(0x8001 + equipment.kind);
+    player->attack_lock = equipment.lock;
     player->attack_button =
         pressed == SOTN_BUTTON_RIGHT_HAND ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
     return true;
@@ -281,6 +286,34 @@ static bool StartAttack(SotnPlayer *player)
 static bool ReadAttack(SotnPlayer *player)
 {
     player->attack = (SotnPlayerAttack){0};
+    if (player->attack_mode != 0 && player->attack_equipment.id != 0)
+    {
+        SotnWeaponFrame weapon = {0};
+        const SotnEquipment equipment = player->attack_equipment;
+        if (!SotnWeapon_ReadFrame(player->weapons, equipment, player->animation.id,
+                                  player->animation.pose, player->animation.remaining, &weapon))
+            return false;
+        player->attack = (SotnPlayerAttack){
+            .offset_x = weapon.x,
+            .offset_y = weapon.y,
+            .width = weapon.width,
+            .height = weapon.height,
+            .element = equipment.element,
+            .hit_type = equipment.hit_type,
+            .hit_effect = equipment.hit_effect,
+            .stun_frames = equipment.stun,
+            .invincibility_frames = equipment.invincibility,
+            .critical_rate = player->attack_critical,
+            .active = weapon.width != 0 && weapon.height != 0,
+            .right_hand = player->attack_button == SOTN_BUTTON_RIGHT_HAND,
+            .sound = weapon.sound != 0,
+            .sound_id = weapon.sound,
+            .power = (Uint16)SDL_clamp((Sint32)equipment.attack + (equipment.attack <= 6 ? 6 : 3),
+                                       0, 999),
+            .equipment = equipment.id,
+            .sprite = weapon.sprite};
+        return true;
+    }
     if (player->attack_mode == 0 || player->animation.id < 0x24 || player->animation.id > 0x2a ||
         player->animation.remaining < 0)
         return true;
@@ -306,6 +339,8 @@ static bool ReadAttack(SotnPlayer *player)
     player->attack.offset_y = (Sint16)(box[1] < 128 ? box[1] : (Sint32)box[1] - 256);
     player->attack.width = box[2];
     player->attack.height = box[3];
+    player->attack.power = 6;
+    player->attack.sound_id = 0x60c;
     player->attack.element = Attack16(equipment + 12);
     player->attack.hit_type = Attack16(equipment + 40);
     player->attack.hit_effect = Attack16(equipment + 42);
@@ -373,19 +408,25 @@ static void StandTick(SotnPlayer *player)
     {
         if (player->animation.pose < player->attack_lock)
         {
-            if (player->animation.pose < 2)
+            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
             {
                 (void)Direction(player);
                 if (player->buttons & SOTN_BUTTON_DOWN)
                 {
                     player->step = SOTN_PLAYER_CROUCH;
-                    player->animation.id = 0x26;
+                    player->animation.id = (Uint16)(player->attack_equipment.animation + 2);
                 }
             }
             return;
         }
         player->attack_mode &= 0x7fff;
-        if (player->animation.pose == 7)
+        if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+        {
+            Land(player, 0);
+            ClearAttack(player);
+            return;
+        }
+        if (player->attack_equipment.id == 0 && player->animation.pose == 7)
         {
             if (player->buttons & player->attack_button)
                 player->animation.remaining = 2;
@@ -488,19 +529,26 @@ static void CrouchTick(SotnPlayer *player)
     {
         if (player->animation.pose < player->attack_lock)
         {
-            if (player->animation.pose < 2)
+            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
             {
                 (void)Direction(player);
                 if (!(player->buttons & SOTN_BUTTON_DOWN) && player->tight_space == 0)
                 {
                     player->step = SOTN_PLAYER_STAND;
-                    player->animation.id = 0x24;
+                    player->animation.id = (Uint16)(player->attack_equipment.animation +
+                                                    ((player->contact & 0x20) ? 1 : 0));
                 }
             }
             return;
         }
         player->attack_mode &= 0x7fff;
-        if (player->animation.pose == 7)
+        if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+        {
+            Crouch(player, 0, 0);
+            ClearAttack(player);
+            return;
+        }
+        if (player->attack_equipment.id == 0 && player->animation.pose == 7)
         {
             if (player->buttons & player->attack_button)
                 player->animation.remaining = 2;
@@ -730,6 +778,25 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     }
     player->animation.remaining = 0;
     *out = player;
+    return true;
+}
+
+bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 left, Uint16 right)
+{
+    if (player == NULL || player->attack_mode != 0)
+        return SDL_SetError("Equipment can change only when the player has no active attack");
+    const Uint16 ids[2] = {left, right};
+    for (Uint32 i = 0; i < 2; ++i)
+    {
+        SotnEquipment equipment = {0};
+        SotnDataView overlay = {0};
+        if (!SotnEquipment_Read(player->dra, ids[i], &equipment) ||
+            (ids[i] != 0 && !SotnWeapon_Overlay(weapons, equipment, &overlay)))
+            return false;
+    }
+    player->weapons = weapons;
+    player->equipment[0] = left;
+    player->equipment[1] = right;
     return true;
 }
 

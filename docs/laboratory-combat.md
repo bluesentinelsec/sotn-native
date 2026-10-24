@@ -2,7 +2,8 @@
 
 ## Empty-hand attack dependency
 
-The development player has empty hands. Z/X/D map to left-hand attack, jump,
+The default development loadout now uses Gladius in the left hand and an empty right hand.
+Use `--laboratory-loadout unarmed` to retain the earlier empty-hand test. Z/X/D map to left-hand attack, jump,
 and right-hand attack; Xbox X/A/B provide the same actions. This is a development
 loadout, not recovered equipment, a save game, or original stage entry.
 
@@ -21,20 +22,51 @@ and collection update a stage-session development inventory. Common explosions
 render from private data. Damage and item events emit original sound IDs for
 the following audio integration.
 
-The explicit development profile has 70 HP, base stats of 6, empty equipment,
+The explicit development profile has 70 HP, base stats of 6, no armor/accessories,
 10/50 hearts, and Cube of Zoe enabled. Its unarmed physical attack is 6 and
-critical rate is zero. This enables testing; it is not original stage entry or
+critical rate is zero. Equipped attacks use runtime item attack/element metadata,
+the original unbuffed STR contribution, and the selected luck/critical calculation. This enables testing; it is not original stage entry or
 a recovered save. Alucard takes ordinary physical contact damage, runs hit
 reactions, and has recovery invulnerability. Reaching zero HP stops with a clear
 message because death/continue and saves remain unintegrated. Inventory changes
 appear in SDL logs; the original HUD is not implemented.
 
-Equipped weapons, subweapon use, inventory menus, experience/level progression,
+Other equipped weapons, subweapon use, inventory menus, experience/level progression,
 enemy loot, original blood/glow/hit primitives, all elemental player damage,
 full shared random-state consumption, startup, and complete audio parity remain incomplete.
 Subweapon swapping retains the previous pickup and its toss/recovery timing;
 its sparkle primitive is omitted. Unsupported vessels remain marked unsupported.
 Do not describe this checkpoint as a complete or fully authentic game port.
+
+## Equipped weapon checkpoint
+
+Gladius (original hand-item ID 86) and Mace (128) now use their original normal
+player animations, lock/recovery rules, seven standing/ledge/crouch/air variants,
+weapon hitboxes, multipart sprites, palettes, and swing sounds. Either hand can
+carry either item. The second attack button remains an empty-hand attack in the
+default loadout. `--laboratory-loadout sword|mace|dual|unarmed` selects explicit
+development equipment; `dual` equips Gladius on the left and Mace on the right.
+These options do not claim an inventory menu, recovered equipment, or stage entry.
+Other hand items fail explicitly instead of borrowing an unrelated weapon behavior.
+
+`BIN/WEAPON0.BIN` is an additional verified private input (1,691,648 bytes,
+SHA-1 `b8dcd64f95d197d3f59ab3e46f67897ecdc477cb`). Its overlays are parsed as
+bounded data; no PS1 code is executed. Equipment definitions use the PS1 record
+stride of 52 bytes, including alignment padding. Tables, pixels, palettes, and
+weapon frames stay in the user's files. No generated game arrays are included.
+
+The core adaptation additionally follows `src/weapon/w_000.c`, `w_002.c`,
+`shared.h`, `src/dra/alu_anim.c:UpdateUnarmedAnim`,
+`5D5BC.c:GetEquipProperties`, and `menu.c:CalcAttack` at the pinned reconstruction,
+under AGPL-3.0-or-later. Shared global random-state consumption, complete equipment
+modifiers/specials, armor and inventory menus remain incomplete. This development
+profile is not complete weapon or combat parity.
+
+Synthetic tests exercise equipment stride and bounds, unsupported IDs, frame
+references, both hands, attack power, crouch/air attacks, early direction changes,
+held recovery, palette/texture uploads, rendering each hand, and malformed-input
+failure. A private native LLDB encounter with Gladius/Mace defeated two zombies,
+collected a heart, and took physical damage with music and effects enabled.
 
 ## Provenance and checks
 
