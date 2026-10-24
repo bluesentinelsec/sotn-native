@@ -10,42 +10,113 @@
         }                                                                                          \
     } while (0)
 
+static SotnSaveState Profile(void)
+{
+    SotnSaveState s = {.room = 23,
+                       .ticks = 0x100000002ULL,
+                       .player_random = 42,
+                       .actor_random = 999,
+                       .combat_random = 123,
+                       .character = {.hp = 87,
+                                     .hp_max = 95,
+                                     .mp = 29,
+                                     .mp_max = 40,
+                                     .hearts = 64,
+                                     .hearts_max = 100,
+                                     .level = 5,
+                                     .base = {8, 9, 10, 11},
+                                     .equipment = {18, 128, 27, 2, 49, 77, 57},
+                                     .subweapon = 3,
+                                     .experience = 1234,
+                                     .gold = 12345,
+                                     .kills = 7,
+                                     .random = 0xdeadbeef,
+                                     .laboratory_items = {0x81, 4}}};
+    for (Uint32 i = 0; i < SOTN_HAND_ITEMS; ++i)
+    {
+        s.character.hand_count[i] = (Uint8)(i % 100);
+        s.character.hand_order[i] = (Uint8)(SOTN_HAND_ITEMS - 1 - i);
+    }
+    for (Uint32 i = 0; i < SOTN_BODY_ITEMS; ++i)
+    {
+        s.character.body_count[i] = (Uint8)(i % 100);
+        s.character.body_order[i] = (Uint8)(SOTN_BODY_ITEMS - 1 - i);
+    }
+    return s;
+}
+static void Rechecksum(Uint8 *p, size_t size)
+{
+    Uint32 crc = SDL_MAX_UINT32;
+    for (size_t i = 0; i < size - 4; ++i)
+    {
+        crc ^= p[i];
+        for (Uint32 bit = 0; bit < 8; ++bit)
+            crc = (crc >> 1) ^ ((crc & 1) ? 0xedb88320U : 0);
+    }
+    crc = ~crc;
+    for (Uint32 i = 0; i < 4; ++i)
+        p[size - 4 + i] = (Uint8)(crc >> (i * 8));
+}
 static bool Codec(void)
 {
-    const SotnSaveState state = {.room = 23,
-                                 .hp = 70,
-                                 .mp = 20,
-                                 .hearts = 11,
-                                 .subweapon = 3,
-                                 .left_hand = 86,
-                                 .right_hand = 128,
-                                 .gold = 12345,
-                                 .kills = 7,
-                                 .ticks = 0x100000002ULL,
-                                 .player_random = 42,
-                                 .actor_random = 999,
-                                 .combat_random = 123};
+    SotnSaveState state = Profile(), decoded = {0};
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
-    CHECK(record[24] == 70 && record[36] == 57 && record[37] == 48 && record[44] == 2 &&
-          record[48] == 1);
-    SotnSaveState decoded = {0};
+    // Independently produced with Python struct and zlib for Profile().
+    CHECK(record[764] == 0xaf && record[765] == 0x4e && record[766] == 0xe9 && record[767] == 0x03);
+    CHECK(record[8] == 3 && record[12] == 0 && record[13] == 3 && record[24] == 2 &&
+          record[28] == 1 && record[48] == 87);
+    CHECK(record[92] == 57 && record[93] == 48 && record[104 + 99] == 99 && record[363] == 168 &&
+          record[622] == 0x81);
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded));
-    CHECK(decoded.room == state.room && decoded.hp == 70 && decoded.gold == state.gold &&
-          decoded.ticks == state.ticks && decoded.right_hand == 128 && decoded.hearts == 11 &&
-          decoded.subweapon == 3 && decoded.player_random == 42 && decoded.actor_random == 999 &&
-          decoded.combat_random == 123);
-    record[8] = 3;
+    CHECK(decoded.room == 23 && decoded.character.hp == 87 && decoded.character.hp_max == 95 &&
+          decoded.character.level == 5);
+    CHECK(decoded.character.mp_max == 40 && decoded.character.hearts == 64 &&
+          decoded.character.hearts_max == 100);
+    CHECK(decoded.character.experience == 1234 && decoded.character.gold == 12345 &&
+          decoded.character.kills == 7);
+    CHECK(decoded.character.equipment[0] == 18 && decoded.character.equipment[4] == 49 &&
+          decoded.character.equipment[5] == 77);
+    CHECK(SDL_memcmp(decoded.character.hand_count, state.character.hand_count, SOTN_HAND_ITEMS) ==
+          0);
+    CHECK(SDL_memcmp(decoded.character.body_count, state.character.body_count, SOTN_BODY_ITEMS) ==
+          0);
+    CHECK(SDL_memcmp(decoded.character.hand_order, state.character.hand_order, SOTN_HAND_ITEMS) ==
+          0);
+    CHECK(SDL_memcmp(decoded.character.body_order, state.character.body_order, SOTN_BODY_ITEMS) ==
+          0);
+    CHECK(decoded.character.laboratory_items[0] == 0x81 &&
+          decoded.character.laboratory_items[1] == 4);
+    CHECK(decoded.character.random == 0xdeadbeef && decoded.player_random == 42 &&
+          decoded.actor_random == 999 && decoded.combat_random == 123);
+    record[8] = 4;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 2;
-    record[28] ^= 1;
+    record[8] = 3;
+    record[104] = 100;
+    Rechecksum(record, sizeof(record));
+    CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
+    CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    record[364] = record[363];
+    Rechecksum(record, sizeof(record));
+    CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
+    CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    record[624] = 1;
+    Rechecksum(record, sizeof(record));
+    CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
+    CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    record[623] = 8;
+    Rechecksum(record, sizeof(record));
+    CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
+    CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    record[48] ^= 1;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(!SotnSave_Decode(record, sizeof(record) - 1, &decoded));
     SDL_memset(record, 0xa5, sizeof(record));
-    CHECK(!SotnSave_Encode((SotnSaveState){0}, record, sizeof(record)) && record[0] == 0xa5);
-    CHECK(!SotnSave_Encode(state, record, 1));
+    state.character.hp = 0;
+    CHECK(!SotnSave_Encode(state, record, sizeof(record)) && record[0] == 0xa5);
+    CHECK(!SotnSave_Encode(Profile(), record, 1));
     CHECK(!SotnSave_Decode(NULL, sizeof(record), &decoded));
     CHECK(!SotnSave_Decode(record, sizeof(record), NULL));
     /* Independent Python struct/zlib fixture for the explicit version-one migration. */
@@ -57,8 +128,30 @@ static bool Codec(void)
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x32, 0x90, 0x1e, 0xcc};
     CHECK(SotnSave_Decode(version_one, sizeof(version_one), &decoded));
-    CHECK(decoded.hp == 70 && decoded.gold == 100 && decoded.ticks == 123 &&
+    CHECK(decoded.character.hp == 70 && decoded.character.gold == 100 && decoded.ticks == 123 &&
           decoded.player_random == 0 && decoded.actor_random == 0 && decoded.combat_random == 0);
+
+    CHECK(decoded.character.hp_max == 70 && decoded.character.mp_max == 20 &&
+          decoded.character.hearts_max == 50 && decoded.character.level == 1);
+    CHECK(decoded.character.equipment[0] == 86 && decoded.character.equipment[2] == 26 &&
+          decoded.character.equipment[4] == 48);
+    CHECK(decoded.character.hand_count[86] == 0 && decoded.character.experience == 0 &&
+          decoded.character.random == 0);
+    CHECK(decoded.character.hand_order[168] == 168 && decoded.character.body_order[89] == 89);
+    Uint8 version_two[80] = {0};
+    SDL_memcpy(version_two, version_one, 80);
+    version_two[8] = 2;
+    version_two[52] = 42;
+    version_two[56] = 43;
+    version_two[60] = 44;
+    Rechecksum(version_two, 80);
+    CHECK(SotnSave_Decode(version_two, 80, &decoded) && decoded.player_random == 42 &&
+          decoded.actor_random == 43 && decoded.combat_random == 44);
+    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 3);
+    CHECK(SotnSave_Decode(record, sizeof(record), &decoded) && decoded.character.hp_max == 70);
+    version_two[12] = 0;
+    Rechecksum(version_two, 80);
+    CHECK(!SotnSave_Decode(version_two, 80, &decoded));
     return true;
 }
 
@@ -66,7 +159,7 @@ static bool Storage(const char *directory)
 {
     SotnSaveStore *store = NULL;
     CHECK(SotnSaveStore_OpenAt(directory, &store));
-    SotnSaveState state = {.room = 23, .hp = 70, .mp = 20, .hearts = 10, .left_hand = 86};
+    SotnSaveState state = Profile();
     SotnSaveState decoded = {0};
     bool found = true;
     CHECK(SotnSaveStore_Exists(store, 1, &found) && !found);
@@ -74,20 +167,48 @@ static bool Storage(const char *directory)
     for (Uint32 slot = 1; slot <= SOTN_SAVE_SLOTS; ++slot)
     {
         state.room = 23 + (slot - 1) % 3;
-        state.gold = slot * 100;
+        state.character.gold = slot * 100;
         CHECK(SotnSaveStore_Write(store, slot, state));
         CHECK(SotnSaveStore_Exists(store, slot, &found) && found);
         CHECK(SotnSaveStore_Read(store, slot, &decoded));
-        CHECK(decoded.room == state.room && decoded.gold == state.gold);
+        CHECK(decoded.room == state.room && decoded.character.gold == state.character.gold);
     }
     state.room = 23;
-    state.gold = 777;
+    state.character.gold = 777;
     CHECK(SotnSaveStore_Write(store, 1, state));
-    CHECK(SotnSaveStore_Read(store, 1, &decoded) && decoded.gold == 777);
-    state.hp = 0;
+    CHECK(SotnSaveStore_Read(store, 1, &decoded) && decoded.character.gold == 777);
+    char *migration_path = NULL;
+    CHECK(SDL_asprintf(&migration_path, "%s/laboratory-01.sav", directory) >= 0);
+    Uint8 old[80] = {0};
+    SDL_memcpy(old, "SOTNNSAV", 8);
+    old[8] = 2;
+    old[12] = 80;
+    old[16] = 0x67;
+    old[20] = 23;
+    old[24] = 70;
+    old[26] = 20;
+    old[28] = 11;
+    old[32] = 86;
+    old[34] = 128;
+    old[36] = 9;
+    old[37] = 3;
+    old[52] = 42;
+    old[56] = 43;
+    old[60] = 44;
+    Rechecksum(old, sizeof(old));
+    CHECK(SDL_SaveFile(migration_path, old, sizeof(old)));
+    CHECK(SotnSaveStore_Read(store, 1, &decoded) && decoded.character.gold == 777 &&
+          decoded.character.hp_max == 70 && decoded.actor_random == 43);
+    SDL_PathInfo migration_info = {0};
+    CHECK(SDL_GetPathInfo(migration_path, &migration_info) && migration_info.size == 80);
+    CHECK(SotnSaveStore_Write(store, 1, state));
+    CHECK(SDL_GetPathInfo(migration_path, &migration_info) &&
+          migration_info.size == SOTN_SAVE_BYTES);
+    SDL_free(migration_path);
+    state.character.hp = 0;
     CHECK(!SotnSaveStore_Write(store, 1, state));
-    CHECK(SotnSaveStore_Read(store, 1, &decoded) && decoded.gold == 777);
-    state.hp = 70;
+    CHECK(SotnSaveStore_Read(store, 1, &decoded) && decoded.character.gold == 777);
+    state.character.hp = 70;
     char *slot_path = NULL, *marker = NULL;
     CHECK(SDL_asprintf(&slot_path, "%s/laboratory-03.sav", directory) >= 0);
     CHECK(SDL_RemovePath(slot_path) && SDL_CreateDirectory(slot_path));
@@ -101,8 +222,8 @@ static bool Storage(const char *directory)
     SDL_free(slot_path);
     CHECK(SDL_asprintf(&slot_path, "%s/laboratory-02.sav", directory) >= 0);
     CHECK(SDL_SaveFile(slot_path, "corrupt", 7));
-    decoded.gold = 999;
-    CHECK(!SotnSaveStore_Read(store, 2, &decoded) && decoded.gold == 999);
+    decoded.character.gold = 999;
+    CHECK(!SotnSaveStore_Read(store, 2, &decoded) && decoded.character.gold == 999);
     CHECK(SDL_GetPathInfo(slot_path, &info) && info.size == 7);
     CHECK(SDL_RemovePath(slot_path));
     SDL_free(slot_path);

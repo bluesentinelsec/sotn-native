@@ -53,9 +53,9 @@ invoking undefined C division. Elemental ailments and special item passives
 remain outside the supported physical-contact slice.
 
 The [progression service](character-progression.md) now awards EXP and updates
-levels/resources. Save-format expansion and subweapon use follow in the next
-stacked integrations. Until that migration, native version 1/2 saves retain only
-the earlier checkpoint fields and do not preserve this new inventory.
+levels/resources. Version 3 [native saves](native-saves.md) retain this supported
+progress; [selected subweapons](laboratory-subweapons.md) consume hearts and damage
+enemies. Versions 1/2 migrate explicitly from their earlier limited profile.
 
 Public tests use synthetic definitions and cover ownership, duplicate hand use,
 stock limits, slot compatibility, stats, malformed text, inventory-order

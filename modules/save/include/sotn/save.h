@@ -2,20 +2,21 @@
 #define SOTN_SAVE_H
 
 #include <SDL3/SDL.h>
+#include <sotn/character.h>
 
-/** @brief Version-two native Laboratory save; contains supported state, never artwork/data files.
- */
+/** @brief Version-three ordinary Laboratory save, without transient actors or asset bytes. */
 typedef struct SotnSaveState
 {
-    Uint32 room, gold, kills;
-    Uint16 hp, mp, hearts, subweapon, left_hand, right_hand;
+    SotnCharacterState character;
+    Uint32 room;
     Uint64 ticks;
     Uint32 player_random, actor_random, combat_random;
 } SotnSaveState;
 
 enum
 {
-    SOTN_SAVE_BYTES = 80,
+    SOTN_SAVE_BYTES = 768,
+    SOTN_SAVE_LEGACY_BYTES = 80,
     SOTN_SAVE_SLOTS = 15
 };
 
@@ -25,7 +26,8 @@ enum
  * output remains unchanged on invalid arguments. This is not a PS1 memory-card format. */
 bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity);
 /** @brief Validate size, version, region, checksum, reserved fields, and supported state.
- * @param bytes Borrowed record. @param size Exactly SOTN_SAVE_BYTES.
+ * @param bytes Borrowed record. @param size SOTN_SAVE_BYTES, or SOTN_SAVE_LEGACY_BYTES for explicit
+ * v1/v2 migration.
  * @param out Receives copied state, unchanged on failure. @return Success, or false with
  * SDL_GetError(). Unknown versions require explicit migration and are rejected. */
 bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out);
