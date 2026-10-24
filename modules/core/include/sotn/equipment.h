@@ -19,7 +19,8 @@ typedef struct SotnWeaponFrame
 } SotnWeaponFrame;
 
 /** @brief Read a supported hand-item definition, without importing runtime tables.
- * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Gladius (86), or Mace (128).
+ * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Basilard (18), Gladius (86),
+ * or Mace (128).
  * @param out Receives copied metadata, unchanged on failure.
  * @return Success, or false with SDL_GetError() for invalid or unsupported definitions.
  * @note Other items and their special effects require separate integration. */

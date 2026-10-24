@@ -2,6 +2,7 @@
 #define SOTN_PLAYER_H
 
 #include <sotn/animation.h>
+#include <sotn/character.h>
 #include <sotn/collision.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
@@ -61,7 +62,7 @@ typedef struct SotnPlayerState
     bool invulnerable;
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
-    bool looking_up;
+    bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
 } SotnPlayerState;
 
@@ -77,7 +78,7 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Empty-hand and Gladius/Mace attacks are supported. Ordinary physical damage is supported
+ * Empty-hand and Basilard/Gladius/Mace attacks are supported. Ordinary physical damage is supported
  * separately by SotnPlayer_Damage. Other weapons, transformations, and stage scripts are not
  * implemented here.
  */
@@ -121,22 +122,32 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
  */
 bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out);
 
-/** @brief Apply ordinary physical contact damage to the unarmored development player.
- * @param player Borrowed simulation, with a 70-HP development profile.
- * @param amount Incoming original attack, 1..9999; zero does nothing.
+/** @brief Apply ordinary physical contact damage to the development player after the scene resolves
+ * physical defense.
+ * @param player Borrowed simulation, with the current character maximum.
+ * @param amount Resolved physical damage, 1..9999; zero does nothing.
  * @param source_x Whole-pixel source hitbox center within the room margin.
  * @param source_velocity Original signed 16.16 source velocity.
  * @return Success, or false with SDL_GetError() on invalid input or data failure; failure leaves
  * state unchanged.
  * @note Preserves normal physical hit reactions and recovery invulnerability. Elemental
- * ailments and equipped defenses remain incomplete. Lethal physical damage enters the original
+ * ailments and complete defenses remain incomplete. Lethal physical damage enters the original
  * selected death animation/dissolution; phase 128 signals completion to the scene. */
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
 
 /** @brief Restore supported health and random state on a living, non-attacking player.
- * @param player Borrowed simulation. @param hp Health, 1..70. @param random Saved RNG state.
+ * @param player Borrowed simulation. @param hp Health within the current maximum. @param random
+ * Saved RNG state.
  * @return Success, or false with SDL_GetError() and unchanged state on invalid input. */
 bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random);
+
+/** @brief Apply living character health and calculated combat attributes after equipment/level
+ * changes.
+ * @param player Borrowed simulation. @param state Validated ordinary profile.
+ * @param stats Derived attributes. @return Success or false with SDL_GetError().
+ * @note Does not reset movement, attacks, hit recovery, or owned damage RNG. */
+bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state,
+                             SotnCharacterStats stats);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Adapted from sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5,
-// src/dra/4B758.c sprite-sheet branch and src/pc/pl_arc.c pointer-table loading.
+// src/dra/4B758.c sprite-sheet branch, 5F60C.c cape palettes,
+// and src/pc/pl_arc.c pointer-table loading.
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_stdinc.h>
 #include <sotn/alucard_sprite.h>
@@ -8,6 +9,11 @@
 static Uint16 Read16(const Uint8 *bytes)
 {
     return (Uint16)(bytes[0] | (Uint16)bytes[1] << 8);
+}
+
+static Uint32 Read32(const Uint8 *p)
+{
+    return p[0] | (Uint32)p[1] << 8 | (Uint32)p[2] << 16 | (Uint32)p[3] << 24;
 }
 
 static Sint32 Signed16(Uint16 bits)
@@ -142,5 +148,37 @@ bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common,
                     (Uint16)((color & 0x8000) | red | (green << 5) | (blue << 10));
             }
         }
+    return true;
+}
+
+bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4])
+{
+    if (dra.bytes == NULL || dra.size < 0x3be0 || colors == NULL)
+        return SDL_SetError("Cape palette requires bounded private tables and output");
+    Uint32 operation = 0;
+    bool found = false;
+    for (Uint32 i = 0; i < 10; ++i)
+    {
+        const Uint32 id = Read32(dra.bytes + 0x2fbc + i * 8);
+        if (id == cape || id == SDL_MAX_UINT32)
+        {
+            operation = Read32(dra.bytes + 0x2fc0 + i * 8) & 255;
+            found = true;
+            break;
+        }
+    }
+    if (!found || operation >= 48 || 0x3bb8 + operation * 4U > dra.size - 4)
+        return SDL_SetError("Cape palette table has no valid bounded operation");
+    const Uint32 address = Read32(dra.bytes + 0x3bb8 + operation * 4);
+    if (address < 0x800a0000 || (address & 3) || address - 0x800a0000 > dra.size - 16)
+        return SDL_SetError("Cape palette operation references invalid private data");
+    const Uint8 *op = dra.bytes + (address - 0x800a0000);
+    if (Read32(op) != 1 || Read32(op + 4) != 0x1006 || Read32(op + 8) != 4)
+        return SDL_SetError("Cape palette requires the original four-color copy operation");
+    const Uint32 source = Read32(op + 12);
+    if (source < 0x800a0000 || (source & 1) || source - 0x800a0000 > dra.size - 8)
+        return SDL_SetError("Cape colors reference invalid private data");
+    for (Uint32 i = 0; i < 4; ++i)
+        colors[i] = Read16(dra.bytes + source - 0x800a0000 + i * 2);
     return true;
 }

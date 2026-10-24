@@ -42,7 +42,8 @@ struct SotnPlayer
     Uint16 equipment[2];
     Uint8 attack_critical;
     SotnPlayerDeath death;
-    Uint16 hp, invincibility, sound;
+    Uint16 hp, hp_max, invincibility, sound;
+    SotnCharacterStats attributes;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;
     bool facing_left, turned, fixed_stage, collision_disabled, failed;

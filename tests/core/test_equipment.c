@@ -14,7 +14,7 @@
 
 typedef struct Fixture
 {
-    Uint8 dra[0x11000], weapons[0x15000], tiles[32 * 16 * 2], types[2];
+    Uint8 dra[0x11000], weapons[0xe0000], tiles[32 * 16 * 2], types[2];
 } Fixture;
 
 static void Put16(Uint8 *p, Uint16 value)
@@ -47,6 +47,12 @@ static SotnCollisionMap MakeFixture(Fixture *f)
         Put16(e + 40, 2);
         Put16(e + 48, 5);
     }
+    Uint8 *dagger = f->dra + 0x300 + 18 * 52;
+    SDL_memcpy(dagger, f->dra + 0x300 + 86 * 52, 52);
+    dagger[15] = 31;
+    dagger[17] = 7;
+    dagger[18] = 0x6f;
+    dagger[21] = 5;
     for (Uint32 i = 0; i < 247; ++i)
         Put32(f->dra + 0x101b8 + i * 4, 0x800a3000);
     for (Uint32 pose = 0; pose < 14; ++pose)
@@ -70,6 +76,18 @@ static SotnCollisionMap MakeFixture(Fixture *f)
         overlay[0x1306] = 20;
         overlay[0x1307] = 8;
     }
+    Uint8 *overlay = f->weapons + 0xdd000, *descriptor = overlay + 0x8ec;
+    Put32(descriptor, 0x8017b100);
+    Put32(descriptor + 4, 0x8017b300);
+    descriptor[12] = 0x6f;
+    descriptor[13] = 4;
+    for (Uint32 variant = 0; variant < 7; ++variant)
+        Put32(overlay + 0x1100 + variant * 4, 0x8017b200);
+    for (Uint32 pose = 0; pose < 14; ++pose)
+        Put16(overlay + 0x1200 + pose * 2, 0x201);
+    overlay[0x1304] = 16;
+    overlay[0x1306] = 12;
+    overlay[0x1307] = 8;
     f->types[1] = 3;
     for (Uint32 y = 10; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -96,6 +114,11 @@ static bool Metadata(Fixture *f)
     Put32(f->weapons + 0x506c, 0xfffffffc);
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 0, 1, &frame));
     CHECK(frame.sprite == 0);
+    CHECK(SotnEquipment_Read(dra, 18, &equipment) && equipment.family == 31 &&
+          equipment.animation == 0x6f);
+    CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x6f, 4, 1, &frame) && frame.width == 12 &&
+          frame.sprite == 1);
+    CHECK(SotnEquipment_Read(dra, 86, &equipment));
     Put32(f->dra + 0xc0, 0xfffffffc);
     CHECK(!SotnEquipment_Read(dra, 86, &equipment) && equipment.id == 86);
     return true;

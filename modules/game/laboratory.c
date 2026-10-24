@@ -4,6 +4,7 @@
 #include <sotn/alucard_sprite.h>
 #include <sotn/game_over.h>
 #include <sotn/hud.h>
+#include <sotn/inventory.h>
 #include <sotn/laboratory.h>
 #include <sotn/music.h>
 #include <sotn/playback.h>
@@ -26,6 +27,13 @@ struct SotnLaboratory
     SotnActorGraphics *actor_graphics;
     SotnPresenter *presenter;
     SotnHud *hud;
+    SotnCharacter *character;
+    Uint8 player_common[0x42000];
+    Uint16 cape;
+    bool palette_ready;
+    SotnInventoryMenu menu;
+    SotnInventoryRenderer *inventory_renderer;
+    Uint8 menu_rgba[SOTN_MENU_RGBA_BYTES];
     SotnGameOver *game_over;
     Uint16 scene_buttons, mp, hands[2];
     Uint64 simulation_ticks;
@@ -131,6 +139,47 @@ static bool EnterActors(SotnLaboratory *session)
     return true;
 }
 
+static bool ApplyCharacter(SotnLaboratory *session)
+{
+    SotnCharacterState state = {0};
+    SotnCharacterStats stats = {0};
+    if (!SotnCharacter_Get(session->character, &state, &stats))
+        return false;
+    if (session->hands[0] != state.equipment[0] || session->hands[1] != state.equipment[1])
+    {
+        const SotnDataView weapons = SotnResource_View(session->weapons);
+        if (!SotnPlayer_SetEquipment(session->player, weapons, state.equipment[0],
+                                     state.equipment[1]))
+            return false;
+        for (Uint32 hand = 0; hand < 2; ++hand)
+        {
+            SotnEquipment equipment = {0};
+            if (!SotnEquipment_Read(session->dra, state.equipment[hand], &equipment) ||
+                !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment))
+                return false;
+            session->hands[hand] = state.equipment[hand];
+        }
+    }
+    if (!session->palette_ready || session->cape != state.equipment[4])
+    {
+        Uint16 colors[4] = {0};
+        if (!SotnAlucard_CapePalette(session->dra, state.equipment[4], colors))
+            return false;
+        if (!session->palette_ready)
+            SDL_memcpy(session->player_common, SotnResource_View(session->common).bytes,
+                       sizeof(session->player_common));
+        for (Uint32 i = 0; i < 4; ++i)
+        {
+            session->player_common[0x40000 + (6 + i) * 2] = (Uint8)colors[i];
+            session->player_common[0x40000 + (6 + i) * 2 + 1] = (Uint8)(colors[i] >> 8);
+        }
+        session->cape = state.equipment[4];
+        session->palette_ready = true;
+    }
+    session->mp = state.mp;
+    return SotnPlayer_SetCharacter(session->player, &state, stats);
+}
+
 static bool TickActors(SotnLaboratory *session)
 {
     SotnPlayerState player = {0};
@@ -138,14 +187,32 @@ static bool TickActors(SotnLaboratory *session)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
+    SotnCharacterState profile = {0};
+    if (!SotnCharacter_Get(session->character, &profile, NULL))
+        return false;
+    profile.hp = player.hp;
+    profile.hp_max = player.hp_max;
+    if (!SotnCharacter_Restore(session->character, &profile))
+        return false;
     if (!SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
     SotnActorCombat combat = {0};
+    SotnCharacterStats attributes = {0};
     if (!SotnActors_GetCombat(session->actors, &combat) ||
-        !SotnPlayer_Damage(session->player, combat.contact_damage, combat.contact_x,
-                           combat.contact_velocity))
+        !SotnCharacter_Get(session->character, &profile, &attributes))
+        return false;
+    if (player.step != SOTN_PLAYER_KILL && !ApplyCharacter(session))
+        return false;
+    const Uint16 damage =
+        combat.contact_damage == 0
+            ? 0
+            : (Uint16)SDL_max(1, (Sint32)combat.contact_damage - attributes.defense);
+    if (!SotnPlayer_Damage(session->player, damage, combat.contact_x, combat.contact_velocity))
         return false;
     if (!SotnPlayer_GetState(session->player, &player))
+        return false;
+    profile.hp = player.hp;
+    if (!SotnCharacter_Restore(session->character, &profile))
         return false;
     if (player.hp != session->displayed_hp || combat.hearts != session->displayed_hearts ||
         combat.gold != session->displayed_gold || combat.subweapon != session->displayed_subweapon)
@@ -254,9 +321,13 @@ static bool TickSaveRoom(SotnLaboratory *session, Uint16 buttons)
         return false;
     if (action.heal)
     {
-        if (!SotnPlayer_Restore(session->player, 70, player.random))
+        SotnCharacterState profile = {0};
+        if (!SotnCharacter_Get(session->character, &profile, NULL))
             return false;
-        session->mp = 20;
+        profile.hp = profile.hp_max;
+        profile.mp = profile.mp_max;
+        if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session))
+            return false;
     }
     if (action.sound != 0 && !SotnSound_Queue(session->sound, action.sound))
         return false;
@@ -323,9 +394,11 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (start_room != 1 && start_room != 3 && start_room != 23 && start_room != 24 &&
-        start_room != 25)
-        return SDL_SetError("Laboratory development starts are currently room 1, 3, 23, 24, or 25");
+    if (start_room != 1 && start_room != 3 && start_room != 4 && start_room != 5 &&
+        start_room != 6 && start_room != 9 && start_room != 10 && start_room != 23 &&
+        start_room != 24 && start_room != 25)
+        return SDL_SetError(
+            "Laboratory development starts are currently room 1, 3, 4, 5, 6, 9, 10, 23, 24, or 25");
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
@@ -333,6 +406,7 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     session->mp = 20;
     if (!SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
         !SotnGameData_GetFile(data, SOTN_GAME_NZ0, &session->nz0) ||
+        !SotnCharacter_Create(session->dra, &session->character) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
         !SotnStage_GetRoom(session->stage, session->room_index, &session->room) ||
         session->room.transition ||
@@ -342,9 +416,15 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
         !SotnResource_Open(directory, SOTN_RESOURCE_WEAPON_GRAPHICS, &session->weapons) ||
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(session->dra, session->room.foreground.collision,
-                           start_room >= 23 ? 128 : 32, 135, &session->player) ||
+                           start_room >= 23   ? 128
+                           : start_room == 10 ? 80
+                                              : 32,
+                           135, &session->player) ||
         !SotnPlayer_Tick(session->player, 0) ||
         !SotnActors_Create(session->dra, session->nz0, &session->actors) ||
+        !SotnActors_SetCharacter(session->actors, session->character) ||
+        !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
+                                      &session->inventory_renderer) ||
         !SotnActorGraphics_Create(session->dra, session->nz0,
                                   (SotnTileSources){SotnResource_View(session->tiles),
                                                     SotnResource_View(session->common)},
@@ -367,13 +447,14 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Laboratory development start: room %u", (unsigned int)start_room);
-    SDL_Log("Laboratory combat checkpoint: Gladius/Mace and empty-hand attacks, Bloody Zombie "
-            "damage/death, "
-            "physical player damage, candles, and heart/gold/subweapon collection. "
-            "Original sound effects, HUD, physical game over, and native save rooms are enabled; "
-            "reverb, full "
-            "effects, full progression, "
-            "scripts, and original camera remain incomplete.");
+    SDL_Log(
+        "Laboratory combat checkpoint: Basilard/Gladius/Mace and empty-hand attacks, Bloody Zombie "
+        "damage/death, "
+        "physical player damage, candles, and heart/gold/subweapon collection. "
+        "Original sound effects, HUD, physical game over, and native save rooms are enabled; "
+        "reverb, full "
+        "effects, full progression, "
+        "scripts, and original camera remain incomplete.");
     SDL_Log("Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
     *out = session;
     return true;
@@ -383,6 +464,17 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    const Uint16 ids[2] = {left, right};
+    SotnCharacterState state = {0};
+    if (!SotnCharacter_Get(session->character, &state, NULL))
+        return false;
+    for (Uint32 i = 0; i < 2; ++i)
+        if (state.equipment[i] != ids[i])
+        {
+            if (!SotnCharacter_Collect(session->character, false, ids[i]) ||
+                !SotnCharacter_Equip(session->character, i, ids[i]))
+                return false;
+        }
     SotnEquipment equipment[2] = {0};
     const SotnDataView weapons = SotnResource_View(session->weapons);
     if (!SotnEquipment_Read(session->dra, left, &equipment[0]) ||
@@ -394,9 +486,12 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
             return false;
     session->hands[0] = left;
     session->hands[1] = right;
+    if (!ApplyCharacter(session))
+        return false;
     session->dirty = true;
-    SDL_Log("Development hand equipment: left %u, right %u (0 empty, 86 Gladius, 128 Mace)", left,
-            right);
+    SDL_Log("Development hand equipment: left %u, right %u (0 empty, 18 Basilard, 86 Gladius, 128 "
+            "Mace)",
+            left, right);
     return true;
 }
 
@@ -418,6 +513,24 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnPlayerState state = {0};
     if (!SotnPlayer_GetState(session->player, &state))
         return false;
+    const bool owns_save = session->save_room && session->save_point.phase != SOTN_SAVE_POINT_IDLE;
+    if (session->menu.phase != SOTN_MENU_CLOSED || (start && state.can_pause && !owns_save))
+    {
+        Uint16 sound = 0;
+        bool changed = false;
+        if (!SotnInventoryMenu_Tick(&session->menu, session->character, buttons, &sound,
+                                    &changed) ||
+            (changed && !ApplyCharacter(session)) ||
+            (sound != 0 && !SotnSound_Queue(session->sound, sound)))
+            return false;
+        const SotnActorCombat silent = {0};
+        if (!TickAudio(session, &silent, 0))
+            return false;
+        session->input.menu_open = session->menu.phase != SOTN_MENU_CLOSED;
+        session->dirty = true;
+        return true;
+    }
+    session->menu.previous = buttons;
     Uint16 player_buttons =
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL);
@@ -463,7 +576,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         SotnActorState state = {0};
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
-        if (state.generation == 0 || state.unsupported || state.frame == 0)
+        if (state.generation == 0 || state.unsupported || (state.frame == 0 && state.id != 0xa) ||
+            (state.id == 0xa &&
+             (state.step < 2 || (state.step == 4 && (session->simulation_ticks & 2)))))
             continue;
         Uint32 position = count;
         while (position > 0 && list[position - 1].priority < state.priority)
@@ -502,16 +617,30 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (!player_drawn && (i == count || list[i].priority < 0x80))
         {
-            if (!SotnAlucard_DrawDeath(&alucard, SotnResource_View(session->common),
-                                       Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,
-                                       player.facing_left, player.death, session->frame,
-                                       SOTN_FRAME_PIXELS))
+            if (!SotnAlucard_DrawDeath(
+                    &alucard,
+                    (SotnDataView){session->player_common, sizeof(session->player_common)},
+                    Pixel(player.x) - camera_x, Pixel(player.y) - camera_y, player.facing_left,
+                    player.death, session->frame, SOTN_FRAME_PIXELS))
                 return false;
             player_drawn = true;
         }
         if (i == count)
             break;
         const SotnActorState actor = list[i];
+        if (actor.id == 0xa)
+        {
+            const Uint16 id = actor.parameters & 0x7fff;
+            SotnItem item = {0};
+            if (!SotnItem_Read(session->dra, id >= SOTN_HAND_ITEMS,
+                               id >= SOTN_HAND_ITEMS ? (Uint16)(id - SOTN_HAND_ITEMS) : id,
+                               &item) ||
+                !SotnItemIcon_Draw(session->dra, item, Pixel(actor.x) - camera_x - 8,
+                                   Pixel(actor.y) - camera_y - 8, session->frame,
+                                   SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
         if (!SotnActorGraphics_Draw(session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
@@ -555,6 +684,19 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
         return SDL_InvalidParamError("laboratory");
     if (session->dirty)
     {
+        if (session->menu.phase != SOTN_MENU_CLOSED)
+        {
+            if (!SotnInventoryRenderer_Draw(session->inventory_renderer, session->menu,
+                                            session->character, session->simulation_ticks,
+                                            session->input.pad != NULL, session->menu_rgba,
+                                            sizeof(session->menu_rgba)) ||
+                !SotnPresenter_SetImage(session->presenter, session->menu_rgba,
+                                        sizeof(session->menu_rgba), SOTN_MENU_WIDTH,
+                                        SOTN_MENU_HEIGHT))
+                return false;
+            session->dirty = false;
+            return SotnPresenter_Draw(session->presenter);
+        }
         if (!(session->game_over != NULL
                   ? SotnGameOver_Draw(session->game_over, session->frame, SOTN_FRAME_PIXELS)
                   : DrawGameplay(session)) ||
@@ -633,6 +775,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
     {
         SotnGameOver_Destroy(session->game_over);
         SotnResource_Close(session->game_over_art);
+        SotnInventoryRenderer_Destroy(session->inventory_renderer);
         SotnSaveStore_Destroy(session->saves);
         SotnSavePointRenderer_Destroy(session->save_renderer);
         SotnHud_Destroy(session->hud);
@@ -645,6 +788,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnPresenter_Destroy(session->presenter);
         LaboratoryInput_Quit(&session->input);
         SotnActors_Destroy(session->actors);
+        SotnCharacter_Destroy(session->character);
         SotnActorLayout_Close(session->actor_layout);
         SotnActorGraphics_Destroy(session->actor_graphics);
         SotnPlayer_Close(session->player);
@@ -659,6 +803,21 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
 
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
 {
+    SotnCharacterState legacy = {0};
+    if (!SotnCharacter_Get(session->character, &legacy, NULL))
+        return false;
+    legacy.hp = state.hp;
+    legacy.mp = state.mp;
+    legacy.hearts = state.hearts;
+    legacy.gold = state.gold;
+    legacy.kills = state.kills;
+    legacy.subweapon = state.subweapon;
+    legacy.equipment[0] = state.left_hand;
+    legacy.equipment[1] = state.right_hand;
+    SDL_memset(legacy.hand_count, 0, sizeof(legacy.hand_count));
+    SDL_memset(legacy.body_count, 0, sizeof(legacy.body_count));
+    if (!SotnCharacter_Restore(session->character, &legacy))
+        return false;
     const SotnActorProgress progress = {state.hearts, state.subweapon,    state.gold,
                                         state.kills,  state.actor_random, state.combat_random};
     if (!SotnLaboratory_SetEquipment(session, state.left_hand, state.right_hand) ||

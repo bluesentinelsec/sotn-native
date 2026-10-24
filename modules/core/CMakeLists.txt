@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  inventory_menu.c
+  include/sotn/inventory_menu.h
   character.c
   include/sotn/character.h
   collision.c

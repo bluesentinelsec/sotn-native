@@ -245,7 +245,8 @@ static bool StartAttack(SotnPlayer *player)
     Sint32 critical = equipment.critical_rate;
     if (equipment.id != 0)
     {
-        const Uint16 value = (Uint16)(12 + (SotnCombat_Random(&player->damage_random) & 15));
+        const Uint16 value = (Uint16)(player->attributes.total[3] * 2 +
+                                      (SotnCombat_Random(&player->damage_random) & 15));
         Sint32 root = 0;
         while ((root + 1) * (root + 1) <= value)
             ++root;
@@ -308,10 +309,13 @@ static bool ReadAttack(SotnPlayer *player)
             .right_hand = player->attack_button == SOTN_BUTTON_RIGHT_HAND,
             .sound = weapon.sound != 0,
             .sound_id = weapon.sound,
-            .power = (Uint16)SDL_clamp((Sint32)equipment.attack + (equipment.attack <= 6 ? 6 : 3),
-                                       0, 999),
+            .power =
+                player->attributes.attack[player->attack_button == SOTN_BUTTON_RIGHT_HAND ? 1 : 0],
             .equipment = equipment.id,
             .sprite = weapon.sprite};
+        if (equipment.id == 18 && player->animation.id < equipment.animation + 2 &&
+            player->animation.pose == 6)
+            player->attack.hit_type = 4;
         return true;
     }
     if (player->attack_mode == 0 || player->animation.id < 0x24 || player->animation.id > 0x2a ||
@@ -339,7 +343,8 @@ static bool ReadAttack(SotnPlayer *player)
     player->attack.offset_y = (Sint16)(box[1] < 128 ? box[1] : (Sint32)box[1] - 256);
     player->attack.width = box[2];
     player->attack.height = box[3];
-    player->attack.power = 6;
+    player->attack.power =
+        player->attributes.attack[player->attack_button == SOTN_BUTTON_RIGHT_HAND ? 1 : 0];
     player->attack.sound_id = 0x60c;
     player->attack.element = Attack16(equipment + 12);
     player->attack.hit_type = Attack16(equipment + 40);
@@ -816,7 +821,8 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     if (player == NULL)
         return false;
     player->dra = dra;
-    player->hp = 70;
+    player->hp = player->hp_max = 70;
+    player->attributes = (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}};
     player->map = map;
     player->x.value = (Sint32)start_x;
     player->y.value = (Sint32)start_y;
@@ -837,6 +843,7 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
     if (player == NULL || player->attack_mode != 0)
         return SDL_SetError("Equipment can change only when the player has no active attack");
     const Uint16 ids[2] = {left, right};
+    Uint16 power[2] = {0};
     for (Uint32 i = 0; i < 2; ++i)
     {
         SotnEquipment equipment = {0};
@@ -844,7 +851,12 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
         if (!SotnEquipment_Read(player->dra, ids[i], &equipment) ||
             (ids[i] != 0 && !SotnWeapon_Overlay(weapons, equipment, &overlay)))
             return false;
+        const Uint16 strength = player->attributes.total[0];
+        power[i] = (Uint16)SDL_clamp(
+            equipment.attack + (equipment.attack <= strength ? strength : strength / 2), 0, 999);
     }
+    player->attributes.attack[0] = power[0];
+    player->attributes.attack[1] = power[1];
     player->weapons = weapons;
     player->equipment[0] = left;
     player->equipment[1] = right;
@@ -882,12 +894,14 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->facing_left,
                              player->attack,
                              player->hp,
-                             70,
+                             player->hp_max,
                              player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
                                  player->step == SOTN_PLAYER_KILL,
                              player->sound,
                              player->death,
                              player->step == SOTN_PLAYER_STAND && player->substep == 1,
+                             player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
+                                 player->step != SOTN_PLAYER_HIT,
                              player->damage_random};
     return true;
 }
@@ -923,7 +937,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         *player = next;
         return true;
     }
-    const bool strong = (Uint32)amount * 20 > 70;
+    const bool strong = (Uint32)amount * 20 > next.hp_max;
     const Uint16 pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1) + (strong ? 3 : 5));
     const Uint8 *sound = NULL;
     if (!AttackView(&next, 0x800acf84 + pain * 2U, 2, &sound))
@@ -971,11 +985,26 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
 
 bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random)
 {
-    if (player == NULL || hp == 0 || hp > 70 || player->step == SOTN_PLAYER_KILL ||
+    if (player == NULL || hp == 0 || hp > player->hp_max || player->step == SOTN_PLAYER_KILL ||
         player->attack_mode != 0)
-        return SDL_SetError("Health restore requires a living, non-attacking player and HP 1..70");
+        return SDL_SetError("Health restore requires a living, non-attacking player and health "
+                            "within the current maximum");
     player->hp = hp;
     player->damage_random = random;
+    return true;
+}
+
+bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state,
+                             SotnCharacterStats stats)
+{
+    if (player == NULL || state == NULL || state->hp_max == 0 || state->hp_max > 9999 ||
+        state->hp > state->hp_max || stats.attack[0] > 999 || stats.attack[1] > 999 ||
+        player->step == SOTN_PLAYER_KILL)
+        return SDL_SetError(
+            "Player character update requires bounded living progress and attributes");
+    player->hp = state->hp;
+    player->hp_max = state->hp_max;
+    player->attributes = stats;
     return true;
 }
 

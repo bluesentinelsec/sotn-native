@@ -36,4 +36,13 @@ Uint16 SotnCombat_Random(Uint32 *state);
 bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uint8 critical_rate,
                        const Uint16 stats[4], Uint16 rooms, Uint32 *random, Uint16 *out);
 
+/** @brief Original critical selection using base stats and a distinct equipment-adjusted LCK.
+ * @param enemy Original target. @param attack Attack power 0..999. @param element Element mask.
+ * @param critical_rate Effective critical rate. @param stats Four base stats, 1..99.
+ * @param luck Effective LCK, 1..198; zero-LCK arithmetic remains an explicit unsupported edge.
+ * @param rooms Visited room count. @param random Owned RNG. @param out Damage on success.
+ * @return Success or false with SDL_GetError(), preserving output/RNG on invalid input. */
+bool SotnCombat_DamageAttributes(SotnCombatEnemy enemy, Uint16 attack, Uint16 element,
+                                 Uint8 critical_rate, const Uint16 stats[4], Uint16 luck,
+                                 Uint16 rooms, Uint32 *random, Uint16 *out);
 #endif

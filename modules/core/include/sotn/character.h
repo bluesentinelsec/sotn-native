@@ -22,7 +22,7 @@ typedef enum SotnEquipSlot
 /** @brief Ordinary character progress, independently serializable without pointers. */
 typedef struct SotnCharacterState
 {
-    Uint16 hp, hp_max, mp, mp_max, hearts, hearts_max, level, base[4], equipment[7];
+    Uint16 hp, hp_max, mp, mp_max, hearts, hearts_max, level, base[4], equipment[7], subweapon;
     Uint32 experience, gold, kills, random;
     Uint8 hand_count[SOTN_HAND_ITEMS], body_count[SOTN_BODY_ITEMS];
     Uint8 hand_order[SOTN_HAND_ITEMS], body_order[SOTN_BODY_ITEMS];
@@ -78,6 +78,11 @@ bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not
  * mutate state. */
 bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
+/** @brief Read private item metadata without exposing the character's borrowed image.
+ * @param character Borrowed character. @param body Item table. @param id Item ID.
+ * @param out Decoded metadata, unchanged on failure. @return Success or false with SDL_GetError().
+ */
+bool SotnCharacter_Item(const SotnCharacter *character, bool body, Uint16 id, SotnItem *out);
 /** @brief Release character, retaining borrowed private bytes. @param character Owned or NULL. */
 void SotnCharacter_Destroy(SotnCharacter *character);
 #endif

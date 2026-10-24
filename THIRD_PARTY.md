@@ -122,3 +122,10 @@ exchange, and unbuffed attribute calculations from `src/dra/5D5BC.c` and `menu.c
 at the pinned reconstruction revision under AGPL-3.0-or-later. Item records,
 names, descriptions, and icons remain private runtime inputs. Unsupported item
 behaviors are rejected at the equipment boundary.
+
+Selected native equipment/pause panels, fonts, portrait, and icon loading adapt
+`src/dra/menu.c` and `4AEA4.c`; cape palette selection adapts `5F60C.c`. Original
+equipment drops, persistent room pickups, and breakable globe paths additionally
+adapt `src/st/e_collect.h`, `nz0/e_nz0_room2.c`, and `st_common.h`. Basilard adapts
+selected `src/weapon/w_031.c` behavior. All use the same pinned reconstruction
+under AGPL-3.0-or-later. Private runtime definitions/pixels/palettes remain untracked.

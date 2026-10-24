@@ -48,4 +48,9 @@ bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common
 bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
                            bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count);
 
+/** @brief Read the selected original four-color cape palette-copy operation.
+ * @param dra Borrowed private DRA. @param cape Original supported cape item.
+ * @param colors Output four RGB555 words, unchanged on failure.
+ * @return Success or false with SDL_GetError() for malformed table/pointer/opcode data. */
+bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4]);
 #endif
