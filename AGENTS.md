@@ -18,6 +18,9 @@ their provenance and scope. Normal Alucard movement and collision sensors are
 integrated; [movement integration](docs/laboratory-movement.md) describes their limits.
 The core stage parser and on-demand data resources are documented in
 [docs/stage-data.md](docs/stage-data.md); runtime tables must stay in private files.
+Actor placement decoding and scrolling/persistence state are described in
+[docs/laboratory-actors.md](docs/laboratory-actors.md); their behavior/rendering
+integration must not be confused with the standalone placement foundation.
 Runtime tile/sprite presentation and the animation cursor are described in
 [docs/laboratory-presentation.md](docs/laboratory-presentation.md). Its tile
 preview is a graphics diagnostic, not a gameplay playtest.

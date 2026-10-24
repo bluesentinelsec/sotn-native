@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <sotn/actor_layout.h>
 #include <sotn/game_data.h>
 #include <sotn/laboratory.h>
 #include <sotn/presenter.h>
@@ -71,6 +72,20 @@ static bool InspectLaboratory(const SotnGameData *data, const char *directory)
     }
     SDL_Log("SOTN_LABORATORY_DATA: PASS (%u rooms, %u cross-stage transitions)",
             (unsigned int)count, (unsigned int)transitions);
+    Uint32 placements = 0;
+    for (Uint32 i = 0; i < 53; ++i)
+    {
+        SotnActorLayout *layout = NULL;
+        if (!SotnActorLayout_Open(image, i, &layout))
+        {
+            SotnResource_Close(tiles);
+            SotnStage_Close(stage);
+            return false;
+        }
+        placements += SotnActorLayout_Count(layout);
+        SotnActorLayout_Close(layout);
+    }
+    SDL_Log("SOTN_LABORATORY_ACTORS: PASS (53 layouts, %u placements)", (unsigned int)placements);
     SotnStage_Close(stage);
     SotnResource_Close(tiles);
     return true;
