@@ -7,6 +7,7 @@ Laboratory: Alucard movement, adjacent room transitions, animated candles,
 red-eye busts, globe tables, selected empty-hand/Basilard/Gladius/Mace combat, candle pickups,
 the original Alucard HUD, physical death/game over, native save-room support,
 and original sound effects/Laboratory music.
+[Additional Laboratory enemies](docs/laboratory-world.md) include skeletons, Axe Knights, and Spittle Bones.
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.

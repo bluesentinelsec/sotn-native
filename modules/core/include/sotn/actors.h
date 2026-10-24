@@ -17,7 +17,25 @@ typedef struct SotnActorState
     bool facing_left, unsupported;
     Sint16 hit_points, hitbox_x, hitbox_y;
     Uint16 hitbox_width, hitbox_height, hitbox_state;
+    Sint16 rotation;
+    bool rotated;
+    Uint8 primitive_count;
+    Uint16 slot;
 } SotnActorState;
+
+/** @brief Copied stage primitive, owned by its actor; positions are room-local 16.16 pixels. */
+typedef struct SotnActorPrimitive
+{
+    Sint32 x, y;
+    Uint16 width, height, page, palette;
+    Uint8 u[4], v[4], red, green, blue;
+    bool active, textured, blend;
+} SotnActorPrimitive;
+/** @brief Read one owned actor primitive without exposing mutable storage.
+ * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..31.
+ * @param out Copied state; inactive for unused indices. @return Success or SDL error. */
+bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index,
+                             SotnActorPrimitive *out);
 
 /** @brief Per-tick game sound requests and development inventory/contact state. */
 typedef struct SotnActorCombat

@@ -55,12 +55,19 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
  */
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count);
+/** @brief Draw multipart sprites rotated about their anchor, using 4096 units per revolution.
+ * @param graphics Borrowed texture service. @param sprite Original sprite attributes.
+ * @param x Screen anchor. @param y Screen anchor. @param angle Signed original rotation.
+ * @param frame Full writable RGB555 frame. @param count Available pixels.
+ * @return Success or SDL error; invalid private references leave the frame unchanged. */
+bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                   Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count);
 /** @brief Affine textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
  */
 typedef struct SotnTextureQuad
 {
     Sint32 x[4], y[4];
-    Uint8 u[4], v[4];
+    Uint16 u[4], v[4]; /**< Texture edges 0..256, including the mirrored page boundary. */
     Uint16 page, palette;
     bool blend;
 } SotnTextureQuad;

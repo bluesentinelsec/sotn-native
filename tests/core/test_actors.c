@@ -50,7 +50,7 @@ static SotnCollisionMap MakeFixture(Fixture *fixture)
     Put16(fixture->nz0, 0x33c, 0xffff);
     Put16(fixture->nz0, 0x33e, 0xffff);
     Put32(fixture->dra, 0x98, 0x800a0200);
-    Put32(fixture->dra, 0x224, 0xa8000000);
+    Put32(fixture->dra, 0x224, 0xa8001000);
     const size_t initializers[] = {0xbc8, 0xc34, 0xcc4, 0xc7c};
     for (size_t i = 0; i < SDL_arraysize(initializers); ++i)
     {
@@ -163,6 +163,7 @@ static bool TestCombat(Fixture *fixture)
     Put32(fixture->nz0, 0x1da8, 0xffff0000);
     Put32(fixture->nz0, 0x1db0, 0xfffe8000);
     Put16(fixture->nz0, 0xc84, 1);
+    Put32(fixture->dra, 0x24c, 0x1000);
     Put16(fixture->dra, 0x22c, 12);
     Put16(fixture->dra, 0x234, 3);
     fixture->dra[0x24a] = 4;
