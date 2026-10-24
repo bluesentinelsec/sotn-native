@@ -1,0 +1,252 @@
+#include <SDL3/SDL.h>
+#include <sotn/actor_graphics.h>
+
+#define CHECK(condition)                                                                           \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(condition))                                                                          \
+        {                                                                                          \
+            SDL_LogError(SDL_LOG_CATEGORY_TEST, "Line %d: %s: %s", __LINE__, #condition,           \
+                         SDL_GetError());                                                          \
+            return false;                                                                          \
+        }                                                                                          \
+    } while (0)
+
+typedef struct Fixture
+{
+    Uint8 nz0[0x2000], dra[0x4000], stage[0x40000], common[0x42000];
+    Uint16 frame[SOTN_FRAME_PIXELS];
+} Fixture;
+
+static void Put16(Uint8 *bytes, Uint16 value)
+{
+    bytes[0] = (Uint8)value;
+    bytes[1] = (Uint8)(value >> 8);
+}
+
+static void Put32(Uint8 *bytes, Uint32 value)
+{
+    for (unsigned int i = 0; i < 4; ++i)
+        bytes[i] = (Uint8)(value >> (i * 8));
+}
+
+static void MakeFixture(Fixture *fixture)
+{
+    SDL_memset(fixture, 0, sizeof(*fixture));
+    Uint8 *image = fixture->nz0;
+    Put32(image + 20, 0x80180040);
+    Put32(image + 0x44, 0x80180600);
+    Put32(image + 24, 0x801800b0);
+    Put32(image + 0xb0, 0x801800c0);
+    Put32(image + 0xc0, 5);
+    Put32(image + 0xc4, 0x2000);
+    Put32(image + 0xc8, 32);
+    Put32(image + 0xcc, 0x80180200);
+    Put32(image + 0xd0, SDL_MAX_UINT32);
+    Put16(image + 0x202, 31);
+    Put16(image + 0x204, 0x8000);
+    Put16(image + 0x206, 0x83e0);
+    Put32(image + 36, 0x80180300);
+    Put32(image + 0x300, 0x80180400);
+    Put32(image + 0x304, 0x80180420);
+    for (Uint32 i = 0; i < 2; ++i)
+    {
+        const size_t bank = i == 0 ? 0x400 : 0x420;
+        Put32(image + bank, i == 0 ? 1 : 4);
+        Put32(image + bank + 4, (129U << 16) | 64);
+        Put32(image + bank + 8, (4U << 16) | 1);
+        Put32(image + bank + 12, i == 0 ? 0x80180500 : 0x80180520);
+        Put32(image + bank + 16, SDL_MAX_UINT32);
+    }
+    image[0x500] = 0x21;
+    image[0x501] = 0x03;
+    static const Uint8 literals[] = {0x11, 0x12, 0x13, 0x10, 0xf0};
+    SDL_memcpy(image + 0x528, literals, sizeof(literals));
+    Put32(image + 0x604, 0x80180608);
+    Put16(image + 0x608, 1);
+    Uint8 *part = image + 0x60a;
+    Put16(part + 2, 65535);
+    Put16(part + 4, 65535);
+    Put16(part + 6, 4);
+    Put16(part + 8, 1);
+    Put16(part + 12, 8);
+    Put16(part + 14, 4);
+    Put16(part + 16, 64);
+    Put16(part + 18, 8);
+    Put16(part + 20, 65);
+    Put32(fixture->dra + 0x3b70 + 3 * 4, 0x800a0100);
+    Put32(fixture->dra + 0x104, 0x800a0108);
+    SDL_memcpy(fixture->dra + 0x108, image + 0x608, 24);
+    Put16(fixture->dra + 0x10a + 10, 0x100);
+    Put16(fixture->dra + 0x10a + 12, 24 * 4);
+    Put16(fixture->dra + 0x10a + 16, 0);
+    Put16(fixture->dra + 0x10a + 20, 1);
+    fixture->common[2] = 0x21;
+    fixture->common[3] = 0x03;
+    Put16(fixture->common + 0x40002, 0x7c00);
+}
+
+static bool Create(Fixture *fixture, SotnActorGraphics **out)
+{
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    const SotnDataView nz0 = {fixture->nz0, sizeof(fixture->nz0)};
+    const SotnTileSources sources = {{fixture->stage, sizeof(fixture->stage)},
+                                     {fixture->common, sizeof(fixture->common)}};
+    return SotnActorGraphics_Create(dra, nz0, sources, out);
+}
+
+static void ClearFrame(Fixture *fixture)
+{
+    for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        fixture->frame[i] = 7;
+}
+
+static bool Unchanged(const Fixture *fixture)
+{
+    for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        if (fixture->frame[i] != 7)
+            return false;
+    return true;
+}
+
+static bool TestSprites(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    SotnActorGraphics *graphics = NULL;
+    CHECK(Create(fixture, &graphics));
+    SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+    ClearFrame(fixture);
+    CHECK(!SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(fixture));
+    CHECK(SotnActorGraphics_LoadBank(graphics, 0));
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[1] == 0x8000 && fixture->frame[2] == 0x83e0 &&
+          fixture->frame[3] == 7);
+    ClearFrame(fixture);
+    sprite.facing_left = true;
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 2, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 7 && fixture->frame[1] == 0x83e0 && fixture->frame[2] == 0x8000 &&
+          fixture->frame[3] == 31);
+    ClearFrame(fixture);
+    sprite.facing_left = false;
+    sprite.blend_mode = 0x10;
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[1] == 3 && fixture->frame[2] == (3 | 15 << 5));
+    CHECK(SotnActorGraphics_LoadBank(graphics, 1));
+    ClearFrame(fixture);
+    sprite.blend_mode = 0;
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[2] == 0x83e0);
+    ClearFrame(fixture);
+    sprite.animation_set = 3;
+    sprite.palette = 0;
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 0x7c00 && fixture->frame[1] == 7);
+    ClearFrame(fixture);
+    sprite.frame = 2;
+    CHECK(!SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(fixture));
+    sprite = (SotnActorSprite){0x8001, 1, 512, 0, 0, false};
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, SDL_MIN_SINT32, SDL_MAX_SINT32, fixture->frame,
+                                 SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(fixture));
+    SotnActorGraphics_Destroy(graphics);
+    return true;
+}
+
+static bool TestFailures(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    Put32(fixture->nz0 + 0x428, (8U << 16) | 1);
+    SotnActorGraphics *graphics = NULL;
+    CHECK(Create(fixture, &graphics));
+    CHECK(SotnActorGraphics_LoadBank(graphics, 0));
+    CHECK(!SotnActorGraphics_LoadBank(graphics, 1));
+    const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[2] == 0x83e0);
+    SotnActorGraphics_Destroy(graphics);
+    MakeFixture(fixture);
+    Put16(fixture->nz0 + 0x608, 2);
+    SDL_memcpy(fixture->nz0 + 0x620, fixture->nz0 + 0x60a, 22);
+    Put16(fixture->nz0 + 0x60a, 0x200);
+    CHECK(Create(fixture, &graphics));
+    CHECK(SotnActorGraphics_LoadBank(graphics, 0));
+    ClearFrame(fixture);
+    CHECK(!SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(fixture));
+    CHECK(!SotnActorGraphics_LoadBank(graphics, 25));
+    SotnActorGraphics_Destroy(graphics);
+    MakeFixture(fixture);
+    Put32(fixture->nz0 + 0xc4, 0x3000);
+    CHECK(!Create(fixture, &graphics) && graphics == NULL);
+    SotnActorGraphics_Destroy(NULL);
+    return true;
+}
+
+static bool TestDepthsAndOrdering(Fixture *fixture)
+{
+    for (Uint32 depth = 1; depth <= 2; ++depth)
+    {
+        MakeFixture(fixture);
+        Put32(fixture->nz0 + 0x400, depth + 1);
+        Put32(fixture->nz0 + 0x404, ((depth == 1 ? 130U : 132U) << 16) | 64);
+        Put16(fixture->nz0 + 0x60a + 12, (Uint16)(8U + depth * 512));
+        if (depth == 1)
+        {
+            fixture->nz0[0x500] = 1;
+            fixture->nz0[0x501] = 2;
+            fixture->nz0[0x502] = 3;
+            fixture->nz0[0x503] = 0;
+        }
+        else
+        {
+            Put16(fixture->nz0 + 0x500, 31);
+            Put16(fixture->nz0 + 0x502, 0x8000);
+            Put16(fixture->nz0 + 0x504, 0x83e0);
+            Put16(fixture->nz0 + 0x506, 0);
+        }
+        SotnActorGraphics *graphics = NULL;
+        CHECK(Create(fixture, &graphics));
+        CHECK(SotnActorGraphics_LoadBank(graphics, 0));
+        ClearFrame(fixture);
+        const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+        CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+        CHECK(fixture->frame[0] == 31 && fixture->frame[1] == 0x8000 &&
+              fixture->frame[2] == 0x83e0 && fixture->frame[3] == 7);
+        SotnActorGraphics_Destroy(graphics);
+    }
+    for (unsigned int priority = 0; priority < 2; ++priority)
+    {
+        MakeFixture(fixture);
+        Put16(fixture->nz0 + 0x608, 2);
+        SDL_memcpy(fixture->nz0 + 0x620, fixture->nz0 + 0x60a, 22);
+        Put16(fixture->nz0 + 0x620 + 10, 1);
+        Put16(fixture->nz0 + 0x222, 0x7c00);
+        Put16(fixture->nz0 + 0x60a, priority != 0 ? 0x100 : 0);
+        SotnActorGraphics *graphics = NULL;
+        CHECK(Create(fixture, &graphics));
+        CHECK(SotnActorGraphics_LoadBank(graphics, 0));
+        ClearFrame(fixture);
+        const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+        CHECK(SotnActorGraphics_Draw(graphics, sprite, 1, 1, fixture->frame, SOTN_FRAME_PIXELS));
+        CHECK(fixture->frame[0] == (priority != 0 ? 0x7c00 : 31));
+        SotnActorGraphics_Destroy(graphics);
+    }
+    return true;
+}
+
+int main(void)
+{
+    Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
+    if (fixture == NULL)
+        return 1;
+    const bool passed =
+        TestSprites(fixture) && TestFailures(fixture) && TestDepthsAndOrdering(fixture);
+    SDL_free(fixture);
+    if (!passed)
+        return 1;
+    SDL_Log("SOTN_ACTOR_GRAPHICS_TEST: PASS");
+    return 0;
+}

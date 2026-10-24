@@ -53,3 +53,29 @@ A local comparison against the unchanged pinned spawn routines matched
 simultaneous X/Y changes, slot removals, and persistence. This establishes the
 tested placement behavior, not actor/gameplay parity. Private inputs, reference
 test tools, and their generated files remain ignored.
+
+## Actor graphics dependency
+
+`SotnActorGraphics` owns a bounded 1024x512-word texture-memory arena and tracks
+which words have been loaded. It reads initial stage/common textures and common
+palettes from the existing verified graphics resources. Original bulk palette
+copies and room graphics-bank uploads come from bounded NZ0 views. Raw 4/8/16-bit
+and dictionary/RLE transfers validate and decode into scratch memory before
+changing texture memory. Unloaded texture or palette references fail explicitly.
+
+Multipart frames resolve through runtime common/stage sprite banks. The renderer
+preserves part pivots, mirroring, cropping, packed texture addressing, palette
+selection, transparent versus STP black, and semi-transparency arithmetic.
+It renders reverse part order within their original relative priority groups.
+The shared OpenGL presenter displays the completed RGB555 frame. This is not a
+complete GPU-command renderer: packed Alucard sheets use their existing service;
+primitive transforms, full cross-entity ordering, and animated palettes remain
+separate work. The graphics dependency alone does not enable actors in the demo.
+
+The adapted implementation in `modules/render/actor_graphics.c` identifies
+`src/dra/4AEA4.c`, `4A538.c`, and `4B758.c` at the same pinned revision and retains
+AGPL-3.0-or-later attribution. Public synthetic tests cover raw/compressed uploads,
+4/8/16-bit texels, palettes, mirroring, clipping, STP blending, part ordering,
+truncated/unsupported references, and atomic failures. A local private check
+successfully loads all 25 Laboratory graphics banks and draws normal candle,
+skeleton, and zombie frames. No source or package contains those textures.

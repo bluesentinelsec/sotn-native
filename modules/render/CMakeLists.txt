@@ -7,11 +7,13 @@ add_library(sotn-render STATIC
   save_icon.c
   tilemap.c
   alucard_sprite.c
+  actor_graphics.c
   shaders.h
   include/sotn/presenter.h
   include/sotn/save_icon.h
   include/sotn/tilemap.h
   include/sotn/alucard_sprite.h
+  include/sotn/actor_graphics.h
 )
 sotn_configure_c_target(sotn-render)
 target_include_directories(sotn-render PUBLIC include)
