@@ -19,6 +19,9 @@ Other equipped weapons, complete damage/item/audio behavior, map UI/castle scrip
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
+[Castle stage loading](docs/castle-stage-loading.md) verifies and inspects 50 stage
+overlay/artwork pairs on demand; gameplay outside Laboratory remains unintegrated.
+
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.

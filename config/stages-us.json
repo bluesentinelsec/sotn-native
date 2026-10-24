@@ -1,0 +1,706 @@
+{
+  "reference": "psx-us-slus-00067",
+  "reconstructed_commit": "7bc54d8157b6bed77e6bd15e5db9461a734fe1e5",
+  "stages": [
+    {
+      "id": 0,
+      "code": "NO0",
+      "overlay": {
+        "path": "ST/NO0/NO0.BIN",
+        "size": 390540,
+        "sha1": "d07f054f9dc8ef639257aca01deb1f24a2811924"
+      },
+      "graphics": {
+        "path": "ST/NO0/F_NO0.BIN",
+        "size": 262144,
+        "sha1": "898bc0fc322f960e20c909073606baa85ae8175e"
+      }
+    },
+    {
+      "id": 1,
+      "code": "NO1",
+      "overlay": {
+        "path": "ST/NO1/NO1.BIN",
+        "size": 356452,
+        "sha1": "41ccd886308d5527684ae2c41164ecf6c554721f"
+      },
+      "graphics": {
+        "path": "ST/NO1/F_NO1.BIN",
+        "size": 262144,
+        "sha1": "5ba383affbaef50c151c79307ad0a082d0357324"
+      }
+    },
+    {
+      "id": 2,
+      "code": "LIB",
+      "overlay": {
+        "path": "ST/LIB/LIB.BIN",
+        "size": 348876,
+        "sha1": "ddd108c3a9ec564d34063e5008685a9a41f8eabd"
+      },
+      "graphics": {
+        "path": "ST/LIB/F_LIB.BIN",
+        "size": 262144,
+        "sha1": "70c4c7a50836333e8c72eadce5fbc024776f3624"
+      }
+    },
+    {
+      "id": 3,
+      "code": "CAT",
+      "overlay": {
+        "path": "ST/CAT/CAT.BIN",
+        "size": 361920,
+        "sha1": "02ac6d5a2cd2db5a402aa9ceaab98574539c095d"
+      },
+      "graphics": {
+        "path": "ST/CAT/F_CAT.BIN",
+        "size": 262144,
+        "sha1": "16ce51c87834404e617fb5d9dd55f062aa72c957"
+      }
+    },
+    {
+      "id": 4,
+      "code": "NO2",
+      "overlay": {
+        "path": "ST/NO2/NO2.BIN",
+        "size": 327100,
+        "sha1": "b048fd4c7825130724c524c0d3e7304044502db4"
+      },
+      "graphics": {
+        "path": "ST/NO2/F_NO2.BIN",
+        "size": 262144,
+        "sha1": "82032d57a874ae58a39d94d5c469895777738af6"
+      }
+    },
+    {
+      "id": 5,
+      "code": "CHI",
+      "overlay": {
+        "path": "ST/CHI/CHI.BIN",
+        "size": 193576,
+        "sha1": "4ea14c8b54b8526ee6840b8b54658cafc0b336a2"
+      },
+      "graphics": {
+        "path": "ST/CHI/F_CHI.BIN",
+        "size": 262144,
+        "sha1": "98dbe2f21c3cf4762a7ecf01eef0de614c2e3b4f"
+      }
+    },
+    {
+      "id": 6,
+      "code": "DAI",
+      "overlay": {
+        "path": "ST/DAI/DAI.BIN",
+        "size": 373764,
+        "sha1": "4189c2f709ce229e48f5cd93a20af40579bda26b"
+      },
+      "graphics": {
+        "path": "ST/DAI/F_DAI.BIN",
+        "size": 262144,
+        "sha1": "801337727ae0e431cf991ff052b46401e9ab7197"
+      }
+    },
+    {
+      "id": 7,
+      "code": "NP3",
+      "overlay": {
+        "path": "ST/NP3/NP3.BIN",
+        "size": 341044,
+        "sha1": "7c78a2bec6a26acfb62456e7f517915fe0c0e3f5"
+      },
+      "graphics": {
+        "path": "ST/NP3/F_NP3.BIN",
+        "size": 262144,
+        "sha1": "7ca2a473e87fbb7e5c18e72ea0c136c0e7b364f5"
+      }
+    },
+    {
+      "id": 8,
+      "code": "CEN",
+      "overlay": {
+        "path": "ST/CEN/CEN.BIN",
+        "size": 119916,
+        "sha1": "42226b6d9ed24448eed61b3c6cd2949e96bebab6"
+      },
+      "graphics": {
+        "path": "ST/CEN/F_CEN.BIN",
+        "size": 262144,
+        "sha1": "f9f4833355d776b377db5adb62d16eae24975160"
+      }
+    },
+    {
+      "id": 9,
+      "code": "NO4",
+      "overlay": {
+        "path": "ST/NO4/NO4.BIN",
+        "size": 391260,
+        "sha1": "bd0c8f0dd19fb736c483abc23254aefdeba7904f"
+      },
+      "graphics": {
+        "path": "ST/NO4/F_NO4.BIN",
+        "size": 262144,
+        "sha1": "c431358a44bd7808cf5cd0d8543ddd732250be95"
+      }
+    },
+    {
+      "id": 10,
+      "code": "ARE",
+      "overlay": {
+        "path": "ST/ARE/ARE.BIN",
+        "size": 352636,
+        "sha1": "d1b52f3ee4c96055e22a327ca7c6992471e3e551"
+      },
+      "graphics": {
+        "path": "ST/ARE/F_ARE.BIN",
+        "size": 262144,
+        "sha1": "b5d9c68ad2765d390bc4fc26d488fb816886a579"
+      }
+    },
+    {
+      "id": 11,
+      "code": "TOP",
+      "overlay": {
+        "path": "ST/TOP/TOP.BIN",
+        "size": 247132,
+        "sha1": "47bb15117558c88f516cf4fc72fb8c91445d135e"
+      },
+      "graphics": {
+        "path": "ST/TOP/F_TOP.BIN",
+        "size": 262144,
+        "sha1": "81baa03ba3fa73a5447d73c532283e995308ec2a"
+      }
+    },
+    {
+      "id": 12,
+      "code": "NZ0",
+      "overlay": {
+        "path": "ST/NZ0/NZ0.BIN",
+        "size": 309120,
+        "sha1": "b10b9c2be721cf9cbed3aa94be468ba9e23bc68b"
+      },
+      "graphics": {
+        "path": "ST/NZ0/F_NZ0.BIN",
+        "size": 262144,
+        "sha1": "89c5e97cb917121255d3a1a810c1d8ae098ebf8b"
+      }
+    },
+    {
+      "id": 13,
+      "code": "NZ1",
+      "overlay": {
+        "path": "ST/NZ1/NZ1.BIN",
+        "size": 271168,
+        "sha1": "c0aef5c7a2c3260005478b6a4c950d28680ce031"
+      },
+      "graphics": {
+        "path": "ST/NZ1/F_NZ1.BIN",
+        "size": 262144,
+        "sha1": "f4527cdb3825a3be28c0f841523edf97efe2e89f"
+      }
+    },
+    {
+      "id": 14,
+      "code": "WRP",
+      "overlay": {
+        "path": "ST/WRP/WRP.BIN",
+        "size": 83816,
+        "sha1": "2ae313f4e394422e4c5f37a2d8e976e92f9e3cda"
+      },
+      "graphics": {
+        "path": "ST/WRP/F_WRP.BIN",
+        "size": 262144,
+        "sha1": "c1284f0c662f3c8fdb8a7c17cebf8e5cf1d96c1b"
+      }
+    },
+    {
+      "id": 18,
+      "code": "DRE",
+      "overlay": {
+        "path": "ST/DRE/DRE.BIN",
+        "size": 147404,
+        "sha1": "e42976f45b47d1c4912a198ae486b77ee6d77c9c"
+      },
+      "graphics": {
+        "path": "ST/DRE/F_DRE.BIN",
+        "size": 262144,
+        "sha1": "663da47afbc663548bfac8b838e3390f55ae6eaf"
+      }
+    },
+    {
+      "id": 22,
+      "code": "BO7",
+      "overlay": {
+        "path": "BOSS/BO7/BO7.BIN",
+        "size": 144480,
+        "sha1": "dba86dc3b2709e37de651ad929ae29166a86f045"
+      },
+      "graphics": {
+        "path": "BOSS/BO7/F_BO7.BIN",
+        "size": 262144,
+        "sha1": "98dbe2f21c3cf4762a7ecf01eef0de614c2e3b4f"
+      }
+    },
+    {
+      "id": 24,
+      "code": "BO6",
+      "overlay": {
+        "path": "BOSS/BO6/BO6.BIN",
+        "size": 333544,
+        "sha1": "fe067af9b7adca08dc99b108129a0f45a7ad45cd"
+      },
+      "graphics": {
+        "path": "BOSS/BO6/F_BO6.BIN",
+        "size": 262144,
+        "sha1": "81baa03ba3fa73a5447d73c532283e995308ec2a"
+      }
+    },
+    {
+      "id": 25,
+      "code": "BO5",
+      "overlay": {
+        "path": "BOSS/BO5/BO5.BIN",
+        "size": 218672,
+        "sha1": "a90ab719a6db9ff6b72ea1a59a09c0cece69c31a"
+      },
+      "graphics": {
+        "path": "BOSS/BO5/F_BO5.BIN",
+        "size": 262144,
+        "sha1": "801337727ae0e431cf991ff052b46401e9ab7197"
+      }
+    },
+    {
+      "id": 26,
+      "code": "BO4",
+      "overlay": {
+        "path": "BOSS/BO4/BO4.BIN",
+        "size": 347704,
+        "sha1": "b90a2a70ae9651ed107b306d4dcfba2311b523fc"
+      },
+      "graphics": {
+        "path": "BOSS/BO4/F_BO4.BIN",
+        "size": 262144,
+        "sha1": "5ba383affbaef50c151c79307ad0a082d0357324"
+      }
+    },
+    {
+      "id": 27,
+      "code": "BO3",
+      "overlay": {
+        "path": "BOSS/BO3/BO3.BIN",
+        "size": 210224,
+        "sha1": "fadd860dff5f0c89f9dd7e3004172f901a2bdd66"
+      },
+      "graphics": {
+        "path": "BOSS/BO3/F_BO3.BIN",
+        "size": 262144,
+        "sha1": "c431358a44bd7808cf5cd0d8543ddd732250be95"
+      }
+    },
+    {
+      "id": 28,
+      "code": "BO2",
+      "overlay": {
+        "path": "BOSS/BO2/BO2.BIN",
+        "size": 223540,
+        "sha1": "91d90c1ea31a9fbfbccc0ab66b59551d823c51f6"
+      },
+      "graphics": {
+        "path": "BOSS/BO2/F_BO2.BIN",
+        "size": 262144,
+        "sha1": "b5d9c68ad2765d390bc4fc26d488fb816886a579"
+      }
+    },
+    {
+      "id": 29,
+      "code": "BO1",
+      "overlay": {
+        "path": "BOSS/BO1/BO1.BIN",
+        "size": 205756,
+        "sha1": "98da46f83a0060d6b10fc7819744c9b3dd2191f9"
+      },
+      "graphics": {
+        "path": "BOSS/BO1/F_BO1.BIN",
+        "size": 262144,
+        "sha1": "16ce51c87834404e617fb5d9dd55f062aa72c957"
+      }
+    },
+    {
+      "id": 30,
+      "code": "BO0",
+      "overlay": {
+        "path": "BOSS/BO0/BO0.BIN",
+        "size": 320948,
+        "sha1": "c9e00e7555c363d11b6e451403b59d96d3e591af"
+      },
+      "graphics": {
+        "path": "BOSS/BO0/F_BO0.BIN",
+        "size": 262144,
+        "sha1": "82032d57a874ae58a39d94d5c469895777738af6"
+      }
+    },
+    {
+      "id": 31,
+      "code": "ST0",
+      "overlay": {
+        "path": "ST/ST0/ST0.BIN",
+        "size": 271812,
+        "sha1": "bc2fabbe5ef0d1288490b6f1ddbf11092a2c0c57"
+      },
+      "graphics": {
+        "path": "ST/ST0/F_ST0.BIN",
+        "size": 262144,
+        "sha1": "a4a20ec0d27dd93bd2e292b2111abf18723aaebc"
+      }
+    },
+    {
+      "id": 32,
+      "code": "RNO0",
+      "overlay": {
+        "path": "ST/RNO0/RNO0.BIN",
+        "size": 347020,
+        "sha1": "125003c7fe5d3510fddee22d4f5e5390fe507acf"
+      },
+      "graphics": {
+        "path": "ST/RNO0/F_RNO0.BIN",
+        "size": 262144,
+        "sha1": "ff2b2755e8708447ebb33f5cf3396e3fc8f19723"
+      }
+    },
+    {
+      "id": 33,
+      "code": "RNO1",
+      "overlay": {
+        "path": "ST/RNO1/RNO1.BIN",
+        "size": 229600,
+        "sha1": "5902c1f2464a08a1a8a8d7902d5a5cc7654f67da"
+      },
+      "graphics": {
+        "path": "ST/RNO1/F_RNO1.BIN",
+        "size": 262144,
+        "sha1": "04f0427adea4b2c7ebd46a7dec2321d810cc15f2"
+      }
+    },
+    {
+      "id": 34,
+      "code": "RLIB",
+      "overlay": {
+        "path": "ST/RLIB/RLIB.BIN",
+        "size": 201776,
+        "sha1": "2fe82faf41babb3f422fdca23dfc7e75031621a5"
+      },
+      "graphics": {
+        "path": "ST/RLIB/F_RLIB.BIN",
+        "size": 262144,
+        "sha1": "d36e160673ab85ad59243aefdf8245b1ca64f494"
+      }
+    },
+    {
+      "id": 35,
+      "code": "RCAT",
+      "overlay": {
+        "path": "ST/RCAT/RCAT.BIN",
+        "size": 278188,
+        "sha1": "de0a202f1ed432e27202f3f191425ac50c3b0d18"
+      },
+      "graphics": {
+        "path": "ST/RCAT/F_RCAT.BIN",
+        "size": 262144,
+        "sha1": "fc92cd1ff43df1292fee52b3c0ea33c6f87cab58"
+      }
+    },
+    {
+      "id": 36,
+      "code": "RNO2",
+      "overlay": {
+        "path": "ST/RNO2/RNO2.BIN",
+        "size": 313816,
+        "sha1": "e92dc877e03e4785414a72bf1b3603345eade364"
+      },
+      "graphics": {
+        "path": "ST/RNO2/F_RNO2.BIN",
+        "size": 262144,
+        "sha1": "23777d5430328a93eab2bbb2e78f8943e50e5aa7"
+      }
+    },
+    {
+      "id": 37,
+      "code": "RCHI",
+      "overlay": {
+        "path": "ST/RCHI/RCHI.BIN",
+        "size": 174880,
+        "sha1": "82b75113cbef38660a266abe15ae5183a80633d9"
+      },
+      "graphics": {
+        "path": "ST/RCHI/F_RCHI.BIN",
+        "size": 262144,
+        "sha1": "0291e77a29835683731722c38a7d3223c823637d"
+      }
+    },
+    {
+      "id": 38,
+      "code": "RDAI",
+      "overlay": {
+        "path": "ST/RDAI/RDAI.BIN",
+        "size": 295736,
+        "sha1": "c54bbcd0487da88c927feb9b91c515e1db0918e8"
+      },
+      "graphics": {
+        "path": "ST/RDAI/F_RDAI.BIN",
+        "size": 262144,
+        "sha1": "c721a1d2bc6bdd9901801e792d23b5996d940b97"
+      }
+    },
+    {
+      "id": 39,
+      "code": "RNO3",
+      "overlay": {
+        "path": "ST/RNO3/RNO3.BIN",
+        "size": 304428,
+        "sha1": "85c4637f3f9b85b918583fae45ca094c7d52b914"
+      },
+      "graphics": {
+        "path": "ST/RNO3/F_RNO3.BIN",
+        "size": 262144,
+        "sha1": "fec1d0f0c42284f94316d8df6abf4187b8432954"
+      }
+    },
+    {
+      "id": 40,
+      "code": "RCEN",
+      "overlay": {
+        "path": "ST/RCEN/RCEN.BIN",
+        "size": 185300,
+        "sha1": "9e9316194bdbd6abbce552347b97b03b224b77a0"
+      },
+      "graphics": {
+        "path": "ST/RCEN/F_RCEN.BIN",
+        "size": 262144,
+        "sha1": "effac20628ef5b341066f6eaba157b1f0f571ab5"
+      }
+    },
+    {
+      "id": 41,
+      "code": "RNO4",
+      "overlay": {
+        "path": "ST/RNO4/RNO4.BIN",
+        "size": 384020,
+        "sha1": "7fde040adf8bf5c9a8f22fba694249cf9278dcf7"
+      },
+      "graphics": {
+        "path": "ST/RNO4/F_RNO4.BIN",
+        "size": 262144,
+        "sha1": "5d93b02a50401a98c3161bb5f0c6ebb36ff65c8e"
+      }
+    },
+    {
+      "id": 42,
+      "code": "RARE",
+      "overlay": {
+        "path": "ST/RARE/RARE.BIN",
+        "size": 234384,
+        "sha1": "08c03da5abd58a0a9b410a58793b9579f9fec8c8"
+      },
+      "graphics": {
+        "path": "ST/RARE/F_RARE.BIN",
+        "size": 262144,
+        "sha1": "99c55a487ec3c2ae4240f3c731fc6d2717579f73"
+      }
+    },
+    {
+      "id": 43,
+      "code": "RTOP",
+      "overlay": {
+        "path": "ST/RTOP/RTOP.BIN",
+        "size": 200988,
+        "sha1": "8796aac904d02e06219fc1949b52b8ddfa5d522b"
+      },
+      "graphics": {
+        "path": "ST/RTOP/F_RTOP.BIN",
+        "size": 262144,
+        "sha1": "096ba11b8bf72bc2e3980299c06d10e5550c68a2"
+      }
+    },
+    {
+      "id": 44,
+      "code": "RNZ0",
+      "overlay": {
+        "path": "ST/RNZ0/RNZ0.BIN",
+        "size": 281512,
+        "sha1": "d2e6eaef70625b8832a2c5af151fe987748c8d73"
+      },
+      "graphics": {
+        "path": "ST/RNZ0/F_RNZ0.BIN",
+        "size": 262144,
+        "sha1": "1959d08134e95abbb81f35dbdffeb34d3205a0cb"
+      }
+    },
+    {
+      "id": 45,
+      "code": "RNZ1",
+      "overlay": {
+        "path": "ST/RNZ1/RNZ1.BIN",
+        "size": 260960,
+        "sha1": "5983e19c68916c4c008c29ac3e384af988ec5ed8"
+      },
+      "graphics": {
+        "path": "ST/RNZ1/F_RNZ1.BIN",
+        "size": 262144,
+        "sha1": "78b79bb718dab459fc49ff7813e6142f17108ea4"
+      }
+    },
+    {
+      "id": 46,
+      "code": "RWRP",
+      "overlay": {
+        "path": "ST/RWRP/RWRP.BIN",
+        "size": 91880,
+        "sha1": "3bbdd3b73f8f86cf5f6c88652e9e6452a7fb5992"
+      },
+      "graphics": {
+        "path": "ST/RWRP/F_RWRP.BIN",
+        "size": 262144,
+        "sha1": "ee1aaa34f3464b1d1cd72052cec7a4b9089d1887"
+      }
+    },
+    {
+      "id": 54,
+      "code": "RBO8",
+      "overlay": {
+        "path": "BOSS/RBO8/RBO8.BIN",
+        "size": 161212,
+        "sha1": "6f80107a6fe58c0ec18ffd504c911f01ddfb3cfe"
+      },
+      "graphics": {
+        "path": "BOSS/RBO8/F_RBO8.BIN",
+        "size": 262144,
+        "sha1": "fc92cd1ff43df1292fee52b3c0ea33c6f87cab58"
+      }
+    },
+    {
+      "id": 55,
+      "code": "RBO7",
+      "overlay": {
+        "path": "BOSS/RBO7/RBO7.BIN",
+        "size": 142572,
+        "sha1": "9fb91b6a2f214a278ad949b75198ecf416027ee3"
+      },
+      "graphics": {
+        "path": "BOSS/RBO7/F_RBO7.BIN",
+        "size": 262144,
+        "sha1": "23777d5430328a93eab2bbb2e78f8943e50e5aa7"
+      }
+    },
+    {
+      "id": 56,
+      "code": "RBO6",
+      "overlay": {
+        "path": "BOSS/RBO6/RBO6.BIN",
+        "size": 213060,
+        "sha1": "16dc70420615488b1414e46d855b0cd6de759c02"
+      },
+      "graphics": {
+        "path": "BOSS/RBO6/F_RBO6.BIN",
+        "size": 262144,
+        "sha1": "effac20628ef5b341066f6eaba157b1f0f571ab5"
+      }
+    },
+    {
+      "id": 57,
+      "code": "RBO5",
+      "overlay": {
+        "path": "BOSS/RBO5/RBO5.BIN",
+        "size": 345096,
+        "sha1": "4794abe060a76673daeb8b039d59d1077ea81f4b"
+      },
+      "graphics": {
+        "path": "BOSS/RBO5/F_RBO5.BIN",
+        "size": 262144,
+        "sha1": "5d93b02a50401a98c3161bb5f0c6ebb36ff65c8e"
+      }
+    },
+    {
+      "id": 58,
+      "code": "RBO4",
+      "overlay": {
+        "path": "BOSS/RBO4/RBO4.BIN",
+        "size": 154660,
+        "sha1": "7626c3b20e7da100f7396e8e4b30cec8cdaa264c"
+      },
+      "graphics": {
+        "path": "BOSS/RBO4/F_RBO4.BIN",
+        "size": 262144,
+        "sha1": "04f0427adea4b2c7ebd46a7dec2321d810cc15f2"
+      }
+    },
+    {
+      "id": 59,
+      "code": "RBO3",
+      "overlay": {
+        "path": "BOSS/RBO3/RBO3.BIN",
+        "size": 132656,
+        "sha1": "8748529fc72268169d440fe0b008a5d50154c8b7"
+      },
+      "graphics": {
+        "path": "BOSS/RBO3/F_RBO3.BIN",
+        "size": 262144,
+        "sha1": "c721a1d2bc6bdd9901801e792d23b5996d940b97"
+      }
+    },
+    {
+      "id": 60,
+      "code": "RBO2",
+      "overlay": {
+        "path": "BOSS/RBO2/RBO2.BIN",
+        "size": 190792,
+        "sha1": "c069b9070dc6d2c11ad54d1223b8a5f858a06a60"
+      },
+      "graphics": {
+        "path": "BOSS/RBO2/F_RBO2.BIN",
+        "size": 262144,
+        "sha1": "0291e77a29835683731722c38a7d3223c823637d"
+      }
+    },
+    {
+      "id": 61,
+      "code": "RBO1",
+      "overlay": {
+        "path": "BOSS/RBO1/RBO1.BIN",
+        "size": 139104,
+        "sha1": "c722dd07835bd414c3e4cc80d7ce88f3b78b3610"
+      },
+      "graphics": {
+        "path": "BOSS/RBO1/F_RBO1.BIN",
+        "size": 262144,
+        "sha1": "1959d08134e95abbb81f35dbdffeb34d3205a0cb"
+      }
+    },
+    {
+      "id": 62,
+      "code": "RBO0",
+      "overlay": {
+        "path": "BOSS/RBO0/RBO0.BIN",
+        "size": 160988,
+        "sha1": "9a683be60acfb020f5fa61711464c6b447bc1a83"
+      },
+      "graphics": {
+        "path": "BOSS/RBO0/F_RBO0.BIN",
+        "size": 262144,
+        "sha1": "99c55a487ec3c2ae4240f3c731fc6d2717579f73"
+      }
+    },
+    {
+      "id": 65,
+      "code": "NO3",
+      "overlay": {
+        "path": "ST/NO3/NO3.BIN",
+        "size": 359960,
+        "sha1": "5d06216b895ab5ff892c88b0d9eff67ff16e2bd1"
+      },
+      "graphics": {
+        "path": "ST/NO3/F_NO3.BIN",
+        "size": 262144,
+        "sha1": "7ca2a473e87fbb7e5c18e72ea0c136c0e7b364f5"
+      }
+    }
+  ]
+}

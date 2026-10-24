@@ -201,3 +201,7 @@ The paired boss encounter now includes attacks, coordination, defeat, reward, an
 Ordinary saves retain map exploration and permanent Laboratory events. Map UI, Maria/castle
 scripts, whole-encounter replay parity, full effects/audio, and other stages remain incomplete;
 do not call the area complete.
+
+[Castle stage loading](docs/castle-stage-loading.md) now verifies 50 canonical stage
+overlay/artwork pairs on demand. `--inspect-stage CODE` is a headless data diagnostic,
+not native gameplay support or permission to send the player to an unintegrated stage.
