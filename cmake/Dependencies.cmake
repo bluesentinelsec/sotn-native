@@ -13,3 +13,8 @@ FetchContent_Declare(SDL3
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(SDL3)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  set(SOTN_SDL_SOURCE_DIR "${sdl3_SOURCE_DIR}")
+  include("${CMAKE_CURRENT_LIST_DIR}/PatchSDLAudio.cmake")
+endif()
