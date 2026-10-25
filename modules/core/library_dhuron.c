@@ -324,7 +324,7 @@ static bool Body(SotnActors *s, Actor *a)
         return SDL_SetError("Dhuron entered an unsupported gameplay step");
     }
     if (a->dhuron.charged)
-        a->state.palette = (s->game_frame & 2U) ? 0x201 : 0x202;
+        a->state.palette = (s->service_ticks & 2U) ? 0x201 : 0x202;
     return Box(s, a, a->state.frame, 0x2a14, 0x29fc);
 }
 bool ActorLibraryDhuron(SotnActors *s, Actor *a)

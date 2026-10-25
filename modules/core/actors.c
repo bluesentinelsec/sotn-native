@@ -393,9 +393,10 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 2)
-        return id == 0x20 || id == 0x21 || id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b ||
-               id == 0x1c || id == 0x33 || id == 0x34 || id == 0x37 || id == 0x3a || id == 0x3b ||
-               id == 0x3c || id == 0x43 || id == 0x44 || id == 0x4a || id == 0x4b || id == 0x4c;
+        return id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 || id == 0x30 || id == 0x32 ||
+               id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 || id == 0x34 || id == 0x37 ||
+               id == 0x3a || id == 0x3b || id == 0x3c || id == 0x43 || id == 0x44 || id == 0x4a ||
+               id == 0x4b || id == 0x4c;
     if (actors->stage_id == 26)
         return id == 0x16 || id == 0x104 || id == 0x124 || id == 0x137;
     if (actors->stage_id == 0)
@@ -1834,6 +1835,7 @@ bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint64 ticks
     s->executable = executable;
     s->game_seconds = (Uint32)(ticks / 60);
     s->game_frame = (Uint8)(ticks % 60);
+    s->service_ticks = (Uint32)ticks;
     s->music_playing = music_playing;
     return true;
 }

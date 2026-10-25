@@ -206,7 +206,7 @@ static bool Death(Fixture *f, SotnActors *s)
     for (Uint32 i = 0; i < 128; ++i)
     {
         s->combat.sound_count = 0;
-        s->game_frame = (Uint8)i;
+        s->service_ticks = i;
         CHECK(ActorLibrary(s, a) && !a->state.hitbox_state);
     }
     CHECK(a->state.step == 8 && a->substep == 2 && (a->state.flags & 0x80000000U) &&
@@ -222,6 +222,29 @@ static bool Death(Fixture *f, SotnActors *s)
     page.state.x = SDL_MAX_SINT32;
     page.vx = 1;
     CHECK(!ActorLibraryBookMove(&page) && page.state.x == SDL_MAX_SINT32);
+    SotnRoomActors_Destroy(s->spawns);
+    return true;
+}
+static bool Cadence(Fixture *f, SotnActors *s)
+{
+    CHECK(Open(f, s, 0x30));
+    Actor *a = &s->slots[64];
+    CHECK(ActorLibrary(s, a));
+    a->state.flags |= 0x100U;
+    SetStep(a, 8);
+    a->substep = 2;
+    CHECK(SotnActors_SetServices(s, s->executable, 60, false));
+    CHECK(s->game_frame == 0 && s->service_ticks == 60);
+    CHECK(ActorLibrary(s, a) && s->combat.sound_count == 0);
+    CHECK(SotnActors_SetServices(s, s->executable, 64, false));
+    CHECK(ActorLibrary(s, a) && s->combat.sound_count == 1 && s->combat.sounds[0] == 0x655);
+    s->combat.sound_count = 0;
+    CHECK(SotnActors_SetServices(s, s->executable, 128, false));
+    CHECK(ActorLibrary(s, a) && s->combat.sound_count == 1 && s->combat.sounds[0] == 0x655);
+    s->combat.sound_count = 0;
+    CHECK(SotnActors_SetServices(s, s->executable, 1ULL << 32, false));
+    CHECK(s->service_ticks == 0 && s->game_frame == 16);
+    CHECK(ActorLibrary(s, a) && s->combat.sound_count == 1 && s->combat.sounds[0] == 0x655);
     SotnRoomActors_Destroy(s->spawns);
     return true;
 }
@@ -260,7 +283,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     SotnActors *s = SDL_calloc(1, sizeof(*s));
     const bool ok = f && s && Projection(f, s) && Cycle(f, s, 0x30) && Cycle(f, s, 0x32) &&
-                    WakeAndTurn(f, s) && Death(f, s) && Failures(f, s);
+                    WakeAndTurn(f, s) && Death(f, s) && Cadence(f, s) && Failures(f, s);
     SDL_free(s);
     SDL_free(f);
     if (!ok)

@@ -235,7 +235,6 @@ typedef struct Actor
     {
         Sint32 radius_x, radius_y;
         Sint16 phase_x, phase_y, excited, counter, squash, speed, limit, scale;
-        Uint16 saved_palette, spawn_wait;
     } ecto;
     struct
     {
@@ -249,6 +248,14 @@ typedef struct Actor
     {
         Uint16 timer;
     } demon;
+    struct
+    {
+        Uint16 palette, timer;
+    } summon;
+    struct
+    {
+        Uint16 counter;
+    } mudman;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -269,6 +276,7 @@ struct SotnActors
     bool call_elevator, cannon_fired, armor_lord_killed;
     Uint32 boss_flags, game_seconds;
     Uint8 game_frame;
+    Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
     bool clock_statues[2];
     bool music_playing;
     struct
@@ -467,6 +475,13 @@ bool ActorClock(SotnActors *actors, Actor *actor);
  */
 bool ActorLibrarySpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
                          Uint32 slot, Actor **out);
+/** @brief Advance original Library minion fade; zero sensors skips grounding.
+ * @param actors Borrowed entered Library owner. @param actor Borrowed summoned actor.
+ * @param sensors Optional private sixteen-byte ground sensors offset.
+ * @return Success or SDL error; no ownership transfers. */
+bool ActorLibrarySummon(SotnActors *actors, Actor *actor, size_t sensors);
+/** @brief Advance Library Mudman, attack child or independently falling death fragment. */
+bool ActorLibraryMudman(SotnActors *actors, Actor *actor);
 /** @brief Advance selected original spit/column; owners/data must be entered Library state. */
 bool ActorLibraryDemonSpit(SotnActors *actors, Actor *actor);
 /** @brief Advance original bolt and bounded sixty-packet branching line trail. */

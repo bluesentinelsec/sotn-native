@@ -89,6 +89,8 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return ActorCamera(s, a);
     if (a->state.id >= 0x43 && a->state.id <= 0x45)
         return ActorSkeleton(s, a, s->player);
+    if (a->state.id == 0x4d || a->state.id == 0x4e)
+        return ActorLibraryMudman(s, a);
     if (a->state.id == 0x4c)
         return ActorFlea(s, a);
     if (a->state.id == 6)

@@ -145,7 +145,7 @@ static bool Splatter(SotnActors *s, Actor *a)
         a->flying.camera_y = s->camera_y;
         if (!Quad(s, small))
             return false;
-        if (s->game_frame & 1U)
+        if (s->service_ticks & 1U)
         {
             ++small->blood.width;
             ++small->blood.height;

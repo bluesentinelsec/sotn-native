@@ -554,7 +554,7 @@ static bool Torso(SotnActors *s, Actor *a)
         }
         Position(a, Pixel(legs->state.x), Pixel(legs->state.y));
     }
-    if (a->flying.hovering && s->game_frame % 3 == 0)
+    if (a->flying.hovering && s->service_ticks % 3 == 0)
     {
         SotnDataView amount = {0};
         if (a->flying.hover >= 24 || !Slice(s->nz0, 0x28a0 + a->flying.hover * 2U, 2, &amount))
