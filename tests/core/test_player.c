@@ -278,12 +278,24 @@ static bool TestStageStop(Fixture *fixture)
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
     SotnPlayerState before = {0}, after = {0};
     CHECK(State(player, &before) && before.velocity_x != 0 && before.velocity_y != 0);
+    CHECK(SotnPlayer_StageStopHorizontal(player) && State(player, &after));
+    CHECK(after.velocity_x == 0 && after.velocity_y == before.velocity_y && before.x == after.x &&
+          before.y == after.y && before.step == after.step &&
+          before.animation.sprite == after.animation.sprite && before.hp == after.hp);
+    before = after;
     CHECK(SotnPlayer_StageStop(player) && State(player, &after));
     CHECK(after.velocity_x == 0 && after.velocity_y == 0 && before.x == after.x &&
           before.y == after.y && before.step == after.step &&
           before.animation.sprite == after.animation.sprite && before.hp == after.hp &&
           before.invulnerable == after.invulnerable);
     CHECK(!SotnPlayer_StageStop(NULL));
+    CHECK(SotnPlayer_Damage(player, 70, 80, 0) && State(player, &before) &&
+          before.step == SOTN_PLAYER_KILL && before.velocity_x != 0);
+    CHECK(SotnPlayer_StageStopHorizontal(player) && State(player, &after));
+    CHECK(!after.velocity_x && after.velocity_y == before.velocity_y && after.step == before.step &&
+          after.death.phase == before.death.phase && after.x == before.x && after.y == before.y &&
+          !after.hp);
+    CHECK(!SotnPlayer_StageStopHorizontal(NULL));
     SotnPlayer_Close(player);
     return true;
 }

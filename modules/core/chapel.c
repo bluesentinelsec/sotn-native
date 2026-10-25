@@ -149,6 +149,8 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return ActorChapelScenery(s, a);
     case 0x12:
         return ActorCamera(s, a);
+    case 0x16:
+        return ActorChapelExit(s, a);
     case 6:
         return ActorIntenseExplosion(s, a);
     case 0x14:

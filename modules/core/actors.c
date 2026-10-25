@@ -1539,6 +1539,10 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));
     SDL_zero(actors->shop);
     actors->map = map;
+    actors->window = (SotnRoomWindow){.end_x = (Sint32)map.width * 16,
+                                      .last_cell = (Sint32)((map.width + 15) / 16) - 1};
+    actors->frame_start_x = 0;
+    actors->player_initialized = false;
     if (actors->camera == &actors->fallback_camera)
     {
         // Synthetic collision fixtures may be smaller than a screen; their camera is unused.
@@ -1605,6 +1609,8 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->tapped_buttons = (Uint16)(actors->buttons & ~actors->previous_buttons);
     actors->previous_buttons = actors->buttons;
     ActorRepeatButtons(actors);
+    actors->frame_start_x = Pixel(actors->player_initialized ? actors->player.x : player.x);
+    actors->player_initialized = true;
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
@@ -1878,6 +1884,14 @@ bool SotnActors_GetMotion(const SotnActors *s, SotnActorMotion *out)
     if (s == NULL || !s->entered || out == NULL)
         return SDL_SetError("Object motion requires an entered actor service and output");
     *out = s->motion;
+    return true;
+}
+
+bool SotnActors_GetRoomWindow(const SotnActors *s, SotnRoomWindow *out)
+{
+    if (s == NULL || !s->entered || out == NULL)
+        return SDL_SetError("Room window requires an entered actor service and output");
+    *out = s->window;
     return true;
 }
 

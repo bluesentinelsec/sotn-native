@@ -32,6 +32,23 @@ typedef struct SotnRoomCrossing
     Sint32 x, y, arrival_y;
     bool active;
 } SotnRoomCrossing;
+/** @brief Transient original horizontal room limits, separate from the owned collision map.
+ * Limits use the reference's moving room origin. Cell indices remain relative to the initial
+ * room header; changing origin_cell never physically displaces the player or room artwork. */
+typedef struct SotnRoomWindow
+{
+    Sint32 start_x, end_x, origin_cell, last_cell;
+} SotnRoomWindow;
+/** @brief Resolve an actor-adjusted room window before the original vertical edges.
+ * @param window Copied reference limits and relative castle-cell endpoints.
+ * @param x Whole-pixel X relative to the initial room origin. @param y Whole-pixel Y.
+ * @param width Full collision-map width in pixels. @param height Full height in pixels.
+ * @param grounded Original ground contact. @param out Neighbor probe, unchanged on failure.
+ * @return Success or SDL error for invalid dimensions, positions or window bounds.
+ * Returned probes identify neighboring castle cells; they are not physical arrival positions.
+ * The caller preserves world position when rebasing into the selected destination. */
+bool SotnStageRoute_WindowCrossing(SotnRoomWindow window, Sint32 x, Sint32 y, Uint32 width,
+                                   Uint32 height, bool grounded, SotnRoomCrossing *out);
 /** @brief Resolve selected normal-Alucard room edges in original horizontal-first order.
  * @param x Room-local whole-pixel X. @param y Room-local whole-pixel Y.
  * @param width Room width in pixels, 256..16384. @param height Room height in pixels.

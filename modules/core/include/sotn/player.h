@@ -242,6 +242,10 @@ bool SotnPlayer_BellInside(SotnPlayer *player, bool inside);
  * @param player Borrowed simulation. @return Success or SDL error. Position, animation,
  * health and ordinary movement state remain intact. Dead players are unchanged. */
 bool SotnPlayer_StageStop(SotnPlayer *player);
+/** @brief Stop horizontal velocity for the original tower-exit death guard.
+ * @param player Borrowed living or dead simulation. @return Success or SDL error for NULL.
+ * Position, vertical velocity, animation, health and movement/death state remain unchanged. */
+bool SotnPlayer_StageStopHorizontal(SotnPlayer *player);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

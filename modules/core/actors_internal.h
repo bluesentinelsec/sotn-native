@@ -331,6 +331,9 @@ struct SotnActors
     SotnWorldState fallback_world, *world;
     SotnCamera fallback_camera, *camera;
     SotnPlayerState player;
+    SotnRoomWindow window;
+    Sint32 frame_start_x;
+    bool player_initialized;
     SotnActorMotion motion;
     SotnActorControl control;
     Uint16 buttons, previous_buttons, tapped_buttons, repeat_buttons, puzzle_flags, elevator_target;
@@ -507,6 +510,11 @@ bool ActorChapelSpectral(SotnActors *actors, Actor *actor);
  * @param actor Borrowed supported slot; original tables remain borrowed.
  * @return Success or SDL error for invalid data, ownership, state or motion. */
 bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
+/** @brief Advance an original Chapel tower-exit threshold and transient room window.
+ * @param actors Borrowed entered stage-6 owner and private initialization records.
+ * @param actor Borrowed raw-0x16 slot; physical player/map coordinates remain stable.
+ * @return Success or SDL error for invalid owner, variant, state or bounded window. */
+bool ActorChapelExit(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
  * @param actors Borrowed stage-6 simulation and private tables.
  * @param actor Borrowed supported slot; primitives stay generation-owned.

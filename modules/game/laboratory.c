@@ -193,8 +193,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     return SotnPlayback_Create(&session->audio);
 }
 
-static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
-                      Uint16 player_extra_sound)
+static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
+                       Uint16 player_extra_sound)
 {
     if (session->sound == NULL)
         return true;
@@ -257,15 +257,6 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             session->music_gain = 127;
         }
     }
-    if (session->music_fading)
-    {
-        session->music_gain = (Uint8)SDL_max(0, (Sint32)session->music_gain - 12);
-        if (session->music_gain == 0)
-        {
-            session->music_fading = false;
-            session->music_paused = true;
-        }
-    }
     if (combat->voice_stop)
     {
         SotnMusic_Destroy(session->speech);
@@ -302,6 +293,25 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         for (Uint16 i = 0; i < sound_count; ++i)
             if (!SotnSound_Queue(session->sound, sounds[i]))
                 return false;
+    }
+    return true;
+}
+
+static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
+                      Uint16 player_extra_sound)
+{
+    if (!QueueAudio(session, combat, player_sound, player_extra_sound))
+        return false;
+    if (session->sound == NULL)
+        return true;
+    if (session->music_fading)
+    {
+        session->music_gain = (Uint8)SDL_max(0, (Sint32)session->music_gain - 12);
+        if (session->music_gain == 0)
+        {
+            session->music_fading = false;
+            session->music_paused = true;
+        }
     }
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
@@ -462,7 +472,7 @@ static bool VisitMap(SotnLaboratory *session)
                            (Sint32)layer.top + y / 256, false);
 }
 
-static bool TickActors(SotnLaboratory *session)
+static bool UpdateActors(SotnLaboratory *session, bool entering)
 {
     SotnPlayerState player = {0};
     if (!SotnPlayer_GetState(session->player, &player))
@@ -479,12 +489,16 @@ static bool TickActors(SotnLaboratory *session)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
+    // Initializing a newly entered room must not advance projectiles or replay the
+    // hand-attack sound already consumed by the departing room in this frame.
+    if (entering)
+        player.attack.sound = false;
     if (!SotnActors_SetServices(session->actors, session->executable, session->simulation_ticks,
                                 session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
         !SotnActors_SetDialogueBusy(session->actors, session->music_fading) ||
-        !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
+        (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
     if (!SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech),
@@ -496,6 +510,7 @@ static bool TickActors(SotnLaboratory *session)
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
+        (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||
         (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)) ||
         !SotnPlayer_BellInside(session->player, motion.bell_inside))
         return false;
@@ -590,6 +605,11 @@ static bool TickActors(SotnLaboratory *session)
         }
     }
     return true;
+}
+
+static bool TickActors(SotnLaboratory *session)
+{
+    return UpdateActors(session, false);
 }
 
 static bool EnterSaveRoom(SotnLaboratory *session)
@@ -718,14 +738,22 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
     const Sint32 width = (Sint32)session->room.foreground.collision.width * 16;
     const Sint32 height = (Sint32)session->room.foreground.collision.height * 16;
     SotnRoomCrossing crossing = {0};
-    if (!SotnStageRoute_Crossing(local_x, local_y, (Uint32)width, (Uint32)height,
-                                 (state->contacts & 1) != 0, &crossing))
+    if (session->stage_id == 6)
+    {
+        SotnRoomWindow window = {0};
+        if (!SotnActors_GetRoomWindow(session->actors, &window) ||
+            !SotnStageRoute_WindowCrossing(window, local_x, local_y, (Uint32)width, (Uint32)height,
+                                           (state->contacts & 1) != 0, &crossing))
+            return false;
+    }
+    else if (!SotnStageRoute_Crossing(local_x, local_y, (Uint32)width, (Uint32)height,
+                                      (state->contacts & 1) != 0, &crossing))
         return false;
     if (!crossing.active)
         return true;
     const Sint32 world_x = (Sint32)session->room.left * 256 + crossing.x;
     const Sint32 world_y = (Sint32)session->room.top * 256 + crossing.y;
-    if (session->stage_id == 1)
+    if (session->stage_id == 1 || session->stage_id == 6)
     {
         SotnStageRoute boss = {0};
         bool found = false;
@@ -767,7 +795,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
     }
     // An early vertical probe can still be inside a sealed room. Apply no rebase
     // when no neighbor exists; ordinary collision retains the current owner.
-    if (local_x >= 0 && local_y >= 0 && local_x < width && local_y < height)
+    if ((session->stage_id != 6 || crossing.arrival_y != 0) && local_x >= 0 && local_y >= 0 &&
+        local_x < width && local_y < height)
         return true;
     return SDL_SetError("Player reached an unsupported boundary in stage %u room %u",
                         session->stage_id, session->room_index);
@@ -931,8 +960,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
-                "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, and bells. "
-                "Other encounters, tower routing, Maria, boss and connected travel "
+                "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
+                "and selected internal tower exits. Other encounters, scenery, Maria, boss "
+                "and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
@@ -1119,7 +1149,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
-        (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
+        (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
     if (session->stage_pending)
     {
@@ -1142,6 +1172,22 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                       combat.hearts, combat.subweapon}) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound))
         return false;
+    if (session->stage_id == 6 && state.step != SOTN_PLAYER_KILL)
+    {
+        // Original DAI exit actors change limits after player motion and before
+        // the same frame's room lookup. Preserve departing sounds and synthesize
+        // only one audio frame; entry initialization queues its sounds for the next.
+        const Uint32 previous_room = session->room_index;
+        if (!Transition(session, &state))
+            return false;
+        if (!session->stage_pending && session->room_index != previous_room)
+        {
+            SotnActorCombat entered = {0};
+            if (!UpdateActors(session, true) || !SotnActors_GetCombat(session->actors, &entered) ||
+                !QueueAudio(session, &entered, 0, 0))
+                return false;
+        }
+    }
     if (state.death.phase == 128)
     {
         session->dirty = true;

@@ -455,3 +455,11 @@ Ordered draw-area primitives clip intervening draws around the player priority.
 Keep their screen coordinates distinct from the room-owned anchor. Full GPU,
 afterimage/transformed-player parity, tower routing/scripts/boss and connected
 Chapel travel remain incomplete; protected component fixtures do not prove route parity.
+
+Selected [Chapel tower exits](docs/chapel-tower-exits.md) now update original
+horizontal windows after player movement and route through adjusted neighbor cells
+in the same tick. Keep the moving reference origin separate from physical player/map
+coordinates; its paired cell/X changes preserve world position. Destination actors
+initialize before first draw/collision, with one audio synthesis frame per simulation
+tick. Four protected explicit-start crossings are not all-door, ordinary-route or
+console parity evidence. Chapel remains disconnected while scripts/boss are missing.
