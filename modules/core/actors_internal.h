@@ -5,6 +5,7 @@
 #include <sotn/combat.h>
 #include <sotn/dialogue.h>
 #include <sotn/game_math.h>
+#include <sotn/relic.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
 

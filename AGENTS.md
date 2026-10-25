@@ -177,7 +177,7 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 5 saves retain this
+Spells/relic/settings/familiar menus remain unavailable. Version 6 saves retain this
 supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
@@ -188,9 +188,9 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 5 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 6 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
-owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4
+owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4/5
 migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1
 memory-card support remain incomplete.
 
@@ -231,3 +231,8 @@ checkpoint with Alucard's six original items and integrates ordinary sword/shiel
 behavior, Dragon Helm defense reduction, Twilight glow, and actual equipped theft.
 Prologue-derived stats, starting relics, command attacks, shield-rod spells and full
 presentation remain incomplete; do not call this original new-game initialization.
+
+The [relic progression service](docs/relic-progression.md) collects original stage orbs,
+retains found/active ownership in v6 saves, and gates candle drops on Cube of Zoe.
+Selected permanent pickups retain original castle bits across stage changes.
+Relic movement abilities, complete acquisition effects, and the relic menu remain incomplete.

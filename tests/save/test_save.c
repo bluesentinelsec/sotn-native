@@ -74,9 +74,9 @@ static bool Codec(void)
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
     // Independently produced with Python struct and zlib for Profile().
-    CHECK(record[4092] == 0x26 && record[4093] == 0xf4 && record[4094] == 0x0f &&
-          record[4095] == 0xe5);
-    CHECK(record[8] == 5 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
+    CHECK(record[4092] == 0xb5 && record[4093] == 0xa4 && record[4094] == 0x53 &&
+          record[4095] == 0xb1);
+    CHECK(record[8] == 6 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
           record[28] == 1 && record[48] == 87);
     CHECK(record[92] == 57 && record[93] == 48 && record[104 + 99] == 99 && record[363] == 168 &&
           record[622] == 0x81);
@@ -117,6 +117,18 @@ static bool Codec(void)
         CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     }
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    Uint8 version_five[SOTN_SAVE_BYTES] = {0};
+    SDL_memcpy(version_five, record, sizeof(version_five));
+    version_five[8] = 5;
+    Rechecksum(version_five, sizeof(version_five));
+    CHECK(version_five[4092] == 0x26 && version_five[4093] == 0xf4 && version_five[4094] == 0x0f &&
+          version_five[4095] == 0xe5);
+    CHECK(SotnSave_Decode(version_five, sizeof(version_five), &decoded) && decoded.stage == 12 &&
+          decoded.world.relics[SOTN_RELIC_CUBE] == 3);
+    CHECK((decoded.world.flags[0x11f] & 0x81) == 0x81 && (decoded.world.flags[0x120] & 4) != 0);
+    version_five[3448] = 1;
+    Rechecksum(version_five, sizeof(version_five));
+    CHECK(!SotnSave_Decode(version_five, sizeof(version_five), &decoded));
     Uint8 version_four[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(version_four, record, sizeof(version_four));
     version_four[8] = 4;
@@ -145,11 +157,11 @@ static bool Codec(void)
     version_three[624] = 1;
     Rechecksum(version_three, sizeof(version_three));
     CHECK(!SotnSave_Decode(version_three, sizeof(version_three), &decoded));
-    record[8] = 6;
+    record[8] = 7;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 5;
+    record[8] = 6;
     record[104] = 100;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
@@ -158,7 +170,7 @@ static bool Codec(void)
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
-    record[3448] = 1;
+    record[3448 + SOTN_RELICS] = 1;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
@@ -207,7 +219,7 @@ static bool Codec(void)
     Rechecksum(version_two, 80);
     CHECK(SotnSave_Decode(version_two, 80, &decoded) && decoded.player_random == 42 &&
           decoded.actor_random == 43 && decoded.combat_random == 44);
-    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 5);
+    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 6);
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded) && decoded.character.hp_max == 70);
     version_two[12] = 0;
     Rechecksum(version_two, 80);
@@ -217,6 +229,19 @@ static bool Codec(void)
 
 static bool Stages(void)
 {
+    SotnSaveState relic_state = Profile(), relic_decoded = {0};
+    Uint8 relic_record[SOTN_SAVE_BYTES] = {0};
+    relic_state.world.relics[SOTN_RELIC_CUBE] = 3;
+    relic_state.world.relics[SOTN_RELIC_WOLF] = 3;
+    relic_state.world.relics[18] = 1;
+    CHECK(SotnSave_Encode(relic_state, relic_record, sizeof(relic_record)));
+    CHECK(SotnSave_Decode(relic_record, sizeof(relic_record), &relic_decoded));
+    CHECK(relic_decoded.world.relics[SOTN_RELIC_CUBE] == 3 &&
+          relic_decoded.world.relics[SOTN_RELIC_WOLF] == 3 && relic_decoded.world.relics[18] == 1);
+    relic_record[3448 + SOTN_RELIC_CUBE] = 2;
+    Rechecksum(relic_record, sizeof(relic_record));
+    CHECK(!SotnSave_Decode(relic_record, sizeof(relic_record), &relic_decoded));
+
     const Uint16 stages[] = {12, 65, 7};
     const Uint32 first_rooms[] = {23, 25, 22};
     for (Uint32 i = 0; i < SDL_arraysize(stages); ++i)

@@ -5,6 +5,8 @@ add_library(sotn-core STATIC
   include/sotn/subweapon.h
   inventory_menu.c
   include/sotn/inventory_menu.h
+  relic.c
+  include/sotn/relic.h
   character.c
   include/sotn/character.h
   collision.c

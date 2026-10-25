@@ -121,7 +121,7 @@ bool SotnItem_Name(SotnItem item, char *out, size_t capacity)
     for (size_t i = 0; i < item.name.size; ++i)
     {
         const Uint8 c = item.name.bytes[i];
-        out[i] = (char)(c <= 94 ? c + 32 : '?');
+        out[i] = item.name_ascii ? (char)c : (char)(c <= 94 ? c + 32 : '?');
     }
     out[item.name.size] = '\0';
     return true;

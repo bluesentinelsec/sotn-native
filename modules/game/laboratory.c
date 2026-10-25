@@ -13,6 +13,7 @@
 #include <sotn/playback.h>
 #include <sotn/player.h>
 #include <sotn/presenter.h>
+#include <sotn/relic.h>
 #include <sotn/resource.h>
 #include <sotn/save.h>
 #include <sotn/save_point_renderer.h>
@@ -668,6 +669,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         session->world = saved->world;
         session->simulation_ticks = saved->ticks;
     }
+    if (saved == NULL && stage_id != 65)
+        session->world.relics[SOTN_RELIC_CUBE] = 3;
     session->directory = directory != NULL ? SDL_strdup(directory) : NULL;
     session->stage_id = stage_id;
     session->music_stream = start.music;
@@ -744,7 +747,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
                 "Maria/castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-five saves with stage, explored cells, and permanent castle events.");
+            "and version-six saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
         SDL_Log("Development entry: original Entrance equipment when applicable; "
                 "70 HP, base stats 6. Prologue results and relic initialization remain separate.");
@@ -1063,6 +1066,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (i == count)
             break;
         const SotnActorState actor = list[i];
+        if (actor.id == 0xb)
+        {
+            SotnItem relic = {0};
+            if (!SotnRelic_Read(session->dra, actor.parameters & 0x7fff, &relic) ||
+                !SotnItemIcon_Draw(session->dra, relic, Pixel(actor.x) - camera_x - 8,
+                                   Pixel(actor.y) - camera_y - 8, session->frame,
+                                   SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (actor.id == 0xa)
         {
             const Uint16 id = actor.parameters & 0x7fff;

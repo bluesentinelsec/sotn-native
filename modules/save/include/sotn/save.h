@@ -5,7 +5,7 @@
 #include <sotn/character.h>
 #include <sotn/world.h>
 
-/** @brief Version-five ordinary native save, without transient actors or asset bytes. */
+/** @brief Version-six ordinary native save, without transient actors or asset bytes. */
 typedef struct SotnSaveState
 {
     SotnCharacterState character;
@@ -31,7 +31,7 @@ enum
 bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity);
 /** @brief Validate size, version, region, checksum, reserved fields, and supported state.
  * @param bytes Borrowed record. @param size SOTN_SAVE_BYTES, SOTN_SAVE_V3_BYTES, or
- * SOTN_SAVE_LEGACY_BYTES for explicit v1/v2/v3/v4 migration.
+ * SOTN_SAVE_LEGACY_BYTES for explicit v1/v2/v3/v4/v5 migration.
  * @param out Receives copied state, unchanged on failure. @return Success, or false with
  * SDL_GetError(). Unknown versions require explicit migration and are rejected. */
 bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out);
