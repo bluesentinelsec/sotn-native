@@ -32,3 +32,20 @@ The sheet branch adapts `src/dra/4B758.c`, using BO4 header/spritesheet metadata
 sotn-decomp revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`
 (AGPL-3.0-or-later). All original tables, artwork and private fixture images remain
 local runtime inputs/artifacts.
+
+## Original timeline adapter
+
+The animation service now advances BO4's 220 player-format timelines using its
+29 private subanimation pointers and 17 frame-property records. It retains the
+original timers, flattened subanimations, loop/transfer controls and terminal holds.
+A specific original property-19 read in timelines 214/215 reaches the adjacent
+animation-pointer bytes. The native adapter reproduces those image-byte results
+with bounds checks rather than performing an out-of-bounds C array access.
+Other out-of-range properties fail without changing the cursor.
+
+Public synthetic tests cover the controls, signed offsets, the adjacent-byte case,
+truncation, invalid indices and atomic failure. A private native LLDB sweep advances
+all 220 timelines for up to 512 ticks each (32,567 total ticks, 180 terminal holds)
+in Debug and macOS ASan/UBSan. This does not validate every reachable boss state,
+weapon attachment animation, sheet availability or console timing parity. Actor
+movement, AI and encounter progression remain unintegrated.

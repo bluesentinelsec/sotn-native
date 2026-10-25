@@ -348,3 +348,8 @@ pivots and palettes with checked native sampling. Private graphics checks cover
 217 backed body/16 bat frames and skip 46 unbacked definitions; they do not validate
 boss gameplay. Modified-VRAM dissolution, full transform/GPU parity and the boss
 runtime remain unfinished. The arena stays disconnected.
+
+The BO4 [timeline adapter](docs/doppleganger-sprites.md#original-timeline-adapter)
+now advances private player-format boss animation tables, including the bounded
+original adjacent-property read. Movement, AI and ordinary arena travel remain
+unintegrated; the timeline sweep is not encounter or console parity.

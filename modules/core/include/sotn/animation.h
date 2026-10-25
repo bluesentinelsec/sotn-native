@@ -31,4 +31,18 @@ bool SotnAnimation_Set(SotnAnimation *animation, Uint16 id);
  */
 bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation);
 
+/** @brief Select a supported overlay's player-format timeline without copying runtime tables.
+ * @param animation Borrowed cursor. @param stage Original stage ID; currently BO4 (26).
+ * @param id Original timeline ID, below 220 for BO4.
+ * @return Success or SDL error, retaining the cursor on failure. */
+bool SotnAnimation_SetStage(SotnAnimation *animation, Uint16 stage, Uint16 id);
+/** @brief Advance an overlay player-format cursor with bounded original control semantics.
+ * @param image Borrowed immutable verified overlay. @param stage Currently BO4 (26).
+ * @param animation Owned cursor, unchanged on failure. @return Success or SDL error.
+ * @note BO4 owns 220 timelines, 29 subanimations and 17 frame-property records. The original
+ * property-19 access reads adjacent timeline-pointer bytes from the image,
+ * without a native out-of-bounds array read.
+ * This does not select the drawing bank or implement actor movement/AI. */
+bool SotnAnimation_TickStage(SotnDataView image, Uint16 stage, SotnAnimation *animation);
+
 #endif

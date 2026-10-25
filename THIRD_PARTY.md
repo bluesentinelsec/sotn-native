@@ -214,3 +214,8 @@ branch in `src/dra/4B758.c` and the boss header/spritesheet metadata at the pinn
 reconstructed revision (AGPL-3.0-or-later). Pixels and tables remain private.
 [Sprite scope](docs/doppleganger-sprites.md) records unbacked skipped definitions
 and the remaining modified-VRAM/transform/GPU parity work.
+
+The BO4 timeline decoder adapts `src/boss/dop_anim.h` at the same pinned
+sotn-decomp revision under AGPL-3.0-or-later. Original frame/property/pointer tables
+remain private runtime data. The bounded adjacent-property read preserves an
+original image-byte alias without native undefined behavior.
