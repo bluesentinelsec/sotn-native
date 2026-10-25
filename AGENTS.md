@@ -421,3 +421,8 @@ stair-bound movement, original directional attacks, owned weapon contact, select
 dust and private sprite-part death. Its remembered movement direction is separate
 from sprite facing. Chapel travel/progression remains gated; controlled component
 fixtures do not establish whole-route or console parity.
+
+Selected [Chapel Bone Pillar skulls/fire](docs/chapel-bone-pillar.md) now run
+side-dependent attacks, original fire/embers, delayed pieces and released upper
+skull bounce/death. The spike-ball variant and connected Chapel progression remain
+unsupported; do not describe this selected path as a complete enemy family/area.

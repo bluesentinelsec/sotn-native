@@ -89,3 +89,7 @@ mechanisms, scripts and connected Chapel progression still need integration.
 Selected [Corner Guard combat](chapel-corner-guard.md) now adds original stair
 movement, directional slash/lunge, an owned weapon, selected dust and sprite-part
 death. The Chapel profile remains internal and disconnected from normal travel.
+
+Selected [Bone Pillar skull/fire combat](chapel-bone-pillar.md) now adds stacked
+skulls, original fire/embers and upper-skull release/death pieces. The spike-ball
+variant and connected Chapel progression remain unsupported.

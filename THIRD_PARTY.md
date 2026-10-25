@@ -389,3 +389,8 @@ sotn-decomp revision (AGPL-3.0-or-later). The matrix lookup interpretation uses
 `game_matrix_trig.c`'s separately credited PSY-Z adaptation. The shared `outer_effects.c`
 service now reads Chapel's private `st/e_misc.h` tables. Initialization, animation,
 sensors, intervals, hitboxes, SDK tables and sprite parts remain private inputs.
+
+`modules/core/chapel_pillar.c` adapts selected skull, fire-breath and death-part
+paths from `st/dai/e_bone_pillar.c` at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Original initialization, animations, intervals, sensors,
+angles, offsets and sprite artwork remain private runtime inputs.
