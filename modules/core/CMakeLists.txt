@@ -28,6 +28,8 @@ add_library(sotn-core STATIC
   enemy_musket.c
   enemy_archer.c
   enemy_spear.c
+  enemy_blue_knight.c
+  enemy_blue_death.c
   enemy_sword.c
   outer_effects.c
   enemy_diplo.c

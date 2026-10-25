@@ -51,6 +51,32 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
             a->remove = true;
         return true;
     }
+    if (a->state.id == 0x23)
+    {
+        if (!a->state.step)
+        {
+            if (!ActorInitialize(s, a, 0x950))
+                return false;
+            a->state.priority = (Uint16)(a->state.priority + 16);
+            a->state.animation_set = 8;
+            a->state.frame = 1;
+            a->state.palette = a->state.parameters ? a->state.parameters : 0x8160;
+            // The original assigns scale/opacity without enabling their draw flags.
+            ++a->state.step;
+        }
+        else
+        {
+            Uint8 animation = 0;
+            a->state.x += a->vx;
+            a->state.y += a->vy;
+            if (!ActorAnimate(s, a, 0x2400, &animation))
+                return false;
+            a->remove = animation == 0;
+        }
+        return true;
+    }
+    if (a->state.id != 0x14 && a->state.id != 0x15)
+        return SDL_SetError("Unsupported Outer Wall particle identity");
     const bool gray = a->state.id == 0x15;
     const Uint16 index = gray ? a->state.parameters : a->enemy_state.attack_index;
     if (index >= 6 || (!gray && a->state.parameters > 3))

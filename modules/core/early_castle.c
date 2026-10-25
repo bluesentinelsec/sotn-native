@@ -6,6 +6,10 @@ bool ActorEarlyCastle(SotnActors *s, Actor *a)
     if (s->stage_id == 0 && ((a->state.id >= 0x19 && a->state.id <= 0x20) || a->state.id == 0x2b ||
                              a->state.id == 0x42))
         return ActorClock(s, a);
+    if (s->stage_id == 1 && a->state.id >= 0x20 && a->state.id <= 0x22)
+        return ActorBlueKnight(s, a);
+    if (s->stage_id == 1 && a->state.id == 0x23)
+        return ActorOuterEffect(s, a);
     if (s->stage_id == 1 && (a->state.id == 6 || a->state.id == 0x14 || a->state.id == 0x15))
         return ActorOuterEffect(s, a);
     if (s->stage_id == 1 && (a->state.id == 0x48 || a->state.id == 0x49))

@@ -275,9 +275,11 @@ static bool Knight(Fixture *f)
                     .slot = 7};
     CHECK(ActorKnight(s, &knight, player));
     CHECK(ActorKnight(s, &knight, player));
-    CHECK(knight.state.primitive_count == 1);
+    CHECK(knight.state.primitive_count == 2);
     ActorPrimitive *part = ActorPrimitiveGet(s, &knight, 0);
     CHECK(part != NULL && part->state.active);
+    ActorPrimitive *companion = ActorPrimitiveGet(s, &knight, 1);
+    CHECK(companion != NULL && !companion->state.active && companion->owner == 42);
     s->slots[7] = knight;
     SotnActorPrimitive copy = {0};
     CHECK(SotnActors_GetPrimitive(s, 7, 0, &copy) && copy.active && copy.width == 8);
@@ -286,6 +288,7 @@ static bool Knight(Fixture *f)
     CHECK(knight.remove);
     ActorPrimitivesClear(s, &knight);
     CHECK(s->primitives[knight.primitive[0]].owner == 0);
+    CHECK(s->primitives[knight.primitive[1]].owner == 0);
     CHECK(!SotnActors_GetPrimitive(s, 7, ACTOR_PRIMITIVE_LIMIT, &copy));
     SotnActors_Destroy(s);
     SotnActorLayout_Close(layout);

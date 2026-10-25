@@ -113,6 +113,13 @@ typedef struct Actor
     } sword;
     struct
     {
+        Sint16 delay;
+        Uint16 size;
+        Uint8 ticks, brightness;
+        bool armored, backward;
+    } blue;
+    struct
+    {
         Uint8 timer, patrol, index, side;
         bool movement_facing, alternate;
     } spear;
@@ -261,6 +268,10 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16
 void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
 bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
+/** Advance shared green/blue sprite-piece death physics. Reports the original pool fallback. */
+bool ActorKnightShatter(SotnActors *actors, Actor *actor, bool *done);
+bool ActorBlueKnight(SotnActors *actors, Actor *actor);
+bool ActorBlueDeath(SotnActors *actors, Actor *actor, bool *done);
 bool ActorSlogra(SotnActors *actors, Actor *actor);
 bool ActorGaibon(SotnActors *actors, Actor *actor);
 bool ActorBossReward(SotnActors *actors, Actor *actor);
