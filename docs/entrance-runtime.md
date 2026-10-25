@@ -17,16 +17,18 @@ lldb -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data l
 
 Use `run`, then `thread backtrace all` if the debugger stops on a crash.
 The room option accepts 0..27. This is the existing explicit development
-character, not the original new-game or post-prologue profile. Entrance saves
-are not enabled by this slice. The native launcher still offers Laboratory.
+character, not the original new-game or post-prologue profile. Entrance save rooms
+now write stage-aware ordinary saves. The native launcher still offers Laboratory
+as its fresh checkpoint; Continue loads either supported area.
 
-NO3 is the first visit; NP3 (stage 7) is the later Entrance variant. Loading its
-assets through the stage catalog does not implement its different enemy cast.
+NO3 is the first visit; NP3 (stage 7) is the later Entrance variant. The [connected stage service](connected-stages.md) loads it on return from
+Laboratory with its own placements and shared-enemy tables. Its additional enemy
+cast remains incomplete.
 Both Merman variants now swim, jump, walk, lunge/backflip, attack, take damage,
 and die; the water-room spawner, fireballs, jump trails and selected splash/death
 effects run. [Death's selected opening event](entrance-death.md) now runs with original speech,
-portraits, animations and targeted theft. Route obstacles and connected-stage
-progression remain subsequent work in this batch. Fire Wargs have no placements
+portraits, animations and targeted theft. Connected travel now follows the original
+Entrance/Laboratory route; complete route obstacles remain incomplete. Fire Wargs have no placements
 on this selected first-visit route and remain unsupported. Unsupported actors are logged
 once by stage and original ID. Do not call Entrance complete.
 

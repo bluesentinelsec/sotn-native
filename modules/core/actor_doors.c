@@ -10,15 +10,15 @@ static bool Near(const SotnActors *s, const Actor *a, Uint32 extent)
 static bool DoorTiles(SotnActors *s, const Actor *a, bool sealed)
 {
     const Uint16 params = a->state.parameters & 255;
-    if (params >= (sealed ? 4 : s->stage_id == 65 ? 2 : 3))
+    if (params >= (sealed ? 4 : s->stage_id != 12 ? 2 : 3))
         return SDL_SetError("Door tile layout index is invalid");
     const Sint32 x = Pixel(a->state.x), y = Pixel(a->state.y) - 24;
     if (x < 0 || y < 0 || (Uint32)x >= s->map.width * 16 || (Uint32)y + 48 >= s->map.height * 16)
         return SDL_SetError("Door tiles extend outside their room");
     const Uint32 index = (Uint32)x / 16 + (Uint32)y / 16 * s->map.width;
     return ActorTilePatch(s, index, 4, 1, s->map.width,
-                          (sealed ? 0x26d0U : ActorTable(s, 0xd8c, 0xda0)) + (size_t)params * 16 +
-                              (a->state.frame ? 0 : 8));
+                          (sealed ? 0x26d0U : ActorTable(s, 0xd8c, 0xda0, 0xd78)) +
+                              (size_t)params * 16 + (a->state.frame ? 0 : 8));
 }
 static bool Panel(SotnActors *s, Actor *a, Uint16 index, Sint32 x0, Sint32 x1, Sint32 y,
                   const Uint8 *uv, Uint16 page, Uint16 palette)
@@ -55,11 +55,11 @@ bool ActorDoor(SotnActors *s, Actor *a)
     const bool sealed = a->state.id == 0x4a, right = (a->state.parameters & 0x100) != 0;
     const Sint32 offset = right ? -4 : 4;
     SotnDataView uv = {0};
-    if (!Slice(s->nz0, sealed ? 0x26b8 : ActorTable(s, 0x1960, 0x20ac), 24, &uv))
+    if (!Slice(s->nz0, sealed ? 0x26b8 : ActorTable(s, 0x1960, 0x20ac, 0x1a38), 24, &uv))
         return false;
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, ActorTable(s, 0xc1c, 0xb00)) ||
+        if (!ActorInitialize(s, a, ActorTable(s, 0xc1c, 0xb00, 0xa90)) ||
             !ActorPrimitives(s, a, sealed ? 4 : 3))
             return false;
         a->state.animation_set = sealed ? 0 : 7;

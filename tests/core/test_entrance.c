@@ -55,7 +55,7 @@ static bool Profiles(Fixture *f)
 {
     SotnActors *s = NULL;
     CHECK(!SotnActors_CreateStage((SotnDataView){f->dra, sizeof(f->dra)},
-                                  (SotnDataView){f->stage, sizeof(f->stage)}, 7, &s));
+                                  (SotnDataView){f->stage, sizeof(f->stage)}, 0, &s));
     CHECK(s == NULL);
     CHECK(Open(f, &s));
     Put32(f->stage + 28, 0x80180040);
@@ -76,7 +76,7 @@ static bool Profiles(Fixture *f)
     SotnActorLayout_Close(layout);
     Put16(f->stage + 0x30e, 0x63);
     CHECK(!SotnActorLayout_OpenStage(image, 65, 0, &layout) && layout == NULL);
-    CHECK(!SotnActorLayout_OpenStage(image, 7, 0, &layout));
+    CHECK(!SotnActorLayout_OpenStage(image, 0, 0, &layout));
     SotnActors_Destroy(s);
     return true;
 }
@@ -214,11 +214,61 @@ static bool Mermen(Fixture *f)
     return true;
 }
 
+static bool Revisited(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    s->stage_id = 7;
+    Put16(f->stage + 0xafc, 0x8001);
+    Actor a = {.state = {.id = 0x40, .x = 100 * 65536, .y = 80 * 65536, .generation = 1}};
+    CHECK(ActorEntrance(s, &a) && a.state.frame == 31 && !a.state.unsupported);
+    // The same raw ID is a different actor in each overlay. No global remapping.
+    a = (Actor){.state = {.id = 0x48, .generation = 2}};
+    Put16(f->stage + 0xb38, 0x8002);
+    CHECK(ActorEntrance(s, &a) && a.state.step == 2 && !a.state.unsupported);
+    const Uint16 steps[] = {1, 3, 4, 6, 8};
+    const size_t streams[] = {0x25ec, 0x267c, 0x25fc, 0x2620, 0x2634};
+    // Poison Laboratory's streams to catch a stage identity regression.
+    SDL_memset(f->stage + 0x22ec, 0, 0xa0);
+    for (Uint32 i = 0; i < SDL_arraysize(steps); ++i)
+    {
+        f->stage[streams[i]] = 1;
+        f->stage[streams[i] + 1] = 9;
+        a = (Actor){.state = {.id = 0x48, .step = steps[i], .generation = 3}};
+        CHECK(ActorEntrance(s, &a) && a.state.frame == 9);
+    }
+    // Spawned children also retain the return overlay's actual original IDs.
+    a = (Actor){.state = {.id = 0x42, .step = 3, .flags = 0x100, .generation = 4}};
+    CHECK(ActorEntrance(s, &a) && a.remove && s->slots[160].state.id == 0x4d);
+    CHECK(EntranceActorId(s, 0x3a) == 0x32 && EntranceActorId(s, 0x45) == 0x3d &&
+          EntranceActorId(s, 0x4c) == 0x42);
+    a = (Actor){.state = {.id = 0x57, .generation = 5}};
+    CHECK(ActorEntrance(s, &a) && a.state.unsupported); // Not first-visit Death.
+    SotnActors_Destroy(s);
+    Put32(f->stage + 28, 0x80180040);
+    for (Uint32 i = 0; i < 106; ++i)
+        Put32(f->stage + 0x40 + i * 4, 0x80180300);
+    Put16(f->stage + 0x300, 0xfffe);
+    Put16(f->stage + 0x302, 0xfffe);
+    Put16(f->stage + 0x30a, 100);
+    Put16(f->stage + 0x30c, 100);
+    Put16(f->stage + 0x314, 0xffff);
+    Put16(f->stage + 0x316, 0xffff);
+    Put16(f->stage + 0x30e, 0x5b);
+    const SotnDataView image = {f->stage, sizeof(f->stage)};
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActorLayout_OpenStage(image, 7, 0, &layout));
+    SotnActorLayout_Close(layout);
+    Put16(f->stage + 0x30e, 0x5c);
+    CHECK(!SotnActorLayout_OpenStage(image, 7, 0, &layout) && layout == NULL);
+    return true;
+}
+
 int main(void)
 {
     Fixture fixture = {0};
     if (!Profiles(&fixture) || !Bats(&fixture) || !Zombies(&fixture) || !Wargs(&fixture) ||
-        !Mermen(&fixture))
+        !Mermen(&fixture) || !Revisited(&fixture))
         return 1;
     SDL_Log("SOTN_ENTRANCE_TEST: PASS");
     return 0;

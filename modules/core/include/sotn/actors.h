@@ -132,7 +132,8 @@ bool SotnActors_Restore(SotnActors *actors, SotnActorProgress progress);
  */
 bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out);
 /** @brief Create a stage-specific native dispatcher, borrowing immutable images.
- * @param stage_id Original ID: 12 (Laboratory) or 65 (first-visit Entrance).
+ * @param stage_id Original ID: 12 (Laboratory), 65 (first-visit Entrance), or 7 (revisited
+ * Entrance).
  * @param dra Borrowed DRA. @param overlay Borrowed stage image.
  * @param out Receives ownership, NULL on failure. @return Success or SDL error.
  * Unsupported actors remain explicitly marked; opening a profile does not imply complete parity.

@@ -122,6 +122,10 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
  */
 bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offset_x,
                            Sint32 offset_y);
+/** @brief Set original arrival facing on a freshly created stage player.
+ * @param player Borrowed player before gameplay. @param facing_left Arrival orientation.
+ * @return Success or SDL error. Does not move the player or change animation/timing. */
+bool SotnPlayer_SetArrivalFacing(SotnPlayer *player, bool facing_left);
 
 /**
  * @brief Copy current state without exposing simulation ownership or internal pointers.

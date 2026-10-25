@@ -38,6 +38,15 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
 bool SotnLaboratory_CreateEntrance(const SotnGameData *data, const char *directory, Uint32 room,
                                    SotnLaboratory **out);
 
+/** @brief Create an explicit development room in Laboratory or either Entrance variant.
+ * @param data Borrowed verified snapshot. @param directory Private resource directory.
+ * @param stage Original stage ID 12, 65, or 7. @param room Original playable room index.
+ * @param out Receives ownership or NULL. @return Success or SDL error.
+ * Uses the named development character, not original new-game initialization.
+ */
+bool SotnLaboratory_CreateStage(const SotnGameData *data, const char *directory, Uint16 stage,
+                                Uint32 room, SotnLaboratory **out);
+
 /** @brief Select supported development hand equipment and synchronize character ownership.
  * @param laboratory Borrowed session. @param left Left-hand item ID. @param right Right-hand ID.
  * @return Success, or false with SDL_GetError(); stop after resource failure. */
@@ -81,7 +90,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *laboratory);
  * @param slot Native slot, 1..15. @param out Receives ownership, NULL on failure.
  * @return Success, or false with SDL_GetError(); existing save remains unchanged.
  * @note Respawns transient actors after installing supported character, exploration, and permanent
- * Laboratory event progress. Map UI, full castle scripts, and PS1 cards remain unsupported. Pins
+ * castle event progress. Full castle scripts and PS1 cards remain unsupported. Pins
  * saved RNG streams after room initialization rather than serializing transient execution state. */
 bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
                              SotnLaboratory **out);
@@ -90,7 +99,7 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
  * @param laboratory Borrowed initialized session. @return Success or SDL error.
  * @note Original title/new-game/card menus remain unintegrated. Held input is suppressed. */
 bool SotnLaboratory_ShowLauncher(SotnLaboratory *laboratory);
-/** @brief Apply an explicit launcher request transactionally on the main thread.
+/** @brief Apply a launcher request or latched stage arrival transactionally on the main thread.
  * @param data Borrowed core snapshot, outliving either session. @param laboratory Owned pointer,
  * replaced only after successful initialization. @return False for invalid arguments; failed
  * file/resource operations retain the owner and display an explicit error dialog. Save files

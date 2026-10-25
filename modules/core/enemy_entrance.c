@@ -16,7 +16,7 @@ static bool Bat(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xb90))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xb90, 0xafc)))
             return false;
         a->state.frame = 31;
         break;
@@ -26,7 +26,7 @@ static bool Bat(SotnActors *s, Actor *a)
             ++a->state.step;
         break;
     case 2:
-        if (!ActorAnimate(s, a, 0x3c60, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c60, 0x2570), &animation))
             return false;
         if (animation == 0)
         {
@@ -40,7 +40,7 @@ static bool Bat(SotnActors *s, Actor *a)
         break;
     case 3:
     case 4:
-        if (!ActorAnimate(s, a, 0x3c44, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c44, 0x2554), &animation))
             return false;
         a->state.x += a->vx;
         a->state.y += a->vy;
@@ -73,7 +73,8 @@ static bool Zombie(SotnActors *s, Actor *a)
     if ((a->state.flags & 0x100) && a->state.step < 4)
     {
         Actor *puff = NULL;
-        if (!ActorSound(s, 0x65e) || !ActorSpawn(s, a, 0x62, 3, 160, 192, &puff))
+        if (!ActorSound(s, 0x65e) ||
+            !ActorSpawn(s, a, EntranceActorId(s, 0x62), 3, 160, 192, &puff))
             return false;
         if (puff != NULL)
         {
@@ -87,7 +88,7 @@ static bool Zombie(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xba8))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xba8, 0xb08)))
             return false;
         a->state.hitbox_width = 8;
         a->state.hitbox_height = 0;
@@ -97,7 +98,7 @@ static bool Zombie(SotnActors *s, Actor *a)
         a->state.frame = 0;
         break;
     case 1:
-        if (!ActorGround(s, a, 0x3cac, &collision))
+        if (!ActorGround(s, a, EntranceTable(s, 0x3cac, 0x25bc), &collision))
             return false;
         if (collision & 1)
         {
@@ -106,7 +107,7 @@ static bool Zombie(SotnActors *s, Actor *a)
         }
         break;
     case 2:
-        if (!ActorAnimate(s, a, 0x3c84, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c84, 0x2594), &animation))
             return false;
         if (animation == 0)
             SetStep(a, 3);
@@ -117,7 +118,8 @@ static bool Zombie(SotnActors *s, Actor *a)
         }
         break;
     case 3:
-        if (!ActorAnimate(s, a, 0x3c7c, &animation) || !ActorWalk(s, a, 0x3cbc, &collision))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c7c, 0x258c), &animation) ||
+            !ActorWalk(s, a, EntranceTable(s, 0x3cbc, 0x25cc), &collision))
             return false;
         a->vx = a->state.facing_left ? 32768 : -32768;
         if (collision & 0xc0)
@@ -127,7 +129,7 @@ static bool Zombie(SotnActors *s, Actor *a)
         }
         break;
     case 4:
-        if (!ActorAnimate(s, a, 0x3c98, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c98, 0x25a8), &animation))
             return false;
         if (animation == 0)
             a->remove = true;
@@ -142,7 +144,7 @@ static bool Spawner(SotnActors *s, Actor *a)
 {
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xad0))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xad0, 0xa60)))
             return false;
         a->state.flags &= 0x2000;
         a->timer = 1;
@@ -151,7 +153,7 @@ static bool Spawner(SotnActors *s, Actor *a)
     {
         Actor *child = NULL;
         a->state.x = (s->camera_x + 128) * 65536;
-        if (!ActorSpawn(s, a, 0x4c, 0, 96, 104, &child))
+        if (!ActorSpawn(s, a, EntranceActorId(s, 0x4c), 0, 96, 104, &child))
             return false;
         if (child != NULL)
         {
@@ -172,11 +174,12 @@ static bool Camera(SotnActors *s, Actor *a)
 {
     const Uint16 parameter = a->state.parameters;
     SotnDataView sizes = {0}, axes = {0}, bounds = {0};
-    if (parameter >= 7 || !Slice(s->nz0, 0xdc0, 8, &sizes) || !Slice(s->nz0, 0xdc8, 8, &axes))
+    if (parameter >= 7 || !Slice(s->nz0, EntranceTable(s, 0xdc0, 0xd98), 8, &sizes) ||
+        !Slice(s->nz0, EntranceTable(s, 0xdc8, 0xda0), 8, &axes))
         return SDL_SetError("Entrance camera parameter exceeds private table");
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xaf4))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xaf4, 0xa84)))
             return false;
         a->camera.horizontal = axes.bytes[parameter] != 0;
         a->state.hitbox_width = a->camera.horizontal ? sizes.bytes[parameter] : 16;
@@ -192,7 +195,8 @@ static bool Camera(SotnActors *s, Actor *a)
         return true;
     const size_t side = a->camera.horizontal ? (Pixel(a->state.y) > Pixel(s->player.y) ? 4U : 0U)
                                              : (size_t)Side(a, s->player) * 4;
-    if (!Slice(s->nz0, 0xdd0 + (size_t)parameter * 16 + side * 2, 8, &bounds))
+    if (!Slice(s->nz0, EntranceTable(s, 0xdd0, 0xda8) + (size_t)parameter * 16 + side * 2, 8,
+               &bounds))
         return false;
     return SotnCamera_Bounds(s->camera, Read16(bounds.bytes), Read16(bounds.bytes + 2),
                              Read16(bounds.bytes + 4), Read16(bounds.bytes + 6));
@@ -201,11 +205,11 @@ static bool Camera(SotnActors *s, Actor *a)
 static bool Puff(SotnActors *s, Actor *a)
 {
     Uint8 animation = 0;
-    if (a->state.id == 0x62)
+    if (a->state.id == EntranceActorId(s, 0x62))
         return ActorBossPuff(s, a);
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xac4))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xac4, 0xa54)))
             return false;
         a->pose = a->remaining = 0;
         a->state.animation_set = 14;
@@ -232,8 +236,10 @@ static bool Hallway(SotnActors *s, Actor *a)
 {
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xadc))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xadc, 0xa6c)))
             return false;
+        if (s->stage_id == 7)
+            s->world->flags[SOTN_ENTRANCE_ON] = 1;
         if (a->state.parameters & 256)
             a->state.step = 4;
         else if (s->world->flags[SOTN_ENTRANCE_ON])
@@ -251,7 +257,7 @@ static bool Hallway(SotnActors *s, Actor *a)
         s->combat.music = 0x30f;
         SetStep(a, 2);
     }
-    if (a->state.step == 2)
+    if (s->stage_id == 65 && a->state.step == 2)
     {
         Uint8 animation = 0;
         a->state.frame = 0;
@@ -269,6 +275,47 @@ static bool Hallway(SotnActors *s, Actor *a)
 
 bool ActorEntrance(SotnActors *s, Actor *a)
 {
+    if (s->stage_id == 7)
+    {
+        switch (a->state.id)
+        {
+        case 5:
+            return ActorDoor(s, a);
+        case 0x12:
+            return Camera(s, a);
+        case 0x17:
+            return Hallway(s, a);
+        case 0x32:
+        case 0x33:
+        case 0x34:
+        case 0x35:
+        case 0x36:
+        case 0x37:
+        case 0x38:
+        case 0x39:
+        case 0x3a:
+        case 0x3b:
+        case 0x3c:
+        case 0x3d:
+            return ActorMerman(s, a);
+        case 0x3e:
+        case 0x3f:
+            return ActorSkeleton(s, a, s->player);
+        case 0x40:
+            return Bat(s, a);
+        case 0x42:
+            return Zombie(s, a);
+        case 0x43:
+            return Spawner(s, a);
+        case 0x48:
+            return ActorBloodyZombie(s, a, s->player);
+        case 0x4d:
+            return ActorBossPuff(s, a);
+        default:
+            a->state.unsupported = true;
+            return true;
+        }
+    }
     switch (a->state.id)
     {
     case 0x17:

@@ -5,12 +5,13 @@
 #include <sotn/character.h>
 #include <sotn/world.h>
 
-/** @brief Version-four ordinary Laboratory save, without transient actors or asset bytes. */
+/** @brief Version-five ordinary native save, without transient actors or asset bytes. */
 typedef struct SotnSaveState
 {
     SotnCharacterState character;
     SotnWorldState world;
     Uint32 room;
+    Uint16 stage; /**< Original stage identity; legacy records migrate explicitly to Laboratory. */
     Uint64 ticks;
     Uint32 player_random, actor_random, combat_random;
 } SotnSaveState;
@@ -24,13 +25,13 @@ enum
 };
 
 /** @brief Encode supported state into an initialized, versioned little-endian record.
- * @param state Copied supported Laboratory state. @param bytes Writable record buffer.
+ * @param state Copied supported stage state. @param bytes Writable record buffer.
  * @param capacity At least SOTN_SAVE_BYTES. @return Success, or false with SDL_GetError();
  * output remains unchanged on invalid arguments. This is not a PS1 memory-card format. */
 bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity);
 /** @brief Validate size, version, region, checksum, reserved fields, and supported state.
  * @param bytes Borrowed record. @param size SOTN_SAVE_BYTES, SOTN_SAVE_V3_BYTES, or
- * SOTN_SAVE_LEGACY_BYTES for explicit v1/v2/v3 migration.
+ * SOTN_SAVE_LEGACY_BYTES for explicit v1/v2/v3/v4 migration.
  * @param out Receives copied state, unchanged on failure. @return Success, or false with
  * SDL_GetError(). Unknown versions require explicit migration and are rejected. */
 bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out);

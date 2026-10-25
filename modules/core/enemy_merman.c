@@ -13,7 +13,7 @@ static bool Spawn(SotnActors *s, const Actor *a, Uint16 id, Uint16 params, Sint3
                   Uint32 begin, Uint32 end)
 {
     Actor *child = NULL;
-    if (!ActorSpawn(s, a, id, params, begin, end, &child))
+    if (!ActorSpawn(s, a, EntranceActorId(s, id), params, begin, end, &child))
         return false;
     if (child != NULL)
     {
@@ -43,7 +43,10 @@ static bool WaterLimit(SotnActors *s, const Actor *a, Uint32 index, Sint32 *out)
 {
     SotnDataView value = {0};
     if (index < 3 || index > 4 ||
-        !Slice(s->nz0, 0x13ac + (index + ((a->state.parameters & 0x100U) >> 8)) * 2, 2, &value))
+        !Slice(s->nz0,
+               EntranceTable(s, 0x13ac, 0x1230) +
+                   (index + ((a->state.parameters & 0x100U) >> 8)) * 2,
+               2, &value))
         return false;
     *out = Signed16(value.bytes);
     return true;
@@ -52,7 +55,7 @@ static bool WaterLimit(SotnActors *s, const Actor *a, Uint32 index, Sint32 *out)
 static bool Bounce(SotnActors *s, Actor *a)
 {
     SotnDataView sensors = {0};
-    if (!Slice(s->nz0, 0x3a5c, 4, &sensors))
+    if (!Slice(s->nz0, EntranceTable(s, 0x3a5c, 0x236c), 4, &sensors))
         return false;
     if (a->vy < 6 * 65536)
         a->vy += 16384;
@@ -89,9 +92,15 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
     Uint16 collision = 0;
     bool air = false;
     const Uint16 death = second ? 8 : 9, falling = second ? 7 : 8;
-    const size_t init = second ? 0xb48 : 0xb60, ground = second ? 0x3938 : 0x3a4c;
-    const size_t swim = second ? 0x398c : 0x3ac0, walking = second ? 0x3960 : 0x3a84;
-    const size_t walk_sensors = second ? 0x3958 : 0x3a7c;
+    const size_t init = second ? EntranceTable(s, 0xb48, 0xab4) : EntranceTable(s, 0xb60, 0xacc),
+                 ground =
+                     second ? EntranceTable(s, 0x3938, 0x2248) : EntranceTable(s, 0x3a4c, 0x235c);
+    const size_t swim =
+                     second ? EntranceTable(s, 0x398c, 0x229c) : EntranceTable(s, 0x3ac0, 0x23d0),
+                 walking =
+                     second ? EntranceTable(s, 0x3960, 0x2270) : EntranceTable(s, 0x3a84, 0x2394);
+    const size_t walk_sensors =
+        second ? EntranceTable(s, 0x3958, 0x2268) : EntranceTable(s, 0x3a7c, 0x238c);
     if (!second && a->merman.underwater)
         a->state.palette = a->merman.palette;
     if (a->merman.ignore_collision && a->state.step < falling)
@@ -155,8 +164,11 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         if (a->substep == 0)
         {
             SotnDataView velocity = {0};
-            if (!Slice(s->nz0, (second ? 0x3914U : 0x3a28U) + (ActorRandom(s) & 3) * 8, 8,
-                       &velocity))
+            if (!Slice(
+                    s->nz0,
+                    (second ? EntranceTable(s, 0x3914, 0x2224) : EntranceTable(s, 0x3a28, 0x2338)) +
+                        (ActorRandom(s) & 3) * 8,
+                    8, &velocity))
                 return false;
             a->vx = Signed32(velocity.bytes);
             a->vy = Signed32(velocity.bytes + 4);
@@ -223,7 +235,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         else if (a->substep == 2)
         {
-            if (!second && !ActorAnimate(s, a, 0x3aac, &animation))
+            if (!second && !ActorAnimate(s, a, EntranceTable(s, 0x3aac, 0x23bc), &animation))
                 return false;
             if (second)
             {
@@ -256,7 +268,8 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
             if (a->vy < 0)
             {
                 Actor *trail = NULL;
-                if (!ActorSpawn(s, a, second ? 0x40 : 0x43, 0, 168, 192, &trail))
+                if (!ActorSpawn(s, a, EntranceActorId(s, second ? 0x40 : 0x43), 0, 168, 192,
+                                &trail))
                     return false;
                 if (trail != NULL)
                 {
@@ -266,7 +279,8 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
                     {
                         SotnDataView velocity = {0};
                         if (a->pose == 0 || a->pose > 9 ||
-                            !Slice(s->nz0, 0x3b0c + (a->pose - 1U) * 4, 4, &velocity))
+                            !Slice(s->nz0, EntranceTable(s, 0x3b0c, 0x241c) + (a->pose - 1U) * 4, 4,
+                                   &velocity))
                             return SDL_SetError("Merman jump pose exceeds private velocity table");
                         trail->vx = Signed32(velocity.bytes);
                     }
@@ -316,7 +330,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         else
         {
-            if (!ActorAnimate(s, a, 0x3acc, &animation))
+            if (!ActorAnimate(s, a, EntranceTable(s, 0x3acc, 0x23dc), &animation))
                 return false;
             if (animation == 0)
                 SetStep(a, 5);
@@ -325,7 +339,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
     case 5:
         if (second && a->substep == 0)
         {
-            if (!ActorAnimate(s, a, 0x3984, &animation))
+            if (!ActorAnimate(s, a, EntranceTable(s, 0x3984, 0x2294), &animation))
                 return false;
             if (animation == 0)
             {
@@ -339,7 +353,11 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
             if (!second)
                 a->vx = a->state.facing_left ? 24576 : -24576;
             SotnDataView timer = {0};
-            if (!Slice(s->nz0, (second ? 0x3934U : 0x3a48U) + (ActorRandom(s) & 3), 1, &timer))
+            if (!Slice(
+                    s->nz0,
+                    (second ? EntranceTable(s, 0x3934, 0x2244) : EntranceTable(s, 0x3a48, 0x2358)) +
+                        (ActorRandom(s) & 3),
+                    1, &timer))
                 return false;
             a->merman.timer = timer.bytes[0];
             ++a->substep;
@@ -385,7 +403,10 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         else if (a->substep == 1)
         {
-            if (!ActorAnimate(s, a, second ? 0x396c : 0x3a9c, &animation))
+            if (!ActorAnimate(s, a,
+                              second ? EntranceTable(s, 0x396c, 0x227c)
+                                     : EntranceTable(s, 0x3a9c, 0x23ac),
+                              &animation))
                 return false;
             if (!second)
             {
@@ -460,7 +481,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
             goto falling;
         if (a->substep == 0)
         {
-            if (!ActorAnimate(s, a, 0x3acc, &animation))
+            if (!ActorAnimate(s, a, EntranceTable(s, 0x3acc, 0x23dc), &animation))
                 return false;
             if (animation == 0)
                 ++a->substep;
@@ -502,7 +523,8 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         else
         {
-            if (!ActorGround(s, a, ground, &collision) || !ActorAnimate(s, a, 0x3acc, &animation))
+            if (!ActorGround(s, a, ground, &collision) ||
+                !ActorAnimate(s, a, EntranceTable(s, 0x3acc, 0x23dc), &animation))
                 return false;
             if (animation == 0)
             {
@@ -547,7 +569,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         else if (a->substep == 1)
         {
-            if (!ActorGround(s, a, 0x3948, &collision))
+            if (!ActorGround(s, a, EntranceTable(s, 0x3948, 0x2258), &collision))
                 return false;
             a->vy -= 12288;
             if (s->ticks % 10 == 0)
@@ -577,7 +599,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
         }
         if (a->substep == 1)
         {
-            if (!ActorGround(s, a, 0x3a6c, &collision))
+            if (!ActorGround(s, a, EntranceTable(s, 0x3a6c, 0x237c), &collision))
                 return false;
             if (collision & 1)
             {
@@ -585,7 +607,7 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
                 ++a->substep;
             }
         }
-        if (!ActorAnimate(s, a, 0x3adc, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x3adc, 0x23ec), &animation))
             return false;
         Move(a);
         a->state.palette = a->merman.palette;
@@ -607,10 +629,11 @@ static bool Merman(SotnActors *s, Actor *a, bool second)
 
 static bool Projectile(SotnActors *s, Actor *a)
 {
-    const bool medium = a->state.id == 0x3c;
+    const bool medium = a->state.id == EntranceActorId(s, 0x3c);
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, medium ? 0xb54 : 0xb6c))
+        if (!ActorInitialize(
+                s, a, medium ? EntranceTable(s, 0xb54, 0xac0) : EntranceTable(s, 0xb6c, 0xad8)))
             return false;
         a->state.frame = 0;
         a->vx = (medium ? 131072 : 98304) * (a->state.facing_left ? 1 : -1);
@@ -623,7 +646,9 @@ static bool Projectile(SotnActors *s, Actor *a)
         return true;
     }
     Uint8 animation = 0;
-    if (!ActorAnimate(s, a, medium ? 0x3994 : 0x3af0, &animation))
+    if (!ActorAnimate(s, a,
+                      medium ? EntranceTable(s, 0x3994, 0x22a4) : EntranceTable(s, 0x3af0, 0x2400),
+                      &animation))
         return false;
     Move(a);
     if (!medium && a->state.scale_x < 256)
@@ -641,7 +666,7 @@ static bool Spawner(SotnActors *s, Actor *a)
 {
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xad0))
+        if (!ActorInitialize(s, a, EntranceTable(s, 0xad0, 0xa60)))
             return false;
         a->state.flags |= 0x2000;
     }
@@ -651,13 +676,13 @@ static bool Spawner(SotnActors *s, Actor *a)
         if (x < 64 || x > 704)
             return true;
         Actor *child = NULL;
-        if (!ActorSpawn(s, a, 0x41, 0, 96, 106, &child))
+        if (!ActorSpawn(s, a, EntranceActorId(s, 0x41), 0, 96, 106, &child))
             return false;
         if (child != NULL)
         {
             if (ActorRandom(s) & 1)
             {
-                child->state.id = 0x3a;
+                child->state.id = EntranceActorId(s, 0x3a);
                 child->state.parameters = (Uint16)(ActorRandom(s) & 1);
             }
             child->state.x = x * 65536;
@@ -670,7 +695,7 @@ static bool Spawner(SotnActors *s, Actor *a)
 static bool Splash(SotnActors *s, Actor *a)
 {
     if (a->state.step == 0)
-        return ActorInitialize(s, a, 0xadc);
+        return ActorInitialize(s, a, EntranceTable(s, 0xadc, 0xa6c));
     if (a->state.step == 1)
     {
         if (!ActorPrimitives(s, a, 4))
@@ -679,8 +704,9 @@ static bool Splash(SotnActors *s, Actor *a)
         {
             ActorPrimitive *p = ActorPrimitiveGet(s, a, i);
             SotnDataView position = {0}, velocity = {0};
-            if (p == NULL || !Slice(s->nz0, 0x39e8 + i * 2U, 2, &position) ||
-                !Slice(s->nz0, 0x39c0 + i * 8U, 8, &velocity))
+            if (p == NULL ||
+                !Slice(s->nz0, EntranceTable(s, 0x39e8, 0x22f8) + i * 2U, 2, &position) ||
+                !Slice(s->nz0, EntranceTable(s, 0x39c0, 0x22d0) + i * 8U, 8, &velocity))
                 return false;
             p->state = (SotnActorPrimitive){.x = a->state.x + Signed16(position.bytes) * 65536,
                                             .y = a->state.y - 12 * 65536,
@@ -699,10 +725,10 @@ static bool Splash(SotnActors *s, Actor *a)
         {
             Actor *child = NULL;
             SotnDataView parameter = {0}, x = {0}, velocity = {0};
-            if (!Slice(s->nz0, 0x39f4 + i, 1, &parameter) ||
-                !Slice(s->nz0, 0x39fc + i * 2U, 2, &x) ||
-                !Slice(s->nz0, 0x3a0c + i * 4U, 4, &velocity) ||
-                !ActorSpawn(s, a, 0x3d, parameter.bytes[0], 168, 192, &child))
+            if (!Slice(s->nz0, EntranceTable(s, 0x39f4, 0x2304) + i, 1, &parameter) ||
+                !Slice(s->nz0, EntranceTable(s, 0x39fc, 0x230c) + i * 2U, 2, &x) ||
+                !Slice(s->nz0, EntranceTable(s, 0x3a0c, 0x231c) + i * 4U, 4, &velocity) ||
+                !ActorSpawn(s, a, EntranceActorId(s, 0x3d), parameter.bytes[0], 168, 192, &child))
                 return false;
             if (child != NULL)
             {
@@ -742,12 +768,15 @@ static bool Splash(SotnActors *s, Actor *a)
 static bool Effect(SotnActors *s, Actor *a)
 {
     Uint8 animation = 0;
-    const Uint16 id = a->state.id;
+    const Uint16 id = (Uint16)(a->state.id + (s->stage_id == 7 ? 8 : 0));
     if (id == 0x3b)
         return Splash(s, a);
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, id == 0x3d || id == 0x44 ? 0xac4 : id == 0x43 ? 0xb60 : 0xb48))
+        if (!ActorInitialize(s, a,
+                             id == 0x3d || id == 0x44 ? EntranceTable(s, 0xac4, 0xa54)
+                             : id == 0x43             ? EntranceTable(s, 0xb60, 0xacc)
+                                                      : EntranceTable(s, 0xb48, 0xab4)))
             return false;
         a->state.hitbox_state = 0;
         if (id == 0x40 || id == 0x43)
@@ -770,8 +799,9 @@ static bool Effect(SotnActors *s, Actor *a)
         {
             SotnDataView frame = {0}, velocity = {0};
             if (a->state.parameters >= 4 ||
-                !Slice(s->nz0, 0x3b44 + a->state.parameters, 1, &frame) ||
-                !Slice(s->nz0, 0x3b30 + a->state.parameters * 4U, 4, &velocity))
+                !Slice(s->nz0, EntranceTable(s, 0x3b44, 0x2454) + a->state.parameters, 1, &frame) ||
+                !Slice(s->nz0, EntranceTable(s, 0x3b30, 0x2440) + a->state.parameters * 4U, 4,
+                       &velocity))
                 return SDL_SetError("Merman explosion references invalid private variant");
             a->state.animation_set = 2;
             a->state.palette = 0x82bb;
@@ -821,7 +851,7 @@ static bool Effect(SotnActors *s, Actor *a)
     if (id == 0x44)
     {
         SotnDataView limit = {0};
-        if (!Slice(s->nz0, 0x3b48 + a->state.parameters * 2U, 2, &limit))
+        if (!Slice(s->nz0, EntranceTable(s, 0x3b48, 0x2458) + a->state.parameters * 2U, 2, &limit))
             return false;
         a->state.y += a->vy;
         if (++a->timer % 2 == 0)
@@ -841,7 +871,7 @@ static bool Effect(SotnActors *s, Actor *a)
                 ++a->state.step;
             return true;
         }
-        if (!ActorAnimate(s, a, 0x39b0, &animation))
+        if (!ActorAnimate(s, a, EntranceTable(s, 0x39b0, 0x22c0), &animation))
             return false;
         if (a->state.step == 2 || animation == 0)
         {
@@ -881,7 +911,11 @@ static bool Effect(SotnActors *s, Actor *a)
         Move(a);
         a->vy += 10240;
     }
-    if (!ActorAnimate(s, a, id == 0x3e ? 0x39a0 : id == 0x40 ? 0x39a8 : 0x3b04, &animation))
+    if (!ActorAnimate(s, a,
+                      id == 0x3e   ? EntranceTable(s, 0x39a0, 0x22b0)
+                      : id == 0x40 ? EntranceTable(s, 0x39a8, 0x22b8)
+                                   : EntranceTable(s, 0x3b04, 0x2414),
+                      &animation))
         return false;
     if (animation == 0)
         a->remove = true;
@@ -890,7 +924,7 @@ static bool Effect(SotnActors *s, Actor *a)
 
 bool ActorMerman(SotnActors *s, Actor *a)
 {
-    switch (a->state.id)
+    switch (a->state.id + (s->stage_id == 7 ? 8 : 0))
     {
     case 0x3a:
         return Merman(s, a, true);

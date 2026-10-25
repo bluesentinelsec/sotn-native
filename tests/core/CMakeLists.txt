@@ -122,3 +122,9 @@ target_include_directories(sotn-death-event-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-death-event-tests PRIVATE sotn-core)
 add_test(NAME opening-death-event COMMAND sotn-death-event-tests)
 set_tests_properties(opening-death-event PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stage-route-tests test_stage_route.c)
+sotn_configure_c_target(sotn-stage-route-tests)
+target_link_libraries(sotn-stage-route-tests PRIVATE sotn-core)
+add_test(NAME connected-stage-routes COMMAND sotn-stage-route-tests)
+set_tests_properties(connected-stage-routes PROPERTIES TIMEOUT 20)
