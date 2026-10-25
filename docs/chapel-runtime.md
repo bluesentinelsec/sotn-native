@@ -98,3 +98,8 @@ Connected Chapel progression remains unsupported.
 Selected [Hunting Girl combat](chapel-hunting-girl.md) now adds spirit/sword trails,
 all three private combos, owned blade contact, hit recovery and death. Its mandatory
 C pointer/terminator adaptation remains an explicit console-parity comparison item.
+
+Selected [Spectral Sword combat](chapel-spectral-sword.md) now adds sixteen owned
+weapons, readiness/orbits, movement, expansion/retraction, independent blade
+destruction, aura and parent death/cleanup. Chapel travel remains gated; these
+component checks do not establish uninterrupted encounter or console parity.

@@ -434,3 +434,10 @@ spirit/sword, three combos and owned blade children, hit recovery and death.
 Non-attacking motion omits null-trail writes while retaining END/cursor processing;
 read the documented mandatory C adaptation before changing it. Its console
 comparison and connected Chapel travel remain incomplete.
+
+Selected [Chapel Spectral Sword combat](docs/chapel-spectral-sword.md) now runs
+sixteen owned weapons, original readiness/orbits, movement and radius attack,
+independent blade destruction, aura and parent death/cleanup. Retain the SDK
+square-root quantization, screen-anchored movement target, integer-only ready
+weapon position assignment and hidden dead children until parent cleanup.
+Connected Chapel progression and uninterrupted encounter/console parity remain incomplete.
