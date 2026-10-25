@@ -80,6 +80,8 @@ typedef struct SotnPlayerState
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
     bool weapon_starting;    /**< Original ALU_T_9 weapon-startup timer is active. */
     SotnPlayerStone stone;
+    Uint16 curse_ticks; /**< Transient original curse duration; independent of ordinary saves. */
+    Uint16 extra_sound; /**< Second original sound request, after sound; zero selects none. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -136,6 +138,20 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
  */
 bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offset_x,
                            Sint32 offset_y);
+/** @brief Restore an original transient curse timer across a connected stage arrival.
+ * @param player Borrowed living simulation. @param ticks Remaining simulation ticks, 0..1024.
+ * @return Success or SDL error without mutation on invalid input. Does not reset motion/attacks.
+ * @note Ordinary Continue starts without this transient timer; this is not save-state support. */
+bool SotnPlayer_RestoreCurse(SotnPlayer *player, Uint16 ticks);
+/** @brief Apply selected physical contact and original constitution-adjusted curse duration.
+ * @param player Borrowed simulation. @param amount Damage after scene defense, 0..9999.
+ * Caller resolves equipment immunity/absorption before applying this contact.
+ * @param source_x Whole-pixel contact source. @param source_velocity Fixed-point contact motion.
+ * @return Success, or SDL error without mutation. Invulnerability and lethal hits do not add curse.
+ * @note Original failure animations/sounds run for equipped weapons; full curse effects remain
+ * pending. */
+bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                            Sint32 source_velocity);
 /** @brief Set original arrival facing on a freshly created stage player.
  * @param player Borrowed player before gameplay. @param facing_left Arrival orientation.
  * @return Success or SDL error. Does not move the player or change animation/timing. */

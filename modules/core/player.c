@@ -230,6 +230,7 @@ static Uint32 Attack32(const Uint8 *bytes)
 static void ClearAttack(SotnPlayer *player)
 {
     player->subweapon_cast = false;
+    player->curse_failure = false;
     player->attack_mode = 0;
     player->attack = (SotnPlayerAttack){0};
 }
@@ -237,7 +238,14 @@ static void ClearAttack(SotnPlayer *player)
 // Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
 static bool StartAttack(SotnPlayer *player)
 {
-    const Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
+    Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
+    if (player->curse_ticks && player->attack_mode == 0)
+    {
+        if (player->equipment[0] == 16 && (player->buttons & SOTN_BUTTON_LEFT_HAND))
+            pressed |= SOTN_BUTTON_LEFT_HAND;
+        if (player->equipment[1] == 16 && (player->buttons & SOTN_BUTTON_RIGHT_HAND))
+            pressed |= SOTN_BUTTON_RIGHT_HAND;
+    }
     if (pressed == 0)
         return false;
     if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) && player->timers[0] == 0)
@@ -271,6 +279,27 @@ static bool StartAttack(SotnPlayer *player)
     if (!SotnEquipment_Read(player->dra, player->equipment[hand], &equipment))
     {
         player->failed = true;
+        return true;
+    }
+    if (player->curse_ticks && equipment.id != 0)
+    {
+        ClearAttack(player);
+        player->curse_failure = true;
+        player->attack_mode = 0x8012;
+        player->substep = 0x51;
+        player->sound = 0x6e7;
+        if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
+        {
+            player->step = SOTN_PLAYER_STAND;
+            Animate(player, 0xb5);
+        }
+        else if (player->step == SOTN_PLAYER_CROUCH)
+            Animate(player, 0xb6);
+        else
+        {
+            player->step = SOTN_PLAYER_JUMP;
+            Animate(player, 0xb7);
+        }
         return true;
     }
     if (equipment.kind == 128)
@@ -336,7 +365,8 @@ static bool TickShield(SotnPlayer *player)
     if (button == 0)
         button = player->equipment[0] == 16 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
     const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
-    const bool disabled = player->equipment[hand] != 16 || player->step == SOTN_PLAYER_KILL ||
+    const bool disabled = player->equipment[hand] != 16 || player->curse_ticks != 0 ||
+                          player->curse_failure || player->step == SOTN_PLAYER_KILL ||
                           player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -373,7 +403,7 @@ static bool TickShield(SotnPlayer *player)
 static bool ReadAttack(SotnPlayer *player)
 {
     player->attack = (SotnPlayerAttack){0};
-    if (player->subweapon_cast)
+    if (player->subweapon_cast || player->curse_failure)
         return true;
     if (player->attack_mode != 0 && player->attack_equipment.id != 0)
     {
@@ -499,6 +529,15 @@ static void StandTick(SotnPlayer *player)
     if (Transitions(player, 0x4301c))
         return;
     Decelerate(player, 8192);
+    if (player->curse_failure)
+    {
+        if (player->animation.remaining < 0)
+        {
+            Land(player, 0);
+            ClearAttack(player);
+        }
+        return;
+    }
     if (player->attack_mode != 0)
     {
         if (player->animation.pose < player->attack_lock)
@@ -629,6 +668,15 @@ static void CrouchTick(SotnPlayer *player)
     if (Transitions(player, 0x100c))
         return;
     Decelerate(player, 8192);
+    if (player->curse_failure)
+    {
+        if (player->animation.remaining < 0)
+        {
+            Crouch(player, 0, 0);
+            ClearAttack(player);
+        }
+        return;
+    }
     if (player->attack_mode != 0)
     {
         if (player->animation.pose < player->attack_lock)
@@ -809,6 +857,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.failed = false;
     next.turned = false;
     next.sound = 0;
+    next.extra_sound = 0;
+    if (next.curse_ticks)
+        --next.curse_ticks;
     next.buttons = buttons;
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
@@ -998,6 +1049,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     if (player == NULL || out == NULL)
         return SDL_SetError("Player state requires a simulation and output");
     Uint32 status = player->status;
+    if (player->curse_ticks)
+        status |= 0x28108000U;
     if (player->step == SOTN_PLAYER_CROUCH && player->substep != 2)
         status |= 0x20U;
     if (player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP)
@@ -1034,7 +1087,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .shield = player->shield,
         .subweapon_starting = player->timers[0] != 0,
         .weapon_starting = player->weapon_startup != 0,
-        .stone = player->stone};
+        .stone = player->stone,
+        .curse_ticks = player->curse_ticks,
+        .extra_sound = player->extra_sound};
     return true;
 }
 
@@ -1195,5 +1250,37 @@ bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
     if (halt_vertical)
         p->vy = 0;
     p->invincibility = (Uint16)SDL_max(p->invincibility, 32);
+    return true;
+}
+
+// Selected status timer and hit ordering from dra/{5D5BC,71830,692E8,6E42C}.c,
+// pinned reconstruction. Native adapters retain the transient timer across stage arrivals.
+bool SotnPlayer_RestoreCurse(SotnPlayer *player, Uint16 ticks)
+{
+    if (player == NULL || ticks > 1024 || player->step == SOTN_PLAYER_KILL)
+        return SDL_SetError("Curse timer restore requires a living player and 0..1024 ticks");
+    player->curse_ticks = ticks;
+    return true;
+}
+bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                            Sint32 source_velocity)
+{
+    if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
+        source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
+        return SDL_SetError("Curse contact requires bounded damage and source motion");
+    if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
+        player->step == SOTN_PLAYER_KILL)
+        return true;
+    if (player->step == SOTN_PLAYER_STONE)
+        return SotnPlayer_Damage(player, amount, source_x, source_velocity);
+    SotnPlayer next = *player;
+    if (!SotnPlayer_Damage(&next, amount, source_x, source_velocity))
+        return false;
+    if (next.hp)
+    {
+        next.curse_ticks = (Uint16)SDL_max(64, 1024 - (Sint32)next.attributes.total[1] * 4);
+        next.extra_sound = 0x6f2;
+    }
+    *player = next;
     return true;
 }

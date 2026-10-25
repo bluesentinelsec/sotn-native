@@ -61,6 +61,8 @@ int main(void)
     CHECK(Select(character, 1, 2));
     CHECK(SotnSubweapons_Use(s, player, &used, &animation) && !used);
     CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 2 && state.random == 0);
+    // The original subweapon path remains available while equipped weapons are cursed.
+    player.status |= 0x8000U;
     CHECK(Select(character, 1, 20));
     CHECK(SotnSubweapons_Use(s, player, &used, &animation) && used && animation == 0x5d);
     CHECK(SotnSubweapons_Get(s, 0, &p) && p.attack.power >= 8 && p.y == 126 * 65536);

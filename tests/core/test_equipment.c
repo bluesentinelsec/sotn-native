@@ -219,12 +219,142 @@ static bool ShortSword(Fixture *f)
     return true;
 }
 
+static bool Curse(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, weapons = {f->weapons, sizeof(f->weapons)};
+    SotnPlayer *player = NULL;
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_Create(dra, map, 128, 135, &player));
+    CHECK(SotnPlayer_SetEquipment(player, weapons, 86, 16));
+    CHECK(SotnPlayer_CurseDamage(player, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.hp == 69 && state.curse_ticks == 1000 &&
+          (state.status & 0x28108000U) == 0x28108000U && state.extra_sound == 0x6f2);
+    CHECK(SotnPlayer_CurseDamage(player, 10, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.hp == 69 && state.curse_ticks == 1000);
+    CHECK(!SotnPlayer_RestoreCurse(player, 1025));
+    CHECK(!SotnPlayer_CurseDamage(player, 10000, 96, 0));
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.step == SOTN_PLAYER_STAND &&
+          state.curse_ticks == 936 && state.extra_sound == 0);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb5 &&
+          !state.attack.active && state.sound == 0x6e7 && !state.can_pause);
+    for (Uint16 i = 0; i < 32; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.can_pause && !state.attack.active);
+    for (Uint16 i = 0; i < 32; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN | SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb6 &&
+          !state.attack.active);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb7 &&
+          !state.attack.active);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb5 &&
+          !state.shield.active && !state.attack.active);
+    for (Uint16 i = 0; i < 32; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_RestoreCurse(player, 2));
+    CHECK(SotnPlayer_ChangeRoom(player, map, 16, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.curse_ticks == 2);
+    CHECK(SotnPlayer_Tick(player, 0) && SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.curse_ticks == 0 &&
+          !(state.status & 0x8000U));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.attack.active &&
+          state.attack.equipment == 86);
+    for (Uint16 i = 0; i < 32; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    // Unarmed attacks remain available under curse in the original routine.
+    Put32(f->dra + 0xd53c, 0x800a7000);
+    Put32(f->dra + 0xd540, 0x800a7100);
+    f->dra[0x7104] = 12;
+    f->dra[0x7105] = (Uint8)-8;
+    f->dra[0x7106] = f->dra[0x7107] = 8;
+    for (Uint16 i = 0; i < 7; ++i)
+        Put32(f->dra + 0x7000 + i * 4U, 0x800a7200);
+    for (Uint16 i = 0; i < 16; ++i)
+        Put16(f->dra + 0x7200 + i * 2U, 0x201);
+    CHECK(SotnPlayer_SetEquipment(player, weapons, 0, 0));
+    CHECK(SotnPlayer_RestoreCurse(player, 1024));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0x24 &&
+          state.attack.active && state.curse_ticks == 1023);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_SetEquipment(player, weapons, 86, 16));
+    CHECK(SotnPlayer_RestoreCurse(player, 1024));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_Petrify(player, 0, 96, 0));
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_GetState(player, &state));
+    const Uint16 stone_hp = state.hp, curse_before = state.curse_ticks;
+    CHECK(SotnPlayer_CurseDamage(player, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.hp == stone_hp - 1 &&
+          state.curse_ticks == curse_before);
+    for (Uint16 i = 0; i < 400; ++i)
+        CHECK(SotnPlayer_Tick(player, i % 24 == 0 ? SOTN_BUTTON_LEFT : 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.step == SOTN_PLAYER_STAND &&
+          !state.stone.active && state.can_pause && state.curse_ticks != 0);
+    CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb5 &&
+          !state.attack.active);
+    CHECK(!SotnPlayer_CurseDamage(NULL, 1, 0, 0) && !SotnPlayer_RestoreCurse(NULL, 0));
+    SotnPlayer_Close(player);
+    return true;
+}
+
+static bool CurseBounds(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    const SotnDataView dra = {f->dra, sizeof(f->dra)};
+    SotnPlayer *player = NULL;
+    SotnPlayerState state = {0};
+    SotnCharacterState profile = {.hp = 70, .hp_max = 70};
+    SotnCharacterStats stats = {.total = {6, 255, 6, 6}, .attack = {6, 6}};
+    CHECK(SotnPlayer_Create(dra, map, 128, 135, &player));
+    CHECK(SotnPlayer_SetCharacter(player, &profile, stats));
+    CHECK(SotnPlayer_CurseDamage(player, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.curse_ticks == 64);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    stats.total[1] = 0;
+    CHECK(SotnPlayer_SetCharacter(player, &profile, stats));
+    for (Uint16 i = 0x2e; i <= 0x34; ++i)
+        Put32(f->dra + 0x101b8 + i * 4U, 0xfffffffc);
+    CHECK(!SotnPlayer_CurseDamage(player, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.hp == 70 && state.curse_ticks == 0);
+    for (Uint16 i = 0x2e; i <= 0x34; ++i)
+        Put32(f->dra + 0x101b8 + i * 4U, 0x800a3000);
+    CHECK(SotnPlayer_CurseDamage(player, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.curse_ticks == 1024);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(SotnPlayer_RestoreCurse(player, 0));
+    CHECK(SotnPlayer_CurseDamage(player, 70, 96, 0));
+    CHECK(SotnPlayer_GetState(player, &state) && state.hp == 0 && state.curse_ticks == 0);
+    CHECK(!SotnPlayer_RestoreCurse(player, 10));
+    SotnPlayer_Close(player);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = Metadata(fixture) && Movement(fixture) && ShortSword(fixture);
+    const bool passed = Metadata(fixture) && Movement(fixture) && ShortSword(fixture) &&
+                        Curse(fixture) && CurseBounds(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

@@ -30,7 +30,8 @@ now joins its placed entrance, seals and reward through selected Outer Wall prog
 The [Long Library foundation](docs/library-runtime.md) remains internal while its
 remaining enemies and librarian/shop are integrated. Selected Flea Armor, Dhuron and
 Thornweed/Corpseweed combat now joins its original room placements. Ectoplasm
-movement/hit/death runs; its curse contact remains pending.
+movement/hit/death and [selected curse contacts](docs/character-status.md) run;
+full curse visuals remain pending.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve

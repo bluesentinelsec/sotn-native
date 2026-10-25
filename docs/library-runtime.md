@@ -53,10 +53,10 @@ cannot retrigger a tap. Original SDK trigonometry and distinct libc random draws
 remain explicit. Summoned variants retain their fade/blink and stage-local cleanup
 signal. Emitters require a current owner generation; independent afterimages
 finish their own animation when an owner retires. Their hidden anchor still
-reserves its original primitive budget. **Curse application, timer and blocked
-weapon-use behavior are not integrated in this actor slice.** The existing player
-contact path handles physical damage only here; this does not establish authentic
-Ectoplasm contact, and Library travel remains disabled pending that work.
+reserves its original primitive budget. [Selected curse contacts](character-status.md) now apply the original duration,
+failed equipped attacks and recovery, including room/stage timer preservation.
+Full curse visuals and complete contact/effect parity remain pending. Library
+travel stays disabled while the other encounters and scripts are integrated.
 
 The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
 and upper-body hit branches, flight/hover/dive and independent deaths. Original
@@ -146,6 +146,7 @@ service. Synthetic tests cover tap/hold behavior, motion excitation, rebound,
 death timing, owner-independent tail lifetime, recipe emitters, summon cleanup and
 primitive exhaustion. Protected native LLDB combat against its original room-9
 placement finishes the observed HP/death path at tick 259 with 65 renders in Debug
-and macOS ASan/UBSan. Both exit successfully. That fixture causes no hero contact
-and does not validate curse, ordinary traversal or console/audiovisual parity.
+and macOS ASan/UBSan. Both exit successfully. That combat fixture causes no hero contact and does not itself validate curse,
+ordinary traversal or console/audiovisual parity. A separate positioned-contact,
+pause and explicit-arrival fixture is documented in [character status](character-status.md).
 All 64 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
