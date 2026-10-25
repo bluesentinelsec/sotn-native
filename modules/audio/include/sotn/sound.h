@@ -30,8 +30,15 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
  * @param data Borrowed version-one Library SEQ. Both views must outlive sound destruction.
  * @return Success or SDL error, leaving the existing attachment unchanged on failure. */
 bool SotnSound_SetSequence(SotnSound *sound, SotnDataView executable, SotnDataView data);
-/** @brief Start the selected original Librarian sequence with private DRA settings.
- * @param sound Borrowed initialized owner with attached sequence input. @param id US ID 0x202.
+/** @brief Attach a selected original stage SEQ to its explicit US playback identity.
+ * @param sound Borrowed initialized owner. @param executable Borrowed complete pitch tables.
+ * @param data Borrowed verified stage SEQ, alive through destruction/replacement.
+ * @param id Original Library 0x202 or Chapel 0x204. @return Success or SDL error;
+ * previous attachment/playback remains unchanged on invalid input. */
+bool SotnSound_SetStageSequence(SotnSound *sound, SotnDataView executable, SotnDataView data,
+                                Uint16 id);
+/** @brief Start the attached original stage sequence with private DRA settings.
+ * @param sound Borrowed initialized owner with attached sequence input. @param id Attached US ID.
  * @return Success or SDL error. Voices share the original bounded hardware pool with effects.
  * Full reverb/hardware timing parity remains incomplete. */
 bool SotnSound_PlaySequence(SotnSound *sound, Uint16 id);

@@ -48,6 +48,10 @@ bool SotnSubweapons_Get(const SotnSubweapons *service, Uint32 slot, SotnSubweapo
 bool SotnSubweapons_Hit(SotnSubweapons *service, Uint32 slot, Uint16 flags);
 /** @brief Inspect the original stopwatch freeze flag; NULL returns false. */
 bool SotnSubweapons_Frozen(const SotnSubweapons *service);
+/** @brief Apply the original stage pauseEnemies gate to stopwatch use/termination.
+ * @param service Borrowed owner. @param paused Stage interaction disables the stopwatch.
+ * @return Success or SDL error for NULL. Other subweapons continue normally. */
+bool SotnSubweapons_SetPaused(SotnSubweapons *service, bool paused);
 /** @brief Drain bounded one-shot sound requests without replaying them on menu ticks.
  * @param service Borrowed simulation. @param sounds Writable output. @param capacity Entries.
  * @param count Receives written count. @return Success or SDL error; failure does not drain. */

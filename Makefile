@@ -3,7 +3,10 @@ CONFIG ?= Debug
 BUILD_DIR ?= build/debug
 CMAKE_FLAGS ?=
 JOBS ?= 4
-SOTN_FORMAT_SOURCES := tests/render/test_launch_renderer.c \
+SOTN_FORMAT_SOURCES := modules/core/chapel_confessional.c modules/core/chapel_ghost.c \
+  modules/core/chapel_blades.c modules/core/chapel_confessional_internal.h \
+  modules/core/player_sleep.c tests/core/test_chapel_confessional.c
+SOTN_FORMAT_SOURCES += tests/render/test_launch_renderer.c \
   modules/core/launch_menu.c modules/core/include/sotn/launch_menu.h \
   modules/render/launch_renderer.c modules/render/include/sotn/launch_renderer.h tests/core/test_launch_menu.c \
   modules/render/castle_map.c modules/render/include/sotn/castle_map.h tests/render/test_castle_map.c \

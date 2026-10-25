@@ -32,6 +32,7 @@ struct SotnSound
     SotnSequence sequence;
     SoundSeqVoice sequence_voices[16];
     Uint8 sequence_volume, sequence_flush;
+    Uint16 sequence_id;
     Uint16 sequence_silence[16];
     Uint8 ram[SOTN_SPU_RAM_SIZE];
     SoundBank banks[4];

@@ -407,9 +407,9 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 6)
-        return id == 0x1a || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a || id == 0x2c ||
-               id == 0x32 || id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b) || id == 0x3d ||
-               id == 0x3e || id == 0x3f || id == 0x41 || id == 0x31;
+        return id == 0x1a || id == 0x24 || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a ||
+               id == 0x2c || id == 0x32 || id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b) ||
+               id == 0x3d || id == 0x3e || id == 0x3f || id == 0x41 || id == 0x31;
     if (actors->stage_id == 2)
         return id == 0x1f || id == 0x22 || id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 ||
                id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 ||
@@ -1541,6 +1541,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     // dra/5087C.c:func_800F2404 resets the GPU clear color on room loading.
     actors->backdrop_color = 0;
     actors->palette_blend = (SotnPaletteBlend){0};
+    actors->control.block_stopwatch = false;
     actors->map = map;
     actors->window = (SotnRoomWindow){.end_x = (Sint32)map.width * 16,
                                       .last_cell = (Sint32)((map.width + 15) / 16) - 1};
@@ -1619,6 +1620,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->palette_blend = (SotnPaletteBlend){0};
     ++actors->ticks;
     actors->combat.music_change = false;
+    actors->combat.restart_stage_music = false;
     actors->combat.sequence_change = false;
     actors->combat.ambience_change = false;
     actors->combat.voice_change = false;

@@ -55,6 +55,11 @@ add_library(sotn-core STATIC
   chapel_glass.c
   chapel_glass_background.c
   chapel_glass_internal.h
+  chapel_confessional.c
+  chapel_ghost.c
+  chapel_blades.c
+  chapel_confessional_internal.h
+  player_sleep.c
   include/sotn/palette.h
   chapel_spectral.c
   chapel_hunting.c

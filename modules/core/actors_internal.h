@@ -345,6 +345,7 @@ struct SotnActors
     Uint8 button_repeat_timer[16];
     Sint16 puzzle_height[3];
     bool call_elevator, cannon_fired, armor_lord_killed;
+    bool confessional_chime;
     Uint32 boss_flags, game_seconds;
     Uint8 game_frame;
     Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
@@ -530,6 +531,10 @@ bool ActorChapelSky(SotnActors *actors, Actor *actor);
  * @param actor Borrowed raw-0x17/0x18 slot; bounded primitives remain generation-owned.
  * @return Success or SDL error for invalid private records, state or primitive capacity. */
 bool ActorChapelGlass(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel chair, ghost, blade, debris or end-chime behavior.
+ * @param actors Borrowed stage-6 simulation/private tables. @param actor Borrowed active slot.
+ * @return Success or SDL error; children and primitives retain bounded generation ownership. */
+bool ActorChapelConfessional(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
  * @param actors Borrowed stage-6 simulation and private tables.
  * @param actor Borrowed supported slot; primitives stay generation-owned.

@@ -447,6 +447,60 @@ static bool TestBellInside(Fixture *fixture)
     return true;
 }
 
+static bool TestChairs(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    AttackFixture(f);
+    Put32(f->dra, 0x101b8 + 0xf2 * 4, 0x800a0200);
+    Put32(f->dra, 0x101b8 + 0xf3 * 4, 0x800a0200);
+    // Synthetic sleep sprites, not a copy of the game's animation records.
+    for (Uint32 i = 0; i < 4; ++i)
+        Put32(f->dra, 0xe294 + i * 4, 3U | ((i + 9U) << 16));
+    Put32(f->dra, 0xe2a4, 0xffff);
+    for (Uint16 kind = 1; kind <= 4; ++kind)
+    {
+        SotnPlayer *p = NULL;
+        SotnPlayerState state = {0};
+        CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+        CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_SetChairKind(p, kind));
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_UP) && State(p, &state));
+        CHECK(state.step == SOTN_PLAYER_STAND && state.substep == 4 &&
+              state.animation.id == (kind <= 2 ? 0xf2 : 0xf3) &&
+              state.facing_left == ((kind & 1U) == 0));
+        for (Uint16 i = 0; i < 12; ++i)
+            CHECK(SotnPlayer_Tick(p, 0));
+        CHECK(State(p, &state) && state.substep == 4 && state.animation.remaining == -1);
+        for (Uint16 i = 12; i < 0x1800; ++i)
+            CHECK(SotnPlayer_Tick(p, 0));
+        CHECK(State(p, &state) && state.sleep_event == (kind <= 2) &&
+              state.sleep.active == (kind <= 2));
+        if (kind <= 2)
+        {
+            CHECK(state.sleep.frame == 9 &&
+                  state.sleep.x == state.x + (kind == 2 ? -8 : 8) * 65536 &&
+                  state.sleep.y == state.y - 16 * 65536);
+            const Sint32 letter_x = state.sleep.x;
+            CHECK(SotnPlayer_Tick(p, 0) && State(p, &state) && !state.sleep_event &&
+                  state.sleep.x == letter_x + (kind == 2 ? -16384 : 16384));
+            for (Uint16 i = 1; i < 0x200; ++i)
+                CHECK(SotnPlayer_Tick(p, 0));
+            CHECK(State(p, &state) && state.sleep_event && state.sleep.active);
+        }
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &state));
+        CHECK(state.step == SOTN_PLAYER_JUMP && !state.sleep.active);
+        for (Uint16 i = 0; i < 90; ++i)
+            CHECK(SotnPlayer_Tick(p, 0));
+        // The actor hint is consumed once; looking up elsewhere does not reseat the player.
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_UP) && State(p, &state) && state.substep == 1);
+        CHECK(SotnPlayer_SetChairKind(p, kind) && SotnPlayer_Tick(p, SOTN_BUTTON_UP));
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT) && State(p, &state) &&
+              state.step == SOTN_PLAYER_WALK);
+        CHECK(!SotnPlayer_SetChairKind(p, 5) && !SotnPlayer_SetChairKind(NULL, 1));
+        SotnPlayer_Close(p);
+    }
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -455,7 +509,7 @@ int main(void)
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
                         TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
-                        TestFailures(fixture);
+                        TestChairs(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

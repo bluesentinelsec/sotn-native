@@ -19,7 +19,7 @@ struct SotnSubweapons
     Projectile slots[SOTN_SUBWEAPON_SLOTS];
     Uint32 serial, ticks;
     Uint16 sounds[64], sound_count;
-    bool warned[10], frozen;
+    bool warned[10], frozen, paused;
 };
 static Uint16 Read16(const Uint8 *p)
 {
@@ -107,6 +107,7 @@ bool SotnSubweapons_Enter(SotnSubweapons *s, SotnCollisionMap map)
     s->map = map;
     SDL_memset(s->slots, 0, sizeof(s->slots));
     s->frozen = false;
+    s->paused = false;
     s->sound_count = 0;
     return true;
 }
@@ -123,6 +124,8 @@ bool SotnSubweapons_Use(SotnSubweapons *s, SotnPlayerState player, bool *used, U
     if (!SotnCharacter_Get(s->character, &profile, NULL))
         return false;
     const Uint16 id = profile.subweapon;
+    if (id == 6 && s->paused)
+        return true;
     if (id == 0 || player.hp == 0 || player.step == SOTN_PLAYER_KILL)
         return true;
     if (id != 1 && id != 2 && id != 3 && id != 6)
@@ -284,6 +287,17 @@ static bool TickOne(SotnSubweapons *s, Projectile *p, SotnPlayerState player, Si
                     Sint32 camera_y)
 {
     SotnSubweaponState *q = &p->state;
+    if (q->id == 6 && s->paused)
+    {
+        s->frozen = false;
+        if (q->age == 0)
+        {
+            *p = (Projectile){0};
+            return true;
+        }
+        if (q->phase < 4)
+            q->phase = 4;
+    }
     if (q->age == 0)
     {
         ++q->age;
@@ -527,6 +541,13 @@ bool SotnSubweapons_Hit(SotnSubweapons *s, Uint32 slot, Uint16 flags)
 bool SotnSubweapons_Frozen(const SotnSubweapons *s)
 {
     return s != NULL && s->frozen;
+}
+bool SotnSubweapons_SetPaused(SotnSubweapons *s, bool paused)
+{
+    if (!s)
+        return SDL_InvalidParamError("subweapons");
+    s->paused = paused;
+    return true;
 }
 bool SotnSubweapons_Sounds(SotnSubweapons *s, Uint16 *sounds, size_t capacity, Uint16 *count)
 {

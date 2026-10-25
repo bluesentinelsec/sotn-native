@@ -35,6 +35,9 @@ struct SotnPlayer
     SotnAnimation animation;
     SotnPlayerStep step, previous_step;
     Uint16 buttons, previous_buttons, tapped, substep;
+    Uint16 chair_kind, chair_sleep;
+    bool sleep_event;
+    SotnPlayerSleep sleep;
     Uint16 attack_mode, attack_button;
     Uint8 attack_lock, weapon_startup;
     SotnSubweapons *subweapons;
@@ -61,6 +64,8 @@ struct SotnPlayer
 };
 
 void SotnPlayer_StoneTick(SotnPlayer *player);
+/** @brief Advance the owned sleep effect from private DRA frames; false reports invalid data. */
+bool SotnPlayer_SleepTick(SotnPlayer *player);
 void SotnPlayer_StoneDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);

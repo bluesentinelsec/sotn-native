@@ -135,6 +135,28 @@ int main(void)
     CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 149);
     CHECK(!SotnSubweapons_Get(s, 16, &p));
     CHECK(!SotnSubweapons_Hit(s, 0, 4));
+    // A confessional blocks only stopwatch use and retires an existing clock.
+    CHECK(SotnSubweapons_Enter(s, map) && Select(character, 6, 50));
+    CHECK(SotnSubweapons_SetPaused(s, true));
+    CHECK(SotnSubweapons_Use(s, player, &used, &animation) && !used && !SotnSubweapons_Frozen(s));
+    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 50);
+    CHECK(SotnSubweapons_SetPaused(s, false) && SotnSubweapons_Use(s, player, &used, &animation) &&
+          used);
+    CHECK(SotnSubweapons_Frozen(s) && SotnSubweapons_SetPaused(s, true));
+    CHECK(SotnSubweapons_Tick(s, player, 0, 0) && !SotnSubweapons_Frozen(s));
+    for (Uint16 i = 0; i < 24; ++i)
+        CHECK(SotnSubweapons_Tick(s, player, 0, 0));
+    CHECK(SotnSubweapons_Get(s, 0, &p) && !p.generation);
+    CHECK(SotnSubweapons_SetPaused(s, false) && Select(character, 6, 50));
+    CHECK(SotnSubweapons_Use(s, player, &used, &animation) && used);
+    CHECK(SotnSubweapons_Tick(s, player, 0, 0) && SotnSubweapons_Frozen(s));
+    CHECK(SotnSubweapons_SetPaused(s, true) && SotnSubweapons_Tick(s, player, 0, 0));
+    CHECK(!SotnSubweapons_Frozen(s) && SotnSubweapons_Get(s, 0, &p) && p.phase == 5);
+    for (Uint16 i = 0; i < 24; ++i)
+        CHECK(SotnSubweapons_Tick(s, player, 0, 0));
+    CHECK(SotnSubweapons_Get(s, 0, &p) && !p.generation);
+    CHECK(Select(character, 1, 50) && SotnSubweapons_Use(s, player, &used, &animation) && used);
+    CHECK(!SotnSubweapons_SetPaused(NULL, true));
     // A throw animation can transition back to an idle animation without locking controls.
     CHECK(SotnSubweapons_Enter(s, map) && Select(character, 1, 50));
     for (Uint32 i = 0; i < 247; ++i)

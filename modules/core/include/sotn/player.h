@@ -60,6 +60,15 @@ typedef struct SotnPlayerStone
     bool active, hidden, impact;
 } SotnPlayerStone;
 
+/** @brief One original floating sleep letter, owned by the player simulation. */
+typedef struct SotnPlayerSleep
+{
+    Sint32 x, y, velocity_x; /**< Signed 16.16 room-local pixels. */
+    Uint16 pose, frame;
+    Sint16 remaining;
+    bool active;
+} SotnPlayerSleep;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -68,6 +77,9 @@ typedef struct SotnPlayerState
     Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
     SotnAnimation animation;
     SotnPlayerStep step;
+    Uint16 substep;   /**< Original movement substate; standing 4 is seated. */
+    bool sleep_event; /**< Original sleeping-letter factory requested this tick. */
+    SotnPlayerSleep sleep;
     bool facing_left;
     SotnPlayerAttack attack;
     Uint16 hp, hp_max;
@@ -113,6 +125,11 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
  * The next simulation tick retains animation, refreshes original protection and handles release.
  * No advancement occurs in this setter. Call false when the script interval expires. */
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
+/** @brief Supply a stage chair's transient original seating hint for the next player update.
+ * @param player Borrowed simulation. @param kind Zero disables, 1..4 choose original pose/facing.
+ * @return Success or SDL error. Does not force a state; normal input/transitions retain control.
+ * The player update consumes and clears the hint. */
+bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind);
 
 /** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
  * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.

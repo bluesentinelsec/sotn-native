@@ -589,12 +589,32 @@ static void StandTick(SotnPlayer *player)
                  player->animation.id != 0x63)
             Animate(player, 0x63);
     }
+    if (player->substep == 4 && player->animation.id == 0xf2 && player->chair_sleep &&
+        --player->chair_sleep == 0)
+    {
+        player->sleep_event = true;
+        player->chair_sleep = 0x200;
+    }
+    if (player->substep == 1 && player->chair_kind)
+    {
+        Animate(player, player->chair_kind <= 2 ? 0xf2 : 0xf3);
+        player->facing_left = (player->chair_kind & 1U) == 0;
+        player->substep = 4;
+        player->chair_sleep = 0x1800;
+    }
     if (player->substep == 1 && !(player->buttons & SOTN_BUTTON_UP))
         Land(player, 0);
     if ((player->buttons & SOTN_BUTTON_UP) && player->substep == 0)
     {
         Animate(player, (player->contact & 0x20) ? 1 : 0);
         player->substep = 1;
+        if (player->chair_kind)
+        {
+            Animate(player, player->chair_kind <= 2 ? 0xf2 : 0xf3);
+            player->facing_left = (player->chair_kind & 1U) == 0;
+            player->substep = 4;
+            player->chair_sleep = 0x1800;
+        }
     }
     if (Direction(player))
         Walk(player, false);
@@ -861,6 +881,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.turned = false;
     next.sound = 0;
     next.extra_sound = 0;
+    next.sleep_event = false;
     if (next.curse_ticks)
         --next.curse_ticks;
     if (next.poison_ticks)
@@ -985,6 +1006,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return false;
     if (!PositionValid(next.map, next.x.value, next.y.value))
         return SDL_SetError("Player left the bounded room region without a supported transition");
+    if (!SotnPlayer_SleepTick(&next))
+        return false;
+    next.chair_kind = 0;
     ++next.frame_number;
     *player = next;
     return true;
@@ -1063,6 +1087,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     player->map = map;
     player->x.value = (Sint32)x;
     player->y.value = (Sint32)y;
+    player->sleep = (SotnPlayerSleep){0};
     return true;
 }
 
@@ -1098,6 +1123,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .status = status,
         .animation = player->animation,
         .step = player->step,
+        .substep = player->substep,
+        .sleep_event = player->sleep_event,
+        .sleep = player->sleep,
         .facing_left = player->facing_left,
         .attack = player->attack,
         .hp = player->hp,
@@ -1336,6 +1364,14 @@ bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
     if (player == NULL || (hold && player->step == SOTN_PLAYER_KILL))
         return SDL_SetError("Script hold requires a living normal-form player owner");
     player->script_hold = hold;
+    return true;
+}
+
+bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind)
+{
+    if (player == NULL || kind > 4)
+        return SDL_SetError("Chair hint requires a player and original pose kind 0..4");
+    player->chair_kind = kind;
     return true;
 }
 

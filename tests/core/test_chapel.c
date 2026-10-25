@@ -122,7 +122,7 @@ static bool Bat(SotnActors *s)
     CHECK(ActorChapel(s, &bat) && bat.state.step == 4);
     bat.state.flags |= 0x100U;
     CHECK(ActorChapel(s, &bat) && bat.remove);
-    Actor unsupported = {.state = {.id = 0x2d, .generation = 4}};
+    Actor unsupported = {.state = {.id = 0x43, .generation = 4}};
     CHECK(ActorChapel(s, &unsupported) && unsupported.state.unsupported);
     CHECK(!ActorChapel(NULL, &unsupported) && !ActorChapel(s, NULL));
     return true;

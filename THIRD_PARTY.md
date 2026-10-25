@@ -457,3 +457,14 @@ follows `st/e_stained_glass_blend.h`; blend-page selection follows
 in runtime inputs. Bounded primitive cursors and defined packed-coordinate math
 replace unsafe host pointer/aliasing operations. The selected two-axis transform
 extends the separately credited MPL-2.0 PSY-Z matrix/divider adapter.
+
+`modules/core/chapel_confessional.c`, `chapel_ghost.c` and `chapel_blades.c`
+adapt selected US `st/dai/e_chair.c`, `e_confessional.c` and `e_end_chime.c`
+at the pinned sotn-decomp revision (AGPL-3.0-or-later). The sitting and sleep
+adapters in `player.c`/`player_sleep.c` follow selected `dra/71830.c`,
+`7E4BC.c:EntityPlayerSleepZ` and `alu_anim.c:UpdateAnim`. Selected stopwatch
+cancellation follows `dra/8A0A4.c:EntityStopWatch`. Stage SEQ selection and
+selected native fades extend the already credited `dra/sound.c` adapter.
+Original animation, curtain, position, sound and artwork tables remain private.
+Native ownership checks replace adjacent entity pointers; defined byte-wrap and
+signed narrowing preserve selected US behavior without undefined host operations.
