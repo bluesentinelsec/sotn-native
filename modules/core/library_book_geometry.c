@@ -44,9 +44,9 @@ bool ActorLibraryBookGeometry(SotnActors *s, Actor *a)
         if (!SotnBook_Project(s->executable, transform, vertices, 4, &projected))
             return false;
         p->state.active = projected.winding >= 0;
-        p->state.palette =
-            (Uint16)((a->state.palette & 0x8000U) ? a->state.palette & 0xfffU
-                                                  : a->state.palette + (face % 6 > 1 ? 1 : 0));
+        p->state.palette = (Uint16)((a->state.palette & 0x8000U)
+                                        ? a->state.palette & 0xfffU
+                                        : (Uint32)a->state.palette + (face % 6 > 1 ? 1U : 0U));
         p->state.priority = projected.priority;
         for (Uint16 i = 0; i < 4; ++i)
         {

@@ -206,7 +206,7 @@ static bool Death(Fixture *f, SotnActors *s)
     for (Uint32 i = 0; i < 128; ++i)
     {
         s->combat.sound_count = 0;
-        s->game_frame = i;
+        s->game_frame = (Uint8)i;
         CHECK(ActorLibrary(s, a) && !a->state.hitbox_state);
     }
     CHECK(a->state.step == 8 && a->substep == 2 && (a->state.flags & 0x80000000U) &&
