@@ -89,6 +89,18 @@ typedef struct Actor
     } boss;
     struct
     {
+        Uint16 angle, timer;
+        bool spawned, thrown;
+    } table;
+    struct
+    {
+        Sint32 phase, base, amplitude;
+        Uint16 timer, seed_timer, recoil, sway, radius;
+        Uint16 spawn_id, total, per_tick, delay, interval, spawned, mode, pool, parameter;
+        bool hit, increment, drop_if_full;
+    } rose;
+    struct
+    {
         Uint16 groups, cadence;
         Sint32 flash;
     } reward;
@@ -244,6 +256,15 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
 bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
+bool ActorFlea(SotnActors *actors, Actor *actor);
+bool ActorOuija(SotnActors *actors, Actor *actor);
+bool ActorRose(SotnActors *actors, Actor *actor);
+bool ActorRoseSeed(SotnActors *actors, Actor *actor);
+bool ActorRoseSpawn(SotnActors *actors, const Actor *actor, Uint16 parameter);
+bool ActorWideAnimation(SotnActors *actors, Actor *actor, size_t offset, bool *ended);
+bool ActorSlinger(SotnActors *actors, Actor *actor);
+bool ActorReplaceExplosion(SotnActors *actors, Actor *actor, Uint16 kind);
+bool ActorExplosionTick(SotnActors *actors, Actor *actor);
 
 static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
                                 size_t revisited)

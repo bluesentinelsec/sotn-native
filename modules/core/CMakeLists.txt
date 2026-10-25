@@ -17,6 +17,12 @@ add_library(sotn-core STATIC
   include/sotn/stage_profile.h
   actor_stage_profile.c
   early_castle.c
+  actor_wide_animation.c
+  enemy_rose.c
+  enemy_rose_seed.c
+  enemy_ouija.c
+  enemy_flea.c
+  enemy_slinger.c
   stage_route.c
   include/sotn/stage_route.h
   actor_layout.c
