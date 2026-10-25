@@ -413,7 +413,7 @@ its own private tables, original bird phases/deaths and owned boomerangs. Shared
 Skelerang re-entry protects unrelated children in both Chapel and Marble.
 Selected [Chapel Bone Halberd combat](docs/chapel-halberd.md) now includes its owned
 weapon, movement/spin/jump/lunge and nine-part death using private original tables.
-Travel remains disabled; other enemies, tower exits/bells/spikes, scenery, Maria and boss remain
+Travel remains disabled; tower exits/bells, remaining scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.
 
 Selected [Chapel Corner Guard combat](docs/chapel-corner-guard.md) now includes
@@ -441,3 +441,10 @@ independent blade destruction, aura and parent death/cleanup. Retain the SDK
 square-root quantization, screen-anchored movement target, integer-only ready
 weapon position assignment and hidden dead children until parent cleanup.
 Connected Chapel progression and uninterrupted encounter/console parity remain incomplete.
+
+Selected [Chapel spike-corridor behavior](docs/chapel-spikes.md) now includes its
+owned damage actor, maximum-HP fraction, equipped Spike Breaker destruction and
+original debris/dust. Keep ordinary defense separate from environmental HP loss.
+Cleared spikes stay transient; v8 retains the equipped armor without a format change.
+Chapel travel, remaining mechanisms/scripts/boss and full damage-kind reaction parity
+remain incomplete. Granted-equipment component checks do not establish ordinary-route parity.

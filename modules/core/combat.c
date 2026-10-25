@@ -138,3 +138,13 @@ bool SotnCombat_NormalContact(SotnContactPower power, Uint16 defense, bool poiso
     *out = power.immune ? 0 : (Uint16)SDL_clamp(damage, 1, 9999);
     return true;
 }
+
+bool SotnCombat_EnvironmentalContact(SotnContactPower power, Uint16 hp_max, bool poisoned,
+                                     Uint16 *out)
+{
+    if (!out || !hp_max || hp_max > 9999 || power.attack > 19998 || power.absorb)
+        return SDL_SetError("Environmental contact requires bounded maximum HP and resolved power");
+    const Uint16 amount = (Uint16)((hp_max / 8U) * (poisoned ? 2U : 1U));
+    *out = power.immune ? 0 : SDL_max(1, amount);
+    return true;
+}

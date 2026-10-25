@@ -122,9 +122,31 @@ static bool NormalContact(void)
     return true;
 }
 
+static bool EnvironmentalContact(void)
+{
+    Uint16 damage = 0;
+    SotnContactPower power = {.attack = 15};
+    CHECK(SotnCombat_EnvironmentalContact(power, 70, false, &damage) && damage == 8);
+    CHECK(SotnCombat_EnvironmentalContact(power, 70, true, &damage) && damage == 16);
+    CHECK(SotnCombat_EnvironmentalContact(power, 7, true, &damage) && damage == 1);
+    power.attack = 19998;
+    CHECK(SotnCombat_EnvironmentalContact(power, 9999, true, &damage) && damage == 2498);
+    power.immune = true;
+    CHECK(SotnCombat_EnvironmentalContact(power, 70, true, &damage) && damage == 0);
+    power.absorb = true;
+    damage = 123;
+    CHECK(!SotnCombat_EnvironmentalContact(power, 70, false, &damage) && damage == 123);
+    power.absorb = false;
+    CHECK(!SotnCombat_EnvironmentalContact(power, 0, false, &damage) && damage == 123);
+    CHECK(!SotnCombat_EnvironmentalContact(power, 10000, false, &damage) && damage == 123);
+    power.attack = 19999;
+    CHECK(!SotnCombat_EnvironmentalContact(power, 70, false, &damage) && damage == 123);
+    CHECK(!SotnCombat_EnvironmentalContact(power, 70, false, NULL));
+    return true;
+}
 int main(void)
 {
-    if (!Boxes() || !Damage() || !ContactPower() || !NormalContact())
+    if (!Boxes() || !Damage() || !ContactPower() || !NormalContact() || !EnvironmentalContact())
         return 1;
     SDL_Log("SOTN_COMBAT_TEST: PASS");
     return 0;

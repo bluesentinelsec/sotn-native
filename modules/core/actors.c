@@ -409,7 +409,7 @@ static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
     if (actors->stage_id == 6)
         return id == 0x1a || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a || id == 0x2c ||
                id == 0x32 || id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b) || id == 0x3d ||
-               id == 0x3e || id == 0x3f || id == 0x41;
+               id == 0x3e || id == 0x3f || id == 0x41 || id == 0x31;
     if (actors->stage_id == 2)
         return id == 0x1f || id == 0x22 || id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 ||
                id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 ||
@@ -461,6 +461,14 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         (actor->state.flags & 0x100))
         return true;
     Actor *recipient = actor;
+    if (actors->stage_id == 6 && actor->state.id == 0x31)
+    {
+        const Uint16 slot = actor->enemy_state.owner_slot;
+        if (slot >= SOTN_STAGE_ACTOR_SLOTS || actors->slots[slot].state.id != 0x2e ||
+            !actors->slots[slot].state.generation ||
+            actors->slots[slot].state.generation != actor->enemy_state.owner_generation)
+            return true;
+    }
     if (actors->stage_id == 65 && actor->state.id == 0x4b)
     {
         const Uint32 owner = actor->enemy_state.owner_slot;

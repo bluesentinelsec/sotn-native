@@ -17,6 +17,9 @@ It is not the original new-game entry.
 
 The supported attack implementations are empty hands, Basilard, Gladius, Mace, and ordinary Alucard sword/shield.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
+Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
+Its original ownership, armor stats and equipped slot use the existing save fields;
+other stages still require their own spike-controller integration.
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,

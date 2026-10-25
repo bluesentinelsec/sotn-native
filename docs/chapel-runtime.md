@@ -103,3 +103,8 @@ Selected [Spectral Sword combat](chapel-spectral-sword.md) now adds sixteen owne
 weapons, readiness/orbits, movement, expansion/retraction, independent blade
 destruction, aura and parent death/cleanup. Chapel travel remains gated; these
 component checks do not establish uninterrupted encounter or console parity.
+
+Selected [spike-corridor behavior](chapel-spikes.md) now adds original maximum-HP
+damage, equipped Spike Breaker tile clearing, fragments and dust. Cleared spikes
+remain transient; ordinary equipped armor uses the existing v8 save fields.
+Tower routing/bells, remaining scenery, Maria, boss and connected travel remain incomplete.
