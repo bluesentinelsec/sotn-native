@@ -478,3 +478,9 @@ never mutate borrowed private inputs. Preserve documented US packed-coordinate
 midpoints and reversed floor-color assignment pending console comparison. Checked
 output cursors replace exhausted-pointer access. Protected component/render checks
 are not ordinary-route or console parity; confessional/scripts/boss remain missing.
+
+The internal [Chapel confessional](docs/chapel-confessional.md) now integrates chairs,
+original sitting/sleep letters, priest/parishioner variants, curtains, attackable
+blades, selected reward and private SEQ chime with XA restoration. Chapel remains
+disconnected while Maria, Hippogryph and connected progression need integration.
+Controlled private fixtures are not uninterrupted-route or console parity evidence.

@@ -22,7 +22,8 @@ enum
 typedef struct SotnActorControl
 {
     Uint16 buttons, timer;
-    bool hold; /**< Original simulated-pad mode 2: freeze normal-form player control. */
+    bool hold;            /**< Original simulated-pad mode 2: freeze normal-form player control. */
+    bool block_stopwatch; /**< Original pauseEnemies gate, not a generic actor freeze. */
 } SotnActorControl;
 /** @brief Copy current script-owned pad interval; timer zero permits user control unless hold
  * remains set.
@@ -38,6 +39,7 @@ typedef struct SotnActorMotion
         stop_velocity;    /**< Original door/event velocity stop and 32-tick protection. */
     bool bell_inside;     /**< Original bell concealment/status interval, recomputed each tick. */
     bool stop_horizontal; /**< Original tower-exit death guard; preserve vertical velocity. */
+    Uint16 chair_kind;    /**< Transient original seating pose/facing hint, zero or 1..4. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through
@@ -149,7 +151,8 @@ typedef struct SotnActorCombat
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
     bool music_change;
-    Uint16 sequence; /**< Original SEQ ID; zero stops only sequence-owned voices. */
+    bool restart_stage_music; /**< Restart the current stage's private music profile. */
+    Uint16 sequence;          /**< Original SEQ ID; zero stops only sequence-owned voices. */
     bool sequence_change;
     bool ambience_change; /**< Original channel 22/23 gain update without key-on. */
     Uint16 ambience_volume;

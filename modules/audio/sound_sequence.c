@@ -213,27 +213,32 @@ static bool Event(void *context, SotnSequenceEvent event)
 }
 bool SotnSound_SetSequence(SotnSound *s, SotnDataView executable, SotnDataView data)
 {
+    return SotnSound_SetStageSequence(s, executable, data, 0x202);
+}
+bool SotnSound_SetStageSequence(SotnSound *s, SotnDataView executable, SotnDataView data, Uint16 id)
+{
     SotnSequence probe = {0};
-    if (!s || !executable.bytes || executable.size < 0x23894 ||
+    if (!s || (id != 0x202 && id != 0x204) || !executable.bytes || executable.size < 0x23894 ||
         !SotnSequence_Open(data, 0, 1, &probe))
         return SDL_SetError(
-            "Library SEQ attachment requires complete private event and pitch data");
+            "Stage SEQ attachment requires a selected identity and complete event/pitch data");
     SotnSound_StopSequence(s);
     s->sequence = (SotnSequence){0};
     s->executable = executable;
     s->sequence_data = data;
+    s->sequence_id = id;
     return true;
 }
 bool SotnSound_PlaySequence(SotnSound *s, Uint16 id)
 {
-    if (!s || id != 0x202 || !s->dra.bytes || s->dra.size < 0x1d1e9)
+    if (!s || (id != 0x202 && id != 0x204) || id != s->sequence_id || !s->dra.bytes ||
+        s->dra.size < 0x1d1e0U + (id - 0x200U) * 3U + 3U)
         return SDL_SetError(
-            "Sequence playback requires initialized Librarian inputs and US ID 0x202");
-    const Uint8 *config = s->dra.bytes + 0x1d1e6;
+            "Sequence playback requires the attached original stage identity and private settings");
+    const Uint8 *config = s->dra.bytes + 0x1d1e0 + (id - 0x200U) * 3U;
     if (config[0] > 127 || config[2] >> 4 > 3 || !s->banks[config[2] >> 4].loaded ||
         (config[2] & 15U) > 1)
-        return SDL_SetError(
-            "Librarian sequence settings reference unsupported volume/bank/loop data");
+        return SDL_SetError("Stage sequence settings reference unsupported volume/bank/loop data");
     SotnSequence next = {0};
     if (!SotnSequence_Open(s->sequence_data, (Uint8)(config[2] >> 4),
                            (Uint16)((config[2] & 15U) ? 0 : 1), &next))

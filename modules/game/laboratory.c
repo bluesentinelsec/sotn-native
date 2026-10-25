@@ -89,7 +89,9 @@ struct SotnLaboratory
     SotnPlayback *audio;
     SotnStream *music_stream;
     SotnMusic *music, *speech;
-    Uint8 music_gain;
+    Uint8 music_gain, master_gain;
+    Uint16 xa_fade_counter, xa_fade_multiplier;
+    Uint8 xa_command;
     bool music_fading, music_paused;
     SotnDialogueState dialogue;
     Uint32 portrait_offsets[2];
@@ -176,11 +178,14 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[4])};
     if (!SotnSound_Create(sources, &session->sound))
         return false;
-    if (session->stage_id == 2 &&
-        (!SotnResource_Open(directory, SOTN_RESOURCE_LIBRARY_SEQUENCE,
+    if ((session->stage_id == 2 || session->stage_id == 6) &&
+        (!SotnResource_Open(directory,
+                            session->stage_id == 2 ? SOTN_RESOURCE_LIBRARY_SEQUENCE
+                                                   : SOTN_RESOURCE_CHAPEL_SEQUENCE,
                             &session->sequence_resource) ||
-         !SotnSound_SetSequence(session->sound, session->executable,
-                                SotnResource_View(session->sequence_resource))))
+         !SotnSound_SetStageSequence(session->sound, session->executable,
+                                     SotnResource_View(session->sequence_resource),
+                                     session->stage_id == 2 ? 0x202 : 0x204)))
         return false;
     if (session->music_stream == NULL)
     {
@@ -198,6 +203,18 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
 {
     if (session->sound == NULL)
         return true;
+    if (combat->restart_stage_music)
+    {
+        SotnMusic *next = NULL;
+        if (!CreateStageMusic(session, &next))
+            return false;
+        SotnMusic_Destroy(session->music);
+        session->music = next;
+        session->music_gain = 127;
+        session->master_gain = 127;
+        session->music_paused = session->music_fading = false;
+        session->xa_command = 0;
+    }
     if (combat->sequence_change)
     {
         if (combat->sequence == 0)
@@ -248,9 +265,16 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->cd_command)
     {
-        if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
+        if (combat->cd_command == 0x90 || combat->cd_command == 0x80)
+        {
+            session->xa_command = combat->cd_command == 0x90 ? 1 : 3;
+            session->xa_fade_counter = 0;
+            session->xa_fade_multiplier = combat->cd_command == 0x90 ? 128 : 32;
+        }
+        else if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
             return SDL_SetError("Dialogue issued an unsupported XA control command");
-        session->music_fading = combat->cd_command == 0x10;
+        if (combat->cd_command == 0x10 || combat->cd_command == 0x11)
+            session->music_fading = combat->cd_command == 0x10;
         if (combat->cd_command == 0x11)
         {
             session->music_paused = false;
@@ -304,6 +328,28 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         return false;
     if (session->sound == NULL)
         return true;
+    if (session->xa_command == 1 || session->xa_command == 3)
+        ++session->xa_command; // Original CD setup tick, before volume stepping.
+    else if (session->xa_command == 2 || session->xa_command == 4)
+    {
+        ++session->xa_fade_counter;
+        const Uint32 decrease =
+            127U * session->xa_fade_multiplier * session->xa_fade_counter / 512U;
+        const Uint8 gain = (Uint8)(decrease >= 127 ? 0 : 127 - decrease);
+        if (session->xa_command == 2)
+            session->music_gain = gain;
+        else
+            session->master_gain = gain;
+        if (!gain)
+        {
+            if (session->xa_command == 4)
+                SotnSound_StopSequence(session->sound);
+            // Native stream shutdown replaces the original subsequent CD stop command.
+            SotnMusic_Destroy(session->music);
+            session->music = NULL;
+            session->xa_command = 0;
+        }
+    }
     if (session->music_fading)
     {
         session->music_gain = (Uint8)SDL_max(0, (Sint32)session->music_gain - 12);
@@ -334,6 +380,9 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
             pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + speech[i], -32768, 32767);
     }
+    if (session->master_gain != 127)
+        for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+            pcm[i] = (Sint16)((Sint32)pcm[i] * session->master_gain / 127);
     return SotnPlayback_Queue(session->audio, pcm, SDL_arraysize(pcm));
 }
 
@@ -517,6 +566,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||
         (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)) ||
         !SotnPlayer_BellInside(session->player, motion.bell_inside))
+        return false;
+    if (!SotnPlayer_SetChairKind(session->player, motion.chair_kind))
         return false;
     SotnActorCombat combat = {0};
     SotnCharacterStats attributes = {0};
@@ -880,6 +931,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->directory = directory != NULL ? SDL_strdup(directory) : NULL;
     session->stage_id = stage_id;
     session->music_gain = 127;
+    session->master_gain = 127;
     session->music_stream = start.music;
     session->borrowed_music = start.music != NULL;
     session->room_index = start_room;
@@ -965,8 +1017,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
-                "and selected internal tower exits, clouds, sky land and stained glass. "
-                "Other encounters, confessional, Maria, boss "
+                "and selected internal tower exits, clouds, sky land, stained glass, chairs "
+                "and confessional ghosts/blades/chime. Maria and boss encounters "
                 "and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
@@ -1152,6 +1204,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
+        !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
@@ -1493,6 +1546,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             Pixel(player.y) - camera_y, player.facing_left,
                                             player.death, session->frame, SOTN_FRAME_PIXELS);
             if (!drawn)
+                return false;
+            if (player.sleep.active && player.sleep.frame &&
+                !SotnActorGraphics_Draw(session->actor_graphics,
+                                        (SotnActorSprite){.animation_set = 17,
+                                                          .frame = player.sleep.frame,
+                                                          .palette = 0x819f,
+                                                          .texture_offset = 0x50},
+                                        Pixel(player.sleep.x) - camera_x,
+                                        Pixel(player.sleep.y) - camera_y, session->frame,
+                                        SOTN_FRAME_PIXELS))
                 return false;
             player_drawn = true;
         }

@@ -191,12 +191,36 @@ static bool Retirement(Fixture *f)
     SotnSound_Destroy(s);
     return true;
 }
+static bool StageIdentity(Fixture *f)
+{
+    SotnSound *s = NULL;
+    CHECK(Open(f, &s));
+    f->dra[0x1d1ec] = 64;
+    f->dra[0x1d1ed] = 0x21;
+    f->dra[0x1d1ee] = 0;
+    CHECK(!SotnSound_PlaySequence(s, 0x204));
+    CHECK(SotnSound_SetStageSequence(s, (SotnDataView){f->exe, sizeof(f->exe)},
+                                     (SotnDataView){f->seq, sizeof(f->seq)}, 0x204));
+    CHECK(SotnSound_PlaySequence(s, 0x204) && SoundSequenceTick(s));
+    CHECK(s->sequence_id == 0x204 && s->sequence.playing && s->registers[0].left < 10157);
+    CHECK(!SotnSound_PlaySequence(s, 0x202) && s->sequence.playing);
+    CHECK(!SotnSound_SetStageSequence(s, (SotnDataView){0}, (SotnDataView){0}, 0x204) &&
+          s->sequence.playing && s->sequence_id == 0x204);
+    CHECK(!SotnSound_SetStageSequence(s, (SotnDataView){f->exe, sizeof(f->exe)},
+                                      (SotnDataView){f->seq, sizeof(f->seq)}, 0x203));
+    // A bad new owner leaves the attached chime alive.
+    CHECK(s->sequence_id == 0x204 && s->sequence.playing);
+    SotnSound_StopSequence(s);
+    CHECK(!s->sequence.playing && SotnSound_PlaySequence(s, 0x204));
+    SotnSound_Destroy(s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Playback(f) && Pool(f) && Bends(f) && Retirement(f);
+    const bool ok = Playback(f) && Pool(f) && Bends(f) && Retirement(f) && StageIdentity(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
