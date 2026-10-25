@@ -105,3 +105,7 @@ The targeted check is not an unmodified full gameplay replay.
 
 The [native sound service](laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
+
+The [Short sword](short-sword.md) collected in the upper Entrance now has its own
+family-37 ordinary attacks; its support does not enable other weapons or special
+behaviors from that overlay.

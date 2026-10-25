@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Selected metadata and player-locked weapon paths from sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5: dra/6E42C.c, alu_anim.c,
-// weapon/w_000.c and w_002.c. All definitions, frames, and hitboxes remain private data.
+// weapon/w_000.c, w_002.c and w_037.c. Definitions, frames and hitboxes remain private.
 #include <SDL3/SDL.h>
 #include <sotn/equipment.h>
 
@@ -27,7 +27,8 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
-    if (out == NULL || (id != 0 && id != 16 && id != 18 && id != 86 && id != 123 && id != 128))
+    if (out == NULL ||
+        (id != 0 && id != 16 && id != 18 && id != 19 && id != 86 && id != 123 && id != 128))
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
     const Uint8 *pointer = NULL, *record = NULL;
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
@@ -35,6 +36,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         return false;
     if ((id == 0 && (record[17] != 0 || record[18] != 0x24)) ||
         (id == 18 && (record[15] != 31 || record[17] != 7 || record[18] != 0x6f)) ||
+        (id == 19 && (record[15] != 37 || record[17] != 15 || record[18] != 0xa7)) ||
         (id == 86 && (record[15] != 0 || record[17] != 1 || record[18] != 0x41)) ||
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (id == 16 && (record[15] != 52 || record[17] != 128 || record[18] != 0x63)) ||
@@ -65,10 +67,11 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataView *out)
 {
     if (out == NULL ||
-        (equipment.id != 16 && equipment.id != 18 && equipment.id != 86 && equipment.id != 123 &&
-         equipment.id != 128) ||
+        (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 86 &&
+         equipment.id != 123 && equipment.id != 128) ||
         equipment.family != (equipment.id == 86    ? 0
                              : equipment.id == 18  ? 31
+                             : equipment.id == 19  ? 37
                              : equipment.id == 123 ? 43
                              : equipment.id == 16  ? 52
                                                    : 2))
@@ -92,6 +95,7 @@ bool SotnWeapon_ReadFrame(SotnDataView weapons, SotnEquipment equipment, Uint16 
         return false;
     const Uint8 *descriptor = NULL, *pointer = NULL, *packed = NULL, *box = NULL;
     const Uint32 address = equipment.family == 43   ? 0x8017b014U
+                           : equipment.family == 37 ? 0x8017a6a4U
                            : equipment.family == 0  ? 0x8017b06cU
                            : equipment.family == 31 ? 0x8017a8ecU
                                                     : 0x8017abc4U;
@@ -111,7 +115,7 @@ bool SotnWeapon_ReadFrame(SotnDataView weapons, SotnEquipment equipment, Uint16 
     if (value != 0xffff)
     {
         const Uint32 property = (value >> 9) & 127;
-        if (property >= 25 ||
+        if (property >= (equipment.family == 37 ? 15U : 25U) ||
             !Resolve(overlay, 0x8017a000, (Uint64)Read32(descriptor + 4) + property * 4, 4, &box))
             return SDL_SetError("Weapon hitbox exceeds the supported frame properties");
         result.x = (Sint16)(box[0] < 128 ? box[0] : (Sint32)box[0] - 256);

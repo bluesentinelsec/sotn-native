@@ -298,3 +298,8 @@ The [Outer Wall Skeleton Apes](docs/outer-wall-skeleton-ape.md) now run selected
 punches, carried/thrown barrels, bouncing fragments and staged deaths. Child
 ownership uses slot/generation checks; optional actor pools have bounded fallbacks.
 Full effects, whole-route and console parity remain incomplete.
+
+The [early Short sword](docs/short-sword.md) now equips an ordinarily collected
+Entrance item and runs selected original attacks in either hand. The family-37
+view loads five palettes. Jewel/Stone sword special paths remain unavailable;
+ordinary travel and Continue grant no replacement gear.
