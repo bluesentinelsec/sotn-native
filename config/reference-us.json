@@ -111,6 +111,14 @@
     "ST/LIB/SEQ_LIB.SEQ": {
       "size": 7859,
       "sha1": "8797e675bb8561cae94decd889d6048397f96011"
+    },
+    "ST/DAI/SD_ZKDAI.VH": {
+      "size": 6688,
+      "sha1": "c406db0c15bf24081947f08dfc909256798b6048"
+    },
+    "ST/DAI/SD_ZKDAI.VB": {
+      "size": 57104,
+      "sha1": "91aff485125714739e2de978b3bdb3b1c5126b7d"
     }
   },
   "sizes": {

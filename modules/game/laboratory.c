@@ -110,7 +110,7 @@ static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
         *out = NULL;
         return true;
     }
-    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2)
+    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2 || s->stage_id == 6)
         return SotnMusic_CreateStage(s->dra, s->music_stream, s->stage_id, out);
     if (s->stage_id == 12)
         return SotnMusic_Create(s->dra, s->music_stream, out);
@@ -149,7 +149,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                     {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
                     {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
                     {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
-                    {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY}};
+                    {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
+                    {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -920,6 +921,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "Selected Librarian introduction, buy/sell, speech and exit run. Full shop panels, "
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
+    else if (stage_id == 6)
+        SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors and "
+                "Winged Guard/Bat behavior. Other encounters, mechanisms, Maria, boss and "
+                "connected travel remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

@@ -107,3 +107,8 @@ The [Librarian sequence service](library-sequence-audio.md) adds independently
 verified `ST/LIB/SEQ_LIB.SEQ` event data. It reuses common instruments and reads
 original pitch entries from the private boot image. No event bytes or musical
 recording enter public files.
+
+The [Royal Chapel foundation](chapel-runtime.md) adds separately fingerprinted
+`ST/DAI/SD_ZKDAI.VH` and `ST/DAI/SD_ZKDAI.VB`. These optional on-demand private
+inputs were verified against the user's local disc; public source contains only
+their names, sizes and hashes. Their presence does not enable connected Chapel travel.

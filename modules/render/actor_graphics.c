@@ -137,7 +137,7 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     // Play_Init loads default bank zero independently from room-specific graphics.
     // BO4 hand effects and Library base artwork require that initial residency.
     if (!Palettes(graphics) ||
-        ((stage == 26 || stage == 2) && !SotnActorGraphics_LoadBank(graphics, 0)))
+        ((stage == 26 || stage == 2 || stage == 6) && !SotnActorGraphics_LoadBank(graphics, 0)))
     {
         SotnActorGraphics_Destroy(graphics);
         return false;

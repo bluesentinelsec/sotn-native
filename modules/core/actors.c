@@ -96,6 +96,20 @@ bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out)
     return SotnCollision_Query(&actors->map, x, y, out);
 }
 
+// st/e_misc.h:PlaySfxPositional, shared by the selected original stage overlays.
+bool ActorPositionalSound(SotnActors *s, const Actor *a, Uint16 sound)
+{
+    if (!s || !a)
+        return SDL_SetError("Positional sound requires initialized stage owners");
+    const Sint32 dx = Pixel(a->state.x) - s->camera_x - 128;
+    const Sint32 dy = Pixel(a->state.y) - s->camera_y - 128;
+    const Sint32 pan = SDL_clamp((SDL_abs(dx) - 32) / 32, 0, 8);
+    const Sint32 attenuation = SDL_max(0, SDL_abs(dx) - 96 + SDL_max(0, SDL_abs(dy) - 112));
+    const Sint32 volume = 127 - attenuation / 2;
+    return volume <= 0 ||
+           ActorSoundVolumePan(s, sound, (Uint16)volume, (Sint8)(dx < 0 ? -pan : pan));
+}
+
 static bool Ground(SotnActors *actors, Actor *actor, bool *landed)
 {
     SotnDataView sensors = {0};
@@ -392,6 +406,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 6)
+        return id == 0x35 || id == 0x37;
     if (actors->stage_id == 2)
         return id == 0x1f || id == 0x22 || id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 ||
                id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 ||
@@ -1209,6 +1225,9 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
+    if (actors->stage_id == 6 && (actor->state.id == 1 || actor->state.id == 6 ||
+                                  actor->state.id == 8 || actor->state.id > 0xc))
+        return ActorChapel(actors, actor);
     if (actors->stage_id == 2 && (actor->state.id == 1 || actor->state.id == 6 ||
                                   actor->state.id == 8 || actor->state.id > 0xc))
         return ActorLibrary(actors, actor);
