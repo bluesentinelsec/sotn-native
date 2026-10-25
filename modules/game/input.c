@@ -55,6 +55,8 @@ bool LaboratoryInput_Event(LaboratoryInput *input, const SDL_Event *event)
 Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
 {
     Uint16 buttons = 0;
+    if (keys[SDL_SCANCODE_TAB] || keys[SDL_SCANCODE_M])
+        buttons |= SOTN_BUTTON_SELECT;
     if (keys[SDL_SCANCODE_RETURN])
         buttons |= SOTN_BUTTON_START;
     if (keys[SDL_SCANCODE_LEFT])
@@ -94,6 +96,8 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_DOWN;
         if (input->menu_open && SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_NORTH))
             buttons |= SOTN_BUTTON_CANCEL;
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_BACK))
+            buttons |= SOTN_BUTTON_SELECT;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_START))
             buttons |= SOTN_BUTTON_START;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_SOUTH))

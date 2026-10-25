@@ -9,7 +9,7 @@ working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
 Bloody Zombies run active motion/attack animations. Selected empty-hand and Basilard/Gladius/Mace combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Other equipped weapons,
-complete effects/audio, castle scripts, map UI, and full progression remain incomplete.
+complete effects/audio, castle scripts, full map parity, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
 [docs/private-data.md](docs/private-data.md) before extending that boundary.
 Its `modules/render/` library presents RGBA images through embedded OpenGL/ES
@@ -198,10 +198,14 @@ Bone Scimitar, Blood Skeleton, Axe Knight, and Spittle Bone behavior/projectiles
 Room switches/spikes, boxes, lifts, selected doors, cannon/secret obstacles now run.
 Normal camera follow and room locks now advance independently of rendering.
 The paired boss encounter now includes attacks, coordination, defeat, reward, and music changes.
-Ordinary saves retain map exploration and permanent Laboratory events. Map UI, Maria/castle
+Ordinary saves retain map exploration and permanent Laboratory events. Full map parity, Maria/castle
 scripts, whole-encounter replay parity, full effects/audio, and other stages remain incomplete;
 do not call the area complete.
 
 [Castle stage loading](docs/castle-stage-loading.md) now verifies 50 canonical stage
 overlay/artwork pairs on demand. `--inspect-stage CODE` is a headless data diagnostic,
 not native gameplay support or permission to send the player to an unintegrated stage.
+
+The [exploration map](docs/castle-map.md) now opens with Tab/M or Xbox Back/Select.
+It uses private blueprint/palette/passage data and saved exploration; full map and
+paused-stage presentation parity remain incomplete. Missing F_MAP.BIN fails explicitly on first use.

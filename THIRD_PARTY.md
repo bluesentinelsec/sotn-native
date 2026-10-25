@@ -173,3 +173,7 @@ from PSY-Z `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
 `psyz/src/psyz/libgte.c` (MPL-2.0); the [MPL notice](licenses/MPL-2.0.txt) is packaged.
 Its reciprocal estimates are generated mathematically. It supplies a bounded reward
 projection path, not a general PS1/GTE emulator.
+
+Exploration-map reveal, secret-passage, cursor, and orientation logic adapts
+`src/dra/5087C.c` and `src/dra/624DC.c` at the pinned sotn-decomp revision above,
+under AGPL-3.0-or-later. Blueprint, palette, and passage tables remain private.
