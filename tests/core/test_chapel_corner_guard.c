@@ -184,7 +184,8 @@ static bool DeathOwnership(Fixture *f)
     a->state.palette = 999;
     a->state.flags |= 0x100U;
     CHECK(ActorChapel(s, a) && a->state.step == 8 && a->substep == 1 && !a->state.frame &&
-          !a->state.hitbox_state && w->remove && a->state.primitive_count == 4);
+          !a->state.hitbox_state && w->remove && a->state.primitive_count == 4 &&
+          (a->state.flags & 0x80a00000U) == 0x80a00000U);
     ActorPrimitive *p = ActorPrimitiveGet(s, a, 0);
     CHECK(p && p->state.width == 80 && p->state.page == 18 && p->state.palette == 0x2a &&
           p->state.u[0] == 136 && p->state.v[0] == 144);
