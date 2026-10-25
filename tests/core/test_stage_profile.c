@@ -59,9 +59,21 @@ static bool Run(void)
     }
     return true;
 }
+static bool EntranceEntries(void)
+{
+    const Uint32 before[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 24, 25, 26};
+    for (Uint32 i = 0; i < SDL_arraysize(before); ++i)
+        CHECK(!SotnStageProfile_EntranceAfterDeath(before[i]));
+    const Uint32 after[] = {12, 13, 14, 15, 16, 17, 21, 22, 23, 27};
+    for (Uint32 i = 0; i < SDL_arraysize(after); ++i)
+        CHECK(SotnStageProfile_EntranceAfterDeath(after[i]));
+    CHECK(!SotnStageProfile_EntranceAfterDeath(SDL_MAX_UINT32));
+    return true;
+}
+
 int main(void)
 {
-    if (!Run())
+    if (!Run() || !EntranceEntries())
         return 1;
     SDL_Log("EARLY_CASTLE_PROFILES: PASS");
     return 0;

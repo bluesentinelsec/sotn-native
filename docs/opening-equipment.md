@@ -41,3 +41,10 @@ Adapted AGPL-3.0-or-later algorithms: `src/weapon/w_043.c`, `w_052.c`,
 `4A538.c:PAL_GLOW_ANIM`, and `src/st/collision.h` at reconstructed revision
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`. Runtime arrays, palettes, frames,
 sprites, and sounds stay in verified private inputs.
+
+Fresh diagnostic entries use an explicit room policy for completed theft. Room numbers
+are not progression order: forest/bridge rooms 18/19 and the pre-Death side rooms
+20/24/25/26 retain opening equipment. Normal room/stage travel uses the real event
+flag and never reseeds this development profile. The default room-zero entry reads
+the original gate-arrival record, placing Alucard on its lower traversable floor.
+The forest opening script and prologue-derived initialization remain incomplete.

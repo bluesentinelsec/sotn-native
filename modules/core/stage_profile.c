@@ -25,3 +25,9 @@ bool SotnStageProfile_SaveRoom(Uint16 stage, Uint32 room)
             return true;
     return false;
 }
+
+bool SotnStageProfile_EntranceAfterDeath(Uint32 room)
+{
+    // Explicit development-entry policy, not a substitute for the live event flag.
+    return (room >= 12 && room <= 17) || (room >= 21 && room <= 23) || room == 27;
+}

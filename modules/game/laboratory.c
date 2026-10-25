@@ -660,7 +660,7 @@ static bool InitializeEquipment(SotnLaboratory *session, const SotnSaveState *sa
         return SotnLaboratory_SetEquipment(session, 86, 0);
     if (!SotnCharacter_OpeningGear(session->character))
         return false;
-    if (session->room_index > 11)
+    if (SotnStageProfile_EntranceAfterDeath(session->room_index))
     {
         if (!SotnCharacter_DeathTheft(session->character))
             return false;
@@ -815,12 +815,29 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
 bool SotnLaboratory_CreateEntrance(const SotnGameData *data, const char *directory, Uint32 room,
                                    SotnLaboratory **out)
 {
-    return CreateSession(data, directory, (SessionStart){.stage = 65, .room = room}, out);
+    if (out == NULL)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    SotnStageRoute arrival = {0};
+    if (room == 0)
+    {
+        SotnDataView dra = {0};
+        if (!SotnGameData_GetFile(data, SOTN_GAME_DRA, &dra) ||
+            !SotnStageRoute_Read(dra, 65, 17, &arrival))
+            return false;
+        if (arrival.stage != 65 || arrival.room != 0)
+            return SDL_SetError("Entrance development entry does not match its original arrival");
+    }
+    return CreateSession(
+        data, directory,
+        (SessionStart){.stage = 65, .room = room, .arrival = room == 0 ? &arrival : NULL}, out);
 }
 
 bool SotnLaboratory_CreateStage(const SotnGameData *data, const char *directory, Uint16 stage,
                                 Uint32 room, SotnLaboratory **out)
 {
+    if (stage == 65)
+        return SotnLaboratory_CreateEntrance(data, directory, room, out);
     return CreateSession(data, directory, (SessionStart){.stage = stage, .room = room}, out);
 }
 
