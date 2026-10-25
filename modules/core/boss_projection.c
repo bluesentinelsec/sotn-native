@@ -156,3 +156,26 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose p, SotnPro
     SDL_memcpy(out, projected, sizeof(projected));
     return true;
 }
+
+// st/lib/e_library_bg.c: the pinned model rotations are identity, with private depth vertices.
+bool SotnLibrary_ProjectBackground(SotnDataView library, Uint16 kind, Sint32 x, Sint32 y,
+                                   SotnProjectedPoint *out)
+{
+    if (!out || kind > 3 || x < -32767 || x > 32767 || y < -32767 || y > 32767)
+        return SDL_SetError("Library background projection exceeds its selected controls");
+    SotnDataView vertex = {0}, rotation = {0};
+    const size_t offset = kind == 3 ? 0xdf0 : 0xdc0U + kind * 16U;
+    const size_t angles = kind == 3 ? 0xe88 : offset + 8;
+    if (!Slice(library, offset, 8, &vertex) || !Slice(library, angles, 6, &rotation))
+        return false;
+    const Sint32 z = Signed16(vertex.bytes + 4);
+    if (Read16(vertex.bytes) || Read16(vertex.bytes + 2) || z < 0 || Read16(rotation.bytes) ||
+        Read16(rotation.bytes + 2) || Read16(rotation.bytes + 4))
+        return SDL_SetError(
+            "Library background requires its original axial vertex and identity rotation");
+    const Uint32 ratio = Divide((Uint32)(1024 + z), 1024);
+    const bool distant = kind == 3;
+    *out = (SotnProjectedPoint){Coordinate(128, x - 128, ratio),
+                                Coordinate(distant ? 128 : y, distant ? y - 128 : 0, ratio)};
+    return true;
+}

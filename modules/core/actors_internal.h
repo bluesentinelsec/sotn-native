@@ -328,6 +328,7 @@ struct SotnActors
     } shop;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
+    Uint16 backdrop_color;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
 };
@@ -522,6 +523,8 @@ bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
  * @return Success or SDL error; optional exhausted reward allocation waits for another tick.
  * Native factories retain ownership; no pointers transfer to the caller. */
 bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
+/** @brief Project and present the selected private Library parallax actors. */
+bool ActorLibraryBackground(SotnActors *actors, Actor *actor);
 /** @brief Decode and animate original Library foreground/background decoration records. */
 bool ActorLibraryObject(SotnActors *actors, Actor *actor);
 /** @brief Advance original per-button repeat timers after tapped/pressed input is installed. */

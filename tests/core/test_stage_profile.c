@@ -145,7 +145,7 @@ static bool LibraryAdapters(void)
     stage[0x2e0c] = 1;
     stage[0x2e0d] = 3;
     CHECK(ActorLibrary(s, &flea) && flea.state.frame == 3);
-    const Uint16 pending[] = {0x16, 0x28, 0x49};
+    const Uint16 pending[] = {0x1a, 0x28, 0x49};
     for (Uint32 i = 0; i < SDL_arraysize(pending); ++i)
     {
         Actor unsupported = {.state = {.id = pending[i], .generation = 3}};

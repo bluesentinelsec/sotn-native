@@ -1878,3 +1878,11 @@ bool SotnActors_DoppleDeathMask(const SotnActors *actors, SotnDataView *out)
                : (SotnDataView){0};
     return true;
 }
+
+bool SotnActors_GetBackdrop(const SotnActors *s, Uint16 *out)
+{
+    if (!s || !out)
+        return SDL_SetError("Stage backdrop requires initialized actors and output");
+    *out = s->backdrop_color;
+    return true;
+}
