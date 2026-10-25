@@ -447,7 +447,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     for (Uint32 i = 0; i < SDL_arraysize(actor->cooldown); ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
-    if (!(actors->stage_id == 1 && actor->state.id == 0x33) &&
+    const bool rock = (actors->stage_id == 65 || actors->stage_id == 7) &&
+                      (actor->state.id == 0x24 || actor->state.id == 0x25);
+    if (!rock && !(actors->stage_id == 1 && actor->state.id == 0x33) &&
         !EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
         actor->state.id != 0xa && actor->state.id != 0xb &&
         (actors->stage_id != 12 ||
@@ -1448,6 +1450,9 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
         SDL_free(tiles);
         return false;
     }
+    SDL_free(actors->background_tiles);
+    actors->background_tiles = NULL;
+    actors->background = (SotnCollisionMap){0};
     SDL_free(actors->mutable_tiles);
     actors->mutable_tiles = tiles;
     SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));
@@ -1705,6 +1710,7 @@ void SotnActors_Destroy(SotnActors *actors)
     {
         SotnRoomActors_Destroy(actors->spawns);
         SDL_free(actors->mutable_tiles);
+        SDL_free(actors->background_tiles);
         SDL_free(actors);
     }
 }

@@ -69,6 +69,7 @@ add_library(sotn-core STATIC
   enemy_spittle.c
   enemy_skeleton.c
   enemy_entrance.c
+  entrance_rocks.c
   enemy_warg.c
   enemy_merman.c
   laboratory_maria.c

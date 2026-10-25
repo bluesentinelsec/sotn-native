@@ -68,3 +68,7 @@ The default room-zero development entry now uses the private original gate-arriv
 record, rather than a generic upper-floor position. It starts inside the castle;
 the forest opening script remains separate. Fresh room entries retain opening gear
 in the forest/bridge and pre-Death side rooms; live progression uses actual event flags.
+
+The [water-room rocks](entrance-rocks.md) now break after original weapon strikes,
+retain both broken sides and update both tile layers. Their later transformation
+ritual remains gated by unavailable wolf/bat abilities.

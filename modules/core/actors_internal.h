@@ -159,8 +159,8 @@ struct SotnActors
 {
     SotnDataView dra, nz0, executable;
     Uint16 stage_id, entrance_scimitars;
-    SotnCollisionMap map;
-    Uint8 *mutable_tiles;
+    SotnCollisionMap map, background;
+    Uint8 *mutable_tiles, *background_tiles;
     SotnWorldState fallback_world, *world;
     SotnCamera fallback_camera, *camera;
     SotnPlayerState player;
@@ -277,6 +277,7 @@ bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
 /** Advance shared green/blue sprite-piece death physics. Reports the original pool fallback. */
 bool ActorKnightShatter(SotnActors *actors, Actor *actor, bool *done);
+bool ActorEntranceRock(SotnActors *actors, Actor *actor);
 bool ActorOuterElevator(SotnActors *actors, Actor *actor);
 bool ActorOuterLiftDoors(SotnActors *actors, Actor *actor);
 bool ActorOuterLiftSwitch(SotnActors *actors, Actor *actor);

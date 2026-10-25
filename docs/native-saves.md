@@ -117,3 +117,7 @@ and fixtures remain ignored.
 The supported [Outer Wall elevator](outer-wall-elevator.md) adds original boolean flags
 16/17 to the existing world payload. Version 6 stays unchanged; both flags roundtrip
 through all supported stages/save rooms, and malformed values fail validation.
+
+The [Entrance rock puzzle](entrance-rocks.md) retains original four-bit flag 51 and
+boolean flag 58 in v6. Both side breaks survive stage changes and ordinary Continue;
+the unsupported transformation prerequisites are never granted by breaking rocks.
