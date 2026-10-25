@@ -159,6 +159,75 @@ static bool Unarmed(SotnActors *s, Uint8 *image)
     s->dra = (SotnDataView){0};
     return true;
 }
+static bool Knife(SotnActors *s)
+{
+    Uint8 dra[0x300] = {0}, tiles[16 * 16 * 2] = {0}, types[2] = {0, 3};
+    Put32(dra + 0x98, 0x800a0200);
+    Put16(dra + 0x204, 20);
+    Put16(dra + 0x206, 6);
+    Put16(dra + 0x20c, 1);
+    s->dra = (SotnDataView){dra, sizeof(dra)};
+    s->map = (SotnCollisionMap){{tiles, sizeof(tiles)}, {types, sizeof(types)}, 16, 16};
+    for (Uint32 y = 0; y < 16; ++y)
+        for (Uint32 x = 10; x < 16; ++x)
+            tiles[(y * 16 + x) * 2] = 1;
+    Clear(s);
+    s->dopple.body = (SotnDoppleBody){0};
+    Actor *a = &s->slots[32];
+    *a = (Actor){.state = {.id = 0x104, .generation = 88, .x = 100 * 65536, .y = 109 * 65536},
+                 .slot = 32,
+                 .dynamic = true};
+    CHECK(ActorDoppleKnife(s, a));
+    CHECK(a->state.step == 1 && a->vx == 524288 && a->state.y == 100 * 65536 &&
+          a->state.hitbox_width == 8 && a->state.hitbox_height == 5 &&
+          s->dopple.body.timers[10] == 4 && s->combat.sound_count > 0 &&
+          s->combat.sounds[s->combat.sound_count - 1] == 0x60c);
+    CHECK(ActorDoppleKnife(s, a));
+    ActorPrimitive *picture = ActorPrimitiveGet(s, a, 0), *trail = ActorPrimitiveGet(s, a, 1);
+    CHECK(picture != NULL && trail != NULL && picture->state.quad && picture->state.active &&
+          trail->state.line && trail->state.active && trail->state.line_blend_mode == 1 &&
+          a->state.x == 108 * 65536);
+    for (Uint32 tick = 0; tick < 12 && a->state.step == 1; ++tick)
+        CHECK(ActorDoppleKnife(s, a));
+    CHECK(a->state.step == 2 && a->timer == 64 && a->vx == -65536 && a->vy == -163840 &&
+          a->state.hitbox_state == 0 && a->state.x == 152 * 65536 &&
+          s->combat.sounds[s->combat.sound_count - 1] == 0x6a4);
+    CHECK(ActorDoppleKnife(s, a));
+    CHECK(a->timer == 63 && a->state.x == 151 * 65536 && !trail->state.active);
+    while (a->timer > 32)
+        CHECK(ActorDoppleKnife(s, a));
+    CHECK(picture->state.blend && picture->state.modulate && picture->state.red == 94 &&
+          picture->state.page == 0x3c);
+    while (!a->remove)
+        CHECK(ActorDoppleKnife(s, a));
+    Clear(s);
+    a = &s->slots[32];
+    s->dopple.body.facing_left = true;
+    s->dopple.body.motion.status = 0x120;
+    *a = (Actor){.state = {.id = 0x104, .generation = 89, .x = 100 * 65536, .y = 109 * 65536},
+                 .slot = 32,
+                 .dynamic = true};
+    CHECK(ActorDoppleKnife(s, a));
+    CHECK(a->vx == -524288 && a->state.y == 109 * 65536 && a->attack == 3);
+    a->hit_flags = 0x80;
+    CHECK(ActorDoppleKnife(s, a) && a->state.step == 3 && a->timer == 4);
+    for (Uint32 tick = 0; tick < 4; ++tick)
+        CHECK(ActorDoppleKnife(s, a));
+    CHECK(a->remove);
+    a->state.step = 2;
+    a->timer = 0;
+    CHECK(!ActorDoppleKnife(s, a));
+    a->state.step = 1;
+    a->vx = 0;
+    CHECK(!ActorDoppleKnife(s, a));
+    a->state.step = 9;
+    CHECK(!ActorDoppleKnife(s, a));
+    CHECK(!ActorDoppleKnife(NULL, a));
+    CHECK(!ActorDoppleKnife(s, NULL));
+    s->dra = (SotnDataView){0};
+    s->map = (SotnCollisionMap){0};
+    return true;
+}
 int main(void)
 {
     Uint8 image[0x4400] = {0};
@@ -167,7 +236,8 @@ int main(void)
         return 1;
     s->stage_id = 26;
     s->nz0 = (SotnDataView){image, sizeof(image)};
-    const bool pass = SotnRoomActors_Create(&s->spawns) && Tests(s, image) && Unarmed(s, image);
+    const bool pass =
+        SotnRoomActors_Create(&s->spawns) && Tests(s, image) && Unarmed(s, image) && Knife(s);
     SotnRoomActors_Destroy(s->spawns);
     SDL_free(s);
     if (!pass)

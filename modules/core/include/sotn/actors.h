@@ -92,6 +92,8 @@ typedef struct SotnActorPrimitive
     Uint16 width, height, page, palette;
     Uint8 u[4], v[4], red, green, blue;
     bool active, textured, blend, modulate;
+    bool line; /**< Two-color line through offset vertices 0 and 1. */
+    Uint8 line_red, line_green, line_blue, line_blend_mode;
     bool quad; /**< Use explicit pixel offsets from x/y for a textured quadrilateral. */
     Sint16 offset_x[4], offset_y[4];
 } SotnActorPrimitive;

@@ -362,6 +362,7 @@ bool ActorDoppleFactoryRequest(SotnActors *actors, const Actor *source,
                                const SotnDoppleRequest *request);
 bool ActorDoppleFactory(SotnActors *actors, Actor *actor);
 bool ActorDoppleUnarmed(SotnActors *actors, Actor *actor);
+bool ActorDoppleKnife(SotnActors *actors, Actor *actor);
 bool ActorMedusa(SotnActors *actors, Actor *actor);
 bool ActorArmorLord(SotnActors *actors, Actor *actor);
 bool ActorArmorWave(SotnActors *actors, Actor *actor);

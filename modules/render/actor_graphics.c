@@ -748,3 +748,35 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite
         return Draw(g, sprite, x, y, frame, count, NULL);
     return Draw(g, sprite, x, y, frame, count, &transform);
 }
+
+bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
+{
+    if (frame == NULL || count < SOTN_FRAME_PIXELS || line.blend_mode > 3)
+        return SDL_SetError("Actor line requires a full frame and an original blend mode");
+    for (size_t i = 0; i < 2; ++i)
+        if (line.x[i] < -2048 || line.x[i] > 2048 || line.y[i] < -2048 || line.y[i] > 2048)
+            return SDL_SetError("Actor line endpoint exceeds bounded native presentation");
+    const Sint32 dx = line.x[1] - line.x[0], dy = line.y[1] - line.y[0];
+    const Sint32 steps = SDL_max(SDL_abs(dx), SDL_abs(dy));
+    const Sint32 divisor = steps ? steps : 1;
+    for (Sint32 i = 0; i <= steps; ++i)
+    {
+        const Sint32 x = (Sint32)FloorDivide((Sint64)line.x[0] * divisor + (Sint64)dx * i, divisor);
+        const Sint32 y = (Sint32)FloorDivide((Sint64)line.y[0] * divisor + (Sint64)dy * i, divisor);
+        if (x < 0 || x >= SOTN_FRAME_WIDTH || y < 0 || y >= SOTN_FRAME_HEIGHT)
+            continue;
+        const Uint16 red =
+            (Uint16)(((Sint64)line.red[0] * divisor + ((Sint32)line.red[1] - line.red[0]) * i) /
+                     divisor / 8);
+        const Uint16 green = (Uint16)(((Sint64)line.green[0] * divisor +
+                                       ((Sint32)line.green[1] - line.green[0]) * i) /
+                                      divisor / 8);
+        const Uint16 blue =
+            (Uint16)(((Sint64)line.blue[0] * divisor + ((Sint32)line.blue[1] - line.blue[0]) * i) /
+                     divisor / 8);
+        const Uint16 front = (Uint16)(red | green << 5 | blue << 10);
+        const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
+        frame[pixel] = line.blend ? Blend(frame[pixel], front, line.blend_mode) : front;
+    }
+    return true;
+}

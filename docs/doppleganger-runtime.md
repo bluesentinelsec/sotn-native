@@ -98,3 +98,30 @@ Factory/hand behavior adapts `bo4/unk_49A6C.c` and
 at the same pinned AGPL reference. Smoke, knife and transformation children, the
 body's forms/damage/death, original stage events and connected progression remain
 pending. Ordinary arena travel remains disabled.
+
+## Thrown knife child
+
+The knife child now initializes from the original private profile and retains its
+eight one-pixel collision probes per tick, poison scaling, hitbox, throw/impact
+sound requests, enemy-hit hold, bounce, rotation, fade and expiry. Its two owned
+primitives use original artwork/palette/UV metadata and a two-color additive trail.
+The native renderer now has bounded integer line interpolation with the existing
+four RGB555 blend operations. Exact GPU endpoint registration and ordering still
+require console comparison; this does not establish pixel parity.
+
+Public synthetic checks cover flight, both directions, crouch/poison initialization,
+collision/recoil, fade/expiry, hit hold, malformed timers/speed and line clipping,
+interpolation, degenerate endpoints, blend arithmetic and atomic invalid-input
+failure. All 58 public groups pass in Debug and macOS ASan/UBSan. A dedicated private
+LLDB fixture uses an explicitly inserted collision wall and validates the original
+knife texture separately from its trail, then runs one complete bounce/fade/expiry
+with 69 primitive draws under both builds. Three impact-effect children are
+explicitly skipped. The earlier hand fixture's skipped knives are covered only by
+this separate component check, not by an ordinary encounter replay. Packaging passes.
+
+Knife behavior adapts `bo4/unk_50D4C.c:EntitySubwpnKnife` at the pinned AGPL revision;
+original line/color commands are described in `dra/4DA70.c`. The native line sampler
+is a bounded presentation adapter, not a PS1 GPU implementation. Impact effects,
+smoke, transformation children, body forms/damage/death, live player contact and
+the original encounter/connected progression remain pending. Ordinary arena travel
+stays disabled.

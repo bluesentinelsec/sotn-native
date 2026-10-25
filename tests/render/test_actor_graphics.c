@@ -542,6 +542,50 @@ static bool PackedSheets(Fixture *f)
     return true;
 }
 
+static bool TestColorLine(Fixture *f)
+{
+    SDL_zero(f->frame);
+    SotnColorLine line = {.x = {2, 6}, .y = {3, 3}, .red = {248, 0}, .green = {0, 248}};
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[3 * 256 + 2] == 31 && f->frame[3 * 256 + 6] == (31 << 5) &&
+          f->frame[3 * 256 + 4] == (15 | (15 << 5)) && f->frame[3 * 256 + 7] == 0);
+    line.x[0] = 6;
+    line.x[1] = 2;
+    line.red[0] = 0;
+    line.red[1] = 248;
+    line.green[0] = 248;
+    line.green[1] = 0;
+    line.blend = true;
+    line.blend_mode = 1;
+    f->frame[3 * 256 + 4] = 0x7c00;
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[3 * 256 + 4] == 0x7def);
+    SDL_zero(f->frame);
+    line = (SotnColorLine){.x = {1, 5}, .y = {1, 3}, .red = {248, 248}};
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[1 * 256 + 1] == 31 && f->frame[1 * 256 + 2] == 31 &&
+          f->frame[2 * 256 + 3] == 31 && f->frame[2 * 256 + 4] == 31 &&
+          f->frame[3 * 256 + 5] == 31);
+    line = (SotnColorLine){.x = {-2, 2}, .y = {0, 0}, .red = {248, 248}};
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    line = (SotnColorLine){
+        .x = {0, 0}, .y = {0, 0}, .red = {248, 248}, .blend = true, .blend_mode = 2};
+    f->frame[0] = 3;
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0);
+    line.blend_mode = 3;
+    f->frame[0] = 3;
+    CHECK(SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 10);
+    line.blend_mode = 4;
+    CHECK(!SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 10);
+    line.blend_mode = 0;
+    line.x[0] = 2049;
+    CHECK(!SotnActorGraphics_Line(line, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 10);
+    line.x[0] = 0;
+    CHECK(!SotnActorGraphics_Line(line, f->frame, 1));
+    CHECK(!SotnActorGraphics_Line(line, NULL, SOTN_FRAME_PIXELS));
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -550,7 +594,8 @@ int main(void)
     const bool passed = StageBankBounds(fixture) && TestRopeCache(fixture) &&
                         TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
                         TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture) && PackedSheets(fixture);
+                        TestWeapons(fixture) && TestDialogue(fixture) && PackedSheets(fixture) &&
+                        TestColorLine(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

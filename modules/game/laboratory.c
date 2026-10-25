@@ -1088,6 +1088,21 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
         if (!p.active)
             continue;
         const Sint32 x = Pixel(p.x) - camera_x, y = Pixel(p.y) - camera_y;
+        if (p.line)
+        {
+            if (p.textured)
+                return SDL_SetError("Actor line must use endpoint colors rather than a texture");
+            const SotnColorLine line = {.x = {x + p.offset_x[0], x + p.offset_x[1]},
+                                        .y = {y + p.offset_y[0], y + p.offset_y[1]},
+                                        .red = {p.red, p.line_red},
+                                        .green = {p.green, p.line_green},
+                                        .blue = {p.blue, p.line_blue},
+                                        .blend = p.blend,
+                                        .blend_mode = p.line_blend_mode};
+            if (!SotnActorGraphics_Line(line, session->frame, SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         Sint32 left = p.textured ? x - p.width / 2 : x, top = p.textured ? y - p.height / 2 : y;
         Sint32 right = left + p.width, bottom = top + p.height;
         if (p.quad)
