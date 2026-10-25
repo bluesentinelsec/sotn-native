@@ -82,4 +82,19 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
  * @return Success or SDL error for invalid controls, truncated data or nonselected rotations. */
 bool SotnLibrary_ProjectBackground(SotnDataView library, Uint16 kind, Sint32 x, Sint32 y,
                                    SotnProjectedPoint *out);
+/** @brief Copied rotating Library shelf vertices and SDK-lit RGB colors. */
+typedef struct SotnShelfProjection
+{
+    SotnProjectedPoint point[8];
+    Uint8 color[8][3];
+} SotnShelfProjection;
+/** @brief Project the selected Library shelf model with original fixed lighting and fog.
+ * @param executable Borrowed private SDK pair/normalization tables.
+ * @param library Borrowed private vertex/normal pointers and color matrix.
+ * @param angle Original signed 4096-unit Y rotation. @param depth Extra depth, 0..128.
+ * @param x Screen anchor, +/-16384. @param y Screen anchor, +/-16384.
+ * @param out Receives copied geometry/colors, unchanged on failure.
+ * @return Success or SDL error; rejects unselected model/normal domains. */
+bool SotnLibrary_ProjectShelf(SotnDataView executable, SotnDataView library, Sint16 angle,
+                              Sint16 depth, Sint32 x, Sint32 y, SotnShelfProjection *out);
 #endif

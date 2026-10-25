@@ -179,3 +179,69 @@ bool SotnLibrary_ProjectBackground(SotnDataView library, Uint16 kind, Sint32 x, 
                                 Coordinate(distant ? 128 : y, distant ? y - 128 : 0, ratio)};
     return true;
 }
+
+// Fog arithmetic follows MIT SDK src/main/psxsdk/libgte/fog_01.c.
+// Selected RTPS/NCDS path: SDK instruction 0x4ae80413 uses sf=1, lm=1.
+// The pinned PSY-Z NormalColorDpq literal reverses bytes; do not inherit that defect.
+bool SotnLibrary_ProjectShelf(SotnDataView executable, SotnDataView library, Sint16 angle,
+                              Sint16 extra, Sint32 x, Sint32 y, SotnShelfProjection *out)
+{
+    if (!out || extra < 0 || extra > 128 || x < -16384 || x > 16384 || y < -16384 || y > 16384)
+        return SDL_SetError("Library shelf projection exceeds its selected controls");
+    SotnDataView models = {0}, normals = {0}, matrix = {0}, coefficient = {0};
+    SotnMathTrig trig = {0};
+    if (!Slice(library, 0xc88, 32, &models) || !Slice(library, 0xd28, 32, &normals) ||
+        !Slice(library, 0xd88, 18, &matrix) || !Slice(executable, 0x1e5f4, 2, &coefficient) ||
+        !SotnMath_MatrixTrig(executable, angle, &trig))
+        return false;
+    // The selected normals have equal +/-4096 X/Z components. Their SDK normalization
+    // uses reciprocal-root index 64, with a shift of 12; retain the private coefficient.
+    const Sint32 normal_scale = Read16(coefficient.bytes);
+    if (normal_scale < 2048 || normal_scale > 4096)
+        return SDL_SetError("Library shelf has an invalid private reciprocal-root coefficient");
+    SotnShelfProjection result = {0};
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        const Uint32 model = Read32(models.bytes + i * 4U), normal = Read32(normals.bytes + i * 4U);
+        SotnDataView vertex = {0}, direction = {0};
+        if (model < 0x80180c48 || model > 0x80180c80 || (model - 0x80180c48) % 8U ||
+            normal < 0x80180ca8 || normal > 0x80180d18 || (normal - 0x80180ca8) % 16U ||
+            !Slice(library, model - 0x80180000U, 6, &vertex) ||
+            !Slice(library, normal - 0x80180000U, 12, &direction))
+            return SDL_SetError("Library shelf model references invalid private data");
+        const Sint32 vx = Signed16(vertex.bytes), vy = Signed16(vertex.bytes + 2),
+                     vz = Signed16(vertex.bytes + 4);
+        const Sint32 nx = Signed32(direction.bytes), ny = Signed32(direction.bytes + 4),
+                     nz = Signed32(direction.bytes + 8);
+        if (vx < -32 || vx > 32 || vy < -96 || vy > 0 || vz < -32 || vz > 32 ||
+            (nx != -4096 && nx != 4096) || ny || (nz != -4096 && nz != 4096))
+            return SDL_SetError("Library shelf vertex or normal exceeds its selected model");
+        const Sint32 tx = ActorShift((Sint64)trig.cosine * vx + (Sint64)trig.sine * vz, 12),
+                     tz = 552 + extra +
+                          ActorShift(-(Sint64)trig.sine * vx + (Sint64)trig.cosine * vz, 12);
+        const Uint32 ratio = Divide((Uint32)tz, 512);
+        result.point[i] = (SotnProjectedPoint){Coordinate(x, tx, ratio), Coordinate(y, vy, ratio)};
+        const Sint32 cue = SDL_clamp(ActorShift(20971520LL - (Sint64)335 * ratio, 12), 0, 4096);
+        const Sint32 ax = nx < 0 ? -normal_scale : normal_scale,
+                     az = nz < 0 ? -normal_scale : normal_scale;
+        const Sint32 light[3] = {
+            SDL_clamp(ActorShift((Sint64)trig.cosine * ax + (Sint64)trig.sine * az, 12), 0, 32767),
+            0,
+            SDL_clamp(ActorShift(-(Sint64)trig.sine * ax + (Sint64)trig.cosine * az, 12), 0,
+                      32767)};
+        for (Uint16 row = 0; row < 3; ++row)
+        {
+            Sint64 sum = 88LL * 16 * 4096;
+            for (Uint16 col = 0; col < 3; ++col)
+                sum += (Sint64)Signed16(matrix.bytes + (row * 3U + col) * 2U) * light[col];
+            const Sint32 lit = SDL_clamp(ActorShift(sum, 12), 0, 32767);
+            const Sint32 input = (144 * 16) * lit;
+            const Sint32 difference =
+                SDL_clamp(ActorShift(64LL * 16 * 4096 - input, 12), -32768, 32767);
+            const Sint32 color = ActorShift((Sint64)input + (Sint64)cue * difference, 12);
+            result.color[i][row] = (Uint8)SDL_clamp(ActorShift(color, 4), 0, 255);
+        }
+    }
+    *out = result;
+    return true;
+}

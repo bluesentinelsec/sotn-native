@@ -29,7 +29,7 @@ bool SotnWorld_Validate(const SotnWorldState *s)
             return SDL_SetError("Saved time-attack event %u has an invalid HHMMSS record", i);
     }
     if (s->flags[SOTN_LIBRARY_MAP] > 1 || s->flags[SOTN_LIBRARY_MET] > 1 ||
-        s->flags[SOTN_LIBRARY_DROPS] > 15)
+        s->flags[SOTN_LIBRARY_DROPS] > 15 || s->flags[SOTN_LIBRARY_SHELF] > 1)
         return SDL_SetError("Saved Library encounter flag is invalid");
     if (s->flags[SOTN_CLOCK_FLOOR] > 1)
         return SDL_SetError("Saved clock-room floor flag is invalid");

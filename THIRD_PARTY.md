@@ -336,3 +336,12 @@ Selected Library parallax behavior in `modules/core/library_background.c` adapts
 `st/lib/e_library_bg.c` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
 Its bounded axial projector reuses the existing MPL-2.0 PSY-Z divider/saturation
 backend. Model, anchor, lighting, texture and palette records remain private.
+
+Selected rotating Library bookcase behavior/subdivision in `library_shelf*.c`
+adapts `st/lib/first_c_file.c:func_us_801AE8E8` and
+`st/e_misc.h:UnkRecursivePrimFunc2` at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Selected projection/lighting in `boss_projection.c` follows
+the pinned PSY-Z fixed GTE implementation (MPL-2.0), with original NCDS command
+fields and MIT SDK `src/main/psxsdk/libgte/fog_01.c` fog arithmetic. All model,
+normal, matrix, pose and lookup tables remain private runtime inputs. See
+[scope and reference corrections](docs/library-secret-bookcase.md).

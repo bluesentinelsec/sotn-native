@@ -40,8 +40,7 @@ frames. The room-0 start uses its original background placement window; starting
 below that window does not initialize those actors and is not coverage. These
 are explicit room starts, not uninterrupted route or console parity evidence.
 
-Exact GPU dithering/color interpolation, general priority ties, the rotating
-secret bookcase, sitting, Mist-form interaction, remaining shop services and
+Exact GPU dithering/color interpolation, general priority ties, sitting, Mist-form interaction, remaining shop services and
 ordinary Library travel remain incomplete. Do not describe the area as complete.
 
 Behavior adapts `st/lib/e_library_bg.c` at sotn-decomp
@@ -49,3 +48,6 @@ Behavior adapts `st/lib/e_library_bg.c` at sotn-decomp
 bounded projection backend derives from PSY-Z
 `b52003e55c0d1b20719e984dd19bd4d760eeb14a` (MPL-2.0). Original model, texture,
 palette, anchor and lighting tables remain private.
+
+The [rotating secret bookcase](library-secret-bookcase.md) now has its own selected
+geometry, interaction and ordinary-save checks.

@@ -39,6 +39,8 @@ add_library(sotn-core STATIC
   actor_stage_profile.c
   early_castle.c
   library.c
+  library_shelf.c
+  library_shelf_geometry.c
   library_background.c
   library_objects.c
   library_breakable.c
