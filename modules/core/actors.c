@@ -202,10 +202,23 @@ bool ActorSound(SotnActors *actors, Uint16 id)
 {
     if (actors->combat.sound_count >= SDL_arraysize(actors->combat.sounds))
         return SDL_SetError("Laboratory sound request budget exceeded");
-    actors->combat.sounds[actors->combat.sound_count++] = id;
+    const Uint16 slot = actors->combat.sound_count++;
+    actors->combat.sounds[slot] = id;
+    actors->combat.volumes[slot] = SDL_MAX_UINT16;
+    actors->combat.pans[slot] = 0;
     return true;
 }
 
+bool ActorSoundVolumePan(SotnActors *actors, Uint16 id, Uint16 volume, Sint8 pan)
+{
+    if (volume > 127 || pan < -8 || pan > 8)
+        return SDL_SetError("Actor sound volume/pan exceeds its original bounds");
+    if (!ActorSound(actors, id))
+        return false;
+    actors->combat.volumes[actors->combat.sound_count - 1] = volume;
+    actors->combat.pans[actors->combat.sound_count - 1] = pan;
+    return true;
+}
 bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind)
 {
     for (Uint32 i = 160; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
@@ -1743,14 +1756,16 @@ bool SotnActors_SetCamera(SotnActors *s, SotnCamera *camera)
     return true;
 }
 
-bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint32 seconds,
+bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint64 ticks,
                             bool music_playing)
 {
     if (s == NULL || executable.bytes == NULL || executable.size < 0x22a10 + 2050 ||
-        seconds > 99999U * 3600)
-        return SDL_SetError("Stage services require private SDK tables and bounded game seconds");
+        ticks > 99999ULL * 3600 * 60)
+        return SDL_SetError(
+            "Stage services require private SDK tables and bounded simulation ticks");
     s->executable = executable;
-    s->game_seconds = seconds;
+    s->game_seconds = (Uint32)(ticks / 60);
+    s->game_frame = (Uint8)(ticks % 60);
     s->music_playing = music_playing;
     return true;
 }

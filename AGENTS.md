@@ -252,3 +252,8 @@ Selected [Marble encounters](docs/marble-gallery-enemies.md) and
 Tables, Stone Roses, Skelerang and Diplocephalus with selected projectiles and death
 behavior. Public synthetic and private explicit-room LLDB checks cover these paths;
 continuous-route/console parity and complete area actors/effects remain incomplete.
+
+The [early Marble clock room](docs/marble-clock-room.md) now runs timed statues,
+stopwatch gating, hands, birdcages, selected floor/shadow/pendulum behavior, and clock
+audio with original volume/pan. The later ring ritual and full effects/priority/timing
+parity remain incomplete. Stage services consume elapsed ticks, not whole seconds.

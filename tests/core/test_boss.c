@@ -123,7 +123,7 @@ static bool Project(void)
 }
 static bool Tick(SotnActors *s, Fixture *f, SotnPlayerState p, Uint32 tick)
 {
-    CHECK(SotnActors_SetServices(s, (SotnDataView){f->main, sizeof(f->main)}, tick / 60, false));
+    CHECK(SotnActors_SetServices(s, (SotnDataView){f->main, sizeof(f->main)}, tick, false));
     CHECK(SotnActors_Tick(s, p, 472, 260));
     return true;
 }

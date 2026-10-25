@@ -30,6 +30,13 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
  * release ambience channels 20/21.
  * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue. */
 bool SotnSound_Queue(SotnSound *sound, Uint16 id);
+/** @brief Queue an original effect with explicit volume and signed stereo distance.
+ * @param sound Borrowed simulation. @param id Original effect ID, 0x601..0x8e0.
+ * @param volume Original 0..127 multiplier. @param pan Original distance, -8..8.
+ * @return Success or SDL error; the queue is unchanged on invalid input or exhaustion.
+ * Pan coefficients remain in the private DRA image. */
+bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan);
+
 /** @brief Advance scripts/voices and render one tick of signed native-endian stereo PCM.
  * @param sound Borrowed owned simulation, advanced on success.
  * @param pcm Receives SOTN_SOUND_FRAMES * 2 initialized samples.

@@ -29,6 +29,7 @@ typedef enum SotnRelicId
 /** @brief Original US permanent stage flag indices, not private table contents. */
 typedef enum SotnWorldFlag
 {
+    SOTN_CLOCK_FLOOR = 0,
     SOTN_ENTRANCE_DEATH = 53,
     SOTN_ENTRANCE_ON = 55,
     SOTN_ENTRANCE_STAIRS = 56,

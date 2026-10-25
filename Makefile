@@ -163,3 +163,5 @@ SOTN_FORMAT_SOURCES += modules/core/actor_wide_animation.c modules/core/enemy_fl
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_skelerang.c modules/core/enemy_diplo.c \
   modules/core/enemy_diplo_tail.c modules/core/enemy_diplo_fire.c
+
+SOTN_FORMAT_SOURCES += modules/core/marble_clock.c tests/core/test_clock.c

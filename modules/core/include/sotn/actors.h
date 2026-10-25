@@ -28,9 +28,10 @@ typedef struct SotnActorMotion
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through
- * actor destruction. @param seconds Original game-time seconds. @param music_playing Scene music
- * activity. @return Success or SDL error. No input bytes are copied or executed. */
-bool SotnActors_SetServices(SotnActors *actors, SotnDataView executable, Uint32 seconds,
+ * actor destruction. @param ticks Original elapsed simulation ticks, capped at 99999 hours. @param
+ * music_playing Scene music activity. @return Success or SDL error. No input bytes are copied or
+ * executed. */
+bool SotnActors_SetServices(SotnActors *actors, SotnDataView executable, Uint64 ticks,
                             bool music_playing);
 /** @brief Borrow the scene camera for original room-lock actors; NULL selects a room fallback.
  * @param actors Borrowed simulation. @param camera Borrowed writable scene-owned state.
@@ -63,10 +64,11 @@ typedef struct SotnActorState
     Sint16 hit_points, hitbox_x, hitbox_y;
     Uint16 hitbox_width, hitbox_height, hitbox_state;
     Sint16 rotation;
-    bool rotated;
+    bool rotated, opacity_set; /**< Explicit zero opacity is valid when opacity_set is true. */
     Uint8 primitive_count;
     Uint16 slot;
-    Uint16 scale_x, scale_y, opacity; /**< Zero selects original unit scale/neutral color. */
+    Uint16 scale_x, scale_y,
+        opacity; /**< Zero selects unit scale/neutral color unless opacity_set is true. */
 } SotnActorState;
 
 /** @brief Copied stage primitive, owned by its actor; positions are room-local 16.16 pixels. */
@@ -86,7 +88,9 @@ bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index
 /** @brief Per-tick game sound requests and development inventory/contact state. */
 typedef struct SotnActorCombat
 {
-    Uint16 sounds[256]; /**< Original sound IDs; only sound_count entries are initialized. */
+    Uint16 volumes[256]; /**< Original volume multiplier; UINT16_MAX selects default. */
+    Sint8 pans[256];     /**< Original signed stereo distance, -8..8. */
+    Uint16 sounds[256];  /**< Original sound IDs; only sound_count entries are initialized. */
     Uint16 sound_count, hearts, hearts_max, subweapon;
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
