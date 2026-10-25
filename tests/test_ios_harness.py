@@ -3,8 +3,9 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location(
     "ios_harness", Path(__file__).resolve().parents[1] / "scripts/test_ios.py")
@@ -48,3 +49,73 @@ class IOSReportTest(unittest.TestCase):
                  patch.object(harness.time, "sleep") as sleep:
                 harness.wait_for_report(report)
             sleep.assert_not_called()
+
+
+class IOSLaunchTest(unittest.TestCase):
+    def test_hung_launcher_requires_completed_app_and_reaps_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text(harness.COMPLETE)
+            process = Mock(returncode=None)
+            process.poll.return_value = None
+            with patch.object(harness.subprocess, "Popen", return_value=process), \
+                 patch.object(harness.time, "monotonic", return_value=0):
+                harness.launch_and_wait("fresh-device", report, {})
+            process.terminate.assert_called_once()
+            process.wait.assert_called_once_with(timeout=5)
+            process.kill.assert_not_called()
+
+    def test_frames_without_cleanup_cannot_rescue_hung_launch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text("SOTN_SMOKE_TEST: PASS\n")
+            process = Mock(returncode=None)
+            process.poll.return_value = None
+            with patch.object(harness.subprocess, "Popen", return_value=process), \
+                 patch.object(harness.time, "monotonic", side_effect=[0, 0, 181]), \
+                 patch.object(harness.time, "sleep"):
+                with self.assertRaisesRegex(SystemExit, "launch/report timed out"):
+                    harness.launch_and_wait("fresh-device", report, {})
+            process.terminate.assert_called_once()
+
+    def test_failed_launch_is_not_hidden_by_a_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text(harness.COMPLETE)
+            process = Mock(returncode=7)
+            process.poll.return_value = 7
+            with patch.object(harness.subprocess, "Popen", return_value=process):
+                with self.assertRaisesRegex(SystemExit, "launch failed with exit 7"):
+                    harness.launch_and_wait("fresh-device", report, {})
+            process.terminate.assert_not_called()
+
+    def test_successful_launch_still_waits_for_complete_report(self):
+        process = Mock(returncode=0)
+        process.poll.return_value = 0
+        report = Path("not-a-real-report")
+        with patch.object(harness.subprocess, "Popen", return_value=process), \
+             patch.object(harness, "wait_for_report", side_effect=SystemExit("missing report")) as wait:
+            with self.assertRaisesRegex(SystemExit, "missing report"):
+                harness.launch_and_wait("fresh-device", report, {})
+        wait.assert_called_once_with(report)
+
+    def test_hung_launcher_kill_fallback_preserves_verified_result(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text(harness.COMPLETE)
+            process = Mock(returncode=None)
+            process.poll.return_value = None
+            process.wait.side_effect = [subprocess.TimeoutExpired("simctl", 5), 0]
+            with patch.object(harness.subprocess, "Popen", return_value=process):
+                harness.launch_and_wait("fresh-device", report, {})
+            process.kill.assert_called_once()
+
+    def test_launch_failure_during_report_read_stays_a_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text(harness.COMPLETE)
+            process = Mock(returncode=7)
+            process.poll.side_effect = [None, 7, 7]
+            with patch.object(harness.subprocess, "Popen", return_value=process):
+                with self.assertRaisesRegex(SystemExit, "launch failed with exit 7"):
+                    harness.launch_and_wait("fresh-device", report, {})

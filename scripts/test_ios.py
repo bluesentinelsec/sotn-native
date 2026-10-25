@@ -1,6 +1,6 @@
 """Check rendered frames and cleanup in a disposable iOS Simulator.
 
-simctl's console attachment can hang after launch on a cold simulator. Read the
+simctl can hang after launching an app on a cold simulator. Read the
 app's opt-in completion report instead; a launch or a frame-only marker cannot
 satisfy this check. The simulator and its data container are fresh for each run.
 """
@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import time
 
 BUNDLE = "org.bluesentinelsec.sotn-native"
@@ -47,6 +48,45 @@ def wait_for_report(report, timeout=90):
     raise SystemExit(f"iOS rendering/cleanup smoke test timed out; last report: {last!r}")
 
 
+def launch_and_wait(udid, report, env):
+    """Require the app's complete report even when simctl does not return."""
+    command = ["xcrun", "simctl", "launch", udid, BUNDLE, "--smoke-test"]
+    print("Launching iOS Simulator app and waiting for its rendering/cleanup report", flush=True)
+    # A file avoids pipe backpressure while CoreSimulator finishes a cold launch.
+    with tempfile.TemporaryFile(mode="w+t") as output:
+        process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT, env=env)
+        try:
+            deadline = time.monotonic() + 180
+            last = "Report not created"
+            while process.poll() is None:
+                try:
+                    last = report.read_text()
+                except FileNotFoundError:
+                    pass
+                if last == COMPLETE:
+                    status = process.poll()
+                    if status not in (None, 0):
+                        raise SystemExit(f"iOS Simulator launch failed with exit {status}")
+                    print(last, end="", flush=True)
+                    return
+                if time.monotonic() >= deadline:
+                    raise SystemExit(f"iOS launch/report timed out; last report: {last!r}")
+                time.sleep(0.25)
+            if process.returncode != 0:
+                raise SystemExit(f"iOS Simulator launch failed with exit {process.returncode}")
+            wait_for_report(report)
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
+            output.seek(0)
+            print(output.read(65536), end="", flush=True)
+
+
 def select_runtime(runtimes, sdk_version):
     identifier = "com.apple.CoreSimulator.SimRuntime.iOS-" + sdk_version.strip().replace(".", "-")
     runtime = next((r for r in runtimes if r.get("isAvailable") and
@@ -76,9 +116,8 @@ def run_smoke(app):
             raise SystemExit("Fresh simulator unexpectedly contains a stale smoke report")
         env = os.environ.copy()
         env["SIMCTL_CHILD_SOTN_SMOKE_REPORT"] = "1"
-        simctl("launch", udid, BUNDLE, "--smoke-test", env=env, timeout=180)
         try:
-            wait_for_report(report)
+            launch_and_wait(udid, report, env)
         except SystemExit:
             subprocess.run(["xcrun", "simctl", "spawn", udid, "log", "show", "--last", "2m",
                             "--style", "compact", "--predicate", 'process == "sotn-native"'],
