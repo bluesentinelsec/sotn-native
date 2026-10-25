@@ -4,6 +4,7 @@
 #include <sotn/actor_layout.h>
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
+#include <sotn/palette.h>
 #include <sotn/player.h>
 #include <sotn/stage_route.h>
 #include <sotn/world.h>
@@ -81,6 +82,11 @@ bool SotnActors_GetMotion(const SotnActors *actors, SotnActorMotion *out);
  * @param actors Entered simulation. @param out Copied window, unchanged on failure.
  * @return Success or SDL error. Room entry resets all limits; no save state is changed. */
 bool SotnActors_GetRoomWindow(const SotnActors *actors, SotnRoomWindow *out);
+/** @brief Copy this tick's stage-owned palette interpolation request for the renderer.
+ * @param actors Entered simulation. @param out Copied command, unchanged on failure.
+ * @return Success or SDL error. Tick/room entry clears the command; private inputs stay borrowed.
+ */
+bool SotnActors_GetPaletteBlend(const SotnActors *actors, SotnPaletteBlend *out);
 
 /** @brief Copied actor state used by native presentation and replay inspection. */
 typedef struct SotnActorState

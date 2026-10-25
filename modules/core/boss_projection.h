@@ -90,6 +90,25 @@ bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16
  * @return Success or SDL error for invalid bounds, models or unselected rotation. */
 bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 depth,
                              SotnProjectedPoint out[4]);
+/** @brief Bounded original glass vertex; the selected plane models have zero Z. */
+typedef struct SotnGlassVertex
+{
+    Sint16 x, y, z;
+} SotnGlassVertex;
+/** @brief Original glass Y/Z rotation and screen-relative translation, before SDK projection. */
+typedef struct SotnGlassTransform
+{
+    Sint16 y_angle, z_angle;
+    Sint32 x, y, depth;
+} SotnGlassTransform;
+/** @brief Project selected Chapel glass/light/background models with the original SDK matrix.
+ * @param executable Borrowed private matrix-pair table. @param pose Bounded Y/Z rotation,
+ * translation +/-32767 and depth 1024..8192. @param vertices Borrowed plane vertices, axes +/-512.
+ * @param count One center or four corners. @param out Copied points, unchanged on failure.
+ * @return Success or SDL error for invalid controls, model, table or pointer. */
+bool SotnChapel_ProjectGlass(SotnDataView executable, SotnGlassTransform pose,
+                             const SotnGlassVertex *vertices, Uint16 count,
+                             SotnProjectedPoint *out);
 /** @brief Project a selected zero-rotation Library background anchor through the SDK divider.
  * @param library Borrowed private LIB model/rotation records. @param kind Background kind 0..3.
  * @param x Screen-space actor X, +/-32767. @param y Screen-space actor Y, +/-32767.

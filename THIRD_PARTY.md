@@ -448,3 +448,12 @@ layer profiles and artwork remain private. Explicit bounded scans and unsigned
 phase arithmetic replace unsafe host termination/overflow behavior.
 The shared room-entry backdrop reset follows `dra/5087C.c:func_800F2404` at the
 same pinned reconstruction.
+
+`modules/core/chapel_glass.c` and `chapel_glass_background.c` adapt selected US
+`st/e_stained_glass.h` and `st/e_stained_glass_recurse.h` at the pinned sotn-decomp
+revision (AGPL-3.0-or-later). The owned palette operation in `actor_graphics.c`
+follows `st/e_stained_glass_blend.h`; blend-page selection follows
+`dra/4DA70.c`. Private models, indices, poses, rotations, colors and palettes stay
+in runtime inputs. Bounded primitive cursors and defined packed-coordinate math
+replace unsafe host pointer/aliasing operations. The selected two-axis transform
+extends the separately credited MPL-2.0 PSY-Z matrix/divider adapter.

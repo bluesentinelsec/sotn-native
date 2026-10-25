@@ -504,6 +504,10 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     if (!SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech),
                              &session->dialogue))
         return false;
+    SotnPaletteBlend palette = {0};
+    if (!SotnActors_GetPaletteBlend(session->actors, &palette) ||
+        !SotnActorGraphics_BlendPalette(session->actor_graphics, palette))
+        return false;
     if (session->dialogue.background_enabled)
         session->room.background.flags |= 1;
     SotnActorMotion motion = {0};
@@ -961,8 +965,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
-                "and selected internal tower exits, clouds and sky land. Other encounters, "
-                "stained glass, Maria, boss "
+                "and selected internal tower exits, clouds, sky land and stained glass. "
+                "Other encounters, confessional, Maria, boss "
                 "and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)

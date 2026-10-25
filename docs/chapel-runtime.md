@@ -121,4 +121,10 @@ scripts, boss, remaining scenery and whole-route/console parity remain incomplet
 
 Selected [cloud/sky backgrounds](chapel-sky.md) now use the private original
 grids/models, scrolling phases, SDK projection, colored vertices and repeating
-sky-land strip. Stained glass and complete scenery remain incomplete.
+sky-land strip. Full scenery parity remains incomplete.
+
+Selected [stained glass and lighting](chapel-stained-glass.md) now adds the
+private panel/subdivision/color records, projected light, original blend modes,
+window/ceiling background and owned runtime palette interpolation. Preserve the
+documented US packed-coordinate/color assignments; console comparison remains
+unproven. Confessional, scripts, boss and connected Chapel still need integration.
