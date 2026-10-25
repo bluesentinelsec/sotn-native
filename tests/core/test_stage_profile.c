@@ -88,14 +88,14 @@ static bool BossAdapters(void)
     CHECK(SotnActors_Enter(
         s, layout, (SotnCollisionMap){{tiles, sizeof(tiles)}, {types, sizeof(types)}, 32, 16}, 0,
         0));
-    s->slots[0] = (Actor){.state = {.id = 0x16, .generation = 10}, .slot = 0, .dynamic = true};
+    s->slots[0] = (Actor){.state = {.id = 0x19, .generation = 10}, .slot = 0, .dynamic = true};
     const SotnPlayerState player = {.x = 128 * 65536,
                                     .y = 100 * 65536,
                                     .hp = 70,
                                     .animation = {.hitbox_width = 8, .hitbox_height = 16}};
     CHECK(SotnActors_Tick(s, player, 0, 0) && s->slots[0].state.unsupported);
-    // New boss profiles cannot fall through to unrelated Laboratory actor logic.
-    CHECK(s->slots[0].state.id == 0x16 && s->slots[0].state.step == 0);
+    // Unintegrated boss effects cannot fall through to Laboratory actor logic.
+    CHECK(s->slots[0].state.id == 0x19 && s->slots[0].state.step == 0);
     CHECK(SotnCamera_Enter(s->camera, 512, 256, 128, 100));
     stage[0x4bc] = 32;
     for (Uint32 side = 0; side < 2; ++side)

@@ -81,7 +81,7 @@ typedef struct SotnActorState
     Uint8 red, green, blue;
     Sint16 rotation, bat_offset; /**< BO4's original current-pose horizontal adjustment. */
     bool rotated, opacity_set;   /**< Explicit zero opacity is valid when opacity_set is true. */
-    Uint8 primitive_count;
+    Uint16 primitive_count;
     Uint16 slot;
     Uint16 scale_x, scale_y,
         opacity; /**< Zero selects unit scale/neutral color unless opacity_set is true. */
@@ -102,7 +102,7 @@ typedef struct SotnActorPrimitive
     Sint16 offset_x[4], offset_y[4];
 } SotnActorPrimitive;
 /** @brief Read one owned actor primitive without exposing mutable storage.
- * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..192.
+ * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..383.
  * @param out Copied state; inactive for unused indices. @return Success or SDL error. */
 bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index,
                              SotnActorPrimitive *out);

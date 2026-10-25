@@ -14,6 +14,8 @@ add_library(sotn-core STATIC
   dopple_knife.c
   dopple_factory.c
   dopple_unarmed.c
+  dopple_encounter.c
+  dopple_effects.c
   dopple_damage.c
   dopple_blink.c
   dopple_forms.c

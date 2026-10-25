@@ -997,12 +997,24 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
 {
     if (player == NULL || out == NULL)
         return SDL_SetError("Player state requires a simulation and output");
+    Uint32 status = player->status;
+    if (player->step == SOTN_PLAYER_CROUCH && player->substep != 2)
+        status |= 0x20U;
+    if (player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP)
+        status |= 0x2000U;
+    if (player->step == SOTN_PLAYER_HIT)
+        status |= 0x110000U;
+    if (player->step == SOTN_PLAYER_KILL)
+        status |= 0x150000U;
+    if (player->step == SOTN_PLAYER_STONE)
+        status |= 0x110080U;
     *out = (SotnPlayerState){
         .x = player->x.value,
         .y = player->y.value,
         .velocity_x = player->vx,
         .velocity_y = player->vy,
         .contacts = (Uint32)player->contact,
+        .status = status,
         .animation = player->animation,
         .step = player->step,
         .facing_left = player->facing_left,

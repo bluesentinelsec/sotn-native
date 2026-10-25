@@ -63,7 +63,8 @@ typedef struct SotnPlayerStone
 typedef struct SotnPlayerState
 {
     Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
-    Uint32 contacts;                     /**< Original floor/ceiling/wall and slope flags. */
+    Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
+    Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
     SotnAnimation animation;
     SotnPlayerStep step;
     bool facing_left;
