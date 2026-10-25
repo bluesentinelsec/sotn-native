@@ -354,3 +354,10 @@ target_include_directories(sotn-chapel-breakable-tests PRIVATE ../../modules/cor
 target_link_libraries(sotn-chapel-breakable-tests PRIVATE sotn-core)
 add_test(NAME chapel-breakables COMMAND sotn-chapel-breakable-tests)
 set_tests_properties(chapel-breakables PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-chapel-mechanism-tests test_chapel_mechanisms.c)
+sotn_configure_c_target(sotn-chapel-mechanism-tests)
+target_include_directories(sotn-chapel-mechanism-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-chapel-mechanism-tests PRIVATE sotn-core)
+add_test(NAME chapel-mechanisms COMMAND sotn-chapel-mechanism-tests)
+set_tests_properties(chapel-mechanisms PROPERTIES TIMEOUT 20)

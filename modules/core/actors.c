@@ -407,7 +407,7 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 6)
-        return id == 0x35 || id == 0x37;
+        return id == 0x1a || id == 0x35 || id == 0x37;
     if (actors->stage_id == 2)
         return id == 0x1f || id == 0x22 || id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 ||
                id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 ||

@@ -100,6 +100,10 @@ typedef struct Actor
     } mechanism;
     struct
     {
+        Uint32 child_generation;
+    } chapel;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -416,6 +420,14 @@ bool ActorChapel(SotnActors *actors, Actor *actor);
  * @param actors Borrowed Chapel/world owner. @param actor Borrowed lamp or debris.
  * @return Success or SDL error for invalid owners, state or private tables. */
 bool ActorChapelBreakable(SotnActors *actors, Actor *actor);
+/** @brief Advance selected Chapel shortcut/statue or gargoyle terrain actors.
+ * @param actors Borrowed Chapel/world/room owner. @param actor Borrowed supported slot.
+ * @return Success or SDL error for invalid state/data, lost children or occupied reservations. */
+bool ActorChapelMechanism(SotnActors *actors, Actor *actor);
+/** @brief Advance selected Chapel wall geometry or screen-space staircase shadow.
+ * @param actors Borrowed Chapel owner. @param actor Borrowed scenery slot.
+ * @return Success or SDL error; exhausted optional primitives retire the actor. */
+bool ActorChapelScenery(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */

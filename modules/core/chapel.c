@@ -139,6 +139,14 @@ bool ActorChapel(SotnActors *s, Actor *a)
     case 8:
     case 0x11:
         return ActorRoomDecoration(s, a);
+    case 0x19:
+    case 0x1a:
+    case 0x21:
+        return ActorChapelMechanism(s, a);
+    case 0x1c:
+    case 0x1d:
+    case 0x1e:
+        return ActorChapelScenery(s, a);
     case 0x12:
         return ActorCamera(s, a);
     case 6:

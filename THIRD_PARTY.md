@@ -364,3 +364,9 @@ tables remain private runtime inputs. See [scope](docs/chapel-runtime.md).
 Chapel decoration selection shares the existing `st/e_room_bg.h`/`e_room_fg.h`
 adapter. Debris projection reuses the bounded MPL-2.0 PSY-Z matrix adapter;
 animation/profile/debris-offset and SDK math tables remain private runtime inputs.
+
+Selected `chapel_mechanisms.c` adapts `st/e_dai_no2_shortcut.h` and
+`st/dai/e_gargoyle.c`; `chapel_scenery.c` adapts `st/e_castle_walls.h` and
+`st/e_staircase.h`, all at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Native generation checks protect fixed child reservations. Initialization, floor
+sensors, artwork/palettes and collision definitions remain private runtime inputs.
