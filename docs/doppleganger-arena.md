@@ -10,7 +10,8 @@ This is a resource/service checkpoint, not an integrated encounter. Boss,
 entrance/reward/effect actors remain explicitly unsupported instead of falling
 through to Laboratory behavior or table addresses. The profile's connected-travel
 gate stays false, and the public gameplay CLI still accepts only NO0/NO1. Ordinary
-travel cannot enter an empty boss arena. Its AI, movement/forms, attacks, intro,
+travel cannot enter an empty boss arena. Its [backed packed sprites](doppleganger-sprites.md) now have a native graphics
+adapter. Its AI, movement/forms, attacks, intro,
 defeat, reward, music events and progression remain subsequent integration work.
 
 Common BO4 adapters reject missing table mappings. Camera-lock metadata uses the

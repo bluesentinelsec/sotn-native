@@ -12,7 +12,7 @@
 struct SotnActorGraphics
 {
     SotnDataView dra, nz0;
-    Uint16 sprite_banks;
+    Uint16 sprite_banks, stage_id;
     SotnDataView weapon[2];
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
@@ -126,6 +126,7 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     graphics->dra = dra;
     graphics->nz0 = nz0;
     graphics->sprite_banks = profile->sprite_banks;
+    graphics->stage_id = stage;
     RawTiles(graphics, sources.stage, 0);
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);
@@ -284,6 +285,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
 
 static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out)
 {
+    sprite.frame = (Uint16)(sprite.frame & 0x7fffU);
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
     const bool weapon = !stage && (bank == 16 || bank == 18);
@@ -312,6 +314,8 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
         !Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 2, 2, &first))
         return false;
     const Uint16 parts = Read16(first.bytes);
+    if (parts & 0x8000)
+        return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 6, 2, out);
     if (parts > 128)
         return SDL_SetError("Actor sprite does not use a bounded multipart definition");
     return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4),
@@ -517,17 +521,103 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
     return true;
 }
 
+// dra/4B758.c sprite-sheet branch. BO4 owns separate body and bat sheet tables.
+static Sint64 FloorDivide(Sint64 value, Sint64 divisor)
+{
+    return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
+}
+static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
+                        Sint32 x, Sint32 y, Uint16 *frame, const SotnSpriteTransform *transform)
+{
+    const Uint16 bank = sprite.animation_set & 0x7fff;
+    if (g->stage_id != 26 || g->nz0.size < 52 || !(sprite.animation_set & 0x8000) ||
+        (bank != 1 && bank != 2) || (sprite.blend_mode & ~0x70U))
+        return SDL_SetError("Packed actor sheets require an integrated BO4 body/bat bank");
+    const Uint32 base = 0x80180000U;
+    SotnDataView table = {0}, sheet = {0};
+    const Uint32 address = Read32(g->nz0.bytes + (bank == 1 ? 44 : 48));
+    if (!Resolve(g->nz0, base, address, 4, 4, &table))
+        return false;
+    const Uint32 first = Read32(table.bytes);
+    const Uint32 index = Read16(definition.bytes) & 0x7fff;
+    if (first <= address || (first - address) % 4 || (first - address) / 4 > 1024 ||
+        index >= (first - address) / 4 ||
+        !Resolve(g->nz0, base, address, first - address, 4, &table) ||
+        !Resolve(g->nz0, base, Read32(table.bytes + index * 4), 4, 4, &sheet))
+        return SDL_SetError("Packed actor sheet index or table extent is invalid");
+    const Uint32 width = sheet.bytes[0], height = sheet.bytes[1];
+    const Sint32 pivot_x = Signed16(definition.bytes + 2) + sheet.bytes[2];
+    const Sint32 pivot_y = Signed16(definition.bytes + 4) + sheet.bytes[3];
+    if (!width || width % 4 || !height ||
+        !Resolve(g->nz0, base, Read32(table.bytes + index * 4), 4 + width * height / 2, 4, &sheet))
+        return SDL_SetError("Packed actor sheet dimensions or pixel extent is invalid");
+    const Uint32 palette = sprite.palette & 0x7fff;
+    if (palette >= 768)
+        return SDL_SetError("Packed actor sheet palette exceeds native palette memory");
+    Uint16 colors[16] = {0};
+    const Uint32 palette_bank = palette / 256;
+    const Uint32 palette_x =
+        (palette_bank == 0 ? 512U : (palette_bank - 1) * 256U) + (palette & 15) * 16;
+    for (Uint32 i = 0; i < 16; ++i)
+        if (!Word(g, palette_x + i, 240 + (palette % 256) / 16, &colors[i]))
+            return false;
+    if (x < -65536 || x > 65536 || y < -65536 || y > 65536)
+        return true;
+    const SotnSpriteTransform t =
+        transform != NULL ? *transform
+                          : (SotnSpriteTransform){.scale_x = 256, .scale_y = 256, .opacity = 128};
+    const double radians = t.rotation * (SDL_PI_D / 2048.0);
+    const Sint32 cosine = (Sint32)SDL_lround(SDL_cos(radians) * 4096.0);
+    const Sint32 sine = (Sint32)SDL_lround(SDL_sin(radians) * 4096.0);
+    const Sint64 denominator_x = 8192LL * t.scale_x, denominator_y = 8192LL * t.scale_y;
+    // Inverse sampling at pixel centers retains identity pivots and the original mirror +1.
+    // This avoids modifying shared VRAM for an immutable, runtime-loaded sheet.
+    for (Sint32 py = 0; py < SOTN_FRAME_HEIGHT; ++py)
+        for (Sint32 px = 0; px < SOTN_FRAME_WIDTH; ++px)
+        {
+            const Sint64 dx = ((Sint64)px - x) * 2 + 1, dy = ((Sint64)py - y) * 2 + 1;
+            const Sint64 nx = (dx * cosine + dy * sine) * 256;
+            const Sint64 ny = (-dx * sine + dy * cosine) * 256;
+            const Sint64 sx = sprite.facing_left ? FloorDivide(-nx, denominator_x) + 1 - pivot_x
+                                                 : FloorDivide(nx, denominator_x) - pivot_x;
+            const Sint64 sy = FloorDivide(ny, denominator_y) - pivot_y;
+            if (sx < 0 || sy < 0 || sx >= width || sy >= height)
+                continue;
+            const size_t pixel = (size_t)sy * width + (size_t)sx;
+            const Uint8 color_index = (sheet.bytes[4 + pixel / 2] >> ((pixel & 1U) * 4)) & 15;
+            Uint16 color = colors[color_index];
+            if (!color)
+                continue;
+            if (t.opacity != 128)
+            {
+                Uint16 tinted = color & 0x8000;
+                for (Uint32 shift = 0; shift < 15; shift += 5)
+                    tinted |=
+                        (Uint16)(SDL_min(31, ((color >> shift) & 31) * t.opacity / 128) << shift);
+                color = tinted;
+            }
+            const size_t destination = (size_t)py * SOTN_FRAME_WIDTH + (size_t)px;
+            frame[destination] =
+                sprite.blend_mode && (color & 0x8000)
+                    ? Blend(frame[destination], color, (sprite.blend_mode >> 5) & 3)
+                    : color;
+        }
+    return true;
+}
+
 static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x, Sint32 y,
                  Uint16 *frame, size_t count, const SotnSpriteTransform *transform)
 {
     if (graphics == NULL || frame == NULL || count < SOTN_FRAME_PIXELS)
         return SDL_SetError("Actor drawing requires initialized graphics and a full framebuffer");
-    if (sprite.frame == 0 || sprite.animation_set == 0)
+    if ((sprite.frame & 0x7fff) == 0 || sprite.animation_set == 0)
         return true;
     SotnDataView definition = {0};
     if (!Frame(graphics, sprite, &definition))
         return false;
     const Uint32 parts = Read16(definition.bytes);
+    if (parts & 0x8000)
+        return PackedSheet(graphics, sprite, definition, x, y, frame, transform);
     for (unsigned int pass = 0; pass < 2; ++pass)
         for (int priority = 1; priority >= 0; --priority)
             for (Uint32 i = parts; i > 0; --i)

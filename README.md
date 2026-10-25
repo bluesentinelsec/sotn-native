@@ -25,6 +25,8 @@ overlay/artwork pairs on demand. Selected native paths now connect Entrance, Lab
 Marble Gallery and Outer Wall; further areas remain unintegrated.
 [Doppleganger arena adapters](docs/doppleganger-arena.md) prepare private BO4
 resources; its boss encounter and ordinary travel remain disabled.
+The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
+frames without establishing boss gameplay or full effects parity.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game

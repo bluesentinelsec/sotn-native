@@ -469,6 +469,79 @@ static bool StageBankBounds(Fixture *f)
     return true;
 }
 
+static bool PackedSheets(Fixture *f)
+{
+    MakeFixture(f);
+    Uint8 *image = f->nz0;
+    Put32(image + 0x44, 0x80181800);
+    Put32(image + 0x48, 0x80181800);
+    Put32(image + 0x1804, 0x80181810);
+    Put32(image + 0x1808, 0x80181810);
+    Put16(image + 0x1810, 0x8000);
+    Put16(image + 0x1812, (Uint16)-2);
+    Put16(image + 0x1814, (Uint16)-1);
+    Put32(image + 44, 0x80181820);
+    Put32(image + 48, 0x80181820);
+    for (Uint32 i = 0; i < 4; ++i)
+        Put32(image + 0x1820 + i * 4, 0x80181830);
+    image[0x1830] = 4;
+    image[0x1831] = 2;
+    image[0x1832] = 1;
+    image[0x1833] = 2;
+    image[0x1834] = 0x21;
+    image[0x1835] = 0x03;
+    image[0x1836] = 0x40;
+    image[0x1837] = 0x12;
+    SotnActorGraphics *g = NULL;
+    CHECK(SotnActorGraphics_CreateStage(
+        (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){image, sizeof(f->nz0)},
+        (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, 26, &g));
+    SotnActorSprite sprite = {.animation_set = 0x8001, .frame = 1, .palette = 0x8200};
+    SDL_memset(f->frame, 0, sizeof(f->frame));
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 31 && f->frame[11 * 256 + 10] == 0x8000 &&
+          f->frame[11 * 256 + 11] == 0x83e0 && f->frame[11 * 256 + 12] == 0);
+    sprite.facing_left = true;
+    sprite.frame |= 0x8000;
+    SDL_memset(f->frame, 0, sizeof(f->frame));
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 11] == 31 && f->frame[11 * 256 + 10] == 0x8000 &&
+          f->frame[11 * 256 + 9] == 0x83e0);
+    sprite.facing_left = false;
+    sprite.animation_set = 0x8002;
+    SDL_memset(f->frame, 0, sizeof(f->frame));
+    CHECK(SotnActorGraphics_DrawTransform(
+        g, sprite, 10, 10, (SotnSpriteTransform){.scale_x = 512, .scale_y = 512, .opacity = 128},
+        f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[12 * 256 + 8] == 31 && f->frame[12 * 256 + 9] == 31);
+    sprite.blend_mode = 0x30;
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        f->frame[i] = 0x7c00;
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 31 && f->frame[11 * 256 + 10] == 0x7c00 &&
+          f->frame[11 * 256 + 11] == 0x7fe0);
+    // Validate all input references before modifying a pixel.
+    Put16(image + 0x1810, 0x8004);
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 31);
+    Put16(image + 0x1810, 0x8000);
+    image[0x1830] = 3;
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    image[0x1830] = 4;
+    CHECK(SotnActorGraphics_Draw(g, sprite, SDL_MAX_SINT32, SDL_MIN_SINT32, f->frame,
+                                 SOTN_FRAME_PIXELS));
+    Put32(image + 0x1820, 0x80180000 + (Uint32)sizeof(f->nz0) - 4);
+    image[sizeof(f->nz0) - 4] = image[sizeof(f->nz0) - 3] = 252;
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(g);
+    g = NULL;
+    Put32(image + 0x1820, 0x80181830);
+    CHECK(Create(f, &g));
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -477,7 +550,7 @@ int main(void)
     const bool passed = StageBankBounds(fixture) && TestRopeCache(fixture) &&
                         TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
                         TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture);
+                        TestWeapons(fixture) && TestDialogue(fixture) && PackedSheets(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
