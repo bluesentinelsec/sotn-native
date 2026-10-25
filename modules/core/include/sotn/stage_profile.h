@@ -13,4 +13,9 @@ typedef struct SotnStageProfile
 const SotnStageProfile *SotnStageProfile_Get(Uint16 stage);
 /** @brief Test a stage-local ordinary save room against its explicit profile. */
 bool SotnStageProfile_SaveRoom(Uint16 stage, Uint32 room);
+/** @brief Identify explicit NO3 development entries on the far side of Death's room.
+ * @param room Original room identity. @return Whether a fresh diagnostic entry seeds theft.
+ * Forest/bridge and pre-Death side rooms retain opening gear. Normal travel always retains
+ * the actual saved event state; this policy applies only to fresh development starts. */
+bool SotnStageProfile_EntranceAfterDeath(Uint32 room);
 #endif
