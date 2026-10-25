@@ -267,3 +267,8 @@ The [Outer Wall Spear Guard](docs/outer-wall-spear-guard.md) now adds selected m
 blocking, thrown-spear and death rules. The copied player state exposes the original
 selected four-tick subweapon startup interval for enemy decisions. Other unsupported
 actions/status effects remain absent; private native checks use a protected fixture.
+
+The [Outer Wall Sword Lord](docs/outer-wall-sword-lord.md) now runs selected attacks,
+its separate weapon hitbox, bounded dust, death pulse and falling/fading fragments.
+Private explicit-room checks use a protected player; whole-route and console parity
+remain incomplete. Original tables and assets stay private.

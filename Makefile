@@ -170,3 +170,5 @@ SOTN_FORMAT_SOURCES += modules/core/enemy_musket.c modules/core/enemy_archer.c \
   tests/core/test_outer_enemies.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_spear.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_sword.c modules/core/outer_effects.c

@@ -133,6 +133,39 @@ static bool Open(Fixture *f, SotnActors **s)
     }
     for (Uint32 i = 0; i <= 1024; ++i)
         Put16(f->exe + 0x22a10 + i * 2, (Uint16)(i / 2));
+    Put16(f->stage + 0x2a8a, 30);
+    Put16(f->stage + 0x2a82, 30);
+    Put16(f->stage + 0x2a84, 24);
+    const size_t sword_anims[] = {0x2a9c, 0x2aac, 0x2ad4, 0x2b00, 0x2b10, 0x2b1c};
+    for (Uint32 i = 0; i < SDL_arraysize(sword_anims); ++i)
+        Animation(f, sword_anims[i], 1);
+    f->stage[0x2b01] = 25;
+    f->stage[0x2b11] = 29;
+    for (Uint32 i = 0; i < 4; ++i)
+        f->stage[0x2a98 + i] = 3;
+    for (Uint32 i = 0; i < 6; ++i)
+        Put32(f->stage + 0x2b34 + i * 4, 4096);
+    for (Uint32 i = 0; i < 21; ++i)
+    {
+        f->stage[0x2b64 + i * 4] = 12;
+        f->stage[0x2b65 + i * 4] = (Uint8)-4;
+        f->stage[0x2b66 + i * 4] = 8;
+        f->stage[0x2b67 + i * 4] = 8;
+    }
+    for (Uint32 i = 0; i < 30; ++i)
+        f->stage[0x2bb8 + i] = 1;
+    for (Uint32 i = 0; i < 6; ++i)
+    {
+        Put16(f->stage + 0x239c + i * 2, (Uint16)(32 + i * 16));
+        Put16(f->stage + 0x23ac + i * 2, (Uint16)(48 + i * 16));
+        Put32(f->stage + 0x23bc + i * 4, 2048);
+        Put32(f->stage + 0x23d4 + i * 4, 2048);
+    }
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        f->stage[0x23ec + i] = 1;
+        Put16(f->stage + 0x23f0 + i * 2, 8);
+    }
     f->types[1] = 3;
     for (Uint32 y = 12; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -348,12 +381,76 @@ static bool Spear(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Sword(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *root = &s->slots[32];
+    *root = (Actor){.state = {.id = 0x48, .generation = 800, .x = 200 * 65536, .y = 162 * 65536},
+                    .slot = 32,
+                    .dynamic = true};
+    const SotnPlayerState player = {
+        .x = 128 * 65536, .y = 168 * 65536, .hp = 70, .invulnerable = true};
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *weapon = &s->slots[33];
+    CHECK(weapon->state.id == 0x49 && weapon->state.hitbox_x == 12 && weapon->state.hitbox_y == -4);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 2);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 3);
+    SetStep(root, 4);
+    f->stage[0x2aad] = 9;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->vx == -4 * 65536);
+    SetStep(root, 4);
+    f->stage[0x2aad] = 13;
+    root->sword.smashed = false;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->sword.smashed && s->slots[96].state.id == 0x14);
+    root->stun = 20;
+    for (Uint32 t = 0; t < 12; ++t)
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+    bool dust = false;
+    for (Uint32 i = 96; i < 128; ++i)
+        dust = dust || (s->slots[i].state.id == 0x14 && s->slots[i].state.generation);
+    CHECK(!dust);
+    root->state.flags |= 0x10c100;
+    bool pulse = false, parts = false, first_fade = false;
+    for (Uint32 t = 0; t < 500; ++t)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        if (root->state.primitive_count)
+        {
+            ActorPrimitive *effect = ActorPrimitiveGet(s, root, 0);
+            CHECK(effect != NULL);
+            pulse = pulse || effect->state.active;
+        }
+        for (Uint32 i = 160; i < 192; ++i)
+        {
+            const Actor *part = &s->slots[i];
+            parts = parts || (part->state.id == 0x48 && part->state.parameters > 0);
+            first_fade = first_fade || (part->state.id == 0x48 && part->state.step == 9 &&
+                                        part->state.opacity_set && part->state.opacity == 160);
+        }
+    }
+    CHECK(pulse && parts && first_fade && !root->state.generation && !weapon->state.generation);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(!s->primitives[i].owner);
+    Actor invalid = {.state = {.id = 0x48, .step = 7, .parameters = 6, .generation = 801}};
+    CHECK(!ActorSwordLord(s, &invalid));
+    Actor origin = {.state = {.generation = 802, .x = 128 * 65536, .y = 128 * 65536}};
+    CHECK(!ActorOuterDust(s, &origin, 7, 1, 0, 0, 0, 1));
+    Actor intense = {.state = {.id = 6, .generation = 803}};
+    CHECK(ActorOuterEffect(s, &intense) && intense.state.animation_set == 5);
+    for (Uint32 t = 0; t < 37; ++t)
+        CHECK(ActorOuterEffect(s, &intense));
+    CHECK(intense.remove);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Musket(f) && Archer(f) && Spear(f);
+    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

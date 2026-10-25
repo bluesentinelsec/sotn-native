@@ -398,7 +398,7 @@ static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
                id == 0x4b || id == 0x3d || id == 0x3e || id == 0x3f;
     if (actors->stage_id == 1)
         return id == 0x3e || id == 0x3f || id == 0x44 || id == 0x45 || id == 0x46 || id == 0x47 ||
-               id == 0x4f || id == 0x50 || id == 0x58;
+               id == 0x4f || id == 0x50 || id == 0x58 || id == 0x48 || id == 0x49;
     if (actors->stage_id == 7)
         return id == 0x32 || id == 0x34 || id == 0x39 || id == 0x3a || id == 0x3e || id == 0x40 ||
                id == 0x42 || id == 0x48;
@@ -1173,6 +1173,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
+    if (actors->stage_id == 1 && actor->state.id == 6)
+        return ActorOuterEffect(actors, actor);
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
     switch (actor->state.id)
