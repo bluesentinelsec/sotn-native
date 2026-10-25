@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <sotn/actor_graphics.h>
+#include <sotn/actor_order.h>
 #include <sotn/dialogue_renderer.h>
 
 #define CHECK(condition)                                                                           \
@@ -706,12 +707,42 @@ static bool TestColorLine(Fixture *f)
     return true;
 }
 
+static bool TestActorOrder(void)
+{
+    SotnActorDraw items[4] = {0};
+    size_t count = 0;
+    CHECK(SotnActorOrder_Add(
+        items, 4, &count, (SotnActorDraw){.priority = 136, .actor = 0, .kind = SOTN_DRAW_SPRITE}));
+    CHECK(SotnActorOrder_Add(
+        items, 4, &count,
+        (SotnActorDraw){.priority = 208, .actor = 0, .primitive = 0, .kind = SOTN_DRAW_PRIMITIVE}));
+    CHECK(SotnActorOrder_Add(
+        items, 4, &count,
+        (SotnActorDraw){.priority = 64, .actor = 0, .primitive = 1, .kind = SOTN_DRAW_PRIMITIVE}));
+    CHECK(SotnActorOrder_Add(
+        items, 4, &count, (SotnActorDraw){.priority = 136, .actor = 1, .kind = SOTN_DRAW_ACTOR}));
+    // One effect's background light precedes sprites; its foreground tile covers them.
+    CHECK(count == 4 && items[0].priority == 208 && items[1].kind == SOTN_DRAW_SPRITE &&
+          items[2].actor == 1 && items[3].primitive == 1 && items[3].priority == 64);
+    SotnActorDraw saved[4] = {0};
+    SDL_memcpy(saved, items, sizeof(items));
+    CHECK(!SotnActorOrder_Add(items, 4, &count, (SotnActorDraw){0}) && count == 4 &&
+          SDL_memcmp(saved, items, sizeof(items)) == 0);
+    count = 0;
+    CHECK(!SotnActorOrder_Add(items, 4, &count, (SotnActorDraw){.priority = 512}) && count == 0);
+    CHECK(!SotnActorOrder_Add(items, 4, &count, (SotnActorDraw){.kind = 99}) && count == 0);
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));
+    CHECK(!SotnActorOrder_Add(NULL, 4, &count, (SotnActorDraw){0}));
+    CHECK(!SotnActorOrder_Add(items, 4, NULL, (SotnActorDraw){0}));
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = StageBankBounds(fixture) && TestRopeCache(fixture) &&
+    const bool passed = TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
                         TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
                         TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
                         TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&

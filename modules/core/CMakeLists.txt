@@ -14,6 +14,8 @@ add_library(sotn-core STATIC
   dopple_knife.c
   dopple_factory.c
   dopple_unarmed.c
+  dopple_entry.c
+  dopple_intro_graphics.c
   dopple_encounter.c
   dopple_effects.c
   dopple_damage.c
@@ -76,6 +78,7 @@ add_library(sotn-core STATIC
   boss_gaibon.c
   game_math.c
   game_sqrt.c
+  game_matrix_trig.c
   include/sotn/game_math.h
   camera.c
   include/sotn/camera.h

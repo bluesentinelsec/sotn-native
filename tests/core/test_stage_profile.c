@@ -93,9 +93,12 @@ static bool BossAdapters(void)
                                     .y = 100 * 65536,
                                     .hp = 70,
                                     .animation = {.hitbox_width = 8, .hitbox_height = 16}};
+    CHECK(SotnActors_Tick(s, player, 0, 0) && !s->slots[0].state.unsupported &&
+          s->slots[0].state.id == 0x19 && s->slots[0].state.step == 1);
+    s->slots[0] = (Actor){.state = {.id = 0x1e, .generation = 11}, .slot = 0, .dynamic = true};
     CHECK(SotnActors_Tick(s, player, 0, 0) && s->slots[0].state.unsupported);
-    // Unintegrated boss effects cannot fall through to Laboratory actor logic.
-    CHECK(s->slots[0].state.id == 0x19 && s->slots[0].state.step == 0);
+    // Remaining unintegrated boss actors cannot fall through to Laboratory logic.
+    CHECK(s->slots[0].state.id == 0x1e && s->slots[0].state.step == 0);
     CHECK(SotnCamera_Enter(s->camera, 512, 256, 128, 100));
     stage[0x4bc] = 32;
     for (Uint32 side = 0; side < 2; ++side)

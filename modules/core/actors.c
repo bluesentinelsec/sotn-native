@@ -1205,6 +1205,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         return ActorEntrance(actors, actor);
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
+    if (actors->stage_id == 26 && actor->state.id >= 0x17 && actor->state.id <= 0x1d)
+        return ActorDoppleEntry(actors, actor);
     if (actors->stage_id == 26 && actor->state.id > 0xc && actor->state.id != 0x12)
         return ActorDoppleEncounter(actors, actor);
     switch (actor->state.id)
@@ -1545,8 +1547,10 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
                              : (actor->state.flags & 0x08000000) ? 0
                                                                  : 65536;
         const Sint64 x = actor->state.x + dx * scale, y = actor->state.y + dy * scale;
-        if (x < -1024LL * 65536 || x > 17408LL * 65536 || y < -1024LL * 65536 ||
-            y > 17408LL * 65536)
+        // Original opposite opening plates keep moving and wrap their signed 16-bit positions.
+        const bool wrapped_plate = actors->stage_id == 26 && actor->state.id == 0x17;
+        if (!wrapped_plate && (x < -1024LL * 65536 || x > 17408LL * 65536 || y < -1024LL * 65536 ||
+                               y > 17408LL * 65536))
             return SDL_SetError("Laboratory actor left the bounded room region");
         actor->state.x = (Sint32)x;
         actor->state.y = (Sint32)y;
@@ -1662,8 +1666,9 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
                 return false;
             next = (Actor){0};
         }
-        if ((Sint64)next.state.x < -1024LL * 65536 || (Sint64)next.state.x > 17408LL * 65536 ||
-            (Sint64)next.state.y < -1024LL * 65536 || (Sint64)next.state.y > 17408LL * 65536)
+        if (!(actors->stage_id == 26 && next.state.id == 0x17) &&
+            ((Sint64)next.state.x < -1024LL * 65536 || (Sint64)next.state.x > 17408LL * 65536 ||
+             (Sint64)next.state.y < -1024LL * 65536 || (Sint64)next.state.y > 17408LL * 65536))
             return SDL_SetError("Laboratory actor motion left the bounded room region");
         *actor = next;
     }

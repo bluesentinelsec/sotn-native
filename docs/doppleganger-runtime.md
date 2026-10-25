@@ -224,7 +224,7 @@ new-game route, an unmodified-character playtest, intro/reward validation or a
 console replay.
 
 Mist/palette service, high jump, stone and full elemental effects remain pending.
-Unsupported child requests fail explicitly. The entry manager, plates/light/shock,
-block doors, music transitions, reward and durable arena record are the next
-integration boundary. The stage profile remains disconnected and has no public
-BO4 gameplay option until that boundary works.
+Unsupported child requests fail explicitly. The [entry/reward service](doppleganger-entry.md)
+now adds the placed manager, plates/light/shock, block doors, music transitions and
+selected Life Max Up. Durable arena records and ordinary transfer selection remain
+the next boundary. The stage profile stays disconnected until that boundary works.

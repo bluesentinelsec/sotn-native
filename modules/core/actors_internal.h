@@ -14,8 +14,8 @@
 
 enum
 {
-    ACTOR_PRIMITIVE_CAPACITY = 1024,
-    ACTOR_PRIMITIVE_LIMIT = 384,
+    ACTOR_PRIMITIVE_CAPACITY = SOTN_ACTOR_PRIMITIVES_MAX,
+    ACTOR_PRIMITIVE_LIMIT = SOTN_ACTOR_PRIMITIVES_PER_ACTOR_MAX,
     ACTOR_SPRITE_PART_LIMIT = 32
 };
 typedef struct ActorPrimitive
@@ -188,6 +188,14 @@ typedef struct Actor
         Sint16 brightness, sway;
         Uint16 angle, speed, wave, hold;
     } blink;
+    struct
+    {
+        Sint32 anchor_x, anchor_y, offset, speed;
+        Uint32 phases[16];
+        Sint16 angles[8];
+        Uint16 timer, phase, growth;
+        bool triggered;
+    } arena;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -229,7 +237,9 @@ struct SotnActors
     {
         SotnDoppleBody body;
         SotnDoppleAI ai;
-        bool active, blink_lock;
+        bool active, blink_lock, visited;
+        Uint32 record_time;
+        Sint32 anchor_x, anchor_y;
         Uint32 blink_angles[16];
         Sint32 debris_x[32], debris_y[32];
         Sint16 previous_hp;
@@ -370,6 +380,10 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorDoppleEntry(SotnActors *actors, Actor *actor);
+bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
+bool ActorDoppleLight(SotnActors *actors, Actor *actor);
+bool ActorDoppleShock(SotnActors *actors, Actor *actor);
 bool ActorDoppleEncounter(SotnActors *actors, Actor *actor);
 bool ActorDoppleHitEffect(SotnActors *actors, Uint16 element, Uint8 *out);
 bool ActorDoppleSmoke(SotnActors *actors, Actor *actor);

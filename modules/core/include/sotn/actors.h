@@ -9,6 +9,12 @@
 
 /** @brief Owned development actor simulation, borrowing private images and room data. */
 typedef struct SotnActors SotnActors;
+/** @brief Bounded native original-actor primitive budgets. */
+enum
+{
+    SOTN_ACTOR_PRIMITIVES_MAX = 1024,
+    SOTN_ACTOR_PRIMITIVES_PER_ACTOR_MAX = 384
+};
 
 /** @brief Original short simulated-pad interval used by stage door/event scripts. */
 typedef struct SotnActorControl
@@ -94,6 +100,9 @@ typedef struct SotnActorPrimitive
     Uint16 width, height, page, palette;
     Uint8 u[4], v[4], red, green, blue;
     bool active, textured, blend, modulate;
+    bool screen_space; /**< Projected screen coordinates; camera is already applied. */
+    bool priority_set; /**< Use this primitive's original ordering-table priority. */
+    Uint16 priority;
     bool line; /**< Two-color line through offset vertices 0 and 1. */
     Uint8 line_red, line_green, line_blue, line_blend_mode;
     bool gouraud;
