@@ -10,16 +10,18 @@ presentation, game rules, and ordinary saves as the reference.
 This repository builds its own C17/SDL3/OpenGL Laboratory checkpoint with normal
 Alucard movement, selected weapons/enemies, mechanisms, camera follow/locks,
 Slogra/Gaibon, HUD, audio, death/game over, inventory/progression, and ordinary
-saves. The current batch adds a private-data catalog/inspector for fifty canonical
-stages, the exploration map, and a native launch/Continue shell. These are project
-features; earlier isolated comparison checkouts are source material only.
+saves. Native gameplay also connects selected first/later Entrance, Marble Gallery
+and Outer Wall paths. The current stack adds original opening equipment, collected
+Short sword/relic progression, Maria, selected area enemies, clock mechanisms and
+the Wall elevator. The fifty-stage catalog remains a resource diagnostic, not fifty
+playable stages. The native Continue shell and exploration map also remain selected
+adaptations, with original title/new-game flow incomplete.
 
-This is not a complete authentic game. The fifty-stage catalog verifies resources
-and parses rooms; it does not implement those stages' actors, scripts, or gameplay
-transitions. Native gameplay now includes selected Entrance/Laboratory paths and their connection.
-The next approved batch targets original opening gear, progression-critical gaps,
-Marble Gallery/Outer Wall, and a continuous-route check. Read
-[stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
+This is not a complete authentic game. Doppleganger and its boss-stage transfer,
+several Wall/return-Entrance encounters and mechanisms, further stages, prologue
+initialization and full audiovisual/timing parity remain incomplete. Read the
+[early castle batch review](early-castle-review.md) for the actual validation scope,
+and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
 [map](castle-map.md), and [session flow](native-session-flow.md).
 
 ## Pinned reference

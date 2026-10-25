@@ -41,6 +41,27 @@ int main(void)
         CHECK(!SotnStageRoute_Read(dra, 65, 130, &route) && route.room == 999);
         Put16(record + offsets[i], values[offsets[i] / 2]);
     }
+    SotnRoomCrossing crossing = {0};
+    CHECK(SotnStageRoute_Crossing(128, 4, 768, 256, false, &crossing) && !crossing.active);
+    CHECK(SotnStageRoute_Crossing(128, 3, 768, 256, false, &crossing));
+    CHECK(crossing.active && crossing.x == 128 && crossing.y == -1 && crossing.arrival_y == -48);
+    CHECK(SotnStageRoute_Crossing(128, 251, 768, 256, false, &crossing) && !crossing.active);
+    CHECK(SotnStageRoute_Crossing(128, 252, 768, 256, false, &crossing));
+    CHECK(crossing.active && crossing.y == 256 && crossing.arrival_y == 24);
+    CHECK(SotnStageRoute_Crossing(128, 227, 768, 256, true, &crossing) && !crossing.active);
+    CHECK(SotnStageRoute_Crossing(128, 228, 768, 256, true, &crossing));
+    CHECK(crossing.active && crossing.y == 256 && crossing.arrival_y == 48);
+    CHECK(SotnStageRoute_Crossing(768, -2, 768, 512, false, &crossing));
+    CHECK(crossing.active && crossing.x == 768 && crossing.y == -2 && !crossing.arrival_y);
+    CHECK(SotnStageRoute_Crossing(-1, 510, 768, 512, true, &crossing));
+    CHECK(crossing.active && crossing.x == -1 && crossing.y == 510 && !crossing.arrival_y);
+    crossing.arrival_y = 123;
+    CHECK(!SotnStageRoute_Crossing(128, 128, 0, 512, false, &crossing));
+    CHECK(!SotnStageRoute_Crossing(128, 128, 768, 257, false, &crossing));
+    CHECK(!SotnStageRoute_Crossing(-65, 128, 768, 512, false, &crossing));
+    CHECK(!SotnStageRoute_Crossing(128, 577, 768, 512, false, &crossing));
+    CHECK(!SotnStageRoute_Crossing(128, 128, 768, 512, false, NULL));
+    CHECK(crossing.arrival_y == 123);
     SDL_Log("STAGE_ROUTE: PASS");
     return 0;
 }

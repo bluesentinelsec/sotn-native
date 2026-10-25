@@ -303,3 +303,8 @@ The [early Short sword](docs/short-sword.md) now equips an ordinarily collected
 Entrance item and runs selected original attacks in either hand. The family-37
 view loads five palettes. Jewel/Stone sword special paths remain unavailable;
 ordinary travel and Continue grant no replacement gear.
+
+Selected normal-player [vertical room crossings](docs/early-castle-review.md) use
+original early thresholds and upward/downward overlap adjustments. Horizontal
+crossings keep priority. Camera-edge locks and transformation rules still require
+parity work; a successful route is not proof of complete area or console parity.

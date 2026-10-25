@@ -609,10 +609,14 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
     const Sint32 local_x = Pixel(state->x), local_y = Pixel(state->y);
     const Sint32 width = (Sint32)session->room.foreground.collision.width * 16;
     const Sint32 height = (Sint32)session->room.foreground.collision.height * 16;
-    if (local_x >= 0 && local_y >= 0 && local_x < width && local_y < height)
+    SotnRoomCrossing crossing = {0};
+    if (!SotnStageRoute_Crossing(local_x, local_y, (Uint32)width, (Uint32)height,
+                                 (state->contacts & 1) != 0, &crossing))
+        return false;
+    if (!crossing.active)
         return true;
-    const Sint32 world_x = (Sint32)session->room.left * 256 + local_x;
-    const Sint32 world_y = (Sint32)session->room.top * 256 + local_y;
+    const Sint32 world_x = (Sint32)session->room.left * 256 + crossing.x;
+    const Sint32 world_y = (Sint32)session->room.top * 256 + crossing.y;
     for (Uint32 i = 0; i < SotnStage_RoomCount(session->stage); ++i)
     {
         SotnStageRoom room = {0};
@@ -634,7 +638,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             return true;
         }
         const Sint32 offset_x = ((Sint32)session->room.left - room.left) * 256;
-        const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256;
+        const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256 + crossing.arrival_y;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
             return false;
         if (!SotnSubweapons_Enter(session->subweapons, room.foreground.collision))
@@ -646,6 +650,10 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
     }
+    // An early vertical probe can still be inside a sealed room. Apply no rebase
+    // when no neighbor exists; ordinary collision retains the current owner.
+    if (local_x >= 0 && local_y >= 0 && local_x < width && local_y < height)
+        return true;
     return SDL_SetError("Player reached an unsupported boundary in stage %u room %u",
                         session->stage_id, session->room_index);
 }
