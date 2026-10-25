@@ -22,9 +22,23 @@ enum
  * @param sources Immutable private inputs, alive until destruction; sample bodies are copied.
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return Success, or false with SDL_GetError() for invalid data or allocation failure.
- * @note Supports selected direct/scripted sound effects. CD music, SEQ, reverb, and full
+ * @note Supports selected direct/scripted sound effects. CD music, reverb, and full
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
+/** @brief Attach verified immutable Librarian SEQ and original SDK pitch tables; no playback yet.
+ * @param sound Borrowed initialized sound owner. @param executable Borrowed private boot image.
+ * @param data Borrowed version-one Library SEQ. Both views must outlive sound destruction.
+ * @return Success or SDL error, leaving the existing attachment unchanged on failure. */
+bool SotnSound_SetSequence(SotnSound *sound, SotnDataView executable, SotnDataView data);
+/** @brief Start the selected original Librarian sequence with private DRA settings.
+ * @param sound Borrowed initialized owner with attached sequence input. @param id US ID 0x202.
+ * @return Success or SDL error. Voices share the original bounded hardware pool with effects.
+ * Full reverb/hardware timing parity remains incomplete. */
+bool SotnSound_PlaySequence(SotnSound *sound, Uint16 id);
+/** @brief Release only sequence-owned voices and stop its cursor; other effects remain active.
+ * @param sound Borrowed initialized owner or NULL. */
+void SotnSound_StopSequence(SotnSound *sound);
+
 /** @brief Queue an original sound-effect ID for the next simulation tick.
  * @param sound Borrowed owned simulation. @param id Original US ID, 0x601..0x8e0, or 0xa1 to
  * release ambience channels 20/21.

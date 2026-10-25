@@ -82,7 +82,7 @@ struct SotnLaboratory
     bool warned_actors[0x63];
     Uint16 displayed_hp, displayed_hearts, displayed_subweapon;
     Uint32 displayed_gold;
-    SotnResource *sound_resources[5];
+    SotnResource *sound_resources[5], *sequence_resource;
     SotnSound *sound;
     SotnPlayback *audio;
     SotnStream *music_stream;
@@ -173,6 +173,12 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[4])};
     if (!SotnSound_Create(sources, &session->sound))
         return false;
+    if (session->stage_id == 2 &&
+        (!SotnResource_Open(directory, SOTN_RESOURCE_LIBRARY_SEQUENCE,
+                            &session->sequence_resource) ||
+         !SotnSound_SetSequence(session->sound, session->executable,
+                                SotnResource_View(session->sequence_resource))))
+        return false;
     if (session->music_stream == NULL)
     {
         SDL_Log("Verifying private music container for stage %u...", session->stage_id);
@@ -189,6 +195,13 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
 {
     if (session->sound == NULL)
         return true;
+    if (combat->sequence_change)
+    {
+        if (combat->sequence == 0)
+            SotnSound_StopSequence(session->sound);
+        else if (!SotnSound_PlaySequence(session->sound, combat->sequence))
+            return false;
+    }
     if (combat->music_change)
     {
         SotnMusic *next = NULL;
@@ -1655,6 +1668,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         if (!session->borrowed_music)
             SotnStream_Close(session->music_stream);
         SotnSound_Destroy(session->sound);
+        SotnResource_Close(session->sequence_resource);
         for (Uint32 i = 0; i < 5; ++i)
             SotnResource_Close(session->sound_resources[i]);
         SotnPresenter_Destroy(session->presenter);

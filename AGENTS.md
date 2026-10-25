@@ -408,3 +408,10 @@ music, records defeat and produces the Life Max Up. Ordinary saves/Continue reta
 its original event record and collected reward. Poison, librarian/shop, remaining
 scripts and Library travel stay pending; explicit-room fixtures are not whole-route
 or console parity.
+
+The [Librarian sequence service](docs/library-sequence-audio.md) now reads verified
+`ST/LIB/SEQ_LIB.SEQ`, retains selected original SDK scheduling/loops, and plays
+common-bank notes through the SPU service with private pitch data. SEQ and XA
+ownership remain separate. Private checks match selected scheduling and pitch
+algorithms; they do not establish console PCM, reverb or complete voice-flush
+parity. Librarian/shop interaction and Library travel remain pending.

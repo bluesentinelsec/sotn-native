@@ -29,6 +29,7 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_DOPPLE_AUDIO_BODY,     /**< US Doppleganger arena samples. */
     SOTN_RESOURCE_LIBRARY_AUDIO_HEADER,  /**< US Long Library instruments. */
     SOTN_RESOURCE_LIBRARY_AUDIO_BODY,    /**< US Long Library samples. */
+    SOTN_RESOURCE_LIBRARY_SEQUENCE,      /**< US Librarian sequence event stream. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 
