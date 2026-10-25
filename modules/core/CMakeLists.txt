@@ -8,6 +8,8 @@ add_library(sotn-core STATIC
   relic.c
   include/sotn/relic.h
   character.c
+  shop.c
+  include/sotn/shop.h
   include/sotn/character.h
   collision.c
   animation.c

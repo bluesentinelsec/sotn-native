@@ -922,7 +922,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
             "complete castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-seven saves with stage, explored cells, and permanent castle events.");
+            "and version-eight saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
         SDL_Log("Development entry: original Entrance equipment when applicable; "
                 "70 HP, base stats 6. Prologue-derived initialization remains separate.");

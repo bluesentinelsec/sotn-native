@@ -75,9 +75,9 @@ static bool Codec(void)
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
     // Independently produced with Python struct and zlib for Profile().
-    CHECK(record[4092] == 0x9d && record[4093] == 0xc8 && record[4094] == 0x84 &&
-          record[4095] == 0x37);
-    CHECK(record[8] == 7 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
+    CHECK(record[4092] == 0x03 && record[4093] == 0xdc && record[4094] == 0xd8 &&
+          record[4095] == 0xe9);
+    CHECK(record[8] == 8 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
           record[28] == 1 && record[48] == 87);
     CHECK(record[92] == 57 && record[93] == 48 && record[104 + 99] == 99 && record[363] == 168 &&
           record[622] == 0x81);
@@ -112,8 +112,8 @@ static bool Codec(void)
           decoded.world.time_attack[SOTN_TIME_DOPPLEGANGER] == 10003 &&
           decoded.world.time_attack_visited ==
               ((1U << SOTN_TIME_LAB_BOSSES) | (1U << SOTN_TIME_DOPPLEGANGER)));
-    const Uint32 corrupt_offsets[] = {
-        3440, 3442, 3443, 3447, 3478, 3479, 3612, 4091, 624 + SOTN_LAB_CANNON};
+    const Uint32 corrupt_offsets[] = {3440, 3442, 3443, 3447, 3478, 3479,
+                                      3612, 3616, 3624, 3625, 4091, 624 + SOTN_LAB_CANNON};
     for (Uint32 i = 0; i < SDL_arraysize(corrupt_offsets); ++i)
     {
         CHECK(SotnSave_Encode(state, record, sizeof(record)));
@@ -123,6 +123,19 @@ static bool Codec(void)
         CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     }
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    Uint8 version_seven[SOTN_SAVE_BYTES] = {0};
+    SDL_memcpy(version_seven, record, sizeof(version_seven));
+    version_seven[8] = 7;
+    Rechecksum(version_seven, sizeof(version_seven));
+    CHECK(version_seven[4092] == 0x9d && version_seven[4093] == 0xc8 &&
+          version_seven[4094] == 0x84 && version_seven[4095] == 0x37);
+    CHECK(SotnSave_Decode(version_seven, sizeof(version_seven), &decoded));
+    CHECK(!decoded.character.spells_learned && !decoded.character.spells[0] &&
+          !decoded.world.game_clear && decoded.world.time_attack[SOTN_TIME_DOPPLEGANGER] == 10003);
+    version_seven[3612] = 1;
+    Rechecksum(version_seven, sizeof(version_seven));
+    decoded.room = 99;
+    CHECK(!SotnSave_Decode(version_seven, sizeof(version_seven), &decoded) && decoded.room == 99);
     Uint8 version_six[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(version_six, record, sizeof(version_six));
     version_six[8] = 6;
@@ -185,11 +198,11 @@ static bool Codec(void)
     version_three[624] = 1;
     Rechecksum(version_three, sizeof(version_three));
     CHECK(!SotnSave_Decode(version_three, sizeof(version_three), &decoded));
-    record[8] = 8;
+    record[8] = 9;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 7;
+    record[8] = 8;
     record[104] = 100;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
@@ -247,7 +260,7 @@ static bool Codec(void)
     Rechecksum(version_two, 80);
     CHECK(SotnSave_Decode(version_two, 80, &decoded) && decoded.player_random == 42 &&
           decoded.actor_random == 43 && decoded.combat_random == 44);
-    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 7);
+    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 8);
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded) && decoded.character.hp_max == 70);
     version_two[12] = 0;
     Rechecksum(version_two, 80);
@@ -481,9 +494,43 @@ static bool Storage(const char *directory)
     return true;
 }
 
+static bool ShopProgress(void)
+{
+    SotnSaveState s = Profile(), out = {0};
+    Uint8 record[SOTN_SAVE_BYTES] = {0};
+    CHECK(SotnCharacter_LearnSpell(&s.character, 7));
+    CHECK(SotnCharacter_LearnSpell(&s.character, 0));
+    CHECK(SotnCharacter_LearnSpell(&s.character, 7));
+    CHECK(s.character.spells_learned == 129 && s.character.spells[0] == 0x87 &&
+          s.character.spells[1] == 0x80 && s.character.spells[2] == 0);
+    CHECK(!SotnCharacter_LearnSpell(&s.character, 8));
+    s.world.game_clear = 1;
+    s.world.flags[SOTN_LIBRARY_MAP] = 1;
+    CHECK(SotnSave_Encode(s, record, sizeof(record)));
+    CHECK(record[3612] == 129 && record[3616] == 0x87 && record[3617] == 0x80 && record[3624] == 1);
+    CHECK(SotnSave_Decode(record, sizeof(record), &out));
+    CHECK(out.character.spells_learned == 129 && out.character.spells[0] == 0x87 &&
+          out.character.spells[1] == 0x80 && out.world.game_clear == 1 &&
+          out.world.flags[SOTN_LIBRARY_MAP] == 1 && out.character.gold == s.character.gold);
+    const Uint32 offsets[] = {3613, 3616, 3617, 3619, 3624, 3625};
+    for (Uint32 i = 0; i < SDL_arraysize(offsets); ++i)
+    {
+        CHECK(SotnSave_Encode(s, record, sizeof(record)));
+        record[offsets[i]] = 255;
+        Rechecksum(record, sizeof(record));
+        out.room = 99;
+        CHECK(!SotnSave_Decode(record, sizeof(record), &out) && out.room == 99);
+    }
+    s.character.spells[1] = 0x87;
+    CHECK(!SotnCharacter_Validate(&s.character));
+    CHECK(!SotnSave_Encode(s, record, sizeof(record)));
+    CHECK(!SotnCharacter_LearnSpell(&s.character, 1));
+    CHECK(!SotnCharacter_LearnSpell(NULL, 1));
+    return true;
+}
 int main(int argc, char **argv)
 {
-    if (argc != 2 || !Codec() || !Stages() || !Storage(argv[1]))
+    if (argc != 2 || !Codec() || !ShopProgress() || !Stages() || !Storage(argv[1]))
         return 1;
     SDL_Log("SOTN_SAVE_TEST: PASS");
     return 0;
