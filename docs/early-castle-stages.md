@@ -29,6 +29,7 @@ Tower of Mist, with checksum-verified stage sound banks loaded on demand.
 Selected [Outer Wall ranged encounters](outer-wall-ranged-enemies.md) now run Bone
 Muskets and Bone Archers with selected projectiles and death behavior. The
 [Spear Guard](outer-wall-spear-guard.md) adds selected melee, blocking, throw and death rules.
+[Sword Lord](outer-wall-sword-lord.md) adds its weapon hitbox, attacks and staged death.
 
 Selected shared pickups, relics, doors, camera locks and breakables run against
 those profiles. Outer Wall's background-door flag is decoded separately from its
