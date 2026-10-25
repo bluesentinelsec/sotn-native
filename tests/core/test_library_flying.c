@@ -169,10 +169,10 @@ static bool Flight(Fixture *f)
     a->state.id = 0x1c;
     a->state.step = 7;
     a->flying.hovering = true;
-    s->game_frame = 1;
+    s->service_ticks = 1;
     CHECK(ActorLibraryFlying(s, a) && a->flying.timer == 96 && a->vx == 32768 &&
           a->flying.hover == 0);
-    s->game_frame = 3;
+    s->service_ticks = 3;
     CHECK(ActorLibraryFlying(s, a) && a->flying.hover == 1 && a->flying.timer == 95);
     a->flying.hover = 23;
     a->flying.hovering = true;
@@ -229,7 +229,7 @@ static bool Blood(Fixture *f)
     CHECK(p->state.x == 124 * 65536 && big->state.x == 128 * 65536);
     s->camera_x = 3;
     s->camera_y = 5;
-    s->game_frame = 1;
+    s->service_ticks = 1;
     CHECK(ActorLibraryBlood(s, a) && p->state.active && big->state.active);
     CHECK(p->state.x == 124 * 65536 + 24571 && p->state.y == 128 * 65536 + 40957);
     CHECK(p->state.offset_x[0] == -10 && p->state.offset_y[0] == -2 && p->state.red == 96 &&

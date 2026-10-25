@@ -280,3 +280,9 @@ at the pinned sotn-decomp revision (AGPL-3.0-or-later). Private animation, senso
 SDK trigonometry and artwork remain runtime inputs. The original US initial
 uninitialized-pointer vertex read is replaced explicitly; read
 [attack scope](docs/library-demon-attacks.md) for this memory-safety adaptation.
+
+`modules/core/library_mudman.c` adapts `src/st/lib/e_mudman.c` and selected
+`src/st/e_misc.h:MakeEntityFromId`; `library_summon.c` adapts
+`src/st/lib/e_lesser_demon.c:func_us_801BB8DC`. Library Skeleton changes follow
+`src/st/e_skeleton.h`, all from the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Private appearance, motion, sensor, hitbox and artwork tables remain runtime inputs.

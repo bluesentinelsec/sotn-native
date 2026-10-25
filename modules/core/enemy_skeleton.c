@@ -148,6 +148,12 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
 {
     Uint8 anim = 0;
     Uint16 collision = 0;
+    if (!scimitar && s->stage_id == 2 && (a->state.parameters & 16U) &&
+        (s->library_enemy_flags & 2U))
+    {
+        a->hit_flags |= 3U;
+        a->state.flags |= 0x100U;
+    }
     if (a->state.flags & 0x100)
         a->state.step = scimitar ? 7 : 6;
     switch (a->state.step)
@@ -167,7 +173,19 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
                 a->remove = true;
         }
         a->enemy_state.attack_timer = 80;
+        if (!scimitar && s->stage_id == 2 && (a->state.parameters & 16U))
+        {
+            a->state.flags |= 0x2000U;
+            a->state.hitbox_state = 0;
+            a->state.frame = 0;
+            a->state.step = 32;
+            return true;
+        }
         break;
+    case 32:
+        if (scimitar || s->stage_id != 2)
+            return SDL_SetError("Skeleton summon requires the original Library profile");
+        return ActorLibrarySummon(s, a, ActorStageOffset(s, 0x24a8));
     case 1:
         if (!ActorGround(s, a,
                          scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530)

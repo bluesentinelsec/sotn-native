@@ -176,7 +176,7 @@ static bool Dhuron(Fixture *f)
     CHECK(ActorLibraryDhuron(s, weapon) && weapon->attack == 24 &&
           weapon->attack_element == 0x4000 && !weapon->dhuron.charged);
     CHECK(ActorLibraryDhuron(s, weapon) && weapon->attack == 24);
-    s->game_frame = 2;
+    s->service_ticks = 2;
     a->state.step = 2;
     CHECK(ActorLibraryDhuron(s, a) && a->state.palette == 0x201);
     a->state.step = 6;

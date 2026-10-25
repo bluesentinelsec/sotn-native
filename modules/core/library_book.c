@@ -204,7 +204,7 @@ static bool Death(SotnActors *s, Actor *a)
             flame->state.priority = a->state.id == 0x30 ? 0xd0 : 0xc0;
         }
     }
-    if (!(s->game_frame & 15U) && !ActorLibrarySound(s, a, 0x655))
+    if (!(s->service_ticks & 15U) && !ActorLibrarySound(s, a, 0x655))
         return false;
     if (!a->substep)
     {
@@ -218,7 +218,7 @@ static bool Death(SotnActors *s, Actor *a)
     {
         Approach(&a->book.opening, 512, 16);
         Advance(a);
-        if (s->game_frame & 1U)
+        if (s->service_ticks & 1U)
         {
             Actor *page = NULL;
             if (!ActorSpawn(s, a, 0x31, 0, 160, 192, &page))

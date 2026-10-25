@@ -278,3 +278,10 @@ target_include_directories(sotn-library-demon-attack-tests PRIVATE ../../modules
 target_link_libraries(sotn-library-demon-attack-tests PRIVATE sotn-core)
 add_test(NAME library-demon-attacks COMMAND sotn-library-demon-attack-tests)
 set_tests_properties(library-demon-attacks PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-library-minion-tests test_library_minions.c)
+sotn_configure_c_target(sotn-library-minion-tests)
+target_include_directories(sotn-library-minion-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-library-minion-tests PRIVATE sotn-core)
+add_test(NAME library-minions COMMAND sotn-library-minion-tests)
+set_tests_properties(library-minions PROPERTIES TIMEOUT 20)

@@ -135,50 +135,6 @@ static bool Afterimage(SotnActors *s, Actor *a)
     }
     return true;
 }
-static bool Summon(Actor *a)
-{
-    switch (a->substep)
-    {
-    case 0:
-        if (a->state.priority < 16)
-            return SDL_SetError("Ectoplasm summon priority underflow");
-        a->state.frame = 0;
-        a->state.hitbox_state = 0;
-        a->state.priority = (Uint16)(a->state.priority - 16);
-        a->ecto.saved_palette = a->state.palette;
-        a->state.opacity = 2;
-        a->state.opacity_set = true;
-        a->state.flags = (a->state.flags | 0x2000U) & ~0xc00U;
-        a->substep = 2;
-        break;
-    case 2:
-        a->state.opacity = (Uint16)(a->state.opacity + 4);
-        if (a->state.opacity > 160)
-        {
-            a->state.opacity_set = false;
-            a->state.opacity = 0;
-            a->state.scale_x = a->state.scale_y = 0;
-            a->state.blend_mode = 0;
-            a->ecto.spawn_wait = 32;
-            ++a->substep;
-        }
-        break;
-    case 3:
-        if (!a->ecto.spawn_wait)
-            return SDL_SetError("Ectoplasm summon blink wait underflow");
-        a->state.palette = (a->ecto.spawn_wait & 1U) ? a->ecto.saved_palette : 0x819f;
-        if (--a->ecto.spawn_wait == 0)
-        {
-            a->state.palette = a->ecto.saved_palette;
-            a->state.hitbox_state = 3;
-            SetStep(a, 1);
-        }
-        break;
-    default:
-        return SDL_SetError("Ectoplasm summon entered an invalid substep");
-    }
-    return true;
-}
 static bool Flame(SotnActors *s, Actor *a)
 {
     Actor *p = NULL;
@@ -262,7 +218,7 @@ static bool Body(SotnActors *s, Actor *a)
         break;
     }
     case 32:
-        if (!Summon(a))
+        if (!ActorLibrarySummon(s, a, 0))
             return false;
         break;
     case 1:

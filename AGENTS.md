@@ -390,6 +390,12 @@ and disabled ordinary Library travel; do not describe the area as complete.
 
 Selected [Lesser Demon children](docs/library-demon-attacks.md) now run spit/column
 and branching bolt effects in explicit fixtures. Native colored quads prepare the
-summoning presentation; body/entry/reward, minions and poison remain pending. The
+summoning presentation; body/entry/reward and poison remain pending. The
 US initial bolt vertex uses an explicitly documented safe initialization in place
 of an uninitialized-pointer read. Do not claim a playable boss or full parity.
+
+The selected [Library minions](docs/library-minions.md) now include Mudman emergence,
+walking/attack/sinking/death, its owned attack child and summoned Skeleton appearance/
+cleanup. Skeleton/Ectoplasm share their original fade helper. Effect cadence uses
+full simulation-frame phase with original 32-bit wrap, separate from clock subsecond
+frames. Protected inserted summon fixtures are not boss/route/console parity.
