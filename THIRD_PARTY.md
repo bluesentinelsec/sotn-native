@@ -401,3 +401,11 @@ angles, offsets and sprite artwork remain private runtime inputs.
 Native owned records replace the selected outside-stage attack entities; shared
 `actors.c` hit handling adapts the already credited `st/collision.h` path. Original
 initialization, artwork, palette and sensor tables remain private runtime inputs.
+
+`modules/core/chapel_hunting.c` and `chapel_hunting_graphics.c` adapt selected
+`st/e_hunting_girl.h` and `st/prim_helpers.h:PrimDecreaseBrightness` at the pinned
+sotn-decomp revision (AGPL-3.0-or-later). Native slot/generation references replace
+child/trail pointers. Required null-trail/terminator handling is documented in
+`docs/chapel-hunting-girl.md`; no low-memory side effects are emulated. Original
+initialization, animation, fade, spirit, motion, sensor, artwork and SDK tables
+remain private runtime inputs.

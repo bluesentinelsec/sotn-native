@@ -396,3 +396,10 @@ target_include_directories(sotn-chapel-spike-ball-tests PRIVATE ../../modules/co
 target_link_libraries(sotn-chapel-spike-ball-tests PRIVATE sotn-core)
 add_test(NAME chapel-spike-ball COMMAND sotn-chapel-spike-ball-tests)
 set_tests_properties(chapel-spike-ball PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-chapel-hunting-tests test_chapel_hunting.c)
+sotn_configure_c_target(sotn-chapel-hunting-tests)
+target_include_directories(sotn-chapel-hunting-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-chapel-hunting-tests PRIVATE sotn-core)
+add_test(NAME chapel-hunting COMMAND sotn-chapel-hunting-tests)
+set_tests_properties(chapel-hunting PROPERTIES TIMEOUT 20)
