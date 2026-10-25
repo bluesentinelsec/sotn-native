@@ -67,6 +67,7 @@ typedef struct SotnPlayerState
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
     SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
+    bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;

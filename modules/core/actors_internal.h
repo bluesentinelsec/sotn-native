@@ -107,6 +107,11 @@ typedef struct Actor
     } diplo;
     struct
     {
+        Uint8 timer, patrol, index, side;
+        bool movement_facing, alternate;
+    } spear;
+    struct
+    {
         Sint32 x, y;
     } archer;
     struct
@@ -283,6 +288,7 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorSpearGuard(SotnActors *actors, Actor *actor);
 bool ActorArcher(SotnActors *actors, Actor *actor);
 bool ActorMusket(SotnActors *actors, Actor *actor);
 bool ActorClock(SotnActors *actors, Actor *actor);

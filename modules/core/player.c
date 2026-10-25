@@ -1007,7 +1007,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              player->damage_random,
                              (Uint16)SDL_max(0, player->wall_sensors[0].x),
                              (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
-                             player->shield};
+                             player->shield,
+                             player->timers[0] != 0};
     return true;
 }
 

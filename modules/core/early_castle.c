@@ -6,6 +6,8 @@ bool ActorEarlyCastle(SotnActors *s, Actor *a)
     if (s->stage_id == 0 && ((a->state.id >= 0x19 && a->state.id <= 0x20) || a->state.id == 0x2b ||
                              a->state.id == 0x42))
         return ActorClock(s, a);
+    if (s->stage_id == 1 && (a->state.id == 0x4f || a->state.id == 0x50 || a->state.id == 0x58))
+        return ActorSpearGuard(s, a);
     if (s->stage_id == 1 && (a->state.id == 0x44 || a->state.id == 0x45))
         return ActorArcher(s, a);
     if (s->stage_id == 1 && (a->state.id == 0x46 || a->state.id == 0x47))

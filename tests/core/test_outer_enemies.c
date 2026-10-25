@@ -10,7 +10,7 @@
     } while (0)
 typedef struct Fixture
 {
-    Uint8 dra[0x400], stage[0x4000], tiles[32 * 16 * 2], types[2];
+    Uint8 dra[0x1400], stage[0x4000], exe[0x23220], tiles[32 * 16 * 2], types[2];
     SotnActorLayout *layout;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 v)
@@ -91,12 +91,55 @@ static bool Open(Fixture *f, SotnActors **s)
     }
     for (Uint32 i = 0; i < 8; ++i)
         f->stage[0x2d44 + i] = (Uint8)(8 + i);
+    SDL_memcpy(f->dra + 0x228, f->dra + 0x200, 40);
+    Put16(f->dra + 0x22c, 0x7fff);
+    Put16(f->stage + 0x968 + 8, 1);
+    Put16(f->dra + 0x200 + 94 * 40 + 6, 18);
+    Put16(f->dra + 0x200 + 94 * 40 + 8, 32);
+    Put16(f->dra + 0x200 + 95 * 40 + 6, 24);
+    Put16(f->dra + 0x200 + 95 * 40 + 8, 32);
+    Put16(f->dra + 0x200 + 2 * 40 + 6, 9);
+    Put32(f->dra + 0x200 + 2 * 40 + 36, 0x88000000);
+    Put16(f->stage + 0xb0c + 8, 2);
+    const size_t spear_move[] = {0x2f8c, 0x2f98, 0x2fa0, 0x2fa8};
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        Animation(f, spear_move[i], 1);
+        Put32(f->stage + 0x3054 + i * 4, 0x80180000 + (Uint32)spear_move[i]);
+        Put16(f->stage + 0x2f74 + i * 2, 2);
+        Put32(f->stage + 0x2f7c + i * 4, (Uint32)-2048);
+    }
+    const size_t spear_attacks[] = {0x2fb0, 0x2fbc, 0x2fdc, 0x2ff4, 0x3008, 0x3018, 0x3034};
+    for (Uint32 i = 0; i < SDL_arraysize(spear_attacks); ++i)
+        Animation(f, spear_attacks[i], 1);
+    Animation(f, 0x2ff4, 7);
+    Put16(f->stage + 0x306e, 24);
+    Put16(f->stage + 0x3066, 24);
+    Put16(f->stage + 0x3068, 8);
+    for (Uint32 i = 0; i < 8; ++i)
+        f->stage[0x2f04 + i] = 6;
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        f->stage[0x2f0c + i] = 32;
+        f->stage[0x2f10 + i] = 32;
+    }
+    for (Uint32 i = 0; i < 16; ++i)
+        f->stage[0x2f14 + i] = (Uint8)(63 - i * 4);
+    for (Uint32 i = 0; i < 43; ++i)
+    {
+        Put16(f->stage + 0x307c + i * 4, 4);
+        Put16(f->stage + 0x3128 + i * 4, 8);
+        Put16(f->stage + 0x312a + i * 4, 8);
+    }
+    for (Uint32 i = 0; i <= 1024; ++i)
+        Put16(f->exe + 0x22a10 + i * 2, (Uint16)(i / 2));
     f->types[1] = 3;
     for (Uint32 y = 12; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
             Put16(f->tiles + (y * 32 + x) * 2, 1);
     CHECK(SotnActors_CreateStage((SotnDataView){f->dra, sizeof(f->dra)},
                                  (SotnDataView){f->stage, sizeof(f->stage)}, 1, s));
+    CHECK(SotnActors_SetServices(*s, (SotnDataView){f->exe, sizeof(f->exe)}, 0, true));
     CHECK(SotnActorLayout_OpenStage((*s)->nz0, 1, 0, &f->layout));
     CHECK(SotnActors_Enter(
         *s, f->layout,
@@ -247,12 +290,70 @@ static bool Archer(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Spear(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *root = &s->slots[24];
+    *root = (Actor){.state = {.id = 0x4f, .generation = 700, .x = 200 * 65536, .y = 168 * 65536},
+                    .slot = 24,
+                    .dynamic = true};
+    const SotnPlayerState player = {
+        .x = 320 * 65536, .y = 168 * 65536, .hp = 70, .invulnerable = true};
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *block = &s->slots[25];
+    CHECK(block->state.id == 0x50 && block->state.hit_points == 0x7fff);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 2);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 4);
+    root->spear.timer = 0;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->spear.timer == 255);
+    root->spear.timer = 7;
+    SotnPlayerState casting = player;
+    casting.subweapon_starting = true;
+    CHECK(SotnActors_Tick(s, casting, 0, 0) && root->spear.timer == 7);
+    SetStep(root, 9);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && (block->state.hitbox_state & 2) &&
+          (block->state.flags & 0xc000) == 0xc000);
+    block->hit_flags = 2;
+    const Uint16 sounds = s->combat.sound_count;
+    CHECK(ActorSpearGuard(s, block) && s->combat.sound_count == sounds + 1);
+    Animation(f, 0x2fb0, 1);
+    f->stage[0x2fb1] = 7;
+    SetStep(root, 6);
+    root->state.facing_left = true;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && block->attack == 18 && root->vx == 245760);
+    SetStep(root, 11);
+    root->vx = 0;
+    bool thrown = false;
+    for (Uint32 i = 0; i < 8; ++i)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        thrown = thrown || s->slots[96].state.id == 0x58;
+    }
+    CHECK(thrown && s->slots[96].state.step == 2);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && s->slots[96].state.step == 3 &&
+          s->slots[96].vx == 6 * 65536);
+    CHECK(SotnActors_Tick(s, player, 0, 0) && s->slots[96].vy == 1024);
+    root->state.flags |= 0x10c100;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 12 && !block->state.generation);
+    CHECK(root->state.opacity == 125 && root->state.opacity_set);
+    for (Uint32 i = 0; i < 63; ++i)
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(!root->state.generation);
+    Actor orphan = {.state = {.id = 0x50, .generation = 701}};
+    CHECK(ActorSpearGuard(s, &orphan) && orphan.remove);
+    Actor invalid = {.state = {.id = 0x4f, .generation = 702}, .slot = 191};
+    CHECK(!ActorSpearGuard(s, &invalid));
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Musket(f) && Archer(f);
+    const bool ok = Musket(f) && Archer(f) && Spear(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
