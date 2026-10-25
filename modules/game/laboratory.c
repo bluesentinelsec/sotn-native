@@ -886,7 +886,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     else if (stage_id == 2)
         SDL_Log(
             "Long Library development adapters: common pickups, selected breakables, "
-            "Skeleton/Flea, Flea Armor, Dhuron and plant combat, music and ordinary saves. "
+            "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
+            "saves. "
             "Other enemies, Lesser Demon, librarian/shop and ordinary travel remain unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
@@ -1424,6 +1425,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (command.kind == SOTN_DRAW_ACTOR &&
             !DrawActorPrimitives(session, actor, camera_x, camera_y))
             return ActorDrawError(actor);
+        if ((actor.frame & 0x7fffU) == 0 ||
+            (actor.scale_set && (actor.scale_x == 0 || actor.scale_y == 0)))
+            continue;
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,

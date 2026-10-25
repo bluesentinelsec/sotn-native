@@ -381,3 +381,9 @@ failed equipped-weapon animations and shield blocking, with empty-hand/subweapon
 exceptions. It freezes on pause and carries across room/stage arrivals. It remains
 transient across ordinary Continue; v7 saves do not change. Full curse visuals,
 status text, cures and complete damage/effect parity remain pending.
+
+Library Spellbooks and Magic Tomes now project twelve private faces, wake, move,
+open and fire owned beams, then complete selected death/debris paths. Their native
+checks use protected original-placement fixtures; all geometry/UV/recipe data stay
+private. [Library scope](docs/library-runtime.md) retains the missing boss/shop/scripts
+and disabled ordinary Library travel; do not describe the area as complete.

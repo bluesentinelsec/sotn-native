@@ -230,6 +230,14 @@ typedef struct Actor
         Sint16 phase_x, phase_y, excited, counter, squash, speed, limit, scale;
         Uint16 saved_palette, spawn_wait;
     } ecto;
+    struct
+    {
+        Sint16 angle[3], delta[3], opening, depth, direction, center_x, center_y;
+        Sint32 magnitude;
+        Uint16 timer, wait, priority;
+        Uint32 child_generation;
+        bool command;
+    } book;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -448,6 +456,16 @@ bool ActorClock(SotnActors *actors, Actor *actor);
  */
 bool ActorLibrarySpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
                          Uint32 slot, Actor **out);
+/** @brief Project private Library book geometry and copy its hitbox anchor. */
+bool ActorLibraryBookGeometry(SotnActors *actors, Actor *actor);
+/** @brief Initialize the twelve owned book faces from private UV pointers. */
+bool ActorLibraryBookFaces(SotnActors *actors, Actor *actor);
+/** @brief Advance bounded fixed-point book/debris motion, failing before overflow. */
+bool ActorLibraryBookMove(Actor *actor);
+/** @brief Advance original Library book body, shared beam or page debris. */
+bool ActorLibraryBook(SotnActors *actors, Actor *actor);
+/** @brief Advance selected owned beam or independent page fragment. */
+bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
 /** @brief Queue the original positional LIB sound; owners remain borrowed. */
 bool ActorLibrarySound(SotnActors *actors, const Actor *actor, Uint16 sound);
 /** @brief Query a bounded private sensor list; write out only on success. */

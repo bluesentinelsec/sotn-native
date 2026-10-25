@@ -85,12 +85,12 @@ typedef struct SotnActorState
     Uint16 hitbox_width, hitbox_height, hitbox_state;
     bool tinted;
     Uint8 red, green, blue;
-    Sint16 rotation, bat_offset; /**< BO4's original current-pose horizontal adjustment. */
-    bool rotated, opacity_set;   /**< Explicit zero opacity is valid when opacity_set is true. */
+    Sint16 rotation, bat_offset;          /**< BO4's original current-pose horizontal adjustment. */
+    bool rotated, opacity_set, scale_set; /**< Flags distinguish explicit zero from defaults. */
     Uint16 primitive_count;
     Uint16 slot;
     Uint16 scale_x, scale_y,
-        opacity; /**< Zero selects unit scale/neutral color unless opacity_set is true. */
+        opacity; /**< Zero selects unit scale/neutral color unless scale_set/opacity_set is true. */
 } SotnActorState;
 
 /** @brief Copied stage primitive, owned by its actor; positions are room-local 16.16 pixels. */
