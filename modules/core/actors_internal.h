@@ -140,6 +140,12 @@ typedef struct Actor
     } archer;
     struct
     {
+        Uint16 barrel_slot, counter, bounces;
+        Uint32 barrel_generation;
+        Sint32 speed;
+    } ape;
+    struct
+    {
         Sint32 origin, line_start, line_end, line_y;
         Uint16 neighbor;
         Uint32 generation;
@@ -291,6 +297,7 @@ bool ActorOuterLiftSwitch(SotnActors *actors, Actor *actor);
 bool ActorOuterLiftRope(SotnActors *actors, Actor *actor);
 bool ActorBlueKnight(SotnActors *actors, Actor *actor);
 bool ActorBlueDeath(SotnActors *actors, Actor *actor, bool *done);
+bool ActorSkeletonApe(SotnActors *actors, Actor *actor);
 bool ActorSlogra(SotnActors *actors, Actor *actor);
 bool ActorGaibon(SotnActors *actors, Actor *actor);
 bool ActorBossReward(SotnActors *actors, Actor *actor);

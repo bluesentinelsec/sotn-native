@@ -190,3 +190,10 @@ target_include_directories(sotn-entrance-rock-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-entrance-rock-tests PRIVATE sotn-core)
 add_test(NAME entrance-breakable-rocks COMMAND sotn-entrance-rock-tests)
 set_tests_properties(entrance-breakable-rocks PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-skeleton-ape-tests test_skeleton_ape.c)
+sotn_configure_c_target(sotn-skeleton-ape-tests)
+target_include_directories(sotn-skeleton-ape-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-skeleton-ape-tests PRIVATE sotn-core)
+add_test(NAME outer-wall-skeleton-ape COMMAND sotn-skeleton-ape-tests)
+set_tests_properties(outer-wall-skeleton-ape PROPERTIES TIMEOUT 20)
