@@ -37,6 +37,28 @@ bool ActorLibraryBlocked(SotnActors *s, const Actor *a, size_t offset, bool faci
     }
     return SDL_SetError("Library collision sensor list has no bounded sentinel");
 }
+bool ActorLibrarySpawnAt(SotnActors *s, const Actor *source, Uint16 id, Uint16 parameters,
+                         Uint32 slot, Actor **out)
+{
+    if (s == NULL || source == NULL || out == NULL || s->stage_id != 2 ||
+        slot >= SOTN_STAGE_ACTOR_SLOTS || slot == source->slot || id == 0 ||
+        id >= SotnStageProfile_Get(2)->actor_limit)
+        return SDL_SetError("Library fixed child requires bounded initialized owners");
+    Actor *previous = &s->slots[slot];
+    if (previous->state.generation != 0 && previous->state.id == id &&
+        previous->enemy_state.owner_slot == source->slot)
+    {
+        SotnActorPlacement placement = {0};
+        Uint32 generation = 0;
+        if (!SotnRoomActors_Get(s->spawns, slot, &placement, &generation))
+            return false;
+        if (generation != 0)
+            return SDL_SetError("Library fixed child would replace an original placed actor");
+        ActorPrimitivesClear(s, previous);
+        *previous = (Actor){0};
+    }
+    return ActorSpawnAt(s, source, id, parameters, slot, out);
+}
 bool ActorLibrary(SotnActors *s, Actor *a)
 {
     if (s == NULL || a == NULL || s->stage_id != 2)
@@ -47,6 +69,12 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return ActorLibraryFlying(s, a);
     if (a->state.id == 0x1d || a->state.id == 0x1e)
         return ActorLibraryBlood(s, a);
+    if (a->state.id >= 0x33 && a->state.id <= 0x36)
+        return ActorLibraryDhuron(s, a);
+    if (a->state.id == 0x4a || a->state.id == 0x4b)
+        return ActorLibraryFleaArmor(s, a);
+    if (a->state.id == 0x14 || a->state.id == 0x15)
+        return ActorOuterEffect(s, a);
     if (a->state.id == 0x12)
         return ActorCamera(s, a);
     if (a->state.id >= 0x43 && a->state.id <= 0x45)

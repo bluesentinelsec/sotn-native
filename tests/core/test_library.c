@@ -64,6 +64,16 @@ static bool Breakables(SotnActors *s, Uint8 *image)
           helper->state.priority == 128);
     CHECK(ActorLibraryBreakable(s, helper) && helper->state.frame == 11 &&
           helper->state.blend_mode == 0x30);
+    CHECK(ActorPrimitives(s, helper, 1));
+    const Uint16 old_primitive = helper->primitive[0];
+    const Uint32 old_helper = helper->state.generation;
+    // A scroll-out/re-entry reinitializes the lamp while its original helper can survive.
+    a->state.step = 0;
+    ++a->state.generation;
+    CHECK(ActorLibraryBreakable(s, a) && helper->state.generation != old_helper &&
+          helper->enemy_state.owner_generation == a->state.generation && helper->state.step == 0);
+    CHECK(s->primitives[old_primitive].owner == 0);
+    CHECK(ActorLibraryBreakable(s, helper));
     a->hit_params = 1;
     CHECK(ActorLibraryBreakable(s, a) && a->remove && a->permanent && a->state.id == 1);
     CHECK(s->combat.sound_count == 1 && s->combat.sounds[0] == 0x61c &&
@@ -119,6 +129,11 @@ static bool Breakables(SotnActors *s, Uint8 *image)
     CHECK(ActorLibraryBreakable(s, a) && a->remove && a->permanent);
     Reset(s);
     a = &s->slots[64];
+    Actor *out = NULL;
+    s->slots[65] = (Actor){.slot = 65, .state = {.id = 0x33, .generation = 55}};
+    CHECK(!ActorLibrarySpawnAt(s, a, 0x3f, 0, 65, &out) && s->slots[65].state.id == 0x33 &&
+          s->slots[65].state.generation == 55);
+    CHECK(!ActorLibrarySpawnAt(s, a, 0x3f, 0, a->slot, &out));
     a->state.parameters = 0xa000;
     CHECK(!ActorLibraryBreakable(s, a) && a->state.step == 0);
     a->state.parameters = 0x900b;
