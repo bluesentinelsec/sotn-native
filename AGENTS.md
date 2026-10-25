@@ -181,7 +181,7 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 7 saves retain this
+Spells/relic/settings/familiar menus remain unavailable. Version 8 saves retain this
 supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
@@ -192,7 +192,7 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 7 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 8 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
 owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4/5
 migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1
@@ -423,3 +423,9 @@ hold and meeting/time record through the shop-ready gate. It does not implement
 shop menus/transactions/exit yet. Native explicit-room checks agree in Debug and
 ASan/UBSan; do not call the complete interaction or Library route integrated. Chair
 gift rules have injected-contact tests; Gravity Boots/transform behavior stays pending.
+
+The [Library shop transaction service](docs/library-shop.md) now decodes original
+private stock/unlock tables and commits equipment, gem, relic, map and learned-scroll
+transactions atomically. Version 8 saves add learned-spell order/mask and the original
+completed-game unlock flag with explicit v1–v7 migrations. This does not implement
+playable shop menus, spell casting or missing equipment effects; Library travel remains gated.

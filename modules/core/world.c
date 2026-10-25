@@ -20,7 +20,7 @@ bool SotnWorld_Visit(SotnWorldState *s, Sint32 x, Sint32 y, bool inverted)
 }
 bool SotnWorld_Validate(const SotnWorldState *s)
 {
-    if (s == NULL || s->rooms > 8192)
+    if (s == NULL || s->rooms > 8192 || s->game_clear > 1)
         return SDL_SetError("Saved castle progress has invalid bounds");
     for (Uint32 i = 0; i < SOTN_TIME_ATTACK_EVENTS; ++i)
     {
@@ -28,7 +28,8 @@ bool SotnWorld_Validate(const SotnWorldState *s)
         if (record > 999990000U || record % 100U >= 60 || record / 100U % 100U >= 60)
             return SDL_SetError("Saved time-attack event %u has an invalid HHMMSS record", i);
     }
-    if (s->flags[SOTN_LIBRARY_MET] > 1 || s->flags[SOTN_LIBRARY_DROPS] > 15)
+    if (s->flags[SOTN_LIBRARY_MAP] > 1 || s->flags[SOTN_LIBRARY_MET] > 1 ||
+        s->flags[SOTN_LIBRARY_DROPS] > 15)
         return SDL_SetError("Saved Library encounter flag is invalid");
     if (s->flags[SOTN_CLOCK_FLOOR] > 1)
         return SDL_SetError("Saved clock-room floor flag is invalid");
@@ -70,4 +71,41 @@ bool SotnWorld_VisitEvent(SotnWorldState *s, Uint16 event)
         return SDL_SetError("Time-attack visitation requires an original event index");
     s->time_attack_visited |= (Uint32)1U << event;
     return true;
+}
+
+// dra/5087C.c:func_800F2288; no private rectangle bytes are compiled into the game.
+bool SotnWorld_Reveal(SotnWorldState *s, const Uint8 *bytes, size_t size, bool inverted)
+{
+    if (!bytes || !size || !SotnWorld_Validate(s))
+        return SDL_SetError("Purchased map needs valid progress and a bounded rectangle stream");
+    SotnWorldState next = *s;
+    size_t cursor = 0;
+    while (cursor < size)
+    {
+        const Uint32 x = bytes[cursor++];
+        if (x == 255)
+        {
+            *s = next;
+            return true;
+        }
+        if (size - cursor < 3)
+            break;
+        const Uint32 y = bytes[cursor++], width = bytes[cursor++], height = bytes[cursor++];
+        if (!width || !height || x >= 64 || y >= 64 || width > (64U - x) / 8U || height > 64U - y ||
+            width * height > size - cursor)
+            return SDL_SetError("Purchased map rectangle exceeds castle or private stream bounds");
+        for (Uint32 row = 0; row < height; ++row)
+            for (Uint32 col = 0; col < width; ++col)
+            {
+                const Uint8 bits = bytes[cursor++];
+                for (Uint32 bit = 0; bit < 8; ++bit)
+                    if (bits & (1U << bit))
+                    {
+                        const Uint32 xx = x + col * 8 + bit;
+                        const Uint32 index = xx / 4 + (y + row) * 16 + (inverted ? 1024U : 0U);
+                        next.map[index] |= (Uint8)(2U << ((3U - (xx & 3U)) * 2));
+                    }
+            }
+    }
+    return SDL_SetError("Purchased map rectangle stream lacks a bounded terminator");
 }

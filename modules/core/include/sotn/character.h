@@ -6,7 +6,8 @@ enum
 {
     SOTN_HAND_ITEMS = 169,
     SOTN_BODY_ITEMS = 90,
-    SOTN_EQUIP_SLOTS = 7
+    SOTN_EQUIP_SLOTS = 7,
+    SOTN_SPELLS = 8
 };
 /** @brief Original equipment slots; inventory counts exclude currently equipped copies. */
 typedef enum SotnEquipSlot
@@ -26,6 +27,8 @@ typedef struct SotnCharacterState
     Uint32 experience, gold, kills, random;
     Uint8 hand_count[SOTN_HAND_ITEMS], body_count[SOTN_BODY_ITEMS];
     Uint8 hand_order[SOTN_HAND_ITEMS], body_order[SOTN_BODY_ITEMS];
+    Uint32 spells_learned; /**< Original known-spell mask; casting remains a separate service. */
+    Uint8 spells[SOTN_SPELLS]; /**< Acquisition order, original 0x80-known encoding. */
     Uint8 laboratory_items[2]; /**< Original NZ0 persistent item indices, not transient candles. */
 } SotnCharacterState;
 /** @brief Decoded private equipment record; text views expire with the source DRA image. */
@@ -75,6 +78,18 @@ bool SotnCharacter_Restore(SotnCharacter *character, const SotnCharacterState *s
  * @param character Borrowed character. @param body Item table. @param id Bounded item ID.
  * @return Success or false with SDL_GetError(); unsupported items can be owned, never misused. */
 bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
+/** @brief Exchange gold and unequipped equipment atomically using the shop's original limits.
+ * @param character Owned progress. @param body Select item table. @param id Original item ID.
+ * @param quantity Copies, 1..99. @param price Unit price, 0..999999.
+ * @param sell Sell unequipped copies; otherwise buy with a 99-copy limit including equipment.
+ * @return Success or SDL error with unchanged ownership, gold and acquisition order. */
+bool SotnCharacter_Trade(SotnCharacter *character, bool body, Uint16 id, Uint16 quantity,
+                         Uint32 price, bool sell);
+/** @brief Learn an original spell once and append its encoded acquisition order.
+ * @param state Writable initialized progress. @param id Original spell 0..7.
+ * @return Success or SDL error with unchanged state on invalid input. Does not implement casting.
+ */
+bool SotnCharacter_LearnSpell(SotnCharacterState *state, Uint16 id);
 /** @brief Exchange an inventory copy with one equipment slot; virtual empty items cost nothing.
  * @param character Borrowed character. @param slot Slot 0..6. @param id Original item ID.
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not

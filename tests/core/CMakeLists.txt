@@ -313,3 +313,9 @@ target_include_directories(sotn-library-librarian-tests PRIVATE ../../modules/co
 target_link_libraries(sotn-library-librarian-tests PRIVATE sotn-core)
 add_test(NAME library-librarian COMMAND sotn-library-librarian-tests)
 set_tests_properties(library-librarian PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-shop-tests test_shop.c)
+sotn_configure_c_target(sotn-shop-tests)
+target_link_libraries(sotn-shop-tests PRIVATE sotn-core)
+add_test(NAME library-shop COMMAND sotn-shop-tests)
+set_tests_properties(library-shop PROPERTIES TIMEOUT 20)

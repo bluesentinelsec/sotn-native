@@ -314,3 +314,9 @@ script paths in entrance_death.c adapt st/lib/e_shop.c, cutscene.c and shared
 cutscene helpers at the pinned sotn-decomp revision (AGPL-3.0-or-later). Scripted
 player hold follows dra/692E8.c, 71830.c, 6DF70.c, 6E42C.c and alu_anim.c.
 Dialogue, animation, portraits, samples and original tables remain private inputs.
+
+Selected Library catalogue/transaction rules in `modules/core/shop.c` adapt
+`st/lib/e_shop.c` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Equipment ownership/order and spell learning follow `dra/5D5BC.c`; purchased-map
+reveal follows `dra/5087C.c:func_800F2288`. Original prices, stock rows, unlock
+mappings, text and map rectangles remain private runtime inputs.

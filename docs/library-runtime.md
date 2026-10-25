@@ -193,3 +193,8 @@ physical defeat; the placed entry/seals/reward sequence now has a separate prote
 [ordinary-save check](library-demon-entry.md). The selected
 [summoned minions](library-minions.md) now run Mudman and the Skeleton/Ectoplasm
 appearance and cleanup paths; their protected inserted fixtures are component evidence.
+
+The [shop transaction foundation](library-shop.md) now reads private stock and
+retains equipment/gem/relic/map/scroll ownership changes in v8 saves. Playable
+menus/exit, missing equipment effects and spell casting remain unintegrated;
+this service alone does not enable ordinary Library travel.

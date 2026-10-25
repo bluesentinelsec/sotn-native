@@ -142,6 +142,23 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
         s->experience > 999999 || s->gold > 999999 || (s->laboratory_items[1] & 0xf8) != 0 ||
         !Order(s->hand_order, SOTN_HAND_ITEMS) || !Order(s->body_order, SOTN_BODY_ITEMS))
         return SDL_SetError("Character progress has invalid bounds or inventory order");
+    Uint32 learned = 0;
+    bool end = false;
+    for (Uint32 i = 0; i < SOTN_SPELLS; ++i)
+    {
+        const Uint8 encoded = s->spells[i];
+        if (!encoded)
+        {
+            end = true;
+            continue;
+        }
+        if (end || encoded < 0x80 || encoded >= 0x80 + SOTN_SPELLS ||
+            (learned & (1U << (encoded & 7U))))
+            return SDL_SetError("Known spell acquisition order is invalid");
+        learned |= 1U << (encoded & 7U);
+    }
+    if (learned != s->spells_learned)
+        return SDL_SetError("Known spell mask disagrees with acquisition order");
     for (Uint32 i = 0; i < 4; ++i)
         if (s->base[i] == 0 || s->base[i] > 99)
             return SDL_SetError("Character base stat is outside 1..99");
@@ -337,6 +354,57 @@ bool SotnCharacter_Collect(SotnCharacter *c, bool body, Uint16 id)
         }
     }
     ++counts[id];
+    return true;
+}
+bool SotnCharacter_LearnSpell(SotnCharacterState *s, Uint16 id)
+{
+    if (id >= SOTN_SPELLS || !SotnCharacter_Validate(s))
+        return SDL_SetError("Spell learning requires valid progress and an original spell ID");
+    if (s->spells_learned & (1U << id))
+        return true;
+    for (Uint32 i = 0; i < SOTN_SPELLS; ++i)
+        if (!s->spells[i])
+        {
+            s->spells[i] = (Uint8)(0x80U | id);
+            s->spells_learned |= 1U << id;
+            return true;
+        }
+    return SDL_SetError("Known spell order has no free entry");
+}
+bool SotnCharacter_Trade(SotnCharacter *c, bool body, Uint16 id, Uint16 quantity, Uint32 price,
+                         bool sell)
+{
+    if (!c || !quantity || quantity > 99 || price > 999999)
+        return SDL_SetError("Equipment trade requires a character, 1..99 copies and valid price");
+    SotnItem item = {0};
+    if (!SotnItem_Read(c->dra, body, id, &item))
+        return false;
+    if (IsEmpty(body, id))
+        return SDL_SetError("Virtual empty equipment cannot be traded");
+    SotnCharacter next = *c;
+    Uint8 *count = body ? next.state.body_count : next.state.hand_count;
+    Uint32 owned = count[id];
+    for (Uint32 i = body ? 2U : 0U; i < (body ? 7U : 2U); ++i)
+        if (next.state.equipment[i] == id)
+            ++owned;
+    const Uint32 total = quantity * price;
+    if (sell)
+    {
+        if (count[id] < quantity)
+            return SDL_SetError("Not enough unequipped copies to sell");
+        count[id] = (Uint8)(count[id] - quantity);
+        next.state.gold = SDL_min(999999U, next.state.gold + total);
+    }
+    else
+    {
+        if (owned > 99 || quantity > 99U - owned || next.state.gold < total)
+            return SDL_SetError("Purchase exceeds owned-copy limit or available gold");
+        for (Uint16 i = 0; i < quantity; ++i)
+            if (!SotnCharacter_Collect(&next, body, id))
+                return false;
+        next.state.gold -= total;
+    }
+    *c = next;
     return true;
 }
 bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)

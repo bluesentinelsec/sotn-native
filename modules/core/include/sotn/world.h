@@ -14,6 +14,7 @@ typedef struct SotnWorldState
     Uint8 flags[SOTN_CASTLE_FLAGS], map[SOTN_CASTLE_MAP];
     Uint8 relics[SOTN_RELICS]; /**< Original found/active bits, retained by v6 ordinary saves. */
     Uint16 rooms;
+    Uint8 game_clear; /**< Original completed-game unlock flag; not a development grant. */
     Uint32 time_attack[SOTN_TIME_ATTACK_EVENTS]; /**< Original HHMMSS defeat records. */
     Uint32 time_attack_visited;                  /**< Original event-visited mask. */
 } SotnWorldState;
@@ -23,6 +24,7 @@ typedef enum SotnTimeAttackEvent
     SOTN_TIME_DOPPLEGANGER = 2,
     SOTN_TIME_LAB_BOSSES = 6,
     SOTN_TIME_LESSER_DEMON = 17,
+    SOTN_TIME_GALAMOTH = 21,
     SOTN_TIME_LIBRARIAN = 25
 } SotnTimeAttackEvent;
 /** @brief Set an original HHMMSS event record only when its existing value is zero.
@@ -38,6 +40,7 @@ bool SotnWorld_VisitEvent(SotnWorldState *state, Uint16 event);
 /** @brief Original relic identities used by the supported progression services. */
 typedef enum SotnRelicId
 {
+    SOTN_RELIC_BAT = 0,
     SOTN_RELIC_WOLF = 4,
     SOTN_RELIC_CUBE = 10,
     SOTN_RELIC_SPIRIT = 11,
@@ -56,9 +59,14 @@ typedef enum SotnWorldFlag
     SOTN_ENTRANCE_ON = 55,
     SOTN_ENTRANCE_STAIRS = 56,
     SOTN_ENTRANCE_JEWEL_DOOR = 58,
+    SOTN_MARIA_HIPPOGRYPH = 98,
     SOTN_LIBRARY_MET = 114,
     SOTN_LIBRARY_DROPS = 116,
+    SOTN_LIBRARY_MAP = 115,
     SOTN_INVERTED_UNLOCKED = 150,
+    SOTN_RICHTER_AFTER_MINOTAUR = 180,
+    SOTN_MARIA_CENTER = 216,
+    SOTN_DEATH_FIGHT = 220,
     SOTN_LAB_SECRET_WALL = 129,
     SOTN_LAB_SECRET_FLOOR = 130,
     SOTN_LAB_CANNON = 131,
@@ -70,6 +78,12 @@ typedef enum SotnWorldFlag
  * @param y Castle cell 0..63. @param inverted Select original/reversed castle.
  * @return Success or SDL error, leaving state unchanged on invalid coordinates. */
 bool SotnWorld_Visit(SotnWorldState *state, Sint32 x, Sint32 y, bool inverted);
+/** @brief Reveal purchased-map rectangles from a private bounded stream, atomically.
+ * @param state Owned progress. @param bytes Borrowed x/y/byte-width/height rectangles,
+ * followed by LSB-first row bits and an x=255 terminator. @param size Available bytes.
+ * @param inverted Original castle half. @return Success or SDL error without partial reveal.
+ * @note Reveals only high map bits; visited cells and room count remain unchanged. */
+bool SotnWorld_Reveal(SotnWorldState *state, const Uint8 *bytes, size_t size, bool inverted);
 /** @brief Validate exploration count and supported permanent event bounds.
  * @param state Borrowed saved progress. @return Success or SDL error. */
 bool SotnWorld_Validate(const SotnWorldState *state);
