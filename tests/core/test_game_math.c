@@ -88,7 +88,29 @@ static bool TrigAndRoot(void)
     SDL_free(bytes);
     return true;
 }
+static bool MatrixTrig(void)
+{
+    const size_t size = 0x1ea10 + 4096 * 4;
+    Uint8 *bytes = SDL_calloc(1, size);
+    CHECK(bytes != NULL);
+    Put16(bytes + 0x1ea12, 4096);
+    Put16(bytes + 0x1ea10 + 1024 * 4, 4096);
+    Put16(bytes + 0x1ea10 + 512 * 4, 2000);
+    Put16(bytes + 0x1ea12 + 512 * 4, 3000);
+    const SotnDataView image = {bytes, size};
+    SotnMathTrig pair = {0};
+    CHECK(SotnMath_MatrixTrig(image, 512, &pair) && pair.sine == 2000 && pair.cosine == 3000);
+    CHECK(SotnMath_MatrixTrig(image, -512, &pair) && pair.sine == -2000 && pair.cosine == 3000);
+    CHECK(SotnMath_MatrixTrig(image, -1024, &pair) && pair.sine == -4096 && pair.cosine == 0);
+    CHECK(SotnMath_MatrixTrig(image, -32768, &pair) && pair.sine == 0 && pair.cosine == 4096);
+    Put16(bytes + 0x1ea10 + 512 * 4, 5000);
+    CHECK(!SotnMath_MatrixTrig(image, 512, &pair) && pair.sine == 0 && pair.cosine == 4096);
+    CHECK(!SotnMath_MatrixTrig((SotnDataView){bytes, size - 1}, 0, &pair));
+    CHECK(!SotnMath_MatrixTrig(image, 0, NULL));
+    SDL_free(bytes);
+    return true;
+}
 int main(void)
 {
-    return Angles() && TrigAndRoot() ? 0 : 1;
+    return Angles() && TrigAndRoot() && MatrixTrig() ? 0 : 1;
 }

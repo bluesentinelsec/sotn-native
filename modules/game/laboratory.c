@@ -1,5 +1,6 @@
 #include "input.h"
 #include <sotn/actor_graphics.h>
+#include <sotn/actor_order.h>
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
 #include <sotn/castle_map.h>
@@ -72,6 +73,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room;
     LaboratoryInput input;
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
     Uint32 room_index;
@@ -193,6 +195,11 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             if (combat->music == 0x31d)
             {
                 if (!SotnMusic_CreateBoss(session->dra, session->music_stream, &next))
+                    return false;
+            }
+            else if (combat->music == 0x313 && session->stage_id == 26)
+            {
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 1, &next))
                     return false;
             }
             else if (combat->music == 0x30f)
@@ -1077,17 +1084,20 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     return true;
 }
 
-static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
-                                Sint32 camera_y)
+static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
+                               Sint32 camera_y, Uint32 begin, Uint32 limit)
 {
-    for (Uint32 i = 0; i < actor.primitive_count; ++i)
+    if (begin > limit || limit > actor.primitive_count)
+        return SDL_SetError("Actor draw range exceeds its owned primitives");
+    for (Uint32 i = begin; i < limit; ++i)
     {
         SotnActorPrimitive p = {0};
         if (!SotnActors_GetPrimitive(session->actors, actor.slot, i, &p))
             return false;
         if (!p.active)
             continue;
-        const Sint32 x = Pixel(p.x) - camera_x, y = Pixel(p.y) - camera_y;
+        const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x),
+                     y = Pixel(p.y) - (p.screen_space ? 0 : camera_y);
         if (p.line)
         {
             if (p.textured)
@@ -1178,6 +1188,12 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
     return true;
 }
 
+static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
+                                Sint32 camera_y)
+{
+    return DrawPrimitiveRange(session, actor, camera_x, camera_y, 0, actor.primitive_count);
+}
+
 static bool ActorDrawError(SotnActorState actor)
 {
     char detail[256] = {0};
@@ -1242,14 +1258,48 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         list[position] = state;
         ++count;
     }
+    size_t draw_count = 0;
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        bool split = false;
+        for (Uint16 part = 0; part < list[i].primitive_count; ++part)
+        {
+            SotnActorPrimitive primitive = {0};
+            if (!SotnActors_GetPrimitive(session->actors, list[i].slot, part, &primitive))
+                return false;
+            split = split || primitive.priority_set;
+        }
+        if (split)
+            for (Uint16 part = 0; part < list[i].primitive_count; ++part)
+            {
+                SotnActorPrimitive primitive = {0};
+                if (!SotnActors_GetPrimitive(session->actors, list[i].slot, part, &primitive))
+                    return false;
+                if (primitive.active &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = primitive.priority_set ? primitive.priority
+                                                                           : list[i].priority,
+                                        .actor = i,
+                                        .primitive = part,
+                                        .kind = SOTN_DRAW_PRIMITIVE}))
+                    return false;
+            }
+        if (!SotnActorOrder_Add(
+                session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                (SotnActorDraw){.priority = list[i].priority,
+                                .actor = i,
+                                .kind = split ? SOTN_DRAW_SPRITE : SOTN_DRAW_ACTOR}))
+            return false;
+    }
     SotnAlucardSprite alucard = {0};
     if (!SotnAlucard_DecodeSprite(session->dra, SotnResource_View(session->arc),
                                   player.animation.sprite, &alucard))
         return false;
     bool player_drawn = false, weapon_drawn = false;
-    for (Uint32 i = 0; i <= count; ++i)
+    for (size_t i = 0; i <= draw_count; ++i)
     {
-        if (!weapon_drawn && (i == count || list[i].priority < 0x92))
+        if (!weapon_drawn && (i == draw_count || session->draw_items[i].priority < 0x92))
         {
             const SotnPlayerAttack hands[] = {player.attack, player.shield};
             for (Uint32 hand = 0; hand < SDL_arraysize(hands); ++hand)
@@ -1273,7 +1323,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             weapon_drawn = true;
         }
-        if (!player_drawn && (i == count || list[i].priority < 0x94))
+        if (!player_drawn && (i == draw_count || session->draw_items[i].priority < 0x94))
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =
@@ -1288,9 +1338,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             player_drawn = true;
         }
-        if (i == count)
+        if (i == draw_count)
             break;
-        const SotnActorState actor = list[i];
+        const SotnActorDraw command = session->draw_items[i];
+        if (command.actor >= count)
+            return SDL_SetError("Actor draw command lost its frame snapshot");
+        const SotnActorState actor = list[command.actor];
+        if (command.kind == SOTN_DRAW_PRIMITIVE)
+        {
+            if (!DrawPrimitiveRange(session, actor, camera_x, camera_y, command.primitive,
+                                    command.primitive + 1U))
+                return ActorDrawError(actor);
+            continue;
+        }
         if (actor.id == 0xa || actor.id == 0xb)
         {
             // Persistent pickups can remain far behind a tall-room camera; icons are 16 pixels.
@@ -1330,7 +1390,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             return false;
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
-        if (!DrawActorPrimitives(session, actor, camera_x, camera_y))
+        if (command.kind == SOTN_DRAW_ACTOR &&
+            !DrawActorPrimitives(session, actor, camera_x, camera_y))
             return ActorDrawError(actor);
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,

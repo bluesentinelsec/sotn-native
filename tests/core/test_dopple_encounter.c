@@ -1,4 +1,5 @@
 #include "actors_internal.h"
+#include "boss_projection.h"
 #include "dopple_fixture.h"
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -22,6 +23,11 @@ static bool Tests(SotnActors *s, Uint8 *image, Uint8 *dra, Uint8 *executable)
     dra[0x24b] = 16;
     for (Uint32 i = 0; i <= 1024; ++i)
         Put16(executable, 0x1dbcc + i * 2U, (Uint16)(i * 4U));
+    Put16(executable, 0x1ea12, 4096);
+    Put16(executable, 0x1ea10 + 640 * 4, 2560);
+    Put16(executable, 0x1ea12 + 640 * 4, 1536);
+    Put16(executable, 0x1ea10 + 1024 * 4, 4096);
+    Put16(executable, 0x1ea12 + 2048 * 4, (Uint16)-4096);
     Put32(image, 0x120c, 32);
     for (Uint32 i = 0; i < 7; ++i)
         Put16(image, 0x133c + i * 2U, (Uint16)(100 + i));
@@ -192,6 +198,25 @@ static bool Effects(SotnActors *s, Uint8 *image)
     CHECK(!ActorDoppleParticles(NULL, &effect) && !ActorDoppleParticles(s, NULL));
     return true;
 }
+static bool Projection(SotnActors *s)
+{
+    SotnProjectedPoint point = {0};
+    CHECK(SotnBoss_ProjectIntro(s->executable, 128, 100, 0, 0, 0, &point) && point.x == 128 &&
+          point.y == 100);
+    CHECK(SotnBoss_ProjectIntro(s->executable, 128, 100, 0, 0, 16, &point) && point.x == 128 &&
+          point.y == 112);
+    CHECK(SotnBoss_ProjectIntro(s->executable, 128, 100, 1024, 0, 16, &point) && point.x == 115 &&
+          point.y == 100);
+    CHECK(SotnBoss_ProjectIntro(s->executable, 128, 100, 2048, 0, 16, &point) && point.x == 128 &&
+          point.y == 87);
+    CHECK(SotnBoss_ProjectIntro(s->executable, 0, 0, 0, 224, 32, &point));
+    const SotnProjectedPoint saved = point;
+    CHECK(!SotnBoss_ProjectIntro(s->executable, 0, 0, 0, 225, 0, &point) && point.x == saved.x &&
+          point.y == saved.y);
+    CHECK(!SotnBoss_ProjectIntro((SotnDataView){0}, 0, 0, 0, 0, 0, &point));
+    CHECK(!SotnBoss_ProjectIntro(s->executable, 0, 0, 0, 0, 0, NULL));
+    return true;
+}
 static bool Allocation(SotnActors *s)
 {
     Actor *effect = &s->slots[127];
@@ -212,13 +237,114 @@ static bool Allocation(SotnActors *s)
     CHECK(!ActorPrimitives(s, effect, 385) && !effect->state.primitive_count);
     return true;
 }
+static bool Entry(SotnActors *s, Uint8 *image)
+{
+    SDL_zero(s->slots);
+    SDL_zero(s->primitives);
+    SDL_zero(s->combat);
+    s->boss_flags = 0;
+    s->camera_x = s->camera_y = 0;
+    Actor *manager = &s->slots[128];
+    *manager = (Actor){.state = {.id = 0x18, .generation = 100, .x = 256 * 65536, .y = 128 * 65536},
+                       .slot = 128};
+    CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 1);
+    CHECK(s->slots[129].state.id == 0x17 && s->slots[129].state.parameters == 0x101 &&
+          s->slots[138].state.parameters == 5 && s->slots[139].state.id == 0x19 &&
+          s->slots[140].state.id == 0x1a);
+    s->player.x = 192 * 65536;
+    CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 1);
+    s->player.x += 65536;
+    CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 3 && s->control.timer == 576 &&
+          s->control.buttons == 0);
+    CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 4 &&
+          s->slots[129].arena.triggered && s->slots[130].arena.triggered);
+    s->boss_flags = 2;
+    s->game_seconds = 3661;
+    CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 5 &&
+          s->dopple.record_time == 10101);
+    s->boss_flags = 0;
+    Actor *plate = &s->slots[129];
+    Put16(image, 0x5c2, 256);
+    CHECK(ActorDoppleEntry(s, plate) && plate->state.frame == 0x64 && plate->state.opacity == 128 &&
+          plate->state.primitive_count == 1);
+    plate->state.step = 5;
+    plate->arena.offset = -65 * 65536;
+    plate->arena.speed = -64;
+    Put16(image, 0x5aa, 32);
+    Put16(image, 0x5b6, 8);
+    Put16(image, 0x5e4, 0x0101);
+    CHECK(ActorDoppleEntry(s, plate) && !plate->remove && plate->arena.offset < -65 * 65536);
+    // Preserve the original signed threshold: only positive plates disappear at +64.
+    plate->state.parameters = 1;
+    plate->arena.offset = 65 * 65536;
+    Put16(image, 0x5dc, 0x0101);
+    CHECK(ActorDoppleEntry(s, plate) && plate->remove);
+    ActorPrimitivesClear(s, plate);
+    Uint8 tiles[32 * 16 * 2] = {0}, types[2] = {0};
+    s->map = (SotnCollisionMap){{tiles, sizeof(tiles)}, {types, sizeof(types)}, 32, 16};
+    s->mutable_tiles = tiles;
+    Actor *block = &s->slots[160];
+    *block =
+        (Actor){.state = {.id = 0x1b, .generation = 110, .step = 3, .y = 145 * 65536}, .slot = 160};
+    Put16(image, 0x670 + 7 * 4, 1);
+    Put16(image, 0x672 + 7 * 4, 1);
+    CHECK(ActorDoppleEntry(s, block) && block->state.step == 4 &&
+          Read16(tiles + (0xc0 + 96) * 2) == 1);
+    s->boss_flags = 4;
+    CHECK(ActorDoppleEntry(s, block) && block->state.step == 5);
+    CHECK(ActorDoppleEntry(s, block) && block->state.step == 6 &&
+          Read16(tiles + (0xc0 + 96) * 2) == 0);
+    block->state.step = 5;
+    Put16(image, 0x672 + 3 * 4, 2);
+    CHECK(!ActorDoppleEntry(s, block) && Read16(tiles + (0xc0 + 96) * 2) == 0);
+    s->mutable_tiles = NULL;
+    Actor *light = &s->slots[139];
+    light->state.step = 2;
+    CHECK(ActorDoppleLight(s, light) && light->state.primitive_count == 48);
+    light->arena.triggered = true;
+    ActorPrimitive *last = ActorPrimitiveGet(s, light, 47);
+    CHECK(last != NULL);
+    last->state.red = 248;
+    CHECK(ActorDoppleLight(s, light) && light->state.step == 4 && s->slots[140].arena.triggered);
+    CHECK(ActorDoppleLight(s, light) && light->state.step == 5 && s->slots[0].state.id == 0x16 &&
+          s->dopple.visited);
+    ActorPrimitive *first = ActorPrimitiveGet(s, light, 0);
+    CHECK(first && !first->state.blend && first->state.priority == 0x40 &&
+          first->state.screen_space);
+    last->state.red = 8;
+    CHECK(ActorDoppleLight(s, light) && light->state.step == 6 &&
+          light->state.primitive_count == 16);
+    CHECK(ActorPrimitiveGet(s, light, 0)->state.gouraud);
+    Actor *shock = &s->slots[140];
+    shock->state.step = 2;
+    CHECK(ActorDoppleShock(s, shock) && shock->state.primitive_count == 384);
+    s->control.timer = 1;
+    CHECK(ActorDoppleShock(s, shock));
+    CHECK(ActorPrimitiveGet(s, shock, 368)->state.active &&
+          !ActorPrimitiveGet(s, shock, 369)->state.active);
+    s->control.timer = 0;
+    CHECK(ActorDoppleShock(s, shock) && shock->state.step == 4 &&
+          shock->state.primitive_count == 0 && s->combat.music_change && s->combat.music == 0);
+    s->music_playing = true;
+    CHECK(ActorDoppleShock(s, shock) && !shock->remove);
+    s->music_playing = false;
+    CHECK(ActorDoppleShock(s, shock) && shock->remove && s->combat.music == 0x31d);
+    Actor reward = {.state = {.id = 0x1d, .generation = 120, .parameters = 4, .step = 6}};
+    Put16(image, 0x42b8, 23);
+    CHECK(ActorDoppleEntry(s, &reward) && reward.state.id == 3 &&
+          reward.state.parameters == 0x8017 && reward.state.step == 0);
+    CHECK(!ActorDoppleTrigger(s, SOTN_STAGE_ACTOR_SLOTS));
+    CHECK(!ActorDoppleEntry(NULL, manager) && !ActorDoppleEntry(s, NULL));
+    s->map = (SotnCollisionMap){0};
+    return true;
+}
 int main(void)
 {
     SotnActors *s = SDL_calloc(1, sizeof(*s));
     Uint8 *image = SDL_calloc(1, 0x4400), *dra = SDL_calloc(1, 0x5000),
           *executable = SDL_calloc(1, 0x23220);
     const bool passed = s && image && dra && executable && Tests(s, image, dra, executable) &&
-                        Effects(s, image) && Allocation(s);
+                        Effects(s, image) && Allocation(s) && Projection(s) && Entry(s, image);
     if (s)
         SotnRoomActors_Destroy(s->spawns);
     SDL_free(executable);

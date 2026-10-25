@@ -399,3 +399,9 @@ the allocatable pool is1024 with separate consecutive allocation. All59 groups,
 macOS ASan/UBSan and package pass. Intro/seals/light/shock/music/reward and durable
 record remain pending; stage26 stays disconnected with no public gameplay CLI.
 Mist/palette, high jump, stone and complete elemental effects remain unavailable.
+
+The [Doppleganger entrance/reward](docs/doppleganger-entry.md) now runs placed
+entry actors, selected light/shock, arena seals, music and the Life Max Up. Its
+defeat time is transient; durable records and ordinary transfers remain pending.
+The stage stays disconnected until that boundary works. Private protected arena
+checks are not an ordinary route or console parity evidence.

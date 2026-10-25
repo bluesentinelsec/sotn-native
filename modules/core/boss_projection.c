@@ -4,9 +4,9 @@
 // Implements the bounded, non-overflowing reward path, not a general GTE emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
-static Uint32 Divide(Uint32 depth)
+static Uint32 Divide(Uint32 depth, Uint32 distance)
 {
-    if (depth <= 256)
+    if (depth * 2U <= distance)
         return 0x1ffff;
     Uint32 shift = 0, d = depth;
     while (d < 0x8000)
@@ -14,7 +14,7 @@ static Uint32 Divide(Uint32 depth)
         d *= 2;
         ++shift;
     }
-    const Uint32 n = 512U << shift, index = (d - 0x7fc0) >> 7;
+    const Uint32 n = distance << shift, index = (d - 0x7fc0) >> 7;
     // The divider's 257 entries are generated from its reciprocal definition.
     const Sint32 estimate = (Sint32)(((0x40000U / (index + 0x100) + 1) / 2)) - 0x101;
     const Uint32 u = (Uint32)SDL_clamp(estimate, 0, 255) + 0x101;
@@ -41,14 +41,35 @@ bool SotnBoss_ProjectReward(SotnRewardProjection p, SotnProjectedRect *out)
     const Sint32 vx = ActorShift((Sint64)mx * p.radius, 12),
                  vy = ActorShift((Sint64)my * p.radius, 12),
                  vz = 512 + ActorShift((Sint64)mz * p.radius, 12);
-    const Uint32 depth = (Uint32)SDL_clamp(vz, 0, 65535), ratio = Divide(depth);
+    const Uint32 depth = (Uint32)SDL_clamp(vz, 0, 65535), ratio = Divide(depth, 512);
     const Sint32 px = Coordinate(p.anchor_x, vx, ratio) - p.anchor_x,
                  py = Coordinate(p.anchor_y, vy, ratio) - p.anchor_y;
-    const Uint32 second = Divide((depth >> 2) * 4);
+    const Uint32 second = Divide((depth >> 2) * 4, 512);
     const Sint32 low = ActorShift((Sint64)-8 * p.scale, 12),
                  high = ActorShift((Sint64)8 * p.scale, 12);
     *out = (SotnProjectedRect){
         Coordinate(p.anchor_x, px + low, second), Coordinate(p.anchor_y, py + low, second),
         Coordinate(p.anchor_x, px + high, second), Coordinate(p.anchor_y, py + high, second)};
+    return true;
+}
+
+bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anchor_y,
+                           Sint16 rotation, Sint16 x, Sint16 y, SotnProjectedPoint *out)
+{
+    if (out == NULL || anchor_x < -16384 || anchor_x > 16384 || anchor_y < -16384 ||
+        anchor_y > 16384 || x < -32 || x > 224 || y < -32 || y > 32)
+        return SDL_SetError("BO4 intro projection exceeds its original diamond geometry");
+    SotnMathTrig tilt = {0}, turn = {0};
+    if (!SotnMath_MatrixTrig(executable, 640, &tilt) ||
+        !SotnMath_MatrixTrig(executable, rotation, &turn))
+        return false;
+    // Identity, then SDK RotMatrixY(640), then RotMatrixZ(rotation).
+    const Sint32 mx = ActorShift((Sint64)turn.cosine * tilt.cosine, 12);
+    const Sint32 my = ActorShift((Sint64)turn.sine * tilt.cosine, 12);
+    const Sint32 vx = ActorShift((Sint64)mx * x - (Sint64)turn.sine * y, 12);
+    const Sint32 vy = ActorShift((Sint64)my * x + (Sint64)turn.cosine * y, 12);
+    const Sint32 vz = 320 + ActorShift(-(Sint64)tilt.sine * x, 12);
+    const Uint32 ratio = Divide((Uint32)SDL_clamp(vz, 0, 65535), 256);
+    *out = (SotnProjectedPoint){Coordinate(anchor_x, vx, ratio), Coordinate(anchor_y, vy, ratio)};
     return true;
 }

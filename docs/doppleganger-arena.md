@@ -7,13 +7,13 @@ Its layout pointer tables retain the same 53-entry format as the earlier areas.
 It has no ordinary prize list or save rooms. No original table bytes are embedded.
 
 Selected boss root/child combat now runs in an explicit native integration fixture;
-see [runtime scope](doppleganger-runtime.md#stage-combat-orchestration). Original
-entrance/reward and remaining effects stay unsupported rather than fall through
-to Laboratory behavior or table addresses. The profile's connected-travel
+see [runtime scope](doppleganger-runtime.md#stage-combat-orchestration). The [entry/reward service](doppleganger-entry.md) now runs selected original
+entrance, seals, music and reward behavior. Remaining effects stay unsupported
+rather than fall through to Laboratory behavior or table addresses. The profile's connected-travel
 gate stays false, and the public gameplay CLI still accepts only NO0/NO1. Ordinary
 travel cannot enter an empty boss arena. Its [backed packed sprites](doppleganger-sprites.md) now have a native graphics
 adapter. Selected AI, body/forms, combat and physical defeat are integrated;
-intro, reward, music events and ordinary progression remain subsequent work.
+durable boss records, ordinary progression and full parity remain subsequent work.
 
 Common BO4 adapters reject missing table mappings. Camera-lock metadata uses the
 selected direct style and the seven fully stored property records; the original

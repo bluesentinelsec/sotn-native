@@ -24,6 +24,8 @@ add_library(sotn-render STATIC
   tilemap.c
   alucard_sprite.c
   actor_graphics.c
+  actor_order.c
+  include/sotn/actor_order.h
   shaders.h
   include/sotn/presenter.h
   include/sotn/save_icon.h

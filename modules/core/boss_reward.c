@@ -103,8 +103,9 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (a->state.parameters != 5 || !ActorInitialize(s, a, 0xbf8))
-            return SDL_SetError("Laboratory boss reward has an unsupported drop selection");
+        if (a->state.parameters != (s->stage_id == 26 ? 4 : 5) ||
+            !ActorInitialize(s, a, s->stage_id == 26 ? 0x3d4 : 0xbf8))
+            return SDL_SetError("Stage boss reward has an unsupported drop selection");
         a->state.animation_set = 2;
         a->state.frame = 0;
         a->state.priority = 0xc0;
@@ -194,9 +195,10 @@ bool ActorBossReward(SotnActors *s, Actor *a)
         return SDL_SetError("Boss reward effect step is invalid");
     }
     SotnDataView drop = {0};
-    if (!Slice(s->nz0, 0x2850 + (size_t)a->state.parameters * 2, 2, &drop) ||
+    if (!Slice(s->nz0, (s->stage_id == 26 ? 0x42b0 : 0x2850) + (size_t)a->state.parameters * 2, 2,
+               &drop) ||
         Read16(drop.bytes) != 23)
-        return SDL_SetError("Laboratory boss reward is not the supported original Life Max Up");
+        return SDL_SetError("Stage boss reward is not the supported original Life Max Up");
     a->state.id = 3;
     a->state.parameters = 0x8017;
     a->state.step = 0;

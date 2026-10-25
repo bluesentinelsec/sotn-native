@@ -1,6 +1,7 @@
 #ifndef SOTN_BOSS_PROJECTION_H
 #define SOTN_BOSS_PROJECTION_H
 #include <SDL3/SDL.h>
+#include <sotn/game_data.h>
 /** @brief Bounded original reward effect transform; angles use 4096 units and scale uses 4096. */
 typedef struct SotnRewardProjection
 {
@@ -17,4 +18,18 @@ typedef struct SotnProjectedRect
  * @param out Copied screen-space corners, unchanged on failure.
  * @return Success or SDL error. No global GTE state or original tables are stored. */
 bool SotnBoss_ProjectReward(SotnRewardProjection transform, SotnProjectedRect *out);
+/** @brief Original GTE screen coordinates after signed saturation. */
+typedef struct SotnProjectedPoint
+{
+    Sint32 x, y;
+} SotnProjectedPoint;
+/** @brief Project one original BO4 intro diamond vertex using private SDK trigonometry.
+ * @param executable Borrowed verified boot math tables. @param anchor_x Room-local anchor.
+ * @param anchor_y Room-local anchor. @param rotation Original 4096-unit Z angle.
+ * @param x Original diamond abscissa, -32..224. @param y Ordinate, -32..32.
+ * @param out Receives original saturated point, unchanged on failure.
+ * @return Success or SDL error. Retains fixed Y tilt, depth320 and screen distance256;
+ * this is a selected non-overflowing transform, not a general GTE implementation. */
+bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anchor_y,
+                           Sint16 rotation, Sint16 x, Sint16 y, SotnProjectedPoint *out);
 #endif

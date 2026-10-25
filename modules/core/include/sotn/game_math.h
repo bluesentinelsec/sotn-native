@@ -28,4 +28,10 @@ bool SotnMath_Trig(SotnDataView executable, Sint32 angle, SotnMathTrig *out);
  * @param out Receives sqrt(value)*64 using original quantization, unchanged on error.
  * @return Success or SDL error for missing/corrupt data or invalid input. */
 bool SotnMath_Sqrt12(SotnDataView executable, Uint32 value, Uint32 *out);
+/** @brief Resolve the SDK matrix sine/cosine pair, distinct from rsin/rcos.
+ * @param executable Borrowed verified US boot image, retaining the original 4096 pairs.
+ * @param angle Original signed-word angle. @param out Receives both values atomically.
+ * @return Success or SDL error. Preserves rcossin's absolute-angle/sign order;
+ * never substitutes the numerically different quarter-wave table. */
+bool SotnMath_MatrixTrig(SotnDataView executable, Sint16 angle, SotnMathTrig *out);
 #endif
