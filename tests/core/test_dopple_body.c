@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <sotn/combat.h>
 #include <sotn/dopple_body.h>
 
 #define CHECK(condition)                                                                           \
@@ -77,6 +78,76 @@ static bool Request(const SotnDoppleBody *body, Uint16 kind, Uint16 id, Uint16 p
             return true;
     return false;
 }
+static bool Damage(SotnDataView overlay, const SotnCollisionMap *map)
+{
+    SotnDoppleBody body = {0};
+    CHECK(Settle(overlay, map, &body));
+    Uint32 random = 17, expected = random;
+    SotnDoppleInput input = {.hit = true, .hp_lost = 9, .player_x = 32};
+    const SotnDoppleBody initial = body;
+    CHECK(!SotnDoppleBody_Update(overlay, map, input, NULL, &body));
+    CHECK(SDL_memcmp(&body, &initial, sizeof(body)) == 0);
+    SotnCombat_Random(&expected);
+    CHECK(SotnDoppleBody_Update(overlay, map, input, &random, &body));
+    CHECK(random == expected && body.step == 11 && body.substep == 6 && body.animation.id == 0x33 &&
+          body.motion.vx == 109226 && body.motion.vy == 0 && body.timers[2] == 6 &&
+          body.damage_palette == 0x8166 && body.motion.status == 0x110000);
+    CHECK(Request(&body, SOTN_DOPPLE_FACTORY, 0, 6) &&
+          Request(&body, SOTN_DOPPLE_FACTORY, 44, 0x58));
+    CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body) && body.timers[2] == 5 &&
+          body.palette == 0x8166 && body.motion.vx == 101034);
+    for (Uint32 i = 0; i < 60; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body));
+    CHECK(body.step == 1 && body.palette == 0x8200);
+    CHECK(Settle(overlay, map, &body));
+    input.hp_lost = 10;
+    input.player_x = 160;
+    SotnCombat_Random(&expected);
+    SotnCombat_Random(&expected);
+    CHECK(SotnDoppleBody_Update(overlay, map, input, &random, &body));
+    CHECK(random == expected && body.step == 11 && body.substep == 1 && body.motion.vx == -54613 &&
+          body.motion.vy == -262144);
+    for (Uint32 i = 0; i < 120; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body));
+    CHECK(body.step <= 5);
+    CHECK(Settle(overlay, map, &body));
+    input.lethal = true;
+    CHECK(SotnDoppleBody_Update(overlay, map, input, NULL, &body));
+    CHECK(body.step == 17 && body.substep == 1 && body.rotated && body.motion.vy == -212992 &&
+          body.motion.vx == -80896 && body.death.shading && body.death.red == 128 &&
+          body.motion.status == 0x150000);
+    CHECK(Request(&body, SOTN_DOPPLE_FACTORY, 44, 0x53) &&
+          Request(&body, SOTN_DOPPLE_DEATH_PROFILE, 1, 0));
+    for (Uint32 i = 0; i < 100 && !body.death.captured; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body));
+    CHECK(body.death.captured && body.death.timer == 64 && (body.animation.sprite & 0x8000));
+    const Uint16 frozen_timer = body.timers[15];
+    for (Uint32 i = 0; i < 64; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body));
+    CHECK(body.substep == 0x80 && !body.death.complete && !body.death.shading &&
+          body.motion.vy == 0 && body.death.cursor == 0 && frozen_timer == body.timers[15]);
+    for (size_t i = 0; i < sizeof(body.death.erased); ++i)
+        CHECK(body.death.erased[i] == 255);
+    CHECK(SotnDoppleBody_Tick(overlay, map, 0, 0, &body) && body.death.complete);
+    input.effect_index = 16;
+    const SotnDoppleBody saved = body;
+    const Uint32 saved_random = random;
+    CHECK(!SotnDoppleBody_Update(overlay, map, input, &random, &body));
+    CHECK(SDL_memcmp(&body, &saved, sizeof(body)) == 0 && random == saved_random);
+    CHECK(Settle(overlay, map, &body));
+    body.step = 3;
+    input = (SotnDoppleInput){.hit = true, .hp_lost = 9, .player_x = 160};
+    CHECK(SotnDoppleBody_Update(overlay, map, input, &random, &body));
+    CHECK(body.step == 11 && body.substep == 7 && body.animation.id == 0x23 &&
+          body.motion.vx == -81920 && Request(&body, SOTN_DOPPLE_FACTORY, 0, 0));
+    CHECK(Settle(overlay, map, &body));
+    const Uint32 invincible_random = random;
+    body.timers[13] = 2;
+    input = (SotnDoppleInput){.hit = true, .hp_lost = 10};
+    CHECK(SotnDoppleBody_Update(overlay, map, input, &random, &body) && body.step == 1 &&
+          random == invincible_random);
+    return true;
+}
 static bool Tests(void)
 {
     Uint8 image[0x4200] = {0}, tiles[16 * 16 * 2] = {0}, types[2] = {0, 3};
@@ -85,6 +156,10 @@ static bool Tests(void)
         tiles[i * 2] = 1;
     const SotnDataView overlay = {image, sizeof(image)};
     const SotnCollisionMap map = {{tiles, sizeof(tiles)}, {types, sizeof(types)}, 16, 16};
+    Put32(image, 0x120c, 32);
+    for (size_t i = 0; i < 7; ++i)
+        Put16(image, 0x133c + i * 2, (Uint16)(100 + i));
+    CHECK(Damage(overlay, &map));
     SotnDoppleBody body = {0};
     CHECK(Settle(overlay, &map, &body));
     const Sint32 start = body.motion.x;
@@ -158,6 +233,10 @@ static bool Forms(void)
         tiles[i * 2] = 1;
     const SotnDataView overlay = {image, sizeof(image)};
     const SotnCollisionMap map = {{tiles, sizeof(tiles)}, {types, sizeof(types)}, 16, 16};
+    Put32(image, 0x120c, 32);
+    for (size_t i = 0; i < 7; ++i)
+        Put16(image, 0x133c + i * 2, (Uint16)(100 + i));
+    CHECK(Damage(overlay, &map));
     SotnDoppleBody body = {0};
     CHECK(Settle(overlay, &map, &body));
     CHECK(SotnDoppleBody_Tick(overlay, &map, 8, 0, &body));

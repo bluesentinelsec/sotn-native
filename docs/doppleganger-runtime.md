@@ -157,3 +157,32 @@ and the selected quad transform in `dra/4B758.c:func_800EB758` at the pinned AGP
 revision. SDK sine/cosine reconstruction uses the pinned MIT `geo_00.c`/`geo_01.c`;
 `game_sqrt.c` adapts PSY-Z's MPL-2.0 `libgte_sw_sqrt.c:SquareRoot12_impl` at
 `b52003e55c0d1b20719e984dd19bd4d760eeb14a`. Notices ship with the app.
+
+## Hit reactions and physical defeat
+
+The body now consumes externally resolved hit metadata through an atomic update
+interface. Small hits retain the original stand/crouch/air reactions; losses of
+at least ten HP launch the boss using the original knockback, RNG draws, animation
+selection, impact sounds and palette timers. Death preserves its own timer order,
+physical launch, color change, terminal-pose retention and 64-tick nibble-erasure
+pattern. A simulation-owned bit mask describes the original 64x64 scratch-image
+clears; it contains no artwork. Presentation captures the actual final private pose
+before applying that mask, even when intervening renders were skipped.
+
+Synthetic tests cover threshold/direction differences, stand/crouch recovery,
+RNG ownership and atomic failure, invulnerability timing, physical death, all
+4,096 erased nibbles, terminal timing, cold display-cache capture, partial/full
+masks, color multipliers and malformed inputs. All 58 public groups pass in Debug
+and macOS ASan/UBSan; release packaging passes. A private LLDB sequence resolves
+two explicitly supplied physical hits and death over 407 native renders. Its
+mid-dissolve frame matches a 26-render version at the same simulation tick; the
+ASan/UBSan run produces the same hash. Seven child/effect/profile requests are
+explicitly skipped. These are component checks, not an ordinary boss fight.
+
+Selected elemental hit/death branches emit their original requests and shading,
+but complete elemental children/effects remain unintegrated and lack private
+encounter validation. Stone status/shatter death remains rejected. The owning
+encounter must supply the original stage hit-effect selector, resolved HP loss,
+libc RNG and child services. Live player contact, intro, reward and ordinary arena
+progression remain pending. This slice adapts `bo4/unk_465F0.c` damage/reset/kill
+logic and `bo4/doppleganger.c` timer/status ordering at the pinned AGPL revision.

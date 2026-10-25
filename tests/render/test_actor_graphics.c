@@ -391,19 +391,21 @@ static bool TestRotation(Fixture *fixture)
     CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 0x83e0);
     CHECK(fixture->frame[22 * SOTN_FRAME_WIDTH + 20] == 7);
     ClearFrame(fixture);
-    CHECK(SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
-                                          (SotnSpriteTransform){1024, 256, 256, 64}, fixture->frame,
-                                          SOTN_FRAME_PIXELS));
+    CHECK(SotnActorGraphics_DrawTransform(
+        g, sprite, 20, 20,
+        (SotnSpriteTransform){.rotation = 1024, .scale_x = 256, .scale_y = 256, .opacity = 64},
+        fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 20] == 15);
     CHECK(fixture->frame[21 * SOTN_FRAME_WIDTH + 20] == 0x81e0);
     ClearFrame(fixture);
-    CHECK(SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
-                                          (SotnSpriteTransform){0, 512, 256, 128}, fixture->frame,
-                                          SOTN_FRAME_PIXELS));
+    CHECK(SotnActorGraphics_DrawTransform(
+        g, sprite, 20, 20, (SotnSpriteTransform){.scale_x = 512, .scale_y = 256, .opacity = 128},
+        fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 18] == 31 &&
           fixture->frame[19 * SOTN_FRAME_WIDTH + 19] == 31);
     const Uint16 preserved = fixture->frame[19 * SOTN_FRAME_WIDTH + 18];
-    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, (SotnSpriteTransform){0, 0, 256, 128},
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
+                                           (SotnSpriteTransform){.scale_y = 256, .opacity = 128},
                                            fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 18] == preserved);
     sprite.facing_left = true;
@@ -560,6 +562,55 @@ static bool PackedSheets(Fixture *f)
     CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     CHECK(f->frame[11 * 256 + 9] == 31 && f->frame[11 * 256 + 10] == 0x7c00 &&
           f->frame[11 * 256 + 11] == 0x7fe0);
+    Put16(image + 0x1fd8, 0);
+    Put16(image + 0x1fda, 256);
+    Put16(image + 0x1fdc, 16);
+    Put16(image + 0x1fde, 64);
+    SotnActorSprite dying = {.animation_set = 0x8001, .frame = 0x8001, .palette = 0x8200};
+    Uint8 erased[512] = {0};
+    erased[68 / 8] = 1U << (68 & 7U);
+    SotnActorGraphics *cold = NULL;
+    CHECK(SotnActorGraphics_CreateStage(
+        (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){image, sizeof(f->nz0)},
+        (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, 26,
+        &cold));
+    CHECK(SotnActorGraphics_DoppleDissolve(cold, dying, (SotnDataView){erased, sizeof(erased)}));
+    f->frame[11 * 256 + 9] = 0x7c00;
+    CHECK(SotnActorGraphics_Draw(cold, dying, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 0x7c00 && f->frame[11 * 256 + 10] == 0x8000);
+    SotnActorGraphics_Destroy(cold);
+    CHECK(SotnActorGraphics_DoppleDissolve(g, dying, (SotnDataView){erased, sizeof(erased)}));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        f->frame[i] = 0x7c00;
+    CHECK(SotnActorGraphics_Draw(g, dying, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 0x7c00 && f->frame[11 * 256 + 10] == 0x8000);
+    SDL_memset(erased, 255, sizeof(erased));
+    CHECK(SotnActorGraphics_DoppleDissolve(g, dying, (SotnDataView){erased, sizeof(erased)}));
+    f->frame[11 * 256 + 10] = 0x7c00;
+    CHECK(SotnActorGraphics_Draw(g, dying, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 10] == 0x7c00);
+    SDL_zero(erased);
+    CHECK(!SotnActorGraphics_DoppleDissolve(g, dying, (SotnDataView){erased, sizeof(erased) - 1}));
+    CHECK(SotnActorGraphics_Draw(g, dying, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 10] == 0x7c00);
+    CHECK(SotnActorGraphics_DoppleDissolve(g, dying, (SotnDataView){erased, sizeof(erased)}));
+    CHECK(SotnActorGraphics_DrawTransform(g, dying, 10, 10,
+                                          (SotnSpriteTransform){.scale_x = 256,
+                                                                .scale_y = 256,
+                                                                .opacity = 128,
+                                                                .tint = true,
+                                                                .red = 64,
+                                                                .green = 0,
+                                                                .blue = 0},
+                                          f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 9] == 15);
+    Put16(image + 0x1fdc, 17);
+    CHECK(!SotnActorGraphics_DoppleDissolve(g, dying, (SotnDataView){erased, sizeof(erased)}));
+    Put16(image + 0x1fdc, 16);
+    CHECK(!SotnActorGraphics_DoppleDissolve(NULL, dying, (SotnDataView){erased, sizeof(erased)}));
+    dying.frame = 1;
+    CHECK(SotnActorGraphics_LoadDopplePose(g, dying));
+    CHECK(SotnActorGraphics_Draw(g, dying, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     Put16(image + 0x11ea, (Uint16)-3);
     CHECK(SotnActorGraphics_UpdateDoppleBat(g, 1, 2));
     CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));

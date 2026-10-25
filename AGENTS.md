@@ -380,3 +380,11 @@ artwork and bounded Gouraud/SDK geometry. Mist controls require external child p
 signals; the actual mist child, palette service, trails/smoke, damage/death and live
 encounter remain pending. The private sequence skips four requests; it is not a
 live boss or console parity replay. Ordinary arena travel remains disabled.
+
+BO4 [hit/physical-death components](docs/doppleganger-runtime.md#hit-reactions-and-physical-defeat)
+now preserve small/launch reactions, original RNG/timer order, selected shading and
+simulation-owned scratch-image erasure. Debug/ASan private explicit-hit sequences
+and sparse-render comparison pass; seven child/effect/profile requests are skipped.
+Complete elemental effects, stone status/shatter death, live encounter, reward and
+ordinary arena progression remain pending. Input uses the original stage hit-effect
+selector, not a raw element bit. Do not describe the component fixture as boss gameplay.

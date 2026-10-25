@@ -318,6 +318,16 @@ static bool Blink(SotnActors *s, Uint8 *image)
     CHECK(ActorDoppleBlink(s, a) && a->remove);
     CHECK(!ActorDoppleBlink(NULL, a));
     CHECK(!ActorDoppleBlink(s, NULL));
+    SotnDataView mask = {0};
+    CHECK(SotnActors_DoppleDeathMask(s, &mask) && mask.size == 0 && mask.bytes == NULL);
+    s->dopple.body.death.captured = true;
+    s->dopple.body.death.erased[1] = 16;
+    CHECK(SotnActors_DoppleDeathMask(s, &mask) && mask.size == 512 && mask.bytes[1] == 16);
+    CHECK(!SotnActors_DoppleDeathMask(NULL, &mask));
+    CHECK(!SotnActors_DoppleDeathMask(s, NULL));
+    s->stage_id = 12;
+    CHECK(!SotnActors_DoppleDeathMask(s, &mask) && mask.size == 512);
+    s->stage_id = 26;
     s->executable = (SotnDataView){0};
     SDL_free(executable);
     return true;

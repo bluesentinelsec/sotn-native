@@ -1180,11 +1180,26 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnActorSprite sprite = {body.animation_set,  body.frame,      body.palette,
                                             body.texture_offset, body.blend_mode, body.facing_left};
-            if ((body.animation_set == 0x8002 &&
-                 !SotnActorGraphics_UpdateDoppleBat(session->actor_graphics, body.frame,
-                                                    body.bat_offset)) ||
-                !SotnActorGraphics_LoadDopplePose(session->actor_graphics, sprite))
+            if (body.animation_set == 0x8002 &&
+                !SotnActorGraphics_UpdateDoppleBat(session->actor_graphics, body.frame,
+                                                   body.bat_offset))
                 return false;
+            SotnDataView erased = {0};
+            if (!SotnActors_DoppleDeathMask(session->actors, &erased))
+                return false;
+            if (erased.size)
+            {
+                if (!SotnActorGraphics_DoppleDissolve(session->actor_graphics, sprite, erased))
+                    return false;
+            }
+            else
+            {
+                SotnActorSprite displayed = sprite;
+                if (body.step == 17)
+                    displayed.frame &= 0x7fffU;
+                if (!SotnActorGraphics_LoadDopplePose(session->actor_graphics, displayed))
+                    return false;
+            }
         }
     }
     SotnActorState list[SOTN_STAGE_ACTOR_SLOTS] = {0};
@@ -1302,10 +1317,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
-                (SotnSpriteTransform){actor.rotated ? actor.rotation : 0,
-                                      actor.scale_x ? actor.scale_x : 256,
-                                      actor.scale_y ? actor.scale_y : 256,
-                                      actor.opacity_set || actor.opacity ? actor.opacity : 128},
+                (SotnSpriteTransform){.rotation = actor.rotated ? actor.rotation : 0,
+                                      .scale_x = actor.scale_x ? actor.scale_x : 256,
+                                      .scale_y = actor.scale_y ? actor.scale_y : 256,
+                                      .opacity =
+                                          actor.opacity_set || actor.opacity ? actor.opacity : 128,
+                                      .tint = actor.tinted,
+                                      .red = actor.red,
+                                      .green = actor.green,
+                                      .blue = actor.blue},
                 session->frame, SOTN_FRAME_PIXELS))
             return false;
     }

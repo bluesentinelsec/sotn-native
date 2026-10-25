@@ -252,3 +252,10 @@ cache and Gouraud presentation do not establish console pixel parity.
 `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
 `psyz/src/psyz/libgte_sw_sqrt.c`, under MPL-2.0; the
 [full notice](licenses/MPL-2.0.txt) ships with releases. Its lookup remains private.
+
+BO4 hit/physical-death controls adapt `bo4/unk_465F0.c` damage, reset and kill
+logic plus the selected timer/status order in `bo4/doppleganger.c` under the pinned
+AGPL-3.0-or-later reference. The native erasure bitset represents the source's
+nibble-clear algorithm; artwork, sound/effect selectors and scratch-rectangle
+metadata remain private. Render-cadence comparison covers the component fixture,
+not a console replay or complete elemental effects.

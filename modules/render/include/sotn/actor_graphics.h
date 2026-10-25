@@ -79,6 +79,8 @@ typedef struct SotnSpriteTransform
 {
     Sint16 rotation;
     Uint16 scale_x, scale_y, opacity;
+    bool tint; /**< When true, RGB multipliers replace opacity. */
+    Uint8 red, green, blue;
 } SotnSpriteTransform;
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
@@ -126,6 +128,14 @@ bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *graphics, Uint16 frame
  * original child effects that sample the displayed body image. */
 bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *graphics, SotnActorSprite sprite);
 
+/** @brief Apply a simulation-owned BO4 death erasure mask to a captured display rectangle.
+ * @param graphics Owned BO4 texture service. @param sprite Original final body pose.
+ * @param erased Borrowed 512-byte bitset for the original 64x64 scratch image.
+ * @return Success or SDL error, preserving cache on invalid references.
+ * @note The first call snapshots the private display image; subsequent calls rebuild
+ * from that snapshot and the full mask, independently of skipped presentation frames. */
+bool SotnActorGraphics_DoppleDissolve(SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                      SotnDataView erased);
 /** @brief CPU-presented original two-color line; screen coordinates within +/-2048.
  * Color endpoints use original eight-bit channels; blend modes are half/add/subtract/quarter. */
 typedef struct SotnColorLine

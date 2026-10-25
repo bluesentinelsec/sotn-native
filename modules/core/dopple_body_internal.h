@@ -8,7 +8,8 @@ typedef struct DoppleFrame
     SotnDoppleBody body;
     SotnDataView overlay;
     Uint8 knives;
-    Uint32 tick;
+    Uint32 tick, random;
+    bool has_random;
     bool failed;
 } DoppleFrame;
 
@@ -29,6 +30,8 @@ void DoppleBackdash(DoppleFrame *frame);
 bool DoppleBranches(DoppleFrame *frame, Uint32 branches);
 void DoppleNormal(DoppleFrame *frame);
 void DoppleForms(DoppleFrame *frame);
+void DoppleDamage(DoppleFrame *frame);
+void DoppleKill(DoppleFrame *frame);
 void DoppleDecelerateY(DoppleFrame *frame, Sint32 amount);
 void DoppleShift(DoppleFrame *frame, Sint32 dx, Sint32 dy);
 void DoppleRestoreStatusEffects(DoppleFrame *frame);

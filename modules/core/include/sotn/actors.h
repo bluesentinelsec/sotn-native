@@ -77,6 +77,8 @@ typedef struct SotnActorState
     bool facing_left, unsupported;
     Sint16 hit_points, hitbox_x, hitbox_y;
     Uint16 hitbox_width, hitbox_height, hitbox_state;
+    bool tinted;
+    Uint8 red, green, blue;
     Sint16 rotation, bat_offset; /**< BO4's original current-pose horizontal adjustment. */
     bool rotated, opacity_set;   /**< Explicit zero opacity is valid when opacity_set is true. */
     Uint8 primitive_count;
@@ -221,5 +223,11 @@ bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);
 /** @brief Release actor state without freeing borrowed images/layout/map. @param actors Owned
  * simulation or NULL. */
 void SotnActors_Destroy(SotnActors *actors);
+
+/** @brief Borrow the BO4 simulation's death erasure mask after original capture timing.
+ * @param actors Borrowed stage service. @param out Receives an empty view until capture;
+ * otherwise a 512-byte bitset valid until the next update, room change or destruction.
+ * @return Success or SDL error; no artwork bytes are returned. */
+bool SotnActors_DoppleDeathMask(const SotnActors *actors, SotnDataView *out);
 
 #endif
