@@ -89,6 +89,7 @@ add_library(sotn-core STATIC
   save_point.c
   include/sotn/save_point.h
   player.c
+  player_stone.c
   player_sensors.c
   player_internal.h
   include/sotn/collision.h

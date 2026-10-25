@@ -48,6 +48,7 @@ struct SotnPlayer
     Uint16 equipment[2];
     Uint8 attack_critical;
     SotnPlayerDeath death;
+    SotnPlayerStone stone;
     Uint16 hp, hp_max, invincibility, sound;
     SotnCharacterStats attributes;
     Uint32 damage_random;
@@ -57,6 +58,8 @@ struct SotnPlayer
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
 
+void SotnPlayer_StoneTick(SotnPlayer *player);
+void SotnPlayer_StoneDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);
 

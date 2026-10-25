@@ -323,3 +323,10 @@ ailments, special damage reactions, elemental death presentation and original
 contact priority remain incomplete. Death ribbons/lighting are bounded native
 adaptations with explicit parity gaps. Protected component fixtures are not
 uninterrupted-route or console evidence.
+
+Selected [petrification](docs/player-petrification.md) now connects stone contact,
+recoil/landing, directional escape, private palettes/wiggle and a selected lethal
+completion to game over. Pause, weapons and save-room activation stay disabled.
+Statue/dissolve children, rare variants, full lethal branches, fragments and
+complete presentation/parity remain incomplete. The protected native fixture
+injects hits; it is not evidence for ordinary Medusa encounters or full-game parity.

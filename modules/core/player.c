@@ -337,7 +337,7 @@ static bool TickShield(SotnPlayer *player)
         button = player->equipment[0] == 16 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
     const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
     const bool disabled = player->equipment[hand] != 16 || player->step == SOTN_PLAYER_KILL ||
-                          player->step == SOTN_PLAYER_HIT;
+                          player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
                          disabled, &player->shield_cursor))
@@ -751,9 +751,14 @@ static void CrouchTick(SotnPlayer *player)
     }
 }
 
-// Selected ordinary physical PlayerStepKill path; elemental deaths remain separate work.
+// Selected physical death; the selected stone completion uses its own clocks.
 static void DeathTick(SotnPlayer *player)
 {
+    if (player->stone.active)
+    {
+        SotnPlayer_StoneDeathTick(player);
+        return;
+    }
     if (player->death.phase == 1)
     {
         if (player->death.red < 248)
@@ -850,6 +855,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             if (Direction(&next))
                 SetSpeed(&next, 49152);
         }
+        break;
+    case SOTN_PLAYER_STONE:
+        SotnPlayer_StoneTick(&next);
         break;
     case SOTN_PLAYER_KILL:
         DeathTick(&next);
@@ -989,30 +997,32 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
 {
     if (player == NULL || out == NULL)
         return SDL_SetError("Player state requires a simulation and output");
-    *out = (SotnPlayerState){player->x.value,
-                             player->y.value,
-                             player->vx,
-                             player->vy,
-                             (Uint32)player->contact,
-                             player->animation,
-                             player->step,
-                             player->facing_left,
-                             player->attack,
-                             player->hp,
-                             player->hp_max,
-                             player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
-                                 player->step == SOTN_PLAYER_KILL,
-                             player->sound,
-                             player->death,
-                             player->step == SOTN_PLAYER_STAND && player->substep == 1,
-                             player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
-                                 player->step != SOTN_PLAYER_HIT,
-                             player->damage_random,
-                             (Uint16)SDL_max(0, player->wall_sensors[0].x),
-                             (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
-                             player->shield,
-                             player->timers[0] != 0,
-                             player->weapon_startup != 0};
+    *out = (SotnPlayerState){
+        .x = player->x.value,
+        .y = player->y.value,
+        .velocity_x = player->vx,
+        .velocity_y = player->vy,
+        .contacts = (Uint32)player->contact,
+        .animation = player->animation,
+        .step = player->step,
+        .facing_left = player->facing_left,
+        .attack = player->attack,
+        .hp = player->hp,
+        .hp_max = player->hp_max,
+        .invulnerable = player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
+                        player->step == SOTN_PLAYER_KILL,
+        .sound = player->sound,
+        .death = player->death,
+        .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
+        .can_pause = player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
+                     player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE,
+        .random = player->damage_random,
+        .solid_width = (Uint16)SDL_max(0, player->wall_sensors[0].x),
+        .solid_height = (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
+        .shield = player->shield,
+        .subweapon_starting = player->timers[0] != 0,
+        .weapon_starting = player->weapon_startup != 0,
+        .stone = player->stone};
     return true;
 }
 
@@ -1032,6 +1042,8 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     if (amount == 0 || player->hp == 0 || player->invincibility != 0 ||
         player->step == SOTN_PLAYER_HIT)
         return true;
+    if (player->step == SOTN_PLAYER_STONE)
+        return SotnPlayer_Petrify(player, amount, source_x, source_velocity);
     SotnPlayer next = *player;
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     const Sint32 center_x =

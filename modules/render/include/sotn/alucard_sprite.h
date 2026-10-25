@@ -48,6 +48,17 @@ bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common
 bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
                            bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count);
 
+/** @brief Draw selected stone palette and pivoted wiggle from private common art.
+ * @param sprite Borrowed decoded sprite. @param common Verified F_GAME graphics/palettes.
+ * @param x Screen anchor X. @param y Screen anchor Y. @param facing_left Mirror flag.
+ * @param stone Active copied stone cursor. @param frame Writable RGB555 framebuffer.
+ * @param count Available pixels, at least SOTN_FRAME_PIXELS. @return Success or SDL error.
+ * @note CPU rotation replaces GTE; statue fragments/lighting remain separate integration work.
+ */
+bool SotnAlucard_DrawPetrified(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
+                               Sint32 y, bool facing_left, SotnPlayerStone stone, Uint16 *frame,
+                               size_t count);
+
 /** @brief Apply the selected original bounded cape palette-copy operation.
  * @param dra Borrowed private DRA. @param cape Original supported cape item.
  * @param colors Four initialized RGB555 words; unaddressed colors stay intact. Unchanged on

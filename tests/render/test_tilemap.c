@@ -168,6 +168,33 @@ static bool TestSprite(Buffers *buffers)
     CHECK(buffers->frame[11 * 256 + 8] == 0x7fff);
     CHECK(buffers->frame[11 * 256 + 9] == 0x7c00);
     CHECK(buffers->frame[11 * 256 + 11] == 0x001f);
+    SotnPlayerStone stone = {.active = true, .palette = 0x19e, .pivot = 24};
+    Put16(buffers->common, 0x413c2, 0x7c1f);
+    Clear(buffers->frame, 0x7fff);
+    CHECK(SotnAlucard_DrawPetrified(&sprite, common, 10, 10, false, stone, buffers->frame,
+                                    SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[11 * 256 + 9] == 0x7c1f && buffers->frame[11 * 256 + 10] == 0x7fff);
+    Clear(buffers->frame, 0x7fff);
+    CHECK(SotnAlucard_DrawPetrified(&sprite, common, 10, 10, true, stone, buffers->frame,
+                                    SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[11 * 256 + 11] == 0x7c1f && buffers->frame[11 * 256 + 9] == 0x7fff);
+    stone.hidden = true;
+    Clear(buffers->frame, 0x1234);
+    CHECK(SotnAlucard_DrawPetrified(&sprite, common, 10, 10, false, stone, buffers->frame,
+                                    SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[11 * 256 + 9] == 0x1234);
+    stone.hidden = false;
+    stone.rotation = 32;
+    CHECK(SotnAlucard_DrawPetrified(&sprite, common, SDL_MAX_SINT32, SDL_MIN_SINT32, false, stone,
+                                    buffers->frame, SOTN_FRAME_PIXELS));
+    stone.rotation = 33;
+    CHECK(!SotnAlucard_DrawPetrified(&sprite, common, 10, 10, false, stone, buffers->frame,
+                                     SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[11 * 256 + 9] == 0x1234);
+    stone.rotation = 0;
+    stone.palette = 0x200;
+    CHECK(!SotnAlucard_DrawPetrified(&sprite, common, 10, 10, false, stone, buffers->frame,
+                                     SOTN_FRAME_PIXELS));
     CHECK(SotnAlucard_DrawSprite(&sprite, common, SDL_MAX_SINT32, SDL_MIN_SINT32, false,
                                  buffers->frame, SOTN_FRAME_PIXELS));
     CHECK(!SotnAlucard_DecodeSprite(image, (SotnDataView){arc, 71}, 1, &sprite));

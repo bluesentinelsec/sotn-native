@@ -35,6 +35,8 @@ clock mechanisms and the Wall elevator. See the [batch review](docs/early-castle
 for validation evidence and remaining progression limits. The selected
 [Armor Lord](docs/outer-wall-armor-lord.md) adds sword/fire-wave/shield combat;
 its death rendering and elemental reactions retain documented parity gaps.
+[Selected petrification](docs/player-petrification.md) adds stone landing,
+directional escape and a selected game-over path; statue/fragment effects remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

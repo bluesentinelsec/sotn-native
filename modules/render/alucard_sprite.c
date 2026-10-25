@@ -226,3 +226,40 @@ bool SotnAlucard_TwilightTick(SotnDataView dra, Uint16 colors[4], Uint16 *target
     *delay = 1;
     return true;
 }
+
+bool SotnAlucard_DrawPetrified(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
+                               Sint32 y, bool facing_left, SotnPlayerStone stone, Uint16 *frame,
+                               size_t count)
+{
+    if (sprite == NULL || frame == NULL || count < SOTN_FRAME_PIXELS || !stone.active ||
+        stone.palette < 0x100 || stone.palette >= 0x200 || SDL_abs(stone.rotation) > 32 ||
+        stone.pivot < 0 || stone.pivot > 24 || common.bytes == NULL || common.size != 0x42000)
+        return SDL_SetError("Stone rendering requires bounded palette, transform and output");
+    if (stone.hidden || (sprite->width == 0 && sprite->height == 0))
+        return true;
+    if (sprite->width == 0 || sprite->width > 255 || sprite->height == 0 || sprite->height > 255 ||
+        sprite->width % 4 || sprite->pixels.bytes == NULL ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2)
+        return SDL_SetError("Stone rendering requires a valid packed Alucard sprite");
+    const double angle = stone.rotation * (SDL_PI_D / 2048.0);
+    const Sint32 cosine = (Sint32)SDL_lround(SDL_cos(angle) * 4096.0);
+    const Sint32 sine = (Sint32)SDL_lround(SDL_sin(angle) * 4096.0);
+    const size_t palette = 0x40000 + (size_t)(stone.palette - 0x100) * 32;
+    for (Sint32 py = 0; py < SOTN_FRAME_HEIGHT; ++py)
+        for (Sint32 px = 0; px < SOTN_FRAME_WIDTH; ++px)
+        {
+            const Sint64 dx = (Sint64)px - x, dy = (Sint64)py - y - stone.pivot;
+            const Sint64 local_x = (dx * cosine + dy * sine) / 4096;
+            const Sint64 local_y = (-dx * sine + dy * cosine) / 4096 + stone.pivot;
+            const Sint64 sx = (facing_left ? -local_x : local_x) - sprite->pivot_x;
+            const Sint64 sy = local_y - sprite->pivot_y;
+            if (sx < 0 || sy < 0 || sx >= sprite->width || sy >= sprite->height)
+                continue;
+            const size_t pixel = (size_t)sy * sprite->width + (size_t)sx;
+            const Uint8 index = (sprite->pixels.bytes[pixel / 2] >> ((pixel & 1U) * 4)) & 15;
+            const Uint16 color = Read16(common.bytes + palette + index * 2U);
+            if (color)
+                frame[(size_t)py * SOTN_FRAME_WIDTH + (size_t)px] = color;
+        }
+    return true;
+}

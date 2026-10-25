@@ -29,6 +29,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_FALL,
     SOTN_PLAYER_JUMP,
     SOTN_PLAYER_HIT = 10,
+    SOTN_PLAYER_STONE = 11,
     SOTN_PLAYER_KILL = 16
 } SotnPlayerStep;
 
@@ -50,6 +51,14 @@ typedef struct SotnPlayerDeath
     Sint16 rotation;
 } SotnPlayerDeath;
 
+/** @brief Selected petrification presentation and directional escape cursor. */
+typedef struct SotnPlayerStone
+{
+    Uint16 palette, shakes, death_wait;
+    Sint16 rotation, pivot;
+    bool active, hidden, impact;
+} SotnPlayerStone;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -69,6 +78,7 @@ typedef struct SotnPlayerState
     SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
     bool weapon_starting;    /**< Original ALU_T_9 weapon-startup timer is active. */
+    SotnPlayerStone stone;
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -150,6 +160,15 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out);
  * ailments and complete defenses remain incomplete. Lethal physical damage enters the original
  * selected death animation/dissolution; phase 128 signals completion to the scene. */
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
+
+/** @brief Enter selected original petrification or apply a resolved hit to a petrified player.
+ * @param player Borrowed simulation. @param amount Resolved damage, 0..9999; zero may petrify.
+ * @param source_x Bounded whole-pixel contact center. @param source_velocity Signed 16.16 velocity.
+ * @return Success or SDL error, preserving state on failure. Invulnerable hits do nothing.
+ * @note Selected stone control/death timing is supported; full statue/chunk effects remain
+ * separate.
+ */
+bool SotnPlayer_Petrify(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity);
 
 /** @brief Restore supported health and random state on a living, non-attacking player.
  * @param player Borrowed simulation. @param hp Health within the current maximum. @param random
