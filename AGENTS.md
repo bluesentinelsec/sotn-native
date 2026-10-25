@@ -330,3 +330,9 @@ completion to game over. Pause, weapons and save-room activation stay disabled.
 Statue/dissolve children, rare variants, full lethal branches, fragments and
 complete presentation/parity remain incomplete. The protected native fixture
 injects hits; it is not evidence for ordinary Medusa encounters or full-game parity.
+
+The selected [Outer Wall Medusa Heads](docs/outer-wall-medusa-heads.md) now use
+private spawner profiles, bounded pools, original blue/gold flight and stone
+contact. Gold heads reach the selected petrification service, whose statue and
+complete death presentation remain incomplete. Native checks use protected room
+starts and positioned contact, not ordinary traversal or console parity evidence.

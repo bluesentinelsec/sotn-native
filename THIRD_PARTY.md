@@ -195,3 +195,9 @@ Selected stone control in `modules/core/player_stone.c` follows
 The selected palette/pivot renderer uses private common art; rotation tables
 remain private. [Petrification scope](docs/player-petrification.md) records the
 remaining statue effects, lethal variants and transform parity gaps.
+
+`modules/core/enemy_medusa.c` adapts `src/st/e_medusa_head.h` at reconstructed
+revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
+Private overlay tables supply spawn profiles, entry motion and animation;
+[the feature scope](docs/outer-wall-medusa-heads.md) separates component fixtures
+from route and console parity evidence.
