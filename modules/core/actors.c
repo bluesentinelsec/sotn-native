@@ -1794,3 +1794,14 @@ bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint64 ticks
     s->music_playing = music_playing;
     return true;
 }
+
+bool SotnActors_DoppleDeathMask(const SotnActors *actors, SotnDataView *out)
+{
+    if (actors == NULL || out == NULL || actors->stage_id != 26)
+        return SDL_SetError("BO4 death-mask view requires its stage service and writable output");
+    *out = actors->dopple.body.death.captured
+               ? (SotnDataView){actors->dopple.body.death.erased,
+                                sizeof(actors->dopple.body.death.erased)}
+               : (SotnDataView){0};
+    return true;
+}

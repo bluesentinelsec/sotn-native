@@ -266,45 +266,76 @@ bool SotnDoppleBody_Init(SotnDataView overlay, Sint32 x, Sint32 y, bool facing_l
     return true;
 }
 
-bool SotnDoppleBody_Tick(SotnDataView overlay, const SotnCollisionMap *map, Uint16 buttons,
-                         Uint8 knives, SotnDoppleBody *body)
+bool SotnDoppleBody_Update(SotnDataView overlay, const SotnCollisionMap *map, SotnDoppleInput input,
+                           Uint32 *random, SotnDoppleBody *body)
 {
     if (body == NULL || !body->motion.initialized ||
-        (body->step < 1 ||
-         (body->step > 6 && body->step != 8 && body->step != 10 && body->step != 15)) ||
-        knives > 16 || body->motion.vx < -2097152 || body->motion.vx > 2097152 ||
+        (body->step < 1 || (body->step > 6 && body->step != 8 && body->step != 10 &&
+                            body->step != 11 && body->step != 15 && body->step != 17)) ||
+        input.knives > 16 || input.effect_index >= 16 || input.player_x < -32767 ||
+        input.player_x > 32767 || body->motion.vx < -2097152 || body->motion.vx > 2097152 ||
         body->motion.vy < -2097152 || body->motion.vy > 2097152 || body->animation.id >= 220 ||
         body->rotation < -4096 || body->rotation > 4096 || body->bat_offset < -64 ||
         body->bat_offset > 64 || body->form_phase > 3)
-        return SDL_SetError("BO4 body tick requires an initialized, bounded supported control state");
-    DoppleFrame frame = {.body = *body, .overlay = overlay, .knives = knives, .tick = body->tick};
+        return SDL_SetError(
+            "BO4 body tick requires an initialized, bounded supported control state");
+    DoppleFrame frame = {.body = *body,
+                         .overlay = overlay,
+                         .knives = input.knives,
+                         .tick = body->tick,
+                         .random = random ? *random : 0,
+                         .has_random = random != NULL};
+    const Uint16 buttons = input.buttons;
+    const Uint32 previous_status = body->motion.status;
     frame.body.request_count = 0;
     SDL_zero(frame.body.requests);
     frame.body.turned = false;
     frame.body.rotated = false;
     frame.body.afterimage_reset = false;
-    for (size_t i = 0; i < SDL_arraysize(frame.body.timers); ++i)
+    const bool new_death = input.lethal && !(previous_status & 0x40000U);
+    if (!new_death && !(previous_status & 0x40000U))
     {
-        if (frame.body.timers[i])
+        for (size_t i = 0; i < SDL_arraysize(frame.body.timers); ++i)
         {
-            if (i == 2)
-                frame.body.palette = frame.body.damage_palette;
-            if (--frame.body.timers[i] == 0)
+            if (frame.body.timers[i])
             {
                 if (i == 2)
-                    frame.body.palette = 0x8200;
-                if (i == 15)
-                    frame.body.afterimage_disabled = false;
+                    frame.body.palette = frame.body.damage_palette;
+                if (--frame.body.timers[i] == 0)
+                {
+                    if (i == 2)
+                        frame.body.palette = 0x8200;
+                    if (i == 15)
+                        frame.body.afterimage_disabled = false;
+                }
             }
         }
+        frame.body.held = frame.body.pressed;
+        frame.body.pressed = buttons;
+        frame.body.tapped = (Uint16)((frame.body.held ^ buttons) & buttons);
+        if (frame.body.motion.status & 8U)
+        {
+            frame.body.tapped &= 0xff5fU;
+            frame.body.pressed &= 0xff5fU;
+        }
     }
-    frame.body.held = frame.body.pressed;
-    frame.body.pressed = buttons;
-    frame.body.tapped = (Uint16)((frame.body.held ^ buttons) & buttons);
-    if (frame.body.motion.status & 8U)
+    if (new_death || (input.hit && !(previous_status & 0x40000U) && !frame.body.timers[13]))
     {
-        frame.body.tapped &= 0xff5fU;
-        frame.body.pressed &= 0xff5fU;
+        Uint32 effect = 0;
+        for (Uint32 byte = 0; byte < 4; ++byte)
+            effect |= (Uint32)DoppleByte(&frame, 0x120c + input.effect_index * 4U + byte)
+                      << (byte * 8U);
+        if (effect > 65535 || (!new_death && (effect & 0x200U)))
+            return SDL_SetError(
+                "BO4 hit requires a supported private effect; stone status is pending");
+        frame.body.damage_effects = (Uint16)effect;
+        frame.body.damage_kind = input.hp_lost >= 10 ? 3 : 2;
+        frame.body.damage_step = frame.body.step;
+        const Sint32 boss_x = frame.body.motion.x >= 0
+                                  ? frame.body.motion.x / 65536
+                                  : (Sint32)(-((-(Sint64)frame.body.motion.x + 65535) / 65536));
+        frame.body.knockback_left = boss_x > input.player_x;
+        DoppleSetStep(&frame, new_death ? 17 : 11);
     }
     const bool can_morph = frame.body.step <= 6 || frame.body.step == 8;
     if ((frame.body.tapped & 8U) && can_morph && frame.body.step != 6)
@@ -336,6 +367,10 @@ bool SotnDoppleBody_Tick(SotnDataView overlay, const SotnCollisionMap *map, Uint
     frame.body.previous_substep = frame.body.substep;
     if (frame.body.step <= 5)
         DoppleNormal(&frame);
+    else if (frame.body.step == 11)
+        DoppleDamage(&frame);
+    else if (frame.body.step == 17)
+        DoppleKill(&frame);
     else
         DoppleForms(&frame);
     if (frame.failed)
@@ -377,12 +412,30 @@ bool SotnDoppleBody_Tick(SotnDataView overlay, const SotnCollisionMap *map, Uint
         if (frame.body.substep == 0)
             frame.body.animation_set = 0x8002;
         break;
+    case 11:
+    case 17:
+        DoppleAfterImage(&frame, true, 1);
+        frame.body.timers[14] = SDL_max(frame.body.timers[14], 4);
+        frame.body.animation_set = 0x8001;
+        frame.body.motion.status = 0x110000U;
+        if (frame.body.step == 17)
+        {
+            frame.body.motion.status |= 0x40000U;
+            if (frame.body.substep == 0x80)
+                frame.body.motion.status |= 0x80000U;
+        }
+        break;
     case 15:
         DoppleAfterImage(&frame, true, 1);
         frame.body.timers[14] = SDL_max(frame.body.timers[14], 4);
         frame.body.motion.status = 0x900002U;
         frame.body.palette = 0x820d;
         break;
+    }
+    if ((previous_status & 0x10000U) && !(frame.body.motion.status & 0x50000U))
+    {
+        frame.body.timers[15] = 4;
+        frame.body.palette = 0x8200;
     }
     if (frame.body.timers[0])
     {
@@ -394,7 +447,18 @@ bool SotnDoppleBody_Tick(SotnDataView overlay, const SotnCollisionMap *map, Uint
     if (!SotnAnimation_TickDopple(overlay, frame.body.form_pose, &frame.body.animation) ||
         !SotnDoppleMotion_Advance(overlay, map, false, &frame.body.motion))
         return false;
+    if (frame.body.step == 17 && frame.body.animation.remaining < 0)
+        frame.body.animation.sprite |= 0x8000U;
     frame.body.tick = body->tick + 1U;
+    if (random)
+        *random = frame.random;
     *body = frame.body;
     return true;
+}
+
+bool SotnDoppleBody_Tick(SotnDataView overlay, const SotnCollisionMap *map, Uint16 buttons,
+                         Uint8 knives, SotnDoppleBody *body)
+{
+    return SotnDoppleBody_Update(
+        overlay, map, (SotnDoppleInput){.buttons = buttons, .knives = knives}, NULL, body);
 }

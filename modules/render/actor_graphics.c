@@ -16,7 +16,8 @@ struct SotnActorGraphics
     SotnDataView weapon[2];
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
-    bool dopple_cached;
+    bool dopple_cached, dopple_death_cached;
+    Uint16 dopple_death_words[1024], dopple_death_frame, dopple_death_bank;
     Sint16 bat_pivot[18];
     bool bat_pivot_set[18];
 };
@@ -465,6 +466,10 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
                              .page = (Uint16)(page + (sprite.blend_mode & 0x60)),
                              .modulate = true,
                              .opacity = (Uint8)transform->opacity,
+                             .tint = transform->tint,
+                             .red = transform->red,
+                             .green = transform->green,
+                             .blue = transform->blue,
                              .palette = (Uint16)palette,
                              .blend = sprite.blend_mode != 0};
         if (u1 < u0)
@@ -578,6 +583,17 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
     for (Uint32 i = 0; i < 16; ++i)
         if (!Word(g, palette_x + i, 240 + (palette % 256) / 16, &colors[i]))
             return false;
+    if ((sprite.frame & 0x8000U) && g->dopple_cached)
+    {
+        const Uint32 cache_x = Read16(g->dra.bytes + 0x21d8);
+        const Uint32 cache_y = Read16(g->dra.bytes + 0x21da) & 511U;
+        if (cache_x + width / 4U > 1024 || cache_y + height > 512)
+            return SDL_SetError("BO4 retained pose dimensions exceed its display cache");
+        for (Uint32 row = 0; row < height; ++row)
+            for (Uint32 column = 0; column < width / 4U; ++column)
+                if (!g->valid[(size_t)(cache_y + row) * 1024 + cache_x + column])
+                    return SDL_SetError("BO4 retained pose requires valid cached pixels");
+    }
     if (x < -65536 || x > 65536 || y < -65536 || y > 65536)
         return true;
     const SotnSpriteTransform t =
@@ -588,7 +604,7 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
     const Sint32 sine = (Sint32)SDL_lround(SDL_sin(radians) * 4096.0);
     const Sint64 denominator_x = 8192LL * t.scale_x, denominator_y = 8192LL * t.scale_y;
     // Inverse sampling at pixel centers retains identity pivots and the original mirror +1.
-    // This avoids modifying shared VRAM for an immutable, runtime-loaded sheet.
+    // Retained BO4 poses sample the owned display cache, including simulation-driven erasure.
     for (Sint32 py = 0; py < SOTN_FRAME_HEIGHT; ++py)
         for (Sint32 px = 0; px < SOTN_FRAME_WIDTH; ++px)
         {
@@ -601,16 +617,28 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
             if (sx < 0 || sy < 0 || sx >= width || sy >= height)
                 continue;
             const size_t pixel = (size_t)sy * width + (size_t)sx;
-            const Uint8 color_index = (sheet.bytes[4 + pixel / 2] >> ((pixel & 1U) * 4)) & 15;
+            Uint8 color_index = (sheet.bytes[4 + pixel / 2] >> ((pixel & 1U) * 4)) & 15;
+            if ((sprite.frame & 0x8000U) && g->dopple_cached)
+            {
+                const Uint32 cache_x = Read16(g->dra.bytes + 0x21d8);
+                const Uint32 cache_y = Read16(g->dra.bytes + 0x21da) & 511U;
+                const size_t word = (cache_y + (size_t)sy) * 1024 + cache_x + (size_t)sx / 4;
+                color_index = (Uint8)((g->words[word] >> (((size_t)sx & 3U) * 4U)) & 15U);
+            }
             Uint16 color = colors[color_index];
             if (!color)
                 continue;
-            if (t.opacity != 128)
+            if (t.opacity != 128 || t.tint)
             {
                 Uint16 tinted = color & 0x8000;
                 for (Uint32 shift = 0; shift < 15; shift += 5)
-                    tinted |=
-                        (Uint16)(SDL_min(31, ((color >> shift) & 31) * t.opacity / 128) << shift);
+                    tinted |= (Uint16)(SDL_min(31, ((color >> shift) & 31) *
+                                                       (t.tint ? (shift == 0   ? t.red
+                                                                  : shift == 5 ? t.green
+                                                                               : t.blue)
+                                                               : t.opacity) /
+                                                       128)
+                                       << shift);
                 color = tinted;
             }
             const size_t destination = (size_t)py * SOTN_FRAME_WIDTH + (size_t)px;
@@ -755,7 +783,8 @@ bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite s
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count)
 {
-    const SotnSpriteTransform transform = {angle, 256, 256, 128};
+    const SotnSpriteTransform transform = {
+        .rotation = angle, .scale_x = 256, .scale_y = 256, .opacity = 128};
     return Draw(graphics, sprite, x, y, frame, count, (angle & 4095) == 0 ? NULL : &transform);
 }
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
@@ -772,7 +801,7 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite
         transform.scale_y > 1024 || transform.opacity > 255)
         return SDL_SetError("Actor transform exceeds the bounded original scales or color");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
-        transform.opacity == 128)
+        transform.opacity == 128 && !transform.tint)
         return Draw(g, sprite, x, y, frame, count, NULL);
     return Draw(g, sprite, x, y, frame, count, &transform);
 }
@@ -851,6 +880,7 @@ bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *g, SotnActorSprite spri
             g->valid[pixel] = 1;
         }
     g->dopple_cached = true;
+    g->dopple_death_cached = false;
     return true;
 }
 
@@ -869,5 +899,53 @@ bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *g, Uint16 frame, Sint1
         return SDL_SetError("BO4 runtime bat pivot exceeds its supported geometry");
     g->bat_pivot[pose] = (Sint16)pivot;
     g->bat_pivot_set[pose] = true;
+    return true;
+}
+
+bool SotnActorGraphics_DoppleDissolve(SotnActorGraphics *g, SotnActorSprite sprite,
+                                      SotnDataView erased)
+{
+    if (g == NULL || g->stage_id != 26 || erased.bytes == NULL || erased.size != 512 ||
+        g->nz0.size < 0x1fe0)
+        return SDL_SetError(
+            "BO4 dissolve requires its original display cache and full erasure mask");
+    const Uint32 x = Read16(g->nz0.bytes + 0x1fd8), y = Read16(g->nz0.bytes + 0x1fda);
+    const Uint32 width = Read16(g->nz0.bytes + 0x1fdc), height = Read16(g->nz0.bytes + 0x1fde);
+    if (width != 16 || height != 64 || x + width > 1024 || y + height > 512)
+        return SDL_SetError("BO4 dissolve rectangle exceeds its original 64x64 scratch image");
+    if (g->dopple_death_cached && (g->dopple_death_frame != (sprite.frame & 0x7fffU) ||
+                                   g->dopple_death_bank != sprite.animation_set))
+        return SDL_SetError("BO4 dissolve changed its captured final pose");
+    if (!g->dopple_death_cached)
+    {
+        // A presentation frame may have been skipped when the final pose was uploaded.
+        // Resolve that immutable pose before capturing, independently of render cadence.
+        SotnActorSprite final_pose = sprite;
+        final_pose.frame &= 0x7fffU;
+        if (!(final_pose.frame) || !SotnActorGraphics_LoadDopplePose(g, final_pose))
+            return SDL_SetError("BO4 dissolve requires a backed final body pose");
+        g->dopple_death_frame = final_pose.frame;
+        g->dopple_death_bank = final_pose.animation_set;
+        for (Uint32 row = 0; row < height; ++row)
+            for (Uint32 column = 0; column < width; ++column)
+                // Native VRAM starts zeroed, including unused padding around a packed pose.
+                g->dopple_death_words[row * width + column] =
+                    g->words[(size_t)(y + row) * 1024 + x + column];
+    }
+    for (Uint32 row = 0; row < height; ++row)
+        for (Uint32 column = 0; column < width; ++column)
+        {
+            Uint16 word = g->dopple_death_words[row * width + column];
+            for (Uint32 nibble = 0; nibble < 4; ++nibble)
+            {
+                const Uint32 bit = (row * width + column) * 4U + nibble;
+                if (erased.bytes[bit / 8] & (1U << (bit & 7U)))
+                    word &= (Uint16) ~(15U << (nibble * 4U));
+            }
+            const size_t target = (size_t)(y + row) * 1024 + x + column;
+            g->words[target] = word;
+            g->valid[target] = 1;
+        }
+    g->dopple_death_cached = true;
     return true;
 }
