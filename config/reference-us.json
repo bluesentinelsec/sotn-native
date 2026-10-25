@@ -107,6 +107,10 @@
     "ST/LIB/SD_ZKLIB.VB": {
       "size": 90704,
       "sha1": "cec624c375cefde88ac93867252c1cca2199aaa5"
+    },
+    "ST/LIB/SEQ_LIB.SEQ": {
+      "size": 7859,
+      "sha1": "8797e675bb8561cae94decd889d6048397f96011"
     }
   },
   "sizes": {

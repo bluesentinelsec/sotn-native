@@ -39,8 +39,9 @@ Explicit original volume/pan now carries through direct and scripted events, usi
 private DRA coefficients. SDK tone/program/event panning attenuates the correct channel
 without replacing the other channel's gain. Selected clock sounds exercise this path.
 
-This is selected audio integration, not full audio parity. SEQ playback,
-reverb, complete voice/channel arbitration, complete positional sound,
+This is selected audio integration, not full audio parity. The selected
+[Librarian SEQ service](library-sequence-audio.md) now plays notes and internal loops.
+Other sequences, reverb, complete voice/channel arbitration, complete positional sound,
 all movement/ability/ambient events, and original NTSC scheduling remain incomplete.
 The direct/scripted paths exercised by the current combat checkpoint are supported;
 other channel modes fail explicitly. Future hardware-service comparisons must

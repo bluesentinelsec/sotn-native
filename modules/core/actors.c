@@ -1539,6 +1539,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
     actors->combat.music_change = false;
+    actors->combat.sequence_change = false;
     actors->combat.ambience_change = false;
     actors->combat.voice_change = false;
     actors->combat.cd_command = 0;

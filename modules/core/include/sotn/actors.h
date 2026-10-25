@@ -126,6 +126,8 @@ typedef struct SotnActorCombat
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
     bool music_change;
+    Uint16 sequence; /**< Original SEQ ID; zero stops only sequence-owned voices. */
+    bool sequence_change;
     bool ambience_change; /**< Original channel 22/23 gain update without key-on. */
     Uint16 ambience_volume;
     Sint8 ambience_pan;

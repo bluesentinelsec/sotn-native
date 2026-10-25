@@ -300,3 +300,11 @@ MPL-2.0 revision; its original trigonometry stays in the private executable.
 Library camera unlock follows `src/st/lib/e_lock_camera.c`; shared reward conversion
 follows `src/st/e_life_up.h`. Tile/drop tables remain private runtime inputs. Native
 seal signaling checks owner generations rather than writing beyond its child block.
+
+`modules/audio/sequence.c` and `sound_sequence.c` adapt selected reconstructed
+`src/main/psxsdk/libsnd/seqinit.c`, `seqread.c` and `vmanager.c` algorithms at the
+pinned sotn-decomp revision (MIT). The [SDK/decomp notice](licenses/PSY-Z-decomp-MIT.txt)
+retains the reconstruction contributors' attribution. Original sequence bytes,
+instruments, samples and pitch entries remain private runtime inputs. Selected
+playback selection follows `src/dra/sound.c` (AGPL-3.0-or-later); the native adapter
+retains separate XA and SEQ ownership.

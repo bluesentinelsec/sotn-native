@@ -102,3 +102,8 @@ The [Long Library foundation](library-runtime.md) adds separately verified
 `ST/LIB/SD_ZKLIB.VH` and `ST/LIB/SD_ZKLIB.VB` resources. Its overlay/artwork already
 use the canonical stage catalog. These remain optional on-demand private inputs;
 public builds, CI and release packaging do not require them.
+
+The [Librarian sequence service](library-sequence-audio.md) adds independently
+verified `ST/LIB/SEQ_LIB.SEQ` event data. It reuses common instruments and reads
+original pitch entries from the private boot image. No event bytes or musical
+recording enter public files.

@@ -15,7 +15,9 @@ the original hitbox/axis declarations have eight entries. The later local camera
 unlock signal remains outside this slice. Stage-start graphics bank zero loads
 independently from each room's graphics bank. Its sound-bank files are separately
 fingerprinted; original Wood Carving Partita intro/loop music uses the existing
-private stream. No runtime tables, artwork or sound data enter public files.
+private stream. The [Librarian SEQ service](library-sequence-audio.md) now has a
+native decoder/voice path; the interaction still needs integration. No runtime
+tables, artwork or sound data enter public files.
 
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
 The original Library layouts contain no ordinary Skeleton placements; the

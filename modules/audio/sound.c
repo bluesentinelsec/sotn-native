@@ -2,42 +2,7 @@
 // Selected event/script/channel paths adapted from sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5, src/dra/sound.c.
 // VAB access uses checked serialized fields, never SDK structs or PS1 host pointers.
-#include "voice.h"
-#include <sotn/sound.h>
-
-typedef struct SoundBank
-{
-    SotnDataView header;
-    Uint32 address, samples[256], sizes[256];
-    Uint16 programs[128], sample_count;
-    bool loaded;
-} SoundBank;
-
-typedef struct SoundScript
-{
-    Uint32 address;
-    Uint16 id, steps;
-    Uint8 timer, volume, priority;
-    Sint8 pan;
-} SoundScript;
-
-struct SotnSound
-{
-    SotnDataView dra;
-    Uint8 ram[SOTN_SPU_RAM_SIZE];
-    SoundBank banks[4];
-    SotnVoice voices[24];
-    SotnVoiceRegisters registers[24];
-    SoundScript scripts[3];
-    struct
-    {
-        Uint16 id, volume;
-        Sint8 pan;
-        bool ambience_volume;
-    } queue[256];
-    Uint16 queued, ambience_id;
-    Uint8 priority[4];
-};
+#include "sound_internal.h"
 
 static Uint16 U16(const Uint8 *bytes)
 {
@@ -108,8 +73,8 @@ static bool Bank(SotnSound *sound, Uint32 id, SotnDataView header, SotnDataView 
     return true;
 }
 
-static bool Key(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint8 tone,
-                Uint8 note, Uint8 volume, Uint8 pan)
+bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint8 tone, Uint8 note,
+              Uint8 volume, Uint8 pan)
 {
     if (voice >= 24 || bank_id >= 4 || !sound->banks[bank_id].loaded || program >= 128 ||
         tone >= 16 || note > 127 || volume > 127)
@@ -153,6 +118,8 @@ static bool Key(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Ui
     reg->left = (Sint32)(left * left / 16383);
     reg->right = (Sint32)(right * right / 16383);
     spu_voice_key_on(&sound->voices[voice], reg);
+    if (voice < 16)
+        sound->sequence_voices[voice] = (SoundSeqVoice){.claimed = true, .priority = attributes[0]};
     return true;
 }
 
@@ -178,8 +145,8 @@ static bool Pair(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint
                                  : (Uint8)(127 - left * 64 / right);
         volume = (Uint8)SDL_max(left, right);
     }
-    return Key(sound, voice, bank, program, tone, note, volume, key_pan) &&
-           Key(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume, key_pan);
+    return SoundKey(sound, voice, bank, program, tone, note, volume, key_pan) &&
+           SoundKey(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume, key_pan);
 }
 
 static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
@@ -406,6 +373,8 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
             }
         }
     }
+    if (!SoundSequenceTick(sound))
+        return false;
     for (Uint32 frame = 0; frame < SOTN_SOUND_FRAMES; ++frame)
     {
         Sint32 left = 0, right = 0;

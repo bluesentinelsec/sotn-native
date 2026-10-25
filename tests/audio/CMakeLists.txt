@@ -22,3 +22,16 @@ add_test(NAME sdl-audio-patch COMMAND "${CMAKE_COMMAND}"
   "-DPATCH=${PROJECT_SOURCE_DIR}/cmake/PatchSDLAudio.cmake"
   -P "${CMAKE_CURRENT_SOURCE_DIR}/test_sdl_patch.cmake")
 set_tests_properties(sdl-audio-patch PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-sequence-tests test_sequence.c)
+sotn_configure_c_target(sotn-sequence-tests)
+target_link_libraries(sotn-sequence-tests PRIVATE sotn-audio)
+add_test(NAME original-sequence COMMAND sotn-sequence-tests)
+set_tests_properties(original-sequence PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-sequence-voice-tests test_sequence_voices.c)
+sotn_configure_c_target(sotn-sequence-voice-tests)
+target_link_libraries(sotn-sequence-voice-tests PRIVATE sotn-audio)
+target_include_directories(sotn-sequence-voice-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/audio")
+add_test(NAME sequence-voices COMMAND sotn-sequence-voice-tests)
+set_tests_properties(sequence-voices PROPERTIES TIMEOUT 20)

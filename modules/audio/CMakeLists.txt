@@ -2,6 +2,10 @@ add_library(sotn-audio STATIC
   playback.c
   playback_internal.h
   include/sotn/playback.h
+  sequence.c
+  include/sotn/sequence.h
+  sound_sequence.c
+  sound_internal.h
   sound.c
   music.c
   voice.h
