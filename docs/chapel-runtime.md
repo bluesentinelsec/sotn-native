@@ -92,4 +92,5 @@ death. The Chapel profile remains internal and disconnected from normal travel.
 
 Selected [Bone Pillar skull/fire combat](chapel-bone-pillar.md) now adds stacked
 skulls, original fire/embers and upper-skull release/death pieces. The spike-ball
-variant and connected Chapel progression remain unsupported.
+variant now runs [release/bounce/roll and linked enemy damage](chapel-spike-ball.md).
+Connected Chapel progression remains unsupported.

@@ -154,6 +154,8 @@ bool ActorChapel(SotnActors *s, Actor *a)
     case 0x14:
     case 0x15:
         return ActorOuterEffect(s, a);
+    case 0x2c:
+        return ActorChapelSpikeBall(s, a);
     case 0x29:
     case 0x2a:
     case 0x2b:

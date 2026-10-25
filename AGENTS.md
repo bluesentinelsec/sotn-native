@@ -424,5 +424,7 @@ fixtures do not establish whole-route or console parity.
 
 Selected [Chapel Bone Pillar skulls/fire](docs/chapel-bone-pillar.md) now run
 side-dependent attacks, original fire/embers, delayed pieces and released upper
-skull bounce/death. The spike-ball variant and connected Chapel progression remain
-unsupported; do not describe this selected path as a complete enemy family/area.
+skull bounce/death. The [spike-ball variant](docs/chapel-spike-ball.md) now supports
+intact destruction, release/bounce/roll, invulnerable contact and linked enemy damage.
+Its owned outside-stage attacks share four original cooldown groups. Connected
+Chapel progression and full encounter/console parity remain incomplete.

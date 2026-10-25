@@ -17,7 +17,9 @@ enum
 {
     ACTOR_PRIMITIVE_CAPACITY = SOTN_ACTOR_PRIMITIVES_MAX,
     ACTOR_PRIMITIVE_LIMIT = SOTN_ACTOR_PRIMITIVES_PER_ACTOR_MAX,
-    ACTOR_SPRITE_PART_LIMIT = 32
+    ACTOR_SPRITE_PART_LIMIT = 32,
+    ACTOR_FOREIGN_ATTACK_GROUPS = 4,
+    ACTOR_CHAPEL_BALL_LINKS = 15
 };
 typedef struct ActorPrimitive
 {
@@ -58,7 +60,7 @@ typedef struct Actor
     Sint32 vx, vy;
     Uint16 pose, remaining, timer, substep;
     size_t animation_stream;
-    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS], damage_effect;
+    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS + ACTOR_FOREIGN_ATTACK_GROUPS], damage_effect;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
     Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
@@ -121,7 +123,7 @@ typedef struct Actor
     struct
     {
         Uint16 timer, interval;
-        bool bottom_dead;
+        bool bottom_dead, bounced;
     } pillar;
     struct
     {
@@ -331,6 +333,12 @@ struct SotnActors
     } death_event;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
+    struct
+    {
+        Uint32 generation;
+        Uint16 slot;
+        Uint8 group;
+    } chapel_ball[ACTOR_CHAPEL_BALL_LINKS];
     ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
     Sint32 camera_x, camera_y;
     Uint32 random, combat_random, ticks, effect_serial;
@@ -465,6 +473,17 @@ bool ActorChapelCornerGuard(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage owner. @param actor Borrowed supported slot.
  * @return Success or SDL error; private images and room collision remain borrowed. */
 bool ActorChapelPillar(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel spike-ball release, collision and rendering.
+ * @param actors Borrowed stage-6 owner. @param actor Borrowed owned ball slot.
+ * @return Success or SDL error; exhausted optional primitives retire the ball. */
+bool ActorChapelSpikeBall(SotnActors *actors, Actor *actor);
+/** @brief Copy one live linked player-side attack and its original cooldown group.
+ * @param actors Borrowed stage owner; retires stale links. @param index Link 0..14.
+ * @param out Borrowed player snapshot, attack/position overwritten for active links.
+ * @param group Receives original group 0..3 when active. @param active Receives availability.
+ * @return Success or SDL error; does not publish or own any private data. */
+bool ActorChapelBallAttack(SotnActors *actors, Uint16 index, SotnPlayerState *out, Uint32 *group,
+                           bool *active);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
