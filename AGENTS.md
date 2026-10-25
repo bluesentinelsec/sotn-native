@@ -219,6 +219,8 @@ owner and display an error. Future stage destinations still need native actor/sc
 The first [Entrance integration slice](docs/entrance-runtime.md) adds a stage-65
 development entry (`--entrance`, `--entrance-room 0..27`), bats, floor zombies,
 Wargs, both Mermen and their selected projectiles/splashes, and shared actors.
-Death, unused Fire Wargs, Entrance saves, and
+[Death's selected event](docs/entrance-death.md) now runs with original speech,
+private portraits/text, targeted theft, and return of player control. Unused Fire
+Wargs, Entrance saves, and
 connected progression remain unintegrated in this slice. Keep stage identities
 and original actor IDs distinct; do not describe the Entrance as complete.

@@ -41,6 +41,8 @@ add_library(sotn-core STATIC
   enemy_entrance.c
   enemy_warg.c
   enemy_merman.c
+  entrance_death.c
+  include/sotn/dialogue.h
   combat.c
   equipment.c
   include/sotn/equipment.h

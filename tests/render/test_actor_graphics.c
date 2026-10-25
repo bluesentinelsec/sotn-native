@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <sotn/actor_graphics.h>
+#include <sotn/dialogue_renderer.h>
 
 #define CHECK(condition)                                                                           \
     do                                                                                             \
@@ -358,6 +359,38 @@ static bool TestRotation(Fixture *fixture)
     return true;
 }
 
+static bool TestDialogue(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(SotnActorGraphics_Create(
+        (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){f->nz0, sizeof(f->nz0)},
+        (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, &g));
+    SotnDialogueState d = {.x = 60, .y = 148, .visible = true};
+    SDL_strlcpy(d.lines[0], "TEST", sizeof(d.lines[0]));
+    CHECK(SotnDialogueRenderer_Draw(g, d, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[148 * 256 + 4] == 0x4210 && f->frame[149 * 256 + 5] == 0x2400);
+    d.row = 5;
+    CHECK(!SotnDialogueRenderer_Draw(g, d, f->frame, SOTN_FRAME_PIXELS));
+    d.row = 0;
+    SDL_memset(d.lines[0], 'T', sizeof(d.lines[0]));
+    CHECK(!SotnDialogueRenderer_Draw(g, d, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(SotnActorGraphics_LoadPortrait(g, 0x500, 0));
+    CHECK(!SotnActorGraphics_LoadPortrait(g, 0x500, 2));
+    CHECK(!SotnActorGraphics_LoadPortrait(g, 0x1fff, 0));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        f->frame[i] = 0x7fff;
+    CHECK(!SotnDialogueRenderer_Background(241, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 0x7fff);
+    CHECK(SotnDialogueRenderer_Background(240, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 0x421);
+    CHECK(!SotnDialogueRenderer_Item((SotnDataView){f->dra, sizeof(f->dra)},
+                                     (SotnDataView){f->nz0, sizeof(f->nz0)}, 6, 100, 100, 14, 14,
+                                     false, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -365,7 +398,7 @@ int main(void)
         return 1;
     const bool passed = TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
                         TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture);
+                        TestWeapons(fixture) && TestDialogue(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

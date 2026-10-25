@@ -115,3 +115,10 @@ target_include_directories(sotn-entrance-tests PRIVATE "${PROJECT_SOURCE_DIR}/mo
 target_link_libraries(sotn-entrance-tests PRIVATE sotn-core)
 add_test(NAME entrance-enemies COMMAND sotn-entrance-tests)
 set_tests_properties(entrance-enemies PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-death-event-tests test_death_event.c)
+sotn_configure_c_target(sotn-death-event-tests)
+target_include_directories(sotn-death-event-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-death-event-tests PRIVATE sotn-core)
+add_test(NAME opening-death-event COMMAND sotn-death-event-tests)
+set_tests_properties(opening-death-event PROPERTIES TIMEOUT 20)

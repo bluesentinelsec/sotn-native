@@ -133,6 +133,14 @@ typedef struct Transfer
     size_t offset;
 } Transfer;
 
+bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *g, Uint32 offset, Uint16 slot)
+{
+    if (g == NULL || slot > 1 || offset > g->nz0.size || 48 * 72 > g->nz0.size - offset)
+        return SDL_SetError("Dialogue portrait slot or private pixels exceed validated bounds");
+    Upload(g, 256U + slot * 32U, 256, 24, 72, g->nz0.bytes + offset);
+    return true;
+}
+
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank)
 {
     if (graphics == NULL || bank >= 25)

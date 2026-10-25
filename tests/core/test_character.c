@@ -82,6 +82,26 @@ int main(void)
     CHECK(SotnItem_Name(item, name, sizeof(name)) && SDL_strcmp(name, "Test") == 0);
     CHECK(!SotnItem_Name(item, name, 2));
     CHECK(!SotnItem_Read(dra, true, 90, &item));
+    const Uint16 stolen_hand[] = {123, 16};
+    const Uint16 stolen_body[] = {15, 45, 56, 78};
+    for (Uint32 i = 0; i < 2; ++i)
+    {
+        CHECK(SotnCharacter_Collect(c, false, stolen_hand[i]));
+        CHECK(SotnCharacter_Collect(c, false, stolen_hand[i]));
+    }
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnCharacter_Collect(c, true, stolen_body[i]));
+    CHECK(SotnCharacter_Get(c, &s, NULL));
+    const Uint16 left_before = s.equipment[0], right_before = s.equipment[1];
+    const Uint16 hp_before = s.hp;
+    CHECK(SotnCharacter_DeathTheft(c));
+    CHECK(SotnCharacter_Get(c, &s, NULL));
+    CHECK(s.equipment[0] == left_before && s.equipment[1] == right_before && s.hp == hp_before);
+    for (Uint32 i = 0; i < 2; ++i)
+        CHECK(s.hand_count[stolen_hand[i]] == 1);
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(s.body_count[stolen_body[i]] == 0);
+    CHECK(!SotnCharacter_DeathTheft(NULL));
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

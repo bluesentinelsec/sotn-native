@@ -78,6 +78,11 @@ bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not
  * mutate state. */
 bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
+/** @brief Apply Death's original six-item theft, preferring an equipped copy over inventory.
+ * @param character Borrowed owner. @return Success or SDL error, with unchanged state on failure.
+ * Does not remove unrelated equipment, resources, or additional inventory copies.
+ */
+bool SotnCharacter_DeathTheft(SotnCharacter *character);
 /** @brief Read private item metadata without exposing the character's borrowed image.
  * @param character Borrowed character. @param body Item table. @param id Item ID.
  * @param out Decoded metadata, unchanged on failure. @return Success or false with SDL_GetError().

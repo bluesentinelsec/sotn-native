@@ -125,6 +125,32 @@ static bool Simulation(Fixture *f)
     return true;
 }
 
+static bool Ambience(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    f->dra[0x1f554 + 7 + 4] = 3;
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_Create(sources, &sound));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    CHECK(SotnSound_Queue(sound, 0x601));
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    Uint32 audible = 0;
+    for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+        audible += pcm[i] != 0;
+    CHECK(audible > 100);
+    CHECK(SotnSound_Queue(sound, 0xa1));
+    for (Uint32 tick = 0; tick < 30; ++tick)
+        CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+        CHECK(pcm[i] == 0);
+    CHECK(!SotnSound_Queue(sound, 0xa2));
+    f->dra[0x1f554 + 7 + 4] = 6;
+    CHECK(SotnSound_Queue(sound, 0x601));
+    CHECK(!SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    SotnSound_Destroy(sound);
+    return true;
+}
+
 static bool Failures(Fixture *f)
 {
     SotnSoundSources sources = MakeFixture(f);
@@ -145,7 +171,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && Failures(f);
+    const bool passed = Decode() && Simulation(f) && Ambience(f) && Failures(f);
     SDL_free(f);
     if (!passed)
         return 1;

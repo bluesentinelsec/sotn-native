@@ -19,6 +19,8 @@ struct SotnMusic
     Uint32 sector, remaining;
     Sint32 history[2][2];
     bool looping, once;
+    Uint64 source_frames;
+    bool flushed;
 };
 
 static Uint32 Read32(const Uint8 *p)
@@ -94,7 +96,18 @@ static bool Feed(SotnMusic *music)
                 frame += 28;
             }
         }
-        return SDL_PutAudioStreamData(music->converter, pcm, sizeof(pcm));
+        if (!SDL_PutAudioStreamData(music->converter, pcm, sizeof(pcm)))
+            return false;
+        music->source_frames += 2016;
+        if (music->once && music->source_frames >= (Uint64)music->intro.ticks * 630)
+        {
+            /* Release SDL's resampling tail at the end of a finite XA clip. Otherwise a
+             * clip ending exactly on a sector boundary requests another, unrelated sector. */
+            if (!SDL_FlushAudioStream(music->converter))
+                return false;
+            music->flushed = true;
+        }
+        return true;
     }
     return SDL_SetError("No matching Laboratory music sector within the bounded scan window");
 }
@@ -160,7 +173,7 @@ bool SotnMusic_Tick(SotnMusic *music, Sint16 *pcm, size_t count)
     }
     const int bytes = SOTN_SOUND_FRAMES * 2 * (int)sizeof(*pcm);
     int available = SDL_GetAudioStreamAvailable(music->converter);
-    for (Uint32 fed = 0; available >= 0 && available < bytes && fed < 2; ++fed)
+    for (Uint32 fed = 0; available >= 0 && available < bytes && fed < 2 && !music->flushed; ++fed)
     {
         if (!Feed(music))
             return false;
@@ -192,4 +205,24 @@ bool SotnMusic_CreateBoss(SotnDataView dra, SotnStream *stream, SotnMusic **out)
 bool SotnMusic_CreateEntrance(SotnDataView dra, SotnStream *stream, bool castle, SotnMusic **out)
 {
     return Create(dra, stream, castle ? 15 : 42, castle ? 16 : 43, false, out);
+}
+
+bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out)
+{
+    if (out == NULL)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (id < 0x35f || id > 0x363)
+        return SDL_SetError("Opening Death speech requires an original dialogue ID 0x35f..0x363");
+    return Create(dra, stream, id - 0x300U, id - 0x300U, true, out);
+}
+
+bool SotnMusic_Playing(const SotnMusic *music)
+{
+    return music != NULL && (!music->once || music->remaining != 0);
+}
+
+bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMusic **out)
+{
+    return Create(dra, stream, 44, 45, false, out);
 }

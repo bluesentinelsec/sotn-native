@@ -242,6 +242,36 @@ bool SotnCharacter_Get(const SotnCharacter *c, SotnCharacterState *s, SotnCharac
         *stats = c->stats;
     return true;
 }
+
+// dra/5F60C.c:InitStatsAndGear(true), at the pinned reconstructed US revision.
+bool SotnCharacter_DeathTheft(SotnCharacter *c)
+{
+    if (c == NULL)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    const Uint16 items[6] = {123, 16, 15, 45, 56, 78};
+    for (Uint32 i = 0; i < 6; ++i)
+    {
+        const bool hand = i < 2;
+        const Uint32 first = hand ? 0 : i == 5 ? 5 : i;
+        const Uint32 last = hand ? 2 : i == 5 ? 7 : i + 1;
+        bool equipped = false;
+        for (Uint32 slot = first; slot < last; ++slot)
+            if (next.state.equipment[slot] == items[i])
+            {
+                next.state.equipment[slot] = Empty(slot);
+                equipped = true;
+                break;
+            }
+        Uint8 *count = hand ? next.state.hand_count : next.state.body_count;
+        if (!equipped && count[items[i]])
+            --count[items[i]];
+    }
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
 bool SotnCharacter_Restore(SotnCharacter *c, const SotnCharacterState *s)
 {
     if (c == NULL || !SotnCharacter_Validate(s))

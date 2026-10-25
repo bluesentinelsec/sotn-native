@@ -3,6 +3,7 @@
 
 #include <sotn/actor_layout.h>
 #include <sotn/camera.h>
+#include <sotn/dialogue.h>
 #include <sotn/player.h>
 #include <sotn/world.h>
 
@@ -90,9 +91,17 @@ typedef struct SotnActorCombat
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
     bool music_change;
+    Uint16 voice;
+    bool voice_change;
     Uint16 contact_damage;
     Sint32 contact_x, contact_velocity;
 } SotnActorCombat;
+
+/** @brief Copy dialogue state and feed native speech playback status into script waits.
+ * @param actors Borrowed owner. @param voice_playing Native XA speech is still playing.
+ * @param out Optional presentation snapshot. @return Success or SDL error.
+ */
+bool SotnActors_Dialogue(SotnActors *actors, bool voice_playing, SotnDialogueState *out);
 
 /** @brief Supported ordinary-save progress; transient room actors are excluded. */
 typedef struct SotnActorProgress
