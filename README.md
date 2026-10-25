@@ -22,16 +22,16 @@ authentic playable game build. Its default mode still displays the bootstrap gre
 
 [Castle stage loading](docs/castle-stage-loading.md) verifies and inspects 50 stage
 overlay/artwork pairs on demand. Selected native paths now connect Entrance, Laboratory,
-Marble Gallery and Outer Wall; further areas remain unintegrated.
+Marble Gallery, Outer Wall and selected Long Library paths; further areas remain unintegrated.
 [Doppleganger arena adapters](docs/doppleganger-arena.md) prepare private BO4
 resources. Selected [boss combat](docs/doppleganger-runtime.md#stage-combat-orchestration)
 now joins its placed entrance, seals and reward through selected Outer Wall progression;
 [scope and validation](docs/doppleganger-progression.md) remain explicit.
-The [Long Library foundation](docs/library-runtime.md) remains internal while its
-remaining enemies and librarian/shop are integrated. Selected Flea Armor, Dhuron and
-Thornweed/Corpseweed combat now joins its original room placements. Ectoplasm
-movement/hit/death and [selected curse contacts](docs/character-status.md) run;
-full curse visuals remain pending.
+[Long Library travel](docs/library-connections.md) now connects to Outer Wall, with
+selected enemies, Lesser Demon, Librarian buy/sell, furnishings and ordinary saves.
+[Curse](docs/character-status.md) and [poison mechanics](docs/player-poison.md) run;
+full ailment effects, shop panels, remaining interactions and whole-route parity
+remain incomplete.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve

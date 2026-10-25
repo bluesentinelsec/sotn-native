@@ -80,3 +80,8 @@ Camera-edge locks and transformation-specific crossing rules remain separate wor
 original Outer Wall boss override before ordinary room selection. Victory, reward,
 return travel and an ordinary save/Continue retain original event records in v7.
 Other stages' boss overrides remain outside this selected integration boundary.
+
+[Selected Long Library travel](library-connections.md) now connects Outer Wall to
+Library entrance rooms, with corrected red-door arrival ordering, live ailment
+retention and v8 ordinary save/Continue checks. Complete Library progression and
+whole-route parity remain incomplete.

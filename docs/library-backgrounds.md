@@ -41,7 +41,8 @@ below that window does not initialize those actors and is not coverage. These
 are explicit room starts, not uninterrupted route or console parity evidence.
 
 Exact GPU dithering/color interpolation, general priority ties, sitting, Mist-form interaction, remaining shop services and
-ordinary Library travel remain incomplete. Do not describe the area as complete.
+whole-route parity remain incomplete. [Selected travel](library-connections.md)
+has separate native checks. Do not describe the area as complete.
 
 Behavior adapts `st/lib/e_library_bg.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later). The existing

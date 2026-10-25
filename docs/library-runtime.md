@@ -1,13 +1,11 @@
 # Long Library runtime foundation
 
-Long Library (stage 2) now has a native resource profile, selected shared actors
-and its own breakable behavior. Ordinary connected travel stays disabled while
-shop interaction and remaining scripts are integrated. The selected
-[Librarian introduction](library-librarian.md) now runs its placed trigger, chair,
-first speech and player control through the shop-ready script gate. Lesser Demon's selected
-[placed arena flow](library-demon-entry.md) now runs entry, combat, seals and reward.
-There is no separate public Library gameplay start. Loading a room or rendering
-its artwork does not establish a working Library route or console parity.
+Long Library (stage 2) now has native resources, selected stage actors/combat,
+Lesser Demon's placed arena/reward, Librarian introduction and buy/sell, furnishings,
+backgrounds, secret bookcase and ordinary room-14 saves. Selected
+[Outer Wall travel](library-connections.md) now runs through the original connector.
+`--castle LIB --castle-room 12` starts the development entrance; room 4 selects the
+Librarian. Full interactions/effects and whole-route/console parity remain incomplete.
 
 The profile validates 24 sprite banks, original actor IDs below 0x4f, eleven
 persistent prize entries and their castle-flag base, one red-door layout, camera
@@ -18,8 +16,7 @@ unlock signal remains outside this slice. Stage-start graphics bank zero loads
 independently from each room's graphics bank. Its sound-bank files are separately
 fingerprinted; original Wood Carving Partita intro/loop music uses the existing
 private stream. The [Librarian SEQ service](library-sequence-audio.md) now has a
-native decoder/voice path; its manager now requests playback. Shop interaction
-still needs integration. No runtime
+native decoder/voice path; its manager now requests playback. Full shop panels and optional services remain incomplete. No runtime
 tables, artwork or sound data enter public files.
 
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
@@ -63,7 +60,7 @@ finish their own animation when an owner retires. Their hidden anchor still
 reserves its original primitive budget. [Selected curse contacts](character-status.md) now apply the original duration,
 failed equipped attacks and recovery, including room/stage timer preservation.
 Full curse visuals and complete contact/effect parity remain pending. Library
-travel stays disabled while the other encounters and scripts are integrated.
+selected [connected travel](library-connections.md) now runs; other interactions remain incomplete.
 
 The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
 and upper-body hit branches, flight/hover/dive and independent deaths. Original
@@ -87,13 +84,13 @@ Optional exhausted actor pools retain the original allocation-failure behavior.
 Selected lamp sounds preserve original screen-position volume/pan calculations.
 Do not replace these rules with the earlier areas' breakable implementation.
 
-Library room 14 uses ordinary v7 saves and the existing fifteen-slot UI/Continue
+Library room 14 uses ordinary v8 saves and the existing fifteen-slot UI/Continue
 path. Its supported inventory, permanent prize flags, relics, time and event
 records use the current format; no application or save-version bump is required.
 The native slot browser identifies it as LIB. Fresh diagnostic entries retain the
 explicit development profile; they are not original new-game initialization.
 
-Public synthetic tests cover table/identity bounds, disabled travel, initialization,
+Public synthetic tests cover table/identity bounds, selected connectivity, initialization,
 shared animation, all breakable branches, Cube gating, persistent prize/debris
 selection, optional pool exhaustion, positional sound, malformed inputs, default
 graphics upload and stage-aware save roundtrips. Private LLDB checks use protected
@@ -182,12 +179,12 @@ tick 1111 (278 renders), Magic Tome at tick 614 (154 renders).
 Debug and macOS ASan/UBSan agree and exit successfully. An explicitly selected
 attack-state fixture renders all 110 ticks through the visible zero-scale beam frame
 and idle return. These fixtures are not uninterrupted traversal, unmodified-character playtests or console/
-audiovisual parity. Librarian/shop/scripts and Library travel remain pending.
+audiovisual parity. Those checks exclude Librarian/shop scripts and connected travel; subsequent integration is documented below.
 
 Selected [Lesser Demon attack services](library-demon-attacks.md) now retain spit/
 column and branching bolt effects, with a native colored-quad path for the later
 summoning effect. Their explicit fixtures alone do not establish a working boss.
-[Selected poison mechanics](player-poison.md) now run; Library travel remains pending.
+[Selected poison mechanics](player-poison.md) and [connected travel](library-connections.md) now run.
 [Selected body AI](library-lesser-demon.md) now runs the boss's attacks, summoning and
 physical defeat; the placed entry/seals/reward sequence now has a separate protected
 [ordinary-save check](library-demon-entry.md). The selected
@@ -198,7 +195,7 @@ The [shop transaction foundation](library-shop.md) now reads private stock and
 retains equipment/gem/relic/map/scroll ownership changes in v8 saves. Selected
 buy/sell menus, speech, exit and returning greeting now run. Full shop panels,
 optional services, missing equipment effects and spell casting remain unintegrated;
-this service alone does not enable ordinary Library travel.
+its transaction checks alone do not establish whole-route parity.
 
 [Selected Library furnishings](library-furnishings.md) now include the placed
 candle table, its owned shadow and permanent Stone Mask drop, ordinary head-equipment
@@ -214,4 +211,4 @@ checks do not establish whole-route or console rasterization parity.
 The [secret bookcase](library-secret-bookcase.md) now runs original push delay,
 rotating collision, lighting/subdivision and saved discovery. Its ordinary-character
 native check crosses the passage and retains discovery through isolated ordinary
-save/Continue; this does not establish whole-route parity or enable Library travel.
+save/Continue; this does not establish whole-route parity.

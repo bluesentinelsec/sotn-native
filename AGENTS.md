@@ -348,114 +348,57 @@ save rooms or separate public gameplay start. Mist/palette, high jump, stone,
 complete elemental effects and whole-route/console parity remain incomplete.
 Private protected room/route fixtures are not an unmodified-character playtest.
 
-The [Long Library foundation](docs/library-runtime.md) now adds stage-2 resources,
-original music, selected shared Skeleton/Flea services, Library lamps/urns/jugs/busts
-and ordinary room-14 saves. Stage 2 stays disconnected and has no separate public
-gameplay start while area enemies, Lesser Demon, librarian/shop and scripts remain
-pending. Private protected fixtures and injected breakable hits are component
-evidence, not a full route or console replay. Do not reuse other areas' breakable
-logic or actor IDs for this overlay.
+The [Long Library runtime](docs/library-runtime.md) now includes its own private
+resource/table profile, original music, selected lamps/urns/jugs/busts, Flea/Flea
+Armor, Dhuron, Thornweed/Corpseweed, Ectoplasm and Spellbook/Magic Tome encounters.
+Bodies, owned children, beams, staged deaths and selected effects use Library
+identities/tables. Re-entry replaces only matching owned children. Retained Flying
+Zombie/body/blood adapters have explicit fixtures; original first-Library layouts
+contain no ordinary Flying Zombie placements. Do not count those fixtures as route
+coverage or reuse another overlay's raw IDs/tables.
 
-The Library overlay's retained Flying Zombie/body/blood adapters now run in explicit
-fixtures; its original first-Library layouts have no ordinary Flying Zombie placements.
-Read [Library scope](docs/library-runtime.md); do not count this as ordinary route coverage.
+[Lesser Demon](docs/library-lesser-demon.md) now has selected AI/attacks/summons,
+physical defeat and [placed arena flow](docs/library-demon-entry.md): interpolated
+camera lock, sealing books, music, defeat record and Life Max Up. Selected
+[children](docs/library-demon-attacks.md) and [minions](docs/library-minions.md)
+retain owned state and simulation-frame phase. The US initial bolt vertex has an
+explicit safe-initialization concession. Protected/injected checks do not prove
+whole-encounter or console parity.
 
-The placed Library Flea Armor and Dhuron families now include attacks, charged
-weapons, transformations and death effects. Library Flea Men use their own ground/
-side tables; paired-child re-entry replaces only matching owned children. Protected
-room-3 combat and selected charge fixtures are documented in [Library scope](docs/library-runtime.md).
-Other Library enemies, Lesser Demon, shop/scripts and ordinary travel remain pending.
+The [Librarian introduction](docs/library-librarian.md) runs alignment/step49 hold,
+chair, six initial voices and meeting/time record. [Buy/sell](docs/library-shop.md)
+adds private catalogues/unlocks, quantities, paging, atomic equipment/gem/relic/map/
+scroll transactions, speech, exit and returning greeting. v8 ordinary saves retain
+learned-spell mask/order and game-clear unlock with explicit v1–v7 migrations.
+Full detail/preview panels, tactics, enemy list, sound test, spell casting and
+missing equipment effects remain incomplete. Chair gifts have injected-contact
+checks; Gravity Boots/forms are separate. The [SEQ service](docs/library-sequence-audio.md)
+keeps sequence and XA owners independent; console PCM/reverb parity remains unproven.
 
-Library Thornweed/Corpseweed now grow, attack, spawn projectiles and complete linked
-root/head deaths in original-placement room-9 fixtures. Damage attributes/EXP follow
-the grown root's private definition selection. Both facing paths have synthetic
-coverage; ordinary Library travel, remaining enemies and shop/scripts remain pending.
+[Library furnishings](docs/library-furnishings.md) include the candle table/shadow,
+permanent Stone Mask pickup, selected equipment metadata and private decoration
+records. [Backgrounds](docs/library-backgrounds.md) include repeating models,
+shadows, distant lighting grids, owned backdrop and foreground occlusion. The
+[secret bookcase](docs/library-secret-bookcase.md) retains original push delay,
+rotation/collision/lighting/subdivision and discovery flag 112. v8 stores discovery,
+not transient pose/momentum. Keep all model/lighting/lookup data private. Original
+ordering tables advance forward: higher priorities draw later; do not restore the
+old descending renderer assumption. Stable native ties are not full GPU emulation.
 
-Library Ectoplasm now has original movement, square-tap excitation, hit/death and
-owned afterimage/emitter behavior, including summoned fade/cleanup. Its selected curse
-contact/timer and weapon failure now run; full curse visuals remain pending. Do
-not claim full contact parity or open Library travel on these slices alone. See [Library scope](docs/library-runtime.md).
-
-[Selected curse status](docs/character-status.md) now preserves original duration,
-failed equipped-weapon animations and shield blocking, with empty-hand/subweapon
-exceptions. It freezes on pause and carries across room/stage arrivals. It remains
-transient across ordinary Continue; v7 saves do not change. Full curse visuals,
-status text, cures and complete damage/effect parity remain pending.
-
-Library Spellbooks and Magic Tomes now project twelve private faces, wake, move,
-open and fire owned beams, then complete selected death/debris paths. Their native
-checks use protected original-placement fixtures; all geometry/UV/recipe data stay
-private. [Library scope](docs/library-runtime.md) retains the missing boss/shop/scripts
-and disabled ordinary Library travel; do not describe the area as complete.
-
-Selected [Lesser Demon children](docs/library-demon-attacks.md) now run spit/column
-and branching bolt effects in explicit fixtures. Native colored quads prepare the
-summoning presentation; full poison status remains pending. The
-US initial bolt vertex uses an explicitly documented safe initialization in place
-of an uninitialized-pointer read. Do not claim full encounter or console parity.
-
-The selected [Library minions](docs/library-minions.md) now include Mudman emergence,
-walking/attack/sinking/death, its owned attack child and summoned Skeleton appearance/
-cleanup. Skeleton/Ectoplasm share their original fade helper. Effect cadence uses
-full simulation-frame phase with original 32-bit wrap, separate from clock subsecond
-frames. Protected inserted summon fixtures are not boss/route/console parity.
-
-The [selected Lesser Demon body](docs/library-lesser-demon.md) now runs original
-AI decisions, swipe/spit/bolt/summon effects, minions and physical defeat. Protected
-fixtures agree in Debug and ASan/UBSan. The [placed arena flow](docs/library-demon-entry.md)
-now closes/reopens sealing books, runs the original interpolated camera lock, changes
-music, records defeat and produces the Life Max Up. Ordinary saves/Continue retain
-its original event record and collected reward. Poison, librarian/shop, remaining
-scripts and Library travel stay pending; explicit-room fixtures are not whole-route
-or console parity.
-
-The [Librarian sequence service](docs/library-sequence-audio.md) now reads verified
-`ST/LIB/SEQ_LIB.SEQ`, retains selected original SDK scheduling/loops, and plays
-common-bank notes through the SPU service with private pitch data. SEQ and XA
-ownership remain separate. Private checks match selected scheduling and pitch
-algorithms; they do not establish console PCM, reverb or complete voice-flush
-parity. Selected Librarian introduction and buy/sell interaction now request playback;
-full shop services and Library travel remain pending.
-
-The [selected Librarian introduction](docs/library-librarian.md) now runs the original
-room trigger, chair, six first-conversation speech requests, player alignment/step49
-hold and meeting/time record through the shop-ready gate. It does not implement
-full shop panels/optional services yet. The selected buy/sell integration below
-continues through transactions and exit. Native explicit-room checks agree in Debug and
-ASan/UBSan; do not call the complete interaction or Library route integrated. Chair
-gift rules have injected-contact tests; Gravity Boots/transform behavior stays pending.
-
-The [Library shop transaction service](docs/library-shop.md) now decodes original
-private stock/unlock tables and commits equipment, gem, relic, map and learned-scroll
-transactions atomically. Version 8 saves add learned-spell order/mask and the original
-completed-game unlock flag with explicit v1–v7 migrations. Selected buy/sell menus
-now run with quantities, paging, private names/glyphs, transaction/farewell speech,
-exit and return greeting. Full preview/detail panels,
-tactics, enemy list, sound test, spell casting and missing equipment effects remain
-unintegrated; Library travel stays gated. See the shop document for the original
-forward-ordering-table correction and its shared renderer regression coverage.
-
-The [selected Library furnishings](docs/library-furnishings.md) now include the
-candle table/shadow, permanent Stone Mask pickup and ordinary equipment metadata,
-and private foreground/background decoration initialization. Native explicit-room
-checks and synthetic ownership/failure cases cover these paths. Parallax models,
-secret-bookcase geometry, sitting, Mist interaction and Library travel stay pending.
-
-The [selected Library backgrounds](docs/library-backgrounds.md) now run original
-repeated bookcases/furniture, column shadows and distant lighting grids, with a
-bounded SDK projector, stage-owned backdrop and foreground occlusion. Projection
-comparisons and protected placed-view fixtures cover selected paths; rotating
-secret-bookcase geometry, sitting, Mist interaction, full effects and Library
-travel remain pending. Keep private model/lighting data out of public source.
-
-The [Library secret bookcase](docs/library-secret-bookcase.md) now runs original
-push delay, rotating collision/lighting/subdivision, static neighbors and saved
-discovery flag 112. v8 retains discovery, not transient pose/momentum. Its native
-check uses an ordinary character, explicit room starts and isolated save/Continue;
-ordinary Library travel and complete console parity remain unproven.
-
-[Selected poison mechanics](docs/player-poison.md) now retain constitution-adjusted
-duration, independent curse/poison timers, hand attack power snapshots, doubled
-ordinary incoming damage, reaction sound and cross-stage timer retention. Inventory
-pause freezes timers; fresh ordinary Continue clears them. Full ailment visuals,
+[Curse](docs/character-status.md) and [poison](docs/player-poison.md) retain original
+constitution-adjusted duration and independent transient timers. Curse blocks
+equipped weapons/shields with original failure animation/sound; empty hands and
+selected subweapons remain available. Poison halves new hand-attack power and
+doubles ordinary incoming damage. Inventory pause freezes timers; room/stage
+arrivals retain them; fresh ordinary Continue clears them. Full ailment visuals,
 medicine and general elemental/damage-kind parity remain incomplete.
+
+[Connected Library travel](docs/library-connections.md) now follows the original
+Outer Wall connector in both directions. Teleport arrivals initialize actor-owned
+red-door tiles before first player collision; direct development starts retain
+their existing priming order. Missing destination resources preserve the previous
+session/save store and show an error. Ordinary-character private checks cover
+three crossings, stairs/doors, ownership and isolated save/Continue, with explicit
+start/save-room transfer/discovery fixture. They are not whole-castle or console
+replays. Sitting, Mist interaction, full shop services, full effects/audio and
+complete Library/game progression remain incomplete. Do not call the area complete.

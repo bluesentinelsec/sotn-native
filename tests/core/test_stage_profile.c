@@ -65,7 +65,7 @@ static bool BossAdapters(void)
     CHECK(profile && profile->connected && profile->actor_limit == 0x1e &&
           profile->sprite_banks == 24 && profile->prize_count == 0 && profile->door_types == 2);
     CHECK(!SotnStageProfile_SaveRoom(26, 0) && !SotnStageProfile_SaveRoom(26, SDL_MAX_UINT16));
-    const Uint16 connected[] = {0, 1, 7, 12, 65};
+    const Uint16 connected[] = {0, 1, 2, 7, 12, 65};
     for (Uint32 i = 0; i < SDL_arraysize(connected); ++i)
         CHECK(SotnStageProfile_Get(connected[i])->connected);
     Uint8 dra[0x400] = {0}, stage[0x4000] = {0}, tiles[32 * 16 * 2] = {0}, types[1] = {0};
@@ -119,7 +119,7 @@ static bool BossAdapters(void)
 static bool LibraryAdapters(void)
 {
     const SotnStageProfile *profile = SotnStageProfile_Get(2);
-    CHECK(profile && !profile->connected && profile->actor_limit == 0x4f &&
+    CHECK(profile && profile->connected && profile->actor_limit == 0x4f &&
           profile->sprite_banks == 24 && profile->prize_count == 11 && profile->prize_bit == 0x70 &&
           profile->door_types == 1 && profile->camera_count == 7);
     CHECK(SotnStageProfile_SaveRoom(2, 14) && !SotnStageProfile_SaveRoom(2, 15));

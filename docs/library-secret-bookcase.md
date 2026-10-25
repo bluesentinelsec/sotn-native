@@ -43,7 +43,8 @@ retaining discovery. Debug and sanitizer runs are checked separately. This is
 not an uninterrupted castle route or a console replay comparison.
 
 Complete GPU dithering/rasterization, full shop panels and optional services,
-sitting, Mist-form interaction and ordinary Library travel remain incomplete.
+sitting, Mist-form interaction and whole-route parity remain incomplete.
+[Selected connected travel](library-connections.md) has separate validation.
 Do not describe the Library or game as complete.
 
 Behavior and subdivision adapt `st/lib/first_c_file.c:func_us_801AE8E8` and

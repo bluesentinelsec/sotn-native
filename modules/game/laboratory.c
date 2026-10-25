@@ -873,7 +873,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
         (start.arrival != NULL &&
          !SotnPlayer_SetArrivalFacing(session->player, (start.arrival->x & 255) >= 128)) ||
-        !SotnPlayer_Tick(session->player, 0) ||
+        (start.arrival == NULL && !SotnPlayer_Tick(session->player, 0)) ||
         !SotnActors_CreateStage(session->dra, session->nz0, stage_id, &session->actors) ||
         !SotnActors_SetCamera(session->actors, &session->camera) ||
         !SotnActors_SetWorld(session->actors, &session->world) ||
@@ -891,7 +891,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
                         (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
         (saved != NULL && !RestoreCharacter(session, *saved)) || !EnterActors(session) ||
-        !TickActors(session) || (saved != NULL && !RestoreSession(session, *saved, slot)) ||
+        // Teleports may begin inside a closed red-door column. Its actor must open
+        // the owned tiles before the first player collision, as in original room entry.
+        !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
+        (saved != NULL && !RestoreSession(session, *saved, slot)) ||
         !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
@@ -915,8 +918,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
                 "saves; placed Lesser Demon entry, selected combat, seals and reward. "
                 "Selected Librarian introduction, buy/sell, speech and exit run. Full shop panels, "
-                "optional services, remaining scripts and ordinary travel remain "
-                "unintegrated.");
+                "optional services and remaining scripts are incomplete. Selected Outer Wall "
+                "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
