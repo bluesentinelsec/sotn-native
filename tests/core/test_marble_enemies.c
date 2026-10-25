@@ -39,12 +39,22 @@ static bool Open(Fixture *f, SotnActors **s)
     f->dra[0x222] = 8;
     f->dra[0x223] = 16;
     Put32(f->dra + 0x224, 0x08401000);
-    const size_t init[] = {0xc2c, 0xbb4, 0xbc0, 0xbcc, 0xc14, 0xc20, 0xaf4, 0xb00, 0xb0c, 0xa7c};
+    const size_t init[] = {0xc2c, 0xbb4, 0xbc0, 0xbcc, 0xc14, 0xc20, 0xaf4, 0xb00, 0xb0c, 0xa7c,
+                           0xb6c, 0xb78, 0xa94, 0xa88, 0xb24, 0xb30, 0xb3c, 0xb48, 0xb54};
     for (Uint32 i = 0; i < SDL_arraysize(init); ++i)
     {
         Put16(f->stage + init[i], 0x8001);
         Put16(f->stage + init[i] + 2, 1);
     }
+    SDL_memcpy(f->dra + 0x228, f->dra + 0x200, 40);
+    Put16(f->dra + 0x22c, 0x7fff);
+    Put32(f->dra + 0x24c, 0x0d200000);
+    for (Uint32 i = 0; i < 4; ++i)
+        f->stage[0x1d84 + i] = (Uint8)(12 + i * 2);
+    const size_t impervious[] = {0xb30, 0xb3c, 0xb48, 0xb78};
+    for (Uint32 i = 0; i < SDL_arraysize(impervious); ++i)
+        Put16(f->stage + impervious[i] + 8, 1);
+    f->types[1] = 3;
     Put32(f->stage + 28, 0x80180040);
     for (Uint32 i = 0; i < 106; ++i)
         Put32(f->stage + 0x40 + i * 4, 0x80180300);
@@ -62,8 +72,8 @@ static bool Open(Fixture *f, SotnActors **s)
         f->stage[0x21ec + i] = (Uint8)(8 + i);
     ByteAnimation(f, 0x25f4, 5);
     ByteAnimation(f, 0x350, 1);
-    Put32(f->stage + 0x1b28, 0x80180350);
-    Put32(f->stage + 0x1b2c, 0x80180350);
+    for (Uint32 i = 0; i < 5; ++i)
+        Put32(f->stage + 0x1b28 + i * 4, 0x80180350);
     Put32(f->stage + 0x2620, 98304);
     Put32(f->stage + 0x2634, (Uint32)-196608);
     Put16(f->stage + 0x228c, 1);
@@ -264,12 +274,144 @@ static bool SeedRecipes(Fixture *f)
     Close(f, s);
     return true;
 }
+static bool Skelerang(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *root = &s->slots[16];
+    *root = (Actor){.state = {.id = 0x2e, .generation = 80, .x = 128 * 65536, .y = 144 * 65536},
+                    .slot = 16,
+                    .dynamic = true};
+    CHECK(ActorSkelerang(s, root));
+    for (Uint32 i = 17; i <= 19; ++i)
+        CHECK(ActorSkelerang(s, &s->slots[i]));
+    CHECK(s->slots[17].state.id == 0x30 && s->slots[18].state.id == 0x2f);
+    CHECK(ActorSkelerang(s, &s->slots[18]) && ActorSkelerang(s, &s->slots[19]));
+    CHECK(s->slots[18].table.timer == 48 && s->slots[19].table.angle == 0);
+    s->player = (SotnPlayerState){.x = 240 * 65536, .y = 144 * 65536};
+    ByteAnimation(f, 0x1f00, 30);
+    SetStep(root, 4);
+    CHECK(ActorSkelerang(s, root));
+    CHECK(s->slots[18].state.step == 2 && s->slots[19].state.step == 2);
+    Actor *boom = &s->slots[18];
+    CHECK(ActorSkelerang(s, boom) && boom->state.hitbox_state == 1);
+    boom->table.timer = 0;
+    boom->state.x = root->state.x;
+    boom->state.y = root->state.y;
+    boom->vx = boom->vy = 0;
+    CHECK(ActorSkelerang(s, boom) && boom->state.step == 3);
+    root->state.flags |= 0x100;
+    root->state.frame = 1;
+    CHECK(ActorSkelerang(s, root) && root->remove);
+    CHECK(s->slots[17].remove && s->slots[19].state.step == 4);
+    for (Uint32 i = 160; i < 168; ++i)
+    {
+        Actor *part = &s->slots[i];
+        CHECK(part->state.id == 0x2e && part->state.step == 14);
+        for (Uint32 t = 0; t < 16; ++t)
+            CHECK(ActorSkelerang(s, part));
+        CHECK(part->remove);
+    }
+    root->state.generation = 81;
+    boom->state.step = 2;
+    CHECK(ActorSkelerang(s, boom) && boom->remove);
+    Close(f, s);
+    return true;
+}
+static bool Diplo(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    for (Uint32 y = 12; y < 32; ++y)
+        for (Uint32 x = 0; x < 32; ++x)
+            Put16(f->tiles + (y * 32 + x) * 2, 1);
+    SDL_memcpy(s->mutable_tiles, f->tiles, sizeof(f->tiles));
+    const size_t sensors[] = {0x1d54, 0x1d64, 0x1d74};
+    for (Uint32 i = 0; i < SDL_arraysize(sensors); ++i)
+        Put16(f->stage + sensors[i] + 2, 16);
+    const size_t anims[] = {0x1d88, 0x1da0, 0x1dac, 0x1db4, 0x1dbc, 0x1ddc,
+                            0x1dec, 0x1e0c, 0x1e30, 0x1e3c, 0x1e54};
+    for (Uint32 i = 0; i < SDL_arraysize(anims); ++i)
+        ByteAnimation(f, anims[i], 1);
+    Put16(f->stage + 0x1d30, 255);
+    Put16(f->stage + 0x1d3c, 255);
+    Put16(f->stage + 0x1d48, 255);
+    Actor *root = &s->slots[16];
+    *root = (Actor){.state = {.id = 0x21, .generation = 100, .x = 128 * 65536, .y = 150 * 65536},
+                    .slot = 16,
+                    .dynamic = true};
+    CHECK(ActorDiplo(s, root) && root->state.step == 2);
+    for (Uint32 i = 17; i < 35; ++i)
+        if (s->slots[i].state.generation)
+            CHECK(ActorDiplo(s, &s->slots[i]));
+    CHECK(s->slots[31].state.id == 0x24 &&
+          (s->slots[31].state.step == 5 || s->slots[31].state.step == 11));
+    CHECK(s->slots[34].state.id == 0x26);
+    const SotnPlayerState player = {
+        .x = 128 * 65536, .y = 150 * 65536, .hp = 70, .invulnerable = true};
+    bool walking = false;
+    for (Uint32 t = 0; t < 100; ++t)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        walking = walking || root->state.step == 6 || root->state.step == 7;
+    }
+    CHECK(walking);
+    // Lethal head contact reaches every linked limb before the body's death update.
+    root->stun = 5;
+    SotnPlayerState strike = player;
+    strike.x = root->state.x;
+    strike.y = root->state.y;
+    strike.attack = (SotnPlayerAttack){.active = true,
+                                       .power = 999,
+                                       .element = 0x20,
+                                       .hit_type = 2,
+                                       .hit_effect = 1,
+                                       .invincibility_frames = 12,
+                                       .width = 4,
+                                       .height = 4};
+    CHECK(SotnActors_Tick(s, strike, 0, 0));
+    CHECK(s->combat.kills == 1 && root->state.step == 12);
+    for (Uint32 i = 17; i < 32; ++i)
+        CHECK((s->slots[i].state.flags & 0x100) != 0);
+    bool detached = false;
+    for (Uint32 t = 0; t < 700; ++t)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        detached = detached || root->state.step == 14;
+    }
+    CHECK(detached && !root->state.generation && !s->slots[34].state.generation);
+    for (Uint32 i = 17; i < 32; ++i)
+        CHECK(s->slots[i].state.id != 0x22 && s->slots[i].state.id != 0x23 &&
+              s->slots[i].state.id != 0x24);
+    Actor fire = {.state = {.id = 0x25, .generation = 300, .x = 128 * 65536, .y = 130 * 65536}};
+    CHECK(ActorDiplo(s, &fire) && fire.state.primitive_count == 20 && fire.state.scale_x == 112);
+    for (Uint32 t = 0; t < 110; ++t)
+    {
+        ++s->ticks;
+        CHECK(ActorDiplo(s, &fire));
+        if (fire.state.step >= 2)
+            CHECK(SDL_abs(fire.vx) <= 3 * 65536 && SDL_abs(fire.vy) <= 3 * 65536);
+    }
+    CHECK(fire.state.step == 3);
+    fire.state.flags |= 0x100;
+    for (Uint32 t = 0; t < 4 && !fire.remove; ++t)
+        CHECK(ActorDiplo(s, &fire));
+    CHECK(fire.remove);
+    ActorPrimitivesClear(s, &fire);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(s->primitives[i].owner != fire.state.generation);
+    Actor invalid = {.state = {.id = 0x21, .generation = 101}, .slot = 180};
+    CHECK(!ActorDiplo(s, &invalid));
+    Close(f, s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool ok = FleaAndSlinger(f) && Wide(f) && LinkedRose(f) && Ouija(f) && SeedRecipes(f);
+    const bool ok = FleaAndSlinger(f) && Wide(f) && LinkedRose(f) && Ouija(f) && SeedRecipes(f) &&
+                    Skelerang(f) && Diplo(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

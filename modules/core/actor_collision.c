@@ -451,3 +451,21 @@ bool ActorSpawnAt(SotnActors *s, const Actor *source, Uint16 id, Uint16 paramete
     *out = p;
     return true;
 }
+
+/* Original CreateEntityFromEntity keeps integer positions and starts other fields at zero.
+ * The caller selects the original effect pool and any explicit priority override. */
+bool ActorExplosionInPool(SotnActors *s, const Actor *source, Uint16 kind, Uint32 begin, Uint32 end,
+                          Uint16 priority)
+{
+    Actor *effect = NULL;
+    if (!ActorSpawn(s, source, 2, kind, begin, end, &effect))
+        return false;
+    if (effect != NULL)
+    {
+        effect->state.x = Pixel(source->state.x) * 65536;
+        effect->state.y = Pixel(source->state.y) * 65536;
+        effect->state.facing_left = false;
+        effect->state.priority = priority;
+    }
+    return true;
+}

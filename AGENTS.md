@@ -246,3 +246,9 @@ The [early castle profiles](docs/early-castle-stages.md) add Marble Gallery/Oute
 (stage 0/1), shared Skeletons, Marble green Axe Knights, stage music, ordinary saves
 and connectors. New per-area enemies, mechanisms, boss transfers and whole-route
 parity remain incomplete; these are development profiles, not completed areas.
+
+Selected [Marble encounters](docs/marble-gallery-enemies.md) and
+[linked enemies](docs/marble-linked-enemies.md) now include Flea Men, Slingers, Ouija
+Tables, Stone Roses, Skelerang and Diplocephalus with selected projectiles and death
+behavior. Public synthetic and private explicit-room LLDB checks cover these paths;
+continuous-route/console parity and complete area actors/effects remain incomplete.
