@@ -382,3 +382,10 @@ checks protect re-entering roots and their reserved child slots.
 `st_common.h:{SetSubStep,FallEntity}` behavior at the pinned sotn-decomp revision
 (AGPL-3.0-or-later). Original initialization, animation, interval, launch, hitbox,
 rotation, lifetime, sensor and artwork tables remain private runtime inputs.
+
+`modules/core/chapel_corner_guard.c` adapts selected `st/dai/e_corner_guard.c`
+and the bounded `UnkPrimHelper` path in `st/prim_helpers.h` at the pinned
+sotn-decomp revision (AGPL-3.0-or-later). The matrix lookup interpretation uses
+`game_matrix_trig.c`'s separately credited PSY-Z adaptation. The shared `outer_effects.c`
+service now reads Chapel's private `st/e_misc.h` tables. Initialization, animation,
+sensors, intervals, hitboxes, SDK tables and sprite parts remain private inputs.
