@@ -961,7 +961,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
-                "and selected internal tower exits. Other encounters, scenery, Maria, boss "
+                "and selected internal tower exits, clouds and sky land. Other encounters, "
+                "stained glass, Maria, boss "
                 "and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)

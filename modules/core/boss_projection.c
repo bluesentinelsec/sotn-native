@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Selected fixed matrix and UNR projection math adapted from PSY-Z
 // b52003e55c0d1b20719e984dd19bd4d760eeb14a, psyz/src/psyz/libgte.c.
-// Selected bounded reward, intro, book and bell paths, not a general GTE emulator.
+// Selected bounded reward, intro, book, bell and cloud paths, not a general GTE emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
 static Uint32 Divide(Uint32 depth, Uint32 distance)
@@ -186,6 +186,31 @@ bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16
                      ty = ActorShift((Sint64)trig.sine * vx + (Sint64)trig.cosine * vy, 12);
         const Uint32 ratio = Divide(1024, 1024);
         result[i] = (SotnProjectedPoint){Coordinate(x, tx, ratio), Coordinate(y, ty, ratio)};
+    }
+    SDL_memcpy(out, result, sizeof(result));
+    return true;
+}
+
+// st/e_clouds.h: identity matrix, screen distance256 and private plane vertices.
+bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 depth,
+                             SotnProjectedPoint out[4])
+{
+    if (!out || x < -16384 || x > 16384 || y < -512 || y > 512 || depth < 192 || depth > 2240)
+        return SDL_SetError("Chapel cloud projection exceeds its bounded plane controls");
+    SotnDataView rotation = {0}, vertices = {0};
+    if (!Slice(chapel, 0x255c, 6, &rotation) || !Slice(chapel, 0x2464, 32, &vertices))
+        return false;
+    if (Read16(rotation.bytes) || Read16(rotation.bytes + 2) || Read16(rotation.bytes + 4))
+        return SDL_SetError("Chapel clouds require their original identity rotation");
+    SotnProjectedPoint result[4] = {0};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const Uint8 *vertex = vertices.bytes + i * 8U;
+        const Sint32 vx = Signed16(vertex), vy = Signed16(vertex + 2), vz = Signed16(vertex + 4);
+        if (vx < -256 || vx > 256 || vy || vz < 0 || vz > 512)
+            return SDL_SetError("Chapel cloud vertex exceeds its bounded plane model");
+        const Uint32 ratio = Divide((Uint32)depth + (Uint32)vz, 256);
+        result[i] = (SotnProjectedPoint){Coordinate(128, x + vx, ratio), Coordinate(160, y, ratio)};
     }
     SDL_memcpy(out, result, sizeof(result));
     return true;
