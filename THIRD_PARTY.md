@@ -345,3 +345,8 @@ the pinned PSY-Z fixed GTE implementation (MPL-2.0), with original NCDS command
 fields and MIT SDK `src/main/psxsdk/libgte/fog_01.c` fog arithmetic. All model,
 normal, matrix, pose and lookup tables remain private runtime inputs. See
 [scope and reference corrections](docs/library-secret-bookcase.md).
+
+Selected player poison in `player.c` and ordinary contact arithmetic in `combat.c`
+adapt `dra/5D5BC.c:{GetStatusAilmentTimer,GetEquipProperties,HandleDamage}`,
+`dra/71830.c` and `dra/692E8.c` at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Data tables remain private. See [mechanics and limits](docs/player-poison.md).

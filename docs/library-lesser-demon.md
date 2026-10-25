@@ -19,7 +19,7 @@ The bolt star retains its private SDK matrix rotation and column-scale rounding.
 Spit windup draws twenty-four colored attraction tiles with original timing,
 visibility and fixed-point velocities. Existing spit/bolt services then run
 independently; read [attack scope](library-demon-attacks.md), including the explicit
-US initial bolt-vertex safety adaptation. Full poison status remains pending.
+US initial bolt-vertex safety adaptation. [Selected poison mechanics](player-poison.md) now run; full status effects remain pending.
 
 Summoning retains its temporary HP hold, saved-HP restoration, palette cadence,
 thirty colored packets and original minion selection. Rainbow rows remain private.
@@ -32,7 +32,7 @@ appearance, combat and boss-cleanup behavior.
 Physical defeat releases the current effect reservation, disables contacts, removes
 summoned minions, falls/lands, runs selected flames/animation and fades before setting
 the original completion signal. Complete hit palettes/outlines, elemental effects,
-poison, full sound/reverb and audiovisual/timing parity remain incomplete.
+full poison effects, full sound/reverb and audiovisual/timing parity remain incomplete.
 
 Public synthetic cases cover activation, ground/air decisions, leaps, swipe ownership,
 projectile release, temporary HP, minion selection, column propagation/colors, pool

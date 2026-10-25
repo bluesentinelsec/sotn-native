@@ -81,8 +81,9 @@ typedef struct SotnPlayerState
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
     bool weapon_starting;    /**< Original ALU_T_9 weapon-startup timer is active. */
     SotnPlayerStone stone;
-    Uint16 curse_ticks; /**< Transient original curse duration; independent of ordinary saves. */
-    Uint16 extra_sound; /**< Second original sound request, after sound; zero selects none. */
+    Uint16 poison_ticks; /**< Transient original poison duration, 0..4095 simulation ticks. */
+    Uint16 curse_ticks;  /**< Transient original curse duration; independent of ordinary saves. */
+    Uint16 extra_sound;  /**< Second original sound request, after sound; zero selects none. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -160,6 +161,18 @@ bool SotnPlayer_RestoreCurse(SotnPlayer *player, Uint16 ticks);
  * pending. */
 bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
                             Sint32 source_velocity);
+/** @brief Retain transient poison across a connected stage arrival.
+ * @param player Borrowed living simulation. @param ticks Remaining ticks, 0..4095.
+ * @return Success or SDL error with unchanged state. Ordinary Continue starts unpoisoned. */
+bool SotnPlayer_RestorePoison(SotnPlayer *player, Uint16 ticks);
+/** @brief Apply normal contact and constitution-adjusted original poison duration.
+ * @param player Borrowed simulation. @param amount Already-resolved damage, 0..9999.
+ * @param source_x Contact origin in whole pixels. @param source_velocity Fixed-point motion.
+ * @return Success or SDL error without mutation. Invulnerability, stone and lethal hits
+ * do not add poison. Caller resolves equipment immunity/absorption and existing-poison damage.
+ * @note Selected mechanics/sound only; complete palette, text and recovery effects are pending. */
+bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                             Sint32 source_velocity);
 /** @brief Set original arrival facing on a freshly created stage player.
  * @param player Borrowed player before gameplay. @param facing_left Arrival orientation.
  * @return Success or SDL error. Does not move the player or change animation/timing. */

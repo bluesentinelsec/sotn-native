@@ -31,6 +31,14 @@ typedef struct SotnContactPower
 bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attributes,
                              SotnContactPower *out);
 
+/** @brief Resolve selected ordinary contact damage after the equipment element prepass.
+ * @param power Validated prepass; absorption must already be handled by the caller.
+ * @param defense Equipment defense, 0..9999. @param poisoned Original poison status.
+ * @param out Copied HP loss, unchanged on failure; immune contacts yield zero.
+ * @return Success or SDL error. Doubles signed damage before the original minimum-one rule.
+ * @note Not stone, environmental damage, special equipment or the full damage-kind service. */
+bool SotnCombat_NormalContact(SotnContactPower power, Uint16 defense, bool poisoned, Uint16 *out);
+
 /** @brief Original hit-test arithmetic, including the target's one-pixel inset.
  * @param attacker Whole-pixel attacking box. @param target Whole-pixel target box.
  * @return True for an intersection; zero-sized or oversized boxes never intersect. */

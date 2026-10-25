@@ -187,7 +187,7 @@ audiovisual parity. Librarian/shop/scripts and Library travel remain pending.
 Selected [Lesser Demon attack services](library-demon-attacks.md) now retain spit/
 column and branching bolt effects, with a native colored-quad path for the later
 summoning effect. Their explicit fixtures alone do not establish a working boss.
-Poison status and Library travel remain pending.
+[Selected poison mechanics](player-poison.md) now run; Library travel remains pending.
 [Selected body AI](library-lesser-demon.md) now runs the boss's attacks, summoning and
 physical defeat; the placed entry/seals/reward sequence now has a separate protected
 [ordinary-save check](library-demon-entry.md). The selected
