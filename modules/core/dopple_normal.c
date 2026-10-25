@@ -183,7 +183,7 @@ bool DoppleBranches(DoppleFrame *frame, Uint32 arg0)
 
 static void StepStand(DoppleFrame *frame)
 {
-    Sint32 anim = 0;
+    Uint16 anim = 0;
     Uint16 var_s0 = 0;
 
     var_s0 = 3;
