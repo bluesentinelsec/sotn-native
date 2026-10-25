@@ -66,3 +66,35 @@ movement. All 57 public test groups and release packaging pass locally. This sli
 adapts `bo4/dop_anim.c`, normal steps in `unk_465F0.c`, `unk_46040.c`, and transition/
 attack helpers in `unk_45648.c` at the pinned AGPL reference above. Original control
 and animation tables remain private inputs.
+
+## Child factories and hand hitboxes
+
+BO4 now has a bounded original factory service and punch/kick child decoder.
+Factories read the original 115 private six-byte blueprints and ten slot ranges;
+controller slots 4..15 and child slots 16..79 retain original forward/reverse and
+forced allocation, spawn delays, parameter increments, origins and pool-exhaustion
+behavior. Dynamic child IDs use an internal `0x100 + original ID` namespace to
+keep their update functions separate from ordinary stage actors. Generation-checked
+parent links and primitive cleanup replace unsafe global entity pointers.
+
+The hand child follows the body's original animation variant and pose, reads its
+private per-pose frame/hitbox words, applies original attack power/poison scaling,
+and stops at its terminal word or when the parent leaves the attack. It requests
+the original swing sound at the original pose/timer. No hitbox or attack table bytes
+are embedded. These internal services are not yet connected to ordinary stage
+updates or the player's damage path; decoded boxes do not establish working combat.
+
+Public fixtures cover burst cadence, allocation order, critical/noncritical full
+pools, forced replacement/primitive release, moving origins, parent identity,
+private hitbox selection, poison scaling, sound timing and malformed inputs.
+A private native LLDB component sequence runs 1,800 body ticks, resolves thirty
+factory requests and completes twenty-four hand children, with 222 ticks of active
+hand boxes. Six smoke/knife children remain explicitly skipped. Debug and macOS
+ASan/UBSan pass all 58 public groups and this private sequence; packaging passes.
+This is not a live fight or a console replay.
+
+Factory/hand behavior adapts `bo4/unk_49A6C.c` and
+`bo4/unk_50D4C.c:DopplegangerUnarmedAttack`, plus `boss/dop_anim.h:UpdateUnarmedAnim`,
+at the same pinned AGPL reference. Smoke, knife and transformation children, the
+body's forms/damage/death, original stage events and connected progression remain
+pending. Ordinary arena travel remains disabled.

@@ -230,3 +230,9 @@ BO4 normal body controls adapt `bo4/dop_anim.c`, normal-form steps in
 `unk_465F0.c`, `unk_46040.c` and transition/attack helpers in `unk_45648.c` under
 the same pinned AGPL-3.0-or-later reference. Runtime transition tables remain
 private; bounded request queues replace direct global entity/audio calls.
+
+BO4 child factories and hand-hitbox decoding adapt `bo4/unk_49A6C.c`,
+`bo4/unk_50D4C.c:DopplegangerUnarmedAttack` and `boss/dop_anim.h:UpdateUnarmedAnim`
+at the pinned AGPL-3.0-or-later revision. Blueprints, allocation ranges, weapon-pose
+and hitbox tables stay private. Explicit generations, bounded namespace/ranges and
+primitive cleanup replace global pointer ownership; see the documented component scope.
