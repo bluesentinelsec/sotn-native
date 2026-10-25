@@ -153,6 +153,10 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return ActorIntenseExplosion(s, a);
     case 0x35:
         return WingedGuard(s, a);
+    case 0x32:
+    case 0x33:
+    case 0x34:
+        return ActorChapelHalberd(s, a);
     case 0x36:
         return Parts(s, a);
     case 0x37:

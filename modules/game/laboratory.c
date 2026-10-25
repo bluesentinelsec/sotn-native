@@ -922,11 +922,12 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 6)
-        SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
-                "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
-                "Guard/Bat/Crow/Raven/Skelerang combat. Other encounters, tower routing/bells/"
-                "spikes, Maria, boss and "
-                "connected travel remain incomplete.");
+        SDL_Log(
+            "Royal Chapel internal checkpoint: private resources, selected shared actors, "
+            "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
+            "Guard/Bat/Crow/Raven/Skelerang/Halberd combat. Other encounters, tower routing/bells/"
+            "spikes, Maria, boss and "
+            "connected travel remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

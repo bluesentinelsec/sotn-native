@@ -411,5 +411,7 @@ statue/block and saved flag 96, gargoyle states/tiles, walls and staircase shado
 Selected [Chapel Crow/Raven/Skelerang combat](docs/chapel-enemies.md) now runs with
 its own private tables, original bird phases/deaths and owned boomerangs. Shared
 Skelerang re-entry protects unrelated children in both Chapel and Marble.
+Selected [Chapel Bone Halberd combat](docs/chapel-halberd.md) now includes its owned
+weapon, movement/spin/jump/lunge and nine-part death using private original tables.
 Travel remains disabled; other enemies, tower exits/bells/spikes, scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.

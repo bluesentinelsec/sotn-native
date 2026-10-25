@@ -452,6 +452,30 @@ bool ActorSpawnAt(SotnActors *s, const Actor *source, Uint16 id, Uint16 paramete
     return true;
 }
 
+bool ActorOwnedSpawnAt(SotnActors *s, const Actor *source, Uint16 id, Uint16 parameters,
+                       Uint32 slot, Actor **out)
+{
+    const SotnStageProfile *profile = s ? SotnStageProfile_Get(s->stage_id) : NULL;
+    if (!s || !source || !out || !source->state.generation || slot >= SOTN_STAGE_ACTOR_SLOTS ||
+        slot == source->slot || !id || !profile || id >= profile->actor_limit)
+        return SDL_SetError("Owned actor factory requires an active parent and bounded child");
+    if (s->effect_serial >= 0x7fffffffU)
+        return SDL_SetError("Owned actor generation capacity exhausted before replacement");
+    Actor *old = &s->slots[slot];
+    if (old->state.generation)
+    {
+        SotnActorPlacement placement = {0};
+        Uint32 placed = 0;
+        if (!SotnRoomActors_Get(s->spawns, slot, &placement, &placed))
+            return false;
+        if (placed || old->state.id != id || old->enemy_state.owner_slot != source->slot)
+            return SDL_SetError("Owned actor factory would overwrite an unrelated reserved slot");
+        ActorPrimitivesClear(s, old);
+        *old = (Actor){0};
+    }
+    return ActorSpawnAt(s, source, id, parameters, slot, out);
+}
+
 /* Original CreateEntityFromEntity keeps integer positions and starts other fields at zero.
  * The caller selects the original effect pool and any explicit priority override. */
 bool ActorExplosionInPool(SotnActors *s, const Actor *source, Uint16 kind, Uint32 begin, Uint32 end,

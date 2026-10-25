@@ -377,3 +377,8 @@ selection in `enemy_skelerang.c` follows `st/e_skelerang.h` and
 (AGPL-3.0-or-later). Original animations, hitboxes, initialization, positions, sine,
 angle, palette and artwork data remain private runtime inputs. Native ownership
 checks protect re-entering roots and their reserved child slots.
+
+`modules/core/chapel_halberd.c` adapts selected `st/dai/e_bone_halberd.c`, with
+`st_common.h:{SetSubStep,FallEntity}` behavior at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Original initialization, animation, interval, launch, hitbox,
+rotation, lifetime, sensor and artwork tables remain private runtime inputs.
