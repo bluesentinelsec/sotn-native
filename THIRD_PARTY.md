@@ -219,3 +219,9 @@ The BO4 timeline decoder adapts `src/boss/dop_anim.h` at the same pinned
 sotn-decomp revision under AGPL-3.0-or-later. Original frame/property/pointer tables
 remain private runtime data. The bounded adjacent-property read preserves an
 original image-byte alias without native undefined behavior.
+
+BO4 collision and thinking adapt `src/boss/dop_collision.h`,
+`dop_check_st_collision.h` and `bo4/doppleganger.c:DopplegangerThinking` at the same
+pinned AGPL-3.0-or-later revision. [Runtime scope](docs/doppleganger-runtime.md)
+records explicit integer/ownership changes and remaining encounter work. Original
+sensor tables remain private; public tests use synthetic geometry.

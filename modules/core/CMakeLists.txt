@@ -11,6 +11,10 @@ add_library(sotn-core STATIC
   include/sotn/character.h
   collision.c
   animation.c
+  dopple_ai.c
+  include/sotn/dopple_ai.h
+  dopple_motion.c
+  include/sotn/dopple_motion.h
   decompress.c
   stage.c
   stage_profile.c
