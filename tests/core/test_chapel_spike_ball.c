@@ -125,7 +125,7 @@ static bool Groups(Fixture *f)
     Uint16 groups[4] = {0};
     for (Uint16 i = 0; i < 15; ++i)
     {
-        CHECK(s->chapel_ball[i].generation == i + 1 && s->chapel_ball[i].group < 4);
+        CHECK(s->chapel_ball[i].generation == (Uint32)i + 1U && s->chapel_ball[i].group < 4);
         ++groups[s->chapel_ball[i].group];
     }
     CHECK(groups[0] == 4 && groups[1] == 4 && groups[2] == 4 && groups[3] == 3);
