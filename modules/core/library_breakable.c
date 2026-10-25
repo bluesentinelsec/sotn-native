@@ -110,12 +110,118 @@ static bool Helper(SotnActors *s, Actor *a)
         a->state.frame = a->state.parameters ? 14 : 13;
     return true;
 }
+// e_candle_table.c: original adjacent shadow becomes persistent item 1 when struck.
+static bool ClearTableChild(SotnActors *s, Actor *a, bool dropping)
+{
+    const Uint32 slot = (Uint32)a->slot + 1U;
+    if (slot >= SOTN_STAGE_ACTOR_SLOTS)
+        return SDL_SetError("Library candle table lacks its adjacent drop reservation");
+    Actor *previous = &s->slots[slot];
+    if (previous->state.generation)
+    {
+        SotnActorPlacement placement = {0};
+        Uint32 placed_generation = 0;
+        if (!SotnRoomActors_Get(s->spawns, slot, &placement, &placed_generation))
+            return false;
+        const bool shadow = previous->state.id == 0x3d && previous->state.parameters == 0x100;
+        const bool pickup =
+            !dropping && previous->state.id == 0xc && previous->state.parameters == 1;
+        if (placed_generation || (!shadow && !pickup) ||
+            previous->enemy_state.owner_slot != a->slot ||
+            (dropping && previous->enemy_state.owner_generation != a->state.generation))
+            return SDL_SetError("Library candle-table drop would overwrite another actor");
+        ActorPrimitivesClear(s, previous);
+        *previous = (Actor){0};
+    }
+    return true;
+}
+static bool TableDrop(SotnActors *s, Actor *a)
+{
+    Actor *drop = NULL, *explosion = NULL;
+    if (!ClearTableChild(s, a, true) ||
+        !ActorLibrarySpawnAt(s, a, 0xc, 1, (Uint32)a->slot + 1U, &drop) ||
+        !ActorSpawn(s, a, 2, 2, 160, 192, &explosion))
+        return false;
+    drop->state.x = Pixel(a->state.x) * 65536;
+    drop->state.y = Pixel(a->state.y) * 65536;
+    drop->state.facing_left = false;
+    if (explosion)
+    {
+        explosion->state.x = Pixel(a->state.x) * 65536;
+        explosion->state.y = (Pixel(a->state.y) - 8) * 65536;
+        explosion->state.facing_left = false;
+    }
+    a->state.hitbox_state = 0;
+    a->state.step = 3;
+    a->state.frame = 8;
+    return true;
+}
+static bool CandleTable(SotnActors *s, Actor *a)
+{
+    if (!a->state.step)
+    {
+        if (!ActorInitialize(s, a, 0x8fc))
+            return false;
+        a->state.priority = 0x74;
+        if (a->state.parameters & 0x600U)
+        {
+            a->state.frame = a->state.parameters & 0x400U ? 17 : 18;
+            a->state.step = 4;
+            return true;
+        }
+        if (a->state.parameters & 0x100U)
+        {
+            a->state.blend_mode = 0x30;
+            a->state.opacity_set = true;
+            a->state.opacity = 192;
+        }
+        else
+        {
+            a->state.priority += 4;
+            a->state.hitbox_width = 8;
+            a->state.hitbox_height = 12;
+            a->state.hitbox_x = 0;
+            a->state.hitbox_y = -10;
+            a->state.hitbox_state = 2;
+            Actor *shadow = NULL;
+            if (!ClearTableChild(s, a, false) ||
+                !ActorLibrarySpawnAt(s, a, 0x3d, 0x100, (Uint32)a->slot + 1U, &shadow))
+                return false;
+            shadow->state.x = Pixel(a->state.x) * 65536;
+            shadow->state.y = Pixel(a->state.y) * 65536;
+            shadow->state.facing_left = false;
+        }
+    }
+    switch (a->state.step)
+    {
+    case 1: {
+        Uint8 animation = 0;
+        const bool shadow = (a->state.parameters & 0x100U) != 0;
+        if (!ActorAnimate(s, a, shadow ? 0x1a78 : 0x1a68, &animation))
+            return false;
+        if (!shadow && a->hit_flags)
+            SetStep(a, 2);
+        return true;
+    }
+    case 2:
+        return TableDrop(s, a);
+    case 3:
+        a->state.frame = 8;
+        return true;
+    case 4:
+        return true;
+    default:
+        return SDL_SetError("Library candle table entered an invalid original state");
+    }
+}
 bool ActorLibraryBreakable(SotnActors *s, Actor *a)
 {
     if (s == NULL || a == NULL || s->stage_id != 2)
         return SDL_SetError("Library breakables require their original stage service");
     if (a->state.id == 1)
         return Breakable(s, a);
+    if (a->state.id == 0x3d)
+        return CandleTable(s, a);
     if (a->state.id == 0x3f)
         return Helper(s, a);
     if (a->state.id != 0x47)

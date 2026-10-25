@@ -39,6 +39,7 @@ add_library(sotn-core STATIC
   actor_stage_profile.c
   early_castle.c
   library.c
+  library_objects.c
   library_breakable.c
   library_flying_zombie.c
   library_flea_armor.c

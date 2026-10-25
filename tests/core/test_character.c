@@ -120,6 +120,13 @@ int main(void)
     CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 19));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.equipment[0] == 19 && !s.hand_count[19]);
     CHECK(SotnCharacter_Restore(c, &s));
+    bytes[0x4000 + 36 * 32 + 28] = 0;
+    bytes[0x4000 + 36 * 32 + 14] = 3;
+    CHECK(SotnCharacter_Collect(c, true, 36));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_HEAD, 36));
+    SotnCharacterStats mask_stats = {0};
+    CHECK(SotnCharacter_Get(c, &s, &mask_stats) && s.equipment[2] == 36 &&
+          mask_stats.bonus[2] == 3 && mask_stats.total[2] == s.base[2] + 12);
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

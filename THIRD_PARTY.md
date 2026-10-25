@@ -326,3 +326,8 @@ Selected menu controls/geometry in `modules/core/library_shop.c` and
 `dra/pads.c` (AGPL-3.0-or-later). UI text/artwork remain private. Native draw priority
 order now follows `dra/42398.c`'s forward `ClearOTag` / `DrawOTag` path rather than
 assuming the reversed ordering-table direction. Full GPU packet parity remains pending.
+
+Selected Library candle-table behavior and decoration initialization adapt
+`st/lib/e_candle_table.c`, `background_block_init.c`, `st/e_room_bg.h` and
+`st/e_room_fg.h` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Animation, object-init, equipment and permanent-item tables stay private.
