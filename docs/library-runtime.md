@@ -19,7 +19,8 @@ private stream. No runtime tables, artwork or sound data enter public files.
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
 The original Library layouts contain no ordinary Skeleton placements; the later
 Lesser Demon summoning path remains unintegrated. Flea Men use their Library
-motion/timelines/sensors, actor identity and damage/contact path. Flea Armor and Dhurons now run their original placed behavior, attacks and deaths.
+motion/timelines/sensors, actor identity and damage/contact path. Flea Armor, Dhurons and plant enemies now run their original placed behavior,
+attacks and deaths.
 Other placed enemies and background/script actors still warn explicitly and remain omitted.
 
 Flea Armor retains its walking/leaping attacks, adjacent attack hitbox, dust and
@@ -34,6 +35,16 @@ trigonometric data remain private. Native child generations retire stale owners.
 A re-entering lamp or paired enemy replaces only its own matching surviving child;
 unrelated occupied slots and original placements remain protected. This preserves
 original fixed-child factory behavior without a re-entry termination.
+
+Thornweed and Corpseweed now preserve wake/idle profiles, the delayed adjacent
+head, staged leaf/stalk growth, bobbing, head scale, attack waits and projectile
+splat. The grown root changes its original enemy-definition selection while
+retaining HP and copied contact power. Native damage attributes and EXP follow
+that selection. Root/head deaths remain linked: the falling head contacts the
+floor, the leaves/stalk contract and fade, and the root's original timed fade
+retires the owned child. Both directions retain their geometry and signed screen-
+coordinate averaging. Texture/hitbox/timeline tables remain private; no artwork
+or effect frames are compiled into the app.
 
 The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
 and upper-body hit branches, flight/hover/dive and independent deaths. Original
@@ -106,4 +117,15 @@ The separately selected Dhuron charge state finishes its beam/flash and doubles
 weapon attack from 15 to 30 at tick 115 (39 renders). Debug and macOS ASan/UBSan
 agree and exit successfully. The charge fixture selects a state explicitly;
 it is not evidence of ordinary AI entry or a whole-route/console replay.
-All 62 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+The plant batch adapts `st/e_thornweed_corpseweed.h`, with original LIB constants
+from `st/lib/e_thornweed_corpseweed.c` and private enemy-definition selection
+following `dra/5D5BC.c:DealDamage`. Public tests cover wake/spawn timing, both
+facing growth paths, attacks, linked head-first/root-first deaths, transformed
+attributes, projectile collision/splat, stale owners, pool exhaustion and malformed
+pose tables. Native LLDB checks use original room-9 placements and a protected
+hero: the Thornweed dies at tick 24 (7 renders); the Corpseweed grows and fires,
+then dies through a crouching root attack at tick 670 (168 renders, 204 growth
+ticks and 51 projectile actor ticks). Debug and macOS ASan/UBSan agree and exit
+successfully. These explicit room fixtures do not establish an uninterrupted
+Library route or console/audiovisual parity.
+All 63 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.

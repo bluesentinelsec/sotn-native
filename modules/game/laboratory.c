@@ -878,9 +878,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
     else if (stage_id == 2)
-        SDL_Log("Long Library development adapters: common pickups, selected breakables, "
-                "shared Skeleton/Flea services, music and ordinary saves. Area enemies, "
-                "librarian/shop and ordinary travel remain unintegrated.");
+        SDL_Log(
+            "Long Library development adapters: common pickups, selected breakables, "
+            "Skeleton/Flea, Flea Armor, Dhuron and plant combat, music and ordinary saves. "
+            "Other enemies, Lesser Demon, librarian/shop and ordinary travel remain unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

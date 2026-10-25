@@ -365,3 +365,8 @@ weapons, transformations and death effects. Library Flea Men use their own groun
 side tables; paired-child re-entry replaces only matching owned children. Protected
 room-3 combat and selected charge fixtures are documented in [Library scope](docs/library-runtime.md).
 Other Library enemies, Lesser Demon, shop/scripts and ordinary travel remain pending.
+
+Library Thornweed/Corpseweed now grow, attack, spawn projectiles and complete linked
+root/head deaths in original-placement room-9 fixtures. Damage attributes/EXP follow
+the grown root's private definition selection. Both facing paths have synthetic
+coverage; ordinary Library travel, remaining enemies and shop/scripts remain pending.

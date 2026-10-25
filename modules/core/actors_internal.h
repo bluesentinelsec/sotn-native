@@ -217,6 +217,13 @@ typedef struct Actor
         Sint16 angle, delta;
         bool charged, direction;
     } dhuron;
+    struct
+    {
+        Uint16 timer, bob_timer, scale;
+        Sint16 bob_angle, leaves_x, leaves_y, stalk_x, stalk_y;
+        Uint32 child_generation;
+        bool spawned, leaves_grown, stalk_grown;
+    } plant;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -442,6 +449,14 @@ bool ActorLibraryBlocked(SotnActors *actors, const Actor *actor, size_t offset, 
                          bool *out);
 /** @brief Advance the generation-owned original Dhuron charging effect. */
 bool ActorLibraryDhuronCharge(SotnActors *actors, Actor *actor);
+/** @brief Read the original private LIB plant pose hitbox into a borrowed actor. */
+bool ActorLibraryPlantBox(SotnActors *actors, Actor *actor);
+/** @brief Advance original growing LIB Corpseweed and its generation-owned root link. */
+bool ActorLibraryCorpseweed(SotnActors *actors, Actor *actor);
+/** @brief Advance original LIB plant projectile, collision and splat effect. */
+bool ActorLibraryPlantProjectile(SotnActors *actors, Actor *actor);
+/** @brief Dispatch original LIB Thornweed/Corpseweed/projectile identities. */
+bool ActorLibraryPlant(SotnActors *actors, Actor *actor);
 /** @brief Advance original placed LIB Dhuron, attack, charge and fragment actors. */
 bool ActorLibraryDhuron(SotnActors *actors, Actor *actor);
 /** @brief Advance original placed LIB Flea Armor and its generation-owned attack child. */
