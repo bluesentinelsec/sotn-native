@@ -42,6 +42,7 @@ add_library(sotn-core STATIC
   library_flea_armor.c
   library_dhuron.c
   library_dhuron_charge.c
+  library_ectoplasm.c
   library_plant.c
   library_corpseweed.c
   library_plant_projectile.c

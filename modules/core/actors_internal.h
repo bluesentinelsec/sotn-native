@@ -224,6 +224,12 @@ typedef struct Actor
         Uint32 child_generation;
         bool spawned, leaves_grown, stalk_grown;
     } plant;
+    struct
+    {
+        Sint32 radius_x, radius_y;
+        Sint16 phase_x, phase_y, excited, counter, squash, speed, limit, scale;
+        Uint16 saved_palette, spawn_wait;
+    } ecto;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -239,7 +245,7 @@ struct SotnActors
     SotnPlayerState player;
     SotnActorMotion motion;
     SotnActorControl control;
-    Uint16 buttons, puzzle_flags, elevator_target;
+    Uint16 buttons, previous_buttons, tapped_buttons, puzzle_flags, elevator_target;
     Sint16 puzzle_height[3];
     bool call_elevator, cannon_fired, armor_lord_killed;
     Uint32 boss_flags, game_seconds;
@@ -449,6 +455,8 @@ bool ActorLibraryBlocked(SotnActors *actors, const Actor *actor, size_t offset, 
                          bool *out);
 /** @brief Advance the generation-owned original Dhuron charging effect. */
 bool ActorLibraryDhuronCharge(SotnActors *actors, Actor *actor);
+/** @brief Advance original LIB Ectoplasm, its owned emitter and independent afterimages. */
+bool ActorLibraryEctoplasm(SotnActors *actors, Actor *actor);
 /** @brief Read the original private LIB plant pose hitbox into a borrowed actor. */
 bool ActorLibraryPlantBox(SotnActors *actors, Actor *actor);
 /** @brief Advance original growing LIB Corpseweed and its generation-owned root link. */

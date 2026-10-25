@@ -393,8 +393,9 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 2)
-        return id == 0x1b || id == 0x1c || id == 0x33 || id == 0x34 || id == 0x3a || id == 0x3b ||
-               id == 0x3c || id == 0x43 || id == 0x44 || id == 0x4a || id == 0x4b || id == 0x4c;
+        return id == 0x1b || id == 0x1c || id == 0x33 || id == 0x34 || id == 0x37 || id == 0x3a ||
+               id == 0x3b || id == 0x3c || id == 0x43 || id == 0x44 || id == 0x4a || id == 0x4b ||
+               id == 0x4c;
     if (actors->stage_id == 26)
         return id == 0x16 || id == 0x104 || id == 0x124 || id == 0x137;
     if (actors->stage_id == 0)
@@ -1531,6 +1532,8 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     }
     if (actors->control.timer)
         --actors->control.timer;
+    actors->tapped_buttons = (Uint16)(actors->buttons & ~actors->previous_buttons);
+    actors->previous_buttons = actors->buttons;
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;

@@ -370,3 +370,8 @@ Library Thornweed/Corpseweed now grow, attack, spawn projectiles and complete li
 root/head deaths in original-placement room-9 fixtures. Damage attributes/EXP follow
 the grown root's private definition selection. Both facing paths have synthetic
 coverage; ordinary Library travel, remaining enemies and shop/scripts remain pending.
+
+Library Ectoplasm now has original movement, square-tap excitation, hit/death and
+owned afterimage/emitter behavior, including summoned fade/cleanup. Its curse
+application, timer and weapon failure remain pending; do not claim authentic
+contact or open Library travel on this actor slice alone. See [Library scope](docs/library-runtime.md).
