@@ -219,7 +219,7 @@ bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id
 
 bool SotnMusic_CreateSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out)
 {
-    if (id >= 0x369 && id <= 0x36d)
+    if ((id >= 0x369 && id <= 0x36d) || (id >= 0x3a3 && id <= 0x3a8) || id == 0x3b9)
         return Create(dra, stream, id - 0x300U, id - 0x300U, true, out);
     return SotnMusic_CreateDeathSpeech(dra, stream, id, out);
 }

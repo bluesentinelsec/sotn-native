@@ -5,7 +5,7 @@
 
 static bool Manager(SotnActors *s, Actor *a)
 {
-    s->control = (SotnActorControl){0, 2};
+    s->control = (SotnActorControl){.timer = 2};
     s->motion.protect = true;
     switch (a->state.step)
     {

@@ -30,7 +30,8 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_JUMP,
     SOTN_PLAYER_HIT = 10,
     SOTN_PLAYER_STONE = 11,
-    SOTN_PLAYER_KILL = 16
+    SOTN_PLAYER_KILL = 16,
+    SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
 
 /** @brief Runtime supported hand-attack hitbox, in whole pixels relative to Alucard's origin. */
@@ -104,6 +105,13 @@ typedef struct SotnPlayer SotnPlayer;
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
                        SotnPlayer **out);
+
+/** @brief Select the original normal-form simulated-pad hold used by NPC scripts.
+ * @param player Borrowed normal-form owner. @param hold Freeze inputs/velocity in original step49.
+ * @return Success or SDL error; a living hold cannot replace an active death sequence.
+ * The next simulation tick retains animation, refreshes original protection and handles release.
+ * No advancement occurs in this setter. Call false when the script interval expires. */
+bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
 
 /** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
  * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.

@@ -414,4 +414,12 @@ The [Librarian sequence service](docs/library-sequence-audio.md) now reads verif
 common-bank notes through the SPU service with private pitch data. SEQ and XA
 ownership remain separate. Private checks match selected scheduling and pitch
 algorithms; they do not establish console PCM, reverb or complete voice-flush
-parity. Librarian/shop interaction and Library travel remain pending.
+parity. Selected Librarian introduction now requests playback; shop interaction and
+Library travel remain pending.
+
+The [selected Librarian introduction](docs/library-librarian.md) now runs the original
+room trigger, chair, six first-conversation speech requests, player alignment/step49
+hold and meeting/time record through the shop-ready gate. It does not implement
+shop menus/transactions/exit yet. Native explicit-room checks agree in Debug and
+ASan/UBSan; do not call the complete interaction or Library route integrated. Chair
+gift rules have injected-contact tests; Gravity Boots/transform behavior stays pending.

@@ -906,7 +906,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "Long Library development adapters: common pickups, selected breakables, "
             "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
             "saves; placed Lesser Demon entry, selected combat, seals and reward. "
-            "Librarian/shop, remaining scripts, poison and ordinary travel remain unintegrated.");
+            "Selected Librarian introduction and speech run; shop menus/transactions, remaining "
+            "scripts, poison and ordinary travel remain unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
@@ -1089,7 +1090,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         player_buttons = control.buttons;
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
-    if (!SotnPlayer_Tick(session->player, player_buttons) ||
+    if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
+        !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;

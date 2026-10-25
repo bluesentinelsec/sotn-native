@@ -261,6 +261,10 @@ typedef struct Actor
     {
         Uint16 counter;
     } mudman;
+    struct
+    {
+        Uint16 timer, total_hits, consecutive_hits;
+    } librarian;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -290,7 +294,8 @@ struct SotnActors
         size_t script, events;
         Uint32 flags;
         Uint16 wait, speed, event_timer;
-        bool active, events_active, voice_playing, cd_busy;
+        bool active, events_active, voice_playing, cd_busy, library_met;
+        Uint8 library_reply;
     } death_event;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
@@ -508,6 +513,12 @@ bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
  * @return Success or SDL error; optional exhausted reward allocation waits for another tick.
  * Native factories retain ownership; no pointers transfer to the caller. */
 bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
+/** @brief Advance selected original Librarian trigger, control, chair or dialogue.
+ * @param actors Borrowed initialized Library owner with writable progress and frame services.
+ * @param actor Borrowed supported NPC actor. @return Success or SDL error.
+ * Factories retain ownership; optional exhausted gift allocation preserves its unclaimed flag.
+ * Normal Alucard is supported; transformed/high-jump player adapters remain separate work. */
+bool ActorLibraryLibrarian(SotnActors *actors, Actor *actor);
 /** @brief Queue the original positional LIB sound; owners remain borrowed. */
 bool ActorLibrarySound(SotnActors *actors, const Actor *actor, Uint16 sound);
 /** @brief Query a bounded private sensor list; write out only on success. */

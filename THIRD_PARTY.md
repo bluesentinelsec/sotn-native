@@ -308,3 +308,9 @@ retains the reconstruction contributors' attribution. Original sequence bytes,
 instruments, samples and pitch entries remain private runtime inputs. Selected
 playback selection follows `src/dra/sound.c` (AGPL-3.0-or-later); the native adapter
 retains separate XA and SEQ ownership.
+
+Selected Librarian controls/chair in modules/core/library_librarian.c and Library
+script paths in entrance_death.c adapt st/lib/e_shop.c, cutscene.c and shared
+cutscene helpers at the pinned sotn-decomp revision (AGPL-3.0-or-later). Scripted
+player hold follows dra/692E8.c, 71830.c, 6DF70.c, 6E42C.c and alu_anim.c.
+Dialogue, animation, portraits, samples and original tables remain private inputs.

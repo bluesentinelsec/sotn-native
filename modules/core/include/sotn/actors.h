@@ -20,8 +20,10 @@ enum
 typedef struct SotnActorControl
 {
     Uint16 buttons, timer;
+    bool hold; /**< Original simulated-pad mode 2: freeze normal-form player control. */
 } SotnActorControl;
-/** @brief Copy current script-owned pad interval; timer zero permits user control.
+/** @brief Copy current script-owned pad interval; timer zero permits user control unless hold
+ * remains set.
  * @param actors Borrowed simulation. @param out Copied initialized result.
  * @return Success or SDL error. */
 bool SotnActors_GetControl(const SotnActors *actors, SotnActorControl *out);
