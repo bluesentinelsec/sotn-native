@@ -1154,18 +1154,36 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
         {
             const Uint16 front =
                 (Uint16)((p.red / 8) | ((p.green / 8) << 5) | ((p.blue / 8) << 10));
+            const Sint32 start = SDL_max(0, left), end = SDL_min(SOTN_FRAME_WIDTH, right);
             for (Sint32 row = SDL_max(0, top); row < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++row)
-                for (Sint32 col = SDL_max(0, left); col < SDL_min(SOTN_FRAME_WIDTH, right); ++col)
+            {
+                if (p.blend && start < end)
                 {
-                    const size_t pixel = (size_t)row * SOTN_FRAME_WIDTH + (size_t)col;
-                    const Uint16 back = session->frame[pixel];
-                    session->frame[pixel] =
-                        p.blend ? (Uint16)(((back & 0x7bde) >> 1) + ((front & 0x7bde) >> 1))
-                                : front;
+                    const SotnColorLine tile = {.x = {start, end - 1},
+                                                .y = {row, row},
+                                                .red = {p.red, p.red},
+                                                .green = {p.green, p.green},
+                                                .blue = {p.blue, p.blue},
+                                                .blend = true,
+                                                .blend_mode = (Uint8)((p.page >> 5) & 3U)};
+                    if (!SotnActorGraphics_Line(tile, session->frame, SOTN_FRAME_PIXELS))
+                        return false;
                 }
+                else
+                    for (Sint32 col = start; col < end; ++col)
+                        session->frame[(size_t)row * SOTN_FRAME_WIDTH + (size_t)col] = front;
+            }
         }
     }
     return true;
+}
+
+static bool ActorDrawError(SotnActorState actor)
+{
+    char detail[256] = {0};
+    SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+    return SDL_SetError("Actor 0x%x slot %u bank 0x%x frame 0x%x palette 0x%x: %s", actor.id,
+                        actor.slot, actor.animation_set, actor.frame, actor.palette, detail);
 }
 
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
@@ -1313,7 +1331,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
         if (!DrawActorPrimitives(session, actor, camera_x, camera_y))
-            return false;
+            return ActorDrawError(actor);
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
@@ -1327,7 +1345,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                       .green = actor.green,
                                       .blue = actor.blue},
                 session->frame, SOTN_FRAME_PIXELS))
-            return false;
+            return ActorDrawError(actor);
     }
     return true;
 }

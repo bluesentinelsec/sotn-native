@@ -1,9 +1,11 @@
 # Doppleganger runtime foundation
 
-BO4 now has independent native collision and decision services in addition to its
-private stage, sprite and animation adapters. These services prepare the encounter;
-they do not yet instantiate the boss, play the intro, resolve its attacks/death,
-award its reward or open ordinary travel into the arena.
+BO4 now connects the original boss AI, body, selected child actors, combat and
+physical defeat through native stage updates. A private integration fixture
+explicitly inserts the root and exercises the fight; the original entry sequence,
+seals, reward, stage record and ordinary travel remain pending. The arena stays
+disconnected. Earlier standalone component checks below establish narrower coverage
+than the current integrated fixture described at the end.
 
 The collision service reads the boss's original sensors from private BO4 data.
 It retains separate floor, ceiling and fourteen wall probes, transformed geometry,
@@ -18,8 +20,8 @@ The decision service emits original simulated PS1 controls from a simulation-tic
 snapshot. It retains distance thresholds, startup reactions, original libc RNG
 consumption, attack cadence, opening backdash, bat/mist requests and death/stone
 reactions. It preserves the original repeated close-range crouch-attack lock.
-The owning encounter must still consume those controls through the original body,
-form, weapon and event state machines. The service owns no runtime tables or global
+The native encounter consumes those controls through the selected original body,
+form and weapon services; the original event state machines remain pending. The service owns no runtime tables or global
 state and does not use rendering or wall-clock timing.
 
 Public synthetic tests check floor/wall/ceiling resolution, normal/transformed and
@@ -48,9 +50,8 @@ The normal-body service now consumes original PS1 input for stand/walk/crouch,
 fall/jump/double-jump, backdash and attack selection. Private transition profiles
 and animation tables retain original cancellation windows, landing decisions,
 velocities, gravity and timer order. The service emits bounded original factory,
-sound and attack-cleanup requests for the owning encounter. It does not resolve
-the requested punch/kick hitboxes, knives, smoke or other child actors. Do not count
-these attack requests or rendered poses as implemented combat.
+sound and attack-cleanup requests for the owning encounter. Its requests resolve through the child services below. Attack requests and rendered
+poses alone do not prove contact damage.
 
 Body, animation and collision state commit atomically. Public tests use synthetic
 private-format profiles and cover turning, release/double-jump behavior, attack
@@ -60,8 +61,8 @@ producing twelve hand-attack requests, six knife requests and 168 airborne ticks
 under Debug and macOS ASan/UBSan. It supplies explicit control inputs and an arena
 start; it is not an AI-driven boss fight or console comparison.
 
-Damage/death and the owning encounter remain pending. Body ticks reject
-unsupported steps instead of silently substituting normal movement. All 57 public test groups and release packaging pass locally. This slice
+The damage/physical-defeat and stage-orchestration sections below extend this
+service. Body ticks reject unsupported steps rather than substitute normal movement. All 57 public test groups and release packaging pass locally. This slice
 adapts `bo4/dop_anim.c`, normal steps in `unk_465F0.c`, `unk_46040.c`, and transition/
 attack helpers in `unk_45648.c` at the pinned AGPL reference above. Original control
 and animation tables remain private inputs.
@@ -80,8 +81,9 @@ The hand child follows the body's original animation variant and pose, reads its
 private per-pose frame/hitbox words, applies original attack power/poison scaling,
 and stops at its terminal word or when the parent leaves the attack. It requests
 the original swing sound at the original pose/timer. No hitbox or attack table bytes
-are embedded. These internal services are not yet connected to ordinary stage
-updates or the player's damage path; decoded boxes do not establish working combat.
+are embedded. These services now connect to BO4 stage updates and the player's damage path when
+the root is explicitly instantiated. The earlier standalone decoded-box check alone
+does not establish combat.
 
 Public fixtures cover burst cadence, allocation order, critical/noncritical full
 pools, forced replacement/primitive release, moving origins, parent identity,
@@ -94,9 +96,8 @@ This is not a live fight or a console replay.
 
 Factory/hand behavior adapts `bo4/unk_49A6C.c` and
 `bo4/unk_50D4C.c:DopplegangerUnarmedAttack`, plus `boss/dop_anim.h:UpdateUnarmedAnim`,
-at the same pinned AGPL reference. Smoke, knife and transformation children, the
-body's forms/damage/death, original stage events and connected progression remain
-pending. Ordinary arena travel remains disabled.
+at the same pinned AGPL reference. Additional child types, complete effects, original stage events and connected
+progression remain pending. Ordinary arena travel remains disabled.
 
 ## Thrown knife child
 
@@ -120,9 +121,8 @@ this separate component check, not by an ordinary encounter replay. Packaging pa
 
 Knife behavior adapts `bo4/unk_50D4C.c:EntitySubwpnKnife` at the pinned AGPL revision;
 original line/color commands are described in `dra/4DA70.c`. The native line sampler
-is a bounded presentation adapter, not a PS1 GPU implementation. Impact effects,
-smoke, transformation children, body forms/damage/death, live player contact and
-the original encounter/connected progression remain pending. Ordinary arena travel
+is a bounded presentation adapter, not a PS1 GPU implementation. The orchestration below extends knife contact and impact effects. Complete effects,
+the original entry event and connected progression remain pending. Ordinary arena travel
 stays disabled.
 
 ## Transformation controls and blink child
@@ -147,8 +147,8 @@ all 58 public groups and release packaging pass locally.
 
 Mist controls currently require an owning mist child's phase signals; its actual
 child and palette animation service remain pending. The public mist fixture supplies
-those signals explicitly. Wing trails/smoke, damage/death and the live encounter
-also remain pending. The display cache does not establish death-particle support,
+those signals explicitly. The orchestration below adds wing trails/smoke and physical hit/death integration.
+Additional elemental/stone effect children remain pending,
 and native rasterization has not been compared pixel-for-pixel with console output.
 Ordinary arena travel remains disabled; this is not a complete boss fight.
 
@@ -183,6 +183,48 @@ Selected elemental hit/death branches emit their original requests and shading,
 but complete elemental children/effects remain unintegrated and lack private
 encounter validation. Stone status/shatter death remains rejected. The owning
 encounter must supply the original stage hit-effect selector, resolved HP loss,
-libc RNG and child services. Live player contact, intro, reward and ordinary arena
-progression remain pending. This slice adapts `bo4/unk_465F0.c` damage/reset/kill
+libc RNG and child services. The orchestration below adds selected live player contact. Intro, reward and
+ordinary arena progression remain pending. This slice adapts `bo4/unk_465F0.c` damage/reset/kill
 logic and `bo4/doppleganger.c` timer/status ordering at the pinned AGPL revision.
+
+## Stage combat orchestration
+
+The native BO4 root now initializes original attributes, priority, sensors,
+64 libc RNG draws/debris vectors and opening backdash, then advances the original
+AI/body and ascending child slots through the stage service. Contact damage,
+weapon/subweapon damage, HP-loss reactions, invulnerability, child culling and
+physical defeat share the ordinary player/actor path. Hit effects read the private
+stage selector tables in original priority order; raw element bit positions are
+not reaction indices. Player snapshots expose the selected original crouch,
+airborne, hit, dead and stone status signals used by the boss AI.
+
+Smoke reads private motion/scale/sensor profiles and its original timeline.
+Wing-smash trails shrink/fade and a separate original child carries its hitbox.
+Impact/death particles retain private profiles, libc draws, fixed-point motion,
+color wrapping, delays, double-decrement timer cases and original contiguous
+allocation. The native pool now provides 1,024 allocatable primitive records, with
+16-bit per-actor counts bounded to 384 for the upcoming original intro effect.
+Public tests distinguish fragmented from consecutive allocation and check large
+counts/cleanup. This does not model every original engine/UI primitive reservation.
+
+BO4's stage-start upload now loads default graphics bank zero even though its
+room has no additional object-graphics bank. The integrated run found the missing
+hand-effect texture; a regression verifies the initial upload and failure cleanup.
+Untextured particle tiles use the shared four RGB555 blend modes. Graphics errors
+identify the actor and missing texture/palette coordinate.
+
+All 59 public groups pass in Debug and macOS ASan/UBSan, and packaging passes.
+A private LLDB stage sequence inserts the root explicitly, grants Alucard 999 HP
+and STR 30, and completes physical defeat at tick 3,466. It records five actual
+boss-hit ticks, 169 net player HP lost, 120 bat-control ticks, 7,720 child ticks
+and 867 native renders. The child activity includes smoke, knives, impact/death
+particles, blink, wing trails/boxes and hand attacks, without skipping requested
+children. Debug and ASan/UBSan run this same sequence. This is not an ordinary
+new-game route, an unmodified-character playtest, intro/reward validation or a
+console replay.
+
+Mist/palette service, high jump, stone and full elemental effects remain pending.
+Unsupported child requests fail explicitly. The entry manager, plates/light/shock,
+block doors, music transitions, reward and durable arena record are the next
+integration boundary. The stage profile remains disconnected and has no public
+BO4 gameplay option until that boundary works.

@@ -392,6 +392,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 26)
+        return id == 0x16 || id == 0x104 || id == 0x124 || id == 0x137;
     if (actors->stage_id == 0)
         return id == 0x47 || id == 0x48 || id == 0x4d || id == 0x4e || id == 0x4c || id == 0x3a ||
                id == 0x3b || (id >= 0x21 && id <= 0x25) || id == 0x2e || id == 0x2f || id == 0x4a ||
@@ -539,6 +541,24 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return false;
             actor->hit_flags = source.attack.hit_type;
             recipient->hit_flags = source.attack.hit_type;
+            if (actors->stage_id == 26 && recipient->state.id == 0x16)
+            {
+                if (damage == 0xc000)
+                    recipient->hit_flags = 0x20;
+                else
+                {
+                    if (!ActorDoppleHitEffect(actors, source.attack.element,
+                                              &recipient->damage_effect))
+                        return false;
+                    if (damage & 0x8000U)
+                        recipient->damage_effect = 9;
+                    const Uint32 amount = damage & 0x3fffU;
+                    recipient->hit_flags = recipient->state.hit_points < (Sint32)(amount * 2U) ? 3
+                                           : recipient->state.hit_points < (Sint32)(amount * 4U)
+                                               ? 2
+                                               : 1;
+                }
+            }
             actor->hit_params = source.attack.hit_effect & 127;
             if (channel >= 2)
             {
@@ -654,7 +674,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                  (actors->stage_id == 12 && (actor->state.id == 0x1a || actor->state.id == 0x25)))
         {
             if ((actors->stage_id == 0 && actor->state.id == 0x4b) ||
-                (actors->stage_id == 1 && actor->state.id == 0x45))
+                (actors->stage_id == 1 && actor->state.id == 0x45) ||
+                (actors->stage_id == 26 && actor->state.id == 0x104))
                 actor->hit_flags |= 0x80;
             if (actor->attack > actors->combat.contact_damage)
             {
@@ -1185,11 +1206,7 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
     if (actors->stage_id == 26 && actor->state.id > 0xc && actor->state.id != 0x12)
-    {
-        // Arena adapters do not substitute Laboratory behavior for unfinished boss actors.
-        actor->state.unsupported = true;
-        return true;
-    }
+        return ActorDoppleEncounter(actors, actor);
     switch (actor->state.id)
     {
     case 2:
@@ -1618,6 +1635,15 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             return SDL_SetError("Laboratory actor 0x%02x slot %u step %u: %s", next.state.id, i,
                                 next.state.step, detail);
         }
+        if (!frozen && actors->stage_id == 26 && next.state.id >= 0x100 && next.state.id < 0x138)
+        {
+            const Sint32 child_x = Pixel(next.state.x) - camera_x;
+            const Sint32 child_y = Pixel(next.state.y) - camera_y;
+            if (!(next.state.flags & 0x10000000U) &&
+                (child_x > 288 || child_x < -32 || child_y > 256 || child_y < -16))
+                next.remove = true;
+            next.state.flags |= 0x01000000U;
+        }
         if (!frozen)
         {
             next.hit_params = 0;
@@ -1641,6 +1667,9 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             return SDL_SetError("Laboratory actor motion left the bounded room region");
         *actor = next;
     }
+    if (actors->stage_id == 26 && (actors->dopple.body.motion.status & 0xc0000U))
+        for (Uint16 i = 4; i < 80; ++i)
+            actors->slots[i].state.hitbox_state = 0;
     if (actors->character != NULL)
     {
         SotnCharacterState state = {0};

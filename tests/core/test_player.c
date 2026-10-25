@@ -69,7 +69,8 @@ static bool TestMovement(Fixture *fixture)
     CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
     CHECK(state.step == SOTN_PLAYER_STAND && state.velocity_x == 0);
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP) && State(player, &state));
-    CHECK(state.step == SOTN_PLAYER_JUMP && state.velocity_y == -319488);
+    CHECK(state.step == SOTN_PLAYER_JUMP && state.velocity_y == -319488 &&
+          (state.status & 0x2000U));
     CHECK(state.y == 135 * 65536 - 319488);
     CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
     CHECK(state.velocity_y == -65536 + 11264);
@@ -78,7 +79,7 @@ static bool TestMovement(Fixture *fixture)
     CHECK(State(player, &state));
     CHECK(state.y == 135 * 65536 && state.step == SOTN_PLAYER_STAND);
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN) && State(player, &state));
-    CHECK(state.step == SOTN_PLAYER_CROUCH);
+    CHECK(state.step == SOTN_PLAYER_CROUCH && (state.status & 0x20U));
     for (int i = 0; i < 15; ++i)
         CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_DOWN));
     for (int i = 0; i < 20; ++i)
@@ -248,7 +249,7 @@ static bool TestDamage(Fixture *fixture)
     Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0x800a0200);
     CHECK(SotnPlayer_Damage(player, 67, 80, 0));
     CHECK(State(player, &state) && state.hp == 0 && state.step == SOTN_PLAYER_KILL &&
-          state.invulnerable);
+          (state.status & 0x40000U) && state.invulnerable);
     for (Uint32 tick = 0; tick < 300; ++tick)
         CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT));
     CHECK(State(player, &state) && state.death.phase == 128);
@@ -301,8 +302,8 @@ static bool TestStone(Fixture *fixture)
     CHECK(!SotnPlayer_Petrify(NULL, 0, 128, 0));
     CHECK(SotnPlayer_Petrify(player, 0, 128, 0) && State(player, &state));
     CHECK(state.step == SOTN_PLAYER_STONE && state.hp == 70 && state.stone.active &&
-          state.stone.shakes >= 4 && state.stone.shakes <= 8 && !state.can_pause &&
-          !state.attack.active && !state.shield.active);
+          (state.status & 0x80U) && state.stone.shakes >= 4 && state.stone.shakes <= 8 &&
+          !state.can_pause && !state.attack.active && !state.shield.active);
     CHECK(SotnPlayer_Petrify(player, 10, 128, 0) && State(player, &state) && state.hp == 70);
     for (Uint32 i = 0; i < 100; ++i)
         CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_JUMP));

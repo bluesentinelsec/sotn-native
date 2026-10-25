@@ -134,7 +134,9 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     RawTiles(graphics, sources.stage, 0);
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);
-    if (!Palettes(graphics))
+    // Play_Init loads overlay bank zero before room-specific graphics. BO4's
+    // arena has object_graphics_id zero, but its hand-effect textures still need this bank.
+    if (!Palettes(graphics) || (stage == 26 && !SotnActorGraphics_LoadBank(graphics, 0)))
     {
         SotnActorGraphics_Destroy(graphics);
         return false;
@@ -345,8 +347,8 @@ static bool Word(const SotnActorGraphics *graphics, Uint32 x, Uint32 y, Uint16 *
 {
     const size_t index = (size_t)(y & 511) * 1024 + (x & 1023);
     if (!graphics->valid[index])
-        return SDL_SetError(
-            "Actor sprite references texture or palette data not loaded for this room");
+        return SDL_SetError("Actor sprite references unloaded texture/palette word (%u,%u)",
+                            x & 1023U, y & 511U);
     *out = graphics->words[index];
     return true;
 }

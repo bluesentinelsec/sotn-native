@@ -259,3 +259,11 @@ AGPL-3.0-or-later reference. The native erasure bitset represents the source's
 nibble-clear algorithm; artwork, sound/effect selectors and scratch-rectangle
 metadata remain private. Render-cadence comparison covers the component fixture,
 not a console replay or complete elemental effects.
+
+BO4 root orchestration, smoke, wing trail/hitbox and profile-driven impact/death
+particles adapt `bo4/doppleganger.c`, `unk_49A6C.c` and selected `boss/dop_anim.h`
+logic at the pinned AGPL revision. Stage collision selector metadata stays private
+(`st/collision.h`). Contiguous allocation follows `dra/4DA70.c:func_800EDB58`;
+BO4's initial graphics bank follows `dra/game_handlers.c:Play_Init`. Counts/pool
+bounds, checked ownership and initialized native records replace global memory.
+See the explicit [integrated fixture limits](docs/doppleganger-runtime.md#stage-combat-orchestration).

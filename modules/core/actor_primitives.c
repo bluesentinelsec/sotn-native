@@ -1,20 +1,32 @@
 #include "actors_internal.h"
-bool ActorPrimitives(SotnActors *s, Actor *a, Uint16 count)
+static bool Reserve(SotnActors *s, Actor *a, Uint16 count, bool contiguous)
 {
     if (s == NULL || a == NULL || count > ACTOR_PRIMITIVE_LIMIT || a->state.primitive_count != 0 ||
         a->state.generation == 0)
         return SDL_SetError(
             "Actor primitive allocation requires an active owner and bounded count");
     Uint16 available = 0;
-    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
-        if (s->primitives[i].owner == 0 && available < count)
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY && available < count; ++i)
+    {
+        if (s->primitives[i].owner == 0)
             a->primitive[available++] = (Uint16)i;
+        else if (contiguous)
+            available = 0;
+    }
     if (available < count)
         return SDL_SetError("Laboratory actor primitive pool is full");
     for (Uint16 i = 0; i < count; ++i)
         s->primitives[a->primitive[i]] = (ActorPrimitive){.owner = a->state.generation};
-    a->state.primitive_count = (Uint8)count;
+    a->state.primitive_count = count;
     return true;
+}
+bool ActorPrimitives(SotnActors *s, Actor *a, Uint16 count)
+{
+    return Reserve(s, a, count, false);
+}
+bool ActorPrimitivesContiguous(SotnActors *s, Actor *a, Uint16 count)
+{
+    return Reserve(s, a, count, true);
 }
 ActorPrimitive *ActorPrimitiveGet(SotnActors *s, const Actor *a, Uint16 index)
 {

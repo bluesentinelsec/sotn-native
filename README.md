@@ -24,13 +24,14 @@ authentic playable game build. Its default mode still displays the bootstrap gre
 overlay/artwork pairs on demand. Selected native paths now connect Entrance, Laboratory,
 Marble Gallery and Outer Wall; further areas remain unintegrated.
 [Doppleganger arena adapters](docs/doppleganger-arena.md) prepare private BO4
-resources; its boss encounter and ordinary travel remain disabled.
+resources. Selected [boss combat](docs/doppleganger-runtime.md#stage-combat-orchestration)
+now runs in an explicit native fixture; original entry/reward and ordinary travel remain disabled.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve
 boss-specific sensors and simulated control choices. Selected bat/return controls and
 [blink effects](docs/doppleganger-runtime.md#transformation-controls-and-blink-child)
-now run in component fixtures; the live fight is still pending.
+now feed the selected stage combat path. The original intro and connected route remain pending.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game

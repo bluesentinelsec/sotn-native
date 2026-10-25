@@ -482,6 +482,28 @@ static bool StageBankBounds(Fixture *f)
     return true;
 }
 
+static bool DefaultBo4Bank(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, stage = {f->nz0, sizeof(f->nz0)};
+    const SotnTileSources art = {{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}};
+    CHECK(SotnActorGraphics_CreateStage(dra, stage, art, 26, &g));
+    SDL_zero(f->frame);
+    const SotnTextureQuad q = {.x = {0, 4, 0, 4},
+                               .y = {0, 0, 1, 1},
+                               .u = {4, 8, 4, 8},
+                               .v = {64, 64, 65, 65},
+                               .page = 2,
+                               .palette = 0x200};
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    g = NULL;
+    Put32(f->nz0 + 0x400, 7);
+    CHECK(!SotnActorGraphics_CreateStage(dra, stage, art, 26, &g) && g == NULL);
+    return true;
+}
+
 static bool PackedSheets(Fixture *f)
 {
     MakeFixture(f);
@@ -692,8 +714,8 @@ int main(void)
     const bool passed = StageBankBounds(fixture) && TestRopeCache(fixture) &&
                         TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
                         TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture) && PackedSheets(fixture) &&
-                        TestColorLine(fixture);
+                        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+                        PackedSheets(fixture) && TestColorLine(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

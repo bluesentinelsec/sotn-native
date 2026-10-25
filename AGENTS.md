@@ -388,3 +388,14 @@ and sparse-render comparison pass; seven child/effect/profile requests are skipp
 Complete elemental effects, stone status/shatter death, live encounter, reward and
 ordinary arena progression remain pending. Input uses the original stage hit-effect
 selector, not a raw element bit. Do not describe the component fixture as boss gameplay.
+
+BO4 [stage combat orchestration](docs/doppleganger-runtime.md#stage-combat-orchestration)
+now joins AI/body, original factories, hand/knife/wing contact, smoke/particles and
+physical defeat through native stage updates. A private LLDB explicit-root fixture
+with 999 HP/STR30 Alucard defeats the original-health boss at tick3466; it is not
+ordinary progression or an unmodified-character playtest. Default stage graphics
+bank0 now initializes BO4 hand artwork. Primitive counts are Uint16, limit384;
+the allocatable pool is1024 with separate consecutive allocation. All59 groups,
+macOS ASan/UBSan and package pass. Intro/seals/light/shock/music/reward and durable
+record remain pending; stage26 stays disconnected with no public gameplay CLI.
+Mist/palette, high jump, stone and complete elemental effects remain unavailable.

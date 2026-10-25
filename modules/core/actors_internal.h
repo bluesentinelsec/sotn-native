@@ -14,8 +14,8 @@
 
 enum
 {
-    ACTOR_PRIMITIVE_CAPACITY = 512,
-    ACTOR_PRIMITIVE_LIMIT = 193,
+    ACTOR_PRIMITIVE_CAPACITY = 1024,
+    ACTOR_PRIMITIVE_LIMIT = 384,
     ACTOR_SPRITE_PART_LIMIT = 32
 };
 typedef struct ActorPrimitive
@@ -42,7 +42,7 @@ typedef struct Actor
     Sint32 vx, vy;
     Uint16 pose, remaining, timer, substep;
     size_t animation_stream;
-    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS];
+    Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS], damage_effect;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
     Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
@@ -231,6 +231,10 @@ struct SotnActors
         SotnDoppleAI ai;
         bool active, blink_lock;
         Uint32 blink_angles[16];
+        Sint32 debris_x[32], debris_y[32];
+        Sint16 previous_hp;
+        Uint16 hitbox_state, shake;
+        Uint8 death_profile[4];
     } dopple;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
@@ -315,6 +319,8 @@ bool ActorSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 par
 bool ActorSpittle(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorCrawl(SotnActors *actors, Actor *actor, Uint8 state, Uint8 *out);
 bool ActorPrimitives(SotnActors *actors, Actor *actor, Uint16 count);
+/** @brief Original func_800EDB58 consecutive allocation; no partial pool ownership on failure. */
+bool ActorPrimitivesContiguous(SotnActors *actors, Actor *actor, Uint16 count);
 ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16 index);
 void ActorPrimitivesClear(SotnActors *actors, const Actor *actor);
 bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
@@ -364,6 +370,12 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorDoppleEncounter(SotnActors *actors, Actor *actor);
+bool ActorDoppleHitEffect(SotnActors *actors, Uint16 element, Uint8 *out);
+bool ActorDoppleSmoke(SotnActors *actors, Actor *actor);
+bool ActorDoppleParticles(SotnActors *actors, Actor *actor);
+bool ActorDoppleTrail(SotnActors *actors, Actor *actor);
+bool ActorDoppleWingHitbox(SotnActors *actors, Actor *actor);
 bool ActorDoppleFactoryRequest(SotnActors *actors, const Actor *source,
                                const SotnDoppleRequest *request);
 bool ActorDoppleFactory(SotnActors *actors, Actor *actor);
