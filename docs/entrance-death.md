@@ -12,7 +12,7 @@ its music; lighting/palette effects are still incomplete.
 Use the project's executable through LLDB:
 
 ```sh
-make debug
+make debug-build
 lldb -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data local/game-data/us --entrance --entrance-room 11
 ```
 

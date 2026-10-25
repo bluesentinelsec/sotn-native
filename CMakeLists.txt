@@ -92,7 +92,14 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if(NOT ANDROID AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS" AND NOT EMSCRIPTEN)
-  add_custom_target(run COMMAND $<TARGET_FILE:sotn-native> DEPENDS sotn-native USES_TERMINAL)
+  add_custom_target(run
+    COMMAND ${CMAKE_COMMAND} "-DAPP=$<TARGET_FILE:sotn-native>"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_game.cmake"
+    DEPENDS sotn-native USES_TERMINAL VERBATIM)
+  add_custom_target(debug-game
+    COMMAND ${CMAKE_COMMAND} "-DAPP=$<TARGET_FILE:sotn-native>" -DDEBUG_GAME=ON
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_game.cmake"
+    DEPENDS sotn-native USES_TERMINAL VERBATIM)
 endif()
 
 include(GNUInstallDirs)

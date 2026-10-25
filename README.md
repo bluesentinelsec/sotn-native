@@ -162,13 +162,22 @@ release. On macOS, install Xcode's command-line tools; on Windows, use a Visual
 Studio developer shell. Windows users can run the CMake commands directly.
 
 ```sh
-make                 # Debug build in build/debug
+make                 # Debug build in build/debug (build only)
+make run             # Build and start at Castle Entrance
+make debug           # Same start through LLDB; print all-thread backtraces on a crash
 make test            # Run the app's headless render smoke test and repository guard
 make sanitizer       # Linux: run tests with ASan and UBSan, including SDL instrumentation
 make package         # Build/test Release and produce a versioned ZIP in dist/
 ```
 
-Use the LLDB command above for game playtests. On Linux, use
+Both launch targets use `local/game-data/us`; override it with
+`SOTN_GAME_DATA=/path/to/your/data make run` (or `make debug`). LLDB is required
+for `make debug`; closing the game returns to the shell. These targets start the
+current Castle Entrance checkpoint with its opening event, without room/gear test
+fixtures. The original title/prologue/new-game flow remains incomplete.
+`make debug-build` builds Debug without launching.
+
+Use `make debug` or the LLDB command above for game playtests. On Linux, use
 `build/debug/bin/sotn-native`; on Windows, use `build/debug/bin/sotn-native.exe`
 (or the configuration subdirectory produced by your generator).
 
