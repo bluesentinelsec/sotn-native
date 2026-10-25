@@ -10,6 +10,17 @@ bool ActorEarlyCastle(SotnActors *s, Actor *a)
         return ActorSkeleton(s, a, s->player);
     if (s->stage_id == 0 && (a->state.id == 0x47 || a->state.id == 0x48))
         return ActorKnight(s, a, s->player);
+    if (s->stage_id == 0 && a->state.id == 0x3d)
+        return ActorRose(s, a);
+    if (s->stage_id == 0 &&
+        (a->state.id == 0x3e || a->state.id == 0x3f || a->state.id == 0x40 || a->state.id == 0x41))
+        return ActorRoseSeed(s, a);
+    if (s->stage_id == 0 && (a->state.id == 0x4a || a->state.id == 0x4b))
+        return ActorOuija(s, a);
+    if (s->stage_id == 0 && a->state.id == 0x4c)
+        return ActorFlea(s, a);
+    if (s->stage_id == 0 && a->state.id >= 0x3a && a->state.id <= 0x3c)
+        return ActorSlinger(s, a);
     a->state.unsupported = true;
     return true;
 }

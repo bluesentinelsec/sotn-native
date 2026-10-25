@@ -34,6 +34,11 @@ static bool Angles(void)
     CHECK(SotnMath_Atan2(image, 1, 2, &result) && result == 256);
     CHECK(SotnMath_Atan2(image, 2, 1, &result) && result == 768);
     CHECK(SotnMath_Atan2(image, 32767, 32767, &result) && result == 512);
+    CHECK(SotnMath_Atan2Vector(image, 65536, 131072, &result) && result == 256);
+    // The SDK deliberately normalizes large ratios before integer division.
+    CHECK(SotnMath_Atan2Vector(image, 0x200000, 0x200001, &result) && result == 512);
+    CHECK(SotnMath_Atan2Vector(image, SDL_MAX_SINT32, SDL_MAX_SINT32, &result) && result == 512);
+    CHECK(!SotnMath_Atan2Vector(image, SDL_MIN_SINT32, 1, &result) && result == 512);
     CHECK(!SotnMath_Atan2(image, SDL_MIN_SINT32, 0, &result) && result == 512);
     CHECK(!SotnMath_Atan2((SotnDataView){bytes, size - 1}, 1, 1, &result) && result == 512);
     bytes[0x22a10 + 1024] = 255;

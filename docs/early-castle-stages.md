@@ -44,7 +44,8 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 explicit development room. These entries use the existing development character,
 not original prologue-derived initialization. Private data must be supplied locally.
 
-Area-specific enemies, clock-room behavior, elevators, hidden routes, boss transfer
+Selected [Marble enemies](marble-gallery-enemies.md) now run. Other area-specific
+enemies, clock-room behavior, elevators, hidden routes, boss transfer
 and Doppleganger remain incomplete. The existing unsupported-actor diagnostics stay
 visible. Do not call these stages complete or this a complete authentic game.
 

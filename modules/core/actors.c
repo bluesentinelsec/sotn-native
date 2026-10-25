@@ -10,6 +10,18 @@
 #include <sotn/combat.h>
 #include <sotn/subweapon.h>
 
+bool ActorReplaceExplosion(SotnActors *s, Actor *a, Uint16 kind)
+{
+    ActorPrimitivesClear(s, a);
+    a->state.primitive_count = 0;
+    a->state.id = 2;
+    a->state.parameters = kind;
+    a->state.step = a->state.frame = a->pose = a->remaining = a->substep = 0;
+    a->state.rotated = false;
+    a->state.scale_x = a->state.scale_y = 0;
+    return true;
+}
+
 bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset)
 {
     SotnDataView init = {0}, api = {0}, enemy = {0};
@@ -368,7 +380,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 0)
-        return id == 0x47 || id == 0x48 || id == 0x4d || id == 0x4e;
+        return id == 0x47 || id == 0x48 || id == 0x4d || id == 0x4e || id == 0x4c || id == 0x3a ||
+               id == 0x3b || id == 0x4a || id == 0x4b || id == 0x3d || id == 0x3e || id == 0x3f;
     if (actors->stage_id == 1)
         return id == 0x3e || id == 0x3f;
     if (actors->stage_id == 7)
@@ -527,7 +540,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                         (Sint16)SDL_max(-32768, recipient->state.hit_points - (damage & 0x3fff));
                     if (recipient->state.hit_points <= 0)
                     {
-                        recipient->state.flags |= 0x100;
+                        recipient->state.flags |= 0x10c100;
+                        recipient->state.flags &= ~0x20000000U;
                         if ((recipient->state.flags & 0x1000) && actors->combat.kills < 999999)
                             ++actors->combat.kills;
                         if (actors->character != NULL)
@@ -551,8 +565,40 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                         }
                     }
                 }
-                if (!(recipient->state.flags & (0x400000 | 0x100)))
+                if (recipient->state.hit_points != 0x7fff &&
+                    !(recipient->state.flags & (0x400000 | 0x100)))
                     recipient->stun = source.attack.stun_frames;
+            }
+            if (actors->stage_id == 0 && actor->state.id == 0x3d)
+            {
+                const Uint32 part = actor->state.parameters;
+                if (part > 11 || actor->slot < part ||
+                    actor->slot - part + 11 >= SOTN_STAGE_ACTOR_SLOTS)
+                    return SDL_SetError("Stone Rose contact has an invalid segment chain");
+                const Uint32 base = actor->slot - part;
+                if (actor->state.hit_points == 0x7fff)
+                {
+                    actor->hit_flags = 0x10;
+                }
+                for (Uint32 i = 0; i < 12; ++i)
+                {
+                    Actor *peer = &actors->slots[base + i];
+                    if (peer == actor || peer->state.id != 0x3d || !peer->state.generation)
+                        continue;
+                    if (actor->state.hit_points != 0x7fff || peer->state.hit_points == 0x7fff)
+                        peer->cooldown[hand] =
+                            (Uint8)SDL_min(255U, source.attack.invincibility_frames +
+                                                     (peer->slot > actor->slot ? 1U : 0U));
+                    if (actor->state.hit_points != 0x7fff)
+                    {
+                        peer->stun = actor->stun;
+                        if (actor->state.flags & 0x100)
+                        {
+                            peer->state.flags |= 0x10c100;
+                            peer->state.flags &= ~0x20000000U;
+                        }
+                    }
+                }
             }
             return true;
         }
@@ -574,6 +620,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                    (actor->state.id == 0x1a || actor->state.id == 0x25))) &&
                  actor->attack > actors->combat.contact_damage)
         {
+            if (actors->stage_id == 0 && actor->state.id == 0x4b)
+                actor->hit_flags |= 0x80;
             actors->combat.contact_damage = actor->attack;
             actors->combat.contact_x = target.x;
             actors->combat.contact_velocity = actor->vx;
@@ -1043,6 +1091,50 @@ static bool RelicOrb(SotnActors *s, Actor *a)
     return SDL_SetError("Relic orb entered an unsupported state");
 }
 
+bool ActorExplosionTick(SotnActors *actors, Actor *actor)
+{
+    Uint8 animation = 0;
+    const Uint16 kind = actor->state.parameters & 15;
+    SotnDataView table = {0};
+    if (kind > 4 ||
+        !Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
+               &table))
+        return SDL_SetError("ActorExplosion references an invalid runtime type");
+    if (actor->state.step == 0)
+    {
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbe0, 0xac4, 0xa54)))
+            return false;
+        actor->state.animation_set = 2;
+        actor->state.blend_mode = 0x30;
+        if (actor->state.parameters & 0xf0)
+        {
+            actor->state.palette = 0x8195;
+            actor->state.blend_mode = 0x10;
+        }
+        if (actor->state.parameters & 0xff00)
+            actor->state.priority = (Uint16)(actor->state.parameters >> 8);
+        actor->state.parameters = kind;
+        return true;
+    }
+    if (!Slice(actors->nz0, ActorTable(actors, 0x1da8, 0x24f4, 0x1e80) + (size_t)kind * 4, 4,
+               &table))
+        return false;
+    const Uint32 bits = Read32(table.bytes);
+    const Sint32 velocity =
+        bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
+    actor->state.y += velocity;
+    if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
+               &table))
+        return false;
+    if (Read32(table.bytes) < 0x80180000)
+        return SDL_SetError("Explosion animation address is invalid");
+    if (!ActorAnimate(actors, actor, Read32(table.bytes) - 0x80180000, &animation))
+        return false;
+    if (animation == 0)
+        actor->remove = true;
+    return true;
+}
+
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
@@ -1054,47 +1146,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         return ActorEarlyCastle(actors, actor);
     switch (actor->state.id)
     {
-    case 2: {
-        const Uint16 kind = actor->state.parameters & 15;
-        SotnDataView table = {0};
-        if (kind > 4 ||
-            !Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
-                   &table))
-            return SDL_SetError("ActorExplosion references an invalid runtime type");
-        if (actor->state.step == 0)
-        {
-            if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbe0, 0xac4, 0xa54)))
-                return false;
-            actor->state.animation_set = 2;
-            actor->state.blend_mode = 0x30;
-            if (actor->state.parameters & 0xf0)
-            {
-                actor->state.palette = 0x8195;
-                actor->state.blend_mode = 0x10;
-            }
-            if (actor->state.parameters & 0xff00)
-                actor->state.priority = (Uint16)(actor->state.parameters >> 8);
-            actor->state.parameters = kind;
-            return true;
-        }
-        if (!Slice(actors->nz0, ActorTable(actors, 0x1da8, 0x24f4, 0x1e80) + (size_t)kind * 4, 4,
-                   &table))
-            return false;
-        const Uint32 bits = Read32(table.bytes);
-        const Sint32 velocity =
-            bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
-        actor->state.y += velocity;
-        if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
-                   &table))
-            return false;
-        if (Read32(table.bytes) < 0x80180000)
-            return SDL_SetError("Explosion animation address is invalid");
-        if (!ActorAnimate(actors, actor, Read32(table.bytes) - 0x80180000, &animation))
-            return false;
-        if (animation == 0)
-            actor->remove = true;
-        return true;
-    }
+    case 2:
+        return ActorExplosionTick(actors, actor);
     case 3:
         return Prize(actors, actor, player);
     case 0xa:
@@ -1477,9 +1530,25 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
                 (x < -64 || x > 320 || y < -64 || y > 288))
                 continue;
         }
-        Actor next = *actor;
-        if (!Hit(actors, &next, actors->player))
+    }
+    /* The original engine runs HitDetection over the stage before Update. Linked
+     * actors must all observe this tick's contacts before any behavior clears them. */
+    for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
+    {
+        Actor *actor = &actors->slots[i];
+        if (actor->state.generation != 0 && !Hit(actors, actor, actors->player))
             return false;
+    }
+    for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
+    {
+        Actor *actor = &actors->slots[i];
+        if (actor->state.generation == 0)
+            continue;
+        const Sint32 x = Pixel(actor->state.x) - camera_x, y = Pixel(actor->state.y) - camera_y;
+        if (actor->state.step != 0 && (actor->state.flags & 0x20000000) &&
+            !(actor->state.flags & 0x10000000) && (x < -64 || x > 320 || y < -64 || y > 288))
+            continue;
+        Actor next = *actor;
         if (next.state.id == 3 && next.timer != 0)
             --next.timer;
         bool frozen = false;

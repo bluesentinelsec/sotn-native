@@ -155,3 +155,10 @@ target_include_directories(sotn-stage-profile-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-stage-profile-tests PRIVATE sotn-core)
 add_test(NAME early-castle-profiles COMMAND sotn-stage-profile-tests)
 set_tests_properties(early-castle-profiles PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-marble-enemy-tests test_marble_enemies.c)
+sotn_configure_c_target(sotn-marble-enemy-tests)
+target_include_directories(sotn-marble-enemy-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-marble-enemy-tests PRIVATE sotn-core)
+add_test(NAME marble-gallery-enemies COMMAND sotn-marble-enemy-tests)
+set_tests_properties(marble-gallery-enemies PROPERTIES TIMEOUT 20)
