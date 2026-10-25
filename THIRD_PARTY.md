@@ -208,3 +208,9 @@ BO4 resource/common-table adapters follow the stage's `header.c`, `e_init.c`,
 reconstructed revision (AGPL-3.0-or-later). Only addresses, dimensions, filenames
 and checksums are public metadata. [Arena scope](docs/doppleganger-arena.md)
 records the disabled travel gate and unintegrated boss runtime.
+
+The BO4 packed-sheet path in `modules/render/actor_graphics.c` adapts the sheet
+branch in `src/dra/4B758.c` and the boss header/spritesheet metadata at the pinned
+reconstructed revision (AGPL-3.0-or-later). Pixels and tables remain private.
+[Sprite scope](docs/doppleganger-sprites.md) records unbacked skipped definitions
+and the remaining modified-VRAM/transform/GPU parity work.

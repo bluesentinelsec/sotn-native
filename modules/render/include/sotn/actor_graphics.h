@@ -53,17 +53,17 @@ bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *graphics, Uint32 offset, 
 bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
                                   SotnEquipment equipment);
 /**
- * @brief Draw original common/stage multipart sprites into the shared RGB555 frame.
+ * @brief Draw supported common/stage sprites into the shared RGB555 frame.
  * @param graphics Borrowed initialized texture memory and immutable source images.
- * @param sprite Original sprite attributes; frame zero is hidden.
+ * @param sprite Original sprite attributes; a zero low-15-bit frame is hidden.
  * @param x Screen-space actor anchor in pixels.
  * @param y Screen-space actor anchor in pixels.
  * @param frame Borrowed writable full framebuffer, not overlapping graphics or source images.
  * @param count Available pixels, at least SOTN_FRAME_PIXELS.
  * @return True on success, false with SDL_GetError() and unchanged frame for invalid references.
  * @note Preserves pivots, mirroring, part cropping, texture/palette lookup, transparency,
- * and blend arithmetic. Packed Alucard sheets, transforms, and full GPU ordering are separate
- * paths.
+ * and blend arithmetic. BO4 body/bat packed sheets are supported; normal Alucard,
+ * modified-VRAM sheet effects and full GPU ordering remain separate paths.
  */
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count);

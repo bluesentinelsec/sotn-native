@@ -342,3 +342,9 @@ private room/art/audio and common tables, with explicit missing-map failures.
 Its profile is disconnected from ordinary travel and has no saves; the public
 CLI does not expose a BO4 gameplay start. Boss/intro/reward actors remain
 unsupported. An adapter/room diagnostic is not an implemented boss encounter.
+
+[BO4 packed sprites](docs/doppleganger-sprites.md) now resolve body/bat sheets,
+pivots and palettes with checked native sampling. Private graphics checks cover
+217 backed body/16 bat frames and skip 46 unbacked definitions; they do not validate
+boss gameplay. Modified-VRAM dissolution, full transform/GPU parity and the boss
+runtime remain unfinished. The arena stays disconnected.
