@@ -151,6 +151,12 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return ActorCamera(s, a);
     case 6:
         return ActorIntenseExplosion(s, a);
+    case 0x14:
+    case 0x15:
+        return ActorOuterEffect(s, a);
+    case 0x27:
+    case 0x28:
+        return ActorChapelCornerGuard(s, a);
     case 0x35:
         return WingedGuard(s, a);
     case 0x32:

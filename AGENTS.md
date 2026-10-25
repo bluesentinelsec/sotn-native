@@ -415,3 +415,9 @@ Selected [Chapel Bone Halberd combat](docs/chapel-halberd.md) now includes its o
 weapon, movement/spin/jump/lunge and nine-part death using private original tables.
 Travel remains disabled; other enemies, tower exits/bells/spikes, scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.
+
+Selected [Chapel Corner Guard combat](docs/chapel-corner-guard.md) now includes
+stair-bound movement, original directional attacks, owned weapon contact, selected
+dust and private sprite-part death. Its remembered movement direction is separate
+from sprite facing. Chapel travel/progression remains gated; controlled component
+fixtures do not establish whole-route or console parity.

@@ -85,3 +85,7 @@ whole-stage or console parity. Both Debug and sanitizer native checks pass.
 Selected [Bone Halberd combat](chapel-halberd.md) now adds original ground attacks,
 jump/lunge, an owned weapon hitbox and nine-piece death. Remaining enemy families,
 mechanisms, scripts and connected Chapel progression still need integration.
+
+Selected [Corner Guard combat](chapel-corner-guard.md) now adds original stair
+movement, directional slash/lunge, an owned weapon, selected dust and sprite-part
+death. The Chapel profile remains internal and disconnected from normal travel.

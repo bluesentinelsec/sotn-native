@@ -23,6 +23,7 @@ typedef struct ActorPrimitive
 {
     SotnActorPrimitive state;
     Sint32 vx, vy;
+    Sint16 corner_angle;
     Uint32 owner;
     Uint16 timer, phase;
     struct
@@ -112,6 +113,11 @@ typedef struct Actor
         Uint16 timer, interval, lunge_timer;
         bool movement_facing;
     } halberd;
+    struct
+    {
+        Uint16 timer;
+        bool previous_left, movement_left;
+    } corner;
     struct
     {
         Sint32 target[4];
@@ -446,6 +452,10 @@ bool ActorChapelCrow(SotnActors *actors, Actor *actor);
  * @param actors Borrowed Chapel owner. @param actor Borrowed supported slot.
  * @return Success or SDL error for invalid state/data/ownership or bounded motion. */
 bool ActorChapelHalberd(SotnActors *actors, Actor *actor);
+/** @brief Advance selected original Chapel stair guard, linked weapon and death pieces.
+ * @param actors Borrowed stage-6 owner. @param actor Borrowed supported slot.
+ * @return Success or SDL error for invalid private data, state, ownership or motion. */
+bool ActorChapelCornerGuard(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
