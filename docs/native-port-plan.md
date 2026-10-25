@@ -17,9 +17,11 @@ the Wall elevator. The fifty-stage catalog remains a resource diagnostic, not fi
 playable stages. The native Continue shell and exploration map also remain selected
 adaptations, with original title/new-game flow incomplete.
 
-This is not a complete authentic game. Doppleganger and its boss-stage transfer,
-several Wall/return-Entrance encounters and mechanisms, further stages, prologue
-initialization and full audiovisual/timing parity remain incomplete. Read the
+Selected Doppleganger combat/transfer/reward and connected Long Library travel,
+Lesser Demon, Librarian buy/sell and furnishings now run. The
+[Royal Chapel foundation](chapel-runtime.md) remains internal and disconnected.
+This is not a complete authentic game. Further stages, complete area actors/scripts,
+prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,
 and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
 [map](castle-map.md), and [session flow](native-session-flow.md).

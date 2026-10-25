@@ -63,7 +63,7 @@ bool ActorLibrary(SotnActors *s, Actor *a)
     if (a->state.id == 0x1a)
         return ActorLibraryShelf(s, a);
     if (a->state.id == 8 || a->state.id == 0x11)
-        return ActorLibraryObject(s, a);
+        return ActorRoomDecoration(s, a);
     if (a->state.id == 1 || a->state.id == 0x3d || a->state.id == 0x3f || a->state.id == 0x47)
         return ActorLibraryBreakable(s, a);
     if ((a->state.id >= 0x23 && a->state.id <= 0x25) || a->state.id == 0x2b || a->state.id == 0x2c)

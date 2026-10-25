@@ -2,31 +2,33 @@
 // Selected st/e_room_bg.h and e_room_fg.h at sotn-decomp 7bc54d8157b6.
 // Original ObjInit/ObjInit2 records and animations remain private runtime inputs.
 #include "actors_internal.h"
-bool ActorLibraryObject(SotnActors *s, Actor *a)
+bool ActorRoomDecoration(SotnActors *s, Actor *a)
 {
-    if (!s || !a || s->stage_id != 2 || (a->state.id != 8 && a->state.id != 0x11))
-        return SDL_SetError("Library decoration requires its own foreground/background actor");
+    if (!s || !a || (s->stage_id != 2 && s->stage_id != 6) ||
+        (a->state.id != 8 && a->state.id != 0x11))
+        return SDL_SetError("Room decoration requires its own foreground/background actor");
     const bool foreground = a->state.id == 8;
-    const Uint16 count = foreground ? 6 : 8;
-    const size_t table = foreground ? 0x2094 : 0xa28;
+    const bool chapel = s->stage_id == 6;
+    const Uint16 count = foreground ? 6 : chapel ? 1 : 8;
+    const size_t table = foreground ? (chapel ? 0x1b14 : 0x2094) : (chapel ? 0xac8 : 0xa28);
     SotnDataView record = {0};
     if (a->state.parameters >= count ||
         !Slice(s->nz0, table + a->state.parameters * 20U, 20, &record))
-        return SDL_SetError("Library decoration index exceeds its private initialization table");
+        return SDL_SetError("Room decoration index exceeds its private initialization table");
     const Uint8 *p = record.bytes;
     const Uint32 animation = Read32(p + 16);
     const Uint16 draw_flags = Read16(p + 8);
     if (Read16(p + 2) > 511 || (Read16(p + 6) & 0x7fffU) >= 0x300U || draw_flags ||
         animation < 0x80180000 || (animation & 1U))
         return SDL_SetError(
-            "Library decoration has an invalid priority, palette, draw flags or animation");
+            "Room decoration has an invalid priority, palette, draw flags or animation");
     if (!a->state.step)
     {
-        if (!ActorInitialize(s, a, 0x824))
+        if (!ActorInitialize(s, a, chapel ? 0x98c : 0x824))
             return false;
         a->state.animation_set = Read16(p);
         a->state.priority = Read16(p + 2);
-        // US LIB has no BG_FACING_LEFT_FIX: LOH(facingLeft) is the texture-offset word.
+        // US LIB/DAI have no BG_FACING_LEFT_FIX: the low word is the texture offset.
         a->state.texture_offset = Read16(p + 4);
         a->state.palette = Read16(p + 6);
         a->state.blend_mode = Read16(p + 10);

@@ -357,3 +357,10 @@ camera selection follows `st/entity_lock_camera.h`, and shared positional sound
 follows `st/e_misc.h:PlaySfxPositional`, all at the pinned sotn-decomp revision
 (AGPL-3.0-or-later). Animation, launch/range, SDK sine, initialization and audio
 tables remain private runtime inputs. See [scope](docs/chapel-runtime.md).
+
+`modules/core/chapel_breakable.c` adapts selected `st/dai/e_breakable.c`,
+`st/e_breakable_with_debris.h`, `st_common.h:ReplaceBreakableWithItemDrop` and
+`st/prim_helpers.h` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Chapel decoration selection shares the existing `st/e_room_bg.h`/`e_room_fg.h`
+adapter. Debris projection reuses the bounded MPL-2.0 PSY-Z matrix adapter;
+animation/profile/debris-offset and SDK math tables remain private runtime inputs.

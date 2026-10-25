@@ -40,6 +40,7 @@ add_library(sotn-core STATIC
   early_castle.c
   library.c
   chapel.c
+  chapel_breakable.c
   library_shelf.c
   library_shelf_geometry.c
   library_background.c

@@ -1,7 +1,7 @@
 # Royal Chapel runtime foundation
 
 Royal Chapel (DAI, stage 6) now has an internal native resource profile, selected
-shared services, Winged Guards and non-inverted Bats. Connected travel remains
+shared services, breakables/furnishings, Winged Guards and non-inverted Bats. Connected travel remains
 disabled while its other encounters, mechanisms, Maria event and boss are missing.
 This is not a playable whole-stage or complete-game milestone.
 
@@ -44,10 +44,38 @@ A private LLDB native check starts rooms 2 and 13 explicitly. It uses a protecte
 999-HP/high-strength character, an inserted Bat, the original placed Winged Guard
 spawner and positioned contacts. Ordinary attack inputs complete both deaths,
 including eight Guard pieces, across 56 rendered frames. Both Debug and sanitizer
-checks must exit successfully. Dummy audio exercises ownership/decoding, not an
+checks passed with successful exits. Dummy audio exercises ownership/decoding, not an
 auditory or console-PCM comparison. These fixtures are not ordinary traversal,
 whole-stage, uninterrupted-route or console parity evidence.
 
-Next integration includes remaining Chapel enemy families, lamps, staircase and
+Next integration includes remaining Chapel enemy families, staircase and
 other mechanisms, scenery, original encounters/progression and connected-route
 validation. Full effects/audio/timing parity and the wider game remain incomplete.
+
+## Breakables and furnishings
+
+All ten retained original breakable profiles now read Chapel animation, height,
+palette, bank, texture, blend, offset and explosion records. Original placed
+layouts use wall flames/sconces and urn/jug profiles; the remaining retained types
+have controlled component coverage, not additional ordinary encounter coverage.
+Tall/short candelabra retain four/three pieces, per-piece explosions, private
+strip indices, randomized velocity, gravity, rotation, floor impact and bounded
+two-primitive reservations. Their equal-depth SDK projection reuses the native
+matrix adapter. A bust leaves its stationary frame; urns/jugs create permanent
+pickups. Ordinary lamp/bust conversion observes Cube of Zoe and the original
+prize/equipment encoding. Missing optional actor/primitive capacity omits effects.
+
+The shared decoration reader now selects Chapel's own single background record,
+six foreground records and common initialization, including selected alternate
+foreground rotation. This does not implement the separate tower, stained-glass,
+cloud, wall or staircase-shadow actors.
+
+All 79 public test groups passed in Debug and macOS ASan/UBSan; packaging passed.
+Synthetic coverage checks every breakable with/without Cube, drop encoding,
+permanent factories, debris motion/impact, primitive exhaustion, static bust,
+decoration selection and rejected indices/pointers. A private native LLDB check
+renders all ten profiles using room 13's original graphics resources and injected
+hit signals, then uses an ordinary 70-HP character to jump/attack the placed
+room-6 lamp and collect its heart drop (10 to 15 hearts, tick 101). The sequence
+renders 46 frames. Controlled retained-type checks are not ordinary placements,
+whole-stage or console parity. Both Debug and sanitizer native checks pass.
