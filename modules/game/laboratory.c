@@ -1085,11 +1085,11 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 }
 
 static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
-                               Sint32 camera_y, Uint32 begin, Uint32 end)
+                               Sint32 camera_y, Uint32 begin, Uint32 limit)
 {
-    if (begin > end || end > actor.primitive_count)
+    if (begin > limit || limit > actor.primitive_count)
         return SDL_SetError("Actor draw range exceeds its owned primitives");
-    for (Uint32 i = begin; i < end; ++i)
+    for (Uint32 i = begin; i < limit; ++i)
     {
         SotnActorPrimitive p = {0};
         if (!SotnActors_GetPrimitive(session->actors, actor.slot, i, &p))
@@ -1340,14 +1340,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (i == draw_count)
             break;
-        const SotnActorDraw item = session->draw_items[i];
-        if (item.actor >= count)
+        const SotnActorDraw command = session->draw_items[i];
+        if (command.actor >= count)
             return SDL_SetError("Actor draw command lost its frame snapshot");
-        const SotnActorState actor = list[item.actor];
-        if (item.kind == SOTN_DRAW_PRIMITIVE)
+        const SotnActorState actor = list[command.actor];
+        if (command.kind == SOTN_DRAW_PRIMITIVE)
         {
-            if (!DrawPrimitiveRange(session, actor, camera_x, camera_y, item.primitive,
-                                    item.primitive + 1U))
+            if (!DrawPrimitiveRange(session, actor, camera_x, camera_y, command.primitive,
+                                    command.primitive + 1U))
                 return ActorDrawError(actor);
             continue;
         }
@@ -1390,7 +1390,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             return false;
         const SotnActorSprite sprite = {actor.animation_set,  actor.frame,      actor.palette,
                                         actor.texture_offset, actor.blend_mode, actor.facing_left};
-        if (item.kind == SOTN_DRAW_ACTOR &&
+        if (command.kind == SOTN_DRAW_ACTOR &&
             !DrawActorPrimitives(session, actor, camera_x, camera_y))
             return ActorDrawError(actor);
         if (!SotnActorGraphics_DrawTransform(
