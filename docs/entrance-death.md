@@ -17,12 +17,13 @@ lldb -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data l
 ```
 
 Enter `run`. If a crash stops the process, use `thread backtrace all`.
-This explicit room start uses the existing 70-HP Gladius development character.
+This explicit room start now uses the original [opening equipment](opening-equipment.md)
+with the existing 70-HP/base-stats development profile.
 It is not the original new game or a prologue-derived starting loadout. Death
 removes one copy of each original targeted item, preferring an equipped copy over
 inventory; he leaves unrelated equipment and resources intact. An item need not
-be owned for its original cutscene icon to appear. Starting equipment and its
-remaining weapon/shield behaviors still require their own integration.
+be owned for its original cutscene icon to appear. Ordinary starting sword/shield behavior is integrated; command attacks and
+shield-rod spells remain incomplete.
 
 The bounded script service reads original event/flag/sound/text/portrait commands
 without executing machine code. It validates offsets, flags, slots, text capacity,

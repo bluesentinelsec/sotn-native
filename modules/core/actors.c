@@ -434,7 +434,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnPlayerState source = player;
         if (channel < 2)
         {
-            if (channel != (player.attack.right_hand ? 1U : 0U))
+            if (player.shield.equipment != 0 && channel == (player.shield.right_hand ? 1U : 0U))
+                source.attack = player.shield;
+            else if (channel != (player.attack.right_hand ? 1U : 0U))
                 continue;
         }
         else
@@ -464,6 +466,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         {
             Uint16 stats[4] = {6, 6, 6, 6};
             Uint16 luck = 6;
+            bool dragon_helm = false;
             if (actors->character != NULL)
             {
                 SotnCharacterStats attributes = {0};
@@ -472,12 +475,29 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     return false;
                 SDL_memcpy(stats, progress.base, sizeof(stats));
                 luck = attributes.total[3];
+                dragon_helm = progress.equipment[SOTN_EQUIP_HEAD] == 45;
             }
             Uint16 damage = 0;
+            SotnCombatEnemy enemy = recipient->enemy;
+            if (dragon_helm)
+                enemy.defense /= 2;
+            if (source.attack.equipment == 16)
+            {
+                actor->hit_flags = 0x10;
+                actor->hit_params = 1;
+                actor->cooldown[hand] = source.attack.invincibility_frames;
+                // Original shields destroy blockable projectiles without dealing enemy damage.
+                if (actor->state.hitbox_state & 8)
+                {
+                    recipient->state.hit_points = 0;
+                    recipient->state.flags |= 0x100;
+                }
+                return true;
+            }
             if (recipient->state.hit_points != 0x7fff && recipient->state.hit_points != 0 &&
-                !SotnCombat_DamageAttributes(recipient->enemy, source.attack.power,
-                                             source.attack.element, source.attack.critical_rate,
-                                             stats, luck, 1, &actors->combat_random, &damage))
+                !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
+                                             source.attack.critical_rate, stats, luck, 1,
+                                             &actors->combat_random, &damage))
                 return false;
             actor->hit_flags = source.attack.hit_type;
             recipient->hit_flags = source.attack.hit_type;

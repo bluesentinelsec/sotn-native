@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <sotn/equipment.h>
 #include <sotn/player.h>
+#include <sotn/shield.h>
 
 typedef union PlayerFixed {
     Sint32 value;
@@ -39,7 +40,9 @@ struct SotnPlayer
     SotnSubweapons *subweapons;
     bool subweapon_cast;
     Uint16 subweapon_animation;
-    SotnPlayerAttack attack;
+    SotnPlayerAttack attack, shield;
+    SotnShield shield_cursor;
+    Uint16 shield_button;
     SotnDataView weapons;
     SotnEquipment attack_equipment;
     Uint16 equipment[2];

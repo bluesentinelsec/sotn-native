@@ -102,6 +102,19 @@ int main(void)
     for (Uint32 i = 0; i < 4; ++i)
         CHECK(s.body_count[stolen_body[i]] == 0);
     CHECK(!SotnCharacter_DeathTheft(NULL));
+    bytes[0x4000 + 45 * 32 + 28] = 0;
+    bytes[0x4000 + 56 * 32 + 28] = 2;
+    bytes[0x4000 + 78 * 32 + 28] = 3;
+    CHECK(SotnCharacter_OpeningGear(c));
+    CHECK(SotnCharacter_Get(c, &s, NULL));
+    CHECK(s.equipment[0] == 123 && s.equipment[1] == 16 && s.equipment[2] == 45 &&
+          s.equipment[3] == 15 && s.equipment[4] == 56 && s.equipment[5] == 78);
+    CHECK(SotnCharacter_DeathTheft(c));
+    CHECK(SotnCharacter_Get(c, &s, NULL));
+    CHECK(s.equipment[0] == 0 && s.equipment[1] == 0 && s.equipment[2] == 26 &&
+          s.equipment[3] == 0 && s.equipment[4] == 48 && s.equipment[5] == 57);
+    CHECK(s.hand_count[123] == 1 && s.hand_count[16] == 1);
+    CHECK(!SotnCharacter_OpeningGear(NULL));
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

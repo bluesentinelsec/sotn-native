@@ -7,7 +7,7 @@ preserves the original experience and creates a foundation for later improvement
 The C17 SDL3 app includes a limited Laboratory actor checkpoint, not a complete
 working game port. `--laboratory` launches our executable with runtime data;
 `--laboratory-room 3` selects the zombie corridor. Selected actors animate and
-Bloody Zombies run active motion/attack animations. Selected empty-hand and Basilard/Gladius/Mace combat, physical damage, candle drops, and collection are
+Bloody Zombies run active motion/attack animations. Selected empty-hand, Basilard/Gladius/Mace and ordinary Alucard sword/shield combat, physical damage, candle drops, and collection are
 integrated; read [combat scope](docs/laboratory-combat.md). Other equipped weapons,
 complete effects/audio, castle scripts, full map parity, and full progression remain incomplete.
 Its original `modules/data/` library validates private core files; read
@@ -225,3 +225,9 @@ Wargs and additional later-Entrance enemies remain unintegrated.
 [Connected stages](docs/connected-stages.md) now travel Entrance → Laboratory →
 later Entrance with character/world/time/RNG retention and stage-aware saves. Keep stage identities
 and original actor IDs distinct; do not describe the Entrance as complete.
+
+[Original opening equipment](docs/opening-equipment.md) now equips the first Entrance
+checkpoint with Alucard's six original items and integrates ordinary sword/shield
+behavior, Dragon Helm defense reduction, Twilight glow, and actual equipped theft.
+Prologue-derived stats, starting relics, command attacks, shield-rod spells and full
+presentation remain incomplete; do not call this original new-game initialization.

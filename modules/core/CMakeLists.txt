@@ -46,6 +46,8 @@ add_library(sotn-core STATIC
   entrance_death.c
   include/sotn/dialogue.h
   combat.c
+  shield.c
+  include/sotn/shield.h
   equipment.c
   include/sotn/equipment.h
   save_point.c

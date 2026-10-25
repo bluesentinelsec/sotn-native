@@ -78,6 +78,11 @@ bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not
  * mutate state. */
 bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
+/** @brief Install the original first-Entrance equipment on a fresh character.
+ * @param character Fresh owner before play; replaces the seven equipment slots atomically.
+ * @return Success or SDL error. Resources and prologue-derived stats remain caller-owned.
+ * @note This is equipment initialization, not a complete title/prologue/new-game flow. */
+bool SotnCharacter_OpeningGear(SotnCharacter *character);
 /** @brief Apply Death's original six-item theft, preferring an equipped copy over inventory.
  * @param character Borrowed owner. @return Success or SDL error, with unchanged state on failure.
  * Does not remove unrelated equipment, resources, or additional inventory copies.
