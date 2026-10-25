@@ -97,10 +97,14 @@ static int Direction(SotnPlayer *player)
 
 static void Land(SotnPlayer *player, Sint32 speed)
 {
-    const bool ledge = (player->contact & 0x20) != 0;
+    const bool raised = player->shield_cursor.phase != 0 && player->shield_cursor.phase < 3 &&
+                        (player->buttons & player->shield_button);
+    const bool ledge = !raised && (player->contact & 0x20) != 0;
     player->vx = speed;
     player->vy = 0;
     SetStep(player, SOTN_PLAYER_STAND);
+    if (raised)
+        player->substep = 2;
     Uint16 animation = ledge ? 3 : 4;
     if (player->previous_step == SOTN_PLAYER_WALK)
     {
@@ -269,6 +273,18 @@ static bool StartAttack(SotnPlayer *player)
         player->failed = true;
         return true;
     }
+    if (equipment.kind == 128)
+    {
+        player->shield_button = hand == 0 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
+        if (player->step == SOTN_PLAYER_STAND)
+        {
+            player->substep = 2;
+            Animate(player, (Uint16)(0x63 + ((player->contact & 0x20) ? 1 : 0)));
+        }
+        else if (player->step == SOTN_PLAYER_CROUCH)
+            Animate(player, 0x65);
+        return true;
+    }
     player->subweapon_cast = false;
     player->attack_equipment = equipment;
     Sint32 critical = equipment.critical_rate;
@@ -310,6 +326,46 @@ static bool StartAttack(SotnPlayer *player)
     player->attack_lock = equipment.lock;
     player->attack_button =
         pressed == SOTN_BUTTON_RIGHT_HAND ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
+    return true;
+}
+
+static bool TickShield(SotnPlayer *player)
+{
+    Uint16 button = player->shield_button;
+    if (button == 0)
+        button = player->equipment[0] == 16 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
+    const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
+    const bool disabled = player->equipment[hand] != 16 || player->step == SOTN_PLAYER_KILL ||
+                          player->step == SOTN_PLAYER_HIT;
+    if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
+                         player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
+                         disabled, &player->shield_cursor))
+        return false;
+    const SotnWeaponFrame f = player->shield_cursor.frame;
+    player->shield = (SotnPlayerAttack){.offset_x = f.x,
+                                        .offset_y = f.y,
+                                        .width = f.width,
+                                        .height = f.height,
+                                        .sprite = f.sprite,
+                                        .active = f.width != 0 && f.height != 0,
+                                        .equipment = player->shield_cursor.phase ? 16 : 0,
+                                        .right_hand = hand != 0,
+                                        .hit_type = 4,
+                                        .hit_effect = 1,
+                                        .invincibility_frames = 6,
+                                        .power = 1};
+    if (player->step == SOTN_PLAYER_CROUCH && player->attack_mode == 0)
+    {
+        const bool raised = player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2;
+        if (raised && player->animation.id == 17)
+        {
+            player->animation.id = 0x65;
+            player->animation.remaining = 2;
+            player->animation.pose = 3;
+        }
+        else if (!raised && player->animation.id == 0x65)
+            Animate(player, 17);
+    }
     return true;
 }
 
@@ -480,6 +536,15 @@ static void StandTick(SotnPlayer *player)
             ClearAttack(player);
         }
         return;
+    }
+    if (player->substep == 2)
+    {
+        if (!(player->buttons & player->shield_button))
+            Land(player, 0);
+        else if (player->animation.id != 10 && player->animation.id != 11 &&
+                 player->animation.id != 14 && player->animation.id != 15 &&
+                 player->animation.id != 0x63)
+            Animate(player, 0x63);
     }
     if (player->substep == 1 && !(player->buttons & SOTN_BUTTON_UP))
         Land(player, 0);
@@ -822,7 +887,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     default:
         return SDL_SetError("Unsupported Alucard movement state");
     }
-    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next))
+    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next) ||
+        !TickShield(&next))
         return false;
     if (next.step == SOTN_PLAYER_KILL)
     {
@@ -893,6 +959,9 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
     player->weapons = weapons;
     player->equipment[0] = left;
     player->equipment[1] = right;
+    player->shield_cursor = (SotnShield){0};
+    player->shield = (SotnPlayerAttack){0};
+    player->shield_button = 0;
     return true;
 }
 
@@ -937,7 +1006,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                                  player->step != SOTN_PLAYER_HIT,
                              player->damage_random,
                              (Uint16)SDL_max(0, player->wall_sensors[0].x),
-                             (Uint16)SDL_max(0, player->floor_sensors[1].y - 1)};
+                             (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
+                             player->shield};
     return true;
 }
 

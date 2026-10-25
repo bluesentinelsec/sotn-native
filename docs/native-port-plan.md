@@ -16,7 +16,9 @@ features; earlier isolated comparison checkouts are source material only.
 
 This is not a complete authentic game. The fifty-stage catalog verifies resources
 and parses rooms; it does not implement those stages' actors, scripts, or gameplay
-transitions. Native gameplay remains limited to Laboratory. Read
+transitions. Native gameplay now includes selected Entrance/Laboratory paths and their connection.
+The next approved batch targets original opening gear, progression-critical gaps,
+Marble Gallery/Outer Wall, and a continuous-route check. Read
 [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
 [map](castle-map.md), and [session flow](native-session-flow.md).
 
@@ -103,7 +105,7 @@ reference executable as this project.
 
 ## Next game-integration batches
 
-1. Bring up the initial Castle Entrance in this executable: stage-specific actors,
+1. Extend the initial Castle Entrance in this executable: stage-specific actors,
    entry/camera/audio behavior, and the Death event. Reuse verified stage assets;
    do not route players into an empty geometry-only area and claim it is complete.
 2. Integrate original cross-stage routing and stage-aware ordinary progression,

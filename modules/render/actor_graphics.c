@@ -229,7 +229,9 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     SotnDataView overlay = {0}, pointer = {0}, colors = {0};
     if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
         return false;
-    const Uint32 address = equipment.family == 0    ? 0x8017b0bcU
+    const Uint32 address = equipment.family == 43   ? 0x8017b044U
+                           : equipment.family == 52 ? 0x8017ac1cU
+                           : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                                                     : 0x8017abd4U;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||

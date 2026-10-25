@@ -54,6 +54,8 @@ struct SotnLaboratory
     SotnHud *hud;
     SotnCharacter *character;
     Uint8 player_common[0x42000];
+    Uint16 cape_glow_target;
+    Uint8 cape_glow_delay;
     Uint16 cape;
     bool palette_ready;
     SotnInventoryMenu menu;
@@ -303,6 +305,10 @@ static bool ApplyCharacter(SotnLaboratory *session)
     if (!session->palette_ready || session->cape != state.equipment[4])
     {
         Uint16 colors[4] = {0};
+        const Uint8 *base = session->palette_ready ? session->player_common
+                                                   : SotnResource_View(session->common).bytes;
+        for (Uint32 i = 0; i < 4; ++i)
+            colors[i] = (Uint16)(base[0x4000c + i * 2] | (Uint16)base[0x4000d + i * 2] << 8);
         if (!SotnAlucard_CapePalette(session->dra, state.equipment[4], colors))
             return false;
         if (!session->palette_ready)
@@ -313,11 +319,32 @@ static bool ApplyCharacter(SotnLaboratory *session)
             session->player_common[0x40000 + (6 + i) * 2] = (Uint8)colors[i];
             session->player_common[0x40000 + (6 + i) * 2 + 1] = (Uint8)(colors[i] >> 8);
         }
+        session->cape_glow_target = 0;
+        session->cape_glow_delay = 0;
         session->cape = state.equipment[4];
         session->palette_ready = true;
     }
     session->mp = state.mp;
     return SotnPlayer_SetCharacter(session->player, &state, stats);
+}
+
+static bool TickCape(SotnLaboratory *session)
+{
+    if (session->cape != 56)
+        return true;
+    Uint16 colors[4] = {0};
+    for (Uint32 i = 0; i < 4; ++i)
+        colors[i] = (Uint16)(session->player_common[0x4000c + i * 2] |
+                             (Uint16)session->player_common[0x4000d + i * 2] << 8);
+    if (!SotnAlucard_TwilightTick(session->dra, colors, &session->cape_glow_target,
+                                  &session->cape_glow_delay))
+        return false;
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        session->player_common[0x4000c + i * 2] = (Uint8)colors[i];
+        session->player_common[0x4000d + i * 2] = (Uint8)(colors[i] >> 8);
+    }
+    return true;
 }
 
 // dra/5087C.c:func_800F2014. Map drawing/secret-wall pixels remain a separate renderer.
@@ -581,6 +608,22 @@ static bool PrimeAudio(SotnLaboratory *session)
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot);
 
+static bool InitializeEquipment(SotnLaboratory *session, const SotnSaveState *saved)
+{
+    if (saved != NULL || session->stage_id != 65)
+        return SotnLaboratory_SetEquipment(session, 86, 0);
+    if (!SotnCharacter_OpeningGear(session->character))
+        return false;
+    if (session->room_index > 11)
+    {
+        if (!SotnCharacter_DeathTheft(session->character))
+            return false;
+        session->world.flags[SOTN_ENTRANCE_DEATH] = 1;
+        session->world.flags[SOTN_ENTRANCE_ON] = 1;
+    }
+    return ApplyCharacter(session);
+}
+
 static bool ValidateStart(const SotnLaboratory *session, SessionStart start)
 {
     if (session->room.transition)
@@ -671,7 +714,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             session->dra, session->nz0,
             (SotnTileSources){StageGraphics(session), SotnResource_View(session->common)},
             &session->actor_graphics) ||
-        !SotnLaboratory_SetEquipment(session, 86, 0) ||
+        !InitializeEquipment(session, saved) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
@@ -703,8 +746,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
             "and version-five saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
-        SDL_Log(
-            "Development profile: 70 HP, base stats 6, Gladius in left hand, Cube of Zoe enabled.");
+        SDL_Log("Development entry: original Entrance equipment when applicable; "
+                "70 HP, base stats 6. Prologue results and relic initialization remain separate.");
     *out = session;
     return true;
 }
@@ -861,7 +904,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->dirty = true;
         return true;
     }
-    if (!TickActors(session) ||
+    if (!TickActors(session) || !TickCape(session) ||
         !SotnCharacter_TickResources(session->character, session->simulation_ticks) ||
         !TickSaveRoom(session, buttons))
         return false;
@@ -985,15 +1028,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     {
         if (!weapon_drawn && (i == count || list[i].priority < 0x92))
         {
-            if (player.attack.equipment != 0 && player.attack.sprite != 0)
+            const SotnPlayerAttack hands[] = {player.attack, player.shield};
+            for (Uint32 hand = 0; hand < SDL_arraysize(hands); ++hand)
             {
-                const bool right = player.attack.right_hand;
+                const SotnPlayerAttack item = hands[hand];
+                if (item.equipment == 0 || item.sprite == 0)
+                    continue;
+                const bool right = item.right_hand;
                 const SotnActorSprite weapon = {
                     .animation_set = right ? 18 : 16,
-                    .frame = player.attack.sprite,
+                    .frame = item.sprite,
                     .palette = (Uint16)(right ? 0x128 : 0x110),
                     .texture_offset = (Uint16)(right ? 0x66 : 0x64),
-                    .blend_mode = (Uint16)(player.attack.equipment == 86 ? 0x30 : 0),
+                    .blend_mode =
+                        (Uint16)(item.equipment == 86 || item.equipment == 123 ? 0x30 : 0),
                     .facing_left = player.facing_left};
                 if (!SotnActorGraphics_Draw(session->actor_graphics, weapon,
                                             Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,

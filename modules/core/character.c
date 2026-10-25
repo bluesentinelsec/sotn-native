@@ -61,9 +61,9 @@ static bool IsEmpty(bool body, Uint16 id)
 static bool BodySupported(Uint16 id)
 {
     /* These ordinary records need no unintegrated passive/transform services. */
-    return id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 46 || id == 47 || id == 48 ||
-           id == 49 || id == 51 || id == 57 || (id >= 63 && id <= 73) || id == 76 || id == 77 ||
-           id == 79 || id == 82 || id == 85;
+    return id == 15 || id == 45 || id == 56 || id == 78 || id <= 9 || (id >= 26 && id <= 33) ||
+           id == 35 || id == 46 || id == 47 || id == 48 || id == 49 || id == 51 || id == 57 ||
+           (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -82,8 +82,9 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .type = body ? Read16(p + 28) : 0,
                      .icon = Read16(p + (body ? 24 : 44)),
                      .palette = Read16(p + (body ? 26 : 46)),
-                     .supported =
-                         body ? BodySupported(id) : (id == 0 || id == 18 || id == 86 || id == 128)};
+                     .supported = body ? BodySupported(id)
+                                       : (id == 0 || id == 16 || id == 18 || id == 86 ||
+                                          id == 123 || id == 128)};
     if (body)
     {
         if (item.type > 3)
@@ -232,6 +233,19 @@ bool SotnCharacter_Create(SotnDataView dra, SotnCharacter **out)
     *out = c;
     return true;
 }
+bool SotnCharacter_OpeningGear(SotnCharacter *c)
+{
+    if (c == NULL)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    const Uint16 gear[SOTN_EQUIP_SLOTS] = {123, 16, 45, 15, 56, 78, 57};
+    SDL_memcpy(next.state.equipment, gear, sizeof(gear));
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+
 bool SotnCharacter_Get(const SotnCharacter *c, SotnCharacterState *s, SotnCharacterStats *stats)
 {
     if (c == NULL || (s == NULL && stats == NULL))
@@ -249,7 +263,7 @@ bool SotnCharacter_DeathTheft(SotnCharacter *c)
     if (c == NULL)
         return SDL_InvalidParamError("character");
     SotnCharacter next = *c;
-    const Uint16 items[6] = {123, 16, 15, 45, 56, 78};
+    const Uint16 items[6] = {123, 16, 45, 15, 56, 78};
     for (Uint32 i = 0; i < 6; ++i)
     {
         const bool hand = i < 2;

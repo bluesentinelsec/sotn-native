@@ -15,7 +15,8 @@ attribute clamps follow selected reconstructed paths. The native Laboratory
 profile remains explicit: level 1, 70 HP, 20 MP, base stats 6, and 10/50 hearts.
 It is not the original new-game entry.
 
-The supported attack implementations are empty hands, Basilard, Gladius, and Mace.
+The supported attack implementations are empty hands, Basilard, Gladius, Mace, and ordinary Alucard sword/shield.
+The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,

@@ -14,7 +14,7 @@
 
 typedef struct Fixture
 {
-    Uint8 dra[0x11000], weapons[0xe0000], tiles[32 * 16 * 2], types[2];
+    Uint8 dra[0x11000], weapons[0x1a0000], tiles[32 * 16 * 2], types[2];
 } Fixture;
 
 static void Put16(Uint8 *p, Uint16 value)
@@ -53,6 +53,14 @@ static SotnCollisionMap MakeFixture(Fixture *f)
     dagger[17] = 7;
     dagger[18] = 0x6f;
     dagger[21] = 5;
+    Uint8 *sword = f->dra + 0x300 + 123 * 52;
+    SDL_memcpy(sword, f->dra + 0x300 + 86 * 52, 52);
+    sword[15] = 43;
+    Uint8 *shield = f->dra + 0x300 + 16 * 52;
+    SDL_memcpy(shield, sword, 52);
+    shield[15] = 52;
+    shield[17] = 128;
+    shield[18] = 0x63;
     for (Uint32 i = 0; i < 247; ++i)
         Put32(f->dra + 0x101b8 + i * 4, 0x800a3000);
     for (Uint32 pose = 0; pose < 14; ++pose)
@@ -118,6 +126,13 @@ static bool Metadata(Fixture *f)
           equipment.animation == 0x6f);
     CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x6f, 4, 1, &frame) && frame.width == 12 &&
           frame.sprite == 1);
+    CHECK(SotnEquipment_Read(dra, 86, &equipment));
+    CHECK(SotnEquipment_Read(dra, 123, &equipment) && equipment.family == 43);
+    SotnDataView overlay = {0};
+    CHECK(SotnWeapon_Overlay(weapons, equipment, &overlay) && overlay.size == 0x3000);
+    CHECK(SotnEquipment_Read(dra, 16, &equipment) && equipment.kind == 128);
+    CHECK(SotnWeapon_Overlay(weapons, equipment, &overlay));
+    CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x63, 0, 1, &frame));
     CHECK(SotnEquipment_Read(dra, 86, &equipment));
     Put32(f->dra + 0xc0, 0xfffffffc);
     CHECK(!SotnEquipment_Read(dra, 86, &equipment) && equipment.id == 86);

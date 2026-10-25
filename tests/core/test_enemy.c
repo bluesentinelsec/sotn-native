@@ -346,13 +346,55 @@ static bool Spittle(Fixture *f)
     return true;
 }
 
+static bool Shields(Fixture *f)
+{
+    for (Uint32 facing = 0; facing < 4; ++facing)
+    {
+        SotnActors *s = NULL;
+        SotnActorLayout *layout = NULL;
+        CHECK(Open(f, 0x2f, &s, &layout));
+        SotnPlayerState player = {.x = 120 * 65536,
+                                  .y = 135 * 65536,
+                                  .facing_left = (facing & 1) != 0,
+                                  .animation = {.hitbox_width = 8, .hitbox_height = 16}};
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        Actor *bone = &s->slots[0];
+        bone->state.x = (Sint32)((facing & 1) ? 108 : 132) * 65536;
+        bone->state.y = player.y;
+        const bool projectile = facing < 2;
+        bone->state.hitbox_state = projectile ? 13 : 5;
+        const Sint16 hp = bone->state.hit_points;
+        bone->state.hitbox_width = bone->state.hitbox_height = 8;
+        bone->vx = bone->vy = 0;
+        player.shield = (SotnPlayerAttack){.equipment = 16,
+                                           .right_hand = true,
+                                           .active = true,
+                                           .offset_x = 14,
+                                           .width = 4,
+                                           .height = 16,
+                                           .hit_type = 4,
+                                           .hit_effect = 1,
+                                           .invincibility_frames = 6,
+                                           .power = 1};
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        CHECK(s->combat.contact_damage == 0 && s->combat.kills == 0);
+        if (projectile)
+            CHECK(bone->state.generation == 0 || bone->remove || (bone->state.flags & 0x100));
+        else
+            CHECK(bone->state.hit_points == hp && !(bone->state.flags & 0x100));
+        SotnActors_Destroy(s);
+        SotnActorLayout_Close(layout);
+    }
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool good =
-        Skeletons(f, 0x2e) && Skeletons(f, 0x27) && Recovery(f) && Knight(f) && Spittle(f);
+    const bool good = Skeletons(f, 0x2e) && Skeletons(f, 0x27) && Recovery(f) && Knight(f) &&
+                      Spittle(f) && Shields(f);
     SDL_free(f);
     if (!good)
         return 1;

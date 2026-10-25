@@ -27,9 +27,8 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
-    if (out == NULL || (id != 0 && id != 18 && id != 86 && id != 128))
-        return SDL_SetError(
-            "This weapon checkpoint supports empty hands, Basilard, Gladius, and Mace");
+    if (out == NULL || (id != 0 && id != 16 && id != 18 && id != 86 && id != 123 && id != 128))
+        return SDL_SetError("This weapon checkpoint requires an integrated hand item");
     const Uint8 *pointer = NULL, *record = NULL;
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
         !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)id * 52, 50, &record))
@@ -37,6 +36,8 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
     if ((id == 0 && (record[17] != 0 || record[18] != 0x24)) ||
         (id == 18 && (record[15] != 31 || record[17] != 7 || record[18] != 0x6f)) ||
         (id == 86 && (record[15] != 0 || record[17] != 1 || record[18] != 0x41)) ||
+        (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
+        (id == 16 && (record[15] != 52 || record[17] != 128 || record[18] != 0x63)) ||
         (id == 128 && (record[15] != 2 || record[17] != 2 || record[18] != 0x48)) ||
         record[20] != 0 || record[16] != 0 || record[21] > 31 || record[25] != 0 ||
         Read16(record + 36) != 0)
@@ -63,10 +64,14 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 
 bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataView *out)
 {
-    if (out == NULL || (equipment.id != 18 && equipment.id != 86 && equipment.id != 128) ||
-        equipment.family != (equipment.id == 86   ? 0
-                             : equipment.id == 18 ? 31
-                                                  : 2))
+    if (out == NULL ||
+        (equipment.id != 16 && equipment.id != 18 && equipment.id != 86 && equipment.id != 123 &&
+         equipment.id != 128) ||
+        equipment.family != (equipment.id == 86    ? 0
+                             : equipment.id == 18  ? 31
+                             : equipment.id == 123 ? 43
+                             : equipment.id == 16  ? 52
+                                                   : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;
     if (weapons.bytes == NULL || offset > weapons.size || 0x3000 > weapons.size - offset)
@@ -78,13 +83,16 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
 bool SotnWeapon_ReadFrame(SotnDataView weapons, SotnEquipment equipment, Uint16 animation,
                           Uint16 pose, Sint32 remaining, SotnWeaponFrame *out)
 {
+    if (equipment.id == 16)
+        return SDL_SetError("Shield frames require their independent animation cursor");
     if (out == NULL || pose >= 32 || remaining < -1 || remaining > 32767)
         return SDL_SetError("Weapon animation requires a bounded player pose and output");
     SotnDataView overlay = {0};
     if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
         return false;
     const Uint8 *descriptor = NULL, *pointer = NULL, *packed = NULL, *box = NULL;
-    const Uint32 address = equipment.family == 0    ? 0x8017b06cU
+    const Uint32 address = equipment.family == 43   ? 0x8017b014U
+                           : equipment.family == 0  ? 0x8017b06cU
                            : equipment.family == 31 ? 0x8017a8ecU
                                                     : 0x8017abc4U;
     if (!Resolve(overlay, 0x8017a000, address, 16, &descriptor))

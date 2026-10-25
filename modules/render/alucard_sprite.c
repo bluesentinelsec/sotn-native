@@ -173,12 +173,56 @@ bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4])
     if (address < 0x800a0000 || (address & 3) || address - 0x800a0000 > dra.size - 16)
         return SDL_SetError("Cape palette operation references invalid private data");
     const Uint8 *op = dra.bytes + (address - 0x800a0000);
-    if (Read32(op) != 1 || Read32(op + 4) != 0x1006 || Read32(op + 8) != 4)
-        return SDL_SetError("Cape palette requires the original four-color copy operation");
+    const Uint32 destination = Read32(op + 4), count = Read32(op + 8);
+    if (Read32(op) != 1 || destination < 0x1006 || destination > 0x1009 || count == 0 ||
+        count > 0x100a - destination)
+        return SDL_SetError("Cape palette requires a bounded original cape-color copy");
     const Uint32 source = Read32(op + 12);
-    if (source < 0x800a0000 || (source & 1) || source - 0x800a0000 > dra.size - 8)
+    if (source < 0x800a0000 || (source & 1) || source - 0x800a0000 > dra.size - count * 2U)
         return SDL_SetError("Cape colors reference invalid private data");
-    for (Uint32 i = 0; i < 4; ++i)
-        colors[i] = Read16(dra.bytes + source - 0x800a0000 + i * 2);
+    for (Uint32 i = 0; i < count; ++i)
+        colors[destination - 0x1006 + i] = Read16(dra.bytes + source - 0x800a0000 + i * 2);
+    return true;
+}
+
+// dra/4A538.c:PAL_GLOW_ANIM, with the original one-component-step convergence.
+bool SotnAlucard_TwilightTick(SotnDataView dra, Uint16 colors[4], Uint16 *target, Uint8 *delay)
+{
+    if (dra.bytes == NULL || dra.size < 0x3c10 || colors == NULL || target == NULL ||
+        delay == NULL || *target > 1 || *delay > 1)
+        return SDL_SetError(
+            "Twilight palette requires bounded private data and an initialized cursor");
+    const Uint32 address = Read32(dra.bytes + 0x3bb8 + 21 * 4U);
+    if (address < 0x800a0000 || address % 4 || address - 0x800a0000 > dra.size - 24)
+        return SDL_SetError("Twilight palette operation is outside private DRA");
+    const Uint8 *op = dra.bytes + address - 0x800a0000;
+    if (Read32(op) != 0x20004 || Read32(op + 4) != 0x1006 || Read32(op + 8) != 2 ||
+        Read32(op + 20) != SDL_MAX_UINT32)
+        return SDL_SetError("Twilight palette does not match its original glow operation");
+    const Uint32 source = Read32(op + 12 + *target * 4U);
+    if (source < 0x800a0000 || source % 2 || source - 0x800a0000 > dra.size - 4)
+        return SDL_SetError("Twilight glow target is outside private DRA");
+    if (*delay)
+    {
+        --*delay;
+        return true;
+    }
+    bool changed = false;
+    for (Uint32 i = 0; i < 2; ++i)
+    {
+        const Uint16 destination = Read16(dra.bytes + source - 0x800a0000 + i * 2U);
+        Uint16 color = colors[i];
+        for (Uint32 shift = 0; shift <= 10; shift += 5)
+        {
+            const Sint32 old = (color >> shift) & 31, wanted = (destination >> shift) & 31;
+            const Sint32 next = old + (wanted > old ? 1 : wanted < old ? -1 : 0);
+            color = (Uint16)((color & (Uint16) ~(31U << shift)) | (Uint16)(next << shift));
+        }
+        changed |= color != colors[i];
+        colors[i] = color;
+    }
+    if (!changed)
+        *target ^= 1;
+    *delay = 1;
     return true;
 }

@@ -48,9 +48,15 @@ bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common
 bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
                            bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count);
 
-/** @brief Read the selected original four-color cape palette-copy operation.
+/** @brief Apply the selected original bounded cape palette-copy operation.
  * @param dra Borrowed private DRA. @param cape Original supported cape item.
- * @param colors Output four RGB555 words, unchanged on failure.
+ * @param colors Four initialized RGB555 words; unaddressed colors stay intact. Unchanged on
+ * failure.
  * @return Success or false with SDL_GetError() for malformed table/pointer/opcode data. */
 bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4]);
+/** @brief Advance Twilight cloak's original two-color glow once per simulation tick.
+ * @param dra Borrowed private DRA. @param colors Four owned cape colors; first two animate.
+ * @param target Initialized target index (0/1). @param delay Initialized countdown (0/1).
+ * @return Success or SDL error; outputs remain unchanged on invalid data. */
+bool SotnAlucard_TwilightTick(SotnDataView dra, Uint16 colors[4], Uint16 *target, Uint8 *delay);
 #endif

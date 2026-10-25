@@ -66,6 +66,7 @@ typedef struct SotnPlayerState
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
+    SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -82,9 +83,9 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Empty-hand and Basilard/Gladius/Mace attacks are supported. Ordinary physical damage is supported
- * separately by SotnPlayer_Damage. Other weapons, transformations, and stage scripts are not
- * implemented here.
+ * Empty-hand, Basilard/Gladius/Mace, and ordinary Alucard sword/shield paths are supported.
+ * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
+ * transformations, and stage scripts are not implemented here.
  */
 bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 y,
                        SotnPlayer **out);
