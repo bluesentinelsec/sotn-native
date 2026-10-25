@@ -4,6 +4,7 @@
 #include <SDL3/SDL_iostream.h>
 #include <sotn/game_data.h>
 #include <sotn/resource.h>
+#include <sotn/stage_assets.h>
 #include <sotn/stream.h>
 
 /* Internal seams allow synthetic tests to exercise the production loader. */
@@ -24,5 +25,8 @@ bool SotnData_OpenResourceSpec(const char *directory, const SotnDataSpec *spec, 
 bool SotnData_VerifyStream(SDL_IOStream *stream, const SotnDataSpec *spec);
 const SotnDataSpec *SotnData_MusicSpec(void);
 bool SotnData_OpenStreamSpec(const char *directory, const SotnDataSpec *spec, SotnStream **out);
+
+bool SotnData_OpenStageSpecs(const char *directory, const SotnDataSpec *overlay,
+                             const SotnDataSpec *graphics, SotnStageAssets **out);
 
 #endif

@@ -14,6 +14,10 @@ for option, value in [("ASAN_OPTIONS", "exitcode=86"),
                       ("UBSAN_OPTIONS", "exitcode=87:halt_on_error=1")]:
     environment[option] = f"{environment.get(option, '')}:{value}".lstrip(":")
 cases = [
+    (["--inspect-stage"], "requires one canonical stage"),
+    (["--inspect-stage", "../NZ0"], "requires one canonical stage"),
+    (["--inspect-stage", "NZ0"], "requires --game-data"),
+    (["--inspect-stage", "NO3", "--validate-only", "--game-data", "."], "Choose one"),
     (["--laboratory-continue", "1"], "requires --laboratory"),
     (["--laboratory-continue"], "requires a slot"),
     (["--laboratory-continue", "0"], "requires a slot"),

@@ -1,5 +1,9 @@
 sotn_generate_reference("${PROJECT_BINARY_DIR}/generated/reference_data.h")
+include("${PROJECT_SOURCE_DIR}/cmake/StageReference.cmake")
+sotn_generate_stage_reference("${PROJECT_BINARY_DIR}/generated/stage_reference.h")
 add_library(sotn-data STATIC
+  stage_assets.c
+  include/sotn/stage_assets.h
   game_data.c
   sha1.c
   resource.c

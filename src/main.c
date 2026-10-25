@@ -10,6 +10,7 @@
 #include <sotn/resource.h>
 #include <sotn/save_icon.h>
 #include <sotn/stage.h>
+#include <sotn/stage_assets.h>
 #include <stdbool.h>
 
 /** @brief Application-owned SDL resources, released by SDL_AppQuit. */
@@ -91,6 +92,24 @@ static bool InspectLaboratory(const SotnGameData *data, const char *directory)
     return true;
 }
 
+static bool InspectStage(const char *directory, const char *code)
+{
+    SotnStageIdentity identity = {0};
+    SotnStageAssets *assets = NULL;
+    SotnStage *stage = NULL;
+    if (!SotnStageAssets_Find(code, &identity) ||
+        !SotnStageAssets_Open(directory, identity.id, &assets))
+        return false;
+    const bool parsed = SotnStage_Open(SotnStageAssets_Overlay(assets), &stage);
+    if (parsed)
+        SDL_Log("SOTN_STAGE_DATA: PASS (%s, %u rooms, %zu graphics bytes; native gameplay support "
+                "is separate)",
+                identity.code, SotnStage_RoomCount(stage), SotnStageAssets_Graphics(assets).size);
+    SotnStage_Close(stage);
+    SotnStageAssets_Close(assets);
+    return parsed;
+}
+
 static bool LaboratoryNumber(const char *text, Uint32 *out)
 {
     const size_t length = SDL_strlen(text);
@@ -125,6 +144,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     *appstate = app;
     app->smoke_test = SDL_getenv("SOTN_SMOKE_TEST") != NULL;
     const char *game_directory = NULL;
+    const char *inspect_stage = NULL;
     bool validate_only = false;
     bool graphics_test = false;
     bool preview_icons = false;
@@ -162,6 +182,18 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--preview-save-icons") == 0)
         {
             preview_icons = true;
+        }
+        else if (SDL_strcmp(argv[i], "--inspect-stage") == 0)
+        {
+            SotnStageIdentity identity = {0};
+            if (inspect_stage != NULL || i + 1 >= argc ||
+                !SotnStageAssets_Find(argv[i + 1], &identity))
+            {
+                SDL_SetError(
+                    "--inspect-stage requires one canonical stage code, such as NO3 or NZ0");
+                return Fail("Invalid arguments");
+            }
+            inspect_stage = argv[++i];
         }
         else if (SDL_strcmp(argv[i], "--inspect-laboratory") == 0)
         {
@@ -234,7 +266,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             SDL_Log(
                 "Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
-                "| --inspect-laboratory | --preview-laboratory | --laboratory] "
+                "| --inspect-laboratory | --inspect-stage CODE | --preview-laboratory | "
+                "--laboratory] "
                 "[--laboratory-room 1|3|4|5|6|9|10|14|16|17|18|20|22|23|24|25] "
                 "[--laboratory-continue "
                 "SLOT] "
@@ -268,13 +301,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     }
     const unsigned int modes = (validate_only ? 1U : 0U) + (preview_icons ? 1U : 0U) +
                                (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
-                               (play_lab ? 1U : 0U);
+                               (play_lab ? 1U : 0U) + (inspect_stage != NULL ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
         SDL_SetError(
             "Choose one display or inspection mode: --validate-only, --preview-save-icons, "
-            "--inspect-laboratory, --preview-laboratory, or --laboratory; each requires "
+            "--inspect-laboratory, --inspect-stage CODE, --preview-laboratory, or --laboratory; "
+            "each requires "
             "--game-data; "
             "--graphics-test runs separately without game inputs");
         return Fail("Invalid arguments");
@@ -292,6 +326,9 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         {
             return SDL_APP_SUCCESS;
         }
+        if (inspect_stage != NULL)
+            return InspectStage(game_directory, inspect_stage) ? SDL_APP_SUCCESS
+                                                               : Fail("Cannot inspect stage");
         if (inspect_lab)
             return InspectLaboratory(app->game_data, game_directory)
                        ? SDL_APP_SUCCESS
