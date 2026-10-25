@@ -73,8 +73,14 @@ static bool Events(SotnActors *s, const Actor *a)
                 !Byte(s, &s->death_event.events, &y_low) || !Clear(s, slot) ||
                 !ActorSpawnAt(s, a, id, 0, slot, &child))
                 return false;
-            child->state.x = (Sint32)(((Uint16)x_high << 4) | x_low) * 65536 + s->camera_x * 65536;
-            child->state.y = (Sint32)(((Uint16)y_high << 4) | y_low) * 65536 + s->camera_y * 65536;
+            // DAI subtracts tilemap scroll in the source's screen-space event factory.
+            // Native room coordinates already include that scroll, so no offset is added.
+            child->state.x =
+                ((Sint32)(((Uint16)x_high << 4) | x_low) + (s->stage_id == 6 ? 0 : s->camera_x)) *
+                65536;
+            child->state.y =
+                ((Sint32)(((Uint16)y_high << 4) | y_low) + (s->stage_id == 6 ? 0 : s->camera_y)) *
+                65536;
         }
         else if (opcode == 1)
         {
@@ -107,22 +113,51 @@ static void Lines(SotnDialogueState *d)
     d->row = d->column = 0;
 }
 
+typedef struct DialogueProfile
+{
+    size_t script, palettes;
+    Uint16 flag, page;
+    bool repeat;
+} DialogueProfile;
+static bool Profile(Uint16 stage, DialogueProfile *out)
+{
+    switch (stage)
+    {
+    case 65:
+    case 7:
+        *out = (DialogueProfile){0x4ce0, 0x1a30, SOTN_ENTRANCE_DEATH, 0x94, false};
+        return true;
+    case 12:
+        *out = (DialogueProfile){0x3b0c, 0x13d0, SOTN_LAB_MARIA, 0x94, false};
+        return true;
+    case 2:
+        *out = (DialogueProfile){0x3f68, 0x19c4, SOTN_LIBRARY_MET, 0x91, true};
+        return true;
+    case 6:
+        *out = (DialogueProfile){0x3a94, 0xee8, SOTN_CHAPEL_MARIA, 0x90, false};
+        return true;
+    default:
+        return SDL_SetError("Stage %u has no integrated original dialogue profile", stage);
+    }
+}
 bool ActorDialogue(SotnActors *s, Actor *a)
 {
+    DialogueProfile profile = {0};
+    if (!Profile(s->stage_id, &profile))
+        return false;
     SotnDialogueState *d = &s->death_event.display;
     if (a->state.step == 0)
     {
-        if (s->stage_id != 2 &&
-            s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH])
+        if (!profile.repeat && s->world->flags[profile.flag])
         {
-            d->background_enabled = s->stage_id != 12;
+            d->background_enabled = s->stage_id == 65 || s->stage_id == 7;
             a->remove = true;
             return true;
         }
         s->death_event.active = true;
-        s->death_event.script = s->stage_id == 2 ? 0x3f68 : s->stage_id == 12 ? 0x3b0c : 0x4ce0;
+        s->death_event.script = profile.script;
         s->death_event.library_met = s->stage_id == 2 && s->world->flags[SOTN_LIBRARY_MET] != 0;
-        d->portrait_page = s->stage_id == 2 ? 0x91 : 0x94;
+        d->portrait_page = profile.page;
         s->death_event.speed = 8;
         s->death_event.flags = 0;
         ++a->state.step;
@@ -152,8 +187,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
         case 0:
             d->visible = false;
             s->death_event.active = false;
-            if (s->stage_id != 2)
-                s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH] = 1;
+            if (!profile.repeat)
+                s->world->flags[profile.flag] = 1;
             a->remove = true;
             return true;
         case 1:
@@ -185,12 +220,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
                 !Byte(s, &s->death_event.script, &side))
                 return SDL_SetError("Death dialogue portrait selector is invalid");
             SotnDataView palette = {0};
-            if (!Slice(s->nz0,
-                       (s->stage_id == 2    ? 0x19c4U
-                        : s->stage_id == 12 ? 0x13d0U
-                                            : 0x1a30U) +
-                           value * 2U,
-                       2, &palette) ||
+            if (!Slice(s->nz0, profile.palettes + value * 2U, 2, &palette) ||
                 Read16(palette.bytes) >= 0x300)
                 return SDL_SetError("Dialogue portrait palette is outside its private CLUT range");
             d->palette = Read16(palette.bytes);
@@ -237,6 +267,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             }
             else if ((sound >= 0x35f && sound <= 0x363) ||
                      (s->stage_id == 12 && sound >= 0x369 && sound <= 0x36d) ||
+                     (s->stage_id == 6 && sound >= 0x375 && sound <= 0x379) ||
                      (s->stage_id == 2 && ((sound >= 0x3a3 && sound <= 0x3a8) || sound == 0x3b9)))
             {
                 s->combat.voice = sound;

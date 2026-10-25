@@ -561,6 +561,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         session->room.background.flags |= 1;
     SotnActorMotion motion = {0};
     if (!SotnActors_GetMotion(session->actors, &motion) ||
+        (motion.align_horizontal && !SotnPlayer_StageAlignX(session->player, motion.alignment_x)) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
         (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||
@@ -1018,7 +1019,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
                 "and selected internal tower exits, clouds, sky land, stained glass, chairs "
-                "and confessional ghosts/blades/chime. Maria and boss encounters "
+                "and confessional ghosts/blades/chime, plus Maria's selected script, speech "
+                "and camera. Hippogryph "
                 "and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
@@ -1153,8 +1155,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnActors_GetControl(session->actors, &control))
         return false;
     const bool owns_save = session->save_room && session->save_point.phase != SOTN_SAVE_POINT_IDLE;
-    if (session->map_open || (select && state.can_pause && !owns_save && control.timer == 0 &&
-                              session->menu.phase == SOTN_MENU_CLOSED))
+    if (session->map_open || (select && state.can_pause && !owns_save && !control.pause_disabled &&
+                              control.timer == 0 && session->menu.phase == SOTN_MENU_CLOSED))
     {
         if (!session->map_open)
         {
@@ -1180,7 +1182,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
 
     if (session->menu.phase != SOTN_MENU_CLOSED ||
-        (start && state.can_pause && !owns_save && control.timer == 0))
+        (start && state.can_pause && !owns_save && !control.pause_disabled && control.timer == 0))
     {
         Uint16 sound = 0;
         bool changed = false;

@@ -6,6 +6,7 @@ typedef struct SotnCamera
 {
     Sint32 x, y, left, top, right, bottom;
     Uint32 width, height;
+    Uint16 anchor_x; /**< Original screen-space player anchor, initialized to 128. */
 } SotnCamera;
 /** @brief Initialize full room bounds and the original camera at an explicit development entry.
  * @param camera Writable owner. @param width Room pixels, multiple of 256, 256..16384.
@@ -19,6 +20,11 @@ bool SotnCamera_Enter(SotnCamera *camera, Uint32 width, Uint32 height, Sint32 pl
  * @return Success or SDL error; unchanged on invalid bounds. Rendering must only read this state.
  */
 bool SotnCamera_Tick(SotnCamera *camera, Sint32 player_x, Sint32 player_y, bool snap);
+/** @brief Advance the original cutscene anchor by one pixel toward its target.
+ * @param camera Initialized owned room camera. @param target Screen X, 1..255.
+ * @return Success or SDL error; invalid inputs leave the camera unchanged.
+ * The next simulation camera tick applies the anchor while retaining room bounds. */
+bool SotnCamera_Pan(SotnCamera *camera, Uint16 target);
 /** @brief Set bounded original tilemap constraints after a room/event update.
  * @param camera Initialized owner. @param left Minimum X. @param top Minimum Y minus four.
  * @param right Exclusive X bound. @param bottom Original exclusive Y bound (may end at 0xFB).

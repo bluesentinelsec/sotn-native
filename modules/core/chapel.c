@@ -163,6 +163,10 @@ bool ActorChapel(SotnActors *s, Actor *a)
     case 0x25:
     case 0x2d:
         return ActorChapelConfessional(s, a);
+    case 0x45:
+    case 0x46:
+    case 0x47:
+        return ActorChapelMaria(s, a);
     case 6:
         return ActorIntenseExplosion(s, a);
     case 0x14:

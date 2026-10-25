@@ -18,6 +18,14 @@ static bool Follow(void)
     SotnCamera c = {0};
     CHECK(SotnCamera_Enter(&c, 1024, 512, 512, 350));
     CHECK(c.x == 384 && c.y == 214);
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(SotnCamera_Pan(&c, 176) && c.anchor_x == 129 + i);
+    CHECK(SotnCamera_Tick(&c, 512, 350, false) && c.x == 336);
+    CHECK(SotnCamera_Pan(&c, 176) && c.anchor_x == 176);
+    CHECK(!SotnCamera_Pan(&c, 0) && !SotnCamera_Pan(&c, 256) && c.anchor_x == 176);
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(SotnCamera_Pan(&c, 128));
+    CHECK(SotnCamera_Enter(&c, 1024, 512, 512, 350) && c.anchor_x == 128);
     CHECK(SotnCamera_Tick(&c, 600, 250, false) && c.x == 472 && c.y == 210);
     CHECK(SotnCamera_Tick(&c, 600, 250, false) && c.y == 206);
     CHECK(SotnCamera_Tick(&c, 600, 250, true) && c.y == 114);

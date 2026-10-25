@@ -1542,6 +1542,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     actors->backdrop_color = 0;
     actors->palette_blend = (SotnPaletteBlend){0};
     actors->control.block_stopwatch = false;
+    actors->control.pause_disabled = false;
     actors->map = map;
     actors->window = (SotnRoomWindow){.end_x = (Sint32)map.width * 16,
                                       .last_cell = (Sint32)((map.width + 15) / 16) - 1};

@@ -531,9 +531,30 @@ static bool ShopProgress(void)
     CHECK(!SotnCharacter_LearnSpell(NULL, 1));
     return true;
 }
+static bool ChapelMariaProgress(void)
+{
+    SotnSaveState state = Profile(), loaded = {0};
+    state.stage = 6;
+    state.room = 16;
+    state.world.flags[SOTN_CHAPEL_MARIA] = 1;
+    Uint8 record[SOTN_SAVE_BYTES] = {0};
+    CHECK(SotnSave_Encode(state, record, sizeof(record)) &&
+          SotnSave_Decode(record, sizeof(record), &loaded));
+    CHECK(loaded.stage == 6 && loaded.room == 16 && loaded.world.flags[SOTN_CHAPEL_MARIA] == 1 &&
+          loaded.world.flags[SOTN_ENTRANCE_DEATH] == 0 &&
+          SDL_memcmp(loaded.world.flags, state.world.flags, SOTN_CASTLE_FLAGS) == 0);
+    record[624 + SOTN_CHAPEL_MARIA] = 2;
+    Rechecksum(record, sizeof(record));
+    loaded.room = 99;
+    CHECK(!SotnSave_Decode(record, sizeof(record), &loaded) && loaded.room == 99);
+    state.world.flags[SOTN_CHAPEL_MARIA] = 2;
+    CHECK(!SotnSave_Encode(state, record, sizeof(record)));
+    return true;
+}
 int main(int argc, char **argv)
 {
-    if (argc != 2 || !Codec() || !ShopProgress() || !Stages() || !Storage(argv[1]))
+    if (argc != 2 || !Codec() || !ShopProgress() || !Stages() || !ChapelMariaProgress() ||
+        !Storage(argv[1]))
         return 1;
     SDL_Log("SOTN_SAVE_TEST: PASS");
     return 0;

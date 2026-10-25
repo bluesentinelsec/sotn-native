@@ -130,6 +130,11 @@ bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
  * @return Success or SDL error. Does not force a state; normal input/transitions retain control.
  * The player update consumes and clears the hint. */
 bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind);
+/** @brief Apply an original script's absolute whole-pixel horizontal alignment.
+ * @param player Borrowed simulation. @param x Room-local target in pixels.
+ * @return Success or SDL error; validate room bounds before modifying position.
+ * Fractional position, velocity, health and movement state remain intact. */
+bool SotnPlayer_StageAlignX(SotnPlayer *player, Sint32 x);
 
 /** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
  * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.
