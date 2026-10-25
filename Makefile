@@ -1,4 +1,4 @@
-.DEFAULT_GOAL := debug
+.DEFAULT_GOAL := build
 CONFIG ?= Debug
 BUILD_DIR ?= build/debug
 CMAKE_FLAGS ?=
@@ -124,13 +124,15 @@ SOTN_FORMAT_SOURCES += modules/core/boss_projection.c \
 	  modules/core/actor_camera.c \
 	  modules/core/world.c modules/core/include/sotn/world.h
 
-.PHONY: debug release configure build run test sanitizer package web android ios fmt clean
+.PHONY: debug debug-build release configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)
 build: configure
 	cmake --build $(BUILD_DIR) --config $(CONFIG) --parallel $(JOBS)
-debug:
+debug-build:
 	$(MAKE) build CONFIG=Debug BUILD_DIR=build/debug
+debug: build
+	cmake --build $(BUILD_DIR) --config $(CONFIG) --target debug-game
 release:
 	$(MAKE) build CONFIG=Release BUILD_DIR=build/release
 run: build
