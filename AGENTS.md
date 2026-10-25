@@ -405,5 +405,6 @@ complete Library/game progression remain incomplete. Do not call the area comple
 
 The [Royal Chapel foundation](docs/chapel-runtime.md) adds a stage-6 resource profile,
 selected shared actors, Winged Guard/body pieces/spawner and Bat combat. Chapel
-travel remains disabled; other enemies, lamps, mechanisms, Maria and boss remain
+breakables/furnishings now use their own tables, with selected drops/debris. Chapel
+travel remains disabled; other enemies, mechanisms, scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.

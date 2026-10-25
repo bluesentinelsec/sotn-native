@@ -133,6 +133,12 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return SDL_SetError("Chapel actor dispatch requires its original stage owner");
     switch (a->state.id)
     {
+    case 1:
+    case 0x44:
+        return ActorChapelBreakable(s, a);
+    case 8:
+    case 0x11:
+        return ActorRoomDecoration(s, a);
     case 0x12:
         return ActorCamera(s, a);
     case 6:

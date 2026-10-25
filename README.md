@@ -33,7 +33,8 @@ selected enemies, Lesser Demon, Librarian buy/sell, furnishings and ordinary sav
 full ailment effects, shop panels, remaining interactions and whole-route parity
 remain incomplete.
 The [Royal Chapel foundation](docs/chapel-runtime.md) adds internal resource and
-Winged Guard/Bat adapters; Chapel travel remains disabled pending further integration.
+Winged Guard/Bat, breakable/debris and furnishing adapters; Chapel travel remains
+disabled pending further integration.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve

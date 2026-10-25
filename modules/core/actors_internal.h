@@ -412,6 +412,10 @@ bool ActorPositionalSound(SotnActors *actors, const Actor *actor, Uint16 sound);
  * @return Success, or false with an SDL error for invalid state/data. Unsupported
  * actor kinds are explicitly marked; this does not grant connected-stage support. */
 bool ActorChapel(SotnActors *actors, Actor *actor);
+/** @brief Advance an owned Chapel lamp/debris slot from private profiles.
+ * @param actors Borrowed Chapel/world owner. @param actor Borrowed lamp or debris.
+ * @return Success or SDL error for invalid owners, state or private tables. */
+bool ActorChapelBreakable(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
@@ -548,8 +552,10 @@ bool ActorLibraryShelfGeometry(SotnActors *actors, Actor *actor);
 bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
 /** @brief Project and present the selected private Library parallax actors. */
 bool ActorLibraryBackground(SotnActors *actors, Actor *actor);
-/** @brief Decode and animate original Library foreground/background decoration records. */
-bool ActorLibraryObject(SotnActors *actors, Actor *actor);
+/** @brief Decode private Library/Chapel foreground/background decoration records.
+ * @param actors Borrowed stage owner. @param actor Borrowed supported decoration.
+ * @return Success or SDL error for invalid identity/index/data; retains borrowed lifetimes. */
+bool ActorRoomDecoration(SotnActors *actors, Actor *actor);
 /** @brief Advance original per-button repeat timers after tapped/pressed input is installed. */
 void ActorRepeatButtons(SotnActors *actors);
 /** @brief Advance the selected original Library root/buy/sell menu actors. */
