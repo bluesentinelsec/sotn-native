@@ -4,6 +4,8 @@
 #include <sotn/actors.h>
 #include <sotn/combat.h>
 #include <sotn/dialogue.h>
+#include <sotn/dopple_ai.h>
+#include <sotn/dopple_body.h>
 #include <sotn/game_math.h>
 #include <sotn/relic.h>
 #include <sotn/stage_profile.h>
@@ -176,6 +178,11 @@ typedef struct Actor
         Uint16 groups, cadence;
         Sint32 flash;
     } reward;
+    struct
+    {
+        Uint16 blueprint, params, amount, per_cycle, kind, origin, delay, cycle, spawned;
+        bool noncritical, increment;
+    } dopple_factory;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -213,6 +220,12 @@ struct SotnActors
     Uint32 random, combat_random, ticks, effect_serial;
     SotnActorCombat combat;
     bool entered;
+    struct
+    {
+        SotnDoppleBody body;
+        SotnDoppleAI ai;
+        bool active;
+    } dopple;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
 };
@@ -345,6 +358,10 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorDoppleFactoryRequest(SotnActors *actors, const Actor *source,
+                               const SotnDoppleRequest *request);
+bool ActorDoppleFactory(SotnActors *actors, Actor *actor);
+bool ActorDoppleUnarmed(SotnActors *actors, Actor *actor);
 bool ActorMedusa(SotnActors *actors, Actor *actor);
 bool ActorArmorLord(SotnActors *actors, Actor *actor);
 bool ActorArmorWave(SotnActors *actors, Actor *actor);

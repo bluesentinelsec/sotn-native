@@ -363,3 +363,8 @@ The BO4 [normal-body control service](docs/doppleganger-runtime.md#normal-body-c
 now advances normal movement and attack selection, emitting bounded child/sound
 requests. Requests/poses are not implemented combat. Forms, child hitboxes,
 damage/death and the live encounter remain pending; ordinary travel stays gated.
+
+BO4 [child factories and hand-box decoding](docs/doppleganger-runtime.md#child-factories-and-hand-hitboxes)
+now resolve private spawn profiles and punch/kick pose boxes. They remain internal
+component services, not live combat or ordinary stage updates. Six smoke/knife
+children in the private fixture are explicitly skipped; full encounter work remains.

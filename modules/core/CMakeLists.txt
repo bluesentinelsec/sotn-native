@@ -11,6 +11,8 @@ add_library(sotn-core STATIC
   include/sotn/character.h
   collision.c
   animation.c
+  dopple_factory.c
+  dopple_unarmed.c
   dopple_body.c
   dopple_normal.c
   dopple_attack_control.c
