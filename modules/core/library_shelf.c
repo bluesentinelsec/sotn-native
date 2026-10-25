@@ -7,7 +7,7 @@ static bool Initialize(SotnActors *s, Actor *a)
     if (a->state.parameters > 3 || !Slice(s->nz0, 0xda8U + a->state.parameters * 2U, 2, &angle) ||
         !Slice(s->nz0, 0xdb0U + a->state.parameters * 2U, 2, &depth))
         return SDL_SetError("Library bookcase has an invalid private parameter");
-    const Sint16 distance = Signed16(depth.bytes);
+    const Sint32 distance = Signed16(depth.bytes);
     if (distance < 0 || distance > 128)
         return SDL_SetError("Library bookcase exceeds its selected private depth");
     if (!ActorInitialize(s, a, 0x830) || !ActorPrimitives(s, a, 37))
@@ -16,10 +16,10 @@ static bool Initialize(SotnActors *s, Actor *a)
     a->state.hitbox_width = 12;
     a->state.hitbox_height = 48;
     a->state.hitbox_y = -48;
-    a->shelf.angle = a->state.parameters ? Signed16(angle.bytes) : -192;
+    a->shelf.angle = (Sint16)(a->state.parameters ? Signed16(angle.bytes) : -192);
     a->shelf.delay = 96;
     a->shelf.damping = 64;
-    a->shelf.depth = distance;
+    a->shelf.depth = (Sint16)distance;
     a->shelf.velocity = a->shelf.force = 0;
     if (a->state.parameters)
         a->state.step = 4;
@@ -120,6 +120,6 @@ bool ActorLibraryShelf(SotnActors *s, Actor *a)
     if (velocity < -1048576 || velocity > 1048576)
         return SDL_SetError("Library bookcase angular velocity exceeds its bounded oscillator");
     a->shelf.velocity = (Sint32)velocity;
-    a->shelf.angle = Wrap16((Sint64)a->shelf.angle + velocity / 4096);
+    a->shelf.angle = (Sint16)Wrap16((Sint64)a->shelf.angle + velocity / 4096);
     return ActorLibraryShelfGeometry(s, a);
 }
