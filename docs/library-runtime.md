@@ -2,7 +2,9 @@
 
 Long Library (stage 2) now has a native resource profile, selected shared actors
 and its own breakable behavior. Ordinary connected travel stays disabled while
-librarian/shop and remaining scripts are integrated. Lesser Demon's selected
+shop interaction and remaining scripts are integrated. The selected
+[Librarian introduction](library-librarian.md) now runs its placed trigger, chair,
+first speech and player control through the shop-ready script gate. Lesser Demon's selected
 [placed arena flow](library-demon-entry.md) now runs entry, combat, seals and reward.
 There is no separate public Library gameplay start. Loading a room or rendering
 its artwork does not establish a working Library route or console parity.
@@ -16,7 +18,8 @@ unlock signal remains outside this slice. Stage-start graphics bank zero loads
 independently from each room's graphics bank. Its sound-bank files are separately
 fingerprinted; original Wood Carving Partita intro/loop music uses the existing
 private stream. The [Librarian SEQ service](library-sequence-audio.md) now has a
-native decoder/voice path; the interaction still needs integration. No runtime
+native decoder/voice path; its manager now requests playback. Shop interaction
+still needs integration. No runtime
 tables, artwork or sound data enter public files.
 
 Selected Skeleton/body/bone/piece services use Library initialization and tables.

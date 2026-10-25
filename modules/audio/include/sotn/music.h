@@ -37,7 +37,7 @@ bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMus
  * @return Success or SDL error. Both borrowed inputs must outlive playback.
  */
 bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out);
-/** @brief Play a selected original Death or Laboratory Maria XA speech clip once.
+/** @brief Play a selected original Death, Maria or Librarian XA speech clip once.
  * @param dra Borrowed private DRA. @param stream Borrowed verified XA container.
  * @param id Original selected dialogue ID. @param out Receives ownership or NULL.
  * @return Success or SDL error. Inputs must outlive playback. */

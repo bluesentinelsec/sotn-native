@@ -4,7 +4,7 @@ The native Library service now runs Lesser Demon's body AI, attack children,
 windups, summoning and physical defeat. The [placed arena flow](library-demon-entry.md)
 now adds entry, sealing books, camera unlock, music, the ordinary defeat record and
 reward. The body-only evidence below remains separate from that newer integration
-check. Stage 2 remains disconnected pending librarian/shop and remaining scripts.
+check. Stage 2 remains disconnected pending shop interaction and remaining scripts.
 
 The body retains grounding/activation waits, pose-driven ground displacement,
 wall/floor decisions, boundary leaps, flight/hover, dive/swipe, spit, bolt and

@@ -3,8 +3,9 @@
 The sound service now decodes the original Library SEQ track and plays its notes
 through the existing native SPU sample/envelope service. The native scene attaches
 verified private sequence input and exposes independent sequence start/stop events.
-The librarian/shop actors do not issue these events yet; Library travel remains
-gated while that interaction and other scripts are integrated.
+The [selected Librarian introduction](library-librarian.md) now issues the original
+manager's sequence requests. Shop menus/transactions and Library travel remain
+gated while the remaining interaction and scripts are integrated.
 
 `ST/LIB/SEQ_LIB.SEQ` is an additional on-demand private resource. Its filename,
 length and fingerprint live in the reference manifest; its event bytes never enter

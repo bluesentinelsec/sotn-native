@@ -860,6 +860,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.extra_sound = 0;
     if (next.curse_ticks)
         --next.curse_ticks;
+    if (next.script_hold)
+        buttons = 0;
     next.buttons = buttons;
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
@@ -875,8 +877,20 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.previous_step = next.step;
     if (next.invincibility)
         --next.invincibility;
+    if (next.script_hold)
+    {
+        // PAD_SIM mode 2 changes step without selecting a new animation (692E8.c/alu_anim.c).
+        SetStep(&next, SOTN_PLAYER_SCRIPT);
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
+        ClearAttack(&next);
+    }
     switch (next.step)
     {
+    case SOTN_PLAYER_SCRIPT:
+        next.vx = next.vy = 0;
+        if (!next.script_hold)
+            Land(&next, 0);
+        break;
     case SOTN_PLAYER_STAND:
         StandTick(&next);
         break;
@@ -1061,6 +1075,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x150000U;
     if (player->step == SOTN_PLAYER_STONE)
         status |= 0x110080U;
+    if (player->step == SOTN_PLAYER_SCRIPT)
+        status |= 0x38110000U;
     *out = (SotnPlayerState){
         .x = player->x.value,
         .y = player->y.value,
@@ -1080,7 +1096,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .death = player->death,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
-                     player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE,
+                     player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
+                     player->step != SOTN_PLAYER_SCRIPT,
         .random = player->damage_random,
         .solid_width = (Uint16)SDL_max(0, player->wall_sensors[0].x),
         .solid_height = (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
@@ -1282,5 +1299,13 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
         next.extra_sound = 0x6f2;
     }
     *player = next;
+    return true;
+}
+
+bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
+{
+    if (player == NULL || (hold && player->step == SOTN_PLAYER_KILL))
+        return SDL_SetError("Script hold requires a living normal-form player owner");
+    player->script_hold = hold;
     return true;
 }

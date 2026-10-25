@@ -250,6 +250,8 @@ static bool TestDamage(Fixture *fixture)
     CHECK(SotnPlayer_Damage(player, 67, 80, 0));
     CHECK(State(player, &state) && state.hp == 0 && state.step == SOTN_PLAYER_KILL &&
           (state.status & 0x40000U) && state.invulnerable);
+    CHECK(!SotnPlayer_SetScriptHold(player, true));
+    CHECK(SotnPlayer_SetScriptHold(player, false));
     for (Uint32 tick = 0; tick < 300; ++tick)
         CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT));
     CHECK(State(player, &state) && state.death.phase == 128);
@@ -349,6 +351,46 @@ static bool TestStone(Fixture *fixture)
     return true;
 }
 
+static bool TestScriptHold(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    SotnPlayer *player = NULL;
+    CHECK(SotnPlayer_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)}, map, 64, 135,
+                            &player));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT));
+    SotnPlayerState before = {0}, held = {0};
+    CHECK(State(player, &before) && before.step == SOTN_PLAYER_WALK);
+    CHECK(SotnPlayer_SetScriptHold(player, true));
+    for (Uint16 tick = 0; tick < 30; ++tick)
+    {
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND));
+        CHECK(State(player, &held) && held.step == SOTN_PLAYER_SCRIPT && held.x == before.x &&
+              held.y == before.y);
+        CHECK(!held.velocity_x && !held.velocity_y && held.facing_left == before.facing_left);
+        CHECK(held.animation.id == before.animation.id && held.invulnerable && !held.can_pause &&
+              !held.attack.active);
+        CHECK((held.status & 0x38110000U) == 0x38110000U);
+    }
+    CHECK(SotnPlayer_SetScriptHold(player, false) && SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &held) && held.step == SOTN_PLAYER_STAND && held.can_pause &&
+          held.animation.id == 4);
+    for (Uint16 tick = 0; tick < 12; ++tick)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &held) && !held.invulnerable);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_JUMP));
+    CHECK(State(player, &before) && before.step == SOTN_PLAYER_JUMP);
+    CHECK(SotnPlayer_SetScriptHold(player, true));
+    for (Uint16 tick = 0; tick < 20; ++tick)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &held) && held.y == before.y && !held.velocity_y);
+    CHECK(SotnPlayer_SetScriptHold(player, false) && SotnPlayer_Tick(player, 0) &&
+          SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &held) && held.step == SOTN_PLAYER_FALL);
+    CHECK(!SotnPlayer_SetScriptHold(NULL, true));
+    SotnPlayer_Close(player);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     SotnCollisionMap map = MakeFixture(fixture);
@@ -371,7 +413,7 @@ int main(void)
         return 1;
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
-                        TestStone(fixture) && TestFailures(fixture);
+                        TestStone(fixture) && TestScriptHold(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

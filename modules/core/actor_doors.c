@@ -82,7 +82,7 @@ bool ActorDoor(SotnActors *s, Actor *a)
             a->enemy_state.angle_delta = right ? 0x800 : 0x1000;
             a->state.frame = 0;
             a->state.step = 4;
-            s->control = (SotnActorControl){0, 24};
+            s->control = (SotnActorControl){.timer = 24};
             s->motion.halt_vertical = true;
             s->player.velocity_y = 0;
             if (!sealed && !ActorSound(s, 0x642))
@@ -104,7 +104,7 @@ bool ActorDoor(SotnActors *s, Actor *a)
                     return false;
                 a->state.frame = 0;
                 a->state.step = 2;
-                s->control = (SotnActorControl){0, 2};
+                s->control = (SotnActorControl){.timer = 2};
             }
             else
             {
@@ -123,12 +123,12 @@ bool ActorDoor(SotnActors *s, Actor *a)
                 if (!ActorSound(s, 0x642))
                     return false;
                 a->state.frame = 0;
-                s->control = (SotnActorControl){0, 2};
+                s->control = (SotnActorControl){.timer = 2};
                 a->state.step = 2;
             }
             break;
         case 2:
-            s->control = (SotnActorControl){0, 24};
+            s->control = (SotnActorControl){.timer = 24};
             a->enemy_state.angle_delta = (Sint16)(a->enemy_state.angle_delta + (right ? -32 : 32));
             if ((right && a->enemy_state.angle_delta <= 0x800) ||
                 (!right && a->enemy_state.angle_delta >= 0x1000))
@@ -140,15 +140,17 @@ bool ActorDoor(SotnActors *s, Actor *a)
         case 3:
             if (s->control.timer >= 4)
                 return true;
-            s->control = (SotnActorControl){right ? SOTN_BUTTON_RIGHT : SOTN_BUTTON_LEFT, 3};
+            s->control = (SotnActorControl){.buttons = right ? SOTN_BUTTON_RIGHT : SOTN_BUTTON_LEFT,
+                                            .timer = 3};
             break;
         case 4:
-            s->control = (SotnActorControl){right ? SOTN_BUTTON_LEFT : SOTN_BUTTON_RIGHT, 4};
+            s->control = (SotnActorControl){.buttons = right ? SOTN_BUTTON_LEFT : SOTN_BUTTON_RIGHT,
+                                            .timer = 4};
             if (!Near(s, a, range))
                 a->state.step = 5;
             break;
         case 5:
-            s->control = (SotnActorControl){0, 4};
+            s->control = (SotnActorControl){.timer = 4};
             a->enemy_state.angle_delta = (Sint16)(a->enemy_state.angle_delta + (right ? 32 : -32));
             if ((right && a->enemy_state.angle_delta >= 0xc00) ||
                 (!right && a->enemy_state.angle_delta <= 0xc00))

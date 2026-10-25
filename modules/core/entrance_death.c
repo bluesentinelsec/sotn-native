@@ -112,14 +112,17 @@ bool ActorDialogue(SotnActors *s, Actor *a)
     SotnDialogueState *d = &s->death_event.display;
     if (a->state.step == 0)
     {
-        if (s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH])
+        if (s->stage_id != 2 &&
+            s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH])
         {
             d->background_enabled = s->stage_id != 12;
             a->remove = true;
             return true;
         }
         s->death_event.active = true;
-        s->death_event.script = s->stage_id == 12 ? 0x3b0c : 0x4ce0;
+        s->death_event.script = s->stage_id == 2 ? 0x3f68 : s->stage_id == 12 ? 0x3b0c : 0x4ce0;
+        s->death_event.library_met = s->stage_id == 2 && s->world->flags[SOTN_LIBRARY_MET] != 0;
+        d->portrait_page = s->stage_id == 2 ? 0x91 : 0x94;
         s->death_event.speed = 8;
         s->death_event.flags = 0;
         ++a->state.step;
@@ -149,7 +152,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
         case 0:
             d->visible = false;
             s->death_event.active = false;
-            s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH] = 1;
+            if (s->stage_id != 2)
+                s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH] = 1;
             a->remove = true;
             return true;
         case 1:
@@ -181,7 +185,12 @@ bool ActorDialogue(SotnActors *s, Actor *a)
                 !Byte(s, &s->death_event.script, &side))
                 return SDL_SetError("Death dialogue portrait selector is invalid");
             SotnDataView palette = {0};
-            if (!Slice(s->nz0, (s->stage_id == 12 ? 0x13d0U : 0x1a30U) + value * 2U, 2, &palette) ||
+            if (!Slice(s->nz0,
+                       (s->stage_id == 2    ? 0x19c4U
+                        : s->stage_id == 12 ? 0x13d0U
+                                            : 0x1a30U) +
+                           value * 2U,
+                       2, &palette) ||
                 Read16(palette.bytes) >= 0x300)
                 return SDL_SetError("Dialogue portrait palette is outside its private CLUT range");
             d->palette = Read16(palette.bytes);
@@ -216,7 +225,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             if (!Byte(s, &s->death_event.script, &high) || !Byte(s, &s->death_event.script, &low))
                 return false;
             const Uint16 sound = (Uint16)((Uint16)high << 4 | low);
-            if (sound == 0x92)
+            if (sound == 0x92 || sound == 0x0a)
             {
                 s->combat.music_change = true;
                 s->combat.music = 0;
@@ -227,7 +236,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
                 s->death_event.cd_busy = sound == 0x10;
             }
             else if ((sound >= 0x35f && sound <= 0x363) ||
-                     (s->stage_id == 12 && sound >= 0x369 && sound <= 0x36d))
+                     (s->stage_id == 12 && sound >= 0x369 && sound <= 0x36d) ||
+                     (s->stage_id == 2 && ((sound >= 0x3a3 && sound <= 0x3a8) || sound == 0x3b9)))
             {
                 s->combat.voice = sound;
                 s->combat.voice_change = true;
@@ -259,6 +269,22 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             break;
         case 13:
             break;
+        case 14: {
+            size_t selector = 0;
+            if (s->stage_id != 2 || !Address(s, &s->death_event.script, &selector) ||
+                (selector != 0x3f60 && selector != 0x3f64) || s->death_event.library_reply > 1)
+                return SDL_SetError(
+                    "Library dialogue switch references an unsupported state selector");
+            const Uint8 choice = (Uint8)(selector == 0x3f60 ? (Uint8)s->death_event.library_met
+                                                            : s->death_event.library_reply);
+            if (s->death_event.script > s->nz0.size ||
+                (size_t)choice * 4 > s->nz0.size - s->death_event.script)
+                return SDL_SetError("Library dialogue switch cases are truncated");
+            s->death_event.script += (size_t)choice * 4;
+            if (!Address(s, &s->death_event.script, &s->death_event.script))
+                return false;
+            break;
+        }
         case 15:
             if (!Address(s, &s->death_event.script, &s->death_event.script))
                 return false;
@@ -320,7 +346,7 @@ static bool Manager(SotnActors *s, Actor *a)
         a->death.timer = 512;
     }
     --a->death.timer;
-    s->control = (SotnActorControl){0, 2};
+    s->control = (SotnActorControl){.timer = 2};
     s->motion.protect = true;
     SotnDialogueState *d = &s->death_event.display;
     switch (a->state.step)

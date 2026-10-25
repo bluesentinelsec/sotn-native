@@ -152,6 +152,18 @@ static bool Playback(const char *directory)
         SotnMusic_Destroy(music);
         music = NULL;
     }
+    const Uint16 library_speech[] = {0x3a3, 0x3a4, 0x3a5, 0x3a6, 0x3a7, 0x3a8, 0x3b9};
+    for (Uint32 i = 0; i < SDL_arraysize(library_speech); ++i)
+    {
+        const Uint16 id = library_speech[i];
+        SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
+        CHECK(SotnMusic_CreateSpeech(image, stream, id, &music));
+        CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+        SotnMusic_Destroy(music);
+        music = NULL;
+    }
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3a2, &music) && music == NULL);
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3a9, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x368, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x36e, &music) && music == NULL);
     SotnStream_Close(stream);

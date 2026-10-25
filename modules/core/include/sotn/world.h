@@ -22,7 +22,8 @@ typedef enum SotnTimeAttackEvent
 {
     SOTN_TIME_DOPPLEGANGER = 2,
     SOTN_TIME_LAB_BOSSES = 6,
-    SOTN_TIME_LESSER_DEMON = 17
+    SOTN_TIME_LESSER_DEMON = 17,
+    SOTN_TIME_LIBRARIAN = 25
 } SotnTimeAttackEvent;
 /** @brief Set an original HHMMSS event record only when its existing value is zero.
  * @param state Borrowed initialized progress. @param event Original index, 0..31.
@@ -55,6 +56,9 @@ typedef enum SotnWorldFlag
     SOTN_ENTRANCE_ON = 55,
     SOTN_ENTRANCE_STAIRS = 56,
     SOTN_ENTRANCE_JEWEL_DOOR = 58,
+    SOTN_LIBRARY_MET = 114,
+    SOTN_LIBRARY_DROPS = 116,
+    SOTN_INVERTED_UNLOCKED = 150,
     SOTN_LAB_SECRET_WALL = 129,
     SOTN_LAB_SECRET_FLOOR = 130,
     SOTN_LAB_CANNON = 131,
