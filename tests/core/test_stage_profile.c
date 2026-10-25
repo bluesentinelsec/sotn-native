@@ -62,7 +62,7 @@ static bool Run(void)
 static bool BossAdapters(void)
 {
     const SotnStageProfile *profile = SotnStageProfile_Get(26);
-    CHECK(profile && !profile->connected && profile->actor_limit == 0x1e &&
+    CHECK(profile && profile->connected && profile->actor_limit == 0x1e &&
           profile->sprite_banks == 24 && profile->prize_count == 0 && profile->door_types == 2);
     CHECK(!SotnStageProfile_SaveRoom(26, 0) && !SotnStageProfile_SaveRoom(26, SDL_MAX_UINT16));
     const Uint16 connected[] = {0, 1, 7, 12, 65};

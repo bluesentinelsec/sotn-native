@@ -97,7 +97,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 6);
+    Put32(record + 8, 7);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -111,8 +111,9 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     SDL_memcpy(record + 624, state.world.flags, SOTN_CASTLE_FLAGS);
     SDL_memcpy(record + 1392, state.world.map, SOTN_CASTLE_MAP);
     Put16(record + 3440, state.world.rooms);
-    record[3442] = state.world.laboratory_boss_visited ? 1 : 0;
-    Put32(record + 3444, state.world.laboratory_boss_time);
+    for (Uint32 i = 0; i < SOTN_TIME_ATTACK_EVENTS; ++i)
+        Put32(record + 3480 + i * 4U, state.world.time_attack[i]);
+    Put32(record + 3608, state.world.time_attack_visited);
     SDL_memcpy(record + 3448, state.world.relics, SOTN_RELICS);
     Put32(record + SOTN_SAVE_BYTES - 4, Checksum(record, SOTN_SAVE_BYTES - 4));
     SDL_memcpy(bytes, record, sizeof(record));
@@ -170,7 +171,7 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         return SDL_SetError("Save is not a native record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
     if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 &&
-        version != 6)
+        version != 6 && version != 7)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
     const size_t expected = version >= 4   ? SOTN_SAVE_BYTES
@@ -193,14 +194,28 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                            .character = ReadCharacter(bytes)};
     if (version >= 4)
     {
-        if (bytes[3442] > 1 || !Zeroes(bytes, 3443, 3444) ||
-            !Zeroes(bytes, version >= 6 ? 3448 + SOTN_RELICS : 3448, 4092))
-            return SDL_SetError("Saved world contains unsupported reserved state");
+        if (version == 7)
+        {
+            if (!Zeroes(bytes, 3442, 3448) || !Zeroes(bytes, 3478, 3480) ||
+                !Zeroes(bytes, 3612, 4092))
+                return SDL_SetError("Saved world contains unsupported reserved state");
+            for (Uint32 i = 0; i < SOTN_TIME_ATTACK_EVENTS; ++i)
+                state.world.time_attack[i] = Read32(bytes + 3480 + i * 4U);
+            state.world.time_attack_visited = Read32(bytes + 3608);
+        }
+        else
+        {
+            if (bytes[3442] > 1 || !Zeroes(bytes, 3443, 3444) ||
+                !Zeroes(bytes, version >= 6 ? 3448 + SOTN_RELICS : 3448, 4092))
+                return SDL_SetError("Legacy world contains unsupported reserved state");
+            if (!SotnWorld_RecordTime(&state.world, SOTN_TIME_LAB_BOSSES, Read32(bytes + 3444)))
+                return false;
+            if (bytes[3442] && !SotnWorld_VisitEvent(&state.world, SOTN_TIME_LAB_BOSSES))
+                return false;
+        }
         SDL_memcpy(state.world.flags, bytes + 624, SOTN_CASTLE_FLAGS);
         SDL_memcpy(state.world.map, bytes + 1392, SOTN_CASTLE_MAP);
         state.world.rooms = Read16(bytes + 3440);
-        state.world.laboratory_boss_visited = bytes[3442] != 0;
-        state.world.laboratory_boss_time = Read32(bytes + 3444);
         if (version >= 6)
             SDL_memcpy(state.world.relics, bytes + 3448, SOTN_RELICS);
     }

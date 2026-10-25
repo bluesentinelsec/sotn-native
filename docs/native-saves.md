@@ -21,7 +21,7 @@ supported state bounds. Failed loads leave output and files unchanged. Unknown
 versions require explicit migration; application VERSION does not determine save
 compatibility. The checksum detects corruption, not malicious modification.
 
-## Version 6
+## Version 7
 
 New writes use a 4096-byte little-endian record. Native struct layout, padding,
 host pointers, artwork, and runtime tables are never serialized.
@@ -29,7 +29,7 @@ host pointers, artwork, and runtime tables are never serialized.
 | Offset | Value |
 | --- | --- |
 | 0 | Eight-byte magic `SOTNNSAV` |
-| 8 | 32-bit format version, 6 |
+| 8 | 32-bit format version, 7 |
 | 12 | 32-bit record length, 4096 |
 | 16 | 32-bit supported US reference marker |
 | 20 | 32-bit stage-local save-room ID |
@@ -50,15 +50,16 @@ host pointers, artwork, and runtime tables are never serialized.
 | 624–1391 | 768 original-sized castle progress flags |
 | 1392–3439 | 2048 packed original/reversed-castle exploration bytes |
 | 3440 | 16-bit explored-cell count |
-| 3442 | One-byte Laboratory boss-visited boolean, 0 or 1 |
-| 3443 | Reserved zero byte |
-| 3444 | 32-bit Laboratory boss-defeat time, gameplay seconds |
+| 3442–3447 | Retired Laboratory-only boss fields, now reserved zero bytes |
 | 3448–3477 | Thirty original relic ownership bytes (0 absent, 1 found, 3 active) |
-| 3478–4091 | Reserved zero bytes |
+| 3478–3479 | Reserved zero bytes |
+| 3480–3607 | Thirty-two 32-bit original HHMMSS time-attack records |
+| 3608 | 32-bit original event-visited mask |
+| 3612–4091 | Reserved zero bytes |
 | 4092 | IEEE CRC-32 over bytes 0–4091 |
 
 Inventory excludes equipped copies. Counts, equipment/resource/stat bounds, order
-permutations, permanent pickup bits, known event flags, boss time, and packed
+permutations, permanent pickup bits, known event flags, original HHMMSS records (minute/second digits below 60), and packed
 map/count consistency are checked. Loading resolves equipment from private
 runtime definitions and recalculates attributes/cape colors. Derived stats and
 render caches are never trusted from disk.
@@ -72,11 +73,20 @@ private original artwork; full map/presentation parity remains incomplete.
 Continue installs world and character progress before actors initialize, then
 restores owned RNG streams after initialization. Opened secret wall/floor and
 cannon shortcuts stay open; the boss record suppresses another Slogra/Gaibon
-encounter. Transient enemies, candles, projectiles, switches/lift positions, and
+encounter; the Doppleganger record suppresses its Outer Wall arena transfer. Transient enemies, candles, projectiles, switches/lift positions, and
 execution state are recreated. Saving requires a living character in Laboratory
 rooms 23/24/25, first Entrance rooms 25/26/27, later Entrance rooms 22/23/24, Marble Gallery rooms 31/32, or Outer Wall rooms 14/17. This is an ordinary checkpoint save, not a save state.
 
 ## Explicit migration
+
+Versions 4–6 stored a Laboratory-only visited boolean at 3442 and elapsed seconds
+at 3444, with zero padding at 3443. Version 7 migrates those fields to original
+event 6 and converts seconds to HHMMSS without modifying the source file. Other
+event records remain zero because those formats never stored them. Version 6
+retains its relic bytes at 3448–3477; versions 4/5 require that region to be zero.
+The retired fields must be zero in new v7 records. Existing slot paths and the
+4096-byte file size remain unchanged.
+
 
 Version 5 retains its stage identity and all supported progress. Versions 1–5
 migrate with Cube of Zoe active because those checkpoints already granted its
@@ -102,13 +112,13 @@ stats 6, empty body equipment/inventory with identity order, zero EXP/character
 RNG, and no permanent pickup/world progress. Version 1 supplies zero gameplay RNGs.
 
 Reading a legacy save never changes its file. The next successful ordinary save
-writes v6 through the checked replacement path. Unknown formats fail explicitly.
+writes v7 through the checked replacement path. Unknown formats fail explicitly.
 Native Android/iOS use SDL's sandbox preference path. Browser durable persistence
 still requires an adapter and reload tests. PS1 memory-card import/export, further
 stages, relic ability/menu integration, complete castle scripts, and full-game saves remain separate.
 
 Public tests use a build-local directory and synthetic state. They check independent
-v3/v4/v5/v6 checksums, stage/save-room roundtrips, all five legacy migrations, malformed character
+v3/v4/v5/v6/v7 checksums, stage/save-room roundtrips, all six legacy migrations, malformed character
 and world state, reserved fields, length/version/checksum failures, fifteen slots,
 retained corrupt files, and safe replacement/failed rename. Private native LLDB
 checks use isolated local slots, never the user's real save bank. Private captures

@@ -69,10 +69,8 @@ static bool Manager(SotnActors *s, Actor *a)
     case 4:
         if (s->boss_flags & 2U)
         {
-            const Uint32 seconds = s->game_seconds;
-            if (!s->dopple.record_time)
-                s->dopple.record_time =
-                    seconds % 60U + (seconds / 60U % 60U) * 100U + (seconds / 3600U) * 10000U;
+            if (!SotnWorld_RecordTime(s->world, SOTN_TIME_DOPPLEGANGER, s->game_seconds))
+                return false;
             ++a->state.step;
         }
         break;

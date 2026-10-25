@@ -176,7 +176,8 @@ bool ActorDoppleLight(SotnActors *s, Actor *a)
         if (!ActorSpawnAt(s, a, 0x16, 0, 0, &root) || !ActorDoppleTrigger(s, (Uint32)a->slot + 1) ||
             !ActorSound(s, 0x7cc))
             return false;
-        s->dopple.visited = true;
+        if (!SotnWorld_VisitEvent(s->world, SOTN_TIME_DOPPLEGANGER))
+            return false;
         ++a->state.step;
         return true;
     }

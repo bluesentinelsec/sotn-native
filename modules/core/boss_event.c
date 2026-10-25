@@ -25,7 +25,7 @@ static bool Manager(SotnActors *s, Actor *a)
 {
     if (a->state.step == 0)
     {
-        if (s->world->laboratory_boss_time)
+        if (s->world->time_attack[SOTN_TIME_LAB_BOSSES])
         {
             a->remove = true;
             return true;
@@ -74,7 +74,8 @@ static bool Manager(SotnActors *s, Actor *a)
             s->boss_flags |= 4;
         if (s->boss_flags & 4)
         {
-            s->world->laboratory_boss_visited = true;
+            if (!SotnWorld_VisitEvent(s->world, SOTN_TIME_LAB_BOSSES))
+                return false;
             ++a->state.step;
         }
         break;
@@ -87,7 +88,8 @@ static bool Manager(SotnActors *s, Actor *a)
         // Victory can be observed during the music transition, as in the original.
         if ((s->boss_flags & 24) == 24)
         {
-            s->world->laboratory_boss_time = SDL_max(1U, s->game_seconds);
+            if (!SotnWorld_RecordTime(s->world, SOTN_TIME_LAB_BOSSES, s->game_seconds))
+                return false;
             if (s->music_playing)
                 Music(s, 0);
             a->state.step = 5;
@@ -96,7 +98,8 @@ static bool Manager(SotnActors *s, Actor *a)
     case 4:
         if ((s->boss_flags & 24) == 24)
         {
-            s->world->laboratory_boss_time = SDL_max(1U, s->game_seconds);
+            if (!SotnWorld_RecordTime(s->world, SOTN_TIME_LAB_BOSSES, s->game_seconds))
+                return false;
             if (s->music_playing)
                 Music(s, 0);
             a->state.step = 5;

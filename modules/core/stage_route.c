@@ -60,3 +60,48 @@ bool SotnStageRoute_Crossing(Sint32 x, Sint32 y, Uint32 width, Uint32 height, bo
     *out = crossing;
     return true;
 }
+
+// dra/5087C.c:FindBossTeleport. Serialized indices omit the caller's +2 return tag.
+bool SotnStageRoute_FindBoss(SotnDataView dra, Uint16 source, Sint32 x, Sint32 y,
+                             const SotnWorldState *world, bool *found, SotnStageRoute *out)
+{
+    if (dra.bytes == NULL || world == NULL || found == NULL || out == NULL || source > 65 ||
+        x < -1 || x > 64 || y < -1 || y > 64)
+        return SDL_SetError(
+            "Boss transfer requires private DRA, bounded chunks and event progress");
+    if (!SotnWorld_Validate(world))
+        return false;
+    for (Uint32 i = 0; i < 64; ++i)
+    {
+        const size_t offset = 0x297c + (size_t)i * 20;
+        if (offset > dra.size || 20 > dra.size - offset)
+            return SDL_SetError("Private boss transfer table is truncated before its sentinel");
+        const Uint8 *p = dra.bytes + offset;
+        const Uint32 chunk_x = p[0] | (Uint32)p[1] << 8 | (Uint32)p[2] << 16 | (Uint32)p[3] << 24;
+        if (chunk_x == 128)
+        {
+            *found = false;
+            return true;
+        }
+        Uint32 words[5] = {0};
+        for (Uint32 word = 0; word < 5; ++word)
+        {
+            const Uint8 *v = p + word * 4U;
+            words[word] = v[0] | (Uint32)v[1] << 8 | (Uint32)v[2] << 16 | (Uint32)v[3] << 24;
+        }
+        if (words[0] >= 64 || words[1] >= 64 || words[2] > 65 ||
+            (words[3] >= SOTN_TIME_ATTACK_EVENTS && words[3] != 255) || words[4] >= 131)
+            return SDL_SetError("Private boss transfer %u has invalid coordinates, event or index",
+                                i);
+        if (words[0] != (Uint32)x || words[1] != (Uint32)y || words[2] != source ||
+            (words[3] != 255 && world->time_attack[words[3]] != 0))
+            continue;
+        SotnStageRoute route = {0};
+        if (!SotnStageRoute_Read(dra, source, (Uint16)words[4], &route))
+            return false;
+        *out = route;
+        *found = true;
+        return true;
+    }
+    return SDL_SetError("Private boss transfer table has no bounded sentinel");
+}

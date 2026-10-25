@@ -14,8 +14,67 @@ static void Put16(Uint8 *p, Uint16 value)
     p[0] = (Uint8)value;
     p[1] = (Uint8)(value >> 8);
 }
+static void Put32(Uint8 *p, Uint32 value)
+{
+    for (Uint32 i = 0; i < 4; ++i)
+        p[i] = (Uint8)(value >> (i * 8U));
+}
+static int Boss(void)
+{
+    Uint8 bytes[0x297c + 64 * 20] = {0};
+    const SotnDataView dra = {bytes, sizeof(bytes)};
+    Uint8 *boss = bytes + 0x297c, *arrival = bytes + 0x245c + 130 * 10;
+    Put16(arrival, 64);
+    Put16(arrival + 2, 132);
+    Put16(arrival + 6, 1);
+    Put16(arrival + 8, 26);
+    Put32(boss, 2);
+    Put32(boss + 4, 3);
+    Put32(boss + 8, 1);
+    Put32(boss + 12, 2);
+    Put32(boss + 16, 130);
+    SDL_memcpy(boss + 20, boss, 20);
+    Put32(boss + 20, 4);
+    Put32(boss + 32, 255);
+    Put32(boss + 40, 128);
+    SotnWorldState world = {0};
+    SotnStageRoute route = {.room = 999};
+    bool found = false;
+    CHECK(SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route) && found &&
+          route.source == 1 && route.stage == 26 && route.room == 0 && route.x == 64);
+    CHECK(SotnWorld_VisitEvent(&world, 2));
+    CHECK(SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route) && found);
+    CHECK(SotnWorld_RecordTime(&world, 2, 1));
+    route.room = 999;
+    CHECK(SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route) && !found &&
+          route.room == 999);
+    CHECK(SotnStageRoute_FindBoss(dra, 1, 4, 3, &world, &found, &route) && found);
+    CHECK(SotnStageRoute_FindBoss(dra, 1, -1, 64, &world, &found, &route) && !found);
+    found = true;
+    route.room = 999;
+    CHECK(!SotnStageRoute_FindBoss((SotnDataView){bytes, 0x297c + 40}, 1, 0, 0, &world, &found,
+                                   &route) &&
+          found && route.room == 999);
+    Put32(boss + 4, 64);
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 0, 0, &world, &found, &route) && found &&
+          route.room == 999);
+    Put32(boss + 4, 3);
+    Put32(boss + 12, 32);
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 0, 0, &world, &found, &route));
+    Put32(boss + 12, 255);
+    Put16(arrival + 6, 7);
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route));
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, NULL, &found, &route));
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, NULL, &route));
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, NULL));
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 65, 3, &world, &found, &route));
+    SDL_memset(boss, 0, 64 * 20);
+    CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route));
+    return 0;
+}
 int main(void)
 {
+    CHECK(Boss() == 0);
     Uint8 bytes[0x245c + 131 * 10] = {0};
     SotnDataView dra = {bytes, sizeof(bytes)};
     Uint8 *record = bytes + 0x245c + 130 * 10;

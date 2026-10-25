@@ -243,6 +243,7 @@ static bool Entry(SotnActors *s, Uint8 *image)
     SDL_zero(s->primitives);
     SDL_zero(s->combat);
     s->boss_flags = 0;
+    s->world = &s->fallback_world;
     s->camera_x = s->camera_y = 0;
     Actor *manager = &s->slots[128];
     *manager = (Actor){.state = {.id = 0x18, .generation = 100, .x = 256 * 65536, .y = 128 * 65536},
@@ -261,7 +262,7 @@ static bool Entry(SotnActors *s, Uint8 *image)
     s->boss_flags = 2;
     s->game_seconds = 3661;
     CHECK(ActorDoppleEntry(s, manager) && manager->state.step == 5 &&
-          s->dopple.record_time == 10101);
+          s->world->time_attack[SOTN_TIME_DOPPLEGANGER] == 10101);
     s->boss_flags = 0;
     Actor *plate = &s->slots[129];
     Put16(image, 0x5c2, 256);
@@ -307,7 +308,7 @@ static bool Entry(SotnActors *s, Uint8 *image)
     last->state.red = 248;
     CHECK(ActorDoppleLight(s, light) && light->state.step == 4 && s->slots[140].arena.triggered);
     CHECK(ActorDoppleLight(s, light) && light->state.step == 5 && s->slots[0].state.id == 0x16 &&
-          s->dopple.visited);
+          (s->world->time_attack_visited & (1U << SOTN_TIME_DOPPLEGANGER)));
     ActorPrimitive *first = ActorPrimitiveGet(s, light, 0);
     CHECK(first && !first->state.blend && first->state.priority == 0x40 &&
           first->state.screen_space);

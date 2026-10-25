@@ -5,7 +5,8 @@ enum
 {
     SOTN_CASTLE_FLAGS = 0x300,
     SOTN_CASTLE_MAP = 0x800,
-    SOTN_RELICS = 30
+    SOTN_RELICS = 30,
+    SOTN_TIME_ATTACK_EVENTS = 32
 };
 /** @brief Original-sized persistent castle flags and packed exploration, without game artwork. */
 typedef struct SotnWorldState
@@ -13,9 +14,25 @@ typedef struct SotnWorldState
     Uint8 flags[SOTN_CASTLE_FLAGS], map[SOTN_CASTLE_MAP];
     Uint8 relics[SOTN_RELICS]; /**< Original found/active bits, retained by v6 ordinary saves. */
     Uint16 rooms;
-    bool laboratory_boss_visited;
-    Uint32 laboratory_boss_time;
+    Uint32 time_attack[SOTN_TIME_ATTACK_EVENTS]; /**< Original HHMMSS defeat records. */
+    Uint32 time_attack_visited;                  /**< Original event-visited mask. */
 } SotnWorldState;
+/** @brief Original event identities used by integrated boss services. */
+typedef enum SotnTimeAttackEvent
+{
+    SOTN_TIME_DOPPLEGANGER = 2,
+    SOTN_TIME_LAB_BOSSES = 6
+} SotnTimeAttackEvent;
+/** @brief Set an original HHMMSS event record only when its existing value is zero.
+ * @param state Borrowed initialized progress. @param event Original index, 0..31.
+ * @param seconds Elapsed simulation seconds, bounded to 99,999 hours.
+ * @return Success or SDL error; invalid input leaves progress unchanged.
+ * @note Original time zero remains zero; this does not synthesize a defeated flag. */
+bool SotnWorld_RecordTime(SotnWorldState *state, Uint16 event, Uint32 seconds);
+/** @brief Retain the original visited bit without marking a boss defeated.
+ * @param state Borrowed initialized progress. @param event Original index, 0..31.
+ * @return Success or SDL error, unchanged on failure. */
+bool SotnWorld_VisitEvent(SotnWorldState *state, Uint16 event);
 /** @brief Original relic identities used by the supported progression services. */
 typedef enum SotnRelicId
 {

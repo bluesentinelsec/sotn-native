@@ -9,11 +9,11 @@ It has no ordinary prize list or save rooms. No original table bytes are embedde
 Selected boss root/child combat now runs in an explicit native integration fixture;
 see [runtime scope](doppleganger-runtime.md#stage-combat-orchestration). The [entry/reward service](doppleganger-entry.md) now runs selected original
 entrance, seals, music and reward behavior. Remaining effects stay unsupported
-rather than fall through to Laboratory behavior or table addresses. The profile's connected-travel
-gate stays false, and the public gameplay CLI still accepts only NO0/NO1. Ordinary
-travel cannot enter an empty boss arena. Its [backed packed sprites](doppleganger-sprites.md) now have a native graphics
+rather than fall through to Laboratory behavior or table addresses. The [connected progression service](doppleganger-progression.md) now selects BO4
+from original Outer Wall overrides. The public gameplay CLI retains its existing
+development stage starts; BO4 has no separate gameplay start. Its [backed packed sprites](doppleganger-sprites.md) now have a native graphics
 adapter. Selected AI, body/forms, combat and physical defeat are integrated;
-durable boss records, ordinary progression and full parity remain subsequent work.
+full elemental effects and whole-route/console parity remain subsequent work.
 
 Common BO4 adapters reject missing table mappings. Camera-lock metadata uses the
 selected direct style and the seven fully stored property records; the original
@@ -26,7 +26,7 @@ BO4 sound bank. The existing stage catalog already identifies its overlay/art.
 No private inputs enter public CI, packages or repository fixtures. Stage sound
 selection now uses explicit profiles and fails for missing mappings.
 
-Synthetic regressions check metadata, disabled travel/saves, common table
+Synthetic regressions check metadata, no arena saves, common table
 selection/failure, boss dispatch isolation and direct camera bounds. Private LLDB
 checks load the original arena, update/draw the ordinary development character
 initialize the private sound service and exercise a supplied heart pickup and
