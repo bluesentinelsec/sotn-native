@@ -350,3 +350,10 @@ Selected player poison in `player.c` and ordinary contact arithmetic in `combat.
 adapt `dra/5D5BC.c:{GetStatusAilmentTimer,GetEquipProperties,HandleDamage}`,
 `dra/71830.c` and `dra/692E8.c` at the pinned sotn-decomp revision
 (AGPL-3.0-or-later). Data tables remain private. See [mechanics and limits](docs/player-poison.md).
+
+Selected Royal Chapel flight/spawning/debris in `modules/core/chapel.c` adapts
+`st/dai/e_winged_guard.c`; the shared Bat adapter follows `st/e_bat.h`, Chapel
+camera selection follows `st/entity_lock_camera.h`, and shared positional sound
+follows `st/e_misc.h:PlaySfxPositional`, all at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Animation, launch/range, SDK sine, initialization and audio
+tables remain private runtime inputs. See [scope](docs/chapel-runtime.md).

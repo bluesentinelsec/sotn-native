@@ -3,12 +3,13 @@
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Tables remain in the private overlay.
 #include "actors_internal.h"
 
-static bool Bat(SotnActors *s, Actor *a)
+bool ActorBat(SotnActors *s, Actor *a)
 {
     Uint8 animation = 0;
     if (a->state.flags & 0x100)
     {
-        if (!ActorExplosion(s, a, 1) || !ActorSound(s, 0x69c))
+        if (!ActorExplosion(s, a, 1) ||
+            !(s->stage_id == 6 ? ActorPositionalSound(s, a, 0x69c) : ActorSound(s, 0x69c)))
             return false;
         a->remove = true;
         return true;
@@ -16,7 +17,7 @@ static bool Bat(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, EntranceTable(s, 0xb90, 0xafc)))
+        if (!ActorInitialize(s, a, s->stage_id == 6 ? 0xa58 : EntranceTable(s, 0xb90, 0xafc)))
             return false;
         a->state.frame = 31;
         break;
@@ -26,7 +27,8 @@ static bool Bat(SotnActors *s, Actor *a)
             ++a->state.step;
         break;
     case 2:
-        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c60, 0x2570), &animation))
+        if (!ActorAnimate(s, a, s->stage_id == 6 ? 0x1f3c : EntranceTable(s, 0x3c60, 0x2570),
+                          &animation))
             return false;
         if (animation == 0)
         {
@@ -40,7 +42,8 @@ static bool Bat(SotnActors *s, Actor *a)
         break;
     case 3:
     case 4:
-        if (!ActorAnimate(s, a, EntranceTable(s, 0x3c44, 0x2554), &animation))
+        if (!ActorAnimate(s, a, s->stage_id == 6 ? 0x1f20 : EntranceTable(s, 0x3c44, 0x2554),
+                          &animation))
             return false;
         a->state.x += a->vx;
         a->state.y += a->vy;
@@ -307,7 +310,7 @@ bool ActorEntrance(SotnActors *s, Actor *a)
         case 0x3f:
             return ActorSkeleton(s, a, s->player);
         case 0x40:
-            return Bat(s, a);
+            return ActorBat(s, a);
         case 0x42:
             return Zombie(s, a);
         case 0x43:
@@ -356,7 +359,7 @@ bool ActorEntrance(SotnActors *s, Actor *a)
     case 0x47:
         return ActorSkeleton(s, a, s->player);
     case 0x48:
-        return Bat(s, a);
+        return ActorBat(s, a);
     case 0x4a:
     case 0x4b:
         return ActorWarg(s, a);

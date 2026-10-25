@@ -402,6 +402,20 @@ bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset);
 bool ActorAnimate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result);
 bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out);
 bool ActorSound(SotnActors *actors, Uint16 id);
+/** @brief Queue original screen-distance attenuation/pan without owning voices.
+ * @param actors Borrowed stage/audio-request owner. @param actor Borrowed sound source.
+ * @param sound Original sound identifier. @return Success, including inaudible sources,
+ * or false with an SDL error for invalid owners or a full request queue. */
+bool ActorPositionalSound(SotnActors *actors, const Actor *actor, Uint16 sound);
+/** @brief Advance selected original Chapel actors using borrowed private stage tables.
+ * @param actors Borrowed stage-6 owner. @param actor Borrowed owned actor slot.
+ * @return Success, or false with an SDL error for invalid state/data. Unsupported
+ * actor kinds are explicitly marked; this does not grant connected-stage support. */
+bool ActorChapel(SotnActors *actors, Actor *actor);
+/** @brief Advance the selected non-inverted Bat using its own stage tables.
+ * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
+ * @return Success, or false with an SDL error for invalid state/private data. */
+bool ActorBat(SotnActors *actors, Actor *actor);
 bool ActorSoundVolumePan(SotnActors *actors, Uint16 id, Uint16 volume, Sint8 pan);
 bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind);
 bool ActorExplosionInPool(SotnActors *actors, const Actor *source, Uint16 kind, Uint32 begin,

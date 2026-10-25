@@ -6,13 +6,7 @@ bool ActorLibrarySound(SotnActors *s, const Actor *a, Uint16 sound)
 {
     if (s == NULL || a == NULL || s->stage_id != 2)
         return SDL_SetError("Library positional sound requires initialized stage owners");
-    const Sint32 dx = Pixel(a->state.x) - s->camera_x - 128;
-    const Sint32 dy = Pixel(a->state.y) - s->camera_y - 128;
-    const Sint32 pan = SDL_clamp((SDL_abs(dx) - 32) / 32, 0, 8);
-    const Sint32 attenuation = SDL_max(0, SDL_abs(dx) - 96 + SDL_max(0, SDL_abs(dy) - 112));
-    const Sint32 volume = 127 - attenuation / 2;
-    return volume <= 0 ||
-           ActorSoundVolumePan(s, sound, (Uint16)volume, (Sint8)(dx < 0 ? -pan : pan));
+    return ActorPositionalSound(s, a, sound);
 }
 bool ActorLibraryBlocked(SotnActors *s, const Actor *a, size_t offset, bool facing, bool *out)
 {

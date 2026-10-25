@@ -402,3 +402,8 @@ three crossings, stairs/doors, ownership and isolated save/Continue, with explic
 start/save-room transfer/discovery fixture. They are not whole-castle or console
 replays. Sitting, Mist interaction, full shop services, full effects/audio and
 complete Library/game progression remain incomplete. Do not call the area complete.
+
+The [Royal Chapel foundation](docs/chapel-runtime.md) adds a stage-6 resource profile,
+selected shared actors, Winged Guard/body pieces/spawner and Bat combat. Chapel
+travel remains disabled; other enemies, lamps, mechanisms, Maria and boss remain
+unintegrated. Private controlled native fixtures are not ordinary-route/console parity.
