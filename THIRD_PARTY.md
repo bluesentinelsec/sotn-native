@@ -225,3 +225,8 @@ BO4 collision and thinking adapt `src/boss/dop_collision.h`,
 pinned AGPL-3.0-or-later revision. [Runtime scope](docs/doppleganger-runtime.md)
 records explicit integer/ownership changes and remaining encounter work. Original
 sensor tables remain private; public tests use synthetic geometry.
+
+BO4 normal body controls adapt `bo4/dop_anim.c`, normal-form steps in
+`unk_465F0.c`, `unk_46040.c` and transition/attack helpers in `unk_45648.c` under
+the same pinned AGPL-3.0-or-later reference. Runtime transition tables remain
+private; bounded request queues replace direct global entity/audio calls.
