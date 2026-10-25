@@ -65,6 +65,10 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return SDL_SetError("Library actor dispatch requires its original stage service");
     if (a->state.id == 1 || a->state.id == 0x3f || a->state.id == 0x47)
         return ActorLibraryBreakable(s, a);
+    if (a->state.id == 0x20)
+        return ActorLibraryDemonSpit(s, a);
+    if (a->state.id == 0x21)
+        return ActorLibraryDemonBolt(s, a);
     if (a->state.id == 0x1b || a->state.id == 0x1c)
         return ActorLibraryFlying(s, a);
     if (a->state.id == 0x1d || a->state.id == 0x1e)

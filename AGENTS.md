@@ -387,3 +387,9 @@ open and fire owned beams, then complete selected death/debris paths. Their nati
 checks use protected original-placement fixtures; all geometry/UV/recipe data stay
 private. [Library scope](docs/library-runtime.md) retains the missing boss/shop/scripts
 and disabled ordinary Library travel; do not describe the area as complete.
+
+Selected [Lesser Demon children](docs/library-demon-attacks.md) now run spit/column
+and branching bolt effects in explicit fixtures. Native colored quads prepare the
+summoning presentation; body/entry/reward, minions and poison remain pending. The
+US initial bolt vertex uses an explicitly documented safe initialization in place
+of an uninitialized-pointer read. Do not claim a playable boss or full parity.

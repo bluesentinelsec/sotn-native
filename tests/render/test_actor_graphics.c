@@ -354,6 +354,43 @@ static bool TestQuad(Fixture *fixture)
     return true;
 }
 
+static bool TestColorQuad(Fixture *f)
+{
+    ClearFrame(f);
+    SotnTextureQuad q = {.x = {0, 4, 0, 4},
+                         .y = {0, 0, 4, 4},
+                         .untextured = true,
+                         .gouraud = true,
+                         .vertex_red = {255, 0, 255, 0}};
+    CHECK(SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 27 && f->frame[1] == 19 && f->frame[2] == 11 && f->frame[3] == 3);
+    q.gouraud = false;
+    CHECK(SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0);
+    q.red = 128;
+    q.blend = true;
+    const Uint16 expected[4] = {12, 24, 0, 12};
+    for (Uint16 mode = 0; mode < 4; ++mode)
+    {
+        for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+            f->frame[i] = 8;
+        q.page = (Uint16)(mode * 32);
+        CHECK(SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS));
+        for (Uint32 row = 0; row < 4; ++row)
+            for (Uint32 col = 0; col < 4; ++col)
+                CHECK((f->frame[row * SOTN_FRAME_WIDTH + col] & 31U) == expected[mode]);
+        CHECK(f->frame[4] == 8 && f->frame[4 * SOTN_FRAME_WIDTH] == 8);
+    }
+    q.x[0] = 2049;
+    const Uint16 before = f->frame[0];
+    CHECK(!SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == before);
+    q.x[0] = 0;
+    CHECK(!SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS - 1));
+    CHECK(!SotnActorGraphics_Quad(NULL, q, NULL, SOTN_FRAME_PIXELS));
+    q.untextured = false;
+    CHECK(!SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS));
+    return true;
+}
+
 static bool TestRopeCache(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -751,10 +788,11 @@ int main(void)
     if (fixture == NULL)
         return 1;
     const bool passed = TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-                        TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
-                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
-                        PackedSheets(fixture) && TestColorLine(fixture);
+                        TestRotation(fixture) && TestColorQuad(fixture) && TestQuad(fixture) &&
+                        TestSprites(fixture) && TestFailures(fixture) &&
+                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
+                        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
+                        TestColorLine(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

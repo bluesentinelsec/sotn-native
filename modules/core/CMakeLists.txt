@@ -43,6 +43,8 @@ add_library(sotn-core STATIC
   library_dhuron.c
   library_dhuron_charge.c
   library_ectoplasm.c
+  library_demon_spit.c
+  library_demon_bolt.c
   library_book.c
   library_book_geometry.c
   library_book_beam.c
