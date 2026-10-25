@@ -44,9 +44,11 @@ make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-nativ
 explicit development room. These entries use the existing development character,
 not original prologue-derived initialization. Private data must be supplied locally.
 
+The [early-route clock room](marble-clock-room.md) now runs timed mechanisms and selected presentation.
+
 Selected [Marble enemies](marble-gallery-enemies.md), including
 [Skelerang and Diplocephalus](marble-linked-enemies.md), now run. Other area-specific
-enemies, clock-room behavior, elevators, hidden routes, boss transfer
+enemies, the [late clock ritual](marble-clock-room.md), elevators, hidden routes, boss transfer
 and Doppleganger remain incomplete. The existing unsupported-actor diagnostics stay
 visible. Do not call these stages complete or this a complete authentic game.
 

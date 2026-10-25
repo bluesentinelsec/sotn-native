@@ -107,6 +107,12 @@ typedef struct Actor
     } diplo;
     struct
     {
+        Sint32 hand;
+        Uint16 timer, bell, bell_wait, state, previous;
+        bool stopped;
+    } clock;
+    struct
+    {
         Uint16 groups, cadence;
         Sint32 flash;
     } reward;
@@ -128,6 +134,8 @@ struct SotnActors
     Sint16 puzzle_height[3];
     bool call_elevator, cannon_fired;
     Uint32 boss_flags, game_seconds;
+    Uint8 game_frame;
+    bool clock_statues[2];
     bool music_playing;
     struct
     {
@@ -212,6 +220,7 @@ bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset);
 bool ActorAnimate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result);
 bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out);
 bool ActorSound(SotnActors *actors, Uint16 id);
+bool ActorSoundVolumePan(SotnActors *actors, Uint16 id, Uint16 volume, Sint8 pan);
 bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind);
 bool ActorExplosionInPool(SotnActors *actors, const Actor *source, Uint16 kind, Uint32 begin,
                           Uint32 end, Uint16 priority);
@@ -263,6 +272,7 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorClock(SotnActors *actors, Actor *actor);
 bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
 bool ActorFlea(SotnActors *actors, Actor *actor);
 Actor *ActorDiploOwner(SotnActors *actors, const Actor *actor);

@@ -162,3 +162,10 @@ target_include_directories(sotn-marble-enemy-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-marble-enemy-tests PRIVATE sotn-core)
 add_test(NAME marble-gallery-enemies COMMAND sotn-marble-enemy-tests)
 set_tests_properties(marble-gallery-enemies PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-clock-tests test_clock.c)
+sotn_configure_c_target(sotn-clock-tests)
+target_include_directories(sotn-clock-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-clock-tests PRIVATE sotn-core)
+add_test(NAME marble-clock-room COMMAND sotn-clock-tests)
+set_tests_properties(marble-clock-room PROPERTIES TIMEOUT 20)

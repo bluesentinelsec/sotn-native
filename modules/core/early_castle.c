@@ -3,6 +3,9 @@
 #include "actors_internal.h"
 bool ActorEarlyCastle(SotnActors *s, Actor *a)
 {
+    if (s->stage_id == 0 && ((a->state.id >= 0x19 && a->state.id <= 0x20) || a->state.id == 0x2b ||
+                             a->state.id == 0x42))
+        return ActorClock(s, a);
     if (a->state.id == 0x12)
         return ActorCamera(s, a);
     if (a->state.id == ActorStageId(s, 0x2e) || a->state.id == ActorStageId(s, 0x2f) ||

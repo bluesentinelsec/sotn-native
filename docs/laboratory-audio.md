@@ -35,8 +35,12 @@ They are loaded read-only and checked against public size/hash metadata.
 Shared instrument headers remain in the private DRA image. Public source,
 packages, and tests contain none of these inputs.
 
+Explicit original volume/pan now carries through direct and scripted events, using
+private DRA coefficients. SDK tone/program/event panning attenuates the correct channel
+without replacing the other channel's gain. Selected clock sounds exercise this path.
+
 This is selected audio integration, not full audio parity. SEQ playback,
-reverb, complete voice/channel arbitration, positional sound,
+reverb, complete voice/channel arbitration, complete positional sound,
 all movement/ability/ambient events, and original NTSC scheduling remain incomplete.
 The direct/scripted paths exercised by the current combat checkpoint are supported;
 other channel modes fail explicitly. Future hardware-service comparisons must

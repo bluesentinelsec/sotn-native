@@ -69,7 +69,7 @@ struct SotnLaboratory
     SotnSaveStore *saves;
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
-    bool save_room;
+    bool save_room, clock_room;
     LaboratoryInput input;
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
@@ -228,7 +228,10 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         session->speech = next;
     }
     for (Uint32 i = 0; i < combat->sound_count; ++i)
-        if (!SotnSound_Queue(session->sound, combat->sounds[i]))
+        if (combat->volumes[i] == SDL_MAX_UINT16
+                ? !SotnSound_Queue(session->sound, combat->sounds[i])
+                : !SotnSound_QueueVolumePan(session->sound, combat->sounds[i], combat->volumes[i],
+                                            combat->pans[i]))
             return false;
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
         return false;
@@ -411,8 +414,8 @@ static bool TickActors(SotnLaboratory *session)
     profile.hp_max = player.hp_max;
     if (!SotnCharacter_Restore(session->character, &profile))
         return false;
-    if (!SotnActors_SetServices(session->actors, session->executable,
-                                (Uint32)(session->simulation_ticks / 60), session->music != NULL) ||
+    if (!SotnActors_SetServices(session->actors, session->executable, session->simulation_ticks,
+                                session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
         !SotnActors_SetDialogueBusy(session->actors, session->music_fading) ||
@@ -483,6 +486,8 @@ static bool TickActors(SotnLaboratory *session)
 static bool EnterSaveRoom(SotnLaboratory *session)
 {
     const bool was_save_room = session->save_room;
+    const bool was_clock_room = session->clock_room;
+    session->clock_room = session->stage_id == 0 && session->room_index == 9;
     session->save_room = (session->room.foreground.parameters & 0x20) != 0;
     session->input.menu_open = false;
     if (session->save_room)
@@ -505,11 +510,12 @@ static bool EnterSaveRoom(SotnLaboratory *session)
                                  occupied))
             return false;
     }
-    if (session->audio != NULL && was_save_room != session->save_room)
+    if (session->audio != NULL &&
+        (was_save_room != session->save_room || was_clock_room != session->clock_room))
     {
         if (!SotnPlayback_Reset(session->audio))
             return false;
-        if (!session->save_room)
+        if (!session->save_room && !session->clock_room)
         {
             SotnMusic_Destroy(session->music);
             session->music = NULL;
@@ -1141,9 +1147,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
-                (SotnSpriteTransform){
-                    actor.rotated ? actor.rotation : 0, actor.scale_x ? actor.scale_x : 256,
-                    actor.scale_y ? actor.scale_y : 256, actor.opacity ? actor.opacity : 128},
+                (SotnSpriteTransform){actor.rotated ? actor.rotation : 0,
+                                      actor.scale_x ? actor.scale_x : 256,
+                                      actor.scale_y ? actor.scale_y : 256,
+                                      actor.opacity_set || actor.opacity ? actor.opacity : 128},
                 session->frame, SOTN_FRAME_PIXELS))
             return false;
     }

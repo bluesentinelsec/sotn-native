@@ -166,12 +166,55 @@ static bool Failures(Fixture *f)
     return true;
 }
 
+static bool VolumePan(Fixture *f)
+{
+    SotnSoundSources sources = MakeFixture(f);
+    Put16(f->dra, 0x1d17c, 0);
+    Put16(f->dra, 0x1d17e, 127);
+    Put16(f->dra, 0x1d1bc, 127);
+    Put16(f->dra, 0x1d1be, 0);
+    for (Uint16 id = 0x601; id <= 0x602; ++id)
+        for (Sint8 pan = -8; pan <= 8; pan = (Sint8)(pan + 8))
+        {
+            SotnSound *sound = NULL;
+            CHECK(SotnSound_Create(sources, &sound));
+            CHECK(!SotnSound_QueueVolumePan(sound, 0x601, 128, pan));
+            CHECK(!SotnSound_QueueVolumePan(sound, 0x601, 64, 9));
+            CHECK(!SotnSound_QueueVolumePan(sound, 0xa1, 64, pan));
+            CHECK(SotnSound_QueueVolumePan(sound, id, 64, pan));
+            Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+            CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+            Uint32 left = 0, right = 0;
+            for (Uint32 i = 0; i < SOTN_SOUND_FRAMES; ++i)
+            {
+                left += (Uint32)SDL_abs(pcm[i * 2]);
+                right += (Uint32)SDL_abs(pcm[i * 2 + 1]);
+            }
+            CHECK(pan < 0   ? left > 0 && right == 0
+                  : pan > 0 ? right > 0 && left == 0
+                            : left == right && left > 0);
+            SotnSound_Destroy(sound);
+        }
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_Create(sources, &sound));
+    CHECK(SotnSound_QueueVolumePan(sound, 0x601, 0, 8));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+        CHECK(pcm[i] == 0);
+    Put16(f->dra, 0x1d1bc, 128);
+    CHECK(SotnSound_QueueVolumePan(sound, 0x601, 64, 8));
+    CHECK(!SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    SotnSound_Destroy(sound);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && Ambience(f) && Failures(f);
+    const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) && Failures(f);
     SDL_free(f);
     if (!passed)
         return 1;

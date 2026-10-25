@@ -18,6 +18,7 @@ typedef struct SoundScript
     Uint32 address;
     Uint16 id, steps;
     Uint8 timer, volume, priority;
+    Sint8 pan;
 } SoundScript;
 
 struct SotnSound
@@ -28,7 +29,12 @@ struct SotnSound
     SotnVoice voices[24];
     SotnVoiceRegisters registers[24];
     SoundScript scripts[3];
-    Uint16 queue[256], queued;
+    struct
+    {
+        Uint16 id, volume;
+        Sint8 pan;
+    } queue[256];
+    Uint16 queued;
     Uint8 priority[4];
 };
 
@@ -102,7 +108,7 @@ static bool Bank(SotnSound *sound, Uint32 id, SotnDataView header, SotnDataView 
 }
 
 static bool Key(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint8 tone,
-                Uint8 note, Uint8 volume)
+                Uint8 note, Uint8 volume, Uint8 pan)
 {
     if (voice >= 24 || bank_id >= 4 || !sound->banks[bank_id].loaded || program >= 128 ||
         tone >= 16 || note > 127 || volume > 127)
@@ -129,13 +135,13 @@ static bool Key(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Ui
     Uint32 seed = (Uint32)volume * bank->header.bytes[24] * 16383U / 16129U;
     seed = seed * prog[1] * attributes[2] / 16129U;
     Uint32 left = seed, right = seed;
-    const Uint8 pans[3] = {attributes[3], prog[4], 64};
+    const Uint8 pans[3] = {attributes[3], prog[4], pan};
     for (Uint32 i = 0; i < 3; ++i)
     {
         if (pans[i] < 64)
-            left = right * pans[i] / 63;
+            right = right * pans[i] / 63;
         else
-            right = left * (127U - pans[i]) / 63;
+            left = left * (127U - pans[i]) / 63;
     }
     SotnVoiceRegisters *reg = &sound->registers[voice];
     reg->start_addr = (Uint16)(bank->samples[sample] / 8);
@@ -150,21 +156,42 @@ static bool Key(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Ui
 }
 
 static bool Pair(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,
-                 Uint8 volume)
+                 Uint8 volume, Sint8 pan)
 {
-    if (tone > 14)
-        return SDL_SetError("Stereo sound requires a bounded pair of VAB tones");
-    return Key(sound, voice, bank, program, tone, note, volume) &&
-           Key(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume);
+    if (tone > 14 || pan < -8 || pan > 8)
+        return SDL_SetError("Stereo sound requires bounded VAB tones and pan distance");
+    Uint8 key_pan = 64;
+    if (pan != 0)
+    {
+        SotnDataView coefficients = {0};
+        if (!View(sound->dra, 0x1d17c + (size_t)(pan + 8) * 4, 4, &coefficients))
+            return false;
+        const Uint16 right_coefficient = U16(coefficients.bytes),
+                     left_coefficient = U16(coefficients.bytes + 2);
+        if (left_coefficient > 127 || right_coefficient > 127)
+            return SDL_SetError("Private sound pan coefficient exceeds its original range");
+        const Uint16 left = (Uint16)((volume * left_coefficient) >> 7),
+                     right = (Uint16)((volume * right_coefficient) >> 7);
+        key_pan = left == right  ? 64
+                  : right < left ? (Uint8)(right * 64 / left)
+                                 : (Uint8)(127 - left * 64 / right);
+        volume = (Uint8)SDL_max(left, right);
+    }
+    return Key(sound, voice, bank, program, tone, note, volume, key_pan) &&
+           Key(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume, key_pan);
 }
 
-static bool Event(SotnSound *sound, Uint16 id)
+static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
 {
     SotnDataView definition = {0};
     if (!View(sound->dra, 0x1f554 + (size_t)(id - 0x600) * 7, 7, &definition))
         return false;
     const Uint8 *data = definition.bytes;
-    const Uint8 volume = (Uint8)((127U * data[3]) >> 7);
+    Uint8 volume = (Uint8)((127U * data[3]) >> 7);
+    if (multiplier != SDL_MAX_UINT16)
+        volume = (Uint8)((volume * multiplier) >> 7);
+    else if (data[0] != 9 && (data[4] == 1 || data[4] == 3))
+        volume = (Uint8)((volume * 127U) >> 7);
     if (data[3] > 127)
         return SDL_SetError("Sound event has an invalid original volume");
     if (data[0] == 9)
@@ -197,7 +224,11 @@ static bool Event(SotnSound *sound, Uint16 id)
         {
             for (Uint32 voice = selected * 4; voice < selected * 4 + 4; ++voice)
                 sound->voices[voice].key_off = 1;
-            sound->scripts[selected] = (SoundScript){U32(pointer.bytes), id, 0, 0, volume, data[6]};
+            sound->scripts[selected] = (SoundScript){.address = U32(pointer.bytes),
+                                                     .id = id,
+                                                     .volume = volume,
+                                                     .priority = data[6],
+                                                     .pan = pan};
         }
         return true;
     }
@@ -232,7 +263,7 @@ static bool Event(SotnSound *sound, Uint16 id)
     }
     else if (data[4] != 1)
         return SDL_SetError("Sound event requests an unintegrated channel mode");
-    return Pair(sound, voice, data[0], data[1], data[5], data[2], volume);
+    return Pair(sound, voice, data[0], data[1], data[5], data[2], volume, pan);
 }
 
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
@@ -262,7 +293,21 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id)
     if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1) ||
         sound->queued >= SDL_arraysize(sound->queue))
         return SDL_SetError("Sound event is invalid or the bounded queue is full");
-    sound->queue[sound->queued++] = id;
+    const Uint16 slot = sound->queued++;
+    sound->queue[slot].id = id;
+    sound->queue[slot].volume = SDL_MAX_UINT16;
+    sound->queue[slot].pan = 0;
+    return true;
+}
+
+bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan)
+{
+    if (id == 0xa1 || volume > 127 || pan < -8 || pan > 8)
+        return SDL_SetError("Sound volume/pan event exceeds its original bounds");
+    if (!SotnSound_Queue(sound, id))
+        return false;
+    sound->queue[sound->queued - 1].volume = volume;
+    sound->queue[sound->queued - 1].pan = pan;
     return true;
 }
 
@@ -271,7 +316,7 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
     if (sound == NULL || pcm == NULL || count < SOTN_SOUND_FRAMES * 2)
         return SDL_SetError("Sound tick requires state and a full stereo PCM buffer");
     for (Uint32 i = 0; i < sound->queued; ++i)
-        if (sound->queue[i] == 0xa1)
+        if (sound->queue[i].id == 0xa1)
         {
             for (Uint32 v = 20; v <= 21; ++v)
             {
@@ -280,7 +325,7 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
                 sound->voices[v].key_off = 1;
             }
         }
-        else if (!Event(sound, sound->queue[i]))
+        else if (!Event(sound, sound->queue[i].id, sound->queue[i].volume, sound->queue[i].pan))
             return false;
     sound->queued = 0;
     for (Uint32 i = 0; i < 3; ++i)
@@ -305,7 +350,8 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
                 if (sound->voices[voice].active)
                     voice += 2;
                 if (!Pair(sound, voice, entry.bytes[0], entry.bytes[1], entry.bytes[3],
-                          entry.bytes[2], (Uint8)((script->volume * entry.bytes[4]) >> 7)))
+                          entry.bytes[2], (Uint8)((script->volume * entry.bytes[4]) >> 7),
+                          script->pan))
                     return false;
                 script->timer = entry.bytes[5];
                 script->address += 6;
