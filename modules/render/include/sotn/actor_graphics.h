@@ -109,6 +109,21 @@ typedef struct SotnTextureQuad
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief CPU-presented original two-color line; screen coordinates within +/-2048.
+ * Color endpoints use original eight-bit channels; blend modes are half/add/subtract/quarter. */
+typedef struct SotnColorLine
+{
+    Sint32 x[2], y[2];
+    Uint8 red[2], green[2], blue[2], blend_mode;
+    bool blend;
+} SotnColorLine;
+/** @brief Draw a bounded interpolated color line into a full RGB555 frame.
+ * @param line Copied endpoints/colors. @param frame Borrowed writable full frame.
+ * @param count Available pixels. @return Success or SDL error, unchanged on invalid input.
+ * @note Uses explicit native integer sampling. Hardware endpoint registration and
+ * GPU ordering still require console comparison. No texture memory is needed. */
+bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count);
+
 /** @brief Release texture memory without freeing borrowed images. @param graphics Owned object or
  * NULL. */
 void SotnActorGraphics_Destroy(SotnActorGraphics *graphics);

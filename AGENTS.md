@@ -368,3 +368,8 @@ BO4 [child factories and hand-box decoding](docs/doppleganger-runtime.md#child-f
 now resolve private spawn profiles and punch/kick pose boxes. They remain internal
 component services, not live combat or ordinary stage updates. Six smoke/knife
 children in the private fixture are explicitly skipped; full encounter work remains.
+
+The BO4 [knife child](docs/doppleganger-runtime.md#thrown-knife-child) now resolves
+original throw/collision/bounce/fade/expiry and textured/trail presentation in
+component fixtures. Live encounter/player contact is still pending; three impact
+children are skipped and GPU endpoint/order parity remains unproven.

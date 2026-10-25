@@ -236,3 +236,9 @@ BO4 child factories and hand-hitbox decoding adapt `bo4/unk_49A6C.c`,
 at the pinned AGPL-3.0-or-later revision. Blueprints, allocation ranges, weapon-pose
 and hitbox tables stay private. Explicit generations, bounded namespace/ranges and
 primitive cleanup replace global pointer ownership; see the documented component scope.
+
+The BO4 knife child adapts `bo4/unk_50D4C.c:EntitySubwpnKnife` at the same pinned
+AGPL-3.0-or-later reference. Its native two-color line presentation uses checked
+integer interpolation and existing RGB555 blends; `dra/4DA70.c` supplies original
+primitive-command context. Runtime artwork/palettes and attack profiles stay private;
+GPU endpoint/ordering parity remains unproven.
