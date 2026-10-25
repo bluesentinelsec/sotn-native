@@ -102,6 +102,8 @@ typedef struct SotnTextureQuad
     bool blend, modulate, tint;
     Uint8 red, green, blue;
     Uint8 opacity; /**< Color multiplier, 128 neutral, used only when modulate is true. */
+    bool gouraud;  /**< Interpolate per-vertex multipliers instead of the uniform tint. */
+    Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
 } SotnTextureQuad;
 /** @brief Draw a bounded quad as two textured triangles from loaded private texture memory.
  * @param graphics Borrowed texture service. @param quad Copied quad, coordinates within +/-2048.
@@ -109,6 +111,21 @@ typedef struct SotnTextureQuad
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief Apply BO4's original mutable horizontal bat-pose pivot.
+ * @param graphics Owned service. @param frame Original backed bat pose.
+ * @param offset Original form adjustment, -64..64. @return Success or SDL error.
+ * @note Updates only this pose's native mirror, retaining prior pose adjustments
+ * without changing private sprite definitions. */
+bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *graphics, Uint16 frame, Sint16 offset);
+
+/** @brief Upload a private BO4 body/bat pose to its original display scratch slot.
+ * @param graphics Owned main-thread texture service. @param sprite Original packed pose.
+ * @return Success or SDL error; invalid metadata leaves VRAM unchanged.
+ * @note Reads display-slot coordinates from private DRA. Retains tagged poses only
+ * after an upload, and applies original right/bottom clear margins. Required by
+ * original child effects that sample the displayed body image. */
+bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *graphics, SotnActorSprite sprite);
+
 /** @brief CPU-presented original two-color line; screen coordinates within +/-2048.
  * Color endpoints use original eight-bit channels; blend modes are half/add/subtract/quarter. */
 typedef struct SotnColorLine

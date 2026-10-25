@@ -183,6 +183,11 @@ typedef struct Actor
         Uint16 blueprint, params, amount, per_cycle, kind, origin, delay, cycle, spawned;
         bool noncritical, increment;
     } dopple_factory;
+    struct
+    {
+        Sint16 brightness, sway;
+        Uint16 angle, speed, wave, hold;
+    } blink;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -224,7 +229,8 @@ struct SotnActors
     {
         SotnDoppleBody body;
         SotnDoppleAI ai;
-        bool active;
+        bool active, blink_lock;
+        Uint32 blink_angles[16];
     } dopple;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
@@ -363,6 +369,7 @@ bool ActorDoppleFactoryRequest(SotnActors *actors, const Actor *source,
 bool ActorDoppleFactory(SotnActors *actors, Actor *actor);
 bool ActorDoppleUnarmed(SotnActors *actors, Actor *actor);
 bool ActorDoppleKnife(SotnActors *actors, Actor *actor);
+bool ActorDoppleBlink(SotnActors *actors, Actor *actor);
 bool ActorMedusa(SotnActors *actors, Actor *actor);
 bool ActorArmorLord(SotnActors *actors, Actor *actor);
 bool ActorArmorWave(SotnActors *actors, Actor *actor);

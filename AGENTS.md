@@ -361,7 +361,7 @@ fixtures do not prove a live fight or console parity.
 
 The BO4 [normal-body control service](docs/doppleganger-runtime.md#normal-body-controls)
 now advances normal movement and attack selection, emitting bounded child/sound
-requests. Requests/poses are not implemented combat. Forms, child hitboxes,
+requests. Requests/poses are not implemented combat. Child hitboxes remain separate components;
 damage/death and the live encounter remain pending; ordinary travel stays gated.
 
 BO4 [child factories and hand-box decoding](docs/doppleganger-runtime.md#child-factories-and-hand-hitboxes)
@@ -373,3 +373,10 @@ The BO4 [knife child](docs/doppleganger-runtime.md#thrown-knife-child) now resol
 original throw/collision/bounce/fade/expiry and textured/trail presentation in
 component fixtures. Live encounter/player contact is still pending; three impact
 children are skipped and GPU endpoint/order parity remains unproven.
+
+BO4 [transformation controls and blink](docs/doppleganger-runtime.md#transformation-controls-and-blink-child)
+now advance bat/wing-smash/return and original blink timing with private display-cache
+artwork and bounded Gouraud/SDK geometry. Mist controls require external child phase
+signals; the actual mist child, palette service, trails/smoke, damage/death and live
+encounter remain pending. The private sequence skips four requests; it is not a
+live boss or console parity replay. Ordinary arena travel remains disabled.

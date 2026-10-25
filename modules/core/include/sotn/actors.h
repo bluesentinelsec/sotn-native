@@ -77,8 +77,8 @@ typedef struct SotnActorState
     bool facing_left, unsupported;
     Sint16 hit_points, hitbox_x, hitbox_y;
     Uint16 hitbox_width, hitbox_height, hitbox_state;
-    Sint16 rotation;
-    bool rotated, opacity_set; /**< Explicit zero opacity is valid when opacity_set is true. */
+    Sint16 rotation, bat_offset; /**< BO4's original current-pose horizontal adjustment. */
+    bool rotated, opacity_set;   /**< Explicit zero opacity is valid when opacity_set is true. */
     Uint8 primitive_count;
     Uint16 slot;
     Uint16 scale_x, scale_y,
@@ -94,6 +94,8 @@ typedef struct SotnActorPrimitive
     bool active, textured, blend, modulate;
     bool line; /**< Two-color line through offset vertices 0 and 1. */
     Uint8 line_red, line_green, line_blue, line_blend_mode;
+    bool gouraud;
+    Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
     bool quad; /**< Use explicit pixel offsets from x/y for a textured quadrilateral. */
     Sint16 offset_x[4], offset_y[4];
 } SotnActorPrimitive;

@@ -45,4 +45,11 @@ bool SotnAnimation_SetStage(SotnAnimation *animation, Uint16 stage, Uint16 id);
  * This does not select the drawing bank or implement actor movement/AI. */
 bool SotnAnimation_TickStage(SotnDataView image, Uint16 stage, SotnAnimation *animation);
 
+/** @brief Advance BO4 animation with its original mutable form-pose record.
+ * @param image Borrowed verified BO4 overlay. @param form_pose Original replacement sprite, <512.
+ * @param animation Owned cursor, unchanged on failure. @return Success or SDL error.
+ * @note Replaces only the original record at BO4 offset3B0C; the immutable input
+ * image and all other timeline/property/control records remain unchanged. */
+bool SotnAnimation_TickDopple(SotnDataView image, Uint16 form_pose, SotnAnimation *animation);
+
 #endif

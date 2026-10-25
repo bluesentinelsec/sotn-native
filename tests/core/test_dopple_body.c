@@ -138,7 +138,9 @@ static bool Tests(void)
     CHECK(Request(&body, SOTN_DOPPLE_FACTORY, 0, 0));
     const Sint32 x = body.motion.x;
     const Uint16 pose = body.animation.pose, pressed = body.pressed;
-    CHECK(!SotnDoppleBody_Tick(overlay, &map, 8, 0, &body));
+    body.step = 9;
+    CHECK(!SotnDoppleBody_Tick(overlay, &map, 0, 0, &body));
+    body.step = 1;
     CHECK(body.motion.x == x && body.animation.pose == pose && body.pressed == pressed);
     CHECK(!SotnDoppleBody_Tick((SotnDataView){0}, &map, 0, 0, &body));
     CHECK(!SotnDoppleBody_Tick(overlay, NULL, 0, 0, &body));
@@ -148,9 +150,61 @@ static bool Tests(void)
     CHECK(body.motion.x == x && body.animation.pose == pose && body.pressed == pressed);
     return true;
 }
+static bool Forms(void)
+{
+    Uint8 image[0x4200] = {0}, tiles[16 * 16 * 2] = {0}, types[2] = {0, 3};
+    Fixture(image);
+    for (size_t i = 16 * 10; i < 16 * 16; ++i)
+        tiles[i * 2] = 1;
+    const SotnDataView overlay = {image, sizeof(image)};
+    const SotnCollisionMap map = {{tiles, sizeof(tiles)}, {types, sizeof(types)}, 16, 16};
+    SotnDoppleBody body = {0};
+    CHECK(Settle(overlay, &map, &body));
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 8, 0, &body));
+    CHECK(body.step == 6 && body.substep == 0 && body.form_phase == 1 &&
+          Request(&body, SOTN_DOPPLE_FACTORY, 44, 0x20));
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body) && body.form_phase == 1);
+    // The owning white-blink child supplies the original transition signals.
+    body.form_phase = 2;
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body) && body.animation_set == 0x8002 &&
+          body.form_pose == 6);
+    body.form_phase = 3;
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body) && body.substep == 1 &&
+          body.animation.id == 0xc3 && body.palette == 0x8200);
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0x2000, 0, &body) && body.substep == 2 &&
+          body.motion.vx == 81920);
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0x80, 0, &body));
+    CHECK(body.substep == 3 && body.wing_timer == 63 && body.motion.vx == 393216 &&
+          body.timers[14] == 4 && Request(&body, SOTN_DOPPLE_FACTORY, 67, 0));
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 8, 0, &body) && body.step == 10 &&
+          Request(&body, SOTN_DOPPLE_FACTORY, 44, 0x21));
+    for (size_t i = 0; i < 40 && body.substep == 0; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body));
+    CHECK(body.substep == 1 && body.form_phase == 1 && body.form_pose == 0x5f);
+    body.form_phase = 3;
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body) && body.step == 5 &&
+          body.animation_set == 0x8001 && body.palette == 0x8200);
+    CHECK(Settle(overlay, &map, &body));
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 2, 0, &body));
+    CHECK(body.step == 8 && body.substep == 1 && body.motion.status == 0x100002 &&
+          Request(&body, SOTN_DOPPLE_FACTORY, 73, 0) &&
+          Request(&body, SOTN_DOPPLE_PALETTE_BEGIN, 0x8003, 0));
+    body.mist_active = true;
+    body.mist_step = 1;
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0x1000, 0, &body) && body.motion.vy == -65536);
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 2, 0, &body) && body.step == 15);
+    for (size_t i = 0; i < 40 && body.mist_step < 3; ++i)
+        CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body));
+    CHECK(body.mist_step == 3);
+    body.mist_step = 5;
+    CHECK(SotnDoppleBody_Tick(overlay, &map, 0, 0, &body) && body.step == 5 && !body.mist_active &&
+          Request(&body, SOTN_DOPPLE_FACTORY, 44, 0x5b));
+    return true;
+}
+
 int main(void)
 {
-    if (!Tests())
+    if (!Tests() || !Forms())
         return 1;
     SDL_Log("SOTN_DOPPLE_BODY_TEST: PASS");
     return 0;

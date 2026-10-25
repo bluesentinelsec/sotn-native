@@ -13,4 +13,19 @@ bool SotnMath_Atan2(SotnDataView executable, Sint32 y, Sint32 x, Sint16 *out);
  * @param x Signed vector abscissa. @param out Unchanged on error; signed 4096-unit direction.
  * @return Success or SDL error. INT32_MIN is rejected; large ratios preserve SDK normalization. */
 bool SotnMath_Atan2Vector(SotnDataView executable, Sint32 y, Sint32 x, Sint16 *out);
+/** @brief Original SDK sine/cosine values, in units of 1/4096. */
+typedef struct SotnMathTrig
+{
+    Sint16 sine, cosine;
+} SotnMathTrig;
+/** @brief Resolve periodic SDK trigonometry from the private quarter-wave table.
+ * @param executable Borrowed US boot image. @param angle Signed 4096-unit angle.
+ * @param out Receives both values atomically. @return Success or SDL error. */
+bool SotnMath_Trig(SotnDataView executable, Sint32 angle, SotnMathTrig *out);
+/** @brief Evaluate the original SDK table-based twelve-bit square root.
+ * @param executable Borrowed US boot image, retaining the private 192-word table.
+ * @param value Nonnegative original signed-word input (<=INT32_MAX).
+ * @param out Receives sqrt(value)*64 using original quantization, unchanged on error.
+ * @return Success or SDL error for missing/corrupt data or invalid input. */
+bool SotnMath_Sqrt12(SotnDataView executable, Uint32 value, Uint32 *out);
 #endif

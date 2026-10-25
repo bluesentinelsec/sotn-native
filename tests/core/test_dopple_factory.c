@@ -228,6 +228,100 @@ static bool Knife(SotnActors *s)
     s->map = (SotnCollisionMap){0};
     return true;
 }
+static bool Blink(SotnActors *s, Uint8 *image)
+{
+    Uint8 *executable = SDL_calloc(1, 0x23220);
+    CHECK(executable != NULL);
+    for (Uint32 i = 0; i <= 1024; ++i)
+    {
+        Put16(executable + 0x1dbcc + i * 2, (Uint16)(i * 4));
+        Put16(executable + 0x22a10 + i * 2, (Uint16)(i / 2));
+    }
+    for (Uint32 i = 0; i < 192; ++i)
+        Put16(executable + 0x1e3e0 + i * 2, 4096);
+    s->executable = (SotnDataView){executable, 0x23220};
+    Put32(image + 20, 0x80183400);
+    Put32(image + 0x3404, 0x80183500);
+    Put32(image + 0x3408, 0x80183500);
+    Put32(image + 0x3504, 0x80183510);
+    Put16(image + 0x3510, 0x8000);
+    Put16(image + 0x3512, (Uint16)-2);
+    Put16(image + 0x3514, (Uint16)-1);
+    Put32(image + 44, 0x80183600);
+    Put32(image + 48, 0x80183600);
+    Put32(image + 0x3600, 0x80183604);
+    image[0x3604] = image[0x3605] = 8;
+    Put16(image + 0x11ea, (Uint16)-6);
+    const Uint16 profiles[] = {0, 27, 32, 33, 34};
+    for (size_t i = 0; i < SDL_arraysize(profiles); ++i)
+    {
+        Uint8 *profile = image + 0x18a0 + profiles[i] * 20U;
+        Put16(profile, 8);
+        Put16(profile + 6, 0x15f);
+        Put16(profile + 8, 256);
+        Put16(profile + 10, 256);
+        Put16(profile + 12, 256);
+        Put16(profile + 14, 16);
+        Put16(profile + 16, 0x31);
+        Put16(profile + 18, 512);
+    }
+    Clear(s);
+    s->dopple.body = (SotnDoppleBody){.motion = {.x = 100 * 65536, .y = 100 * 65536, .status = 1},
+                                      .animation = {.sprite = 1},
+                                      .animation_set = 0x8001,
+                                      .form_phase = 1};
+    Actor *a = &s->slots[79];
+    *a = (Actor){.state = {.id = 0x10b, .generation = 88, .parameters = 0x2000},
+                 .enemy_state = {.owner_generation = 1},
+                 .slot = 79};
+    CHECK(ActorDoppleBlink(s, a) && a->state.step == 8 && a->state.primitive_count == 8);
+    for (Uint32 tick = 0; tick < 17; ++tick)
+        CHECK(ActorDoppleBlink(s, a));
+    CHECK(a->state.step == 9 && s->dopple.body.form_phase == 2 && s->dopple.blink_lock);
+    for (Uint32 tick = 0; tick < 17; ++tick)
+        CHECK(ActorDoppleBlink(s, a));
+    CHECK(a->state.step == 1 && a->state.parameters == 0x1b00 && s->dopple.body.form_phase == 3 &&
+          !s->dopple.blink_lock);
+    CHECK(ActorPrimitiveGet(s, a, 0)->state.palette == 0x15f);
+    s->slots[78] = (Actor){.state = {.id = 0x10b, .generation = 89, .parameters = 0x1b00},
+                           .enemy_state = {.owner_generation = 1},
+                           .slot = 78};
+    CHECK(ActorDoppleBlink(s, &s->slots[78]) && s->slots[78].remove);
+    for (Uint32 tick = 0; tick < 70 && !a->remove; ++tick)
+        CHECK(ActorDoppleBlink(s, a));
+    CHECK(a->remove);
+    Clear(s);
+    a = &s->slots[79];
+    *a = (Actor){.state = {.id = 0x10b, .generation = 90, .parameters = 0x2100},
+                 .enemy_state = {.owner_generation = 1},
+                 .slot = 79};
+    s->dopple.body.animation_set = 0x8002;
+    s->dopple.body.form_phase = 0;
+    CHECK(ActorDoppleBlink(s, a) && a->state.step == 10);
+    for (Uint32 tick = 0; tick < 20; ++tick)
+        CHECK(ActorDoppleBlink(s, a));
+    CHECK(a->state.step == 10 && a->blink.sway == 128);
+    s->dopple.body.form_phase = 1;
+    CHECK(ActorDoppleBlink(s, a) && a->state.step == 11);
+    for (Uint32 tick = 0; tick < 17; ++tick)
+        CHECK(ActorDoppleBlink(s, a));
+    CHECK(s->dopple.body.form_phase == 3 && !s->dopple.blink_lock);
+    a->state.parameters = 0x2400;
+    CHECK(!ActorDoppleBlink(s, a));
+    a->state.parameters = 0x2200;
+    a->state.step = 0;
+    a->enemy_state.owner_generation = 2;
+    CHECK(ActorDoppleBlink(s, a) && a->remove);
+    a->enemy_state.owner_generation = 1;
+    a->remove = false;
+    s->dopple.body.motion.status = 2;
+    CHECK(ActorDoppleBlink(s, a) && a->remove);
+    CHECK(!ActorDoppleBlink(NULL, a));
+    CHECK(!ActorDoppleBlink(s, NULL));
+    s->executable = (SotnDataView){0};
+    SDL_free(executable);
+    return true;
+}
 int main(void)
 {
     Uint8 image[0x4400] = {0};
@@ -236,8 +330,8 @@ int main(void)
         return 1;
     s->stage_id = 26;
     s->nz0 = (SotnDataView){image, sizeof(image)};
-    const bool pass =
-        SotnRoomActors_Create(&s->spawns) && Tests(s, image) && Unarmed(s, image) && Knife(s);
+    const bool pass = SotnRoomActors_Create(&s->spawns) && Tests(s, image) && Unarmed(s, image) &&
+                      Knife(s) && Blink(s, image);
     SotnRoomActors_Destroy(s->spawns);
     SDL_free(s);
     if (!pass)
