@@ -188,3 +188,5 @@ SOTN_FORMAT_SOURCES += modules/core/enemy_armor.c modules/core/enemy_armor_wave.
   modules/core/enemy_armor_death.c
 
 SOTN_FORMAT_SOURCES += modules/core/player_stone.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_medusa.c

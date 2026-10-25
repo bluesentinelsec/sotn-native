@@ -345,6 +345,7 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorMedusa(SotnActors *actors, Actor *actor);
 bool ActorArmorLord(SotnActors *actors, Actor *actor);
 bool ActorArmorWave(SotnActors *actors, Actor *actor);
 bool ActorArmorDeath(SotnActors *actors, Actor *actor);

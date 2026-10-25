@@ -214,6 +214,32 @@ static bool Open(Fixture *f, SotnActors **s)
         Put16(f->stage + 0x2e98 + i * 4, 32);
         Put16(f->stage + 0x2e9a + i * 4, (Uint16)-8);
     }
+    Put16(f->stage + 0x95c + 8, 6);
+    Put16(f->stage + 0xb48 + 8, 4);
+    Put16(f->stage + 0xb54 + 8, 5);
+    for (Uint32 i = 4; i <= 6; ++i)
+    {
+        Uint8 *enemy = f->dra + 0x200 + i * 40;
+        SDL_memcpy(enemy, f->dra + 0x200, 40);
+        Put16(enemy + 4, 12);
+        Put16(enemy + 6, i == 4 ? 12 : i == 5 ? 7 : 0);
+        Put16(enemy + 8, i == 5 ? 0x201 : 0x21);
+        Put32(enemy + 36, i == 6 ? 0x05202000 : 0x88001810);
+    }
+    for (Uint32 i = 0; i < 8; ++i)
+    {
+        Put16(f->stage + 0x33d2 + i * 12, 1024);
+        Put16(f->stage + 0x33d4 + i * 12, 4);
+        Put16(f->stage + 0x33d6 + i * 12, 4);
+        Put16(f->stage + 0x33d8 + i * 12, i ? 16 : 0);
+    }
+    Animation(f, 0x3430, 2);
+    f->stage[0x3434] = 0;
+    Put32(f->stage + 0x3438, 73728);
+    Put16(f->stage + 0x343c, (Uint16)-16);
+    Put16(f->stage + 0x343e, 1);
+    Put32(f->stage + 0x3440, (Uint32)-73728);
+    Put16(f->stage + 0x3444, 272);
     f->types[1] = 3;
     for (Uint32 y = 12; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -672,12 +698,91 @@ static bool Armor(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Medusa(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *spawner = &s->slots[132];
+    *spawner = (Actor){.state = {.id = 0x59, .generation = 100, .x = 128 * 65536, .y = 128 * 65536},
+                       .slot = 132,
+                       .dynamic = true};
+    SotnPlayerState player = {.x = 128 * 65536, .y = 100 * 65536, .hp = 70, .invulnerable = true};
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *head = &s->slots[64];
+    CHECK(head->state.id == 0x5a && !head->state.step && spawner->timer == 4 &&
+          s->combat_random == 12345 && !(spawner->state.flags & 0x2000));
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(head->state.step == 1 && head->state.y == player.y && head->attack_element == 0x21 &&
+          (head->state.x == -16 * 65536 || head->state.x == 272 * 65536));
+    bool up = false, down = false;
+    spawner->state.flags |= 0x100;
+    for (Uint32 i = 0; i < 120; ++i)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        up = up || head->vy < 0;
+        down = down || head->vy > 0;
+        CHECK(head->state.frame >= 1 && head->state.frame <= 4);
+    }
+    CHECK(up && down && !spawner->state.generation);
+    head->state.flags |= 0x100;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && head->state.id == 2);
+    // Screen-space side decisions rebase into room coordinates on entry.
+    s->camera_x = 128;
+    s->player = player;
+    Actor entry = {.state = {.id = 0x5a, .generation = 901}};
+    CHECK(ActorMedusa(s, &entry) && entry.state.x == 400 * 65536 && entry.vx == -73728);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    CHECK(Open(f, &s));
+    spawner = &s->slots[132];
+    *spawner = (Actor){
+        .state = {.id = 0x59, .parameters = 1, .generation = 100}, .slot = 132, .dynamic = true};
+    player.invulnerable = false;
+    player.animation.hitbox_width = 8;
+    player.animation.hitbox_height = 16;
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    head = &s->slots[64];
+    CHECK(head->state.id == 0x5b);
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(head->attack_element == 0x201);
+    head->state.x = player.x;
+    head->state.y = player.y;
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    SotnActorCombat contact = {0};
+    CHECK(SotnActors_GetCombat(s, &contact) && contact.contact_damage == 7 &&
+          contact.contact_element == 0x201);
+    // A full original-sized pool consumes neither random roll nor another slot.
+    for (Uint32 i = 64; i < 68; ++i)
+        s->slots[i].state.generation = 200 + i;
+    spawner->timer = 0;
+    const Uint32 random = s->combat_random;
+    CHECK(ActorMedusa(s, spawner) && spawner->timer == 1 && s->combat_random == random);
+    CHECK(ActorMedusa(s, spawner) && spawner->timer == 0);
+    s->player.y = 16 * 65536;
+    spawner->timer = 7;
+    CHECK(ActorMedusa(s, spawner) && spawner->timer == 7);
+    Actor malformed = {.state = {.id = 0x59, .generation = 902, .parameters = 8}};
+    CHECK(!ActorMedusa(s, &malformed));
+    Put16(f->stage + 0x33d6, 33);
+    malformed.state.parameters = 0;
+    CHECK(!ActorMedusa(s, &malformed));
+    // A corrupt signed speed must fail without applying abs(INT32_MIN).
+    Put32(f->stage + 0x3438, 0x80000000U);
+    s->player.x = 240 * 65536;
+    s->camera_x = 0;
+    entry = (Actor){.state = {.id = 0x5a, .generation = 903}};
+    CHECK(!ActorMedusa(s, &entry));
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f) && Blue(f) && Armor(f);
+    const bool ok =
+        Musket(f) && Archer(f) && Spear(f) && Sword(f) && Blue(f) && Armor(f) && Medusa(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

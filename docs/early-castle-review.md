@@ -6,6 +6,9 @@ PRs #40–57 also merged bottom-up, each with eight passing checks, into main at
 `e74b2b88a71e93cc5a2c8796e7c67050c3f5fadb`. Main CI subsequently passed.
 The user waived manual playtests for the overnight continuation on 2026-10-25;
 new batches retain automated and private validation with explicit limitations.
+PRs #58–59 subsequently merged with eight passing checks each, adding selected
+Armor Lord combat, equipment contact elements and player petrification. The
+checkpoint after those merges is `24b25bba3890feba7f9a6b038c9a59c9c68019e6`.
 
 ## Implemented scope
 
@@ -22,6 +25,7 @@ new batches retain automated and private validation with explicit limitations.
   [Spear Guards](outer-wall-spear-guard.md), [Sword Lords](outer-wall-sword-lord.md),
   [Blue Axe Knights](outer-wall-blue-knight.md), [Skeleton Apes](outer-wall-skeleton-ape.md)
   selected [Armor Lord](outer-wall-armor-lord.md) attacks and death,
+  [Medusa Heads](outer-wall-medusa-heads.md),
   and selected [elevator mechanisms](outer-wall-elevator.md).
 - Corrected inside-castle Entrance development arrival, both
   [water-room rocks](entrance-rocks.md) and the [breakable stair section](entrance-stairway.md).

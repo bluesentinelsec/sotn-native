@@ -37,6 +37,8 @@ for validation evidence and remaining progression limits. The selected
 its death rendering and elemental reactions retain documented parity gaps.
 [Selected petrification](docs/player-petrification.md) adds stone landing,
 directional escape and a selected game-over path; statue/fragment effects remain incomplete.
+[Wall Medusa Heads](docs/outer-wall-medusa-heads.md) add blue/gold spawning,
+flight and stone contact within those limits.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
