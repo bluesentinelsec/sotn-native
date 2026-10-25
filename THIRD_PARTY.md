@@ -409,3 +409,10 @@ child/trail pointers. Required null-trail/terminator handling is documented in
 `docs/chapel-hunting-girl.md`; no low-memory side effects are emulated. Original
 initialization, animation, fade, spirit, motion, sensor, artwork and SDK tables
 remain private runtime inputs.
+
+`modules/core/chapel_spectral.c` adapts selected `st/dai/e_spectral_sword.c` and
+`st/step_towards.h` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Native slot/generation references protect the sixteen adjacent weapons and aura.
+Positive `SquareRoot0` uses the already credited PSY-Z SDK square-root adapter's
+shared table/normalization with the original integer-result shift. Initialization,
+hitboxes, palettes, artwork and SDK tables remain private runtime inputs.

@@ -135,6 +135,13 @@ typedef struct Actor
     } hunt;
     struct
     {
+        Sint32 target_x, target_y;
+        Sint16 radius, spin, spin_target;
+        Uint16 timer, moves, count;
+        bool has_weapons;
+    } spectral;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -486,6 +493,10 @@ bool ActorChapelPillar(SotnActors *actors, Actor *actor);
  * @return Success or SDL error; private profiles remain borrowed and children owned by generation.
  */
 bool ActorChapelHunting(SotnActors *actors, Actor *actor);
+/** @brief Advance Chapel Spectral Sword, its owned aura or one of sixteen weapons.
+ * @param actors Borrowed stage-6 owner. @param actor Borrowed active supported slot.
+ * @return Success or SDL error for invalid private data, ownership, state or motion. */
+bool ActorChapelSpectral(SotnActors *actors, Actor *actor);
 /** @brief Borrowed Hunting Girl graphics/motion helpers; require its 32 owned primitives.
  * @note Tips use whole room coordinates; spirit/attack completion is copied to done.
  * Profiles/streams stay private, and invalid bounds/ownership return SDL errors. */
