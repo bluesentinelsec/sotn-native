@@ -46,6 +46,18 @@ retires the owned child. Both directions retain their geometry and signed screen
 coordinate averaging. Texture/hitbox/timeline tables remain private; no artwork
 or effect frames are compiled into the app.
 
+Ectoplasm now runs its original elliptical motion, reaction to a square-button tap,
+hit squash/rebound, falling death, flames and recipe-driven afterimages. Button
+taps derive once per simulation tick from the held buttons; holding a button
+cannot retrigger a tap. Original SDK trigonometry and distinct libc random draws
+remain explicit. Summoned variants retain their fade/blink and stage-local cleanup
+signal. Emitters require a current owner generation; independent afterimages
+finish their own animation when an owner retires. Their hidden anchor still
+reserves its original primitive budget. **Curse application, timer and blocked
+weapon-use behavior are not integrated in this actor slice.** The existing player
+contact path handles physical damage only here; this does not establish authentic
+Ectoplasm contact, and Library travel remains disabled pending that work.
+
 The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
 and upper-body hit branches, flight/hover/dive and independent deaths. Original
 first-Library layouts contain **no Flying Zombie placements**; this adapter is
@@ -128,4 +140,12 @@ then dies through a crouching root attack at tick 670 (168 renders, 204 growth
 ticks and 51 projectile actor ticks). Debug and macOS ASan/UBSan agree and exit
 successfully. These explicit room fixtures do not establish an uninterrupted
 Library route or console/audiovisual parity.
-All 63 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+Ectoplasm additionally adapts `st/lib/e_ectoplasm.c`, the selected summoned fade
+from `st/lib/e_lesser_demon.c:func_us_801BB8DC`, and the existing direct wide-animation
+service. Synthetic tests cover tap/hold behavior, motion excitation, rebound,
+death timing, owner-independent tail lifetime, recipe emitters, summon cleanup and
+primitive exhaustion. Protected native LLDB combat against its original room-9
+placement finishes the observed HP/death path at tick 259 with 65 renders in Debug
+and macOS ASan/UBSan. Both exit successfully. That fixture causes no hero contact
+and does not validate curse, ordinary traversal or console/audiovisual parity.
+All 64 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
