@@ -26,6 +26,9 @@ is now supported with an explicit 25-entry table bound; earlier profiles retain
 24 entries. Music uses the original stage intro/loop records: Marble Gallery and
 Tower of Mist, with checksum-verified stage sound banks loaded on demand.
 
+Selected [Outer Wall ranged encounters](outer-wall-ranged-enemies.md) now run Bone
+Muskets and Bone Archers with selected projectiles and death behavior.
+
 Selected shared pickups, relics, doors, camera locks and breakables run against
 those profiles. Outer Wall's background-door flag is decoded separately from its
 tile index; complete background-door routing/presentation and breakable debris
