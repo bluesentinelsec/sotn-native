@@ -35,6 +35,8 @@ typedef struct SotnItem
     Sint16 attack, defense, bonus[4];
     Uint16 id, type, weakness, resistance, immunity, absorption, icon, palette;
     bool body, supported;
+    bool
+        name_ascii; /**< Relic names use bounded ASCII; equipment uses the private font encoding. */
 } SotnItem;
 /** @brief Derived unbuffed attributes; conditional effects not integrated are rejected at equip. */
 typedef struct SotnCharacterStats

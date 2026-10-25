@@ -88,12 +88,23 @@ bool ActorDoor(SotnActors *s, Actor *a)
         Uint16 collision = 0;
         if (!ActorObjectCollision(s, a, 8, 32, 5, &collision))
             return false;
-        // The current character model has no Jewel of Open. Preserve its locked boundary.
         if (Near(s, a, 24) && s->player.step == SOTN_PLAYER_WALK &&
-            s->player.facing_left != (Side(a, s->player) != 0) && !a->mechanism.pressed)
+            s->player.facing_left != (Side(a, s->player) != 0) &&
+            (!a->mechanism.pressed || (s->world->relics[SOTN_RELIC_JEWEL] & 2)))
         {
-            SDL_Log("Magically sealed (Jewel of Open is not active in this checkpoint)");
-            a->mechanism.pressed = true;
+            if (s->world->relics[SOTN_RELIC_JEWEL] & 2)
+            {
+                if (!ActorSound(s, 0x642))
+                    return false;
+                a->state.frame = 0;
+                a->state.step = 2;
+                s->control = (SotnActorControl){0, 2};
+            }
+            else
+            {
+                SDL_Log("Magically sealed: Jewel of Open is not active");
+                a->mechanism.pressed = true;
+            }
         }
     }
     else

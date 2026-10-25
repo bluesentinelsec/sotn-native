@@ -415,7 +415,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if (actor->cooldown[i])
             --actor->cooldown[i];
     if (!EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
-        actor->state.id != 0xa &&
+        actor->state.id != 0xa && actor->state.id != 0xb &&
         (actors->stage_id != 12 ||
          (actor->state.id != 0x34 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
           actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
@@ -557,11 +557,13 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnCombat_Overlap(PlayerBox(player, false), target))
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
-        (actor->state.id == 3 || actor->state.id == 0xa || !player.invulnerable) &&
+        (actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb ||
+         !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
     {
-        if ((actor->state.id == 3 || actor->state.id == 0xa) && actor->state.step > 1 &&
-            actor->state.step < 5 && actor->timer == 0)
+        if ((actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb) &&
+            actor->state.step > (actor->state.id == 0xb ? 0U : 1U) && actor->state.step < 5 &&
+            (actor->state.id == 0xb || actor->timer == 0))
             actor->state.step = 5;
         else if ((EnemyHitbox(actors, actor->state.id) ||
                   (actors->stage_id == 12 &&
@@ -851,9 +853,15 @@ static bool Collectible(SotnActors *actors, Actor *actor)
     if (!SotnCharacter_Get(actors->character, &state, NULL))
         return false;
     const Uint32 index = actor->collectible - 1U;
-    if (index >= 11)
-        return SDL_SetError("Laboratory item persistence index exceeds its original table");
-    state.laboratory_items[index / 8] |= (Uint8)(1U << (index & 7));
+    if (index >= (SOTN_CASTLE_FLAGS - 0x100) * 8)
+        return SDL_SetError("Persistent item bit exceeds original castle progress storage");
+    actors->world->flags[0x100 + index / 8] |= (Uint8)(1U << (index & 7));
+    if (actors->stage_id != 12)
+        return true;
+    const Uint32 local = index - 0xf8;
+    if (index < 0xf8 || local >= 11)
+        return SDL_SetError("Persistent Laboratory bit exceeds its original range");
+    state.laboratory_items[local / 8] |= (Uint8)(1U << (local & 7));
     return SotnCharacter_Restore(actors->character, &state);
 }
 
@@ -938,7 +946,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
         char name[161] = {0};
         if (!SotnCharacter_Collect(actors->character, body, item_id) ||
             !Collectible(actors, actor) || !SotnItem_Read(actors->dra, body, item_id, &item) ||
-            !SotnItem_Name(item, name, sizeof(name)) || !ActorSound(actors, 0x67d))
+            !SotnItem_Name(item, name, sizeof(name)) || !ActorSound(actors, 0x67c))
             return false;
         SDL_Log("Obtained %s", name);
         actor->remove = true;
@@ -957,31 +965,86 @@ static bool PersistentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pl
         return true;
     }
     const Uint16 index = actor->state.parameters;
-    if (index >= 11)
-        return SDL_SetError("Persistent Laboratory drop index exceeds its original table");
+    const Uint16 count = actors->stage_id == 12 ? 11 : 10;
+    const Uint16 base = actors->stage_id == 12 ? 0xf8 : 0x30;
+    const Uint16 bit = (Uint16)(base + index);
+    if (index >= count)
+        return SDL_SetError("Persistent drop index exceeds its original stage table");
     SotnCharacterState state = {0};
     SotnDataView prize = {0};
     if (!SotnCharacter_Get(actors->character, &state, NULL))
         return false;
-    if (state.laboratory_items[index / 8] & (1U << (index & 7)))
+    if ((actors->world->flags[0x100 + bit / 8] & (1U << (bit & 7))) ||
+        (actors->stage_id == 12 && (state.laboratory_items[index / 8] & (1U << (index & 7)))))
     {
         actor->remove = true;
         return true;
     }
-    if (!Slice(actors->nz0, 0x13b0 + (size_t)index * 2, 2, &prize))
+    if (!Slice(actors->nz0, ActorTable(actors, 0x13b0, 0x1c8c, 0x1618) + index * 2U, 2, &prize))
         return false;
     const Uint16 id = Read16(prize.bytes);
-    actor->collectible = (Uint16)(index + 1);
+    actor->collectible = (Uint16)(bit + 1);
     actor->state.id = (Uint16)(id < 128 ? 3 : 0xa);
     actor->state.parameters = (Uint16)((id < 128 ? id : id - 128) | 0x8000);
     return id < 128 ? Prize(actors, actor, player) : EquipmentPrize(actors, actor, player);
+}
+
+static bool RelicOrb(SotnActors *s, Actor *a)
+{
+    const Uint16 id = a->state.parameters & 0x7fff;
+    SotnItem relic = {0};
+    if (!SotnRelic_Read(s->dra, id, &relic))
+        return false;
+    if (a->state.step == 0)
+    {
+        if (s->world->relics[id] & 1)
+        {
+            a->remove = true;
+            return true;
+        }
+        if (!ActorInitialize(s, a, ActorTable(s, 0xbd4, 0xab8, 0xa48)))
+            return false;
+        a->state.animation_set = 0;
+        a->state.frame = 1;
+        a->state.hitbox_state = 1;
+        a->state.hitbox_width = a->state.hitbox_height = 7;
+        a->state.priority = 0x7e;
+        a->state.y = Pixel(a->state.y) * 65536 + 32768;
+        a->vy = 16384;
+        a->gravity = -512;
+        a->timer = 64;
+        return true;
+    }
+    if (a->state.step == 1)
+    {
+        a->vy += a->gravity;
+        if (--a->timer == 0)
+        {
+            a->timer = 64;
+            a->gravity = -a->gravity;
+        }
+        a->state.y += a->vy;
+        return true;
+    }
+    if (a->state.step == 5)
+    {
+        char name[161] = {0};
+        if (!SotnRelic_Collect(s->world, s->dra, id) || !SotnItem_Name(relic, name, sizeof(name)) ||
+            !ActorSound(s, 0x687))
+            return false;
+        SDL_Log("Obtained relic: %s", name);
+        a->remove = true;
+        return true;
+    }
+    return SDL_SetError("Relic orb entered an unsupported state");
 }
 
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
     if (actors->stage_id != 12 && actor->state.id != 1 && actor->state.id != 2 &&
-        actor->state.id != 3 && actor->state.id != 0xa && actor->state.id != 0xc)
+        actor->state.id != 3 && actor->state.id != 0xa && actor->state.id != 0xb &&
+        actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
     switch (actor->state.id)
     {
@@ -1030,12 +1093,9 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         return Prize(actors, actor, player);
     case 0xa:
         return EquipmentPrize(actors, actor, player);
+    case 0xb:
+        return RelicOrb(actors, actor);
     case 0xc:
-        if (actors->stage_id != 12)
-        {
-            actor->state.unsupported = true;
-            return true;
-        }
         return PersistentPrize(actors, actor, player);
     case 1: {
         const Uint32 type = actor->state.parameters >> 12;
@@ -1052,6 +1112,11 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return false;
             if (actor->hit_params)
             {
+                if (!(actors->world->relics[SOTN_RELIC_CUBE] & 2))
+                {
+                    actor->remove = true;
+                    return ActorExplosion(actors, actor, 0) && ActorSound(actors, 0x634);
+                }
                 if (!ActorExplosion(actors, actor, 0) || !ActorSound(actors, 0x634))
                     return false;
                 actor->state.id = 3;
@@ -1230,6 +1295,7 @@ bool SotnActors_CreateStage(SotnDataView dra, SotnDataView nz0, Uint16 stage_id,
         return false;
     }
     actors->world = &actors->fallback_world;
+    actors->fallback_world.relics[SOTN_RELIC_CUBE] = 3;
     actors->camera = &actors->fallback_camera;
     *out = actors;
     return true;

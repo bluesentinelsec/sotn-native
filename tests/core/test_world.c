@@ -233,6 +233,18 @@ static bool Doors(SotnActors *s, Fixture *f)
         CHECK(ActorDoor(s, &door));
     CHECK(door.state.step == 1 && door.state.frame == 1);
     ActorPrimitivesClear(s, &door);
+    door = (Actor){.state = {.id = 0x4a, .generation = 112, .x = 128 * 65536, .y = 128 * 65536}};
+    s->player.x = 180 * 65536;
+    CHECK(ActorDoor(s, &door) && door.state.step == 1);
+    s->player.x = 144 * 65536;
+    s->player.facing_left = true;
+    s->player.step = SOTN_PLAYER_WALK;
+    CHECK(ActorDoor(s, &door) && door.state.step == 1 && door.mechanism.pressed);
+    s->world->relics[SOTN_RELIC_JEWEL] = 1;
+    CHECK(ActorDoor(s, &door) && door.state.step == 1);
+    s->world->relics[SOTN_RELIC_JEWEL] = 3;
+    CHECK(ActorDoor(s, &door) && door.state.step == 2 && door.state.frame == 0);
+    ActorPrimitivesClear(s, &door);
     return true;
 }
 static bool Cannon(SotnActors *s, Fixture *f)

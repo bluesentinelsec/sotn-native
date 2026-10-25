@@ -1,7 +1,7 @@
 # Native save storage
 
 Ordinary saves retain supported character inventory/equipment, EXP/level, base
-stats, current/max resources, permanent pickups, gold/kills, subweapon, stage/room/time,
+stats, current/max resources, permanent pickups and relic ownership, gold/kills, subweapon, stage/room/time,
 four gameplay/progression RNG streams, explored map cells, and permanent
 Laboratory and Entrance events. This is a versioned development save, not a PS1 memory card or
 full-game save. No artwork, samples, executable bytes, or runtime tables enter it.
@@ -21,7 +21,7 @@ supported state bounds. Failed loads leave output and files unchanged. Unknown
 versions require explicit migration; application VERSION does not determine save
 compatibility. The checksum detects corruption, not malicious modification.
 
-## Version 5
+## Version 6
 
 New writes use a 4096-byte little-endian record. Native struct layout, padding,
 host pointers, artwork, and runtime tables are never serialized.
@@ -29,7 +29,7 @@ host pointers, artwork, and runtime tables are never serialized.
 | Offset | Value |
 | --- | --- |
 | 0 | Eight-byte magic `SOTNNSAV` |
-| 8 | 32-bit format version, 5 |
+| 8 | 32-bit format version, 6 |
 | 12 | 32-bit record length, 4096 |
 | 16 | 32-bit supported US reference marker |
 | 20 | 32-bit stage-local save-room ID |
@@ -53,7 +53,8 @@ host pointers, artwork, and runtime tables are never serialized.
 | 3442 | One-byte Laboratory boss-visited boolean, 0 or 1 |
 | 3443 | Reserved zero byte |
 | 3444 | 32-bit Laboratory boss-defeat time, gameplay seconds |
-| 3448–4091 | Reserved zero bytes |
+| 3448–3477 | Thirty original relic ownership bytes (0 absent, 1 found, 3 active) |
+| 3478–4091 | Reserved zero bytes |
 | 4092 | IEEE CRC-32 over bytes 0–4091 |
 
 Inventory excludes equipped copies. Counts, equipment/resource/stat bounds, order
@@ -77,6 +78,12 @@ rooms 23/24/25, first Entrance rooms 25/26/27, or later Entrance rooms 22/23/24.
 
 ## Explicit migration
 
+Version 5 retains its stage identity and all supported progress. Versions 1–5
+migrate with Cube of Zoe active because those checkpoints already granted its
+candle drops. Their eleven Laboratory pickup bits also migrate into the original
+castle-flag range; new writes retain the legacy mirror for character compatibility.
+New Entrance starts collect Cube from its original room instead.
+
 Version 4 remains 4096 bytes and requires zero bytes 44–47. It migrates to stage
 12 without changing its existing world/character/time/RNG state. All older formats
 also migrate to stage 12; none stored a stage identity.
@@ -95,13 +102,13 @@ stats 6, empty body equipment/inventory with identity order, zero EXP/character
 RNG, and no permanent pickup/world progress. Version 1 supplies zero gameplay RNGs.
 
 Reading a legacy save never changes its file. The next successful ordinary save
-writes v5 through the checked replacement path. Unknown formats fail explicitly.
+writes v6 through the checked replacement path. Unknown formats fail explicitly.
 Native Android/iOS use SDL's sandbox preference path. Browser durable persistence
 still requires an adapter and reload tests. PS1 memory-card import/export, further
-stages, relic progression, Maria/castle scripts, and full-game saves remain separate.
+stages, relic ability/menu integration, Maria/castle scripts, and full-game saves remain separate.
 
 Public tests use a build-local directory and synthetic state. They check independent
-v3/v4/v5 checksums, stage/save-room roundtrips, all four legacy migrations, malformed character
+v3/v4/v5/v6 checksums, stage/save-room roundtrips, all five legacy migrations, malformed character
 and world state, reserved fields, length/version/checksum failures, fifteen slots,
 retained corrupt files, and safe replacement/failed rename. Private native LLDB
 checks use isolated local slots, never the user's real save bank. Private captures
