@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Shared reconstructed LIB actor identities from the pinned st/lib/e_init.c.
 #include "actors_internal.h"
+#include "library_demon_internal.h"
 bool ActorLibrarySound(SotnActors *s, const Actor *a, Uint16 sound)
 {
     if (s == NULL || a == NULL || s->stage_id != 2)
@@ -65,6 +66,8 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return SDL_SetError("Library actor dispatch requires its original stage service");
     if (a->state.id == 1 || a->state.id == 0x3f || a->state.id == 0x47)
         return ActorLibraryBreakable(s, a);
+    if (a->state.id == 0x1f || a->state.id == 0x22)
+        return ActorLibraryDemon(s, a);
     if (a->state.id == 0x20)
         return ActorLibraryDemonSpit(s, a);
     if (a->state.id == 0x21)

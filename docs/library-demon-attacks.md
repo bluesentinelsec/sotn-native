@@ -1,10 +1,10 @@
 # Selected Lesser Demon attack services
 
 The Library adapter now has Lesser Demon's selected spit and bolt children. The
-boss body, entry/reward controller and summoning remain pending. Selected
-[minion services](library-minions.md) now run separately. These
-children run only in explicit component fixtures until the boss commands them;
-they do not make the boss fight or Library route playable. Stage 2 remains gated.
+[selected boss body](library-lesser-demon.md) now commands them with its summoning
+and [minion services](library-minions.md). Placed entry and reward remain pending.
+These children also retain explicit component fixtures; they do not make the placed boss
+encounter or Library route available. Stage 2 remains gated.
 
 Spit retains its initial direction delay, diagonal flight, private floor sensor,
 impact animation, expanding damage column, shrinking UV/geometry, sound and fade.
@@ -34,7 +34,7 @@ Public synthetic cases cover both spit directions, impact/column hitbox timing,
 UV changes, fade, both bolt directions, branching, slot reuse, pool exhaustion,
 byte timer wrap, malformed animation/math and fixed-point overflow. Renderer cases
 cover gradients, black, all four blend modes, shared triangle edges and failed
-writes. All 67 groups pass in Debug and macOS ASan/UBSan.
+writes. All 68 groups pass in Debug and macOS ASan/UBSan.
 
 Private LLDB fixtures insert both children in Library room 0, whose original room
 bank contains the boss artwork. They draw flight, column, trail and retirement,

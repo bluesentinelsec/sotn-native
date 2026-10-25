@@ -3,8 +3,8 @@
 The Library adapter now runs Mudman and its separate attack child, plus the
 summoned Skeleton appearance/cleanup path. Ectoplasm and Skeleton share the
 original Library opacity/blink helper. Mudman keeps its own floor-emergence and
-sinking shapes. These services prepare Lesser Demon's minions; the boss controller
-and its summoning beam still remain pending. Library travel stays gated.
+sinking shapes. Lesser Demon's [selected body](library-lesser-demon.md) now commands
+these minions. Placed entry/reward remain pending, and Library travel stays gated.
 
 Mudman retains delayed floor emergence, the colored private-texture shape,
 walking/attack timelines, frame-selected separate hitboxes, obstacle sinking and
@@ -31,7 +31,7 @@ and complete timing parity remain unproven.
 
 Public synthetic cases cover both Mudman directions, emergence, attack child
 poses, sinking, fragments, stale owners, malformed hitboxes, allocation failures,
-checked motion, Skeleton fade/grounding/cleanup and shared helper failures. All 67
+checked motion, Skeleton fade/grounding/cleanup and shared helper failures. All 68
 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
 
 Private LLDB fixtures insert each summoned type in the original boss room 0 with

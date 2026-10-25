@@ -2,7 +2,7 @@
 
 Long Library (stage 2) now has a native resource profile, selected shared actors
 and its own breakable behavior. Ordinary connected travel stays disabled while
-its area-specific enemies, Lesser Demon, librarian/shop and scripts remain pending.
+Lesser Demon's placed entry/reward, librarian/shop and scripts remain pending.
 There is no separate public Library gameplay start. Loading a room or rendering
 its artwork does not establish a working Library route or console parity.
 
@@ -150,7 +150,7 @@ placement finishes the observed HP/death path at tick 259 with 65 renders in Deb
 and macOS ASan/UBSan. Both exit successfully. That combat fixture causes no hero contact and does not itself validate curse,
 ordinary traversal or console/audiovisual parity. A separate positioned-contact,
 pause and explicit-arrival fixture is documented in [character status](character-status.md).
-All 67 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+All 68 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
 
 Spellbooks and Magic Tomes now wake, approach from depth, pursue/charge, turn and
 open their two halves before commanding their adjacent beam. Their twelve private
@@ -180,7 +180,8 @@ audiovisual parity. Lesser Demon, librarian/shop/scripts and Library travel rema
 
 Selected [Lesser Demon attack services](library-demon-attacks.md) now retain spit/
 column and branching bolt effects, with a native colored-quad path for the later
-summoning effect. Their explicit fixtures do not establish a working boss. Body AI,
-entry/reward, poison status and Library travel remain pending. The selected
+summoning effect. Their explicit fixtures do not establish a working boss. Placed entry/reward, poison status and Library travel remain pending.
+[Selected body AI](library-lesser-demon.md) now runs the boss's attacks, summoning and
+physical defeat in a protected explicitly activated fixture. The selected
 [summoned minions](library-minions.md) now run Mudman and the Skeleton/Ectoplasm
 appearance and cleanup paths; their protected inserted fixtures are component evidence.

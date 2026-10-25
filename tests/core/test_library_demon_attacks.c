@@ -1,4 +1,6 @@
 #include "actors_internal.h"
+#include "boss_projection.h"
+#include "library_demon_internal.h"
 #define CHECK(v)                                                                                   \
     do                                                                                             \
     {                                                                                              \
@@ -55,6 +57,12 @@ static void Open(Fixture *f, SotnActors *s, Uint16 id, bool facing)
     {
         Put16(f->exe + 0x1dbcc + i * 2, (Sint32)SDL_round(SDL_sin(i * SDL_PI_D / 2048) * 4096));
         Put16(f->exe + 0x22a10 + i * 2, (Sint32)SDL_round(SDL_atan(i / 1024.0) * 2048 / SDL_PI_D));
+    }
+    for (Uint32 i = 0; i < 4096; ++i)
+    {
+        const double angle = i * SDL_PI_D / 2048.0;
+        Put16(f->exe + 0x1ea10 + i * 4, (Sint32)SDL_round(SDL_sin(angle) * 4096));
+        Put16(f->exe + 0x1ea12 + i * 4, (Sint32)SDL_round(SDL_cos(angle) * 4096));
     }
     for (Uint32 i = 16 * 10; i < 16 * 16; ++i)
         f->tiles[i * 2] = 1;
@@ -140,6 +148,71 @@ static bool Bolt(Fixture *f, SotnActors *s, bool facing)
     CHECK(!ActorLibrary(s, a));
     return true;
 }
+static bool BodyEffects(Fixture *f, SotnActors *s)
+{
+    Open(f, s, 0x1f, true);
+    Actor *a = &s->slots[64];
+    a->state.priority = 134;
+    CHECK(ActorDemonPunchEffect(s, a) && a->state.primitive_count == 2 &&
+          a->demon.effect_step == 1);
+    ActorPrimitive *p = ActorPrimitiveGet(s, a, 0);
+    CHECK(p && !p->state.active && Pixel(p->state.x) == 68 && Pixel(p->state.y) == 97);
+    CHECK(ActorDemonPunchEffect(s, a) && p->state.active && p->state.offset_x[0] == -20 &&
+          p->state.offset_y[0] == -8 && p->state.palette == 0x24a);
+    CHECK(ActorDemonPunchEffect(s, a) && p->state.palette == 0x252 && a->demon.width == 44);
+    for (Uint16 i = 0; i < 7; ++i)
+        CHECK(ActorDemonPunchEffect(s, a));
+    CHECK(a->demon.effect_step == 2 && a->demon.width == 58 && a->demon.height == 7);
+    CHECK(ActorDemonPunchEffect(s, a) && a->state.primitive_count == 0 &&
+          a->demon.effect_step == 3 && !(a->state.flags & 0x800000U));
+    a->demon.effect_step = 0;
+    CHECK(ActorDemonStarEffect(s, a) && a->state.primitive_count == 2 && a->demon.scale == 256 &&
+          s->combat.sounds[0] == 0x614);
+    CHECK(ActorDemonStarEffect(s, a) && a->demon.scale == 320 && a->demon.angle == 64);
+    a->demon.effect_step = 2;
+    CHECK(ActorDemonStarEffect(s, a) && !a->state.primitive_count);
+    a->demon.effect_step = 0;
+    bool ready = false;
+    CHECK(ActorDemonWindup(s, a, &ready) && !ready && a->state.primitive_count == 24 &&
+          a->demon.effect_step == 1);
+    p = ActorPrimitiveGet(s, a, 0);
+    CHECK(p && ActorDemonWindup(s, a, &ready) && p->state.red == 3 && p->state.active);
+    CHECK(ActorDemonWindup(s, a, &ready) && p->state.red == 6 && !p->state.active);
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(ActorDemonWindup(s, a, &ready) && !ready);
+    CHECK(a->demon.effect_step == 2 && !a->state.primitive_count);
+    CHECK(ActorDemonWindup(s, a, &ready) && ready);
+    a->demon.effect_step = 0;
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 99;
+    CHECK(ActorDemonWindup(s, a, &ready) && ready && a->demon.effect_step == 3);
+    a->demon.effect_step = 0;
+    CHECK(ActorDemonPunchEffect(s, a) && a->demon.effect_step == 4 && !a->state.primitive_count);
+    return true;
+}
+static bool Projection(Fixture *f, SotnActors *s)
+{
+    Open(f, s, 0x1f, true);
+    SotnProjectedPoint out[4] = {0};
+    SotnDemonQuadPose pose = {
+        .width = 40, .height = 16, .scale = 4096, .anchor_x = 128, .anchor_y = 100};
+    CHECK(SotnDemon_ProjectQuad(s->executable, pose, out) && out[0].x == 108 && out[0].y == 92 &&
+          out[3].x == 148 && out[3].y == 108);
+    pose.angle = 1024;
+    pose.scale = 2048;
+    CHECK(SotnDemon_ProjectQuad(s->executable, pose, out) && out[0].x == 132 && out[0].y == 90);
+    pose.scale = 0;
+    CHECK(SotnDemon_ProjectQuad(s->executable, pose, out) && out[0].x == 128 && out[3].y == 100);
+    pose.scale = 16385;
+    CHECK(!SotnDemon_ProjectQuad(s->executable, pose, out) && out[0].x == 128);
+    pose.scale = 4096;
+    pose.width = 65;
+    CHECK(!SotnDemon_ProjectQuad(s->executable, pose, out));
+    pose.width = 40;
+    CHECK(!SotnDemon_ProjectQuad((SotnDataView){0}, pose, out));
+    CHECK(!SotnDemon_ProjectQuad(s->executable, pose, NULL));
+    return true;
+}
 static bool Failures(Fixture *f, SotnActors *s)
 {
     Open(f, s, 0x21, false);
@@ -184,7 +257,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     SotnActors *s = SDL_calloc(1, sizeof(*s));
     const bool ok = f && s && Spit(f, s, false) && Spit(f, s, true) && Bolt(f, s, false) &&
-                    Bolt(f, s, true) && Failures(f, s);
+                    Bolt(f, s, true) && BodyEffects(f, s) && Projection(f, s) && Failures(f, s);
     SDL_free(s);
     SDL_free(f);
     if (!ok)

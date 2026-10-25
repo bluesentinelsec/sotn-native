@@ -399,3 +399,9 @@ walking/attack/sinking/death, its owned attack child and summoned Skeleton appea
 cleanup. Skeleton/Ectoplasm share their original fade helper. Effect cadence uses
 full simulation-frame phase with original 32-bit wrap, separate from clock subsecond
 frames. Protected inserted summon fixtures are not boss/route/console parity.
+
+The [selected Lesser Demon body](docs/library-lesser-demon.md) now runs original
+AI decisions, swipe/spit/bolt/summon effects, minions and physical defeat. Protected
+explicit activation/combat fixtures agree in Debug and ASan/UBSan; placed entry,
+sealing books/camera, ordinary defeat record/reward and poison still remain pending.
+Library travel stays gated; this is not ordinary encounter or full-area parity.
