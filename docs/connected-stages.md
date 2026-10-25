@@ -69,3 +69,9 @@ Room-teleport decoding and facing follow AGPL-3.0-or-later reconstructed
 DRA bytes. NP3 shares the documented Entrance/common enemy algorithms and
 `src/st/e_bloody_zombie.h` at that revision; its runtime tables remain private.
 Transactional session/storage ownership is native C code in this repository.
+
+Selected normal-player [vertical room crossings](early-castle-review.md) now use
+the original upward/downward overlap adjustments and early edge probes. A direct
+world-grid coordinate rebase made the Laboratory entrance jump too low; room
+rebasing now preserves velocity/fractions while applying the original offset.
+Camera-edge locks and transformation-specific crossing rules remain separate work.

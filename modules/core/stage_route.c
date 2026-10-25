@@ -28,3 +28,35 @@ bool SotnStageRoute_Read(SotnDataView dra, Uint16 source, Uint16 index, SotnStag
     *out = route;
     return true;
 }
+
+// dra/5087C.c:func_800F0CD8. Vertical rooms overlap at the transition; a world-grid
+// rebase alone loses the original upward 48-pixel and downward 24/48-pixel adjustments.
+bool SotnStageRoute_Crossing(Sint32 x, Sint32 y, Uint32 width, Uint32 height, bool grounded,
+                             SotnRoomCrossing *out)
+{
+    if (out == NULL || width < 256 || width > 16384 || height < 256 || height > 16384 ||
+        width % 256 || height % 256 || x < -64 || y < -64 || x > (Sint32)width + 64 ||
+        y > (Sint32)height + 64)
+        return SDL_SetError("Room crossing requires bounded tile-grid dimensions and position");
+    SotnRoomCrossing crossing = {.x = x, .y = y};
+    if (x < 0 || x >= (Sint32)width)
+        crossing.active = true;
+    else if (y < 4)
+    {
+        crossing.active = true;
+        crossing.y = -1;
+        crossing.arrival_y = -48;
+    }
+    else
+    {
+        const Sint32 overlap = grounded ? 48 : 24;
+        if (y >= (Sint32)height - overlap + 20)
+        {
+            crossing.active = true;
+            crossing.y = (Sint32)height;
+            crossing.arrival_y = overlap;
+        }
+    }
+    *out = crossing;
+    return true;
+}

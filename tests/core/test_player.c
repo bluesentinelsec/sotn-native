@@ -92,6 +92,13 @@ static bool TestMovement(Fixture *fixture)
     CHECK(State(player, &state) && state.x == before_x + 16 * 65536);
     CHECK(!SotnPlayer_ChangeRoom(player, map, SDL_MIN_SINT32, 0));
     CHECK(State(player, &state) && state.x == before_x + 16 * 65536);
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
+    SotnPlayerState jumping = {0};
+    CHECK(State(player, &jumping) && (jumping.y & 65535) != 0);
+    CHECK(SotnPlayer_ChangeRoom(player, map, 0, -48));
+    CHECK(State(player, &state) && state.y == jumping.y - 48 * 65536 && state.x == jumping.x &&
+          state.velocity_x == jumping.velocity_x && state.velocity_y == jumping.velocity_y &&
+          state.step == jumping.step);
     SotnPlayer_Close(player);
     return true;
 }

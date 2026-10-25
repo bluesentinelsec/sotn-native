@@ -21,11 +21,18 @@ support, stage scripts, and full-game progression remain incomplete. This is not
 authentic playable game build. Its default mode still displays the bootstrap greeting.
 
 [Castle stage loading](docs/castle-stage-loading.md) verifies and inspects 50 stage
-overlay/artwork pairs on demand; gameplay outside Laboratory remains unintegrated.
+overlay/artwork pairs on demand. Selected native paths now connect Entrance, Laboratory,
+Marble Gallery and Outer Wall; further areas remain unintegrated.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game
-flow and gameplay outside Laboratory remain incomplete.
+flow and full castle progression remain incomplete.
+
+[Early castle progression](docs/early-castle-stages.md) connects selected Entrance,
+Laboratory, Marble Gallery and Outer Wall paths, with original opening equipment,
+Death's theft, collected Short sword/relic progression, Maria, selected encounters,
+clock mechanisms and the Wall elevator. See the [batch review](docs/early-castle-review.md)
+for validation evidence and remaining progression limits.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
