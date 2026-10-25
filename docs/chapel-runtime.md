@@ -107,4 +107,9 @@ component checks do not establish uninterrupted encounter or console parity.
 Selected [spike-corridor behavior](chapel-spikes.md) now adds original maximum-HP
 damage, equipped Spike Breaker tile clearing, fragments and dust. Cleared spikes
 remain transient; ordinary equipped armor uses the existing v8 save fields.
-Tower routing/bells, remaining scenery, Maria, boss and connected travel remain incomplete.
+Tower routing, remaining scenery, Maria, boss and connected travel remain incomplete.
+
+Selected [bell behavior](chapel-bells.md) now adds the original small/large ropes
+and projected bodies, damped swing, ringing, inside concealment and short input
+override. The ordered draw-area adapter affects intervening primitives/player
+presentation; complete GPU/effects and transformed-player parity remain unproven.

@@ -6,6 +6,7 @@
 #include <sotn/castle_map.h>
 #include <sotn/combat.h>
 #include <sotn/dialogue_renderer.h>
+#include <sotn/frame_clip.h>
 #include <sotn/game_over.h>
 #include <sotn/hud.h>
 #include <sotn/inventory.h>
@@ -75,6 +76,7 @@ struct SotnLaboratory
     LaboratoryInput input;
     SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX];
     Uint16 frame[SOTN_FRAME_PIXELS];
+    Uint16 clip_backup[SOTN_FRAME_PIXELS];
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
     Uint32 room_index;
     Uint64 last_time, clock_units;
@@ -494,7 +496,8 @@ static bool TickActors(SotnLaboratory *session)
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
-        (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)))
+        (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)) ||
+        !SotnPlayer_BellInside(session->player, motion.bell_inside))
         return false;
     SotnActorCombat combat = {0};
     SotnCharacterStats attributes = {0};
@@ -928,8 +931,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
-                "Spectral Sword combat, and Spike Breaker corridor tiles/damage/debris. "
-                "Other encounters, tower routing/bells, Maria, boss and connected travel "
+                "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, and bells. "
+                "Other encounters, tower routing, Maria, boss and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
@@ -1171,6 +1174,8 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
             return false;
         if (!p.active)
             continue;
+        if (p.clip)
+            return SDL_SetError("Actor draw-area changes require ordered stage presentation");
         const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x),
                      y = Pixel(p.y) - (p.screen_space ? 0 : camera_y);
         if (p.line)
@@ -1395,8 +1400,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                   player.animation.sprite, &alucard))
         return false;
     bool player_drawn = false, weapon_drawn = false;
+    SotnFrameClip clip = {0, 0, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
     for (size_t i = 0; i <= draw_count; ++i)
     {
+        if (!SotnFrameClip_CopyOutside(clip, session->frame, session->clip_backup,
+                                       SOTN_FRAME_PIXELS))
+            return false;
         if (!weapon_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
         {
             const SotnPlayerAttack hands[] = {player.attack, player.shield};
@@ -1437,24 +1446,42 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             player_drawn = true;
         }
         if (i == draw_count)
+        {
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
             break;
+        }
         const SotnActorDraw command = session->draw_items[i];
         if (command.actor >= count)
             return SDL_SetError("Actor draw command lost its frame snapshot");
         const SotnActorState actor = list[command.actor];
         if (command.kind == SOTN_DRAW_PRIMITIVE)
         {
+            SotnActorPrimitive primitive = {0};
+            if (!SotnActors_GetPrimitive(session->actors, actor.slot, command.primitive,
+                                         &primitive))
+                return false;
+            if (primitive.clip)
+            {
+                if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                clip = (SotnFrameClip){primitive.clip_left, primitive.clip_top,
+                                       primitive.clip_right, primitive.clip_bottom};
+                continue;
+            }
             if (!DrawPrimitiveRange(session, actor, camera_x, camera_y, command.primitive,
                                     command.primitive + 1U))
                 return ActorDrawError(actor);
-            continue;
+            goto draw_complete;
         }
         if (actor.id == 0xa || actor.id == 0xb)
         {
             // Persistent pickups can remain far behind a tall-room camera; icons are 16 pixels.
             const Sint32 x = Pixel(actor.x) - camera_x - 8, y = Pixel(actor.y) - camera_y - 8;
             if (x <= -16 || y <= -16 || x >= SOTN_FRAME_WIDTH || y >= SOTN_FRAME_HEIGHT)
-                continue;
+                goto draw_complete;
         }
         if (actor.id == 0xb)
         {
@@ -1464,7 +1491,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    Pixel(actor.y) - camera_y - 8, session->frame,
                                    SOTN_FRAME_PIXELS))
                 return false;
-            continue;
+            goto draw_complete;
         }
         if (actor.id == 0xa)
         {
@@ -1477,7 +1504,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    Pixel(actor.y) - camera_y - 8, session->frame,
                                    SOTN_FRAME_PIXELS))
                 return false;
-            continue;
+            goto draw_complete;
         }
         if (session->stage_id == 65 && actor.id == 0x59 && actor.step >= 3 &&
             !SotnDialogueRenderer_Item(session->dra, session->nz0, actor.parameters,
@@ -1493,7 +1520,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             return ActorDrawError(actor);
         if ((actor.frame & 0x7fffU) == 0 ||
             (actor.scale_set && (actor.scale_x == 0 || actor.scale_y == 0)))
-            continue;
+            goto draw_complete;
         if (!SotnActorGraphics_DrawTransform(
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
@@ -1508,6 +1535,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                       .blue = actor.blue},
                 session->frame, SOTN_FRAME_PIXELS))
             return ActorDrawError(actor);
+    draw_complete:
+        if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                       SOTN_FRAME_PIXELS))
+            return false;
     }
     return true;
 }

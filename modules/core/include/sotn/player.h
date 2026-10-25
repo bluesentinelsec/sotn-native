@@ -233,6 +233,11 @@ bool SotnPlayer_Displace(SotnPlayer *player, Sint32 dx, Sint32 dy, Uint32 contac
  * @param player Borrowed living simulation. @param halt_vertical Clear vertical velocity.
  * @return Success or SDL error; does not revive a dead player. */
 bool SotnPlayer_StageGuard(SotnPlayer *player, bool halt_vertical);
+/** @brief Apply the original bell's transient concealment/status bits after stage updates.
+ * @param player Borrowed simulation. @param inside Inside a bell this tick.
+ * @return Success or SDL error for NULL. Next player tick masks hand input and clears these bits;
+ * protection and simulated-pad duration remain explicit stage services. */
+bool SotnPlayer_BellInside(SotnPlayer *player, bool inside);
 /** @brief Stop both velocity axes at an original scripted ride/door handoff.
  * @param player Borrowed simulation. @return Success or SDL error. Position, animation,
  * health and ordinary movement state remain intact. Dead players are unchanged. */

@@ -49,6 +49,7 @@ add_library(sotn-core STATIC
   chapel_pillar.c
   chapel_spike_ball.c
   chapel_spikes.c
+  chapel_bell.c
   chapel_spectral.c
   chapel_hunting.c
   chapel_hunting_graphics.c

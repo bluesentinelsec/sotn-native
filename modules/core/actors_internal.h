@@ -142,6 +142,11 @@ typedef struct Actor
     } spectral;
     struct
     {
+        Sint32 distance, velocity, target;
+        Uint32 phase, ring_timer;
+    } bell;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -502,6 +507,11 @@ bool ActorChapelSpectral(SotnActors *actors, Actor *actor);
  * @param actor Borrowed supported slot; original tables remain borrowed.
  * @return Success or SDL error for invalid data, ownership, state or motion. */
 bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
+ * @param actors Borrowed stage-6 simulation and private tables.
+ * @param actor Borrowed supported slot; primitives stay generation-owned.
+ * @return Success or SDL error for invalid data, state, motion or child reservations. */
+bool ActorChapelBell(SotnActors *actors, Actor *actor);
 /** @brief Borrowed Hunting Girl graphics/motion helpers; require its 32 owned primitives.
  * @note Tips use whole room coordinates; spirit/attack completion is copied to done.
  * Profiles/streams stay private, and invalid bounds/ownership return SDL errors. */

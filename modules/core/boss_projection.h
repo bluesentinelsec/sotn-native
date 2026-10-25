@@ -75,6 +75,14 @@ typedef struct SotnDemonQuadPose
  * @return Success or SDL error. Retains SDK column-scale rounding; no global GTE state. */
 bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
                            SotnProjectedPoint out[4]);
+/** @brief Project an original Chapel bell face with the selected SDK Z rotation and depth1024.
+ * @param executable Borrowed private matrix-pair table. @param chapel Borrowed DAI model/pointers.
+ * @param face Original face 0..2. @param angle Signed 4096-unit rotation.
+ * @param x Screen anchor, +/-16384. @param y Screen anchor, +/-16384.
+ * @param out Four saturated screen corners, unchanged on failure.
+ * @return Success or SDL error for invalid pointers, vertices or unselected translation. */
+bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16 face, Sint16 angle,
+                            Sint32 x, Sint32 y, SotnProjectedPoint out[4]);
 /** @brief Project a selected zero-rotation Library background anchor through the SDK divider.
  * @param library Borrowed private LIB model/rotation records. @param kind Background kind 0..3.
  * @param x Screen-space actor X, +/-32767. @param y Screen-space actor Y, +/-32767.

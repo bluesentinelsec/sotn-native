@@ -133,10 +133,8 @@ static bool TestWallsAndReplay(Fixture *fixture)
     return true;
 }
 
-static bool TestAttacks(Fixture *fixture)
+static void AttackFixture(Fixture *fixture)
 {
-    const SotnCollisionMap map = MakeFixture(fixture);
-    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
     Put32(fixture->dra, 0xc0, 0x800a0800);
     fixture->dra[0x811] = 0;
     fixture->dra[0x812] = 0x24;
@@ -161,6 +159,13 @@ static bool TestAttacks(Fixture *fixture)
         fixture->dra[0xb00 + i * 2 + 1] = i >= 2 && i < 5 ? 4 : 0;
     }
     Put32(fixture->dra, 0x324, 0xffff);
+}
+
+static bool TestAttacks(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    AttackFixture(fixture);
     SotnPlayer *player = NULL;
     SotnPlayerState state = {0};
     CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
@@ -406,6 +411,30 @@ static bool TestFailures(Fixture *fixture)
     return true;
 }
 
+static bool TestBellInside(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    AttackFixture(fixture);
+    SotnPlayer *p = NULL;
+    CHECK(SotnPlayer_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_BellInside(p, true) && SotnPlayer_StageGuard(p, false));
+    SotnPlayerState state = {0};
+    CHECK(State(p, &state) && (state.status & 0x100008U) == 0x100008U && state.invulnerable);
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT | SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(p, &state) && !state.attack.active && !state.weapon_starting &&
+          state.velocity_x > 0 && !(state.status & 0x100008U));
+    CHECK(SotnPlayer_BellInside(p, true) && SotnPlayer_BellInside(p, false));
+    CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(p, &state) && state.weapon_starting);
+    for (Uint16 i = 0; i < 5; ++i)
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(p, &state) && state.attack.active);
+    CHECK(!SotnPlayer_BellInside(NULL, true));
+    SotnPlayer_Close(p);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -413,7 +442,8 @@ int main(void)
         return 1;
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
-                        TestStone(fixture) && TestScriptHold(fixture) && TestFailures(fixture);
+                        TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
+                        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

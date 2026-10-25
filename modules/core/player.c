@@ -867,6 +867,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         --next.poison_ticks;
     if (next.script_hold)
         buttons = 0;
+    if (next.bell_inside)
+        buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
+    next.bell_inside = false;
     next.buttons = buttons;
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
@@ -1068,6 +1071,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     if (player == NULL || out == NULL)
         return SDL_SetError("Player state requires a simulation and output");
     Uint32 status = player->status;
+    if (player->bell_inside)
+        status |= 0x100008U;
     if (player->curse_ticks)
         status |= 0x28108000U;
     if (player->poison_ticks)
@@ -1275,6 +1280,14 @@ bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
     if (halt_vertical)
         p->vy = 0;
     p->invincibility = (Uint16)SDL_max(p->invincibility, 32);
+    return true;
+}
+
+bool SotnPlayer_BellInside(SotnPlayer *player, bool inside)
+{
+    if (!player)
+        return SDL_InvalidParamError("player");
+    player->bell_inside = inside;
     return true;
 }
 

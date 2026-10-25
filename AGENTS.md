@@ -413,7 +413,7 @@ its own private tables, original bird phases/deaths and owned boomerangs. Shared
 Skelerang re-entry protects unrelated children in both Chapel and Marble.
 Selected [Chapel Bone Halberd combat](docs/chapel-halberd.md) now includes its owned
 weapon, movement/spin/jump/lunge and nine-part death using private original tables.
-Travel remains disabled; tower exits/bells, remaining scenery, Maria and boss remain
+Travel remains disabled; tower exits, remaining scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.
 
 Selected [Chapel Corner Guard combat](docs/chapel-corner-guard.md) now includes
@@ -448,3 +448,10 @@ original debris/dust. Keep ordinary defense separate from environmental HP loss.
 Cleared spikes stay transient; v8 retains the equipped armor without a format change.
 Chapel travel, remaining mechanisms/scripts/boss and full damage-kind reaction parity
 remain incomplete. Granted-equipment component checks do not establish ordinary-route parity.
+
+Selected [Chapel bells](docs/chapel-bells.md) now run private spawners/profiles/models,
+rope/body projection, original damped swing/ringing and inside control/protection.
+Ordered draw-area primitives clip intervening draws around the player priority.
+Keep their screen coordinates distinct from the room-owned anchor. Full GPU,
+afterimage/transformed-player parity, tower routing/scripts/boss and connected
+Chapel travel remain incomplete; protected component fixtures do not prove route parity.

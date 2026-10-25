@@ -424,3 +424,12 @@ pinned sotn-decomp revision (AGPL-3.0-or-later). The environmental HP fraction i
 `dra/5D5BC.c:HandleDamage` path. Native generation references replace the adjacent
 damage-actor pointer; bounded scans omit out-of-map room-edge reads. Original
 initialization, orientation, animation, collision, sine and artwork data stay private.
+
+`modules/core/chapel_bell.c` adapts selected `st/e_bell.h` at the pinned
+sotn-decomp revision (AGPL-3.0-or-later). Its transient player adapter follows
+`dra/692E8.c` and the selected protection service in `dra/6DF70.c`. Ordered native
+draw-area bounds follow the selected `st/e_bell.h` operations and MIT SDK
+`src/main/psxsdk/libgpu/sys.c:{SetDrawEnv,get_cs,get_ce}` semantics. The bell-face
+projection extends the separately credited MPL-2.0 PSY-Z matrix/divider adapter.
+Original bell profiles, positions, model pointers/vertices, artwork and SDK tables
+remain private runtime inputs.
