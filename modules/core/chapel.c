@@ -157,6 +157,13 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return Parts(s, a);
     case 0x37:
         return ActorBat(s, a);
+    case 0x38:
+    case 0x39:
+        return ActorChapelCrow(s, a);
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+        return ActorSkelerang(s, a);
     case 0x42:
         return Spawner(s, a);
     default:

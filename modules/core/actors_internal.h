@@ -104,6 +104,11 @@ typedef struct Actor
     } chapel;
     struct
     {
+        Sint32 reference_y;
+        Uint16 hover_timer;
+    } crow;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -428,6 +433,10 @@ bool ActorChapelMechanism(SotnActors *actors, Actor *actor);
  * @param actors Borrowed Chapel owner. @param actor Borrowed scenery slot.
  * @return Success or SDL error; exhausted optional primitives retire the actor. */
 bool ActorChapelScenery(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel Crow/Raven flight, frame hitboxes and deaths.
+ * @param actors Borrowed stage-6 owner. @param actor Borrowed Crow/Raven slot.
+ * @return Success or SDL error for invalid identity/state/private profile or motion. */
+bool ActorChapelCrow(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
@@ -615,6 +624,10 @@ Actor *ActorDiploOwner(SotnActors *actors, const Actor *actor);
 bool ActorDiplo(SotnActors *actors, Actor *actor);
 bool ActorDiploTail(SotnActors *actors, Actor *actor, Actor *root);
 bool ActorDiploFireball(SotnActors *actors, Actor *actor);
+/** @brief Advance shared Marble/Chapel Skelerang bodies and owned children.
+ * @param actors Borrowed stage owner. @param actor Borrowed supported original slot.
+ * @return Success or SDL error for invalid identities/tables/state or conflicting children.
+ * Private animation/sensor/math views remain borrowed for the owner's lifetime. */
 bool ActorSkelerang(SotnActors *actors, Actor *actor);
 bool ActorOuija(SotnActors *actors, Actor *actor);
 bool ActorRose(SotnActors *actors, Actor *actor);

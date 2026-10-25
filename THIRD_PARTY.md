@@ -370,3 +370,10 @@ Selected `chapel_mechanisms.c` adapts `st/e_dai_no2_shortcut.h` and
 `st/e_staircase.h`, all at the pinned sotn-decomp revision (AGPL-3.0-or-later).
 Native generation checks protect fixed child reservations. Initialization, floor
 sensors, artwork/palettes and collision definitions remain private runtime inputs.
+
+`modules/core/chapel_crow.c` adapts selected `st/dai/e_crow.c`; Chapel Skelerang
+selection in `enemy_skelerang.c` follows `st/e_skelerang.h` and
+`st_common.h:SetEntityVelocityFromAngle` at the pinned sotn-decomp revision
+(AGPL-3.0-or-later). Original animations, hitboxes, initialization, positions, sine,
+angle, palette and artwork data remain private runtime inputs. Native ownership
+checks protect re-entering roots and their reserved child slots.

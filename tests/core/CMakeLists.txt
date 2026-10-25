@@ -361,3 +361,10 @@ target_include_directories(sotn-chapel-mechanism-tests PRIVATE ../../modules/cor
 target_link_libraries(sotn-chapel-mechanism-tests PRIVATE sotn-core)
 add_test(NAME chapel-mechanisms COMMAND sotn-chapel-mechanism-tests)
 set_tests_properties(chapel-mechanisms PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-chapel-enemy-tests test_chapel_enemies.c)
+sotn_configure_c_target(sotn-chapel-enemy-tests)
+target_include_directories(sotn-chapel-enemy-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-chapel-enemy-tests PRIVATE sotn-core)
+add_test(NAME chapel-enemies COMMAND sotn-chapel-enemy-tests)
+set_tests_properties(chapel-enemies PROPERTIES TIMEOUT 20)

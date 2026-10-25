@@ -1,7 +1,8 @@
 # Royal Chapel runtime foundation
 
 Royal Chapel (DAI, stage 6) now has an internal native resource profile, selected
-shared services, breakables/furnishings, Winged Guards and non-inverted Bats. Connected travel remains
+shared services, breakables/furnishings, Winged Guards, Bats, [Crow/Raven and
+Skelerang encounters](chapel-enemies.md). Connected travel remains
 disabled while its other encounters, mechanisms, Maria event and boss are missing.
 This is not a playable whole-stage or complete-game milestone.
 

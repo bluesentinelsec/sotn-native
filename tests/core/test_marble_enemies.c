@@ -315,6 +315,15 @@ static bool Skelerang(Fixture *f)
     root->state.generation = 81;
     boom->state.step = 2;
     CHECK(ActorSkelerang(s, boom) && boom->remove);
+    root->state.generation = 82;
+    root->state.flags = 0;
+    root->state.step = 0;
+    root->remove = false;
+    CHECK(ActorSkelerang(s, root) && s->slots[18].enemy_state.owner_generation == 82);
+    const Uint32 target_generation = s->slots[17].state.generation;
+    s->slots[18].state.id = 0x4c;
+    root->state.step = 0;
+    CHECK(!ActorSkelerang(s, root) && s->slots[17].state.generation == target_generation);
     Close(f, s);
     return true;
 }
