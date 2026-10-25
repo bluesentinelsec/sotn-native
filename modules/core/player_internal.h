@@ -51,7 +51,7 @@ struct SotnPlayer
     SotnPlayerDeath death;
     SotnPlayerStone stone;
     Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
-    bool curse_failure, script_hold;
+    bool curse_failure, script_hold, bell_inside;
     SotnCharacterStats attributes;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;

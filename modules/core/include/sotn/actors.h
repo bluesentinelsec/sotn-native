@@ -34,6 +34,7 @@ typedef struct SotnActorMotion
     Uint32 contacts; /**< Original ground/ceiling/wall plus object-contact bits. */
     bool halt_vertical, protect,
         stop_velocity; /**< Original door/event velocity stop and 32-tick protection. */
+    bool bell_inside;  /**< Original bell concealment/status interval, recomputed each tick. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through
@@ -111,6 +112,9 @@ typedef struct SotnActorPrimitive
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
     bool quad; /**< Use explicit pixel offsets from x/y for a textured or colored quadrilateral. */
     Sint16 offset_x[4], offset_y[4];
+    bool clip; /**< Ordered draw-environment change; bounds are screen pixels, right/bottom
+                  exclusive. */
+    Sint16 clip_left, clip_top, clip_right, clip_bottom;
 } SotnActorPrimitive;
 /** @brief Read one owned actor primitive without exposing mutable storage.
  * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..383.

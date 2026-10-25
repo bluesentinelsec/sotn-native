@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Selected fixed matrix and UNR projection math adapted from PSY-Z
 // b52003e55c0d1b20719e984dd19bd4d760eeb14a, psyz/src/psyz/libgte.c.
-// Selected bounded reward, intro and book paths, not a general GTE emulator.
+// Selected bounded reward, intro, book and bell paths, not a general GTE emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
 static Uint32 Divide(Uint32 depth, Uint32 distance)
@@ -154,6 +154,40 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose p, SotnPro
                                             Coordinate(p.anchor_y, vy, 65536)};
     }
     SDL_memcpy(out, projected, sizeof(projected));
+    return true;
+}
+
+// st/e_bell.h: selected axial transform at equal depth and screen distance1024.
+bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16 face, Sint16 angle,
+                            Sint32 x, Sint32 y, SotnProjectedPoint out[4])
+{
+    if (!out || face > 2 || x < -16384 || x > 16384 || y < -16384 || y > 16384)
+        return SDL_SetError("Chapel bell projection exceeds its selected controls");
+    SotnDataView pointers = {0}, translation = {0};
+    SotnMathTrig trig = {0};
+    if (!Slice(chapel, 0xcfcU + face * 16U, 16, &pointers) ||
+        !Slice(chapel, 0xd44, 12, &translation) || !SotnMath_MatrixTrig(executable, angle, &trig))
+        return false;
+    if (Signed32(translation.bytes) || Signed32(translation.bytes + 4) ||
+        Signed32(translation.bytes + 8) != 1024)
+        return SDL_SetError("Chapel bell requires its original axial translation");
+    SotnProjectedPoint result[4] = {0};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const Uint32 address = Read32(pointers.bytes + i * 4U);
+        SotnDataView vertex = {0};
+        if (address < 0x80180cac || address > 0x80180cf4 || (address - 0x80180cac) % 8U ||
+            !Slice(chapel, address - 0x80180000U, 6, &vertex))
+            return SDL_SetError("Chapel bell face references an invalid private vertex");
+        const Sint32 vx = Signed16(vertex.bytes), vy = Signed16(vertex.bytes + 2);
+        if (vx < -64 || vx > 64 || vy < 0 || vy > 128 || Signed16(vertex.bytes + 4))
+            return SDL_SetError("Chapel bell vertex exceeds its selected model");
+        const Sint32 tx = ActorShift((Sint64)trig.cosine * vx - (Sint64)trig.sine * vy, 12),
+                     ty = ActorShift((Sint64)trig.sine * vx + (Sint64)trig.cosine * vy, 12);
+        const Uint32 ratio = Divide(1024, 1024);
+        result[i] = (SotnProjectedPoint){Coordinate(x, tx, ratio), Coordinate(y, ty, ratio)};
+    }
+    SDL_memcpy(out, result, sizeof(result));
     return true;
 }
 

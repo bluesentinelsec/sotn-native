@@ -47,3 +47,8 @@ add_executable(sotn-launch-renderer-tests test_launch_renderer.c)
 sotn_configure_c_target(sotn-launch-renderer-tests)
 target_link_libraries(sotn-launch-renderer-tests PRIVATE sotn-render)
 add_test(NAME native-launch-renderer COMMAND sotn-launch-renderer-tests)
+
+add_executable(sotn-frame-clip-tests test_frame_clip.c)
+sotn_configure_c_target(sotn-frame-clip-tests)
+target_link_libraries(sotn-frame-clip-tests PRIVATE sotn-render)
+add_test(NAME frame-clip COMMAND sotn-frame-clip-tests)

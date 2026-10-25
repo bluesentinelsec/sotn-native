@@ -163,6 +163,9 @@ bool ActorChapel(SotnActors *s, Actor *a)
     case 0x30:
     case 0x31:
         return ActorChapelSpikes(s, a);
+    case 0x1b:
+    case 0x26:
+        return ActorChapelBell(s, a);
     case 0x3d:
     case 0x3e:
         return ActorChapelHunting(s, a);
