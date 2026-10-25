@@ -118,6 +118,11 @@ typedef struct SotnActorPrimitive
 bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index,
                              SotnActorPrimitive *out);
 
+/** @brief Read the original scene backdrop color set by initialized stage actors.
+ * @param actors Borrowed owner. @param out Receives RGB555, initially black.
+ * @return Success or SDL error, unchanged output for invalid arguments. */
+bool SotnActors_GetBackdrop(const SotnActors *actors, Uint16 *out);
+
 /** @brief Per-tick game sound requests and development inventory/contact state. */
 typedef struct SotnActorCombat
 {

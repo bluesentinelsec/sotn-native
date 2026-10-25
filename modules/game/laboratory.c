@@ -1258,8 +1258,10 @@ static bool ActorDrawError(SotnActorState actor)
                         actor.slot, actor.animation_set, actor.frame, actor.palette, detail);
 }
 
+// LIB parallax uses priorities 0x20..0x60 before its foreground tile bucket 0x60.
+// Original later-submitted primitive packets precede tile packets at the tied bucket.
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
-                                Sint32 camera_y)
+                                Sint32 camera_y, bool background)
 {
     if (session->stage_id == 26)
     {
@@ -1299,6 +1301,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         SotnActorState state = {0};
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
+        const bool library_background =
+            session->stage_id == 2 && state.id >= 0x16 && state.id <= 0x19;
+        if (library_background != background)
+            continue;
         if (state.generation == 0 || state.unsupported ||
             (state.frame == 0 && state.id != 0xa &&
              !(session->stage_id == 65 && state.id == 0x59) && state.primitive_count == 0) ||
@@ -1347,6 +1353,24 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                 .actor = i,
                                 .kind = split ? SOTN_DRAW_SPRITE : SOTN_DRAW_ACTOR}))
             return false;
+    }
+    if (background)
+    {
+        for (size_t i = 0; i < draw_count; ++i)
+        {
+            const SotnActorDraw command = session->draw_items[i];
+            const SotnActorState actor = list[command.actor];
+            if (command.kind == SOTN_DRAW_PRIMITIVE)
+            {
+                if (!DrawPrimitiveRange(session, actor, camera_x, camera_y, command.primitive,
+                                        command.primitive + 1U))
+                    return ActorDrawError(actor);
+            }
+            else if (command.kind == SOTN_DRAW_ACTOR &&
+                     !DrawActorPrimitives(session, actor, camera_x, camera_y))
+                return ActorDrawError(actor);
+        }
+        return true;
     }
     SotnAlucardSprite alucard = {0};
     if (!SotnAlucard_DecodeSprite(session->dra, SotnResource_View(session->arc),
@@ -1493,9 +1517,15 @@ static bool DrawGameplay(SotnLaboratory *session)
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, state, &camera_x, &camera_y);
     const SotnTileSources sources = {StageGraphics(session), SotnResource_View(session->common)};
-    SDL_memset(session->frame, 0, sizeof(session->frame));
+    Uint16 backdrop = 0;
+    if (!SotnActors_GetBackdrop(session->actors, &backdrop))
+        return false;
+    for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        session->frame[i] = backdrop;
     return SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
+           (session->stage_id != 2 ||
+            DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
            SotnDialogueRenderer_Background(session->dialogue.fade, session->frame,
                                            SOTN_FRAME_PIXELS) &&
            SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y, session->frame,
@@ -1503,7 +1533,7 @@ static bool DrawGameplay(SotnLaboratory *session)
            (!session->save_room ||
             SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, false,
                                        session->frame, SOTN_FRAME_PIXELS)) &&
-           DrawActorsAndPlayer(session, state, camera_x, camera_y) &&
+           DrawActorsAndPlayer(session, state, camera_x, camera_y, false) &&
            SotnSubweapons_Draw(session->subweapons, session->actor_graphics, session->dra,
                                session->simulation_ticks, camera_x, camera_y, session->frame,
                                SOTN_FRAME_PIXELS) &&

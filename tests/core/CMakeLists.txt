@@ -326,3 +326,10 @@ target_include_directories(sotn-library-shop-menu-tests PRIVATE ../../modules/co
 target_link_libraries(sotn-library-shop-menu-tests PRIVATE sotn-core)
 add_test(NAME library-shop-menu COMMAND sotn-library-shop-menu-tests)
 set_tests_properties(library-shop-menu PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-library-background-tests test_library_background.c)
+sotn_configure_c_target(sotn-library-background-tests)
+target_include_directories(sotn-library-background-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-library-background-tests PRIVATE sotn-core)
+add_test(NAME library-background COMMAND sotn-library-background-tests)
+set_tests_properties(library-background PROPERTIES TIMEOUT 20)

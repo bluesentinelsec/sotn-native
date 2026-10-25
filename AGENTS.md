@@ -440,3 +440,10 @@ candle table/shadow, permanent Stone Mask pickup and ordinary equipment metadata
 and private foreground/background decoration initialization. Native explicit-room
 checks and synthetic ownership/failure cases cover these paths. Parallax models,
 secret-bookcase geometry, sitting, Mist interaction and Library travel stay pending.
+
+The [selected Library backgrounds](docs/library-backgrounds.md) now run original
+repeated bookcases/furniture, column shadows and distant lighting grids, with a
+bounded SDK projector, stage-owned backdrop and foreground occlusion. Projection
+comparisons and protected placed-view fixtures cover selected paths; rotating
+secret-bookcase geometry, sitting, Mist interaction, full effects and Library
+travel remain pending. Keep private model/lighting data out of public source.

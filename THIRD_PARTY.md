@@ -331,3 +331,8 @@ Selected Library candle-table behavior and decoration initialization adapt
 `st/lib/e_candle_table.c`, `background_block_init.c`, `st/e_room_bg.h` and
 `st/e_room_fg.h` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
 Animation, object-init, equipment and permanent-item tables stay private.
+
+Selected Library parallax behavior in `modules/core/library_background.c` adapts
+`st/lib/e_library_bg.c` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Its bounded axial projector reuses the existing MPL-2.0 PSY-Z divider/saturation
+backend. Model, anchor, lighting, texture and palette records remain private.

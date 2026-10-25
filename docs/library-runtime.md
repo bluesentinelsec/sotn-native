@@ -205,3 +205,9 @@ candle table, its owned shadow and permanent Stone Mask drop, ordinary head-equi
 metadata, and original foreground/background decoration records. Parallax models,
 secret-bookcase geometry, sitting and Mist interactions remain pending. Native
 explicit-room checks do not prove ordinary Library travel or console parity.
+
+The [selected Library backgrounds](library-backgrounds.md) now project repeated
+bookcases/furniture, column shadows and distant illuminated shelves from private
+records. The original backdrop and Library foreground occlusion are retained in
+the selected native path. Private SDK comparisons and protected explicit-room
+checks do not establish whole-route or console rasterization parity.
