@@ -67,8 +67,9 @@ prize/equipment encoding. Missing optional actor/primitive capacity omits effect
 
 The shared decoration reader now selects Chapel's own single background record,
 six foreground records and common initialization, including selected alternate
-foreground rotation. This does not implement the separate tower, stained-glass,
-cloud, wall or staircase-shadow actors.
+foreground rotation. Selected [shortcut/gargoyle mechanisms and wall/staircase
+scenery](chapel-mechanisms.md) now run separately. Tower routing, stained glass,
+clouds and complete scenery remain incomplete.
 
 All 79 public test groups passed in Debug and macOS ASan/UBSan; packaging passed.
 Synthetic coverage checks every breakable with/without Cube, drop encoding,

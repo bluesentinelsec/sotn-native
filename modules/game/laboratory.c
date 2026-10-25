@@ -923,8 +923,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 6)
         SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
-                "lamps/debris, furnishings and Winged Guard/Bat behavior. Other encounters, "
-                "mechanisms, Maria, boss and "
+                "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
+                "Guard/Bat behavior. Other encounters, tower routing/bells/spikes, Maria, boss and "
                 "connected travel remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "

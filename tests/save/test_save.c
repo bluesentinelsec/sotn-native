@@ -319,6 +319,7 @@ static bool Stages(void)
     for (Uint32 i = 0; i < SDL_arraysize(stages); ++i)
     {
         SotnSaveState state = Profile(), decoded = {0};
+        state.world.flags[SOTN_CHAPEL_SHORTCUT] = 1;
         state.stage = stages[i];
         state.world.flags[SOTN_ENTRANCE_DEATH] = 1;
         state.world.flags[SOTN_ENTRANCE_ON] = 1;
@@ -337,6 +338,7 @@ static bool Stages(void)
             CHECK(SotnSave_Encode(state, record, sizeof(record)));
             CHECK(SotnSave_Decode(record, sizeof(record), &decoded));
             CHECK(decoded.stage == stages[i] && decoded.room == room &&
+                  decoded.world.flags[SOTN_CHAPEL_SHORTCUT] == 1 &&
                   decoded.world.flags[SOTN_ENTRANCE_DEATH] == 1 &&
                   decoded.world.flags[SOTN_ENTRANCE_ON] == 1 &&
                   decoded.world.flags[SOTN_CLOCK_FLOOR] == 1 &&
