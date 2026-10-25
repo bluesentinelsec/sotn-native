@@ -249,6 +249,26 @@ static bool TestDamage(Fixture *fixture)
     return true;
 }
 
+static bool TestStageStop(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    SotnPlayer *player = NULL;
+    CHECK(SotnPlayer_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)}, map, 64, 135,
+                            &player));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT));
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
+    SotnPlayerState before = {0}, after = {0};
+    CHECK(State(player, &before) && before.velocity_x != 0 && before.velocity_y != 0);
+    CHECK(SotnPlayer_StageStop(player) && State(player, &after));
+    CHECK(after.velocity_x == 0 && after.velocity_y == 0 && before.x == after.x &&
+          before.y == after.y && before.step == after.step &&
+          before.animation.sprite == after.animation.sprite && before.hp == after.hp &&
+          before.invulnerable == after.invulnerable);
+    CHECK(!SotnPlayer_StageStop(NULL));
+    SotnPlayer_Close(player);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     SotnCollisionMap map = MakeFixture(fixture);
@@ -270,7 +290,8 @@ int main(void)
     if (fixture == NULL)
         return 1;
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
-                        TestAttacks(fixture) && TestDamage(fixture) && TestFailures(fixture);
+                        TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
+                        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

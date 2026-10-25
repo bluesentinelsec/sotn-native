@@ -1149,6 +1149,15 @@ bool SotnPlayer_Displace(SotnPlayer *p, Sint32 dx, Sint32 dy, Uint32 contacts)
     return true;
 }
 
+bool SotnPlayer_StageStop(SotnPlayer *p)
+{
+    if (p == NULL)
+        return SDL_InvalidParamError("player");
+    if (p->step != SOTN_PLAYER_KILL)
+        p->vx = p->vy = 0;
+    return true;
+}
+
 bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
 {
     if (p == NULL)

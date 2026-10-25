@@ -305,11 +305,45 @@ static bool TestQuad(Fixture *fixture)
           fixture->frame[0] == first);
     q.page = 2;
     q.x[3] = 5;
-    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
-          fixture->frame[0] == first);
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[0] == 31);
+    ClearFrame(fixture);
+    q = (SotnTextureQuad){.x = {0, 4, 0, 4},
+                          .y = {0, 0, 4, 1},
+                          .u = {4, 4, 4, 4},
+                          .v = {64, 64, 64, 64},
+                          .page = 2,
+                          .palette = 512};
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[2 * SOTN_FRAME_WIDTH] == 31 &&
+          fixture->frame[2 * SOTN_FRAME_WIDTH + 3] == 7);
     q.x[3] = 4;
     q.x[0] = SDL_MAX_SINT32;
     CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(graphics);
+    return true;
+}
+
+static bool TestRopeCache(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    for (Uint32 row = 64; row < 80; ++row)
+        for (Uint32 col = 30; col < 32; ++col)
+            Put16(fixture->stage + 27U * 8192 + (row * 32 + col) * 2, 0x1111);
+    SotnActorGraphics *graphics = NULL;
+    CHECK(Create(fixture, &graphics));
+    CHECK(!SotnActorGraphics_PrepareOuterRope(NULL));
+    CHECK(SotnActorGraphics_PrepareOuterRope(graphics));
+    ClearFrame(fixture);
+    const SotnTextureQuad rope = {.x = {0, 16, 0, 16},
+                                  .y = {0, 0, 16, 16},
+                                  .u = {0, 16, 0, 16},
+                                  .v = {240, 240, 256, 256},
+                                  .page = 0x10,
+                                  .palette = 512};
+    CHECK(SotnActorGraphics_Quad(graphics, rope, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 31 && fixture->frame[15 * SOTN_FRAME_WIDTH + 7] == 31 &&
+          fixture->frame[8] == 7 && fixture->frame[15 * SOTN_FRAME_WIDTH + 15] == 7);
     SotnActorGraphics_Destroy(graphics);
     return true;
 }
@@ -422,10 +456,10 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = StageBankBounds(fixture) && TestRotation(fixture) && TestQuad(fixture) &&
-                        TestSprites(fixture) && TestFailures(fixture) &&
-                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
-                        TestDialogue(fixture);
+    const bool passed = StageBankBounds(fixture) && TestRopeCache(fixture) &&
+                        TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
+                        TestWeapons(fixture) && TestDialogue(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

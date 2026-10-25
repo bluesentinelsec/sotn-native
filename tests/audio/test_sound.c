@@ -209,12 +209,60 @@ static bool VolumePan(Fixture *f)
     return true;
 }
 
+static bool MovingAmbience(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    f->dra[0x1f554 + 7 + 4] = 1;
+    Put16(f->dra, 0x1d19c, 127);
+    Put16(f->dra, 0x1d19e, 127);
+    Put16(f->dra, 0x1d17c, 0);
+    Put16(f->dra, 0x1d17e, 127);
+    SotnSound *a = NULL, *b = NULL;
+    CHECK(SotnSound_Create(sources, &a) && SotnSound_Create(sources, &b));
+    CHECK(!SotnSound_QueueAmbienceVolume(a, 128, 0));
+    CHECK(!SotnSound_QueueAmbienceVolume(a, 127, -9));
+    CHECK(!SotnSound_QueueAmbienceVolume(NULL, 127, 0));
+    CHECK(SotnSound_QueueAmbienceVolume(a, 127, 0));
+    CHECK(SotnSound_Queue(a, 0x601) && SotnSound_Queue(b, 0x601));
+    Sint16 one[SOTN_SOUND_FRAMES * 2] = {0}, two[SOTN_SOUND_FRAMES * 2] = {0};
+    for (Uint32 tick = 0; tick < 3; ++tick)
+        CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)) &&
+              SotnSound_Tick(b, two, SDL_arraysize(two)) && SDL_memcmp(one, two, sizeof(one)) == 0);
+    // Same gain is sample-identical to uninterrupted playback, including ADSR and loop phase.
+    CHECK(SotnSound_QueueAmbienceVolume(a, 127, 0));
+    CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)) &&
+          SotnSound_Tick(b, two, SDL_arraysize(two)) && SDL_memcmp(one, two, sizeof(one)) == 0);
+    CHECK(SotnSound_QueueAmbienceVolume(a, 0, 0));
+    CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)) && SotnSound_Tick(b, two, SDL_arraysize(two)));
+    for (Uint32 i = 0; i < SDL_arraysize(one); ++i)
+        CHECK(one[i] == 0);
+    CHECK(SotnSound_QueueAmbienceVolume(a, 127, 0));
+    CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)) &&
+          SotnSound_Tick(b, two, SDL_arraysize(two)) && SDL_memcmp(one, two, sizeof(one)) == 0);
+    CHECK(SotnSound_QueueAmbienceVolume(a, 127, -8));
+    CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)));
+    Uint32 audible = 0;
+    for (Uint32 i = 0; i < SOTN_SOUND_FRAMES; ++i)
+    {
+        CHECK(one[i * 2 + 1] == 0);
+        audible += one[i * 2] != 0;
+    }
+    CHECK(audible > 100);
+    for (Uint32 i = 0; i < 256; ++i)
+        CHECK(SotnSound_QueueAmbienceVolume(a, 64, 0));
+    CHECK(!SotnSound_QueueAmbienceVolume(a, 64, 0));
+    CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)));
+    SotnSound_Destroy(a);
+    SotnSound_Destroy(b);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) && Failures(f);
+    const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
+                        MovingAmbience(f) && Failures(f);
     SDL_free(f);
     if (!passed)
         return 1;

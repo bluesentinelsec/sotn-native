@@ -113,3 +113,7 @@ and world state, reserved fields, length/version/checksum failures, fifteen slot
 retained corrupt files, and safe replacement/failed rename. Private native LLDB
 checks use isolated local slots, never the user's real save bank. Private captures
 and fixtures remain ignored.
+
+The supported [Outer Wall elevator](outer-wall-elevator.md) adds original boolean flags
+16/17 to the existing world payload. Version 6 stays unchanged; both flags roundtrip
+through all supported stages/save rooms, and malformed values fail validation.

@@ -176,3 +176,10 @@ target_include_directories(sotn-outer-enemy-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-outer-enemy-tests PRIVATE sotn-core)
 add_test(NAME outer-wall-enemies COMMAND sotn-outer-enemy-tests)
 set_tests_properties(outer-wall-enemies PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-outer-elevator-tests test_outer_elevator.c)
+sotn_configure_c_target(sotn-outer-elevator-tests)
+target_include_directories(sotn-outer-elevator-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-outer-elevator-tests PRIVATE sotn-core)
+add_test(NAME outer-wall-elevator COMMAND sotn-outer-elevator-tests)
+set_tests_properties(outer-wall-elevator PROPERTIES TIMEOUT 20)

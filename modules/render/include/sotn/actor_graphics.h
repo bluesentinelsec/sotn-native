@@ -88,7 +88,11 @@ typedef struct SotnSpriteTransform
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                      Sint32 x, Sint32 y, SotnSpriteTransform transform,
                                      Uint16 *frame, size_t count);
-/** @brief Affine textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
+/** @brief Prepare the original Wall rope cache with bounded CPU copies in texture memory.
+ * @param graphics Borrowed initialized texture service, after loading the room bank.
+ * @return Success or SDL error; invalid/missing source pixels leave texture memory intact. */
+bool SotnActorGraphics_PrepareOuterRope(SotnActorGraphics *graphics);
+/** @brief Textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
  */
 typedef struct SotnTextureQuad
 {
@@ -99,7 +103,7 @@ typedef struct SotnTextureQuad
     Uint8 red, green, blue;
     Uint8 opacity; /**< Color multiplier, 128 neutral, used only when modulate is true. */
 } SotnTextureQuad;
-/** @brief Draw a bounded affine projectile primitive from already loaded private texture memory.
+/** @brief Draw a bounded quad as two textured triangles from loaded private texture memory.
  * @param graphics Borrowed texture service. @param quad Copied quad, coordinates within +/-2048.
  * @param frame Full RGB555 output. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */

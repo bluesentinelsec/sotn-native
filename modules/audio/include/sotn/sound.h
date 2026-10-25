@@ -37,6 +37,12 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id);
  * Pan coefficients remain in the private DRA image. */
 bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan);
 
+/** @brief Queue original channels 22/23 gain without restarting their loop or envelope.
+ * @param sound Borrowed simulation. @param volume Original multiplier 0..127.
+ * @param pan Original signed distance -8..8. @return Success or SDL error on invalid input
+ * or queue exhaustion. A valid update with no active ambience has no effect. */
+bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
+
 /** @brief Advance scripts/voices and render one tick of signed native-endian stereo PCM.
  * @param sound Borrowed owned simulation, advanced on success.
  * @param pcm Receives SOTN_SOUND_FRAMES * 2 initialized samples.

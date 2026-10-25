@@ -31,6 +31,10 @@ add_library(sotn-core STATIC
   enemy_blue_knight.c
   enemy_blue_death.c
   enemy_sword.c
+  outer_elevator.c
+  outer_elevator_doors.c
+  outer_elevator_switch.c
+  outer_elevator_rope.c
   outer_effects.c
   enemy_diplo.c
   enemy_diplo_tail.c

@@ -33,8 +33,9 @@ struct SotnSound
     {
         Uint16 id, volume;
         Sint8 pan;
+        bool ambience_volume;
     } queue[256];
-    Uint16 queued;
+    Uint16 queued, ambience_id;
     Uint8 priority[4];
 };
 
@@ -181,6 +182,27 @@ static bool Pair(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint
            Key(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume, key_pan);
 }
 
+static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
+{
+    if (!sound->ambience_id)
+        return true;
+    SotnDataView definition = {0}, coefficients = {0};
+    if (!View(sound->dra, 0x1f554 + (size_t)(sound->ambience_id - 0x600) * 7, 7, &definition) ||
+        !View(sound->dra, 0x1d17c + (size_t)(pan + 8) * 4, 4, &coefficients))
+        return false;
+    const Uint16 right = U16(coefficients.bytes), left = U16(coefficients.bytes + 2);
+    if (right > 127 || left > 127 || definition.bytes[3] > 127)
+        return SDL_SetError("Ambience volume references invalid original coefficients");
+    const Uint32 volume = (((127U * definition.bytes[3]) >> 7) * multiplier) >> 7;
+    for (Uint32 voice = 22; voice <= 23; ++voice)
+    {
+        // Original SsUtSetVVol overwrites register gain, without retriggering ADSR/decoding.
+        sound->registers[voice].left = (Sint32)(((volume * left) >> 8) * 129U);
+        sound->registers[voice].right = (Sint32)(((volume * right) >> 8) * 129U);
+    }
+    return true;
+}
+
 static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
 {
     SotnDataView definition = {0};
@@ -238,6 +260,7 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
     else if (data[4] == 2)
     {
         sound->voices[22].key_off = sound->voices[23].key_off = 1;
+        sound->ambience_id = 0;
         return true;
     }
     else if (data[4] == 0)
@@ -263,7 +286,14 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
     }
     else if (data[4] != 1)
         return SDL_SetError("Sound event requests an unintegrated channel mode");
-    return Pair(sound, voice, data[0], data[1], data[5], data[2], volume, pan);
+    if (!Pair(sound, voice, data[0], data[1], data[5], data[2], volume, pan))
+        return false;
+    if (voice == 22)
+    {
+        sound->ambience_id = id;
+        return AmbienceVolume(sound, multiplier == SDL_MAX_UINT16 ? 127 : multiplier, pan);
+    }
+    return true;
 }
 
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
@@ -297,6 +327,7 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id)
     sound->queue[slot].id = id;
     sound->queue[slot].volume = SDL_MAX_UINT16;
     sound->queue[slot].pan = 0;
+    sound->queue[slot].ambience_volume = false;
     return true;
 }
 
@@ -311,12 +342,29 @@ bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 
     return true;
 }
 
+bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan)
+{
+    if (sound == NULL || volume > 127 || pan < -8 || pan > 8 ||
+        sound->queued >= SDL_arraysize(sound->queue))
+        return SDL_SetError("Ambience gain exceeds its original bounds or the sound queue is full");
+    const Uint16 slot = sound->queued++;
+    sound->queue[slot].ambience_volume = true;
+    sound->queue[slot].volume = volume;
+    sound->queue[slot].pan = pan;
+    return true;
+}
+
 bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
 {
     if (sound == NULL || pcm == NULL || count < SOTN_SOUND_FRAMES * 2)
         return SDL_SetError("Sound tick requires state and a full stereo PCM buffer");
     for (Uint32 i = 0; i < sound->queued; ++i)
-        if (sound->queue[i].id == 0xa1)
+        if (sound->queue[i].ambience_volume)
+        {
+            if (!AmbienceVolume(sound, sound->queue[i].volume, sound->queue[i].pan))
+                return false;
+        }
+        else if (sound->queue[i].id == 0xa1)
         {
             for (Uint32 v = 20; v <= 21; ++v)
             {

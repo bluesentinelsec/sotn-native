@@ -255,6 +255,8 @@ static bool Stages(void)
         state.world.flags[SOTN_ENTRANCE_DEATH] = 1;
         state.world.flags[SOTN_ENTRANCE_ON] = 1;
         state.world.flags[SOTN_CLOCK_FLOOR] = 1;
+        state.world.flags[SOTN_OUTER_ELEVATOR] = 1;
+        state.world.flags[SOTN_OUTER_PRESSURE] = 1;
         Uint8 record[SOTN_SAVE_BYTES] = {0};
         for (Uint32 j = 0; j < 3; ++j)
         {
@@ -267,7 +269,17 @@ static bool Stages(void)
             CHECK(decoded.stage == stages[i] && decoded.room == room &&
                   decoded.world.flags[SOTN_ENTRANCE_DEATH] == 1 &&
                   decoded.world.flags[SOTN_ENTRANCE_ON] == 1 &&
-                  decoded.world.flags[SOTN_CLOCK_FLOOR] == 1);
+                  decoded.world.flags[SOTN_CLOCK_FLOOR] == 1 &&
+                  decoded.world.flags[SOTN_OUTER_ELEVATOR] == 1 &&
+                  decoded.world.flags[SOTN_OUTER_PRESSURE] == 1);
+        }
+        for (Uint32 flag = SOTN_OUTER_ELEVATOR; flag <= SOTN_OUTER_PRESSURE; ++flag)
+        {
+            record[624 + flag] = 2;
+            Rechecksum(record, sizeof(record));
+            decoded.stage = 999;
+            CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.stage == 999);
+            record[624 + flag] = 1;
         }
         record[624 + SOTN_CLOCK_FLOOR] = 2;
         Rechecksum(record, sizeof(record));
