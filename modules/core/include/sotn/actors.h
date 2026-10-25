@@ -91,6 +91,7 @@ typedef struct SotnActorCombat
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
     bool music_change;
+    Uint16 cd_command; /**< Original XA pause/resume command, zero when unchanged. */
     Uint16 voice;
     bool voice_change;
     Uint16 contact_damage;
@@ -102,6 +103,11 @@ typedef struct SotnActorCombat
  * @param out Optional presentation snapshot. @return Success or SDL error.
  */
 bool SotnActors_Dialogue(SotnActors *actors, bool voice_playing, SotnDialogueState *out);
+
+/** @brief Feed completion of native XA pause/resume into the shared dialogue waits.
+ * @param actors Borrowed owner. @param busy A CD transition is still in progress.
+ * @return Success or SDL error for a missing owner. */
+bool SotnActors_SetDialogueBusy(SotnActors *actors, bool busy);
 
 /** @brief Supported ordinary-save progress; transient room actors are excluded. */
 typedef struct SotnActorProgress

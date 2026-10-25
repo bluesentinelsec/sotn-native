@@ -83,6 +83,8 @@ struct SotnLaboratory
     SotnPlayback *audio;
     SotnStream *music_stream;
     SotnMusic *music, *speech;
+    Uint8 music_gain;
+    bool music_fading, music_paused;
     SotnDialogueState dialogue;
     Uint32 portrait_offsets[2];
 };
@@ -190,10 +192,30 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         SotnMusic_Destroy(session->music);
         session->music = next;
     }
+    if (combat->cd_command)
+    {
+        if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
+            return SDL_SetError("Dialogue issued an unsupported XA control command");
+        session->music_fading = combat->cd_command == 0x10;
+        if (combat->cd_command == 0x11)
+        {
+            session->music_paused = false;
+            session->music_gain = 127;
+        }
+    }
+    if (session->music_fading)
+    {
+        session->music_gain = (Uint8)SDL_max(0, (Sint32)session->music_gain - 12);
+        if (session->music_gain == 0)
+        {
+            session->music_fading = false;
+            session->music_paused = true;
+        }
+    }
     if (combat->voice_change)
     {
         SotnMusic *next = NULL;
-        if (!SotnMusic_CreateDeathSpeech(session->dra, session->music_stream, combat->voice, &next))
+        if (!SotnMusic_CreateSpeech(session->dra, session->music_stream, combat->voice, &next))
             return false;
         SotnMusic_Destroy(session->speech);
         session->speech = next;
@@ -216,13 +238,15 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
         return false;
-    if (session->music != NULL && (!session->save_room || session->game_over != NULL))
+    if (session->music != NULL && !session->music_paused &&
+        (!session->save_room || session->game_over != NULL))
     {
         Sint16 music[SOTN_SOUND_FRAMES * 2] = {0};
         if (!SotnMusic_Tick(session->music, music, SDL_arraysize(music)))
             return false;
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
-            pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + music[i], -32768, 32767);
+            pcm[i] = (Sint16)SDL_clamp(
+                (Sint32)pcm[i] + (Sint32)music[i] * session->music_gain / 127, -32768, 32767);
     }
     if (SotnMusic_Playing(session->speech))
     {
@@ -384,6 +408,7 @@ static bool TickActors(SotnLaboratory *session)
                                 (Uint32)(session->simulation_ticks / 60), session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
+        !SotnActors_SetDialogueBusy(session->actors, session->music_fading) ||
         !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
@@ -673,6 +698,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         session->world.relics[SOTN_RELIC_CUBE] = 3;
     session->directory = directory != NULL ? SDL_strdup(directory) : NULL;
     session->stage_id = stage_id;
+    session->music_gain = 127;
     session->music_stream = start.music;
     session->borrowed_music = start.music != NULL;
     session->room_index = start_room;
@@ -745,12 +771,12 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     else
         SDL_Log("Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
                 "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
-                "Maria/castle scripts, other stages, and full-game progression remain incomplete.");
+                "complete castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
             "and version-six saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
         SDL_Log("Development entry: original Entrance equipment when applicable; "
-                "70 HP, base stats 6. Prologue results and relic initialization remain separate.");
+                "70 HP, base stats 6. Prologue-derived initialization remains separate.");
     *out = session;
     return true;
 }

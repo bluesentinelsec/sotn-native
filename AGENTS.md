@@ -236,3 +236,8 @@ The [relic progression service](docs/relic-progression.md) collects original sta
 retains found/active ownership in v6 saves, and gates candle drops on Cube of Zoe.
 Selected permanent pickups retain original castle bits across stage changes.
 Relic movement abilities, complete acquisition effects, and the relic menu remain incomplete.
+
+The [Laboratory Maria encounter](docs/laboratory-maria.md) now reads private scripts,
+animates Maria and her door, streams five speech clips, pauses/resumes music, and
+returns control. The met-Maria flag persists in ordinary saves. CD timing parity,
+complete dialogue effects, and full castle scripts remain incomplete.

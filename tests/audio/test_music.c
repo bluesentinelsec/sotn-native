@@ -130,6 +130,16 @@ static bool Playback(const char *directory)
     SotnMusic_Destroy(music);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x35e, &music) && music == NULL);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x364, &music) && music == NULL);
+    for (Uint16 id = 0x369; id <= 0x36d; ++id)
+    {
+        SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
+        CHECK(SotnMusic_CreateSpeech(image, stream, id, &music));
+        CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+        SotnMusic_Destroy(music);
+        music = NULL;
+    }
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x368, &music) && music == NULL);
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x36e, &music) && music == NULL);
     SotnStream_Close(stream);
     SDL_free(finite);
     raw[19] = raw[23] = 0;

@@ -1205,6 +1205,10 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->pose = actor->remaining = 0;
         }
         return ActorAnimate(actors, actor, actor->state.step == 2 ? 0xef8 : 0xef0, &animation);
+    case 0x4b:
+    case 0x4c:
+    case 0x4d:
+        return ActorMaria(actors, actor);
     case 0x49:
         return ActorBossReward(actors, actor);
     case 0x38:
@@ -1370,6 +1374,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     ++actors->ticks;
     actors->combat.music_change = false;
     actors->combat.voice_change = false;
+    actors->combat.cd_command = 0;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
     if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))
