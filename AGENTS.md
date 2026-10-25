@@ -428,3 +428,9 @@ skull bounce/death. The [spike-ball variant](docs/chapel-spike-ball.md) now supp
 intact destruction, release/bounce/roll, invulnerable contact and linked enemy damage.
 Its owned outside-stage attacks share four original cooldown groups. Connected
 Chapel progression and full encounter/console parity remain incomplete.
+
+Selected [Chapel Hunting Girl combat](docs/chapel-hunting-girl.md) now runs the
+spirit/sword, three combos and owned blade children, hit recovery and death.
+Non-attacking motion omits null-trail writes while retaining END/cursor processing;
+read the documented mandatory C adaptation before changing it. Its console
+comparison and connected Chapel travel remain incomplete.

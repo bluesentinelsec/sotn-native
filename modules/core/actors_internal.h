@@ -127,6 +127,14 @@ typedef struct Actor
     } pillar;
     struct
     {
+        Uint16 attack_step, frames, attack_timer, cycle_timer, trail, base_attack;
+        Sint16 turn, sine_phase;
+        Sint32 reference_y;
+        Uint8 brightness, pattern, random, next_step;
+        bool attacking;
+    } hunt;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -473,6 +481,18 @@ bool ActorChapelCornerGuard(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage owner. @param actor Borrowed supported slot.
  * @return Success or SDL error; private images and room collision remain borrowed. */
 bool ActorChapelPillar(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel Hunting Girl body or owned blade child.
+ * @param actors Borrowed entered Chapel owner. @param actor Borrowed active slot.
+ * @return Success or SDL error; private profiles remain borrowed and children owned by generation.
+ */
+bool ActorChapelHunting(SotnActors *actors, Actor *actor);
+/** @brief Borrowed Hunting Girl graphics/motion helpers; require its 32 owned primitives.
+ * @note Tips use whole room coordinates; spirit/attack completion is copied to done.
+ * Profiles/streams stay private, and invalid bounds/ownership return SDL errors. */
+bool ActorHuntingTip(SotnActors *actors, const Actor *actor, Sint32 *x, Sint32 *y);
+bool ActorHuntingSpirit(SotnActors *actors, Actor *actor, Uint16 profile, Uint16 phase, bool *done);
+bool ActorHuntingDrawAttack(SotnActors *actors, Actor *actor, size_t pattern, bool *done);
+bool ActorHuntingTrails(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel spike-ball release, collision and rendering.
  * @param actors Borrowed stage-6 owner. @param actor Borrowed owned ball slot.
  * @return Success or SDL error; exhausted optional primitives retire the ball. */

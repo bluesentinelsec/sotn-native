@@ -94,3 +94,7 @@ Selected [Bone Pillar skull/fire combat](chapel-bone-pillar.md) now adds stacked
 skulls, original fire/embers and upper-skull release/death pieces. The spike-ball
 variant now runs [release/bounce/roll and linked enemy damage](chapel-spike-ball.md).
 Connected Chapel progression remains unsupported.
+
+Selected [Hunting Girl combat](chapel-hunting-girl.md) now adds spirit/sword trails,
+all three private combos, owned blade contact, hit recovery and death. Its mandatory
+C pointer/terminator adaptation remains an explicit console-parity comparison item.
