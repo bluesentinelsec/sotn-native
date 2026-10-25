@@ -6,8 +6,9 @@ typedef struct SotnStageProfile
 {
     Uint16 id, actor_limit, sprite_banks, prize_count, prize_bit, door_types, camera_count;
     Uint16 save_rooms[3]; /**< Unused entries are UINT16_MAX; room zero is valid. */
+    bool connected; /**< Allow ordinary checkpoint travel; does not imply complete area parity. */
 } SotnStageProfile;
-/** @brief Look up immutable metadata for an integrated development stage.
+/** @brief Look up immutable metadata for native stage adapters.
  * @param stage Original stage ID. @return Borrowed static metadata, NULL if unsupported.
  * A profile does not imply every actor or event in an area is implemented. */
 const SotnStageProfile *SotnStageProfile_Get(Uint16 stage);

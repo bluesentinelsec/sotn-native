@@ -1184,6 +1184,12 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         return ActorEntrance(actors, actor);
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
+    if (actors->stage_id == 26 && actor->state.id > 0xc && actor->state.id != 0x12)
+    {
+        // Arena adapters do not substitute Laboratory behavior for unfinished boss actors.
+        actor->state.unsupported = true;
+        return true;
+    }
     switch (actor->state.id)
     {
     case 2:

@@ -23,6 +23,8 @@ authentic playable game build. Its default mode still displays the bootstrap gre
 [Castle stage loading](docs/castle-stage-loading.md) verifies and inspects 50 stage
 overlay/artwork pairs on demand. Selected native paths now connect Entrance, Laboratory,
 Marble Gallery and Outer Wall; further areas remain unintegrated.
+[Doppleganger arena adapters](docs/doppleganger-arena.md) prepare private BO4
+resources; its boss encounter and ordinary travel remain disabled.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game

@@ -201,3 +201,10 @@ revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
 Private overlay tables supply spawn profiles, entry motion and animation;
 [the feature scope](docs/outer-wall-medusa-heads.md) separates component fixtures
 from route and console parity evidence.
+
+BO4 resource/common-table adapters follow the stage's `header.c`, `e_init.c`,
+`e_breakable.c`, `e_red_door_tiles.c`, `e_lock_camera.c`, shared
+`st/entity_lock_camera.h` / `e_collect.h` and `dra/lba_stage.c`, at the pinned
+reconstructed revision (AGPL-3.0-or-later). Only addresses, dimensions, filenames
+and checksums are public metadata. [Arena scope](docs/doppleganger-arena.md)
+records the disabled travel gate and unintegrated boss runtime.
