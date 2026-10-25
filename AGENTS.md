@@ -408,5 +408,8 @@ selected shared actors, Winged Guard/body pieces/spawner and Bat combat. Chapel
 breakables/furnishings now use their own tables, with selected drops/debris. Chapel
 Selected [Chapel mechanisms/scenery](docs/chapel-mechanisms.md) now add the shortcut
 statue/block and saved flag 96, gargoyle states/tiles, walls and staircase shadow.
+Selected [Chapel Crow/Raven/Skelerang combat](docs/chapel-enemies.md) now runs with
+its own private tables, original bird phases/deaths and owned boomerangs. Shared
+Skelerang re-entry protects unrelated children in both Chapel and Marble.
 Travel remains disabled; other enemies, tower exits/bells/spikes, scenery, Maria and boss remain
 unintegrated. Private controlled native fixtures are not ordinary-route/console parity.

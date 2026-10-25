@@ -1,14 +1,85 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // st/e_skelerang.h, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// Original private NO0 animation, position and collision tables remain external.
+// Original private NO0/DAI animation, position, sine and sensor tables remain external.
 #include "actors_internal.h"
+static Uint16 Body(const SotnActors *s)
+{
+    return s->stage_id == 6 ? 0x3a : 0x2e;
+}
+static size_t Table(const SotnActors *s, size_t no0)
+{
+    if (s->stage_id == 0)
+        return no0;
+    if (no0 >= 0x1e94 && no0 < 0x1f80)
+        return no0 + 0x19c;
+    switch (no0)
+    {
+    case 0xb6c:
+        return 0xa7c;
+    case 0xb78:
+        return 0xa88;
+    case 0xa94:
+        return 0x968;
+    default:
+        SDL_SetError("Chapel Skelerang has no selected shared table at %zu", no0);
+        return s->nz0.size;
+    }
+}
+static bool Sound(SotnActors *s, const Actor *a, Uint16 id)
+{
+    return s->stage_id == 6 ? ActorPositionalSound(s, a, id) : ActorSound(s, id);
+}
+static bool Velocity(SotnActors *s, Actor *a)
+{
+    if (s->stage_id == 6)
+    {
+        SotnDataView x = {0}, y = {0};
+        const Uint8 angle = (Uint8)a->table.angle;
+        if (!Slice(s->nz0, 0x1474U + angle * 2U, 2, &x) ||
+            !Slice(s->nz0, 0x1474U + (Uint8)(angle - 64) * 2U, 2, &y))
+            return false;
+        const Sint32 sx = Signed16(x.bytes), sy = Signed16(y.bytes);
+        if (sx < -4096 || sx > 4096 || sy < -4096 || sy > 4096)
+            return SDL_SetError("Chapel Skelerang sine profile exceeds original amplitude");
+        a->vx = sx * 48;
+        a->vy = sy * 48;
+        return true;
+    }
+    a->vx = ActorSin(a->table.angle * 16) * 48;
+    a->vy = ActorSin(a->table.angle * 16 - 1024) * 48;
+    return true;
+}
+static bool PrepareChildren(SotnActors *s, const Actor *a)
+{
+    for (Uint32 i = 1; i <= 3; ++i)
+    {
+        const Actor *old = &s->slots[a->slot + i];
+        if (!old->state.generation)
+            continue;
+        SotnActorPlacement placement = {0};
+        Uint32 placed = 0;
+        if (!SotnRoomActors_Get(s->spawns, a->slot + i, &placement, &placed))
+            return false;
+        const Uint16 id = (Uint16)(Body(s) + (i == 1 ? 2U : 1U));
+        if (placed || old->state.id != id || old->enemy_state.owner_slot != a->slot)
+            return SDL_SetError("Skelerang reserved child slot is occupied by another owner");
+    }
+    for (Uint32 i = 1; i <= 3; ++i)
+    {
+        Actor *old = &s->slots[a->slot + i];
+        ActorPrimitivesClear(s, old);
+        *old = (Actor){0};
+    }
+    return true;
+}
 static Actor *Owner(SotnActors *s, const Actor *a)
 {
     const Uint16 slot = a->enemy_state.owner_slot;
     if (slot >= SOTN_STAGE_ACTOR_SLOTS)
         return NULL;
     Actor *p = &s->slots[slot];
-    return p->state.id == 0x2e && p->state.generation == a->enemy_state.owner_generation ? p : NULL;
+    return p->state.id == Body(s) && p->state.generation == a->enemy_state.owner_generation ? p
+                                                                                            : NULL;
 }
 static bool Boomerang(SotnActors *s, Actor *a)
 {
@@ -20,7 +91,7 @@ static bool Boomerang(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xb78))
+        if (!ActorInitialize(s, a, Table(s, 0xb78)))
             return false;
         a->state.rotated = true;
         a->state.frame = a->state.hitbox_state = 0;
@@ -55,11 +126,11 @@ static bool Boomerang(SotnActors *s, Actor *a)
         a->table.angle = SDL_abs(delta) > threshold
                              ? (Uint8)(current + (delta < 0 ? -threshold : threshold))
                              : goal;
-        a->vx = ActorSin(a->table.angle * 16) * 48;
-        a->vy = ActorSin(a->table.angle * 16 - 1024) * 48;
+        if (!Velocity(s, a))
+            return false;
         if (SDL_abs(dx) < 6 && SDL_abs(dy) < 6)
         {
-            if (!ActorSound(s, 0x6bc))
+            if (!Sound(s, a, 0x6bc))
                 return false;
             ++a->substep;
         }
@@ -91,7 +162,7 @@ static bool DeathParts(SotnActors *s, Actor *a)
     if (--a->table.timer == 0)
     {
         SotnDataView offset = {0};
-        if (!Slice(s->nz0, 0x1ea4 + a->state.parameters * 4U, 4, &offset))
+        if (!Slice(s->nz0, Table(s, 0x1ea4) + a->state.parameters * 4U, 4, &offset))
             return false;
         const Sint32 x = Signed16(offset.bytes), y = Signed16(offset.bytes + 2);
         if (SDL_abs(x) > 128 || SDL_abs(y) > 128)
@@ -107,11 +178,14 @@ static bool DeathParts(SotnActors *s, Actor *a)
 }
 bool ActorSkelerang(SotnActors *s, Actor *a)
 {
-    if (a->state.id == 0x2f)
+    if (!s || !a || (s->stage_id != 0 && s->stage_id != 6) || a->state.id < Body(s) ||
+        a->state.id > Body(s) + 2U)
+        return SDL_SetError("Skelerang requires its original stage identity");
+    if (a->state.id == Body(s) + 1U)
         return Boomerang(s, a);
-    if (a->state.id == 0x30)
+    if (a->state.id == Body(s) + 2U)
     {
-        if (!a->state.step && !ActorInitialize(s, a, 0xa94))
+        if (!a->state.step && !ActorInitialize(s, a, Table(s, 0xa94)))
             return false;
         a->remove = Owner(s, a) == NULL;
         return true;
@@ -124,7 +198,7 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
     if ((a->state.flags & 0x100) && a->state.step < 10)
     {
         a->state.hitbox_state = 0;
-        if (!ActorSound(s, 0x62b))
+        if (!Sound(s, a, 0x62b))
             return false;
         for (Uint32 i = 1; i <= 3; ++i)
         {
@@ -145,23 +219,24 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (a->state.parameters > 1 || (Uint32)a->slot + 3 >= SOTN_STAGE_ACTOR_SLOTS)
+        if (!a->state.generation || a->state.parameters > 1 ||
+            (Uint32)a->slot + 3 >= SOTN_STAGE_ACTOR_SLOTS)
             return SDL_SetError("Skelerang requires an original facing and three reserved slots");
-        for (Uint32 i = 1; i <= 3; ++i)
-            if (s->slots[a->slot + i].state.generation)
-                return SDL_SetError("Skelerang reserved child slot is occupied");
-        if (!ActorInitialize(s, a, 0xb6c))
+        if (!PrepareChildren(s, a))
+            return false;
+        if (!ActorInitialize(s, a, Table(s, 0xb6c)))
             return false;
         a->state.facing_left = a->state.parameters != 0;
         for (Uint16 i = 1; i <= 3; ++i)
         {
             Actor *child = NULL;
-            if (!ActorSpawnAt(s, a, i == 1 ? 0x30 : 0x2f, i == 3 ? 1 : 0, a->slot + i, &child))
+            if (!ActorSpawnAt(s, a, (Uint16)(Body(s) + (i == 1 ? 2U : 1U)), i == 3 ? 1 : 0,
+                              a->slot + i, &child))
                 return false;
         }
         break;
     case 1:
-        if (!ActorGround(s, a, 0x1e94, &collision))
+        if (!ActorGround(s, a, Table(s, 0x1e94), &collision))
             return false;
         if (collision & 1)
             SetStep(a, 3);
@@ -173,13 +248,13 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
             SetStep(a, 5);
         break;
     case 4:
-        if (!ActorAnimate(s, a, 0x1f00, &animation))
+        if (!ActorAnimate(s, a, Table(s, 0x1f00), &animation))
             return false;
         if (!animation)
             SetStep(a, 6);
         if (a->state.frame == 30)
         {
-            if (!ActorSound(s, 0x69e))
+            if (!Sound(s, a, 0x69e))
                 return false;
             Actor *target = &s->slots[a->slot + 1];
             target->state.x = s->player.x;
@@ -187,7 +262,7 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
             for (Uint32 i = 2; i <= 3; ++i)
             {
                 Actor *child = &s->slots[a->slot + i];
-                if (child->state.id != 0x2f ||
+                if (child->state.id != Body(s) + 1U ||
                     child->enemy_state.owner_generation != a->state.generation)
                     return SDL_SetError("Skelerang lost its original boomerang child");
                 child->state.x = a->state.x;
@@ -198,7 +273,7 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
         }
         break;
     case 5:
-        if (!ActorAnimate(s, a, 0x1ec8, &animation))
+        if (!ActorAnimate(s, a, Table(s, 0x1ec8), &animation))
             return false;
         if (!animation)
             SetStep(a, 4);
@@ -211,14 +286,14 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
         }
         break;
     case 7:
-        if (!ActorAnimate(s, a, 0x1f34, &animation))
+        if (!ActorAnimate(s, a, Table(s, 0x1f34), &animation))
             return false;
         if (!animation)
             SetStep(a, ++a->table.timer > 2 ? 9 : 4);
         break;
     case 8: {
         const size_t stream = a->substep == 0 ? 0x1f38 : a->substep == 1 ? 0x1f60 : 0x1f4c;
-        if (a->substep > 2 || !ActorAnimate(s, a, stream, &animation))
+        if (a->substep > 2 || !ActorAnimate(s, a, Table(s, stream), &animation))
             return SDL_SetError("Skelerang cower animation or substate is invalid");
         if (a->substep == 1 ? Distance(a, s->player) > 80 ||
                                   SDL_abs(Pixel(a->state.y) - Pixel(s->player.y)) > 48
@@ -236,7 +311,7 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
             a->table.timer = 0;
             ++a->substep;
         }
-        if (!ActorAnimate(s, a, 0x1edc, &animation))
+        if (!ActorAnimate(s, a, Table(s, 0x1edc), &animation))
             return false;
         if (!animation)
             ++a->table.timer;
@@ -262,7 +337,7 @@ bool ActorSkelerang(SotnActors *s, Actor *a)
         for (Uint16 i = 0; i < 8; ++i)
         {
             Actor *part = NULL;
-            if (!ActorSpawn(s, a, 0x2e, i, 160, 192, &part))
+            if (!ActorSpawn(s, a, Body(s), i, 160, 192, &part))
                 return false;
             if (part == NULL)
                 break;
