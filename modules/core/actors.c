@@ -1493,6 +1493,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_free(actors->mutable_tiles);
     actors->mutable_tiles = tiles;
     SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));
+    SDL_zero(actors->shop);
     actors->map = map;
     if (actors->camera == &actors->fallback_camera)
     {
@@ -1508,6 +1509,29 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
     SDL_memset(actors->primitives, 0, sizeof(actors->primitives));
     return true;
+}
+
+void ActorRepeatButtons(SotnActors *actors)
+{
+    // dra/pads.c: original per-button post-decrement, 17 ticks then six-tick repeats.
+    actors->repeat_buttons = 0;
+    for (Uint16 bit = 0; bit < 16; ++bit)
+    {
+        const Uint16 mask = (Uint16)(1U << bit);
+        if (actors->buttons & mask)
+        {
+            if (actors->tapped_buttons & mask)
+            {
+                actors->repeat_buttons |= mask;
+                actors->button_repeat_timer[bit] = 16;
+            }
+            else if (!actors->button_repeat_timer[bit]--)
+            {
+                actors->repeat_buttons |= mask;
+                actors->button_repeat_timer[bit] = 5;
+            }
+        }
+    }
 }
 
 bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x, Sint32 camera_y)
@@ -1535,6 +1559,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         --actors->control.timer;
     actors->tapped_buttons = (Uint16)(actors->buttons & ~actors->previous_buttons);
     actors->previous_buttons = actors->buttons;
+    ActorRepeatButtons(actors);
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
@@ -1542,6 +1567,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->combat.sequence_change = false;
     actors->combat.ambience_change = false;
     actors->combat.voice_change = false;
+    actors->combat.voice_stop = false;
     actors->combat.cd_command = 0;
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;

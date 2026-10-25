@@ -47,6 +47,8 @@ add_library(sotn-core STATIC
   library_ectoplasm.c
   library_summon.c
   library_mudman.c
+  library_shop.c
+  library_shop_graphics.c
   library_librarian.c
   library_event.c
   library_demon.c

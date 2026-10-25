@@ -8,6 +8,7 @@
 #include <sotn/dopple_body.h>
 #include <sotn/game_math.h>
 #include <sotn/relic.h>
+#include <sotn/shop.h>
 #include <sotn/stage_profile.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
@@ -280,7 +281,8 @@ struct SotnActors
     SotnPlayerState player;
     SotnActorMotion motion;
     SotnActorControl control;
-    Uint16 buttons, previous_buttons, tapped_buttons, puzzle_flags, elevator_target;
+    Uint16 buttons, previous_buttons, tapped_buttons, repeat_buttons, puzzle_flags, elevator_target;
+    Uint8 button_repeat_timer[16];
     Sint16 puzzle_height[3];
     bool call_elevator, cannon_fired, armor_lord_killed;
     Uint32 boss_flags, game_seconds;
@@ -317,6 +319,13 @@ struct SotnActors
         Uint8 death_profile[4];
     } dopple;
     /** Original LIB transient minion signal; not ordinary save state. */
+    struct
+    {
+        SotnShopCatalogue catalogue;
+        Uint16 quantities[SOTN_SHOP_STOCK], options[6], count, cursor, item_cursor, scroll;
+        Uint16 repeated;
+        bool sell;
+    } shop;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
     SotnCharacter *character;
@@ -513,6 +522,12 @@ bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
  * @return Success or SDL error; optional exhausted reward allocation waits for another tick.
  * Native factories retain ownership; no pointers transfer to the caller. */
 bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
+/** @brief Advance original per-button repeat timers after tapped/pressed input is installed. */
+void ActorRepeatButtons(SotnActors *actors);
+/** @brief Advance the selected original Library root/buy/sell menu actors. */
+bool ActorLibraryShop(SotnActors *actors, Actor *actor);
+/** @brief Build owned screen-space shop panels/text from private data. */
+bool ActorLibraryShopGraphics(SotnActors *actors, Actor *actor);
 /** @brief Advance selected original Librarian trigger, control, chair or dialogue.
  * @param actors Borrowed initialized Library owner with writable progress and frame services.
  * @param actor Borrowed supported NPC actor. @return Success or SDL error.

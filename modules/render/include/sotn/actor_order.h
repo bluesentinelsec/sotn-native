@@ -14,11 +14,11 @@ typedef struct SotnActorDraw
     Uint16 priority, actor, primitive;
     Uint8 kind;
 } SotnActorDraw;
-/** @brief Append a command in stable, descending original ordering-table priority.
+/** @brief Append a command in stable, ascending original ordering-table priority.
  * @param items Borrowed writable storage for capacity entries. @param capacity Entry capacity.
  * @param count Owned initialized length. @param item Copied, validated command.
  * @return Success or SDL error; storage/count remain unchanged on failure.
- * @note Lower priorities cover higher priorities. Equal priorities retain insertion order;
+ * @note Higher priorities cover lower priorities. Equal priorities retain insertion order;
  * this adapter does not emulate every PS1 GPU packet/engine reservation. */
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item);
 #endif

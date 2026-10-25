@@ -68,6 +68,8 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return ActorLibraryBreakable(s, a);
     if ((a->state.id >= 0x23 && a->state.id <= 0x25) || a->state.id == 0x2b || a->state.id == 0x2c)
         return ActorLibraryLibrarian(s, a);
+    if (a->state.id == 0x26 || a->state.id == 0x27)
+        return ActorLibraryShop(s, a);
     if (a->state.id == 0x40 || a->state.id == 0x41)
         return ActorLibraryEvent(s, a);
     if (a->state.id == 0x42)

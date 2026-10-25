@@ -1,3 +1,5 @@
+// Original dra/42398.c uses forward ClearOTag and draws from g_CurrentOT,
+// unlike ClearOTagR. Higher original priorities cover lower priorities.
 #include <sotn/actor_order.h>
 #include <sotn/actors.h>
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
@@ -8,7 +10,7 @@ bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, So
         return SDL_SetError(
             "Actor draw order requires bounded commands and available frame storage");
     size_t position = *count;
-    while (position > 0 && items[position - 1].priority < item.priority)
+    while (position > 0 && items[position - 1].priority > item.priority)
     {
         items[position] = items[position - 1];
         --position;
