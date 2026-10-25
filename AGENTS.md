@@ -316,6 +316,8 @@ parity work; a successful route is not proof of complete area or console parity.
 The selected [Outer Wall Armor Lord](docs/outer-wall-armor-lord.md) now runs sword,
 fire-wave, shield and staged death paths with checked actor/primitive ownership.
 Its killed flag lasts for the loaded overlay, not forever in ordinary saves.
+The copied player state distinguishes four-tick hand-weapon and subweapon startup:
+Armor Lord observes the hand-weapon signal; Spear Guard observes both.
 Contact retains element information and applies equipment element modifiers;
 ailments, special damage reactions, elemental death presentation and original
 contact priority remain incomplete. Death ribbons/lighting are bounded native

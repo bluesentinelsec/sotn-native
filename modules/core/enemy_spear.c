@@ -138,7 +138,7 @@ static bool Move(SotnActors *s, Actor *a, Uint16 animation)
 }
 static bool Decide(SotnActors *s, Actor *a)
 {
-    if (s->player.subweapon_starting)
+    if (s->player.subweapon_starting || s->player.weapon_starting)
     {
         if (Distance(a, s->player) > 72 && (ActorRandom(s) & 1))
             SetStep(a, 9);

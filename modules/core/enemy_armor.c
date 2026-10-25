@@ -220,7 +220,7 @@ static bool Body(SotnActors *s, Actor *a)
             a->state.facing_left = Side(a, s->player) == 0;
             SetStep(a, step.bytes[0]);
         }
-        if (s->player.subweapon_starting)
+        if (s->player.weapon_starting)
         {
             if (!a->armor.did_shield && (ActorRandom(s) & 1))
             {

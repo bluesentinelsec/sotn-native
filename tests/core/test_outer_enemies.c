@@ -588,6 +588,18 @@ static bool Armor(Fixture *f)
     for (Uint32 i = 0; i < 4; ++i)
         CHECK(SotnActors_Tick(s, player, 0, 0));
     CHECK(root->state.step == 5);
+    // Armor Lord observes weapon startup, independently of subweapon startup.
+    root->state.step = 3;
+    root->substep = 1;
+    root->timer = 99;
+    s->random = 1;
+    SotnPlayerState startup = player;
+    startup.subweapon_starting = true;
+    CHECK(SotnActors_Tick(s, startup, 0, 0) && root->state.step == 3 && !root->armor.did_shield);
+    startup.subweapon_starting = false;
+    startup.weapon_starting = true;
+    s->random = 1;
+    CHECK(SotnActors_Tick(s, startup, 0, 0) && root->state.step == 7 && root->armor.did_shield);
     // The sword follows its owner's attack frame and retains signed table offsets.
     root->state.step = 6;
     root->state.frame = 16;

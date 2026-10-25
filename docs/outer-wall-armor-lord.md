@@ -2,7 +2,9 @@
 
 The selected Wall encounter now runs approach/retreat, the overhead sword slide,
 charged fire attack, branching floor fire wave, reactive shield, sword shadow and
-staged death. Separate sword and wave hitboxes retain their private attack values.
+staged death. Its shield reacts to the original four-tick weapon-startup flag,
+not the distinct subweapon-use flag; Spear Guard observes both supported signals.
+Separate sword and wave hitboxes retain their private attack values.
 Original animation, decision, collision and hitbox tables are read from the user's
 NO1 overlay. Optional effect allocations retain bounded, nonfatal fallbacks.
 

@@ -151,7 +151,7 @@ int main(void)
             alucard, (Uint16)(SOTN_BUTTON_UP | (t % 20 == 0 ? SOTN_BUTTON_LEFT_HAND : 0))));
         CHECK(SotnPlayer_GetState(alucard, &player));
         if (t == 0)
-            CHECK(player.subweapon_starting);
+            CHECK(player.subweapon_starting && !player.weapon_starting);
         if (t == 4)
             CHECK(!player.subweapon_starting);
         CHECK(SotnSubweapons_Tick(s, player, 0, 0));

@@ -68,6 +68,7 @@ typedef struct SotnPlayerState
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
     SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
+    bool weapon_starting;    /**< Original ALU_T_9 weapon-startup timer is active. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;

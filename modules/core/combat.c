@@ -114,7 +114,7 @@ bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attr
     if (attributes.immunes & result.effects)
     {
         if (attributes.immunes & result.effects & 0x200)
-            result.effects &= (Uint16)~0x200U;
+            result.effects = (Uint16)(result.effects & 0xfdffU);
         else
             result.immune = true;
     }
