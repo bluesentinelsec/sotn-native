@@ -48,7 +48,47 @@ static bool Angles(void)
     SDL_free(bytes);
     return true;
 }
+static void Put16(Uint8 *p, Uint16 value)
+{
+    p[0] = (Uint8)value;
+    p[1] = (Uint8)(value >> 8);
+}
+static bool TrigAndRoot(void)
+{
+    const size_t size = 0x1e3e0 + 384;
+    Uint8 *bytes = SDL_calloc(1, size);
+    CHECK(bytes != NULL);
+    for (Uint32 i = 0; i <= 1024; ++i)
+        Put16(bytes + 0x1dbcc + i * 2, (Uint16)(i * 4));
+    for (Uint32 i = 0; i < 192; ++i)
+        Put16(bytes + 0x1e3e0 + i * 2, 4096);
+    const SotnDataView image = {bytes, size};
+    SotnMathTrig trig = {0};
+    Uint32 root = 999;
+    CHECK(SotnMath_Trig(image, 0, &trig) && trig.sine == 0 && trig.cosine == 4096);
+    CHECK(SotnMath_Trig(image, 512, &trig) && trig.sine == 2048 && trig.cosine == 2048);
+    CHECK(SotnMath_Trig(image, -512, &trig) && trig.sine == -2048 && trig.cosine == 2048);
+    CHECK(SotnMath_Trig(image, 3072, &trig) && trig.sine == -4096 && trig.cosine == 0);
+    CHECK(SotnMath_Trig(image, SDL_MIN_SINT32, &trig) && trig.sine == 0 && trig.cosine == 4096);
+    CHECK(SotnMath_Sqrt12(image, 0, &root) && root == 0);
+    CHECK(SotnMath_Sqrt12(image, 1, &root) && root == 64);
+    CHECK(SotnMath_Sqrt12(image, 4, &root) && root == 128);
+    CHECK(SotnMath_Sqrt12(image, 4096, &root) && root == 4096);
+    Put16(bytes + 0x1e3e0 + 128 * 2, 6000);
+    CHECK(SotnMath_Sqrt12(image, 3, &root) && root == 93);
+    CHECK(!SotnMath_Sqrt12(image, 0x80000000U, &root) && root == 93);
+    CHECK(!SotnMath_Sqrt12((SotnDataView){bytes, size - 1}, 3, &root) && root == 93);
+    Put16(bytes + 0x1e3e0, 0);
+    CHECK(!SotnMath_Sqrt12(image, 1, &root) && root == 93);
+    Put16(bytes + 0x1dbcc + 512 * 2, 5000);
+    CHECK(!SotnMath_Trig(image, 512, &trig) && trig.sine == 0 && trig.cosine == 4096);
+    CHECK(!SotnMath_Trig((SotnDataView){bytes, 0x1dbcc + 2049}, 0, &trig));
+    CHECK(!SotnMath_Trig(image, 0, NULL));
+    CHECK(!SotnMath_Sqrt12(image, 0, NULL));
+    SDL_free(bytes);
+    return true;
+}
 int main(void)
 {
-    return Angles() ? 0 : 1;
+    return Angles() && TrigAndRoot() ? 0 : 1;
 }

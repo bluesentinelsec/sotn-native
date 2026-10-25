@@ -16,6 +16,9 @@ struct SotnActorGraphics
     SotnDataView weapon[2];
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
+    bool dopple_cached;
+    Sint16 bat_pivot[18];
+    bool bat_pivot_set[18];
 };
 
 static Uint16 Read16(const Uint8 *bytes)
@@ -526,8 +529,8 @@ static Sint64 FloorDivide(Sint64 value, Sint64 divisor)
 {
     return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
 }
-static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
-                        Sint32 x, Sint32 y, Uint16 *frame, const SotnSpriteTransform *transform)
+static bool PackedImage(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
+                        SotnDataView *out)
 {
     const Uint16 bank = sprite.animation_set & 0x7fff;
     if (g->stage_id != 26 || g->nz0.size < 52 || !(sprite.animation_set & 0x8000) ||
@@ -546,11 +549,25 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
         !Resolve(g->nz0, base, Read32(table.bytes + index * 4), 4, 4, &sheet))
         return SDL_SetError("Packed actor sheet index or table extent is invalid");
     const Uint32 width = sheet.bytes[0], height = sheet.bytes[1];
-    const Sint32 pivot_x = Signed16(definition.bytes + 2) + sheet.bytes[2];
-    const Sint32 pivot_y = Signed16(definition.bytes + 4) + sheet.bytes[3];
     if (!width || width % 4 || !height ||
         !Resolve(g->nz0, base, Read32(table.bytes + index * 4), 4 + width * height / 2, 4, &sheet))
         return SDL_SetError("Packed actor sheet dimensions or pixel extent is invalid");
+    *out = sheet;
+    return true;
+}
+
+static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
+                        Sint32 x, Sint32 y, Uint16 *frame, const SotnSpriteTransform *transform)
+{
+    SotnDataView sheet = {0};
+    if (!PackedImage(g, sprite, definition, &sheet))
+        return false;
+    const Uint32 width = sheet.bytes[0], height = sheet.bytes[1];
+    const Uint16 pose = sprite.frame & 0x7fffU;
+    const bool bat = (sprite.animation_set & 0x7fffU) == 2 && pose < 18 && g->bat_pivot_set[pose];
+    const Sint32 pivot_x =
+        (bat ? g->bat_pivot[pose] : Signed16(definition.bytes + 2)) + sheet.bytes[2];
+    const Sint32 pivot_y = Signed16(definition.bytes + 4) + sheet.bytes[3];
     const Uint32 palette = sprite.palette & 0x7fff;
     if (palette >= 768)
         return SDL_SetError("Packed actor sheet palette exceeds native palette memory");
@@ -659,6 +676,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
             for (Sint32 x = SDL_max(0, left); x < SDL_min(SOTN_FRAME_WIDTH, right); ++x)
             {
                 Sint64 u = 0, v = 0;
+                Uint32 shade[3] = {q.red, q.green, q.blue};
                 bool inside = false;
                 // PS1 quad order is the triangles (0,1,2) and (1,3,2).
                 for (Uint32 triangle = 0; triangle < 2 && !inside; ++triangle)
@@ -686,6 +704,15 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                         continue;
                     u = (wa * q.u[ia] + wb * q.u[ib] + wc * q.u[ic]) / denominator;
                     v = (wa * q.v[ia] + wb * q.v[ib] + wc * q.v[ic]) / denominator;
+                    if (q.gouraud)
+                    {
+                        const Uint8 *channels[3] = {q.vertex_red, q.vertex_green, q.vertex_blue};
+                        for (size_t channel = 0; channel < 3; ++channel)
+                            shade[channel] =
+                                (Uint32)((wa * channels[channel][ia] + wb * channels[channel][ib] +
+                                          wc * channels[channel][ic]) /
+                                         denominator);
+                    }
                     inside = true;
                 }
                 if (!inside)
@@ -697,15 +724,16 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                                         SDL_GetError());
                 if (write && pass != 0 && color != 0)
                 {
-                    if (q.modulate || q.tint)
+                    if (q.modulate || q.tint || q.gouraud)
                     {
                         Uint16 tinted = color & 0x8000;
                         for (Uint32 shift = 0; shift < 15; shift += 5)
                             tinted |= (Uint16)(SDL_min(31, ((color >> shift) & 31) *
-                                                               (q.tint ? (shift == 0   ? q.red
-                                                                          : shift == 5 ? q.green
-                                                                                       : q.blue)
-                                                                       : q.opacity) /
+                                                               (q.gouraud ? shade[shift / 5]
+                                                                : q.tint  ? (shift == 0   ? q.red
+                                                                             : shift == 5 ? q.green
+                                                                                          : q.blue)
+                                                                          : q.opacity) /
                                                                128)
                                                << shift);
                         color = tinted;
@@ -778,5 +806,68 @@ bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
         const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
         frame[pixel] = line.blend ? Blend(frame[pixel], front, line.blend_mode) : front;
     }
+    return true;
+}
+
+bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *g, SotnActorSprite sprite)
+{
+    if (g == NULL || g->stage_id != 26 || g->dra.size < 0x21dc)
+        return SDL_SetError("BO4 sprite cache requires its private display-slot metadata");
+    if (!(sprite.frame & 0x7fffU))
+        return true;
+    SotnDataView definition = {0}, sheet = {0};
+    if (!Frame(g, sprite, &definition) || !(Read16(definition.bytes) & 0x8000U) ||
+        !PackedImage(g, sprite, definition, &sheet))
+        return SDL_SetError("BO4 display cache requires a backed packed body/bat pose");
+    const Uint32 x = Read16(g->dra.bytes + 0x21d8);
+    const Uint32 y = Read16(g->dra.bytes + 0x21da) & 511U;
+    const Uint32 width = sheet.bytes[0] / 4U, height = sheet.bytes[1];
+    if (x == 0 || y == 0 || x + width >= 1024 || y + height + 4 > 512)
+        return SDL_SetError("BO4 sprite display slot and margins exceed native VRAM");
+    if (sprite.frame & 0x8000U)
+        return g->dopple_cached || SDL_SetError("BO4 retained pose has no prior cached pixels");
+    for (Uint32 row = 0; row < height; ++row)
+    {
+        // This border belongs to the display slot, not an external texture asset.
+        g->valid[(size_t)(y + row) * 1024 + x - 1] = 1;
+        for (Uint32 column = 0; column < width; ++column)
+        {
+            const size_t pixel = (size_t)(y + row) * 1024 + x + column;
+            g->words[pixel] = Read16(sheet.bytes + 4 + ((size_t)row * width + column) * 2);
+            g->valid[pixel] = 1;
+        }
+    }
+    for (Uint32 row = 0; row < height + 4; ++row)
+    {
+        const size_t pixel = (size_t)(y - 1 + row) * 1024 + x + width;
+        g->words[pixel] = 0;
+        g->valid[pixel] = 1;
+    }
+    for (Uint32 row = 0; row < 4; ++row)
+        for (Uint32 column = 0; column < width + 2; ++column)
+        {
+            const size_t pixel = (size_t)(y + height + row) * 1024 + x - 1 + column;
+            g->words[pixel] = 0;
+            g->valid[pixel] = 1;
+        }
+    g->dopple_cached = true;
+    return true;
+}
+
+bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *g, Uint16 frame, Sint16 offset)
+{
+    const Uint16 pose = frame & 0x7fffU;
+    if (g == NULL || g->stage_id != 26 || pose == 0 || pose >= 18 || offset < -64 || offset > 64 ||
+        g->nz0.size < 0x11e8 + 36)
+        return SDL_SetError("BO4 bat pivot requires a bounded pose and original offset table");
+    SotnDataView definition = {0}, sheet = {0};
+    const SotnActorSprite sprite = {.animation_set = 0x8002, .frame = frame};
+    if (!Frame(g, sprite, &definition) || !PackedImage(g, sprite, definition, &sheet))
+        return false;
+    const Sint32 pivot = Signed16(g->nz0.bytes + 0x11e8 + pose * 2U) + offset;
+    if (pivot < -1024 || pivot > 1024)
+        return SDL_SetError("BO4 runtime bat pivot exceeds its supported geometry");
+    g->bat_pivot[pose] = (Sint16)pivot;
+    g->bat_pivot_set[pose] = true;
     return true;
 }

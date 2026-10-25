@@ -14,6 +14,8 @@ add_library(sotn-core STATIC
   dopple_knife.c
   dopple_factory.c
   dopple_unarmed.c
+  dopple_blink.c
+  dopple_forms.c
   dopple_body.c
   dopple_normal.c
   dopple_attack_control.c
@@ -70,6 +72,7 @@ add_library(sotn-core STATIC
   boss_slogra.c
   boss_gaibon.c
   game_math.c
+  game_sqrt.c
   include/sotn/game_math.h
   camera.c
   include/sotn/camera.h

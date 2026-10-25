@@ -12,7 +12,8 @@ typedef struct AnimationSource
     SotnDataView image;
     Uint32 base, animations, subanimations, properties;
     Uint16 animation_count, subanimation_count, property_count;
-    Uint16 adjacent_property;
+    Uint16 adjacent_property, form_pose;
+    bool override_form;
     const char *name;
 } AnimationSource;
 
@@ -59,7 +60,9 @@ static bool Frame(const AnimationSource *source, Uint16 id, Uint16 pose, Uint16 
         if (!Resolve(source, address + i * 4, 4, &entry))
             return false;
         const Uint16 time = Read16(entry.bytes);
-        const Uint16 value = Read16(entry.bytes + 2);
+        const Uint16 value = source->override_form && address + i * 4U == 0x80183b0cU
+                                 ? source->form_pose
+                                 : Read16(entry.bytes + 2);
         if (time == 0xfffd)
         {
             Uint32 subaddress = 0;
@@ -78,7 +81,9 @@ static bool Frame(const AnimationSource *source, Uint16 id, Uint16 pose, Uint16 
                 if (flat_index++ == pose)
                 {
                     *duration = Read16(sub.bytes);
-                    *packed = Read16(sub.bytes + 2);
+                    *packed = source->override_form && subaddress + j * 4U == 0x80183b0cU
+                                  ? source->form_pose
+                                  : Read16(sub.bytes + 2);
                     return true;
                 }
             }
@@ -186,7 +191,8 @@ bool SotnAnimation_SetStage(SotnAnimation *animation, Uint16 stage, Uint16 id)
     return SotnAnimation_Set(animation, id);
 }
 
-bool SotnAnimation_TickStage(SotnDataView image, Uint16 stage, SotnAnimation *animation)
+static bool TickStage(SotnDataView image, Uint16 stage, bool override_form, Uint16 form_pose,
+                      SotnAnimation *animation)
 {
     if (stage != 26)
         return SDL_SetError("Overlay player-format animation is not integrated for stage %u",
@@ -200,6 +206,20 @@ bool SotnAnimation_TickStage(SotnDataView image, Uint16 stage, SotnAnimation *an
                                     .subanimation_count = 29,
                                     .property_count = 17,
                                     .adjacent_property = 19,
+                                    .override_form = override_form,
+                                    .form_pose = form_pose,
                                     .name = "BO4"};
     return Tick(&source, animation);
+}
+
+bool SotnAnimation_TickStage(SotnDataView image, Uint16 stage, SotnAnimation *animation)
+{
+    return TickStage(image, stage, false, 0, animation);
+}
+
+bool SotnAnimation_TickDopple(SotnDataView image, Uint16 form_pose, SotnAnimation *animation)
+{
+    if (form_pose >= 512)
+        return SDL_SetError("BO4 mutable form pose exceeds its original frame bits");
+    return TickStage(image, 26, true, form_pose, animation);
 }

@@ -60,9 +60,8 @@ producing twelve hand-attack requests, six knife requests and 168 airborne ticks
 under Debug and macOS ASan/UBSan. It supplies explicit control inputs and an arena
 start; it is not an AI-driven boss fight or console comparison.
 
-Bat/mist, damage/death and the owning encounter remain pending. Normal-body ticks
-reject unsupported form requests and steps instead of silently substituting normal
-movement. All 57 public test groups and release packaging pass locally. This slice
+Damage/death and the owning encounter remain pending. Body ticks reject
+unsupported steps instead of silently substituting normal movement. All 57 public test groups and release packaging pass locally. This slice
 adapts `bo4/dop_anim.c`, normal steps in `unk_465F0.c`, `unk_46040.c`, and transition/
 attack helpers in `unk_45648.c` at the pinned AGPL reference above. Original control
 and animation tables remain private inputs.
@@ -125,3 +124,36 @@ is a bounded presentation adapter, not a PS1 GPU implementation. Impact effects,
 smoke, transformation children, body forms/damage/death, live player contact and
 the original encounter/connected progression remain pending. Ordinary arena travel
 stays disabled.
+
+## Transformation controls and blink child
+
+The body service now advances the original bat, mist-control and return-to-human
+steps. Bat steering, wing-smash inputs/speed/timer, sensor expansion on return,
+pose replacement and per-pose horizontal adjustments retain simulation timing.
+The blink child owns eight textured strips or fan triangles and drives the original
+17-tick ramp / 17-tick fade handshakes. Private packed artwork is uploaded to a
+bounded native display cache, preserving retained-pose requests. Gouraud vertex
+colors and original quantized SDK trigonometry, direction and square-root lookups
+supply the selected effect geometry without embedding game or SDK tables.
+
+Public regression cases cover both form controls, blink handshakes/expiry,
+duplicate and stale-parent cleanup, missing profiles, mutable pose records,
+per-pose bat pivots, retained display pixels, vertex-color interpolation and math
+bounds. A private native LLDB component sequence drives the actual blink children
+through bat transformation, steering, wing smash and return: 45 active bat ticks,
+146 blink-child ticks and 240 native renders. Four palette/effect/other requests
+remain explicitly skipped. Debug and macOS ASan/UBSan run the same component check;
+all 58 public groups and release packaging pass locally.
+
+Mist controls currently require an owning mist child's phase signals; its actual
+child and palette animation service remain pending. The public mist fixture supplies
+those signals explicitly. Wing trails/smoke, damage/death and the live encounter
+also remain pending. The display cache does not establish death-particle support,
+and native rasterization has not been compared pixel-for-pixel with console output.
+Ordinary arena travel remains disabled; this is not a complete boss fight.
+
+Controls/blink adapt `bo4/unk_465F0.c`, `unk_49A6C.c:EntityDopplegangerBlinkWhite`
+and the selected quad transform in `dra/4B758.c:func_800EB758` at the pinned AGPL
+revision. SDK sine/cosine reconstruction uses the pinned MIT `geo_00.c`/`geo_01.c`;
+`game_sqrt.c` adapts PSY-Z's MPL-2.0 `libgte_sw_sqrt.c:SquareRoot12_impl` at
+`b52003e55c0d1b20719e984dd19bd4d760eeb14a`. Notices ship with the app.

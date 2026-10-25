@@ -154,9 +154,34 @@ static bool TestStageAnimation(void)
     return true;
 }
 
+static bool TestDoppleFormPose(void)
+{
+    Uint8 image[0x4200] = {0};
+    const SotnDataView overlay = {image, sizeof(image)};
+    Put32(image, 0x3cb4 + 202 * 4, 0x80183b0c);
+    Put32(image, 0x3cb4, 0x80180100);
+    Record(image, 0x3b0c, 1, 6);
+    Record(image, 0x3b10, 0xffff, 0);
+    Record(image, 0x100, 1, 17);
+    Record(image, 0x104, 0xffff, 0);
+    SotnAnimation cursor = {0};
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 202));
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.sprite == 6);
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 202));
+    CHECK(SotnAnimation_TickDopple(overlay, 99, &cursor) && cursor.sprite == 99);
+    CHECK(SotnAnimation_TickDopple(overlay, 100, &cursor) && cursor.sprite == 100 &&
+          cursor.remaining == -1 && image[0x3b0e] == 6);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.sprite == 6);
+    CHECK(!SotnAnimation_TickDopple(overlay, 512, &cursor) && cursor.sprite == 6);
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 0));
+    CHECK(SotnAnimation_TickDopple(overlay, 101, &cursor) && cursor.sprite == 17);
+    CHECK(!SotnAnimation_TickDopple(overlay, 6, NULL));
+    return true;
+}
+
 int main(void)
 {
-    if (!TestAnimation() || !TestStageAnimation())
+    if (!TestAnimation() || !TestStageAnimation() || !TestDoppleFormPose())
         return 1;
     SDL_Log("SOTN_ANIMATION_TEST: PASS");
     return 0;

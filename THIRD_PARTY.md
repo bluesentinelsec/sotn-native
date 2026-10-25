@@ -165,7 +165,7 @@ remain private runtime input. Native reward ownership packs the original drawabl
 primitive pairs into initialized C records.
 
 `modules/core/game_math.c` follows the MIT-licensed reconstructed
-`src/main/psxsdk/libgte/ratan.c` at that revision, using the user's boot image
+`src/main/psxsdk/libgte/ratan.c`, `geo_00.c` and `geo_01.c` at that revision, using the user's boot image
 for its quantized lookup. The [SDK/decomp MIT notice](licenses/PSY-Z-decomp-MIT.txt)
 retains the reconstruction contributors' attribution. No SDK table is embedded.
 `modules/core/boss_projection.c` adapts the selected matrix column and UNR divider
@@ -242,3 +242,13 @@ AGPL-3.0-or-later reference. Its native two-color line presentation uses checked
 integer interpolation and existing RGB555 blends; `dra/4DA70.c` supplies original
 primitive-command context. Runtime artwork/palettes and attack profiles stay private;
 GPU endpoint/ordering parity remains unproven.
+
+BO4 bat/mist body controls and white-blink geometry adapt `bo4/unk_465F0.c`,
+`unk_49A6C.c:EntityDopplegangerBlinkWhite` and selected
+`dra/4B758.c:func_800EB758` logic under the pinned AGPL-3.0-or-later reference.
+Runtime profiles, sprite offsets and artwork remain private. Bounded native display
+cache and Gouraud presentation do not establish console pixel parity.
+`modules/core/game_sqrt.c` adapts `SquareRoot12_impl` from PSY-Z
+`b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
+`psyz/src/psyz/libgte_sw_sqrt.c`, under MPL-2.0; the
+[full notice](licenses/MPL-2.0.txt) ships with releases. Its lookup remains private.

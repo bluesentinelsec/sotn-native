@@ -1131,7 +1131,8 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
                                  .tint = p.modulate,
                                  .red = p.red,
                                  .green = p.green,
-                                 .blue = p.blue};
+                                 .blue = p.blue,
+                                 .gouraud = p.gouraud};
             for (Uint32 uv = 0; uv < 4; ++uv)
             {
                 if (p.quad)
@@ -1141,6 +1142,9 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
                 }
                 q.u[uv] = p.u[uv];
                 q.v[uv] = p.v[uv];
+                q.vertex_red[uv] = p.vertex_red[uv];
+                q.vertex_green[uv] = p.vertex_green[uv];
+                q.vertex_blue[uv] = p.vertex_blue[uv];
             }
             if (!SotnActorGraphics_Quad(session->actor_graphics, q, session->frame,
                                         SOTN_FRAME_PIXELS))
@@ -1167,6 +1171,22 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y)
 {
+    if (session->stage_id == 26)
+    {
+        SotnActorState body = {0};
+        if (!SotnActors_Get(session->actors, 0, &body))
+            return false;
+        if (body.generation && body.id == 0x16 && !body.unsupported && (body.frame & 0x7fffU))
+        {
+            const SotnActorSprite sprite = {body.animation_set,  body.frame,      body.palette,
+                                            body.texture_offset, body.blend_mode, body.facing_left};
+            if ((body.animation_set == 0x8002 &&
+                 !SotnActorGraphics_UpdateDoppleBat(session->actor_graphics, body.frame,
+                                                    body.bat_offset)) ||
+                !SotnActorGraphics_LoadDopplePose(session->actor_graphics, sprite))
+                return false;
+        }
+    }
     SotnActorState list[SOTN_STAGE_ACTOR_SLOTS] = {0};
     Uint32 count = 0;
     for (Uint32 slot = SOTN_STAGE_ACTOR_SLOTS; slot > 0; --slot)

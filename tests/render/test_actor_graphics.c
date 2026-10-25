@@ -335,6 +335,17 @@ static bool TestQuad(Fixture *fixture)
     CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[0] == 31 && fixture->frame[2 * SOTN_FRAME_WIDTH] == 31 &&
           fixture->frame[2 * SOTN_FRAME_WIDTH + 3] == 7);
+    q = (SotnTextureQuad){.x = {0, 4, 0, 4},
+                          .y = {0, 0, 4, 4},
+                          .u = {4, 4, 4, 4},
+                          .v = {64, 64, 64, 64},
+                          .page = 2,
+                          .palette = 512,
+                          .gouraud = true,
+                          .vertex_red = {128, 0, 128, 0}};
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(fixture->frame[0] == 27 && fixture->frame[1] == 19 && fixture->frame[2] == 11 &&
+          fixture->frame[3] == 3);
     q.x[3] = 4;
     q.x[0] = SDL_MAX_SINT32;
     CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
@@ -492,11 +503,40 @@ static bool PackedSheets(Fixture *f)
     image[0x1835] = 0x03;
     image[0x1836] = 0x40;
     image[0x1837] = 0x12;
+    Put16(f->dra + 0x21d8, 1);
+    Put16(f->dra + 0x21da, 257);
     SotnActorGraphics *g = NULL;
     CHECK(SotnActorGraphics_CreateStage(
         (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){image, sizeof(f->nz0)},
         (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, 26, &g));
     SotnActorSprite sprite = {.animation_set = 0x8001, .frame = 1, .palette = 0x8200};
+    SotnActorSprite retained = sprite;
+    retained.frame |= 0x8000U;
+    CHECK(!SotnActorGraphics_LoadDopplePose(g, retained));
+    CHECK(SotnActorGraphics_LoadDopplePose(g, sprite));
+    const SotnTextureQuad cached = {.x = {0, 4, 0, 4},
+                                    .y = {0, 0, 2, 2},
+                                    .u = {4, 8, 4, 8},
+                                    .v = {1, 1, 3, 3},
+                                    .page = 0x10,
+                                    .palette = 0x200};
+    SDL_zero(f->frame);
+    CHECK(SotnActorGraphics_Quad(g, cached, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 31 && f->frame[1] == 0x8000 && f->frame[2] == 0x83e0);
+    image[0x1834] = 0x22;
+    CHECK(SotnActorGraphics_LoadDopplePose(g, retained));
+    SDL_zero(f->frame);
+    CHECK(SotnActorGraphics_Quad(g, cached, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    image[0x1830] = 3;
+    CHECK(!SotnActorGraphics_LoadDopplePose(g, sprite));
+    image[0x1830] = 4;
+    CHECK(SotnActorGraphics_Quad(g, cached, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    CHECK(SotnActorGraphics_LoadDopplePose(g, sprite));
+    CHECK(SotnActorGraphics_Quad(g, cached, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0x8000);
+    image[0x1834] = 0x21;
+    CHECK(SotnActorGraphics_LoadDopplePose(g, sprite));
+    CHECK(!SotnActorGraphics_LoadDopplePose(NULL, sprite));
+
     SDL_memset(f->frame, 0, sizeof(f->frame));
     CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     CHECK(f->frame[11 * 256 + 9] == 31 && f->frame[11 * 256 + 10] == 0x8000 &&
@@ -520,6 +560,13 @@ static bool PackedSheets(Fixture *f)
     CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     CHECK(f->frame[11 * 256 + 9] == 31 && f->frame[11 * 256 + 10] == 0x7c00 &&
           f->frame[11 * 256 + 11] == 0x7fe0);
+    Put16(image + 0x11ea, (Uint16)-3);
+    CHECK(SotnActorGraphics_UpdateDoppleBat(g, 1, 2));
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[11 * 256 + 10] == 31 && image[0x1812] == 0xfe);
+    CHECK(!SotnActorGraphics_UpdateDoppleBat(g, 1, 65));
+    CHECK(!SotnActorGraphics_UpdateDoppleBat(g, 18, 0));
+    CHECK(!SotnActorGraphics_UpdateDoppleBat(NULL, 1, 0));
     // Validate all input references before modifying a pixel.
     Put16(image + 0x1810, 0x8004);
     CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
