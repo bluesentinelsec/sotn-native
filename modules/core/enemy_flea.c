@@ -5,6 +5,8 @@
 bool ActorFlea(SotnActors *s, Actor *a)
 {
     const bool library = s->stage_id == 2;
+    if (library && (s->library_enemy_flags & 1U))
+        a->state.flags |= 0x100U;
     if (a->state.flags & 0x100)
     {
         if (!(library ? ActorLibrarySound(s, a, 0x691) : ActorSound(s, 0x691)) ||
@@ -76,8 +78,9 @@ bool ActorFlea(SotnActors *s, Actor *a)
             return SDL_SetError("Flea Man motion exceeds its bounded private velocities");
         a->vx = horizontal * (a->state.facing_left ? -1 : 1);
         a->vy = vertical;
-        if ((index == 1 && !ActorSound(s, 0x6c0)) ||
-            ((index == 0 || index == 2) && !ActorSound(s, 0x6c1)))
+        if ((index == 1 && !(library ? ActorLibrarySound(s, a, 0x6c0) : ActorSound(s, 0x6c0))) ||
+            ((index == 0 || index == 2) &&
+             !(library ? ActorLibrarySound(s, a, 0x6c1) : ActorSound(s, 0x6c1))))
             return false;
         ++a->state.step;
         break;
@@ -85,7 +88,7 @@ bool ActorFlea(SotnActors *s, Actor *a)
     case 4: {
         a->state.frame = a->vy > -16384 && a->vy < 16384 ? 19 : a->vy < 0 ? 20 : 18;
         Uint16 collision = 0;
-        if (!ActorGround(s, a, 0x264c, &collision))
+        if (!ActorGround(s, a, (library ? 0x2e18 : 0x264c), &collision))
             return false;
         if (collision & 1)
             a->state.step = 3;
@@ -109,7 +112,7 @@ bool ActorFlea(SotnActors *s, Actor *a)
                 }
             }
         }
-        if (!ActorField(s, a, 0x2668, 2, true, &collision))
+        if (!ActorField(s, a, (library ? 0x2e34 : 0x2668), 2, true, &collision))
             return false;
         break;
     }

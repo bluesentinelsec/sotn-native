@@ -28,13 +28,14 @@ resources. Selected [boss combat](docs/doppleganger-runtime.md#stage-combat-orch
 now joins its placed entrance, seals and reward through selected Outer Wall progression;
 [scope and validation](docs/doppleganger-progression.md) remain explicit.
 The [Long Library foundation](docs/library-runtime.md) remains internal while its
-area-specific enemies and librarian/shop are integrated.
+remaining enemies and librarian/shop are integrated. Selected Flea Armor and Dhuron
+combat now joins its original room placements.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve
 boss-specific sensors and simulated control choices. Selected bat/return controls and
 [blink effects](docs/doppleganger-runtime.md#transformation-controls-and-blink-child)
-now feed the selected stage combat path. The original intro and connected route remain pending.
+now feed the selected stage combat path; full encounter and console parity remain unproven.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game

@@ -47,7 +47,7 @@ static bool Breakable(SotnActors *s, Actor *a)
         if (type < 5)
         {
             Actor *helper = NULL;
-            if (!ActorSpawnAt(s, a, 0x3f, type, (Uint32)a->slot + 1, &helper))
+            if (!ActorLibrarySpawnAt(s, a, 0x3f, type, (Uint32)a->slot + 1, &helper))
                 return false;
             helper->state.priority = a->state.priority;
         }

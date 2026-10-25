@@ -39,6 +39,9 @@ add_library(sotn-core STATIC
   library.c
   library_breakable.c
   library_flying_zombie.c
+  library_flea_armor.c
+  library_dhuron.c
+  library_dhuron_charge.c
   library_blood.c
   marble_clock.c
   actor_wide_animation.c

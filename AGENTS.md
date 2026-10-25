@@ -359,3 +359,9 @@ logic or actor IDs for this overlay.
 The Library overlay's retained Flying Zombie/body/blood adapters now run in explicit
 fixtures; its original first-Library layouts have no ordinary Flying Zombie placements.
 Read [Library scope](docs/library-runtime.md); do not count this as ordinary route coverage.
+
+The placed Library Flea Armor and Dhuron families now include attacks, charged
+weapons, transformations and death effects. Library Flea Men use their own ground/
+side tables; paired-child re-entry replaces only matching owned children. Protected
+room-3 combat and selected charge fixtures are documented in [Library scope](docs/library-runtime.md).
+Other Library enemies, Lesser Demon, shop/scripts and ordinary travel remain pending.

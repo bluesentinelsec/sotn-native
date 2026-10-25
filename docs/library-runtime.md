@@ -19,7 +19,21 @@ private stream. No runtime tables, artwork or sound data enter public files.
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
 The original Library layouts contain no ordinary Skeleton placements; the later
 Lesser Demon summoning path remains unintegrated. Flea Men use their Library
-motion/timelines/sensors, actor identity and damage/contact path. Other placed enemies and background/script actors still warn explicitly and remain omitted.
+motion/timelines/sensors, actor identity and damage/contact path. Flea Armor and Dhurons now run their original placed behavior, attacks and deaths.
+Other placed enemies and background/script actors still warn explicitly and remain omitted.
+
+Flea Armor retains its walking/leaping attacks, adjacent attack hitbox, dust and
+six-piece break-up; the root becomes an exposed Flea Man with the original brief
+hitbox delay. Library Flea Men now use their own floor/side sensor tables as well
+as their motion and ceiling data. Positional jump/death sounds and the original
+transient minion-removal signal are stage-local. Dhurons retain movement,
+normal/rapid sword attacks, charging waits, weapon damage/element conversion,
+charged palette cadence and seven timed death pieces. The original forty-record
+lightning chain reaches its sword, then runs its flash/fade. SDK direction and
+trigonometric data remain private. Native child generations retire stale owners.
+A re-entering lamp or paired enemy replaces only its own matching surviving child;
+unrelated occupied slots and original placements remain protected. This preserves
+original fixed-child factory behavior without a re-entry termination.
 
 The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
 and upper-body hit branches, flight/hover/dive and independent deaths. Original
@@ -81,4 +95,15 @@ with 214 renders, both in Debug and macOS ASan/UBSan. They check the death sound
 when the root retires; mere loss of an actor cannot pass. These fixtures do not
 prove an ordinary Library encounter, complete GTE saturation, uninterrupted
 traversal, unmodified-character playability or audiovisual/console parity.
-All 61 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+The placed enemy batch also adapts `st/e_flea_armor.h`, `st/lib/e_dhuron.c`,
+`st/e_flea_man.h` and the selected shared dust helpers from that same pin.
+Public synthetic cases cover transformation, hitbox/damage changes, minion cleanup,
+fragment lifetimes, charging allocation/fade, independent Library floor/side
+profiles and safe fixed-child re-entry with primitive cleanup. Protected native
+LLDB room-3 checks use original placements and ordinary inputs: Flea Armor then
+its exposed Flea die at tick 286 (72 renders); a Dhuron dies at tick 112 (29 renders).
+The separately selected Dhuron charge state finishes its beam/flash and doubles
+weapon attack from 15 to 30 at tick 115 (39 renders). Debug and macOS ASan/UBSan
+agree and exit successfully. The charge fixture selects a state explicitly;
+it is not evidence of ordinary AI entry or a whole-route/console replay.
+All 62 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.

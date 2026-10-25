@@ -119,7 +119,7 @@ static bool Legs(SotnActors *s, Actor *a)
         a->state.hitbox_x = 1;
         a->state.hitbox_y = 10;
         Actor *torso = NULL;
-        if (!ActorSpawnAt(s, a, 0x1c, 0, (Uint32)a->slot + 1, &torso))
+        if (!ActorLibrarySpawnAt(s, a, 0x1c, 0, (Uint32)a->slot + 1, &torso))
             return false;
         NewChild(torso);
         a->flying.partner_generation = torso->state.generation;

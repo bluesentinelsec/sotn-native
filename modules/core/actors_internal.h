@@ -58,7 +58,8 @@ typedef struct Actor
     Uint16 slot, primitive[ACTOR_PRIMITIVE_LIMIT];
     struct
     {
-        Uint16 attack_timer, attack_index, timer, counter;
+        Uint16 attack_timer, attack_index, timer, counter, counter2;
+        bool flag;
         bool movement_facing;
         Sint32 initial_x;
         Sint16 angle_delta;
@@ -210,6 +211,12 @@ typedef struct Actor
         Sint32 camera_x, camera_y;
         bool separated, hovering;
     } flying;
+    struct
+    {
+        Uint16 timer, beam_index, turn_ticks;
+        Sint16 angle, delta;
+        bool charged, direction;
+    } dhuron;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -259,6 +266,8 @@ struct SotnActors
         Uint16 hitbox_state, shake;
         Uint8 death_profile[4];
     } dopple;
+    /** Original LIB transient minion signal; not ordinary save state. */
+    Uint32 library_enemy_flags;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
 };
@@ -421,11 +430,22 @@ bool ActorSpearGuard(SotnActors *actors, Actor *actor);
 bool ActorArcher(SotnActors *actors, Actor *actor);
 bool ActorMusket(SotnActors *actors, Actor *actor);
 bool ActorClock(SotnActors *actors, Actor *actor);
+/** @brief Replace only a matching owned LIB child on parent respawn, as the original factory does.
+ * @note Rejects unrelated occupied slots and original placements; clears old primitive ownership.
+ */
+bool ActorLibrarySpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
+                         Uint32 slot, Actor **out);
 /** @brief Queue the original positional LIB sound; owners remain borrowed. */
 bool ActorLibrarySound(SotnActors *actors, const Actor *actor, Uint16 sound);
 /** @brief Query a bounded private sensor list; write out only on success. */
 bool ActorLibraryBlocked(SotnActors *actors, const Actor *actor, size_t offset, bool facing,
                          bool *out);
+/** @brief Advance the generation-owned original Dhuron charging effect. */
+bool ActorLibraryDhuronCharge(SotnActors *actors, Actor *actor);
+/** @brief Advance original placed LIB Dhuron, attack, charge and fragment actors. */
+bool ActorLibraryDhuron(SotnActors *actors, Actor *actor);
+/** @brief Advance original placed LIB Flea Armor and its generation-owned attack child. */
+bool ActorLibraryFleaArmor(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected original LIB paired body and generation-owned torso. */
 bool ActorLibraryFlying(SotnActors *actors, Actor *actor);
 /** @brief Advance original LIB blood children and their owned native primitives. */
