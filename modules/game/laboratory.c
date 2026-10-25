@@ -184,7 +184,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     return SotnPlayback_Create(&session->audio);
 }
 
-static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound)
+static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
+                      Uint16 player_extra_sound)
 {
     if (session->sound == NULL)
         return true;
@@ -263,6 +264,8 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
                                        combat->ambience_pan))
         return false;
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
+        return false;
+    if (player_extra_sound != 0 && !SotnSound_Queue(session->sound, player_extra_sound))
         return false;
     Uint16 sounds[64] = {0}, sound_count = 0;
     if (session->subweapons != NULL)
@@ -509,8 +512,11 @@ static bool TickActors(SotnLaboratory *session)
                 combat.contact_damage == 0 || power.immune
                     ? 0
                     : (Uint16)SDL_clamp((Sint32)power.attack - attributes.defense, 1, 9999);
-            if (!SotnPlayer_Damage(session->player, damage, combat.contact_x,
-                                   combat.contact_velocity))
+            if ((power.effects & 0x100U)
+                    ? !SotnPlayer_CurseDamage(session->player, damage, combat.contact_x,
+                                              combat.contact_velocity)
+                    : !SotnPlayer_Damage(session->player, damage, combat.contact_x,
+                                         combat.contact_velocity))
                 return false;
         }
     }
@@ -736,7 +742,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 static bool PrimeAudio(SotnLaboratory *session)
 {
     SotnActorCombat combat = {0};
-    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0);
+    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0, 0);
 }
 
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
@@ -996,13 +1002,13 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             return false;
         session->dirty = true;
         const SotnActorCombat silent = {0};
-        return TickAudio(session, &silent, 0);
+        return TickAudio(session, &silent, 0, 0);
     }
 
     if (session->game_over != NULL)
     {
         const SotnActorCombat combat = {0};
-        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0))
+        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0, 0))
             return false;
         session->dirty = true;
         return true;
@@ -1035,7 +1041,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         ++session->map_ticks;
         const SotnActorCombat silent = {0};
         session->dirty = true;
-        return TickAudio(session, &silent, 0);
+        return TickAudio(session, &silent, 0, 0);
     }
     if (session->map_opacity)
         session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
@@ -1051,7 +1057,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
         const SotnActorCombat silent = {0};
-        if (!TickAudio(session, &silent, 0))
+        if (!TickAudio(session, &silent, 0, 0))
             return false;
         session->input.menu_open = session->menu.phase != SOTN_MENU_CLOSED;
         session->dirty = true;
@@ -1087,7 +1093,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnHud_Tick(session->hud,
                       (SotnHudStatus){state.hp, state.hp_max, session->mp, progress.mp_max,
                                       combat.hearts, combat.subweapon}) ||
-        !TickAudio(session, &combat, state.sound))
+        !TickAudio(session, &combat, state.sound, state.extra_sound))
         return false;
     if (state.death.phase == 128)
     {
@@ -1828,6 +1834,20 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                              .slot = slot,
                                              .music = old->music_stream},
                               &next);
+    if (ready && travel)
+    {
+        SotnPlayerState previous = {0};
+        if (!SotnPlayer_GetState(old->player, &previous) ||
+            !SotnPlayer_RestoreCurse(next->player, previous.curse_ticks))
+        {
+            char detail[160] = {0};
+            SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+            SotnLaboratory_Destroy(next);
+            next = NULL;
+            ready = false;
+            SDL_SetError("Cannot restore transient curse on stage arrival: %s", detail);
+        }
+    }
     if (!ready)
     {
         char detail[160] = {0};

@@ -372,6 +372,12 @@ the grown root's private definition selection. Both facing paths have synthetic
 coverage; ordinary Library travel, remaining enemies and shop/scripts remain pending.
 
 Library Ectoplasm now has original movement, square-tap excitation, hit/death and
-owned afterimage/emitter behavior, including summoned fade/cleanup. Its curse
-application, timer and weapon failure remain pending; do not claim authentic
-contact or open Library travel on this actor slice alone. See [Library scope](docs/library-runtime.md).
+owned afterimage/emitter behavior, including summoned fade/cleanup. Its selected curse
+contact/timer and weapon failure now run; full curse visuals remain pending. Do
+not claim full contact parity or open Library travel on these slices alone. See [Library scope](docs/library-runtime.md).
+
+[Selected curse status](docs/character-status.md) now preserves original duration,
+failed equipped-weapon animations and shield blocking, with empty-hand/subweapon
+exceptions. It freezes on pause and carries across room/stage arrivals. It remains
+transient across ordinary Continue; v7 saves do not change. Full curse visuals,
+status text, cures and complete damage/effect parity remain pending.

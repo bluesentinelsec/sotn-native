@@ -177,6 +177,7 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
     else
     {
         next.subweapon_cast = false;
+        next.curse_failure = false;
         next.attack_mode = 0;
         next.attack = next.shield = (SotnPlayerAttack){0};
         next.movement_flags = 0;
