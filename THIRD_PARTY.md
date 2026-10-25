@@ -177,3 +177,13 @@ projection path, not a general PS1/GTE emulator.
 Exploration-map reveal, secret-passage, cursor, and orientation logic adapts
 `src/dra/5087C.c` and `src/dra/624DC.c` at the pinned sotn-decomp revision above,
 under AGPL-3.0-or-later. Blueprint, palette, and passage tables remain private.
+
+Armor Lord behavior in `modules/core/enemy_armor*.c` adapts
+`src/st/e_armor_lord.h` and selected `src/st/prim_helpers.h` logic at reconstructed
+revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
+The selected four-tick weapon-startup signal follows `src/dra/6E42C.c` and
+`src/dra/692E8.c` at the same revision. The equipment element prepass in
+`modules/core/combat.c` adapts
+`src/dra/5D5BC.c:HandleDamage` at that revision. Original tables and artwork remain
+private. Native projection/lighting limits are recorded in
+[the encounter scope](docs/outer-wall-armor-lord.md).

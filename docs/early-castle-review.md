@@ -2,7 +2,10 @@
 
 The approved PRs #33–39 merged bottom-up into main at
 `27bf45ce4d70c26529d4fbd548e689c1fa72367f`. Each had eight passing CI checks.
-The next stack remains unmerged for review and eventual user playtest.
+PRs #40–57 also merged bottom-up, each with eight passing checks, into main at
+`e74b2b88a71e93cc5a2c8796e7c67050c3f5fadb`. Main CI subsequently passed.
+The user waived manual playtests for the overnight continuation on 2026-10-25;
+new batches retain automated and private validation with explicit limitations.
 
 ## Implemented scope
 
@@ -18,6 +21,7 @@ The next stack remains unmerged for review and eventual user playtest.
 - Outer Wall [ranged encounters](outer-wall-ranged-enemies.md),
   [Spear Guards](outer-wall-spear-guard.md), [Sword Lords](outer-wall-sword-lord.md),
   [Blue Axe Knights](outer-wall-blue-knight.md), [Skeleton Apes](outer-wall-skeleton-ape.md)
+  selected [Armor Lord](outer-wall-armor-lord.md) attacks and death,
   and selected [elevator mechanisms](outer-wall-elevator.md).
 - Corrected inside-castle Entrance development arrival, both
   [water-room rocks](entrance-rocks.md) and the [breakable stair section](entrance-stairway.md).

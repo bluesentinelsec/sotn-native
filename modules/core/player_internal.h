@@ -36,7 +36,7 @@ struct SotnPlayer
     SotnPlayerStep step, previous_step;
     Uint16 buttons, previous_buttons, tapped, substep;
     Uint16 attack_mode, attack_button;
-    Uint8 attack_lock;
+    Uint8 attack_lock, weapon_startup;
     SotnSubweapons *subweapons;
     bool subweapon_cast;
     Uint16 subweapon_animation;

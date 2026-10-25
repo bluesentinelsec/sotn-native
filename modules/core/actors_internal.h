@@ -24,6 +24,12 @@ typedef struct ActorPrimitive
     Uint16 timer, phase;
     struct
     {
+        Uint32 generation;
+        Uint8 branches;
+        bool used, smoke, damage;
+    } armor_wave;
+    struct
+    {
         Sint32 radius, speed;
         Sint16 x, y, z, scale;
     } reward;
@@ -120,6 +126,14 @@ typedef struct Actor
     } blue;
     struct
     {
+        Uint16 timer, width, height, pair;
+        Uint32 pair_generation;
+        Uint8 brightness, phase, depth;
+        Sint16 rotation, spread;
+        bool movement_facing, did_shield;
+    } armor;
+    struct
+    {
         Sint16 angle;
     } stair;
     struct
@@ -179,7 +193,7 @@ struct SotnActors
     SotnActorControl control;
     Uint16 buttons, puzzle_flags, elevator_target;
     Sint16 puzzle_height[3];
-    bool call_elevator, cannon_fired;
+    bool call_elevator, cannon_fired, armor_lord_killed;
     Uint32 boss_flags, game_seconds;
     Uint8 game_frame;
     bool clock_statues[2];
@@ -331,6 +345,9 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorArmorLord(SotnActors *actors, Actor *actor);
+bool ActorArmorWave(SotnActors *actors, Actor *actor);
+bool ActorArmorDeath(SotnActors *actors, Actor *actor);
 bool ActorSwordLord(SotnActors *actors, Actor *actor);
 bool ActorOuterEffect(SotnActors *actors, Actor *actor);
 bool ActorOuterDust(SotnActors *actors, const Actor *actor, Uint16 count, Uint16 kind, Sint16 x,

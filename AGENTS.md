@@ -153,6 +153,10 @@ The selected route is a **decompilation-based native port**; read the current
 - Current game-integration work uses stacked PRs. Leave them unmerged until the
   user playtests and verifies the project build; merge dependencies first only
   after that approval. This supersedes earlier blanket permission to merge on CI.
+  Exception: for the overnight batch explicitly authorized on 2026-10-25, the user
+  waived manual playtests and authorized merging passing PRs bottom-up. Continue
+  automated/private validation; this exception is not an authenticity claim and
+  does not waive the normal gate for later work after that batch.
 - Give game build/run instructions through **LLDB**, so a crash leaves a useful
   stack trace (`thread backtrace all`). Playtests must launch this repository's
   executable built through its CMake/Make workflow.
@@ -308,3 +312,14 @@ Selected normal-player [vertical room crossings](docs/early-castle-review.md) us
 original early thresholds and upward/downward overlap adjustments. Horizontal
 crossings keep priority. Camera-edge locks and transformation rules still require
 parity work; a successful route is not proof of complete area or console parity.
+
+The selected [Outer Wall Armor Lord](docs/outer-wall-armor-lord.md) now runs sword,
+fire-wave, shield and staged death paths with checked actor/primitive ownership.
+Its killed flag lasts for the loaded overlay, not forever in ordinary saves.
+The copied player state distinguishes four-tick hand-weapon and subweapon startup:
+Armor Lord observes the hand-weapon signal; Spear Guard observes both.
+Contact retains element information and applies equipment element modifiers;
+ailments, special damage reactions, elemental death presentation and original
+contact priority remain incomplete. Death ribbons/lighting are bounded native
+adaptations with explicit parity gaps. Protected component fixtures are not
+uninterrupted-route or console evidence.

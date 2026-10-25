@@ -17,6 +17,20 @@ typedef struct SotnCombatEnemy
     Uint16 weaknesses, strengths, immunes, absorbs;
 } SotnCombatEnemy;
 
+/** @brief Original first-pass contact power and element flags, before damage-kind/status rules. */
+typedef struct SotnContactPower
+{
+    Uint16 attack, effects;
+    bool immune, absorb;
+} SotnContactPower;
+/** @brief Apply unbuffed equipment weakness/resistance/immunity/absorption in original order.
+ * @param attack Original contact power, 0..9999. @param element Original element/kind word.
+ * @param attributes Equipment element masks; defense is ignored by this first pass.
+ * @param out Copied result, unchanged on failure. @return Success or SDL error.
+ * @note This does not apply ailments, damage-kind reactions, special item effects or HP changes. */
+bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attributes,
+                             SotnContactPower *out);
+
 /** @brief Original hit-test arithmetic, including the target's one-pixel inset.
  * @param attacker Whole-pixel attacking box. @param target Whole-pixel target box.
  * @return True for an intersection; zero-sized or oversized boxes never intersect. */

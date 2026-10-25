@@ -99,3 +99,30 @@ bool SotnCombat_Damage(SotnCombatEnemy enemy, Uint16 attack, Uint16 element, Uin
     return SotnCombat_DamageAttributes(enemy, attack, element, critical_rate, stats, stats[3],
                                        rooms, random, out);
 }
+
+// dra/5D5BC.c:HandleDamage, equipment element prepass only.
+bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attributes,
+                             SotnContactPower *out)
+{
+    if (out == NULL || attack > 9999)
+        return SDL_SetError("Player contact power requires bounded attack and output");
+    SotnContactPower result = {.attack = attack, .effects = (Uint16)(element & 0xffe0)};
+    if (attributes.weaknesses & result.effects)
+        result.attack = (Uint16)(result.attack * 2U);
+    if (attributes.strengths & result.effects)
+        result.attack /= 2;
+    if (attributes.immunes & result.effects)
+    {
+        if (attributes.immunes & result.effects & 0x200)
+            result.effects = (Uint16)(result.effects & 0xfdffU);
+        else
+            result.immune = true;
+    }
+    if (!result.immune && (attributes.absorbs & result.effects))
+    {
+        result.absorb = true;
+        result.attack = (Uint16)SDL_max(1, result.attack);
+    }
+    *out = result;
+    return true;
+}

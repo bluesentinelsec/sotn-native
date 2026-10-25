@@ -6,8 +6,9 @@ sequence. Its adjacent blocking actor has independent private hitboxes and uses
 slot-generation ownership. The spear's launch checks its owner; a launched spear
 can outlive that owner, following the original flight behavior.
 
-The player snapshot exposes the existing four-tick subweapon-use interval so this
-enemy can react to the supported player action at the original decision point.
+The player snapshot exposes distinct four-tick hand-weapon and subweapon-use
+intervals so this enemy can react to either supported player action at the
+original decision point.
 Spells and other unsupported player actions do not produce fabricated status flags.
 Original eight-bit patrol/attack counters retain their unsigned wrapping behavior.
 The guard reads special attack power/elements, motion recipes, hitboxes and death

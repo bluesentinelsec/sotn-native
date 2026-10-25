@@ -32,7 +32,9 @@ flow and full castle progression remain incomplete.
 Laboratory, Marble Gallery and Outer Wall paths, with original opening equipment,
 Death's theft, collected Short sword/relic progression, Maria, selected encounters,
 clock mechanisms and the Wall elevator. See the [batch review](docs/early-castle-review.md)
-for validation evidence and remaining progression limits.
+for validation evidence and remaining progression limits. The selected
+[Armor Lord](docs/outer-wall-armor-lord.md) adds sword/fire-wave/shield combat;
+its death rendering and elemental reactions retain documented parity gaps.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

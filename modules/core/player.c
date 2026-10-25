@@ -324,6 +324,7 @@ static bool StartAttack(SotnPlayer *player)
     player->substep = (Uint16)(0x40 + equipment.kind);
     player->attack_mode = (Uint16)(0x8001 + equipment.kind);
     player->attack_lock = equipment.lock;
+    player->weapon_startup = 4;
     player->attack_button =
         pressed == SOTN_BUTTON_RIGHT_HAND ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
     return true;
@@ -809,6 +810,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
         if (next.timers[i] != 0)
             --next.timers[i];
+    if (next.weapon_startup)
+        --next.weapon_startup;
     if (next.step != SOTN_PLAYER_KILL)
         next.tight_space = SotnPlayer_TightSpace(&next);
     if (next.failed)
@@ -1008,7 +1011,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                              (Uint16)SDL_max(0, player->wall_sensors[0].x),
                              (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
                              player->shield,
-                             player->timers[0] != 0};
+                             player->timers[0] != 0,
+                             player->weapon_startup != 0};
     return true;
 }
 

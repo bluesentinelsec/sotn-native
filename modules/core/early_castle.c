@@ -3,6 +3,8 @@
 #include "actors_internal.h"
 bool ActorEarlyCastle(SotnActors *s, Actor *a)
 {
+    if (s->stage_id == 1 && a->state.id >= 0x4a && a->state.id <= 0x4e)
+        return ActorArmorLord(s, a);
     if (s->stage_id == 1 && a->state.id >= 0x53 && a->state.id <= 0x56)
         return ActorSkeletonApe(s, a);
     if (s->stage_id == 0 && ((a->state.id >= 0x19 && a->state.id <= 0x20) || a->state.id == 0x2b ||

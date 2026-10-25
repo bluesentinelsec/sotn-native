@@ -189,6 +189,31 @@ static bool Open(Fixture *f, SotnActors **s)
     f->stage[0x2588] = 12;
     f->stage[0x2589] = (Uint8)-4;
     f->stage[0x258a] = f->stage[0x258b] = 8;
+    Put16(f->stage + 0xae8 + 8, 1);
+    SDL_memcpy(f->dra + 0x278, f->dra + 0x228, 40);
+    Put16(f->dra + 0x27e, 30);
+    Put16(f->dra + 0x280, 0x8001);
+    Put16(f->stage + 0xaf4 + 8, 3);
+    Put16(f->stage + 0x2d5a, 40);
+    Put16(f->stage + 0x2d62, (Uint16)-4);
+    Put16(f->stage + 0x2d6a, 40);
+    Put16(f->stage + 0x2d6c, 8);
+    for (Uint32 i = 0; i < 8; ++i)
+        f->stage[0x2d50 + i] = 5;
+    for (Uint32 i = 0; i < 4; ++i)
+        Put16(f->stage + 0x2d70 + i * 2, 4);
+    const size_t armor_anims[] = {0x2d78, 0x2d84, 0x2d9c, 0x2da4, 0x2dac, 0x2dc4, 0x2de0, 0x2dec};
+    for (Uint32 i = 0; i < SDL_arraysize(armor_anims); ++i)
+        Animation(f, armor_anims[i], 1);
+    Animation(f, 0x2dc4, 8);
+    f->stage[0x2dc5] = 16;
+    for (Uint32 i = 1; i < 27; ++i)
+    {
+        Put16(f->stage + 0x2e2c + i * 4, 8);
+        Put16(f->stage + 0x2e2e + i * 4, 12);
+        Put16(f->stage + 0x2e98 + i * 4, 32);
+        Put16(f->stage + 0x2e9a + i * 4, (Uint16)-8);
+    }
     f->types[1] = 3;
     for (Uint32 y = 12; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -542,12 +567,117 @@ static bool Blue(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Armor(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *root = &s->slots[16];
+    *root = (Actor){.state = {.id = 0x4a, .generation = 100, .x = 140 * 65536, .y = 150 * 65536},
+                    .slot = 16,
+                    .dynamic = true};
+    const SotnPlayerState player = {
+        .x = 210 * 65536, .y = 170 * 65536, .hp = 70, .invulnerable = true};
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *weapon = &s->slots[17];
+    CHECK(root->state.step == 1 && weapon->state.id == 0x4b &&
+          weapon->enemy_state.owner_generation == 100);
+    root->state.x = 160 * 65536 + 123;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.x == 144 * 65536 + 123);
+    root->state.step = 3;
+    root->substep = 0;
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(root->state.step == 5);
+    // Armor Lord observes weapon startup, independently of subweapon startup.
+    root->state.step = 3;
+    root->substep = 1;
+    root->timer = 99;
+    s->random = 1;
+    SotnPlayerState startup = player;
+    startup.subweapon_starting = true;
+    CHECK(SotnActors_Tick(s, startup, 0, 0) && root->state.step == 3 && !root->armor.did_shield);
+    startup.subweapon_starting = false;
+    startup.weapon_starting = true;
+    s->random = 1;
+    CHECK(SotnActors_Tick(s, startup, 0, 0) && root->state.step == 7 && root->armor.did_shield);
+    // The sword follows its owner's attack frame and retains signed table offsets.
+    root->state.step = 6;
+    root->state.frame = 16;
+    root->pose = 1;
+    root->remaining = 10;
+    weapon->state.step = 1;
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(weapon->state.step == 2 && weapon->state.frame == 32 && weapon->state.scale_x == 456 &&
+          weapon->state.hitbox_width == 8 && weapon->state.hitbox_y == -8);
+    Put16(f->stage + 0x2e2c + 12 * 4, 65);
+    CHECK(!ActorArmorLord(s, weapon));
+    Put16(f->stage + 0x2e2c + 12 * 4, 8);
+    SDL_ClearError();
+    // A fire wave owns paired primitives; damage actors expire independently.
+    root->state.frame = 1;
+    root->pose = 6;
+    root->substep = 0;
+    root->remaining = 10;
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *wave = &s->slots[160];
+    CHECK(wave->state.id == 0x4c && wave->state.primitive_count == 26);
+    bool damaging = false, initialized_damage = false, smoke = false;
+    SotnPlayerState nearby = player;
+    nearby.x = 170 * 65536;
+    for (Uint32 t = 0; t < 260; ++t)
+    {
+        // Keep the body idle while the independently owned wave finishes.
+        root->state.step = 2;
+        nearby.x = (170 + (Sint32)(t < 24 ? t : 24)) * 65536;
+        CHECK(SotnActors_Tick(s, nearby, 0, 0));
+        for (Uint32 slot = 96; slot < 128; ++slot)
+        {
+            const Actor *hit = &s->slots[slot];
+            damaging = damaging || hit->state.id == 0x4d;
+            initialized_damage =
+                initialized_damage || (hit->state.generation && hit->state.id == 0x4d &&
+                                       hit->state.step >= 2 && hit->attack_element == 0x8001 &&
+                                       hit->enemy_state.owner_generation == wave->state.generation);
+        }
+        for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+            smoke = smoke || s->primitives[i].armor_wave.smoke;
+    }
+    CHECK(damaging && initialized_damage && smoke && !wave->state.generation);
+    // Killed ownership removes the separate weapon and all death primitives.
+    root->state.flags |= 0x100;
+    for (Uint32 i = 0; i < 600 && root->state.generation; ++i)
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(s->armor_lord_killed && !root->state.generation && !weapon->state.generation);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(!s->primitives[i].owner);
+    // Per-overlay defeat state survives room entry, without becoming a save flag.
+    CHECK(SotnActors_Enter(
+        s, f->layout,
+        (SotnCollisionMap){{f->tiles, sizeof(f->tiles)}, {f->types, sizeof(f->types)}, 32, 16}, 0,
+        0));
+    Actor suppressed = {.state = {.id = 0x4a, .generation = 901}, .slot = 16};
+    CHECK(ActorArmorLord(s, &suppressed) && suppressed.remove);
+    // An old damage actor must never release a new wave's latch after slot reuse.
+    *wave = (Actor){.state = {.id = 0x4c, .generation = 902}, .slot = 160};
+    Actor stale = {.state = {.id = 0x4d, .generation = 903},
+                   .enemy_state = {.owner_slot = 160, .owner_generation = 901}};
+    CHECK(ActorArmorLord(s, &stale) && stale.remove);
+    // Exhausted optional effect storage follows the original nonfatal fallback.
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 999;
+    CHECK(ActorArmorLord(s, wave) && wave->remove && !wave->state.primitive_count);
+    Actor fading = {.state = {.id = 0x4a, .generation = 904, .step = 9}};
+    CHECK(ActorArmorLord(s, &fading) && fading.remove);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f) && Blue(f);
+    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f) && Blue(f) && Armor(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

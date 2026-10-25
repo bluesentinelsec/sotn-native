@@ -164,11 +164,15 @@ static bool TestAttacks(Fixture *fixture)
     SotnPlayerState state = {0};
     CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND) && State(player, &state));
-    CHECK(state.animation.id == 0x24 && !state.attack.active);
+    CHECK(state.animation.id == 0x24 && !state.attack.active && state.weapon_starting &&
+          !state.subweapon_starting);
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_JUMP));
     CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND);
     for (Uint32 i = 0; i < 4; ++i)
-        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
+    {
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND) && State(player, &state));
+        CHECK(state.weapon_starting == (i < 2) && !state.subweapon_starting);
+    }
     CHECK(State(player, &state) && state.attack.active);
     CHECK(state.attack.offset_x == 18 && state.attack.offset_y == -16);
     CHECK(state.attack.width == 10 && state.attack.height == 7 && !state.attack.right_hand);
