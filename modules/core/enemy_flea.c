@@ -51,7 +51,8 @@ bool ActorFlea(SotnActors *s, Actor *a)
         Uint32 index = 2;
         if (!a->hit_params || a->hit_params >= 4)
         {
-            const Uint32 random = ActorRandom(s) & 7, distance = Distance(a, s->player);
+            const Uint32 random = ActorRandom(s) & 7;
+            const Sint64 distance = Distance(a, s->player);
             if (distance < 80)
                 index = random < 2 ? 3 : random == 2 ? 2 : random == 3 ? 1 : 0;
             else if (distance <= 127)
