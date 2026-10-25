@@ -242,8 +242,12 @@ static bool Stages(void)
     Rechecksum(relic_record, sizeof(relic_record));
     CHECK(!SotnSave_Decode(relic_record, sizeof(relic_record), &relic_decoded));
 
-    const Uint16 stages[] = {12, 65, 7};
-    const Uint32 first_rooms[] = {23, 25, 22};
+    const Uint16 stages[] = {12, 65, 7, 0, 1};
+    const Uint32 rooms[][3] = {{23, 24, 25},
+                               {25, 26, 27},
+                               {22, 23, 24},
+                               {31, 32, SDL_MAX_UINT16},
+                               {14, 17, SDL_MAX_UINT16}};
     for (Uint32 i = 0; i < SDL_arraysize(stages); ++i)
     {
         SotnSaveState state = Profile(), decoded = {0};
@@ -251,8 +255,11 @@ static bool Stages(void)
         state.world.flags[SOTN_ENTRANCE_DEATH] = 1;
         state.world.flags[SOTN_ENTRANCE_ON] = 1;
         Uint8 record[SOTN_SAVE_BYTES] = {0};
-        for (Uint32 room = first_rooms[i]; room < first_rooms[i] + 3; ++room)
+        for (Uint32 j = 0; j < 3; ++j)
         {
+            const Uint32 room = rooms[i][j];
+            if (room == SDL_MAX_UINT16)
+                continue;
             state.room = room;
             CHECK(SotnSave_Encode(state, record, sizeof(record)));
             CHECK(SotnSave_Decode(record, sizeof(record), &decoded));
@@ -264,9 +271,9 @@ static bool Stages(void)
         Rechecksum(record, sizeof(record));
         decoded.stage = 999;
         CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.stage == 999);
-        state.room = first_rooms[i] - 1;
+        state.room = rooms[i][0] - 1;
         CHECK(!SotnSave_Encode(state, record, sizeof(record)));
-        state.room = first_rooms[i] + 3;
+        state.room = 99;
         CHECK(!SotnSave_Encode(state, record, sizeof(record)));
     }
     SotnSaveState invalid = Profile();

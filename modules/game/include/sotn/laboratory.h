@@ -38,9 +38,9 @@ bool SotnLaboratory_Create(const SotnGameData *data, const char *directory, Uint
 bool SotnLaboratory_CreateEntrance(const SotnGameData *data, const char *directory, Uint32 room,
                                    SotnLaboratory **out);
 
-/** @brief Create an explicit development room in Laboratory or either Entrance variant.
+/** @brief Create an explicit development room in a supported castle stage.
  * @param data Borrowed verified snapshot. @param directory Private resource directory.
- * @param stage Original stage ID 12, 65, or 7. @param room Original playable room index.
+ * @param stage Original stage ID 12, 65, 7, 0, or 1. @param room Original playable room index.
  * @param out Receives ownership or NULL. @return Success or SDL error.
  * Uses the named development character, not original new-game initialization.
  */

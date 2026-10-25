@@ -217,3 +217,7 @@ See [current scope](docs/entrance-runtime.md); this remains a development checkp
 The selected [Laboratory Maria encounter](docs/laboratory-maria.md) now runs its
 original room script, actors, portraits and speech. [Relic collection](docs/relic-progression.md)
 and permanent pickup bits survive ordinary saves and supported stage changes.
+
+The [early castle development profiles](docs/early-castle-stages.md) connect Laboratory
+to Marble Gallery and Outer Wall with shared actors, stage music, pickups and saves.
+Their area-specific enemies, mechanisms and boss progression remain incomplete.

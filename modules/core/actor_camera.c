@@ -5,17 +5,47 @@ bool ActorCamera(SotnActors *s, Actor *a)
 {
     SotnDataView hitboxes = {0}, axes = {0}, bounds = {0};
     const Uint16 parameter = a->state.parameters;
-    if (parameter >= 2 || !Slice(s->nz0, 0xdbc, 4, &hitboxes) || !Slice(s->nz0, 0xdc0, 4, &axes))
+    const Uint16 count = SotnStageProfile_Get(s->stage_id)->camera_count;
+    if (parameter >= count || !Slice(s->nz0, ActorStageOffset(s, 0xdbc), count, &hitboxes) ||
+        !Slice(s->nz0, ActorStageOffset(s, 0xdc0), count, &axes))
         return SDL_SetError("Camera lock parameter is outside its private tables");
-    if (a->state.step == 0)
+    const bool initialize = a->state.step == 0;
+    if (initialize)
     {
-        if (!ActorInitialize(s, a, 0xc10))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xc10)))
             return false;
         a->state.hitbox_state = 1;
         a->camera.horizontal = axes.bytes[parameter] != 0;
-        a->state.hitbox_width = a->camera.horizontal ? hitboxes.bytes[parameter] : 20;
-        a->state.hitbox_height = a->camera.horizontal ? 20 : hitboxes.bytes[parameter];
+        a->state.hitbox_width =
+            a->camera.horizontal ? hitboxes.bytes[parameter] : (s->stage_id == 1 ? 16 : 20);
+        a->state.hitbox_height =
+            a->camera.horizontal ? (s->stage_id == 1 ? 16 : 20) : hitboxes.bytes[parameter];
         a->camera.side = 2;
+    }
+    if (s->stage_id == 1)
+    {
+        if (initialize || ((parameter == 4 || parameter == 5) && s->camera->left != 0))
+            return true;
+        if (parameter == 6 && (s->buttons & SOTN_BUTTON_CANCEL))
+        {
+            ++a->state.step;
+            return SotnCamera_Bounds(s->camera, 0, s->camera->top, 1280, s->camera->bottom);
+        }
+        const SotnCombatBox player = {
+            Pixel(s->player.x), Pixel(s->player.y) + s->player.animation.hitbox_y,
+            s->player.animation.hitbox_width, s->player.animation.hitbox_height};
+        const SotnCombatBox trigger = {Pixel(a->state.x), Pixel(a->state.y), a->state.hitbox_width,
+                                       a->state.hitbox_height};
+        if (!SotnCombat_Overlap(player, trigger))
+            return true;
+        const Uint16 side =
+            (Uint16)(a->camera.horizontal ? (Pixel(a->state.y) > Pixel(s->player.y) ? 4 : 0)
+                                          : Side(a, s->player) * 4);
+        if (!Slice(s->nz0, ActorStageOffset(s, 0xdc4) + (size_t)parameter * 16 + side * 2, 8,
+                   &bounds))
+            return false;
+        return SotnCamera_Bounds(s->camera, Read16(bounds.bytes), Read16(bounds.bytes + 2),
+                                 Read16(bounds.bytes + 4), Read16(bounds.bytes + 6));
     }
     if (Distance(a, s->player) <= a->state.hitbox_width &&
         SDL_abs(Pixel(s->player.y) - Pixel(a->state.y)) <= a->state.hitbox_height)
@@ -27,10 +57,11 @@ bool ActorCamera(SotnActors *s, Actor *a)
         {
             const size_t offset = (size_t)parameter * 16 + side * 2;
             // NZ0 supplies 16 total properties; other stages require their own validated tables.
-            if (offset > 32 || 32 - offset < 8 || !Slice(s->nz0, 0xdc4 + offset, 8, &bounds))
+            if (offset > (size_t)count * 16 || (size_t)count * 16 - offset < 8 ||
+                !Slice(s->nz0, ActorStageOffset(s, 0xdc4) + offset, 8, &bounds))
                 return SDL_SetError("Camera lock property selection exceeds the Laboratory table");
             a->camera.side = side;
-            a->camera.timer = 16;
+            a->camera.timer = s->stage_id == 0 && parameter == 4 ? 1 : 16;
             a->camera.pending = 0;
             for (Uint32 i = 0; i < 4; ++i)
                 a->camera.target[i] = Read16(bounds.bytes + i * 2);

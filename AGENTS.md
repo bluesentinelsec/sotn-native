@@ -241,3 +241,8 @@ The [Laboratory Maria encounter](docs/laboratory-maria.md) now reads private scr
 animates Maria and her door, streams five speech clips, pauses/resumes music, and
 returns control. The met-Maria flag persists in ordinary saves. CD timing parity,
 complete dialogue effects, and full castle scripts remain incomplete.
+
+The [early castle profiles](docs/early-castle-stages.md) add Marble Gallery/Outer Wall
+(stage 0/1), shared Skeletons, Marble green Axe Knights, stage music, ordinary saves
+and connectors. New per-area enemies, mechanisms, boss transfers and whole-route
+parity remain incomplete; these are development profiles, not completed areas.

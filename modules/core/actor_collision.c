@@ -151,10 +151,8 @@ bool ActorSpawn(SotnActors *actors, const Actor *source, Uint16 id, Uint16 param
                 Uint32 end, Actor **out)
 {
     if (actors == NULL || source == NULL || out == NULL || id == 0 ||
-        id >= (actors->stage_id == 65  ? 0x63
-               : actors->stage_id == 7 ? 0x5c
-                                       : 0x4e) ||
-        begin > end || end > SOTN_STAGE_ACTOR_SLOTS)
+        id >= SotnStageProfile_Get(actors->stage_id)->actor_limit || begin > end ||
+        end > SOTN_STAGE_ACTOR_SLOTS)
         return SDL_SetError("Actor factory requires bounded stage slots and an original entity ID");
     *out = NULL;
     for (Uint32 i = begin; i < end; ++i)
@@ -429,9 +427,7 @@ bool ActorSpawnAt(SotnActors *s, const Actor *source, Uint16 id, Uint16 paramete
                   Actor **out)
 {
     if (s == NULL || source == NULL || out == NULL || slot >= SOTN_STAGE_ACTOR_SLOTS || id == 0 ||
-        id >= (s->stage_id == 65  ? 0x63
-               : s->stage_id == 7 ? 0x5c
-                                  : 0x4e))
+        id >= SotnStageProfile_Get(s->stage_id)->actor_limit)
         return SDL_SetError("Fixed actor factory slot or entity ID is invalid");
     Actor *p = &s->slots[slot];
     SotnActorPlacement placement = {0};

@@ -233,3 +233,13 @@ bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMus
 {
     return Create(dra, stream, 44, 45, false, out);
 }
+
+bool SotnMusic_CreateStage(SotnDataView dra, SotnStream *stream, Uint16 stage, SotnMusic **out)
+{
+    if (out == NULL)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (stage != 0 && stage != 1)
+        return SDL_SetError("Stage music requires Marble Gallery or Outer Wall");
+    return Create(dra, stream, stage == 0 ? 13 : 19, stage == 0 ? 14 : 20, false, out);
+}

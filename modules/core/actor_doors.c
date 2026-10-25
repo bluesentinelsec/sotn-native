@@ -10,7 +10,7 @@ static bool Near(const SotnActors *s, const Actor *a, Uint32 extent)
 static bool DoorTiles(SotnActors *s, const Actor *a, bool sealed)
 {
     const Uint16 params = a->state.parameters & 255;
-    if (params >= (sealed ? 4 : s->stage_id != 12 ? 2 : 3))
+    if (params >= (sealed ? 4 : SotnStageProfile_Get(s->stage_id)->door_types))
         return SDL_SetError("Door tile layout index is invalid");
     const Sint32 x = Pixel(a->state.x), y = Pixel(a->state.y) - 24;
     if (x < 0 || y < 0 || (Uint32)x >= s->map.width * 16 || (Uint32)y + 48 >= s->map.height * 16)
@@ -54,24 +54,30 @@ bool ActorDoor(SotnActors *s, Actor *a)
 {
     const bool sealed = a->state.id == 0x4a, right = (a->state.parameters & 0x100) != 0;
     const Sint32 offset = right ? -4 : 4;
+    const Uint32 range = sealed || s->stage_id == 1 ? 24 : 16;
     SotnDataView uv = {0};
     if (!Slice(s->nz0, sealed ? 0x26b8 : ActorTable(s, 0x1960, 0x20ac, 0x1a38), 24, &uv))
         return false;
     if (a->state.step == 0)
     {
+        if (s->stage_id == 1 && !sealed)
+        {
+            a->mechanism.changed = (a->state.parameters & 0x10) != 0;
+            a->state.parameters &= (Uint16)~0x10;
+        }
         if (!ActorInitialize(s, a, ActorTable(s, 0xc1c, 0xb00, 0xa90)) ||
             !ActorPrimitives(s, a, sealed ? 4 : 3))
             return false;
         a->state.animation_set = sealed ? 0 : 7;
         a->state.frame = 1;
-        a->state.priority = 0x60;
+        a->state.priority = a->mechanism.changed ? 0x58 : 0x60;
         a->state.facing_left = false;
         ShiftY(a, 31);
         a->state.x += offset * 65536;
         a->enemy_state.angle_delta = 0xc00;
         if (sealed)
             a->state.palette = 0x233;
-        if (Near(s, a, sealed ? 24 : 16))
+        if (Near(s, a, range))
         {
             a->enemy_state.angle_delta = right ? 0x800 : 0x1000;
             a->state.frame = 0;
@@ -112,7 +118,7 @@ bool ActorDoor(SotnActors *s, Actor *a)
         {
         case 1:
             if (s->player.facing_left != (Side(a, s->player) != 0) &&
-                s->player.step == SOTN_PLAYER_WALK && Near(s, a, 16))
+                s->player.step == SOTN_PLAYER_WALK && Near(s, a, range))
             {
                 if (!ActorSound(s, 0x642))
                     return false;
@@ -138,7 +144,7 @@ bool ActorDoor(SotnActors *s, Actor *a)
             break;
         case 4:
             s->control = (SotnActorControl){right ? SOTN_BUTTON_LEFT : SOTN_BUTTON_RIGHT, 4};
-            if (!Near(s, a, sealed ? 24 : 16))
+            if (!Near(s, a, range))
                 a->state.step = 5;
             break;
         case 5:

@@ -21,6 +21,10 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_ENTRANCE_AUDIO_BODY,   /**< US first-visit Entrance sample data. */
     SOTN_RESOURCE_RETURN_AUDIO_HEADER,   /**< US revisited Entrance instruments. */
     SOTN_RESOURCE_RETURN_AUDIO_BODY,     /**< US revisited Entrance sample data. */
+    SOTN_RESOURCE_MARBLE_AUDIO_HEADER,   /**< US Marble Gallery instruments. */
+    SOTN_RESOURCE_MARBLE_AUDIO_BODY,     /**< US Marble Gallery samples. */
+    SOTN_RESOURCE_WALL_AUDIO_HEADER,     /**< US Outer Wall instruments. */
+    SOTN_RESOURCE_WALL_AUDIO_BODY,       /**< US Outer Wall samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

@@ -5,7 +5,7 @@
 #include "actors_internal.h"
 static bool Read(SotnActors *s, size_t offset, size_t count, SotnDataView *out)
 {
-    return Slice(s->nz0, offset, count, out);
+    return Slice(s->nz0, ActorStageOffset(s, offset), count, out);
 }
 static bool Pieces(SotnActors *s, Actor *a, bool scimitar)
 {
@@ -17,7 +17,8 @@ static bool Pieces(SotnActors *s, Actor *a, bool scimitar)
         Actor *p = NULL;
         SotnDataView t = {0}, x = {0}, y = {0}, vx = {0}, vy = {0};
         if (!ActorSpawn(s, a,
-                        scimitar ? (s->stage_id != 12 ? EntranceActorId(s, 0x47) : 0x28) : 0x30,
+                        scimitar ? (s->stage_id != 12 ? EntranceActorId(s, 0x47) : 0x28)
+                                 : ActorStageId(s, 0x30),
                         (Uint16)(i | (scimitar ? a->state.parameters << 8 : 0)), 160, 192, &p))
             return false;
         if (p == NULL)
@@ -44,7 +45,8 @@ static bool Part(SotnActors *s, Actor *a, bool scimitar)
         return SDL_SetError("Skeleton piece index exceeds its private definition");
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc58, 0xb84, 0xaf0) : 0xc94))
+        if (!ActorInitialize(
+                s, a, scimitar ? ActorTable(s, 0xc58, 0xb84, 0xaf0) : ActorStageOffset(s, 0xc94)))
             return false;
         a->state.frame = (Uint16)(id + (scimitar ? 16 : 15));
         if (scimitar)
@@ -81,7 +83,7 @@ static bool Bone(SotnActors *s, Actor *a, SotnPlayerState player)
 {
     if (a->state.step == 0)
     {
-        if (!ActorInitialize(s, a, 0xca0))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xca0)))
             return false;
         a->state.y -= 4096;
         const Uint32 index = (Uint32)SDL_min(7LL, Distance(a, player) / 32);
@@ -113,12 +115,15 @@ static bool Bone(SotnActors *s, Actor *a, SotnPlayerState player)
 static bool WalkCheck(SotnActors *s, Actor *a, SotnPlayerState player, bool scimitar)
 {
     Uint16 ground = 0, field = 0;
-    if (!ActorWalk(s, a, scimitar ? ActorTable(s, 0x216c, 0x3c30, 0x2540) : 0x24b8, &ground))
+    if (!ActorWalk(s, a,
+                   scimitar ? ActorTable(s, 0x216c, 0x3c30, 0x2540) : ActorStageOffset(s, 0x24b8),
+                   &ground))
         return false;
     if (!scimitar && (ground & 0x60) == 0x60)
         a->state.x -= a->vx;
-    if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548) : 0x24c0, 3, false,
-                    &field))
+    if (!ActorField(s, a,
+                    scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548) : ActorStageOffset(s, 0x24c0),
+                    3, false, &field))
         return false;
     if ((scimitar && ground == 0x80) || (field & 2))
     {
@@ -148,7 +153,8 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, scimitar ? ActorTable(s, 0xc4c, 0xb78, 0xae4) : 0xc88))
+        if (!ActorInitialize(
+                s, a, scimitar ? ActorTable(s, 0xc4c, 0xb78, 0xae4) : ActorStageOffset(s, 0xc88)))
             return false;
         if (scimitar && a->state.parameters != 0)
         {
@@ -163,7 +169,9 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         a->enemy_state.attack_timer = 80;
         break;
     case 1:
-        if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530) : 0x24a8,
+        if (!ActorGround(s, a,
+                         scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530)
+                                  : ActorStageOffset(s, 0x24a8),
                          &collision))
             return false;
         if (collision != 0)
@@ -176,7 +184,7 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         if (!ActorAnimate(s, a,
                           scimitar ? (a->state.step == 2 ? ActorTable(s, 0x2090, 0x3b54, 0x2464)
                                                          : ActorTable(s, 0x20a0, 0x3b64, 0x2474))
-                                   : (a->state.step == 2 ? 0x23dc : 0x23ec),
+                                   : (ActorStageOffset(s, a->state.step == 2 ? 0x23dc : 0x23ec)),
                           &anim))
             return false;
         if (scimitar && anim == 0)
@@ -191,7 +199,10 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
             return false;
         break;
     case 4:
-        if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20b0, 0x3b74, 0x2484) : 0x23fc, &anim))
+        if (!ActorAnimate(s, a,
+                          scimitar ? ActorTable(s, 0x20b0, 0x3b74, 0x2484)
+                                   : ActorStageOffset(s, 0x23fc),
+                          &anim))
             return false;
         if (scimitar)
         {
@@ -230,7 +241,7 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
             if (x >= -16 && x <= 272 && y >= 0 && y <= 240)
             {
                 Actor *bone = NULL;
-                if (!ActorSpawn(s, a, 0x2f, 0, 96, 128, &bone))
+                if (!ActorSpawn(s, a, ActorStageId(s, 0x2f), 0, 96, 128, &bone))
                     return false;
                 if (bone != NULL)
                 {
@@ -245,7 +256,9 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
     case 5:
         if (a->substep == 0)
         {
-            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20cc, 0x3b90, 0x24a0) : 0x240c,
+            if (!ActorAnimate(s, a,
+                              scimitar ? ActorTable(s, 0x20cc, 0x3b90, 0x24a0)
+                                       : ActorStageOffset(s, 0x240c),
                               &anim))
                 return false;
             if (!(anim & 1))
@@ -261,18 +274,24 @@ static bool Skeleton(SotnActors *s, Actor *a, SotnPlayerState player, bool scimi
         }
         else if (a->substep == 1)
         {
-            if (!ActorGround(s, a, scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530) : 0x24a8,
+            if (!ActorGround(s, a,
+                             scimitar ? ActorTable(s, 0x215c, 0x3c20, 0x2530)
+                                      : ActorStageOffset(s, 0x24a8),
                              &collision))
                 return false;
             if (collision != 0)
                 ++a->substep;
-            if (!ActorField(s, a, scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548) : 0x24c0, 2,
-                            true, &collision))
+            if (!ActorField(s, a,
+                            scimitar ? ActorTable(s, 0x2174, 0x3c38, 0x2548)
+                                     : ActorStageOffset(s, 0x24c0),
+                            2, true, &collision))
                 return false;
         }
         else if (a->substep == 2)
         {
-            if (!ActorAnimate(s, a, scimitar ? ActorTable(s, 0x20d8, 0x3b9c, 0x24ac) : 0x2418,
+            if (!ActorAnimate(s, a,
+                              scimitar ? ActorTable(s, 0x20d8, 0x3b9c, 0x24ac)
+                                       : ActorStageOffset(s, 0x2418),
                               &anim))
                 return false;
             // The selected US Skeleton path intentionally lands on a nonzero animation result.
@@ -335,7 +354,7 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xc40))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xc40)))
             return false;
         a->state.facing_left = (ActorRandom(s) & 1) != 0;
         a->state.frame = 1;
@@ -343,7 +362,7 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
         a->state.palette = (Uint16)(a->state.palette + a->state.parameters);
         break;
     case 1:
-        if (!ActorGround(s, a, 0x2694, &ground))
+        if (!ActorGround(s, a, ActorStageOffset(s, 0x2694), &ground))
             return false;
         if (ground & 1)
         {
@@ -362,7 +381,7 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
             const Sint32 dx = Signed16(motion.bytes) * (a->state.facing_left ? 1 : -1);
             a->state.x += dx * 65536;
         }
-        if (!ActorAnimate(s, a, 0x2610, &anim))
+        if (!ActorAnimate(s, a, ActorStageOffset(s, 0x2610), &anim))
             return false;
         if (anim == 0 && SDL_abs(Pixel(a->state.y) - Pixel(player.y)) < 48 &&
             (ActorRandom(s) & 3) == 0)
@@ -385,7 +404,7 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
         break;
     }
     case 3:
-        if (!ActorAnimate(s, a, 0x2638, &anim))
+        if (!ActorAnimate(s, a, ActorStageOffset(s, 0x2638), &anim))
             return false;
         if (anim == 0)
         {
@@ -448,6 +467,17 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
 }
 bool ActorSkeleton(SotnActors *s, Actor *a, SotnPlayerState player)
 {
+    if (s->stage_id == 0 || s->stage_id == 1)
+    {
+        if (a->state.id == ActorStageId(s, 0x2e))
+            return Skeleton(s, a, player, false);
+        if (a->state.id == ActorStageId(s, 0x2f))
+            return Bone(s, a, player);
+        if (a->state.id == ActorStageId(s, 0x30))
+            return Part(s, a, false);
+        return SDL_SetError("Foreign Skeleton dispatcher received an unrelated actor");
+    }
+
     if (s->stage_id != 12)
         return a->state.id == EntranceActorId(s, 0x46) ? Skeleton(s, a, player, true)
                                                        : Part(s, a, true);

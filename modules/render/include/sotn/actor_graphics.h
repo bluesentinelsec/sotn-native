@@ -25,6 +25,12 @@ typedef struct SotnActorSprite
  */
 bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSources sources,
                               SotnActorGraphics **out);
+/** @brief Initialize texture memory with the selected stage's explicit sprite-table bound.
+ * @param dra Borrowed DRA. @param nz0 Borrowed selected overlay. @param sources Verified art.
+ * @param stage Original supported stage ID. @param out Receives ownership or NULL.
+ * @return Success or SDL error; borrowed images must outlive the returned service. */
+bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileSources sources,
+                                   Uint16 stage, SotnActorGraphics **out);
 /**
  * @brief Apply an original NZ0 actor graphics bank, retaining other loaded texture memory.
  * @param graphics Borrowed owned texture memory on the main thread.

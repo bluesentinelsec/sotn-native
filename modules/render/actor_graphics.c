@@ -4,6 +4,7 @@
 #include <SDL3/SDL_error.h>
 #include <sotn/actor_graphics.h>
 #include <sotn/decompress.h>
+#include <sotn/stage_profile.h>
 
 #define VRAM_WORDS (1024U * 512U)
 #define UPLOAD_BUDGET (2U * 1024U * 1024U)
@@ -11,6 +12,7 @@
 struct SotnActorGraphics
 {
     SotnDataView dra, nz0;
+    Uint16 sprite_banks;
     SotnDataView weapon[2];
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
@@ -102,12 +104,20 @@ static bool Palettes(SotnActorGraphics *graphics)
 bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSources sources,
                               SotnActorGraphics **out)
 {
+    return SotnActorGraphics_CreateStage(dra, nz0, sources, 12, out);
+}
+
+bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileSources sources,
+                                   Uint16 stage, SotnActorGraphics **out)
+{
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (dra.bytes == NULL || dra.size > 0x200000 || nz0.bytes == NULL || nz0.size < 40 ||
-        nz0.size > 0x80000 || sources.stage.bytes == NULL || sources.stage.size != 0x40000 ||
-        sources.common.bytes == NULL || sources.common.size != 0x42000)
+    const SotnStageProfile *profile = SotnStageProfile_Get(stage);
+    if (profile == NULL || dra.bytes == NULL || dra.size > 0x200000 || nz0.bytes == NULL ||
+        nz0.size < 40 || nz0.size > 0x80000 || sources.stage.bytes == NULL ||
+        sources.stage.size != 0x40000 || sources.common.bytes == NULL ||
+        sources.common.size != 0x42000)
         return SDL_SetError(
             "Actor graphics require bounded DRA/stage overlay and verified texture views");
     SotnActorGraphics *graphics = SDL_calloc(1, sizeof(*graphics));
@@ -115,6 +125,7 @@ bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSource
         return false;
     graphics->dra = dra;
     graphics->nz0 = nz0;
+    graphics->sprite_banks = profile->sprite_banks;
     RawTiles(graphics, sources.stage, 0);
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);
@@ -260,13 +271,14 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
                                        : graphics->dra;
     const Uint32 base = weapon ? 0x8017a000U : stage ? 0x80180000U : 0x800a0000U;
     SotnDataView table = {0}, first = {0};
-    if (bank == 0 || (!weapon && bank >= (stage ? 24U : 18U)) ||
+    if (bank == 0 || (!weapon && bank >= (stage ? graphics->sprite_banks : 18U)) ||
         (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
     const Uint32 table_address = weapon  ? base + 0x40
                                  : stage ? Read32(graphics->nz0.bytes + 20)
                                          : base + 0x3b70;
-    if (!weapon && !Resolve(image, base, table_address, (stage ? 24U : 18U) * 4, 4, &table))
+    if (!weapon &&
+        !Resolve(image, base, table_address, (stage ? graphics->sprite_banks : 18U) * 4, 4, &table))
         return false;
     const Uint32 address = weapon ? table_address : Read32(table.bytes + bank * 4);
     if (!Resolve(image, base, address, 8, 4, &table))

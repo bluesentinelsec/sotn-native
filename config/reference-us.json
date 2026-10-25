@@ -75,6 +75,22 @@
     "ST/NP3/SD_ZKNP3.VB": {
       "size": 101648,
       "sha1": "d64c0e1290940060f88ff76c6d1547f7b8f59887"
+    },
+    "ST/NO0/SD_ZKNO0.VH": {
+      "size": 6688,
+      "sha1": "eb397615f670eba7c4af1240b088867092cb6937"
+    },
+    "ST/NO0/SD_ZKNO0.VB": {
+      "size": 107424,
+      "sha1": "7ee5b1acad671141e1d03e4457e8be22ac21042c"
+    },
+    "ST/NO1/SD_ZKNO1.VH": {
+      "size": 6688,
+      "sha1": "210cebf6cb4812425306d65c5a10da47a054eb15"
+    },
+    "ST/NO1/SD_ZKNO1.VB": {
+      "size": 105632,
+      "sha1": "35775c0e2d46494c21d5ab934824408c1a54af8a"
     }
   },
   "sizes": {

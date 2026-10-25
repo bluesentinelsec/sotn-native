@@ -1,4 +1,5 @@
 #include <sotn/save.h>
+#include <sotn/stage_profile.h>
 
 static Uint32 Read32(const Uint8 *p)
 {
@@ -38,11 +39,7 @@ static bool Zeroes(const Uint8 *bytes, size_t begin, size_t end)
 }
 static bool Valid(SotnSaveState state)
 {
-    const bool save_room =
-        state.stage == 12   ? state.room == 23 || state.room == 24 || state.room == 25
-        : state.stage == 65 ? state.room == 25 || state.room == 26 || state.room == 27
-        : state.stage == 7  ? state.room == 22 || state.room == 23 || state.room == 24
-                            : false;
+    const bool save_room = SotnStageProfile_SaveRoom(state.stage, state.room);
     if (!save_room || state.character.hp == 0 || state.ticks > 99999ULL * 3600 * 60)
         return SDL_SetError("Save requires a living character in a supported native save room");
     return SotnCharacter_Validate(&state.character) && SotnWorld_Validate(&state.world);

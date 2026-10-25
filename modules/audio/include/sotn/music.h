@@ -15,6 +15,11 @@ typedef struct SotnMusic SotnMusic;
  * @note Supports the selected 4-bit stereo 37.8 kHz XA path. The SDL rate converter is a
  * temporary service; original CD interpolation/timing parity is not established. */
 bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out);
+/** @brief Start original Marble Gallery or Outer Wall intro/loop music.
+ * @param dra Borrowed private DRA. @param stream Borrowed verified XA container.
+ * @param stage Original stage 0 or 1. @param out Receives ownership or NULL.
+ * @return Success or SDL error; inputs must outlive playback. */
+bool SotnMusic_CreateStage(SotnDataView dra, SotnStream *stream, Uint16 stage, SotnMusic **out);
 /** @brief Start Entrance wind or Dracula's Castle from private intro/loop metadata.
  * @param dra Borrowed DRA. @param stream Borrowed verified XA container.
  * @param castle True for post-Death music, false for outdoor wind.

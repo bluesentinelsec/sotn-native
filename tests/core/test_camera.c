@@ -46,6 +46,7 @@ static bool Locks(void)
 {
     SotnActors *s = SDL_calloc(1, sizeof(*s));
     CHECK(s != NULL);
+    s->stage_id = 12;
     Uint8 nz0[0x1000] = {0}, dra[0x1000] = {0};
     s->nz0 = (SotnDataView){nz0, sizeof(nz0)};
     s->dra = (SotnDataView){dra, sizeof(dra)};
