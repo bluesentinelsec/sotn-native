@@ -382,3 +382,10 @@ target_include_directories(sotn-chapel-corner-guard-tests PRIVATE ../../modules/
 target_link_libraries(sotn-chapel-corner-guard-tests PRIVATE sotn-core)
 add_test(NAME chapel-corner-guard COMMAND sotn-chapel-corner-guard-tests)
 set_tests_properties(chapel-corner-guard PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-chapel-pillar-tests test_chapel_pillar.c)
+sotn_configure_c_target(sotn-chapel-pillar-tests)
+target_include_directories(sotn-chapel-pillar-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-chapel-pillar-tests PRIVATE sotn-core)
+add_test(NAME chapel-pillar COMMAND sotn-chapel-pillar-tests)
+set_tests_properties(chapel-pillar PROPERTIES TIMEOUT 20)

@@ -120,6 +120,11 @@ typedef struct Actor
     } corner;
     struct
     {
+        Uint16 timer, interval;
+        bool bottom_dead;
+    } pillar;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -456,6 +461,10 @@ bool ActorChapelHalberd(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed supported slot.
  * @return Success or SDL error for invalid private data, state, ownership or motion. */
 bool ActorChapelCornerGuard(SotnActors *actors, Actor *actor);
+/** @brief Advance Chapel stacked skulls, original fire breath and delayed death pieces.
+ * @param actors Borrowed stage owner. @param actor Borrowed supported slot.
+ * @return Success or SDL error; private images and room collision remain borrowed. */
+bool ActorChapelPillar(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
