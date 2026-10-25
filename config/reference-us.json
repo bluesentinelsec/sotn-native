@@ -99,6 +99,14 @@
     "BOSS/BO4/SD_ZKBO4.VB": {
       "size": 90864,
       "sha1": "148a3ad03913464cc7403858da027d8df4e97f22"
+    },
+    "ST/LIB/SD_ZKLIB.VH": {
+      "size": 6688,
+      "sha1": "c39788e987244377d25e9309ab398ec9d9a6842f"
+    },
+    "ST/LIB/SD_ZKLIB.VB": {
+      "size": 90704,
+      "sha1": "cec624c375cefde88ac93867252c1cca2199aaa5"
     }
   },
   "sizes": {

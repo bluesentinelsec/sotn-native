@@ -34,7 +34,7 @@ static bool Playback(const char *directory)
     }
     for (Uint32 id = 29; id <= 30; ++id)
         SDL_memcpy(dra + 0x1d224 + id * 16, dra + 0x1d224 + (id + 17) * 16, 16);
-    const Uint32 stage_tracks[] = {13, 14, 19, 20};
+    const Uint32 stage_tracks[] = {13, 14, 19, 20, 9, 10};
     for (Uint32 i = 0; i < SDL_arraysize(stage_tracks); ++i)
         SDL_memcpy(dra + 0x1d224 + stage_tracks[i] * 16, dra + 0x1d224 + (46 + (i & 1)) * 16, 16);
     Uint8 *raw = SDL_calloc(2, SOTN_CD_SECTOR_BYTES);
@@ -68,7 +68,7 @@ static bool Playback(const char *directory)
     const SotnDataView image = {dra, 0x20000};
     CHECK(SotnMusic_Create(image, stream, &music));
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
-    for (Uint16 stage = 0; stage < 2; ++stage)
+    for (Uint16 stage = 0; stage < 3; ++stage)
     {
         SotnMusic *selected = NULL;
         CHECK(SotnMusic_CreateStage(image, stream, stage, &selected));
@@ -77,7 +77,7 @@ static bool Playback(const char *directory)
         SotnMusic_Destroy(selected);
     }
     SotnMusic *invalid = NULL;
-    CHECK(!SotnMusic_CreateStage(image, stream, 2, &invalid) && invalid == NULL);
+    CHECK(!SotnMusic_CreateStage(image, stream, 3, &invalid) && invalid == NULL);
 
     Sint64 intro = 0, loop = 0;
     for (Uint32 tick = 0; tick < 12; tick++)

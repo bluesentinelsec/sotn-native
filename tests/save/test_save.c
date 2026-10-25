@@ -295,12 +295,13 @@ static bool Stages(void)
     Rechecksum(relic_record, sizeof(relic_record));
     CHECK(!SotnSave_Decode(relic_record, sizeof(relic_record), &relic_decoded));
 
-    const Uint16 stages[] = {12, 65, 7, 0, 1};
+    const Uint16 stages[] = {12, 65, 7, 0, 1, 2};
     const Uint32 rooms[][3] = {{23, 24, 25},
                                {25, 26, 27},
                                {22, 23, 24},
                                {31, 32, SDL_MAX_UINT16},
-                               {14, 17, SDL_MAX_UINT16}};
+                               {14, 17, SDL_MAX_UINT16},
+                               {14, SDL_MAX_UINT16, SDL_MAX_UINT16}};
     for (Uint32 i = 0; i < SDL_arraysize(stages); ++i)
     {
         SotnSaveState state = Profile(), decoded = {0};

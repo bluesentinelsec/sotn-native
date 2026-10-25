@@ -467,7 +467,7 @@ static bool Blood(SotnActors *s, Actor *a, SotnPlayerState player)
 }
 bool ActorSkeleton(SotnActors *s, Actor *a, SotnPlayerState player)
 {
-    if (s->stage_id == 0 || s->stage_id == 1)
+    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2)
     {
         if (a->state.id == ActorStageId(s, 0x2e))
             return Skeleton(s, a, player, false);

@@ -36,6 +36,8 @@ add_library(sotn-core STATIC
   include/sotn/stage_profile.h
   actor_stage_profile.c
   early_castle.c
+  library.c
+  library_breakable.c
   marble_clock.c
   actor_wide_animation.c
   enemy_rose.c

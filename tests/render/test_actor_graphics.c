@@ -479,7 +479,15 @@ static bool StageBankBounds(Fixture *f)
     CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     CHECK(Unchanged(f));
     SotnActorGraphics_Destroy(g);
-    CHECK(!SotnActorGraphics_CreateStage(dra, overlay, art, 2, &g) && g == NULL);
+    CHECK(SotnActorGraphics_CreateStage(dra, overlay, art, 2, &g));
+    // Stage-start bank zero must already be resident before a room asks for a bank.
+    sprite.animation_set = 0x8001;
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    ClearFrame(f);
+    sprite.animation_set = 0x8018;
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) && Unchanged(f));
+    SotnActorGraphics_Destroy(g);
+    CHECK(!SotnActorGraphics_CreateStage(dra, overlay, art, 3, &g) && g == NULL);
     return true;
 }
 

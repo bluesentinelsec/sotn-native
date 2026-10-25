@@ -347,3 +347,11 @@ event 6 HHMMSS. Continue starts supported save rooms at their center. BO4 has no
 save rooms or separate public gameplay start. Mist/palette, high jump, stone,
 complete elemental effects and whole-route/console parity remain incomplete.
 Private protected room/route fixtures are not an unmodified-character playtest.
+
+The [Long Library foundation](docs/library-runtime.md) now adds stage-2 resources,
+original music, selected shared Skeleton/Flea services, Library lamps/urns/jugs/busts
+and ordinary room-14 saves. Stage 2 stays disconnected and has no separate public
+gameplay start while area enemies, Lesser Demon, librarian/shop and scripts remain
+pending. Private protected fixtures and injected breakable hits are component
+evidence, not a full route or console replay. Do not reuse other areas' breakable
+logic or actor IDs for this overlay.

@@ -27,6 +27,8 @@ Marble Gallery and Outer Wall; further areas remain unintegrated.
 resources. Selected [boss combat](docs/doppleganger-runtime.md#stage-combat-orchestration)
 now joins its placed entrance, seals and reward through selected Outer Wall progression;
 [scope and validation](docs/doppleganger-progression.md) remain explicit.
+The [Long Library foundation](docs/library-runtime.md) remains internal while its
+area-specific enemies and librarian/shop are integrated.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve
