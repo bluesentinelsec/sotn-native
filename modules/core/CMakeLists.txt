@@ -40,6 +40,7 @@ add_library(sotn-core STATIC
   enemy_skeleton.c
   enemy_entrance.c
   enemy_warg.c
+  enemy_merman.c
   combat.c
   equipment.c
   include/sotn/equipment.h

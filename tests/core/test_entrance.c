@@ -163,10 +163,62 @@ static bool Wargs(Fixture *f)
     return true;
 }
 
+static bool Mermen(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor a = {.state = {.id = 0x41, .x = 192 * 65536, .y = 410 * 65536, .generation = 5}};
+    CHECK(ActorEntrance(s, &a) && a.state.step == 1 && a.vy == -65536);
+    CHECK(a.state.palette == 0x2b9 && a.state.hitbox_height == 17);
+    a.state.step = 6;
+    a.substep = 1;
+    a.pose = 3;
+    f->stage[0x3a9c + 6] = 1;
+    f->stage[0x3a9c + 7] = 7;
+    CHECK(ActorEntrance(s, &a) && s->slots[96].state.id == 0x42);
+    CHECK(s->combat.sound_count == 1 && s->combat.sounds[0] == 0x662);
+    Actor projectile = s->slots[96];
+    CHECK(ActorEntrance(s, &projectile) && projectile.state.scale_x == 128);
+    projectile.state.flags |= 0x100;
+    f->stage[0x3af0] = 1;
+    f->stage[0x3af1] = 1;
+    CHECK(ActorEntrance(s, &projectile) && projectile.remove);
+    a = (Actor){.state = {.id = 0x3a, .x = 192 * 65536, .y = 410 * 65536, .generation = 6}};
+    CHECK(ActorEntrance(s, &a) && a.state.hitbox_y == 8);
+    a.state.step = 6;
+    a.substep = 1;
+    f->stage[0x396c] = 255;
+    CHECK(ActorEntrance(s, &a) && a.substep == 2 && a.state.rotated);
+    CHECK(s->slots[97].state.id == 0x3c && s->slots[161].state.id == 0x3e);
+    CHECK(s->slots[161].state.parameters == 1);
+    a = (Actor){.state = {.id = 0x3b, .x = 192 * 65536, .y = 410 * 65536, .generation = 7}};
+    CHECK(ActorEntrance(s, &a));
+    for (Uint16 i = 0; i < 7; ++i)
+        f->stage[0x39f4 + i] = (Uint8)(i + 1);
+    CHECK(ActorEntrance(s, &a) && a.state.primitive_count == 4);
+    CHECK(ActorPrimitiveGet(s, &a, 0)->state.active);
+    ActorPrimitivesClear(s, &a);
+    CHECK(s->primitives[a.primitive[0]].owner == 0);
+    a = (Actor){.state = {.id = 0x44, .parameters = 4, .generation = 8}};
+    CHECK(!ActorEntrance(s, &a));
+    a = (Actor){.state = {.id = 0x3d, .parameters = 0, .generation = 9}};
+    CHECK(!ActorEntrance(s, &a));
+    a = (Actor){.state = {.id = 0x45, .generation = 10}};
+    s->ticks = 64;
+    s->player.x = 384 * 65536;
+    s->player.y = 300 * 65536;
+    CHECK(ActorEntrance(s, &a));
+    CHECK(s->slots[98].state.id == 0x41 || s->slots[98].state.id == 0x3a);
+    CHECK(Pixel(s->slots[98].state.y) == 496);
+    SotnActors_Destroy(s);
+    return true;
+}
+
 int main(void)
 {
     Fixture fixture = {0};
-    if (!Profiles(&fixture) || !Bats(&fixture) || !Zombies(&fixture) || !Wargs(&fixture))
+    if (!Profiles(&fixture) || !Bats(&fixture) || !Zombies(&fixture) || !Wargs(&fixture) ||
+        !Mermen(&fixture))
         return 1;
     SDL_Log("SOTN_ENTRANCE_TEST: PASS");
     return 0;
