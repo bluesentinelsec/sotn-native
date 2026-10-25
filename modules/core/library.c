@@ -69,6 +69,8 @@ bool ActorLibrary(SotnActors *s, Actor *a)
         return ActorLibraryFlying(s, a);
     if (a->state.id == 0x1d || a->state.id == 0x1e)
         return ActorLibraryBlood(s, a);
+    if (a->state.id >= 0x3a && a->state.id <= 0x3c)
+        return ActorLibraryPlant(s, a);
     if (a->state.id >= 0x33 && a->state.id <= 0x36)
         return ActorLibraryDhuron(s, a);
     if (a->state.id == 0x4a || a->state.id == 0x4b)
