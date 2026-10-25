@@ -358,3 +358,8 @@ unintegrated; the timeline sweep is not encounter or console parity.
 original boss sensor resolution and simulated-control decisions. Body/forms,
 weapons, intro/death/reward and ordinary arena travel remain unintegrated. Component
 fixtures do not prove a live fight or console parity.
+
+The BO4 [normal-body control service](docs/doppleganger-runtime.md#normal-body-controls)
+now advances normal movement and attack selection, emitting bounded child/sound
+requests. Requests/poses are not implemented combat. Forms, child hitboxes,
+damage/death and the live encounter remain pending; ordinary travel stays gated.

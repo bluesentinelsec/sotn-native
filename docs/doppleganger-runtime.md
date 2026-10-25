@@ -41,3 +41,28 @@ The services adapt `src/boss/dop_collision.h`, `dop_check_st_collision.h` and
 checked private-data access, explicit integer behavior and failure paths replace
 original global/entity memory dependencies. Collision temporaries start at zero;
 no uninitialized C reads are reproduced.
+
+## Normal body controls
+
+The normal-body service now consumes original PS1 input for stand/walk/crouch,
+fall/jump/double-jump, backdash and attack selection. Private transition profiles
+and animation tables retain original cancellation windows, landing decisions,
+velocities, gravity and timer order. The service emits bounded original factory,
+sound and attack-cleanup requests for the owning encounter. It does not resolve
+the requested punch/kick hitboxes, knives, smoke or other child actors. Do not count
+these attack requests or rendered poses as implemented combat.
+
+Body, animation and collision state commit atomically. Public tests use synthetic
+private-format profiles and cover turning, release/double-jump behavior, attack
+selection/completion, knife limits, crouch transitions, backdash and failure paths.
+A private native LLDB fixture runs 1,800 normal-control ticks and 450 body renders,
+producing twelve hand-attack requests, six knife requests and 168 airborne ticks
+under Debug and macOS ASan/UBSan. It supplies explicit control inputs and an arena
+start; it is not an AI-driven boss fight or console comparison.
+
+Bat/mist, damage/death and the owning encounter remain pending. Normal-body ticks
+reject unsupported form requests and steps instead of silently substituting normal
+movement. All 57 public test groups and release packaging pass locally. This slice
+adapts `bo4/dop_anim.c`, normal steps in `unk_465F0.c`, `unk_46040.c`, and transition/
+attack helpers in `unk_45648.c` at the pinned AGPL reference above. Original control
+and animation tables remain private inputs.
