@@ -23,6 +23,10 @@ add_library(sotn-core STATIC
   enemy_ouija.c
   enemy_flea.c
   enemy_slinger.c
+  enemy_skelerang.c
+  enemy_diplo.c
+  enemy_diplo_tail.c
+  enemy_diplo_fire.c
   stage_route.c
   include/sotn/stage_route.h
   actor_layout.c

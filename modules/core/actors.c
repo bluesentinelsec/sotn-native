@@ -381,7 +381,8 @@ static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 0)
         return id == 0x47 || id == 0x48 || id == 0x4d || id == 0x4e || id == 0x4c || id == 0x3a ||
-               id == 0x3b || id == 0x4a || id == 0x4b || id == 0x3d || id == 0x3e || id == 0x3f;
+               id == 0x3b || (id >= 0x21 && id <= 0x25) || id == 0x2e || id == 0x2f || id == 0x4a ||
+               id == 0x4b || id == 0x3d || id == 0x3e || id == 0x3f;
     if (actors->stage_id == 1)
         return id == 0x3e || id == 0x3f;
     if (actors->stage_id == 7)
@@ -569,21 +570,35 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     !(recipient->state.flags & (0x400000 | 0x100)))
                     recipient->stun = source.attack.stun_frames;
             }
-            if (actors->stage_id == 0 && actor->state.id == 0x3d)
+            if (actors->stage_id == 0 &&
+                (actor->state.id == 0x3d || (actor->state.id >= 0x21 && actor->state.id <= 0x24)))
             {
-                const Uint32 part = actor->state.parameters;
-                if (part > 11 || actor->slot < part ||
-                    actor->slot - part + 11 >= SOTN_STAGE_ACTOR_SLOTS)
-                    return SDL_SetError("Stone Rose contact has an invalid segment chain");
-                const Uint32 base = actor->slot - part;
-                if (actor->state.hit_points == 0x7fff)
+                const bool rose = actor->state.id == 0x3d;
+                const Uint32 count = rose ? 12 : 16;
+                Uint32 base = actor->slot;
+                if (rose)
                 {
-                    actor->hit_flags = 0x10;
+                    if (actor->state.parameters >= count || actor->slot < actor->state.parameters)
+                        return SDL_SetError("Stone Rose contact has an invalid segment chain");
+                    base -= actor->state.parameters;
                 }
-                for (Uint32 i = 0; i < 12; ++i)
+                else if (actor->state.id != 0x21)
+                {
+                    const Actor *root = ActorDiploOwner(actors, actor);
+                    if (root == NULL)
+                        return SDL_SetError("Diplocephalus contact lost its original body");
+                    base = root->slot;
+                }
+                if (base + count > SOTN_STAGE_ACTOR_SLOTS)
+                    return SDL_SetError("Linked enemy contact exceeds its reserved segment range");
+                if (actor->state.hit_points == 0x7fff)
+                    actor->hit_flags = 0x10;
+                for (Uint32 i = 0; i < count; ++i)
                 {
                     Actor *peer = &actors->slots[base + i];
-                    if (peer == actor || peer->state.id != 0x3d || !peer->state.generation)
+                    const bool family = rose ? peer->state.id == 0x3d
+                                             : peer->state.id >= 0x21 && peer->state.id <= 0x24;
+                    if (peer == actor || !family || !peer->state.generation)
                         continue;
                     if (actor->state.hit_points != 0x7fff || peer->state.hit_points == 0x7fff)
                         peer->cooldown[hand] =

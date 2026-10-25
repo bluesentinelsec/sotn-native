@@ -10,6 +10,10 @@ bool ActorEarlyCastle(SotnActors *s, Actor *a)
         return ActorSkeleton(s, a, s->player);
     if (s->stage_id == 0 && (a->state.id == 0x47 || a->state.id == 0x48))
         return ActorKnight(s, a, s->player);
+    if (s->stage_id == 0 && (a->state.id == 0x13 || (a->state.id >= 0x21 && a->state.id <= 0x26)))
+        return ActorDiplo(s, a);
+    if (s->stage_id == 0 && a->state.id >= 0x2e && a->state.id <= 0x30)
+        return ActorSkelerang(s, a);
     if (s->stage_id == 0 && a->state.id == 0x3d)
         return ActorRose(s, a);
     if (s->stage_id == 0 &&

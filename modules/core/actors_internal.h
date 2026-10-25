@@ -101,6 +101,12 @@ typedef struct Actor
     } rose;
     struct
     {
+        Sint32 acceleration, previous_x, previous_y, previous_vx, previous_vy;
+        Sint16 angle;
+        Uint16 index, phase, cycles, reaction, hits, last_hit, active_foot, walk_count, tip;
+    } diplo;
+    struct
+    {
         Uint16 groups, cadence;
         Sint32 flash;
     } reward;
@@ -207,6 +213,8 @@ bool ActorAnimate(SotnActors *actors, Actor *actor, size_t offset, Uint8 *result
 bool ActorQuery(SotnActors *actors, Sint32 x, Sint32 y, SotnCollider *out);
 bool ActorSound(SotnActors *actors, Uint16 id);
 bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind);
+bool ActorExplosionInPool(SotnActors *actors, const Actor *source, Uint16 kind, Uint32 begin,
+                          Uint32 end, Uint16 priority);
 bool ActorGround(SotnActors *actors, Actor *actor, size_t sensors, Uint16 *result);
 bool ActorWalk(SotnActors *actors, Actor *actor, size_t sensors, Uint16 *result);
 bool ActorField(SotnActors *actors, Actor *actor, size_t sensors, Uint16 count, bool resolve,
@@ -257,6 +265,11 @@ size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
 bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
 bool ActorFlea(SotnActors *actors, Actor *actor);
+Actor *ActorDiploOwner(SotnActors *actors, const Actor *actor);
+bool ActorDiplo(SotnActors *actors, Actor *actor);
+bool ActorDiploTail(SotnActors *actors, Actor *actor, Actor *root);
+bool ActorDiploFireball(SotnActors *actors, Actor *actor);
+bool ActorSkelerang(SotnActors *actors, Actor *actor);
 bool ActorOuija(SotnActors *actors, Actor *actor);
 bool ActorRose(SotnActors *actors, Actor *actor);
 bool ActorRoseSeed(SotnActors *actors, Actor *actor);

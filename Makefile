@@ -160,3 +160,6 @@ clean:
 SOTN_FORMAT_SOURCES += modules/core/actor_wide_animation.c modules/core/enemy_flea.c \
   modules/core/enemy_slinger.c modules/core/enemy_ouija.c modules/core/enemy_rose.c \
   modules/core/enemy_rose_seed.c tests/core/test_marble_enemies.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_skelerang.c modules/core/enemy_diplo.c \
+  modules/core/enemy_diplo_tail.c modules/core/enemy_diplo_fire.c
