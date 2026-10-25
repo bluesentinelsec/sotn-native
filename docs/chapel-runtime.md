@@ -113,3 +113,8 @@ Selected [bell behavior](chapel-bells.md) now adds the original small/large rope
 and projected bodies, damped swing, ringing, inside concealment and short input
 override. The ordered draw-area adapter affects intervening primitives/player
 presentation; complete GPU/effects and transformed-player parity remain unproven.
+
+Selected [internal tower exits](chapel-tower-exits.md) now retain all fifteen
+original threshold variants and adjusted neighbor cells. Private native checks
+cover four actual tower/skyway/spike-corridor crossings. Chapel remains disconnected;
+scripts, boss, remaining scenery and whole-route/console parity remain incomplete.

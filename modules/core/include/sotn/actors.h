@@ -5,6 +5,7 @@
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
 #include <sotn/player.h>
+#include <sotn/stage_route.h>
 #include <sotn/world.h>
 
 /** @brief Owned development actor simulation, borrowing private images and room data. */
@@ -33,8 +34,9 @@ typedef struct SotnActorMotion
     Sint32 x, y;     /**< Signed 16.16 displacement, at most 64 pixels per axis. */
     Uint32 contacts; /**< Original ground/ceiling/wall plus object-contact bits. */
     bool halt_vertical, protect,
-        stop_velocity; /**< Original door/event velocity stop and 32-tick protection. */
-    bool bell_inside;  /**< Original bell concealment/status interval, recomputed each tick. */
+        stop_velocity;    /**< Original door/event velocity stop and 32-tick protection. */
+    bool bell_inside;     /**< Original bell concealment/status interval, recomputed each tick. */
+    bool stop_horizontal; /**< Original tower-exit death guard; preserve vertical velocity. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through
@@ -75,6 +77,10 @@ bool SotnActors_SetTileArt(SotnActors *actors, SotnDataView pages, SotnDataView 
  * @param actors Entered simulation. @param out Receives copied motion.
  * @return Success or SDL error. */
 bool SotnActors_GetMotion(const SotnActors *actors, SotnActorMotion *out);
+/** @brief Copy transient original room limits after actor updates and before room lookup.
+ * @param actors Entered simulation. @param out Copied window, unchanged on failure.
+ * @return Success or SDL error. Room entry resets all limits; no save state is changed. */
+bool SotnActors_GetRoomWindow(const SotnActors *actors, SotnRoomWindow *out);
 
 /** @brief Copied actor state used by native presentation and replay inspection. */
 typedef struct SotnActorState

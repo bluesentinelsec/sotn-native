@@ -72,9 +72,66 @@ static int Boss(void)
     CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route));
     return 0;
 }
+static int Window(void)
+{
+    SotnRoomWindow window = {.end_x = 1024, .last_cell = 3};
+    SotnRoomCrossing crossing = {0}, full = {0};
+    const Sint32 xs[] = {-1, 0, 128, 1023, 1024};
+    const Sint32 ys[] = {-1, 3, 4, 227, 228, 251, 252, 256};
+    for (Uint16 ground = 0; ground < 2; ++ground)
+        for (size_t x = 0; x < SDL_arraysize(xs); ++x)
+            for (size_t y = 0; y < SDL_arraysize(ys); ++y)
+            {
+                CHECK(SotnStageRoute_Crossing(xs[x], ys[y], 1024, 256, ground != 0, &full));
+                CHECK(SotnStageRoute_WindowCrossing(window, xs[x], ys[y], 1024, 256, ground != 0,
+                                                    &crossing));
+                // Horizontal probes select cell origins; arrival still uses the real player.
+                CHECK(crossing.active == full.active && crossing.y == full.y &&
+                      crossing.arrival_y == full.arrival_y &&
+                      crossing.x == (xs[x] < 0 ? -256 : full.x));
+            }
+    window.end_x = 640;
+    --window.last_cell;
+    CHECK(SotnStageRoute_WindowCrossing(window, 641, 640, 1024, 2560, false, &crossing) &&
+          crossing.active && crossing.x == 768 && crossing.y == 640 && !crossing.arrival_y);
+    window = (SotnRoomWindow){.start_x = 384, .end_x = 1024, .origin_cell = 1, .last_cell = 3};
+    CHECK(SotnStageRoute_WindowCrossing(window, 383, 896, 1024, 2560, false, &crossing) &&
+          crossing.active && crossing.x == 0 && crossing.y == 896);
+    CHECK(SotnStageRoute_WindowCrossing(window, 641, 896, 1024, 2560, false, &crossing) &&
+          !crossing.active);
+    CHECK(SotnStageRoute_WindowCrossing(window, 1024, 896, 1024, 2560, false, &crossing) &&
+          !crossing.active);
+    CHECK(SotnStageRoute_WindowCrossing(window, 1024, 3, 1024, 2560, false, &crossing) &&
+          crossing.active && crossing.x == 1024 && crossing.arrival_y == -48);
+    CHECK(SotnStageRoute_WindowCrossing(window, 383, 3, 1024, 2560, false, &crossing) &&
+          crossing.active && crossing.x == 0 && !crossing.arrival_y);
+    // Stable physical world position: original left++ and room-X-=256 cancel.
+    const Sint32 physical_x = 383, initial_cell = 13;
+    CHECK(initial_cell * 256 + physical_x ==
+          (initial_cell + window.origin_cell) * 256 + physical_x - window.origin_cell * 256);
+    crossing.arrival_y = 123;
+    const SotnRoomWindow invalid[] = {
+        {.end_x = 1025, .last_cell = 3},
+        {.start_x = -1, .end_x = 1024, .last_cell = 3},
+        {.start_x = 1024, .end_x = 1024, .last_cell = 3},
+        {.end_x = 1024, .origin_cell = -1, .last_cell = 3},
+        {.end_x = 1024, .origin_cell = 65, .last_cell = 3},
+        {.end_x = 1024, .last_cell = -2},
+        {.end_x = 1024, .last_cell = 4},
+    };
+    for (size_t i = 0; i < SDL_arraysize(invalid); ++i)
+        CHECK(!SotnStageRoute_WindowCrossing(invalid[i], 128, 128, 1024, 256, false, &crossing) &&
+              crossing.arrival_y == 123);
+    CHECK(!SotnStageRoute_WindowCrossing(window, 128, 128, 1025, 256, false, &crossing));
+    CHECK(!SotnStageRoute_WindowCrossing(window, -65, 128, 1024, 256, false, &crossing));
+    CHECK(!SotnStageRoute_WindowCrossing(window, 128, 128, 1024, 256, false, NULL));
+    CHECK(crossing.arrival_y == 123);
+    return 0;
+}
 int main(void)
 {
     CHECK(Boss() == 0);
+    CHECK(Window() == 0);
     Uint8 bytes[0x245c + 131 * 10] = {0};
     SotnDataView dra = {bytes, sizeof(bytes)};
     Uint8 *record = bytes + 0x245c + 130 * 10;

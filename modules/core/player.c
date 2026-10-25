@@ -1271,6 +1271,14 @@ bool SotnPlayer_StageStop(SotnPlayer *p)
     return true;
 }
 
+bool SotnPlayer_StageStopHorizontal(SotnPlayer *p)
+{
+    if (p == NULL)
+        return SDL_InvalidParamError("player");
+    p->vx = 0;
+    return true;
+}
+
 bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
 {
     if (p == NULL)

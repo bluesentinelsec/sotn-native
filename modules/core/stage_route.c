@@ -31,17 +31,16 @@ bool SotnStageRoute_Read(SotnDataView dra, Uint16 source, Uint16 index, SotnStag
 
 // dra/5087C.c:func_800F0CD8. Vertical rooms overlap at the transition; a world-grid
 // rebase alone loses the original upward 48-pixel and downward 24/48-pixel adjustments.
-bool SotnStageRoute_Crossing(Sint32 x, Sint32 y, Uint32 width, Uint32 height, bool grounded,
-                             SotnRoomCrossing *out)
+static bool CrossingBounds(Sint32 x, Sint32 y, Uint32 width, Uint32 height)
 {
-    if (out == NULL || width < 256 || width > 16384 || height < 256 || height > 16384 ||
-        width % 256 || height % 256 || x < -64 || y < -64 || x > (Sint32)width + 64 ||
-        y > (Sint32)height + 64)
-        return SDL_SetError("Room crossing requires bounded tile-grid dimensions and position");
+    return width >= 256 && width <= 16384 && height >= 256 && height <= 16384 && width % 256 == 0 &&
+           height % 256 == 0 && x >= -64 && y >= -64 && x <= (Sint32)width + 64 &&
+           y <= (Sint32)height + 64;
+}
+static SotnRoomCrossing VerticalCrossing(Sint32 x, Sint32 y, Uint32 height, bool grounded)
+{
     SotnRoomCrossing crossing = {.x = x, .y = y};
-    if (x < 0 || x >= (Sint32)width)
-        crossing.active = true;
-    else if (y < 4)
+    if (y < 4)
     {
         crossing.active = true;
         crossing.y = -1;
@@ -57,6 +56,33 @@ bool SotnStageRoute_Crossing(Sint32 x, Sint32 y, Uint32 width, Uint32 height, bo
             crossing.arrival_y = overlap;
         }
     }
+    return crossing;
+}
+bool SotnStageRoute_Crossing(Sint32 x, Sint32 y, Uint32 width, Uint32 height, bool grounded,
+                             SotnRoomCrossing *out)
+{
+    if (out == NULL || !CrossingBounds(x, y, width, height))
+        return SDL_SetError("Room crossing requires bounded tile-grid dimensions and position");
+    *out = x < 0 || x >= (Sint32)width ? (SotnRoomCrossing){.x = x, .y = y, .active = true}
+                                       : VerticalCrossing(x, y, height, grounded);
+    return true;
+}
+
+bool SotnStageRoute_WindowCrossing(SotnRoomWindow window, Sint32 x, Sint32 y, Uint32 width,
+                                   Uint32 height, bool grounded, SotnRoomCrossing *out)
+{
+    if (out == NULL || !CrossingBounds(x, y, width, height))
+        return SDL_SetError("Room window requires bounded tile-grid dimensions and position");
+    if (window.start_x < 0 || window.end_x < 256 || window.start_x >= window.end_x ||
+        window.end_x > (Sint32)width || window.origin_cell < 0 || window.origin_cell > 64 ||
+        window.last_cell < -1 || window.last_cell >= (Sint32)(width / 256))
+        return SDL_SetError("Room window has invalid horizontal limits or castle-cell endpoints");
+    const Sint32 reference_x = x - window.origin_cell * 256;
+    SotnRoomCrossing crossing = VerticalCrossing(x, y, height, grounded);
+    if (reference_x < window.start_x)
+        crossing = (SotnRoomCrossing){.x = (window.origin_cell - 1) * 256, .y = y, .active = true};
+    else if (reference_x >= window.end_x)
+        crossing = (SotnRoomCrossing){.x = (window.last_cell + 1) * 256, .y = y, .active = true};
     *out = crossing;
     return true;
 }

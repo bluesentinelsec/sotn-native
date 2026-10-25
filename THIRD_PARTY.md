@@ -433,3 +433,9 @@ draw-area bounds follow the selected `st/e_bell.h` operations and MIT SDK
 projection extends the separately credited MPL-2.0 PSY-Z matrix/divider adapter.
 Original bell profiles, positions, model pointers/vertices, artwork and SDK tables
 remain private runtime inputs.
+
+`modules/core/chapel_exit.c` adapts `st/dai/e_tower_exit.c` at the pinned
+sotn-decomp revision (AGPL-3.0-or-later). Its room-window resolver and selected
+session ordering follow `dra/5087C.c:{Engine_Normal,func_800F0CD8,SetNextRoomToLoad}`.
+Stable native coordinates replace the reference's paired cell/player-origin changes;
+private initialization, placement and transition records remain runtime inputs.
