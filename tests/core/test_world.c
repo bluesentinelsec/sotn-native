@@ -41,6 +41,33 @@ static bool Open(Fixture *f, SotnActors **out, SotnActorLayout **layout)
         0));
     return true;
 }
+static bool TimeAttack(void)
+{
+    SotnWorldState state = {0};
+    CHECK(SotnWorld_RecordTime(&state, 2, 0) && state.time_attack[2] == 0);
+    CHECK(SotnWorld_VisitEvent(&state, 2) && state.time_attack[2] == 0 &&
+          state.time_attack_visited == 4);
+    CHECK(SotnWorld_RecordTime(&state, 2, 3661) && state.time_attack[2] == 10101);
+    CHECK(SotnWorld_RecordTime(&state, 2, 7200) && state.time_attack[2] == 10101);
+    CHECK(SotnWorld_VisitEvent(&state, 31) && state.time_attack_visited == 0x80000004U);
+    CHECK(SotnWorld_RecordTime(&state, 31, 99999U * 3600) && state.time_attack[31] == 999990000U);
+    CHECK(SotnWorld_RecordTime(&state, 3, 59) && state.time_attack[3] == 59);
+    CHECK(SotnWorld_RecordTime(&state, 4, 60) && state.time_attack[4] == 100);
+    CHECK(SotnWorld_RecordTime(&state, 5, 3599) && state.time_attack[5] == 5959);
+    CHECK(SotnWorld_Validate(&state));
+    const SotnWorldState before = state;
+    CHECK(!SotnWorld_RecordTime(&state, 32, 1) &&
+          !SotnWorld_RecordTime(&state, 1, 99999U * 3600 + 1));
+    CHECK(!SotnWorld_VisitEvent(&state, 32) && SDL_memcmp(&state, &before, sizeof(state)) == 0);
+    CHECK(!SotnWorld_VisitEvent(NULL, 0) && !SotnWorld_RecordTime(NULL, 0, 0));
+    const Uint32 invalid[] = {60, 6000, 1000000000, 999990001};
+    for (Uint32 i = 0; i < SDL_arraysize(invalid); ++i)
+    {
+        state.time_attack[0] = invalid[i];
+        CHECK(!SotnWorld_Validate(&state));
+    }
+    return true;
+}
 static bool Map(void)
 {
     SotnWorldState state = {0};
@@ -291,8 +318,8 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     SotnActors *s = NULL;
     SotnActorLayout *layout = NULL;
-    const bool ok = f != NULL && Map() && Open(f, &s, &layout) && Collision(s) && Switches(s) &&
-                    Lifts(s, f) && Secrets(s, f) && Doors(s, f) && Cannon(s, f);
+    const bool ok = f != NULL && TimeAttack() && Map() && Open(f, &s, &layout) && Collision(s) &&
+                    Switches(s) && Lifts(s, f) && Secrets(s, f) && Doors(s, f) && Cannon(s, f);
     if (ok && Read16(f->tiles + (8 * 32 + 7) * 2) != 0)
     {
         SDL_Log("Mechanism modified immutable input");

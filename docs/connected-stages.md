@@ -75,3 +75,8 @@ the original upward/downward overlap adjustments and early edge probes. A direct
 world-grid coordinate rebase made the Laboratory entrance jump too low; room
 rebasing now preserves velocity/fractions while applying the original offset.
 Camera-edge locks and transformation-specific crossing rules remain separate work.
+
+[Selected Doppleganger progression](doppleganger-progression.md) now applies the
+original Outer Wall boss override before ordinary room selection. Victory, reward,
+return travel and an ordinary save/Continue retain original event records in v7.
+Other stages' boss overrides remain outside this selected integration boundary.

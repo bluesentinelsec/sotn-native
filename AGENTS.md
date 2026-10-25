@@ -181,7 +181,7 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 6 saves retain this
+Spells/relic/settings/familiar menus remain unavailable. Version 7 saves retain this
 supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
@@ -192,7 +192,7 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 6 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 7 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
 owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4/5
 migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1
@@ -337,71 +337,13 @@ contact. Gold heads reach the selected petrification service, whose statue and
 complete death presentation remain incomplete. Native checks use protected room
 starts and positioned contact, not ordinary traversal or console parity evidence.
 
-The [Doppleganger arena adapters](docs/doppleganger-arena.md) now identify BO4's
-private room/art/audio and common tables, with explicit missing-map failures.
-Its profile is disconnected from ordinary travel and has no saves; the public
-CLI does not expose a BO4 gameplay start. Boss/intro/reward actors remain
-unsupported. An adapter/room diagnostic is not an implemented boss encounter.
-
-[BO4 packed sprites](docs/doppleganger-sprites.md) now resolve body/bat sheets,
-pivots and palettes with checked native sampling. Private graphics checks cover
-217 backed body/16 bat frames and skip 46 unbacked definitions; they do not validate
-boss gameplay. Modified-VRAM dissolution, full transform/GPU parity and the boss
-runtime remain unfinished. The arena stays disconnected.
-
-The BO4 [timeline adapter](docs/doppleganger-sprites.md#original-timeline-adapter)
-now advances private player-format boss animation tables, including the bounded
-original adjacent-property read. Movement, AI and ordinary arena travel remain
-unintegrated; the timeline sweep is not encounter or console parity.
-
-[BO4 collision and thinking](docs/doppleganger-runtime.md) now provide independent
-original boss sensor resolution and simulated-control decisions. Body/forms,
-weapons, intro/death/reward and ordinary arena travel remain unintegrated. Component
-fixtures do not prove a live fight or console parity.
-
-The BO4 [normal-body control service](docs/doppleganger-runtime.md#normal-body-controls)
-now advances normal movement and attack selection, emitting bounded child/sound
-requests. Requests/poses are not implemented combat. Child hitboxes remain separate components;
-damage/death and the live encounter remain pending; ordinary travel stays gated.
-
-BO4 [child factories and hand-box decoding](docs/doppleganger-runtime.md#child-factories-and-hand-hitboxes)
-now resolve private spawn profiles and punch/kick pose boxes. They remain internal
-component services, not live combat or ordinary stage updates. Six smoke/knife
-children in the private fixture are explicitly skipped; full encounter work remains.
-
-The BO4 [knife child](docs/doppleganger-runtime.md#thrown-knife-child) now resolves
-original throw/collision/bounce/fade/expiry and textured/trail presentation in
-component fixtures. Live encounter/player contact is still pending; three impact
-children are skipped and GPU endpoint/order parity remains unproven.
-
-BO4 [transformation controls and blink](docs/doppleganger-runtime.md#transformation-controls-and-blink-child)
-now advance bat/wing-smash/return and original blink timing with private display-cache
-artwork and bounded Gouraud/SDK geometry. Mist controls require external child phase
-signals; the actual mist child, palette service, trails/smoke, damage/death and live
-encounter remain pending. The private sequence skips four requests; it is not a
-live boss or console parity replay. Ordinary arena travel remains disabled.
-
-BO4 [hit/physical-death components](docs/doppleganger-runtime.md#hit-reactions-and-physical-defeat)
-now preserve small/launch reactions, original RNG/timer order, selected shading and
-simulation-owned scratch-image erasure. Debug/ASan private explicit-hit sequences
-and sparse-render comparison pass; seven child/effect/profile requests are skipped.
-Complete elemental effects, stone status/shatter death, live encounter, reward and
-ordinary arena progression remain pending. Input uses the original stage hit-effect
-selector, not a raw element bit. Do not describe the component fixture as boss gameplay.
-
-BO4 [stage combat orchestration](docs/doppleganger-runtime.md#stage-combat-orchestration)
-now joins AI/body, original factories, hand/knife/wing contact, smoke/particles and
-physical defeat through native stage updates. A private LLDB explicit-root fixture
-with 999 HP/STR30 Alucard defeats the original-health boss at tick3466; it is not
-ordinary progression or an unmodified-character playtest. Default stage graphics
-bank0 now initializes BO4 hand artwork. Primitive counts are Uint16, limit384;
-the allocatable pool is1024 with separate consecutive allocation. All59 groups,
-macOS ASan/UBSan and package pass. Intro/seals/light/shock/music/reward and durable
-record remain pending; stage26 stays disconnected with no public gameplay CLI.
-Mist/palette, high jump, stone and complete elemental effects remain unavailable.
-
-The [Doppleganger entrance/reward](docs/doppleganger-entry.md) now runs placed
-entry actors, selected light/shock, arena seals, music and the Life Max Up. Its
-defeat time is transient; durable records and ordinary transfers remain pending.
-The stage stays disconnected until that boundary works. Private protected arena
-checks are not an ordinary route or console parity evidence.
+The [Doppleganger arena](docs/doppleganger-arena.md), [runtime](docs/doppleganger-runtime.md)
+and [entry/reward flow](docs/doppleganger-entry.md) now run selected native AI/body,
+hand/knife/wing combat, physical defeat, placed entrance effects, block seals,
+music and Life Max Up collection. Original Outer Wall boss overrides now select
+BO4 before ordinary rooms; v7 saves retain all 32 original time-attack records and
+visited bits. Versions 1–6 migrate explicitly; v4–6 Laboratory seconds convert to
+event 6 HHMMSS. Continue starts supported save rooms at their center. BO4 has no
+save rooms or separate public gameplay start. Mist/palette, high jump, stone,
+complete elemental effects and whole-route/console parity remain incomplete.
+Private protected room/route fixtures are not an unmodified-character playtest.

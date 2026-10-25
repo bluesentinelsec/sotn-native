@@ -20,8 +20,14 @@ bool SotnWorld_Visit(SotnWorldState *s, Sint32 x, Sint32 y, bool inverted)
 }
 bool SotnWorld_Validate(const SotnWorldState *s)
 {
-    if (s == NULL || s->rooms > 8192 || s->laboratory_boss_time > 99999U * 3600)
+    if (s == NULL || s->rooms > 8192)
         return SDL_SetError("Saved castle progress has invalid bounds");
+    for (Uint32 i = 0; i < SOTN_TIME_ATTACK_EVENTS; ++i)
+    {
+        const Uint32 record = s->time_attack[i];
+        if (record > 999990000U || record % 100U >= 60 || record / 100U % 100U >= 60)
+            return SDL_SetError("Saved time-attack event %u has an invalid HHMMSS record", i);
+    }
     if (s->flags[SOTN_CLOCK_FLOOR] > 1)
         return SDL_SetError("Saved clock-room floor flag is invalid");
     if (s->flags[SOTN_OUTER_ELEVATOR] > 1 || s->flags[SOTN_OUTER_PRESSURE] > 1)
@@ -43,5 +49,23 @@ bool SotnWorld_Validate(const SotnWorldState *s)
     if (s->flags[SOTN_ENTRANCE_DEATH] > 1 || s->flags[SOTN_ENTRANCE_ON] > 1 ||
         s->flags[SOTN_ENTRANCE_STAIRS] > 1)
         return SDL_SetError("Saved Entrance event flag is invalid");
+    return true;
+}
+
+// dra/timeattack.c: original zero-only records and independent visited bits.
+bool SotnWorld_RecordTime(SotnWorldState *s, Uint16 event, Uint32 seconds)
+{
+    if (s == NULL || event >= SOTN_TIME_ATTACK_EVENTS || seconds > 99999U * 3600)
+        return SDL_SetError("Time-attack record requires a valid event and bounded elapsed time");
+    if (s->time_attack[event] == 0)
+        s->time_attack[event] =
+            seconds % 60U + seconds / 60U % 60U * 100U + seconds / 3600U * 10000U;
+    return true;
+}
+bool SotnWorld_VisitEvent(SotnWorldState *s, Uint16 event)
+{
+    if (s == NULL || event >= SOTN_TIME_ATTACK_EVENTS)
+        return SDL_SetError("Time-attack visitation requires an original event index");
+    s->time_attack_visited |= (Uint32)1U << event;
     return true;
 }

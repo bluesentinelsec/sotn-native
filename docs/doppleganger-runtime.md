@@ -226,5 +226,6 @@ console replay.
 Mist/palette service, high jump, stone and full elemental effects remain pending.
 Unsupported child requests fail explicitly. The [entry/reward service](doppleganger-entry.md)
 now adds the placed manager, plates/light/shock, block doors, music transitions and
-selected Life Max Up. Durable arena records and ordinary transfer selection remain
-the next boundary. The stage profile stays disconnected until that boundary works.
+selected Life Max Up. [Connected progression](doppleganger-progression.md) now retains durable event
+records and selects BO4 from the original Outer Wall overrides. Other missing
+effects and whole-route/console parity remain separate work.

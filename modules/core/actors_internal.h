@@ -237,8 +237,7 @@ struct SotnActors
     {
         SotnDoppleBody body;
         SotnDoppleAI ai;
-        bool active, blink_lock, visited;
-        Uint32 record_time;
+        bool active, blink_lock;
         Sint32 anchor_x, anchor_y;
         Uint32 blink_angles[16];
         Sint32 debris_x[32], debris_y[32];

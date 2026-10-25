@@ -16,7 +16,7 @@ and the existing saves intact.
 
 Each profile sets its original actor-ID bound, private table locations, permanent
 pickup range, red-door tile count, sprite-table count, and ordinary save rooms.
-Marble Gallery saves use rooms 31/32; Outer Wall uses 14/17. Version 6 remains the
+Marble Gallery saves use rooms 31/32; Outer Wall uses 14/17. Version 7 is the
 explicit save format. Continue labels these slots MAR and OUT.
 
 The shared Skeleton behavior uses the original stage-specific body, thrown-bone
@@ -56,7 +56,7 @@ The [Outer Wall elevator](outer-wall-elevator.md) now supports selected rides, r
 Selected [Marble enemies](marble-gallery-enemies.md), including
 [Skelerang and Diplocephalus](marble-linked-enemies.md), now run. Other area-specific
 enemies, the [late clock ritual](marble-clock-room.md), hidden routes, boss transfer
-and Doppleganger remain incomplete. The existing unsupported-actor diagnostics stay
+and full Doppleganger parity remain incomplete. Selected [boss progression](doppleganger-progression.md) now connects its arena and reward. The existing unsupported-actor diagnostics stay
 visible. Do not call these stages complete or this a complete authentic game.
 
 ## Validation and provenance

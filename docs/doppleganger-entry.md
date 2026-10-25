@@ -3,9 +3,9 @@
 The native BO4 service now runs its placed entry manager, paired opening plates,
 light/shock geometry, eight block doors, music transitions and Life Max Up reward.
 The manager holds player controls for the original opening interval, creates the
-boss through its event, records a transient defeat time and waits for physical
-defeat before opening the seals and presenting the reward. Ordinary travel stays
-gated until durable boss records and the original transfer selection are connected.
+boss through its event, records its original defeat time and waits for physical
+defeat before opening the seals and presenting the reward. [Connected progression](doppleganger-progression.md) now retains the original
+defeat/visited records and selects this arena from the Outer Wall.
 
 The opposite opening plates retain the original signed movement threshold and
 16-bit coordinate wrap. Only these actors bypass the native ordinary room bounds;

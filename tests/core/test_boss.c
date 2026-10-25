@@ -150,7 +150,8 @@ static bool Encounter(Fixture *f)
         for (Uint32 i = 96; i < 128; ++i)
             projectile |= s->slots[i].state.id == 0x42 || s->slots[i].state.id == 0x45;
     }
-    CHECK(flight && ground && projectile && s->world->laboratory_boss_visited);
+    CHECK(flight && ground && projectile &&
+          (s->world->time_attack_visited & (1U << SOTN_TIME_LAB_BOSSES)));
     CHECK(s->slots[17].enemy_state.owner_generation == s->slots[16].state.generation);
     // A hit launches Slogra into Gaibon's pickup envelope, then their shared plunge state.
     Actor *slogra = &s->slots[16], *gaibon = &s->slots[24];
@@ -203,12 +204,12 @@ static bool Encounter(Fixture *f)
     }
     SDL_Log("Boss result: kills%u flags%x record%u permanent%u reward%d drop%d parts%u; Slogra "
             "id%x step%u HP%d; Gaibon id%x step%u HP%d",
-            s->combat.kills, s->boss_flags, s->world->laboratory_boss_time,
+            s->combat.kills, s->boss_flags, s->world->time_attack[SOTN_TIME_LAB_BOSSES],
             s->world->flags[SOTN_LAB_BOSSES], reward, drop, maximum_parts, slogra->state.id,
             slogra->state.step, slogra->state.hit_points, gaibon->state.id, gaibon->state.step,
             gaibon->state.hit_points);
     CHECK(s->combat.kills == 2 && s->world->flags[SOTN_LAB_BOSSES] == 1 &&
-          s->world->laboratory_boss_time != 0);
+          s->world->time_attack[SOTN_TIME_LAB_BOSSES] != 0);
     CHECK((s->boss_flags & 26) == 26 && reward && drop && maximum_parts == 193);
     Uint32 owners = 0;
     for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)

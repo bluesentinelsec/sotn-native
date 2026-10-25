@@ -660,6 +660,17 @@ static bool TickSaveRoom(SotnLaboratory *session, Uint16 buttons)
     return true;
 }
 
+static bool QueueStageArrival(SotnLaboratory *session, SotnStageRoute route)
+{
+    const SotnStageProfile *destination = SotnStageProfile_Get(route.stage);
+    if (destination == NULL || !destination->connected)
+        return SDL_SetError("Stage %u is outside the integrated native castle checkpoint",
+                            route.stage);
+    session->arrival = route;
+    session->stage_pending = true;
+    return true;
+}
+
 static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 {
     const Sint32 local_x = Pixel(state->x), local_y = Pixel(state->y);
@@ -673,6 +684,18 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         return true;
     const Sint32 world_x = (Sint32)session->room.left * 256 + crossing.x;
     const Sint32 world_y = (Sint32)session->room.top * 256 + crossing.y;
+    if (session->stage_id == 1)
+    {
+        SotnStageRoute boss = {0};
+        bool found = false;
+        const Sint32 chunk_x = world_x >= 0 ? world_x / 256 : -((255 - world_x) / 256);
+        const Sint32 chunk_y = world_y >= 0 ? world_y / 256 : -((255 - world_y) / 256);
+        if (!SotnStageRoute_FindBoss(session->dra, session->stage_id, chunk_x, chunk_y,
+                                     &session->world, &found, &boss))
+            return false;
+        if (found)
+            return QueueStageArrival(session, boss);
+    }
     for (Uint32 i = 0; i < SotnStage_RoomCount(session->stage); ++i)
     {
         SotnStageRoom room = {0};
@@ -686,13 +709,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             SotnStageRoute route = {0};
             if (!SotnStageRoute_Read(session->dra, session->stage_id, room.layout_id, &route))
                 return false;
-            const SotnStageProfile *destination = SotnStageProfile_Get(route.stage);
-            if (destination == NULL || !destination->connected)
-                return SDL_SetError("Stage %u is outside the integrated native castle checkpoint",
-                                    route.stage);
-            session->arrival = route;
-            session->stage_pending = true;
-            return true;
+            return QueueStageArrival(session, route);
         }
         const Sint32 offset_x = ((Sint32)session->room.left - room.left) * 256;
         const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256 + crossing.arrival_y;
@@ -807,9 +824,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnResource_Open(directory, SOTN_RESOURCE_GAME_OVER, &session->game_over_art) ||
         !SotnPlayer_Create(
             session->dra, session->room.foreground.collision,
-            start.arrival      ? start.arrival->x
-            : stage_id == 65   ? (start_room == 11 ? 16 : 128)
-            : start_room >= 22 ? 128
+            start.arrival                                  ? start.arrival->x
+            : (session->room.foreground.parameters & 0x20) ? 128
+            : stage_id == 65                               ? (start_room == 11 ? 16 : 128)
+            : start_room >= 22                             ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
                                                                                           : 32,
             start.arrival                        ? start.arrival->y
@@ -871,7 +889,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
             "complete castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-six saves with stage, explored cells, and permanent castle events.");
+            "and version-seven saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
         SDL_Log("Development entry: original Entrance equipment when applicable; "
                 "70 HP, base stats 6. Prologue-derived initialization remains separate.");
