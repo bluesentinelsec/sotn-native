@@ -453,3 +453,9 @@ push delay, rotating collision/lighting/subdivision, static neighbors and saved
 discovery flag 112. v8 retains discovery, not transient pose/momentum. Its native
 check uses an ordinary character, explicit room starts and isolated save/Continue;
 ordinary Library travel and complete console parity remain unproven.
+
+[Selected poison mechanics](docs/player-poison.md) now retain constitution-adjusted
+duration, independent curse/poison timers, hand attack power snapshots, doubled
+ordinary incoming damage, reaction sound and cross-stage timer retention. Inventory
+pause freezes timers; fresh ordinary Continue clears them. Full ailment visuals,
+medicine and general elemental/damage-kind parity remain incomplete.

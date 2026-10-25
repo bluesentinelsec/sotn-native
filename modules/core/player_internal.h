@@ -47,9 +47,10 @@ struct SotnPlayer
     SotnEquipment attack_equipment;
     Uint16 equipment[2];
     Uint8 attack_critical;
+    Uint16 attack_power, shield_power;
     SotnPlayerDeath death;
     SotnPlayerStone stone;
-    Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks;
+    Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
     bool curse_failure, script_hold;
     SotnCharacterStats attributes;
     Uint32 damage_random;

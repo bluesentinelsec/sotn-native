@@ -20,7 +20,8 @@ entities, rare statue variants, smoke/fragments, camera shake, the full set of
 lethal stone branches and complete GTE/lighting/audio/timing parity remain
 incomplete. In particular, hiding the player at the selected death transition
 does not establish that its original fragment presentation has been integrated.
-Poison/curse and other elemental player reactions remain separate work.
+[Selected poison mechanics](player-poison.md) and curse now run separately; complete
+ailment effects and other elemental reactions remain incomplete.
 
 Synthetic public tests cover zero-damage petrification, landing, disabled actions,
 held versus tapped input, impact/escape, selected lethal completion, atomic corrupt

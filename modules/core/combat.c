@@ -126,3 +126,15 @@ bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attr
     *out = result;
     return true;
 }
+
+// Selected dra/5D5BC.c:HandleDamage ordinary damage branch, before HP/reaction changes.
+bool SotnCombat_NormalContact(SotnContactPower power, Uint16 defense, bool poisoned, Uint16 *out)
+{
+    if (!out || power.attack > 19998 || defense > 9999 || power.absorb)
+        return SDL_SetError("Normal contact requires bounded power/defense without absorption");
+    Sint32 damage = (Sint32)power.attack - defense;
+    if (poisoned)
+        damage *= 2;
+    *out = power.immune ? 0 : (Uint16)SDL_clamp(damage, 1, 9999);
+    return true;
+}

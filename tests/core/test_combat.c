@@ -95,9 +95,36 @@ static bool ContactPower(void)
     return true;
 }
 
+static bool NormalContact(void)
+{
+    Uint16 damage = 123;
+    SotnContactPower power = {.attack = 15};
+    CHECK(SotnCombat_NormalContact(power, 6, false, &damage) && damage == 9);
+    CHECK(SotnCombat_NormalContact(power, 6, true, &damage) && damage == 18);
+    CHECK(SotnCombat_NormalContact(power, 16, true, &damage) && damage == 1);
+    power.attack = 0;
+    CHECK(SotnCombat_NormalContact(power, 0, true, &damage) && damage == 1);
+    power.immune = true;
+    CHECK(SotnCombat_NormalContact(power, 0, true, &damage) && damage == 0);
+    power = (SotnContactPower){.attack = 19998};
+    CHECK(SotnCombat_NormalContact(power, 0, true, &damage) && damage == 9999);
+    const Uint16 before = damage;
+    power.absorb = true;
+    CHECK(!SotnCombat_NormalContact(power, 0, false, &damage) && damage == before);
+    power.absorb = false;
+    power.attack = 19999;
+    CHECK(!SotnCombat_NormalContact(power, 0, false, &damage) && damage == before);
+    power.attack = 1;
+    CHECK(!SotnCombat_NormalContact(power, 10000, false, &damage) && damage == before);
+    CHECK(!SotnCombat_NormalContact(power, 0, false, NULL));
+    CHECK(SotnCombat_ContactPower(10, 0x81, (SotnCombatEnemy){.immunes = 0x80}, &power) &&
+          power.immune && SotnCombat_NormalContact(power, 0, true, &damage) && damage == 0);
+    return true;
+}
+
 int main(void)
 {
-    if (!Boxes() || !Damage() || !ContactPower())
+    if (!Boxes() || !Damage() || !ContactPower() || !NormalContact())
         return 1;
     SDL_Log("SOTN_COMBAT_TEST: PASS");
     return 0;

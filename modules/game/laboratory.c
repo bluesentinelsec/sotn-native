@@ -531,13 +531,17 @@ static bool TickActors(SotnLaboratory *session)
         }
         else
         {
-            const Uint16 damage =
-                combat.contact_damage == 0 || power.immune
-                    ? 0
-                    : (Uint16)SDL_clamp((Sint32)power.attack - attributes.defense, 1, 9999);
+            Uint16 damage = 0;
+            if (combat.contact_damage &&
+                !SotnCombat_NormalContact(power, attributes.defense, player.poison_ticks != 0,
+                                          &damage))
+                return false;
             if ((power.effects & 0x100U)
                     ? !SotnPlayer_CurseDamage(session->player, damage, combat.contact_x,
                                               combat.contact_velocity)
+                : (power.effects & 0x80U)
+                    ? !SotnPlayer_PoisonDamage(session->player, damage, combat.contact_x,
+                                               combat.contact_velocity)
                     : !SotnPlayer_Damage(session->player, damage, combat.contact_x,
                                          combat.contact_velocity))
                 return false;
@@ -911,7 +915,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
                 "saves; placed Lesser Demon entry, selected combat, seals and reward. "
                 "Selected Librarian introduction, buy/sell, speech and exit run. Full shop panels, "
-                "optional services, remaining scripts, poison and ordinary travel remain "
+                "optional services, remaining scripts and ordinary travel remain "
                 "unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
@@ -1897,14 +1901,15 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
     {
         SotnPlayerState previous = {0};
         if (!SotnPlayer_GetState(old->player, &previous) ||
-            !SotnPlayer_RestoreCurse(next->player, previous.curse_ticks))
+            !SotnPlayer_RestoreCurse(next->player, previous.curse_ticks) ||
+            !SotnPlayer_RestorePoison(next->player, previous.poison_ticks))
         {
             char detail[160] = {0};
             SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
             SotnLaboratory_Destroy(next);
             next = NULL;
             ready = false;
-            SDL_SetError("Cannot restore transient curse on stage arrival: %s", detail);
+            SDL_SetError("Cannot restore transient ailments on stage arrival: %s", detail);
         }
     }
     if (!ready)

@@ -8,8 +8,8 @@ encounter or Library route available. Stage 2 remains gated.
 
 Spit retains its initial direction delay, diagonal flight, private floor sensor,
 impact animation, expanding damage column, shrinking UV/geometry, sound and fade.
-Its private enemy definition supplies damage and elements. Full poison status and
-complete damage/effect parity remain pending; this is not poison validation.
+Its private enemy definition supplies damage and elements. [Selected poison mechanics](player-poison.md) now have separate seed-contact checks;
+complete damage/effect parity remains pending. This attack check is not poison validation.
 Optional primitive exhaustion retires the effect as the original does.
 
 The bolt retains its native sprite, sixty-record budget, colored textured head,

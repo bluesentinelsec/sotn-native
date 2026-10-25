@@ -327,6 +327,8 @@ static bool StartAttack(SotnPlayer *player)
         critical += root - 5;
     }
     player->attack_critical = (Uint8)SDL_clamp(critical, 0, 255);
+    player->attack_power =
+        (Uint16)(player->attributes.attack[hand] >> (player->poison_ticks ? 1 : 0));
     Uint16 variant = (player->contact & 0x20) ? 1 : 0;
     if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
     {
@@ -368,10 +370,13 @@ static bool TickShield(SotnPlayer *player)
     const bool disabled = player->equipment[hand] != 16 || player->curse_ticks != 0 ||
                           player->curse_failure || player->step == SOTN_PLAYER_KILL ||
                           player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE;
+    const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
                          disabled, &player->shield_cursor))
         return false;
+    if (starting && player->shield_cursor.phase)
+        player->shield_power = player->poison_ticks ? 0 : 1;
     const SotnWeaponFrame f = player->shield_cursor.frame;
     player->shield = (SotnPlayerAttack){.offset_x = f.x,
                                         .offset_y = f.y,
@@ -384,7 +389,7 @@ static bool TickShield(SotnPlayer *player)
                                         .hit_type = 4,
                                         .hit_effect = 1,
                                         .invincibility_frames = 6,
-                                        .power = 1};
+                                        .power = player->shield_power};
     if (player->step == SOTN_PLAYER_CROUCH && player->attack_mode == 0)
     {
         const bool raised = player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2;
@@ -412,25 +417,24 @@ static bool ReadAttack(SotnPlayer *player)
         if (!SotnWeapon_ReadFrame(player->weapons, equipment, player->animation.id,
                                   player->animation.pose, player->animation.remaining, &weapon))
             return false;
-        player->attack = (SotnPlayerAttack){
-            .offset_x = weapon.x,
-            .offset_y = weapon.y,
-            .width = weapon.width,
-            .height = weapon.height,
-            .element = equipment.element,
-            .hit_type = equipment.hit_type,
-            .hit_effect = equipment.hit_effect,
-            .stun_frames = equipment.stun,
-            .invincibility_frames = equipment.invincibility,
-            .critical_rate = player->attack_critical,
-            .active = weapon.width != 0 && weapon.height != 0,
-            .right_hand = player->attack_button == SOTN_BUTTON_RIGHT_HAND,
-            .sound = weapon.sound != 0,
-            .sound_id = weapon.sound,
-            .power =
-                player->attributes.attack[player->attack_button == SOTN_BUTTON_RIGHT_HAND ? 1 : 0],
-            .equipment = equipment.id,
-            .sprite = weapon.sprite};
+        player->attack =
+            (SotnPlayerAttack){.offset_x = weapon.x,
+                               .offset_y = weapon.y,
+                               .width = weapon.width,
+                               .height = weapon.height,
+                               .element = equipment.element,
+                               .hit_type = equipment.hit_type,
+                               .hit_effect = equipment.hit_effect,
+                               .stun_frames = equipment.stun,
+                               .invincibility_frames = equipment.invincibility,
+                               .critical_rate = player->attack_critical,
+                               .active = weapon.width != 0 && weapon.height != 0,
+                               .right_hand = player->attack_button == SOTN_BUTTON_RIGHT_HAND,
+                               .sound = weapon.sound != 0,
+                               .sound_id = weapon.sound,
+                               .power = player->attack_power,
+                               .equipment = equipment.id,
+                               .sprite = weapon.sprite};
         if (equipment.id == 18 && player->animation.id < equipment.animation + 2 &&
             player->animation.pose == 6)
             player->attack.hit_type = 4;
@@ -461,8 +465,7 @@ static bool ReadAttack(SotnPlayer *player)
     player->attack.offset_y = (Sint16)(box[1] < 128 ? box[1] : (Sint32)box[1] - 256);
     player->attack.width = box[2];
     player->attack.height = box[3];
-    player->attack.power =
-        player->attributes.attack[player->attack_button == SOTN_BUTTON_RIGHT_HAND ? 1 : 0];
+    player->attack.power = player->attack_power;
     player->attack.sound_id = 0x60c;
     player->attack.element = Attack16(equipment + 12);
     player->attack.hit_type = Attack16(equipment + 40);
@@ -860,6 +863,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.extra_sound = 0;
     if (next.curse_ticks)
         --next.curse_ticks;
+    if (next.poison_ticks)
+        --next.poison_ticks;
     if (next.script_hold)
         buttons = 0;
     next.buttons = buttons;
@@ -1065,6 +1070,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     Uint32 status = player->status;
     if (player->curse_ticks)
         status |= 0x28108000U;
+    if (player->poison_ticks)
+        status |= 0x28104000U;
     if (player->step == SOTN_PLAYER_CROUCH && player->substep != 2)
         status |= 0x20U;
     if (player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP)
@@ -1106,6 +1113,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .weapon_starting = player->weapon_startup != 0,
         .stone = player->stone,
         .curse_ticks = player->curse_ticks,
+        .poison_ticks = player->poison_ticks,
         .extra_sound = player->extra_sound};
     return true;
 }
@@ -1307,5 +1315,36 @@ bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
     if (player == NULL || (hold && player->step == SOTN_PLAYER_KILL))
         return SDL_SetError("Script hold requires a living normal-form player owner");
     player->script_hold = hold;
+    return true;
+}
+
+// dra/71830.c applies poison after the normal surviving hit; curse takes precedence in scene.
+bool SotnPlayer_RestorePoison(SotnPlayer *player, Uint16 ticks)
+{
+    if (!player || ticks > 4095 || player->step == SOTN_PLAYER_KILL)
+        return SDL_SetError("Poison timer restore requires a living player and 0..4095 ticks");
+    player->poison_ticks = ticks;
+    return true;
+}
+bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                             Sint32 source_velocity)
+{
+    if (!player || amount > 9999 || source_x < -512 || source_x > 16896 ||
+        source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
+        return SDL_SetError("Poison contact requires bounded damage and source motion");
+    if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
+        player->step == SOTN_PLAYER_KILL)
+        return true;
+    if (player->step == SOTN_PLAYER_STONE)
+        return SotnPlayer_Damage(player, amount, source_x, source_velocity);
+    SotnPlayer next = *player;
+    if (!SotnPlayer_Damage(&next, amount, source_x, source_velocity))
+        return false;
+    if (next.hp)
+    {
+        next.poison_ticks = (Uint16)SDL_max(256, 4095 - (Sint32)next.attributes.total[1] * 16);
+        next.extra_sound = 0x6f2;
+    }
+    *player = next;
     return true;
 }

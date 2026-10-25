@@ -348,13 +348,79 @@ static bool CurseBounds(Fixture *f)
     return true;
 }
 
+static bool Poison(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 128, 135, &p));
+    CHECK(SotnPlayer_SetEquipment(p, (SotnDataView){f->weapons, sizeof(f->weapons)}, 86, 86));
+    CHECK(SotnPlayer_PoisonDamage(p, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.hp == 69 && state.poison_ticks == 3999 &&
+          state.extra_sound == 0x6f2 && (state.status & 0x28104000U) == 0x28104000U);
+    CHECK(SotnPlayer_PoisonDamage(p, 10, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.hp == 69 && state.poison_ticks == 3999);
+    CHECK(!SotnPlayer_RestorePoison(p, 4096) && !SotnPlayer_PoisonDamage(p, 10000, 0, 0));
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.hp == 69 && state.poison_ticks == 3935);
+    CHECK(SotnPlayer_RestorePoison(p, 2));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_LEFT_HAND));
+    CHECK(SotnPlayer_GetState(p, &state) && state.attack.active && state.attack.power == 7 &&
+          state.poison_ticks == 1);
+    CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.attack.active && state.attack.power == 7 &&
+          state.poison_ticks == 0 && !(state.status & 0x4000U));
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT_HAND));
+    CHECK(SotnPlayer_GetState(p, &state) && state.attack.active && state.attack.power == 15);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_RestorePoison(p, 123));
+    CHECK(SotnPlayer_RestoreCurse(p, 456));
+    CHECK(SotnPlayer_ChangeRoom(p, map, 16, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 123 && state.curse_ticks == 456 &&
+          (state.status & 0xc000U) == 0xc000U);
+    CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 122 && state.curse_ticks == 455);
+    CHECK(SotnPlayer_RestorePoison(p, 0) && SotnPlayer_RestoreCurse(p, 0));
+    SotnCharacterState profile = {.hp = 70, .hp_max = 70};
+    SotnCharacterStats stats = {.total = {6, 255, 6, 6}, .attack = {6, 6}};
+    CHECK(SotnPlayer_SetCharacter(p, &profile, stats));
+    CHECK(SotnPlayer_PoisonDamage(p, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 256);
+    for (Uint16 i = 0; i < 256; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 0 && state.hp == 69);
+    stats.total[1] = 0;
+    CHECK(SotnPlayer_SetCharacter(p, &profile, stats));
+    for (Uint16 i = 0x2e; i <= 0x34; ++i)
+        Put32(f->dra + 0x101b8 + i * 4U, 0xfffffffc);
+    CHECK(!SotnPlayer_PoisonDamage(p, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.hp == 70 && state.poison_ticks == 0);
+    for (Uint16 i = 0x2e; i <= 0x34; ++i)
+        Put32(f->dra + 0x101b8 + i * 4U, 0x800a3000);
+    CHECK(SotnPlayer_PoisonDamage(p, 1, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 4095);
+    for (Uint16 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_RestorePoison(p, 0));
+    CHECK(SotnPlayer_PoisonDamage(p, 70, 96, 0));
+    CHECK(SotnPlayer_GetState(p, &state) && state.hp == 0 && state.poison_ticks == 0);
+    CHECK(!SotnPlayer_RestorePoison(p, 1));
+    CHECK(!SotnPlayer_RestorePoison(NULL, 0) && !SotnPlayer_PoisonDamage(NULL, 1, 0, 0));
+    SotnPlayer_Close(p);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
     const bool passed = Metadata(fixture) && Movement(fixture) && ShortSword(fixture) &&
-                        Curse(fixture) && CurseBounds(fixture);
+                        Curse(fixture) && CurseBounds(fixture) && Poison(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
