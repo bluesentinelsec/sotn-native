@@ -27,13 +27,16 @@ static Sint32 Coordinate(Sint32 anchor, Sint32 value, Uint32 ratio)
     const Sint32 ir = SDL_clamp(value, -32768, 32767);
     return SDL_clamp(anchor + ActorShift((Sint64)ratio * ir, 16), -1024, 1023);
 }
-bool SotnBoss_ProjectReward(SotnRewardProjection p, SotnProjectedRect *out)
+bool SotnBoss_ProjectReward(SotnDataView executable, SotnRewardProjection p, SotnProjectedRect *out)
 {
     if (out == NULL || p.radius < -128 || p.radius > 128 || p.anchor_x < -16384 ||
         p.anchor_x > 16384 || p.anchor_y < -16384 || p.anchor_y > 16384)
         return SDL_SetError("Reward projection exceeds its bounded transform");
-    const Sint32 sx = ActorSin(p.x), cx = ActorSin(p.x + 1024), sy = ActorSin(p.y),
-                 cy = ActorSin(p.y + 1024), sz = ActorSin(p.z), cz = ActorSin(p.z + 1024);
+    SotnMathTrig x = {0}, y = {0}, z = {0};
+    if (!SotnMath_MatrixTrig(executable, p.x, &x) || !SotnMath_MatrixTrig(executable, p.y, &y) ||
+        !SotnMath_MatrixTrig(executable, p.z, &z))
+        return false;
+    const Sint32 sx = x.sine, cx = x.cosine, sy = y.sine, cy = y.cosine, sz = z.sine, cz = z.cosine;
     const Sint32 t = ActorShift((Sint64)cz * -sy, 12);
     const Sint32 mx = ActorShift((Sint64)cz * cy, 12),
                  my = ActorShift((Sint64)sz * cx, 12) - ActorShift((Sint64)t * sx, 12),

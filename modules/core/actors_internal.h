@@ -313,6 +313,7 @@ struct SotnActors
     } dopple;
     /** Original LIB transient minion signal; not ordinary save state. */
     Uint32 library_enemy_flags;
+    bool library_arena_active, library_camera_unlocked;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
 };
@@ -501,6 +502,12 @@ bool ActorLibraryBookMove(Actor *actor);
 bool ActorLibraryBook(SotnActors *actors, Actor *actor);
 /** @brief Advance selected owned beam or independent page fragment. */
 bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
+/** @brief Advance the original Library arena manager or owned sealing books.
+ * @param actors Borrowed entered Library owner with writable progress.
+ * @param actor Borrowed manager or sealing-book state.
+ * @return Success or SDL error; optional exhausted reward allocation waits for another tick.
+ * Native factories retain ownership; no pointers transfer to the caller. */
+bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
 /** @brief Queue the original positional LIB sound; owners remain borrowed. */
 bool ActorLibrarySound(SotnActors *actors, const Actor *actor, Uint16 sound);
 /** @brief Query a bounded private sensor list; write out only on success. */

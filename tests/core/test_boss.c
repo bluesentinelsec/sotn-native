@@ -108,16 +108,22 @@ static bool Open(Fixture *f, SotnActors **s, SotnActorLayout **layout)
         0));
     return true;
 }
-static bool Project(void)
+static bool Project(const Fixture *f)
 {
     SotnProjectedRect r = {0};
-    CHECK(SotnBoss_ProjectReward((SotnRewardProjection){0, 0, 0, 128, 4096, 128, 100}, &r));
+    CHECK(SotnBoss_ProjectReward((SotnDataView){f->main, sizeof(f->main)},
+                                 (SotnRewardProjection){0, 0, 0, 128, 4096, 128, 100}, &r));
     CHECK(r.left == 248 && r.right == 264 && r.top == 92 && r.bottom == 108);
-    CHECK(SotnBoss_ProjectReward((SotnRewardProjection){0, 0, 1024, 128, 4096, 128, 100}, &r));
+    CHECK(SotnBoss_ProjectReward((SotnDataView){f->main, sizeof(f->main)},
+                                 (SotnRewardProjection){0, 0, 1024, 128, 4096, 128, 100}, &r));
     CHECK(r.left == 120 && r.right == 136 && r.top == 220 && r.bottom == 236);
-    CHECK(SotnBoss_ProjectReward((SotnRewardProjection){0, 0, 0, 128, -4096, 128, 100}, &r));
+    CHECK(SotnBoss_ProjectReward((SotnDataView){f->main, sizeof(f->main)},
+                                 (SotnRewardProjection){0, 0, 0, 128, -4096, 128, 100}, &r));
     CHECK(r.left == 264 && r.right == 248 && r.top == 108 && r.bottom == 92);
-    CHECK(!SotnBoss_ProjectReward((SotnRewardProjection){0, 0, 0, 129, 4096, 128, 100}, &r));
+    CHECK(!SotnBoss_ProjectReward((SotnDataView){f->main, sizeof(f->main)},
+                                  (SotnRewardProjection){0, 0, 0, 129, 4096, 128, 100}, &r));
+    CHECK(r.left == 264);
+    CHECK(!SotnBoss_ProjectReward((SotnDataView){0}, (SotnRewardProjection){0}, &r));
     CHECK(r.left == 264);
     return true;
 }
@@ -225,7 +231,15 @@ static bool Encounter(Fixture *f)
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
-    const bool ok = f != NULL && Project() && Encounter(f);
+    if (f != NULL)
+        for (Uint32 i = 0; i < 4096; ++i)
+        {
+            Put16(f->main + 0x1ea10 + i * 4,
+                  (Uint16)(Sint16)SDL_round(SDL_sin(i * SDL_PI_D / 2048) * 4096));
+            Put16(f->main + 0x1ea12 + i * 4,
+                  (Uint16)(Sint16)SDL_round(SDL_cos(i * SDL_PI_D / 2048) * 4096));
+        }
+    const bool ok = f != NULL && Project(f) && Encounter(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

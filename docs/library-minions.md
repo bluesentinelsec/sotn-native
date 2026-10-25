@@ -4,7 +4,8 @@ The Library adapter now runs Mudman and its separate attack child, plus the
 summoned Skeleton appearance/cleanup path. Ectoplasm and Skeleton share the
 original Library opacity/blink helper. Mudman keeps its own floor-emergence and
 sinking shapes. Lesser Demon's [selected body](library-lesser-demon.md) now commands
-these minions. Placed entry/reward remain pending, and Library travel stays gated.
+these minions. The [placed entry/reward flow](library-demon-entry.md) now runs;
+Library travel stays gated while librarian/shop and remaining scripts are integrated.
 
 Mudman retains delayed floor emergence, the colored private-texture shape,
 walking/attack timelines, frame-selected separate hitboxes, obstacle sinking and

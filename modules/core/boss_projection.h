@@ -14,10 +14,12 @@ typedef struct SotnProjectedRect
     Sint32 left, top, right, bottom;
 } SotnProjectedRect;
 /** @brief Project the selected reward sprite through the original two matrix/projection passes.
+ * @param executable Borrowed verified private matrix-pair table.
  * @param transform Initialized fixed-point effect state, radius within +/-128, anchor +/-16384.
  * @param out Copied screen-space corners, unchanged on failure.
  * @return Success or SDL error. No global GTE state or original tables are stored. */
-bool SotnBoss_ProjectReward(SotnRewardProjection transform, SotnProjectedRect *out);
+bool SotnBoss_ProjectReward(SotnDataView executable, SotnRewardProjection transform,
+                            SotnProjectedRect *out);
 /** @brief Original GTE screen coordinates after signed saturation. */
 typedef struct SotnProjectedPoint
 {

@@ -294,3 +294,9 @@ and `st/e_misc.h` algorithms at the pinned sotn-decomp revision (AGPL-3.0-or-lat
 Private tables remain runtime inputs. Paired effect projection in `boss_projection.c`
 uses selected PSY-Z SDK matrix/column-scale/saturation algorithms at the pinned
 MPL-2.0 revision; its original trigonometry stays in the private executable.
+
+`modules/core/library_event.c` adapts selected `src/st/lib/unk_3B200.c` and
+`unk_3B53C.c` algorithms from the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Library camera unlock follows `src/st/lib/e_lock_camera.c`; shared reward conversion
+follows `src/st/e_life_up.h`. Tile/drop tables remain private runtime inputs. Native
+seal signaling checks owner generations rather than writing beyond its child block.

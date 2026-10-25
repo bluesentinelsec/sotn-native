@@ -21,7 +21,8 @@ typedef struct SotnWorldState
 typedef enum SotnTimeAttackEvent
 {
     SOTN_TIME_DOPPLEGANGER = 2,
-    SOTN_TIME_LAB_BOSSES = 6
+    SOTN_TIME_LAB_BOSSES = 6,
+    SOTN_TIME_LESSER_DEMON = 17
 } SotnTimeAttackEvent;
 /** @brief Set an original HHMMSS event record only when its existing value is zero.
  * @param state Borrowed initialized progress. @param event Original index, 0..31.
