@@ -2,16 +2,6 @@
 // Selected LIB e_breakable.c and st_common.h:ReplaceBreakableWithItemDrop,
 // plus e_misc.h:PlaySfxPositional at the pinned reconstruction. Tables stay private.
 #include "actors_internal.h"
-static bool PositionalSound(SotnActors *s, const Actor *a, Uint16 sound)
-{
-    const Sint32 dx = Pixel(a->state.x) - s->camera_x - 128;
-    const Sint32 dy = Pixel(a->state.y) - s->camera_y - 128;
-    const Sint32 pan = SDL_clamp((SDL_abs(dx) - 32) / 32, 0, 8);
-    const Sint32 attenuation = SDL_max(0, SDL_abs(dx) - 96 + SDL_max(0, SDL_abs(dy) - 112));
-    const Sint32 volume = 127 - attenuation / 2;
-    return volume <= 0 ||
-           ActorSoundVolumePan(s, sound, (Uint16)volume, (Sint8)(dx < 0 ? -pan : pan));
-}
 static bool Drop(SotnActors *s, Actor *a)
 {
     a->permanent = true;
@@ -80,12 +70,12 @@ static bool Breakable(SotnActors *s, Actor *a)
         return false;
     if (type == 0)
     {
-        if (!PositionalSound(s, a, 0x61c))
+        if (!ActorLibrarySound(s, a, 0x61c))
             return false;
     }
     else if (type == 2 || type == 3)
     {
-        if (!PositionalSound(s, a, 0x61d))
+        if (!ActorLibrarySound(s, a, 0x61d))
             return false;
     }
     else if (!ActorSound(s, type >= 7 ? 0x61d : 0x634))

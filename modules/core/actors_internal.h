@@ -35,6 +35,13 @@ typedef struct ActorPrimitive
         Sint32 radius, speed;
         Sint16 x, y, z, scale;
     } reward;
+    struct
+    {
+        Sint16 angle, width, height;
+        Sint32 tail_y;
+        Uint8 brightness, pose, remaining;
+        bool ended;
+    } blood;
 } ActorPrimitive;
 typedef struct Actor
 {
@@ -196,6 +203,13 @@ typedef struct Actor
         Uint16 timer, phase, growth;
         bool triggered;
     } arena;
+    struct
+    {
+        Uint32 partner_generation;
+        Uint16 timer, hover;
+        Sint32 camera_x, camera_y;
+        bool separated, hovering;
+    } flying;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -407,6 +421,15 @@ bool ActorSpearGuard(SotnActors *actors, Actor *actor);
 bool ActorArcher(SotnActors *actors, Actor *actor);
 bool ActorMusket(SotnActors *actors, Actor *actor);
 bool ActorClock(SotnActors *actors, Actor *actor);
+/** @brief Queue the original positional LIB sound; owners remain borrowed. */
+bool ActorLibrarySound(SotnActors *actors, const Actor *actor, Uint16 sound);
+/** @brief Query a bounded private sensor list; write out only on success. */
+bool ActorLibraryBlocked(SotnActors *actors, const Actor *actor, size_t offset, bool facing,
+                         bool *out);
+/** @brief Advance the selected original LIB paired body and generation-owned torso. */
+bool ActorLibraryFlying(SotnActors *actors, Actor *actor);
+/** @brief Advance original LIB blood children and their owned native primitives. */
+bool ActorLibraryBlood(SotnActors *actors, Actor *actor);
 /** @brief Advance one selected LIB breakable/helper using borrowed initialized owners. */
 bool ActorLibraryBreakable(SotnActors *actors, Actor *actor);
 /** @brief Dispatch selected LIB actors; unsupported families remain explicitly marked. */
