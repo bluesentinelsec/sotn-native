@@ -264,3 +264,10 @@ target_include_directories(sotn-library-ectoplasm-tests PRIVATE ../../modules/co
 target_link_libraries(sotn-library-ectoplasm-tests PRIVATE sotn-core)
 add_test(NAME library-ectoplasm COMMAND sotn-library-ectoplasm-tests)
 set_tests_properties(library-ectoplasm PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-library-book-tests test_library_books.c)
+sotn_configure_c_target(sotn-library-book-tests)
+target_include_directories(sotn-library-book-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-library-book-tests PRIVATE sotn-core)
+add_test(NAME library-books COMMAND sotn-library-book-tests)
+set_tests_properties(library-books PROPERTIES TIMEOUT 20)

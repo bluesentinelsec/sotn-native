@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Selected fixed matrix and UNR projection math adapted from PSY-Z
 // b52003e55c0d1b20719e984dd19bd4d760eeb14a, psyz/src/psyz/libgte.c.
-// Implements the bounded, non-overflowing reward path, not a general GTE emulator.
+// Selected bounded reward, intro and book paths, not a general GTE emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
 static Uint32 Divide(Uint32 depth, Uint32 distance)
@@ -71,5 +71,59 @@ bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anch
     const Sint32 vz = 320 + ActorShift(-(Sint64)tilt.sine * x, 12);
     const Uint32 ratio = Divide((Uint32)SDL_clamp(vz, 0, 65535), 256);
     *out = (SotnProjectedPoint){Coordinate(anchor_x, vx, ratio), Coordinate(anchor_y, vy, ratio)};
+    return true;
+}
+
+bool SotnBook_Project(SotnDataView executable, SotnBookTransform t, const SotnBookVertex *vertices,
+                      Uint32 count, SotnBookProjection *out)
+{
+    if (!vertices || !out || (count != 1 && count != 4) || t.depth < 0 || t.depth > 768 ||
+        t.anchor_x < -16384 || t.anchor_x > 16384 || t.anchor_y < -16384 || t.anchor_y > 16384)
+        return SDL_SetError("Book projection exceeds its bounded transform");
+    for (Uint32 i = 0; i < count; ++i)
+        if (vertices[i].x < -32 || vertices[i].x > 32 || vertices[i].y < -32 ||
+            vertices[i].y > 32 || vertices[i].z < -32 || vertices[i].z > 32)
+            return SDL_SetError("Book vertex exceeds its bounded private model");
+    SotnMathTrig x = {0}, y = {0}, z = {0};
+    if (!SotnMath_MatrixTrig(executable, t.x, &x) || !SotnMath_MatrixTrig(executable, t.y, &y) ||
+        !SotnMath_MatrixTrig(executable, t.z, &z))
+        return false;
+    const Sint32 sx = x.sine, cx = x.cosine, sy = y.sine, cy = y.cosine, sz = z.sine, cz = z.cosine;
+    const Sint32 a = ActorShift(-(Sint64)cz * sy, 12), b = ActorShift(-(Sint64)sz * sy, 12);
+    // Negation precedes the arithmetic shift in the SDK, including negative fractions.
+    const Sint32 m[3][3] = {{ActorShift((Sint64)cz * cy, 12), ActorShift(-(Sint64)sz * cy, 12), sy},
+                            {ActorShift((Sint64)sz * cx, 12) - ActorShift((Sint64)a * sx, 12),
+                             ActorShift((Sint64)cz * cx, 12) + ActorShift((Sint64)b * sx, 12),
+                             ActorShift(-(Sint64)cy * sx, 12)},
+                            {ActorShift((Sint64)sz * sx, 12) + ActorShift((Sint64)a * cx, 12),
+                             ActorShift((Sint64)cz * sx, 12) - ActorShift((Sint64)b * cx, 12),
+                             ActorShift((Sint64)cy * cx, 12)}};
+    SotnBookProjection result = {0};
+    Uint32 sum = 0;
+    for (Uint32 i = 0; i < count; ++i)
+    {
+        const SotnBookVertex v = vertices[i];
+        Sint32 transformed[3] = {0};
+        for (Uint32 row = 0; row < 3; ++row)
+            transformed[row] = ActorShift(
+                (Sint64)m[row][0] * v.x + (Sint64)m[row][1] * v.y + (Sint64)m[row][2] * v.z, 12);
+        result.depth[i] = (Uint16)SDL_clamp(t.depth + 512 + transformed[2], 0, 65535);
+        const Uint32 ratio = Divide(result.depth[i], 512);
+        result.point[i] = (SotnProjectedPoint){Coordinate(t.anchor_x, transformed[0], ratio),
+                                               Coordinate(t.anchor_y, transformed[1], ratio)};
+        sum += result.depth[i];
+    }
+    if (count == 4)
+    {
+        const SotnProjectedPoint p = result.point[0], q = result.point[1], r = result.point[2];
+        result.winding = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    }
+    // InitGeom sets ZSF4=0x100: AVSZ4 divides the four-depth sum by 16, not four.
+    const Uint32 ordering_depth = count == 4 ? sum >> 4 : sum >> 2;
+    const Sint32 priority = (t.depth + 512) / 4 - (Sint32)ordering_depth + 144;
+    if (priority < 0 || priority > 511)
+        return SDL_SetError("Book projection exceeds the original ordering table");
+    result.priority = (Uint16)priority;
+    *out = result;
     return true;
 }

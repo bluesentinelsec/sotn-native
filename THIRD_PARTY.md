@@ -168,11 +168,11 @@ primitive pairs into initialized C records.
 `src/main/psxsdk/libgte/ratan.c`, `geo_00.c` and `geo_01.c` at that revision, using the user's boot image
 for its quantized lookup. The [SDK/decomp MIT notice](licenses/PSY-Z-decomp-MIT.txt)
 retains the reconstruction contributors' attribution. No SDK table is embedded.
-`modules/core/boss_projection.c` adapts the selected matrix column and UNR divider
+`modules/core/boss_projection.c` adapts selected matrix, clipping, depth-ordering and UNR divider algorithms
 from PSY-Z `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
 `psyz/src/psyz/libgte.c` (MPL-2.0); the [MPL notice](licenses/MPL-2.0.txt) is packaged.
-Its reciprocal estimates are generated mathematically. It supplies a bounded reward
-projection path, not a general PS1/GTE emulator.
+Its reciprocal estimates are generated mathematically. It supplies bounded reward, intro and Library book projection paths, not a general
+PS1/GTE emulator. Book geometry, UVs and the original matrix-pair table remain private.
 
 Exploration-map reveal, secret-passage, cursor, and orientation logic adapts
 `src/dra/5087C.c` and `src/dra/624DC.c` at the pinned sotn-decomp revision above,
@@ -267,3 +267,8 @@ logic at the pinned AGPL revision. Stage collision selector metadata stays priva
 BO4's initial graphics bank follows `dra/game_handlers.c:Play_Init`. Counts/pool
 bounds, checked ownership and initialized native records replace global memory.
 See the explicit [integrated fixture limits](docs/doppleganger-runtime.md#stage-combat-orchestration).
+
+Library Spellbook/Magic Tome behavior, page debris, owned beam and face assembly in
+`modules/core/library_book*.c` adapt `src/st/lib/e_spellbook_magic_tome.c` at the pinned
+sotn-decomp revision above (AGPL-3.0-or-later). Original vertex/UV/recipe tables,
+initialization, animation, attributes and artwork remain private runtime inputs.

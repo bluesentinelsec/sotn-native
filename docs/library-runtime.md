@@ -21,6 +21,7 @@ The original Library layouts contain no ordinary Skeleton placements; the later
 Lesser Demon summoning path remains unintegrated. Flea Men use their Library
 motion/timelines/sensors, actor identity and damage/contact path. Flea Armor, Dhurons and plant enemies now run their original placed behavior,
 attacks and deaths.
+Book encounters now retain their selected original behavior.
 Other placed enemies and background/script actors still warn explicitly and remain omitted.
 
 Flea Armor retains its walking/leaping attacks, adjacent attack hitbox, dust and
@@ -149,4 +150,30 @@ placement finishes the observed HP/death path at tick 259 with 65 renders in Deb
 and macOS ASan/UBSan. Both exit successfully. That combat fixture causes no hero contact and does not itself validate curse,
 ordinary traversal or console/audiovisual parity. A separate positioned-contact,
 pause and explicit-arrival fixture is documented in [character status](character-status.md).
-All 64 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+All 65 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+
+Spellbooks and Magic Tomes now wake, approach from depth, pursue/charge, turn and
+open their two halves before commanding their adjacent beam. Their twelve private
+textured faces use the original SDK XYZ matrix, signed projection, winding and
+AVSZ4 depth ordering. Their center projection supplies the original half-offset
+body hitbox and attack origin. Death preserves spin/opening, page fragments,
+flames, sounds and the falling body's camera retirement. The beam grows to its
+original damage interval, shrinks normally or faster with a dead owner, and
+retires stale generations. Explicit zero scale hides its final visible frame;
+it cannot become a unit-size flash. Original debug-only book controls are omitted.
+
+Public synthetic book tests cover wake boundaries, both attack cycles, hit recoil,
+original signed angle-delta narrowing/remainder, primitive and actor-pool exhaustion,
+owner death/replacement, malformed geometry/recipes and checked fixed-point motion.
+A private comparison uses the pinned PSY-Z SDK algorithms with the user's original
+matrix-pair table: 40,000 randomized face and center projections agree, including
+winding, coordinates, saturation and ordering. The backend's compiled pair table
+differs from the original game's table; substituting it is not original-data parity.
+The selected transform remains bounded to these models, not general GTE overflow.
+Protected native room-9 fixtures use original placements and ordinary movement/attack
+inputs after observing each active beam. Spellbook death/retirement completes at
+tick 1111 (278 renders), Magic Tome at tick 614 (154 renders).
+Debug and macOS ASan/UBSan agree and exit successfully. An explicitly selected
+attack-state fixture renders all 110 ticks through the visible zero-scale beam frame
+and idle return. These fixtures are not uninterrupted traversal, unmodified-character playtests or console/
+audiovisual parity. Lesser Demon, librarian/shop/scripts and Library travel remain pending.

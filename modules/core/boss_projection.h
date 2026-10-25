@@ -32,4 +32,32 @@ typedef struct SotnProjectedPoint
  * this is a selected non-overflowing transform, not a general GTE implementation. */
 bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anchor_y,
                            Sint16 rotation, Sint16 x, Sint16 y, SotnProjectedPoint *out);
+/** @brief Original book transform; angles use 4096 units, depth is 0..768. */
+typedef struct SotnBookTransform
+{
+    Sint16 x, y, z, depth;
+    Sint32 anchor_x, anchor_y;
+} SotnBookTransform;
+/** @brief One bounded model vertex, with each axis within +/-32. */
+typedef struct SotnBookVertex
+{
+    Sint16 x, y, z;
+} SotnBookVertex;
+/** @brief Copied screen vertices, winding and original ordering-table priority. */
+typedef struct SotnBookProjection
+{
+    SotnProjectedPoint point[4];
+    Uint16 depth[4];
+    Sint32 winding;
+    Uint16 priority;
+} SotnBookProjection;
+/** @brief Project a book face or its center with the original SDK matrix/divider.
+ * @param executable Borrowed verified private matrix trigonometry.
+ * @param transform Initialized selected book pose and screen anchor (+/-16384).
+ * @param vertices Borrowed model coordinates; no original geometry is compiled in.
+ * @param count Exactly four for a face (AVSZ4), or one for the center (SZ3/4).
+ * @param out Copied result, unchanged on failure. Negative winding hides a face.
+ * @return Success or SDL error. Supports the bounded book path, not general GTE overflow. */
+bool SotnBook_Project(SotnDataView executable, SotnBookTransform transform,
+                      const SotnBookVertex *vertices, Uint32 count, SotnBookProjection *out);
 #endif
