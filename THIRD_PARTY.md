@@ -286,3 +286,11 @@ uninitialized-pointer vertex read is replaced explicitly; read
 `src/st/lib/e_lesser_demon.c:func_us_801BB8DC`. Library Skeleton changes follow
 `src/st/e_skeleton.h`, all from the pinned sotn-decomp revision (AGPL-3.0-or-later).
 Private appearance, motion, sensor, hitbox and artwork tables remain runtime inputs.
+
+`modules/core/library_demon.c`, `library_demon_motion.c`, `library_demon_effects.c`
+and `library_demon_summoning.c` adapt selected body, punch, windup and summoning
+functions from `src/st/lib/e_lesser_demon.c`, with selected `st/prim_helpers.h`
+and `st/e_misc.h` algorithms at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Private tables remain runtime inputs. Paired effect projection in `boss_projection.c`
+uses selected PSY-Z SDK matrix/column-scale/saturation algorithms at the pinned
+MPL-2.0 revision; its original trigonometry stays in the private executable.

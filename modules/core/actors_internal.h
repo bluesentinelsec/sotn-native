@@ -46,8 +46,8 @@ typedef struct ActorPrimitive
     {
         Uint16 fraction_x, fraction_y;
         Sint16 angle, turn;
-        Uint8 phase, wait, hops;
-        bool used;
+        Uint8 phase, wait, hops, color_index;
+        bool used, side;
     } demon;
 } ActorPrimitive;
 typedef struct Actor
@@ -246,7 +246,12 @@ typedef struct Actor
     } book;
     struct
     {
-        Uint16 timer;
+        Uint16 timer, saved_hp, child_slot;
+        Uint32 child_generation;
+        Uint8 effect_step, effect_timer;
+        Sint16 width, height, scale, angle;
+        Uint8 brightness;
+        bool attack_active;
     } demon;
     struct
     {

@@ -60,4 +60,17 @@ typedef struct SotnBookProjection
  * @return Success or SDL error. Supports the bounded book path, not general GTE overflow. */
 bool SotnBook_Project(SotnDataView executable, SotnBookTransform transform,
                       const SotnBookVertex *vertices, Uint32 count, SotnBookProjection *out);
+/** @brief Original Lesser Demon paired-quad controls, uniform scale in units of 4096. */
+typedef struct SotnDemonQuadPose
+{
+    Sint16 angle, width, height, scale;
+    Sint32 anchor_x, anchor_y;
+} SotnDemonQuadPose;
+/** @brief Project a selected Demon effect at equal depth/screen distance 1024.
+ * @param executable Borrowed private matrix-pair table. @param pose Bounded initialized controls.
+ * Width/height are 0..64, scale 0..16384, screen anchors +/-16384.
+ * @param out Four copied saturated corners, unchanged on error.
+ * @return Success or SDL error. Retains SDK column-scale rounding; no global GTE state. */
+bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
+                           SotnProjectedPoint out[4]);
 #endif

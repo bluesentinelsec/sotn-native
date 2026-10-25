@@ -127,3 +127,29 @@ bool SotnBook_Project(SotnDataView executable, SotnBookTransform t, const SotnBo
     *out = result;
     return true;
 }
+
+bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose p, SotnProjectedPoint out[4])
+{
+    if (!out || p.width < 0 || p.width > 64 || p.height < 0 || p.height > 64 || p.scale < 0 ||
+        p.scale > 16384 || p.anchor_x < -16384 || p.anchor_x > 16384 || p.anchor_y < -16384 ||
+        p.anchor_y > 16384)
+        return SDL_SetError("Lesser Demon effect projection exceeds its bounded controls");
+    SotnMathTrig trig = {0};
+    if (!SotnMath_MatrixTrig(executable, p.angle, &trig))
+        return false;
+    const Sint32 xx = ActorShift((Sint64)trig.cosine * p.scale, 12),
+                 xy = ActorShift(-(Sint64)trig.sine * p.scale, 12),
+                 yx = ActorShift((Sint64)trig.sine * p.scale, 12), yy = xx;
+    SotnProjectedPoint projected[4] = {0};
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        const Sint32 x = (i & 1U) ? p.width / 2 : -p.width / 2,
+                     y = (i & 2U) ? p.height / 2 : -p.height / 2;
+        const Sint32 vx = ActorShift((Sint64)xx * x + (Sint64)xy * y, 12),
+                     vy = ActorShift((Sint64)yx * x + (Sint64)yy * y, 12);
+        projected[i] = (SotnProjectedPoint){Coordinate(p.anchor_x, vx, 65536),
+                                            Coordinate(p.anchor_y, vy, 65536)};
+    }
+    SDL_memcpy(out, projected, sizeof(projected));
+    return true;
+}
