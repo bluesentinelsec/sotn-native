@@ -407,6 +407,10 @@ bool ActorSpearGuard(SotnActors *actors, Actor *actor);
 bool ActorArcher(SotnActors *actors, Actor *actor);
 bool ActorMusket(SotnActors *actors, Actor *actor);
 bool ActorClock(SotnActors *actors, Actor *actor);
+/** @brief Advance one selected LIB breakable/helper using borrowed initialized owners. */
+bool ActorLibraryBreakable(SotnActors *actors, Actor *actor);
+/** @brief Dispatch selected LIB actors; unsupported families remain explicitly marked. */
+bool ActorLibrary(SotnActors *actors, Actor *actor);
 bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
 bool ActorFlea(SotnActors *actors, Actor *actor);
 Actor *ActorDiploOwner(SotnActors *actors, const Actor *actor);

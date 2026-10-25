@@ -71,6 +71,7 @@ bool SotnLaunchRenderer_Draw(SotnDataView common, SotnLaunchMenu menu,
                              slots[i].hp,
                              slots[i].stage == 0    ? "MAR"
                              : slots[i].stage == 1  ? "OUT"
+                             : slots[i].stage == 2  ? "LIB"
                              : slots[i].stage == 12 ? "LAB"
                                                     : "ENT",
                              slots[i].room);

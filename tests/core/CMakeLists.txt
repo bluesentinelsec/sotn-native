@@ -229,3 +229,10 @@ target_include_directories(sotn-dopple-encounter-tests PRIVATE ../../modules/cor
 target_link_libraries(sotn-dopple-encounter-tests PRIVATE sotn-core)
 add_test(NAME doppleganger-encounter COMMAND sotn-dopple-encounter-tests)
 set_tests_properties(doppleganger-encounter PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-library-tests test_library.c)
+sotn_configure_c_target(sotn-library-tests)
+target_include_directories(sotn-library-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-library-tests PRIVATE sotn-core)
+add_test(NAME library-actors COMMAND sotn-library-tests)
+set_tests_properties(library-actors PROPERTIES TIMEOUT 20)

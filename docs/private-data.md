@@ -97,3 +97,8 @@ The current combat playtest also needs the private sound resources listed in
 `SD/XA_STR1.` music container. Public manifests contain size/hash fingerprints
 only. Runtime streaming verifies that file once and keeps a bounded sector
 reader; never commit the container or decoded audio.
+
+The [Long Library foundation](library-runtime.md) adds separately verified
+`ST/LIB/SD_ZKLIB.VH` and `ST/LIB/SD_ZKLIB.VB` resources. Its overlay/artwork already
+use the canonical stage catalog. These remain optional on-demand private inputs;
+public builds, CI and release packaging do not require them.

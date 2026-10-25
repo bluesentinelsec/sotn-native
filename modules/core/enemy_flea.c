@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // st/e_flea_man.h at sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// Motion, animation and collision-sensor arrays remain in private NO0 data.
+// Motion, animation and collision-sensor arrays remain in private NO0/LIB data.
 #include "actors_internal.h"
 bool ActorFlea(SotnActors *s, Actor *a)
 {
+    const bool library = s->stage_id == 2;
     if (a->state.flags & 0x100)
     {
         if (!ActorSound(s, 0x691) || !ActorReplaceExplosion(s, a, 1))
@@ -21,7 +22,7 @@ bool ActorFlea(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xc2c))
+        if (!ActorInitialize(s, a, (library ? 0x9d4 : 0xc2c)))
             return false;
         a->state.frame = 16;
         if (a->state.parameters & 1)
@@ -35,7 +36,7 @@ bool ActorFlea(SotnActors *s, Actor *a)
             a->state.step = 3;
         break;
     case 1:
-        if (!ActorAnimate(s, a, 0x2640, &animation))
+        if (!ActorAnimate(s, a, (library ? 0x2e0c : 0x2640), &animation))
             return false;
         a->state.facing_left = Side(a, s->player) == 0;
         if (Distance(a, s->player) < 96 && SDL_abs(Pixel(a->state.y) - Pixel(s->player.y)) < 64)
@@ -65,8 +66,8 @@ bool ActorFlea(SotnActors *s, Actor *a)
                 index = 4;
         }
         SotnDataView vx = {0}, vy = {0};
-        if (!Slice(s->nz0, 0x2618 + index * 4, 4, &vx) ||
-            !Slice(s->nz0, 0x262c + index * 4, 4, &vy))
+        if (!Slice(s->nz0, (library ? 0x2de4 : 0x2618) + index * 4, 4, &vx) ||
+            !Slice(s->nz0, (library ? 0x2df8 : 0x262c) + index * 4, 4, &vy))
             return false;
         const Sint32 horizontal = Signed32(vx.bytes), vertical = Signed32(vy.bytes);
         if (horizontal < -8 * 65536 || horizontal > 8 * 65536 || vertical < -8 * 65536 ||
@@ -90,7 +91,7 @@ bool ActorFlea(SotnActors *s, Actor *a)
         if (a->vy < 0)
         {
             SotnDataView sensors = {0};
-            if (!Slice(s->nz0, 0x265c, 12, &sensors))
+            if (!Slice(s->nz0, (library ? 0x2e28 : 0x265c), 12, &sensors))
                 return false;
             Sint32 x = Pixel(a->state.x), y = Pixel(a->state.y);
             for (Uint32 i = 0; i < 3; ++i)

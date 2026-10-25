@@ -134,9 +134,10 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     RawTiles(graphics, sources.stage, 0);
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);
-    // Play_Init loads overlay bank zero before room-specific graphics. BO4's
-    // arena has object_graphics_id zero, but its hand-effect textures still need this bank.
-    if (!Palettes(graphics) || (stage == 26 && !SotnActorGraphics_LoadBank(graphics, 0)))
+    // Play_Init loads default bank zero independently from room-specific graphics.
+    // BO4 hand effects and Library base artwork require that initial residency.
+    if (!Palettes(graphics) ||
+        ((stage == 26 || stage == 2) && !SotnActorGraphics_LoadBank(graphics, 0)))
     {
         SotnActorGraphics_Destroy(graphics);
         return false;

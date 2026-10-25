@@ -4,6 +4,53 @@
 #include "actors_internal.h"
 size_t ActorStageOffset(const SotnActors *s, size_t laboratory)
 {
+    if (s->stage_id == 2)
+    {
+        if (laboratory >= 0x1cc4 && laboratory < 0x1e64)
+            return laboratory + 0x848;
+        if (laboratory >= 0x23dc && laboratory < 0x24cc)
+            return laboratory + 0x86c;
+        switch (laboratory)
+        {
+        case 0xbc8:
+            return 0x800;
+        case 0xbd4:
+            return 0x80c;
+        case 0xbe0:
+            return 0x818;
+        case 0xbec:
+            return 0x824;
+        case 0xbf8:
+            return 0x830;
+        case 0xc04:
+            return 0x83c;
+        case 0xc10:
+            return 0x848;
+        case 0xc1c:
+            return 0x854;
+        case 0xc88:
+            return 0x998;
+        case 0xc94:
+            return 0x9a4;
+        case 0xca0:
+            return 0x9b0;
+        case 0xd8c:
+            return 0xac8;
+        case 0xdbc:
+            return 0xad8;
+        case 0xdc0:
+            return 0xae0;
+        case 0xdc4:
+            return 0xae8;
+        case 0x13b0:
+            return 0x1a90;
+        case 0x1960:
+            return 0x2068;
+        default:
+            SDL_SetError("Library has no shared private table for offset %zu", laboratory);
+            return s->nz0.size;
+        }
+    }
     if (s->stage_id == 26)
     {
         if (laboratory >= 0x1cc4 && laboratory < 0x1e64)
@@ -110,6 +157,20 @@ size_t ActorStageOffset(const SotnActors *s, size_t laboratory)
 }
 Uint16 ActorStageId(const SotnActors *s, Uint16 laboratory)
 {
+    if (s->stage_id == 2)
+    {
+        switch (laboratory)
+        {
+        case 0x2e:
+            return 0x43;
+        case 0x2f:
+            return 0x44;
+        case 0x30:
+            return 0x45;
+        default:
+            return laboratory;
+        }
+    }
     if (s->stage_id != 0 && s->stage_id != 1)
         return laboratory;
     switch (laboratory)

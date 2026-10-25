@@ -110,7 +110,7 @@ static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
         *out = NULL;
         return true;
     }
-    if (s->stage_id == 0 || s->stage_id == 1)
+    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2)
         return SotnMusic_CreateStage(s->dra, s->music_stream, s->stage_id, out);
     if (s->stage_id == 12)
         return SotnMusic_Create(s->dra, s->music_stream, out);
@@ -148,7 +148,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                     {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
                     {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
                     {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
-                    {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY}};
+                    {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
+                    {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -873,8 +874,13 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
     if (stage_id == 26)
-        SDL_Log("Doppleganger arena service checkpoint: private room/art/audio adapters only; "
-                "the encounter, reward and ordinary progression remain unintegrated.");
+        SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
+                "seals, reward and connected Outer Wall progression. Full effects/parity remain "
+                "incomplete.");
+    else if (stage_id == 2)
+        SDL_Log("Long Library development adapters: common pickups, selected breakables, "
+                "shared Skeleton/Flea services, music and ordinary saves. Area enemies, "
+                "librarian/shop and ordinary travel remain unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

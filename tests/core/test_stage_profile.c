@@ -21,12 +21,12 @@ static void Put32(Uint8 *p, Uint32 value)
 static bool Run(void)
 {
     CHECK(SotnStageProfile_Get(0) != NULL && SotnStageProfile_Get(1) != NULL);
-    CHECK(SotnStageProfile_Get(2) == NULL);
+    CHECK(SotnStageProfile_Get(3) == NULL);
     CHECK(SotnStageProfile_SaveRoom(0, 31) && SotnStageProfile_SaveRoom(0, 32));
     CHECK(SotnStageProfile_SaveRoom(1, 14) && SotnStageProfile_SaveRoom(1, 17));
     CHECK(!SotnStageProfile_SaveRoom(0, SDL_MAX_UINT16));
     CHECK(!SotnStageProfile_SaveRoom(1, 15) && !SotnStageProfile_SaveRoom(1, 16));
-    CHECK(!SotnStageProfile_SaveRoom(2, 14));
+    CHECK(SotnStageProfile_SaveRoom(2, 14));
     Uint8 dra[0x400] = {0}, stage[0x4000] = {0};
     Put32(dra + 0x98, 0x800a0200);
     const Uint16 ids[] = {0, 1};
@@ -116,6 +116,47 @@ static bool BossAdapters(void)
     return true;
 }
 
+static bool LibraryAdapters(void)
+{
+    const SotnStageProfile *profile = SotnStageProfile_Get(2);
+    CHECK(profile && !profile->connected && profile->actor_limit == 0x4f &&
+          profile->sprite_banks == 24 && profile->prize_count == 11 && profile->prize_bit == 0x70 &&
+          profile->door_types == 1 && profile->camera_count == 7);
+    CHECK(SotnStageProfile_SaveRoom(2, 14) && !SotnStageProfile_SaveRoom(2, 15));
+    Uint8 dra[0x400] = {0}, stage[0x4000] = {0};
+    Put32(dra + 0x98, 0x800a0200);
+    Put16(stage + 0x998, 0x8002);
+    Put16(stage + 0x9d4, 0x800d);
+    SotnActors *s = NULL;
+    CHECK(SotnActors_CreateStage((SotnDataView){dra, sizeof(dra)},
+                                 (SotnDataView){stage, sizeof(stage)}, 2, &s));
+    CHECK(ActorStageOffset(s, 0xbc8) == 0x800 && ActorStageOffset(s, 0xbd4) == 0x80c &&
+          ActorStageOffset(s, 0x1d9c) == 0x25e4 && ActorStageOffset(s, 0x2430) == 0x2c9c &&
+          ActorStageOffset(s, 0x1960) == 0x2068 && ActorStageOffset(s, 0x13b0) == 0x1a90);
+    CHECK(ActorStageOffset(s, 0xe04) == sizeof(stage));
+    CHECK(ActorStageId(s, 0x2e) == 0x43 && ActorStageId(s, 0x2f) == 0x44 &&
+          ActorStageId(s, 0x30) == 0x45);
+    Actor skeleton = {.state = {.id = 0x43, .generation = 1}};
+    CHECK(ActorLibrary(s, &skeleton) && skeleton.state.step == 1 &&
+          skeleton.state.animation_set == 0x8002 && !skeleton.state.unsupported);
+    Actor flea = {.state = {.id = 0x4c, .generation = 2}};
+    CHECK(ActorLibrary(s, &flea) && flea.state.step == 1 && flea.state.animation_set == 0x800d);
+    flea.state.step = 1;
+    stage[0x2e0c] = 1;
+    stage[0x2e0d] = 3;
+    CHECK(ActorLibrary(s, &flea) && flea.state.frame == 3);
+    const Uint16 pending[] = {0x1b, 0x25, 0x30};
+    for (Uint32 i = 0; i < SDL_arraysize(pending); ++i)
+    {
+        Actor unsupported = {.state = {.id = pending[i], .generation = 3}};
+        CHECK(ActorLibrary(s, &unsupported) && unsupported.state.unsupported &&
+              unsupported.state.step == 0);
+    }
+    CHECK(!ActorLibrary(NULL, &skeleton) && !ActorLibrary(s, NULL));
+    SotnActors_Destroy(s);
+    return true;
+}
+
 static bool EntranceEntries(void)
 {
     const Uint32 before[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 20, 24, 25, 26};
@@ -130,7 +171,7 @@ static bool EntranceEntries(void)
 
 int main(void)
 {
-    if (!Run() || !BossAdapters() || !EntranceEntries())
+    if (!Run() || !BossAdapters() || !LibraryAdapters() || !EntranceEntries())
         return 1;
     SDL_Log("EARLY_CASTLE_PROFILES: PASS");
     return 0;

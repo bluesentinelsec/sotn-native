@@ -239,7 +239,14 @@ bool SotnMusic_CreateStage(SotnDataView dra, SotnStream *stream, Uint16 stage, S
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage != 0 && stage != 1)
-        return SDL_SetError("Stage music requires Marble Gallery or Outer Wall");
-    return Create(dra, stream, stage == 0 ? 13 : 19, stage == 0 ? 14 : 20, false, out);
+    if (stage != 0 && stage != 1 && stage != 2)
+        return SDL_SetError("Stage music requires an integrated original area profile");
+    return Create(dra, stream,
+                  stage == 0   ? 13
+                  : stage == 1 ? 19
+                               : 9,
+                  stage == 0   ? 14
+                  : stage == 1 ? 20
+                               : 10,
+                  false, out);
 }
