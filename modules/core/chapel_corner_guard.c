@@ -196,7 +196,7 @@ static bool DeathInit(SotnActors *s, Actor *a)
     if (!RetireWeapon(s, a) || !ActorExplosionInPool(s, a, 2, 160, 192, 0) ||
         !ActorPositionalSound(s, a, 0x6ce))
         return false;
-    a->state.flags |= 0xa00000U;
+    a->state.flags |= 0x80a00000U;
     a->state.hitbox_state = a->state.frame = 0;
     ++a->substep;
     return true;
