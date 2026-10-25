@@ -293,3 +293,8 @@ The [Entrance stair section](docs/entrance-stairway.md) now runs its sixteen-HP 
 food drop, selected tile/debris effect and permanent restoration in NO3/NP3. Tile
 art metadata is borrowed per room; room entry clears it. Private protected fixtures
 remain distinct from route/console parity evidence.
+
+The [Outer Wall Skeleton Apes](docs/outer-wall-skeleton-ape.md) now run selected
+punches, carried/thrown barrels, bouncing fragments and staged deaths. Child
+ownership uses slot/generation checks; optional actor pools have bounded fallbacks.
+Full effects, whole-route and console parity remain incomplete.

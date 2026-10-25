@@ -181,3 +181,5 @@ SOTN_FORMAT_SOURCES += modules/core/outer_elevator.c modules/core/outer_elevator
 SOTN_FORMAT_SOURCES += modules/core/entrance_rocks.c tests/core/test_entrance_rocks.c
 
 SOTN_FORMAT_SOURCES += modules/core/entrance_stairway.c modules/core/actor_intense_explosion.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_ape.c tests/core/test_skeleton_ape.c
