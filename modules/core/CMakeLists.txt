@@ -44,6 +44,7 @@ add_library(sotn-core STATIC
   chapel_mechanisms.c
   chapel_scenery.c
   chapel_crow.c
+  chapel_halberd.c
   library_shelf.c
   library_shelf_geometry.c
   library_background.c

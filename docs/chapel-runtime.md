@@ -81,3 +81,7 @@ hit signals, then uses an ordinary 70-HP character to jump/attack the placed
 room-6 lamp and collect its heart drop (10 to 15 hearts, tick 101). The sequence
 renders 46 frames. Controlled retained-type checks are not ordinary placements,
 whole-stage or console parity. Both Debug and sanitizer native checks pass.
+
+Selected [Bone Halberd combat](chapel-halberd.md) now adds original ground attacks,
+jump/lunge, an owned weapon hitbox and nine-piece death. Remaining enemy families,
+mechanisms, scripts and connected Chapel progression still need integration.

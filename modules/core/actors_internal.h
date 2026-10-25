@@ -109,6 +109,11 @@ typedef struct Actor
     } crow;
     struct
     {
+        Uint16 timer, interval, lunge_timer;
+        bool movement_facing;
+    } halberd;
+    struct
+    {
         Sint32 target[4];
         Uint16 pending, timer, side;
         bool horizontal;
@@ -437,6 +442,10 @@ bool ActorChapelScenery(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed Crow/Raven slot.
  * @return Success or SDL error for invalid identity/state/private profile or motion. */
 bool ActorChapelCrow(SotnActors *actors, Actor *actor);
+/** @brief Advance selected original Chapel Bone Halberd body, weapon or debris.
+ * @param actors Borrowed Chapel owner. @param actor Borrowed supported slot.
+ * @return Success or SDL error for invalid state/data/ownership or bounded motion. */
+bool ActorChapelHalberd(SotnActors *actors, Actor *actor);
 /** @brief Advance the selected non-inverted Bat using its own stage tables.
  * @param actors Borrowed Entrance or Chapel owner. @param actor Borrowed owned slot.
  * @return Success, or false with an SDL error for invalid state/private data. */
@@ -453,6 +462,13 @@ bool ActorSpawn(SotnActors *actors, const Actor *source, Uint16 id, Uint16 param
                 Uint32 end, Actor **out);
 bool ActorSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
                   Uint32 slot, Actor **out);
+/** @brief Recreate a fixed child, replacing only a matching nonplaced owned survivor.
+ * @param actors Borrowed stage owner. @param source Active parent with nonzero generation.
+ * @param id Original child identity. @param parameters Original child parameters.
+ * @param slot Bounded destination distinct from the parent. @param out Receives borrowed child.
+ * @return Success or SDL error, protecting original placements and unrelated owners. */
+bool ActorOwnedSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
+                       Uint32 slot, Actor **out);
 bool ActorSpittle(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorCrawl(SotnActors *actors, Actor *actor, Uint8 state, Uint8 *out);
 bool ActorPrimitives(SotnActors *actors, Actor *actor, Uint16 count);
