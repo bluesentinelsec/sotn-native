@@ -447,3 +447,9 @@ bounded SDK projector, stage-owned backdrop and foreground occlusion. Projection
 comparisons and protected placed-view fixtures cover selected paths; rotating
 secret-bookcase geometry, sitting, Mist interaction, full effects and Library
 travel remain pending. Keep private model/lighting data out of public source.
+
+The [Library secret bookcase](docs/library-secret-bookcase.md) now runs original
+push delay, rotating collision/lighting/subdivision, static neighbors and saved
+discovery flag 112. v8 retains discovery, not transient pose/momentum. Its native
+check uses an ordinary character, explicit room starts and isolated save/Continue;
+ordinary Library travel and complete console parity remain unproven.

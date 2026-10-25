@@ -202,8 +202,7 @@ this service alone does not enable ordinary Library travel.
 
 [Selected Library furnishings](library-furnishings.md) now include the placed
 candle table, its owned shadow and permanent Stone Mask drop, ordinary head-equipment
-metadata, and original foreground/background decoration records. Parallax models,
-secret-bookcase geometry, sitting and Mist interactions remain pending. Native
+metadata, and original foreground/background decoration records. Sitting and Mist interactions remain pending. Native
 explicit-room checks do not prove ordinary Library travel or console parity.
 
 The [selected Library backgrounds](library-backgrounds.md) now project repeated
@@ -211,3 +210,8 @@ bookcases/furniture, column shadows and distant illuminated shelves from private
 records. The original backdrop and Library foreground occlusion are retained in
 the selected native path. Private SDK comparisons and protected explicit-room
 checks do not establish whole-route or console rasterization parity.
+
+The [secret bookcase](library-secret-bookcase.md) now runs original push delay,
+rotating collision, lighting/subdivision and saved discovery. Its ordinary-character
+native check crosses the passage and retains discovery through isolated ordinary
+save/Continue; this does not establish whole-route parity or enable Library travel.

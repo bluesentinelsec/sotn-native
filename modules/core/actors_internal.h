@@ -152,6 +152,11 @@ typedef struct Actor
     } armor;
     struct
     {
+        Sint32 velocity, force;
+        Sint16 angle, delay, damping, depth;
+    } shelf;
+    struct
+    {
         Sint16 angle;
     } stair;
     struct
@@ -517,6 +522,10 @@ bool ActorLibraryBookMove(Actor *actor);
 bool ActorLibraryBook(SotnActors *actors, Actor *actor);
 /** @brief Advance selected owned beam or independent page fragment. */
 bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
+/** @brief Advance the original rotating Library secret bookcase and saved discovery. */
+bool ActorLibraryShelf(SotnActors *actors, Actor *actor);
+/** @brief Copy projected, lit and recursively subdivided original shelf faces. */
+bool ActorLibraryShelfGeometry(SotnActors *actors, Actor *actor);
 /** @brief Advance the original Library arena manager or owned sealing books.
  * @param actors Borrowed entered Library owner with writable progress.
  * @param actor Borrowed manager or sealing-book state.
