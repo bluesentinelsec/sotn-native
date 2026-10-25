@@ -47,6 +47,7 @@ add_library(sotn-core STATIC
   chapel_corner_guard.c
   chapel_halberd.c
   chapel_pillar.c
+  chapel_spike_ball.c
   library_shelf.c
   library_shelf_geometry.c
   library_background.c

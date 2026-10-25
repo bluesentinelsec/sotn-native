@@ -394,3 +394,10 @@ sensors, intervals, hitboxes, SDK tables and sprite parts remain private inputs.
 paths from `st/dai/e_bone_pillar.c` at the pinned sotn-decomp revision
 (AGPL-3.0-or-later). Original initialization, animations, intervals, sensors,
 angles, offsets and sprite artwork remain private runtime inputs.
+
+`modules/core/chapel_spike_ball.c` adapts `EntityBonePillarSpikeBall` from
+`st/dai/e_bone_pillar.c` and selected least-occupied attack-group assignment from
+`dra/7879C.c:func_80118894` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Native owned records replace the selected outside-stage attack entities; shared
+`actors.c` hit handling adapts the already credited `st/collision.h` path. Original
+initialization, artwork, palette and sensor tables remain private runtime inputs.

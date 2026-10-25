@@ -407,8 +407,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 6)
-        return id == 0x1a || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a || id == 0x32 ||
-               id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b);
+        return id == 0x1a || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a || id == 0x2c ||
+               id == 0x32 || id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b);
     if (actors->stage_id == 2)
         return id == 0x1f || id == 0x22 || id == 0x4d || id == 0x4e || id == 0x20 || id == 0x21 ||
                id == 0x30 || id == 0x32 || id == 0x3e || id == 0x1b || id == 0x1c || id == 0x33 ||
@@ -492,10 +492,25 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Sint32 screen_x = target.x - actors->camera_x, screen_y = target.y - actors->camera_y;
     if (screen_x <= -32 || screen_x >= 288 || screen_y <= -32 || screen_y >= 256)
         return true;
-    for (Uint32 channel = 0; channel < 2 + SOTN_SUBWEAPON_SLOTS; ++channel)
+    const Uint32 normal_channels = 2 + SOTN_SUBWEAPON_SLOTS;
+    const Uint32 total_channels =
+        normal_channels + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
+    for (Uint32 channel = 0; channel < total_channels; ++channel)
     {
         SotnPlayerState source = player;
-        if (channel < 2)
+        Uint32 hand = channel;
+        if (channel >= normal_channels)
+        {
+            Uint32 group = 0;
+            bool active = false;
+            if (!ActorChapelBallAttack(actors, (Uint16)(channel - normal_channels), &source, &group,
+                                       &active))
+                return false;
+            if (!active)
+                continue;
+            hand = normal_channels + group;
+        }
+        else if (channel < 2)
         {
             if (player.shield.equipment != 0 && channel == (player.shield.right_hand ? 1U : 0U))
                 source.attack = player.shield;
@@ -505,7 +520,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         else
         {
             if (actors->subweapons == NULL)
-                break;
+                continue;
             SotnSubweaponState projectile = {0};
             if (!SotnSubweapons_Get(actors->subweapons, channel - 2, &projectile))
                 return false;
@@ -521,7 +536,6 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             source.facing_left = projectile.facing_left;
             source.attack = projectile.attack;
         }
-        const Uint32 hand = channel;
         const SotnCombatBox attacker = PlayerBox(source, true);
         if (source.attack.active && actor->cooldown[hand] == 0 &&
             (actor->state.hitbox_state & source.attack.hit_type & 0x3e) &&
@@ -583,7 +597,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 }
             }
             actor->hit_params = source.attack.hit_effect & 127;
-            if (channel >= 2)
+            if (channel >= 2 && channel < normal_channels)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                 if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
@@ -1528,6 +1542,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     actors->camera_y = camera_y;
     actors->entered = true;
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
+    SDL_zero(actors->chapel_ball);
     SDL_memset(actors->primitives, 0, sizeof(actors->primitives));
     return true;
 }

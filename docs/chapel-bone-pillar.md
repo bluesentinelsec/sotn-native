@@ -2,8 +2,8 @@
 
 The internal [Chapel checkpoint](chapel-runtime.md) now runs selected original
 stacked Bone Pillar skulls, side-dependent fire attacks, embers and delayed death
-pieces. The spike-ball variant remains unsupported, along with connected Chapel
-travel, remaining encounters and tower/Maria/boss progression.
+pieces. The [spike-ball variant](chapel-spike-ball.md) is also integrated. Connected Chapel
+travel, remaining encounters and tower/Maria/boss progression remain incomplete.
 
 The bottom skull grounds through its private sensor table and creates an adjacent
 owned top skull. The top and bottom retain different frame/hitbox profiles and

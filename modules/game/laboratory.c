@@ -925,11 +925,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log(
             "Royal Chapel internal checkpoint: private resources, selected shared actors, "
             "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
-            "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard and Bone Pillar skull/fire combat. "
-            "Other encounters, spike-ball release, tower "
-            "routing/bells/"
-            "spikes, Maria, boss and "
-            "connected travel remain incomplete.");
+            "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar combat. "
+            "Other encounters, tower routing/bells/spikes, Maria, boss and connected travel "
+            "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
