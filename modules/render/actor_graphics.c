@@ -260,18 +260,20 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
         return false;
     const Uint32 address = equipment.family == 43   ? 0x8017b044U
+                           : equipment.family == 37 ? 0x8017a7b8U
                            : equipment.family == 52 ? 0x8017ac1cU
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                                                     : 0x8017abd4U;
+    const Uint32 color_count = (equipment.family == 37 ? 5U : 7U) * 16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
-        !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), 7 * 16 * 2, 2, &colors))
+        !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
     const size_t pixels = (size_t)equipment.family * 0x7000;
     if (pixels > weapons.size || 0x4000 > weapons.size - pixels)
         return SDL_SetError("Weapon texture is truncated");
     Upload(graphics, 576, 256 + hand * 128, 64, 128, weapons.bytes + pixels);
-    for (Uint32 i = 0; i < 7 * 16; ++i)
+    for (Uint32 i = 0; i < color_count; ++i)
     {
         const Uint32 index = 0x1100 + hand * 0x180 + i;
         Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, colors.bytes + i * 2);

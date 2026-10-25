@@ -56,6 +56,11 @@ static SotnCollisionMap MakeFixture(Fixture *f)
     Uint8 *sword = f->dra + 0x300 + 123 * 52;
     SDL_memcpy(sword, f->dra + 0x300 + 86 * 52, 52);
     sword[15] = 43;
+    Uint8 *short_sword = f->dra + 0x300 + 19 * 52;
+    SDL_memcpy(short_sword, sword, 52);
+    short_sword[15] = 37;
+    short_sword[17] = 15;
+    short_sword[18] = 0xa7;
     Uint8 *shield = f->dra + 0x300 + 16 * 52;
     SDL_memcpy(shield, sword, 52);
     shield[15] = 52;
@@ -96,6 +101,10 @@ static SotnCollisionMap MakeFixture(Fixture *f)
     overlay[0x1304] = 16;
     overlay[0x1306] = 12;
     overlay[0x1307] = 8;
+    overlay = f->weapons + 37 * 0x7000 + 0x4000;
+    SDL_memcpy(overlay, f->weapons + 0x4000, 0x3000);
+    SDL_memcpy(overlay + 0x6a4, overlay + 0x106c, 16);
+    overlay[0x6b0] = 0xa7;
     f->types[1] = 3;
     for (Uint32 y = 10; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -133,6 +142,15 @@ static bool Metadata(Fixture *f)
     CHECK(SotnEquipment_Read(dra, 16, &equipment) && equipment.kind == 128);
     CHECK(SotnWeapon_Overlay(weapons, equipment, &overlay));
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x63, 0, 1, &frame));
+    CHECK(SotnEquipment_Read(dra, 86, &equipment));
+    CHECK(SotnEquipment_Read(dra, 19, &equipment) && equipment.family == 37 &&
+          equipment.animation == 0xa7 && equipment.kind == 15);
+    CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0xa7, 4, 1, &frame) && frame.width == 20 &&
+          frame.sound == 0x55);
+    Put16(f->weapons + 37 * 0x7000 + 0x4000 + 0x1208, (15U << 9) | 1U);
+    CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0xa7, 4, 1, &frame));
+    equipment.family = 0;
+    CHECK(!SotnWeapon_Overlay(weapons, equipment, &overlay));
     CHECK(SotnEquipment_Read(dra, 86, &equipment));
     Put32(f->dra + 0xc0, 0xfffffffc);
     CHECK(!SotnEquipment_Read(dra, 86, &equipment) && equipment.id == 86);
@@ -172,12 +190,41 @@ static bool Movement(Fixture *f)
     return true;
 }
 
+static bool ShortSword(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, weapons = {f->weapons, sizeof(f->weapons)};
+    SotnPlayer *player = NULL;
+    CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
+    CHECK(SotnPlayer_SetEquipment(player, weapons, 19, 19));
+    const Uint16 stances[] = {0, SOTN_BUTTON_DOWN, SOTN_BUTTON_JUMP};
+    for (Uint32 hand = 0; hand < 2; ++hand)
+        for (Uint32 stance = 0; stance < 3; ++stance)
+        {
+            for (Uint32 tick = 0; tick < 64; ++tick)
+                CHECK(SotnPlayer_Tick(player, 0));
+            CHECK(SotnPlayer_Tick(player, stances[stance]));
+            CHECK(SotnPlayer_Tick(player,
+                                  (Uint16)(stances[stance] | (hand ? SOTN_BUTTON_RIGHT_HAND
+                                                                   : SOTN_BUTTON_LEFT_HAND))));
+            SotnPlayerState state = {0};
+            CHECK(SotnPlayer_GetState(player, &state));
+            CHECK(state.attack.equipment == 19 && state.attack.active &&
+                  state.attack.right_hand == (hand != 0) &&
+                  state.animation.id == 0xa7 + (stance == 0   ? 0U
+                                                : stance == 1 ? 2U
+                                                              : 4U));
+        }
+    SotnPlayer_Close(player);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = Metadata(fixture) && Movement(fixture);
+    const bool passed = Metadata(fixture) && Movement(fixture) && ShortSword(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

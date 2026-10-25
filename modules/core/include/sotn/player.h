@@ -84,7 +84,7 @@ typedef struct SotnPlayer SotnPlayer;
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note This slice supports standing, walking, crouching, falling, and jumping.
- * Empty-hand, Basilard/Gladius/Mace, and ordinary Alucard sword/shield paths are supported.
+ * Empty-hand, Basilard/Gladius/Mace/Short sword, and ordinary Alucard sword/shield paths run.
  * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
  * transformations, and stage scripts are not implemented here.
  */

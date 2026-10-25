@@ -83,7 +83,7 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .icon = Read16(p + (body ? 24 : 44)),
                      .palette = Read16(p + (body ? 26 : 46)),
                      .supported = body ? BodySupported(id)
-                                       : (id == 0 || id == 16 || id == 18 || id == 86 ||
+                                       : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
                                           id == 123 || id == 128)};
     if (body)
     {

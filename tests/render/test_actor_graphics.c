@@ -15,7 +15,7 @@
 
 typedef struct Fixture
 {
-    Uint8 nz0[0x2000], dra[0x4000], stage[0x40000], common[0x42000], weapons[0x15000];
+    Uint8 nz0[0x2000], dra[0x4000], stage[0x40000], common[0x42000], weapons[0x1a0000];
     Uint16 frame[SOTN_FRAME_PIXELS];
 } Fixture;
 
@@ -275,6 +275,24 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(!SotnActorGraphics_LoadWeapon(graphics, (SotnDataView){0}, hand, equipment));
         CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand, (SotnEquipment){0}));
         CHECK(!SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
+    }
+    Uint8 *short_sword = fixture->weapons + 37 * 0x7000 + 0x4000;
+    SDL_memcpy(short_sword, fixture->weapons + 0x4000, 0x3000);
+    // Exactly five palettes fit; a seven-palette read would exceed this synthetic overlay.
+    Put32(short_sword + 0x7b8, 0x8017cf60);
+    Put16(short_sword + 0x2f62, 31);
+    fixture->weapons[37 * 0x7000] = 0x11;
+    for (Uint32 hand = 0; hand < 2; ++hand)
+    {
+        CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand,
+                                           (SotnEquipment){.id = 19, .family = 37}));
+        ClearFrame(fixture);
+        const SotnActorSprite sprite = {.animation_set = (Uint16)(hand == 0 ? 16 : 18),
+                                        .frame = 1,
+                                        .palette = (Uint16)(hand == 0 ? 0x110 : 0x128),
+                                        .texture_offset = (Uint16)(hand == 0 ? 0x64 : 0x66)};
+        CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
+        CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
     }
     SotnActorGraphics_Destroy(graphics);
     return true;

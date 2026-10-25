@@ -115,6 +115,11 @@ int main(void)
           s.equipment[3] == 0 && s.equipment[4] == 48 && s.equipment[5] == 57);
     CHECK(s.hand_count[123] == 1 && s.hand_count[16] == 1);
     CHECK(!SotnCharacter_OpeningGear(NULL));
+    CHECK(!SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 19));
+    CHECK(SotnCharacter_Collect(c, false, 19));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 19));
+    CHECK(SotnCharacter_Get(c, &s, NULL) && s.equipment[0] == 19 && !s.hand_count[19]);
+    CHECK(SotnCharacter_Restore(c, &s));
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);
