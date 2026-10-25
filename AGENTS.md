@@ -469,4 +469,12 @@ cloud planes and repeating land strip. Preserve signed-X/unsigned-depth phase an
 defined 16.16 wrap, private UV/model/grid/profile reads and SDK projection rounding.
 Malformed empty rows fail explicitly instead of retaining the source's unbounded
 scan. Controlled rendered contribution/phase checks are not whole-route or console
-parity evidence; stained glass/scripts/boss and connected Chapel remain incomplete.
+parity evidence; full scenery/scripts/boss and connected Chapel remain incomplete.
+
+Selected [Chapel stained glass](docs/chapel-stained-glass.md) now runs private
+panel poses/vertices/colors/subdivision, light fills/rays/glow and window/ceiling
+backgrounds. Palette interpolation passes copied commands to owned renderer memory;
+never mutate borrowed private inputs. Preserve documented US packed-coordinate
+midpoints and reversed floor-color assignment pending console comparison. Checked
+output cursors replace exhausted-pointer access. Protected component/render checks
+are not ordinary-route or console parity; confessional/scripts/boss remain missing.

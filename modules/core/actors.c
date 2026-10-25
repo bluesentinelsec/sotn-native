@@ -1540,6 +1540,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_zero(actors->shop);
     // dra/5087C.c:func_800F2404 resets the GPU clear color on room loading.
     actors->backdrop_color = 0;
+    actors->palette_blend = (SotnPaletteBlend){0};
     actors->map = map;
     actors->window = (SotnRoomWindow){.end_x = (Sint32)map.width * 16,
                                       .last_cell = (Sint32)((map.width + 15) / 16) - 1};
@@ -1615,6 +1616,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->player_initialized = true;
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
+    actors->palette_blend = (SotnPaletteBlend){0};
     ++actors->ticks;
     actors->combat.music_change = false;
     actors->combat.sequence_change = false;
@@ -1894,6 +1896,14 @@ bool SotnActors_GetRoomWindow(const SotnActors *s, SotnRoomWindow *out)
     if (s == NULL || !s->entered || out == NULL)
         return SDL_SetError("Room window requires an entered actor service and output");
     *out = s->window;
+    return true;
+}
+
+bool SotnActors_GetPaletteBlend(const SotnActors *s, SotnPaletteBlend *out)
+{
+    if (s == NULL || !s->entered || out == NULL)
+        return SDL_SetError("Palette interpolation requires an entered actor service and output");
+    *out = s->palette_blend;
     return true;
 }
 

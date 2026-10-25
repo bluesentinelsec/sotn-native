@@ -797,6 +797,68 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, NULL, (SotnActorDraw){0}));
     return true;
 }
+static bool TestPaletteBlend(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    SotnPaletteBlend blend = {.source = 512,
+                              .destination = 517,
+                              .steps = 16,
+                              .red = 24,
+                              .green = 48,
+                              .blue = 80,
+                              .active = true};
+    CHECK(SotnActorGraphics_BlendPalette(g, blend));
+    SotnTextureQuad q = {.x = {0, 4, 0, 4},
+                         .y = {0, 0, 1, 1},
+                         .u = {4, 8, 4, 8},
+                         .v = {64, 64, 65, 65},
+                         .page = 2,
+                         .palette = 517};
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 31 && f->frame[1] == 0x8000 && f->frame[2] == 0x83e0 && f->frame[3] == 7);
+    q.palette = 532;
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    const Uint16 red = (Uint16)(4U | (5U << 5) | (9U << 10)),
+                 green = (Uint16)(0x8000U | 2U | (7U << 5) | (9U << 10));
+    CHECK(f->frame[0] == red && f->frame[1] == 0x8000 && f->frame[2] == green);
+    CHECK(f->nz0[0x202] == 31 && f->nz0[0x204] == 0 && f->nz0[0x205] == 0x80);
+    const SotnPaletteBlend invalid[] = {
+        {.source = 768, .destination = 517, .steps = 16, .active = true},
+        {.source = 600, .destination = 517, .steps = 16, .active = true},
+        {.source = 512, .destination = 767, .steps = 2, .active = true},
+        {.source = 512, .destination = 517, .steps = 0, .active = true},
+        {.source = 512, .destination = 517, .steps = 17, .active = true},
+        {.source = 512, .destination = 510, .steps = 4, .active = true}};
+    for (size_t i = 0; i < SDL_arraysize(invalid); ++i)
+    {
+        CHECK(!SotnActorGraphics_BlendPalette(g, invalid[i]));
+        CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == red &&
+              f->frame[1] == 0x8000 && f->frame[2] == green);
+    }
+    CHECK(SotnActorGraphics_BlendPalette(g, (SotnPaletteBlend){0}));
+    blend.destination = 600;
+    blend.steps = 1;
+    q.palette = 600;
+    CHECK(SotnActorGraphics_BlendPalette(g, blend) &&
+          SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    CHECK(!SotnActorGraphics_BlendPalette(NULL, blend));
+    SotnActorGraphics_Destroy(g);
+    // A missing final source color must not partially overwrite a valid destination.
+    MakeFixture(f);
+    Put32(f->nz0 + 0xc8, 31);
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    blend.source = 513;
+    blend.destination = 512;
+    CHECK(!SotnActorGraphics_BlendPalette(g, blend));
+    q.palette = 512;
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -807,7 +869,7 @@ int main(void)
                         TestSprites(fixture) && TestFailures(fixture) &&
                         TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
                         TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-                        TestColorLine(fixture);
+                        TestColorLine(fixture) && TestPaletteBlend(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

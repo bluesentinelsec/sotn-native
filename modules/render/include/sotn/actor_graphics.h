@@ -2,6 +2,7 @@
 #define SOTN_ACTOR_GRAPHICS_H
 
 #include <sotn/equipment.h>
+#include <sotn/palette.h>
 #include <sotn/tilemap.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
@@ -157,4 +158,10 @@ bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count);
  * NULL. */
 void SotnActorGraphics_Destroy(SotnActorGraphics *graphics);
 
+/** @brief Apply a stage palette interpolation to owned texture memory atomically.
+ * @param graphics Borrowed initialized texture service. @param blend Copied original command.
+ * Active commands require source/destinations below 768, 1..16 steps and no source overlap.
+ * @return Success or SDL error. Missing source colors or invalid bounds leave all VRAM intact;
+ * borrowed private images remain unchanged. Inactive commands do nothing. */
+bool SotnActorGraphics_BlendPalette(SotnActorGraphics *graphics, SotnPaletteBlend blend);
 #endif

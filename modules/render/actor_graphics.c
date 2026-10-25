@@ -354,6 +354,64 @@ static bool Word(const SotnActorGraphics *graphics, Uint32 x, Uint32 y, Uint16 *
     return true;
 }
 
+static size_t PaletteIndex(Uint16 palette, Uint16 color)
+{
+    const Uint32 bank = palette / 256U;
+    const Uint32 x = (bank == 0 ? 512U : (bank - 1) * 256U) + (palette & 15U) * 16U + color;
+    return (size_t)(240U + (palette % 256U) / 16U) * 1024U + x;
+}
+
+// st/e_stained_glass_blend.h: native GPU memory is owned, private source files are immutable.
+bool SotnActorGraphics_BlendPalette(SotnActorGraphics *g, SotnPaletteBlend blend)
+{
+    if (g == NULL)
+        return SDL_InvalidParamError("graphics");
+    if (!blend.active)
+        return true;
+    if (blend.source >= 768 || blend.destination >= 768 || blend.steps == 0 || blend.steps > 16 ||
+        blend.steps > 768U - blend.destination ||
+        (blend.source >= blend.destination && blend.source < blend.destination + blend.steps))
+        return SDL_SetError("Stage palette blend requires bounded, nonoverlapping palette rows");
+    Uint16 source[16] = {0}, colors[16][16] = {0};
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        const size_t index = PaletteIndex(blend.source, i);
+        if (!g->valid[index])
+            return SDL_SetError("Stage palette blend source %u color %u is not loaded",
+                                blend.source, i);
+        source[i] = g->words[index];
+    }
+    const Uint32 target[3] = {blend.red / 8U, blend.green / 8U, blend.blue / 8U};
+    for (Uint16 step = 0; step < blend.steps; ++step)
+    {
+        const Uint32 factor = step * 4096U / blend.steps;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            Uint16 color = source[i];
+            if (color & 0x7fffU)
+            {
+                color &= 0x8000U;
+                for (Uint16 channel = 0; channel < 3; ++channel)
+                {
+                    const Uint32 component = (source[i] >> (channel * 5U)) & 31U;
+                    const Uint32 value =
+                        (component * (4096U - factor) + target[channel] * factor) >> 12;
+                    color |= (Uint16)(value << (channel * 5U));
+                }
+            }
+            colors[step][i] = color;
+        }
+    }
+    for (Uint16 step = 0; step < blend.steps; ++step)
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            const size_t index = PaletteIndex((Uint16)(blend.destination + step), i);
+            g->words[index] = colors[step][i];
+            g->valid[index] = 1;
+        }
+    return true;
+}
+
 static bool Texel(const SotnActorGraphics *graphics, Uint32 page, Uint32 palette, Uint8 u, Uint8 v,
                   Uint16 *color)
 {

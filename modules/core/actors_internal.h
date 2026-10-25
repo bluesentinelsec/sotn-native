@@ -339,6 +339,7 @@ struct SotnActors
     Sint32 frame_start_x;
     bool player_initialized;
     SotnActorMotion motion;
+    SotnPaletteBlend palette_blend;
     SotnActorControl control;
     Uint16 buttons, previous_buttons, tapped_buttons, repeat_buttons, puzzle_flags, elevator_target;
     Uint8 button_repeat_timer[16];
@@ -524,6 +525,11 @@ bool ActorChapelExit(SotnActors *actors, Actor *actor);
  * @param actor Borrowed raw-0x1f/0x20 slot; primitives remain generation-owned.
  * @return Success or SDL error for malformed data/state or a nonterminating cloud row. */
 bool ActorChapelSky(SotnActors *actors, Actor *actor);
+/** @brief Advance the original Chapel stained-glass/light or background actor.
+ * @param actors Borrowed stage-6 owner, private geometry/poses/colors and math tables.
+ * @param actor Borrowed raw-0x17/0x18 slot; bounded primitives remain generation-owned.
+ * @return Success or SDL error for invalid private records, state or primitive capacity. */
+bool ActorChapelGlass(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
  * @param actors Borrowed stage-6 simulation and private tables.
  * @param actor Borrowed supported slot; primitives stay generation-owned.
