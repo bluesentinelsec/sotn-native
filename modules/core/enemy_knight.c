@@ -2,7 +2,7 @@
 // Green Axe Knight and its thrown axes from st/entity_axe_knight.h, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Tables/part art remain private inputs.
 #include "actors_internal.h"
-static bool Shatter(SotnActors *s, Actor *a, bool *done)
+bool ActorKnightShatter(SotnActors *s, Actor *a, bool *done)
 {
     *done = false;
     if (a->substep == 0)
@@ -11,12 +11,20 @@ static bool Shatter(SotnActors *s, Actor *a, bool *done)
         if (!ActorStageParts(s, a, &parts))
             return false;
         const Uint16 count = Read16(parts.bytes);
-        if (!ActorPrimitives(s, a, count))
+        Uint16 available = 0;
+        for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+            available = (Uint16)(available + (s->primitives[i].owner == 0));
+        if (available < count * 2U)
+        {
+            *done = true;
+            return true;
+        }
+        if (!ActorPrimitives(s, a, (Uint16)(count * 2U)))
             return false;
         for (Uint16 i = 0; i < count; ++i)
         {
             const Uint8 *d = parts.bytes + 2 + i * 22;
-            ActorPrimitive *p = ActorPrimitiveGet(s, a, i);
+            ActorPrimitive *p = ActorPrimitiveGet(s, a, (Uint16)(i * 2U));
             if (p == NULL)
                 return false;
             const Sint32 w = Signed16(d + 6), h = Signed16(d + 8);
@@ -50,7 +58,7 @@ static bool Shatter(SotnActors *s, Actor *a, bool *done)
         return true;
     }
     bool active = false;
-    for (Uint16 i = 0; i < a->state.primitive_count; ++i)
+    for (Uint16 i = 0; i < a->state.primitive_count; i = (Uint16)(i + 2))
     {
         ActorPrimitive *p = ActorPrimitiveGet(s, a, i);
         if (p == NULL)
@@ -85,7 +93,7 @@ static bool Shatter(SotnActors *s, Actor *a, bool *done)
             Actor origin = *a;
             origin.state.x = p->state.x;
             origin.state.y = p->state.y;
-            if (!ActorExplosion(s, &origin, 0) || !ActorSound(s, 0x63b))
+            if (!ActorExplosionInPool(s, &origin, 0, 160, 192, 0) || !ActorSound(s, 0x63b))
                 return false;
             p->state.active = false;
         }
@@ -270,7 +278,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
         if (anim == 0)
         {
             bool done = false;
-            if (!Shatter(s, a, &done))
+            if (!ActorKnightShatter(s, a, &done))
                 return false;
             if (done)
             {

@@ -166,6 +166,29 @@ static bool Open(Fixture *f, SotnActors **s)
         f->stage[0x23ec + i] = 1;
         Put16(f->stage + 0x23f0 + i * 2, 8);
     }
+    Put16(f->stage + 0x245a, 32);
+    Put16(f->stage + 0x2452, 32);
+    Put16(f->stage + 0x2454, 8);
+    const size_t blue_anims[] = {0x2488, 0x2498, 0x24b0, 0x24c4, 0x24d0, 0x24e0,
+                                 0x24f0, 0x2504, 0x2514, 0x252c, 0x2538, 0x2400};
+    for (Uint32 i = 0; i < SDL_arraysize(blue_anims); ++i)
+        Animation(f, blue_anims[i], 1);
+    Animation(f, 0x2498, 8);
+    Animation(f, 0x24b0, 7);
+    Put16(f->stage + 0x25f4, 2);
+    Put32(f->stage + 0x25f4, 2 * 65536);
+    Put32(f->stage + 0x25f8, 2 * 65536);
+    Put32(f->stage + 0x25fc, 65536);
+    Put32(f->stage + 0x2608, (Uint32)(-4 * 65536));
+    for (Uint32 i = 0; i < 48; ++i)
+        f->stage[0x2554 + i] = 1;
+    f->stage[0x254a] = 8;
+    f->stage[0x254b] = 26;
+    for (Uint32 i = 0; i < 56; ++i)
+        f->stage[0x25bc + i] = 1;
+    f->stage[0x2588] = 12;
+    f->stage[0x2589] = (Uint8)-4;
+    f->stage[0x258a] = f->stage[0x258b] = 8;
     f->types[1] = 3;
     for (Uint32 y = 12; y < 16; ++y)
         for (Uint32 x = 0; x < 32; ++x)
@@ -445,12 +468,86 @@ static bool Sword(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Blue(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *root = &s->slots[40];
+    *root = (Actor){.state = {.id = 0x20, .generation = 900, .x = 200 * 65536, .y = 160 * 65536},
+                    .slot = 40,
+                    .dynamic = true};
+    SotnPlayerState player = {.x = 320 * 65536, .y = 160 * 65536, .hp = 70, .invulnerable = true};
+    CHECK(SotnActors_Tick(s, player, 0, 0));
+    Actor *weapon = &s->slots[41];
+    CHECK(root->blue.armored && root->blue.delay == 512 && weapon->state.id == 0x22 &&
+          weapon->state.hitbox_x == 12 && weapon->state.hitbox_y == -4 &&
+          (weapon->state.flags & 0x01000000));
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 2);
+    root->blue.delay = 2;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->blue.delay == -1);
+    player.y = 64 * 65536;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && root->state.step == 7);
+    bool thrown = false;
+    for (Uint32 t = 0; t < 10; ++t)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        thrown = thrown || (s->slots[96].state.id == 0x21 && s->slots[96].state.parameters == 2);
+    }
+    CHECK(thrown && s->slots[96].state.step == 2);
+    Actor axe = {.state = {.id = 0x21, .generation = 901, .facing_left = true}};
+    CHECK(ActorBlueKnight(s, &axe) && axe.vx == 2 * 65536 && axe.blue.delay == -64);
+    for (Uint32 t = 0; t < 96; ++t)
+        CHECK(ActorBlueKnight(s, &axe));
+    CHECK(axe.vx == -2 * 65536 && axe.state.rotation == 0);
+    axe.blue.delay = SDL_MAX_SINT16;
+    CHECK(ActorBlueKnight(s, &axe) && axe.blue.delay == SDL_MIN_SINT16);
+    axe.state.flags |= 0x100;
+    CHECK(ActorBlueKnight(s, &axe) && axe.remove);
+    SetStep(root, 6);
+    player.x = 400 * 65536;
+    player.y = 160 * 65536;
+    for (Uint32 t = 0; t < 35; ++t)
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+    CHECK(root->substep == 2 && root->vx == 163840);
+    SetStep(root, 2);
+    root->state.hit_points = 7;
+    CHECK(SotnActors_Tick(s, player, 0, 0) && !root->blue.armored);
+    Actor first_death = {.state = {.id = 0x20, .generation = 905, .step = 8}, .timer = 65};
+    CHECK(ActorBlueKnight(s, &first_death) && first_death.timer == 64);
+    // Exercise the complete alternate death, including hidden companion allocation.
+    SetStep(root, 8);
+    root->state.hitbox_state = 0;
+    root->substep = 16;
+    root->state.flags |= 0x10c100;
+    bool pulse = false;
+    for (Uint32 t = 0; t < 100; ++t)
+    {
+        CHECK(SotnActors_Tick(s, player, 0, 0));
+        pulse = pulse || root->state.primitive_count == 2;
+    }
+    CHECK(pulse && !root->state.generation && !weapon->state.generation);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(!s->primitives[i].owner);
+    Actor invalid = {.state = {.id = 0x21, .parameters = 3, .generation = 902}};
+    CHECK(!ActorBlueKnight(s, &invalid));
+    invalid = (Actor){.state = {.id = 0x20, .generation = 903}, .slot = 191};
+    CHECK(!ActorBlueKnight(s, &invalid));
+    // Original shatter allocation failure finishes death rather than stopping gameplay.
+    Actor dying = {.state = {.id = 0x20, .generation = 904}, .substep = 17};
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 999;
+    bool done = false;
+    CHECK(ActorBlueDeath(s, &dying, &done) && done && !dying.state.primitive_count);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f);
+    const bool ok = Musket(f) && Archer(f) && Spear(f) && Sword(f) && Blue(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

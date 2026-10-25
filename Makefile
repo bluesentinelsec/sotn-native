@@ -172,3 +172,5 @@ SOTN_FORMAT_SOURCES += modules/core/enemy_musket.c modules/core/enemy_archer.c \
 SOTN_FORMAT_SOURCES += modules/core/enemy_spear.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_sword.c modules/core/outer_effects.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_blue_knight.c modules/core/enemy_blue_death.c

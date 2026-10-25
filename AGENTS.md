@@ -272,3 +272,8 @@ The [Outer Wall Sword Lord](docs/outer-wall-sword-lord.md) now runs selected att
 its separate weapon hitbox, bounded dust, death pulse and falling/fading fragments.
 Private explicit-room checks use a protected player; whole-route and console parity
 remain incomplete. Original tables and assets stay private.
+
+The [Outer Wall Blue Axe Knight](docs/outer-wall-blue-knight.md) now runs selected
+armored/damaged attacks, its separate weapon actor, axes and both death variants.
+Green/blue fragment deaths retain paired primitive reservations. Private protected
+fixtures are not continuous-route or console parity evidence.
