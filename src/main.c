@@ -151,6 +151,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool inspect_lab = false;
     bool preview_lab = false;
     bool play_lab = false, play_menu = false, play_entrance = false;
+    const char *castle_code = NULL;
+    Uint16 castle_stage = 0;
+    Uint32 castle_room = 0;
+    bool chose_castle_room = false;
     Uint32 entrance_room = 0;
     bool chose_entrance_room = false;
     bool chose_lab_room = false;
@@ -208,6 +212,29 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--play") == 0)
         {
             play_menu = true;
+        }
+        else if (SDL_strcmp(argv[i], "--castle") == 0)
+        {
+            if (castle_code != NULL || i + 1 >= argc ||
+                (SDL_strcmp(argv[i + 1], "NO0") != 0 && SDL_strcmp(argv[i + 1], "NO1") != 0))
+            {
+                SDL_SetError("--castle requires NO0 or NO1 once");
+                return Fail("Invalid arguments");
+            }
+            castle_code = argv[++i];
+            castle_stage = SDL_strcmp(castle_code, "NO0") == 0 ? 0 : 1;
+        }
+        else if (SDL_strcmp(argv[i], "--castle-room") == 0)
+        {
+            char *end = NULL;
+            const unsigned long value = i + 1 < argc ? SDL_strtoul(argv[++i], &end, 10) : 256;
+            if (chose_castle_room || end == NULL || *end != '\0' || value > 255)
+            {
+                SDL_SetError("--castle-room requires one original room index 0..255");
+                return Fail("Invalid arguments");
+            }
+            castle_room = (Uint32)value;
+            chose_castle_room = true;
         }
         else if (SDL_strcmp(argv[i], "--entrance") == 0)
         {
@@ -295,7 +322,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                 "SLOT] "
                 "[--laboratory-loadout unarmed|sword|mace|dual] "
                 "[--laboratory-test-profile inventory|progression|dagger|axe|holy-water|stopwatch] "
-                "[--smoke-test] | --graphics-test");
+                "[--castle NO0|NO1 [--castle-room INDEX]] [--smoke-test] | --graphics-test");
             return SDL_APP_SUCCESS;
         }
         else
@@ -304,6 +331,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("Invalid arguments");
         }
     }
+    if (chose_castle_room && castle_code == NULL)
+    {
+        SDL_SetError("--castle-room requires --castle NO0 or NO1");
+        return Fail("Invalid arguments");
+    }
+    if (castle_code != NULL && !chose_castle_room)
+        castle_room = castle_stage == 0 ? 6 : 7;
     if (chose_entrance_room && !play_entrance)
     {
         SDL_SetError("--entrance-room requires --entrance");
@@ -329,7 +363,8 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     const unsigned int modes = (validate_only ? 1U : 0U) + (preview_icons ? 1U : 0U) +
                                (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
                                (play_lab ? 1U : 0U) + (play_menu ? 1U : 0U) +
-                               (play_entrance ? 1U : 0U) + (inspect_stage != NULL ? 1U : 0U);
+                               (play_entrance ? 1U : 0U) + (castle_code != NULL ? 1U : 0U) +
+                               (inspect_stage != NULL ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
@@ -386,10 +421,13 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         SDL_Log("SOTN_GRAPHICS_TEST: PASS");
         return SDL_APP_SUCCESS;
     }
-    if (play_lab || play_menu || play_entrance)
+    if (play_lab || play_menu || play_entrance || castle_code != NULL)
     {
-        if (!(play_entrance ? SotnLaboratory_CreateEntrance(app->game_data, game_directory,
-                                                            entrance_room, &app->game)
+        if (!(castle_code != NULL
+                  ? SotnLaboratory_CreateStage(app->game_data, game_directory, castle_stage,
+                                               castle_room, &app->game)
+              : play_entrance ? SotnLaboratory_CreateEntrance(app->game_data, game_directory,
+                                                              entrance_room, &app->game)
               : lab_slot != 0
                   ? SotnLaboratory_Continue(app->game_data, game_directory, lab_slot, &app->game)
                   : SotnLaboratory_Create(app->game_data, game_directory, lab_room, &app->game)))

@@ -64,9 +64,10 @@ static bool Resolve(SotnDataView image, Uint32 address, size_t bytes, Uint32 ali
 bool ActorStageParts(SotnActors *s, const Actor *a, SotnDataView *out)
 {
     const Uint32 bank = a->state.animation_set & 0x7fff;
+    const Uint32 bank_count = SotnStageProfile_Get(s->stage_id)->sprite_banks;
     SotnDataView banks = {0}, frames = {0}, header = {0};
-    if (!(a->state.animation_set & 0x8000) || bank == 0 || bank >= 24 || s->nz0.size < 24 ||
-        !Resolve(s->nz0, Read32(s->nz0.bytes + 20), 24 * 4, 4, &banks) ||
+    if (!(a->state.animation_set & 0x8000) || bank == 0 || bank >= bank_count || s->nz0.size < 24 ||
+        !Resolve(s->nz0, Read32(s->nz0.bytes + 20), bank_count * 4, 4, &banks) ||
         !Resolve(s->nz0, Read32(banks.bytes + bank * 4), 8, 4, &frames))
         return false;
     const Uint32 start = Read32(banks.bytes + bank * 4), end = Read32(frames.bytes + 4);

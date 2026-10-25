@@ -5,7 +5,9 @@ first-visit Entrance (NO3, stage 65), Laboratory (NZ0, stage 12), and later Entr
 (NP3, stage 7). The upper first-visit Entrance exit enters Laboratory room 10;
 returning through Laboratory's east connector enters NP3 room 15. The return uses
 NP3's original placements and tables, rather than replaying the first-visit event.
-Other stage destinations still fail explicitly as unsupported native gameplay.
+The [early castle profiles](early-castle-stages.md) also connect Laboratory to
+Marble Gallery and onward to Outer Wall. Area-specific gameplay remains incomplete;
+other destinations fail explicitly as unsupported native gameplay.
 
 ## Ownership and progress
 

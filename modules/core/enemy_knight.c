@@ -106,11 +106,11 @@ static bool Axe(SotnActors *s, Actor *a)
     {
         if (a->state.parameters > 2)
             return SDL_SetError("Axe Knight projectile type exceeds its table");
-        if (!ActorInitialize(s, a, 0xc70))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xc70)))
             return false;
         SotnDataView vx = {0}, vy = {0};
-        if (!Slice(s->nz0, 0x22bc + a->state.parameters * 4, 4, &vx) ||
-            !Slice(s->nz0, 0x22c8 + a->state.parameters * 4, 4, &vy))
+        if (!Slice(s->nz0, ActorStageOffset(s, 0x22bc) + a->state.parameters * 4, 4, &vx) ||
+            !Slice(s->nz0, ActorStageOffset(s, 0x22c8) + a->state.parameters * 4, 4, &vy))
             return false;
         a->vx = Signed32(vx.bytes) * (a->state.facing_left ? 1 : -1);
         a->vy = Signed32(vy.bytes);
@@ -138,7 +138,7 @@ static bool Axe(SotnActors *s, Actor *a)
 }
 bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
 {
-    if (a->state.id == 0x2a)
+    if (a->state.id == ActorStageId(s, 0x2a))
         return Axe(s, a);
     Uint8 anim = 0;
     Uint16 collision = 0;
@@ -154,14 +154,14 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
     switch (a->state.step)
     {
     case 0:
-        if (!ActorInitialize(s, a, 0xc64))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xc64)))
             return false;
         a->state.facing_left = Side(a, player) == 0;
         a->state.hitbox_y = 10;
         a->enemy_state.attack_timer = 512;
         /* fall through */
     case 1:
-        if (!ActorGround(s, a, 0x2188, &collision))
+        if (!ActorGround(s, a, ActorStageOffset(s, 0x2188), &collision))
             return false;
         if (collision & 1)
         {
@@ -177,7 +177,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
             a->vx = (a->state.facing_left ? 1 : -1) * (back ? -12288 : 12288);
             ++a->substep;
         }
-        if (!ActorAnimate(s, a, 0x2210, &anim))
+        if (!ActorAnimate(s, a, ActorStageOffset(s, 0x2210), &anim))
             return false;
         if (a->remaining == 0)
             a->state.facing_left = Side(a, player) == 0;
@@ -194,7 +194,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
         delta *= a->state.facing_left ? 1 : -1;
         delta *= back ? -512 : 768;
         a->vx += delta;
-        if (!ActorWalk(s, a, 0x2180, &collision))
+        if (!ActorWalk(s, a, ActorStageOffset(s, 0x2180), &collision))
             return false;
         if (collision & 0x60)
         {
@@ -208,7 +208,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
         {
             SotnDataView step = {0};
             const Uint32 index = ActorRandom(s) & 7;
-            if (!Slice(s->nz0, 0x22b4 + index, 1, &step))
+            if (!Slice(s->nz0, ActorStageOffset(s, 0x22b4) + index, 1, &step))
                 return false;
             if (step.bytes[0] != 4 && step.bytes[0] != 5)
                 return SDL_SetError("Axe Knight attack table contains an unsupported state");
@@ -221,7 +221,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
     case 5:
     case 7: {
         const Uint16 phase = a->state.step;
-        if (!ActorAnimate(s, a, phase == 5 ? 0x2220 : 0x2244, &anim))
+        if (!ActorAnimate(s, a, ActorStageOffset(s, phase == 5 ? 0x2220 : 0x2244), &anim))
             return false;
         if (anim == 0)
         {
@@ -234,7 +234,11 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
             if (!ActorSound(s, 0x766))
                 return false;
             Actor *projectile = NULL;
-            if (!ActorSpawn(s, a, 0x2a, phase == 5 ? 1 : phase == 7 ? 2 : 0, 96, 128, &projectile))
+            if (!ActorSpawn(s, a, ActorStageId(s, 0x2a),
+                            phase == 5   ? 1
+                            : phase == 7 ? 2
+                                         : 0,
+                            96, 128, &projectile))
                 return false;
             if (projectile != NULL)
             {
@@ -253,7 +257,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
             {
                 SotnDataView offset = {0};
                 Actor origin = *a;
-                if (!Slice(s->nz0, 0x2198 + (tick >> 3) * 4, 4, &offset))
+                if (!Slice(s->nz0, ActorStageOffset(s, 0x2198) + (tick >> 3) * 4, 4, &offset))
                     return false;
                 origin.state.x += Signed16(offset.bytes) * 65536;
                 origin.state.y += Signed16(offset.bytes + 2) * 65536;
@@ -261,7 +265,7 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
                     return false;
             }
         }
-        if (!ActorAnimate(s, a, 0x2268, &anim))
+        if (!ActorAnimate(s, a, ActorStageOffset(s, 0x2268), &anim))
             return false;
         if (anim == 0)
         {
@@ -283,8 +287,9 @@ bool ActorKnight(SotnActors *s, Actor *a, SotnPlayerState player)
     if (a->state.frame >= 48)
         return SDL_SetError("Axe Knight frame exceeds its hitbox lookup");
     SotnDataView index = {0}, box = {0};
-    if (!Slice(s->nz0, 0x2284 + a->state.frame, 1, &index) || index.bytes[0] > 3 ||
-        !Slice(s->nz0, 0x2274 + index.bytes[0] * 4, 4, &box))
+    if (!Slice(s->nz0, ActorStageOffset(s, 0x2284) + a->state.frame, 1, &index) ||
+        index.bytes[0] > 3 ||
+        !Slice(s->nz0, ActorStageOffset(s, 0x2274) + index.bytes[0] * 4, 4, &box))
         return false;
     a->state.hitbox_x = (Sint16)(box.bytes[0] < 128 ? box.bytes[0] : (Sint32)box.bytes[0] - 256);
     a->state.hitbox_y = (Sint16)(box.bytes[1] < 128 ? box.bytes[1] : (Sint32)box.bytes[1] - 256);

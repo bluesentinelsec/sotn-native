@@ -1,5 +1,6 @@
 #include <SDL3/SDL_error.h>
 #include <sotn/actor_layout.h>
+#include <sotn/stage_profile.h>
 
 #define NZ0_BASE 0x80180000U
 #define LAYOUT_COUNT 53U
@@ -77,9 +78,10 @@ bool SotnActorLayout_OpenStage(SotnDataView image, Uint16 stage_id, Uint32 index
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
+    const SotnStageProfile *profile = SotnStageProfile_Get(stage_id);
+    if (profile == NULL)
         return SDL_SetError("Actor layouts do not support stage %u", stage_id);
-    const Uint16 id_limit = stage_id == 65 ? 0x63 : stage_id == 7 ? 0x5c : 0x4e;
+    const Uint16 id_limit = profile->actor_limit;
     if (image.bytes == NULL || image.size < 32 || image.size > 0x80000 || index >= LAYOUT_COUNT)
         return SDL_SetError(
             "Actor layouts require a bounded supported US stage image and layout ID below 53");

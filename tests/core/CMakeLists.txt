@@ -148,3 +148,10 @@ target_include_directories(sotn-maria-tests PRIVATE "${PROJECT_SOURCE_DIR}/modul
 target_link_libraries(sotn-maria-tests PRIVATE sotn-core)
 add_test(NAME laboratory-maria COMMAND sotn-maria-tests)
 set_tests_properties(laboratory-maria PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stage-profile-tests test_stage_profile.c)
+sotn_configure_c_target(sotn-stage-profile-tests)
+target_include_directories(sotn-stage-profile-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-stage-profile-tests PRIVATE sotn-core)
+add_test(NAME early-castle-profiles COMMAND sotn-stage-profile-tests)
+set_tests_properties(early-castle-profiles PROPERTIES TIMEOUT 20)

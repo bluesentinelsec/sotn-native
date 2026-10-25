@@ -6,6 +6,7 @@
 #include <sotn/dialogue.h>
 #include <sotn/game_math.h>
 #include <sotn/relic.h>
+#include <sotn/stage_profile.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
 
@@ -240,10 +241,16 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
  * or revisited Entrance (7) profiles. Offsets identify private tables; actor IDs always retain
  * their stage meaning. */
+size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
+Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
+
 static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
                                 size_t revisited)
 {
-    return actors->stage_id == 65 ? entrance : actors->stage_id == 7 ? revisited : laboratory;
+    return actors->stage_id == 65  ? entrance
+           : actors->stage_id == 7 ? revisited
+                                   : ActorStageOffset(actors, laboratory);
 }
 
 /* NO3 and NP3 keep their original raw entity IDs in state and placements. This selects

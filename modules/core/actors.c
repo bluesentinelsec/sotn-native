@@ -367,6 +367,10 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 0)
+        return id == 0x47 || id == 0x48 || id == 0x4d || id == 0x4e;
+    if (actors->stage_id == 1)
+        return id == 0x3e || id == 0x3f;
     if (actors->stage_id == 7)
         return id == 0x32 || id == 0x34 || id == 0x39 || id == 0x3a || id == 0x3e || id == 0x40 ||
                id == 0x42 || id == 0x48;
@@ -965,8 +969,8 @@ static bool PersistentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pl
         return true;
     }
     const Uint16 index = actor->state.parameters;
-    const Uint16 count = actors->stage_id == 12 ? 11 : 10;
-    const Uint16 base = actors->stage_id == 12 ? 0xf8 : 0x30;
+    const SotnStageProfile *profile = SotnStageProfile_Get(actors->stage_id);
+    const Uint16 count = profile->prize_count, base = profile->prize_bit;
     const Uint16 bit = (Uint16)(base + index);
     if (index >= count)
         return SDL_SetError("Persistent drop index exceeds its original stage table");
@@ -1042,10 +1046,12 @@ static bool RelicOrb(SotnActors *s, Actor *a)
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
-    if (actors->stage_id != 12 && actor->state.id != 1 && actor->state.id != 2 &&
-        actor->state.id != 3 && actor->state.id != 0xa && actor->state.id != 0xb &&
-        actor->state.id != 0xc)
+    if ((actors->stage_id == 65 || actors->stage_id == 7) && actor->state.id != 1 &&
+        actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
+        actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
+    if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
+        return ActorEarlyCastle(actors, actor);
     switch (actor->state.id)
     {
     case 2: {
@@ -1100,7 +1106,10 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 1: {
         const Uint32 type = actor->state.parameters >> 12;
         SotnDataView table = {0};
-        if (type >= (actors->stage_id != 12 ? 2U : 3U) ||
+        if (type >= (actors->stage_id == 0    ? 9U
+                     : actors->stage_id == 1  ? 10U
+                     : actors->stage_id != 12 ? 2U
+                                              : 3U) ||
             !Slice(actors->nz0, ActorTable(actors, 0xe04, 0xe50, 0xe28) + type * 4, 4, &table))
             return SDL_SetError("Breakable actor references an unsupported original subtype");
         if (actor->state.step != 0)
@@ -1112,12 +1121,26 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return false;
             if (actor->hit_params)
             {
+                if (actors->stage_id == 1 && (type == 7 || type == 8))
+                {
+                    Actor *drop = NULL;
+                    if (!ActorSound(actors, 0x61d) ||
+                        !ActorSpawn(actors, actor, 0xc,
+                                    type == 8 ? 3 : (Uint16)(actor->state.parameters & 0x1ff), 96,
+                                    128, &drop))
+                        return false;
+                    actor->remove = actor->permanent = true;
+                    return true;
+                }
+                const Uint16 sound = actors->stage_id == 0 ? (type == 1 ? 0x61b : 0x67e)
+                                     : actors->stage_id == 1 && type == 9 ? 0x61d
+                                                                          : 0x634;
                 if (!(actors->world->relics[SOTN_RELIC_CUBE] & 2))
                 {
                     actor->remove = true;
-                    return ActorExplosion(actors, actor, 0) && ActorSound(actors, 0x634);
+                    return ActorExplosion(actors, actor, 0) && ActorSound(actors, sound);
                 }
-                if (!ActorExplosion(actors, actor, 0) || !ActorSound(actors, 0x634))
+                if (!ActorExplosion(actors, actor, 0) || !ActorSound(actors, sound))
                     return false;
                 actor->state.id = 3;
                 actor->state.parameters &= 0xfff;
@@ -1144,7 +1167,18 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return false;
         actor->state.hitbox_height = table.bytes[0];
         actor->state.priority = 0x6c;
-        if (type == 2)
+        if (actors->stage_id == 1)
+        {
+            SotnDataView palette = {0}, texture = {0}, y = {0};
+            if (!Slice(actors->nz0, 0xe18 + type * 2, 2, &palette) ||
+                !Slice(actors->nz0, 0xe40 + type * 2, 2, &texture) ||
+                !Slice(actors->nz0, 0xe60 + type * 2, 2, &y))
+                return false;
+            actor->state.palette = Read16(palette.bytes);
+            actor->state.texture_offset = Read16(texture.bytes);
+            actor->state.hitbox_y = (Sint16)Signed16(y.bytes);
+        }
+        else if (type == 2 && actors->stage_id == 12)
         {
             actor->state.texture_offset = 0x4b;
             actor->state.palette = 0x219;
@@ -1280,7 +1314,7 @@ bool SotnActors_CreateStage(SotnDataView dra, SotnDataView nz0, Uint16 stage_id,
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
+    if (SotnStageProfile_Get(stage_id) == NULL)
         return SDL_SetError("Native actors do not support stage %u", stage_id);
     if (dra.bytes == NULL || dra.size < 0x9c || dra.size > 0x200000 || nz0.bytes == NULL ||
         nz0.size < 40 || nz0.size > 0x80000)

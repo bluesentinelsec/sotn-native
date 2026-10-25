@@ -55,7 +55,7 @@ static bool Profiles(Fixture *f)
 {
     SotnActors *s = NULL;
     CHECK(!SotnActors_CreateStage((SotnDataView){f->dra, sizeof(f->dra)},
-                                  (SotnDataView){f->stage, sizeof(f->stage)}, 0, &s));
+                                  (SotnDataView){f->stage, sizeof(f->stage)}, 2, &s));
     CHECK(s == NULL);
     CHECK(Open(f, &s));
     Put32(f->stage + 28, 0x80180040);
@@ -76,7 +76,7 @@ static bool Profiles(Fixture *f)
     SotnActorLayout_Close(layout);
     Put16(f->stage + 0x30e, 0x63);
     CHECK(!SotnActorLayout_OpenStage(image, 65, 0, &layout) && layout == NULL);
-    CHECK(!SotnActorLayout_OpenStage(image, 0, 0, &layout));
+    CHECK(!SotnActorLayout_OpenStage(image, 2, 0, &layout));
     SotnActors_Destroy(s);
     return true;
 }

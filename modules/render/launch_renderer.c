@@ -68,7 +68,12 @@ bool SotnLaunchRenderer_Draw(SotnDataView common, SotnLaunchMenu menu,
             char text[40] = {0};
             if (slots[i].valid)
                 SDL_snprintf(text, sizeof(text), "%02u  L%02u HP%04u %s%02u", i + 1, slots[i].level,
-                             slots[i].hp, slots[i].stage == 12 ? "LAB" : "ENT", slots[i].room);
+                             slots[i].hp,
+                             slots[i].stage == 0    ? "MAR"
+                             : slots[i].stage == 1  ? "OUT"
+                             : slots[i].stage == 12 ? "LAB"
+                                                    : "ENT",
+                             slots[i].room);
             else
                 SDL_snprintf(text, sizeof(text), "%02u  %s", i + 1,
                              slots[i].exists ? "INVALID SAVE" : "EMPTY");

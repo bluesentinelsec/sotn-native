@@ -391,14 +391,41 @@ static bool TestDialogue(Fixture *f)
     return true;
 }
 
+static bool StageBankBounds(Fixture *f)
+{
+    MakeFixture(f);
+    Put32(f->nz0 + 0x40 + 24 * 4, 0x80180600);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    SotnActorSprite sprite = {.animation_set = 0x8018, .frame = 1, .palette = 0x200};
+    ClearFrame(f);
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(f));
+    SotnActorGraphics_Destroy(g);
+    const SotnDataView dra = {f->dra, sizeof(f->dra)}, overlay = {f->nz0, sizeof(f->nz0)};
+    const SotnTileSources art = {{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}};
+    CHECK(SotnActorGraphics_CreateStage(dra, overlay, art, 0, &g));
+    CHECK(SotnActorGraphics_LoadBank(g, 0));
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!Unchanged(f));
+    sprite.animation_set = 0x8019;
+    ClearFrame(f);
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(Unchanged(f));
+    SotnActorGraphics_Destroy(g);
+    CHECK(!SotnActorGraphics_CreateStage(dra, overlay, art, 2, &g) && g == NULL);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestRotation(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
-                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture);
+    const bool passed = StageBankBounds(fixture) && TestRotation(fixture) && TestQuad(fixture) &&
+                        TestSprites(fixture) && TestFailures(fixture) &&
+                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
+                        TestDialogue(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

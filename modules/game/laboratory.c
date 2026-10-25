@@ -19,6 +19,7 @@
 #include <sotn/save_point_renderer.h>
 #include <sotn/sound.h>
 #include <sotn/stage_assets.h>
+#include <sotn/stage_profile.h>
 #include <sotn/stage_route.h>
 #include <sotn/subweapon_renderer.h>
 
@@ -100,6 +101,8 @@ typedef struct SessionStart
 
 static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
 {
+    if (s->stage_id == 0 || s->stage_id == 1)
+        return SotnMusic_CreateStage(s->dra, s->music_stream, s->stage_id, out);
     if (s->stage_id == 12)
         return SotnMusic_Create(s->dra, s->music_stream, out);
     return SotnMusic_CreateEntrance(s->dra, s->music_stream,
@@ -129,12 +132,16 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
 {
     const SotnResourceId ids[5] = {SOTN_RESOURCE_COMMON_AUDIO, SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,
                                    SOTN_RESOURCE_ALUCARD_AUDIO_BODY,
-                                   session->stage_id == 65  ? SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER
-                                   : session->stage_id == 7 ? SOTN_RESOURCE_RETURN_AUDIO_HEADER
-                                                            : SOTN_RESOURCE_LAB_AUDIO_HEADER,
-                                   session->stage_id == 65  ? SOTN_RESOURCE_ENTRANCE_AUDIO_BODY
-                                   : session->stage_id == 7 ? SOTN_RESOURCE_RETURN_AUDIO_BODY
-                                                            : SOTN_RESOURCE_LAB_AUDIO_BODY};
+                                   session->stage_id == 0    ? SOTN_RESOURCE_MARBLE_AUDIO_HEADER
+                                   : session->stage_id == 1  ? SOTN_RESOURCE_WALL_AUDIO_HEADER
+                                   : session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER
+                                   : session->stage_id == 7  ? SOTN_RESOURCE_RETURN_AUDIO_HEADER
+                                                             : SOTN_RESOURCE_LAB_AUDIO_HEADER,
+                                   session->stage_id == 0    ? SOTN_RESOURCE_MARBLE_AUDIO_BODY
+                                   : session->stage_id == 1  ? SOTN_RESOURCE_WALL_AUDIO_BODY
+                                   : session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_BODY
+                                   : session->stage_id == 7  ? SOTN_RESOURCE_RETURN_AUDIO_BODY
+                                                             : SOTN_RESOURCE_LAB_AUDIO_BODY};
     for (Uint32 i = 0; i < 5; ++i)
         if (!SotnResource_Open(directory, ids[i], &session->sound_resources[i]))
             return false;
@@ -601,9 +608,9 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             SotnStageRoute route = {0};
             if (!SotnStageRoute_Read(session->dra, session->stage_id, room.layout_id, &route))
                 return false;
-            if (route.stage != 12 && route.stage != 65 && route.stage != 7)
-                return SDL_SetError(
-                    "Stage %u is outside this native Entrance/Laboratory checkpoint", route.stage);
+            if (SotnStageProfile_Get(route.stage) == NULL)
+                return SDL_SetError("Stage %u is outside the integrated native castle checkpoint",
+                                    route.stage);
             session->arrival = route;
             session->stage_pending = true;
             return true;
@@ -677,7 +684,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage_id != 12 && stage_id != 65 && stage_id != 7)
+    if (SotnStageProfile_Get(stage_id) == NULL)
         return SDL_SetError("Native session does not support stage %u", stage_id);
     if (stage_id == 12 && start_room != 1 && start_room != 3 && start_room != 4 &&
         start_room != 5 && start_room != 6 && start_room != 9 && start_room != 10 &&
@@ -739,9 +746,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
         !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->inventory_renderer) ||
-        !SotnActorGraphics_Create(
+        !SotnActorGraphics_CreateStage(
             session->dra, session->nz0,
-            (SotnTileSources){StageGraphics(session), SotnResource_View(session->common)},
+            (SotnTileSources){StageGraphics(session), SotnResource_View(session->common)}, stage_id,
             &session->actor_graphics) ||
         !InitializeEquipment(session, saved) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
@@ -764,14 +771,19 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
-    if (stage_id != 12)
+    if (stage_id == 0 || stage_id == 1)
+        SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
+                "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
+                "boss progression remain incomplete.");
+    else if (stage_id != 12)
         SDL_Log("Entrance checkpoint: selected enemies, Death opening, common combat/pickups, "
                 "and connection to Laboratory. Complete actors/effects and other castle routes "
                 "remain incomplete.");
     else
-        SDL_Log("Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
-                "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
-                "complete castle scripts, other stages, and full-game progression remain incomplete.");
+        SDL_Log(
+            "Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
+            "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
+            "complete castle scripts, other stages, and full-game progression remain incomplete.");
     SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
             "and version-six saves with stage, explored cells, and permanent castle events.");
     if (saved == NULL)
