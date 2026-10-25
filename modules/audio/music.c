@@ -188,3 +188,8 @@ bool SotnMusic_CreateBoss(SotnDataView dra, SotnStream *stream, SotnMusic **out)
 {
     return Create(dra, stream, 29, 30, false, out);
 }
+
+bool SotnMusic_CreateEntrance(SotnDataView dra, SotnStream *stream, bool castle, SotnMusic **out)
+{
+    return Create(dra, stream, castle ? 15 : 42, castle ? 16 : 43, false, out);
+}

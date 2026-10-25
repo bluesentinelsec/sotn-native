@@ -108,7 +108,8 @@ bool SotnActorGraphics_Create(SotnDataView dra, SotnDataView nz0, SotnTileSource
     if (dra.bytes == NULL || dra.size > 0x200000 || nz0.bytes == NULL || nz0.size < 40 ||
         nz0.size > 0x80000 || sources.stage.bytes == NULL || sources.stage.size != 0x40000 ||
         sources.common.bytes == NULL || sources.common.size != 0x42000)
-        return SDL_SetError("Actor graphics require bounded DRA/NZ0 and verified texture views");
+        return SDL_SetError(
+            "Actor graphics require bounded DRA/stage overlay and verified texture views");
     SotnActorGraphics *graphics = SDL_calloc(1, sizeof(*graphics));
     if (graphics == NULL)
         return false;
@@ -135,7 +136,7 @@ typedef struct Transfer
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank)
 {
     if (graphics == NULL || bank >= 25)
-        return SDL_SetError("Actor graphics require a Laboratory bank index below 25");
+        return SDL_SetError("Actor graphics require a stage bank index below 25");
     SotnDataView table = {0}, record = {0};
     if (!Resolve(graphics->nz0, 0x80180000, Read32(graphics->nz0.bytes + 36), 25 * 4, 4, &table) ||
         !Resolve(graphics->nz0, 0x80180000, Read32(table.bytes + (size_t)bank * 4), 4, 4, &record))

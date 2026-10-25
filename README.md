@@ -209,3 +209,5 @@ Original scaffold code uses the [zlib license](LICENSE). See
 
 The [native sound service](docs/laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
+
+Castle Entrance integration is in progress; see [current scope](docs/entrance-runtime.md).

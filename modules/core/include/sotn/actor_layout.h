@@ -33,6 +33,13 @@ typedef struct SotnRoomActors SotnRoomActors;
  * Weighted layouts are rejected explicitly; the supported US NZ0 has only static lists.
  */
 bool SotnActorLayout_Open(SotnDataView image, Uint32 index, SotnActorLayout **out);
+/** @brief Validate paired placement lists with the original stage's actor-ID boundary.
+ * @param image Borrowed overlay, alive until Close(). @param stage_id 12 or 65.
+ * @param index Original layout ID, below 53. @param out Receives ownership or NULL.
+ * @return Success or SDL error; unsupported stage identities fail explicitly.
+ */
+bool SotnActorLayout_OpenStage(SotnDataView image, Uint16 stage_id, Uint32 index,
+                               SotnActorLayout **out);
 /** @brief Release metadata; backing bytes remain owned by the caller. @param layout Owned layout or
  * NULL. */
 void SotnActorLayout_Close(SotnActorLayout *layout);

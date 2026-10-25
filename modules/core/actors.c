@@ -362,8 +362,11 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
                            attack ? player.attack.height : player.animation.hitbox_height};
 }
 
-static bool EnemyHitbox(Uint16 id)
+static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 65)
+        return id == 0x2d || id == 0x2e || id == 0x3a || id == 0x3e || id == 0x41 || id == 0x42 ||
+               id == 0x46 || id == 0x48 || id == 0x4a || id == 0x4b || id == 0x4c;
     switch (id)
     {
     case 0x26:
@@ -391,13 +394,26 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     if (player.step == SOTN_PLAYER_KILL || actor->state.step == 0 || actor->state.unsupported ||
         (actor->state.flags & 0x100))
         return true;
+    Actor *recipient = actor;
+    if (actors->stage_id == 65 && actor->state.id == 0x4b)
+    {
+        const Uint32 owner = actor->enemy_state.owner_slot;
+        if (owner >= SOTN_STAGE_ACTOR_SLOTS ||
+            actors->slots[owner].state.generation != actor->enemy_state.owner_generation)
+            return true;
+        recipient = &actors->slots[owner];
+        if (recipient->state.flags & 0x100)
+            return true;
+    }
     for (Uint32 i = 0; i < SDL_arraysize(actor->cooldown); ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
-    if (!EnemyHitbox(actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
-        actor->state.id != 0xa && actor->state.id != 0x34 && actor->state.id != 0x17 &&
-        actor->state.id != 0x18 && actor->state.id != 0x1a && actor->state.id != 0x25 &&
-        actor->state.id != 0x20 && actor->state.id != 0x48 && actor->state.id != 0x1c)
+    if (!EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
+        actor->state.id != 0xa &&
+        (actors->stage_id != 12 ||
+         (actor->state.id != 0x34 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
+          actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
+          actor->state.id != 0x48 && actor->state.id != 0x1c)))
         return true;
     const SotnCombatBox target = {Pixel(actor->state.x) + (actor->state.facing_left
                                                                ? -actor->state.hitbox_x
@@ -452,42 +468,44 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 luck = attributes.total[3];
             }
             Uint16 damage = 0;
-            if (actor->state.hit_points != 0x7fff && actor->state.hit_points != 0 &&
-                !SotnCombat_DamageAttributes(actor->enemy, source.attack.power,
+            if (recipient->state.hit_points != 0x7fff && recipient->state.hit_points != 0 &&
+                !SotnCombat_DamageAttributes(recipient->enemy, source.attack.power,
                                              source.attack.element, source.attack.critical_rate,
                                              stats, luck, 1, &actors->combat_random, &damage))
                 return false;
             actor->hit_flags = source.attack.hit_type;
+            recipient->hit_flags = source.attack.hit_type;
             actor->hit_params = source.attack.hit_effect & 127;
             if (channel >= 2)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
-                if ((actor->hit_params == 3 && (actor->state.flags & 0x8000)) ||
-                    (actor->hit_params == 4 && (actor->state.flags & 0x4000)))
+                if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                    (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
                     flags = 2;
                 if (!SotnSubweapons_Hit(actors->subweapons, channel - 2, flags))
                     return false;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
-            if (EnemyHitbox(actor->state.id) && damage != 0xc000)
+            if (EnemyHitbox(actors, actor->state.id) && damage != 0xc000)
             {
                 if (damage & 0x8000)
-                    actor->state.hit_points =
-                        (Sint16)SDL_min(32767, actor->state.hit_points + (damage & 0x3fff));
+                    recipient->state.hit_points =
+                        (Sint16)SDL_min(32767, recipient->state.hit_points + (damage & 0x3fff));
                 else
                 {
-                    actor->state.hit_points =
-                        (Sint16)SDL_max(-32768, actor->state.hit_points - (damage & 0x3fff));
-                    if (actor->state.hit_points <= 0)
+                    recipient->state.hit_points =
+                        (Sint16)SDL_max(-32768, recipient->state.hit_points - (damage & 0x3fff));
+                    if (recipient->state.hit_points <= 0)
                     {
-                        actor->state.flags |= 0x100;
-                        if ((actor->state.flags & 0x1000) && actors->combat.kills < 999999)
+                        recipient->state.flags |= 0x100;
+                        if ((recipient->state.flags & 0x1000) && actors->combat.kills < 999999)
                             ++actors->combat.kills;
                         if (actors->character != NULL)
                         {
                             Uint16 levels = 0;
-                            if (!SotnCharacter_GainExperience(actors->character, actor->experience,
-                                                              actor->level, &levels))
+                            if (!SotnCharacter_GainExperience(actors->character,
+                                                              recipient->experience,
+                                                              recipient->level, &levels))
                                 return false;
                             if (levels != 0)
                             {
@@ -503,13 +521,13 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                         }
                     }
                 }
-                if (!(actor->state.flags & (0x400000 | 0x100)))
-                    actor->stun = source.attack.stun_frames;
+                if (!(recipient->state.flags & (0x400000 | 0x100)))
+                    recipient->stun = source.attack.stun_frames;
             }
             return true;
         }
     }
-    if ((actor->state.id == 0x20 || actor->state.id == 0x48) &&
+    if (actors->stage_id == 12 && (actor->state.id == 0x20 || actor->state.id == 0x48) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
@@ -519,8 +537,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if ((actor->state.id == 3 || actor->state.id == 0xa) && actor->state.step > 1 &&
             actor->state.step < 5 && actor->timer == 0)
             actor->state.step = 5;
-        else if ((EnemyHitbox(actor->state.id) || actor->state.id == 0x1a ||
-                  actor->state.id == 0x25) &&
+        else if ((EnemyHitbox(actors, actor->state.id) ||
+                  (actors->stage_id == 12 &&
+                   (actor->state.id == 0x1a || actor->state.id == 0x25))) &&
                  actor->attack > actors->combat.contact_damage)
         {
             actors->combat.contact_damage = actor->attack;
@@ -530,7 +549,6 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     }
     return true;
 }
-
 static void HeartFall(Actor *actor)
 {
     if (actor->vy >= 0)
@@ -549,7 +567,7 @@ static bool PrizeSides(SotnActors *actors, Actor *actor)
     if (actor->vx == 0)
         return true;
     SotnDataView sensors = {0};
-    if (!Slice(actors->nz0, 0x1d9c, 8, &sensors))
+    if (!Slice(actors->nz0, ActorTable(actors, 0x1d9c, 0x24e8), 8, &sensors))
         return false;
     Sint32 x = Pixel(actor->state.x), y = Pixel(actor->state.y);
     for (Uint32 i = 0; i < 2; ++i)
@@ -635,7 +653,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     {
         SotnDataView pointer = {0};
         Uint8 result = 0;
-        if (!Slice(actors->nz0, 0x1d3c + (size_t)item * 4, 4, &pointer) ||
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1d3c, 0x2488) + (size_t)item * 4, 4,
+                   &pointer) ||
             Read32(pointer.bytes) < 0x80180000 ||
             !ActorAnimate(actors, actor, Read32(pointer.bytes) - 0x80180000, &result))
             return false;
@@ -643,7 +662,7 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
     switch (actor->state.step)
     {
     case 0:
-        if (!ActorInitialize(actors, actor, 0xbd4))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8)))
             return false;
         actor->state.priority = 0x6c;
         actor->state.blend_mode = 0;
@@ -651,7 +670,8 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         {
             SotnDataView old = {0};
             if (actors->combat.subweapon > 9 ||
-                !Slice(actors->nz0, 0x1cd8 + actors->combat.subweapon * 2U, 2, &old))
+                !Slice(actors->nz0,
+                       ActorTable(actors, 0x1cd8, 0x2424) + actors->combat.subweapon * 2U, 2, &old))
                 return SDL_SetError("Development subweapon ID is invalid");
             if (item == Read16(old.bytes))
                 item = actor->state.parameters = 1;
@@ -697,14 +717,16 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnDataView prize = {0};
         if (item < 2)
         {
-            if (!Slice(actors->nz0, 0x1da4 + item, 1, &prize) || !ActorSound(actors, 0x67a))
+            if (!Slice(actors->nz0, ActorTable(actors, 0x1da4, 0x24f0) + item, 1, &prize) ||
+                !ActorSound(actors, 0x67a))
                 return false;
             actors->combat.hearts =
                 (Uint16)SDL_min(actors->combat.hearts_max, actors->combat.hearts + prize.bytes[0]);
         }
         else if (item < 12)
         {
-            if (!Slice(actors->nz0, 0x1d14 + (size_t)(item - 2) * 4, 4, &prize) ||
+            if (!Slice(actors->nz0, ActorTable(actors, 0x1d14, 0x2460) + (size_t)(item - 2) * 4, 4,
+                       &prize) ||
                 !ActorSound(actors, 0x6a9))
                 return false;
             const Uint32 amount = Read32(prize.bytes);
@@ -725,14 +747,17 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         }
         else
         {
-            if (!Slice(actors->nz0, 0x1cc4 + (size_t)(item - 14) * 2, 2, &prize) ||
+            if (!Slice(actors->nz0, ActorTable(actors, 0x1cc4, 0x2410) + (size_t)(item - 14) * 2, 2,
+                       &prize) ||
                 !ActorSound(actors, 0x67c))
                 return false;
             const Uint16 previous = actors->combat.subweapon;
             actors->combat.subweapon = Read16(prize.bytes);
             if (previous != 0)
             {
-                if (previous > 9 || !Slice(actors->nz0, 0x1cd8 + previous * 2U, 2, &prize))
+                if (previous > 9 ||
+                    !Slice(actors->nz0, ActorTable(actors, 0x1cd8, 0x2424) + previous * 2U, 2,
+                           &prize))
                     return SDL_SetError("Previous subweapon ID is invalid");
                 actor->state.parameters = Read16(prize.bytes);
                 actor->state.y = player.y + 12 * 65536;
@@ -817,7 +842,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
     switch (actor->state.step)
     {
     case 0:
-        if (!ActorInitialize(actors, actor, 0xbd4))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbd4, 0xab8)))
             return false;
         actor->state.priority = 0x80;
         actor->state.animation_set = 0;
@@ -926,16 +951,20 @@ static bool PersistentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pl
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
+    if (actors->stage_id == 65 && actor->state.id != 1 && actor->state.id != 2 &&
+        actor->state.id != 3 && actor->state.id != 0xa && actor->state.id != 0xc)
+        return ActorEntrance(actors, actor);
     switch (actor->state.id)
     {
     case 2: {
         const Uint16 kind = actor->state.parameters & 15;
         SotnDataView table = {0};
-        if (kind > 4 || !Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table))
+        if (kind > 4 ||
+            !Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0) + (size_t)kind * 4, 4, &table))
             return SDL_SetError("ActorExplosion references an invalid runtime type");
         if (actor->state.step == 0)
         {
-            if (!ActorInitialize(actors, actor, 0xbe0))
+            if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbe0, 0xac4)))
                 return false;
             actor->state.animation_set = 2;
             actor->state.blend_mode = 0x30;
@@ -949,13 +978,13 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->state.parameters = kind;
             return true;
         }
-        if (!Slice(actors->nz0, 0x1da8 + (size_t)kind * 4, 4, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1da8, 0x24f4) + (size_t)kind * 4, 4, &table))
             return false;
         const Uint32 bits = Read32(table.bytes);
         const Sint32 velocity =
             bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
         actor->state.y += velocity;
-        if (!Slice(actors->nz0, 0x1e54 + (size_t)kind * 4, 4, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0) + (size_t)kind * 4, 4, &table))
             return false;
         if (Read32(table.bytes) < 0x80180000)
             return SDL_SetError("Explosion animation address is invalid");
@@ -970,11 +999,17 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     case 0xa:
         return EquipmentPrize(actors, actor, player);
     case 0xc:
+        if (actors->stage_id != 12)
+        {
+            actor->state.unsupported = true;
+            return true;
+        }
         return PersistentPrize(actors, actor, player);
     case 1: {
         const Uint32 type = actor->state.parameters >> 12;
         SotnDataView table = {0};
-        if (type >= 3 || !Slice(actors->nz0, 0xe04 + type * 4, 4, &table))
+        if (type >= (actors->stage_id == 65 ? 2U : 3U) ||
+            !Slice(actors->nz0, ActorTable(actors, 0xe04, 0xe50) + type * 4, 4, &table))
             return SDL_SetError("Breakable actor references an unsupported original subtype");
         if (actor->state.step != 0)
         {
@@ -1001,14 +1036,14 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             }
             return true;
         }
-        if (!ActorInitialize(actors, actor, 0xbc8) ||
-            !Slice(actors->nz0, 0xe34 + type * 2, 2, &table))
+        if (!ActorInitialize(actors, actor, ActorTable(actors, 0xbc8, 0xaac)) ||
+            !Slice(actors->nz0, ActorTable(actors, 0xe34, 0xe80) + type * 2, 2, &table))
             return false;
         actor->state.animation_set = Read16(table.bytes);
-        if (!Slice(actors->nz0, 0xe44 + type, 1, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0xe44, 0xe90) + type, 1, &table))
             return false;
         actor->state.blend_mode = table.bytes[0];
-        if (!Slice(actors->nz0, 0xe24 + type, 1, &table))
+        if (!Slice(actors->nz0, ActorTable(actors, 0xe24, 0xe70) + type, 1, &table))
             return false;
         actor->state.hitbox_height = table.bytes[0];
         actor->state.priority = 0x6c;
@@ -1136,15 +1171,23 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 
 bool SotnActors_Create(SotnDataView dra, SotnDataView nz0, SotnActors **out)
 {
+    return SotnActors_CreateStage(dra, nz0, 12, out);
+}
+
+bool SotnActors_CreateStage(SotnDataView dra, SotnDataView nz0, Uint16 stage_id, SotnActors **out)
+{
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
+    if (stage_id != 12 && stage_id != 65)
+        return SDL_SetError("Native actors do not support stage %u", stage_id);
     if (dra.bytes == NULL || dra.size < 0x9c || dra.size > 0x200000 || nz0.bytes == NULL ||
         nz0.size < 40 || nz0.size > 0x80000)
         return SDL_SetError("Laboratory actors require bounded private US DRA/NZ0 images");
     SotnActors *actors = SDL_calloc(1, sizeof(*actors));
     if (actors == NULL)
         return false;
+    actors->stage_id = stage_id;
     actors->dra = dra;
     actors->nz0 = nz0;
     actors->combat.hearts = 10;

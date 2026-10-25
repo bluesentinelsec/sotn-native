@@ -215,3 +215,9 @@ The [native session shell](docs/native-session-flow.md) opens with `--play` and
 returns after game over. It supports read-only slot selection and transactional
 Continue, not the original title/new-game flow. Failed loads preserve the current
 owner and display an error. Future stage destinations still need native actor/script integration.
+
+The first [Entrance integration slice](docs/entrance-runtime.md) adds a stage-65
+development entry (`--entrance`, `--entrance-room 0..27`), bats, floor zombies,
+Wargs, and selected shared actors. Death, Mermen/Fire Wargs, Entrance saves, and
+connected progression remain unintegrated in this slice. Keep stage identities
+and original actor IDs distinct; do not describe the Entrance as complete.
