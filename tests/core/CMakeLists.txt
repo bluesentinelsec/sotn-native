@@ -197,3 +197,15 @@ target_include_directories(sotn-skeleton-ape-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-skeleton-ape-tests PRIVATE sotn-core)
 add_test(NAME outer-wall-skeleton-ape COMMAND sotn-skeleton-ape-tests)
 set_tests_properties(outer-wall-skeleton-ape PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-dopple-motion-tests test_dopple_motion.c)
+sotn_configure_c_target(sotn-dopple-motion-tests)
+target_link_libraries(sotn-dopple-motion-tests PRIVATE sotn-core)
+add_test(NAME doppleganger-motion COMMAND sotn-dopple-motion-tests)
+set_tests_properties(doppleganger-motion PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-dopple-ai-tests test_dopple_ai.c)
+sotn_configure_c_target(sotn-dopple-ai-tests)
+target_link_libraries(sotn-dopple-ai-tests PRIVATE sotn-core)
+add_test(NAME doppleganger-thinking COMMAND sotn-dopple-ai-tests)
+set_tests_properties(doppleganger-thinking PROPERTIES TIMEOUT 20)

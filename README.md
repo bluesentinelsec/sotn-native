@@ -27,6 +27,8 @@ Marble Gallery and Outer Wall; further areas remain unintegrated.
 resources; its boss encounter and ordinary travel remain disabled.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
+Its [collision and decision services](docs/doppleganger-runtime.md) now preserve
+boss-specific sensors and simulated control choices; the live fight is still pending.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
 game over returns there without restarting the process. Original title/new-game

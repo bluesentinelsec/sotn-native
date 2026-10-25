@@ -353,3 +353,8 @@ The BO4 [timeline adapter](docs/doppleganger-sprites.md#original-timeline-adapte
 now advances private player-format boss animation tables, including the bounded
 original adjacent-property read. Movement, AI and ordinary arena travel remain
 unintegrated; the timeline sweep is not encounter or console parity.
+
+[BO4 collision and thinking](docs/doppleganger-runtime.md) now provide independent
+original boss sensor resolution and simulated-control decisions. Body/forms,
+weapons, intro/death/reward and ordinary arena travel remain unintegrated. Component
+fixtures do not prove a live fight or console parity.
