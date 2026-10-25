@@ -272,3 +272,11 @@ Library Spellbook/Magic Tome behavior, page debris, owned beam and face assembly
 `modules/core/library_book*.c` adapt `src/st/lib/e_spellbook_magic_tome.c` at the pinned
 sotn-decomp revision above (AGPL-3.0-or-later). Original vertex/UV/recipe tables,
 initialization, animation, attributes and artwork remain private runtime inputs.
+
+Selected Lesser Demon spit, bolt and line-trail behavior in
+`modules/core/library_demon_{spit,bolt}.c` adapts
+`src/st/lib/e_lesser_demon.c:{EntityLesserDemonSpit,func_us_801BCC10,func_us_801BC814}`
+at the pinned sotn-decomp revision (AGPL-3.0-or-later). Private animation, sensors,
+SDK trigonometry and artwork remain runtime inputs. The original US initial
+uninitialized-pointer vertex read is replaced explicitly; read
+[attack scope](docs/library-demon-attacks.md) for this memory-safety adaptation.

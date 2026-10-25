@@ -107,7 +107,7 @@ typedef struct SotnActorPrimitive
     Uint8 line_red, line_green, line_blue, line_blend_mode;
     bool gouraud;
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
-    bool quad; /**< Use explicit pixel offsets from x/y for a textured quadrilateral. */
+    bool quad; /**< Use explicit pixel offsets from x/y for a textured or colored quadrilateral. */
     Sint16 offset_x[4], offset_y[4];
 } SotnActorPrimitive;
 /** @brief Read one owned actor primitive without exposing mutable storage.

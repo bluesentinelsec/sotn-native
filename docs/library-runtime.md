@@ -177,3 +177,8 @@ Debug and macOS ASan/UBSan agree and exit successfully. An explicitly selected
 attack-state fixture renders all 110 ticks through the visible zero-scale beam frame
 and idle return. These fixtures are not uninterrupted traversal, unmodified-character playtests or console/
 audiovisual parity. Lesser Demon, librarian/shop/scripts and Library travel remain pending.
+
+Selected [Lesser Demon attack services](library-demon-attacks.md) now retain spit/
+column and branching bolt effects, with a native colored-quad path for the later
+summoning effect. Their explicit fixtures do not establish a working boss. Body AI,
+entry/reward, summoned minions, poison status and Library travel remain pending.

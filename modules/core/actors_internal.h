@@ -42,6 +42,13 @@ typedef struct ActorPrimitive
         Uint8 brightness, pose, remaining;
         bool ended;
     } blood;
+    struct
+    {
+        Uint16 fraction_x, fraction_y;
+        Sint16 angle, turn;
+        Uint8 phase, wait, hops;
+        bool used;
+    } demon;
 } ActorPrimitive;
 typedef struct Actor
 {
@@ -238,6 +245,10 @@ typedef struct Actor
         Uint32 child_generation;
         bool command;
     } book;
+    struct
+    {
+        Uint16 timer;
+    } demon;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -456,6 +467,10 @@ bool ActorClock(SotnActors *actors, Actor *actor);
  */
 bool ActorLibrarySpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint16 parameters,
                          Uint32 slot, Actor **out);
+/** @brief Advance selected original spit/column; owners/data must be entered Library state. */
+bool ActorLibraryDemonSpit(SotnActors *actors, Actor *actor);
+/** @brief Advance original bolt and bounded sixty-packet branching line trail. */
+bool ActorLibraryDemonBolt(SotnActors *actors, Actor *actor);
 /** @brief Project private Library book geometry and copy its hitbox anchor. */
 bool ActorLibraryBookGeometry(SotnActors *actors, Actor *actor);
 /** @brief Initialize the twelve owned book faces from private UV pointers. */

@@ -94,7 +94,7 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActo
  * @param graphics Borrowed initialized texture service, after loading the room bank.
  * @return Success or SDL error; invalid/missing source pixels leave texture memory intact. */
 bool SotnActorGraphics_PrepareOuterRope(SotnActorGraphics *graphics);
-/** @brief Textured quad using original page/palette selection; vertices order TL,TR,BL,BR.
+/** @brief Stage quad with optional page/palette selection; vertices order TL,TR,BL,BR.
  */
 typedef struct SotnTextureQuad
 {
@@ -103,12 +103,14 @@ typedef struct SotnTextureQuad
     Uint16 page, palette;
     bool blend, modulate, tint;
     Uint8 red, green, blue;
-    Uint8 opacity; /**< Color multiplier, 128 neutral, used only when modulate is true. */
-    bool gouraud;  /**< Interpolate per-vertex multipliers instead of the uniform tint. */
+    Uint8 opacity;   /**< Color multiplier, 128 neutral, used only when modulate is true. */
+    bool gouraud;    /**< Interpolate per-vertex multipliers instead of the uniform tint. */
+    bool untextured; /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
 } SotnTextureQuad;
-/** @brief Draw a bounded quad as two textured triangles from loaded private texture memory.
- * @param graphics Borrowed texture service. @param quad Copied quad, coordinates within +/-2048.
+/** @brief Draw a bounded textured or untextured quad as two triangles.
+ * @param graphics Borrowed texture service; NULL is valid for an untextured quad.
+ * @param quad Copied quad, coordinates within +/-2048.
  * @param frame Full RGB555 output. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,

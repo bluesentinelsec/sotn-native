@@ -1149,8 +1149,6 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
         Sint32 right = left + p.width, bottom = top + p.height;
         if (p.quad)
         {
-            if (!p.textured)
-                return SDL_SetError("Explicit stage quadrilateral must be textured");
             left = right = x + p.offset_x[0];
             top = bottom = y + p.offset_y[0];
             for (Uint32 vertex = 1; vertex < 4; ++vertex)
@@ -1163,7 +1161,7 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
         }
         if (right <= 0 || left >= SOTN_FRAME_WIDTH || bottom <= 0 || top >= SOTN_FRAME_HEIGHT)
             continue;
-        if (p.textured)
+        if (p.textured || p.quad)
         {
             SotnTextureQuad q = {.x = {left, right, left, right},
                                  .y = {top, top, bottom, bottom},
@@ -1174,7 +1172,8 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                                  .red = p.red,
                                  .green = p.green,
                                  .blue = p.blue,
-                                 .gouraud = p.gouraud};
+                                 .gouraud = p.gouraud,
+                                 .untextured = !p.textured};
             for (Uint32 uv = 0; uv < 4; ++uv)
             {
                 if (p.quad)

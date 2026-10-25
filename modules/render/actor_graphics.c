@@ -687,13 +687,13 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics)
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                      size_t count, bool write)
 {
-    if (graphics == NULL || frame == NULL || count < SOTN_FRAME_PIXELS || q.page > 0x1ff ||
-        ((q.page >> 7) & 3) == 3 || q.palette >= 768)
+    if ((!q.untextured && graphics == NULL) || frame == NULL || count < SOTN_FRAME_PIXELS ||
+        q.page > 0x1ff || (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
         return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
     Sint32 left = 2048, right = -2048, top = 2048, bottom = -2048;
     for (Uint32 i = 0; i < 4; ++i)
     {
-        if (q.u[i] > 256 || q.v[i] > 256)
+        if (!q.untextured && (q.u[i] > 256 || q.v[i] > 256))
             return SDL_SetError("Projectile quad UV exceeds its texture page");
         if (q.x[i] < -2048 || q.x[i] > 2048 || q.y[i] < -2048 || q.y[i] > 2048)
             return SDL_SetError("Projectile quad exceeds the bounded screen margin");
@@ -749,13 +749,15 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                 if (!inside)
                     continue;
                 Uint16 color = 0;
-                if (u < 0 || u >= 256 || v < 0 || v >= 256 ||
-                    !Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))
+                if (q.untextured)
+                    color = (Uint16)((shade[0] / 8) | (shade[1] / 8) << 5 | (shade[2] / 8) << 10);
+                else if (u < 0 || u >= 256 || v < 0 || v >= 256 ||
+                         !Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))
                     return SDL_SetError("Projectile texture reference is invalid: %s",
                                         SDL_GetError());
-                if (write && pass != 0 && color != 0)
+                if (write && pass != 0 && (color != 0 || q.untextured))
                 {
-                    if (q.modulate || q.tint || q.gouraud)
+                    if (!q.untextured && (q.modulate || q.tint || q.gouraud))
                     {
                         Uint16 tinted = color & 0x8000;
                         for (Uint32 shift = 0; shift < 15; shift += 5)
@@ -770,7 +772,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                         color = tinted;
                     }
                     const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
-                    frame[pixel] = q.blend && (color & 0x8000)
+                    frame[pixel] = q.blend && ((color & 0x8000) || q.untextured)
                                        ? Blend(frame[pixel], color, (q.page >> 5) & 3)
                                        : color;
                 }
