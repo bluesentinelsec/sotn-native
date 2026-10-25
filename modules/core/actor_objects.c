@@ -111,3 +111,34 @@ bool ActorSprite(SotnActors *s, Actor *a, Uint16 index, Sint32 x, Sint32 y, Uint
                                     .textured = true};
     return true;
 }
+
+bool SotnActors_SetBackground(SotnActors *s, SotnCollisionMap map, SotnCollisionMap *out)
+{
+    if (s == NULL || !s->entered || out == NULL)
+        return SDL_SetError("Background tiles require an entered actor service and output");
+    const bool empty = map.width == 0 && map.height == 0 && map.tiles.bytes == NULL &&
+                       map.types.bytes == NULL && map.tiles.size == 0 && map.types.size == 0;
+    Uint8 *tiles = NULL;
+    size_t bytes = 0;
+    if (!empty)
+    {
+        if (!map.width || !map.height || map.width > 1024 || map.height > 1024)
+            return SDL_SetError("Background tiles require bounded room dimensions");
+        SotnCollider probe = {0};
+        if (!SotnCollision_Query(&map, 0, 0, &probe))
+            return false;
+        bytes = (size_t)map.width * map.height * 2;
+        if (map.tiles.bytes == NULL || map.tiles.size < bytes)
+            return SDL_SetError("Background tile data is truncated");
+        tiles = SDL_malloc(bytes);
+        if (tiles == NULL)
+            return false;
+        SDL_memcpy(tiles, map.tiles.bytes, bytes);
+    }
+    SDL_free(s->background_tiles);
+    s->background_tiles = tiles;
+    s->background = map;
+    s->background.tiles = (SotnDataView){tiles, bytes};
+    *out = s->background;
+    return true;
+}

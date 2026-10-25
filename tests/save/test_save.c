@@ -257,6 +257,8 @@ static bool Stages(void)
         state.world.flags[SOTN_CLOCK_FLOOR] = 1;
         state.world.flags[SOTN_OUTER_ELEVATOR] = 1;
         state.world.flags[SOTN_OUTER_PRESSURE] = 1;
+        state.world.flags[SOTN_ENTRANCE_ROCKS] = 15;
+        state.world.flags[SOTN_ENTRANCE_JEWEL_DOOR] = 1;
         Uint8 record[SOTN_SAVE_BYTES] = {0};
         for (Uint32 j = 0; j < 3; ++j)
         {
@@ -271,7 +273,9 @@ static bool Stages(void)
                   decoded.world.flags[SOTN_ENTRANCE_ON] == 1 &&
                   decoded.world.flags[SOTN_CLOCK_FLOOR] == 1 &&
                   decoded.world.flags[SOTN_OUTER_ELEVATOR] == 1 &&
-                  decoded.world.flags[SOTN_OUTER_PRESSURE] == 1);
+                  decoded.world.flags[SOTN_OUTER_PRESSURE] == 1 &&
+                  decoded.world.flags[SOTN_ENTRANCE_ROCKS] == 15 &&
+                  decoded.world.flags[SOTN_ENTRANCE_JEWEL_DOOR] == 1);
         }
         for (Uint32 flag = SOTN_OUTER_ELEVATOR; flag <= SOTN_OUTER_PRESSURE; ++flag)
         {
@@ -281,6 +285,15 @@ static bool Stages(void)
             CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.stage == 999);
             record[624 + flag] = 1;
         }
+        record[624 + SOTN_ENTRANCE_ROCKS] = 16;
+        Rechecksum(record, sizeof(record));
+        decoded.stage = 999;
+        CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.stage == 999);
+        record[624 + SOTN_ENTRANCE_ROCKS] = 15;
+        record[624 + SOTN_ENTRANCE_JEWEL_DOOR] = 2;
+        Rechecksum(record, sizeof(record));
+        CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.stage == 999);
+        record[624 + SOTN_ENTRANCE_JEWEL_DOOR] = 1;
         record[624 + SOTN_CLOCK_FLOOR] = 2;
         Rechecksum(record, sizeof(record));
         decoded.stage = 999;

@@ -49,6 +49,12 @@ bool SotnActors_SetButtons(SotnActors *actors, Uint16 buttons);
  * @param actors Entered simulation. @param out Receives read-only view; never free it.
  * @return Success or SDL error. */
 bool SotnActors_GetMap(const SotnActors *actors, SotnCollisionMap *out);
+/** @brief Own a writable copy of the room's background tile IDs for original stage mechanisms.
+ * @param actors Entered owner. @param map Borrowed immutable layer; all-zero disables the layer.
+ * @param out Receives its read-only view, valid until room entry/replacement/destruction.
+ * Definitions remain borrowed. @return Success or SDL error; previous layer/output survive failure.
+ */
+bool SotnActors_SetBackground(SotnActors *actors, SotnCollisionMap map, SotnCollisionMap *out);
 /** @brief Copy this tick's object shoves for applying once after actor updates.
  * @param actors Entered simulation. @param out Receives copied motion.
  * @return Success or SDL error. */

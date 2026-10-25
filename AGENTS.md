@@ -283,3 +283,8 @@ rides, remote calls, door tile/geometry changes, strike activation, gears and pr
 platform, with two persistent v6 mechanism flags. Sound supports channel 22/23 gain
 updates without retriggering loops. Complete elevator effects/priority and whole-route
 parity remain incomplete. Private protected fixtures are not console parity evidence.
+
+The [Entrance water-room rocks](docs/entrance-rocks.md) now integrate two-hit breaks,
+selected debris, the food drop, foreground/background tile changes and persistent
+NO3/NP3 broken-side flags. Background tiles have their own owned room copy. The
+later wolf/bat ritual remains unavailable; never grant its prerequisite bits implicitly.

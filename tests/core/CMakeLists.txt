@@ -183,3 +183,10 @@ target_include_directories(sotn-outer-elevator-tests PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(sotn-outer-elevator-tests PRIVATE sotn-core)
 add_test(NAME outer-wall-elevator COMMAND sotn-outer-elevator-tests)
 set_tests_properties(outer-wall-elevator PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-entrance-rock-tests test_entrance_rocks.c)
+sotn_configure_c_target(sotn-entrance-rock-tests)
+target_include_directories(sotn-entrance-rock-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-entrance-rock-tests PRIVATE sotn-core)
+add_test(NAME entrance-breakable-rocks COMMAND sotn-entrance-rock-tests)
+set_tests_properties(entrance-breakable-rocks PROPERTIES TIMEOUT 20)

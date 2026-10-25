@@ -275,6 +275,8 @@ static bool Hallway(SotnActors *s, Actor *a)
 
 bool ActorEntrance(SotnActors *s, Actor *a)
 {
+    if (a->state.id >= 0x24 && a->state.id <= 0x27)
+        return ActorEntranceRock(s, a);
     if (s->stage_id == 7)
     {
         switch (a->state.id)

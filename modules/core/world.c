@@ -38,6 +38,8 @@ bool SotnWorld_Validate(const SotnWorldState *s)
     for (Uint32 i = SOTN_LAB_SECRET_WALL; i <= SOTN_LAB_MARIA; ++i)
         if (s->flags[i] > 1)
             return SDL_SetError("Saved Laboratory event flag is invalid");
+    if (s->flags[SOTN_ENTRANCE_ROCKS] > 15 || s->flags[SOTN_ENTRANCE_JEWEL_DOOR] > 1)
+        return SDL_SetError("Saved Entrance rock-puzzle flag is invalid");
     if (s->flags[SOTN_ENTRANCE_DEATH] > 1 || s->flags[SOTN_ENTRANCE_ON] > 1 ||
         s->flags[SOTN_ENTRANCE_STAIRS] > 1)
         return SDL_SetError("Saved Entrance event flag is invalid");

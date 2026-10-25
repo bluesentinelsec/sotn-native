@@ -308,7 +308,9 @@ static bool EnterActors(SotnLaboratory *session)
         (session->stage_id == 1 && session->room_index == 13 &&
          !SotnActorGraphics_PrepareOuterRope(session->actor_graphics)) ||
         !SotnActors_Enter(session->actors, layout, session->room.foreground.collision, camera_x,
-                          camera_y))
+                          camera_y) ||
+        !SotnActors_SetBackground(session->actors, session->room.background.collision,
+                                  &session->room.background.collision))
     {
         SotnActorLayout_Close(layout);
         return false;
