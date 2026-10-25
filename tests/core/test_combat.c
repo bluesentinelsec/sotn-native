@@ -65,9 +65,39 @@ static bool Damage(void)
     return true;
 }
 
+static bool ContactPower(void)
+{
+    SotnContactPower result = {0};
+    SotnCombatEnemy equipment = {0};
+    CHECK(SotnCombat_ContactPower(30, 0x8001, equipment, &result));
+    CHECK(result.attack == 30 && result.effects == 0x8000 && !result.immune && !result.absorb);
+    equipment.weaknesses = 0x8000;
+    CHECK(SotnCombat_ContactPower(31, 0x8001, equipment, &result) && result.attack == 62);
+    equipment.strengths = 0x8000;
+    CHECK(SotnCombat_ContactPower(31, 0x8001, equipment, &result) && result.attack == 31);
+    equipment.weaknesses = 0;
+    CHECK(SotnCombat_ContactPower(31, 0x8001, equipment, &result) && result.attack == 15);
+    equipment.absorbs = equipment.immunes = 0x8000;
+    CHECK(SotnCombat_ContactPower(31, 0x8001, equipment, &result) && result.immune &&
+          !result.absorb);
+    equipment.immunes = 0;
+    CHECK(SotnCombat_ContactPower(0, 0x8001, equipment, &result) && result.absorb &&
+          result.attack == 1);
+    equipment = (SotnCombatEnemy){.immunes = 0x8200, .absorbs = 0x8000};
+    CHECK(SotnCombat_ContactPower(31, 0x8201, equipment, &result) && !result.immune &&
+          result.absorb && result.effects == 0x8000);
+    equipment = (SotnCombatEnemy){.weaknesses = 0x20};
+    CHECK(SotnCombat_ContactPower(9999, 0x21, equipment, &result) && result.attack == 19998);
+    const SotnContactPower saved = result;
+    CHECK(!SotnCombat_ContactPower(10000, 0x21, equipment, &result));
+    CHECK(result.attack == saved.attack && result.effects == saved.effects);
+    CHECK(!SotnCombat_ContactPower(1, 0, equipment, NULL));
+    return true;
+}
+
 int main(void)
 {
-    if (!Boxes() || !Damage())
+    if (!Boxes() || !Damage() || !ContactPower())
         return 1;
     SDL_Log("SOTN_COMBAT_TEST: PASS");
     return 0;

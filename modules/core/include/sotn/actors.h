@@ -117,7 +117,7 @@ typedef struct SotnActorCombat
     Uint16 cd_command; /**< Original XA pause/resume command, zero when unchanged. */
     Uint16 voice;
     bool voice_change;
-    Uint16 contact_damage;
+    Uint16 contact_damage, contact_element;
     Sint32 contact_x, contact_velocity;
 } SotnActorCombat;
 

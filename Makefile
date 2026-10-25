@@ -183,3 +183,6 @@ SOTN_FORMAT_SOURCES += modules/core/entrance_rocks.c tests/core/test_entrance_ro
 SOTN_FORMAT_SOURCES += modules/core/entrance_stairway.c modules/core/actor_intense_explosion.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_ape.c tests/core/test_skeleton_ape.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_armor.c modules/core/enemy_armor_wave.c \
+  modules/core/enemy_armor_death.c

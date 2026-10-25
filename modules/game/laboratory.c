@@ -3,6 +3,7 @@
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
 #include <sotn/castle_map.h>
+#include <sotn/combat.h>
 #include <sotn/dialogue_renderer.h>
 #include <sotn/game_over.h>
 #include <sotn/hud.h>
@@ -451,12 +452,28 @@ static bool TickActors(SotnLaboratory *session)
         return false;
     if (player.step != SOTN_PLAYER_KILL && !ApplyCharacter(session))
         return false;
-    const Uint16 damage =
-        combat.contact_damage == 0
-            ? 0
-            : (Uint16)SDL_max(1, (Sint32)combat.contact_damage - attributes.defense);
-    if (!SotnPlayer_Damage(session->player, damage, combat.contact_x, combat.contact_velocity))
+    SotnContactPower power = {0};
+    const SotnCombatEnemy elements = {.weaknesses = attributes.weakness,
+                                      .strengths = attributes.resistance,
+                                      .immunes = attributes.immunity,
+                                      .absorbs = attributes.absorption};
+    if (!SotnCombat_ContactPower(combat.contact_damage, combat.contact_element, elements, &power))
         return false;
+    if (combat.contact_damage && power.absorb && player.hp && player.step != SOTN_PLAYER_KILL)
+    {
+        profile.hp = (Uint16)SDL_min(profile.hp_max, (Uint32)player.hp + power.attack);
+        if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session))
+            return false;
+    }
+    else
+    {
+        const Uint16 damage =
+            combat.contact_damage == 0 || power.immune
+                ? 0
+                : (Uint16)SDL_clamp((Sint32)power.attack - attributes.defense, 1, 9999);
+        if (!SotnPlayer_Damage(session->player, damage, combat.contact_x, combat.contact_velocity))
+            return false;
+    }
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
     profile.hp = player.hp;
