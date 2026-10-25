@@ -79,6 +79,7 @@ static bool Collapse(SotnActors *s, Actor *a)
                     return false;
                 SotnProjectedRect rect = {0};
                 if (!SotnBoss_ProjectReward(
+                        s->executable,
                         (SotnRewardProjection){
                             p->reward.x, p->reward.y, p->reward.z, (Sint16)radius, p->reward.scale,
                             Pixel(a->state.x) - s->camera_x, Pixel(a->state.y) - s->camera_y},
@@ -103,8 +104,10 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (a->state.parameters != (s->stage_id == 26 ? 4 : 5) ||
-            !ActorInitialize(s, a, s->stage_id == 26 ? 0x3d4 : 0xbf8))
+        if (a->state.parameters != (s->stage_id == 26  ? 4
+                                    : s->stage_id == 2 ? 7
+                                                       : 5) ||
+            !ActorInitialize(s, a, s->stage_id == 26 ? 0x3d4 : ActorStageOffset(s, 0xbf8)))
             return SDL_SetError("Stage boss reward has an unsupported drop selection");
         a->state.animation_set = 2;
         a->state.frame = 0;
@@ -195,8 +198,12 @@ bool ActorBossReward(SotnActors *s, Actor *a)
         return SDL_SetError("Boss reward effect step is invalid");
     }
     SotnDataView drop = {0};
-    if (!Slice(s->nz0, (s->stage_id == 26 ? 0x42b0 : 0x2850) + (size_t)a->state.parameters * 2, 2,
-               &drop) ||
+    if (!Slice(s->nz0,
+               (s->stage_id == 26  ? 0x42b0
+                : s->stage_id == 2 ? 0x31bc
+                                   : 0x2850) +
+                   (size_t)a->state.parameters * 2,
+               2, &drop) ||
         Read16(drop.bytes) != 23)
         return SDL_SetError("Stage boss reward is not the supported original Life Max Up");
     a->state.id = 3;

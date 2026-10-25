@@ -23,6 +23,11 @@ bool ActorCamera(SotnActors *s, Actor *a)
             a->camera.horizontal ? (direct ? 16 : 20) : hitboxes.bytes[parameter];
         a->camera.side = 2;
     }
+    if (s->stage_id == 2 && parameter == 6 && s->library_camera_unlocked)
+    {
+        ++a->state.step;
+        return SotnCamera_Bounds(s->camera, 0, s->camera->top, 1280, s->camera->bottom);
+    }
     if (direct)
     {
         if (initialize || ((parameter == 4 || parameter == 5) && s->camera->left != 0))

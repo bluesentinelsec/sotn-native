@@ -390,9 +390,9 @@ and disabled ordinary Library travel; do not describe the area as complete.
 
 Selected [Lesser Demon children](docs/library-demon-attacks.md) now run spit/column
 and branching bolt effects in explicit fixtures. Native colored quads prepare the
-summoning presentation; body/entry/reward and poison remain pending. The
+summoning presentation; full poison status remains pending. The
 US initial bolt vertex uses an explicitly documented safe initialization in place
-of an uninitialized-pointer read. Do not claim a playable boss or full parity.
+of an uninitialized-pointer read. Do not claim full encounter or console parity.
 
 The selected [Library minions](docs/library-minions.md) now include Mudman emergence,
 walking/attack/sinking/death, its owned attack child and summoned Skeleton appearance/
@@ -402,6 +402,9 @@ frames. Protected inserted summon fixtures are not boss/route/console parity.
 
 The [selected Lesser Demon body](docs/library-lesser-demon.md) now runs original
 AI decisions, swipe/spit/bolt/summon effects, minions and physical defeat. Protected
-explicit activation/combat fixtures agree in Debug and ASan/UBSan; placed entry,
-sealing books/camera, ordinary defeat record/reward and poison still remain pending.
-Library travel stays gated; this is not ordinary encounter or full-area parity.
+fixtures agree in Debug and ASan/UBSan. The [placed arena flow](docs/library-demon-entry.md)
+now closes/reopens sealing books, runs the original interpolated camera lock, changes
+music, records defeat and produces the Life Max Up. Ordinary saves/Continue retain
+its original event record and collected reward. Poison, librarian/shop, remaining
+scripts and Library travel stay pending; explicit-room fixtures are not whole-route
+or console parity.

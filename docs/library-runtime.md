@@ -2,7 +2,8 @@
 
 Long Library (stage 2) now has a native resource profile, selected shared actors
 and its own breakable behavior. Ordinary connected travel stays disabled while
-Lesser Demon's placed entry/reward, librarian/shop and scripts remain pending.
+librarian/shop and remaining scripts are integrated. Lesser Demon's selected
+[placed arena flow](library-demon-entry.md) now runs entry, combat, seals and reward.
 There is no separate public Library gameplay start. Loading a room or rendering
 its artwork does not establish a working Library route or console parity.
 
@@ -17,8 +18,8 @@ fingerprinted; original Wood Carving Partita intro/loop music uses the existing
 private stream. No runtime tables, artwork or sound data enter public files.
 
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
-The original Library layouts contain no ordinary Skeleton placements; the later
-Lesser Demon summoning path remains unintegrated. Flea Men use their Library
+The original Library layouts contain no ordinary Skeleton placements; the
+Lesser Demon summoning path now creates selected minions. Flea Men use their Library
 motion/timelines/sensors, actor identity and damage/contact path. Flea Armor, Dhurons and plant enemies now run their original placed behavior,
 attacks and deaths.
 Book encounters now retain their selected original behavior.
@@ -176,12 +177,14 @@ tick 1111 (278 renders), Magic Tome at tick 614 (154 renders).
 Debug and macOS ASan/UBSan agree and exit successfully. An explicitly selected
 attack-state fixture renders all 110 ticks through the visible zero-scale beam frame
 and idle return. These fixtures are not uninterrupted traversal, unmodified-character playtests or console/
-audiovisual parity. Lesser Demon, librarian/shop/scripts and Library travel remain pending.
+audiovisual parity. Librarian/shop/scripts and Library travel remain pending.
 
 Selected [Lesser Demon attack services](library-demon-attacks.md) now retain spit/
 column and branching bolt effects, with a native colored-quad path for the later
-summoning effect. Their explicit fixtures do not establish a working boss. Placed entry/reward, poison status and Library travel remain pending.
+summoning effect. Their explicit fixtures alone do not establish a working boss.
+Poison status and Library travel remain pending.
 [Selected body AI](library-lesser-demon.md) now runs the boss's attacks, summoning and
-physical defeat in a protected explicitly activated fixture. The selected
+physical defeat; the placed entry/seals/reward sequence now has a separate protected
+[ordinary-save check](library-demon-entry.md). The selected
 [summoned minions](library-minions.md) now run Mudman and the Skeleton/Ectoplasm
 appearance and cleanup paths; their protected inserted fixtures are component evidence.

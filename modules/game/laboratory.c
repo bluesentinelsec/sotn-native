@@ -199,6 +199,11 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
                 if (!SotnMusic_CreateBoss(session->dra, session->music_stream, &next))
                     return false;
             }
+            else if (combat->music == 0x309 && session->stage_id == 2)
+            {
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 2, &next))
+                    return false;
+            }
             else if (combat->music == 0x313 && session->stage_id == 26)
             {
                 if (!SotnMusic_CreateStage(session->dra, session->music_stream, 1, &next))
@@ -887,8 +892,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log(
             "Long Library development adapters: common pickups, selected breakables, "
             "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
-            "saves. "
-            "Other enemies, Lesser Demon, librarian/shop and ordinary travel remain unintegrated.");
+            "saves; placed Lesser Demon entry, selected combat, seals and reward. "
+            "Librarian/shop, remaining scripts, poison and ordinary travel remain unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

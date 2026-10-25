@@ -125,8 +125,11 @@ release every owned primitive. Projectile scaling, rotation, fading, opaque puff
 and reward tinting draw from the user's original artwork/palettes.
 
 The quantized SDK angle table remains in the user's verified boot executable.
-Private comparisons matched 200,000 bounded directions and 20,000 reward projection
-cases against the pinned reconstructed implementations. Public synthetic tests cover
+Private comparisons matched 200,000 bounded directions against the pinned
+reconstructed implementation. Reward projection now reads the original private
+matrix-pair table; 40,000 cases match the pinned SDK algorithm with those pairs.
+The earlier 20,000-case reward check used the reference backend's approximate
+compiled pairs and did not establish original-table rounding. Public synthetic tests cover
 the paired state transitions, pickup/plunge, low-health phases, projectiles, defeat,
 room unlocking, reward/drop ownership, parent expiry/bounds, scale/color rendering,
 and boss music decoding. A native LLDB run exercised both kills, the music changes,

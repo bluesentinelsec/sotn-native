@@ -1,10 +1,10 @@
 # Selected Lesser Demon body
 
 The native Library service now runs Lesser Demon's body AI, attack children,
-windups, summoning and physical defeat. The placed entry/sealing-books controller,
-camera unlock, ordinary defeat record and reward still remain pending. This body
-runs in an explicitly activated private fixture; it does not make an ordinary
-Library encounter or route available. Stage 2 remains disconnected.
+windups, summoning and physical defeat. The [placed arena flow](library-demon-entry.md)
+now adds entry, sealing books, camera unlock, music, the ordinary defeat record and
+reward. The body-only evidence below remains separate from that newer integration
+check. Stage 2 remains disconnected pending librarian/shop and remaining scripts.
 
 The body retains grounding/activation waits, pose-driven ground displacement,
 wall/floor decisions, boundary leaps, flight/hover, dive/swipe, spit, bolt and

@@ -35,7 +35,7 @@ host pointers, artwork, and runtime tables are never serialized.
 | 20 | 32-bit stage-local save-room ID |
 | 24 | 64-bit elapsed gameplay ticks |
 | 32–40 | Three 32-bit player/actor/combat RNG states |
-| 44 | 16-bit original stage ID: 12 Laboratory, 65 first Entrance, 7 later Entrance, 0 Marble, 1 Outer Wall |
+| 44 | 16-bit original stage ID: 12 Laboratory, 65 first Entrance, 7 later Entrance, 0 Marble, 1 Outer Wall, 2 Library |
 | 46–47 | Reserved zero bytes |
 | 48–62 | Eight 16-bit values: HP/max, MP/max, hearts/max, level, subweapon |
 | 64–70 | Four 16-bit base stats |
@@ -73,9 +73,10 @@ private original artwork; full map/presentation parity remains incomplete.
 Continue installs world and character progress before actors initialize, then
 restores owned RNG streams after initialization. Opened secret wall/floor and
 cannon shortcuts stay open; the boss record suppresses another Slogra/Gaibon
-encounter; the Doppleganger record suppresses its Outer Wall arena transfer. Transient enemies, candles, projectiles, switches/lift positions, and
+encounter; the Doppleganger record suppresses its Outer Wall arena transfer;
+the Lesser Demon record suppresses its Library manager/body spawn. Transient enemies, candles, projectiles, switches/lift positions, and
 execution state are recreated. Saving requires a living character in Laboratory
-rooms 23/24/25, first Entrance rooms 25/26/27, later Entrance rooms 22/23/24, Marble Gallery rooms 31/32, or Outer Wall rooms 14/17. This is an ordinary checkpoint save, not a save state.
+rooms 23/24/25, first Entrance rooms 25/26/27, later Entrance rooms 22/23/24, Marble Gallery rooms 31/32, Outer Wall rooms 14/17, or Library room 14. This is an ordinary checkpoint save, not a save state.
 
 ## Explicit migration
 
