@@ -280,6 +280,74 @@ static bool TestStageStop(Fixture *fixture)
     return true;
 }
 
+static bool TestStone(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeFixture(fixture);
+    const SotnDataView dra = {fixture->dra, sizeof(fixture->dra)};
+    for (Uint16 id = 0x38; id <= 0x3e; ++id)
+        Put32(fixture->dra, 0x101b8 + (size_t)id * 4, 0x800a0200);
+    SotnPlayer *player = NULL;
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_Create(dra, map, 256, 135, &player));
+    CHECK(State(player, &state));
+    const Uint32 initial_random = state.random;
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        Put32(fixture->dra, 0x101b8 + (size_t)id * 4, 0);
+    CHECK(!SotnPlayer_Petrify(player, 5, 128, 0));
+    CHECK(State(player, &state) && state.hp == 70 && state.random == initial_random &&
+          state.step == SOTN_PLAYER_STAND && !state.stone.active);
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        Put32(fixture->dra, 0x101b8 + (size_t)id * 4, 0x800a0100);
+    CHECK(!SotnPlayer_Petrify(NULL, 0, 128, 0));
+    CHECK(SotnPlayer_Petrify(player, 0, 128, 0) && State(player, &state));
+    CHECK(state.step == SOTN_PLAYER_STONE && state.hp == 70 && state.stone.active &&
+          state.stone.shakes >= 4 && state.stone.shakes <= 8 && !state.can_pause &&
+          !state.attack.active && !state.shield.active);
+    CHECK(SotnPlayer_Petrify(player, 10, 128, 0) && State(player, &state) && state.hp == 70);
+    for (Uint32 i = 0; i < 100; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_JUMP));
+    CHECK(State(player, &state) && state.step == SOTN_PLAYER_STONE && (state.contacts & 1) &&
+          !state.invulnerable && state.stone.palette >= 0x19e);
+    const Uint16 before_impact = state.stone.shakes;
+    CHECK(SotnPlayer_Damage(player, 8, 128, 0));
+    for (Uint32 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, 0));
+    CHECK(State(player, &state) && state.hp == 62 && state.stone.shakes == before_impact - 1);
+    const Uint16 shakes = state.stone.shakes;
+    CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_UP));
+    for (Uint32 i = 0; i < 64; ++i)
+        CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_UP));
+    CHECK(State(player, &state) && state.step == SOTN_PLAYER_STONE &&
+          state.stone.shakes == shakes - 1);
+    // A held direction cannot free Alucard; distinct taps complete the selected escape.
+    for (Uint32 i = 0; i < 300; ++i)
+    {
+        const Uint16 buttons = (i % 24) == 0 ? SOTN_BUTTON_LEFT : 0;
+        CHECK(SotnPlayer_Tick(player, buttons));
+    }
+    CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.stone.active &&
+          state.hp == 62);
+    const Sint32 x = state.x;
+    CHECK(!SotnPlayer_Petrify(player, 10000, 128, 0));
+    CHECK(State(player, &state) && state.x == x && state.hp == 62 && !state.stone.active);
+    // A lethal newly petrifying hit lands, waits and reaches the existing game-over signal.
+    CHECK(SotnPlayer_Petrify(player, 70, 128, 0));
+    bool grounded_stone = false, stone_death = false;
+    for (Uint32 i = 0; i < 500; ++i)
+    {
+        CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
+        grounded_stone =
+            grounded_stone || (state.step == SOTN_PLAYER_STONE && (state.contacts & 1));
+        stone_death = stone_death || state.death.phase == 17;
+        if (state.death.phase == 128)
+            break;
+    }
+    CHECK(grounded_stone && stone_death && state.hp == 0 && state.stone.hidden &&
+          state.death.phase == 128 && state.step == SOTN_PLAYER_KILL);
+    SotnPlayer_Close(player);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     SotnCollisionMap map = MakeFixture(fixture);
@@ -302,7 +370,7 @@ int main(void)
         return 1;
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
-                        TestFailures(fixture);
+                        TestStone(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

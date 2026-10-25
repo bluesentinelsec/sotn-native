@@ -187,3 +187,11 @@ The selected four-tick weapon-startup signal follows `src/dra/6E42C.c` and
 `src/dra/5D5BC.c:HandleDamage` at that revision. Original tables and artwork remain
 private. Native projection/lighting limits are recorded in
 [the encounter scope](docs/outer-wall-armor-lord.md).
+
+Selected stone control in `modules/core/player_stone.c` follows
+`src/dra/71830.c:PlayerStepStoned` and selected `PlayerStepKill`,
+`src/dra/5D5BC.c:HandleDamage` / `GetStatusAilmentTimer`, and timer semantics in
+`src/dra/6DF70.c`, at the pinned reconstructed revision (AGPL-3.0-or-later).
+The selected palette/pivot renderer uses private common art; rotation tables
+remain private. [Petrification scope](docs/player-petrification.md) records the
+remaining statue effects, lethal variants and transform parity gaps.

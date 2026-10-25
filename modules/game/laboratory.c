@@ -467,12 +467,28 @@ static bool TickActors(SotnLaboratory *session)
     }
     else
     {
-        const Uint16 damage =
-            combat.contact_damage == 0 || power.immune
-                ? 0
-                : (Uint16)SDL_clamp((Sint32)power.attack - attributes.defense, 1, 9999);
-        if (!SotnPlayer_Damage(session->player, damage, combat.contact_x, combat.contact_velocity))
-            return false;
+        const bool stone = (power.effects & 0x200) || player.step == SOTN_PLAYER_STONE;
+        if (combat.contact_damage && !power.immune && stone)
+        {
+            const Uint16 damage =
+                player.step == SOTN_PLAYER_STONE
+                    ? (Uint16)(player.hp_max / 8)
+                    : (Uint16)SDL_clamp((Sint32)power.attack - (Sint32)attributes.defense * 2, 0,
+                                        9999);
+            if (!SotnPlayer_Petrify(session->player, damage, combat.contact_x,
+                                    combat.contact_velocity))
+                return false;
+        }
+        else
+        {
+            const Uint16 damage =
+                combat.contact_damage == 0 || power.immune
+                    ? 0
+                    : (Uint16)SDL_clamp((Sint32)power.attack - attributes.defense, 1, 9999);
+            if (!SotnPlayer_Damage(session->player, damage, combat.contact_x,
+                                   combat.contact_velocity))
+                return false;
+        }
     }
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
@@ -1171,11 +1187,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (!player_drawn && (i == count || list[i].priority < 0x94))
         {
-            if (!SotnAlucard_DrawDeath(
-                    &alucard,
-                    (SotnDataView){session->player_common, sizeof(session->player_common)},
-                    Pixel(player.x) - camera_x, Pixel(player.y) - camera_y, player.facing_left,
-                    player.death, session->frame, SOTN_FRAME_PIXELS))
+            const SotnDataView common = {session->player_common, sizeof(session->player_common)};
+            const bool drawn =
+                player.stone.active
+                    ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
+                                                Pixel(player.y) - camera_y, player.facing_left,
+                                                player.stone, session->frame, SOTN_FRAME_PIXELS)
+                    : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - camera_x,
+                                            Pixel(player.y) - camera_y, player.facing_left,
+                                            player.death, session->frame, SOTN_FRAME_PIXELS);
+            if (!drawn)
                 return false;
             player_drawn = true;
         }
