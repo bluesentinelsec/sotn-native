@@ -150,6 +150,10 @@ int main(void)
         CHECK(SotnPlayer_Tick(
             alucard, (Uint16)(SOTN_BUTTON_UP | (t % 20 == 0 ? SOTN_BUTTON_LEFT_HAND : 0))));
         CHECK(SotnPlayer_GetState(alucard, &player));
+        if (t == 0)
+            CHECK(player.subweapon_starting);
+        if (t == 4)
+            CHECK(!player.subweapon_starting);
         CHECK(SotnSubweapons_Tick(s, player, 0, 0));
     }
     CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts <= 47);

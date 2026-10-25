@@ -262,3 +262,8 @@ Selected [Outer Wall ranged encounters](docs/outer-wall-ranged-enemies.md) now r
 coordinated Bone Musket groups and Bone Archers, shots/arrows, and selected death
 paths. Other Wall enemies/mechanisms, status damage and whole-route parity remain
 incomplete. Private native checks use explicit protected room fixtures.
+
+The [Outer Wall Spear Guard](docs/outer-wall-spear-guard.md) now adds selected melee,
+blocking, thrown-spear and death rules. The copied player state exposes the original
+selected four-tick subweapon startup interval for enemy decisions. Other unsupported
+actions/status effects remain absent; private native checks use a protected fixture.

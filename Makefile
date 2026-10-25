@@ -168,3 +168,5 @@ SOTN_FORMAT_SOURCES += modules/core/marble_clock.c tests/core/test_clock.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_musket.c modules/core/enemy_archer.c \
   tests/core/test_outer_enemies.c
+
+SOTN_FORMAT_SOURCES += modules/core/enemy_spear.c
