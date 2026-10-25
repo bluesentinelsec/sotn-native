@@ -164,6 +164,7 @@ static void Think(const SotnDoppleObservation *observation, Uint32 *random, Sotn
                     ai->timer = 72;
                     break;
                 case 2:
+                    /* Crouching opponents duck; standing opponents permit a backdash. */
                     if (observation->player_status & 0x20U)
                     {
                         ai->buttons |= 0x4000U;
@@ -171,7 +172,7 @@ static void Think(const SotnDoppleObservation *observation, Uint32 *random, Sotn
                         ai->timer = 72;
                         break;
                     }
-                    /* Fall through: standing opponents permit the backdash. */
+                    /* fall through */
                 case 3:
                 case 4:
                 case 5:
