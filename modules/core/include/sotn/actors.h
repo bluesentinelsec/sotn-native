@@ -55,6 +55,13 @@ bool SotnActors_GetMap(const SotnActors *actors, SotnCollisionMap *out);
  * Definitions remain borrowed. @return Success or SDL error; previous layer/output survive failure.
  */
 bool SotnActors_SetBackground(SotnActors *actors, SotnCollisionMap map, SotnCollisionMap *out);
+/** @brief Borrow foreground tile artwork metadata for original breakable-tile effects.
+ * @param actors Entered service. @param pages Original texture-page bytes.
+ * @param graphics Original packed UV-index bytes. @param palettes Original palette bytes.
+ * Views must cover current tile definitions and live until next room entry/destruction.
+ * @return Success or SDL error, retaining prior metadata on failure. No bytes are copied. */
+bool SotnActors_SetTileArt(SotnActors *actors, SotnDataView pages, SotnDataView graphics,
+                           SotnDataView palettes);
 /** @brief Copy this tick's object shoves for applying once after actor updates.
  * @param actors Entered simulation. @param out Receives copied motion.
  * @return Success or SDL error. */

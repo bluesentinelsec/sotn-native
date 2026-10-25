@@ -142,3 +142,17 @@ bool SotnActors_SetBackground(SotnActors *s, SotnCollisionMap map, SotnCollision
     *out = s->background;
     return true;
 }
+
+bool SotnActors_SetTileArt(SotnActors *s, SotnDataView pages, SotnDataView graphics,
+                           SotnDataView palettes)
+{
+    if (s == NULL || !s->entered || pages.bytes == NULL || graphics.bytes == NULL ||
+        palettes.bytes == NULL || pages.size < s->map.types.size ||
+        graphics.size < s->map.types.size || palettes.size < s->map.types.size)
+        return SDL_SetError(
+            "Tile effects require private artwork metadata for every room definition");
+    s->tile_pages = pages;
+    s->tile_graphics = graphics;
+    s->tile_palettes = palettes;
+    return true;
+}

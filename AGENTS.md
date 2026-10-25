@@ -288,3 +288,8 @@ The [Entrance water-room rocks](docs/entrance-rocks.md) now integrate two-hit br
 selected debris, the food drop, foreground/background tile changes and persistent
 NO3/NP3 broken-side flags. Background tiles have their own owned room copy. The
 later wolf/bat ritual remains unavailable; never grant its prerequisite bits implicitly.
+
+The [Entrance stair section](docs/entrance-stairway.md) now runs its sixteen-HP break,
+food drop, selected tile/debris effect and permanent restoration in NO3/NP3. Tile
+art metadata is borrowed per room; room entry clears it. Private protected fixtures
+remain distinct from route/console parity evidence.
