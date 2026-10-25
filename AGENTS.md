@@ -414,18 +414,23 @@ The [Librarian sequence service](docs/library-sequence-audio.md) now reads verif
 common-bank notes through the SPU service with private pitch data. SEQ and XA
 ownership remain separate. Private checks match selected scheduling and pitch
 algorithms; they do not establish console PCM, reverb or complete voice-flush
-parity. Selected Librarian introduction now requests playback; shop interaction and
-Library travel remain pending.
+parity. Selected Librarian introduction and buy/sell interaction now request playback;
+full shop services and Library travel remain pending.
 
 The [selected Librarian introduction](docs/library-librarian.md) now runs the original
 room trigger, chair, six first-conversation speech requests, player alignment/step49
 hold and meeting/time record through the shop-ready gate. It does not implement
-shop menus/transactions/exit yet. Native explicit-room checks agree in Debug and
+full shop panels/optional services yet. The selected buy/sell integration below
+continues through transactions and exit. Native explicit-room checks agree in Debug and
 ASan/UBSan; do not call the complete interaction or Library route integrated. Chair
 gift rules have injected-contact tests; Gravity Boots/transform behavior stays pending.
 
 The [Library shop transaction service](docs/library-shop.md) now decodes original
 private stock/unlock tables and commits equipment, gem, relic, map and learned-scroll
 transactions atomically. Version 8 saves add learned-spell order/mask and the original
-completed-game unlock flag with explicit v1–v7 migrations. This does not implement
-playable shop menus, spell casting or missing equipment effects; Library travel remains gated.
+completed-game unlock flag with explicit v1–v7 migrations. Selected buy/sell menus
+now run with quantities, paging, private names/glyphs, transaction/farewell speech,
+exit and return greeting. Full preview/detail panels,
+tactics, enemy list, sound test, spell casting and missing equipment effects remain
+unintegrated; Library travel stays gated. See the shop document for the original
+forward-ordering-table correction and its shared renderer regression coverage.

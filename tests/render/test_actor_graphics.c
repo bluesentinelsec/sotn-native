@@ -766,9 +766,24 @@ static bool TestActorOrder(void)
         (SotnActorDraw){.priority = 64, .actor = 0, .primitive = 1, .kind = SOTN_DRAW_PRIMITIVE}));
     CHECK(SotnActorOrder_Add(
         items, 4, &count, (SotnActorDraw){.priority = 136, .actor = 1, .kind = SOTN_DRAW_ACTOR}));
-    // One effect's background light precedes sprites; its foreground tile covers them.
-    CHECK(count == 4 && items[0].priority == 208 && items[1].kind == SOTN_DRAW_SPRITE &&
-          items[2].actor == 1 && items[3].primitive == 1 && items[3].priority == 64);
+    // dra/42398.c calls forward ClearOTag, then DrawOTag from its FIRST bucket.
+    // Bucket 64 precedes sprites at 136; bucket 208 covers them. Equal entries stay stable.
+    CHECK(count == 4 && items[0].primitive == 1 && items[0].priority == 64 &&
+          items[1].kind == SOTN_DRAW_SPRITE && items[2].actor == 1 && items[3].priority == 208);
+    Uint16 *frame = SDL_calloc(SOTN_FRAME_PIXELS, sizeof(*frame));
+    CHECK(frame != NULL);
+    for (size_t i = 0; i < count; ++i)
+    {
+        const bool foreground = items[i].priority == 208;
+        const SotnColorLine pixel = {.x = {0, 0},
+                                     .y = {0, 0},
+                                     .red = {foreground ? 248 : 0, foreground ? 248 : 0},
+                                     .green = {0, 0},
+                                     .blue = {foreground ? 0 : 248, foreground ? 0 : 248}};
+        CHECK(SotnActorGraphics_Line(pixel, frame, SOTN_FRAME_PIXELS));
+    }
+    CHECK(frame[0] == 31); // The higher-priority foreground must cover the blue background.
+    SDL_free(frame);
     SotnActorDraw saved[4] = {0};
     SDL_memcpy(saved, items, sizeof(items));
     CHECK(!SotnActorOrder_Add(items, 4, &count, (SotnActorDraw){0}) && count == 4 &&

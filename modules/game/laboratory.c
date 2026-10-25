@@ -263,6 +263,11 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             session->music_paused = true;
         }
     }
+    if (combat->voice_stop)
+    {
+        SotnMusic_Destroy(session->speech);
+        session->speech = NULL;
+    }
     if (combat->voice_change)
     {
         SotnMusic *next = NULL;
@@ -902,12 +907,12 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
     else if (stage_id == 2)
-        SDL_Log(
-            "Long Library development adapters: common pickups, selected breakables, "
-            "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
-            "saves; placed Lesser Demon entry, selected combat, seals and reward. "
-            "Selected Librarian introduction and speech run; shop menus/transactions, remaining "
-            "scripts, poison and ordinary travel remain unintegrated.");
+        SDL_Log("Long Library development adapters: common pickups, selected breakables, "
+                "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
+                "saves; placed Lesser Demon entry, selected combat, seals and reward. "
+                "Selected Librarian introduction, buy/sell, speech and exit run. Full shop panels, "
+                "optional services, remaining scripts, poison and ordinary travel remain "
+                "unintegrated.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
@@ -1301,7 +1306,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
              (state.step < 2 || (state.step == 4 && (session->simulation_ticks & 2)))))
             continue;
         Uint32 position = count;
-        while (position > 0 && list[position - 1].priority < state.priority)
+        while (position > 0 && list[position - 1].priority > state.priority)
         {
             list[position] = list[position - 1];
             --position;
@@ -1350,7 +1355,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     bool player_drawn = false, weapon_drawn = false;
     for (size_t i = 0; i <= draw_count; ++i)
     {
-        if (!weapon_drawn && (i == draw_count || session->draw_items[i].priority < 0x92))
+        if (!weapon_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
         {
             const SotnPlayerAttack hands[] = {player.attack, player.shield};
             for (Uint32 hand = 0; hand < SDL_arraysize(hands); ++hand)
@@ -1374,7 +1379,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             weapon_drawn = true;
         }
-        if (!player_drawn && (i == draw_count || session->draw_items[i].priority < 0x94))
+        if (!player_drawn && (i == draw_count || session->draw_items[i].priority > 0x94))
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =

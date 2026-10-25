@@ -320,3 +320,9 @@ Selected Library catalogue/transaction rules in `modules/core/shop.c` adapt
 Equipment ownership/order and spell learning follow `dra/5D5BC.c`; purchased-map
 reveal follows `dra/5087C.c:func_800F2288`. Original prices, stock rows, unlock
 mappings, text and map rectangles remain private runtime inputs.
+
+Selected menu controls/geometry in `modules/core/library_shop.c` and
+`library_shop_graphics.c` adapt the pinned `st/lib/e_shop.c`; input repeats follow
+`dra/pads.c` (AGPL-3.0-or-later). UI text/artwork remain private. Native draw priority
+order now follows `dra/42398.c`'s forward `ClearOTag` / `DrawOTag` path rather than
+assuming the reversed ordering-table direction. Full GPU packet parity remains pending.

@@ -40,7 +40,8 @@ unintegrated. The selected original timer-decrement behavior is preserved.
 Existing v7 world flags and 32 time records already hold this progress. No new
 save format or application version. The new known meeting/drop flag bounds reject
 corrupt state; transient dialogue, chair counters and simulated input are not saved.
-End-to-end shop/save/returning-interaction validation remains pending.
+The later [selected shop integration](library-shop.md) adds transactions,
+return greeting and exit checks; original full shop/save/route parity remains pending.
 
 All 73 public groups pass in Debug and macOS ASan/UBSan; packaging passes. Synthetic
 cases cover script selection, sound requests, meeting records, player hold/release,
@@ -56,3 +57,7 @@ Algorithms adapt pinned sotn-decomp
 `cutscene.c`, shared cutscene helpers and `dra/692E8.c`, `71830.c`, `6DF70.c`,
 `6E42C.c`, `alu_anim.c` (AGPL-3.0-or-later). No original dialogue, samples,
 artwork, item tables or source dumps enter public files.
+
+The [selected buy/sell menus](library-shop.md) now continue past this introduction
+checkpoint with transaction speech, farewell and release. Its separate native
+sequence covers returning to the chair; full panels/optional services remain gaps.
