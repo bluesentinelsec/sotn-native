@@ -310,7 +310,10 @@ static bool EnterActors(SotnLaboratory *session)
         !SotnActors_Enter(session->actors, layout, session->room.foreground.collision, camera_x,
                           camera_y) ||
         !SotnActors_SetBackground(session->actors, session->room.background.collision,
-                                  &session->room.background.collision))
+                                  &session->room.background.collision) ||
+        !SotnActors_SetTileArt(session->actors, session->room.foreground.pages,
+                               session->room.foreground.graphics,
+                               session->room.foreground.palettes))
     {
         SotnActorLayout_Close(layout);
         return false;

@@ -120,6 +120,10 @@ typedef struct Actor
     } blue;
     struct
     {
+        Sint16 angle;
+    } stair;
+    struct
+    {
         Uint8 current, target, wait, side;
         Sint16 sway;
         Sint16 upper[2], lower[2];
@@ -160,6 +164,7 @@ struct SotnActors
     SotnDataView dra, nz0, executable;
     Uint16 stage_id, entrance_scimitars;
     SotnCollisionMap map, background;
+    SotnDataView tile_pages, tile_graphics, tile_palettes;
     Uint8 *mutable_tiles, *background_tiles;
     SotnWorldState fallback_world, *world;
     SotnCamera fallback_camera, *camera;
@@ -277,6 +282,8 @@ bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
 /** Advance shared green/blue sprite-piece death physics. Reports the original pool fallback. */
 bool ActorKnightShatter(SotnActors *actors, Actor *actor, bool *done);
+bool ActorIntenseExplosion(SotnActors *actors, Actor *actor);
+bool ActorEntranceStairway(SotnActors *actors, Actor *actor);
 bool ActorEntranceRock(SotnActors *actors, Actor *actor);
 bool ActorOuterElevator(SotnActors *actors, Actor *actor);
 bool ActorOuterLiftDoors(SotnActors *actors, Actor *actor);

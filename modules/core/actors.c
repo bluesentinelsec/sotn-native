@@ -402,10 +402,11 @@ static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
                (id >= 0x20 && id <= 0x22);
     if (actors->stage_id == 7)
         return id == 0x32 || id == 0x34 || id == 0x39 || id == 0x3a || id == 0x3e || id == 0x40 ||
-               id == 0x42 || id == 0x48;
+               id == 0x42 || id == 0x48 || id == 0x4b;
     if (actors->stage_id == 65)
         return id == 0x2d || id == 0x2e || id == 0x3a || id == 0x3c || id == 0x3e || id == 0x41 ||
-               id == 0x42 || id == 0x46 || id == 0x48 || id == 0x4a || id == 0x4b || id == 0x4c;
+               id == 0x42 || id == 0x46 || id == 0x48 || id == 0x4a || id == 0x4b || id == 0x4c ||
+               id == 0x5c;
     switch (id)
     {
     case 0x26:
@@ -1173,12 +1174,12 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor)
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
+    if (actor->state.id == 6)
+        return ActorIntenseExplosion(actors, actor);
     if ((actors->stage_id == 65 || actors->stage_id == 7) && actor->state.id != 1 &&
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
-    if (actors->stage_id == 1 && actor->state.id == 6)
-        return ActorOuterEffect(actors, actor);
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
     switch (actor->state.id)
@@ -1453,6 +1454,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_free(actors->background_tiles);
     actors->background_tiles = NULL;
     actors->background = (SotnCollisionMap){0};
+    actors->tile_pages = actors->tile_graphics = actors->tile_palettes = (SotnDataView){0};
     SDL_free(actors->mutable_tiles);
     actors->mutable_tiles = tiles;
     SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));

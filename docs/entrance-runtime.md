@@ -72,3 +72,6 @@ in the forest/bridge and pre-Death side rooms; live progression uses actual even
 The [water-room rocks](entrance-rocks.md) now break after original weapon strikes,
 retain both broken sides and update both tile layers. Their later transformation
 ritual remains gated by unavailable wolf/bat abilities.
+
+The [breakable stair section](entrance-stairway.md) before Death now takes ordinary
+weapon damage, opens its tiles, drops its food and restores its saved broken state.

@@ -10,7 +10,8 @@
     } while (0)
 typedef struct Fixture
 {
-    Uint8 dra[1024], stage[0x2800], foreground[48 * 32 * 2], background[48 * 32 * 2], types[2048];
+    Uint8 dra[1024], stage[0x2800], foreground[96 * 32 * 2], background[96 * 32 * 2], types[2048];
+    Uint8 pages[2048], graphics[2048], palettes[2048];
     SotnActorLayout *layout;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 v)
@@ -167,12 +168,93 @@ static bool Run(Fixture *f, Uint16 stage)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool Stair(Fixture *f, Uint16 stage)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, stage, &s));
+    SDL_memset(f->foreground, 0, sizeof(f->foreground));
+    for (Uint32 y = 14; y < 32; ++y)
+        for (Uint32 x = 0; x < 96; ++x)
+            Put16(f->foreground + (y * 96 + x) * 2, 1);
+    const SotnCollisionMap map = {
+        {f->foreground, sizeof(f->foreground)}, {f->types, sizeof(f->types)}, 96, 32};
+    CHECK(SotnActors_Enter(s, f->layout, map, 1200, 0));
+    f->graphics[0x409] = 0x2c;
+    f->pages[0x409] = 2;
+    f->palettes[0x409] = 4;
+    CHECK(SotnActors_SetTileArt(s, (SotnDataView){f->pages, sizeof(f->pages)},
+                                (SotnDataView){f->graphics, sizeof(f->graphics)},
+                                (SotnDataView){f->palettes, sizeof(f->palettes)}));
+    CHECK(!SotnActors_SetTileArt(s, (SotnDataView){f->pages, 1},
+                                 (SotnDataView){f->graphics, sizeof(f->graphics)},
+                                 (SotnDataView){f->palettes, sizeof(f->palettes)}) &&
+          s->tile_pages.bytes == f->pages);
+    const Uint16 id = stage == 65 ? 0x5c : 0x4b;
+    Actor *root = &s->slots[16];
+    *root = (Actor){.state = {.id = id, .generation = 300}, .slot = 16, .dynamic = true};
+    const SotnPlayerState player = {
+        .x = 1400 * 65536,
+        .y = 200 * 65536,
+        .hp = 70,
+        .invulnerable = true,
+        .attack = {.active = true, .hit_type = 2, .power = 100, .width = 32, .height = 16}};
+    CHECK(SotnActors_Tick(s, player, 1200, 0) && root->state.hit_points == 16 &&
+          root->state.hitbox_state == 2);
+    CHECK(Read16(s->mutable_tiles + 0x4d9 * 2) == 0x408 &&
+          Read16(s->mutable_tiles + 0x539 * 2) == 0x40d);
+    CHECK(SotnActors_Tick(s, player, 1200, 0) && root->state.step == 2 &&
+          (root->state.flags & 0x100));
+    CHECK(ActorEntranceStairway(s, root) && root->state.step == 3 &&
+          root->state.primitive_count == 16);
+    CHECK(s->world->flags[SOTN_ENTRANCE_STAIRS] && s->slots[96].state.id == 0xa &&
+          s->slots[96].state.parameters == 0x45);
+    ActorPrimitive *tile = ActorPrimitiveGet(s, root, 0);
+    CHECK(tile != NULL && tile->state.quad && tile->state.page == 10 && tile->state.palette == 4 &&
+          tile->state.u[0] == 192 && tile->state.v[0] == 32);
+    for (Uint32 t = 0; t < 100 && root->state.step == 3; ++t)
+        CHECK(ActorEntranceStairway(s, root));
+    CHECK(root->state.step == 4 && ActorEntranceStairway(s, root) && root->remove);
+    ActorPrimitivesClear(s, root);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(!s->primitives[i].owner);
+    Actor *fragment = NULL;
+    const Uint16 fragment_id = stage == 65 ? 0x5d : 0x4c;
+    for (Uint32 i = 160; i < 192; ++i)
+        if (s->slots[i].state.id == fragment_id)
+            fragment = &s->slots[i];
+    CHECK(fragment != NULL && ActorEntranceStairway(s, fragment) && fragment->state.scale_x == 96 &&
+          fragment->state.rotated);
+    fragment->state.x = 1400 * 65536;
+    fragment->state.y = 220 * 65536;
+    fragment->vx = fragment->vy = 0;
+    CHECK(ActorEntranceStairway(s, fragment) && fragment->remove);
+    Actor flash = {.state = {.id = 6, .generation = 301}};
+    CHECK(ActorIntenseExplosion(s, &flash) && flash.state.animation_set == 5);
+    for (Uint32 t = 0; t < 37; ++t)
+        CHECK(ActorIntenseExplosion(s, &flash));
+    CHECK(flash.remove);
+    CHECK(SotnActors_Enter(s, f->layout, map, 1200, 0) && s->tile_pages.bytes == NULL);
+    Actor restored = {.state = {.id = id, .generation = 302}};
+    CHECK(ActorEntranceStairway(s, &restored) && restored.state.step == 32 &&
+          !restored.state.hitbox_state);
+    CHECK(Read16(s->mutable_tiles + 0x4d9 * 2) == 0x3ee &&
+          Read16(s->mutable_tiles + 0x539 * 2) == 0x3d2);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 999;
+    Actor exhausted = {.state = {.id = id, .step = 2, .generation = 303}};
+    CHECK(ActorEntranceStairway(s, &exhausted) && exhausted.remove &&
+          !exhausted.state.primitive_count);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Run(f, 65) && Run(f, 7);
+    const bool ok = Run(f, 65) && Run(f, 7) && Stair(f, 65) && Stair(f, 7);
     SDL_free(f);
     return ok ? 0 : 1;
 }
