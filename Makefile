@@ -174,3 +174,6 @@ SOTN_FORMAT_SOURCES += modules/core/enemy_spear.c
 SOTN_FORMAT_SOURCES += modules/core/enemy_sword.c modules/core/outer_effects.c
 
 SOTN_FORMAT_SOURCES += modules/core/enemy_blue_knight.c modules/core/enemy_blue_death.c
+
+SOTN_FORMAT_SOURCES += modules/core/outer_elevator.c modules/core/outer_elevator_doors.c \
+  modules/core/outer_elevator_rope.c modules/core/outer_elevator_switch.c tests/core/test_outer_elevator.c

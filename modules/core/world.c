@@ -24,6 +24,8 @@ bool SotnWorld_Validate(const SotnWorldState *s)
         return SDL_SetError("Saved castle progress has invalid bounds");
     if (s->flags[SOTN_CLOCK_FLOOR] > 1)
         return SDL_SetError("Saved clock-room floor flag is invalid");
+    if (s->flags[SOTN_OUTER_ELEVATOR] > 1 || s->flags[SOTN_OUTER_PRESSURE] > 1)
+        return SDL_SetError("Saved Outer Wall mechanism flag is invalid");
     for (Uint32 i = 0; i < SOTN_RELICS; ++i)
         if (s->relics[i] > 3 || s->relics[i] == 2)
             return SDL_SetError("Saved relic has invalid found/active bits");

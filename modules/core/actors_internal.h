@@ -120,6 +120,13 @@ typedef struct Actor
     } blue;
     struct
     {
+        Uint8 current, target, wait, side;
+        Sint16 sway;
+        Sint16 upper[2], lower[2];
+        bool called, moving, sounded;
+    } outer_lift;
+    struct
+    {
         Uint8 timer, patrol, index, side;
         bool movement_facing, alternate;
     } spear;
@@ -270,6 +277,10 @@ bool ActorStageParts(SotnActors *actors, const Actor *actor, SotnDataView *out);
 bool ActorKnight(SotnActors *actors, Actor *actor, SotnPlayerState player);
 /** Advance shared green/blue sprite-piece death physics. Reports the original pool fallback. */
 bool ActorKnightShatter(SotnActors *actors, Actor *actor, bool *done);
+bool ActorOuterElevator(SotnActors *actors, Actor *actor);
+bool ActorOuterLiftDoors(SotnActors *actors, Actor *actor);
+bool ActorOuterLiftSwitch(SotnActors *actors, Actor *actor);
+bool ActorOuterLiftRope(SotnActors *actors, Actor *actor);
 bool ActorBlueKnight(SotnActors *actors, Actor *actor);
 bool ActorBlueDeath(SotnActors *actors, Actor *actor, bool *done);
 bool ActorSlogra(SotnActors *actors, Actor *actor);

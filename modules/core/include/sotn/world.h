@@ -30,6 +30,8 @@ typedef enum SotnRelicId
 typedef enum SotnWorldFlag
 {
     SOTN_CLOCK_FLOOR = 0,
+    SOTN_OUTER_ELEVATOR = 16,
+    SOTN_OUTER_PRESSURE = 17,
     SOTN_ENTRANCE_DEATH = 53,
     SOTN_ENTRANCE_ON = 55,
     SOTN_ENTRANCE_STAIRS = 56,

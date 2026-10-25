@@ -233,6 +233,10 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
                 : !SotnSound_QueueVolumePan(session->sound, combat->sounds[i], combat->volumes[i],
                                             combat->pans[i]))
             return false;
+    if (combat->ambience_change &&
+        !SotnSound_QueueAmbienceVolume(session->sound, combat->ambience_volume,
+                                       combat->ambience_pan))
+        return false;
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
         return false;
     Uint16 sounds[64] = {0}, sound_count = 0;
@@ -301,6 +305,8 @@ static bool EnterActors(SotnLaboratory *session)
     if ((session->room.object_graphics_id != 0 &&
          !SotnActorGraphics_LoadBank(session->actor_graphics,
                                      (Uint32)session->room.object_graphics_id - 1)) ||
+        (session->stage_id == 1 && session->room_index == 13 &&
+         !SotnActorGraphics_PrepareOuterRope(session->actor_graphics)) ||
         !SotnActors_Enter(session->actors, layout, session->room.foreground.collision, camera_x,
                           camera_y))
     {
@@ -430,6 +436,7 @@ static bool TickActors(SotnLaboratory *session)
     SotnActorMotion motion = {0};
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
+        (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
         (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)))
         return false;
     SotnActorCombat combat = {0};
@@ -998,9 +1005,22 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
         if (!p.active)
             continue;
         const Sint32 x = Pixel(p.x) - camera_x, y = Pixel(p.y) - camera_y;
-        const Sint32 left = p.textured ? x - p.width / 2 : x,
-                     top = p.textured ? y - p.height / 2 : y;
-        const Sint32 right = left + p.width, bottom = top + p.height;
+        Sint32 left = p.textured ? x - p.width / 2 : x, top = p.textured ? y - p.height / 2 : y;
+        Sint32 right = left + p.width, bottom = top + p.height;
+        if (p.quad)
+        {
+            if (!p.textured)
+                return SDL_SetError("Explicit stage quadrilateral must be textured");
+            left = right = x + p.offset_x[0];
+            top = bottom = y + p.offset_y[0];
+            for (Uint32 vertex = 1; vertex < 4; ++vertex)
+            {
+                left = SDL_min(left, x + p.offset_x[vertex]);
+                right = SDL_max(right, x + p.offset_x[vertex]);
+                top = SDL_min(top, y + p.offset_y[vertex]);
+                bottom = SDL_max(bottom, y + p.offset_y[vertex]);
+            }
+        }
         if (right <= 0 || left >= SOTN_FRAME_WIDTH || bottom <= 0 || top >= SOTN_FRAME_HEIGHT)
             continue;
         if (p.textured)
@@ -1016,6 +1036,11 @@ static bool DrawActorPrimitives(SotnLaboratory *session, SotnActorState actor, S
                                  .blue = p.blue};
             for (Uint32 uv = 0; uv < 4; ++uv)
             {
+                if (p.quad)
+                {
+                    q.x[uv] = x + p.offset_x[uv];
+                    q.y[uv] = y + p.offset_y[uv];
+                }
                 q.u[uv] = p.u[uv];
                 q.v[uv] = p.v[uv];
             }
@@ -1110,6 +1135,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (i == count)
             break;
         const SotnActorState actor = list[i];
+        if (actor.id == 0xa || actor.id == 0xb)
+        {
+            // Persistent pickups can remain far behind a tall-room camera; icons are 16 pixels.
+            const Sint32 x = Pixel(actor.x) - camera_x - 8, y = Pixel(actor.y) - camera_y - 8;
+            if (x <= -16 || y <= -16 || x >= SOTN_FRAME_WIDTH || y >= SOTN_FRAME_HEIGHT)
+                continue;
+        }
         if (actor.id == 0xb)
         {
             SotnItem relic = {0};

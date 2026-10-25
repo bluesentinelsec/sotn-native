@@ -175,6 +175,10 @@ bool SotnPlayer_Displace(SotnPlayer *player, Sint32 dx, Sint32 dy, Uint32 contac
  * @param player Borrowed living simulation. @param halt_vertical Clear vertical velocity.
  * @return Success or SDL error; does not revive a dead player. */
 bool SotnPlayer_StageGuard(SotnPlayer *player, bool halt_vertical);
+/** @brief Stop both velocity axes at an original scripted ride/door handoff.
+ * @param player Borrowed simulation. @return Success or SDL error. Position, animation,
+ * health and ordinary movement state remain intact. Dead players are unchanged. */
+bool SotnPlayer_StageStop(SotnPlayer *player);
 
 /**
  * @brief Release the player without freeing its borrowed image or collision data.

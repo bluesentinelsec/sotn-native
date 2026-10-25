@@ -22,9 +22,10 @@ bool SotnActors_GetControl(const SotnActors *actors, SotnActorControl *out);
 /** @brief Original object shoves accumulated after the player update. */
 typedef struct SotnActorMotion
 {
-    Sint32 x, y;                 /**< Signed 16.16 displacement, at most 64 pixels per axis. */
-    Uint32 contacts;             /**< Original ground/ceiling/wall plus object-contact bits. */
-    bool halt_vertical, protect; /**< Original door/event velocity stop and 32-tick protection. */
+    Sint32 x, y;     /**< Signed 16.16 displacement, at most 64 pixels per axis. */
+    Uint32 contacts; /**< Original ground/ceiling/wall plus object-contact bits. */
+    bool halt_vertical, protect,
+        stop_velocity; /**< Original door/event velocity stop and 32-tick protection. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through
@@ -78,6 +79,8 @@ typedef struct SotnActorPrimitive
     Uint16 width, height, page, palette;
     Uint8 u[4], v[4], red, green, blue;
     bool active, textured, blend, modulate;
+    bool quad; /**< Use explicit pixel offsets from x/y for a textured quadrilateral. */
+    Sint16 offset_x[4], offset_y[4];
 } SotnActorPrimitive;
 /** @brief Read one owned actor primitive without exposing mutable storage.
  * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..192.
@@ -95,6 +98,9 @@ typedef struct SotnActorCombat
     Uint32 gold, kills;
     Uint16 music; /**< Original music ID, zero for stop, when music_change is set. */
     bool music_change;
+    bool ambience_change; /**< Original channel 22/23 gain update without key-on. */
+    Uint16 ambience_volume;
+    Sint8 ambience_pan;
     Uint16 cd_command; /**< Original XA pause/resume command, zero when unchanged. */
     Uint16 voice;
     bool voice_change;

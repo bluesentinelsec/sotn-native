@@ -144,6 +144,25 @@ typedef struct Transfer
     size_t offset;
 } Transfer;
 
+bool SotnActorGraphics_PrepareOuterRope(SotnActorGraphics *g)
+{
+    if (g == NULL)
+        return SDL_InvalidParamError("graphics");
+    for (Uint32 row = 0; row < 16; ++row)
+        for (Uint32 col = 0; col < 2; ++col)
+            if (!g->valid[(192 + row) * 1024U + 958 + col])
+                return SDL_SetError("Outer Wall rope cache needs its original uploaded texture");
+    // Original clipped 16-bit draw-environment copies, expressed as a CPU texture upload.
+    for (Uint32 row = 0; row < 256; ++row)
+        for (Uint32 col = 0; col < 32; ++col)
+        {
+            const size_t dest = (256 + row) * 1024U + col;
+            g->words[dest] = col < 2 ? g->words[(192 + row % 16) * 1024U + 958 + col] : 0;
+            g->valid[dest] = 1;
+        }
+    return true;
+}
+
 bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *g, Uint32 offset, Uint16 slot)
 {
     if (g == NULL || slot > 1 || offset > g->nz0.size || 48 * 72 > g->nz0.size - offset)
@@ -344,6 +363,13 @@ static bool Texel(const SotnActorGraphics *graphics, Uint32 page, Uint32 palette
     return Word(graphics, x, 240 + (palette % 256) / 16, color);
 }
 
+static bool QuadEdgeInclusive(SotnTextureQuad q, Uint32 a, Uint32 b, Sint32 sign)
+{
+    const Sint32 dx = (q.x[b] - q.x[a]) * sign;
+    const Sint32 dy = (q.y[b] - q.y[a]) * sign;
+    return dy < 0 || (dy == 0 && dx > 0);
+}
+
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                      size_t count, bool write);
 static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, const Uint8 *part,
@@ -536,24 +562,42 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
         top = SDL_min(top, q.y[i]);
         bottom = SDL_max(bottom, q.y[i]);
     }
-    if (q.x[3] != q.x[1] + q.x[2] - q.x[0] || q.y[3] != q.y[1] + q.y[2] - q.y[0])
-        return SDL_SetError("Projectile quad must be affine");
-    const double ax = q.x[1] - q.x[0], ay = q.y[1] - q.y[0];
-    const double bx = q.x[2] - q.x[0], by = q.y[2] - q.y[0];
-    const double determinant = ax * by - ay * bx;
-    if (determinant == 0)
-        return true;
     for (Uint32 pass = 0; pass < 2; ++pass)
         for (Sint32 y = SDL_max(0, top); y < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++y)
             for (Sint32 x = SDL_max(0, left); x < SDL_min(SOTN_FRAME_WIDTH, right); ++x)
             {
-                const double dx = x + 0.5 - q.x[0], dy = y + 0.5 - q.y[0];
-                const double a = (dx * by - dy * bx) / determinant;
-                const double b = (ax * dy - ay * dx) / determinant;
-                if (a < 0 || a >= 1 || b < 0 || b >= 1)
+                Sint64 u = 0, v = 0;
+                bool inside = false;
+                // PS1 quad order is the triangles (0,1,2) and (1,3,2).
+                for (Uint32 triangle = 0; triangle < 2 && !inside; ++triangle)
+                {
+                    const Uint32 ia = triangle ? 1 : 0, ib = triangle ? 3 : 1, ic = 2;
+                    const Sint64 ax = q.x[ib] - q.x[ia], ay = q.y[ib] - q.y[ia];
+                    const Sint64 bx = q.x[ic] - q.x[ia], by = q.y[ic] - q.y[ia];
+                    const Sint64 px = (Sint64)x * 2 + 1 - (Sint64)q.x[ia] * 2;
+                    const Sint64 py = (Sint64)y * 2 + 1 - (Sint64)q.y[ia] * 2;
+                    Sint64 denominator = 2 * (ax * by - ay * bx);
+                    Sint64 wb = px * by - py * bx, wc = ax * py - ay * px;
+                    const Sint32 sign = denominator < 0 ? -1 : 1;
+                    if (denominator < 0)
+                    {
+                        denominator = -denominator;
+                        wb = -wb;
+                        wc = -wc;
+                    }
+                    if (denominator == 0 || wb < 0 || wc < 0 || wb + wc > denominator)
+                        continue;
+                    const Sint64 wa = denominator - wb - wc;
+                    if ((wa == 0 && !QuadEdgeInclusive(q, ib, ic, sign)) ||
+                        (wb == 0 && !QuadEdgeInclusive(q, ic, ia, sign)) ||
+                        (wc == 0 && !QuadEdgeInclusive(q, ia, ib, sign)))
+                        continue;
+                    u = (wa * q.u[ia] + wb * q.u[ib] + wc * q.u[ic]) / denominator;
+                    v = (wa * q.v[ia] + wb * q.v[ib] + wc * q.v[ic]) / denominator;
+                    inside = true;
+                }
+                if (!inside)
                     continue;
-                const double u = q.u[0] + a * (q.u[1] - q.u[0]) + b * (q.u[2] - q.u[0]);
-                const double v = q.v[0] + a * (q.v[1] - q.v[0]) + b * (q.v[2] - q.v[0]);
                 Uint16 color = 0;
                 if (u < 0 || u >= 256 || v < 0 || v >= 256 ||
                     !Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))

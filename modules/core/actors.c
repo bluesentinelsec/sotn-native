@@ -447,7 +447,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     for (Uint32 i = 0; i < SDL_arraysize(actor->cooldown); ++i)
         if (actor->cooldown[i])
             --actor->cooldown[i];
-    if (!EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
+    if (!(actors->stage_id == 1 && actor->state.id == 0x33) &&
+        !EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
         actor->state.id != 0xa && actor->state.id != 0xb &&
         (actors->stage_id != 12 ||
          (actor->state.id != 0x34 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
@@ -1494,6 +1495,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->motion = (SotnActorMotion){0};
     ++actors->ticks;
     actors->combat.music_change = false;
+    actors->combat.ambience_change = false;
     actors->combat.voice_change = false;
     actors->combat.cd_command = 0;
     actors->combat.sound_count = 0;

@@ -277,3 +277,9 @@ The [Outer Wall Blue Axe Knight](docs/outer-wall-blue-knight.md) now runs select
 armored/damaged attacks, its separate weapon actor, axes and both death variants.
 Green/blue fragment deaths retain paired primitive reservations. Private protected
 fixtures are not continuous-route or console parity evidence.
+
+The [Outer Wall elevator](docs/outer-wall-elevator.md) now runs selected three-stop
+rides, remote calls, door tile/geometry changes, strike activation, gears and pressure
+platform, with two persistent v6 mechanism flags. Sound supports channel 22/23 gain
+updates without retriggering loops. Complete elevator effects/priority and whole-route
+parity remain incomplete. Private protected fixtures are not console parity evidence.
