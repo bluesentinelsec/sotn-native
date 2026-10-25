@@ -44,7 +44,9 @@ A private comparison runs 100,000 original SDK scheduling ticks and matches 74,3
 note/bend events, including cursor/delta/tempo state, internal loops and tempo changes.
 The selected Data Entry branch is checked against the original private executable;
 other unsupported branches are excluded explicitly. A further 50,000 note/fine/
-center/shift cases match the SDK pitch algorithm using the original table. These
+center/shift cases match the SDK pitch algorithm using the original table. Another
+50,000 signed-bend cases match the original SDK path; negative bend uses explicit
+nonnegative distance arithmetic while preserving its quotient/remainder rounding. These
 are algorithm comparisons, not console audio capture comparisons.
 
 A private LLDB sequence opens the native Library scene, starts the original sequence

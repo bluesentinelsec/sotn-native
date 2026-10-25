@@ -33,7 +33,10 @@ static bool Pitch(SotnSound *s, Uint16 voice, const Uint8 *tone, Sint32 note, Ui
     }
     const Sint32 semitones = note + 60 - tone[4] + carry;
     if (fraction < 0 || fraction > 15 || semitones < 0 || semitones > 255)
-        return SDL_SetError("SEQ note/bend exceeds the original bounded pitch table");
+        return SDL_SetError("SEQ note/bend exceeds its bounded pitch table (note %d, fine %u, "
+                            "center %u, shift %u, fraction %d)",
+                            (int)note, (unsigned int)fine, (unsigned int)tone[4],
+                            (unsigned int)tone[5], (int)fraction);
     const Sint32 octave = semitones / 12 - 5;
     if (octave > 15 || octave < -15)
         return SDL_SetError("SEQ pitch shift exceeds the original register range");
@@ -187,8 +190,9 @@ static bool Event(void *context, SotnSequenceEvent event)
             }
             else if (bend < 0)
             {
-                note += bend * tone[12] / 64 - 1;
-                fine = (Uint16)((bend * tone[12] % 64) * 2 + 127);
+                const Uint32 distance = (Uint32)(-bend) * tone[12];
+                note -= (Sint32)(distance / 64U) + 1;
+                fine = (Uint16)(127U - (distance % 64U) * 2U);
             }
             if (!Pitch(s, i, tone, note, fine))
                 return false;
