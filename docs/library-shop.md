@@ -40,7 +40,7 @@ stopping an old speech request does not retire the Librarian's sequence.
 Full preview/detail panels, description fonts/icons, exact wipes/priority ties,
 tactics, enemy list and sound test remain unintegrated. Optional service choices
 report their missing support and remain in the menu instead of pretending success.
-Library travel remains disabled. Unsupported purchased equipment can be owned,
+[Selected Library travel](library-connections.md) now runs. Unsupported purchased equipment can be owned,
 but equipping it still fails explicitly until its behavior is integrated.
 
 ## Evidence and provenance
