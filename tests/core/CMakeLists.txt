@@ -410,3 +410,10 @@ target_include_directories(sotn-chapel-spectral-tests PRIVATE ../../modules/core
 target_link_libraries(sotn-chapel-spectral-tests PRIVATE sotn-core)
 add_test(NAME chapel-spectral COMMAND sotn-chapel-spectral-tests)
 set_tests_properties(chapel-spectral PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-chapel-spikes-tests test_chapel_spikes.c)
+sotn_configure_c_target(sotn-chapel-spikes-tests)
+target_include_directories(sotn-chapel-spikes-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-chapel-spikes-tests PRIVATE sotn-core)
+add_test(NAME chapel-spikes COMMAND sotn-chapel-spikes-tests)
+set_tests_properties(chapel-spikes PROPERTIES TIMEOUT 20)

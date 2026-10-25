@@ -416,3 +416,11 @@ Native slot/generation references protect the sixteen adjacent weapons and aura.
 Positive `SquareRoot0` uses the already credited PSY-Z SDK square-root adapter's
 shared table/normalization with the original integer-result shift. Initialization,
 hitboxes, palettes, artwork and SDK tables remain private runtime inputs.
+
+`modules/core/chapel_spikes.c` adapts selected DAI `st/e_spikes.h` and
+`st_common.h:{GetAngleBetweenEntitiesShifted,SetEntityVelocityFromAngle}` at the
+pinned sotn-decomp revision (AGPL-3.0-or-later). The environmental HP fraction in
+`combat.c` and its dispatch in `laboratory.c` follow the already credited
+`dra/5D5BC.c:HandleDamage` path. Native generation references replace the adjacent
+damage-actor pointer; bounded scans omit out-of-map room-edge reads. Original
+initialization, orientation, animation, collision, sine and artwork data stay private.

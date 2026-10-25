@@ -534,8 +534,11 @@ static bool TickActors(SotnLaboratory *session)
         {
             Uint16 damage = 0;
             if (combat.contact_damage &&
-                !SotnCombat_NormalContact(power, attributes.defense, player.poison_ticks != 0,
-                                          &damage))
+                !((combat.contact_element & 31U) >= 16
+                      ? SotnCombat_EnvironmentalContact(power, player.hp_max,
+                                                        player.poison_ticks != 0, &damage)
+                      : SotnCombat_NormalContact(power, attributes.defense,
+                                                 player.poison_ticks != 0, &damage)))
                 return false;
             if ((power.effects & 0x100U)
                     ? !SotnPlayer_CurseDamage(session->player, damage, combat.contact_x,
@@ -925,8 +928,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
-                "Spectral Sword combat. "
-                "Other encounters, tower routing/bells/spikes, Maria, boss and connected travel "
+                "Spectral Sword combat, and Spike Breaker corridor tiles/damage/debris. "
+                "Other encounters, tower routing/bells, Maria, boss and connected travel "
                 "remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "

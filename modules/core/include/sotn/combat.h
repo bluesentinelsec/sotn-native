@@ -39,6 +39,17 @@ bool SotnCombat_ContactPower(Uint16 attack, Uint16 element, SotnCombatEnemy attr
  * @note Not stone, environmental damage, special equipment or the full damage-kind service. */
 bool SotnCombat_NormalContact(SotnContactPower power, Uint16 defense, bool poisoned, Uint16 *out);
 
+/** @brief Resolve the original maximum-HP fraction for environmental damage kinds 16..31.
+ * @param power Equipment element prepass; absorption must already be handled.
+ * @param hp_max Maximum HP, 1..9999. @param poisoned Double HP loss before the minimum-one rule.
+ * @param out Copied HP loss, unchanged on failure; immune contacts yield zero.
+ * @return Success or SDL error. Defense and prepass attack modifiers do not change this fraction.
+ * @note Caller selects this branch by the original element/kind word; reaction effects are
+ * separate.
+ */
+bool SotnCombat_EnvironmentalContact(SotnContactPower power, Uint16 hp_max, bool poisoned,
+                                     Uint16 *out);
+
 /** @brief Original hit-test arithmetic, including the target's one-pixel inset.
  * @param attacker Whole-pixel attacking box. @param target Whole-pixel target box.
  * @return True for an intersection; zero-sized or oversized boxes never intersect. */

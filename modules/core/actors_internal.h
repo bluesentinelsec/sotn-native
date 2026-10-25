@@ -497,6 +497,11 @@ bool ActorChapelHunting(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed active supported slot.
  * @return Success or SDL error for invalid private data, ownership, state or motion. */
 bool ActorChapelSpectral(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel spike tiles, owned damage or independent debris/dust.
+ * @param actors Borrowed stage-6 owner with mutable room tiles and optional character.
+ * @param actor Borrowed supported slot; original tables remain borrowed.
+ * @return Success or SDL error for invalid data, ownership, state or motion. */
+bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
 /** @brief Borrowed Hunting Girl graphics/motion helpers; require its 32 owned primitives.
  * @note Tips use whole room coordinates; spirit/attack completion is copied to done.
  * Profiles/streams stay private, and invalid bounds/ownership return SDL errors. */
