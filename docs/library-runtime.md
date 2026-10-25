@@ -19,8 +19,20 @@ private stream. No runtime tables, artwork or sound data enter public files.
 Selected Skeleton/body/bone/piece services use Library initialization and tables.
 The original Library layouts contain no ordinary Skeleton placements; the later
 Lesser Demon summoning path remains unintegrated. Flea Men use their Library
-motion/timelines/sensors, actor identity and damage/contact path. Other enemies
-and background/script actors still warn explicitly and remain omitted.
+motion/timelines/sensors, actor identity and damage/contact path. Other placed enemies and background/script actors still warn explicitly and remain omitted.
+
+The overlay's retained Flying Zombie code now runs its linked legs/torso, lower-
+and upper-body hit branches, flight/hover/dive and independent deaths. Original
+first-Library layouts contain **no Flying Zombie placements**; this adapter is
+not additional ordinary route coverage. Adjacent parts use native slot/generation
+ownership; an attached orphan retires instead of following a reused slot. Spawned
+children start with the original whole-pixel positions and cleared fractions.
+Its original blood children retain the eight-record/two-sprite allocation budget,
+private five-byte UV streams, fixed-point movement, SDK Z rotation, color and
+priority, and the packed control-fraction camera adjustment. Drips retain the
+original additive gradient line, gravity and old-head tail calculation. Optional
+pool exhaustion omits effects as the original does. No blood artwork, palettes,
+lookup tables or animation rows are embedded in source.
 
 All ten original breakable types now read their private animation, palette,
 texture, hitbox and effect profiles. Hanging lamps retain their adjacent helper;
@@ -57,4 +69,16 @@ Metadata, shared behavior and breakables adapt pinned sotn-decomp
 `st/lib/{header,e_init,e_breakable,e_lock_camera,e_collect,e_skeleton,e_flea_man}.c`,
 shared stage headers and `dra/lba_stage.c`. Native data ownership, profiles and
 save/session adapters remain C code in this repository. Private inputs stay ignored.
-All 60 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.
+Selected Flying Zombie/blood algorithms additionally adapt `st/e_flying_zombie.h`,
+`st/e_bloody_zombie.h`, `st/prim_helpers.h`, `st/e_misc.h` and `dra/5087C.c` from the
+same pin. Public synthetic checks cover paired ownership, both split paths,
+HP resets, fixed-point death direction, timer/hover/dive behavior, exact effect
+positions, quad UV carry, camera fractions, original line-tail ordering and pool
+exhaustion. Private native LLDB fixtures explicitly insert this retained enemy
+into room 6 with a protected hero. Ordinary attack/crouch/jump inputs finish the
+lower-hit path at tick 1621 with 406 renders and the upper-hit path at tick 853
+with 214 renders, both in Debug and macOS ASan/UBSan. They check the death sound
+when the root retires; mere loss of an actor cannot pass. These fixtures do not
+prove an ordinary Library encounter, complete GTE saturation, uninterrupted
+traversal, unmodified-character playability or audiovisual/console parity.
+All 61 public groups pass in Debug and macOS ASan/UBSan; release packaging passes.

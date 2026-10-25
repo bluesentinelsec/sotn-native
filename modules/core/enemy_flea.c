@@ -7,7 +7,8 @@ bool ActorFlea(SotnActors *s, Actor *a)
     const bool library = s->stage_id == 2;
     if (a->state.flags & 0x100)
     {
-        if (!ActorSound(s, 0x691) || !ActorReplaceExplosion(s, a, 1))
+        if (!(library ? ActorLibrarySound(s, a, 0x691) : ActorSound(s, 0x691)) ||
+            !ActorReplaceExplosion(s, a, 1))
             return false;
         return true;
     }

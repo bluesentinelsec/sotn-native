@@ -38,6 +38,8 @@ add_library(sotn-core STATIC
   early_castle.c
   library.c
   library_breakable.c
+  library_flying_zombie.c
+  library_blood.c
   marble_clock.c
   actor_wide_animation.c
   enemy_rose.c

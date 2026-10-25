@@ -355,3 +355,7 @@ gameplay start while area enemies, Lesser Demon, librarian/shop and scripts rema
 pending. Private protected fixtures and injected breakable hits are component
 evidence, not a full route or console replay. Do not reuse other areas' breakable
 logic or actor IDs for this overlay.
+
+The Library overlay's retained Flying Zombie/body/blood adapters now run in explicit
+fixtures; its original first-Library layouts have no ordinary Flying Zombie placements.
+Read [Library scope](docs/library-runtime.md); do not count this as ordinary route coverage.
