@@ -522,6 +522,8 @@ bool ActorLibraryBookBeam(SotnActors *actors, Actor *actor);
  * @return Success or SDL error; optional exhausted reward allocation waits for another tick.
  * Native factories retain ownership; no pointers transfer to the caller. */
 bool ActorLibraryEvent(SotnActors *actors, Actor *actor);
+/** @brief Decode and animate original Library foreground/background decoration records. */
+bool ActorLibraryObject(SotnActors *actors, Actor *actor);
 /** @brief Advance original per-button repeat timers after tapped/pressed input is installed. */
 void ActorRepeatButtons(SotnActors *actors);
 /** @brief Advance the selected original Library root/buy/sell menu actors. */

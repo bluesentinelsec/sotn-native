@@ -434,3 +434,9 @@ exit and return greeting. Full preview/detail panels,
 tactics, enemy list, sound test, spell casting and missing equipment effects remain
 unintegrated; Library travel stays gated. See the shop document for the original
 forward-ordering-table correction and its shared renderer regression coverage.
+
+The [selected Library furnishings](docs/library-furnishings.md) now include the
+candle table/shadow, permanent Stone Mask pickup and ordinary equipment metadata,
+and private foreground/background decoration initialization. Native explicit-room
+checks and synthetic ownership/failure cases cover these paths. Parallax models,
+secret-bookcase geometry, sitting, Mist interaction and Library travel stay pending.

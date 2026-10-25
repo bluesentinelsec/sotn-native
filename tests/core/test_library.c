@@ -149,6 +149,113 @@ static bool Breakables(SotnActors *s, Uint8 *image)
     CHECK(!ActorLibraryBreakable(s, &bad_helper));
     return true;
 }
+static bool CandleTables(SotnActors *s, Uint8 *image)
+{
+    Put16(image + 0x8fc, 0x8008);
+    Put16(image + 0x900, 0x50);
+    Put16(image + 0x902, 0x256);
+    image[0x1a68] = image[0x1a78] = 1;
+    image[0x1a69] = 3;
+    image[0x1a79] = 9;
+    Reset(s);
+    Actor *a = &s->slots[64];
+    a->state.id = 0x3d;
+    a->state.y += 123;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.step == 1 && a->state.frame == 3 &&
+          a->state.priority == 0x78 && a->state.animation_set == 0x8008 &&
+          a->state.hitbox_state == 2 && a->state.hitbox_y == -10);
+    Actor *child = &s->slots[65];
+    CHECK(child->state.id == 0x3d && child->state.parameters == 0x100 &&
+          child->state.y == 128 * 65536);
+    CHECK(ActorLibraryBreakable(s, child) && child->state.opacity_set &&
+          child->state.opacity == 192 && child->state.frame == 9 &&
+          child->state.blend_mode == 0x30);
+    a->hit_params = 1;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.step == 1); // Uses original hitFlags.
+    a->hit_flags = 1;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.step == 2);
+    CHECK(ActorLibraryBreakable(s, a) && a->state.step == 3 && a->state.frame == 8 &&
+          !a->state.hitbox_state && !a->remove && !a->permanent);
+    CHECK(child->state.id == 0xc && child->state.parameters == 1 &&
+          child->enemy_state.owner_generation == a->state.generation);
+    CHECK(s->slots[160].state.id == 2 && s->slots[160].state.parameters == 2 &&
+          s->slots[160].state.y == 120 * 65536);
+    // Original reinitialization replaces only this table's surviving adjacent pickup/shadow.
+    a->state.step = 0;
+    a->state.generation++;
+    a->hit_flags = a->hit_params = 0;
+    CHECK(ActorLibraryBreakable(s, a) && child->state.id == 0x3d &&
+          child->enemy_state.owner_generation == a->state.generation);
+    a->state.step = 2;
+    child->enemy_state.owner_generation = 99;
+    CHECK(!ActorLibraryBreakable(s, a) && child->state.id == 0x3d && a->state.step == 2);
+    child->state.id = 0x33;
+    CHECK(!ActorLibraryBreakable(s, a) && child->state.id == 0x33 && a->state.step == 2);
+    Actor boundary = {.slot = 191, .state = {.id = 0x3d, .generation = 5}};
+    CHECK(!ActorLibraryBreakable(s, &boundary));
+    Reset(s);
+    a = &s->slots[64];
+    a->state.id = 0x3d;
+    a->state.parameters = 0x400;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.step == 4 && a->state.frame == 17 &&
+          !s->slots[65].state.generation);
+    CHECK(ActorLibraryBreakable(s, a) && a->state.frame == 17);
+    a->state.step = 0;
+    a->state.parameters = 0x200;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.frame == 18 && a->state.step == 4);
+    Reset(s);
+    a = &s->slots[64];
+    a->state.id = 0x3d;
+    CHECK(ActorLibraryBreakable(s, a));
+    for (Uint16 i = 160; i < 192; ++i)
+        s->slots[i].state.generation = 99;
+    a->state.step = 2;
+    CHECK(ActorLibraryBreakable(s, a) && a->state.frame == 8 && s->slots[65].state.id == 0xc);
+    return true;
+}
+static bool Objects(SotnActors *s, Uint8 *image)
+{
+    Reset(s);
+    for (Uint16 fg = 0; fg < 2; ++fg)
+        for (Uint16 i = 0; i < (fg ? 6U : 8U); ++i)
+        {
+            Uint8 *p = image + (fg ? 0x2094U : 0xa28U) + i * 20U;
+            Put16(p, 0x8001);
+            Put16(p + 2, (Uint16)(100 + i));
+            Put16(p + 4, 0x48);
+            Put16(p + 6, 0x210);
+            Put16(p + 8, 0);
+            Put16(p + 10, 0x10);
+            Put32(p + 12, 0x400);
+            Put32(p + 16, 0x80183010);
+        }
+    image[0x3010] = 1;
+    image[0x3011] = 7;
+    image[0x3012] = 255;
+    Actor a = {.slot = 64, .state = {.id = 0x11, .generation = 1, .parameters = 1}};
+    CHECK(ActorLibrary(s, &a) && a.state.frame == 7 && a.state.texture_offset == 0x48 &&
+          !a.state.facing_left && a.state.priority == 101 && a.state.palette == 0x210 &&
+          a.state.flags == 0x400);
+    CHECK(ActorLibrary(s, &a) && a.state.frame == 7);
+    a = (Actor){.slot = 64, .state = {.id = 8, .generation = 2, .parameters = 5}};
+    CHECK(ActorLibrary(s, &a) && a.state.rotated && a.state.rotation == 2048 && a.state.frame == 7);
+    a = (Actor){.slot = 64, .state = {.id = 0x11, .generation = 3, .parameters = 8}};
+    CHECK(!ActorLibrary(s, &a));
+    a.state.id = 8;
+    a.state.parameters = 6;
+    CHECK(!ActorLibrary(s, &a));
+    a.state.parameters = 0;
+    Put32(image + 0x2094 + 16, 0x80190000);
+    CHECK(!ActorLibrary(s, &a));
+    a.state.step = 0;
+    Put32(image + 0x2094 + 16, 0x80183010);
+    Put16(image + 0x2094 + 8, 1);
+    CHECK(!ActorLibrary(s, &a) && !a.state.step);
+    Put16(image + 0x2094 + 8, 0);
+    Put16(image + 0x2094 + 6, 0x300);
+    CHECK(!ActorLibrary(s, &a) && !a.state.step);
+    return true;
+}
 int main(void)
 {
     Uint8 *image = SDL_calloc(1, 0x4000), dra[0x400] = {0};
@@ -157,7 +264,7 @@ int main(void)
     const bool passed = image &&
                         SotnActors_CreateStage((SotnDataView){dra, sizeof(dra)},
                                                (SotnDataView){image, 0x4000}, 2, &s) &&
-                        Breakables(s, image);
+                        Breakables(s, image) && CandleTables(s, image) && Objects(s, image);
     SotnActors_Destroy(s);
     SDL_free(image);
     return passed ? 0 : 1;

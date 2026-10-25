@@ -199,3 +199,9 @@ retains equipment/gem/relic/map/scroll ownership changes in v8 saves. Selected
 buy/sell menus, speech, exit and returning greeting now run. Full shop panels,
 optional services, missing equipment effects and spell casting remain unintegrated;
 this service alone does not enable ordinary Library travel.
+
+[Selected Library furnishings](library-furnishings.md) now include the placed
+candle table, its owned shadow and permanent Stone Mask drop, ordinary head-equipment
+metadata, and original foreground/background decoration records. Parallax models,
+secret-bookcase geometry, sitting and Mist interactions remain pending. Native
+explicit-room checks do not prove ordinary Library travel or console parity.

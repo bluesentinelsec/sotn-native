@@ -459,6 +459,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const bool rock = (actors->stage_id == 65 || actors->stage_id == 7) &&
                       (actor->state.id == 0x24 || actor->state.id == 0x25);
     if (!rock && !(actors->stage_id == 1 && actor->state.id == 0x33) &&
+        !(actors->stage_id == 2 && actor->state.id == 0x3d) &&
         !EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
         actor->state.id != 0xa && actor->state.id != 0xb &&
         (actors->stage_id != 12 ||
@@ -1208,8 +1209,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
-    if (actors->stage_id == 2 &&
-        (actor->state.id == 1 || actor->state.id == 6 || actor->state.id > 0xc))
+    if (actors->stage_id == 2 && (actor->state.id == 1 || actor->state.id == 6 ||
+                                  actor->state.id == 8 || actor->state.id > 0xc))
         return ActorLibrary(actors, actor);
     if ((actors->stage_id == 0 || actors->stage_id == 1) && actor->state.id > 0xc)
         return ActorEarlyCastle(actors, actor);
