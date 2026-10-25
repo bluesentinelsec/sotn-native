@@ -105,7 +105,7 @@ Reading a legacy save never changes its file. The next successful ordinary save
 writes v6 through the checked replacement path. Unknown formats fail explicitly.
 Native Android/iOS use SDL's sandbox preference path. Browser durable persistence
 still requires an adapter and reload tests. PS1 memory-card import/export, further
-stages, relic ability/menu integration, Maria/castle scripts, and full-game saves remain separate.
+stages, relic ability/menu integration, complete castle scripts, and full-game saves remain separate.
 
 Public tests use a build-local directory and synthetic state. They check independent
 v3/v4/v5/v6 checksums, stage/save-room roundtrips, all five legacy migrations, malformed character

@@ -6,7 +6,7 @@ typedef struct SotnDialogueState
 {
     char lines[5][25];
     Uint32 portraits[2]; /**< Stage-relative offsets, zero until loaded by the script. */
-    Uint16 x, y, transition, transition_length;
+    Uint16 x, y, transition, transition_length, palette;
     Uint8 row, column, speaker, portrait_slot, fade;
     bool visible, mirrored, portrait_visible, background_enabled;
 } SotnDialogueState;

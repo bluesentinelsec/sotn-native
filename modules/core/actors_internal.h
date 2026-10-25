@@ -116,7 +116,7 @@ struct SotnActors
         size_t script, events;
         Uint32 flags;
         Uint16 wait, speed, event_timer;
-        bool active, events_active, voice_playing;
+        bool active, events_active, voice_playing, cd_busy;
     } death_event;
     SotnRoomActors *spawns;
     Actor slots[SOTN_STAGE_ACTOR_SLOTS];
@@ -234,6 +234,8 @@ bool ActorWarg(SotnActors *actors, Actor *actor);
 bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorMerman(SotnActors *actors, Actor *actor);
 bool ActorDeath(SotnActors *actors, Actor *actor);
+bool ActorDialogue(SotnActors *actors, Actor *actor);
+bool ActorMaria(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
  * or revisited Entrance (7) profiles. Offsets identify private tables; actor IDs always retain

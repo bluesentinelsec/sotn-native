@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// NO3 Death/script behavior from st/no3/e_death.c, cutscene.c, cutscene_events.h,
+// NO3 Death and shared NZ0/NO3 scripts from st/no3/e_death.c, cutscene.c, cutscene_events.h,
 // and set_cutscene_script.h at sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // All dialogue, portraits, event streams, equipment artwork and animations remain private.
 #include "actors_internal.h"
@@ -107,19 +107,19 @@ static void Lines(SotnDialogueState *d)
     d->row = d->column = 0;
 }
 
-static bool Script(SotnActors *s, Actor *a)
+bool ActorDialogue(SotnActors *s, Actor *a)
 {
     SotnDialogueState *d = &s->death_event.display;
     if (a->state.step == 0)
     {
-        if (s->world->flags[SOTN_ENTRANCE_DEATH])
+        if (s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH])
         {
-            d->background_enabled = true;
+            d->background_enabled = s->stage_id != 12;
             a->remove = true;
             return true;
         }
         s->death_event.active = true;
-        s->death_event.script = 0x4ce0;
+        s->death_event.script = s->stage_id == 12 ? 0x3b0c : 0x4ce0;
         s->death_event.speed = 8;
         s->death_event.flags = 0;
         ++a->state.step;
@@ -149,7 +149,7 @@ static bool Script(SotnActors *s, Actor *a)
         case 0:
             d->visible = false;
             s->death_event.active = false;
-            s->world->flags[SOTN_ENTRANCE_DEATH] = 1;
+            s->world->flags[s->stage_id == 12 ? SOTN_LAB_MARIA : SOTN_ENTRANCE_DEATH] = 1;
             a->remove = true;
             return true;
         case 1:
@@ -180,6 +180,11 @@ static bool Script(SotnActors *s, Actor *a)
             if (!Byte(s, &s->death_event.script, &value) || value > 1 ||
                 !Byte(s, &s->death_event.script, &side))
                 return SDL_SetError("Death dialogue portrait selector is invalid");
+            SotnDataView palette = {0};
+            if (!Slice(s->nz0, (s->stage_id == 12 ? 0x13d0U : 0x1a30U) + value * 2U, 2, &palette) ||
+                Read16(palette.bytes) >= 0x300)
+                return SDL_SetError("Dialogue portrait palette is outside its private CLUT range");
+            d->palette = Read16(palette.bytes);
             d->speaker = value;
             d->portrait_slot = side & 1;
             d->mirrored = (side & 128) != 0;
@@ -216,7 +221,13 @@ static bool Script(SotnActors *s, Actor *a)
                 s->combat.music_change = true;
                 s->combat.music = 0;
             }
-            else if (sound >= 0x35f && sound <= 0x363)
+            else if (sound == 0x10 || sound == 0x11)
+            {
+                s->combat.cd_command = sound;
+                s->death_event.cd_busy = sound == 0x10;
+            }
+            else if ((sound >= 0x35f && sound <= 0x363) ||
+                     (s->stage_id == 12 && sound >= 0x369 && sound <= 0x36d))
             {
                 s->combat.voice = sound;
                 s->combat.voice_change = true;
@@ -234,7 +245,7 @@ static bool Script(SotnActors *s, Actor *a)
             }
             break;
         case 11:
-            if (s->death_event.voice_playing)
+            if (s->death_event.voice_playing || s->death_event.cd_busy)
             {
                 s->death_event.script = instruction;
                 return true;
@@ -744,7 +755,7 @@ bool ActorDeath(SotnActors *s, Actor *a)
     switch (a->state.id)
     {
     case 0x57:
-        return Script(s, a);
+        return ActorDialogue(s, a);
     case 0x58:
         return Manager(s, a);
     case 0x59:
@@ -767,5 +778,13 @@ bool SotnActors_Dialogue(SotnActors *s, bool voice_playing, SotnDialogueState *o
     s->death_event.voice_playing = voice_playing;
     if (out != NULL)
         *out = s->death_event.display;
+    return true;
+}
+
+bool SotnActors_SetDialogueBusy(SotnActors *s, bool busy)
+{
+    if (s == NULL)
+        return SDL_InvalidParamError("actors");
+    s->death_event.cd_busy = busy;
     return true;
 }

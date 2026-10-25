@@ -141,7 +141,7 @@ never suppress unrelated rooms' actors or enter ordinary saves. Permanent progre
 belongs to character/world state instead.
 
 Whole-encounter input/replay parity, full GTE/GPU effects/ordering, camera shake,
-reverb/positional mixing, complete status ailments, Maria/castle scripts, room-load
+reverb/positional mixing, complete status ailments, complete castle scripts, room-load
 fades, and other stages remain incomplete. The checkpoint is not a complete area
 or full-game parity claim.
 
@@ -159,7 +159,7 @@ v1/v2/v3 saves migrate explicitly with zero world progress because they never st
 it. Temporary actors, door/switch/lift execution state, and destruction bits are
 recreated rather than serialized.
 
-Other stages, Maria/castle scripts, complete new-game/prologue progression, and
+Other stages, complete castle scripts, complete new-game/prologue progression, and
 complete game parity remain outside this Laboratory milestone. Unsupported paths
 stay explicit. Stacked PRs remain unmerged until the user playtests this build.
 
@@ -171,3 +171,5 @@ wall absent, and retained the cannon event. Mechanism sections used explicit roo
 starts; this is an integration sequence, not an uninterrupted whole-area replay.
 The boss section used the documented private high-health/strength fixture. Public
 tests and sanitizer checks use synthetic inputs; private inputs are never CI artifacts.
+
+The selected [Maria encounter](laboratory-maria.md) now runs its original room script and speech.

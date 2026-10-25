@@ -38,7 +38,7 @@ static SotnCollisionMap MakeFixture(Fixture *fixture)
         Put32(fixture->nz0, 0x40 + i * 4, 0x80180300);
     Put16(fixture->nz0, 0x300, 0xfffe);
     Put16(fixture->nz0, 0x302, 0xfffe);
-    const Uint16 ids[] = {1, 0x23, 0x34, 0x2b, 0x4d};
+    const Uint16 ids[] = {1, 0x23, 0x34, 0x2b, 0x13};
     for (size_t i = 0; i < SDL_arraysize(ids); ++i)
     {
         const size_t offset = 0x300 + (i + 1) * 10;

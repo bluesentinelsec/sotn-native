@@ -29,7 +29,7 @@ bool SotnDialogueRenderer_Draw(const SotnActorGraphics *g, SotnDialogueState d, 
                                size_t count)
 {
     if (g == NULL || frame == NULL || count < SOTN_FRAME_PIXELS || d.x > 256 || d.y > 240 ||
-        d.row >= 5 || d.column > 24 || d.speaker > 1 || d.portrait_slot > 1 ||
+        d.palette >= 0x300 || d.row >= 5 || d.column > 24 || d.speaker > 1 || d.portrait_slot > 1 ||
         d.transition > d.transition_length)
         return SDL_SetError("Dialogue presentation state is outside its bounded US layout");
     for (Uint32 row = 0; row < 5; ++row)
@@ -68,7 +68,7 @@ bool SotnDialogueRenderer_Draw(const SotnActorGraphics *g, SotnDialogueState d, 
                   (Uint16)(u + (d.mirrored ? 47 : 0)), (Uint16)(u + (d.mirrored ? 0 : 47))},
             .v = {0, 0, 72, 72},
             .page = 0x94,
-            .palette = d.speaker ? 0x2e8 : 0x2e0};
+            .palette = d.palette};
         if (half_width && !SotnActorGraphics_Quad(g, portrait, frame, count))
             return false;
     }

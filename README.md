@@ -213,3 +213,7 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 Castle Entrance now includes selected enemies, Death’s opening event, and
 [connected travel](docs/connected-stages.md) to/from Laboratory with stage-aware saves.
 See [current scope](docs/entrance-runtime.md); this remains a development checkpoint.
+
+The selected [Laboratory Maria encounter](docs/laboratory-maria.md) now runs its
+original room script, actors, portraits and speech. [Relic collection](docs/relic-progression.md)
+and permanent pickup bits survive ordinary saves and supported stage changes.
