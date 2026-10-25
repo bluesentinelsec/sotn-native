@@ -24,6 +24,7 @@ typedef struct SotnActorControl
     Uint16 buttons, timer;
     bool hold;            /**< Original simulated-pad mode 2: freeze normal-form player control. */
     bool block_stopwatch; /**< Original pauseEnemies gate, not a generic actor freeze. */
+    bool pause_disabled;  /**< Original cutscene pause gate, also used by the native map menu. */
 } SotnActorControl;
 /** @brief Copy current script-owned pad interval; timer zero permits user control unless hold
  * remains set.
@@ -40,6 +41,8 @@ typedef struct SotnActorMotion
     bool bell_inside;     /**< Original bell concealment/status interval, recomputed each tick. */
     bool stop_horizontal; /**< Original tower-exit death guard; preserve vertical velocity. */
     Uint16 chair_kind;    /**< Transient original seating pose/facing hint, zero or 1..4. */
+    bool align_horizontal;
+    Sint32 alignment_x; /**< Original script's whole-pixel position override, retaining fraction. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through

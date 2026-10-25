@@ -468,3 +468,11 @@ selected native fades extend the already credited `dra/sound.c` adapter.
 Original animation, curtain, position, sound and artwork tables remain private.
 Native ownership checks replace adjacent entity pointers; defined byte-wrap and
 signed narrowing preserve selected US behavior without undefined host operations.
+
+`modules/core/chapel_maria.c` adapts selected US `st/dai/e_cutscene_actors.c`
+at the pinned sotn-decomp revision (AGPL-3.0-or-later). The stage-specific shared
+dialogue/event and portrait adapters follow `st/dai/e_cutscene_dialogue.c` and
+`st/cutscene_events.h`. The horizontal anchor extends the already credited
+`dra/5087C.c:func_800F0CD8` camera adapter. Native checked room coordinates replace
+screen/scroll storage; original scripts, text, animations, portraits and audio
+remain private runtime inputs.

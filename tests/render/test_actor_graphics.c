@@ -491,6 +491,31 @@ static bool TestDialogue(Fixture *f)
                                      (SotnDataView){f->nz0, sizeof(f->nz0)}, 6, 100, 100, 14, 14,
                                      false, f->frame, SOTN_FRAME_PIXELS));
     SotnActorGraphics_Destroy(g);
+    // Chapel's portraits occupy the original page 0x90, independently from Library/NZ0.
+    MakeFixture(f);
+    for (Uint32 y = 0; y < 72; ++y)
+        for (Uint32 x = 0; x < 48; ++x)
+            f->nz0[0x800 + y * 48 + x] = (Uint8)(x < 24 ? 1 : 3);
+    CHECK(SotnActorGraphics_CreateStage(
+        (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){f->nz0, sizeof(f->nz0)},
+        (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, 6, &g));
+    for (Uint16 slot = 0; slot < 2; ++slot)
+    {
+        CHECK(SotnActorGraphics_LoadPortrait(g, 0x800, slot));
+        d = (SotnDialogueState){.x = 60,
+                                .y = 148,
+                                .visible = true,
+                                .portrait_visible = true,
+                                .portrait_page = 0x90,
+                                .palette = 0x200,
+                                .portrait_slot = (Uint8)slot,
+                                .mirrored = slot != 0};
+        d.portraits[slot] = 0x800;
+        CHECK(SotnDialogueRenderer_Draw(g, d, f->frame, SOTN_FRAME_PIXELS));
+        CHECK(f->frame[184 * 256 + 10] == (slot ? 0x83e0 : 31) &&
+              f->frame[184 * 256 + 50] == (slot ? 31 : 0x83e0));
+    }
+    SotnActorGraphics_Destroy(g);
     return true;
 }
 

@@ -535,6 +535,10 @@ bool ActorChapelGlass(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage-6 simulation/private tables. @param actor Borrowed active slot.
  * @return Success or SDL error; children and primitives retain bounded generation ownership. */
 bool ActorChapelConfessional(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel Maria dialogue, manager or actor.
+ * @param actors Borrowed stage-6 owner/private inputs. @param actor Borrowed active raw45..47.
+ * @return Success or SDL error for invalid state, motion, private animations or camera bounds. */
+bool ActorChapelMaria(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
  * @param actors Borrowed stage-6 simulation and private tables.
  * @param actor Borrowed supported slot; primitives stay generation-owned.

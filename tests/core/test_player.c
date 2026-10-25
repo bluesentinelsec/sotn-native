@@ -500,6 +500,22 @@ static bool TestChairs(Fixture *f)
     }
     return true;
 }
+static bool TestScriptAlignment(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState before = {0}, after = {0};
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT) && State(p, &before));
+    CHECK(SotnPlayer_StageAlignX(p, 368) && State(p, &after));
+    CHECK(after.x == 368 * 65536 + (Sint32)((Uint32)before.x & 65535U) &&
+          after.velocity_x == before.velocity_x && after.step == before.step &&
+          after.hp == before.hp);
+    CHECK(!SotnPlayer_StageAlignX(p, SDL_MAX_SINT32) && State(p, &before) && before.x == after.x);
+    CHECK(!SotnPlayer_StageAlignX(NULL, 368));
+    SotnPlayer_Close(p);
+    return true;
+}
 
 int main(void)
 {
@@ -509,7 +525,8 @@ int main(void)
     const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
                         TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
-                        TestChairs(fixture) && TestFailures(fixture);
+                        TestChairs(fixture) && TestScriptAlignment(fixture) &&
+                        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

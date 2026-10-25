@@ -484,3 +484,10 @@ original sitting/sleep letters, priest/parishioner variants, curtains, attackabl
 blades, selected reward and private SEQ chime with XA restoration. Chapel remains
 disconnected while Maria, Hippogryph and connected progression need integration.
 Controlled private fixtures are not uninterrupted-route or console parity evidence.
+
+The internal [Chapel Maria event](docs/chapel-maria.md) now runs its placed script,
+event-created controller/actor, private speech/portraits, original camera-anchor
+pan and selected departure. Keep room coordinates distinct from screen scroll,
+flag 99 distinct from other Maria/Entrance events, and pause/stopwatch gates separate.
+Version-eight saves retain the flag. Transformation approaches, skip settings,
+full presentation/timing parity, Hippogryph and connected Chapel travel remain incomplete.

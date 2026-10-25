@@ -168,6 +168,18 @@ static bool Playback(const char *directory)
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3aa, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x368, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x36e, &music) && music == NULL);
+    for (Uint16 id = 0x375; id <= 0x379; ++id)
+    {
+        SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
+        CHECK(SotnMusic_CreateSpeech(image, stream, id, &music));
+        for (Uint16 tick = 0; tick < 16; ++tick)
+            CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+        CHECK(!SotnMusic_Playing(music));
+        SotnMusic_Destroy(music);
+        music = NULL;
+    }
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x374, &music) && music == NULL);
+    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x37a, &music) && music == NULL);
     SotnStream_Close(stream);
     SDL_free(finite);
     raw[19] = raw[23] = 0;

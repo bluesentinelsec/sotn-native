@@ -37,6 +37,8 @@ Winged Guard/Bat, breakable/debris and furnishing adapters; Chapel travel remain
 disabled pending further integration.
 Selected [chairs and confessional encounters](docs/chapel-confessional.md) now run
 with original ghost/blade branches and private chime audio.
+The [Chapel Maria event](docs/chapel-maria.md) also runs selected original dialogue,
+speech, camera pan and departure, retaining its completion in ordinary saves.
 The [packed sprite adapter](docs/doppleganger-sprites.md) renders its backed body/bat
 frames without establishing boss gameplay or full effects parity.
 Its [collision and decision services](docs/doppleganger-runtime.md) now preserve

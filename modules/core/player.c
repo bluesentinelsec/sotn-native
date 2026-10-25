@@ -1367,6 +1367,16 @@ bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
     return true;
 }
 
+bool SotnPlayer_StageAlignX(SotnPlayer *p, Sint32 x)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    const Sint64 target = (Sint64)x * FIX_ONE + p->x.parts.low;
+    if (!PositionValid(p->map, target, p->y.value))
+        return SDL_SetError("Script horizontal alignment exceeds the bounded player room");
+    p->x.value = (Sint32)target;
+    return true;
+}
 bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind)
 {
     if (player == NULL || kind > 4)
