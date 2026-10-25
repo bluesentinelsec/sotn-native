@@ -336,3 +336,9 @@ private spawner profiles, bounded pools, original blue/gold flight and stone
 contact. Gold heads reach the selected petrification service, whose statue and
 complete death presentation remain incomplete. Native checks use protected room
 starts and positioned contact, not ordinary traversal or console parity evidence.
+
+The [Doppleganger arena adapters](docs/doppleganger-arena.md) now identify BO4's
+private room/art/audio and common tables, with explicit missing-map failures.
+Its profile is disconnected from ordinary travel and has no saves; the public
+CLI does not expose a BO4 gameplay start. Boss/intro/reward actors remain
+unsupported. An adapter/room diagnostic is not an implemented boss encounter.

@@ -4,6 +4,7 @@
 bool ActorCamera(SotnActors *s, Actor *a)
 {
     SotnDataView hitboxes = {0}, axes = {0}, bounds = {0};
+    const bool direct = s->stage_id == 1 || s->stage_id == 26;
     const Uint16 parameter = a->state.parameters;
     const Uint16 count = SotnStageProfile_Get(s->stage_id)->camera_count;
     if (parameter >= count || !Slice(s->nz0, ActorStageOffset(s, 0xdbc), count, &hitboxes) ||
@@ -17,12 +18,12 @@ bool ActorCamera(SotnActors *s, Actor *a)
         a->state.hitbox_state = 1;
         a->camera.horizontal = axes.bytes[parameter] != 0;
         a->state.hitbox_width =
-            a->camera.horizontal ? hitboxes.bytes[parameter] : (s->stage_id == 1 ? 16 : 20);
+            a->camera.horizontal ? hitboxes.bytes[parameter] : (direct ? 16 : 20);
         a->state.hitbox_height =
-            a->camera.horizontal ? (s->stage_id == 1 ? 16 : 20) : hitboxes.bytes[parameter];
+            a->camera.horizontal ? (direct ? 16 : 20) : hitboxes.bytes[parameter];
         a->camera.side = 2;
     }
-    if (s->stage_id == 1)
+    if (direct)
     {
         if (initialize || ((parameter == 4 || parameter == 5) && s->camera->left != 0))
             return true;

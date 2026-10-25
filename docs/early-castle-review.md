@@ -9,6 +9,10 @@ new batches retain automated and private validation with explicit limitations.
 PRs #58–59 subsequently merged with eight passing checks each, adding selected
 Armor Lord combat, equipment contact elements and player petrification. The
 checkpoint after those merges is `24b25bba3890feba7f9a6b038c9a59c9c68019e6`.
+PR #60 then merged with all eight checks passing, adding selected Medusa Head
+spawning/flight and stone contact. Its main checkpoint is
+`1234898fe03317160275406a70ede001d6bc91b5`. The new
+[BO4 adapters](doppleganger-arena.md) keep ordinary boss travel disabled.
 
 ## Implemented scope
 

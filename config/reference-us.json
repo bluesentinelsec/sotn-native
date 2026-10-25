@@ -91,6 +91,14 @@
     "ST/NO1/SD_ZKNO1.VB": {
       "size": 105632,
       "sha1": "35775c0e2d46494c21d5ab934824408c1a54af8a"
+    },
+    "BOSS/BO4/SD_ZKBO4.VH": {
+      "size": 5152,
+      "sha1": "f3a722a66671e460b41e6c93a9fdd49e4458a133"
+    },
+    "BOSS/BO4/SD_ZKBO4.VB": {
+      "size": 90864,
+      "sha1": "148a3ad03913464cc7403858da027d8df4e97f22"
     }
   },
   "sizes": {

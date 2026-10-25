@@ -102,6 +102,12 @@ typedef struct SessionStart
 
 static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
 {
+    if (s->stage_id == 26)
+    {
+        // The original BO4 stage record selects MU_NO_AUDIO until its encounter event.
+        *out = NULL;
+        return true;
+    }
     if (s->stage_id == 0 || s->stage_id == 1)
         return SotnMusic_CreateStage(s->dra, s->music_stream, s->stage_id, out);
     if (s->stage_id == 12)
@@ -131,18 +137,28 @@ static bool StageOverlay(SotnLaboratory *session, const SotnGameData *data, cons
 
 static bool OpenAudio(SotnLaboratory *session, const char *directory)
 {
+    static const struct
+    {
+        Uint16 stage;
+        SotnResourceId header, body;
+    } profiles[] = {{12, SOTN_RESOURCE_LAB_AUDIO_HEADER, SOTN_RESOURCE_LAB_AUDIO_BODY},
+                    {65, SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, SOTN_RESOURCE_ENTRANCE_AUDIO_BODY},
+                    {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
+                    {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
+                    {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
+                    {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY}};
+    SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
+    for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
+        if (profiles[i].stage == session->stage_id)
+        {
+            header = profiles[i].header;
+            body = profiles[i].body;
+            break;
+        }
+    if (header == SOTN_RESOURCE_COUNT || body == SOTN_RESOURCE_COUNT)
+        return SDL_SetError("Stage %u has no integrated sound-bank profile", session->stage_id);
     const SotnResourceId ids[5] = {SOTN_RESOURCE_COMMON_AUDIO, SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,
-                                   SOTN_RESOURCE_ALUCARD_AUDIO_BODY,
-                                   session->stage_id == 0    ? SOTN_RESOURCE_MARBLE_AUDIO_HEADER
-                                   : session->stage_id == 1  ? SOTN_RESOURCE_WALL_AUDIO_HEADER
-                                   : session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER
-                                   : session->stage_id == 7  ? SOTN_RESOURCE_RETURN_AUDIO_HEADER
-                                                             : SOTN_RESOURCE_LAB_AUDIO_HEADER,
-                                   session->stage_id == 0    ? SOTN_RESOURCE_MARBLE_AUDIO_BODY
-                                   : session->stage_id == 1  ? SOTN_RESOURCE_WALL_AUDIO_BODY
-                                   : session->stage_id == 65 ? SOTN_RESOURCE_ENTRANCE_AUDIO_BODY
-                                   : session->stage_id == 7  ? SOTN_RESOURCE_RETURN_AUDIO_BODY
-                                                             : SOTN_RESOURCE_LAB_AUDIO_BODY};
+                                   SOTN_RESOURCE_ALUCARD_AUDIO_BODY, header, body};
     for (Uint32 i = 0; i < 5; ++i)
         if (!SotnResource_Open(directory, ids[i], &session->sound_resources[i]))
             return false;
@@ -663,7 +679,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             SotnStageRoute route = {0};
             if (!SotnStageRoute_Read(session->dra, session->stage_id, room.layout_id, &route))
                 return false;
-            if (SotnStageProfile_Get(route.stage) == NULL)
+            const SotnStageProfile *destination = SotnStageProfile_Get(route.stage);
+            if (destination == NULL || !destination->connected)
                 return SDL_SetError("Stage %u is outside the integrated native castle checkpoint",
                                     route.stage);
             session->arrival = route;
@@ -830,7 +847,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
-    if (stage_id == 0 || stage_id == 1)
+    if (stage_id == 26)
+        SDL_Log("Doppleganger arena service checkpoint: private room/art/audio adapters only; "
+                "the encounter, reward and ordinary progression remain unintegrated.");
+    else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
                 "boss progression remain incomplete.");
