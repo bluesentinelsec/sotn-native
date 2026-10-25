@@ -78,7 +78,18 @@ bool SotnLaboratory_Draw(SotnLaboratory *laboratory);
 bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
                              SotnLaboratory **out);
 
-/** @brief Query completion of the selected original game-over presentation.
+/** @brief Show the native checkpoint/Continue shell and scan slots without modifying files.
+ * @param laboratory Borrowed initialized session. @return Success or SDL error.
+ * @note Original title/new-game/card menus remain unintegrated. Held input is suppressed. */
+bool SotnLaboratory_ShowLauncher(SotnLaboratory *laboratory);
+/** @brief Apply an explicit launcher request transactionally on the main thread.
+ * @param data Borrowed core snapshot, outliving either session. @param laboratory Owned pointer,
+ * replaced only after successful initialization. @return False for invalid arguments; failed
+ * file/resource operations retain the owner and display an explicit error dialog. Save files
+ * are never written by this operation. @note A successful replacement invalidates old borrows. */
+bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **laboratory);
+
+/** @brief Query pending completion of game over, before showing the launcher.
  * @param laboratory Borrowed session or NULL. @return True after the fade has finished. */
 bool SotnLaboratory_Finished(const SotnLaboratory *laboratory);
 

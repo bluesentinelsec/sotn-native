@@ -23,6 +23,10 @@ authentic playable game build. Its default mode still displays the bootstrap gre
 [Castle stage loading](docs/castle-stage-loading.md) verifies and inspects 50 stage
 overlay/artwork pairs on demand; gameplay outside Laboratory remains unintegrated.
 
+[Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
+game over returns there without restarting the process. Original title/new-game
+flow and gameplay outside Laboratory remain incomplete.
+
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.

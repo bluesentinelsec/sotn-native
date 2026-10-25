@@ -38,3 +38,6 @@ one-shot music/device cleanup. A native LLDB test took seven ordinary enemy hits
 from 70 HP through death, game over, and successful cleanup. A separate targeted
 fatal-damage run under ASan/UBSan also passed. Private captures remain ignored.
 These are exercised-path checks, not complete original-game parity.
+
+The application now returns to the [native Continue shell](native-session-flow.md)
+after the fade, rather than exiting. Original title/card menus remain incomplete.

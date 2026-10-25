@@ -7,20 +7,18 @@ services it needs. Preserve the US PS1 experience before adding enhancements.
 Keep original simulation timing, integer/fixed-point behavior, audiovisual
 presentation, game rules, and ordinary saves as the reference.
 
-This repository now builds its own C17/SDL3/OpenGL actor checkpoint in
-Alchemy Laboratory. It integrates reviewed reconstructed collision, animation,
-and normal Alucard movement paths, with original runtime data supplied privately
-by the user. Read [movement integration](laboratory-movement.md) for the supported
-subset, [actor integration](laboratory-actors.md) for selected room behaviors,
-and [presentation](laboratory-presentation.md) for graphics limitations.
+This repository builds its own C17/SDL3/OpenGL Laboratory checkpoint with normal
+Alucard movement, selected weapons/enemies, mechanisms, camera follow/locks,
+Slogra/Gaibon, HUD, audio, death/game over, inventory/progression, and ordinary
+saves. The current batch adds a private-data catalog/inspector for fifty canonical
+stages, the exploration map, and a native launch/Continue shell. These are project
+features; earlier isolated comparison checkouts are source material only.
 
-Selected combat and candle drops/collection are integrated in a development profile;
-see [combat limitations](laboratory-combat.md). Complete actors/effects, sound,
-saves, original camera/timing,
-scripts, and full-game progression remain incomplete. The first authentic playable
-project milestone is still incomplete. Build and playtest our executable;
-the earlier isolated comparison checkout is only source/reference material
-and is not a project deliverable.
+This is not a complete authentic game. The fifty-stage catalog verifies resources
+and parses rooms; it does not implement those stages' actors, scripts, or gameplay
+transitions. Native gameplay remains limited to Laboratory. Read
+[stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
+[map](castle-map.md), and [session flow](native-session-flow.md).
 
 ## Pinned reference
 
@@ -103,19 +101,25 @@ reference executable as this project.
    Keep enhancements out of this milestone. Web/mobile builds stay green;
    game-specific adaptations follow the proven desktop foundation.
 
-The private data boundary, native collision/decompression, stage tables,
-tile/sprite presentation, animation cursor, normal movement, actor placements,
-and selected Laboratory actor behaviors are implemented in this repository.
-These changes form a dependency stack through movement, actor data, actor
-graphics, and scene integration. Leave PRs unmerged until the user playtests
-our executable and approves; merge dependencies first afterward.
+## Next game-integration batches
 
-Next, extend the selected combat profile with equipped weapons and ordinary death/continue,
-complete the remaining Laboratory actors/effects and audio services, and replace
-development camera/timing and stage-entry behavior with reviewed
-original paths. Use synthetic public regression tests and private input
-comparisons. Do not bulk-vendor the reference repository or mark a full game
-port complete after a demo or isolated room.
+1. Bring up the initial Castle Entrance in this executable: stage-specific actors,
+   entry/camera/audio behavior, and the Death event. Reuse verified stage assets;
+   do not route players into an empty geometry-only area and claim it is complete.
+2. Integrate original cross-stage routing and stage-aware ordinary progression,
+   then connect Entrance/Laboratory and the next contiguous castle route. Keep
+   unsupported destinations explicit until their behavior is available.
+3. Bring in relic/ability gates, remaining weapons/status rules, Maria/castle
+   scripts and bosses as connected progression batches. Each batch needs owned
+   state, ordinary save compatibility, regression coverage, and private route checks.
+4. Complete prologue/new-game/title flow, inverted-castle progression and endings,
+   then establish complete desktop playthrough and audiovisual/timing parity.
+
+Development starts and the native filesystem UI remain explicit scaffolding.
+Use one batched validation pass per coherent integration, keep public tests free
+of private inputs, and retain focused feature PRs. User playtest approval is
+required before merging new game-integration PRs unless the user explicitly
+changes that rule. Do not bulk-vendor the reference repository.
 
 The [native sound service](laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.

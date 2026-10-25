@@ -1,4 +1,6 @@
 add_library(sotn-render STATIC
+  launch_renderer.c
+  include/sotn/launch_renderer.h
   castle_map.c
   include/sotn/castle_map.h
   subweapon.c
