@@ -86,9 +86,77 @@ static bool TestAnimation(void)
     return true;
 }
 
+static bool TestStageAnimation(void)
+{
+    Uint8 image[0x4200] = {0};
+    const SotnDataView overlay = {image, sizeof(image)};
+    Put32(image, 0x3cb4, 0x80180100);
+    Put32(image, 0x3cb8, 0x80180120);
+    Put32(image, 0x3cbc, 0x80180140);
+    Put32(image, 0x3cc0, 0x801801a0);
+    Put32(image, 0x4024, 0x80180180);
+    image[0x3c74] = 0xfd;
+    image[0x3c75] = 4;
+    image[0x3c76] = 5;
+    image[0x3c77] = 6;
+    Record(image, 0x100, 2, 7 | (1U << 9));
+    Record(image, 0x104, 0xfffe, 1);
+    Record(image, 0x120, 1, 8);
+    Record(image, 0x124, 0xffff, 0);
+    Record(image, 0x140, 0xfffd, 0);
+    Record(image, 0x144, 0xffff, 0);
+    Record(image, 0x180, 1, 9);
+    Record(image, 0x184, 1, 10);
+    Record(image, 0x188, 0xffff, 0);
+    Record(image, 0x1a0, 1, 1 | (17U << 9));
+    SotnAnimation cursor = {0};
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 0));
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor));
+    CHECK(cursor.sprite == 7 && cursor.remaining == 2 && cursor.hitbox_x == -3 &&
+          cursor.hitbox_y == 4 && cursor.hitbox_width == 5 && cursor.hitbox_height == 6);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.remaining == 1);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.id == 1 && cursor.sprite == 8);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.remaining == -1);
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 2));
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.sprite == 9);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.sprite == 10);
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor) && cursor.remaining == -1);
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 3));
+    const SotnAnimation before = cursor;
+    CHECK(!SotnAnimation_TickStage(overlay, 26, &cursor));
+    CHECK(cursor.id == before.id && cursor.pose == before.pose &&
+          cursor.remaining == before.remaining && cursor.sprite == before.sprite &&
+          cursor.hitbox_x == before.hitbox_x && cursor.hitbox_y == before.hitbox_y &&
+          cursor.hitbox_width == before.hitbox_width &&
+          cursor.hitbox_height == before.hitbox_height);
+    CHECK(!SotnAnimation_SetStage(&cursor, 26, 220));
+    CHECK(!SotnAnimation_SetStage(&cursor, 1, 0));
+    CHECK(!SotnAnimation_TickStage(overlay, 1, &cursor));
+    CHECK(!SotnAnimation_TickStage((SotnDataView){image, 0x3cb4}, 26, &cursor));
+    CHECK(cursor.id == before.id && cursor.pose == before.pose &&
+          cursor.remaining == before.remaining && cursor.sprite == before.sprite &&
+          cursor.hitbox_x == before.hitbox_x && cursor.hitbox_y == before.hitbox_y &&
+          cursor.hitbox_width == before.hitbox_width &&
+          cursor.hitbox_height == before.hitbox_height);
+    Record(image, 0x1a0, 1, 1 | (19U << 9));
+    CHECK(SotnAnimation_TickStage(overlay, 26, &cursor));
+    CHECK(cursor.hitbox_x == 0x40 && cursor.hitbox_y == 1 && cursor.hitbox_width == 0x18 &&
+          cursor.hitbox_height == 0x80);
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 3));
+    Record(image, 0x1a0, 1, 1 | (18U << 9));
+    CHECK(!SotnAnimation_TickStage(overlay, 26, &cursor));
+    CHECK(SotnAnimation_SetStage(&cursor, 26, 2));
+    Record(image, 0x140, 0xfffd, 29);
+    CHECK(!SotnAnimation_TickStage(overlay, 26, &cursor));
+    CHECK(cursor.pose == 0 && cursor.remaining == 0);
+    CHECK(!SotnAnimation_SetStage(NULL, 26, 0));
+    CHECK(!SotnAnimation_TickStage(overlay, 26, NULL));
+    return true;
+}
+
 int main(void)
 {
-    if (!TestAnimation())
+    if (!TestAnimation() || !TestStageAnimation())
         return 1;
     SDL_Log("SOTN_ANIMATION_TEST: PASS");
     return 0;
