@@ -257,3 +257,8 @@ The [early Marble clock room](docs/marble-clock-room.md) now runs timed statues,
 stopwatch gating, hands, birdcages, selected floor/shadow/pendulum behavior, and clock
 audio with original volume/pan. The later ring ritual and full effects/priority/timing
 parity remain incomplete. Stage services consume elapsed ticks, not whole seconds.
+
+Selected [Outer Wall ranged encounters](docs/outer-wall-ranged-enemies.md) now run
+coordinated Bone Musket groups and Bone Archers, shots/arrows, and selected death
+paths. Other Wall enemies/mechanisms, status damage and whole-route parity remain
+incomplete. Private native checks use explicit protected room fixtures.

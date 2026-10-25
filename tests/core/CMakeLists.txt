@@ -169,3 +169,10 @@ target_include_directories(sotn-clock-tests PRIVATE "${PROJECT_SOURCE_DIR}/modul
 target_link_libraries(sotn-clock-tests PRIVATE sotn-core)
 add_test(NAME marble-clock-room COMMAND sotn-clock-tests)
 set_tests_properties(marble-clock-room PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-outer-enemy-tests test_outer_enemies.c)
+sotn_configure_c_target(sotn-outer-enemy-tests)
+target_include_directories(sotn-outer-enemy-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-outer-enemy-tests PRIVATE sotn-core)
+add_test(NAME outer-wall-enemies COMMAND sotn-outer-enemy-tests)
+set_tests_properties(outer-wall-enemies PROPERTIES TIMEOUT 20)

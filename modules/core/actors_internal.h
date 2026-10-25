@@ -107,6 +107,17 @@ typedef struct Actor
     } diplo;
     struct
     {
+        Sint32 x, y;
+    } archer;
+    struct
+    {
+        Sint32 origin, line_start, line_end, line_y;
+        Uint16 neighbor;
+        Uint32 generation;
+        bool signal, repeat;
+    } musket;
+    struct
+    {
         Sint32 hand;
         Uint16 timer, bell, bell_wait, state, previous;
         bool stopped;
@@ -272,6 +283,8 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
  * their stage meaning. */
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
+bool ActorArcher(SotnActors *actors, Actor *actor);
+bool ActorMusket(SotnActors *actors, Actor *actor);
 bool ActorClock(SotnActors *actors, Actor *actor);
 bool ActorEarlyCastle(SotnActors *actors, Actor *actor);
 bool ActorFlea(SotnActors *actors, Actor *actor);

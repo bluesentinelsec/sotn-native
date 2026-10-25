@@ -25,6 +25,8 @@ add_library(sotn-core STATIC
   enemy_flea.c
   enemy_slinger.c
   enemy_skelerang.c
+  enemy_musket.c
+  enemy_archer.c
   enemy_diplo.c
   enemy_diplo_tail.c
   enemy_diplo_fire.c
