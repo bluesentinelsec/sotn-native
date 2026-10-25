@@ -1538,6 +1538,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     actors->mutable_tiles = tiles;
     SDL_memset(&actors->death_event, 0, sizeof(actors->death_event));
     SDL_zero(actors->shop);
+    // dra/5087C.c:func_800F2404 resets the GPU clear color on room loading.
+    actors->backdrop_color = 0;
     actors->map = map;
     actors->window = (SotnRoomWindow){.end_x = (Sint32)map.width * 16,
                                       .last_cell = (Sint32)((map.width + 15) / 16) - 1};

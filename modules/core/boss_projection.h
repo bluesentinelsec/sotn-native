@@ -83,6 +83,13 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
  * @return Success or SDL error for invalid pointers, vertices or unselected translation. */
 bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16 face, Sint16 angle,
                             Sint32 x, Sint32 y, SotnProjectedPoint out[4]);
+/** @brief Project an original Chapel cloud tile through the identity SDK matrix/divider.
+ * @param chapel Borrowed DAI private vertices/rotation. @param x Screen translation, +/-16384.
+ * @param y Layer translation, +/-512. @param depth Original positive band depth, 192..2240.
+ * @param out Four saturated screen points, unchanged on failure.
+ * @return Success or SDL error for invalid bounds, models or unselected rotation. */
+bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 depth,
+                             SotnProjectedPoint out[4]);
 /** @brief Project a selected zero-rotation Library background anchor through the SDK divider.
  * @param library Borrowed private LIB model/rotation records. @param kind Background kind 0..3.
  * @param x Screen-space actor X, +/-32767. @param y Screen-space actor Y, +/-32767.

@@ -58,6 +58,10 @@ typedef struct Actor
 {
     SotnActorState state;
     Sint32 vx, vy;
+    struct
+    {
+        Uint32 x[3], y[3]; /**< Original wrapped 16.16 cloud phases. */
+    } clouds;
     Uint16 pose, remaining, timer, substep;
     size_t animation_stream;
     Uint8 parallax, cooldown[2 + SOTN_SUBWEAPON_SLOTS + ACTOR_FOREIGN_ATTACK_GROUPS], damage_effect;
@@ -515,6 +519,11 @@ bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
  * @param actor Borrowed raw-0x16 slot; physical player/map coordinates remain stable.
  * @return Success or SDL error for invalid owner, variant, state or bounded window. */
 bool ActorChapelExit(SotnActors *actors, Actor *actor);
+/** @brief Advance original Chapel cloud planes or initialize the repeating sky-land strip.
+ * @param actors Borrowed stage-6 owner and private models, profiles and UV/grid records.
+ * @param actor Borrowed raw-0x1f/0x20 slot; primitives remain generation-owned.
+ * @return Success or SDL error for malformed data/state or a nonterminating cloud row. */
+bool ActorChapelSky(SotnActors *actors, Actor *actor);
 /** @brief Advance original Chapel bell swing/geometry/interaction or its two-bell spawner.
  * @param actors Borrowed stage-6 simulation and private tables.
  * @param actor Borrowed supported slot; primitives stay generation-owned.

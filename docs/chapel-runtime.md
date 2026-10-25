@@ -118,3 +118,7 @@ Selected [internal tower exits](chapel-tower-exits.md) now retain all fifteen
 original threshold variants and adjusted neighbor cells. Private native checks
 cover four actual tower/skyway/spike-corridor crossings. Chapel remains disconnected;
 scripts, boss, remaining scenery and whole-route/console parity remain incomplete.
+
+Selected [cloud/sky backgrounds](chapel-sky.md) now use the private original
+grids/models, scrolling phases, SDK projection, colored vertices and repeating
+sky-land strip. Stained glass and complete scenery remain incomplete.

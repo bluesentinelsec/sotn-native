@@ -463,3 +463,10 @@ coordinates; its paired cell/X changes preserve world position. Destination acto
 initialize before first draw/collision, with one audio synthesis frame per simulation
 tick. Four protected explicit-start crossings are not all-door, ordinary-route or
 console parity evidence. Chapel remains disconnected while scripts/boss are missing.
+
+Selected [Chapel sky backgrounds](docs/chapel-sky.md) now run the original private
+cloud planes and repeating land strip. Preserve signed-X/unsigned-depth phase and
+defined 16.16 wrap, private UV/model/grid/profile reads and SDK projection rounding.
+Malformed empty rows fail explicitly instead of retaining the source's unbounded
+scan. Controlled rendered contribution/phase checks are not whole-route or console
+parity evidence; stained glass/scripts/boss and connected Chapel remain incomplete.

@@ -439,3 +439,12 @@ sotn-decomp revision (AGPL-3.0-or-later). Its room-window resolver and selected
 session ordering follow `dra/5087C.c:{Engine_Normal,func_800F0CD8,SetNextRoomToLoad}`.
 Stable native coordinates replace the reference's paired cell/player-origin changes;
 private initialization, placement and transition records remain runtime inputs.
+
+`modules/core/chapel_sky.c` adapts selected `st/e_clouds.h` and
+`st/e_background_sky_land.h` at the pinned sotn-decomp revision (AGPL-3.0-or-later).
+Its identity cloud transform extends the separately credited MPL-2.0 PSY-Z
+divider/saturation adapter in `boss_projection.c`. Original UVs, vertices, grids,
+layer profiles and artwork remain private. Explicit bounded scans and unsigned
+phase arithmetic replace unsafe host termination/overflow behavior.
+The shared room-entry backdrop reset follows `dra/5087C.c:func_800F2404` at the
+same pinned reconstruction.
