@@ -4,6 +4,7 @@
 #include <sotn/animation.h>
 #include <sotn/character.h>
 #include <sotn/collision.h>
+#include <sotn/world.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
@@ -133,7 +134,8 @@ typedef struct SotnPlayer SotnPlayer;
  * @param y Starting room-local vertical position in whole pixels.
  * @param out Receives ownership on success, NULL on failure when non-NULL.
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
- * @note This slice supports standing, walking, crouching, falling, and jumping.
+ * @note Supports standing, walking, crouching, falling, jumping and an active Leap
+ * Stone's double jump after SotnPlayer_SetRelics supplies its persistent ownership.
  * Empty-hand, Basilard/Gladius/Mace/Short sword, and ordinary Alucard sword/shield paths run.
  * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
  * transformations, and stage scripts are not implemented here.
@@ -178,6 +180,14 @@ bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
  * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.
  */
 bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
+
+/** @brief Copy persistent relic ownership into the normal-form simulation.
+ * @param player Borrowed simulation. @param world Borrowed progress; only its thirty
+ * relic found/active bytes are read and copied. No pointer is retained.
+ * @return Success or SDL error without mutation for NULL input or invalid relic bits.
+ * Found-but-disabled relics do not enable abilities. This setter advances no time,
+ * grants no relics and does not replenish the current airborne jump allowance. */
+bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
 
 /**
  * @brief Advance one simulation tick with original movement and sensor rules.

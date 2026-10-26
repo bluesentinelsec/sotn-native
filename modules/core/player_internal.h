@@ -49,6 +49,7 @@ struct SotnPlayer
     SotnDataView weapons;
     SotnEquipment attack_equipment;
     Uint16 equipment[2];
+    Uint8 relics[SOTN_RELICS];
     Uint8 attack_critical;
     Uint16 attack_power, shield_power;
     SotnPlayerDeath death;

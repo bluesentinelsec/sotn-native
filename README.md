@@ -137,6 +137,8 @@ Unsupported actor families emit a warning and are omitted from this checkpoint.
 The camera and fixed 60-tick pacing are development
 adapters. See [actor integration](docs/laboratory-actors.md) and
 [movement integration](docs/laboratory-movement.md) for behavior and known gaps.
+An owned, active [Leap Stone](docs/player-leap-stone.md) now enables the original
+double jump. Development starts do not grant it; other abilities remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct
 save-room start, press Up at the point, then follow confirmation prompts. X/Space

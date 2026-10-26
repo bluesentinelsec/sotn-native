@@ -517,6 +517,17 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
         ClearAttack(player);
         return true;
     }
+    if ((flags & 0x20) && !(player->attack_mode & 0x8000) &&
+        (player->relics[SOTN_RELIC_LEAP] & 2) && (player->tapped & SOTN_BUTTON_JUMP) &&
+        !(player->movement_flags & 1))
+    {
+        // 6E42C.c:func_8010E940 retains Jump/Fall and attack state, unlike an ordinary jump.
+        player->movement_flags |= 0x21;
+        Animate(player, 32);
+        player->substep = 0;
+        player->vy = player->tight_space ? 0 : -278528;
+        return true;
+    }
     if ((flags & 0x2000) && !(player->attack_mode & 0x8000) && (player->buttons & SOTN_BUTTON_DOWN))
     {
         Crouch(player, 2, 0);
@@ -636,7 +647,7 @@ static void JumpTick(SotnPlayer *player)
     }
     if (Transitions(player, 0x11029))
         return;
-    if (player->attack_mode != 0)
+    if (player->attack_mode != 0 && player->substep >= 0x40)
     {
         if (player->buttons & SOTN_BUTTON_LEFT)
             player->vx = -WALK_SPEED;
@@ -936,8 +947,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
                              SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND |
                              SOTN_BUTTON_RIGHT_HAND;
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
-        return SDL_SetError("This player slice supports normal movement and empty-hand attacks; "
-                            "abilities are not integrated");
+        return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
     next.failed = false;
     next.turned = false;
@@ -1341,6 +1351,17 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service)
     if (player == NULL)
         return SDL_InvalidParamError("player");
     player->subweapons = service;
+    return true;
+}
+
+bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world)
+{
+    if (player == NULL || world == NULL)
+        return SDL_SetError("Player relic update requires a simulation and persistent relics");
+    for (Uint32 i = 0; i < SOTN_RELICS; ++i)
+        if (world->relics[i] > 3 || world->relics[i] == 2)
+            return SDL_SetError("Player relic %u has invalid found/active bits", i);
+    SDL_memcpy(player->relics, world->relics, sizeof(player->relics));
     return true;
 }
 

@@ -500,7 +500,8 @@ static bool ApplyCharacter(SotnLaboratory *session)
         session->palette_ready = true;
     }
     session->mp = state.mp;
-    return SotnPlayer_SetCharacter(session->player, &state, stats);
+    return SotnPlayer_SetCharacter(session->player, &state, stats) &&
+           SotnPlayer_SetRelics(session->player, &session->world);
 }
 
 static bool TickCape(SotnLaboratory *session)
