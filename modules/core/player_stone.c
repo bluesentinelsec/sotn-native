@@ -160,7 +160,8 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
     if (p == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * 65536 || source_velocity > 16 * 65536)
         return SDL_SetError("Petrification requires bounded damage and contact coordinates");
-    if (!p->hp || p->invincibility || p->step == SOTN_PLAYER_HIT || p->step == SOTN_PLAYER_KILL)
+    if (!p->hp || p->invincibility || p->step == SOTN_PLAYER_HIT || p->step == SOTN_PLAYER_KILL ||
+        p->step == SOTN_PLAYER_BOSS_GRAB || p->grab.state != SOTN_GRAB_NONE)
         return true;
     SotnPlayer next = *p;
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);

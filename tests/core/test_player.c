@@ -517,6 +517,127 @@ static bool TestScriptAlignment(Fixture *f)
     return true;
 }
 
+static bool Grab(SotnPlayer *p, SotnPlayerGrabState state, Uint16 damage)
+{
+    return SotnPlayer_RequestGrab(
+        p, (SotnPlayerGrab){
+               .state = state, .damage = damage, .source_x = 64, .source_velocity = -65536});
+}
+
+static bool TestBossGrab(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    AttackFixture(f);
+    Put32(f->dra, 0x101b8 + 0xc0 * 4, 0x800a0200);
+    SotnPlayer *p = NULL;
+    SotnPlayerState before = {0}, held = {0};
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) &&
+          SotnPlayer_Tick(p, SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(p, &before) && before.weapon_starting && before.step == SOTN_PLAYER_JUMP);
+    CHECK(SotnPlayer_StageGuard(p, false));
+    CHECK(Grab(p, SOTN_GRAB_START, 16));
+    CHECK(State(p, &held) && held.grab.state == SOTN_GRAB_START && !held.can_pause);
+    CHECK(!Grab(p, SOTN_GRAB_START, 16) && !Grab(p, SOTN_GRAB_DAMAGE, 16));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND));
+    CHECK(State(p, &held) && held.step == SOTN_PLAYER_BOSS_GRAB && held.substep == 1 &&
+          held.grab.state == SOTN_GRAB_HELD && held.animation.id == 0x37 && held.sound == 0x6eb &&
+          held.x == before.x && held.y == before.y && !held.velocity_x && !held.velocity_y &&
+          !held.attack.active && !held.shield.active && !held.can_pause && held.invulnerable &&
+          held.random == before.random && held.hp == 70 && !held.facing_left &&
+          (held.status & 0x38110040U) == 0x38110040U);
+    CHECK(!SotnPlayer_SetScriptHold(p, true));
+    // The boss owns whole-pixel position while held. Ordinary collision must not eject Alucard
+    // from this synthetic solid floor, and stage alignment must retain each fractional part.
+    CHECK(SotnPlayer_StageAlignX(p, 200) && SotnPlayer_StageAlignY(p, 180));
+    CHECK(State(p, &before));
+    CHECK(before.x == 200 * 65536 && before.y == 180 * 65536 + (Sint32)((Uint32)held.y & 65535U));
+    for (Uint16 tick = 0; tick < 48; ++tick)
+    {
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT_HAND));
+        CHECK(State(p, &held) && held.x == before.x && held.y == before.y && held.hp == 70 &&
+              held.grab.state == SOTN_GRAB_HELD && !held.attack.active && !held.shield.active &&
+              !held.can_pause && held.invulnerable && !held.velocity_x && !held.velocity_y);
+    }
+    CHECK(SotnPlayer_Damage(p, 70, 64, 0) && SotnPlayer_Petrify(p, 70, 64, 0));
+    CHECK(State(p, &held) && held.hp == 70 && held.step == SOTN_PLAYER_BOSS_GRAB);
+    const SotnCharacterState profile = {.hp = 70, .hp_max = 70};
+    CHECK(SotnPlayer_SetCharacter(p, &profile, (SotnCharacterStats){.defense = 3}));
+    CHECK(Grab(p, SOTN_GRAB_DAMAGE, 16) && !Grab(p, SOTN_GRAB_DAMAGE, 16));
+    CHECK(SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(held.hp == 57 && held.sound == 0x6e7 && held.grab.state == SOTN_GRAB_HELD &&
+          held.random == before.random && held.animation.id == 0x37);
+    CHECK(SotnPlayer_RestorePoison(p, 100));
+    CHECK(Grab(p, SOTN_GRAB_DAMAGE, 16) && SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(held.hp == 31 && held.poison_ticks == 99);
+    CHECK(Grab(p, SOTN_GRAB_DAMAGE, 0) && SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(held.hp == 30 && held.grab.state == SOTN_GRAB_HELD);
+    CHECK(SotnPlayer_StageAlignY(p, 90) && State(p, &before));
+    CHECK(Grab(p, SOTN_GRAB_NONE, 0) && SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(held.step == SOTN_PLAYER_HIT && held.substep == 1 && held.y == before.y &&
+          held.grab.state == SOTN_GRAB_NONE && held.hp == 30 && !held.can_pause);
+    for (Uint16 tick = 0; tick < 160; ++tick)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(State(p, &held) && held.step == SOTN_PLAYER_STAND && held.can_pause &&
+          held.y == 135 * 65536 && !held.invulnerable && held.hp == 30);
+    // A second capture can kill while held and must reach the existing physical game-over signal.
+    CHECK(Grab(p, SOTN_GRAB_START, 16) && SotnPlayer_Tick(p, 0));
+    CHECK(Grab(p, SOTN_GRAB_DAMAGE, 9999) && SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(!held.hp && held.step == SOTN_PLAYER_KILL && held.death.phase == 1 &&
+          held.sound == 0x6f6 && held.velocity_x > 0 && !held.can_pause);
+    CHECK(!Grab(p, SOTN_GRAB_START, 16) && Grab(p, SOTN_GRAB_NONE, 0));
+    for (Uint16 tick = 0; tick < 500 && held.death.phase != 128; ++tick)
+        CHECK(SotnPlayer_Tick(p, 0) && State(p, &held));
+    CHECK(held.death.phase == 128 && held.grab.state == SOTN_GRAB_NONE);
+    SotnPlayer_Close(p);
+    return true;
+}
+
+static bool TestBossGrabFailures(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState before = {0}, after = {0};
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(!SotnPlayer_RequestGrab(NULL, (SotnPlayerGrab){0}));
+    CHECK(!Grab(p, SOTN_GRAB_HELD, 16) && !Grab(p, (SotnPlayerGrabState)4, 16) &&
+          !Grab(p, SOTN_GRAB_DAMAGE, 16) && !Grab(p, SOTN_GRAB_START, 10000));
+    CHECK(!SotnPlayer_RequestGrab(
+        p, (SotnPlayerGrab){.state = SOTN_GRAB_START, .source_velocity = SDL_MIN_SINT32}));
+    CHECK(!SotnPlayer_RequestGrab(
+        p, (SotnPlayerGrab){.state = SOTN_GRAB_START, .source_x = SDL_MAX_SINT32}));
+    CHECK(SotnPlayer_SetScriptHold(p, true) && !Grab(p, SOTN_GRAB_START, 16));
+    CHECK(SotnPlayer_SetScriptHold(p, false));
+    CHECK(Grab(p, SOTN_GRAB_START, 16) && Grab(p, SOTN_GRAB_NONE, 0));
+    CHECK(SotnPlayer_Tick(p, 0) && State(p, &after) && after.step == SOTN_PLAYER_STAND);
+    CHECK(Grab(p, SOTN_GRAB_START, 16) && State(p, &before));
+    CHECK(SotnPlayer_Damage(p, 12, 64, 0) && SotnPlayer_Petrify(p, 12, 64, 0) &&
+          SotnPlayer_CurseDamage(p, 12, 64, 0) && SotnPlayer_PoisonDamage(p, 12, 64, 0));
+    CHECK(State(p, &after) && after.hp == 70 && !after.curse_ticks && !after.poison_ticks &&
+          after.step == before.step && after.grab.state == SOTN_GRAB_START);
+    Put32(f->dra, 0x101b8 + 0x37 * 4, 0x800b1000);
+    CHECK(!SotnPlayer_Tick(p, 0) && State(p, &after));
+    CHECK(after.grab.state == SOTN_GRAB_START && after.step == before.step && after.x == before.x &&
+          after.y == before.y && after.hp == before.hp && after.random == before.random &&
+          after.animation.id == before.animation.id);
+    Put32(f->dra, 0x101b8 + 0x37 * 4, 0x800a0100);
+    CHECK(SotnPlayer_Tick(p, 0) && State(p, &before));
+    CHECK(Grab(p, SOTN_GRAB_DAMAGE, 16));
+    Put32(f->dra, 0x101b8 + 0x37 * 4, 0x800b1000);
+    CHECK(!SotnPlayer_Tick(p, 0) && State(p, &after));
+    CHECK(after.hp == before.hp && after.grab.state == SOTN_GRAB_DAMAGE &&
+          after.animation.pose == before.animation.pose && after.sound == before.sound &&
+          after.random == before.random);
+    Put32(f->dra, 0x101b8 + 0x37 * 4, 0x800a0100);
+    CHECK(SotnPlayer_Tick(p, 0) && State(p, &before) && before.hp == 54 &&
+          before.grab.state == SOTN_GRAB_HELD);
+    CHECK(!SotnPlayer_StageAlignY(p, SDL_MIN_SINT32) &&
+          !SotnPlayer_StageAlignY(p, SDL_MAX_SINT32) && !SotnPlayer_StageAlignY(NULL, 0));
+    CHECK(State(p, &after) && after.x == before.x && after.y == before.y);
+    SotnPlayer_Close(p);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -526,6 +647,7 @@ int main(void)
                         TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
                         TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
                         TestChairs(fixture) && TestScriptAlignment(fixture) &&
+                        TestBossGrab(fixture) && TestBossGrabFailures(fixture) &&
                         TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
