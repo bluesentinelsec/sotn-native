@@ -29,6 +29,10 @@ owned shadows, original appearance/rattle/retreat phases, temporary environmenta
 contact and equipped tile destruction. Preserve NO2's mixed actual-width/96-tile
 indexing and its separate identities/tables; do not reuse Chapel's adjacent damage
 ownership or orientation rules. Unknown broken replacements fail before mutation.
+Selected [NO2 Valhalla Knights](docs/olrox-valhalla.md) now run charge/leap/recovery,
+linked body damage, independent weapon contact and thirteen-piece deaths. Preserve
+the two different child roles, generation ownership, private frame hitboxes and
+simulation-frame effect phase. Component/protected checks are not full encounter parity.
 
 ## Purpose and priorities
 

@@ -407,7 +407,7 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 4)
-        return id == 0x16 || id == 0x17 || id == 0x2d || id == 0x31;
+        return id == 0x16 || id == 0x17 || id == 0x2d || id == 0x31 || id == 0x34 || id == 0x35;
     if (actors->stage_id == 25)
         return id == 0x22 || id == 0x23 || id == 0x24 || id == 0x25 || id == 0x27;
     if (actors->stage_id == 6)
@@ -490,6 +490,14 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         (actor->state.flags & 0x100))
         return true;
     Actor *recipient = actor;
+    if (actors->stage_id == 4 && actor->state.id == 0x35)
+    {
+        Actor *body = ActorValhallaOwner(actors, actor);
+        if (!body || (body->state.flags & 0x100U))
+            return true;
+        if (!actor->state.parameters)
+            recipient = body;
+    }
     if (actors->stage_id == 25 && actor->state.id == 0x23)
     {
         const Uint16 slot = actor->enemy_state.owner_slot;
@@ -620,6 +628,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     HippogryphHit(actors, recipient, actor, hand,
                                   source.attack.invincibility_frames);
                 }
+                ActorValhallaHit(actors, recipient, actor, hand,
+                                 source.attack.invincibility_frames);
                 // Original shields destroy blockable projectiles without dealing enemy damage.
                 if (actor->state.hitbox_state & 8)
                 {
@@ -710,6 +720,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     recipient->stun = source.attack.stun_frames;
             }
             HippogryphHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
+            ActorValhallaHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
             if (actors->stage_id == 0 &&
                 (actor->state.id == 0x3d || (actor->state.id >= 0x21 && actor->state.id <= 0x24)))
             {

@@ -69,6 +69,7 @@ whole-route replay and full audiovisual/timing parity remain incomplete.
 
 An internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds its
 own resources, selected shared actors, [prisoners and spikes](docs/olrox-prisoners-spikes.md).
+Selected [Valhalla Knight combat](docs/olrox-valhalla.md) also runs.
 It remains disconnected while its
 remaining enemies, mechanisms and boss are integrated.
 

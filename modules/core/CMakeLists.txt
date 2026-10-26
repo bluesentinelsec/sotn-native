@@ -40,6 +40,7 @@ add_library(sotn-core STATIC
   early_castle.c
   olrox_quarter.c
   olrox_prisoner.c
+  olrox_valhalla.c
   library.c
   chapel.c
   chapel_breakable.c

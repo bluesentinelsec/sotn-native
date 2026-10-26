@@ -123,6 +123,12 @@ typedef struct Actor
     } prisoner;
     struct
     {
+        Sint32 anchor_x;
+        Uint32 child_generation[2];
+        Uint16 timer;
+    } valhalla;
+    struct
+    {
         Sint32 reference_y;
         Uint16 hover_timer;
     } crow;
@@ -515,6 +521,22 @@ bool ActorOlroxQuarter(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid data/state or a lost required shadow.
  * An orphaned shadow retires without following a replacement parent. */
 bool ActorOlroxPrisoner(SotnActors *actors, Actor *actor);
+/** @brief Advance the original NO2 Valhalla Knight, owned hitboxes or death pieces.
+ * @param actors Borrowed stage-four owner and private runtime tables.
+ * @param actor Borrowed supported actor slot; children stay generation-owned.
+ * @return Success or SDL error for invalid data/state, ownership or bounded motion. */
+bool ActorValhalla(SotnActors *actors, Actor *actor);
+/** @brief Resolve a NO2 Valhalla hitbox's generation-owned body.
+ * @param actors Borrowed stage owner. @param actor Borrowed raw-0x35 hitbox.
+ * @return Borrowed active body, or NULL for a stale/invalid reservation. */
+Actor *ActorValhallaOwner(SotnActors *actors, const Actor *actor);
+/** @brief Propagate a Valhalla body hit through its original two-part damage chain.
+ * @param actors Borrowed stage owner. @param root Borrowed damage recipient.
+ * @param hit Borrowed actual hitbox. @param channel Bounded attack cooldown channel.
+ * @param cooldown Original attack invincibility duration.
+ * @return No value; unrelated actors and stale optional links are untouched. */
+void ActorValhallaHit(SotnActors *actors, Actor *root, const Actor *hit, Uint32 channel,
+                      Uint8 cooldown);
 /** @brief Advance an owned Chapel/NO2 lamp or debris slot from its private profile.
  * @param actors Borrowed supported stage/world owner. @param actor Borrowed lamp or debris.
  * @return Success or SDL error for invalid owners, state or private tables. */
