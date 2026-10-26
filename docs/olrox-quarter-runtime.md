@@ -77,7 +77,9 @@ ownership, not real-device listening, reverb or console PCM parity.
 
 [Prisoners and selected spike behavior](olrox-prisoners-spikes.md) now extend this
 foundation with owned shadows, original phases, temporary environmental contact
-and equipped tile destruction. Owl Knights/Owls, Valhalla Knights, giant brothers,
+and equipped tile destruction. Selected [Valhalla Knights](olrox-valhalla.md) add
+charge/leap combat, linked damage, independent weapon contact and death pieces.
+Owl Knights/Owls, giant brothers,
 Spectral Sword variants, secrets, house/background mechanisms and Olrox remain
 outside these batches. Other abilities, complete effects/audio, connected area progression
 and whole-route timing/console comparisons remain incomplete. Keep the connected
