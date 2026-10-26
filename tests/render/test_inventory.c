@@ -30,14 +30,42 @@ int main(void)
     const SotnDataView image = {dra, 0x3b0d4};
     CHECK(SotnCharacter_Create(image, &c));
     CHECK(SotnInventoryRenderer_Create(image, (SotnDataView){common, 0x42000}, &r));
+    SotnWorldState world = {0};
     SotnInventoryMenu m = {.phase = SOTN_MENU_MAIN};
-    CHECK(SotnInventoryRenderer_Draw(r, m, c, 0, false, rgba, SOTN_MENU_RGBA_BYTES));
+    CHECK(SotnInventoryRenderer_Draw(r, m, c, 0, false, rgba, SOTN_MENU_RGBA_BYTES, &world));
     CHECK(rgba[(8 * 384) * 4] == 255 && rgba[3] == 255);
     m.phase = SOTN_MENU_EQUIPMENT;
-    CHECK(SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES));
-    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, 1));
+    CHECK(SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world));
+    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, 1, &world));
     m.slot = 7;
-    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES));
+    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world));
+    m.slot = 0;
+    m.phase = SOTN_MENU_RELICS;
+    TestCharacter_Put32(dra + 0xe0, 0x800a0200);
+    dra[0x100] = 'R';
+    dra[0x101] = 0;
+    for (Uint32 i = 0; i < SOTN_RELICS; ++i)
+    {
+        TestCharacter_Put32(dra + 0x200 + i * 16, 0x800a0100);
+        world.relics[i] = 1;
+    }
+    world.relics[12] = 3;
+    for (Uint8 cursor = 0; cursor < 28; ++cursor)
+    {
+        m.relic_cursor = cursor;
+        CHECK(SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world));
+    }
+    m.relic_cursor = 28;
+    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world));
+    m.relic_cursor = 0;
+    world.relics[12] = 2;
+    rgba[0] = 123;
+    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world) &&
+          rgba[0] == 123);
+    world.relics[12] = 3;
+    TestCharacter_Put32(dra + 0x200, 0xfffffff0);
+    CHECK(!SotnInventoryRenderer_Draw(r, m, c, 0, true, rgba, SOTN_MENU_RGBA_BYTES, &world) &&
+          rgba[0] == 123);
     SotnItem item = {0};
     CHECK(SotnItem_Read(image, false, 0, &item));
     CHECK(SotnItemIcon_Draw(image, item, -8, -8, frame, SOTN_FRAME_PIXELS) && frame[0] == 31);

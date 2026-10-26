@@ -36,6 +36,34 @@ int main(void)
     CHECK(SotnRelic_Collect(&world, dra, SOTN_RELIC_CUBE) && world.relics[SOTN_RELIC_CUBE] == 3);
     CHECK(SotnRelic_Collect(&world, dra, 18) && world.relics[18] == 1);
     CHECK(SotnWorld_Validate(&world));
+    for (Uint16 id = 0; id < SOTN_RELICS; ++id)
+    {
+        const bool supported = id == 10 || id == 12 || id == 13 || id == 16;
+        CHECK(SotnRelic_CanToggle(id) == supported);
+        for (Uint8 bits = 0; bits < 4; ++bits)
+        {
+            world.relics[id] = bits;
+            const SotnWorldState before = world;
+            const bool allowed = supported && (bits == 1 || bits == 3);
+            CHECK(SotnRelic_Toggle(&world, dra, id) == allowed);
+            if (allowed)
+            {
+                CHECK(world.relics[id] == (bits ^ 2));
+                CHECK(SotnRelic_Toggle(&world, dra, id) && world.relics[id] == bits);
+            }
+            CHECK(SDL_memcmp(&world, &before, sizeof(world)) == 0);
+        }
+        world.relics[id] = 0;
+    }
+    CHECK(!SotnRelic_CanToggle(30) && !SotnRelic_CanToggle(SDL_MAX_UINT16));
+    CHECK(!SotnRelic_Toggle(&world, dra, 30) && !SotnRelic_Toggle(NULL, dra, 12));
+    world.relics[12] = 3;
+    const SotnWorldState before_toggle = world;
+    CHECK(!SotnRelic_Toggle(&world, (SotnDataView){0}, 12));
+    CHECK(SDL_memcmp(&world, &before_toggle, sizeof(world)) == 0);
+    Put32(bytes + 0x200 + 12 * 16 + 12, 1);
+    CHECK(!SotnRelic_Toggle(&world, dra, 12) && world.relics[12] == 3);
+    Put32(bytes + 0x200 + 12 * 16 + 12, 0);
     world.relics[0] = 2;
     CHECK(!SotnWorld_Validate(&world));
     world.relics[0] = 0;

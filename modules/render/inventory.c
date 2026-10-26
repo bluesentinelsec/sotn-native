@@ -4,6 +4,7 @@
 // Artwork, strings, icons, and palettes are private runtime inputs.
 #include <SDL3/SDL.h>
 #include <sotn/inventory.h>
+#include <sotn/relic.h>
 struct SotnInventoryRenderer
 {
     SotnDataView dra, common;
@@ -120,11 +121,11 @@ static bool ItemName(SotnInventoryRenderer *r, bool body, Uint16 id, Sint32 x, S
 }
 bool SotnInventoryRenderer_Draw(SotnInventoryRenderer *r, SotnInventoryMenu menu,
                                 const SotnCharacter *c, Uint64 ticks, bool gamepad, Uint8 *rgba,
-                                size_t capacity)
+                                size_t capacity, const SotnWorldState *world)
 {
-    if (r == NULL || rgba == NULL || capacity < SOTN_MENU_RGBA_BYTES ||
-        menu.phase < SOTN_MENU_MAIN || menu.phase > SOTN_MENU_ITEMS || menu.slot >= 7 ||
-        menu.count > 170 || menu.item_cursor >= 170)
+    if (r == NULL || rgba == NULL || world == NULL || capacity < SOTN_MENU_RGBA_BYTES ||
+        menu.phase < SOTN_MENU_MAIN || menu.phase > SOTN_MENU_RELICS || menu.slot >= 7 ||
+        menu.count > 170 || menu.item_cursor >= 170 || menu.cursor >= 5 || menu.relic_cursor >= 28)
         return SDL_SetError(
             "Inventory rendering requires valid menu state and a full output buffer");
     SotnCharacterState state = {0};
@@ -182,8 +183,44 @@ bool SotnInventoryRenderer_Draw(SotnInventoryRenderer *r, SotnInventoryMenu menu
             const Sint32 y = 48 + (Sint32)i * 24;
             if (menu.cursor == i)
                 Rect(r->frame, 240, y - 3, 136, 14, 12);
-            Text(r, choices[i], 248, y, i == 0 ? 0x7fff : 0x4210);
+            Text(r, choices[i], 248, y, i == 0 || i == 2 ? 0x7fff : 0x4210);
         }
+    }
+    else if (menu.phase == SOTN_MENU_RELICS)
+    {
+        Panel(r, 0, 28, 384, 186);
+        const Sint32 scroll = (menu.relic_cursor / 2) * 120 / 14;
+        for (Uint16 cursor = 0; cursor < 28; ++cursor)
+        {
+            const Uint16 id = cursor < 23 ? cursor : (Uint16)(cursor + 2);
+            if (world->relics[id] > 3 || world->relics[id] == 2)
+                return SDL_SetError("Relic presentation requires valid found/active bits");
+            const Sint32 x = 8 + (cursor & 1) * 176, y = 34 + (cursor / 2) * 19 - scroll;
+            if (y < 34 || y > 184)
+                continue;
+            if (cursor == menu.relic_cursor)
+                Rect(r->frame, x, y - 2, 168, 18, 12);
+            const Uint16 tint = SotnRelic_CanToggle(id) ? 0x7fff : 0x4210;
+            Text(r, world->relics[id] & 2 ? "ON" : "OFF", x, y + 2, tint);
+            if (world->relics[id] & 1)
+            {
+                SotnItem item = {0};
+                char name[161] = {0}, label[16] = {0};
+                if (!SotnRelic_Read(r->dra, id, &item) ||
+                    !SotnItem_Name(item, name, sizeof(name)) ||
+                    !Icon(r->dra, item, x + 28, y - 2, r->frame, 384, 240))
+                    return false;
+                SDL_strlcpy(label, name, sizeof(label));
+                Text(r, label, x + 48, y + 2, tint);
+            }
+        }
+        const Uint16 id =
+            menu.relic_cursor < 23 ? menu.relic_cursor : (Uint16)(menu.relic_cursor + 2);
+        Text(r,
+             !(world->relics[id] & 1)  ? "Relic not found"
+             : SotnRelic_CanToggle(id) ? "Select to switch ON/OFF"
+                                       : "Ability not integrated yet",
+             8, 202, 0x7fff);
     }
     else
     {

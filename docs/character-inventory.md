@@ -32,7 +32,9 @@ Enter/Xbox Start opens or closes the supported pause menu when normal control is
 available and a hand attack/hit reaction has finished. X/Space or Xbox A selects;
 keyboard A or Xbox Y goes back. Equipment exposes the original seven slots.
 Arrows/d-pad select a slot or owned item; unsupported selections show an error
-without consuming stock. Spells/relics/settings/familiars are visibly unavailable.
+without consuming stock. [Selected relic controls](relic-menu.md) expose owned
+supported relics.
+Spells/settings/familiars remain visibly unavailable.
 Gameplay and its elapsed timer stop while the menu owns control; music continues.
 
 The renderer reads the original font, portrait, item icons, and palettes from

@@ -1221,8 +1221,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     {
         Uint16 sound = 0;
         bool changed = false;
-        if (!SotnInventoryMenu_Tick(&session->menu, session->character, buttons, &sound,
-                                    &changed) ||
+        if (!SotnInventoryMenu_Tick(&session->menu, session->character, buttons, &sound, &changed,
+                                    &session->world, session->dra) ||
             (changed && !ApplyCharacter(session)) ||
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
@@ -1893,7 +1893,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
             if (!SotnInventoryRenderer_Draw(session->inventory_renderer, session->menu,
                                             session->character, session->simulation_ticks,
                                             session->input.pad != NULL, session->menu_rgba,
-                                            sizeof(session->menu_rgba)) ||
+                                            sizeof(session->menu_rgba), &session->world) ||
                 !SotnPresenter_SetImage(session->presenter, session->menu_rgba,
                                         sizeof(session->menu_rgba), SOTN_MENU_WIDTH,
                                         SOTN_MENU_HEIGHT))
