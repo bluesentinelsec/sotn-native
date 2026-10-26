@@ -1039,8 +1039,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 4)
-        SDL_Log("Olrox's Quarters internal checkpoint: selected common pickups, red doors, "
-                "breakables/debris, decorations, camera, Skelerang and Bloody Zombie adapters. "
+        SDL_Log("Olrox's Quarters internal checkpoint: selected prisoners, spikes, common pickups, "
+                "red doors, breakables/debris, decorations, camera, Skelerang and Bloody Zombie "
+                "adapters. "
                 "Remaining enemies, mechanisms, Olrox and connected travel are incomplete.");
     else if (stage_id == 6)
         SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "
