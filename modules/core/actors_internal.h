@@ -58,6 +58,13 @@ typedef struct ActorPrimitive
         Sint32 radius, speed;
         Uint8 delay, age;
     } hippogryph;
+    struct
+    {
+        Sint32 x, y; /**< Original pair-metadata position, independent of displayed vertices. */
+        Uint16 width, height;
+        Uint8 tag, kind;
+        bool initialized;
+    } secret;
 } ActorPrimitive;
 typedef struct Actor
 {
@@ -121,6 +128,10 @@ typedef struct Actor
         Uint8 opacity;
         bool appeared;
     } prisoner;
+    struct
+    {
+        Uint16 hits, timer;
+    } secret;
     struct
     {
         Sint32 anchor_x;
@@ -530,6 +541,11 @@ bool ActorChapel(SotnActors *actors, Actor *actor);
  * @return True after a supported update or explicit unsupported marker, false with SDL error
  * for invalid owners, state, resources or checked bounds. */
 bool ActorOlroxQuarter(SotnActors *actors, Actor *actor);
+/** @brief Advance NO2's secret wall, ceiling or adjacent-room debris from private profiles.
+ * @param actors Borrowed stage owner with mutable collision tiles and persistent world flags.
+ * @param actor Borrowed original actor 0x24..0x26; primitives remain generation-owned.
+ * @return Success or SDL error; malformed tile patches fail before any mutation. */
+bool ActorOlroxSecret(SotnActors *actors, Actor *actor);
 /** @brief Advance an original NO2 prisoner and its generation-owned adjacent shadow.
  * @param actors Borrowed stage-four owner and private animation/initialization views.
  * @param actor Borrowed prisoner or shadow slot; ownership remains with actors.

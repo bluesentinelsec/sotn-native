@@ -407,9 +407,9 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 4)
-        return id == 0x16 || id == 0x17 || id == 0x2d || id == 0x31 || id == 0x34 || id == 0x35 ||
-               id == 0x37 || id == 0x38 || id == 0x39 || id == 0x3c || id == 0x3d || id == 0x3e ||
-               id == 0x40;
+        return id == 0x16 || id == 0x17 || id == 0x24 || id == 0x25 || id == 0x2d || id == 0x31 ||
+               id == 0x34 || id == 0x35 || id == 0x37 || id == 0x38 || id == 0x39 || id == 0x3c ||
+               id == 0x3d || id == 0x3e || id == 0x40;
     if (actors->stage_id == 25)
         return id == 0x22 || id == 0x23 || id == 0x24 || id == 0x25 || id == 0x27;
     if (actors->stage_id == 6)
@@ -690,7 +690,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     return false;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
-            if (EnemyHitbox(actors, actor->state.id) && damage != 0xc000)
+            if (EnemyHitbox(actors, actor->state.id) && damage != 0xc000 &&
+                recipient->state.hit_points != 0x7fff)
             {
                 if (damage & 0x8000)
                     recipient->state.hit_points =

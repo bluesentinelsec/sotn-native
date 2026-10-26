@@ -28,7 +28,8 @@ The internal [Olrox's Quarters foundation](olrox-quarter-runtime.md) adds NO2's
 resources, selected shared actors, [prisoners and spikes](olrox-prisoners-spikes.md),
 [Valhalla Knights](olrox-valhalla.md), and articulated
 [Hammer/Blade encounters](olrox-giant-knights.md), and NO2’s
-[fifteen-weapon Spectral Sword](olrox-spectral-sword.md);
+[fifteen-weapon Spectral Sword](olrox-spectral-sword.md), and the selected
+[secret wall/ceiling mechanisms](olrox-secrets.md);
 it does not yet enable another castle route.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
