@@ -31,6 +31,8 @@ bool SotnWorld_Validate(const SotnWorldState *s)
     if (s->flags[SOTN_LIBRARY_MAP] > 1 || s->flags[SOTN_LIBRARY_MET] > 1 ||
         s->flags[SOTN_LIBRARY_DROPS] > 15 || s->flags[SOTN_LIBRARY_SHELF] > 1)
         return SDL_SetError("Saved Library encounter flag is invalid");
+    if (s->flags[SOTN_NO2_SECRET_WALL] > 3 || s->flags[SOTN_NO2_SECRET_CEILING] > 1)
+        return SDL_SetError("Saved Olrox's Quarters discovery flag is invalid");
     if (s->flags[SOTN_CLOCK_FLOOR] > 1)
         return SDL_SetError("Saved clock-room floor flag is invalid");
     if (s->flags[SOTN_CHAPEL_SHORTCUT] > 1 || s->flags[SOTN_CHAPEL_MARIA] > 1 ||

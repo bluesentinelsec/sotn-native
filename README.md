@@ -71,7 +71,8 @@ An internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds it
 own resources, selected shared actors, [prisoners and spikes](docs/olrox-prisoners-spikes.md).
 Selected [Valhalla Knight combat](docs/olrox-valhalla.md) and articulated
 [Hammer/Blade encounters](docs/olrox-giant-knights.md), plus NO2’s
-[fifteen-weapon Spectral Sword](docs/olrox-spectral-sword.md), also run.
+[fifteen-weapon Spectral Sword](docs/olrox-spectral-sword.md) and selected
+[secret wall/ceiling mechanisms](docs/olrox-secrets.md), also run.
 It remains disconnected while its
 remaining enemies, mechanisms and boss are integrated.
 

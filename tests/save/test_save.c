@@ -591,10 +591,35 @@ static bool ChapelMariaProgress(void)
     CHECK(!SotnSave_Encode(state, record, sizeof(record)));
     return true;
 }
+static bool OlroxSecretProgress(void)
+{
+    SotnSaveState state = Profile(), loaded = {0};
+    Uint8 record[SOTN_SAVE_BYTES] = {0};
+    for (Uint8 wall = 0; wall <= 3; ++wall)
+    {
+        state.world.flags[SOTN_NO2_SECRET_WALL] = wall;
+        state.world.flags[SOTN_NO2_SECRET_CEILING] = wall & 1U;
+        CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 9 &&
+              SotnSave_Decode(record, sizeof(record), &loaded));
+        CHECK(loaded.world.flags[SOTN_NO2_SECRET_WALL] == wall &&
+              loaded.world.flags[SOTN_NO2_SECRET_CEILING] == (wall & 1U) &&
+              SDL_memcmp(loaded.world.flags, state.world.flags, SOTN_CASTLE_FLAGS) == 0);
+    }
+    record[624 + SOTN_NO2_SECRET_WALL] = 4;
+    Rechecksum(record, sizeof(record));
+    loaded.room = 99;
+    CHECK(!SotnSave_Decode(record, sizeof(record), &loaded) && loaded.room == 99);
+    state.world.flags[SOTN_NO2_SECRET_WALL] = 4;
+    CHECK(!SotnSave_Encode(state, record, sizeof(record)));
+    state.world.flags[SOTN_NO2_SECRET_WALL] = 1;
+    state.world.flags[SOTN_NO2_SECRET_CEILING] = 2;
+    CHECK(!SotnSave_Encode(state, record, sizeof(record)));
+    return true;
+}
 int main(int argc, char **argv)
 {
     if (argc != 2 || !Codec() || !ShopProgress() || !Stages() || !ChapelMariaProgress() ||
-        !Storage(argv[1]))
+        !OlroxSecretProgress() || !Storage(argv[1]))
         return 1;
     SDL_Log("SOTN_SAVE_TEST: PASS");
     return 0;

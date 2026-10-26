@@ -49,6 +49,15 @@ camera-relative thresholds, surviving-weapon projection cursor and private table
 Chapel's encounter differs. Component/protected checks are not route/console parity.
 Stage 4 remains disconnected while mechanisms, Olrox and travel are integrated.
 
+Selected [NO2 secrets](docs/olrox-secrets.md) now connect the three-hit wall,
+128-HP ceiling, original tile patches and selected paired debris/dust. Flag32's
+wall discovery/aftermath bits and flag33's ceiling boolean persist in v9 saves
+and feed the existing map renderer. Retain infinite HP0x7FFF, paired primitive
+ownership, fractions and distinct allocation fallbacks. The native wall crossing
+uses ordinary Gladius attacks; ceiling checks use explicit positioning pending
+movement abilities. Neither proves whole-area/ability/console parity. Stage4
+remains disconnected while the other mechanisms, scenery and Olrox are integrated.
+
 ## Purpose and priorities
 
 Build a native, personal and educational *Symphony of the Night* port that
@@ -206,6 +215,16 @@ The selected route is a **decompilation-based native port**; read the current
   waived manual playtests and authorized merging passing PRs bottom-up. Continue
   automated/private validation; this exception is not an authenticity claim and
   does not waive the normal gate for later work after that batch.
+  On 2026-10-26 the user continued this authorization: work autonomously until the
+  castle and Alucard's abilities are complete. Continue focused PR batches and
+  bottom-up merges after all exact-head CI checks pass, without manual-playtest
+  pauses. Preserve automated/private validation and report incomplete scope honestly.
+- **Mute automated playtests by default.** Set `SDL_AUDIO_DRIVER=dummy` when
+  launching the app or private runtime probes, so unexpected sound does not
+  disturb the user. Enable audible output only when specifically testing audio;
+  state that purpose before starting. This is a playtest-launch preference, not
+  a change to the game's normal audio defaults. Local `play-test.sh` defaults to
+  muted output and accepts `--audio` for an intentional audible check.
 - Give game build/run instructions through **LLDB**, so a crash leaves a useful
   stack trace (`thread backtrace all`). Playtests must launch this repository's
   executable built through its CMake/Make workflow.
