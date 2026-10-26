@@ -383,6 +383,11 @@ typedef struct Actor
         bool started, rolling;
     } dialogue;
     bool dynamic, remove, permanent;
+    struct
+    {
+        Uint16 cycle_timer, cycle, heat_timer;
+        bool lamp_missing;
+    } no2_scene;
 } Actor;
 
 struct SotnActors
@@ -400,6 +405,7 @@ struct SotnActors
     bool player_initialized;
     SotnActorMotion motion;
     SotnPaletteBlend palette_blend;
+    SotnPaletteRedShift palette_red_shift;
     SotnActorControl control;
     Uint16 buttons, previous_buttons, tapped_buttons, repeat_buttons, puzzle_flags, elevator_target;
     Uint8 button_repeat_timer[16];
@@ -729,6 +735,11 @@ bool ActorDoor(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid state/data/geometry; primitive exhaustion removes
  * the actor as in the original. All runtime UV/tile/SDK profiles remain private. */
 bool ActorNo2Door(SotnActors *actors, Actor *actor);
+/** @brief Advance NO2's private house/spawner, courtyard backdrop, lamps or selected scenery.
+ * @param actors Borrowed entered NO2 owner. @param actor Borrowed original scene actor.
+ * @return Success or SDL error for malformed profiles/ownership/state. Optional exhaustion
+ * follows original omission/removal paths. No private model, palette or animation data is owned. */
+bool ActorNo2Scene(SotnActors *actors, Actor *actor);
 bool ActorCannon(SotnActors *actors, Actor *actor);
 bool ActorMechanism(SotnActors *actors, Actor *actor);
 bool ActorObjectCollision(SotnActors *actors, const Actor *actor, Uint16 width, Uint16 height,

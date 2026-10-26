@@ -1672,6 +1672,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     // dra/5087C.c:func_800F2404 resets the GPU clear color on room loading.
     actors->backdrop_color = 0;
     actors->palette_blend = (SotnPaletteBlend){0};
+    actors->palette_red_shift = (SotnPaletteRedShift){0};
     actors->control.block_stopwatch = false;
     actors->control.pause_disabled = false;
     actors->map = map;
@@ -1758,6 +1759,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->player = player;
     actors->motion = (SotnActorMotion){0};
     actors->palette_blend = (SotnPaletteBlend){0};
+    actors->palette_red_shift = (SotnPaletteRedShift){0};
     ++actors->ticks;
     actors->combat.music_change = false;
     actors->combat.restart_stage_music = false;
@@ -2101,5 +2103,13 @@ bool SotnActors_GetBackdrop(const SotnActors *s, Uint16 *out)
     if (!s || !out)
         return SDL_SetError("Stage backdrop requires initialized actors and output");
     *out = s->backdrop_color;
+    return true;
+}
+
+bool SotnActors_GetPaletteRedShift(const SotnActors *s, SotnPaletteRedShift *out)
+{
+    if (s == NULL || out == NULL)
+        return SDL_SetError("Palette red shift requires an actor owner and output");
+    *out = s->palette_red_shift;
     return true;
 }

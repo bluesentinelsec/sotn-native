@@ -30,7 +30,8 @@ resources, selected shared actors, [prisoners and spikes](olrox-prisoners-spikes
 [Hammer/Blade encounters](olrox-giant-knights.md), and NO2’s
 [fifteen-weapon Spectral Sword](olrox-spectral-sword.md), and the selected
 [secret wall/ceiling mechanisms](olrox-secrets.md), plus the selected
-[stone doors](olrox-stone-doors.md);
+[stone doors](olrox-stone-doors.md) and
+[courtyard scenery](olrox-courtyard.md);
 it does not yet enable another castle route.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the

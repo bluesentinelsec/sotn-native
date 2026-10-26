@@ -1,9 +1,17 @@
 # Working in sotn-native
 
+Selected [NO2 courtyard scenery](docs/olrox-courtyard.md) now renders private
+house models, repeated backgrounds, foreground/backdrop, linked lamps and glow.
+Preserve matrix-pair projection (distinct from quarter-wave trigonometry), face
+winding/signed midpoint division, effect-slot order and copied palette commands.
+Palette red increments preserve color zero, other channels and mask bits; never
+mutate borrowed assets. The framebuffer effect, Olrox and connected travel remain
+incomplete. Explicit start/protection checks are not whole-route/console parity.
+
 Selected [NO2 stone doors](docs/olrox-stone-doors.md) now retain the original
 forced entry/open/close sequence, alternate artwork and collision columns.
 They are ordinary doors, distinct from the magical Jewel barrier. Preserve the
-quarter-wave SDK trigonometry, right-side shading, retained edge UV at0xA00,
+quarter-wave SDK trigonometry, right-side shading, retained edge UV at `0xA00`,
 original sound requests and checked primitive/tile ownership. NO2 remains
 disconnected; explicit placed-door checks are not whole-route/console parity.
 

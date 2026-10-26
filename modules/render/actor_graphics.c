@@ -416,6 +416,33 @@ static size_t PaletteIndex(Uint16 palette, Uint16 color)
     return (size_t)(240U + (palette % 256U) / 16U) * 1024U + x;
 }
 
+bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *g, SotnPaletteRedShift shift)
+{
+    if (g == NULL || shift.count > 7)
+        return SDL_SetError(
+            "Palette red increment requires a graphics owner and bounded row count");
+    for (Uint16 row = 0; row < shift.count; ++row)
+    {
+        if (shift.palettes[row] >= 256)
+            return SDL_SetError(
+                "NO2 palette red increment exceeds its original common palette bank");
+        for (Uint16 prior = 0; prior < row; ++prior)
+            if (shift.palettes[prior] == shift.palettes[row])
+                return SDL_SetError("Palette red increment contains a duplicate row");
+        for (Uint16 color = 1; color < 16; ++color)
+            if (!g->valid[PaletteIndex(shift.palettes[row], color)])
+                return SDL_SetError("Palette red increment references an unloaded palette color");
+    }
+    for (Uint16 row = 0; row < shift.count; ++row)
+        for (Uint16 color = 1; color < 16; ++color)
+        {
+            Uint16 *word = &g->words[PaletteIndex(shift.palettes[row], color)];
+            const Uint16 red = (Uint16)SDL_min(31U, (*word & 31U) + 1U);
+            *word = (Uint16)((*word & 0xffe0U) | red);
+        }
+    return true;
+}
+
 // st/e_stained_glass_blend.h: native GPU memory is owned, private source files are immutable.
 bool SotnActorGraphics_BlendPalette(SotnActorGraphics *g, SotnPaletteBlend blend)
 {

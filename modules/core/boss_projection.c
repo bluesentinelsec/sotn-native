@@ -27,6 +27,45 @@ static Sint32 Coordinate(Sint32 anchor, Sint32 value, Uint32 ratio)
     const Sint32 ir = SDL_clamp(value, -32768, 32767);
     return SDL_clamp(anchor + ActorShift((Sint64)ratio * ir, 16), -1024, 1023);
 }
+bool SotnNo2_ProjectHouse(SotnDataView executable, SotnDataView stage, Uint16 variant, Sint32 x,
+                          Sint32 y, SotnProjectedPoint out[19])
+{
+    SotnDataView model = {0}, pointers = {0};
+    if (!out || variant > 1 || x < -512 || x > 512 || y < -32767 || y > 32767 ||
+        !Slice(stage, 0xcd8U + variant * 14U, 14, &model) ||
+        !Slice(stage, 0xc50, 19 * 4, &pointers))
+        return SDL_SetError("NO2 house projection requires its bounded private profile and pose");
+    const Sint16 angle = (Sint16)Signed16(model.bytes);
+    const Sint32 depth = Signed16(model.bytes + 2) + 1024;
+    if ((angle != 0 && angle != 1024) || depth < 1024 || depth > 4096)
+        return SDL_SetError("NO2 house projection has an unsupported rotation or depth");
+    SotnMathTrig rotation = {0};
+    if (!SotnMath_MatrixTrig(executable, angle, &rotation))
+        return false;
+    SotnProjectedPoint result[19] = {0};
+    for (Uint16 i = 0; i < 19; ++i)
+    {
+        const Uint32 address = Read32(pointers.bytes + i * 4U);
+        SotnDataView vertex = {0};
+        if (address < 0x80180bb8 || address > 0x80180c48 || (address - 0x80180bb8) % 8 ||
+            !Slice(stage, address - 0x80180000U, 8, &vertex))
+            return SDL_SetError("NO2 house vertex references invalid private geometry");
+        const Sint32 vx = Signed16(vertex.bytes), vy = Signed16(vertex.bytes + 2),
+                     vz = Signed16(vertex.bytes + 4);
+        if (vx < -256 || vx > 256 || vy < -256 || vy > 256 || vz < -256 || vz > 256)
+            return SDL_SetError("NO2 house vertex exceeds its selected model bounds");
+        const Sint32 px = x - 128 +
+                          ActorShift((Sint64)rotation.cosine * vx + (Sint64)rotation.sine * vz, 12),
+                     py = y - 192 + vy,
+                     pz =
+                         depth +
+                         ActorShift(-(Sint64)rotation.sine * vx + (Sint64)rotation.cosine * vz, 12);
+        const Uint32 ratio = Divide((Uint32)pz, 1024);
+        result[i] = (SotnProjectedPoint){Coordinate(128, px, ratio), Coordinate(192, py, ratio)};
+    }
+    SDL_memcpy(out, result, sizeof(result));
+    return true;
+}
 bool SotnBoss_ProjectReward(SotnDataView executable, SotnRewardProjection p, SotnProjectedRect *out)
 {
     if (out == NULL || p.radius < -128 || p.radius > 128 || p.anchor_x < -16384 ||

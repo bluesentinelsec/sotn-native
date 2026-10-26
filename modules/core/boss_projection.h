@@ -155,4 +155,11 @@ bool SotnLibrary_ProjectShelf(SotnDataView executable, SotnDataView library, Sin
  * @return Success or SDL error; no global GTE state or private tables are retained. */
 bool SotnNo2_ProjectOrbit(SotnDataView executable, Sint16 x, Sint16 y, Sint16 z, Sint16 radius,
                           Sint32 anchor_x, Sint32 anchor_y, SotnProjectedPoint *out, Uint16 *depth);
+/** @brief Project NO2's nineteen private house vertices through the original Y rotation/divider.
+ * @param executable Borrowed private SDK matrix table. @param stage Borrowed NO2 model records.
+ * @param variant Original profile 0 or 1. @param x Screen-relative actor X, +/-512.
+ * @param y Screen-relative actor Y, +/-32767. @param out Nineteen copied saturated points.
+ * @return Success or SDL error; invalid pointers/model/pose leave output unchanged. */
+bool SotnNo2_ProjectHouse(SotnDataView executable, SotnDataView stage, Uint16 variant, Sint32 x,
+                          Sint32 y, SotnProjectedPoint out[19]);
 #endif
