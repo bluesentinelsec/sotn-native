@@ -23,6 +23,7 @@ typedef struct SotnWorldState
 /** @brief Original event identities used by integrated boss services. */
 typedef enum SotnTimeAttackEvent
 {
+    SOTN_TIME_OLROX = 1,
     SOTN_TIME_DOPPLEGANGER = 2,
     SOTN_TIME_LAB_BOSSES = 6,
     SOTN_TIME_HIPPOGRYPH = 7,

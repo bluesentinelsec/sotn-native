@@ -187,7 +187,7 @@ static bool RegistryAndArt(Fixture *f)
     SotnActors *s = NULL;
     CHECK(Open(f, &s, 0));
     // Boss/attack/enemy identities must not alias the Laboratory's existing registry.
-    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x2a, 0x2b, 0x2d, 0x33, 0x44, 0x4b};
+    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x2a, 0x2d, 0x33, 0x44, 0x4b};
     for (Uint32 i = 0; i < SDL_arraysize(unsupported); ++i)
     {
         Actor a = {.state = {.id = unsupported[i], .generation = 17}};

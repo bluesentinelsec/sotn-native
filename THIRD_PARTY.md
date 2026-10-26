@@ -13,6 +13,13 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 humanoid body**, AGPL-3.0-or-later.
+  `modules/core/olrox_first.c` reconstructs `boss/bo0/2D26C.c`'s humanoid body
+  and body-image routines from the matching private US instructions at the pinned
+  revision below. Only bounded algorithms are public; original runtime tables
+  remain private. Authoring disassembly/generated analysis is not shipped.
+  See [scope and validation](docs/olrox-first-form.md).
+
 - **Reconstructed BO0 arena doors**, AGPL-3.0-or-later.
   `modules/core/olrox_arena.c` adapts `boss/bo0/e_boss_doors.c` at the pinned
   revision below. Shared private-table profiles also follow its stage metadata.

@@ -388,6 +388,13 @@ typedef struct Actor
         Uint16 cycle_timer, cycle, heat_timer;
         bool lamp_missing;
     } no2_scene;
+    struct
+    {
+        Uint32 children[14];
+        Uint16 timer;
+        Uint8 release_orbs, close_portal, fire_skulls, decision;
+        bool movement_left;
+    } olrox;
 } Actor;
 
 struct SotnActors
@@ -464,6 +471,7 @@ struct SotnActors
     } shop;
     /** BO0 overlay-lifetime door signal; encounter integration must drive it explicitly. */
     bool olrox_defeated;
+    Uint32 olrox_flags;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
     Uint16 backdrop_color;
