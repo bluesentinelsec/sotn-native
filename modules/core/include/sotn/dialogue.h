@@ -10,5 +10,7 @@ typedef struct SotnDialogueState
     Uint16 portrait_page; /**< Original 8-bit portrait page; zero selects the legacy 0x94 page. */
     Uint8 row, column, speaker, portrait_slot, fade;
     bool visible, mirrored, portrait_visible, background_enabled;
+    bool
+        primitive_text; /**< Original BO5 text cache and owned packets replace the native window. */
 } SotnDialogueState;
 #endif

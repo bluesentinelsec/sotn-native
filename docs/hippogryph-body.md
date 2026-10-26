@@ -33,12 +33,13 @@ starts Death Ballad, and requests the original slow stop after defeat. The priva
 initial scene flag, graphics bank zero, sound-bank files and track metadata load
 through verified BO5 resources; no game bytes enter public source or packages.
 
-Maria's separate reward-watching manager now observes Life Max Up collection,
+Maria's reward-watching manager now observes Life Max Up collection,
 releases the encounter, walks/aligns Alucard, pans the camera, and restores control.
 Her actor advances the original script-flag poses and exit animation/movement.
 Generation checks prevent a replacement pickup from extending the earlier reward's
-lifetime. The underlying dialogue/script execution and persistent Maria event remain
-unintegrated, so these actor services alone do not constitute the cutscene.
+lifetime. The original dialogue/event interpreter now drives these actors, seven
+BO5 speech cues and both flashback pictures, then records original flags 98/133 and
+the completion word. Version-nine saves retain that word explicitly.
 
 BO5's placed cloud and sky-land actors now run the shared original sky algorithms
 with explicit BO5 initialization, UV, vertex, grid, profile and rotation offsets.
@@ -54,10 +55,10 @@ generation ownership releases their primitives on removal. The native skip path
 removes the picture and releases its reservation. It does not reproduce the original
 function's unused allocation after clearing its entity during a skip. This ownership
 adaptation is not evidence of original allocation-pressure parity on that path.
-Their natural dialogue-driven birth remains pending.
+Their original dialogue-driven birth now runs through the private event stream.
 
-This branch is not a completed encounter. Dialogue and connected Chapel
-travel still need integration. The BO5 profile remains disconnected, without a public
+This branch is not a completed encounter. Connected Chapel
+travel and full encounter/presentation parity still need verification. The BO5 profile remains disconnected, without a public
 gameplay start. Do not merge or describe this checkpoint as a playable Hippogryph
 milestone while those paths remain incomplete.
 
@@ -128,3 +129,47 @@ both pictures. Each visibly contributes to the frame and releases after its
 contraction. Both private captures were inspected. This protected, explicit-spawn
 fixture and its dummy audio do not establish dialogue-driven timing, a natural
 encounter, listening or console parity. All 99 test groups pass in both configurations.
+
+The BO5 dialogue adapter keeps the eight original states, private 72-line opening
+and color transition, portrait timing, five-row text cache/scroll, encoded nameplates,
+24-tick closing, event wait/timer rewind and next-tick completion. Portrait and text
+words load before their owned packets draw. Dialogue priorities 509–511 cover the
+HUD's original 494–496 priorities. The initial seven owned packets remain seven;
+the original helper's null-linked border state is represented as bounded shadow
+fields, without dereferencing a host null pointer or drawing an extra unowned tile.
+This is a selected native adaptation, not full PS1 GPU or allocation-pressure parity.
+Scripts, glyphs, names, portraits, line speeds, selectors and speech stay private.
+
+Public synthetic tests cover state timing, event-spawn coordinates and blocked timer
+rewind, speech ranges, window/portrait/name/text resources, skip eligibility, invalid
+selectors/data and allocation failures. Save tests retain frozen v1–v8 migrations
+and independently checked v9 checksums. Actual integration evidence and remaining
+parity checks must accompany the connected milestone; component tests alone do not
+establish a complete ordinary encounter or authentic-game release.
+
+Private BO5 dialogue comparisons match 4,946 original instruction ticks across
+three runs of the actual private script: ordinary execution, legal skip and delayed
+external actor flags. They compare script/event cursors, control/progress flags,
+timers and active packet geometry, colors, UVs, palettes and priorities. Original
+script/event/window/portrait/scroll/name helpers execute with isolated allocation,
+graphics and audio calls and controlled actor/audio-busy input. This is component
+evidence, not complete GPU, allocation-pressure, audio or original frame-order parity.
+
+A private native LLDB sequence completes 3,527 ticks and 882 rendered frames in
+Debug and macOS ASan/UBSan. It forces boss defeat with a protected player, then
+collects Life Max Up through normal contact and lets the original event stream
+run Maria, seven speech cues, both pictures and camera/control restoration. Captures
+exposed and verified the HUD/nameplate ordering correction. A retained-completion
+skip fixture also stops active speech and returns control; first-time skipping is
+not granted. Independent decoding of all seven private speech clips produces
+nonzero PCM; listening and console PCM parity remain unproven.
+
+An explicit private transfer to a Chapel save room exercises its ordinary save UI,
+fresh byte-identical v9 restore, in-session completion-mask unions and failed-load
+owner retention. Selected-slot story flags, clear status, gold and boss records
+come from the loaded slot. Real user slots remain untouched. This transfer is a
+fixture, not connected traversal. The existing Chapel Maria scene also passes its
+ASan/UBSan speech, save and Continue regression. All 100 public test groups pass
+in Debug and macOS ASan/UBSan; the final speech-stop change has targeted tests in
+both configurations. Connected travel, a natural boss encounter, whole-route
+replay and full audiovisual/timing parity remain incomplete.

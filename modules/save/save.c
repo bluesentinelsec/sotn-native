@@ -97,7 +97,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 8);
+    Put32(record + 8, 9);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -118,6 +118,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     Put32(record + 3612, state.character.spells_learned);
     SDL_memcpy(record + 3616, state.character.spells, SOTN_SPELLS);
     record[3624] = state.world.game_clear;
+    Put32(record + 3628, state.world.cutscenes_seen);
     Put32(record + SOTN_SAVE_BYTES - 4, Checksum(record, SOTN_SAVE_BYTES - 4));
     SDL_memcpy(bytes, record, sizeof(record));
     return true;
@@ -174,7 +175,7 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         return SDL_SetError("Save is not a native record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
     if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 &&
-        version != 6 && version != 7 && version != 8)
+        version != 6 && version != 7 && version != 8 && version != 9)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
     const size_t expected = version >= 4   ? SOTN_SAVE_BYTES
@@ -200,7 +201,12 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         if (version >= 7)
         {
             if (!Zeroes(bytes, 3442, 3448) || !Zeroes(bytes, 3478, 3480) ||
-                !Zeroes(bytes, version >= 8 ? 3625U : 3612U, 4092))
+                !Zeroes(bytes,
+                        version >= 9   ? 3632U
+                        : version >= 8 ? 3625U
+                                       : 3612U,
+                        4092) ||
+                (version >= 9 && !Zeroes(bytes, 3625, 3628)))
                 return SDL_SetError("Saved world contains unsupported reserved state");
             for (Uint32 i = 0; i < SOTN_TIME_ATTACK_EVENTS; ++i)
                 state.world.time_attack[i] = Read32(bytes + 3480 + i * 4U);
@@ -210,6 +216,8 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                 state.character.spells_learned = Read32(bytes + 3612);
                 SDL_memcpy(state.character.spells, bytes + 3616, SOTN_SPELLS);
                 state.world.game_clear = bytes[3624];
+                if (version >= 9)
+                    state.world.cutscenes_seen = Read32(bytes + 3628);
             }
         }
         else

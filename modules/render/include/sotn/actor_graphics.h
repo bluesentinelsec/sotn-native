@@ -1,6 +1,7 @@
 #ifndef SOTN_ACTOR_GRAPHICS_H
 #define SOTN_ACTOR_GRAPHICS_H
 
+#include <sotn/dialogue.h>
 #include <sotn/equipment.h>
 #include <sotn/palette.h>
 #include <sotn/tilemap.h>
@@ -46,6 +47,11 @@ bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
  * Portrait palettes must already be installed by the stage's bulk palette loader.
  */
 bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *graphics, Uint32 offset, Uint16 slot);
+/** @brief Refresh BO5's original five-row text cache from private common-font words.
+ * @param graphics Borrowed stage-25 texture owner. @param dialogue Copied primitive-text state.
+ * @return Success or SDL error; validates glyphs/residency before writing. No strings or artwork
+ * are compiled in. Owned dialogue packets select the cache's original rows and clipping. */
+bool SotnActorGraphics_LoadDialogue(SotnActorGraphics *graphics, SotnDialogueState dialogue);
 /** @brief Load a hand's supported weapon texture, palettes, and multipart definitions.
  * @param graphics Borrowed owned texture memory. @param weapons Borrowed WEAPON0.BIN; alive
  * until replacement or graphics destruction. @param hand Left (0) or right (1).

@@ -10,12 +10,11 @@ flying objects, flame/particles and bounded effect pools, with private instructi
 comparisons. BO5 scene integration and connected Chapel travel remain pending.
 The unmerged [Hippogryph body work](docs/hippogryph-body.md) reconstructs normal motion/attack/grab
 states, linked hit handling, original defeat effects, arena doors/music and Life Max Up reward
-conversion. Maria's actor and player-control manager run independently of the still-pending
-dialogue. Shared original clouds/sky now load BO5's separate private tables and render behind
-its tile layers. Finish dialogue and connected Chapel progression before presenting this
-as a completed playable encounter or merging that batch.
-Its two private flashback-picture actors now retain their original geometry and timing;
-their natural dialogue-driven birth remains pending.
+conversion. Maria's original dialogue/events now connect the reward-watching manager, actor,
+speech, private flashback pictures and player/camera control. Shared original clouds/sky load
+BO5's separate private tables and render behind its tile layers. Version 9 saves retain the
+original cutscene completion word, with explicit v8 migration. Connected Chapel progression and
+full encounter/presentation parity remain pending; finish the connected batch before merging.
 
 ## Purpose and priorities
 
@@ -198,7 +197,7 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 8 saves retain this
+Spells/relic/settings/familiar menus remain unavailable. Version 9 saves retain this
 supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
@@ -209,7 +208,7 @@ The [selected subweapon service](docs/laboratory-subweapons.md) integrates dagge
 holy water, and stopwatch; other collected subweapons remain explicitly unsupported.
 Named `--laboratory-test-profile` fixtures are development grants, not original new-game starts.
 
-Version 8 [ordinary native saves](docs/native-saves.md) now retain supported character
+Version 9 [ordinary native saves](docs/native-saves.md) now retain supported character
 inventory/equipment, progression/maxima, permanent Laboratory pickup bits, and four
 owned RNG streams, explored map cells, and permanent Laboratory events. Versions 1/2/3/4/5
 migrate explicitly. Transient actor/projectile state, full castle scripts, and PS1

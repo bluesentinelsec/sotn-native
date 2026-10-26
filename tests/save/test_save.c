@@ -75,9 +75,9 @@ static bool Codec(void)
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
     // Independently produced with Python struct and zlib for Profile().
-    CHECK(record[4092] == 0x03 && record[4093] == 0xdc && record[4094] == 0xd8 &&
-          record[4095] == 0xe9);
-    CHECK(record[8] == 8 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
+    CHECK(record[4092] == 0x4d && record[4093] == 0xee && record[4094] == 0xc3 &&
+          record[4095] == 0x6c);
+    CHECK(record[8] == 9 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
           record[28] == 1 && record[48] == 87);
     CHECK(record[92] == 57 && record[93] == 48 && record[104 + 99] == 99 && record[363] == 168 &&
           record[622] == 0x81);
@@ -112,8 +112,22 @@ static bool Codec(void)
           decoded.world.time_attack[SOTN_TIME_DOPPLEGANGER] == 10003 &&
           decoded.world.time_attack_visited ==
               ((1U << SOTN_TIME_LAB_BOSSES) | (1U << SOTN_TIME_DOPPLEGANGER)));
-    const Uint32 corrupt_offsets[] = {3440, 3442, 3443, 3447, 3478, 3479,
-                                      3612, 3616, 3624, 3625, 4091, 624 + SOTN_LAB_CANNON};
+    const Uint32 corrupt_offsets[] = {3440,
+                                      3442,
+                                      3443,
+                                      3447,
+                                      3478,
+                                      3479,
+                                      3612,
+                                      3616,
+                                      3624,
+                                      3625,
+                                      3626,
+                                      3627,
+                                      3632,
+                                      4091,
+                                      624 + SOTN_LAB_CANNON,
+                                      624 + SOTN_MARIA_HIPPOGRYPH};
     for (Uint32 i = 0; i < SDL_arraysize(corrupt_offsets); ++i)
     {
         CHECK(SotnSave_Encode(state, record, sizeof(record)));
@@ -123,6 +137,19 @@ static bool Codec(void)
         CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     }
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    Uint8 version_eight[SOTN_SAVE_BYTES] = {0};
+    SDL_memcpy(version_eight, record, sizeof(version_eight));
+    version_eight[8] = 8;
+    Rechecksum(version_eight, sizeof(version_eight));
+    CHECK(version_eight[4092] == 0x03 && version_eight[4093] == 0xdc &&
+          version_eight[4094] == 0xd8 && version_eight[4095] == 0xe9);
+    CHECK(SotnSave_Decode(version_eight, sizeof(version_eight), &decoded) &&
+          !decoded.world.cutscenes_seen &&
+          decoded.world.time_attack[SOTN_TIME_DOPPLEGANGER] == 10003);
+    version_eight[3628] = 1;
+    Rechecksum(version_eight, sizeof(version_eight));
+    decoded.room = 99;
+    CHECK(!SotnSave_Decode(version_eight, sizeof(version_eight), &decoded) && decoded.room == 99);
     Uint8 version_seven[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(version_seven, record, sizeof(version_seven));
     version_seven[8] = 7;
@@ -198,11 +225,11 @@ static bool Codec(void)
     version_three[624] = 1;
     Rechecksum(version_three, sizeof(version_three));
     CHECK(!SotnSave_Decode(version_three, sizeof(version_three), &decoded));
-    record[8] = 9;
+    record[8] = 10;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 8;
+    record[8] = 9;
     record[104] = 100;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
@@ -260,7 +287,7 @@ static bool Codec(void)
     Rechecksum(version_two, 80);
     CHECK(SotnSave_Decode(version_two, 80, &decoded) && decoded.player_random == 42 &&
           decoded.actor_random == 43 && decoded.combat_random == 44);
-    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 8);
+    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 9);
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded) && decoded.character.hp_max == 70);
     version_two[12] = 0;
     Rechecksum(version_two, 80);
@@ -270,6 +297,18 @@ static bool Codec(void)
 
 static bool Stages(void)
 {
+    SotnSaveState seen = Profile(), seen_loaded = {0};
+    Uint8 seen_record[SOTN_SAVE_BYTES] = {0};
+    const Uint32 completions[] = {0, 0x300, 0x80000000U, SDL_MAX_UINT32};
+    for (Uint16 i = 0; i < SDL_arraysize(completions); ++i)
+    {
+        seen.world.cutscenes_seen = completions[i];
+        CHECK(SotnSave_Encode(seen, seen_record, sizeof(seen_record)));
+        CHECK(seen_record[8] == 9 && seen_record[3628] == (Uint8)completions[i] &&
+              seen_record[3631] == (Uint8)(completions[i] >> 24));
+        CHECK(SotnSave_Decode(seen_record, sizeof(seen_record), &seen_loaded) &&
+              seen_loaded.world.cutscenes_seen == completions[i]);
+    }
     SotnSaveState future = Profile(), future_loaded = {0};
     Uint8 future_record[SOTN_SAVE_BYTES] = {0};
     for (Uint16 event = 0; event < SOTN_TIME_ATTACK_EVENTS; ++event)

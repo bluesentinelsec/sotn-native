@@ -17,6 +17,8 @@ typedef struct SotnWorldState
     Uint8 game_clear; /**< Original completed-game unlock flag; not a development grant. */
     Uint32 time_attack[SOTN_TIME_ATTACK_EVENTS]; /**< Original HHMMSS defeat records. */
     Uint32 time_attack_visited;                  /**< Original event-visited mask. */
+    Uint32
+        cutscenes_seen; /**< Original per-save completion word; retained across in-session loads. */
 } SotnWorldState;
 /** @brief Original event identities used by integrated boss services. */
 typedef enum SotnTimeAttackEvent

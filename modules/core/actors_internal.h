@@ -335,6 +335,12 @@ typedef struct Actor
             linked_slot; /**< Original optional child/reward pointer; generation zero is absent. */
         Uint32 linked_generation;
     } hippogryph;
+    struct
+    {
+        Sint16 next_line_y;
+        Uint8 tail, border_grey, border_width;
+        bool started, rolling;
+    } dialogue;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -648,6 +654,17 @@ bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
 bool ActorMerman(SotnActors *actors, Actor *actor);
 bool ActorDeath(SotnActors *actors, Actor *actor);
 bool ActorDialogue(SotnActors *actors, Actor *actor);
+/** @brief Read one checked private dialogue byte, advancing only after a successful read. */
+bool ActorDialogue_Byte(SotnActors *actors, size_t *cursor, Uint8 *out);
+/** @brief Decode a bounded private stage address from the original four-byte script encoding. */
+bool ActorDialogue_Address(SotnActors *actors, size_t *cursor, size_t *out);
+/** @brief Run the stage's selected event stream, preserving BO5's blocked-wait timer rewind. */
+bool ActorDialogue_Events(SotnActors *actors, const Actor *actor);
+/** @brief Run BO5's original Alucard dialogue states, private events, text and progress.
+ * @param actors Borrowed stage-25 owner. @param actor Active raw2A owner.
+ * @return Success or SDL error. Initial pool pressure retries; later allocation failures remove
+ * the actor as in the original. The original null-linked border uses bounded shadow state. */
+bool ActorHippogryphDialogue(SotnActors *actors, Actor *actor);
 bool ActorMaria(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)

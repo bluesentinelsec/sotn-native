@@ -43,7 +43,7 @@ bool SotnDialogueRenderer_Draw(const SotnActorGraphics *g, SotnDialogueState d, 
             if ((Uint8)d.lines[row][i] < 32 || (Uint8)d.lines[row][i] > 126)
                 return SDL_SetError("Dialogue line contains an unsupported US glyph");
     }
-    if (!d.visible)
+    if (!d.visible || d.primitive_text)
         return true;
     for (Sint32 y = d.y; y < SDL_min((Sint32)d.y + 72, 240); ++y)
         for (Sint32 x = 4; x < 248; ++x)

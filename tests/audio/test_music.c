@@ -145,7 +145,7 @@ static bool Playback(const char *directory)
     SotnMusic_Destroy(music);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x35e, &music) && music == NULL);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x364, &music) && music == NULL);
-    for (Uint16 id = 0x369; id <= 0x36d; ++id)
+    for (Uint16 id = 0x369; id <= 0x374; ++id)
     {
         SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
         CHECK(SotnMusic_CreateSpeech(image, stream, id, &music));
@@ -167,7 +167,6 @@ static bool Playback(const char *directory)
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3a2, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3aa, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x368, &music) && music == NULL);
-    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x36e, &music) && music == NULL);
     for (Uint16 id = 0x375; id <= 0x379; ++id)
     {
         SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
@@ -178,7 +177,6 @@ static bool Playback(const char *directory)
         SotnMusic_Destroy(music);
         music = NULL;
     }
-    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x374, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x37a, &music) && music == NULL);
     SotnStream_Close(stream);
     SDL_free(finite);

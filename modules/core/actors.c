@@ -1300,6 +1300,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return ActorCastleSky(actors, actor);
         if (actor->state.id == 0x21 || actor->state.id == 0x29)
             return ActorHippogryphArena(actors, actor);
+        if (actor->state.id == 0x2a)
+            return ActorHippogryphDialogue(actors, actor);
         if (actor->state.id == 0x2b || actor->state.id == 0x2c)
             return ActorHippogryphMaria(actors, actor);
         if (actor->state.id == 0x2d || actor->state.id == 0x2e)

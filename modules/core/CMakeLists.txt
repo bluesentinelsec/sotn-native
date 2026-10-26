@@ -63,6 +63,7 @@ add_library(sotn-core STATIC
   hippogryph_arena.c
   hippogryph_maria.c
   hippogryph_memory.c
+  hippogryph_dialogue.c
   hippogryph_internal.h
   chapel_ghost.c
   chapel_blades.c
