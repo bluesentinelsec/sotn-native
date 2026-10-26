@@ -462,6 +462,8 @@ struct SotnActors
         Uint16 repeated;
         bool sell;
     } shop;
+    /** BO0 overlay-lifetime door signal; encounter integration must drive it explicitly. */
+    bool olrox_defeated;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
     Uint16 backdrop_color;
@@ -549,6 +551,12 @@ bool ActorChapel(SotnActors *actors, Actor *actor);
  * @return True after a supported update or explicit unsupported marker, false with SDL error
  * for invalid owners, state, resources or checked bounds. */
 bool ActorOlroxQuarter(SotnActors *actors, Actor *actor);
+/** @brief Advance selected BO0 arena objects, marking unintegrated identities explicitly.
+ * @param actors Borrowed mutable stage-30 owner and private resources.
+ * @param actor Borrowed mutable actor; children retain slot/generation ownership.
+ * @return True on update or unsupported marking, false with SDL error for invalid data/state.
+ * This internal arena foundation does not enable connected travel or boss combat. */
+bool ActorOlroxArena(SotnActors *actors, Actor *actor);
 /** @brief Advance NO2's secret wall, ceiling or adjacent-room debris from private profiles.
  * @param actors Borrowed stage owner with mutable collision tiles and persistent world flags.
  * @param actor Borrowed original actor 0x24..0x26; primitives remain generation-owned.

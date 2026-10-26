@@ -114,11 +114,11 @@ static bool Collision(SotnActors *s)
     s->player.y = 120 * 65536;
     s->motion = (SotnActorMotion){0};
     CHECK(ActorObjectCollision(s, &a, 16, 5, 1, &result) && result == 1);
-    CHECK(s->motion.x == 2 * 65536 && s->motion.contacts == 0x44);
+    CHECK(s->motion.x == 2 * 65536 && s->motion.contacts == 0x48);
     s->player.x = 108 * 65536;
     s->motion = (SotnActorMotion){0};
     CHECK(ActorObjectCollision(s, &a, 16, 5, 9, &result) && result == 1);
-    CHECK(s->motion.x == -2 * 65536 && s->motion.contacts == 0x48);
+    CHECK(s->motion.x == -2 * 65536 && s->motion.contacts == 0x44);
     a.state.x = 400 * 65536;
     s->motion = (SotnActorMotion){0};
     CHECK(ActorObjectCollision(s, &a, 16, 5, 7, &result) && result == 0 && s->motion.x == 0);

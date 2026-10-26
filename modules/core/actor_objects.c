@@ -57,7 +57,7 @@ bool ActorObjectCollision(SotnActors *s, const Actor *a, Uint16 width, Uint16 he
             (flags & 8) ? SDL_min((checks & 1) ? w - x : x, 2) : ((checks & 1) ? w - x : x);
         *result = 1;
         return ActorDisplace(s, ((checks & 1) ? push : -push) * 65536, 0,
-                             (checks & 1) ? 0x44 : 0x48);
+                             (checks & 1) ? 0x48 : 0x44);
     }
     return true;
 }

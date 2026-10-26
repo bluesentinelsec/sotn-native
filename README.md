@@ -74,7 +74,9 @@ Selected [Valhalla Knight combat](docs/olrox-valhalla.md) and articulated
 [fifteen-weapon Spectral Sword](docs/olrox-spectral-sword.md) and selected
 [secret wall/ceiling mechanisms](docs/olrox-secrets.md), also run.
 It remains disconnected while its
-remaining enemies, mechanisms and boss are integrated.
+remaining enemies, mechanisms and boss are integrated. The internal
+[Olrox arena foundation](docs/olrox-arena.md) adds its resources and paired door
+controls; the boss and connected progression remain unintegrated.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

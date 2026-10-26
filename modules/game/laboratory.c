@@ -108,9 +108,9 @@ typedef struct SessionStart
 
 static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
 {
-    if (s->stage_id == 25 || s->stage_id == 26)
+    if (s->stage_id == 25 || s->stage_id == 26 || s->stage_id == 30)
     {
-        // Original BO4/BO5 stage records select MU_NO_AUDIO until their encounter events.
+        // Original BO0/BO4/BO5 stage records select MU_NO_AUDIO until their encounter events.
         *out = NULL;
         return true;
     }
@@ -158,7 +158,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
         {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
         {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY},
         {25, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY},
-        {4, SOTN_RESOURCE_QUARTERS_AUDIO_HEADER, SOTN_RESOURCE_QUARTERS_AUDIO_BODY}};
+        {4, SOTN_RESOURCE_QUARTERS_AUDIO_HEADER, SOTN_RESOURCE_QUARTERS_AUDIO_BODY},
+        {30, SOTN_RESOURCE_OLROX_AUDIO_HEADER, SOTN_RESOURCE_OLROX_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -1029,7 +1030,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
-    if (stage_id == 26)
+    if (stage_id == 30)
+        SDL_Log("Olrox arena internal foundation: private room/artwork/sound resources, "
+                "common pickups, decorations and paired door controls. Boss combat, defeat, "
+                "reward and connected progression are not integrated.");
+    else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");

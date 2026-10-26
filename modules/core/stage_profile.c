@@ -13,6 +13,7 @@ const SotnStageProfile *SotnStageProfile_Get(Uint16 stage)
         {2, 0x4f, 24, 11, 0x70, 1, 7, {14, SDL_MAX_UINT16, SDL_MAX_UINT16}, true},
         {4, 0x42, 24, 13, 0x20, 4, 7, {16, SDL_MAX_UINT16, SDL_MAX_UINT16}, false},
         {6, 0x49, 24, 16, 0x98, 3, 7, {16, 18, SDL_MAX_UINT16}, true},
+        {30, 0x4d, 50, 10, 0, 4, 7, {SDL_MAX_UINT16, SDL_MAX_UINT16, SDL_MAX_UINT16}, false},
         {25, 0x2f, 24, 1, 0, 3, 7, {SDL_MAX_UINT16, SDL_MAX_UINT16, SDL_MAX_UINT16}, true},
         {26, 0x1e, 24, 0, 0, 2, 7, {SDL_MAX_UINT16, SDL_MAX_UINT16, SDL_MAX_UINT16}, true}};
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
