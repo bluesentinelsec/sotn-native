@@ -19,11 +19,11 @@ adaptations, with original title/new-game flow incomplete.
 
 Selected Doppleganger combat/transfer/reward and connected Long Library travel,
 Lesser Demon, Librarian buy/sell and furnishings now run. The
-[Royal Chapel foundation](chapel-runtime.md) remains internal and disconnected.
-The [normal-form boss grab service](player-boss-grab.md) prepares Hippogryph's
-player handshake; the boss encounter and Chapel connections remain unintegrated.
-Internal [BO5 attack adapters](hippogryph-attacks.md) provide supporting actors with
-their own private tables and bounded ownership; they do not implement the main encounter.
+[Royal Chapel](chapel-connections.md) now connects to Laboratory and its selected
+[Hippogryph encounter](hippogryph-body.md): owned attacks, grab, physical defeat,
+reward, Maria dialogue/speech/flashbacks and return travel. Its component and
+protected native checks do not establish ordinary-character, whole-route or console
+parity. Further Chapel exits still fail explicitly until their stages are integrated.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,

@@ -3,18 +3,19 @@
 The selected [normal-form boss grab service](docs/player-boss-grab.md) now provides
 Hippogryph's start/held/damage/clear-to-drop handshake, original grabbed animation
 and pain requests, collision/input hold, defense/poison damage and selected lethal
-completion. This is a dependency; Hippogryph and connected Chapel travel remain
-unintegrated. Thrown-release/stone grabs and full grab effects remain incomplete.
-The internal [BO5 attack adapters](docs/hippogryph-attacks.md) add owned pose hitboxes,
+completion. Thrown-release/stone grabs and full grab effects remain incomplete.
+The [BO5 attack adapters](docs/hippogryph-attacks.md) add owned pose hitboxes,
 flying objects, flame/particles and bounded effect pools, with private instruction-tick
-comparisons. BO5 scene integration and connected Chapel travel remain pending.
-The unmerged [Hippogryph body work](docs/hippogryph-body.md) reconstructs normal motion/attack/grab
+comparisons. The [Hippogryph encounter](docs/hippogryph-body.md) reconstructs normal motion/attack/grab
 states, linked hit handling, original defeat effects, arena doors/music and Life Max Up reward
 conversion. Maria's original dialogue/events now connect the reward-watching manager, actor,
 speech, private flashback pictures and player/camera control. Shared original clouds/sky load
 BO5's separate private tables and render behind its tile layers. Version 9 saves retain the
-original cutscene completion word, with explicit v8 migration. Connected Chapel progression and
-full encounter/presentation parity remain pending; finish the connected batch before merging.
+original cutscene completion word, with explicit v1–v8 migrations.
+[Chapel connections](docs/chapel-connections.md) now link Laboratory, Chapel saves and BO5
+from both sides, with defeated-arena revisits. Protected strength-grant boss fixtures and an
+ordinary-character entry/save-room route do not establish whole-route or console parity.
+Further Chapel exits and full encounter/presentation parity remain incomplete.
 
 ## Purpose and priorities
 
@@ -429,48 +430,48 @@ its own private tables, original bird phases/deaths and owned boomerangs. Shared
 Skelerang re-entry protects unrelated children in both Chapel and Marble.
 Selected [Chapel Bone Halberd combat](docs/chapel-halberd.md) now includes its owned
 weapon, movement/spin/jump/lunge and nine-part death using private original tables.
-Travel remains disabled; tower exits, remaining scenery, Maria and boss remain
-unintegrated. Private controlled native fixtures are not ordinary-route/console parity.
+Selected tower/scenery/Maria/boss travel now connects; further destinations and
+whole-route parity remain incomplete. Private controlled fixtures are not console parity.
 
 Selected [Chapel Corner Guard combat](docs/chapel-corner-guard.md) now includes
 stair-bound movement, original directional attacks, owned weapon contact, selected
 dust and private sprite-part death. Its remembered movement direction is separate
-from sprite facing. Chapel travel/progression remains gated; controlled component
-fixtures do not establish whole-route or console parity.
+from sprite facing. Controlled component fixtures do not establish whole-route or
+console parity; see the current connected progression scope above.
 
 Selected [Chapel Bone Pillar skulls/fire](docs/chapel-bone-pillar.md) now run
 side-dependent attacks, original fire/embers, delayed pieces and released upper
 skull bounce/death. The [spike-ball variant](docs/chapel-spike-ball.md) now supports
 intact destruction, release/bounce/roll, invulnerable contact and linked enemy damage.
-Its owned outside-stage attacks share four original cooldown groups. Connected
-Chapel progression and full encounter/console parity remain incomplete.
+Its owned outside-stage attacks share four original cooldown groups. Further
+Chapel destinations and full encounter/console parity remain incomplete.
 
 Selected [Chapel Hunting Girl combat](docs/chapel-hunting-girl.md) now runs the
 spirit/sword, three combos and owned blade children, hit recovery and death.
 Non-attacking motion omits null-trail writes while retaining END/cursor processing;
 read the documented mandatory C adaptation before changing it. Its console
-comparison and connected Chapel travel remain incomplete.
+comparison and whole-route Chapel parity remain incomplete.
 
 Selected [Chapel Spectral Sword combat](docs/chapel-spectral-sword.md) now runs
 sixteen owned weapons, original readiness/orbits, movement and radius attack,
 independent blade destruction, aura and parent death/cleanup. Retain the SDK
 square-root quantization, screen-anchored movement target, integer-only ready
 weapon position assignment and hidden dead children until parent cleanup.
-Connected Chapel progression and uninterrupted encounter/console parity remain incomplete.
+Uninterrupted Chapel route/encounter and console parity remain incomplete.
 
 Selected [Chapel spike-corridor behavior](docs/chapel-spikes.md) now includes its
 owned damage actor, maximum-HP fraction, equipped Spike Breaker destruction and
 original debris/dust. Keep ordinary defense separate from environmental HP loss.
 Cleared spikes stay transient; v8 retains the equipped armor without a format change.
-Chapel travel, remaining mechanisms/scripts/boss and full damage-kind reaction parity
+Further Chapel destinations, complete scripts and full damage-kind reaction parity
 remain incomplete. Granted-equipment component checks do not establish ordinary-route parity.
 
 Selected [Chapel bells](docs/chapel-bells.md) now run private spawners/profiles/models,
 rope/body projection, original damped swing/ringing and inside control/protection.
 Ordered draw-area primitives clip intervening draws around the player priority.
 Keep their screen coordinates distinct from the room-owned anchor. Full GPU,
-afterimage/transformed-player parity, tower routing/scripts/boss and connected
-Chapel travel remain incomplete; protected component fixtures do not prove route parity.
+afterimage/transformed-player and whole-route parity remain incomplete; protected
+component fixtures do not prove ordinary traversal.
 
 Selected [Chapel tower exits](docs/chapel-tower-exits.md) now update original
 horizontal windows after player movement and route through adjusted neighbor cells
@@ -478,14 +479,14 @@ in the same tick. Keep the moving reference origin separate from physical player
 coordinates; its paired cell/X changes preserve world position. Destination actors
 initialize before first draw/collision, with one audio synthesis frame per simulation
 tick. Four protected explicit-start crossings are not all-door, ordinary-route or
-console parity evidence. Chapel remains disconnected while scripts/boss are missing.
+console parity evidence. Selected connected travel now runs; further destinations remain gated.
 
 Selected [Chapel sky backgrounds](docs/chapel-sky.md) now run the original private
 cloud planes and repeating land strip. Preserve signed-X/unsigned-depth phase and
 defined 16.16 wrap, private UV/model/grid/profile reads and SDK projection rounding.
 Malformed empty rows fail explicitly instead of retaining the source's unbounded
 scan. Controlled rendered contribution/phase checks are not whole-route or console
-parity evidence; full scenery/scripts/boss and connected Chapel remain incomplete.
+parity evidence; complete scenery/scripts and whole-route Chapel parity remain incomplete.
 
 Selected [Chapel stained glass](docs/chapel-stained-glass.md) now runs private
 panel poses/vertices/colors/subdivision, light fills/rays/glow and window/ceiling
@@ -493,12 +494,12 @@ backgrounds. Palette interpolation passes copied commands to owned renderer memo
 never mutate borrowed private inputs. Preserve documented US packed-coordinate
 midpoints and reversed floor-color assignment pending console comparison. Checked
 output cursors replace exhausted-pointer access. Protected component/render checks
-are not ordinary-route or console parity; confessional/scripts/boss remain missing.
+are not ordinary-route or console parity; complete stage presentation remains unproven.
 
 The internal [Chapel confessional](docs/chapel-confessional.md) now integrates chairs,
 original sitting/sleep letters, priest/parishioner variants, curtains, attackable
-blades, selected reward and private SEQ chime with XA restoration. Chapel remains
-disconnected while Maria, Hippogryph and connected progression need integration.
+blades, selected reward and private SEQ chime with XA restoration. Selected Maria,
+Hippogryph and connected progression now run within their documented limits.
 Controlled private fixtures are not uninterrupted-route or console parity evidence.
 
 The internal [Chapel Maria event](docs/chapel-maria.md) now runs its placed script,
@@ -506,4 +507,4 @@ event-created controller/actor, private speech/portraits, original camera-anchor
 pan and selected departure. Keep room coordinates distinct from screen scroll,
 flag 99 distinct from other Maria/Entrance events, and pause/stopwatch gates separate.
 Version-eight saves retain the flag. Transformation approaches, skip settings,
-full presentation/timing parity, Hippogryph and connected Chapel travel remain incomplete.
+full presentation/timing parity and whole-route Chapel replay remain incomplete.

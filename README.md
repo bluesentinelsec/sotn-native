@@ -62,6 +62,11 @@ directional escape and a selected game-over path; statue/fragment effects remain
 [Wall Medusa Heads](docs/outer-wall-medusa-heads.md) add blue/gold spawning,
 flight and stone contact within those limits.
 
+[Royal Chapel travel](docs/chapel-connections.md) now connects Laboratory to its
+selected encounters, save rooms and [Hippogryph](docs/hippogryph-body.md), including
+the reward, Maria dialogue/speech and return route. Other castle destinations,
+whole-route replay and full audiovisual/timing parity remain incomplete.
+
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.

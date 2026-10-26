@@ -85,3 +85,8 @@ Other stages' boss overrides remain outside this selected integration boundary.
 Library entrance rooms, with corrected red-door arrival ordering, live ailment
 retention and v8 ordinary save/Continue checks. Complete Library progression and
 whole-route parity remain incomplete.
+
+[Selected Chapel progression](chapel-connections.md) now connects Laboratory and
+Hippogryph in both directions, with defeat-record routing, ordinary Chapel saves
+and retained completion flags. Its controlled boss checks remain separate from
+ordinary-character route and console-parity evidence.

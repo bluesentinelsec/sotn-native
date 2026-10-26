@@ -970,6 +970,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             session->dra, session->room.foreground.collision,
             start.arrival                                  ? start.arrival->x
             : (session->room.foreground.parameters & 0x20) ? 128
+            : stage_id == 12 && start_room == 1            ? 240
             : stage_id == 65                               ? (start_room == 11 ? 16 : 128)
             : start_room >= 22                             ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
@@ -1024,10 +1025,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
     else if (stage_id == 25)
-        SDL_Log("Hippogryph internal checkpoint: selected body/attacks, physical damage, "
+        SDL_Log("Hippogryph checkpoint: selected body/attacks, physical damage, "
                 "defeat effects, arena doors/music, Life Max Up, clouds/sky and Maria's dialogue, "
-                "speech, flashbacks and player/camera control. Connected Chapel travel remains "
-                "incomplete. This is not a completed encounter or parity milestone.");
+                "speech, flashbacks and player/camera control, with connected Chapel travel. "
+                "Full encounter/presentation parity remains incomplete.");
     else if (stage_id == 2)
         SDL_Log("Long Library development adapters: common pickups, selected breakables, "
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
@@ -1036,15 +1037,14 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 6)
-        SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
+        SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
                 "and selected internal tower exits, clouds, sky land, stained glass, chairs "
                 "and confessional ghosts/blades/chime, plus Maria's selected script, speech "
-                "and camera. Hippogryph "
-                "and connected travel "
-                "remain incomplete.");
+                "and camera. Selected Hippogryph and Laboratory travel now connect; "
+                "further destinations and full area/encounter parity remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

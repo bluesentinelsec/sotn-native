@@ -64,8 +64,8 @@ static bool Metadata(Fixture *f)
     SotnActors *s = NULL;
     CHECK(Open(f, &s));
     const SotnStageProfile *p = SotnStageProfile_Get(25);
-    CHECK(p && !p->connected && p->actor_limit == 0x2f && p->prize_count == 1 &&
-          p->prize_bit == 0 && p->sprite_banks == 24 && !SotnStageProfile_SaveRoom(25, 0));
+    CHECK(p && p->connected && p->actor_limit == 0x2f && p->prize_count == 1 && p->prize_bit == 0 &&
+          p->sprite_banks == 24 && !SotnStageProfile_SaveRoom(25, 0));
     CHECK(ActorStageOffset(s, 0xbe0) == 0x46c && ActorStageOffset(s, 0xc10) == 0x49c &&
           ActorStageOffset(s, 0xdbc) == 0x544 && ActorStageOffset(s, 0xdc0) == 0x54c &&
           ActorStageOffset(s, 0xdc4) == 0x554 && ActorStageOffset(s, 0x1cc4) == 0x14b0 &&

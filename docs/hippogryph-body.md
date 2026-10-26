@@ -1,4 +1,4 @@
-# Hippogryph main body: work in progress
+# Hippogryph encounter
 
 The internal BO5 body now advances its original idle/activation, takeoff, hovering,
 landing, distance-based attack choice, flame breath, ground run, lunge, grabbing
@@ -57,10 +57,11 @@ function's unused allocation after clearing its entity during a skip. This owner
 adaptation is not evidence of original allocation-pressure parity on that path.
 Their original dialogue-driven birth now runs through the private event stream.
 
-This branch is not a completed encounter. Connected Chapel
-travel and full encounter/presentation parity still need verification. The BO5 profile remains disconnected, without a public
-gameplay start. Do not merge or describe this checkpoint as a playable Hippogryph
-milestone while those paths remain incomplete.
+[Connected Chapel travel](chapel-connections.md) now enters BO5 from either side
+and returns after victory. The ordinary Chapel room replaces the arena on later
+crossings, using the original defeat record. BO5 has no separate public gameplay
+start. This is a selected development encounter; complete encounter/presentation,
+ordinary-character and whole-route parity remain unproven.
 
 Public synthetic tests exercise activation/owned child creation, takeoff/flight,
 landing, distance selection, breath pools, object initialization, lunge timing,
@@ -171,5 +172,19 @@ come from the loaded slot. Real user slots remain untouched. This transfer is a
 fixture, not connected traversal. The existing Chapel Maria scene also passes its
 ASan/UBSan speech, save and Continue regression. All 100 public test groups pass
 in Debug and macOS ASan/UBSan; the final speech-stop change has targeted tests in
-both configurations. Connected travel, a natural boss encounter, whole-route
-replay and full audiovisual/timing parity remain incomplete.
+both configurations. Later connected checks below add physical combat and real
+stage crossings; whole-route replay and full audiovisual/timing parity remain incomplete.
+
+Connected native LLDB checks now enter from each Chapel side, defeat the boss
+through equipped Gladius hits, collect its reward, complete Maria's event and
+leave through the opposite exit. They cross the ordinary defeated arena in both
+directions without replaying BO5/Maria and retain save-store/progress ownership.
+Debug's scene takes 2,935 ticks/734 renders; macOS ASan/UBSan's opposite-side scene
+takes 2,953 ticks/739 renders. These scene totals exclude the additional travel and
+save ticks. Both use protected players and an explicit strength-99 grant; they do
+not force defeat or change boss HP. Enemy EXP/level gains and Life Max Up raise the
+fixture's maximum HP from 70 to 83. An explicit save-room transfer then verifies
+isolated ordinary save UI, fresh restoration and completion-mask load semantics.
+Those transfers are fixtures, not traversal from the boss to a save room. Early
+controllers stalled at the raised exits because they did not jump; passing checks
+use ordinary jump input and preserve collision/door data.

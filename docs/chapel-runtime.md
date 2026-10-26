@@ -1,5 +1,9 @@
 # Royal Chapel runtime foundation
 
+Current scope: [connected Chapel progression](chapel-connections.md) now adds
+Laboratory/BO5 travel. The foundation validation below records its earlier,
+internal-only scope; it is not evidence for complete stage or console parity.
+
 Royal Chapel (DAI, stage 6) now has an internal native resource profile, selected
 shared services, breakables/furnishings, Winged Guards, Bats, [Crow/Raven and
 Skelerang encounters](chapel-enemies.md). Connected travel remains

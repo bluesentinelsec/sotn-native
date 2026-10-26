@@ -1,9 +1,9 @@
 # Chapel tower exits
 
 Selected Royal Chapel tower doors now change rooms inside the overlapping tower,
-skyway and corridor bounds. Chapel remains an internal development profile;
-connected castle travel stays disabled until its remaining scripts and boss work.
-This is not a complete stage or game milestone.
+skyway and corridor bounds. [Chapel connections](chapel-connections.md) now add
+Laboratory/BO5 travel; the earlier tower-only validation below retains its explicit
+fixtures. This is not a complete stage or game milestone.
 
 The adapter follows US `st/dai/e_tower_exit.c` and
 `dra/5087C.c:{Engine_Normal,func_800F0CD8,SetNextRoomToLoad}` at the pinned
@@ -57,6 +57,6 @@ A shared private regression also passed three Wall/Library connectors, isolated
 ordinary save/Continue and failed-arrival owner retention (1,379 ticks, 344 renders).
 Existing user save slots remain untouched.
 
-Chapel Maria, Hippogryph, scenery, connected progression and whole-route testing
-remain incomplete. Full transition/camera/effects/audio timing parity remains
+Selected Chapel Maria, Hippogryph and connected travel now run; whole-route
+testing and further stage destinations remain incomplete. Full transition/camera/effects/audio timing parity remains
 unproven; do not expose a geometry-only public Chapel route on this evidence.
