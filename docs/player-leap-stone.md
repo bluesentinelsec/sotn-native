@@ -43,9 +43,10 @@ acquisition, uninterrupted traversal or console parity.
 Both Debug and macOS ASan/UBSan native probes exit normally, with 112 draws each
 and SDL dummy audio explicitly verified before simulation.
 
-Dive kicks, Gravity Boots, transformations, other abilities, their complete
-effects and remaining castle routes still require integration. Do not describe
-this double-jump slice as complete Leap Stone combat or complete Alucard abilities.
+The [selected dive kick](player-dive-kick.md) now adds its Jump-only attack and
+rebound. Shared factory/group parity, Gravity Boots, transformations, other
+abilities, complete effects and remaining castle routes still need integration.
+Do not describe these slices as complete Leap Stone combat or complete Alucard abilities.
 
 ## Provenance
 

@@ -217,6 +217,13 @@ static bool Calculate(SotnCharacter *c)
             items[i].attack + attack +
                 (items[i].attack <= result.total[0] ? result.total[0] : result.total[0] / 2),
             0, 999);
+    SotnItem empty = {0};
+    if (!SotnItem_Read(c->dra, false, 0, &empty))
+        return false;
+    result.unarmed_attack = (Uint16)SDL_clamp(
+        empty.attack + attack +
+            (empty.attack <= result.total[0] ? result.total[0] : result.total[0] / 2),
+        0, 999);
     result.defense = (Uint16)SDL_clamp(defense + Root(result.total[1]) - 2, 0, 999);
     c->stats = result;
     return true;

@@ -494,10 +494,13 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     player->vy = SDL_min(7 * FIX_ONE, player->vy + gravity);
     if (player->vy >= 0 && (flags & 1) && (player->contact & 1))
     {
+        const bool diving = player->step == SOTN_PLAYER_JUMP && player->substep == 0x70;
         if (player->vy > 450560)
-            Crouch(player, 1, 0);
+            Crouch(player, diving ? 3U : 1U, diving ? player->vx / 2 : 0);
         else if (player->movement_flags & 0x10)
             Walk(player, true);
+        else if (diving && (player->vx > 2 * FIX_ONE || player->vx < -2 * FIX_ONE))
+            Land(player, player->vx);
         else
             Land(player, 0);
         ClearAttack(player);
@@ -647,6 +650,19 @@ static void JumpTick(SotnPlayer *player)
     }
     if (Transitions(player, 0x11029))
         return;
+    if (player->substep == 0x70)
+    {
+        if (player->movement_flags & 0x80)
+        {
+            Jump(player);
+            if (!(player->buttons & SOTN_BUTTON_JUMP))
+                player->vy = -278528;
+            player->movement_flags |= 0x40;
+        }
+        if (player->movement_flags & 0x100)
+            player->vx = 0;
+        return;
+    }
     if (player->attack_mode != 0 && player->substep >= 0x40)
     {
         if (player->buttons & SOTN_BUTTON_LEFT)
@@ -678,6 +694,19 @@ static void JumpTick(SotnPlayer *player)
             Animate(player, 27);
         player->substep = 1;
     }
+    if (player->substep <= 1 && (player->movement_flags & 1) &&
+        (player->buttons & SOTN_BUTTON_DOWN) && (player->tapped & SOTN_BUTTON_JUMP))
+    {
+        Animate(player, 34);
+        player->substep = 0x70;
+        player->movement_flags &= ~0x80U;
+        player->vy = 6 * FIX_ONE;
+        if (direction != 0)
+            SetSpeed(player, 294912);
+        player->sound = 0x6f0;
+    }
+    if (player->movement_flags & 0x100)
+        player->vx = 0;
 }
 
 static void CrouchTick(SotnPlayer *player)
@@ -1070,7 +1099,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return SDL_SetError("Unsupported Alucard movement state");
     }
     if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next) ||
-        !TickShield(&next))
+        !TickShield(&next) || !SotnPlayer_KickTick(&next))
         return false;
     if (next.step == SOTN_PLAYER_KILL)
     {
@@ -1106,7 +1135,8 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
         return false;
     player->dra = dra;
     player->hp = player->hp_max = 70;
-    player->attributes = (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}};
+    player->attributes =
+        (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}, .unarmed_attack = 6};
     player->map = map;
     player->x.value = (Sint32)start_x;
     player->y.value = (Sint32)start_y;
@@ -1229,7 +1259,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .poison_ticks = player->poison_ticks,
         .extra_sound = player->extra_sound,
         .grab = player->grab,
-        .priority = 148};
+        .priority = 148,
+        .kick = player->kick};
     return true;
 }
 
@@ -1332,7 +1363,7 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
 {
     if (player == NULL || state == NULL || state->hp_max == 0 || state->hp_max > 9999 ||
         state->hp > state->hp_max || stats.attack[0] > 999 || stats.attack[1] > 999 ||
-        player->step == SOTN_PLAYER_KILL)
+        stats.unarmed_attack > 999 || player->step == SOTN_PLAYER_KILL)
         return SDL_SetError(
             "Player character update requires bounded living progress and attributes");
     player->hp = state->hp;
