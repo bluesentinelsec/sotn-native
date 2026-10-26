@@ -572,8 +572,11 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
                              &session->dialogue))
         return false;
     SotnPaletteBlend palette = {0};
+    SotnPaletteRedShift red_shift = {0};
     if (!SotnActors_GetPaletteBlend(session->actors, &palette) ||
-        !SotnActorGraphics_BlendPalette(session->actor_graphics, palette))
+        !SotnActorGraphics_BlendPalette(session->actor_graphics, palette) ||
+        !SotnActors_GetPaletteRedShift(session->actors, &red_shift) ||
+        !SotnActorGraphics_ReddenPalette(session->actor_graphics, red_shift))
         return false;
     if (session->dialogue.background_enabled)
         session->room.background.flags |= 1;

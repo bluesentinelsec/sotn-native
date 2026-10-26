@@ -97,6 +97,10 @@ bool SotnActors_GetRoomWindow(const SotnActors *actors, SotnRoomWindow *out);
  * @return Success or SDL error. Tick/room entry clears the command; private inputs stay borrowed.
  */
 bool SotnActors_GetPaletteBlend(const SotnActors *actors, SotnPaletteBlend *out);
+/** @brief Copy this tick's NO2 palette red increment; tick/room entry clears the request.
+ * @param actors Borrowed owner. @param out Copied command, unchanged on invalid input.
+ * @return Success or SDL error; the renderer owns and validates the affected palette memory. */
+bool SotnActors_GetPaletteRedShift(const SotnActors *actors, SotnPaletteRedShift *out);
 
 /** @brief Copied actor state used by native presentation and replay inspection. */
 typedef struct SotnActorState

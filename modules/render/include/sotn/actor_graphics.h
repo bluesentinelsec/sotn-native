@@ -171,4 +171,9 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics);
  * @return Success or SDL error. Missing source colors or invalid bounds leave all VRAM intact;
  * borrowed private images remain unchanged. Inactive commands do nothing. */
 bool SotnActorGraphics_BlendPalette(SotnActorGraphics *graphics, SotnPaletteBlend blend);
+/** @brief Apply a bounded original red-channel palette increment to owned graphics memory.
+ * @param graphics Borrowed owner. @param shift Copied palette rows; zero count does nothing.
+ * @return Success or SDL error. All rows/residency are checked before any write;
+ * transparency entry zero, RGB555 green/blue and mask bits remain unchanged. */
+bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *graphics, SotnPaletteRedShift shift);
 #endif

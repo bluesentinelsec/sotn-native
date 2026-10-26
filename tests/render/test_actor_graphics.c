@@ -961,6 +961,48 @@ static bool TestPaletteBlend(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestPaletteRedShift(Fixture *f)
+{
+    MakeFixture(f);
+    const Uint16 color = (Uint16)(0x8000U | 4U | (13U << 5) | (3U << 10));
+    Put32(f->nz0 + 0xc4, 32 * 16);
+    Put16(f->nz0 + 0x200, 0x8000);
+    Put16(f->nz0 + 0x202, color);
+    Put16(f->nz0 + 0x204, 31);
+    Put16(f->nz0 + 0x206, 0);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    SotnPaletteRedShift shift = {.palettes = {32}, .count = 1};
+    CHECK(SotnActorGraphics_ReddenPalette(g, shift));
+    SotnTextureQuad q = {.x = {0, 4, 0, 4},
+                         .y = {0, 0, 1, 1},
+                         .u = {4, 8, 4, 8},
+                         .v = {0, 0, 1, 1},
+                         .page = 24,
+                         .palette = 32};
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == color + 1 && f->frame[1] == 31 && f->frame[2] == 1 &&
+          f->frame[3] == 0x8000);
+    const SotnPaletteRedShift invalid[] = {
+        {.palettes = {32, 256}, .count = 2}, {.palettes = {32, 32}, .count = 2}, {.count = 8}};
+    for (size_t i = 0; i < SDL_arraysize(invalid); ++i)
+    {
+        CHECK(!SotnActorGraphics_ReddenPalette(g, invalid[i]));
+        CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) &&
+              f->frame[0] == color + 1);
+    }
+    for (Uint16 i = 0; i < 40; ++i)
+        CHECK(SotnActorGraphics_ReddenPalette(g, shift));
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) &&
+          f->frame[0] == (Uint16)((color & 0xffe0U) | 31U) && f->frame[1] == 31 &&
+          f->frame[2] == 31 && f->frame[3] == 0x8000);
+    CHECK(f->nz0[0x202] == (Uint8)color && f->nz0[0x203] == (Uint8)(color >> 8));
+    CHECK(SotnActorGraphics_ReddenPalette(g, (SotnPaletteRedShift){0}));
+    CHECK(!SotnActorGraphics_ReddenPalette(NULL, shift));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -971,7 +1013,8 @@ int main(void)
                         TestSprites(fixture) && TestFailures(fixture) &&
                         TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
                         TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-                        TestColorLine(fixture) && TestPaletteBlend(fixture);
+                        TestColorLine(fixture) && TestPaletteBlend(fixture) &&
+                        TestPaletteRedShift(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

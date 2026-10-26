@@ -10,4 +10,11 @@ typedef struct SotnPaletteBlend
     Uint8 red, green, blue;
     bool active;
 } SotnPaletteBlend;
+/** @brief One original NO2 red-channel increment for up to seven owned palette rows.
+ * Colors 1..15 gain one saturated RGB555 red unit; color zero and other bits remain unchanged. */
+typedef struct SotnPaletteRedShift
+{
+    Uint16 palettes[7];
+    Uint8 count;
+} SotnPaletteRedShift;
 #endif

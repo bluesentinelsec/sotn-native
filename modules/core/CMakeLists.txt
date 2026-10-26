@@ -163,6 +163,7 @@ add_library(sotn-core STATIC
   world.c
   include/sotn/world.h
   actor_doors.c
+  olrox_scene.c
   olrox_doors.c
   actor_cannon.c
   actor_objects.c

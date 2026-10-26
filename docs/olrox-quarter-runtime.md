@@ -85,8 +85,9 @@ Gurkha families. NO2’s [Spectral Sword](olrox-spectral-sword.md) now adds its 
 fifteen-weapon encounter. The [secret wall and ceiling](olrox-secrets.md) now
 retain attacks, collision patches, selected debris and discovery across saves.
 [Selected stone doors](olrox-stone-doors.md) now add the original forced walking,
-collision columns and shaded panels. House/background mechanisms and Olrox remain
-outside these batches. Other abilities, complete effects/audio, connected area progression
+collision columns and shaded panels. The [courtyard scenery](olrox-courtyard.md)
+now adds house models, backgrounds, lamps and glow. Its framebuffer effect and
+Olrox remain outside these batches. Other abilities, complete effects/audio, connected area progression
 and whole-route timing/console comparisons remain incomplete. Keep the connected
 profile disabled until that progression has meaningful native validation.
 
