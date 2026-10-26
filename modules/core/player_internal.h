@@ -53,6 +53,7 @@ struct SotnPlayer
     Uint16 attack_power, shield_power;
     SotnPlayerDeath death;
     SotnPlayerStone stone;
+    SotnPlayerGrab grab;
     Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
     bool curse_failure, script_hold, bell_inside;
     SotnCharacterStats attributes;

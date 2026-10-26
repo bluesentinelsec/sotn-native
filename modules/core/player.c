@@ -369,7 +369,8 @@ static bool TickShield(SotnPlayer *player)
     const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
     const bool disabled = player->equipment[hand] != 16 || player->curse_ticks != 0 ||
                           player->curse_failure || player->step == SOTN_PLAYER_KILL ||
-                          player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE;
+                          player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE ||
+                          player->step == SOTN_PLAYER_BOSS_GRAB;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -822,6 +823,67 @@ static void CrouchTick(SotnPlayer *player)
     }
 }
 
+static void PhysicalDeath(SotnPlayer *player, bool right)
+{
+    player->step = SOTN_PLAYER_KILL;
+    player->substep = 1;
+    player->death = (SotnPlayerDeath){.phase = 1, .red = 128, .blue = 128};
+    player->vx = right ? 81920 : -81920;
+    player->vy = -212992;
+    player->sound = 0x6f6;
+    Animate(player, 0xc0);
+}
+
+// dra/71830.c:PlayerStepBossGrab. BO5 clears GRAB_NONE rather than using the thrown release.
+static void BossGrabTick(SotnPlayer *player)
+{
+    if (player->substep == 0)
+    {
+        ClearAttack(player);
+        player->movement_flags = 0;
+        player->stone = (SotnPlayerStone){0};
+        Animate(player, 0x37);
+        player->timers[2] = 8;
+        player->sound = 0x6eb;
+        player->vx = player->vy = 0;
+        player->substep = 1;
+        player->grab.state = SOTN_GRAB_HELD;
+    }
+    else if (player->grab.state == SOTN_GRAB_DAMAGE)
+    {
+        Uint16 damage = 0;
+        const SotnContactPower power = {.attack = player->grab.damage};
+        if (!SotnCombat_NormalContact(power, player->attributes.defense, player->poison_ticks != 0,
+                                      &damage))
+        {
+            player->failed = true;
+            return;
+        }
+        player->hp = damage >= player->hp ? 0 : (Uint16)(player->hp - damage);
+        if (!player->hp)
+        {
+            const Sint32 center =
+                player->x.parts.high +
+                (player->facing_left ? -player->animation.hitbox_x : player->animation.hitbox_x);
+            const Sint32 delta = center - player->grab.source_x;
+            const bool right = SDL_abs(delta) < 16 && player->grab.source_velocity != 0
+                                   ? player->grab.source_velocity > 0
+                                   : delta >= 0;
+            PhysicalDeath(player, right);
+            return;
+        }
+        player->timers[2] = 4;
+        player->sound = 0x6e7;
+        player->grab.state = SOTN_GRAB_HELD;
+    }
+    else if (player->grab.state == SOTN_GRAB_NONE)
+    {
+        player->step = SOTN_PLAYER_HIT;
+        player->substep = 1;
+    }
+    player->invincibility = (Uint16)SDL_max(player->invincibility, 12);
+}
+
 // Selected physical death; the selected stone completion uses its own clocks.
 static void DeathTick(SotnPlayer *player)
 {
@@ -913,8 +975,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
         ClearAttack(&next);
     }
+    if (next.grab.state == SOTN_GRAB_START)
+        SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     switch (next.step)
     {
+    case SOTN_PLAYER_BOSS_GRAB:
+        BossGrabTick(&next);
+        break;
     case SOTN_PLAYER_SCRIPT:
         next.vx = next.vy = 0;
         if (!next.script_hold)
@@ -1000,7 +1067,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.x.value += next.vx;
         next.y.value += next.vy;
     }
-    else
+    else if (next.step != SOTN_PLAYER_BOSS_GRAB)
         SotnPlayer_Collide(&next);
     if (next.failed)
         return false;
@@ -1112,6 +1179,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x150000U;
     if (player->step == SOTN_PLAYER_STONE)
         status |= 0x110080U;
+    if (player->step == SOTN_PLAYER_BOSS_GRAB)
+        status |= 0x38110040U;
     if (player->step == SOTN_PLAYER_SCRIPT)
         status |= 0x38110000U;
     *out = (SotnPlayerState){
@@ -1131,13 +1200,14 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .hp = player->hp,
         .hp_max = player->hp_max,
         .invulnerable = player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
-                        player->step == SOTN_PLAYER_KILL,
+                        player->step == SOTN_PLAYER_KILL || player->grab.state != SOTN_GRAB_NONE,
         .sound = player->sound,
         .death = player->death,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
-                     player->step != SOTN_PLAYER_SCRIPT,
+                     player->step != SOTN_PLAYER_SCRIPT && player->grab.state == SOTN_GRAB_NONE &&
+                     player->step != SOTN_PLAYER_BOSS_GRAB,
         .random = player->damage_random,
         .solid_width = (Uint16)SDL_max(0, player->wall_sensors[0].x),
         .solid_height = (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
@@ -1147,7 +1217,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .stone = player->stone,
         .curse_ticks = player->curse_ticks,
         .poison_ticks = player->poison_ticks,
-        .extra_sound = player->extra_sound};
+        .extra_sound = player->extra_sound,
+        .grab = player->grab};
     return true;
 }
 
@@ -1165,7 +1236,8 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Player damage requires a bounded physical attack and source");
     if (amount == 0 || player->hp == 0 || player->invincibility != 0 ||
-        player->step == SOTN_PLAYER_HIT)
+        player->step == SOTN_PLAYER_HIT || player->grab.state != SOTN_GRAB_NONE ||
+        player->step == SOTN_PLAYER_BOSS_GRAB)
         return true;
     if (player->step == SOTN_PLAYER_STONE)
         return SotnPlayer_Petrify(player, amount, source_x, source_velocity);
@@ -1181,12 +1253,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     next.invincibility = 12;
     if (next.hp == 0)
     {
-        next.step = SOTN_PLAYER_KILL;
-        next.death = (SotnPlayerDeath){.phase = 1, .red = 128, .blue = 128};
-        next.vx = right ? 81920 : -81920;
-        next.vy = -212992;
-        next.sound = 0x6f6;
-        Animate(&next, 0xc0);
+        PhysicalDeath(&next, right);
         if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
             return false;
         *player = next;
@@ -1343,7 +1410,8 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Curse contact requires bounded damage and source motion");
     if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
-        player->step == SOTN_PLAYER_KILL)
+        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        player->grab.state != SOTN_GRAB_NONE)
         return true;
     if (player->step == SOTN_PLAYER_STONE)
         return SotnPlayer_Damage(player, amount, source_x, source_velocity);
@@ -1361,7 +1429,9 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
 
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
 {
-    if (player == NULL || (hold && player->step == SOTN_PLAYER_KILL))
+    if (player == NULL ||
+        (hold && (player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+                  player->grab.state != SOTN_GRAB_NONE)))
         return SDL_SetError("Script hold requires a living normal-form player owner");
     player->script_hold = hold;
     return true;
@@ -1375,6 +1445,40 @@ bool SotnPlayer_StageAlignX(SotnPlayer *p, Sint32 x)
     if (!PositionValid(p->map, target, p->y.value))
         return SDL_SetError("Script horizontal alignment exceeds the bounded player room");
     p->x.value = (Sint32)target;
+    return true;
+}
+bool SotnPlayer_StageAlignY(SotnPlayer *p, Sint32 y)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    const Sint64 target = (Sint64)y * FIX_ONE + p->y.parts.low;
+    if (!PositionValid(p->map, p->x.value, target))
+        return SDL_SetError("Boss vertical alignment exceeds the bounded player room");
+    p->y.value = (Sint32)target;
+    return true;
+}
+
+bool SotnPlayer_RequestGrab(SotnPlayer *p, SotnPlayerGrab request)
+{
+    if (!p || request.damage > 9999 || request.source_x < -512 || request.source_x > 16896 ||
+        request.source_velocity < -16 * FIX_ONE || request.source_velocity > 16 * FIX_ONE ||
+        (request.state != SOTN_GRAB_NONE && request.state != SOTN_GRAB_START &&
+         request.state != SOTN_GRAB_DAMAGE))
+        return SDL_SetError("Boss grab requires a supported request and bounded damage/source");
+    if (request.state == SOTN_GRAB_NONE)
+    {
+        p->grab.state = SOTN_GRAB_NONE;
+        return true;
+    }
+    if (!p->hp || p->step == SOTN_PLAYER_KILL || p->script_hold || p->step == SOTN_PLAYER_SCRIPT ||
+        p->step == SOTN_PLAYER_STONE)
+        return SDL_SetError("Boss grab requires a living normal-form player outside a script");
+    if ((request.state == SOTN_GRAB_START &&
+         (p->grab.state != SOTN_GRAB_NONE || p->step == SOTN_PLAYER_BOSS_GRAB)) ||
+        (request.state == SOTN_GRAB_DAMAGE &&
+         (p->step != SOTN_PLAYER_BOSS_GRAB || p->grab.state != SOTN_GRAB_HELD)))
+        return SDL_SetError("Boss grab request does not match the player's acknowledgement");
+    p->grab = request;
     return true;
 }
 bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind)
@@ -1400,7 +1504,8 @@ bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Poison contact requires bounded damage and source motion");
     if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
-        player->step == SOTN_PLAYER_KILL)
+        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        player->grab.state != SOTN_GRAB_NONE)
         return true;
     if (player->step == SOTN_PLAYER_STONE)
         return SotnPlayer_Damage(player, amount, source_x, source_velocity);

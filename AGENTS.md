@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+The selected [normal-form boss grab service](docs/player-boss-grab.md) now provides
+Hippogryph's start/held/damage/clear-to-drop handshake, original grabbed animation
+and pain requests, collision/input hold, defense/poison damage and selected lethal
+completion. This is a dependency; Hippogryph and connected Chapel travel remain
+unintegrated. Thrown-release/stone grabs and full grab effects remain incomplete.
+
 ## Purpose and priorities
 
 Build a native, personal and educational *Symphony of the Night* port that
