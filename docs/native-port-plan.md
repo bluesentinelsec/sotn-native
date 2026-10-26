@@ -37,6 +37,10 @@ prologue initialization and full audiovisual/timing parity remain incomplete. Re
 and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-world.md),
 [map](castle-map.md), and [session flow](native-session-flow.md).
 
+The selected [Leap Stone double jump](player-leap-stone.md) now consumes saved,
+active relic ownership through the normal-form player. Dive kicks, Gravity Boots,
+transformations and full ability/progression parity remain incomplete.
+
 ## Pinned reference
 
 [config/reference-us.json](../config/reference-us.json) records:

@@ -638,6 +638,132 @@ static bool TestBossGrabFailures(Fixture *f)
     return true;
 }
 
+static bool TestLeapStone(Fixture *f)
+{
+    for (Uint8 ownership = 0; ownership <= 3; ++ownership)
+    {
+        if (ownership == 2)
+            continue;
+        const SotnCollisionMap map = MakeFixture(f);
+        SotnPlayer *p = NULL;
+        SotnPlayerState before = {0}, after = {0};
+        SotnWorldState world = {0};
+        world.relics[SOTN_RELIC_LEAP] = ownership;
+        CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+        CHECK(SotnPlayer_SetRelics(p, &world));
+        world.relics[SOTN_RELIC_LEAP] = 0; // The player owns its snapshot.
+        world.relics[SOTN_RELICS - 1] = 2;
+        CHECK(!SotnPlayer_SetRelics(p, &world)); // No partial copy on a late invalid byte.
+        CHECK(!SotnPlayer_SetRelics(NULL, &world) && !SotnPlayer_SetRelics(p, NULL));
+        CHECK(SotnPlayer_Tick(p, 0));
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT));
+        CHECK(SotnPlayer_Tick(p, 0) && State(p, &before));
+        CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+        CHECK(after.step == SOTN_PLAYER_JUMP && after.velocity_x == before.velocity_x - 4096);
+        CHECK(after.velocity_y == (ownership == 3 ? -278528 : before.velocity_y + 11264));
+        CHECK((after.animation.id == 32) == (ownership == 3));
+        if (ownership == 3)
+        {
+            CHECK(after.substep == 0 && after.sound == 0 && !after.attack.active);
+            CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+            CHECK(after.velocity_y == -278528 + 11264); // Holding jump cannot retrigger it.
+            CHECK(SotnPlayer_ChangeRoom(p, map, 0, 0));
+            world = (SotnWorldState){0};
+            CHECK(SotnPlayer_SetRelics(p, &world));
+            world.relics[SOTN_RELIC_LEAP] = 3;
+            CHECK(SotnPlayer_SetRelics(p, &world)); // Toggling or room changes cannot refill it.
+            CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_JUMP));
+            CHECK(State(p, &after) && after.velocity_y == -65536 + 2 * 11264);
+            for (Uint32 tick = 0; tick < 100; ++tick)
+                CHECK(SotnPlayer_Tick(p, 0));
+            CHECK(State(p, &after) && after.step == SOTN_PLAYER_STAND);
+            CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && SotnPlayer_Tick(p, 0) &&
+                  SotnPlayer_Tick(p, SOTN_BUTTON_JUMP));
+            CHECK(State(p, &after) && after.velocity_y == -278528 && after.animation.id == 32);
+        }
+        SotnPlayer_Close(p);
+    }
+    return true;
+}
+
+static bool TestLeapAttackPriority(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    AttackFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState state = {0};
+    SotnWorldState world = {0};
+    world.relics[SOTN_RELIC_LEAP] = 3;
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_SetRelics(p, &world) && SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND) && State(p, &state));
+    CHECK(state.step == SOTN_PLAYER_JUMP && state.animation.id == 0x28 && state.substep == 0x40);
+    CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &state));
+    CHECK(state.animation.id != 32 && state.velocity_y > -278528); // Attack startup blocks it.
+    for (Uint32 tick = 0; tick < 100; ++tick)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Damage(p, 10, 64, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &state));
+    CHECK(state.step == SOTN_PLAYER_HIT && state.animation.id != 32);
+    SotnPlayer_Close(p);
+    return true;
+}
+
+static bool TestLeapFallAndFailure(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState before = {0}, after = {0};
+    SotnWorldState world = {0};
+    world.relics[SOTN_RELIC_LEAP] = 3;
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 40, &p));
+    CHECK(SotnPlayer_SetRelics(p, &world));
+    for (Uint32 tick = 0; tick < 12; ++tick)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(State(p, &before) && before.step == SOTN_PLAYER_FALL && before.velocity_y > 0);
+    Put32(f->dra, 0x101b8 + 32 * 4, 0x800b1000);
+    CHECK(!SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+    CHECK(after.x == before.x && after.y == before.y && after.velocity_y == before.velocity_y &&
+          after.animation.id == before.animation.id &&
+          after.animation.pose == before.animation.pose);
+    Put32(f->dra, 0x101b8 + 32 * 4, 0x800a0100);
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+    CHECK(after.step == SOTN_PLAYER_FALL && after.substep == 0 && after.velocity_y == -278528 &&
+          after.animation.id == 32); // Falling retains its original state and gravity rules.
+    CHECK(SotnPlayer_Tick(p, 0) && State(p, &after) && after.velocity_y == -278528 + 11264);
+    SotnPlayer_Close(p);
+
+    MakeFixture(f);
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_SetRelics(p, &world) && SotnPlayer_Tick(p, 0));
+    SDL_memset(f->tiles, 0, sizeof(f->tiles));
+    for (Uint32 tick = 0; tick < 2; ++tick)
+        CHECK(SotnPlayer_Tick(p, 0));
+    CHECK(State(p, &before) && before.step == SOTN_PLAYER_FALL);
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+    CHECK(after.step == SOTN_PLAYER_JUMP && after.velocity_y == -319488 &&
+          after.animation.id != 32); // Original ledge grace still uses an ordinary jump first.
+    SotnPlayer_Close(p);
+
+    MakeFixture(f);
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_SetRelics(p, &world) && SotnPlayer_Tick(p, 0));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && SotnPlayer_Tick(p, 0) && State(p, &before));
+    const size_t ceiling = (size_t)((before.y / 65536 - 22) / 16);
+    for (Uint32 x = 0; x < 32; ++x)
+        f->tiles[(ceiling * 32 + x) * 2] = 1;
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+    CHECK(after.velocity_y == 0 && after.animation.id == 32); // Tight space still consumes it.
+    SDL_memset(f->tiles, 0, ceiling * 32 * 2 + 64);
+    CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after));
+    CHECK(after.velocity_y >= 0 && after.animation.id != 32);
+    SotnPlayer_Close(p);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -648,7 +774,8 @@ int main(void)
                         TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
                         TestChairs(fixture) && TestScriptAlignment(fixture) &&
                         TestBossGrab(fixture) && TestBossGrabFailures(fixture) &&
-                        TestFailures(fixture);
+                        TestFailures(fixture) && TestLeapStone(fixture) &&
+                        TestLeapFallAndFailure(fixture) && TestLeapAttackPriority(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

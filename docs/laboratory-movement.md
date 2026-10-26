@@ -15,6 +15,9 @@ landing, one-way platform drop-through, slope/wall/ceiling collision, and
 transitions between adjacent Laboratory rooms. Motion uses original 16.16
 fixed-point values and sensor rules; animation uses the private DRA tables.
 The native session renders the existing tile/sprite pipeline through OpenGL.
+An owned, active [Leap Stone](player-leap-stone.md) now enables the original
+double jump; it is not granted by default. Dive kicks and other abilities remain
+incomplete.
 
 The [actor checkpoint](laboratory-actors.md) now adds selected original room
 objects and Bloody Zombie active motion/animation to this movement foundation.

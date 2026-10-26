@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+The selected [Leap Stone double jump](docs/player-leap-stone.md) now uses a copied,
+validated relic snapshot from session progress, original Jump/Fall semantics and
+one use per airborne interval. Never grant it by default or refill it during a
+room change/snapshot update. Dive kicks, Gravity Boots and full abilities remain
+incomplete; positioned/private-grant checks are not ordinary acquisition parity.
+
 The selected [normal-form boss grab service](docs/player-boss-grab.md) now provides
 Hippogryph's start/held/damage/clear-to-drop handshake, original grabbed animation
 and pain requests, collision/input hold, defense/poison damage and selected lethal
