@@ -153,7 +153,7 @@ bool ActorChapel(SotnActors *s, Actor *a)
         return ActorChapelExit(s, a);
     case 0x1f:
     case 0x20:
-        return ActorChapelSky(s, a);
+        return ActorCastleSky(s, a);
     case 0x17:
     case 0x18:
         return ActorChapelGlass(s, a);

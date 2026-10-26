@@ -1,6 +1,7 @@
 #ifndef SOTN_ACTOR_GRAPHICS_H
 #define SOTN_ACTOR_GRAPHICS_H
 
+#include <sotn/dialogue.h>
 #include <sotn/equipment.h>
 #include <sotn/palette.h>
 #include <sotn/tilemap.h>
@@ -46,6 +47,11 @@ bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
  * Portrait palettes must already be installed by the stage's bulk palette loader.
  */
 bool SotnActorGraphics_LoadPortrait(SotnActorGraphics *graphics, Uint32 offset, Uint16 slot);
+/** @brief Refresh BO5's original five-row text cache from private common-font words.
+ * @param graphics Borrowed stage-25 texture owner. @param dialogue Copied primitive-text state.
+ * @return Success or SDL error; validates glyphs/residency before writing. No strings or artwork
+ * are compiled in. Owned dialogue packets select the cache's original rows and clipping. */
+bool SotnActorGraphics_LoadDialogue(SotnActorGraphics *graphics, SotnDialogueState dialogue);
 /** @brief Load a hand's supported weapon texture, palettes, and multipart definitions.
  * @param graphics Borrowed owned texture memory. @param weapons Borrowed WEAPON0.BIN; alive
  * until replacement or graphics destruction. @param hand Left (0) or right (1).
@@ -78,14 +84,15 @@ bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorS
 /** @brief Original affine scale/rotation/color, with 256 as unit scale and 128 as neutral color. */
 typedef struct SotnSpriteTransform
 {
-    Sint16 rotation;
-    Uint16 scale_x, scale_y, opacity;
+    Sint16 rotation, scale_x, scale_y;
+    Uint16 opacity;
     bool tint; /**< When true, RGB multipliers replace opacity. */
     Uint8 red, green, blue;
 } SotnSpriteTransform;
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
- * @param x Screen anchor. @param y Screen anchor. @param transform Scale 1..1024, color 0..255.
+ * @param x Screen anchor. @param y Screen anchor. @param transform Nonzero signed scale
+ * -1024..1024 (negative reflects the axis), color 0..255.
  * @param frame Full writable frame. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,

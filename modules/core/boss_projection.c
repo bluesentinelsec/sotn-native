@@ -191,14 +191,28 @@ bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16
     return true;
 }
 
+bool SotnCloud_GetProfile(Uint16 stage, SotnCloudProfile *out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    if (stage == 6)
+        *out = (SotnCloudProfile){0x968, 0x242c, 0x2464, 0x2484, 0x2544, 0x255c};
+    else if (stage == 25)
+        *out = (SotnCloudProfile){0x484, 0x18ec, 0x1924, 0x1944, 0x1a04, 0x1a1c};
+    else
+        return SDL_SetError("Sky metadata requires original Chapel or BO5 stage identity");
+    return true;
+}
 // st/e_clouds.h: identity matrix, screen distance256 and private plane vertices.
-bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 depth,
-                             SotnProjectedPoint out[4])
+bool SotnCloud_Project(SotnDataView data, Uint16 stage, Sint32 x, Sint32 y, Uint16 depth,
+                       SotnProjectedPoint out[4])
 {
     if (!out || x < -16384 || x > 16384 || y < -512 || y > 512 || depth < 192 || depth > 2240)
         return SDL_SetError("Chapel cloud projection exceeds its bounded plane controls");
     SotnDataView rotation = {0}, vertices = {0};
-    if (!Slice(chapel, 0x255c, 6, &rotation) || !Slice(chapel, 0x2464, 32, &vertices))
+    SotnCloudProfile profile = {0};
+    if (!SotnCloud_GetProfile(stage, &profile) || !Slice(data, profile.rotation, 6, &rotation) ||
+        !Slice(data, profile.vertices, 32, &vertices))
         return false;
     if (Read16(rotation.bytes) || Read16(rotation.bytes + 2) || Read16(rotation.bytes + 4))
         return SDL_SetError("Chapel clouds require their original identity rotation");
@@ -214,6 +228,12 @@ bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 dep
     }
     SDL_memcpy(out, result, sizeof(result));
     return true;
+}
+
+bool SotnChapel_ProjectCloud(SotnDataView chapel, Sint32 x, Sint32 y, Uint16 depth,
+                             SotnProjectedPoint out[4])
+{
+    return SotnCloud_Project(chapel, 6, x, y, depth, out);
 }
 
 bool SotnChapel_ProjectGlass(SotnDataView executable, SotnGlassTransform p,

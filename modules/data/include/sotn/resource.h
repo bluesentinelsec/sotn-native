@@ -6,33 +6,35 @@
 /** @brief Additional private files loaded on demand, independently of the core snapshot. */
 typedef enum SotnResourceId
 {
-    SOTN_RESOURCE_LAB_GRAPHICS = 0,      /**< US ST/NZ0/F_NZ0.BIN tiles and palettes. */
-    SOTN_RESOURCE_COMMON_GRAPHICS,       /**< US BIN/F_GAME.BIN common textures and palettes. */
-    SOTN_RESOURCE_ALUCARD_GRAPHICS,      /**< US BIN/ARC_F.BIN player sprite sheets. */
-    SOTN_RESOURCE_COMMON_AUDIO,          /**< US shared sound-bank body. */
-    SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,  /**< US Alucard instrument metadata. */
-    SOTN_RESOURCE_ALUCARD_AUDIO_BODY,    /**< US Alucard sample data. */
-    SOTN_RESOURCE_LAB_AUDIO_HEADER,      /**< US Laboratory instrument metadata. */
-    SOTN_RESOURCE_LAB_AUDIO_BODY,        /**< US Laboratory sample data. */
-    SOTN_RESOURCE_WEAPON_GRAPHICS,       /**< US BIN/WEAPON0.BIN weapon data and textures. */
-    SOTN_RESOURCE_GAME_OVER,             /**< US BIN/F_GO.BIN game-over artwork. */
-    SOTN_RESOURCE_CASTLE_MAP,            /**< US F_MAP.BIN castle blueprint. */
-    SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, /**< US first-visit Entrance instrument metadata. */
-    SOTN_RESOURCE_ENTRANCE_AUDIO_BODY,   /**< US first-visit Entrance sample data. */
-    SOTN_RESOURCE_RETURN_AUDIO_HEADER,   /**< US revisited Entrance instruments. */
-    SOTN_RESOURCE_RETURN_AUDIO_BODY,     /**< US revisited Entrance sample data. */
-    SOTN_RESOURCE_MARBLE_AUDIO_HEADER,   /**< US Marble Gallery instruments. */
-    SOTN_RESOURCE_MARBLE_AUDIO_BODY,     /**< US Marble Gallery samples. */
-    SOTN_RESOURCE_WALL_AUDIO_HEADER,     /**< US Outer Wall instruments. */
-    SOTN_RESOURCE_WALL_AUDIO_BODY,       /**< US Outer Wall samples. */
-    SOTN_RESOURCE_DOPPLE_AUDIO_HEADER,   /**< US Doppleganger arena instruments. */
-    SOTN_RESOURCE_DOPPLE_AUDIO_BODY,     /**< US Doppleganger arena samples. */
-    SOTN_RESOURCE_LIBRARY_AUDIO_HEADER,  /**< US Long Library instruments. */
-    SOTN_RESOURCE_LIBRARY_AUDIO_BODY,    /**< US Long Library samples. */
-    SOTN_RESOURCE_LIBRARY_SEQUENCE,      /**< US Librarian sequence event stream. */
-    SOTN_RESOURCE_CHAPEL_AUDIO_HEADER,   /**< US Royal Chapel instruments. */
-    SOTN_RESOURCE_CHAPEL_AUDIO_BODY,     /**< US Royal Chapel samples. */
-    SOTN_RESOURCE_CHAPEL_SEQUENCE,       /**< US confessional chime event stream. */
+    SOTN_RESOURCE_LAB_GRAPHICS = 0,        /**< US ST/NZ0/F_NZ0.BIN tiles and palettes. */
+    SOTN_RESOURCE_COMMON_GRAPHICS,         /**< US BIN/F_GAME.BIN common textures and palettes. */
+    SOTN_RESOURCE_ALUCARD_GRAPHICS,        /**< US BIN/ARC_F.BIN player sprite sheets. */
+    SOTN_RESOURCE_COMMON_AUDIO,            /**< US shared sound-bank body. */
+    SOTN_RESOURCE_ALUCARD_AUDIO_HEADER,    /**< US Alucard instrument metadata. */
+    SOTN_RESOURCE_ALUCARD_AUDIO_BODY,      /**< US Alucard sample data. */
+    SOTN_RESOURCE_LAB_AUDIO_HEADER,        /**< US Laboratory instrument metadata. */
+    SOTN_RESOURCE_LAB_AUDIO_BODY,          /**< US Laboratory sample data. */
+    SOTN_RESOURCE_WEAPON_GRAPHICS,         /**< US BIN/WEAPON0.BIN weapon data and textures. */
+    SOTN_RESOURCE_GAME_OVER,               /**< US BIN/F_GO.BIN game-over artwork. */
+    SOTN_RESOURCE_CASTLE_MAP,              /**< US F_MAP.BIN castle blueprint. */
+    SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER,   /**< US first-visit Entrance instrument metadata. */
+    SOTN_RESOURCE_ENTRANCE_AUDIO_BODY,     /**< US first-visit Entrance sample data. */
+    SOTN_RESOURCE_RETURN_AUDIO_HEADER,     /**< US revisited Entrance instruments. */
+    SOTN_RESOURCE_RETURN_AUDIO_BODY,       /**< US revisited Entrance sample data. */
+    SOTN_RESOURCE_MARBLE_AUDIO_HEADER,     /**< US Marble Gallery instruments. */
+    SOTN_RESOURCE_MARBLE_AUDIO_BODY,       /**< US Marble Gallery samples. */
+    SOTN_RESOURCE_WALL_AUDIO_HEADER,       /**< US Outer Wall instruments. */
+    SOTN_RESOURCE_WALL_AUDIO_BODY,         /**< US Outer Wall samples. */
+    SOTN_RESOURCE_DOPPLE_AUDIO_HEADER,     /**< US Doppleganger arena instruments. */
+    SOTN_RESOURCE_DOPPLE_AUDIO_BODY,       /**< US Doppleganger arena samples. */
+    SOTN_RESOURCE_LIBRARY_AUDIO_HEADER,    /**< US Long Library instruments. */
+    SOTN_RESOURCE_LIBRARY_AUDIO_BODY,      /**< US Long Library samples. */
+    SOTN_RESOURCE_LIBRARY_SEQUENCE,        /**< US Librarian sequence event stream. */
+    SOTN_RESOURCE_CHAPEL_AUDIO_HEADER,     /**< US Royal Chapel instruments. */
+    SOTN_RESOURCE_CHAPEL_AUDIO_BODY,       /**< US Royal Chapel samples. */
+    SOTN_RESOURCE_CHAPEL_SEQUENCE,         /**< US confessional chime event stream. */
+    SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, /**< US Hippogryph arena instruments. */
+    SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY,   /**< US Hippogryph arena samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

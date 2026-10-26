@@ -219,8 +219,8 @@ bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id
 
 bool SotnMusic_CreateSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out)
 {
-    if ((id >= 0x369 && id <= 0x36d) || (id >= 0x375 && id <= 0x379) ||
-        (id >= 0x3a3 && id <= 0x3a8) || id == 0x3a9 || id == 0x3ad || id == 0x3b2 || id == 0x3b9)
+    if ((id >= 0x369 && id <= 0x379) || (id >= 0x3a3 && id <= 0x3a8) || id == 0x3a9 ||
+        id == 0x3ad || id == 0x3b2 || id == 0x3b9)
         return Create(dra, stream, id - 0x300U, id - 0x300U, true, out);
     return SotnMusic_CreateDeathSpeech(dra, stream, id, out);
 }
@@ -240,16 +240,18 @@ bool SotnMusic_CreateStage(SotnDataView dra, SotnStream *stream, Uint16 stage, S
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage != 0 && stage != 1 && stage != 2 && stage != 6)
+    if (stage != 0 && stage != 1 && stage != 2 && stage != 6 && stage != 25)
         return SDL_SetError("Stage music requires an integrated original area profile");
     return Create(dra, stream,
-                  stage == 0   ? 13
-                  : stage == 1 ? 19
-                  : stage == 6 ? 5
-                               : 9,
-                  stage == 0   ? 14
-                  : stage == 1 ? 20
-                  : stage == 6 ? 6
-                               : 10,
+                  stage == 0    ? 13
+                  : stage == 1  ? 19
+                  : stage == 6  ? 5
+                  : stage == 25 ? 52
+                                : 9,
+                  stage == 0    ? 14
+                  : stage == 1  ? 20
+                  : stage == 6  ? 6
+                  : stage == 25 ? 53
+                                : 10,
                   false, out);
 }

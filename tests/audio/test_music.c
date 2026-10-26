@@ -34,7 +34,7 @@ static bool Playback(const char *directory)
     }
     for (Uint32 id = 29; id <= 30; ++id)
         SDL_memcpy(dra + 0x1d224 + id * 16, dra + 0x1d224 + (id + 17) * 16, 16);
-    const Uint32 stage_tracks[] = {13, 14, 19, 20, 9, 10, 5, 6};
+    const Uint32 stage_tracks[] = {13, 14, 19, 20, 9, 10, 5, 6, 52, 53};
     for (Uint32 i = 0; i < SDL_arraysize(stage_tracks); ++i)
         SDL_memcpy(dra + 0x1d224 + stage_tracks[i] * 16, dra + 0x1d224 + (46 + (i & 1)) * 16, 16);
     Uint8 *raw = SDL_calloc(2, SOTN_CD_SECTOR_BYTES);
@@ -68,7 +68,7 @@ static bool Playback(const char *directory)
     const SotnDataView image = {dra, 0x20000};
     CHECK(SotnMusic_Create(image, stream, &music));
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
-    const Uint16 stages[] = {0, 1, 2, 6};
+    const Uint16 stages[] = {0, 1, 2, 6, 25};
     for (Uint16 i = 0; i < SDL_arraysize(stages); ++i)
     {
         SotnMusic *selected = NULL;
@@ -145,7 +145,7 @@ static bool Playback(const char *directory)
     SotnMusic_Destroy(music);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x35e, &music) && music == NULL);
     CHECK(!SotnMusic_CreateDeathSpeech(image, stream, 0x364, &music) && music == NULL);
-    for (Uint16 id = 0x369; id <= 0x36d; ++id)
+    for (Uint16 id = 0x369; id <= 0x374; ++id)
     {
         SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
         CHECK(SotnMusic_CreateSpeech(image, stream, id, &music));
@@ -167,7 +167,6 @@ static bool Playback(const char *directory)
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3a2, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x3aa, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x368, &music) && music == NULL);
-    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x36e, &music) && music == NULL);
     for (Uint16 id = 0x375; id <= 0x379; ++id)
     {
         SDL_memcpy(dra + 0x1d224 + (id - 0x300U) * 16, dra + speech, 16);
@@ -178,7 +177,6 @@ static bool Playback(const char *directory)
         SotnMusic_Destroy(music);
         music = NULL;
     }
-    CHECK(!SotnMusic_CreateSpeech(image, stream, 0x374, &music) && music == NULL);
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x37a, &music) && music == NULL);
     SotnStream_Close(stream);
     SDL_free(finite);

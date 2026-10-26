@@ -14,7 +14,9 @@ private plane vertices with the original identity rotation, screen distance and
 screen offset. No host floating-point projection replaces that path.
 
 Cloud UV records, models, grid pointers, grid cells and plane height/priority
-records remain in the user's private DAI overlay. The native reader validates
+records remain in the user's private DAI or BO5 overlay. Each stage selects explicit
+metadata locations; BO5 does not borrow DAI's data or masquerade as stage six.
+The native reader validates
 their sizes, address domains, alignment and values before use. Synthetic public
 tests deliberately vary those records. The existing scene backdrop service
 applies the original cloud clear color; screen-space cloud primitives keep the
@@ -35,6 +37,12 @@ original UVs, palette, priority, fixed height and repeated widths. Both actors
 omit their optional presentation when the primitive pool is full, as the source
 does. Room/generation ownership clears their reservations. These transient phases
 do not change v8 ordinary saves or grant any player progression.
+
+Chapel/BO5 sky packets now precede both room tile layers. Their selected priorities
+(land 16, clouds 24/28) are below the original tile buckets (background starts at 32,
+foreground at 96 in the checked rooms). This corrects earlier presentation that let
+clouds cover opaque architecture. Library's separate parallax pass remains before
+its foreground layer.
 
 ## Validation and remaining work
 
@@ -59,5 +67,16 @@ passed four tower crossings and three Wall/Library connectors, isolated ordinary
 save/Continue and missing-destination owner retention. Real user save slots remain
 untouched.
 
-Stained glass, confessional, Maria, Hippogryph, connected Chapel progression and
-full GPU/effects/audio/timing parity remain incomplete.
+An additional private native LLDB sequence runs 120 ticks and 30 renders each in
+Chapel's skyway and BO5's arena. Hiding/restoring the 101 original cloud/land
+primitives changes visible background pixels while preserving every opaque tile
+pixel in both checked rooms. Public tests vary BO5's model independently of DAI,
+reject cross-stage grid references, and retain projection/state boundaries. This
+does not establish complete ordering-table or console image parity.
+All 99 current test groups and these two native scenes pass in Debug and macOS
+ASan/UBSan. The earlier pixel count above describes the previous Chapel-only check;
+the corrected tile ordering intentionally changes that image.
+
+BO5 dialogue, connected Chapel progression and full GPU/effects/audio/timing parity
+remain incomplete. Selected stained glass, confessional and Chapel Maria services
+are documented separately in [Chapel runtime](chapel-runtime.md).

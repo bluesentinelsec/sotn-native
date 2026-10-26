@@ -2,7 +2,7 @@
 
 Ordinary saves retain supported character inventory/equipment, EXP/level, base
 stats, current/max resources, permanent pickups and relic ownership, gold/kills, subweapon, stage/room/time,
-learned spell ownership/order, the completed-game unlock flag,
+learned spell ownership/order, the completed-game unlock flag, original cutscene completion,
 four gameplay/progression RNG streams, explored map cells, and permanent
 Laboratory and Entrance events. This is a versioned development save, not a PS1 memory card or
 full-game save. No artwork, samples, executable bytes, or runtime tables enter it.
@@ -22,21 +22,23 @@ supported state bounds. Failed loads leave output and files unchanged. Unknown
 versions require explicit migration; application VERSION does not determine save
 compatibility. The checksum detects corruption, not malicious modification.
 
-## Version 8
+## Version 9
 
 New writes use a 4096-byte little-endian record. Native struct layout, padding,
 host pointers, artwork, and runtime tables are never serialized.
+BO5 currently records its original `0x300` completion bits. Other scenes' complete
+completion-word/skip behavior remains separate integration work.
 
 | Offset | Value |
 | --- | --- |
 | 0 | Eight-byte magic `SOTNNSAV` |
-| 8 | 32-bit format version, 8 |
+| 8 | 32-bit format version, 9 |
 | 12 | 32-bit record length, 4096 |
 | 16 | 32-bit supported US reference marker |
 | 20 | 32-bit stage-local save-room ID |
 | 24 | 64-bit elapsed gameplay ticks |
 | 32–40 | Three 32-bit player/actor/combat RNG states |
-| 44 | 16-bit original stage ID: 12 Laboratory, 65 first Entrance, 7 later Entrance, 0 Marble, 1 Outer Wall, 2 Library |
+| 44 | 16-bit original stage ID: 12 Laboratory, 65 first Entrance, 7 later Entrance, 0 Marble, 1 Outer Wall, 2 Library, 6 Chapel (internal) |
 | 46–47 | Reserved zero bytes |
 | 48–62 | Eight 16-bit values: HP/max, MP/max, hearts/max, level, subweapon |
 | 64–70 | Four 16-bit base stats |
@@ -59,7 +61,9 @@ host pointers, artwork, and runtime tables are never serialized.
 | 3612 | 32-bit original learned-spell mask |
 | 3616–3623 | Eight encoded spell acquisition-order bytes |
 | 3624 | Original completed-game unlock boolean |
-| 3625–4091 | Reserved zero bytes |
+| 3625–3627 | Reserved zero bytes |
+| 3628 | 32-bit original cutscene-completion word |
+| 3632–4091 | Reserved zero bytes |
 | 4092 | IEEE CRC-32 over bytes 0–4091 |
 
 Inventory excludes equipped copies. Counts, equipment/resource/stat bounds, order
@@ -85,6 +89,15 @@ rooms 23/24/25, first Entrance rooms 25/26/27, later Entrance rooms 22/23/24, Ma
 
 ## Explicit migration
 
+Version 8 retains all its existing character/world/spell records. Its reserved bytes
+3625–4091 must remain zero. Version 9 initializes the new completion word to zero
+for v1–v8 inputs; older encounter flags do not fabricate a missing completion word.
+The original `save_mgr.h:ApplySaveData` retains both completion masks across loads
+in the same running session. Native Continue preserves that union for the visited
+and cutscene words before the loaded actors initialize; other loaded progress still
+comes from the selected slot. A fresh process starts without previous session masks.
+
+
 Version 7 retains all its character/world/time records. Its reserved bytes
 3612–4091 must remain zero. Migration initializes learned-spell ownership/order
 and completed-game unlock to zero, because that format did not retain them.
@@ -98,7 +111,7 @@ at 3444, with zero padding at 3443. Version 7 migrates those fields to original
 event 6 and converts seconds to HHMMSS without modifying the source file. Other
 event records remain zero because those formats never stored them. Version 6
 retains its relic bytes at 3448–3477; versions 4/5 require that region to be zero.
-The retired fields must be zero in new v7/v8 records. Existing slot paths and the
+The retired fields must be zero in new v7/v8/v9 records. Existing slot paths and the
 4096-byte file size remain unchanged.
 
 
@@ -126,13 +139,13 @@ stats 6, empty body equipment/inventory with identity order, zero EXP/character
 RNG, and no permanent pickup/world progress. Version 1 supplies zero gameplay RNGs.
 
 Reading a legacy save never changes its file. The next successful ordinary save
-writes v8 through the checked replacement path. Unknown formats fail explicitly.
+writes v9 through the checked replacement path. Unknown formats fail explicitly.
 Native Android/iOS use SDL's sandbox preference path. Browser durable persistence
 still requires an adapter and reload tests. PS1 memory-card import/export, further
 stages, relic ability/menu integration, complete castle scripts, and full-game saves remain separate.
 
 Public tests use a build-local directory and synthetic state. They check independent
-v3/v4/v5/v6/v7/v8 checksums, stage/save-room roundtrips, all seven legacy migrations, malformed character
+v3/v4/v5/v6/v7/v8/v9 checksums, stage/save-room roundtrips, all eight legacy migrations, malformed character
 and world state, reserved fields, length/version/checksum failures, fifteen slots,
 retained corrupt files, and safe replacement/failed rename. Private native LLDB
 checks use isolated local slots, never the user's real save bank. Private captures

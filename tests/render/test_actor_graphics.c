@@ -446,6 +446,29 @@ static bool TestRotation(Fixture *fixture)
                                            (SotnSpriteTransform){.scale_y = 256, .opacity = 128},
                                            fixture->frame, SOTN_FRAME_PIXELS));
     CHECK(fixture->frame[19 * SOTN_FRAME_WIDTH + 18] == preserved);
+    Uint16 reference[SOTN_FRAME_PIXELS] = {0};
+    SDL_memcpy(reference, fixture->frame, sizeof(reference));
+    for (Uint16 axis = 0; axis < 3; ++axis)
+    {
+        ClearFrame(fixture);
+        CHECK(
+            SotnActorGraphics_DrawTransform(g, sprite, 20, 20,
+                                            (SotnSpriteTransform){.scale_x = axis == 1 ? 512 : -512,
+                                                                  .scale_y = axis == 0 ? 256 : -256,
+                                                                  .opacity = 128},
+                                            fixture->frame, SOTN_FRAME_PIXELS));
+        for (Uint16 y = 0; y < 40; ++y)
+            for (Uint16 x = 0; x < 40; ++x)
+            {
+                const Uint16 source_x = axis == 1 ? x : (Uint16)(39 - x);
+                const Uint16 source_y = axis == 0 ? y : (Uint16)(39 - y);
+                CHECK(fixture->frame[y * SOTN_FRAME_WIDTH + x] ==
+                      reference[source_y * SOTN_FRAME_WIDTH + source_x]);
+            }
+    }
+    CHECK(!SotnActorGraphics_DrawTransform(
+        g, sprite, 20, 20, (SotnSpriteTransform){.scale_x = -1025, .scale_y = 256, .opacity = 128},
+        fixture->frame, SOTN_FRAME_PIXELS));
     sprite.facing_left = true;
     ClearFrame(fixture);
     CHECK(
@@ -516,6 +539,43 @@ static bool TestDialogue(Fixture *f)
               f->frame[184 * 256 + 50] == (slot ? 31 : 0x83e0));
     }
     SotnActorGraphics_Destroy(g);
+    // BO5's copied words occupy the original cache rows; spaces stay transparent.
+    MakeFixture(f);
+    for (Uint32 y = 0; y < 8; ++y)
+    {
+        Put16(f->common + 24U * 8192U + (16U + y) * 64U + 4, 0x1111);
+        Put16(f->common + 24U * 8192U + (16U + y) * 64U + 6, 0x3333);
+    }
+    CHECK(SotnActorGraphics_CreateStage(
+        (SotnDataView){f->dra, sizeof(f->dra)}, (SotnDataView){f->nz0, sizeof(f->nz0)},
+        (SotnTileSources){{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}}, 25, &g));
+    d = (SotnDialogueState){.primitive_text = true};
+    SDL_strlcpy(d.lines[0], "A A", sizeof(d.lines[0]));
+    SDL_strlcpy(d.lines[4], "A", sizeof(d.lines[4]));
+    CHECK(SotnActorGraphics_LoadDialogue(g, d));
+    SotnTextureQuad cache = {.x = {0, 24, 0, 24},
+                             .y = {0, 0, 8, 8},
+                             .u = {8, 32, 8, 32},
+                             .v = {128, 128, 136, 136},
+                             .page = 16,
+                             .palette = 0x200};
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_Quad(g, cache, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 31 && f->frame[4] == 0x83e0 && f->frame[8] == 7 && f->frame[16] == 31);
+    cache.v[0] = cache.v[1] = 176;
+    cache.v[2] = cache.v[3] = 184;
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_Quad(g, cache, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    d.lines[0][0] = 1;
+    CHECK(!SotnActorGraphics_LoadDialogue(g, d));
+    d.lines[0][0] = 'A';
+    d.column = 25;
+    CHECK(!SotnActorGraphics_LoadDialogue(g, d) && !SotnActorGraphics_LoadDialogue(NULL, d));
+    Put16(f->nz0 + 0xb84, 1001);
+    CHECK(!SotnActorGraphics_LoadPortrait(g, 0x800, 0));
+    Put16(f->nz0 + 0xb84, 32);
+    CHECK(SotnActorGraphics_LoadPortrait(g, 0x800, 0));
+    SotnActorGraphics_Destroy(g);
     return true;
 }
 
@@ -572,6 +632,14 @@ static bool DefaultBo4Bank(Fixture *f)
     g = NULL;
     Put32(f->nz0 + 0x400, 7);
     CHECK(!SotnActorGraphics_CreateStage(dra, stage, art, 26, &g) && g == NULL);
+    MakeFixture(f);
+    CHECK(SotnActorGraphics_CreateStage(dra, stage, art, 25, &g));
+    SDL_zero(f->frame);
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    g = NULL;
+    Put32(f->nz0 + 0x400, 7);
+    CHECK(!SotnActorGraphics_CreateStage(dra, stage, art, 25, &g) && g == NULL);
     return true;
 }
 
@@ -649,6 +717,15 @@ static bool PackedSheets(Fixture *f)
         g, sprite, 10, 10, (SotnSpriteTransform){.scale_x = 512, .scale_y = 512, .opacity = 128},
         f->frame, SOTN_FRAME_PIXELS));
     CHECK(f->frame[12 * 256 + 8] == 31 && f->frame[12 * 256 + 9] == 31);
+    Uint16 reference[SOTN_FRAME_PIXELS] = {0};
+    SDL_memcpy(reference, f->frame, sizeof(reference));
+    SDL_zero(f->frame);
+    CHECK(SotnActorGraphics_DrawTransform(
+        g, sprite, 10, 10, (SotnSpriteTransform){.scale_x = -512, .scale_y = -512, .opacity = 128},
+        f->frame, SOTN_FRAME_PIXELS));
+    for (Uint16 y = 0; y < 20; ++y)
+        for (Uint16 x = 0; x < 20; ++x)
+            CHECK(f->frame[y * 256U + x] == reference[(19U - y) * 256U + 19U - x]);
     sprite.blend_mode = 0x30;
     for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
         f->frame[i] = 0x7c00;

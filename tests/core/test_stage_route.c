@@ -72,6 +72,51 @@ static int Boss(void)
     CHECK(!SotnStageRoute_FindBoss(dra, 1, 2, 3, &world, &found, &route));
     return 0;
 }
+static int ChapelBoss(void)
+{
+    Uint8 bytes[0x297c + 3 * 20] = {0};
+    const SotnDataView dra = {bytes, sizeof(bytes)};
+    for (Uint32 side = 0; side < 2; ++side)
+    {
+        // Synthetic geometry/indices exercise both directions without copying game records.
+        Uint8 *record = bytes + 0x297c + side * 20;
+        Put32(record, 2 + side);
+        Put32(record + 4, 3);
+        Put32(record + 8, 6);
+        Put32(record + 12, SOTN_TIME_HIPPOGRYPH);
+        Put32(record + 16, 129 + side);
+        Uint8 *arrival = bytes + 0x245c + (129 + side) * 10;
+        Put16(arrival, (Uint16)(32 + side * 64));
+        Put16(arrival + 2, 100);
+        Put16(arrival + 6, 6);
+        Put16(arrival + 8, 25);
+    }
+    Put32(bytes + 0x297c + 40, 128);
+    SotnWorldState world = {0};
+    for (Uint32 side = 0; side < 2; ++side)
+    {
+        SotnStageRoute route = {0};
+        bool found = false;
+        CHECK(SotnStageRoute_FindBoss(dra, 6, (Sint32)(2 + side), 3, &world, &found, &route) &&
+              found && route.source == 6 && route.stage == 25 && route.room == 0 &&
+              route.x == 32 + side * 64);
+    }
+    // Visited/completion settings are distinct from the defeat record used by routing.
+    CHECK(SotnWorld_VisitEvent(&world, SOTN_TIME_HIPPOGRYPH));
+    world.cutscenes_seen = 0x300;
+    SotnStageRoute route = {.room = 99};
+    bool found = false;
+    CHECK(SotnStageRoute_FindBoss(dra, 6, 2, 3, &world, &found, &route) && found);
+    CHECK(SotnWorld_RecordTime(&world, SOTN_TIME_HIPPOGRYPH, 123));
+    route.room = 99;
+    for (Sint32 x = 2; x <= 3; ++x)
+        CHECK(SotnStageRoute_FindBoss(dra, 6, x, 3, &world, &found, &route) && !found &&
+              route.room == 99);
+    CHECK(SotnStageRoute_FindBoss(dra, 25, 2, 3, &world, &found, &route) && !found &&
+          route.room == 99);
+    return 0;
+}
+
 static int Window(void)
 {
     SotnRoomWindow window = {.end_x = 1024, .last_cell = 3};
@@ -131,6 +176,7 @@ static int Window(void)
 int main(void)
 {
     CHECK(Boss() == 0);
+    CHECK(ChapelBoss() == 0);
     CHECK(Window() == 0);
     Uint8 bytes[0x245c + 131 * 10] = {0};
     SotnDataView dra = {bytes, sizeof(bytes)};

@@ -152,7 +152,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     SotnActors *s = NULL;
     const SotnStageProfile *p = SotnStageProfile_Get(6);
-    bool ok = p && !p->connected && p->actor_limit == 0x49 && p->sprite_banks == 24 &&
+    bool ok = p && p->connected && p->actor_limit == 0x49 && p->sprite_banks == 24 &&
               p->prize_count == 16 && p->prize_bit == 0x98 && p->door_types == 3 &&
               p->camera_count == 7 && SotnStageProfile_SaveRoom(6, 16) &&
               SotnStageProfile_SaveRoom(6, 18) && !SotnStageProfile_SaveRoom(6, 17);

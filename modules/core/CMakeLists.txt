@@ -58,6 +58,13 @@ add_library(sotn-core STATIC
   chapel_confessional.c
   chapel_maria.c
   hippogryph_attacks.c
+  hippogryph_body.c
+  hippogryph_death.c
+  hippogryph_arena.c
+  hippogryph_maria.c
+  hippogryph_memory.c
+  hippogryph_dialogue.c
+  hippogryph_internal.h
   chapel_ghost.c
   chapel_blades.c
   chapel_confessional_internal.h

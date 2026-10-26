@@ -108,9 +108,9 @@ typedef struct SessionStart
 
 static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
 {
-    if (s->stage_id == 26)
+    if (s->stage_id == 25 || s->stage_id == 26)
     {
-        // The original BO4 stage record selects MU_NO_AUDIO until its encounter event.
+        // Original BO4/BO5 stage records select MU_NO_AUDIO until their encounter events.
         *out = NULL;
         return true;
     }
@@ -147,14 +147,16 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     {
         Uint16 stage;
         SotnResourceId header, body;
-    } profiles[] = {{12, SOTN_RESOURCE_LAB_AUDIO_HEADER, SOTN_RESOURCE_LAB_AUDIO_BODY},
-                    {65, SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, SOTN_RESOURCE_ENTRANCE_AUDIO_BODY},
-                    {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
-                    {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
-                    {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
-                    {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
-                    {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
-                    {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY}};
+    } profiles[] = {
+        {12, SOTN_RESOURCE_LAB_AUDIO_HEADER, SOTN_RESOURCE_LAB_AUDIO_BODY},
+        {65, SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, SOTN_RESOURCE_ENTRANCE_AUDIO_BODY},
+        {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
+        {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
+        {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
+        {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
+        {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
+        {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY},
+        {25, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -242,6 +244,11 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                 if (!SotnMusic_CreateStage(session->dra, session->music_stream, 1, &next))
                     return false;
             }
+            else if (combat->music == 0x334 && session->stage_id == 25)
+            {
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 25, &next))
+                    return false;
+            }
             else if (combat->music == 0x30f)
             {
                 if (!SotnMusic_CreateEntrance(session->dra, session->music_stream, true, &next))
@@ -265,11 +272,13 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->cd_command)
     {
-        if (combat->cd_command == 0x90 || combat->cd_command == 0x80)
+        if (combat->cd_command == 0x90 || combat->cd_command == 0x91 || combat->cd_command == 0x80)
         {
-            session->xa_command = combat->cd_command == 0x90 ? 1 : 3;
+            session->xa_command = combat->cd_command == 0x80 ? 3 : 1;
             session->xa_fade_counter = 0;
-            session->xa_fade_multiplier = combat->cd_command == 0x90 ? 128 : 32;
+            session->xa_fade_multiplier = combat->cd_command == 0x90   ? 128
+                                          : combat->cd_command == 0x91 ? 8
+                                                                       : 32;
         }
         else if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
             return SDL_SetError("Dialogue issued an unsupported XA control command");
@@ -389,6 +398,11 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
 static Sint32 Pixel(Sint32 fixed)
 {
     return fixed >= 0 ? fixed / 65536 : (Sint32)(-((-(Sint64)fixed + 65535) / 65536));
+}
+
+static Sint16 SpriteScale(Uint16 packed)
+{
+    return packed < 32768U ? (Sint16)packed : (Sint16)((Sint32)packed - 65536);
 }
 
 static void Camera(const SotnLaboratory *session, SotnPlayerState player, Sint32 *x, Sint32 *y)
@@ -546,7 +560,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
                                 session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
-        !SotnActors_SetDialogueBusy(session->actors, session->music_fading) ||
+        !SotnActors_SetDialogueBusy(session->actors,
+                                    session->music_fading || session->xa_command != 0) ||
         (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
@@ -562,6 +577,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     SotnActorMotion motion = {0};
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         (motion.align_horizontal && !SotnPlayer_StageAlignX(session->player, motion.alignment_x)) ||
+        (motion.align_vertical && !SotnPlayer_StageAlignY(session->player, motion.alignment_y)) ||
+        (motion.grab_changed && !SotnPlayer_RequestGrab(session->player, motion.grab)) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
         (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||
@@ -953,6 +970,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             session->dra, session->room.foreground.collision,
             start.arrival                                  ? start.arrival->x
             : (session->room.foreground.parameters & 0x20) ? 128
+            : stage_id == 12 && start_room == 1            ? 240
             : stage_id == 65                               ? (start_room == 11 ? 16 : 128)
             : start_room >= 22                             ? 128
             : (start_room == 5 || start_room == 6 || start_room == 9 || start_room == 10) ? 80
@@ -1006,6 +1024,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
+    else if (stage_id == 25)
+        SDL_Log("Hippogryph checkpoint: selected body/attacks, physical damage, "
+                "defeat effects, arena doors/music, Life Max Up, clouds/sky and Maria's dialogue, "
+                "speech, flashbacks and player/camera control, with connected Chapel travel. "
+                "Full encounter/presentation parity remains incomplete.");
     else if (stage_id == 2)
         SDL_Log("Long Library development adapters: common pickups, selected breakables, "
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
@@ -1014,15 +1037,14 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 6)
-        SDL_Log("Royal Chapel internal checkpoint: private resources, selected shared actors, "
+        SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
                 "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
                 "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
                 "and selected internal tower exits, clouds, sky land, stained glass, chairs "
                 "and confessional ghosts/blades/chime, plus Maria's selected script, speech "
-                "and camera. Hippogryph "
-                "and connected travel "
-                "remain incomplete.");
+                "and camera. Selected Hippogryph and Laboratory travel now connect; "
+                "further destinations and full area/encounter parity remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "
@@ -1036,8 +1058,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "Laboratory checkpoint: selected enemies, mechanisms, paired bosses, original "
             "camera follow/locks, HUD, combat/audio, and ordinary saves. Full effects, reverb, "
             "complete castle scripts, other stages, and full-game progression remain incomplete.");
-    SDL_Log("Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
-            "and version-eight saves with stage, explored cells, and permanent castle events.");
+    SDL_Log(
+        "Character checkpoint: inventory/equipment, EXP/levels, selected subweapon attacks, "
+        "and version-nine saves with stage, exploration, castle events and cutscene completion.");
     if (saved == NULL)
         SDL_Log("Development entry: original Entrance equipment when applicable; "
                 "70 HP, base stats 6. Prologue-derived initialization remains separate.");
@@ -1387,7 +1410,7 @@ static bool ActorDrawError(SotnActorState actor)
                         actor.slot, actor.animation_set, actor.frame, actor.palette, detail);
 }
 
-// LIB parallax uses priorities 0x20..0x60 before its foreground tile bucket 0x60.
+// Selected LIB parallax precedes foreground tiles; Chapel/BO5 sky precedes both tile layers.
 // Original later-submitted primitive packets precede tile packets at the tied bucket.
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y, bool background)
@@ -1430,9 +1453,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         SotnActorState state = {0};
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
-        const bool library_background =
-            session->stage_id == 2 && state.id >= 0x16 && state.id <= 0x19;
-        if (library_background != background)
+        // BO5's dialogue packets (509..511) must cover the original HUD (494..496).
+        if (session->stage_id == 25 && state.id == 0x2a)
+            continue;
+        const bool background_actor =
+            (session->stage_id == 2 && state.id >= 0x16 && state.id <= 0x19) ||
+            ((session->stage_id == 6 || session->stage_id == 25) &&
+             (state.id == 0x1f || state.id == 0x20));
+        if (background_actor != background)
             continue;
         if (state.generation == 0 || state.unsupported ||
             (state.frame == 0 && state.id != 0xa &&
@@ -1641,8 +1669,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
                 (SotnSpriteTransform){.rotation = actor.rotated ? actor.rotation : 0,
-                                      .scale_x = actor.scale_x ? actor.scale_x : 256,
-                                      .scale_y = actor.scale_y ? actor.scale_y : 256,
+                                      .scale_x = actor.scale_x ? SpriteScale(actor.scale_x) : 256,
+                                      .scale_y = actor.scale_y ? SpriteScale(actor.scale_y) : 256,
                                       .opacity =
                                           actor.opacity_set || actor.opacity ? actor.opacity : 128,
                                       .tint = actor.tinted,
@@ -1659,7 +1687,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     return true;
 }
 
-static bool DrawDialogue(SotnLaboratory *session)
+static bool PrepareDialogue(SotnLaboratory *session)
 {
     for (Uint16 i = 0; i < 2; ++i)
         if (session->dialogue.portraits[i] &&
@@ -1670,6 +1698,47 @@ static bool DrawDialogue(SotnLaboratory *session)
                 return false;
             session->portrait_offsets[i] = session->dialogue.portraits[i];
         }
+    return !session->dialogue.primitive_text ||
+           SotnActorGraphics_LoadDialogue(session->actor_graphics, session->dialogue);
+}
+
+static bool DrawDialogue(SotnLaboratory *session)
+{
+    if (session->stage_id == 25 && session->dialogue.primitive_text)
+    {
+        size_t count = 0;
+        for (Uint16 slot = 0; slot < SOTN_STAGE_ACTOR_SLOTS; ++slot)
+        {
+            SotnActorState actor = {0};
+            if (!SotnActors_Get(session->actors, slot, &actor))
+                return false;
+            if (!actor.generation || actor.id != 0x2a)
+                continue;
+            for (Uint16 part = 0; part < actor.primitive_count; ++part)
+            {
+                SotnActorPrimitive p = {0};
+                if (!SotnActors_GetPrimitive(session->actors, slot, part, &p))
+                    return false;
+                if (p.active && !SotnActorOrder_Add(session->draw_items,
+                                                    SDL_arraysize(session->draw_items), &count,
+                                                    (SotnActorDraw){.actor = slot,
+                                                                    .primitive = part,
+                                                                    .priority = p.priority,
+                                                                    .kind = SOTN_DRAW_PRIMITIVE}))
+                    return false;
+            }
+        }
+        for (size_t i = 0; i < count; ++i)
+        {
+            const SotnActorDraw command = session->draw_items[i];
+            SotnActorState actor = {0};
+            if (!SotnActors_Get(session->actors, command.actor, &actor) ||
+                !DrawPrimitiveRange(session, actor, 0, 0, command.primitive,
+                                    command.primitive + 1U))
+                return false;
+        }
+        return true;
+    }
     return SotnDialogueRenderer_Draw(session->actor_graphics, session->dialogue, session->frame,
                                      SOTN_FRAME_PIXELS);
 }
@@ -1677,7 +1746,7 @@ static bool DrawDialogue(SotnLaboratory *session)
 static bool DrawGameplay(SotnLaboratory *session)
 {
     SotnPlayerState state = {0};
-    if (!SotnPlayer_GetState(session->player, &state))
+    if (!SotnPlayer_GetState(session->player, &state) || !PrepareDialogue(session))
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, state, &camera_x, &camera_y);
@@ -1687,7 +1756,9 @@ static bool DrawGameplay(SotnLaboratory *session)
         return false;
     for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
         session->frame[i] = backdrop;
-    return SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
+    return ((session->stage_id != 6 && session->stage_id != 25) ||
+            DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
+           SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
            (session->stage_id != 2 ||
             DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
@@ -2051,6 +2122,10 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                               &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
+    {
+        // save_mgr.h:ApplySaveData retains both completion words across in-session loads.
+        saved.world.time_attack_visited |= old->world.time_attack_visited;
+        saved.world.cutscenes_seen |= old->world.cutscenes_seen;
         ready = CreateSession(data, old->directory,
                               (SessionStart){.stage = saved.stage,
                                              .room = saved.room,
@@ -2058,6 +2133,7 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                              .slot = slot,
                                              .music = old->music_stream},
                               &next);
+    }
     if (ready && travel)
     {
         SotnPlayerState previous = {0};

@@ -53,6 +53,11 @@ typedef struct ActorPrimitive
         Uint8 phase, wait, hops, color_index;
         bool used, side;
     } demon;
+    struct
+    {
+        Sint32 radius, speed;
+        Uint8 delay, age;
+    } hippogryph;
 } ActorPrimitive;
 typedef struct Actor
 {
@@ -324,8 +329,18 @@ typedef struct Actor
     } librarian;
     struct
     {
-        Uint8 timer, rotation_direction;
+        Uint8 timer, rotation_direction, phase, saved_priority;
+        Sint32 rotation_velocity;
+        Uint16
+            linked_slot; /**< Original optional child/reward pointer; generation zero is absent. */
+        Uint32 linked_generation;
     } hippogryph;
+    struct
+    {
+        Sint16 next_line_y;
+        Uint8 tail, border_grey, border_width;
+        bool started, rolling;
+    } dialogue;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -351,7 +366,9 @@ struct SotnActors
     bool call_elevator, cannon_fired, armor_lord_killed;
     bool confessional_chime;
     Uint32 boss_flags, game_seconds;
-    Uint32 hippogryph_flags;
+    Uint32 hippogryph_flags, hippogryph_encounter, hippogryph_scene;
+    Uint16 hippogryph_music;
+    bool hippogryph_stop_music, hippogryph_skip;
     Uint8 game_frame;
     Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
     bool clock_statues[2];
@@ -526,11 +543,11 @@ bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
  * @param actor Borrowed raw-0x16 slot; physical player/map coordinates remain stable.
  * @return Success or SDL error for invalid owner, variant, state or bounded window. */
 bool ActorChapelExit(SotnActors *actors, Actor *actor);
-/** @brief Advance original Chapel cloud planes or initialize the repeating sky-land strip.
- * @param actors Borrowed stage-6 owner and private models, profiles and UV/grid records.
+/** @brief Advance original Chapel/BO5 clouds or initialize the repeating sky-land strip.
+ * @param actors Borrowed stage-6/25 owner and private models, profiles and UV/grid records.
  * @param actor Borrowed raw-0x1f/0x20 slot; primitives remain generation-owned.
  * @return Success or SDL error for malformed data/state or a nonterminating cloud row. */
-bool ActorChapelSky(SotnActors *actors, Actor *actor);
+bool ActorCastleSky(SotnActors *actors, Actor *actor);
 /** @brief Advance the original Chapel stained-glass/light or background actor.
  * @param actors Borrowed stage-6 owner, private geometry/poses/colors and math tables.
  * @param actor Borrowed raw-0x17/0x18 slot; bounded primitives remain generation-owned.
@@ -637,6 +654,17 @@ bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
 bool ActorMerman(SotnActors *actors, Actor *actor);
 bool ActorDeath(SotnActors *actors, Actor *actor);
 bool ActorDialogue(SotnActors *actors, Actor *actor);
+/** @brief Read one checked private dialogue byte, advancing only after a successful read. */
+bool ActorDialogue_Byte(SotnActors *actors, size_t *cursor, Uint8 *out);
+/** @brief Decode a bounded private stage address from the original four-byte script encoding. */
+bool ActorDialogue_Address(SotnActors *actors, size_t *cursor, size_t *out);
+/** @brief Run the stage's selected event stream, preserving BO5's blocked-wait timer rewind. */
+bool ActorDialogue_Events(SotnActors *actors, const Actor *actor);
+/** @brief Run BO5's original Alucard dialogue states, private events, text and progress.
+ * @param actors Borrowed stage-25 owner. @param actor Active raw2A owner.
+ * @return Success or SDL error. Initial pool pressure retries; later allocation failures remove
+ * the actor as in the original. The original null-linked border uses bounded shadow state. */
+bool ActorHippogryphDialogue(SotnActors *actors, Actor *actor);
 bool ActorMaria(SotnActors *actors, Actor *actor);
 
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
@@ -649,6 +677,26 @@ bool ActorDoppleEntry(SotnActors *actors, Actor *actor);
  * @param actors Borrowed original BO5 owner. @param actor Borrowed raw ID 0x23..0x27.
  * @return Success or SDL error; owned children never follow a reused parent generation. */
 bool ActorHippogryphAttack(SotnActors *actors, Actor *actor);
+/** @brief Advance original BO5 body motion, attack selection and defeat from private timelines.
+ * @param actors Borrowed BO5 owner. @param actor Borrowed raw22 body/effect.
+ * @return Success or SDL error for invalid data, motion or ownership; optional effect allocation
+ * follows the original fallback. Arena and dialogue integration remain separate services. */
+bool ActorHippogryphBody(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original sealing door or music manager.
+ * @param actors Borrowed entered BO5 owner with writable room tiles and audio services.
+ * @param actor Borrowed active raw21 door or raw29 manager.
+ * @return Success or SDL error for invalid state ownership, motion or tile bounds. */
+bool ActorHippogryphArena(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original reward-watching player manager or Maria actor.
+ * @param actors Borrowed BO5 owner with writable cutscene flags, player copy and camera.
+ * @param actor Borrowed active raw2B manager or raw2C Maria; no pointers transfer.
+ * @return Success or SDL error for invalid owners, animations, reward linkage or motion. */
+bool ActorHippogryphMaria(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original four-part flashback pictures from private layout/UV tables.
+ * @param actors Borrowed BO5 owner and skip state. @param actor Active raw2D/2E owner.
+ * @return Success or SDL error for malformed records/state/ownership. Pool exhaustion retries;
+ * removal releases the generation-owned primitives through the actor tick service. */
+bool ActorHippogryphMemory(SotnActors *actors, Actor *actor);
 bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
 bool ActorDoppleLight(SotnActors *actors, Actor *actor);
 bool ActorDoppleShock(SotnActors *actors, Actor *actor);

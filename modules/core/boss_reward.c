@@ -104,9 +104,10 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (a->state.parameters != (s->stage_id == 26  ? 4
-                                    : s->stage_id == 2 ? 7
-                                                       : 5) ||
+        if (a->state.parameters != (s->stage_id == 25   ? 6
+                                    : s->stage_id == 26 ? 4
+                                    : s->stage_id == 2  ? 7
+                                                        : 5) ||
             !ActorInitialize(s, a, s->stage_id == 26 ? 0x3d4 : ActorStageOffset(s, 0xbf8)))
             return SDL_SetError("Stage boss reward has an unsupported drop selection");
         a->state.animation_set = 2;
@@ -199,9 +200,10 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     }
     SotnDataView drop = {0};
     if (!Slice(s->nz0,
-               (s->stage_id == 26  ? 0x42b0
-                : s->stage_id == 2 ? 0x31bc
-                                   : 0x2850) +
+               (s->stage_id == 25   ? 0x18b8
+                : s->stage_id == 26 ? 0x42b0
+                : s->stage_id == 2  ? 0x31bc
+                                    : 0x2850) +
                    (size_t)a->state.parameters * 2,
                2, &drop) ||
         Read16(drop.bytes) != 23)

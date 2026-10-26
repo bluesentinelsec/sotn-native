@@ -6,7 +6,8 @@
 
 static bool Initialize(SotnActors *s, Actor *a, Uint16 count)
 {
-    if (!ActorInitialize(s, a, 0x968))
+    SotnCloudProfile profile = {0};
+    if (!SotnCloud_GetProfile(s->stage_id, &profile) || !ActorInitialize(s, a, profile.initialize))
         return false;
     if (!ActorPrimitives(s, a, count))
     {
@@ -52,8 +53,10 @@ static bool Emit(SotnActors *s, Actor *a, Uint16 *used, Uint8 kind, Uint16 prior
                  Sint32 distance, const SotnProjectedPoint point[4])
 {
     SotnDataView uv = {0};
+    SotnCloudProfile profile = {0};
     ActorPrimitive *p = ActorPrimitiveGet(s, a, *used);
-    if (!p || !Slice(s->nz0, 0x242cU + kind * 8U, 8, &uv))
+    if (!p || !SotnCloud_GetProfile(s->stage_id, &profile) ||
+        !Slice(s->nz0, profile.uv + kind * 8U, 8, &uv))
         return false;
     p->state = (SotnActorPrimitive){.active = true,
                                     .textured = true,
@@ -104,7 +107,7 @@ static bool Band(SotnActors *s, Actor *a, SotnDataView row, Sint32 x, Sint32 hei
         if (!kind)
             continue;
         SotnProjectedPoint point[4] = {0};
-        if (!SotnChapel_ProjectCloud(s->nz0, position, height, depth, point))
+        if (!SotnCloud_Project(s->nz0, s->stage_id, position, height, depth, point))
             return false;
         if (point[3].y < 0)
             return true;
@@ -133,6 +136,9 @@ static bool Band(SotnActors *s, Actor *a, SotnDataView row, Sint32 x, Sint32 hei
 }
 static bool Clouds(SotnActors *s, Actor *a)
 {
+    SotnCloudProfile tables = {0};
+    if (!SotnCloud_GetProfile(s->stage_id, &tables))
+        return false;
     if (!a->state.step && !Initialize(s, a, 96))
         return false;
     if (a->remove)
@@ -156,14 +162,14 @@ static bool Clouds(SotnActors *s, Actor *a)
     for (Uint16 layer = 0; layer < 3; ++layer)
     {
         SotnDataView profile = {0}, grid = {0};
-        if (!Slice(s->nz0, 0x2544U + layer * 8U, 8, &profile))
+        if (!Slice(s->nz0, tables.planes + layer * 8U, 8, &profile))
             return false;
         const Uint32 address = Read32(profile.bytes);
         const Sint32 height = Signed16(profile.bytes + 4);
         const Uint16 priority = Read16(profile.bytes + 6);
-        if (address < 0x80182484 || address > 0x80182504 || (address - 0x80182484) % 64U ||
-            height < -512 || height > 512 || priority > 511 ||
-            !Slice(s->nz0, address - 0x80180000U, 64, &grid))
+        const Uint32 grids = 0x80180000U + (Uint32)tables.grids;
+        if (address < grids || address > grids + 128U || (address - grids) % 64U || height < -512 ||
+            height > 512 || priority > 511 || !Slice(s->nz0, address - 0x80180000U, 64, &grid))
             return SDL_SetError(
                 "Chapel cloud plane has an invalid private grid, height or priority");
         const Uint32 phase = a->clouds.y[layer] >> 16;
@@ -182,9 +188,10 @@ static bool Clouds(SotnActors *s, Actor *a)
     }
     return true;
 }
-bool ActorChapelSky(SotnActors *s, Actor *a)
+bool ActorCastleSky(SotnActors *s, Actor *a)
 {
-    if (!s || !a || s->stage_id != 6 || (a->state.id != 0x1f && a->state.id != 0x20))
-        return SDL_SetError("Chapel sky requires its original cloud or land actor owner");
+    if (!s || !a || (s->stage_id != 6 && s->stage_id != 25) ||
+        (a->state.id != 0x1f && a->state.id != 0x20))
+        return SDL_SetError("Castle sky requires an original Chapel/BO5 cloud or land owner");
     return a->state.id == 0x20 ? Land(s, a) : Clouds(s, a);
 }

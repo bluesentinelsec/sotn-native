@@ -1218,7 +1218,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .curse_ticks = player->curse_ticks,
         .poison_ticks = player->poison_ticks,
         .extra_sound = player->extra_sound,
-        .grab = player->grab};
+        .grab = player->grab,
+        .priority = 148};
     return true;
 }
 

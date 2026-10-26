@@ -4,7 +4,7 @@
 // All dialogue, portraits, event streams, equipment artwork and animations remain private.
 #include "actors_internal.h"
 
-static bool Byte(SotnActors *s, size_t *cursor, Uint8 *out)
+bool ActorDialogue_Byte(SotnActors *s, size_t *cursor, Uint8 *out)
 {
     SotnDataView value = {0};
     if (!Slice(s->nz0, *cursor, 1, &value))
@@ -14,13 +14,13 @@ static bool Byte(SotnActors *s, size_t *cursor, Uint8 *out)
     return true;
 }
 
-static bool Address(SotnActors *s, size_t *cursor, size_t *out)
+bool ActorDialogue_Address(SotnActors *s, size_t *cursor, size_t *out)
 {
     Uint32 address = 0;
     for (Uint32 i = 0; i < 4; ++i)
     {
         Uint8 value = 0;
-        if (!Byte(s, cursor, &value))
+        if (!ActorDialogue_Byte(s, cursor, &value))
             return false;
         address = (address << 4) | value;
     }
@@ -39,7 +39,7 @@ static bool Clear(SotnActors *s, Uint32 slot)
     return SotnRoomActors_Release(s->spawns, slot, false);
 }
 
-static bool Events(SotnActors *s, const Actor *a)
+bool ActorDialogue_Events(SotnActors *s, const Actor *a)
 {
     if (!s->death_event.events_active)
         return true;
@@ -52,7 +52,8 @@ static bool Events(SotnActors *s, const Actor *a)
     {
         const size_t start = s->death_event.events;
         Uint8 high = 0, low = 0, opcode = 0, slot = 0, id = 0, flag = 0;
-        if (!Byte(s, &s->death_event.events, &high) || !Byte(s, &s->death_event.events, &low))
+        if (!ActorDialogue_Byte(s, &s->death_event.events, &high) ||
+            !ActorDialogue_Byte(s, &s->death_event.events, &low))
             return false;
         const Uint16 time = (Uint16)((Uint16)high << 8 | low);
         if (s->death_event.event_timer < time)
@@ -60,17 +61,18 @@ static bool Events(SotnActors *s, const Actor *a)
             s->death_event.events = start;
             return true;
         }
-        if (!Byte(s, &s->death_event.events, &opcode))
+        if (!ActorDialogue_Byte(s, &s->death_event.events, &opcode))
             return false;
         if (opcode == 0)
         {
             Uint8 x_high = 0, x_low = 0, y_high = 0, y_low = 0;
             Actor *child = NULL;
-            if (!Byte(s, &s->death_event.events, &slot) || !Byte(s, &s->death_event.events, &id) ||
-                !Byte(s, &s->death_event.events, &x_high) ||
-                !Byte(s, &s->death_event.events, &x_low) ||
-                !Byte(s, &s->death_event.events, &y_high) ||
-                !Byte(s, &s->death_event.events, &y_low) || !Clear(s, slot) ||
+            if (!ActorDialogue_Byte(s, &s->death_event.events, &slot) ||
+                !ActorDialogue_Byte(s, &s->death_event.events, &id) ||
+                !ActorDialogue_Byte(s, &s->death_event.events, &x_high) ||
+                !ActorDialogue_Byte(s, &s->death_event.events, &x_low) ||
+                !ActorDialogue_Byte(s, &s->death_event.events, &y_high) ||
+                !ActorDialogue_Byte(s, &s->death_event.events, &y_low) || !Clear(s, slot) ||
                 !ActorSpawnAt(s, a, id, 0, slot, &child))
                 return false;
             // DAI subtracts tilemap scroll in the source's screen-space event factory.
@@ -84,18 +86,20 @@ static bool Events(SotnActors *s, const Actor *a)
         }
         else if (opcode == 1)
         {
-            if (!Byte(s, &s->death_event.events, &slot) || !Clear(s, slot))
+            if (!ActorDialogue_Byte(s, &s->death_event.events, &slot) || !Clear(s, slot))
                 return false;
         }
         else if (opcode == 2 || opcode == 3)
         {
-            if (!Byte(s, &s->death_event.events, &flag) || flag >= 32)
+            if (!ActorDialogue_Byte(s, &s->death_event.events, &flag) || flag >= 32)
                 return SDL_SetError("Death event flag exceeds its original bitfield");
             if (opcode == 3)
                 s->death_event.flags |= 1U << flag;
             else if (!(s->death_event.flags & (1U << flag)))
             {
                 s->death_event.events = start;
+                if (s->stage_id == 25)
+                    --s->death_event.event_timer;
                 return true;
             }
             else
@@ -164,7 +168,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
         a->state.flags |= 0x2000;
         return true;
     }
-    if (!Events(s, a))
+    if (!ActorDialogue_Events(s, a))
         return false;
     if (s->death_event.wait)
     {
@@ -180,7 +184,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
     {
         const size_t instruction = s->death_event.script;
         Uint8 opcode = 0, value = 0, side = 0;
-        if (!Byte(s, &s->death_event.script, &opcode))
+        if (!ActorDialogue_Byte(s, &s->death_event.script, &opcode))
             return false;
         switch (opcode)
         {
@@ -203,12 +207,12 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             d->column = 0;
             return true;
         case 2:
-            if (!Byte(s, &s->death_event.script, &value))
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &value))
                 return false;
             s->death_event.speed = value;
             break;
         case 3:
-            if (!Byte(s, &s->death_event.script, &value))
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &value))
                 return false;
             s->death_event.wait = value;
             return true;
@@ -216,8 +220,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             d->visible = false;
             return true;
         case 5:
-            if (!Byte(s, &s->death_event.script, &value) || value > 1 ||
-                !Byte(s, &s->death_event.script, &side))
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &value) || value > 1 ||
+                !ActorDialogue_Byte(s, &s->death_event.script, &side))
                 return SDL_SetError("Death dialogue portrait selector is invalid");
             SotnDataView palette = {0};
             if (!Slice(s->nz0, profile.palettes + value * 2U, 2, &palette) ||
@@ -237,7 +241,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             Lines(d);
             return true;
         case 7:
-            if (!Byte(s, &s->death_event.script, &value) || !Byte(s, &s->death_event.script, &side))
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &value) ||
+                !ActorDialogue_Byte(s, &s->death_event.script, &side))
                 return false;
             d->x = value;
             d->y = side;
@@ -252,7 +257,8 @@ bool ActorDialogue(SotnActors *s, Actor *a)
         case 9:
         case 20: {
             Uint8 high = 0, low = 0;
-            if (!Byte(s, &s->death_event.script, &high) || !Byte(s, &s->death_event.script, &low))
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &high) ||
+                !ActorDialogue_Byte(s, &s->death_event.script, &low))
                 return false;
             const Uint16 sound = (Uint16)((Uint16)high << 4 | low);
             if (sound == 0x92 || sound == 0x0a)
@@ -293,7 +299,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             }
             break;
         case 12:
-            if (!Address(s, &s->death_event.script, &s->death_event.events))
+            if (!ActorDialogue_Address(s, &s->death_event.script, &s->death_event.events))
                 return false;
             s->death_event.event_timer = 0;
             s->death_event.events_active = true;
@@ -302,7 +308,7 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             break;
         case 14: {
             size_t selector = 0;
-            if (s->stage_id != 2 || !Address(s, &s->death_event.script, &selector) ||
+            if (s->stage_id != 2 || !ActorDialogue_Address(s, &s->death_event.script, &selector) ||
                 (selector != 0x3f60 && selector != 0x3f64) || s->death_event.library_reply > 1)
                 return SDL_SetError(
                     "Library dialogue switch references an unsupported state selector");
@@ -312,19 +318,19 @@ bool ActorDialogue(SotnActors *s, Actor *a)
                 (size_t)choice * 4 > s->nz0.size - s->death_event.script)
                 return SDL_SetError("Library dialogue switch cases are truncated");
             s->death_event.script += (size_t)choice * 4;
-            if (!Address(s, &s->death_event.script, &s->death_event.script))
+            if (!ActorDialogue_Address(s, &s->death_event.script, &s->death_event.script))
                 return false;
             break;
         }
         case 15:
-            if (!Address(s, &s->death_event.script, &s->death_event.script))
+            if (!ActorDialogue_Address(s, &s->death_event.script, &s->death_event.script))
                 return false;
             break;
         case 16:
         case 17:
         case 22:
         case 24:
-            if (!Byte(s, &s->death_event.script, &value) || value >= 32)
+            if (!ActorDialogue_Byte(s, &s->death_event.script, &value) || value >= 32)
                 return SDL_SetError("Death dialogue flag is outside its bitfield");
             if (opcode == 17)
                 s->death_event.flags |= 1U << value;
@@ -343,9 +349,9 @@ bool ActorDialogue(SotnActors *s, Actor *a)
             break;
         case 19: {
             size_t portrait = 0;
-            if (!Address(s, &s->death_event.script, &portrait) ||
-                !Byte(s, &s->death_event.script, &value) || value > 1 || portrait > s->nz0.size ||
-                48 * 72 > s->nz0.size - portrait)
+            if (!ActorDialogue_Address(s, &s->death_event.script, &portrait) ||
+                !ActorDialogue_Byte(s, &s->death_event.script, &value) || value > 1 ||
+                portrait > s->nz0.size || 48 * 72 > s->nz0.size - portrait)
                 return SDL_SetError("Death dialogue portrait is truncated or invalid");
             d->portraits[value] = (Uint32)portrait;
             break;
