@@ -563,19 +563,27 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Sint32 screen_x = target.x - actors->camera_x, screen_y = target.y - actors->camera_y;
     if (screen_x <= -32 || screen_x >= 288 || screen_y <= -32 || screen_y >= 256)
         return true;
-    const Uint32 normal_channels = 2 + SOTN_SUBWEAPON_SLOTS;
+    const Uint32 normal_channels = ACTOR_HAND_PROJECTILE_CHANNELS;
     const Uint32 total_channels =
-        normal_channels + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
+        normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
     for (Uint32 channel = 0; channel < total_channels; ++channel)
     {
         SotnPlayerState source = player;
         Uint32 hand = channel;
-        if (channel >= normal_channels)
+        const bool kick = channel == normal_channels;
+        if (kick)
+        {
+            if (player.kick.generation == 0)
+                continue;
+            source.attack = player.kick.attack;
+            hand = ACTOR_KICK_CHANNEL;
+        }
+        else if (channel > normal_channels)
         {
             Uint32 group = 0;
             bool active = false;
-            if (!ActorChapelBallAttack(actors, (Uint16)(channel - normal_channels), &source, &group,
-                                       &active))
+            if (!ActorChapelBallAttack(actors, (Uint16)(channel - normal_channels - 1), &source,
+                                       &group, &active))
                 return false;
             if (!active)
                 continue;
@@ -680,13 +688,18 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->hit_params = source.attack.hit_effect & 127;
             if (actors->stage_id == 25 && recipient->state.id == 0x22)
                 recipient->hit_params = actor->hit_params;
-            if (channel >= 2 && channel < normal_channels)
+            if (channel >= 2 && channel <= normal_channels)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                 if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
                     (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
                     flags = 2;
-                if (!SotnSubweapons_Hit(actors->subweapons, channel - 2, flags))
+                if (kick)
+                {
+                    actors->combat.kick_generation = player.kick.generation;
+                    actors->combat.kick_hit = flags;
+                }
+                else if (!SotnSubweapons_Hit(actors->subweapons, channel - 2, flags))
                     return false;
             }
             actor->cooldown[hand] = source.attack.invincibility_frames;
@@ -1756,6 +1769,8 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
     actors->combat.contact_element = 0;
+    actors->combat.kick_generation = 0;
+    actors->combat.kick_hit = 0;
     if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))
         return false;
     const Sint32 dx = camera_x - actors->camera_x, dy = camera_y - actors->camera_y;

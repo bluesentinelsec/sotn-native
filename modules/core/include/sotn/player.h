@@ -65,6 +65,14 @@ typedef struct SotnPlayerAttack
     Uint16 power, sound_id, equipment, sprite;
 } SotnPlayerAttack;
 
+/** @brief Owned transient dive-kick hitbox; generation zero means inactive.
+ * The original child follows the player independently of either hand/shield. */
+typedef struct SotnPlayerKick
+{
+    SotnPlayerAttack attack;
+    Uint32 generation;
+} SotnPlayerKick;
+
 /** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
 typedef struct SotnPlayerDeath
 {
@@ -119,6 +127,7 @@ typedef struct SotnPlayerState
     Uint16 extra_sound;  /**< Second original sound request, after sound; zero selects none. */
     SotnPlayerGrab grab;
     Uint16 priority; /**< Current normal-form ordering-table priority. */
+    SotnPlayerKick kick;
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -136,6 +145,7 @@ typedef struct SotnPlayer SotnPlayer;
  * @return True on success, false with SDL_GetError() for invalid data or bounds.
  * @note Supports standing, walking, crouching, falling, jumping and an active Leap
  * Stone's double jump after SotnPlayer_SetRelics supplies its persistent ownership.
+ * The selected normal-Jump dive kick has its own attack and delayed rebound.
  * Empty-hand, Basilard/Gladius/Mace/Short sword, and ordinary Alucard sword/shield paths run.
  * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
  * transformations, and stage scripts are not implemented here.
@@ -188,6 +198,14 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
  * Found-but-disabled relics do not enable abilities. This setter advances no time,
  * grants no relics and does not replenish the current airborne jump allowance. */
 bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
+
+/** @brief Deliver original contact feedback to the current owned dive-kick child.
+ * @param player Borrowed simulation. @param generation Current nonzero child identity.
+ * @param flags Original normal/deflection/projectile result, 1..3.
+ * @return Success or SDL error without mutation for invalid or stale feedback.
+ * Delivery advances no time. The child publishes a normal-hit bounce request after
+ * the next player step; the following player step consumes that request. */
+bool SotnPlayer_KickHit(SotnPlayer *player, Uint32 generation, Uint16 flags);
 
 /**
  * @brief Advance one simulation tick with original movement and sensor rules.

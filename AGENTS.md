@@ -3,8 +3,12 @@
 The selected [Leap Stone double jump](docs/player-leap-stone.md) now uses a copied,
 validated relic snapshot from session progress, original Jump/Fall semantics and
 one use per airborne interval. Never grant it by default or refill it during a
-room change/snapshot update. Dive kicks, Gravity Boots and full abilities remain
+room change/snapshot update. Full dive-kick parity, Gravity Boots and other abilities remain
 incomplete; positioned/private-grant checks are not ordinary acquisition parity.
+The selected [dive kick](docs/player-dive-kick.md) adds an owned empty-hand hitbox,
+generation-checked feedback and original delayed rebound/landing. Preserve enemy
+cooldown across child generations and legacy Chapel-ball groups. Original shared
+factory capacity/dynamic attack groups and complete effects remain incomplete.
 
 The selected [normal-form boss grab service](docs/player-boss-grab.md) now provides
 Hippogryph's start/held/damage/clear-to-drop handshake, original grabbed animation

@@ -46,6 +46,7 @@ typedef struct SotnCharacterStats
 {
     Uint16 total[4], attack[2], defense, weakness, resistance, immunity, absorption;
     Sint16 bonus[4];
+    Uint16 unarmed_attack; /**< Original unbuffed empty-hand power including body attack bonuses. */
 } SotnCharacterStats;
 /** @brief Owned character borrowing immutable DRA bytes until Destroy. */
 typedef struct SotnCharacter SotnCharacter;

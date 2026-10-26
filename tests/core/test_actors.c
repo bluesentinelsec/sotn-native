@@ -141,7 +141,7 @@ static bool TestBehaviors(Fixture *fixture)
     return true;
 }
 
-static bool TestCombat(Fixture *fixture)
+static SotnCollisionMap MakeCombatFixture(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
     Put16(fixture->nz0, 0x310, 0x100);
@@ -171,6 +171,12 @@ static bool TestCombat(Fixture *fixture)
     const Uint8 end[] = {1, 20, 255, 0};
     SDL_memcpy(fixture->nz0 + 0x2320, end, sizeof(end));
     SDL_memcpy(fixture->nz0 + 0x2334, end, sizeof(end));
+    return map;
+}
+
+static bool TestCombat(Fixture *fixture)
+{
+    const SotnCollisionMap map = MakeCombatFixture(fixture);
     SotnActors *actors = NULL;
     SotnActorLayout *layout = NULL;
     CHECK(SotnActors_Create((SotnDataView){fixture->dra, sizeof(fixture->dra)},
@@ -320,6 +326,50 @@ static bool TestExperienceReward(Fixture *f)
     return true;
 }
 
+static bool TestKickContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    SotnPlayerState player = {.x = 151 * 65536, .y = 119 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    player.kick = (SotnPlayerKick){.generation = 7,
+                                   .attack = {.offset_x = 9,
+                                              .offset_y = 21,
+                                              .width = 4,
+                                              .height = 5,
+                                              .power = 6,
+                                              .hit_type = 2,
+                                              .hit_effect = 1,
+                                              .invincibility_frames = 8,
+                                              .active = true}};
+    SotnActorCombat combat = {0};
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Tick(actors, player, 0, 0) && SotnActors_GetCombat(actors, &combat));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    CHECK(combat.kick_hit == 1 && combat.kick_generation == 7);
+    CHECK(SotnActors_Tick(actors, player, 0, 0) && SotnActors_GetCombat(actors, &combat));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6 && !combat.kick_hit);
+    player.kick.generation = 8; // A new child cannot bypass the enemy's remaining cooldown.
+    CHECK(SotnActors_Tick(actors, player, 0, 0) && SotnActors_GetCombat(actors, &combat));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6 && !combat.kick_hit);
+    for (Uint16 tick = 0; tick < 6; ++tick)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_GetCombat(actors, &combat));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 0);
+    CHECK(combat.kick_hit == 1 && combat.kick_generation == 8 && combat.kills == 1);
+    player.kick = (SotnPlayerKick){0};
+    CHECK(SotnActors_Tick(actors, player, 0, 0) && SotnActors_GetCombat(actors, &combat));
+    CHECK(combat.kick_hit == 0 && combat.kick_generation == 0 && combat.kills == 1);
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -347,7 +397,7 @@ int main(void)
         return 1;
     const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
                         TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
-                        TestFailures(fixture);
+                        TestKickContact(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

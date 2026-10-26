@@ -36,6 +36,7 @@ int main(void)
         }
     bytes[0x1000 + 86 * 52 + 8] = 4;
     bytes[0x1000 + 128 * 52 + 8] = 12;
+    bytes[0x4000 + 1 * 32 + 8] = 3;
     bytes[0x4000 + 1 * 32 + 10] = 3;
     bytes[0x4000 + 1 * 32 + 12] = 2;
     bytes[0x4000 + 1 * 32 + 13] = 1;
@@ -45,8 +46,8 @@ int main(void)
     SotnCharacterStats stats = {0};
     CHECK(SotnCharacter_Create(dra, &c));
     CHECK(SotnCharacter_Get(c, &s, &stats));
-    CHECK(s.hp == 70 && s.level == 1 && stats.attack[0] == 6 && stats.defense == 0 &&
-          s.equipment[5] == 57);
+    CHECK(s.hp == 70 && s.level == 1 && stats.attack[0] == 6 && stats.unarmed_attack == 6 &&
+          stats.defense == 0 && s.equipment[5] == 57);
     CHECK(!SotnCharacter_Equip(c, 0, 86));
     CHECK(SotnCharacter_Collect(c, false, 86));
     CHECK(SotnCharacter_Equip(c, 0, 86));
@@ -57,8 +58,8 @@ int main(void)
     CHECK(!SotnCharacter_Equip(c, 2, 1));
     CHECK(SotnCharacter_Equip(c, 3, 1));
     CHECK(SotnCharacter_Get(c, &s, &stats));
-    CHECK(stats.total[0] == 8 && stats.total[1] == 14 && stats.attack[0] == 12 &&
-          stats.defense == 4);
+    CHECK(stats.total[0] == 8 && stats.total[1] == 14 && stats.attack[0] == 15 &&
+          stats.unarmed_attack == 11 && stats.defense == 4);
     CHECK(SotnCharacter_Equip(c, 0, 0));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.hand_count[86] == 1);
     CHECK(SotnCharacter_Collect(c, false, 1));

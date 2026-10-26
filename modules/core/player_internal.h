@@ -44,6 +44,9 @@ struct SotnPlayer
     bool subweapon_cast;
     Uint16 subweapon_animation;
     SotnPlayerAttack attack, shield;
+    SotnPlayerKick kick;
+    Uint32 kick_counter;
+    Uint16 kick_hit;
     SotnShield shield_cursor;
     Uint16 shield_button;
     SotnDataView weapons;
@@ -68,6 +71,8 @@ struct SotnPlayer
 void SotnPlayer_StoneTick(SotnPlayer *player);
 /** @brief Advance the owned sleep effect from private DRA frames; false reports invalid data. */
 bool SotnPlayer_SleepTick(SotnPlayer *player);
+/** @brief Advance the selected original owned dive-kick child after player motion selection. */
+bool SotnPlayer_KickTick(SotnPlayer *player);
 void SotnPlayer_StoneDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);

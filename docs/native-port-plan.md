@@ -38,8 +38,10 @@ and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-worl
 [map](castle-map.md), and [session flow](native-session-flow.md).
 
 The selected [Leap Stone double jump](player-leap-stone.md) now consumes saved,
-active relic ownership through the normal-form player. Dive kicks, Gravity Boots,
-transformations and full ability/progression parity remain incomplete.
+active relic ownership through the normal-form player. Full dive-kick parity, Gravity Boots,
+transformations and full ability/progression parity remain incomplete. The selected
+[dive-kick attack/rebound](player-dive-kick.md) now runs; original shared-factory
+and attack-group contention still need integration.
 
 ## Pinned reference
 

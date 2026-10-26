@@ -44,6 +44,10 @@
   The selected [Leap Stone double jump](docs/player-leap-stone.md) follows
   `6E42C.c:func_8010E940`, `6FDF8.c:func_8010FDF8`, and the Jump/Fall paths
   in `71830.c`; its animation bytes remain private runtime data.
+  The selected [dive kick](docs/player-dive-kick.md) in `player_kick.c` follows
+  `7879C.c:EntityDiveKickAttack`, `71830.c:PlayerStepJump`, and empty-hand power
+  from `5D5BC.c:GetEquipProperties` / `menu.c:CalcAttack`. Original shared
+  factory/attack-group contention remains outside the selected native adapter.
   `modules/core/room_actors.c` adapts scrolling spawns from `src/st/create_entity.h`
   and stage persistence from `src/st/st_common.h`; the runtime layout parser
   is original project code. See [actor integration](docs/laboratory-actors.md).

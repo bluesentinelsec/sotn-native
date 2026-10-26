@@ -189,6 +189,28 @@ static bool Damage(Fixture *f)
     target->enemy.absorbs = 0x8000;
     target->cooldown[18] = 0;
     CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 67);
+    target->enemy.absorbs = 0;
+    target->cooldown[18] = 16;
+    player.x = 119 * 65536;
+    player.y = 123 * 65536;
+    player.kick = (SotnPlayerKick){.generation = 1,
+                                   .attack = {.offset_x = 9,
+                                              .offset_y = 21,
+                                              .width = 4,
+                                              .height = 5,
+                                              .power = 6,
+                                              .hit_type = 2,
+                                              .hit_effect = 1,
+                    .stun_frames = 3,
+                                              .invincibility_frames = 8,
+                                              .active = true}};
+    CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 64 &&
+          target->cooldown[18] == 15 && target->cooldown[ACTOR_KICK_CHANNEL] == 8);
+    SotnActorCombat combat = {0};
+    CHECK(SotnActors_GetCombat(s, &combat) && combat.kick_generation == 1 && combat.kick_hit == 1);
+    player.kick = (SotnPlayerKick){0};
+    CHECK(SotnActors_Tick(s, player, 0, 0) && target->state.hit_points == 64 &&
+          target->cooldown[18] == 14 && target->cooldown[ACTOR_KICK_CHANNEL] == 7);
     CHECK(SotnActors_Enter(s, f->layout, s->map, 0, 0) && !s->chapel_ball[0].generation);
     Close(f, s);
     return true;
