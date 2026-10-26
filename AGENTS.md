@@ -19,8 +19,8 @@ Further Chapel exits and full encounter/presentation parity remain incomplete.
 
 The internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds its
 own NO2 resources/music, common pickups/doors/camera, breakables/debris, decorations,
-Skelerang/boomerangs and selected blood effects. The retained Bloody Zombie adapter
-has component coverage; current ordinary NO2 room layouts do not place its body.
+Skelerang/boomerangs, selected Bloody Zombies and blood-effect adapters. Keep NO2
+identities distinct: zombie 0x2D, blood 0x2E/0x2F, Owl Knight sword/target 0x2B/0x2C.
 Stage 4 remains disconnected while its other enemies, mechanisms and Olrox need
 integration. Public synthetic and controlled private checks are not whole-area or
 console parity. Its ordinary save room uses the existing version-nine format.

@@ -245,7 +245,7 @@ bool ActorLibraryBlood(SotnActors *s, Actor *a)
 {
     if (s == NULL || a == NULL ||
         !((s->stage_id == 2 && (a->state.id == 0x1d || a->state.id == 0x1e)) ||
-          (s->stage_id == 4 && (a->state.id == 0x2c || a->state.id == 0x2d))))
+          (s->stage_id == 4 && (a->state.id == 0x2e || a->state.id == 0x2f))))
         return SDL_SetError("Blood dispatch requires original Library or NO2 actor identities");
-    return a->state.id == (s->stage_id == 4 ? 0x2c : 0x1d) ? Drips(s, a) : Splatter(s, a);
+    return a->state.id == (s->stage_id == 4 ? 0x2e : 0x1d) ? Drips(s, a) : Splatter(s, a);
 }

@@ -10,8 +10,10 @@ prize, door, camera and sine tables. It includes common pickups and red doors,
 selected camera locks and dust, all ten retained breakable profiles and owned
 debris, foreground/background decorations, Skelerang and owned boomerangs, and
 selected blood drips/splatter. The existing selected Bloody Zombie adapter also
-uses NO2's tables. Ordinary NO2 room layouts place Skelerang and blood splatter,
-but contain no Bloody Zombie bodies; that body has controlled component coverage.
+uses NO2's tables. Ordinary NO2 room layouts place Skelerangs and seven Bloody
+Zombie bodies. Zombie identity 0x2D is distinct from blood 0x2E/0x2F and the Owl
+Knight sword/target 0x2B/0x2C; registry tests protect that boundary. Blood children
+have controlled component coverage; complete zombie blood factories remain incomplete.
 Shared adapters retain their documented limitations; this is not new parity proof
 for every imported behavior.
 
@@ -46,7 +48,7 @@ All 101 public test groups pass in Debug, Release and macOS ASan/UBSan;
 `make package` produces the self-contained macOS Release ZIP. Synthetic tests
 cover the bounded profile, both decoration kinds, all ten breakable/drop/debris
 paths, invalid types/indices and absent Cube of Zoe, separate sound/palette,
-owned Skelerang identities and private sine samples, retained zombie animations,
+owned Skelerang identities and private sine samples, zombie animations/registry boundaries,
 blood streams/drips, explosion offsets/overflow, music selection and ordinary
 save-stage round trips. These fixtures contain no game tables or assets.
 
@@ -58,6 +60,14 @@ arrival. A protected, explicit room-zero start observes placed Skelerangs and
 thrown boomerangs for 1,000 simulation ticks. Two private captures were inspected.
 These are controlled components, not uninterrupted traversal or ordinary combat
 balance/console-parity evidence. Remaining actors still warn as unintegrated.
+
+A separate native LLDB sequence verifies an original placed zombie's identity,
+artwork and 24 HP, then deals damage with Gladius, completes death and awards
+27 EXP at tick 290. Explicitly spawned blood drips/splatter then render and finish
+their owned lifetimes. Both Debug and macOS ASan/UBSan pass with 116 rendered
+frames. This explicit-start fixture protects the player without stat/equipment
+grants; it does not force enemy damage/death, exercise the missing original blood
+factories or establish ordinary encounter/console parity.
 
 An independent 80-tick Dance of Pales decode produces nonzero PCM. An explicit
 transfer to the NO2 save room exercises its ordinary UI, isolated slot 15 and

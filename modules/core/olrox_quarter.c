@@ -23,10 +23,10 @@ bool ActorOlroxQuarter(SotnActors *s, Actor *a)
     case 0x17:
     case 0x18:
         return ActorSkelerang(s, a);
-    case 0x2c:
-    case 0x2d:
+    case 0x2e:
+    case 0x2f:
         return ActorLibraryBlood(s, a);
-    case 0x2b:
+    case 0x2d:
         return ActorBloodyZombie(s, a, s->player);
     default:
         a->state.unsupported = true;

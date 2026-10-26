@@ -105,6 +105,12 @@ static bool Metadata(Fixture *f)
     CHECK(ActorStageOffset(s, 0x23dc) == s->nz0.size);
     Actor a = {.state = {.id = 0x29, .generation = 1}};
     CHECK(ActorOlroxQuarter(s, &a) && a.state.unsupported && !a.state.step);
+    // Original NO2 registry: 2B is the Owl Knight sword, 2C its target;
+    // neither may alias the zombie (2D) or blood children (2E/2F).
+    a = (Actor){.state = {.id = 0x2b, .generation = 2}};
+    CHECK(ActorOlroxQuarter(s, &a) && a.state.unsupported && !a.state.step);
+    a = (Actor){.state = {.id = 0x2c, .generation = 3}};
+    CHECK(ActorOlroxQuarter(s, &a) && a.state.unsupported && !a.state.step);
     CHECK(!ActorOlroxQuarter(NULL, &a) && !ActorOlroxQuarter(s, NULL));
     SotnActors_Destroy(s);
     return true;
@@ -212,7 +218,7 @@ static bool Enemies(Fixture *f)
     CHECK(boom->vx % 48 == 0 && boom->vy % 48 == 0);
     CHECK(boom->vx == Signed16(f->stage + 0x142c + (Uint8)boom->table.angle * 2U) * 48 &&
           boom->vy == Signed16(f->stage + 0x142c + (Uint8)(boom->table.angle - 64) * 2U) * 48);
-    Actor zombie = {.state = {.id = 0x2b, .generation = 2, .x = 128 * 65536, .y = 100 * 65536}};
+    Actor zombie = {.state = {.id = 0x2d, .generation = 2, .x = 128 * 65536, .y = 100 * 65536}};
     CHECK(ActorOlroxQuarter(s, &zombie) && zombie.state.step == 2 && zombie.state.palette == 0x251);
     zombie.state.step = 3;
     CHECK(ActorOlroxQuarter(s, &zombie) && zombie.state.frame == 16 && zombie.state.step == 3);
@@ -234,7 +240,7 @@ static bool Blood(Fixture *f)
         f->stage[at + 5] = 255;
     }
     Actor *a = &s->slots[64];
-    *a = (Actor){.state = {.id = 0x2d, .generation = 1, .x = 128 * 65536, .y = 128 * 65536},
+    *a = (Actor){.state = {.id = 0x2f, .generation = 1, .x = 128 * 65536, .y = 128 * 65536},
                  .slot = 64};
     CHECK(ActorOlroxQuarter(s, a) && a->state.step == 1);
     CHECK(ActorOlroxQuarter(s, a) && a->state.step == 2 && a->state.primitive_count == 8);
@@ -245,7 +251,7 @@ static bool Blood(Fixture *f)
           small->state.v[0] == 16);
     CHECK(ActorOlroxQuarter(s, a) && !small->state.active && !big->state.active);
     ActorPrimitivesClear(s, a);
-    *a = (Actor){.state = {.id = 0x2c, .generation = 2, .x = 128 * 65536, .y = 128 * 65536},
+    *a = (Actor){.state = {.id = 0x2e, .generation = 2, .x = 128 * 65536, .y = 128 * 65536},
                  .slot = 64};
     Put16(f->stage + 0x1c14, 255);
     CHECK(ActorOlroxQuarter(s, a) && a->state.step == 1 && a->state.primitive_count == 1);
