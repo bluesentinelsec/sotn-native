@@ -5,7 +5,9 @@ private DRA definitions. Contact collects ordinary relics with their original
 found/active bits and familiar cards with their found bit. The icon floats using
 the original timing. The complete orb glow and acquisition banner remain incomplete.
 Owning an unsupported movement relic does not silently enable an invented ability;
-transformation, double-jump, and relic-menu integration remain separate.
+selected [Leap Stone](player-leap-stone.md), [Gravity Boots](player-gravity-boots.md)
+and [relic pause controls](relic-menu.md) now run. Transformations and other
+abilities remain incomplete.
 
 Fresh Entrance checkpoints no longer grant Cube of Zoe: it is collected in its
 original Entrance room. Candles break without dropping their prize until Cube is

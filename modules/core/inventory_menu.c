@@ -3,6 +3,7 @@
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5: dra/menu.c.
 #include <SDL3/SDL.h>
 #include <sotn/inventory_menu.h>
+#include <sotn/relic.h>
 static bool Rows(SotnInventoryMenu *menu, SotnCharacter *c)
 {
     SotnCharacterState state = {0};
@@ -36,10 +37,11 @@ static bool Rows(SotnInventoryMenu *menu, SotnCharacter *c)
     return true;
 }
 bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 buttons, Uint16 *sound,
-                            bool *changed)
+                            bool *changed, SotnWorldState *world, SotnDataView dra)
 {
-    if (m == NULL || c == NULL || sound == NULL || changed == NULL || m->phase > SOTN_MENU_ITEMS ||
-        m->slot >= 7 || m->count > 170)
+    if (m == NULL || c == NULL || sound == NULL || changed == NULL || world == NULL ||
+        m->phase < SOTN_MENU_CLOSED || m->phase > SOTN_MENU_RELICS || m->cursor >= 5 ||
+        m->slot >= 7 || m->count > 170 || m->relic_cursor >= 28)
         return SDL_SetError("Inventory menu requires initialized bounded cursors and outputs");
     *sound = 0;
     *changed = false;
@@ -66,9 +68,10 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
         return true;
     if (tapped & SOTN_BUTTON_CANCEL)
     {
-        m->phase = m->phase == SOTN_MENU_ITEMS       ? SOTN_MENU_EQUIPMENT
-                   : m->phase == SOTN_MENU_EQUIPMENT ? SOTN_MENU_MAIN
-                                                     : SOTN_MENU_CLOSED;
+        m->phase = m->phase == SOTN_MENU_ITEMS ? SOTN_MENU_EQUIPMENT
+                   : m->phase == SOTN_MENU_EQUIPMENT || m->phase == SOTN_MENU_RELICS
+                       ? SOTN_MENU_MAIN
+                       : SOTN_MENU_CLOSED;
         m->message[0] = '\0';
         *sound = 0x6a4;
         return true;
@@ -87,9 +90,9 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
         }
         if (tapped & SOTN_BUTTON_JUMP)
         {
-            if (m->cursor == 0)
+            if (m->cursor == 0 || m->cursor == 2)
             {
-                m->phase = SOTN_MENU_EQUIPMENT;
+                m->phase = m->cursor == 0 ? SOTN_MENU_EQUIPMENT : SOTN_MENU_RELICS;
                 m->message[0] = '\0';
                 *sound = 0x6ad;
             }
@@ -118,6 +121,36 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
                 return false;
             m->phase = SOTN_MENU_ITEMS;
             *sound = 0x6ad;
+        }
+    }
+    else if (m->phase == SOTN_MENU_RELICS)
+    {
+        const Uint8 previous = m->relic_cursor;
+        if ((tapped & SOTN_BUTTON_UP) && m->relic_cursor >= 2)
+            m->relic_cursor -= 2;
+        if ((tapped & SOTN_BUTTON_DOWN) && m->relic_cursor < 26)
+            m->relic_cursor += 2;
+        if (tapped & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT))
+            m->relic_cursor ^= 1;
+        if (m->relic_cursor != previous)
+        {
+            m->message[0] = '\0';
+            *sound = 0x67b;
+        }
+        const Uint16 id = m->relic_cursor < 23 ? m->relic_cursor : (Uint16)(m->relic_cursor + 2);
+        if ((tapped & SOTN_BUTTON_JUMP) && (world->relics[id] & 1))
+        {
+            if (SotnRelic_Toggle(world, dra, id))
+            {
+                *changed = true;
+                *sound = 0x6ad;
+                m->message[0] = '\0';
+            }
+            else
+            {
+                SDL_strlcpy(m->message, SDL_GetError(), sizeof(m->message));
+                *sound = 0x6a5;
+            }
         }
     }
     else

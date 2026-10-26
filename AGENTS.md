@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
+Zoe, Gravity Boots, Leap Stone and Jewel of Open. Preserve found bits, US cursor
+mapping (skip identities 23/24), paused simulation and immediate player snapshots.
+Other abilities and familiars remain unavailable; never grant ownership or reset
+transient movement/MP when switching. Version-nine saves retain disabled relics.
+Private grants/transfers are not ordinary acquisition or whole-route parity.
+
 The selected [Gravity Boots service](docs/player-gravity-boots.md) now runs the
 original command, strict MP threshold/cost, high-jump/ceiling states and owned
 beam. Preserve sixteen-bit command timers, signed duration comparisons, the late
@@ -269,8 +276,8 @@ combat sound effects and Laboratory music; reverb and full audio parity remain i
 
 The [character inventory](docs/character-inventory.md) now connects original pickups,
 selected pause/equipment panels, body stats, physical defense, and cape colors.
-Spells/relic/settings/familiar menus remain unavailable. Version 9 saves retain this
-supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
+Selected relic controls now run; spells/settings/familiar menus remain unavailable.
+Version 9 saves retain this supported progress; versions 1/2/3/4 migrate explicitly from their earlier profiles.
 
 [Character progression](docs/character-progression.md) now awards level-adjusted
 enemy EXP, original level/resource/stat gains, selected MP recovery, and permanent
@@ -327,7 +334,8 @@ presentation remain incomplete; do not call this original new-game initializatio
 The [relic progression service](docs/relic-progression.md) collects original stage orbs,
 retains found/active ownership in v6 saves, and gates candle drops on Cube of Zoe.
 Selected permanent pickups retain original castle bits across stage changes.
-Relic movement abilities, complete acquisition effects, and the relic menu remain incomplete.
+Selected Leap Stone/Gravity Boots and relic switches now run; other movement
+abilities and complete acquisition effects remain incomplete.
 
 The [Laboratory Maria encounter](docs/laboratory-maria.md) now reads private scripts,
 animates Maria and her door, streams five speech clips, pauses/resumes music, and

@@ -144,6 +144,9 @@ that jump; full ability and shared-factory parity remain incomplete.
 Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command,
 MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
 and complete ability/castle parity remain acceptance work.
+The [Relics pause panel](docs/relic-menu.md) now switches owned Cube of Zoe,
+Gravity Boots, Leap Stone and Jewel of Open, retaining active choices in saves.
+Other relic abilities and familiar controls remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct
 save-room start, press Up at the point, then follow confirmation prompts. X/Space

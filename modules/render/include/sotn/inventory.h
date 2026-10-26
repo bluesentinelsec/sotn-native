@@ -20,10 +20,11 @@ bool SotnInventoryRenderer_Create(SotnDataView dra, SotnDataView common,
  * @param renderer Borrowed renderer. @param menu Copied valid cursor. @param character Borrowed
  * state.
  * @param ticks Elapsed gameplay ticks. @param gamepad Show Xbox hints. @param rgba Output buffer.
- * @param capacity At least SOTN_MENU_RGBA_BYTES. @return Success or false with SDL_GetError(). */
+ * @param capacity At least SOTN_MENU_RGBA_BYTES. @param world Borrowed ordinary relic progress.
+ * @return Success or false with SDL_GetError(). */
 bool SotnInventoryRenderer_Draw(SotnInventoryRenderer *renderer, SotnInventoryMenu menu,
                                 const SotnCharacter *character, Uint64 ticks, bool gamepad,
-                                Uint8 *rgba, size_t capacity);
+                                Uint8 *rgba, size_t capacity, const SotnWorldState *world);
 /** @brief Draw an original item icon into a gameplay RGB555 frame, clipped to its bounds.
  * @param dra Borrowed image. @param item Decoded icon metadata. @param x Left edge. @param y Top
  * edge.

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // dra/5D5BC.c:func_800FE044 relic branch and shared e_collect.h, sotn-decomp
-// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Definitions and names remain private.
+// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5; active switching from dra/menu.c. Definitions and names
+// remain private.
 #include <SDL3/SDL.h>
 #include <sotn/relic.h>
 static Uint16 Read16(const Uint8 *p)
@@ -54,5 +55,24 @@ bool SotnRelic_Collect(SotnWorldState *world, SotnDataView dra, Uint16 id)
         return SDL_SetError(
             "Relic collection requires owned progress and a valid private definition");
     world->relics[id] = relic.type ? 1 : 3;
+    return true;
+}
+
+bool SotnRelic_CanToggle(Uint16 id)
+{
+    return id == SOTN_RELIC_CUBE || id == SOTN_RELIC_GRAVITY || id == SOTN_RELIC_LEAP ||
+           id == SOTN_RELIC_JEWEL;
+}
+
+bool SotnRelic_Toggle(SotnWorldState *world, SotnDataView dra, Uint16 id)
+{
+    SotnItem relic = {0};
+    if (world == NULL || id >= SOTN_RELICS || !SotnRelic_Read(dra, id, &relic))
+        return SDL_SetError("Relic switch requires owned progress and a valid private definition");
+    if (world->relics[id] != 1 && world->relics[id] != 3)
+        return SDL_SetError("Only a found relic with valid active bits can be switched");
+    if (!SotnRelic_CanToggle(id) || relic.type != 0)
+        return SDL_SetError("This relic's active behavior is not integrated yet");
+    world->relics[id] ^= 2;
     return true;
 }
