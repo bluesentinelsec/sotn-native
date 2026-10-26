@@ -5,6 +5,9 @@ Hippogryph's start/held/damage/clear-to-drop handshake, original grabbed animati
 and pain requests, collision/input hold, defense/poison damage and selected lethal
 completion. This is a dependency; Hippogryph and connected Chapel travel remain
 unintegrated. Thrown-release/stone grabs and full grab effects remain incomplete.
+The internal [BO5 attack adapters](docs/hippogryph-attacks.md) add owned pose hitboxes,
+flying objects, flame/particles and bounded effect pools, with private instruction-tick
+comparisons. Main boss AI/arena/reward/Maria and connected Chapel travel remain pending.
 
 ## Purpose and priorities
 

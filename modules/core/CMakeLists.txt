@@ -57,6 +57,7 @@ add_library(sotn-core STATIC
   chapel_glass_internal.h
   chapel_confessional.c
   chapel_maria.c
+  hippogryph_attacks.c
   chapel_ghost.c
   chapel_blades.c
   chapel_confessional_internal.h

@@ -406,6 +406,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 25)
+        return id == 0x22 || id == 0x23 || id == 0x24 || id == 0x25 || id == 0x27;
     if (actors->stage_id == 6)
         return id == 0x1a || id == 0x24 || id == 0x27 || id == 0x28 || id == 0x29 || id == 0x2a ||
                id == 0x2c || id == 0x32 || id == 0x33 || id == 0x35 || (id >= 0x37 && id <= 0x3b) ||
@@ -1243,6 +1245,15 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor)
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
+    if (actors->stage_id == 25 && actor->state.id > 0xc)
+    {
+        if (actor->state.id == 0x12)
+            return ActorCamera(actors, actor);
+        if (actor->state.id >= 0x23 && actor->state.id <= 0x27)
+            return ActorHippogryphAttack(actors, actor);
+        actor->state.unsupported = true;
+        return true;
+    }
     if (actor->state.id == 6)
         return ActorIntenseExplosion(actors, actor);
     if ((actors->stage_id == 65 || actors->stage_id == 7) && actor->state.id != 1 &&
