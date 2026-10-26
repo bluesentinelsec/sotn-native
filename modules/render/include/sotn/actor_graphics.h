@@ -78,14 +78,15 @@ bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorS
 /** @brief Original affine scale/rotation/color, with 256 as unit scale and 128 as neutral color. */
 typedef struct SotnSpriteTransform
 {
-    Sint16 rotation;
-    Uint16 scale_x, scale_y, opacity;
+    Sint16 rotation, scale_x, scale_y;
+    Uint16 opacity;
     bool tint; /**< When true, RGB multipliers replace opacity. */
     Uint8 red, green, blue;
 } SotnSpriteTransform;
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
- * @param x Screen anchor. @param y Screen anchor. @param transform Scale 1..1024, color 0..255.
+ * @param x Screen anchor. @param y Screen anchor. @param transform Nonzero signed scale
+ * -1024..1024 (negative reflects the axis), color 0..255.
  * @param frame Full writable frame. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,

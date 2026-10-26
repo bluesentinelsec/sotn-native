@@ -240,16 +240,18 @@ bool SotnMusic_CreateStage(SotnDataView dra, SotnStream *stream, Uint16 stage, S
     if (out == NULL)
         return SDL_InvalidParamError("out");
     *out = NULL;
-    if (stage != 0 && stage != 1 && stage != 2 && stage != 6)
+    if (stage != 0 && stage != 1 && stage != 2 && stage != 6 && stage != 25)
         return SDL_SetError("Stage music requires an integrated original area profile");
     return Create(dra, stream,
-                  stage == 0   ? 13
-                  : stage == 1 ? 19
-                  : stage == 6 ? 5
-                               : 9,
-                  stage == 0   ? 14
-                  : stage == 1 ? 20
-                  : stage == 6 ? 6
-                               : 10,
+                  stage == 0    ? 13
+                  : stage == 1  ? 19
+                  : stage == 6  ? 5
+                  : stage == 25 ? 52
+                                : 9,
+                  stage == 0    ? 14
+                  : stage == 1  ? 20
+                  : stage == 6  ? 6
+                  : stage == 25 ? 53
+                                : 10,
                   false, out);
 }

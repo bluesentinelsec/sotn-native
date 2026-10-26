@@ -1296,6 +1296,10 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     Uint8 animation = 0;
     if (actors->stage_id == 25 && actor->state.id > 0xc)
     {
+        if (actor->state.id == 0x21 || actor->state.id == 0x29)
+            return ActorHippogryphArena(actors, actor);
+        if (actor->state.id == 0x2b || actor->state.id == 0x2c)
+            return ActorHippogryphMaria(actors, actor);
         if (actor->state.id == 0x22)
             return ActorHippogryphBody(actors, actor);
         if (actor->state.id == 0x12)
@@ -1579,6 +1583,14 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     if (actors == NULL || map.width == 0 || map.height == 0 || map.width > 1024 ||
         map.height > 1024)
         return SDL_SetError("Laboratory actors require a bounded room collision map");
+    Uint32 hippogryph_scene = 0;
+    if (actors->stage_id == 25)
+    {
+        SotnDataView initial = {0};
+        if (!Slice(actors->nz0, 0xb74, 4, &initial) || Read32(initial.bytes) > 1)
+            return SDL_SetError("BO5 initial scene flag is missing or invalid");
+        hippogryph_scene = Read32(initial.bytes);
+    }
     SotnCollider probe = {0};
     if (!SotnCollision_Query(&map, 0, 0, &probe))
         return false;
@@ -1623,6 +1635,14 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     actors->camera_x = camera_x;
     actors->camera_y = camera_y;
     actors->entered = true;
+    if (actors->stage_id == 25)
+    {
+        actors->hippogryph_scene = hippogryph_scene;
+        actors->hippogryph_encounter = actors->hippogryph_flags = 0;
+        actors->hippogryph_music = 0;
+        actors->hippogryph_stop_music = false;
+        actors->hippogryph_skip = false;
+    }
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
     SDL_zero(actors->chapel_ball);
     SDL_memset(actors->primitives, 0, sizeof(actors->primitives));

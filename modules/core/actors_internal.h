@@ -331,7 +331,8 @@ typedef struct Actor
     {
         Uint8 timer, rotation_direction, phase, saved_priority;
         Sint32 rotation_velocity;
-        Uint16 linked_slot; /**< Original optional ext94 child; generation zero means absent. */
+        Uint16
+            linked_slot; /**< Original optional child/reward pointer; generation zero is absent. */
         Uint32 linked_generation;
     } hippogryph;
     bool dynamic, remove, permanent;
@@ -360,6 +361,8 @@ struct SotnActors
     bool confessional_chime;
     Uint32 boss_flags, game_seconds;
     Uint32 hippogryph_flags, hippogryph_encounter, hippogryph_scene;
+    Uint16 hippogryph_music;
+    bool hippogryph_stop_music, hippogryph_skip;
     Uint8 game_frame;
     Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
     bool clock_statues[2];
@@ -662,6 +665,16 @@ bool ActorHippogryphAttack(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid data, motion or ownership; optional effect allocation
  * follows the original fallback. Arena and dialogue integration remain separate services. */
 bool ActorHippogryphBody(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original sealing door or music manager.
+ * @param actors Borrowed entered BO5 owner with writable room tiles and audio services.
+ * @param actor Borrowed active raw21 door or raw29 manager.
+ * @return Success or SDL error for invalid state ownership, motion or tile bounds. */
+bool ActorHippogryphArena(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original reward-watching player manager or Maria actor.
+ * @param actors Borrowed BO5 owner with writable cutscene flags, player copy and camera.
+ * @param actor Borrowed active raw2B manager or raw2C Maria; no pointers transfer.
+ * @return Success or SDL error for invalid owners, animations, reward linkage or motion. */
+bool ActorHippogryphMaria(SotnActors *actors, Actor *actor);
 bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
 bool ActorDoppleLight(SotnActors *actors, Actor *actor);
 bool ActorDoppleShock(SotnActors *actors, Actor *actor);

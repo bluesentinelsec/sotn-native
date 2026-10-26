@@ -10,6 +10,8 @@ SOTN_FORMAT_SOURCES += modules/core/chapel_maria.c tests/core/test_chapel_maria.
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_attacks.c tests/core/test_hippogryph_attacks.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_body.c tests/core/test_hippogryph_body.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_death.c modules/core/hippogryph_internal.h
+SOTN_FORMAT_SOURCES += modules/core/hippogryph_arena.c tests/core/test_hippogryph_arena.c
+SOTN_FORMAT_SOURCES += modules/core/hippogryph_maria.c tests/core/test_hippogryph_maria.c
 SOTN_FORMAT_SOURCES += tests/render/test_launch_renderer.c \
   modules/core/launch_menu.c modules/core/include/sotn/launch_menu.h \
   modules/render/launch_renderer.c modules/render/include/sotn/launch_renderer.h tests/core/test_launch_menu.c \

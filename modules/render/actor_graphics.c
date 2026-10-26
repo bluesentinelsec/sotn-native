@@ -135,9 +135,9 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);
     // Play_Init loads default bank zero independently from room-specific graphics.
-    // BO4 hand effects and Library base artwork require that initial residency.
-    if (!Palettes(graphics) ||
-        ((stage == 26 || stage == 2 || stage == 6) && !SotnActorGraphics_LoadBank(graphics, 0)))
+    // Boss arenas and Library/Chapel base artwork require that initial residency.
+    if (!Palettes(graphics) || ((stage == 25 || stage == 26 || stage == 2 || stage == 6) &&
+                                !SotnActorGraphics_LoadBank(graphics, 0)))
     {
         SotnActorGraphics_Destroy(graphics);
         return false;
@@ -594,6 +594,12 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
 // dra/4B758.c sprite-sheet branch. BO4 owns separate body and bat sheet tables.
 static Sint64 FloorDivide(Sint64 value, Sint64 divisor)
 {
+    // Callers bound numerators away from INT64_MIN and provide a nonzero scale/divisor.
+    if (divisor < 0)
+    {
+        value = -value;
+        divisor = -divisor;
+    }
     return value >= 0 ? value / divisor : -((-value + divisor - 1) / divisor);
 }
 static bool PackedImage(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
@@ -861,8 +867,9 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite
                                      Sint32 y, SotnSpriteTransform transform, Uint16 *frame,
                                      size_t count)
 {
-    if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x > 1024 ||
-        transform.scale_y > 1024 || transform.opacity > 255)
+    if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x < -1024 ||
+        transform.scale_x > 1024 || transform.scale_y < -1024 || transform.scale_y > 1024 ||
+        transform.opacity > 255)
         return SDL_SetError("Actor transform exceeds the bounded original scales or color");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
         transform.opacity == 128 && !transform.tint)

@@ -108,9 +108,9 @@ typedef struct SessionStart
 
 static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
 {
-    if (s->stage_id == 26)
+    if (s->stage_id == 25 || s->stage_id == 26)
     {
-        // The original BO4 stage record selects MU_NO_AUDIO until its encounter event.
+        // Original BO4/BO5 stage records select MU_NO_AUDIO until their encounter events.
         *out = NULL;
         return true;
     }
@@ -147,14 +147,16 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     {
         Uint16 stage;
         SotnResourceId header, body;
-    } profiles[] = {{12, SOTN_RESOURCE_LAB_AUDIO_HEADER, SOTN_RESOURCE_LAB_AUDIO_BODY},
-                    {65, SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, SOTN_RESOURCE_ENTRANCE_AUDIO_BODY},
-                    {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
-                    {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
-                    {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
-                    {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
-                    {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
-                    {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY}};
+    } profiles[] = {
+        {12, SOTN_RESOURCE_LAB_AUDIO_HEADER, SOTN_RESOURCE_LAB_AUDIO_BODY},
+        {65, SOTN_RESOURCE_ENTRANCE_AUDIO_HEADER, SOTN_RESOURCE_ENTRANCE_AUDIO_BODY},
+        {7, SOTN_RESOURCE_RETURN_AUDIO_HEADER, SOTN_RESOURCE_RETURN_AUDIO_BODY},
+        {0, SOTN_RESOURCE_MARBLE_AUDIO_HEADER, SOTN_RESOURCE_MARBLE_AUDIO_BODY},
+        {1, SOTN_RESOURCE_WALL_AUDIO_HEADER, SOTN_RESOURCE_WALL_AUDIO_BODY},
+        {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
+        {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
+        {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY},
+        {25, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -242,6 +244,11 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                 if (!SotnMusic_CreateStage(session->dra, session->music_stream, 1, &next))
                     return false;
             }
+            else if (combat->music == 0x334 && session->stage_id == 25)
+            {
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 25, &next))
+                    return false;
+            }
             else if (combat->music == 0x30f)
             {
                 if (!SotnMusic_CreateEntrance(session->dra, session->music_stream, true, &next))
@@ -265,11 +272,13 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->cd_command)
     {
-        if (combat->cd_command == 0x90 || combat->cd_command == 0x80)
+        if (combat->cd_command == 0x90 || combat->cd_command == 0x91 || combat->cd_command == 0x80)
         {
-            session->xa_command = combat->cd_command == 0x90 ? 1 : 3;
+            session->xa_command = combat->cd_command == 0x80 ? 3 : 1;
             session->xa_fade_counter = 0;
-            session->xa_fade_multiplier = combat->cd_command == 0x90 ? 128 : 32;
+            session->xa_fade_multiplier = combat->cd_command == 0x90   ? 128
+                                          : combat->cd_command == 0x91 ? 8
+                                                                       : 32;
         }
         else if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
             return SDL_SetError("Dialogue issued an unsupported XA control command");
@@ -389,6 +398,11 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
 static Sint32 Pixel(Sint32 fixed)
 {
     return fixed >= 0 ? fixed / 65536 : (Sint32)(-((-(Sint64)fixed + 65535) / 65536));
+}
+
+static Sint16 SpriteScale(Uint16 packed)
+{
+    return packed < 32768U ? (Sint16)packed : (Sint16)((Sint32)packed - 65536);
 }
 
 static void Camera(const SotnLaboratory *session, SotnPlayerState player, Sint32 *x, Sint32 *y)
@@ -546,7 +560,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
                                 session->music != NULL) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
-        !SotnActors_SetDialogueBusy(session->actors, session->music_fading) ||
+        !SotnActors_SetDialogueBusy(session->actors,
+                                    session->music_fading || session->xa_command != 0) ||
         (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
@@ -1008,6 +1023,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
+    else if (stage_id == 25)
+        SDL_Log("Hippogryph internal checkpoint: selected body/attacks, physical damage, "
+                "defeat effects, arena doors/music and Life Max Up. Maria actor/control "
+                "services run; dialogue, clouds/sky and connected Chapel travel remain "
+                "incomplete. This is not a completed encounter or parity milestone.");
     else if (stage_id == 2)
         SDL_Log("Long Library development adapters: common pickups, selected breakables, "
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
@@ -1643,8 +1663,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
                 Pixel(actor.y) - camera_y,
                 (SotnSpriteTransform){.rotation = actor.rotated ? actor.rotation : 0,
-                                      .scale_x = actor.scale_x ? actor.scale_x : 256,
-                                      .scale_y = actor.scale_y ? actor.scale_y : 256,
+                                      .scale_x = actor.scale_x ? SpriteScale(actor.scale_x) : 256,
+                                      .scale_y = actor.scale_y ? SpriteScale(actor.scale_y) : 256,
                                       .opacity =
                                           actor.opacity_set || actor.opacity ? actor.opacity : 128,
                                       .tint = actor.tinted,

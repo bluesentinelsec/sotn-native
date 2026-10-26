@@ -26,15 +26,30 @@ fallbacks; actor-pool exhaustion retries reward birth, and fixed-slot ownership 
 protect unrelated actors. The original fractional velocity clear, asymmetric X tests,
 separate-half reverse speed, retained timer and final opacity remain intact.
 
-This branch is not a completed encounter. Arena/cutscene flow, BO5 rendering/audio
-setup, after-boss Maria and connected Chapel travel still need integration. The BO5
-profile remains disconnected, without a public gameplay start. Do not merge or describe this
-checkpoint as a playable Hippogryph milestone while those paths remain incomplete.
+The original doors now seal/unseal their tile columns and move their owned children.
+Their screen-relative closing limits and room-relative opening limits retain the
+original fractions across camera offsets. The music manager waits for XA activity,
+starts Death Ballad, and requests the original slow stop after defeat. The private
+initial scene flag, graphics bank zero, sound-bank files and track metadata load
+through verified BO5 resources; no game bytes enter public source or packages.
+
+Maria's separate reward-watching manager now observes Life Max Up collection,
+releases the encounter, walks/aligns Alucard, pans the camera, and restores control.
+Her actor advances the original script-flag poses and exit animation/movement.
+Generation checks prevent a replacement pickup from extending the earlier reward's
+lifetime. The underlying dialogue/script execution and persistent Maria event remain
+unintegrated, so these actor services alone do not constitute the cutscene.
+
+This branch is not a completed encounter. Dialogue, clouds/sky and connected Chapel
+travel still need integration. The BO5 profile remains disconnected, without a public
+gameplay start. Do not merge or describe this checkpoint as a playable Hippogryph
+milestone while those paths remain incomplete.
 
 Public synthetic tests exercise activation/owned child creation, takeoff/flight,
 landing, distance selection, breath pools, object initialization, lunge timing,
 stagger, grab/pinning/drop, linked damage/cooldown/stun/generation handling and
-invalid state/data/motion, defeat effects/pool pressure and reward conversion. Private
+invalid state/data/motion, defeat effects/pool pressure, reward conversion, arena tile/
+door cycles, music waits and Maria poses/reward/control/camera flow. Private
 component checks compare 12,160 ticks across 76 seeded sequences with the original US
 main-body instructions. They execute the
 original movement, animation, random, floor/sensor and particle-factory routines,
@@ -56,9 +71,28 @@ through normal contact handling, increasing maximum HP by five and releasing all
 effect records. It uses verified BO5/DRA/SDK inputs with synthetic empty placements
 and a flat floor; it does not load or overwrite ordinary saves.
 
+Arena comparisons match 4,320 original instruction ticks across 24 cases, including
+camera offsets, owned door births, tile changes and controlled audio-busy input.
+Maria comparisons match 16,672 ticks across 168 seeded sequences, executing original
+animation, movement, state and camera helpers with external reward/script/player
+fixtures. These do not establish complete dialogue or original engine frame order.
+
+A private native scene check runs 1,400 ticks and 350 renders through this project's
+game/session code, with original placed body/doors, activation/music, selected attacks,
+defeat effects, reward birth and XA stop. The player is explicitly protected and
+defeat is forced for coverage. This check exposed shrinking particles with negative
+signed scales; the native renderer now preserves their reflections and retains
+bounds validation. Synthetic tests cover both reflected axes for multipart and packed
+sprites. Captures and all runtime inputs remain private. The check is not an ordinary
+encounter, full listening test, uninterrupted replay or console parity claim.
+
 Provenance: US BO5 `func_us_801A1C14`, `func_us_801A19FC`, `CheckHippogryphFloorCollision`,
 shared `src/st/e_life_up.h` and the linked-parent paths in `src/st/collision.h`, at
 sotn-decomp revision
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
 Only adapted native C algorithms and table metadata are public; instruction traces,
 runtime tables, game artwork and comparison inputs remain private.
+
+Arena/Maria provenance: BO5 `EntityRbo3Door`, `func_us_801A4494`, `func_us_801A5F88`,
+`func_us_801A62B4` and `CutsceneCameraPan` at the same pinned revision. Music/XA
+selection follows the pinned `src/dra/sound.c` and `lba_stage.c` metadata interpretation.

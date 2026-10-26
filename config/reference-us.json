@@ -123,6 +123,14 @@
     "ST/DAI/SEQ_DAI.SEQ": {
       "size": 376,
       "sha1": "660ba48dc22651d398912e2051fd55849cbd0e48"
+    },
+    "BOSS/BO5/SD_ZKBO5.VH": {
+      "size": 6688,
+      "sha1": "c406db0c15bf24081947f08dfc909256798b6048"
+    },
+    "BOSS/BO5/SD_ZKBO5.VB": {
+      "size": 57104,
+      "sha1": "91aff485125714739e2de978b3bdb3b1c5126b7d"
     }
   },
   "sizes": {
