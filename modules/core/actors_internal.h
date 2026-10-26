@@ -129,6 +129,14 @@ typedef struct Actor
     } valhalla;
     struct
     {
+        Uint32 generation[20];
+        Sint16 rotation, length, target, rotation_velocity, timer;
+        Uint16 parent, terrain, pose[2], remaining[2];
+        Uint8 support_leg, released, attack_active, decision_wait;
+        bool placed;
+    } giant;
+    struct
+    {
         Sint32 reference_y;
         Uint16 hover_timer;
     } crow;

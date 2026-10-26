@@ -41,6 +41,8 @@ add_library(sotn-core STATIC
   olrox_quarter.c
   olrox_prisoner.c
   olrox_valhalla.c
+  giant_knights_motion.c
+  giant_knights_internal.h
   library.c
   chapel.c
   chapel_breakable.c
