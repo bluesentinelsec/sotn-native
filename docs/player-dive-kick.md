@@ -56,9 +56,12 @@ audio before simulation.
 The kick owns a separate native cooldown channel without moving existing hand,
 projectile or Chapel-ball channels. The original shared factory capacity and
 dynamic attack-group contention still need integration. Complete landing/effect
-presentation, audio/timing parity, Gravity Boots, transformations, other abilities
+presentation, audio/timing parity, transformations, other abilities
 and the rest of the castle remain incomplete. Do not call Alucard or Leap Stone
 combat complete from these checks.
+Selected [Gravity Boots](player-gravity-boots.md) now add their separate movement
+path and original eight-pass collision scheduling for fast movement. The existing
+private kick comparison and native damage/rebound/death route still pass with it.
 
 ## Provenance
 

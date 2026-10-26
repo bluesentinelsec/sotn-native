@@ -131,6 +131,11 @@ bool SotnCharacter_CollectVessel(SotnCharacter *character, bool life);
  * @param character Borrowed living progress. @param ticks Gameplay clock.
  * @return Success or false with SDL_GetError(); pause/menu callers do not invoke this function. */
 bool SotnCharacter_TickResources(SotnCharacter *character, Uint64 ticks);
+/** @brief Spend an already-approved ability cost from ordinary character MP.
+ * @param character Borrowed owner. @param amount MP cost, 0..9999.
+ * @return Success or SDL error without mutation when insufficient or invalid.
+ * Ability-specific thresholds are checked by the simulation before this transfer. */
+bool SotnCharacter_SpendMP(SotnCharacter *character, Uint16 amount);
 /** @brief Release character, retaining borrowed private bytes. @param character Owned or NULL. */
 void SotnCharacter_Destroy(SotnCharacter *character);
 #endif

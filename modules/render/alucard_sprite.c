@@ -104,6 +104,35 @@ bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common
     return true;
 }
 
+bool SotnAlucard_DrawGravity(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
+                             Sint32 y, bool facing_left, Uint16 *frame, size_t count)
+{
+    if (sprite == NULL || frame == NULL || count < SOTN_FRAME_PIXELS)
+        return SDL_SetError("Gravity Boots drawing requires a decoded sprite and full frame");
+    if (sprite->width == 0 && sprite->height == 0)
+        return true;
+    if (!sprite->width || sprite->width > 255 || !sprite->height || sprite->height > 255 ||
+        sprite->width % 4 || !sprite->pixels.bytes ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2 || !common.bytes ||
+        common.size != 0x42000)
+        return SDL_SetError("Gravity Boots drawing requires bounded packed pixels and palette");
+    for (Uint32 row = 0; row < sprite->height; ++row)
+        for (Uint32 col = 0; col < sprite->width; ++col)
+        {
+            const Sint64 local_x = (Sint64)sprite->pivot_x + col;
+            const Sint64 px = (Sint64)x + (facing_left ? local_x : -local_x);
+            const Sint64 py = (Sint64)y + 4 - ((Sint64)sprite->pivot_y + row);
+            if (px < 0 || px >= SOTN_FRAME_WIDTH || py < 0 || py >= SOTN_FRAME_HEIGHT)
+                continue;
+            const size_t pixel = (size_t)row * sprite->width + col;
+            const Uint8 index = (sprite->pixels.bytes[pixel / 2] >> ((pixel & 1U) * 4)) & 15;
+            const Uint16 color = Read16(common.bytes + 0x40000 + (size_t)index * 2);
+            if (color)
+                frame[(size_t)py * SOTN_FRAME_WIDTH + (size_t)px] = color;
+        }
+    return true;
+}
+
 bool SotnAlucard_DrawDeath(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x, Sint32 y,
                            bool facing_left, SotnPlayerDeath death, Uint16 *frame, size_t count)
 {

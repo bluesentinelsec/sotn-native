@@ -47,6 +47,12 @@ struct SotnPlayer
     SotnPlayerKick kick;
     Uint32 kick_counter;
     Uint16 kick_hit;
+    SotnPlayerGravity gravity;
+    Uint16 mp, mp_spent, held;
+    Uint8 gravity_combo;
+    Uint16 gravity_combo_timer;
+    bool gravity_spawn;
+    Sint32 gravity_origin_x, gravity_origin_y;
     SotnShield shield_cursor;
     Uint16 shield_button;
     SotnDataView weapons;
@@ -73,6 +79,16 @@ void SotnPlayer_StoneTick(SotnPlayer *player);
 bool SotnPlayer_SleepTick(SotnPlayer *player);
 /** @brief Advance the selected original owned dive-kick child after player motion selection. */
 bool SotnPlayer_KickTick(SotnPlayer *player);
+/** @brief Check the original down/up/jump combo before dispatching the player state. */
+void SotnPlayer_GravityInput(SotnPlayer *player);
+/** @brief Launch the selected original high jump, preserving the original movement flags. */
+void SotnPlayer_GravityLaunch(SotnPlayer *player);
+/** @brief Advance original high-jump states and selected ceiling effects. */
+void SotnPlayer_GravityTick(SotnPlayer *player);
+/** @brief Advance owned cosmetic beams after player collision. */
+void SotnPlayer_GravityBeams(SotnPlayer *player);
+/** @brief Restore original facing when another player state interrupts an inverted high jump. */
+void SotnPlayer_GravityCancel(SotnPlayer *player);
 void SotnPlayer_StoneDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);

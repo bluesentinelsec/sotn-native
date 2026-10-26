@@ -38,6 +38,14 @@ bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
  */
 bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
                             Sint32 y, bool facing_left, Uint16 *frame, size_t count);
+/** @brief Draw the original Gravity Boots ceiling pose rotated 180 degrees about Y pivot two.
+ * @param sprite Borrowed decoded packed frame. @param common Verified private base palette.
+ * @param x Screen anchor X. @param y Screen anchor Y. @param facing_left Original mirror flag.
+ * @param frame Writable full RGB555 frame. @param count Available pixel capacity.
+ * @return Success or SDL error without drawing on invalid input. Integer rotation needs no
+ * filesystem shader or copied artwork; full PS1 edge-raster parity remains separate evidence. */
+bool SotnAlucard_DrawGravity(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
+                             Sint32 y, bool facing_left, Uint16 *frame, size_t count);
 /** @brief Draw the selected physical-death tint, rotation, and original dissolve mask.
  * @param sprite Borrowed decoded sprite. @param common Borrowed verified base palettes.
  * @param x Screen anchor X. @param y Screen anchor Y. @param facing_left Original mirror flag.

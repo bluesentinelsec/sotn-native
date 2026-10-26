@@ -586,6 +586,14 @@ bool SotnCharacter_TickResources(SotnCharacter *c, Uint64 ticks)
     return true;
 }
 
+bool SotnCharacter_SpendMP(SotnCharacter *c, Uint16 amount)
+{
+    if (c == NULL || amount > 9999 || amount > c->state.mp)
+        return SDL_SetError("Ability cost exceeds available character MP");
+    c->state.mp = (Uint16)(c->state.mp - amount);
+    return true;
+}
+
 void SotnCharacter_Destroy(SotnCharacter *c)
 {
     SDL_free(c);

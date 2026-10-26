@@ -38,10 +38,14 @@ and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-worl
 [map](castle-map.md), and [session flow](native-session-flow.md).
 
 The selected [Leap Stone double jump](player-leap-stone.md) now consumes saved,
-active relic ownership through the normal-form player. Full dive-kick parity, Gravity Boots,
-transformations and full ability/progression parity remain incomplete. The selected
+active relic ownership through the normal-form player. Full dive-kick/Gravity Boots
+parity, transformations and full ability/progression parity remain incomplete. The selected
 [dive-kick attack/rebound](player-dive-kick.md) now runs; original shared-factory
 and attack-group contention still need integration.
+Selected [Gravity Boots](player-gravity-boots.md) now add original command/MP,
+high-jump/ceiling recovery and beam paths. A private-grant native route reaches
+the NO2 secret ceiling through movement and ordinary Gladius attacks; it does
+not establish ordinary acquisition, connected travel or whole-route parity.
 
 ## Pinned reference
 

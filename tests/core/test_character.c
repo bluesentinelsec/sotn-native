@@ -128,6 +128,13 @@ int main(void)
     SotnCharacterStats mask_stats = {0};
     CHECK(SotnCharacter_Get(c, &s, &mask_stats) && s.equipment[2] == 36 &&
           mask_stats.bonus[2] == 3 && mask_stats.total[2] == s.base[2] + 12);
+    CHECK(SotnCharacter_Get(c, &s, NULL));
+    const Uint16 previous_mp = s.mp;
+    CHECK(previous_mp >= 4 && SotnCharacter_SpendMP(c, 4));
+    CHECK(SotnCharacter_Get(c, &s, NULL) && s.mp == previous_mp - 4);
+    CHECK(!SotnCharacter_SpendMP(c, (Uint16)(s.mp + 1)) && !SotnCharacter_SpendMP(c, 10000) &&
+          !SotnCharacter_SpendMP(NULL, 0));
+    CHECK(SotnCharacter_SpendMP(c, 0) && SotnCharacter_Get(c, &s, NULL) && s.mp == previous_mp - 4);
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);
