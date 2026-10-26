@@ -182,6 +182,8 @@ bool GiantParts(SotnActors *s, Actor *root, size_t list, bool finish)
     for (Uint16 i = 0; i < count; ++i)
     {
         Actor *part = NULL;
+        if (GiantDeparted(s, root, offsets[i]))
+            continue;
         if (offsets[i] == 255 || !GiantPart(s, root, offsets[i], &part))
             return SDL_SetError("Giant Knight completion list contains an invalid required joint");
         if (finish)
@@ -221,12 +223,40 @@ bool GiantBend(SotnActors *s, Actor *root, Actor *part, Sint16 duration)
 }
 static bool Sqrt0(SotnActors *s, Sint64 value, Sint32 *out)
 {
-    Uint32 root = 0;
-    if (value < 0 || value > SDL_MAX_SINT32)
-        return SDL_SetError("Giant Knight inverse-kinematics input exceeds the positive SDK range");
-    if (!SotnMath_Sqrt12(s->executable, (Uint32)value, &root))
-        return false;
-    *out = (Sint32)(root >> 6);
+    if (value < SDL_MIN_SINT32 || value > SDL_MAX_SINT32)
+        return SDL_SetError("Giant Knight inverse-kinematics input exceeds the SDK word range");
+    if (value >= 0)
+    {
+        Uint32 result = 0;
+        if (!SotnMath_Sqrt12(s->executable, (Uint32)value, &result))
+            return false;
+        *out = (Sint32)(result >> 6);
+        return true;
+    }
+    // SquareRoot0 uses GTE leading-sign count even for a negative radicand. The
+    // original overextended-arm path reads before its nominal square-root table.
+    // Preserve the checked executable-relative read and defined 32-bit shifts.
+    Uint32 bits = ~(Uint32)value;
+    Uint16 leading = 0;
+    while (leading < 32 && !(bits & 0x80000000U))
+    {
+        ++leading;
+        bits <<= 1;
+    }
+    if (leading == 32)
+    {
+        *out = 0;
+        return true;
+    }
+    const Uint16 even = (Uint16)(leading & 0xfffeU);
+    const Sint32 normalized = even >= 24 ? Word((Sint64)value * ((Sint64)1 << (even - 24)))
+                                         : ActorShift(value, (Uint16)(24 - even));
+    const Sint64 offset = 0x1e3e0LL + ((Sint64)normalized - 64) * 2;
+    SotnDataView entry = {0};
+    if (offset < 0 || (Uint64)offset > SIZE_MAX || !Slice(s->executable, (size_t)offset, 2, &entry))
+        return SDL_SetError("Giant Knight signed SDK square-root lookup exceeds its executable");
+    const Uint32 shifted = (Uint32)Signed16(entry.bytes) << ((31U - even) / 2U);
+    *out = (Sint32)(shifted >> 12);
     return true;
 }
 bool GiantSolve(SotnActors *s, Actor *root, Actor *first, Actor *second)
@@ -253,7 +283,7 @@ bool GiantSolve(SotnActors *s, Actor *root, Actor *first, Actor *second)
     distance = (Sint32)SDL_min((Sint64)distance, (Sint64)(l1 + l2) * 256);
     const Sint64 projection = (Sint64)distance * l1 / (l1 + l2);
     if (!Sqrt0(s, (Sint64)l1 * l1 - projection * projection, &altitude) ||
-        !SotnMath_Atan2(s->executable, altitude, (Sint32)projection, &bend))
+        !SotnMath_Atan2Vector(s->executable, altitude, (Sint32)projection, &bend))
         return false;
     first->giant.target = (Sint16)Wrap16((Sint32)angle + bend);
     SotnMathTrig trig = {0};

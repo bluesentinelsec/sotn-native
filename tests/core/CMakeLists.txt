@@ -522,3 +522,10 @@ target_include_directories(sotn-giant-knight-motion-tests PRIVATE ../../modules/
 target_link_libraries(sotn-giant-knight-motion-tests PRIVATE sotn-core)
 add_test(NAME giant-knight-motion COMMAND sotn-giant-knight-motion-tests)
 set_tests_properties(giant-knight-motion PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-giant-knights-tests test_giant_knights.c)
+sotn_configure_c_target(sotn-giant-knights-tests)
+target_include_directories(sotn-giant-knights-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-giant-knights-tests PRIVATE sotn-core)
+add_test(NAME giant-knights COMMAND sotn-giant-knights-tests)
+set_tests_properties(giant-knights PROPERTIES TIMEOUT 20)

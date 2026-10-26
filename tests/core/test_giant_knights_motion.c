@@ -207,7 +207,9 @@ static bool GroundAndSolve(Fixture *f)
     root->state.facing_left = true;
     CHECK(GiantSolve(s, root, a, b) && a->giant.target == 512 && b->giant.target == -256);
     b->state.y = 164 * 65536;
-    CHECK(!GiantSolve(s, root, a, b));
+    // The signed SDK path reads surrounding authored sine-table words before
+    // its nominal square-root table. Retain their quantized overextension result.
+    CHECK(GiantSolve(s, root, a, b) && a->giant.target == 182 && b->giant.target == -12);
     a->giant.length = b->giant.length = 32767;
     CHECK(!GiantSolve(s, root, a, b));
     a->giant.length = 0;

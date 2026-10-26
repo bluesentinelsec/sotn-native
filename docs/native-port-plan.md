@@ -26,7 +26,8 @@ protected native checks do not establish ordinary-character, whole-route or cons
 parity. Further Chapel exits still fail explicitly until their stages are integrated.
 The internal [Olrox's Quarters foundation](olrox-quarter-runtime.md) adds NO2's
 resources, selected shared actors, [prisoners and spikes](olrox-prisoners-spikes.md),
-and [Valhalla Knights](olrox-valhalla.md);
+[Valhalla Knights](olrox-valhalla.md), and articulated
+[Hammer/Blade encounters](olrox-giant-knights.md);
 it does not yet enable another castle route.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the

@@ -16,6 +16,7 @@ SOTN_FORMAT_SOURCES += modules/core/hippogryph_memory.c
 SOTN_FORMAT_SOURCES += modules/core/olrox_quarter.c tests/core/test_olrox_quarter.c
 SOTN_FORMAT_SOURCES += modules/core/olrox_prisoner.c tests/core/test_olrox_prisoner.c tests/core/test_olrox_spikes.c
 SOTN_FORMAT_SOURCES += modules/core/olrox_valhalla.c tests/core/test_olrox_valhalla.c
+SOTN_FORMAT_SOURCES += modules/core/giant_knights.c modules/core/giant_hammer.c modules/core/giant_blade.c tests/core/test_giant_knights.c
 SOTN_FORMAT_SOURCES += modules/core/giant_knights_motion.c modules/core/giant_knights_internal.h tests/core/test_giant_knights_motion.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_dialogue.c
 SOTN_FORMAT_SOURCES += tests/core/test_hippogryph_dialogue.c

@@ -34,6 +34,14 @@ linked body damage, independent weapon contact and thirteen-piece deaths. Preser
 the two different child roles, generation ownership, private frame hitboxes and
 simulation-frame effect phase. Component/protected checks are not full encounter parity.
 
+Selected [NO2 Hammer/Blade encounters](docs/olrox-giant-knights.md) now run their
+private articulated poses, independent weapons, linked physical damage and staged
+deaths. Preserve copied-root anchoring, signed SDK overextension and generation
+ownership after Blade releases its sword. Optional trail exhaustion omits only
+visuals; the original small-Y impact shake remains incomplete. Ordinary NO2 layouts
+do not place the compiled Owl/Owl Knight or Gurkha families. Stage 4 remains
+disconnected; component/protected checks do not establish route/console parity.
+
 ## Purpose and priorities
 
 Build a native, personal and educational *Symphony of the Night* port that

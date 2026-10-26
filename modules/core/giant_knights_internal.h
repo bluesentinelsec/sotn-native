@@ -67,4 +67,22 @@ bool GiantAhead(SotnActors *actors, const Actor *part, bool facing, Uint16 *out)
  * increment.
  * @return True only when the original strict threshold accepts the target. */
 bool GiantToward(Sint16 *value, Sint16 target, Sint16 step);
+/** @brief Reserve and create a body's private joint construction and owned weapon slots.
+ * @return Success or SDL error, rejecting conflicting slots before any replacement. */
+bool GiantCreate(SotnActors *actors, Actor *root, bool blade);
+/** @brief Identify an already released Blade sword whose slot no longer belongs to this body.
+ * @return True only after the original release event; never exposes replacement storage. */
+bool GiantDeparted(const SotnActors *actors, const Actor *root, Uint16 offset);
+/** @brief Advance a private pose then its original anchoring order on channel zero. */
+bool GiantMotion(SotnActors *actors, Actor *root, size_t list, size_t pose, Uint16 mode);
+/** @brief Resolve a bounded private joint-list entry to its generation-owned part. */
+bool GiantListed(SotnActors *actors, Actor *root, size_t list, Uint16 index, Actor **part);
+/** @brief Advance checked fixed-point motion and gravity; no mutation on overflow. */
+bool GiantMove(Actor *actor, Sint32 gravity);
+/** @brief Disable articulated contact; optionally launch the original death states. */
+bool GiantDisable(SotnActors *actors, Actor *root, size_t list, bool launch);
+/** @brief Advance Hammer's native body. All pose and construction arrays stay private. */
+bool GiantHammer(SotnActors *actors, Actor *root);
+/** @brief Advance Blade's native body. All pose and construction arrays stay private. */
+bool GiantBlade(SotnActors *actors, Actor *root);
 #endif

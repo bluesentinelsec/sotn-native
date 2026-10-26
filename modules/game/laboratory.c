@@ -1040,7 +1040,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 4)
         SDL_Log("Olrox's Quarters internal checkpoint: selected prisoners, spikes, common pickups, "
-                "red doors, breakables/debris, decorations, camera, Valhalla Knights, Skelerang "
+                "red doors, breakables/debris, decorations, camera, Valhalla/Hammer/Blade Knights, "
+                "Skelerang "
                 "and Bloody Zombie adapters. Remaining enemies, mechanisms, Olrox and connected "
                 "travel are incomplete.");
     else if (stage_id == 6)

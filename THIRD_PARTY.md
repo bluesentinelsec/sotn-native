@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed articulated Hammer/Blade algorithms**, AGPL-3.0-or-later.
+  `modules/core/giant_*.c` adapts `st/e_hammer.h`, `st/e_blade.h`,
+  `st/giantbro_helpers.h` and `st/giantbro_helpers_2.h` at the same pinned revision
+  below. Original construction, pose, artwork and SDK lookup data stay private.
+  See [scope and native adaptations](docs/olrox-giant-knights.md).
+
 - **Reconstructed SoTN game algorithms**, AGPL-3.0-or-later, adapted from
   sotn-decomp commit `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.
   `modules/core/collision.c` derives from `src/dra/collider.c`;
