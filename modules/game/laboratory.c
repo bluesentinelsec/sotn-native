@@ -562,6 +562,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     SotnActorMotion motion = {0};
     if (!SotnActors_GetMotion(session->actors, &motion) ||
         (motion.align_horizontal && !SotnPlayer_StageAlignX(session->player, motion.alignment_x)) ||
+        (motion.align_vertical && !SotnPlayer_StageAlignY(session->player, motion.alignment_y)) ||
+        (motion.grab_changed && !SotnPlayer_RequestGrab(session->player, motion.grab)) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
         (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||

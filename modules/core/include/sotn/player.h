@@ -117,6 +117,7 @@ typedef struct SotnPlayerState
     Uint16 curse_ticks;  /**< Transient original curse duration; independent of ordinary saves. */
     Uint16 extra_sound;  /**< Second original sound request, after sound; zero selects none. */
     SotnPlayerGrab grab;
+    Uint16 priority; /**< Current normal-form ordering-table priority. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;

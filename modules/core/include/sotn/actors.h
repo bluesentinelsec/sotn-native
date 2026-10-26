@@ -43,6 +43,11 @@ typedef struct SotnActorMotion
     Uint16 chair_kind;    /**< Transient original seating pose/facing hint, zero or 1..4. */
     bool align_horizontal;
     Sint32 alignment_x; /**< Original script's whole-pixel position override, retaining fraction. */
+    bool align_vertical;
+    Sint32 alignment_y; /**< Boss-owned whole-pixel vertical override, retaining fraction. */
+    bool grab_changed;
+    SotnPlayerGrab
+        grab; /**< Original boss handshake request consumed before the next player tick. */
 } SotnActorMotion;
 /** @brief Borrow the verified boot image for original SDK tables and provide scene clock/audio.
  * @param actors Borrowed simulation. @param executable Immutable US boot image, alive through

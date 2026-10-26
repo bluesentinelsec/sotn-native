@@ -8,6 +8,9 @@ unintegrated. Thrown-release/stone grabs and full grab effects remain incomplete
 The internal [BO5 attack adapters](docs/hippogryph-attacks.md) add owned pose hitboxes,
 flying objects, flame/particles and bounded effect pools, with private instruction-tick
 comparisons. Main boss AI/arena/reward/Maria and connected Chapel travel remain pending.
+The unmerged [Hippogryph body work](docs/hippogryph-body.md) reconstructs normal motion/attack/grab
+states and linked hit handling, but defeat still fails explicitly. Finish defeat/reward and
+arena integration before presenting this as a playable encounter or merging that batch.
 
 ## Purpose and priorities
 
