@@ -2,6 +2,10 @@
 // Selected e_bloody_zombie.h blood children, prim_helpers.h packet control, and
 // dra/5087C.c camera-word behavior. Native owned records replace packet aliasing.
 #include "actors_internal.h"
+static size_t Table(const SotnActors *s, size_t library)
+{
+    return s->stage_id == 4 ? library - 0xbf0U : library;
+}
 static bool Add(Sint32 *value, Sint32 delta)
 {
     const Sint64 next = (Sint64)*value + delta;
@@ -93,7 +97,7 @@ static bool Splatter(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        return ActorInitialize(s, a, 0x818);
+        return ActorInitialize(s, a, ActorStageOffset(s, 0xbe0));
     case 1:
         if (!ActorPrimitives(s, a, 8))
         {
@@ -156,7 +160,7 @@ static bool Splatter(SotnActors *s, Actor *a)
         small->vy += 3072;
         small->blood.angle = (Sint16)Wrap16(small->blood.angle + (a->state.facing_left ? 24 : -24));
         small->blood.brightness = (Uint8)(small->blood.brightness - 2);
-        if (!TextureAnimation(s, small, 0x27cc) || !Quad(s, big))
+        if (!TextureAnimation(s, small, Table(s, 0x27cc)) || !Quad(s, big))
             return false;
         big->blood.width = (Sint16)(big->blood.width + 2);
         big->blood.height = (Sint16)(big->blood.height + 2);
@@ -165,7 +169,7 @@ static bool Splatter(SotnActors *s, Actor *a)
         big->blood.brightness = (Uint8)(big->blood.brightness - 3);
         if (big->blood.brightness > 240)
             big->blood.brightness = 0;
-        if (!TextureAnimation(s, big, 0x27e4))
+        if (!TextureAnimation(s, big, Table(s, 0x27e4)))
             return false;
         if (a->timer++ > 128)
             a->remove = true;
@@ -179,7 +183,7 @@ static bool Drips(SotnActors *s, Actor *a)
 {
     if (!a->state.step)
     {
-        if (!ActorInitialize(s, a, 0x818))
+        if (!ActorInitialize(s, a, ActorStageOffset(s, 0xbe0)))
             return false;
         if (!ActorPrimitives(s, a, 1))
         {
@@ -211,7 +215,7 @@ static bool Drips(SotnActors *s, Actor *a)
         return SDL_SetError("Blood drip entered an invalid step");
     ActorPrimitive *p = ActorPrimitiveGet(s, a, 0);
     bool blocked = false;
-    if (p == NULL || !ActorLibraryBlocked(s, a, 0x2804, false, &blocked))
+    if (p == NULL || !ActorLibraryBlocked(s, a, Table(s, 0x2804), false, &blocked))
         return false;
     if (blocked)
     {
@@ -239,7 +243,9 @@ static bool Drips(SotnActors *s, Actor *a)
 }
 bool ActorLibraryBlood(SotnActors *s, Actor *a)
 {
-    if (s == NULL || a == NULL || s->stage_id != 2 || (a->state.id != 0x1d && a->state.id != 0x1e))
-        return SDL_SetError("Blood dispatch requires original Library actor identities");
-    return a->state.id == 0x1d ? Drips(s, a) : Splatter(s, a);
+    if (s == NULL || a == NULL ||
+        !((s->stage_id == 2 && (a->state.id == 0x1d || a->state.id == 0x1e)) ||
+          (s->stage_id == 4 && (a->state.id == 0x2c || a->state.id == 0x2d))))
+        return SDL_SetError("Blood dispatch requires original Library or NO2 actor identities");
+    return a->state.id == (s->stage_id == 4 ? 0x2c : 0x1d) ? Drips(s, a) : Splatter(s, a);
 }

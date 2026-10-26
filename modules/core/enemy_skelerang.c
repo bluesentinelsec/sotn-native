@@ -1,15 +1,32 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // st/e_skelerang.h, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// Original private NO0/DAI animation, position, sine and sensor tables remain external.
+// Original private NO0/DAI/NO2 animation, position, sine and sensor tables remain external.
 #include "actors_internal.h"
 static Uint16 Body(const SotnActors *s)
 {
-    return s->stage_id == 6 ? 0x3a : 0x2e;
+    return s->stage_id == 6 ? 0x3a : s->stage_id == 4 ? 0x16 : 0x2e;
 }
 static size_t Table(const SotnActors *s, size_t no0)
 {
     if (s->stage_id == 0)
         return no0;
+    if (s->stage_id == 4)
+    {
+        if (no0 >= 0x1e94 && no0 < 0x1f80)
+            return no0 - 0x45c;
+        switch (no0)
+        {
+        case 0xb6c:
+            return 0x88c;
+        case 0xb78:
+            return 0x898;
+        case 0xa94:
+            return 0x850;
+        default:
+            SDL_SetError("NO2 Skelerang has no shared table at %zu", no0);
+            return s->nz0.size;
+        }
+    }
     if (no0 >= 0x1e94 && no0 < 0x1f80)
         return no0 + 0x19c;
     switch (no0)
@@ -27,16 +44,17 @@ static size_t Table(const SotnActors *s, size_t no0)
 }
 static bool Sound(SotnActors *s, const Actor *a, Uint16 id)
 {
-    return s->stage_id == 6 ? ActorPositionalSound(s, a, id) : ActorSound(s, id);
+    return s->stage_id != 0 ? ActorPositionalSound(s, a, id) : ActorSound(s, id);
 }
 static bool Velocity(SotnActors *s, Actor *a)
 {
-    if (s->stage_id == 6)
+    if (s->stage_id == 6 || s->stage_id == 4)
     {
+        const size_t sine = s->stage_id == 6 ? 0x1474U : 0x142cU;
         SotnDataView x = {0}, y = {0};
         const Uint8 angle = (Uint8)a->table.angle;
-        if (!Slice(s->nz0, 0x1474U + angle * 2U, 2, &x) ||
-            !Slice(s->nz0, 0x1474U + (Uint8)(angle - 64) * 2U, 2, &y))
+        if (!Slice(s->nz0, sine + angle * 2U, 2, &x) ||
+            !Slice(s->nz0, sine + (Uint8)(angle - 64) * 2U, 2, &y))
             return false;
         const Sint32 sx = Signed16(x.bytes), sy = Signed16(y.bytes);
         if (sx < -4096 || sx > 4096 || sy < -4096 || sy > 4096)
@@ -178,8 +196,8 @@ static bool DeathParts(SotnActors *s, Actor *a)
 }
 bool ActorSkelerang(SotnActors *s, Actor *a)
 {
-    if (!s || !a || (s->stage_id != 0 && s->stage_id != 6) || a->state.id < Body(s) ||
-        a->state.id > Body(s) + 2U)
+    if (!s || !a || (s->stage_id != 0 && s->stage_id != 4 && s->stage_id != 6) ||
+        a->state.id < Body(s) || a->state.id > Body(s) + 2U)
         return SDL_SetError("Skelerang requires its original stage identity");
     if (a->state.id == Body(s) + 1U)
         return Boomerang(s, a);

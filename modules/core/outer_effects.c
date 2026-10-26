@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected st/e_misc.h effects at the pinned sotn-decomp reference. NO1 tables stay private.
+// Selected st/e_misc.h effects at the pinned sotn-decomp reference. NO1/LIB/DAI/NO2 tables stay
+// private.
 #include "actors_internal.h"
 bool ActorOuterDust(SotnActors *s, const Actor *a, Uint16 count, Uint16 kind, Sint16 x, Sint16 y,
                     Uint16 index, Sint16 gap)
@@ -17,6 +18,7 @@ bool ActorOuterDust(SotnActors *s, const Actor *a, Uint16 count, Uint16 kind, Si
         SotnDataView size = {0};
         if (!Slice(s->nz0,
                    (s->stage_id == 6   ? 0x19c8
+                    : s->stage_id == 4 ? 0x1980
                     : s->stage_id == 2 ? 0x230c
                                        : 0x239c) +
                        (index + i) * 2U,
@@ -71,6 +73,7 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
         SotnDataView velocity = {0};
         if (!Slice(s->nz0,
                    (s->stage_id == 6   ? (gray ? 0x19e8 : 0x1a00)
+                    : s->stage_id == 4 ? (gray ? 0x19a0 : 0x19b8)
                     : s->stage_id == 2 ? (gray ? 0x232c : 0x2344)
                                        : (gray ? 0x23bc : 0x23d4)) +
                        index * 4U,
@@ -88,6 +91,7 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
             SotnDataView size = {0};
             if (!Slice(s->nz0,
                        (s->stage_id == 6   ? 0x19d8
+                        : s->stage_id == 4 ? 0x1990
                         : s->stage_id == 2 ? 0x231c
                                            : 0x23ac) +
                            index * 2U,
@@ -102,6 +106,7 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
             SotnDataView frame = {0};
             if (!Slice(s->nz0,
                        (s->stage_id == 6   ? 0x1a18
+                        : s->stage_id == 4 ? 0x19d0
                         : s->stage_id == 2 ? 0x235c
                                            : 0x23ec) +
                            a->state.parameters,
@@ -121,6 +126,7 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
         SotnDataView time = {0};
         if (!Slice(s->nz0,
                    (s->stage_id == 6   ? 0x1a1c
+                    : s->stage_id == 4 ? 0x19d4
                     : s->stage_id == 2 ? 0x2360
                                        : 0x23f0) +
                        a->state.parameters * 2U,

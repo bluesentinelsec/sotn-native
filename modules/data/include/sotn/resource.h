@@ -35,6 +35,8 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_CHAPEL_SEQUENCE,         /**< US confessional chime event stream. */
     SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, /**< US Hippogryph arena instruments. */
     SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY,   /**< US Hippogryph arena samples. */
+    SOTN_RESOURCE_QUARTERS_AUDIO_HEADER,   /**< US Olrox's Quarters instruments. */
+    SOTN_RESOURCE_QUARTERS_AUDIO_BODY,     /**< US Olrox's Quarters samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

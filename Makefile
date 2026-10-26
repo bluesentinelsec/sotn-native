@@ -13,6 +13,7 @@ SOTN_FORMAT_SOURCES += modules/core/hippogryph_death.c modules/core/hippogryph_i
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_arena.c tests/core/test_hippogryph_arena.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_maria.c tests/core/test_hippogryph_maria.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_memory.c
+SOTN_FORMAT_SOURCES += modules/core/olrox_quarter.c tests/core/test_olrox_quarter.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_dialogue.c
 SOTN_FORMAT_SOURCES += tests/core/test_hippogryph_dialogue.c
 SOTN_FORMAT_SOURCES += tests/render/test_launch_renderer.c \

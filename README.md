@@ -67,6 +67,10 @@ selected encounters, save rooms and [Hippogryph](docs/hippogryph-body.md), inclu
 the reward, Maria dialogue/speech and return route. Other castle destinations,
 whole-route replay and full audiovisual/timing parity remain incomplete.
 
+An internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds its
+own resources and selected shared actors. It remains disconnected while its
+remaining enemies, mechanisms and boss are integrated.
+
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.
 This project is unofficial and is not affiliated with Konami or Sony.

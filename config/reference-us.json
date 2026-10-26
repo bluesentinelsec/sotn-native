@@ -131,6 +131,14 @@
     "BOSS/BO5/SD_ZKBO5.VB": {
       "size": 57104,
       "sha1": "91aff485125714739e2de978b3bdb3b1c5126b7d"
+    },
+    "ST/NO2/SD_ZKNO2.VH": {
+      "size": 7200,
+      "sha1": "f5d8bd9e251874364193aed63313384a44ca8154"
+    },
+    "ST/NO2/SD_ZKNO2.VB": {
+      "size": 105728,
+      "sha1": "4ce1a3b5e7a4999bddc78dedecc5e752182873d6"
     }
   },
   "sizes": {

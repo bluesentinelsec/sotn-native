@@ -265,7 +265,7 @@ bool ActorExplosion(SotnActors *actors, const Actor *source, Uint16 kind)
 
 bool ActorBloodyZombie(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
-    if (actors->stage_id != 12 && actors->stage_id != 7)
+    if (actors->stage_id != 12 && actors->stage_id != 7 && actors->stage_id != 4)
         return SDL_SetError("Bloody Zombie is not part of this stage profile");
     Uint8 animation = 0;
     if (actor->hit_params && (actor->state.step & 1))
@@ -406,6 +406,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 4)
+        return id == 0x16 || id == 0x17 || id == 0x2b;
     if (actors->stage_id == 25)
         return id == 0x22 || id == 0x23 || id == 0x24 || id == 0x25 || id == 0x27;
     if (actors->stage_id == 6)
@@ -1278,7 +1280,10 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor)
     const Uint32 bits = Read32(table.bytes);
     const Sint32 velocity =
         bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 0x100000000LL);
-    actor->state.y += velocity;
+    const Sint64 y = (Sint64)actor->state.y + velocity;
+    if (y < SDL_MIN_SINT32 || y > SDL_MAX_SINT32)
+        return SDL_SetError("Explosion motion exceeds signed fixed-point bounds");
+    actor->state.y = (Sint32)y;
     if (!Slice(actors->nz0, ActorTable(actors, 0x1e54, 0x25a0, 0x1f2c) + (size_t)kind * 4, 4,
                &table))
         return false;
@@ -1323,6 +1328,9 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
+    if (actors->stage_id == 4 &&
+        (actor->state.id == 1 || actor->state.id == 8 || actor->state.id > 0xc))
+        return ActorOlroxQuarter(actors, actor);
     if (actors->stage_id == 6 && (actor->state.id == 1 || actor->state.id == 6 ||
                                   actor->state.id == 8 || actor->state.id > 0xc))
         return ActorChapel(actors, actor);
@@ -1854,7 +1862,10 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         if (!(actors->stage_id == 26 && next.state.id == 0x17) &&
             ((Sint64)next.state.x < -1024LL * 65536 || (Sint64)next.state.x > 17408LL * 65536 ||
              (Sint64)next.state.y < -1024LL * 65536 || (Sint64)next.state.y > 17408LL * 65536))
-            return SDL_SetError("Laboratory actor motion left the bounded room region");
+            return SDL_SetError("Stage %u actor 0x%x slot %u step %u moved outside the bounded "
+                                "room region (%d,%d)",
+                                actors->stage_id, next.state.id, i, next.state.step,
+                                Pixel(next.state.x), Pixel(next.state.y));
         *actor = next;
     }
     if (actors->stage_id == 26 && (actors->dopple.body.motion.status & 0xc0000U))

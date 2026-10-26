@@ -114,7 +114,8 @@ static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
         *out = NULL;
         return true;
     }
-    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2 || s->stage_id == 6)
+    if (s->stage_id == 0 || s->stage_id == 1 || s->stage_id == 2 || s->stage_id == 4 ||
+        s->stage_id == 6)
         return SotnMusic_CreateStage(s->dra, s->music_stream, s->stage_id, out);
     if (s->stage_id == 12)
         return SotnMusic_Create(s->dra, s->music_stream, out);
@@ -156,7 +157,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
         {26, SOTN_RESOURCE_DOPPLE_AUDIO_HEADER, SOTN_RESOURCE_DOPPLE_AUDIO_BODY},
         {2, SOTN_RESOURCE_LIBRARY_AUDIO_HEADER, SOTN_RESOURCE_LIBRARY_AUDIO_BODY},
         {6, SOTN_RESOURCE_CHAPEL_AUDIO_HEADER, SOTN_RESOURCE_CHAPEL_AUDIO_BODY},
-        {25, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY}};
+        {25, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_HEADER, SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY},
+        {4, SOTN_RESOURCE_QUARTERS_AUDIO_HEADER, SOTN_RESOURCE_QUARTERS_AUDIO_BODY}};
     SotnResourceId header = SOTN_RESOURCE_COUNT, body = SOTN_RESOURCE_COUNT;
     for (Uint32 i = 0; i < SDL_arraysize(profiles); ++i)
         if (profiles[i].stage == session->stage_id)
@@ -1036,6 +1038,10 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "Selected Librarian introduction, buy/sell, speech and exit run. Full shop panels, "
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
+    else if (stage_id == 4)
+        SDL_Log("Olrox's Quarters internal checkpoint: selected common pickups, red doors, "
+                "breakables/debris, decorations, camera, Skelerang and Bloody Zombie adapters. "
+                "Remaining enemies, mechanisms, Olrox and connected travel are incomplete.");
     else if (stage_id == 6)
         SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "
                 "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
