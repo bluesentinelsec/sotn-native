@@ -1024,10 +1024,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
                 "incomplete.");
     else if (stage_id == 25)
-        SDL_Log("Hippogryph internal checkpoint: selected body/attacks, physical damage, "
-                "defeat effects, arena doors/music and Life Max Up. Maria actor/control "
-                "services run; dialogue, clouds/sky and connected Chapel travel remain "
-                "incomplete. This is not a completed encounter or parity milestone.");
+        SDL_Log(
+            "Hippogryph internal checkpoint: selected body/attacks, physical damage, "
+            "defeat effects, arena doors/music, Life Max Up and clouds/sky. Maria actor/control "
+            "services run; dialogue and connected Chapel travel remain "
+            "incomplete. This is not a completed encounter or parity milestone.");
     else if (stage_id == 2)
         SDL_Log("Long Library development adapters: common pickups, selected breakables, "
                 "Skeleton/Flea, Flea Armor, Dhuron, plants, Ectoplasm and book combat, music and "
@@ -1409,7 +1410,7 @@ static bool ActorDrawError(SotnActorState actor)
                         actor.slot, actor.animation_set, actor.frame, actor.palette, detail);
 }
 
-// LIB parallax uses priorities 0x20..0x60 before its foreground tile bucket 0x60.
+// Selected LIB parallax precedes foreground tiles; Chapel/BO5 sky precedes both tile layers.
 // Original later-submitted primitive packets precede tile packets at the tied bucket.
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y, bool background)
@@ -1452,9 +1453,11 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         SotnActorState state = {0};
         if (!SotnActors_Get(session->actors, slot - 1, &state))
             return false;
-        const bool library_background =
-            session->stage_id == 2 && state.id >= 0x16 && state.id <= 0x19;
-        if (library_background != background)
+        const bool background_actor =
+            (session->stage_id == 2 && state.id >= 0x16 && state.id <= 0x19) ||
+            ((session->stage_id == 6 || session->stage_id == 25) &&
+             (state.id == 0x1f || state.id == 0x20));
+        if (background_actor != background)
             continue;
         if (state.generation == 0 || state.unsupported ||
             (state.frame == 0 && state.id != 0xa &&
@@ -1709,7 +1712,9 @@ static bool DrawGameplay(SotnLaboratory *session)
         return false;
     for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
         session->frame[i] = backdrop;
-    return SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
+    return ((session->stage_id != 6 && session->stage_id != 25) ||
+            DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
+           SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
            (session->stage_id != 2 ||
             DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&

@@ -83,6 +83,22 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
  * @return Success or SDL error for invalid pointers, vertices or unselected translation. */
 bool SotnChapel_ProjectBell(SotnDataView executable, SotnDataView chapel, Uint16 face, Sint16 angle,
                             Sint32 x, Sint32 y, SotnProjectedPoint out[4]);
+/** @brief Private table locations for the shared original Chapel/BO5 sky algorithm. */
+typedef struct SotnCloudProfile
+{
+    size_t initialize, uv, vertices, grids, planes, rotation;
+} SotnCloudProfile;
+/** @brief Select metadata for an original stage without aliasing its runtime tables.
+ * @param stage Original Chapel (6) or BO5 (25). @param out Receives copied offsets.
+ * @return Success or SDL error; invalid input leaves the output unchanged. */
+bool SotnCloud_GetProfile(Uint16 stage, SotnCloudProfile *out);
+/** @brief Project a shared original sky tile through the selected private SDK plane model.
+ * @param data Borrowed selected overlay. @param stage Original stage 6 or 25.
+ * @param x Screen translation +/-16384. @param y Layer translation +/-512.
+ * @param depth Original positive band depth, 192..2240. @param out Four copied points.
+ * @return Success or SDL error; invalid controls/model/rotation leave output unchanged. */
+bool SotnCloud_Project(SotnDataView data, Uint16 stage, Sint32 x, Sint32 y, Uint16 depth,
+                       SotnProjectedPoint out[4]);
 /** @brief Project an original Chapel cloud tile through the identity SDK matrix/divider.
  * @param chapel Borrowed DAI private vertices/rotation. @param x Screen translation, +/-16384.
  * @param y Layer translation, +/-512. @param depth Original positive band depth, 192..2240.

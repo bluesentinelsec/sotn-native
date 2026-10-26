@@ -11,7 +11,8 @@ comparisons. BO5 scene integration and connected Chapel travel remain pending.
 The unmerged [Hippogryph body work](docs/hippogryph-body.md) reconstructs normal motion/attack/grab
 states, linked hit handling, original defeat effects, arena doors/music and Life Max Up reward
 conversion. Maria's actor and player-control manager run independently of the still-pending
-dialogue. Finish dialogue, clouds/sky and connected Chapel progression before presenting this
+dialogue. Shared original clouds/sky now load BO5's separate private tables and render behind
+its tile layers. Finish dialogue and connected Chapel progression before presenting this
 as a completed playable encounter or merging that batch.
 
 ## Purpose and priorities

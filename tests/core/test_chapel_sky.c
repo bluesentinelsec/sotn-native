@@ -24,7 +24,7 @@ static void Put32(Uint8 *p, Uint32 v)
     for (Uint16 i = 0; i < 4; ++i)
         p[i] = (Uint8)(v >> (i * 8U));
 }
-static bool Open(Fixture *f, SotnActors **out)
+static bool OpenStage(Fixture *f, SotnActors **out, Uint16 stage)
 {
     SDL_zero(*f);
     Put32(f->dra + 0x98, 0x800a0200);
@@ -53,9 +53,27 @@ static bool Open(Fixture *f, SotnActors **out)
         for (Uint16 i = 0; i < 64; ++i)
             f->stage[0x2484 + layer * 64U + i] = (Uint8)((i + layer) % 6U + 1U);
     }
+    if (stage == 25)
+    {
+        // Relocate only these synthetic records; leave the DAI locations empty to catch aliases.
+        SDL_memcpy(f->stage + 0x18ec, f->stage + 0x242c, 56);
+        SDL_memcpy(f->stage + 0x1924, f->stage + 0x2464, 32);
+        SDL_memcpy(f->stage + 0x1944, f->stage + 0x2484, 192);
+        for (Uint16 i = 0; i < 4; ++i)
+            Put16(f->stage + 0x1924 + i * 8U, i & 1U ? 80 : -80);
+        for (Uint16 layer = 0; layer < 3; ++layer)
+        {
+            Put32(f->stage + 0x1a04 + layer * 8U, 0x80181944U + (2U - layer) * 64U);
+            Put16(f->stage + 0x1a08 + layer * 8U, layer == 2 ? 120 : layer ? -288 : -192);
+            Put16(f->stage + 0x1a0a + layer * 8U, 31 - layer);
+        }
+        SDL_memset(f->stage + 0x242c, 0, 0x136);
+        Put32(f->stage + 0xb74, 1);
+    }
     CHECK(SotnActors_CreateStage((SotnDataView){f->dra, sizeof(f->dra)},
-                                 (SotnDataView){f->stage, sizeof(f->stage)}, 6, out));
-    CHECK(SotnActorLayout_OpenStage((SotnDataView){f->stage, sizeof(f->stage)}, 6, 0, &f->layout));
+                                 (SotnDataView){f->stage, sizeof(f->stage)}, stage, out));
+    CHECK(SotnActorLayout_OpenStage((SotnDataView){f->stage, sizeof(f->stage)}, stage, 0,
+                                    &f->layout));
     CHECK(SotnActors_Enter(
         *out, f->layout,
         (SotnCollisionMap){{f->tiles, sizeof(f->tiles)}, {f->types, sizeof(f->types)}, 32, 32}, 0,
@@ -63,6 +81,10 @@ static bool Open(Fixture *f, SotnActors **out)
     (*out)->slots[16] = (Actor){
         .slot = 16, .dynamic = true, .state = {.id = 0x1f, .generation = 1, .x = 200 * 65536}};
     return true;
+}
+static bool Open(Fixture *f, SotnActors **out)
+{
+    return OpenStage(f, out, 6);
 }
 static void Close(Fixture *f, SotnActors *s)
 {
@@ -179,12 +201,12 @@ static bool LandAndFailures(Fixture *f)
     CHECK(!ActorChapel(s, a));
     SDL_memset(f->stage + 0x2484, 0, 64);
     CHECK(!ActorChapel(s, a));
-    CHECK(!ActorChapelSky(NULL, a) && !ActorChapelSky(s, NULL));
+    CHECK(!ActorCastleSky(NULL, a) && !ActorCastleSky(s, NULL));
     s->stage_id = 2;
-    CHECK(!ActorChapelSky(s, a));
+    CHECK(!ActorCastleSky(s, a));
     s->stage_id = 6;
     a->state.id = 0x21;
-    CHECK(!ActorChapelSky(s, a));
+    CHECK(!ActorCastleSky(s, a));
     Close(f, s);
     CHECK(Open(f, &s));
     a = &s->slots[16];
@@ -194,10 +216,54 @@ static bool LandAndFailures(Fixture *f)
     Close(f, s);
     return true;
 }
+static bool Hippogryph(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(OpenStage(f, &s, 25));
+    SotnCloudProfile profile = {0};
+    CHECK(SotnCloud_GetProfile(25, &profile) && profile.initialize == 0x484 &&
+          profile.uv == 0x18ec && profile.vertices == 0x1924 && profile.grids == 0x1944 &&
+          profile.planes == 0x1a04 && profile.rotation == 0x1a1c);
+    const SotnCloudProfile saved = profile;
+    CHECK(!SotnCloud_GetProfile(2, &profile) && !SDL_memcmp(&saved, &profile, sizeof(saved)));
+    CHECK(!SotnCloud_GetProfile(25, NULL));
+    SotnProjectedPoint point[4] = {0};
+    CHECK(SotnCloud_Project(s->nz0, 25, 0, 0, 256, point) && point[0].x == 48 &&
+          point[1].x == 208 && point[2].x == 88 && point[3].x == 168);
+    Actor *a = &s->slots[16];
+    CHECK(ActorCastleSky(s, a) && a->state.primitive_count == 96 && a->clouds.x[0] == 65536U &&
+          a->clouds.y[0] == 327680U);
+    Uint16 visible = 0;
+    for (Uint16 i = 0; i < 96; ++i)
+    {
+        const ActorPrimitive *p = ActorPrimitiveGet(s, a, i);
+        CHECK(p);
+        if (!p->state.active)
+            continue;
+        ++visible;
+        CHECK(p->state.priority >= 29 && p->state.priority <= 31 && p->state.u[0] >= 16 &&
+              p->state.palette == 0xc0);
+    }
+    CHECK(visible);
+    Actor land = {.slot = 17, .state = {.id = 0x20, .generation = 2}};
+    CHECK(ActorCastleSky(s, &land) && land.state.primitive_count == 5 &&
+          ActorPrimitiveGet(s, &land, 4)->state.offset_x[3] == 310);
+    Put32(f->stage + 0x1a04, 0x80182484);
+    CHECK(!ActorCastleSky(s, a));
+    Put32(f->stage + 0x1a04, 0x801819c4);
+    Put16(f->stage + 0x1a1c, 1);
+    CHECK(!SotnCloud_Project(s->nz0, 25, 0, 0, 256, point));
+    Put16(f->stage + 0x1a1c, 0);
+    Put16(f->stage + 0x2466, 1);
+    CHECK(SotnCloud_Project(s->nz0, 25, 0, 0, 256, point));
+    CHECK(!SotnCloud_Project(s->nz0, 6, 0, 0, 256, point));
+    Close(f, s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
-    const bool ok = f && Projection(f) && Clouds(f) && LandAndFailures(f);
+    const bool ok = f && Projection(f) && Clouds(f) && LandAndFailures(f) && Hippogryph(f);
     SDL_free(f);
     if (!ok)
         return 1;

@@ -1296,6 +1296,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
     Uint8 animation = 0;
     if (actors->stage_id == 25 && actor->state.id > 0xc)
     {
+        if (actor->state.id == 0x1f || actor->state.id == 0x20)
+            return ActorCastleSky(actors, actor);
         if (actor->state.id == 0x21 || actor->state.id == 0x29)
             return ActorHippogryphArena(actors, actor);
         if (actor->state.id == 0x2b || actor->state.id == 0x2c)

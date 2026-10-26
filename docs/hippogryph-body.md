@@ -40,7 +40,13 @@ Generation checks prevent a replacement pickup from extending the earlier reward
 lifetime. The underlying dialogue/script execution and persistent Maria event remain
 unintegrated, so these actor services alone do not constitute the cutscene.
 
-This branch is not a completed encounter. Dialogue, clouds/sky and connected Chapel
+BO5's placed cloud and sky-land actors now run the shared original sky algorithms
+with explicit BO5 initialization, UV, vertex, grid, profile and rotation offsets.
+Their private resources retain their own stage identity. Sky packets render before
+both room tile layers, preserving the original lower priorities; the same correction
+keeps Chapel clouds behind its architecture.
+
+This branch is not a completed encounter. Dialogue and connected Chapel
 travel still need integration. The BO5 profile remains disconnected, without a public
 gameplay start. Do not merge or describe this checkpoint as a playable Hippogryph
 milestone while those paths remain incomplete.
@@ -96,3 +102,5 @@ runtime tables, game artwork and comparison inputs remain private.
 Arena/Maria provenance: BO5 `EntityRbo3Door`, `func_us_801A4494`, `func_us_801A5F88`,
 `func_us_801A62B4` and `CutsceneCameraPan` at the same pinned revision. Music/XA
 selection follows the pinned `src/dra/sound.c` and `lba_stage.c` metadata interpretation.
+Sky provenance: shared `st/e_clouds.h` and `st/e_background_sky_land.h`, with separate
+private BO5 metadata; see [sky validation](chapel-sky.md).

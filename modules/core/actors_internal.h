@@ -537,11 +537,11 @@ bool ActorChapelSpikes(SotnActors *actors, Actor *actor);
  * @param actor Borrowed raw-0x16 slot; physical player/map coordinates remain stable.
  * @return Success or SDL error for invalid owner, variant, state or bounded window. */
 bool ActorChapelExit(SotnActors *actors, Actor *actor);
-/** @brief Advance original Chapel cloud planes or initialize the repeating sky-land strip.
- * @param actors Borrowed stage-6 owner and private models, profiles and UV/grid records.
+/** @brief Advance original Chapel/BO5 clouds or initialize the repeating sky-land strip.
+ * @param actors Borrowed stage-6/25 owner and private models, profiles and UV/grid records.
  * @param actor Borrowed raw-0x1f/0x20 slot; primitives remain generation-owned.
  * @return Success or SDL error for malformed data/state or a nonterminating cloud row. */
-bool ActorChapelSky(SotnActors *actors, Actor *actor);
+bool ActorCastleSky(SotnActors *actors, Actor *actor);
 /** @brief Advance the original Chapel stained-glass/light or background actor.
  * @param actors Borrowed stage-6 owner, private geometry/poses/colors and math tables.
  * @param actor Borrowed raw-0x17/0x18 slot; bounded primitives remain generation-owned.
