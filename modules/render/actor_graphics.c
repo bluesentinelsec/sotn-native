@@ -137,7 +137,7 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     // Play_Init loads default bank zero independently from room-specific graphics.
     // Boss arenas and Library/Chapel base artwork require that initial residency.
     if (!Palettes(graphics) ||
-        ((stage == 25 || stage == 26 || stage == 2 || stage == 4 || stage == 6) &&
+        ((stage == 25 || stage == 26 || stage == 2 || stage == 4 || stage == 6 || stage == 30) &&
          !SotnActorGraphics_LoadBank(graphics, 0)))
     {
         SotnActorGraphics_Destroy(graphics);

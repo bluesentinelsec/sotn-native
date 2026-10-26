@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 arena doors**, AGPL-3.0-or-later.
+  `modules/core/olrox_arena.c` adapts `boss/bo0/e_boss_doors.c` at the pinned
+  revision below. Shared private-table profiles also follow its stage metadata.
+  Runtime initialization, tile patches, artwork and sound data remain private.
+  See [scope and validation](docs/olrox-arena.md).
+
 - **Reconstructed NO2 secret mechanisms**, AGPL-3.0-or-later.
   `modules/core/olrox_secrets.c` adapts `st/no2/e_secrets.c` and selected
   `st/prim_helpers.h` at the same pinned revision below. Original tile patches,

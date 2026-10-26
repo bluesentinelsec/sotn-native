@@ -406,6 +406,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
+    if (actors->stage_id == 30)
+        return false; // BO0 combat identities require their own reconstructed encounter.
     if (actors->stage_id == 4)
         return id == 0x16 || id == 0x17 || id == 0x24 || id == 0x25 || id == 0x2d || id == 0x31 ||
                id == 0x34 || id == 0x35 || id == 0x37 || id == 0x38 || id == 0x39 || id == 0x3c ||
@@ -1369,6 +1371,9 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->state.id != 2 && actor->state.id != 3 && actor->state.id != 0xa &&
         actor->state.id != 0xb && actor->state.id != 0xc)
         return ActorEntrance(actors, actor);
+    if (actors->stage_id == 30 &&
+        (actor->state.id == 1 || actor->state.id == 8 || actor->state.id > 0xc))
+        return ActorOlroxArena(actors, actor);
     if (actors->stage_id == 4 &&
         (actor->state.id == 1 || actor->state.id == 8 || actor->state.id > 0xc))
         return ActorOlroxQuarter(actors, actor);
@@ -1612,10 +1617,15 @@ bool SotnActors_CreateStage(SotnDataView dra, SotnDataView nz0, Uint16 stage_id,
     if (dra.bytes == NULL || dra.size < 0x9c || dra.size > 0x200000 || nz0.bytes == NULL ||
         nz0.size < 40 || nz0.size > 0x80000)
         return SDL_SetError("Laboratory actors require bounded private US DRA/NZ0 images");
+    SotnDataView initial = {0};
+    if (stage_id == 30 && (!Slice(nz0, 0x1190, 4, &initial) || Read32(initial.bytes) > 1))
+        return SDL_SetError("BO0 initial arena completion flag is missing or invalid");
     SotnActors *actors = SDL_calloc(1, sizeof(*actors));
     if (actors == NULL)
         return false;
     actors->stage_id = stage_id;
+    if (stage_id == 30)
+        actors->olrox_defeated = Read32(initial.bytes) != 0;
     actors->dra = dra;
     actors->nz0 = nz0;
     actors->combat.hearts = 10;

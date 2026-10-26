@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+The internal [Olrox arena foundation](docs/olrox-arena.md) now loads BO0 stage 30
+with its own 50 sprite banks, private sound bank, common services and paired boss
+doors. Preserve BO0 identities and shared-table offsets; never alias Laboratory
+combat. The original door completion signal is overlay-lifetime state and is not
+a completed boss/save event. BO0 and NO2 remain disconnected; Olrox combat,
+transformation, defeat/reward and connected progression still need integration.
+Private muted door checks inject a completion signal, not an actual boss defeat.
+The shared solid-object service now uses the original left/right contact bits.
+
 Selected [NO2 courtyard scenery](docs/olrox-courtyard.md) now renders private
 house models, repeated backgrounds, foreground/backdrop, linked lamps and glow.
 Preserve matrix-pair projection (distinct from quarter-wave trigonometry), face

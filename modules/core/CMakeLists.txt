@@ -39,6 +39,7 @@ add_library(sotn-core STATIC
   actor_stage_profile.c
   early_castle.c
   olrox_quarter.c
+  olrox_arena.c
   olrox_prisoner.c
   olrox_valhalla.c
   olrox_spectral.c

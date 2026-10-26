@@ -139,6 +139,14 @@
     "ST/NO2/SD_ZKNO2.VB": {
       "size": 105728,
       "sha1": "4ce1a3b5e7a4999bddc78dedecc5e752182873d6"
+    },
+    "BOSS/BO0/SD_ZKBO0.VH": {
+      "size": 5152,
+      "sha1": "fbf90aa88b90184c59c0b9a750fcbde160f37ea7"
+    },
+    "BOSS/BO0/SD_ZKBO0.VB": {
+      "size": 105808,
+      "sha1": "0246e4a5dc833a58ac39ae40a282b2db7cd5a7ea"
     }
   },
   "sizes": {

@@ -4,16 +4,19 @@
 #include "actors_internal.h"
 bool ActorRoomDecoration(SotnActors *s, Actor *a)
 {
-    if (!s || !a || (s->stage_id != 2 && s->stage_id != 4 && s->stage_id != 6) ||
+    if (!s || !a ||
+        (s->stage_id != 2 && s->stage_id != 4 && s->stage_id != 6 && s->stage_id != 30) ||
         (a->state.id != 8 && a->state.id != 0x11))
         return SDL_SetError("Room decoration requires its own foreground/background actor");
     const bool foreground = a->state.id == 8;
-    const bool chapel = s->stage_id == 6, quarters = s->stage_id == 4;
-    const Uint16 count = foreground ? 6 : (chapel || quarters) ? 1 : 8;
-    const size_t table = foreground ? (chapel     ? 0x1b14
+    const bool chapel = s->stage_id == 6, quarters = s->stage_id == 4, arena = s->stage_id == 30;
+    const Uint16 count = foreground ? 6 : (chapel || quarters || arena) ? 1 : 8;
+    const size_t table = foreground ? (arena      ? 0x259c
+                                       : chapel   ? 0x1b14
                                        : quarters ? 0x1fb0
                                                   : 0x2094)
-                                    : (chapel     ? 0xac8
+                                    : (arena      ? 0x748
+                                       : chapel   ? 0xac8
                                        : quarters ? 0x998
                                                   : 0xa28);
     SotnDataView record = {0};
@@ -29,11 +32,12 @@ bool ActorRoomDecoration(SotnActors *s, Actor *a)
             "Room decoration has an invalid priority, palette, draw flags or animation");
     if (!a->state.step)
     {
-        if (!ActorInitialize(s, a, ActorStageOffset(s, quarters || chapel ? 0xc1c : 0xbec)))
+        if (!ActorInitialize(s, a,
+                             ActorStageOffset(s, quarters || chapel || arena ? 0xc1c : 0xbec)))
             return false;
         a->state.animation_set = Read16(p);
         a->state.priority = Read16(p + 2);
-        // US LIB/DAI/NO2 have no BG_FACING_LEFT_FIX: the low word is the texture offset.
+        // US LIB/DAI/NO2/BO0 have no BG_FACING_LEFT_FIX: the low word is the texture offset.
         a->state.texture_offset = Read16(p + 4);
         a->state.palette = Read16(p + 6);
         a->state.blend_mode = Read16(p + 10);

@@ -37,6 +37,8 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_HIPPOGRYPH_AUDIO_BODY,   /**< US Hippogryph arena samples. */
     SOTN_RESOURCE_QUARTERS_AUDIO_HEADER,   /**< US Olrox's Quarters instruments. */
     SOTN_RESOURCE_QUARTERS_AUDIO_BODY,     /**< US Olrox's Quarters samples. */
+    SOTN_RESOURCE_OLROX_AUDIO_HEADER,      /**< US Olrox arena instruments. */
+    SOTN_RESOURCE_OLROX_AUDIO_BODY,        /**< US Olrox arena samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 
