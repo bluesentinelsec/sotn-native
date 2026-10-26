@@ -724,6 +724,11 @@ bool ActorBossBox(SotnActors *actors, Actor *actor, size_t boxes, Uint32 count, 
                   Uint32 frames);
 bool ActorCamera(SotnActors *actors, Actor *actor);
 bool ActorDoor(SotnActors *actors, Actor *actor);
+/** @brief Advance NO2's ordinary stone door, original forced movement, tiles and owned panels.
+ * @param actors Borrowed entered NO2 owner. @param actor Borrowed raw 0x33 door.
+ * @return Success or SDL error for invalid state/data/geometry; primitive exhaustion removes
+ * the actor as in the original. All runtime UV/tile/SDK profiles remain private. */
+bool ActorNo2Door(SotnActors *actors, Actor *actor);
 bool ActorCannon(SotnActors *actors, Actor *actor);
 bool ActorMechanism(SotnActors *actors, Actor *actor);
 bool ActorObjectCollision(SotnActors *actors, const Actor *actor, Uint16 width, Uint16 height,

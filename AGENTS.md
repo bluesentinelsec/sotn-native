@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+Selected [NO2 stone doors](docs/olrox-stone-doors.md) now retain the original
+forced entry/open/close sequence, alternate artwork and collision columns.
+They are ordinary doors, distinct from the magical Jewel barrier. Preserve the
+quarter-wave SDK trigonometry, right-side shading, retained edge UV at0xA00,
+original sound requests and checked primitive/tile ownership. NO2 remains
+disconnected; explicit placed-door checks are not whole-route/console parity.
+
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
 Zoe, Gravity Boots, Leap Stone and Jewel of Open. Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
