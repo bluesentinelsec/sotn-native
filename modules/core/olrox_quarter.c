@@ -34,6 +34,8 @@ bool ActorOlroxQuarter(SotnActors *s, Actor *a)
         return ActorOlroxSecret(s, a);
     case 0x28:
         return ActorOlroxPrisoner(s, a);
+    case 0x33:
+        return ActorNo2Door(s, a);
     case 0x34:
     case 0x35:
     case 0x36:
