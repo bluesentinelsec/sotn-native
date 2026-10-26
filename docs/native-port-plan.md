@@ -24,6 +24,8 @@ Lesser Demon, Librarian buy/sell and furnishings now run. The
 reward, Maria dialogue/speech/flashbacks and return travel. Its component and
 protected native checks do not establish ordinary-character, whole-route or console
 parity. Further Chapel exits still fail explicitly until their stages are integrated.
+The internal [Olrox's Quarters foundation](olrox-quarter-runtime.md) adds NO2's
+resources and selected shared actors; it does not yet enable another castle route.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,

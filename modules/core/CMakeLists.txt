@@ -38,6 +38,7 @@ add_library(sotn-core STATIC
   include/sotn/stage_profile.h
   actor_stage_profile.c
   early_castle.c
+  olrox_quarter.c
   library.c
   chapel.c
   chapel_breakable.c

@@ -495,9 +495,15 @@ bool ActorPositionalSound(SotnActors *actors, const Actor *actor, Uint16 sound);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed owned actor slot.
  * @return Success, or false with an SDL error for invalid state/data. Unsupported
  * actor kinds are explicitly marked; this does not grant connected-stage support. */
+/** @brief Advance selected NO2 actors using their own private tables.
+ * @param actors Borrowed mutable stage-four service; owns the runtime views and child pools.
+ * @param actor Borrowed mutable actor associated with that service; ownership does not transfer.
+ * @return True after a supported update or explicit unsupported marker, false with SDL error
+ * for invalid owners, state, resources or checked bounds. */
+bool ActorOlroxQuarter(SotnActors *actors, Actor *actor);
 bool ActorChapel(SotnActors *actors, Actor *actor);
-/** @brief Advance an owned Chapel lamp/debris slot from private profiles.
- * @param actors Borrowed Chapel/world owner. @param actor Borrowed lamp or debris.
+/** @brief Advance an owned Chapel/NO2 lamp or debris slot from its private profile.
+ * @param actors Borrowed supported stage/world owner. @param actor Borrowed lamp or debris.
  * @return Success or SDL error for invalid owners, state or private tables. */
 bool ActorChapelBreakable(SotnActors *actors, Actor *actor);
 /** @brief Advance selected Chapel shortcut/statue or gargoyle terrain actors.

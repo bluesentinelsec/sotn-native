@@ -112,3 +112,8 @@ The [Royal Chapel foundation](chapel-runtime.md) adds separately fingerprinted
 `ST/DAI/SD_ZKDAI.VH` and `ST/DAI/SD_ZKDAI.VB`. These optional on-demand private
 inputs were verified against the user's local disc; public source contains only
 their names, sizes and hashes. Their presence does not enable connected Chapel travel.
+
+The internal [Olrox's Quarters foundation](olrox-quarter-runtime.md) adds separately
+verified `ST/NO2/SD_ZKNO2.VH` and `ST/NO2/SD_ZKNO2.VB`. Their ignored copies and
+canonical overlay/artwork were compared with the user's disc. Only fingerprints
+are public; their presence does not make the area fully playable.

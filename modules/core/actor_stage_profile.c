@@ -4,6 +4,49 @@
 #include "actors_internal.h"
 size_t ActorStageOffset(const SotnActors *s, size_t laboratory)
 {
+    if (s->stage_id == 4)
+    {
+        if (laboratory >= 0x1cc4 && laboratory < 0x1e64)
+            return laboratory - 0x54c;
+        if (laboratory >= 0x22d4 && laboratory < 0x23cc)
+            return laboratory - 0x7b0;
+        switch (laboratory)
+        {
+        case 0xbc8:
+            return 0x820;
+        case 0xbd4:
+            return 0x82c;
+        case 0xbe0:
+            return 0x838;
+        case 0xbec:
+            return 0x844;
+        case 0xbf8:
+            return 0x850;
+        case 0xc04:
+            return 0x85c;
+        case 0xc10:
+            return 0x868;
+        case 0xc1c:
+            return 0x874;
+        case 0xc7c:
+            return 0x8e0;
+        case 0xd8c:
+            return 0x9ac;
+        case 0xdbc:
+            return 0x9ec;
+        case 0xdc0:
+            return 0x9f4;
+        case 0xdc4:
+            return 0x9fc;
+        case 0x13b0:
+            return 0xfec;
+        case 0x1960:
+            return 0x1414;
+        default:
+            SDL_SetError("Olrox's Quarters has no shared private table for offset %zu", laboratory);
+            return s->nz0.size;
+        }
+    }
     if (s->stage_id == 25)
     {
         if (laboratory >= 0x1cc4 && laboratory < 0x1e64)
