@@ -68,7 +68,8 @@ the reward, Maria dialogue/speech and return route. Other castle destinations,
 whole-route replay and full audiovisual/timing parity remain incomplete.
 
 An internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds its
-own resources and selected shared actors. It remains disconnected while its
+own resources, selected shared actors, [prisoners and spikes](docs/olrox-prisoners-spikes.md).
+It remains disconnected while its
 remaining enemies, mechanisms and boss are integrated.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.

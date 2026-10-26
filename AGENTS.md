@@ -24,6 +24,11 @@ identities distinct: zombie 0x2D, blood 0x2E/0x2F, Owl Knight sword/target 0x2B/
 Stage 4 remains disconnected while its other enemies, mechanisms and Olrox need
 integration. Public synthetic and controlled private checks are not whole-area or
 console parity. Its ordinary save room uses the existing version-nine format.
+Selected [NO2 prisoners and spikes](docs/olrox-prisoners-spikes.md) now retain
+owned shadows, original appearance/rattle/retreat phases, temporary environmental
+contact and equipped tile destruction. Preserve NO2's mixed actual-width/96-tile
+indexing and its separate identities/tables; do not reuse Chapel's adjacent damage
+ownership or orientation rules. Unknown broken replacements fail before mutation.
 
 ## Purpose and priorities
 

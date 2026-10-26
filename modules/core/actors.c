@@ -407,7 +407,7 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 4)
-        return id == 0x16 || id == 0x17 || id == 0x2d;
+        return id == 0x16 || id == 0x17 || id == 0x2d || id == 0x31;
     if (actors->stage_id == 25)
         return id == 0x22 || id == 0x23 || id == 0x24 || id == 0x25 || id == 0x27;
     if (actors->stage_id == 6)
@@ -501,10 +501,11 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if (recipient->state.flags & 0x100U)
             return true;
     }
-    if (actors->stage_id == 6 && actor->state.id == 0x31)
+    if ((actors->stage_id == 6 || actors->stage_id == 4) && actor->state.id == 0x31)
     {
         const Uint16 slot = actor->enemy_state.owner_slot;
-        if (slot >= SOTN_STAGE_ACTOR_SLOTS || actors->slots[slot].state.id != 0x2e ||
+        if (slot >= SOTN_STAGE_ACTOR_SLOTS ||
+            actors->slots[slot].state.id != (actors->stage_id == 4 ? 0x21 : 0x2e) ||
             !actors->slots[slot].state.generation ||
             actors->slots[slot].state.generation != actor->enemy_state.owner_generation)
             return true;

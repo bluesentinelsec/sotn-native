@@ -116,6 +116,13 @@ typedef struct Actor
     } chapel;
     struct
     {
+        Uint32 child_generation;
+        Sint16 shift;
+        Uint8 opacity;
+        bool appeared;
+    } prisoner;
+    struct
+    {
         Sint32 reference_y;
         Uint16 hover_timer;
     } crow;
@@ -495,13 +502,19 @@ bool ActorPositionalSound(SotnActors *actors, const Actor *actor, Uint16 sound);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed owned actor slot.
  * @return Success, or false with an SDL error for invalid state/data. Unsupported
  * actor kinds are explicitly marked; this does not grant connected-stage support. */
+bool ActorChapel(SotnActors *actors, Actor *actor);
 /** @brief Advance selected NO2 actors using their own private tables.
  * @param actors Borrowed mutable stage-four service; owns the runtime views and child pools.
  * @param actor Borrowed mutable actor associated with that service; ownership does not transfer.
  * @return True after a supported update or explicit unsupported marker, false with SDL error
  * for invalid owners, state, resources or checked bounds. */
 bool ActorOlroxQuarter(SotnActors *actors, Actor *actor);
-bool ActorChapel(SotnActors *actors, Actor *actor);
+/** @brief Advance an original NO2 prisoner and its generation-owned adjacent shadow.
+ * @param actors Borrowed stage-four owner and private animation/initialization views.
+ * @param actor Borrowed prisoner or shadow slot; ownership remains with actors.
+ * @return Success or SDL error for invalid data/state or a lost required shadow.
+ * An orphaned shadow retires without following a replacement parent. */
+bool ActorOlroxPrisoner(SotnActors *actors, Actor *actor);
 /** @brief Advance an owned Chapel/NO2 lamp or debris slot from its private profile.
  * @param actors Borrowed supported stage/world owner. @param actor Borrowed lamp or debris.
  * @return Success or SDL error for invalid owners, state or private tables. */
@@ -539,8 +552,8 @@ bool ActorChapelHunting(SotnActors *actors, Actor *actor);
  * @param actors Borrowed stage-6 owner. @param actor Borrowed active supported slot.
  * @return Success or SDL error for invalid private data, ownership, state or motion. */
 bool ActorChapelSpectral(SotnActors *actors, Actor *actor);
-/** @brief Advance original Chapel spike tiles, owned damage or independent debris/dust.
- * @param actors Borrowed stage-6 owner with mutable room tiles and optional character.
+/** @brief Advance original Chapel/NO2 spike tiles, damage or independent debris/dust.
+ * @param actors Borrowed stage-6/4 owner with mutable room tiles and optional character.
  * @param actor Borrowed supported slot; original tables remain borrowed.
  * @return Success or SDL error for invalid data, ownership, state or motion. */
 bool ActorChapelSpikes(SotnActors *actors, Actor *actor);

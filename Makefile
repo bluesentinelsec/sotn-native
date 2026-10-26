@@ -14,6 +14,7 @@ SOTN_FORMAT_SOURCES += modules/core/hippogryph_arena.c tests/core/test_hippogryp
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_maria.c tests/core/test_hippogryph_maria.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_memory.c
 SOTN_FORMAT_SOURCES += modules/core/olrox_quarter.c tests/core/test_olrox_quarter.c
+SOTN_FORMAT_SOURCES += modules/core/olrox_prisoner.c tests/core/test_olrox_prisoner.c tests/core/test_olrox_spikes.c
 SOTN_FORMAT_SOURCES += modules/core/hippogryph_dialogue.c
 SOTN_FORMAT_SOURCES += tests/core/test_hippogryph_dialogue.c
 SOTN_FORMAT_SOURCES += tests/render/test_launch_renderer.c \

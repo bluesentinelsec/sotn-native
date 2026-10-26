@@ -75,9 +75,11 @@ fresh byte-identical v9 restoration. The transfer is not walking evidence.
 Existing user slots remain untouched. Dummy SDL audio validates decoding and
 ownership, not real-device listening, reverb or console PCM parity.
 
-Owl Knights/Owls, Valhalla Knights, giant brothers, Spectral Sword variants,
-prisoners, spikes, secrets, house/background mechanisms and Olrox remain outside
-this batch. Other abilities, complete effects/audio, connected area progression
+[Prisoners and selected spike behavior](olrox-prisoners-spikes.md) now extend this
+foundation with owned shadows, original phases, temporary environmental contact
+and equipped tile destruction. Owl Knights/Owls, Valhalla Knights, giant brothers,
+Spectral Sword variants, secrets, house/background mechanisms and Olrox remain
+outside these batches. Other abilities, complete effects/audio, connected area progression
 and whole-route timing/console comparisons remain incomplete. Keep the connected
 profile disabled until that progression has meaningful native validation.
 
