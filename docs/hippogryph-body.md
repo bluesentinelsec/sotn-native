@@ -46,6 +46,16 @@ Their private resources retain their own stage identity. Sky packets render befo
 both room tile layers, preserving the original lower priorities; the same correction
 keeps Chapel clouds behind its architecture.
 
+The two flashback-picture actors now load their separate four-part coordinates, UVs
+and palettes from BO5. They retain the original expansion, 192-tick hold and reverse
+contraction, including alternating updates and the last part's extra vertical growth.
+Their timer is explicitly 16-bit. Allocation pressure retries their initialization;
+generation ownership releases their primitives on removal. The native skip path
+removes the picture and releases its reservation. It does not reproduce the original
+function's unused allocation after clearing its entity during a skip. This ownership
+adaptation is not evidence of original allocation-pressure parity on that path.
+Their natural dialogue-driven birth remains pending.
+
 This branch is not a completed encounter. Dialogue and connected Chapel
 travel still need integration. The BO5 profile remains disconnected, without a public
 gameplay start. Do not merge or describe this checkpoint as a playable Hippogryph
@@ -104,3 +114,17 @@ Arena/Maria provenance: BO5 `EntityRbo3Door`, `func_us_801A4494`, `func_us_801A5
 selection follows the pinned `src/dra/sound.c` and `lba_stage.c` metadata interpretation.
 Sky provenance: shared `st/e_clouds.h` and `st/e_background_sky_land.h`, with separate
 private BO5 metadata; see [sky validation](chapel-sky.md).
+Flashback provenance: BO5 `func_us_801A66B0`, `func_us_801A666C`,
+`func_801B1D68` and `BO5_RicSetDeadPrologue` in `e_richter_prologue.c` at the
+same revision. These last two actor names select pictures; they do not run the
+Richter player's death routine.
+
+Flashback comparisons match 33,744 original instruction ticks across 240 seeded
+cases in Debug and macOS ASan/UBSan. They exercise both picture selectors, every
+normal state, 16-bit timer boundaries and delayed allocation, executing the
+original geometry helper with isolated allocation/initialization/destruction.
+A separate native LLDB sequence runs 580 ticks and 145 renders, explicitly spawning
+both pictures. Each visibly contributes to the frame and releases after its
+contraction. Both private captures were inspected. This protected, explicit-spawn
+fixture and its dummy audio do not establish dialogue-driven timing, a natural
+encounter, listening or console parity. All 99 test groups pass in both configurations.

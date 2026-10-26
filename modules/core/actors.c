@@ -1302,6 +1302,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return ActorHippogryphArena(actors, actor);
         if (actor->state.id == 0x2b || actor->state.id == 0x2c)
             return ActorHippogryphMaria(actors, actor);
+        if (actor->state.id == 0x2d || actor->state.id == 0x2e)
+            return ActorHippogryphMemory(actors, actor);
         if (actor->state.id == 0x22)
             return ActorHippogryphBody(actors, actor);
         if (actor->state.id == 0x12)

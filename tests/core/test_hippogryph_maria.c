@@ -181,12 +181,107 @@ static bool Failures(Fixture *f)
     SotnActors_Destroy(s);
     return true;
 }
+static bool Memory(Fixture *f)
+{
+    for (Uint16 kind = 0; kind < 2; ++kind)
+    {
+        SotnActors *s = NULL;
+        CHECK(Open(f, &s));
+        for (Uint16 i = 0; i < 4; ++i)
+        {
+            // Original synthetic layouts and colors, deliberately different between pictures.
+            Put16(f->stage + 0xcf0 + kind * 16U + i * 4U, (Uint16)(50 + kind * 30 + i * 8));
+            Put16(f->stage + 0xcf2 + kind * 16U + i * 4U, (Uint16)(70 + i * 12));
+            Put16(f->stage + 0xd30 + kind * 8U + i * 2U, (Uint16)(0x200 + kind * 4 + i));
+            f->stage[0xd10 + kind * 16U + i * 4U] = (Uint8)(i * 16);
+            f->stage[0xd11 + kind * 16U + i * 4U] = 20;
+            f->stage[0xd12 + kind * 16U + i * 4U] = (Uint8)(i * 16 + 15);
+            f->stage[0xd13 + kind * 16U + i * 4U] = 51;
+        }
+        Actor a = {.slot = 134, .state = {.id = (Uint16)(0x2d + kind), .generation = 1}};
+        CHECK(ActorHippogryphMemory(s, &a) && a.state.step == 1 &&
+              a.state.animation_set == 0x8000 && a.state.primitive_count == 4 &&
+              (a.state.flags & 0x800000U));
+        ActorPrimitive *first = ActorPrimitiveGet(s, &a, 0);
+        ActorPrimitive *last = ActorPrimitiveGet(s, &a, 3);
+        CHECK(first && last && first->state.palette == 0x200 + kind * 4 &&
+              first->state.priority == 136 && first->state.page == 20 &&
+              first->state.screen_space && first->state.offset_x[0] == 50 + kind * 30 &&
+              first->state.offset_x[3] == first->state.offset_x[0] && first->state.u[1] == 15 &&
+              first->state.u[2] == 0 && first->state.v[2] == 51);
+        CHECK(ActorHippogryphMemory(s, &a) && first->state.offset_x[0] == 50 + kind * 30);
+        CHECK(ActorHippogryphMemory(s, &a) && first->state.offset_x[0] == 49 + kind * 30);
+        for (Uint16 i = 2; i < 32; ++i)
+            CHECK(ActorHippogryphMemory(s, &a));
+        CHECK(a.state.step == 5 && !a.timer && first->state.offset_x[0] == 46 + kind * 30 &&
+              last->state.offset_x[0] == 58 + kind * 30 && last->state.offset_y[0] == 86 &&
+              last->state.offset_y[3] == 126);
+        for (Uint16 i = 0; i < 192; ++i)
+            CHECK(ActorHippogryphMemory(s, &a));
+        CHECK(a.state.step == 6 && !a.timer && !a.remove);
+        for (Uint16 i = 0; i < 32; ++i)
+            CHECK(ActorHippogryphMemory(s, &a));
+        CHECK(a.remove && a.state.step == 9 && a.timer == 8 &&
+              first->state.offset_x[0] == 50 + kind * 30 &&
+              first->state.offset_x[3] == first->state.offset_x[0] &&
+              last->state.offset_y[0] == 106 && last->state.offset_y[3] == 106);
+        ActorPrimitivesClear(s, &a);
+        for (Uint16 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+            CHECK(!s->primitives[i].owner);
+        SotnActors_Destroy(s);
+    }
+    return true;
+}
+static bool MemoryFailures(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor a = {.slot = 134, .state = {.id = 0x2d, .generation = 1}};
+    CHECK(!ActorHippogryphMemory(NULL, &a) && !ActorHippogryphMemory(s, NULL));
+    for (Uint16 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 99;
+    CHECK(ActorHippogryphMemory(s, &a) && !a.state.step && !a.state.primitive_count && !a.remove);
+    s->primitives[0].owner = s->primitives[1].owner = s->primitives[2].owner =
+        s->primitives[3].owner = 0;
+    CHECK(ActorHippogryphMemory(s, &a) && a.state.step == 1 && a.state.primitive_count == 4);
+    a.timer = 256;
+    CHECK(ActorHippogryphMemory(s, &a) && a.state.step == 2 && !a.timer);
+    a.timer = 65535;
+    CHECK(ActorHippogryphMemory(s, &a) && a.state.step == 2 && !a.timer);
+    a.state.step = 0;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    a.state.step = 10;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    a.state.step = 1;
+    s->primitives[a.primitive[2]].owner = 2;
+    a.state.step = 3;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    s->hippogryph_skip = true;
+    CHECK(ActorHippogryphMemory(s, &a) && a.remove);
+    a.state.id = 0x2c;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    s->hippogryph_skip = false;
+    a = (Actor){.slot = 135, .state = {.id = 0x2e, .generation = 3}};
+    Put16(f->stage + 0xd38, 0x300);
+    CHECK(!ActorHippogryphMemory(s, &a) && !a.state.primitive_count);
+    Put16(f->stage + 0xd38, 0);
+    Put16(f->stage + 0xd00, 0x7fff);
+    CHECK(!ActorHippogryphMemory(s, &a));
+    Put16(f->stage + 0xd00, 0);
+    s->nz0.size = 0xd3f;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    s->stage_id = 6;
+    CHECK(!ActorHippogryphMemory(s, &a));
+    SotnActors_Destroy(s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Manager(f) && ManagerVariants(f) && Maria(f) && Failures(f);
+    const bool ok = Manager(f) && ManagerVariants(f) && Maria(f) && Failures(f) && Memory(f) &&
+                    MemoryFailures(f);
     SDL_free(f);
     if (!ok)
         return 1;

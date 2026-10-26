@@ -14,6 +14,8 @@ conversion. Maria's actor and player-control manager run independently of the st
 dialogue. Shared original clouds/sky now load BO5's separate private tables and render behind
 its tile layers. Finish dialogue and connected Chapel progression before presenting this
 as a completed playable encounter or merging that batch.
+Its two private flashback-picture actors now retain their original geometry and timing;
+their natural dialogue-driven birth remains pending.
 
 ## Purpose and priorities
 

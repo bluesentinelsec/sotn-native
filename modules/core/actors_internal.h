@@ -675,6 +675,11 @@ bool ActorHippogryphArena(SotnActors *actors, Actor *actor);
  * @param actor Borrowed active raw2B manager or raw2C Maria; no pointers transfer.
  * @return Success or SDL error for invalid owners, animations, reward linkage or motion. */
 bool ActorHippogryphMaria(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's original four-part flashback pictures from private layout/UV tables.
+ * @param actors Borrowed BO5 owner and skip state. @param actor Active raw2D/2E owner.
+ * @return Success or SDL error for malformed records/state/ownership. Pool exhaustion retries;
+ * removal releases the generation-owned primitives through the actor tick service. */
+bool ActorHippogryphMemory(SotnActors *actors, Actor *actor);
 bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
 bool ActorDoppleLight(SotnActors *actors, Actor *actor);
 bool ActorDoppleShock(SotnActors *actors, Actor *actor);
