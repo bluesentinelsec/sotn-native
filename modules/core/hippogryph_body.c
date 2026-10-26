@@ -2,7 +2,7 @@
 // Reconstructed US BO5 func_us_801A1C14 / func_us_801A19FC and shared collision services,
 // pinned sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // Original timelines, sensor offsets and attack-choice arrays remain private runtime inputs.
-#include "actors_internal.h"
+#include "hippogryph_internal.h"
 
 static void Step(Actor *a, Uint16 step)
 {
@@ -55,7 +55,7 @@ static bool Offsets(SotnActors *s, Actor *a, size_t offset, bool facing, Uint8 *
     }
     return false;
 }
-static bool Floor(SotnActors *s, Actor *a, bool *landed)
+bool HippogryphFloor(SotnActors *s, Actor *a, bool *landed)
 {
     Uint16 collision = 0;
     if (!ActorGround(s, a, 0xaac, &collision))
@@ -69,7 +69,7 @@ static bool Floor(SotnActors *s, Actor *a, bool *landed)
     }
     return true;
 }
-static bool Particles(SotnActors *s, Actor *a, Uint8 count, Sint16 offset_y)
+bool HippogryphParticles(SotnActors *s, Actor *a, Uint8 count, Sint16 offset_y)
 {
     for (Uint16 i = 0; i < count; ++i)
     {
@@ -117,7 +117,7 @@ static bool Spawn(SotnActors *s, Actor *a, Uint16 id, Uint16 param, Uint32 begin
     }
     return true;
 }
-static void Grab(SotnActors *s, Actor *a, SotnPlayerGrabState state)
+void HippogryphGrab(SotnActors *s, Actor *a, SotnPlayerGrabState state)
 {
     s->player.grab.state = state;
     if (state != SOTN_GRAB_NONE)
@@ -156,7 +156,7 @@ static bool Ascend(SotnActors *s, Actor *a)
         }
         if (a->state.frame == 41 && !a->hippogryph.phase)
         {
-            if (!Particles(s, a, 4, 0))
+            if (!HippogryphParticles(s, a, 4, 0))
                 return false;
             a->hippogryph.phase = 1;
             a->vx = a->state.facing_left ? 24576 : -24576;
@@ -271,7 +271,7 @@ static bool Land(SotnActors *s, Actor *a)
         }
         return true;
     case 3:
-        if (!Floor(s, a, &landed))
+        if (!HippogryphFloor(s, a, &landed))
             return false;
         if (landed)
             a->hippogryph.phase = 1;
@@ -368,7 +368,7 @@ static bool Lunge(SotnActors *s, Actor *a)
             return false;
         if (!animated)
         {
-            if (!Particles(s, a, 4, 0))
+            if (!HippogryphParticles(s, a, 4, 0))
                 return false;
             a->hippogryph.timer = 64;
             a->vx = a->state.facing_left ? 294912 : -294912;
@@ -452,7 +452,7 @@ static bool GrabFlight(SotnActors *s, Actor *a)
             {
                 if (!ActorPositionalSound(s, a, 0x769))
                     return false;
-                Grab(s, a, SOTN_GRAB_START);
+                HippogryphGrab(s, a, SOTN_GRAB_START);
                 a->state.x =
                     (Sint32)((Sint64)Pixel(s->player.x) * 65536 + ((Uint32)a->state.x & 65535U));
                 ShiftY(a, (Sint64)Pixel(s->player.y) - 32 - Pixel(a->state.y));
@@ -480,9 +480,9 @@ static bool GrabFlight(SotnActors *s, Actor *a)
             --a->hippogryph.timer;
             if (a->hippogryph.timer % 47U == 0)
             {
-                if (!Particles(s, a, 8, -8))
+                if (!HippogryphParticles(s, a, 8, -8))
                     return false;
-                Grab(s, a, SOTN_GRAB_DAMAGE);
+                HippogryphGrab(s, a, SOTN_GRAB_DAMAGE);
             }
         }
         else if (!ActorAnimate(s, a, 0x830, &animated) ||
@@ -492,7 +492,7 @@ static bool GrabFlight(SotnActors *s, Actor *a)
             return false;
         if (Pixel(a->state.y) < 72)
         {
-            Grab(s, a, SOTN_GRAB_NONE);
+            HippogryphGrab(s, a, SOTN_GRAB_NONE);
             Face(s, a);
             Step(a, 6);
         }
@@ -542,13 +542,13 @@ static bool Swoop(SotnActors *s, Actor *a)
         }
         return true;
     case 2:
-        if (!Velocity(a, a->vx, (Sint64)a->vy - 14336) || !Floor(s, a, &landed))
+        if (!Velocity(a, a->vx, (Sint64)a->vy - 14336) || !HippogryphFloor(s, a, &landed))
             return false;
         if (landed)
             a->hippogryph.phase = 1;
         if (!Velocity(a, (Sint64)a->vx + (a->state.facing_left ? -4096 : 4096), a->vy))
             return false;
-        if (a->state.frame == 94 && !Particles(s, a, 2, -2))
+        if (a->state.frame == 94 && !HippogryphParticles(s, a, 2, -2))
             return false;
         if (!ActorAnimate(s, a, 0x96c, &animated))
             return false;
@@ -569,8 +569,33 @@ bool ActorHippogryphBody(SotnActors *s, Actor *a)
         a->vy = -262144;
         Step(a, 32);
     }
-    if (a->state.flags & 0x100U)
-        return SDL_SetError("Hippogryph defeat presentation is not integrated yet");
+    if ((a->state.flags & 0x100U) && a->state.step < 34)
+    {
+        a->state.hitbox_state = 0;
+        a->vx = (Sint32)((Uint32)a->vx & 65535U);
+        a->vy = (Sint32)((Uint32)a->vy & 65535U);
+        a->hippogryph.timer = 0;
+        a->state.frame = 110;
+        if (a->hippogryph.linked_generation)
+        {
+            const Uint16 slot = a->hippogryph.linked_slot;
+            if (slot >= SOTN_STAGE_ACTOR_SLOTS || slot == a->slot)
+                return SDL_SetError("Hippogryph defeat has an invalid linked child slot");
+            Actor *child = &s->slots[slot];
+            if (child->state.generation == a->hippogryph.linked_generation)
+            {
+                ActorPrimitivesClear(s, child);
+                if (!SotnRoomActors_Release(s->spawns, slot, false))
+                    return false;
+                *child = (Actor){0};
+            }
+            a->hippogryph.linked_generation = 0;
+        }
+        ActorPrimitivesClear(s, a);
+        a->state.primitive_count = 0;
+        a->state.flags &= ~0x800000U;
+        Step(a, 36);
+    }
     Uint8 animated = 0;
     bool landed = false;
     switch (a->state.step)
@@ -655,7 +680,7 @@ bool ActorHippogryphBody(SotnActors *s, Actor *a)
             return false;
         break;
     case 32:
-        if (!ActorAnimate(s, a, 0x928, &animated) || !Floor(s, a, &landed))
+        if (!ActorAnimate(s, a, 0x928, &animated) || !HippogryphFloor(s, a, &landed))
             return false;
         if (landed)
         {
@@ -685,7 +710,9 @@ bool ActorHippogryphBody(SotnActors *s, Actor *a)
         break;
     }
     case 36:
-        return SDL_SetError("Hippogryph defeat presentation is not integrated yet");
+        if (!HippogryphDeath(s, a))
+            return false;
+        break;
     case 130:
         if (s->buttons & SOTN_BUTTON_LEFT_HAND)
         {

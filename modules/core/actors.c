@@ -1302,6 +1302,8 @@ static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
             return ActorCamera(actors, actor);
         if (actor->state.id >= 0x23 && actor->state.id <= 0x27)
             return ActorHippogryphAttack(actors, actor);
+        if (actor->state.id == 0x28)
+            return ActorBossReward(actors, actor);
         actor->state.unsupported = true;
         return true;
     }

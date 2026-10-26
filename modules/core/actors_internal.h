@@ -53,6 +53,11 @@ typedef struct ActorPrimitive
         Uint8 phase, wait, hops, color_index;
         bool used, side;
     } demon;
+    struct
+    {
+        Sint32 radius, speed;
+        Uint8 delay, age;
+    } hippogryph;
 } ActorPrimitive;
 typedef struct Actor
 {
@@ -326,6 +331,8 @@ typedef struct Actor
     {
         Uint8 timer, rotation_direction, phase, saved_priority;
         Sint32 rotation_velocity;
+        Uint16 linked_slot; /**< Original optional ext94 child; generation zero means absent. */
+        Uint32 linked_generation;
     } hippogryph;
     bool dynamic, remove, permanent;
 } Actor;
@@ -352,7 +359,7 @@ struct SotnActors
     bool call_elevator, cannon_fired, armor_lord_killed;
     bool confessional_chime;
     Uint32 boss_flags, game_seconds;
-    Uint32 hippogryph_flags, hippogryph_encounter;
+    Uint32 hippogryph_flags, hippogryph_encounter, hippogryph_scene;
     Uint8 game_frame;
     Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
     bool clock_statues[2];
@@ -650,9 +657,10 @@ bool ActorDoppleEntry(SotnActors *actors, Actor *actor);
  * @param actors Borrowed original BO5 owner. @param actor Borrowed raw ID 0x23..0x27.
  * @return Success or SDL error; owned children never follow a reused parent generation. */
 bool ActorHippogryphAttack(SotnActors *actors, Actor *actor);
-/** @brief Advance original BO5 main-body motion and attack selection from private timelines.
+/** @brief Advance original BO5 body motion, attack selection and defeat from private timelines.
  * @param actors Borrowed BO5 owner. @param actor Borrowed raw22 body/effect.
- * @return Success or SDL error; incomplete defeat presentation remains an explicit error. */
+ * @return Success or SDL error for invalid data, motion or ownership; optional effect allocation
+ * follows the original fallback. Arena and dialogue integration remain separate services. */
 bool ActorHippogryphBody(SotnActors *actors, Actor *actor);
 bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
 bool ActorDoppleLight(SotnActors *actors, Actor *actor);

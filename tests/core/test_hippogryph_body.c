@@ -10,7 +10,7 @@
     } while (0)
 typedef struct Fixture
 {
-    Uint8 dra[0x1000], stage[0x2000], tiles[32 * 16 * 2], types[2];
+    Uint8 dra[0x1000], stage[0x2000], executable[0x23220], tiles[32 * 16 * 2], types[2];
 } Fixture;
 static void Put16(Uint8 *p, Uint16 v)
 {
@@ -79,8 +79,20 @@ static bool Open(Fixture *f, SotnActors **out)
     Animation(f, 0x950, 80, false);
     Animation(f, 0x96c, 94, false);
     Animation(f, 0x98c, 77, false);
+    Animation(f, 0x9d8, 111, true);
     Animation(f, 0xa2c, 93, true);
     Animation(f, 0xa48, 96, true);
+    // Deliberately synthetic speeds and triangular quarter-wave, not original runtime tables.
+    for (Uint32 i = 0; i < 31; ++i)
+        Put32(f->stage + 0x6e4 + i * 4U, 65536U + i * 4096U);
+    for (Uint32 i = 0; i < 8; ++i)
+        Put32(f->stage + 0x7e4 + i * 4U, 65536U + i * 8192U);
+    for (Uint32 i = 0; i <= 1024; ++i)
+    {
+        Put16(f->executable + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
+        Put16(f->executable + 0x22a10 + i * 2U, (Uint16)(i / 2U));
+    }
+    Put16(f->stage + 0x18b8 + 6 * 2, 23);
     Put16(f->stage + 0xaae, 9);
     Put16(f->stage + 0xadc, 0);
     Put16(f->stage + 0xade, 16);
@@ -102,6 +114,8 @@ static bool Open(Fixture *f, SotnActors **out)
     const bool entered = SotnActors_Enter(*out, layout, (*out)->map, 0, 0);
     SotnActorLayout_Close(layout);
     CHECK(entered);
+    CHECK(SotnActors_SetServices(*out, (SotnDataView){f->executable, sizeof(f->executable)},
+                                 61 * 60, false));
     (*out)->player =
         (SotnPlayerState){.hp = 70, .x = 300 * 65536, .y = 135 * 65536, .priority = 148};
     return true;
@@ -237,6 +251,8 @@ static bool Failures(Fixture *f)
     Actor a = Body(6, true);
     CHECK(!ActorHippogryphBody(NULL, &a) && !ActorHippogryphBody(s, NULL));
     a.state.flags = 0x100;
+    a.hippogryph.linked_generation = 1;
+    a.hippogryph.linked_slot = SOTN_STAGE_ACTOR_SLOTS;
     CHECK(!ActorHippogryphBody(s, &a));
     a = Body(6, true);
     a.substep = 1;
@@ -312,13 +328,139 @@ static bool LinkedDamage(Fixture *f)
     SotnActors_Destroy(s);
     return true;
 }
+static bool Defeat(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor a = Body(6, false);
+    a.hippogryph.saved_priority = 149;
+    a.state.flags = 0x100;
+    a.vx = -98304;
+    a.vy = -262144;
+    s->player.grab = (SotnPlayerGrab){.state = SOTN_GRAB_HELD, .damage = 16};
+    CHECK(ActorHippogryphBody(s, &a) && a.state.step == 36 && a.substep == 2 &&
+          a.state.frame == 110 && !a.state.hitbox_state && a.vx == -32768 && a.vy == 16384 &&
+          s->hippogryph_flags == 2 && s->world->time_attack[SOTN_TIME_HIPPOGRYPH] == 101 &&
+          s->motion.grab_changed && s->motion.grab.state == SOTN_GRAB_NONE &&
+          s->motion.grab.damage == 16);
+    for (Uint16 i = 0; i < 100 && a.substep != 4; ++i)
+        CHECK(ActorHippogryphBody(s, &a));
+    CHECK(a.substep == 4 && a.state.primitive_count == 2 && a.state.priority == 141 &&
+          (a.state.flags & 0x800000U));
+    ActorPrimitive *line = ActorPrimitiveGet(s, &a, 0);
+    CHECK(line && line->state.line && line->state.red == 128 && line->state.line_red == 64 &&
+          line->state.priority == 151);
+    CHECK(ActorHippogryphBody(s, &a) && a.hippogryph.timer == 6 && line->state.offset_x[1] == 6);
+    for (Uint16 i = 1; i < 41; ++i)
+        CHECK(ActorHippogryphBody(s, &a));
+    CHECK(a.substep == 5 && !a.state.primitive_count && !(a.state.flags & 0x800000U) &&
+          !a.hippogryph.timer);
+    Uint32 expected_random = s->random;
+    for (Uint16 i = 0; i < 240; ++i)
+        expected_random = expected_random * 0x01010101U + 1U;
+    CHECK(ActorHippogryphBody(s, &a) && a.substep == 6 && a.state.primitive_count == 111 &&
+          s->random == expected_random);
+    CHECK(ActorHippogryphBody(s, &a));
+    line = ActorPrimitiveGet(s, &a, 0);
+    CHECK(line && line->hippogryph.radius == 65536 && line->state.offset_x[1] == 1 &&
+          !line->state.offset_y[1] && line->state.red == 96);
+    bool faded = false;
+    for (Uint16 i = 1; i < 100 && a.substep != 8; ++i)
+    {
+        s->service_ticks = i;
+        s->combat.sound_count = 0;
+        CHECK(ActorHippogryphBody(s, &a));
+        faded |= a.substep == 7;
+    }
+    CHECK(faded && a.substep == 8 && !a.state.primitive_count && !(a.state.flags & 0x800000U) &&
+          a.state.opacity_set && a.state.opacity == 12 && a.state.blend_mode == 0x30);
+    s->hippogryph_scene = 7;
+    CHECK(ActorHippogryphBody(s, &a) && a.substep == 9 && s->slots[96].state.id == 0x28 &&
+          s->slots[96].state.parameters == 6 && s->slots[96].state.x == 256 * 65536 &&
+          s->slots[96].state.y == 128 * 65536 && s->slots[136].state.id == 0x2a &&
+          s->slots[136].enemy_state.owner_generation == a.state.generation && !s->hippogryph_scene);
+    CHECK(ActorHippogryphBody(s, &a) && !s->slots[97].state.generation);
+    SotnActors_Destroy(s);
+    return true;
+}
+static bool DefeatCapacity(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 99;
+    Actor a = Body(36, false);
+    a.substep = 3;
+    a.hippogryph.saved_priority = 149;
+    const Uint32 random = s->random;
+    CHECK(ActorHippogryphBody(s, &a) && a.substep == 5 && !a.state.primitive_count &&
+          a.state.priority == 141 && s->random == random);
+    CHECK(ActorHippogryphBody(s, &a) && a.substep == 8 && !a.state.primitive_count &&
+          s->random == random);
+    for (Uint16 i = 96; i < 128; ++i)
+        s->slots[i].state.generation = 100;
+    CHECK(ActorHippogryphBody(s, &a) && a.substep == 8 && !s->slots[136].state.generation);
+    s->slots[96] = (Actor){0};
+    s->slots[136].state = (SotnActorState){.id = 7, .generation = 77};
+    CHECK(!ActorHippogryphBody(s, &a) && s->slots[136].state.id == 7 &&
+          s->slots[136].state.generation == 77);
+    SotnActors_Destroy(s);
+    CHECK(Open(f, &s));
+    a = Body(36, false);
+    a.substep = 5;
+    Put32(f->stage + 0x6e4, 0xffffffffU);
+    CHECK(!ActorHippogryphBody(s, &a));
+    SotnActors_Destroy(s);
+    return true;
+}
+static bool RewardLifecycle(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *reward = &s->slots[96];
+    *reward = (Actor){
+        .state = {.id = 0x28, .parameters = 6, .generation = 1, .x = 256 * 65536, .y = 128 * 65536},
+        .dynamic = true,
+        .slot = 96};
+    Uint16 maximum = 0;
+    for (Uint32 tick = 0; tick < 500 && reward->state.id != 3; ++tick)
+    {
+        CHECK(SotnActors_Tick(s, s->player, 0, 0));
+        CHECK(!reward->state.unsupported && reward->state.generation == 1);
+        maximum = SDL_max(maximum, reward->state.primitive_count);
+    }
+    CHECK(maximum == 193 && reward->state.id == 3 && reward->state.parameters == 0x8017 &&
+          reward->state.step == 0 && reward->state.y == 124 * 65536 &&
+          !reward->state.primitive_count);
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        CHECK(!s->primitives[i].owner);
+    SotnActors_Destroy(s);
+    CHECK(Open(f, &s));
+    Actor a = {
+        .state = {
+            .id = 0x28, .parameters = 6, .generation = 1, .x = 256 * 65536, .y = 128 * 65536}};
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        s->primitives[i].owner = 99;
+    CHECK(ActorBossReward(s, &a) && a.state.step == 6 && !a.state.primitive_count);
+    CHECK(ActorBossReward(s, &a) && a.state.id == 3 && a.state.parameters == 0x8017 &&
+          a.state.y == 128 * 65536);
+    a = (Actor){.state = {.id = 0x28, .parameters = 5, .generation = 1}};
+    CHECK(!ActorBossReward(s, &a));
+    a.state.parameters = 6;
+    a.state.step = 6;
+    Put16(f->stage + 0x18b8 + 6 * 2, 14);
+    CHECK(!ActorBossReward(s, &a));
+    SotnActors_Destroy(s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
     const bool ok = EntryAndTakeoff(f) && FlightAndLanding(f) && BreathAndObjects(f) &&
-                    GrabAndDrop(f) && LinkedDamage(f) && Failures(f);
+                    GrabAndDrop(f) && LinkedDamage(f) && Defeat(f) && DefeatCapacity(f) &&
+                    RewardLifecycle(f) && Failures(f);
     SDL_free(f);
     if (!ok)
         return 1;
