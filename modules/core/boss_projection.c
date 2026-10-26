@@ -352,3 +352,30 @@ bool SotnLibrary_ProjectShelf(SotnDataView executable, SotnDataView library, Sin
     *out = result;
     return true;
 }
+
+bool SotnNo2_ProjectOrbit(SotnDataView executable, Sint16 angle_x, Sint16 angle_y, Sint16 angle_z,
+                          Sint16 radius, Sint32 anchor_x, Sint32 anchor_y, SotnProjectedPoint *out,
+                          Uint16 *depth)
+{
+    if (!out || !depth || radius < 64 || radius > 176 || anchor_x < -16384 || anchor_x > 16384 ||
+        anchor_y < -16384 || anchor_y > 16384)
+        return SDL_SetError("NO2 weapon orbit exceeds its bounded original transform");
+    SotnMathTrig x = {0}, y = {0}, z = {0};
+    if (!SotnMath_MatrixTrig(executable, angle_x, &x) ||
+        !SotnMath_MatrixTrig(executable, angle_y, &y) ||
+        !SotnMath_MatrixTrig(executable, angle_z, &z))
+        return false;
+    // RotMatrix's second column applied to the axial vector (0, radius, 0).
+    const Sint32 b = ActorShift(-(Sint64)z.sine * y.sine, 12);
+    const Sint32 mx = ActorShift(-(Sint64)z.sine * y.cosine, 12),
+                 my = ActorShift((Sint64)z.cosine * x.cosine, 12) +
+                      ActorShift((Sint64)b * x.sine, 12),
+                 mz = ActorShift((Sint64)z.cosine * x.sine, 12) -
+                      ActorShift((Sint64)b * x.cosine, 12);
+    const Sint32 vx = ActorShift((Sint64)mx * radius, 12), vy = ActorShift((Sint64)my * radius, 12),
+                 vz = 1024 + ActorShift((Sint64)mz * radius, 12);
+    const Uint32 sz = (Uint32)SDL_clamp(vz, 0, 65535), ratio = Divide(sz, 1024);
+    *out = (SotnProjectedPoint){Coordinate(anchor_x, vx, ratio), Coordinate(anchor_y, vy, ratio)};
+    *depth = (Uint16)(sz >> 2);
+    return true;
+}

@@ -172,6 +172,13 @@ typedef struct Actor
     } spectral;
     struct
     {
+        Uint32 generation[16];
+        Sint16 rot_x, rot_y, rot_z;
+        Uint16 cursor;
+        Uint8 formation;
+    } no2_spectral;
+    struct
+    {
         Sint32 distance, velocity, target;
         Uint32 phase, ring_timer;
     } bell;
@@ -537,6 +544,11 @@ bool ActorValhalla(SotnActors *actors, Actor *actor);
 /** @brief Advance NO2 Hammer, Blade, their articulated joints or independent weapons.
  * @return Success or SDL error; requires private stage and SDK views. */
 bool ActorGiant(SotnActors *actors, Actor *actor);
+/** @brief Advance NO2's fifteen-weapon Spectral Sword, poltergeists or owned aura.
+ * @return Success or SDL error for malformed private data, ownership or state. */
+bool ActorNo2Spectral(SotnActors *actors, Actor *actor);
+/** @brief Resolve a NO2 poltergeist/aura owner by slot and generation, or NULL. */
+Actor *ActorNo2SpectralOwner(SotnActors *actors, const Actor *actor);
 /** @brief Resolve a Giant Knight child's generation-owned body, or NULL for a stale owner. */
 Actor *ActorGiantOwner(SotnActors *actors, const Actor *actor);
 /** @brief Propagate original articulated damage cooldown, stun and death flags. */

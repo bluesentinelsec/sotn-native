@@ -42,6 +42,13 @@ visuals; the original small-Y impact shake remains incomplete. Ordinary NO2 layo
 do not place the compiled Owl/Owl Knight or Gurkha families. Stage 4 remains
 disconnected; component/protected checks do not establish route/console parity.
 
+Selected [NO2 Spectral Sword combat](docs/olrox-spectral-sword.md) now runs its
+fifteen distinct weapons, three formations, staggered throws, independent weapon
+HP, count-once deaths, body defeat and owned aura. Preserve NO2 identities 3E/3F/40,
+camera-relative thresholds, surviving-weapon projection cursor and private tables;
+Chapel's encounter differs. Component/protected checks are not route/console parity.
+Stage 4 remains disconnected while mechanisms, Olrox and travel are integrated.
+
 ## Purpose and priorities
 
 Build a native, personal and educational *Symphony of the Night* port that

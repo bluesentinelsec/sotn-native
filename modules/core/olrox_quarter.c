@@ -40,6 +40,10 @@ bool ActorOlroxQuarter(SotnActors *s, Actor *a)
     case 0x3c:
     case 0x3d:
         return ActorGiant(s, a);
+    case 0x3e:
+    case 0x3f:
+    case 0x40:
+        return ActorNo2Spectral(s, a);
     case 0x2e:
     case 0x2f:
         return ActorLibraryBlood(s, a);
