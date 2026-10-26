@@ -1041,8 +1041,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     else if (stage_id == 4)
         SDL_Log("Olrox's Quarters internal checkpoint: selected prisoners, spikes, common pickups, "
                 "red doors, breakables/debris, decorations, camera, Valhalla/Hammer/Blade Knights, "
-                "Skelerang "
-                "and Bloody Zombie adapters. Remaining enemies, mechanisms, Olrox and connected "
+                "Spectral Sword, Skelerang and Bloody Zombie adapters. Remaining mechanisms, Olrox "
+                "and connected "
                 "travel are incomplete.");
     else if (stage_id == 6)
         SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "

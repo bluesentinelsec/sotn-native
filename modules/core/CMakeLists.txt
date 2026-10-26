@@ -41,6 +41,7 @@ add_library(sotn-core STATIC
   olrox_quarter.c
   olrox_prisoner.c
   olrox_valhalla.c
+  olrox_spectral.c
   giant_knights.c
   giant_hammer.c
   giant_blade.c

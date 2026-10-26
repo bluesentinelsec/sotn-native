@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed NO2 Spectral Sword algorithms**, AGPL-3.0-or-later.
+  `modules/core/olrox_spectral.c` adapts `st/no2/e_spectral_sword.c`,
+  `st/e_spectral_sword_aura.h`, `st/step_towards.h` and selected `st/st_common.h`
+  at the same pinned revision below. Runtime profiles, artwork and lookup tables
+  stay private. See [scope and validation](docs/olrox-spectral-sword.md).
+
 - **Reconstructed articulated Hammer/Blade algorithms**, AGPL-3.0-or-later.
   `modules/core/giant_*.c` adapts `st/e_hammer.h`, `st/e_blade.h`,
   `st/giantbro_helpers.h` and `st/giantbro_helpers_2.h` at the same pinned revision

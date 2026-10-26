@@ -147,4 +147,12 @@ typedef struct SotnShelfProjection
  * @return Success or SDL error; rejects unselected model/normal domains. */
 bool SotnLibrary_ProjectShelf(SotnDataView executable, SotnDataView library, Sint16 angle,
                               Sint16 depth, Sint32 x, Sint32 y, SotnShelfProjection *out);
+/** @brief Project NO2's axial weapon orbit using the original matrix and GTE divider.
+ * @param executable Borrowed private SDK tables. @param x Rotation around X.
+ * @param y Rotation around Y. @param z Rotation around Z. @param radius Radius 64..176.
+ * @param anchor_x Screen anchor. @param anchor_y Screen anchor.
+ * @param out Copied saturated point, unchanged on failure. @param depth Copied SZ3/4.
+ * @return Success or SDL error; no global GTE state or private tables are retained. */
+bool SotnNo2_ProjectOrbit(SotnDataView executable, Sint16 x, Sint16 y, Sint16 z, Sint16 radius,
+                          Sint32 anchor_x, Sint32 anchor_y, SotnProjectedPoint *out, Uint16 *depth);
 #endif
