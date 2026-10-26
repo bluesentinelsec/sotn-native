@@ -79,9 +79,10 @@ ownership, not real-device listening, reverb or console PCM parity.
 foundation with owned shadows, original phases, temporary environmental contact
 and equipped tile destruction. Selected [Valhalla Knights](olrox-valhalla.md) add
 charge/leap combat, linked damage, independent weapon contact and death pieces.
-Owl Knights/Owls, giant brothers,
-Spectral Sword variants, secrets, house/background mechanisms and Olrox remain
-outside these batches. Other abilities, complete effects/audio, connected area progression
+[Hammer and Blade](olrox-giant-knights.md) now add placed articulated combat and
+staged deaths. Ordinary NO2 layouts do not place the compiled Owl/Owl Knight or
+Gurkha families. Spectral Sword variants, secrets, house/background mechanisms
+and Olrox remain outside these batches. Other abilities, complete effects/audio, connected area progression
 and whole-route timing/console comparisons remain incomplete. Keep the connected
 profile disabled until that progression has meaningful native validation.
 

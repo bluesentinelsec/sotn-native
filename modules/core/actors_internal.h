@@ -129,6 +129,14 @@ typedef struct Actor
     } valhalla;
     struct
     {
+        Uint32 generation[20];
+        Sint16 rotation, length, target, rotation_velocity, timer;
+        Uint16 parent, terrain, pose[2], remaining[2];
+        Uint8 support_leg, released, attack_active, decision_wait;
+        bool placed;
+    } giant;
+    struct
+    {
         Sint32 reference_y;
         Uint16 hover_timer;
     } crow;
@@ -526,6 +534,14 @@ bool ActorOlroxPrisoner(SotnActors *actors, Actor *actor);
  * @param actor Borrowed supported actor slot; children stay generation-owned.
  * @return Success or SDL error for invalid data/state, ownership or bounded motion. */
 bool ActorValhalla(SotnActors *actors, Actor *actor);
+/** @brief Advance NO2 Hammer, Blade, their articulated joints or independent weapons.
+ * @return Success or SDL error; requires private stage and SDK views. */
+bool ActorGiant(SotnActors *actors, Actor *actor);
+/** @brief Resolve a Giant Knight child's generation-owned body, or NULL for a stale owner. */
+Actor *ActorGiantOwner(SotnActors *actors, const Actor *actor);
+/** @brief Propagate original articulated damage cooldown, stun and death flags. */
+void ActorGiantHit(SotnActors *actors, Actor *root, const Actor *hit, Uint32 channel,
+                   Uint8 cooldown);
 /** @brief Resolve a NO2 Valhalla hitbox's generation-owned body.
  * @param actors Borrowed stage owner. @param actor Borrowed raw-0x35 hitbox.
  * @return Borrowed active body, or NULL for a stale/invalid reservation. */
