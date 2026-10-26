@@ -322,6 +322,10 @@ typedef struct Actor
     {
         Uint16 timer, total_hits, consecutive_hits;
     } librarian;
+    struct
+    {
+        Uint8 timer, rotation_direction;
+    } hippogryph;
     bool dynamic, remove, permanent;
 } Actor;
 
@@ -347,6 +351,7 @@ struct SotnActors
     bool call_elevator, cannon_fired, armor_lord_killed;
     bool confessional_chime;
     Uint32 boss_flags, game_seconds;
+    Uint32 hippogryph_flags;
     Uint8 game_frame;
     Uint32 service_ticks; /**< Full frame phase with original unsigned 32-bit wrap. */
     bool clock_statues[2];
@@ -640,6 +645,10 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
 bool ActorDoppleEntry(SotnActors *actors, Actor *actor);
+/** @brief Advance BO5's selected attack child using its private tables and bounded effect pools.
+ * @param actors Borrowed original BO5 owner. @param actor Borrowed raw ID 0x23..0x27.
+ * @return Success or SDL error; owned children never follow a reused parent generation. */
+bool ActorHippogryphAttack(SotnActors *actors, Actor *actor);
 bool ActorDoppleTrigger(SotnActors *actors, Uint32 slot);
 bool ActorDoppleLight(SotnActors *actors, Actor *actor);
 bool ActorDoppleShock(SotnActors *actors, Actor *actor);
