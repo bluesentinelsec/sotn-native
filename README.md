@@ -141,6 +141,9 @@ An owned, active [Leap Stone](docs/player-leap-stone.md) now enables the origina
 double jump. Development starts do not grant it; other abilities remain incomplete.
 The selected [dive kick](docs/player-dive-kick.md) adds attacks and rebounds after
 that jump; full ability and shared-factory parity remain incomplete.
+Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command,
+MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
+and complete ability/castle parity remain acceptance work.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct
 save-room start, press Up at the point, then follow confirmation prompts. X/Space

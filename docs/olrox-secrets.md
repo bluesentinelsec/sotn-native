@@ -85,10 +85,15 @@ The ceiling check positions the same unmodified character for each normal Gladiu
 air attack, allowing it to land between attacks. It does not inject actor hits,
 HP or death. It opens the ceiling at tick 1267, renders debris, saves/loads through
 the isolated save-room UI and verifies opened re-entry. The combined check renders
-401 frames. Positioning stands in for the currently missing movement ability;
-it does not prove that the character can reach the ceiling through ordinary play.
+401 frames. This positioned mechanism fixture does not prove that the character
+can reach the ceiling through ordinary play.
 Explicit save-room/revisit transfers are not walked routes. Existing user slots
 remain untouched. Neither check establishes whole-area, ability or console parity.
+
+The separate [Gravity Boots check](player-gravity-boots.md) now reaches that ceiling
+from the floor through normal commands and ordinary Gladius attacks. Its explicit
+relic/protection grants and room start do not establish ordinary acquisition or
+an uninterrupted castle route; it injects no position, stat, MP or enemy-hit values.
 
 Provenance: `st/no2/e_secrets.c`, selected `st/prim_helpers.h`, original hit sentinel
 handling in `st/st0_hit_detection.h`, and NO2 identities at sotn-decomp

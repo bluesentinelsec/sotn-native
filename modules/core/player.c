@@ -205,6 +205,22 @@ static void Jump(SotnPlayer *player)
     player->movement_flags &= ~1U;
 }
 
+void SotnPlayer_GravityLaunch(SotnPlayer *p)
+{
+    if (Direction(p))
+        SetSpeed(p, 3 * FIX_ONE);
+    else
+        p->vx = 0;
+    p->movement_flags = p->step == SOTN_PLAYER_JUMP ? p->movement_flags | 1U : 0;
+    p->gravity_spawn = true;
+    p->gravity_origin_x = p->x.value;
+    p->gravity_origin_y = p->y.value;
+    SetStep(p, SOTN_PLAYER_HIGH_JUMP);
+    p->vy = -12 * FIX_ONE;
+    Animate(p, 33);
+    p->gravity.timer = 0;
+}
+
 static bool AttackView(SotnPlayer *player, Uint64 address, size_t size, const Uint8 **out)
 {
     if (player->dra.bytes == NULL || address < 0x800a0000 || address > SDL_MAX_UINT32 ||
@@ -982,6 +998,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.turned = false;
     next.sound = 0;
     next.extra_sound = 0;
+    next.mp_spent = 0;
     next.sleep_event = false;
     if (next.curse_ticks)
         --next.curse_ticks;
@@ -993,6 +1010,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
     next.bell_inside = false;
     next.buttons = buttons;
+    next.held = (Uint16)(buttons & next.previous_buttons);
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
@@ -1009,13 +1027,18 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         --next.invincibility;
     if (next.script_hold)
     {
+        SotnPlayer_GravityCancel(&next);
         // PAD_SIM mode 2 changes step without selecting a new animation (692E8.c/alu_anim.c).
         SetStep(&next, SOTN_PLAYER_SCRIPT);
         next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
         ClearAttack(&next);
     }
     if (next.grab.state == SOTN_GRAB_START)
+    {
+        SotnPlayer_GravityCancel(&next);
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
+    }
+    SotnPlayer_GravityInput(&next);
     switch (next.step)
     {
     case SOTN_PLAYER_BOSS_GRAB:
@@ -1039,6 +1062,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         break;
     case SOTN_PLAYER_JUMP:
         JumpTick(&next);
+        break;
+    case SOTN_PLAYER_HIGH_JUMP:
+        SotnPlayer_GravityTick(&next);
         break;
     case SOTN_PLAYER_CROUCH:
         CrouchTick(&next);
@@ -1114,6 +1140,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return SDL_SetError("Player left the bounded room region without a supported transition");
     if (!SotnPlayer_SleepTick(&next))
         return false;
+    SotnPlayer_GravityBeams(&next);
     next.chair_kind = 0;
     ++next.frame_number;
     *player = next;
@@ -1135,6 +1162,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
         return false;
     player->dra = dra;
     player->hp = player->hp_max = 70;
+    player->mp = 20;
     player->attributes =
         (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}, .unarmed_attack = 6};
     player->map = map;
@@ -1191,6 +1219,23 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     const Sint64 y = player->y.value + (Sint64)offset_y * FIX_ONE;
     if (!PositionValid(map, x, y))
         return SDL_SetError("Player room rebase is outside the new bounded room");
+    for (Uint32 i = 0; i < SOTN_PLAYER_GRAVITY_BEAMS; ++i)
+    {
+        const SotnPlayerGravityBeam b = player->gravity.beams[i];
+        if (b.active && ((Sint64)b.x + (Sint64)offset_x * FIX_ONE < SDL_MIN_SINT32 ||
+                         (Sint64)b.x + (Sint64)offset_x * FIX_ONE > SDL_MAX_SINT32 ||
+                         (Sint64)b.y + (Sint64)offset_y * FIX_ONE < SDL_MIN_SINT32 ||
+                         (Sint64)b.y + (Sint64)offset_y * FIX_ONE > SDL_MAX_SINT32))
+            return SDL_SetError("Room rebase exceeds the owned Gravity Boots beam coordinates");
+    }
+    for (Uint32 i = 0; i < SOTN_PLAYER_GRAVITY_BEAMS; ++i)
+        if (player->gravity.beams[i].active)
+        {
+            player->gravity.beams[i].x =
+                (Sint32)((Sint64)player->gravity.beams[i].x + (Sint64)offset_x * FIX_ONE);
+            player->gravity.beams[i].y =
+                (Sint32)((Sint64)player->gravity.beams[i].y + (Sint64)offset_y * FIX_ONE);
+        }
     player->map = map;
     player->x.value = (Sint32)x;
     player->y.value = (Sint32)y;
@@ -1223,6 +1268,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x38110040U;
     if (player->step == SOTN_PLAYER_SCRIPT)
         status |= 0x38110000U;
+    if (player->step == SOTN_PLAYER_HIGH_JUMP)
+        status |= 0x38000000U;
     *out = (SotnPlayerState){
         .x = player->x.value,
         .y = player->y.value,
@@ -1260,7 +1307,10 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .extra_sound = player->extra_sound,
         .grab = player->grab,
         .priority = 148,
-        .kick = player->kick};
+        .kick = player->kick,
+        .gravity = player->gravity,
+        .mp = player->mp,
+        .mp_spent = player->mp_spent};
     return true;
 }
 
@@ -1284,6 +1334,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     if (player->step == SOTN_PLAYER_STONE)
         return SotnPlayer_Petrify(player, amount, source_x, source_velocity);
     SotnPlayer next = *player;
+    SotnPlayer_GravityCancel(&next);
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     const Sint32 center_x =
         next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
@@ -1308,7 +1359,8 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         return false;
     next.sound = Attack16(sound);
     Uint16 animation = 0;
-    if (strong || next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
+    if (strong || next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL ||
+        next.step == SOTN_PLAYER_HIGH_JUMP)
     {
         next.vx = strong ? 109226 : 81920;
         next.vy = strong ? ((next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
@@ -1362,12 +1414,14 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
                              SotnCharacterStats stats)
 {
     if (player == NULL || state == NULL || state->hp_max == 0 || state->hp_max > 9999 ||
-        state->hp > state->hp_max || stats.attack[0] > 999 || stats.attack[1] > 999 ||
-        stats.unarmed_attack > 999 || player->step == SOTN_PLAYER_KILL)
+        state->hp > state->hp_max || state->mp > state->mp_max || state->mp_max > 9999 ||
+        stats.attack[0] > 999 || stats.attack[1] > 999 || stats.unarmed_attack > 999 ||
+        player->step == SOTN_PLAYER_KILL)
         return SDL_SetError(
             "Player character update requires bounded living progress and attributes");
     player->hp = state->hp;
     player->hp_max = state->hp_max;
+    player->mp = state->mp;
     player->attributes = stats;
     return true;
 }

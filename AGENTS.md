@@ -1,9 +1,18 @@
 # Working in sotn-native
 
+The selected [Gravity Boots service](docs/player-gravity-boots.md) now runs the
+original command, strict MP threshold/cost, high-jump/ceiling states and owned
+beam. Preserve sixteen-bit command timers, signed duration comparisons, the late
+ceiling facing flip, and eight collision passes for high jumps/fast horizontal
+motion. Successful player steps report one MP cost to ordinary character progress.
+Dust/shake/dithering, shared factory contention and full ability parity remain
+incomplete. Native ceiling checks use explicit relic/protection grants; no default
+grant or ordinary acquisition claim is authorized by that evidence.
+
 The selected [Leap Stone double jump](docs/player-leap-stone.md) now uses a copied,
 validated relic snapshot from session progress, original Jump/Fall semantics and
 one use per airborne interval. Never grant it by default or refill it during a
-room change/snapshot update. Full dive-kick parity, Gravity Boots and other abilities remain
+room change/snapshot update. Full dive-kick/Gravity Boots parity and other abilities remain
 incomplete; positioned/private-grant checks are not ordinary acquisition parity.
 The selected [dive kick](docs/player-dive-kick.md) adds an owned empty-hand hitbox,
 generation-checked feedback and original delayed rebound/landing. Preserve enemy
@@ -64,8 +73,9 @@ Selected [NO2 secrets](docs/olrox-secrets.md) now connect the three-hit wall,
 wall discovery/aftermath bits and flag33's ceiling boolean persist in v9 saves
 and feed the existing map renderer. Retain infinite HP0x7FFF, paired primitive
 ownership, fractions and distinct allocation fallbacks. The native wall crossing
-uses ordinary Gladius attacks; ceiling checks use explicit positioning pending
-movement abilities. Neither proves whole-area/ability/console parity. Stage4
+uses ordinary Gladius attacks. The initial ceiling fixture used explicit positioning;
+the selected Gravity Boots check now reaches it with normal commands and relic/
+protection grants. Neither proves whole-area/ability/console parity. Stage4
 remains disconnected while the other mechanisms, scenery and Olrox are integrated.
 
 ## Purpose and priorities

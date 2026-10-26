@@ -19,6 +19,10 @@ An owned, active [Leap Stone](player-leap-stone.md) now enables the original
 double jump; it is not granted by default. The selected
 [dive kick](player-dive-kick.md) adds its attack and rebound. Full ability parity
 remains incomplete.
+Selected [Gravity Boots](player-gravity-boots.md) now add their command/MP cost,
+high jump, ceiling recovery and beam. High jumps and horizontal speeds at least
+two pixels/tick use the original eight collision passes; ordinary slower motion
+retains one. Full frame/collision/GPU replay parity remains acceptance work.
 
 The [actor checkpoint](laboratory-actors.md) now adds selected original room
 objects and Bloody Zombie active motion/animation to this movement foundation.

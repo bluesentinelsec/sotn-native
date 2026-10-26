@@ -44,7 +44,8 @@ Both Debug and macOS ASan/UBSan native probes exit normally, with 112 draws each
 and SDL dummy audio explicitly verified before simulation.
 
 The [selected dive kick](player-dive-kick.md) now adds its Jump-only attack and
-rebound. Shared factory/group parity, Gravity Boots, transformations, other
+rebound. The selected [Gravity Boots service](player-gravity-boots.md) also runs.
+Shared factory/group parity, transformations, other
 abilities, complete effects and remaining castle routes still need integration.
 Do not describe these slices as complete Leap Stone combat or complete Alucard abilities.
 

@@ -613,7 +613,7 @@ Uint8 SotnPlayer_TightSpace(SotnPlayer *player)
     return 0;
 }
 
-void SotnPlayer_Collide(SotnPlayer *player)
+static void CollideStep(SotnPlayer *player)
 {
     const Sint16 floor_y[] = {29, 25, 25, 25};
     const Sint16 wall_y[] = {24, 17, 9, 1, -7, -14, -21};
@@ -683,4 +683,25 @@ void SotnPlayer_Collide(SotnPlayer *player)
         !(player->floor[2].effects & SOTN_EFFECT_SOLID) ||
         !(player->floor[3].effects & SOTN_EFFECT_SOLID))
         player->contact |= 0x20;
+}
+
+void SotnPlayer_Collide(SotnPlayer *p)
+{
+    if (p->vx > -2 * 65536 && p->vx < 2 * 65536 && p->step != SOTN_PLAYER_HIGH_JUMP)
+    {
+        CollideStep(p);
+        return;
+    }
+    // 692E8.c's original eight collision passes use signed arithmetic shifts.
+    const Sint32 previous = p->contact;
+    p->vx = (Sint32)(p->vx >= 0 ? p->vx / 8 : -((-(Sint64)p->vx + 7) / 8));
+    p->vy = (Sint32)(p->vy >= 0 ? p->vy / 8 : -((-(Sint64)p->vy + 7) / 8));
+    for (Uint32 i = 0; i < 8 && !p->failed; ++i)
+        if (p->y.parts.high >= 0)
+            CollideStep(p);
+    if (p->y.parts.high < 0)
+        p->y.value = -65536;
+    p->vx *= 8;
+    p->vy *= 8;
+    p->previous_contact = previous;
 }

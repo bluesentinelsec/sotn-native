@@ -48,6 +48,10 @@
   `7879C.c:EntityDiveKickAttack`, `71830.c:PlayerStepJump`, and empty-hand power
   from `5D5BC.c:GetEquipProperties` / `menu.c:CalcAttack`. Original shared
   factory/attack-group contention remains outside the selected native adapter.
+  The selected [Gravity Boots service](docs/player-gravity-boots.md) follows
+  `704D0.c:CheckGravityBootsInput`, `5D5BC.c:HandleGravityBootsMP`,
+  `6E42C.c:DoGravityJump`, `71830.c` high-jump/ceiling paths and
+  `7879C.c:EntityGravityBootBeam`. Fast collision scheduling follows `692E8.c`.
   `modules/core/room_actors.c` adapts scrolling spawns from `src/st/create_entity.h`
   and stage persistence from `src/st/st_common.h`; the runtime layout parser
   is original project code. See [actor integration](docs/laboratory-actors.md).

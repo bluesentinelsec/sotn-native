@@ -1244,6 +1244,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
+        (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
     if (session->stage_pending)
@@ -1300,6 +1301,35 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                 "remain unintegrated.");
     }
     session->dirty = true;
+    return true;
+}
+
+static bool DrawGravityBeams(SotnLaboratory *s, SotnPlayerState p, Sint32 camera_x, Sint32 camera_y)
+{
+    for (Uint32 i = 0; i < SOTN_PLAYER_GRAVITY_BEAMS; ++i)
+    {
+        const SotnPlayerGravityBeam b = p.gravity.beams[i];
+        if (!b.active)
+            continue;
+        for (Uint32 part = 0; part < 4; ++part)
+        {
+            const Sint32 half = SDL_max(0, (Sint32)(b.width / 256) - (Sint32)part);
+            const Sint32 start_x = Pixel(b.x) - camera_x, start_y = Pixel(b.y) - camera_y;
+            const Sint32 end_x = Pixel(p.x) - camera_x, end_y = Pixel(p.y) - camera_y + 12;
+            const SotnTextureQuad q = {
+                .x = {start_x - half, start_x + half, end_x - half, end_x + half},
+                .y = {start_y, start_y, end_y, end_y},
+                .page = 0x20,
+                .blend = true,
+                .gouraud = true,
+                .untextured = true,
+                .vertex_red = {0, 0, 64, 64},
+                .vertex_green = {0, 0, 64, 64},
+                .vertex_blue = {192, 192, 64, 64}};
+            if (!SotnActorGraphics_Quad(s->actor_graphics, q, s->frame, SOTN_FRAME_PIXELS))
+                return false;
+        }
+    }
     return true;
 }
 
@@ -1545,13 +1575,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     if (!SotnAlucard_DecodeSprite(session->dra, SotnResource_View(session->arc),
                                   player.animation.sprite, &alucard))
         return false;
-    bool player_drawn = false, weapon_drawn = false;
+    bool player_drawn = false, weapon_drawn = false, beam_drawn = false;
     SotnFrameClip clip = {0, 0, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
     for (size_t i = 0; i <= draw_count; ++i)
     {
         if (!SotnFrameClip_CopyOutside(clip, session->frame, session->clip_backup,
                                        SOTN_FRAME_PIXELS))
             return false;
+        if (!beam_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
+        {
+            if (!DrawGravityBeams(session, player, camera_x, camera_y))
+                return false;
+            beam_drawn = true;
+        }
         if (!weapon_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
         {
             const SotnPlayerAttack hands[] = {player.attack, player.shield};
@@ -1584,6 +1620,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
                                                 Pixel(player.y) - camera_y, player.facing_left,
                                                 player.stone, session->frame, SOTN_FRAME_PIXELS)
+                : player.gravity.upside_down
+                    ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - camera_x,
+                                              Pixel(player.y) - camera_y, player.facing_left,
+                                              session->frame, SOTN_FRAME_PIXELS)
                     : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - camera_x,
                                             Pixel(player.y) - camera_y, player.facing_left,
                                             player.death, session->frame, SOTN_FRAME_PIXELS);

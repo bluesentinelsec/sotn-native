@@ -29,6 +29,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_CROUCH,
     SOTN_PLAYER_FALL,
     SOTN_PLAYER_JUMP,
+    SOTN_PLAYER_HIGH_JUMP = 8,
     SOTN_PLAYER_HIT = 10,
     SOTN_PLAYER_STONE = 11,
     SOTN_PLAYER_BOSS_GRAB = 12,
@@ -72,6 +73,26 @@ typedef struct SotnPlayerKick
     SotnPlayerAttack attack;
     Uint32 generation;
 } SotnPlayerKick;
+
+enum
+{
+    SOTN_PLAYER_GRAVITY_BEAMS = 4
+};
+/** @brief One owned cosmetic Gravity Boots beam, independent of player movement state. */
+typedef struct SotnPlayerGravityBeam
+{
+    Sint32 x, y;  /**< Anchored room-local 16.16 origin; endpoint follows the current player. */
+    Uint16 width; /**< Original narrowing timer, 0..1536; first quad half-width is width/256. */
+    Uint8 phase;
+    bool active;
+} SotnPlayerGravityBeam;
+/** @brief Selected original high-jump presentation and duration, never ordinary save state. */
+typedef struct SotnPlayerGravity
+{
+    Uint16 timer;
+    bool upside_down;
+    SotnPlayerGravityBeam beams[SOTN_PLAYER_GRAVITY_BEAMS];
+} SotnPlayerGravity;
 
 /** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
 typedef struct SotnPlayerDeath
@@ -128,6 +149,8 @@ typedef struct SotnPlayerState
     SotnPlayerGrab grab;
     Uint16 priority; /**< Current normal-form ordering-table priority. */
     SotnPlayerKick kick;
+    SotnPlayerGravity gravity;
+    Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;

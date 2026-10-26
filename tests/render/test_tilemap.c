@@ -168,6 +168,22 @@ static bool TestSprite(Buffers *buffers)
     CHECK(buffers->frame[11 * 256 + 8] == 0x7fff);
     CHECK(buffers->frame[11 * 256 + 9] == 0x7c00);
     CHECK(buffers->frame[11 * 256 + 11] == 0x001f);
+    Clear(buffers->frame, 0x7fff);
+    CHECK(
+        SotnAlucard_DrawGravity(&sprite, common, 10, 10, false, buffers->frame, SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[13 * 256 + 11] == 0x001f && buffers->frame[13 * 256 + 10] == 0x03e0 &&
+          buffers->frame[13 * 256 + 9] == 0x7c00 && buffers->frame[12 * 256 + 10] == 0x8000);
+    Clear(buffers->frame, 0x7fff);
+    CHECK(
+        SotnAlucard_DrawGravity(&sprite, common, 10, 10, true, buffers->frame, SOTN_FRAME_PIXELS));
+    CHECK(buffers->frame[13 * 256 + 9] == 0x001f && buffers->frame[13 * 256 + 11] == 0x7c00);
+    Clear(buffers->frame, 0x1234);
+    CHECK(SotnAlucard_DrawGravity(&sprite, common, SDL_MAX_SINT32, SDL_MIN_SINT32, true,
+                                  buffers->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SotnAlucard_DrawGravity(&sprite, (SotnDataView){0}, 10, 10, false, buffers->frame,
+                                   SOTN_FRAME_PIXELS) &&
+          buffers->frame[13 * 256 + 11] == 0x1234);
+    CHECK(!SotnAlucard_DrawGravity(&sprite, common, 10, 10, false, buffers->frame, 0));
     SotnPlayerStone stone = {.active = true, .palette = 0x19e, .pivot = 24};
     Put16(buffers->common, 0x413c2, 0x7c1f);
     Clear(buffers->frame, 0x7fff);
