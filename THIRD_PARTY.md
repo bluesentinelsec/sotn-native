@@ -663,3 +663,8 @@ All source artwork/profiles/math tables remain private runtime inputs.
 The [player-ability factory component](docs/player-ability-factories.md) adapts
 `dra/7879C.c` and `get_free_entity.h` from the pinned AGPL-3.0-or-later reference.
 Factory blueprints/ranges remain private runtime inputs.
+
+The [Bat fireball motion component](docs/bat-fireball-motion.md) adapts
+`dra/84B88.c:EntityBatFireball` at the same pinned AGPL-3.0-or-later revision.
+It reconstructs motion and one-shot requests; original artwork, animation and
+spell tables remain private, and live attack integration remains incomplete.

@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+The [Bat fireball motion component](docs/bat-fireball-motion.md) now reconstructs
+launch, facing, fixed-point/word wrap, independent scale caps and hit retirement.
+Its birth requests spell nine and original subweapon-use timer ten, not
+invincibility. Actual factory/attack/animation/render ownership remains unwired;
+Fire/Echo relic switches and live controls remain unavailable.
+
 [Selected Wing Smash](docs/player-wing-smash.md) now connects owned Bat commands,
 private spell/critical-hit data, real factories/children, fan/trails, native enemy
 combat/EXP and original return. Preserve actual slot masks shared with Gas Cloud,
