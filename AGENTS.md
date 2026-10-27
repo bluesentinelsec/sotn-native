@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+The [owned offscreen renderer](docs/olrox-render-targets.md) now supports explicit
+1..256 RGB555 surfaces, transactional target commit/cancellation and ordered
+begin/restore commands. Preserve final VRAM row511, clipping/stride, immutable
+private inputs and borrowed-view lifetimes. No actor emits these target commands
+yet; Olrox transformation/second form and full GPU parity remain incomplete.
+
 Selected [Olrox skull columns](docs/olrox-skull-columns.md) now retain four birth
 delays, original release/squeeze/waves, damage and twenty-four owned quads. Preserve
 parent generations before release, independent released lifetime, signed geometry

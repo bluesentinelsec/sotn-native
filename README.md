@@ -81,6 +81,8 @@ physical damage and issues attack commands, with selected
 [orbs/portals/bats](docs/olrox-orbs-portals.md) and
 [fireballs/effects](docs/olrox-fire-effects.md) and [skull columns](docs/olrox-skull-columns.md) now active. The second
 form and connected progression remain incomplete.
+[Owned offscreen rendering](docs/olrox-render-targets.md) now supplies the tall
+render target required by the upcoming transformation.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

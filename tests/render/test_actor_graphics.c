@@ -1082,18 +1082,79 @@ static bool TestFramebuffer(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestTargets(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    const SotnActorTarget target = {.x = 0, .y = 256, .width = 128, .height = 256, .clear = true};
+    SotnActorSurface surface = {0};
+    CHECK(!SotnActorGraphics_EndTarget(g, true));
+    CHECK(SotnActorGraphics_BeginTarget(g, target, &surface));
+    CHECK(surface.width == 128 && surface.height == 256 && surface.count == 32768);
+    SotnActorSurface rejected = {0};
+    CHECK(!SotnActorGraphics_BeginTarget(g, target, &rejected) && !rejected.pixels);
+    const SotnSpriteTransform identity = {.scale_x = 256, .scale_y = 256, .opacity = 128};
+    const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+    CHECK(SotnActorGraphics_DrawSurface(g, sprite, 1, 255, identity, surface));
+    CHECK(surface.pixels[254 * 128] == 31 && surface.pixels[254 * 128 + 2] == 0x83e0 &&
+          surface.pixels[253 * 128] == 0);
+    CHECK(surface.pixels[254 * 128 + 4] == 0);
+    SotnSpriteTransform wide = identity;
+    wide.scale_x = 512;
+    CHECK(SotnActorGraphics_DrawSurface(g, sprite, 1, 255, wide, surface));
+    CHECK(surface.pixels[254 * 128 + 4] != 0);
+    SotnTextureQuad q = {
+        .untextured = true, .red = 248, .x = {4, 6, 4, 6}, .y = {255, 255, 256, 256}};
+    CHECK(SotnActorGraphics_QuadSurface(g, q, surface));
+    CHECK(surface.pixels[255 * 128 + 4] == 31 && surface.pixels[255 * 128 + 5] == 31);
+    CHECK(SotnActorGraphics_EndTarget(g, true));
+    ClearFrame(f);
+    q = (SotnTextureQuad){.page = 0x110,
+                          .x = {0, 2, 0, 2},
+                          .y = {0, 0, 1, 1},
+                          .u = {4, 6, 4, 6},
+                          .v = {255, 255, 256, 256}};
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[0] == 31 && f->frame[1] == 31); // Includes the final original VRAM row.
+    SotnActorTarget retained = target;
+    retained.clear = false;
+    CHECK(SotnActorGraphics_BeginTarget(g, retained, &surface) &&
+          surface.pixels[255 * 128 + 4] == 31);
+    surface.pixels[255 * 128 + 4] = 15;
+    CHECK(SotnActorGraphics_EndTarget(g, false));
+    CHECK(SotnActorGraphics_BeginTarget(g, retained, &surface) &&
+          surface.pixels[255 * 128 + 4] == 31);
+    CHECK(SotnActorGraphics_EndTarget(g, false));
+    retained.x = 1024;
+    CHECK(!SotnActorGraphics_BeginTarget(g, retained, &surface));
+    retained = target;
+    retained.y = 500;
+    CHECK(!SotnActorGraphics_BeginTarget(g, retained, &surface));
+    retained = target;
+    retained.width = 257;
+    CHECK(!SotnActorGraphics_BeginTarget(g, retained, &surface));
+    CHECK(!SotnActorGraphics_BeginTarget(NULL, target, &surface));
+    CHECK(!SotnActorGraphics_BeginTarget(g, target, NULL));
+    CHECK(!SotnActorGraphics_DrawSurface(g, sprite, 0, 0, identity,
+                                         (SotnActorSurface){f->frame, 1, 128, 256}));
+    CHECK(!SotnActorGraphics_QuadSurface(g, q, (SotnActorSurface){f->frame, 1, 128, 256}));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed =
-        TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-        TestTransformFlags(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
-        TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
-        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
-        DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
-        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture);
+    const bool passed = TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
+                        TestTransformFlags(fixture) && TestRotation(fixture) &&
+                        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
+                        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+                        PackedSheets(fixture) && TestColorLine(fixture) &&
+                        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
+                        TestFramebuffer(fixture) && TestTargets(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

@@ -50,7 +50,9 @@ movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
 Selected [orbs/portals/bats](olrox-orbs-portals.md),
 [fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
 now advance. Transformation, second form, final defeat/reward and connected
-progression still need native integration.
+progression still need native integration. The
+[owned offscreen renderer](olrox-render-targets.md) now supplies the required tall
+render target, without advancing those actors yet.
 Several BO0 shared enemies, scenery and effects are also unsupported. The pinned
 reference's central Olrox routines are assembly stubs and require reconstruction;
 this foundation does not substitute an approximate fight. The checks above do

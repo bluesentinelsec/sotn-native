@@ -39,6 +39,8 @@ original movement, physical damage and attack commands; selected
 [orbs/portals/bats](olrox-orbs-portals.md),
 [fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
 now advance. Transformation/second form, final victory and connected progression remain incomplete.
+The [owned offscreen renderer](olrox-render-targets.md) now supplies the tall
+render targets needed for the transformation; the actor integration remains pending.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,
