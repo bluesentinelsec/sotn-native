@@ -590,3 +590,9 @@ revision above, AGPL-3.0-or-later. Private profiles and artwork remain runtime i
 [furnishing scope](docs/olrox-furnishings.md) distinguishes synthetic, instruction
 comparison and protected native validation. No original tables or authoring output
 are distributed.
+
+`modules/core/transformation.c` reconstructs the resource rules in
+`dra/5D5BC.c:HandleTransformationMP` and `IsRelicActive` at the pinned sotn-decomp
+revision above, AGPL-3.0-or-later. [Resource scope](docs/transformation-resources.md)
+distinguishes component instruction agreement from playable transformation behavior.
+No original DRA bytes or runtime trace output are distributed.

@@ -61,6 +61,11 @@ high-jump/ceiling recovery and beam paths. A private-grant native route reaches
 the NO2 secret ceiling through movement and ordinary Gladius attacks; it does
 not establish ordinary acquisition, connected travel or whole-route parity.
 
+The internal [transformation resource service](transformation-resources.md) now
+preserves Bat/Mist/Wolf relic eligibility, strict MP thresholds and original
+simulation-timer drain cadence. This is a tested component; transformation
+movement, collision, effects and controls remain unintegrated.
+
 ## Pinned reference
 
 [config/reference-us.json](../config/reference-us.json) records:

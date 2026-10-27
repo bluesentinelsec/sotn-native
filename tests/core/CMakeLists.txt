@@ -644,3 +644,9 @@ target_include_directories(sotn-olrox-monster-body-tests PRIVATE ../../modules/c
 target_link_libraries(sotn-olrox-monster-body-tests PRIVATE sotn-core)
 add_test(NAME olrox-monster-body COMMAND sotn-olrox-monster-body-tests)
 set_tests_properties(olrox-monster-body PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-transformation-tests test_transformation.c)
+sotn_configure_c_target(sotn-transformation-tests)
+target_link_libraries(sotn-transformation-tests PRIVATE sotn-core)
+add_test(NAME transformation-resources COMMAND sotn-transformation-tests)
+set_tests_properties(transformation-resources PROPERTIES TIMEOUT 20)
