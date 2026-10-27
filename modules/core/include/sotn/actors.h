@@ -153,6 +153,9 @@ typedef struct SotnActorPrimitive
     bool clip; /**< Ordered draw-environment change; bounds are screen pixels, right/bottom
                   exclusive. */
     Sint16 clip_left, clip_top, clip_right, clip_bottom;
+    Uint8 target; /**< Ordered owned render target: 0 normal, 1 begin, 2 restore. */
+    Sint16 target_offset_x, target_offset_y;
+    bool target_clear;
 } SotnActorPrimitive;
 /** @brief Read one owned actor primitive without exposing mutable storage.
  * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..383.

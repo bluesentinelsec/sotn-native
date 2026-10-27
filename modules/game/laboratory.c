@@ -77,6 +77,9 @@ struct SotnLaboratory
     SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
+    SotnActorSurface draw_surface;
+    Sint32 draw_offset_x, draw_offset_y;
+    bool draw_target_active;
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
     Uint32 room_index;
     Uint64 last_time, clock_units;
@@ -1339,9 +1342,48 @@ static bool DrawGravityBeams(SotnLaboratory *s, SotnPlayerState p, Sint32 camera
     return true;
 }
 
+static SotnActorSurface MainSurface(SotnLaboratory *session)
+{
+    return (SotnActorSurface){session->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH,
+                              SOTN_FRAME_HEIGHT};
+}
+static bool SwitchTarget(SotnLaboratory *s, SotnActorPrimitive p)
+{
+    if (p.target == 1)
+    {
+        if (p.clip_left < 0 || p.clip_top < 0 || p.clip_right <= p.clip_left ||
+            p.clip_bottom <= p.clip_top || s->draw_target_active)
+            return SDL_SetError("Ordered actor target has invalid bounds or nesting");
+        const SotnActorTarget target = {
+            .x = (Uint16)p.clip_left,
+            .y = (Uint16)p.clip_top,
+            .width = (Uint16)(p.clip_right - p.clip_left),
+            .height = (Uint16)(p.clip_bottom - p.clip_top),
+            .clear = p.target_clear,
+            .color = (Uint16)((p.red / 8U) | (p.green / 8U) << 5 | (p.blue / 8U) << 10)};
+        if (!SotnActorGraphics_BeginTarget(s->actor_graphics, target, &s->draw_surface))
+            return false;
+        s->draw_target_active = true;
+        s->draw_offset_x = p.target_offset_x - p.clip_left;
+        s->draw_offset_y = p.target_offset_y - p.clip_top;
+    }
+    else if (p.target == 2 && s->draw_target_active)
+    {
+        if (!SotnActorGraphics_EndTarget(s->actor_graphics, true))
+            return false;
+        s->draw_target_active = false;
+        s->draw_offset_x = s->draw_offset_y = 0;
+        s->draw_surface = MainSurface(s);
+    }
+    else
+        return SDL_SetError("Ordered actor target lost its restore owner");
+    return true;
+}
+
 static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Sint32 camera_x,
                                Sint32 camera_y, Uint32 begin, Uint32 limit)
 {
+    const SotnActorSurface surface = session->draw_surface;
     if (begin > limit || limit > actor.primitive_count)
         return SDL_SetError("Actor draw range exceeds its owned primitives");
     for (Uint32 i = begin; i < limit; ++i)
@@ -1351,10 +1393,10 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
             return false;
         if (!p.active)
             continue;
-        if (p.clip)
+        if (p.clip || p.target)
             return SDL_SetError("Actor draw-area changes require ordered stage presentation");
-        const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x),
-                     y = Pixel(p.y) - (p.screen_space ? 0 : camera_y);
+        const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x) + session->draw_offset_x,
+                     y = Pixel(p.y) - (p.screen_space ? 0 : camera_y) + session->draw_offset_y;
         if (p.line)
         {
             if (p.textured)
@@ -1366,7 +1408,7 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                                         .blue = {p.blue, p.line_blue},
                                         .blend = p.blend,
                                         .blend_mode = p.line_blend_mode};
-            if (!SotnActorGraphics_Line(line, session->frame, SOTN_FRAME_PIXELS))
+            if (!SotnActorGraphics_LineSurface(line, surface))
                 return false;
             continue;
         }
@@ -1384,7 +1426,7 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                 bottom = SDL_max(bottom, y + p.offset_y[vertex]);
             }
         }
-        if (right <= 0 || left >= SOTN_FRAME_WIDTH || bottom <= 0 || top >= SOTN_FRAME_HEIGHT)
+        if (right <= 0 || left >= surface.width || bottom <= 0 || top >= surface.height)
             continue;
         if (p.textured || p.quad)
         {
@@ -1416,16 +1458,15 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
             if (p.framebuffer && !SotnActorGraphics_CaptureFrame(session->actor_graphics,
                                                                  session->frame, SOTN_FRAME_PIXELS))
                 return false;
-            if (!SotnActorGraphics_Quad(session->actor_graphics, q, session->frame,
-                                        SOTN_FRAME_PIXELS))
+            if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q, surface))
                 return false;
         }
         else
         {
             const Uint16 front =
                 (Uint16)((p.red / 8) | ((p.green / 8) << 5) | ((p.blue / 8) << 10));
-            const Sint32 start = SDL_max(0, left), end = SDL_min(SOTN_FRAME_WIDTH, right);
-            for (Sint32 row = SDL_max(0, top); row < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++row)
+            const Sint32 start = SDL_max(0, left), end = SDL_min(surface.width, right);
+            for (Sint32 row = SDL_max(0, top); row < SDL_min(surface.height, bottom); ++row)
             {
                 if (p.blend && start < end)
                 {
@@ -1436,12 +1477,12 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                                                 .blue = {p.blue, p.blue},
                                                 .blend = true,
                                                 .blend_mode = (Uint8)((p.page >> 5) & 3U)};
-                    if (!SotnActorGraphics_Line(tile, session->frame, SOTN_FRAME_PIXELS))
+                    if (!SotnActorGraphics_LineSurface(tile, surface))
                         return false;
                 }
                 else
                     for (Sint32 col = start; col < end; ++col)
-                        session->frame[(size_t)row * SOTN_FRAME_WIDTH + (size_t)col] = front;
+                        surface.pixels[(size_t)row * surface.width + (size_t)col] = front;
             }
         }
     }
@@ -1668,6 +1709,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!SotnActors_GetPrimitive(session->actors, actor.slot, command.primitive,
                                          &primitive))
                 return false;
+            if (primitive.target)
+            {
+                if (!SwitchTarget(session, primitive))
+                    return false;
+                continue;
+            }
             if (primitive.clip)
             {
                 if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
@@ -1727,15 +1774,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         const SotnSpriteTransform transform = SotnActorGraphics_GetTransform(actor);
         if ((actor.frame & 0x7fffU) == 0 || transform.scale_x == 0 || transform.scale_y == 0)
             goto draw_complete;
-        if (!SotnActorGraphics_DrawTransform(session->actor_graphics, sprite,
-                                             Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
-                                             transform, session->frame, SOTN_FRAME_PIXELS))
+        if (!SotnActorGraphics_DrawSurface(session->actor_graphics, sprite,
+                                           Pixel(actor.x) - camera_x + session->draw_offset_x,
+                                           Pixel(actor.y) - camera_y + session->draw_offset_y,
+                                           transform, session->draw_surface))
             return ActorDrawError(actor);
     draw_complete:
         if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                        SOTN_FRAME_PIXELS))
             return false;
     }
+    if (session->draw_target_active)
+        return SDL_SetError("Ordered actor presentation did not restore its render target");
     return true;
 }
 
@@ -1797,6 +1847,10 @@ static bool DrawDialogue(SotnLaboratory *session)
 
 static bool DrawGameplay(SotnLaboratory *session)
 {
+    if (session->draw_target_active)
+        return SDL_SetError("Actor presentation retained an unfinished render target");
+    session->draw_surface = MainSurface(session);
+    session->draw_offset_x = session->draw_offset_y = 0;
     SotnPlayerState state = {0};
     if (!SotnPlayer_GetState(session->player, &state) || !PrepareDialogue(session))
         return false;

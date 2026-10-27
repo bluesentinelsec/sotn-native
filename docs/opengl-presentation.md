@@ -99,3 +99,7 @@ with the previous SDL GPU prototype or the original game. Scripted demos 6
 (the lab) and 0 (prologue) completed locally using dummy audio. This is an
 incomplete upstream experiment containing private generated data; it must not
 be published as our release or treated as whole-game parity evidence.
+
+The actor rasterizer also supports bounded [owned offscreen render targets](olrox-render-targets.md)
+for original effects. Their RGB555 pixels feed the existing OpenGL presentation
+through the ordinary game frame; no filesystem shaders or game assets are added.

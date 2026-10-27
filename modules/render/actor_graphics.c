@@ -22,7 +22,22 @@ struct SotnActorGraphics
     bool bat_pivot_set[18];
     Uint16 framebuffer[SOTN_FRAME_PIXELS];
     bool framebuffer_valid;
+    Uint16 target_pixels[256U * 256U];
+    SotnActorTarget target;
+    bool target_active;
 };
+
+static bool ValidSurface(SotnActorSurface surface)
+{
+    if (!surface.pixels || !surface.width || surface.width > 256 || !surface.height ||
+        surface.height > 256 || surface.count < (size_t)surface.width * surface.height)
+        return SDL_SetError("Actor raster surface requires bounded dimensions and complete pixels");
+    return true;
+}
+static SotnActorSurface FrameSurface(Uint16 *pixels, size_t count)
+{
+    return (SotnActorSurface){pixels, count, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
+}
 
 static Uint16 Read16(const Uint8 *bytes)
 {
@@ -525,12 +540,13 @@ static bool QuadEdgeInclusive(SotnTextureQuad q, Uint32 a, Uint32 b, Sint32 sign
     return dy < 0 || (dy == 0 && dx > 0);
 }
 
-static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
-                     size_t count, bool write);
+static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
+                     bool write);
 static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, const Uint8 *part,
-                 Sint32 x, Sint32 y, Uint16 *frame, bool write,
+                 Sint32 x, Sint32 y, SotnActorSurface surface, bool write,
                  const SotnSpriteTransform *transform)
 {
+    Uint16 *frame = surface.pixels;
     const Uint32 flags = Read16(part);
     Sint32 pivot_x = Signed16(part + 2), pivot_y = Signed16(part + 4);
     Sint32 width = Signed16(part + 6), height = Signed16(part + 8);
@@ -642,19 +658,19 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
             qtop = SDL_min(qtop, q.y[i]);
             qbottom = SDL_max(qbottom, q.y[i]);
         }
-        if (qright <= 0 || qleft >= SOTN_FRAME_WIDTH || qbottom <= 0 || qtop >= SOTN_FRAME_HEIGHT)
+        if (qright <= 0 || qleft >= surface.width || qbottom <= 0 || qtop >= surface.height)
             return true;
-        return QuadDraw(graphics, q, frame, SOTN_FRAME_PIXELS, write);
+        return QuadDraw(graphics, q, surface, write);
     }
     for (Sint32 row = 0; row < height; ++row)
     {
         const Sint64 py = top + row;
-        if (py < 0 || py >= SOTN_FRAME_HEIGHT)
+        if (py < 0 || py >= surface.height)
             continue;
         for (Sint32 column = 0; column < width; ++column)
         {
             const Sint64 px = left + column;
-            if (px < 0 || px >= SOTN_FRAME_WIDTH)
+            if (px < 0 || px >= surface.width)
                 continue;
             const Uint8 u = (Uint8)(u0 + column * (u1 - u0) / width);
             const Uint8 v = (Uint8)(v0 + row * (v1 - v0) / height);
@@ -663,7 +679,7 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
                 return false;
             if (write && color != 0)
             {
-                const size_t pixel = (size_t)py * SOTN_FRAME_WIDTH + (size_t)px;
+                const size_t pixel = (size_t)py * surface.width + (size_t)px;
                 frame[pixel] =
                     sprite.blend_mode != 0 && (color & 0x8000)
                         ? Blend(frame[pixel], color, ((page + (sprite.blend_mode & 0x60)) >> 5) & 3)
@@ -713,8 +729,10 @@ static bool PackedImage(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
 }
 
 static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, SotnDataView definition,
-                        Sint32 x, Sint32 y, Uint16 *frame, const SotnSpriteTransform *transform)
+                        Sint32 x, Sint32 y, SotnActorSurface surface,
+                        const SotnSpriteTransform *transform)
 {
+    Uint16 *frame = surface.pixels;
     SotnDataView sheet = {0};
     if (!PackedImage(g, sprite, definition, &sheet))
         return false;
@@ -756,8 +774,8 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
     const Sint64 denominator_x = 8192LL * t.scale_x, denominator_y = 8192LL * t.scale_y;
     // Inverse sampling at pixel centers retains identity pivots and the original mirror +1.
     // Retained BO4 poses sample the owned display cache, including simulation-driven erasure.
-    for (Sint32 py = 0; py < SOTN_FRAME_HEIGHT; ++py)
-        for (Sint32 px = 0; px < SOTN_FRAME_WIDTH; ++px)
+    for (Sint32 py = 0; py < surface.height; ++py)
+        for (Sint32 px = 0; px < surface.width; ++px)
         {
             const Sint64 dx = ((Sint64)px - x) * 2 + 1, dy = ((Sint64)py - y) * 2 + 1;
             const Sint64 nx = (dx * cosine + dy * sine) * 256;
@@ -792,7 +810,7 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
                                        << shift);
                 color = tinted;
             }
-            const size_t destination = (size_t)py * SOTN_FRAME_WIDTH + (size_t)px;
+            const size_t destination = (size_t)py * surface.width + (size_t)px;
             frame[destination] =
                 sprite.blend_mode && (color & 0x8000)
                     ? Blend(frame[destination], color, (sprite.blend_mode >> 5) & 3)
@@ -802,10 +820,10 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
 }
 
 static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x, Sint32 y,
-                 Uint16 *frame, size_t count, const SotnSpriteTransform *transform)
+                 SotnActorSurface surface, const SotnSpriteTransform *transform)
 {
-    if (graphics == NULL || frame == NULL || count < SOTN_FRAME_PIXELS)
-        return SDL_SetError("Actor drawing requires initialized graphics and a full framebuffer");
+    if (!graphics || !ValidSurface(surface))
+        return SDL_SetError("Actor drawing requires initialized graphics and a complete surface");
     if ((sprite.frame & 0x7fff) == 0 || sprite.animation_set == 0)
         return true;
     SotnDataView definition = {0};
@@ -813,7 +831,7 @@ static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint
         return false;
     const Uint32 parts = Read16(definition.bytes);
     if (parts & 0x8000)
-        return PackedSheet(graphics, sprite, definition, x, y, frame, transform);
+        return PackedSheet(graphics, sprite, definition, x, y, surface, transform);
     for (unsigned int pass = 0; pass < 2; ++pass)
         for (int priority = 1; priority >= 0; --priority)
             for (Uint32 i = parts; i > 0; --i)
@@ -821,7 +839,7 @@ static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint
                 const Uint8 *part = definition.bytes + 2 + (size_t)(i - 1) * 22;
                 if (((Read16(part) & 0x100) != 0) != (priority != 0))
                     continue;
-                if (!Part(graphics, sprite, part, x, y, frame, pass != 0, transform))
+                if (!Part(graphics, sprite, part, x, y, surface, pass != 0, transform))
                     return false;
             }
     return true;
@@ -832,11 +850,12 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics)
     SDL_free(graphics);
 }
 
-static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
-                     size_t count, bool write)
+static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
+                     bool write)
 {
-    if ((!q.untextured && graphics == NULL) || frame == NULL || count < SOTN_FRAME_PIXELS ||
-        q.page > 0x1ff || (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
+    Uint16 *frame = surface.pixels;
+    if ((!q.untextured && graphics == NULL) || !ValidSurface(surface) || q.page > 0x1ff ||
+        (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
         return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
     if (q.framebuffer && (q.untextured || !graphics || !graphics->framebuffer_valid ||
                           (q.page != 0x100 && q.page != 0x104)))
@@ -854,8 +873,8 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
         bottom = SDL_max(bottom, q.y[i]);
     }
     for (Uint32 pass = 0; pass < 2; ++pass)
-        for (Sint32 y = SDL_max(0, top); y < SDL_min(SOTN_FRAME_HEIGHT, bottom); ++y)
-            for (Sint32 x = SDL_max(0, left); x < SDL_min(SOTN_FRAME_WIDTH, right); ++x)
+        for (Sint32 y = SDL_max(0, top); y < SDL_min(surface.height, bottom); ++y)
+            for (Sint32 x = SDL_max(0, left); x < SDL_min(surface.width, right); ++x)
             {
                 Sint64 u = 0, v = 0;
                 Uint32 shade[3] = {q.red, q.green, q.blue};
@@ -928,7 +947,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                                                << shift);
                         color = tinted;
                     }
-                    const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
+                    const size_t pixel = (size_t)y * surface.width + (size_t)x;
                     frame[pixel] = q.blend && ((color & 0x8000) || q.untextured)
                                        ? Blend(frame[pixel], color, (q.page >> 5) & 3)
                                        : color;
@@ -940,14 +959,15 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count)
 {
-    return Draw(graphics, sprite, x, y, frame, count, NULL);
+    return Draw(graphics, sprite, x, y, FrameSurface(frame, count), NULL);
 }
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count)
 {
     const SotnSpriteTransform transform = {
         .rotation = angle, .scale_x = 256, .scale_y = 256, .opacity = 128};
-    return Draw(graphics, sprite, x, y, frame, count, (angle & 4095) == 0 ? NULL : &transform);
+    return Draw(graphics, sprite, x, y, FrameSurface(frame, count),
+                (angle & 4095) == 0 ? NULL : &transform);
 }
 bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *frame, size_t count)
 {
@@ -958,10 +978,52 @@ bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *f
     graphics->framebuffer_valid = true;
     return true;
 }
+bool SotnActorGraphics_BeginTarget(SotnActorGraphics *g, SotnActorTarget target,
+                                   SotnActorSurface *out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = (SotnActorSurface){0};
+    if (!g || g->target_active || !target.width || target.width > 256 || !target.height ||
+        target.height > 256 || target.x > 1024U - target.width || target.y > 512U - target.height)
+        return SDL_SetError(
+            "Actor render target requires an idle owner and bounded VRAM rectangle");
+    if (!target.clear)
+        for (Uint16 y = 0; y < target.height; ++y)
+            for (Uint16 x = 0; x < target.width; ++x)
+                if (!g->valid[(size_t)(target.y + y) * 1024U + target.x + x])
+                    return SDL_SetError("Actor render target retains an unloaded texture word");
+    for (Uint16 y = 0; y < target.height; ++y)
+        for (Uint16 x = 0; x < target.width; ++x)
+            g->target_pixels[(size_t)y * target.width + x] =
+                target.clear ? target.color
+                             : g->words[(size_t)(target.y + y) * 1024U + target.x + x];
+    g->target = target;
+    g->target_active = true;
+    *out = (SotnActorSurface){g->target_pixels, (size_t)target.width * target.height, target.width,
+                              target.height};
+    return true;
+}
+bool SotnActorGraphics_EndTarget(SotnActorGraphics *g, bool commit)
+{
+    if (!g || !g->target_active)
+        return SDL_SetError("Actor render target completion requires its active owner");
+    if (commit)
+        for (Uint16 y = 0; y < g->target.height; ++y)
+            for (Uint16 x = 0; x < g->target.width; ++x)
+            {
+                const size_t destination = (size_t)(g->target.y + y) * 1024U + g->target.x + x;
+                g->words[destination] = g->target_pixels[(size_t)y * g->target.width + x];
+                g->valid[destination] = 1;
+            }
+    g->target_active = false;
+    g->target = (SotnActorTarget){0};
+    return true;
+}
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                             size_t count)
 {
-    return QuadDraw(graphics, q, frame, count, true);
+    return QuadDraw(graphics, q, FrameSurface(frame, count), true);
 }
 
 static Sint16 SpriteScale(Uint16 value)
@@ -992,19 +1054,37 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite
                                      Sint32 y, SotnSpriteTransform transform, Uint16 *frame,
                                      size_t count)
 {
+    return SotnActorGraphics_DrawSurface(g, sprite, x, y, transform, FrameSurface(frame, count));
+}
+
+bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *g, SotnTextureQuad quad,
+                                   SotnActorSurface surface)
+{
+    return QuadDraw(g, quad, surface, true);
+}
+
+bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
+                                   Sint32 y, SotnSpriteTransform transform,
+                                   SotnActorSurface surface)
+{
     if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x < -1024 ||
         transform.scale_x > 1024 || transform.scale_y < -1024 || transform.scale_y > 1024 ||
         transform.opacity > 255)
         return SDL_SetError("Actor transform exceeds the bounded original scales or color");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
         transform.opacity == 128 && !transform.tint)
-        return Draw(g, sprite, x, y, frame, count, NULL);
-    return Draw(g, sprite, x, y, frame, count, &transform);
+        return Draw(g, sprite, x, y, surface, NULL);
+    return Draw(g, sprite, x, y, surface, &transform);
 }
 
 bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
 {
-    if (frame == NULL || count < SOTN_FRAME_PIXELS || line.blend_mode > 3)
+    return SotnActorGraphics_LineSurface(line, FrameSurface(frame, count));
+}
+bool SotnActorGraphics_LineSurface(SotnColorLine line, SotnActorSurface surface)
+{
+    Uint16 *frame = surface.pixels;
+    if (!ValidSurface(surface) || line.blend_mode > 3)
         return SDL_SetError("Actor line requires a full frame and an original blend mode");
     for (size_t i = 0; i < 2; ++i)
         if (line.x[i] < -2048 || line.x[i] > 2048 || line.y[i] < -2048 || line.y[i] > 2048)
@@ -1016,7 +1096,7 @@ bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
     {
         const Sint32 x = (Sint32)FloorDivide((Sint64)line.x[0] * divisor + (Sint64)dx * i, divisor);
         const Sint32 y = (Sint32)FloorDivide((Sint64)line.y[0] * divisor + (Sint64)dy * i, divisor);
-        if (x < 0 || x >= SOTN_FRAME_WIDTH || y < 0 || y >= SOTN_FRAME_HEIGHT)
+        if (x < 0 || x >= surface.width || y < 0 || y >= surface.height)
             continue;
         const Uint16 red =
             (Uint16)(((Sint64)line.red[0] * divisor + ((Sint32)line.red[1] - line.red[0]) * i) /
@@ -1028,7 +1108,7 @@ bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
             (Uint16)(((Sint64)line.blue[0] * divisor + ((Sint32)line.blue[1] - line.blue[0]) * i) /
                      divisor / 8);
         const Uint16 front = (Uint16)(red | green << 5 | blue << 10);
-        const size_t pixel = (size_t)y * SOTN_FRAME_WIDTH + (size_t)x;
+        const size_t pixel = (size_t)y * surface.width + (size_t)x;
         frame[pixel] = line.blend ? Blend(frame[pixel], front, line.blend_mode) : front;
     }
     return true;

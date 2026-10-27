@@ -10,6 +10,22 @@
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
 typedef struct SotnActorGraphics SotnActorGraphics;
 
+/** @brief Borrowed tightly packed RGB555 raster surface; each dimension is 1..256. */
+typedef struct SotnActorSurface
+{
+    Uint16 *pixels;
+    size_t count;
+    Uint16 width, height;
+} SotnActorSurface;
+
+/** @brief Original owned VRAM render target rectangle, excluding borrowed artwork memory. */
+typedef struct SotnActorTarget
+{
+    Uint16 x, y, width, height;
+    bool clear;
+    Uint16 color;
+} SotnActorTarget;
+
 /** @brief Original untransformed actor sprite selection and rendering attributes. */
 typedef struct SotnActorSprite
 {
@@ -106,6 +122,14 @@ SotnSpriteTransform SotnActorGraphics_GetTransform(SotnActorState actor);
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                      Sint32 x, Sint32 y, SotnSpriteTransform transform,
                                      Uint16 *frame, size_t count);
+/** @brief Draw an original sprite to a bounded borrowed RGB555 surface.
+ * @param graphics Borrowed texture owner. @param sprite Original attributes.
+ * @param x Surface-space anchor. @param y Surface-space anchor.
+ * @param transform Original bounded nonzero transform. @param surface Writable pixels/view.
+ * @return Success or SDL error; invalid resources/geometry leave the surface unchanged. */
+bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                   Sint32 x, Sint32 y, SotnSpriteTransform transform,
+                                   SotnActorSurface surface);
 /** @brief Prepare the original Wall rope cache with bounded CPU copies in texture memory.
  * @param graphics Borrowed initialized texture service, after loading the room bank.
  * @return Success or SDL error; invalid/missing source pixels leave texture memory intact. */
@@ -132,6 +156,25 @@ typedef struct SotnTextureQuad
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief Draw a bounded quad to a borrowed 1..256 by 1..256 RGB555 surface.
+ * @param graphics Borrowed texture owner, optional for untextured quads.
+ * @param quad Surface-space geometry. @param surface Writable tightly packed pixels/view.
+ * @return Success or SDL error; validation precedes writes, as with the frame quad API. */
+bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextureQuad quad,
+                                   SotnActorSurface surface);
+/** @brief Open one owned offscreen VRAM target for ordered drawing.
+ * @param graphics Borrowed texture owner; no other target may be active.
+ * @param target Rectangle in 1024x512 owned texture memory, width/height 1..256.
+ * @param out Borrowed scratch surface until commit, cancellation or owner destruction.
+ * @return Success or SDL error with previous texture memory unchanged. Opening a target
+ * never writes texture memory; clear or existing resident pixels initialize the scratch copy.
+ * Callers must finish each draw interval before sampling the resulting target texture. */
+bool SotnActorGraphics_BeginTarget(SotnActorGraphics *graphics, SotnActorTarget target,
+                                   SotnActorSurface *out);
+/** @brief Commit or cancel the active target and invalidate its borrowed scratch view.
+ * @param graphics Borrowed owner with active target. @param commit Copy pixels to owned VRAM.
+ * @return Success or SDL error; cancellation leaves texture memory unchanged. */
+bool SotnActorGraphics_EndTarget(SotnActorGraphics *graphics, bool commit);
 /** @brief Copy the current ordered RGB555 frame for subsequent framebuffer-sampling quads.
  * @param graphics Borrowed texture owner. @param frame Borrowed full input frame.
  * @param count Available pixels, at least SOTN_FRAME_PIXELS.
@@ -176,6 +219,10 @@ typedef struct SotnColorLine
  * @note Uses explicit native integer sampling. Hardware endpoint registration and
  * GPU ordering still require console comparison. No texture memory is needed. */
 bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count);
+/** @brief Draw a bounded two-color line to a borrowed RGB555 surface.
+ * @param line Surface-space endpoints/colors. @param surface Writable tightly packed view.
+ * @return Success or SDL error; invalid input leaves pixels unchanged. */
+bool SotnActorGraphics_LineSurface(SotnColorLine line, SotnActorSurface surface);
 
 /** @brief Release texture memory without freeing borrowed images. @param graphics Owned object or
  * NULL. */
