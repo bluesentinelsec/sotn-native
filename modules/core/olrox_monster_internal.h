@@ -18,6 +18,10 @@ typedef enum OlroxLegPose
     OLROX_SLOW_SWING,
     OLROX_SLOW_SUPPORT
 } OlroxLegPose;
+/** @brief Validate/bind the BO0 articulation owner without resetting its retained state.
+ * @param actors Borrowed service. @param body Borrowed active original identity 0x33.
+ * @return Success or SDL error when a different generation owns the service. */
+bool OlroxMonster_Bind(SotnActors *actors, const Actor *body);
 /** @brief Approach an original signed angle with the strict arrival boundary.
  * @param value Borrowed initialized angle. @param target Signed goal.
  * @param step Positive bounded change. @param arrived Receives original completion result.
@@ -52,4 +56,23 @@ bool OlroxMonster_Anchor(SotnActors *actors, Actor *body, bool from_hip);
  * @param adjustment Receives signed integer shift to the original floor, zero above it.
  * @return Success or SDL error; updates the owned original contact word. */
 bool OlroxMonster_Floor(SotnActors *actors, Actor *body, Uint16 leg, Sint16 *adjustment);
+/** @brief Reconstruct four original textured leg/foot packets from owned joint state.
+ * @param actors Borrowed BO0/SDK inputs. @param body Active owned monster.
+ * @param leg Leg 0 or 1. @param first First of four owned primitives. @param side Palette/priority
+ * role 0 or 1.
+ * @return Success or SDL error for invalid ownership, projection math or primitive capacity. */
+bool OlroxMonster_LegGeometry(SotnActors *actors, Actor *body, Uint16 leg, Uint16 first,
+                              Uint16 side);
+/** @brief Reconstruct the two torso packets and positions of original owned roles 3 and 7.
+ * @param actors Borrowed BO0/SDK inputs. @param body Active monster. @param first First of two
+ * owned primitives.
+ * @return Success or SDL error on private profile, math, primitive or child ownership failure. */
+bool OlroxMonster_BodyGeometry(SotnActors *actors, Actor *body, Uint16 first);
+/** @brief Convert the original bank-seven single-part selection to an owned sprite packet.
+ * @param actors Borrowed BO0 owner. @param sprite Body or its generation-owned child.
+ * @param body Original primitive owner. @param index Owned primitive receiving geometry/UV/palette.
+ * @return Success or SDL error; preserves caller page, priority, visibility and blend attributes.
+ * The original helper ignores part cropping and uses 127-unit texture offsets. */
+bool OlroxMonster_SpriteGeometry(SotnActors *actors, const Actor *sprite, Actor *body,
+                                 Uint16 index);
 #endif

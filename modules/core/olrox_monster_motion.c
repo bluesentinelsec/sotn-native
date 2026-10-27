@@ -12,7 +12,7 @@ static Sint32 Fixed(Sint64 value)
     const Uint32 bits = (Uint32)value;
     return bits <= SDL_MAX_SINT32 ? (Sint32)bits : (Sint32)((Sint64)bits - 4294967296LL);
 }
-static bool Bind(SotnActors *s, const Actor *a)
+bool OlroxMonster_Bind(SotnActors *s, const Actor *a)
 {
     if (!s || !a || s->stage_id != 30 || a->state.id != 0x33 || !a->state.generation)
         return SDL_SetError("Olrox articulation requires an active original BO0 monster");
@@ -163,7 +163,7 @@ static bool Takeoff(OlroxLeg *a, OlroxLeg *b)
 bool OlroxMonster_Pose(SotnActors *s, Actor *body, Uint16 index, OlroxLegPose pose, bool *arrived)
 {
     if (!arrived || index > 1 || pose < OLROX_FORWARD_SWING || pose > OLROX_SLOW_SUPPORT ||
-        !Bind(s, body))
+        !OlroxMonster_Bind(s, body))
         return SDL_SetError("Olrox pose requires its owned body, leg and original controller");
     OlroxLeg *a = &s->olrox_monster.legs[index], *b = &s->olrox_monster.legs[index ^ 1U];
     *arrived = false;
@@ -236,7 +236,7 @@ bool OlroxMonster_Pose(SotnActors *s, Actor *body, Uint16 index, OlroxLegPose po
 }
 bool OlroxMonster_ChangeStep(SotnActors *s, Actor *body, Uint16 step)
 {
-    if (!Bind(s, body))
+    if (!OlroxMonster_Bind(s, body))
         return false;
     body->state.step = (Uint16)(step & 255U);
     body->substep = 0;
@@ -250,7 +250,7 @@ static bool Trig(SotnActors *s, const Actor *a, Sint16 angle, SotnMathTrig *out)
 }
 bool OlroxMonster_Anchor(SotnActors *s, Actor *body, bool from_hip)
 {
-    if (!Bind(s, body) || body->olrox.support_leg > 1)
+    if (!OlroxMonster_Bind(s, body) || body->olrox.support_leg > 1)
         return SDL_SetError("Olrox anchoring requires its body and original support leg");
     Actor *left = OlroxChild(s, body, 1), *right = OlroxChild(s, body, 2);
     if (!left || !right || left->state.id != 0x34 || right->state.id != 0x34)
@@ -295,7 +295,7 @@ bool OlroxMonster_Anchor(SotnActors *s, Actor *body, bool from_hip)
 }
 bool OlroxMonster_Floor(SotnActors *s, Actor *body, Uint16 index, Sint16 *adjustment)
 {
-    if (!adjustment || index > 1 || !Bind(s, body))
+    if (!adjustment || index > 1 || !OlroxMonster_Bind(s, body))
         return SDL_SetError("Olrox floor adjustment requires its owned leg and result");
     OlroxLeg *leg = &s->olrox_monster.legs[index];
     const Sint32 y = Pixel(leg->foot_y);

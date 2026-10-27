@@ -43,8 +43,10 @@ The [owned offscreen renderer](olrox-render-targets.md) now supplies the tall
 render targets needed for the transformation. Its
 [morph controller component](olrox-morph-controller.md) now has selected instruction
 comparisons. Selected [articulated motion components](olrox-monster-motion.md)
-now retain joint poses and foot anchoring; dispatch remains gated until the real
-monster body is integrated.
+now retain joint poses and foot anchoring; selected
+[articulated geometry components](olrox-monster-geometry.md) reconstruct their
+textured packets and owned attachment positions. Dispatch remains gated until
+the real monster body is integrated.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,
