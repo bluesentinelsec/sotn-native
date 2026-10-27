@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The [Olrox morph controller component](docs/olrox-morph-controller.md) now
+reconstructs its 66-point/68-command mesh and original pulse/brightness timing.
+It is deliberately outside gameplay dispatch until the real articulated body
+exists. Preserve the initial 127x256 target, subsequent 128x128 target, signed
+word wrap and generation-owned handoff; never fake child readiness or call this
+a playable transformation. Controller-only instruction traces do not advance the monster child.
+
 The [owned offscreen renderer](docs/olrox-render-targets.md) now supports explicit
 1..256 RGB555 surfaces, transactional target commit/cancellation and ordered
 begin/restore commands. Preserve final VRAM row511, clipping/stride, immutable

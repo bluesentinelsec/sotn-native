@@ -33,4 +33,10 @@ bool ActorOlroxFire(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid state, data, math or owned geometry.
  * A missing parent retires an unreleased column; a released beam owns its remaining lifetime. */
 bool ActorOlroxColumn(SotnActors *actors, Actor *actor);
+/** @brief Reconstruct the original BO0 morph controller and its owned mesh/target commands.
+ * @param actors Borrowed BO0 services/private inputs. @param actor Borrowed active identity 0x32.
+ * @return Success or SDL error on invalid tables, ownership, state or geometry.
+ * This component requests identity 0x33; stage dispatch stays gated until that body is integrated.
+ */
+bool ActorOlroxMorph(SotnActors *actors, Actor *actor);
 #endif
