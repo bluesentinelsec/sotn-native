@@ -22,8 +22,8 @@ int main(void)
     CHECK(dra && exe);
     for (Uint16 i = 0; i < 1025; ++i)
         Put16(exe + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
-    const Uint16 ids[3] = {0x20, 0x21, 0x1b};
-    for (Uint16 i = 0; i < 3; ++i)
+    const Uint16 ids[5] = {0x20, 0x21, 0x1b, 5, 0x1c};
+    for (Uint16 i = 0; i < SDL_arraysize(ids); ++i)
     {
         Uint8 *p = dra + 0xd670 + ids[i] * 20U;
         Put16(p + 6, 0x123);
@@ -114,6 +114,39 @@ int main(void)
     effect = (SotnPlayerBlink){.parameter = 0x21};
     input.status = 0x1000000;
     CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.removed);
+    shared = (SotnPlayerBlinkShared){0};
+    input.status = 0;
+    input.signal = 0;
+    input.player_step = 5;
+    input.player_substep = 3;
+    effect = (SotnPlayerBlink){.parameter = 0x5c};
+    Put16(dra + 0xd670 + 0x1c * 20U + 14, 0x7009);
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 1 && effect.quads[0].priority == 146 && effect.quads[0].x[0] == 90 &&
+          effect.quads[0].x[1] == 100 && effect.quads[2].x[0] == 110 &&
+          effect.quads[2].y[1] == 116 && effect.quads[0].u[2] == 14 && effect.quads[0].v[2] == 17);
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.quads[0].red[0] > 0 && effect.quads[0].red[2] == 0 &&
+          effect.quads[0].green[3] == 0 && !events.signal);
+    effect.phase = 2;
+    effect.hold = 8;
+    effect.brightness = 256;
+    input.status = 0x40000000U;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2);
+    input.player_substep = 1;
+    input.status = 0;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 4);
+    for (Uint16 i = 0; i < 20; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 4 &&
+              effect.brightness == 256 && !effect.removed);
+    shared.bat_lock = true;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.removed &&
+          shared.bat_lock);
+    shared.bat_lock = false;
+    effect = (SotnPlayerBlink){.parameter = 5};
+    for (Uint16 i = 0; i < 100 && !effect.removed; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !events.signal);
+    CHECK(effect.removed);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

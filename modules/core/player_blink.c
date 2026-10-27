@@ -18,6 +18,36 @@ static Sint16 Read16(const Uint8 *p)
 {
     return Word(p[0] | (Uint16)p[1] << 8);
 }
+static bool Selected(Uint16 parameter)
+{
+    return parameter == 0x20 || parameter == 0x21 || parameter == 0x1b || parameter == 5 ||
+           parameter == 0x5c;
+}
+static bool Fan(SotnPlayerEffectQuad *q, SotnPlayerBlinkInput in, Uint16 index, Sint16 origin_x,
+                Sint16 origin_y, Uint16 angle)
+{
+    const Sint32 width = in.image.width, height = in.image.height;
+    const Sint32 x[8] = {0, width / 2, width, width, width, width / 2, 0, 0},
+                 y[8] = {0, 0, 0, height / 2, height, height, height, height / 2};
+    const Uint16 end = (Uint16)((index + 1U) % 8U);
+    for (Uint16 v = 0; v < 2; ++v)
+    {
+        const Uint16 at = v ? end : index;
+        q->x[v] = Word(origin_x + (in.facing_left ? -x[at] : x[at]));
+        q->y[v] = Word(origin_y + y[at]);
+        q->u[v] = (Uint8)(4 + x[at]);
+        q->v[v] = (Uint8)(1 + y[at]);
+    }
+    SotnMathTrig trig = {0};
+    if (!SotnMath_Trig(in.executable, angle, &trig))
+        return false;
+    q->x[2] = q->x[3] = Word(origin_x + (in.facing_left ? -width / 2 : width / 2) +
+                             Shift((Sint64)Shift(trig.cosine, 4) * 3, 12));
+    q->y[2] = q->y[3] = Word(origin_y + height / 2 - Shift((Sint64)Shift(trig.sine, 4) * 6, 8));
+    q->u[2] = q->u[3] = (Uint8)(4 + width / 2);
+    q->v[2] = q->v[3] = (Uint8)(1 + height / 2);
+    return true;
+}
 bool SotnPlayerEffect_Rotate(SotnDataView executable, Sint16 x, Sint16 y, Sint16 rotation,
                              bool facing_left, SotnPlayerEffectQuad *quad)
 {
@@ -78,6 +108,8 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
         q->u[1] = q->u[3] = (Uint8)(in.facing_left ? 3 : 4 + width);
         q->v[0] = q->v[1] = (Uint8)(1 + height * i / 8);
         q->v[2] = q->v[3] = (Uint8)(1 + height * (i + 1U) / 8);
+        if ((parameter & 0x40U) && !Fan(q, in, i, origin_x, origin_y, e->angle))
+            return false;
         if (in.rotated &&
             !SotnPlayerEffect_Rotate(in.executable, in.x, in.y, in.rotation, in.facing_left, q))
             return false;
@@ -97,7 +129,13 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
                         return false;
                     const Uint8 color =
                         (Uint8)(((trig.sine + 4096) / 64) * e->brightness / divisors[channel]);
-                    colors[channel][edge * 2U] = colors[channel][edge * 2U + 1U] = color;
+                    if (parameter & 0x40U)
+                    {
+                        colors[channel][edge] = color;
+                        colors[channel][edge + 2U] = 0;
+                    }
+                    else
+                        colors[channel][edge * 2U] = colors[channel][edge * 2U + 1U] = color;
                 }
             shared->angles[i] += e->speed;
         }
@@ -108,13 +146,14 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
                           SotnPlayerBlinkInput in, SotnPlayerBlinkEvents *out)
 {
     if (!effect || !shared || !out || effect->removed || in.signal > 3 ||
-        (effect->parameter != 0x20 && effect->parameter != 0x21 && effect->parameter != 0x1b))
+        !Selected(effect->parameter))
         return SDL_SetError("Player blink requires its actual selected child and owner handshake");
     SotnPlayerBlink next = *effect;
     SotnPlayerBlinkShared phases = *shared;
     SotnPlayerBlinkEvents events = {0};
     const bool incompatible_form = (in.status & (2U | 0x1000000U)) != 0;
-    if (incompatible_form || !in.image_present || (phases.bat_lock && next.parameter == 0x1b))
+    if (incompatible_form || !in.image_present ||
+        (phases.bat_lock && next.parameter != 0x20 && next.parameter != 0x21))
     {
         next.removed = true;
         if (incompatible_form || !in.image_present)
@@ -125,10 +164,11 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         next.amplitude > 128 ||
         (next.parameter == 0x20 && next.phase != 0 && next.phase != 8 && next.phase != 9) ||
         (next.parameter == 0x21 && next.phase != 0 && next.phase != 10 && next.phase != 11) ||
-        (next.parameter == 0x1b && next.phase > 3))
+        ((next.parameter == 0x1b || next.parameter == 5) && next.phase > 3) ||
+        (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");
     const Uint16 parameter = next.parameter;
-    const size_t at = 0xd670 + (size_t)parameter * 20U;
+    const size_t at = 0xd670 + (size_t)(parameter & 0x3fU) * 20U;
     if (!in.dra.bytes || at > in.dra.size || in.dra.size - at < 20 || !in.image.width ||
         in.image.width > 252 || !in.image.height || in.image.height > 254 ||
         in.image.pivot_x < -512 || in.image.pivot_x > 512 || in.image.pivot_y < -512 ||
@@ -140,7 +180,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         profile[i] = Read16(in.dra.bytes + at + i * 2U);
     if (profile[0] < 0 || profile[1] < 0 || profile[2] < 0 || profile[3] < 0 || profile[3] >= 768 ||
         profile[4] <= 0 || profile[5] <= 0 || profile[6] <= 0 || profile[7] <= 0 ||
-        (profile[7] >= 0x7000 && profile[7] != 0x7008))
+        (profile[7] >= 0x7000 && profile[7] != 0x7008 && profile[7] != 0x7009))
         return SDL_SetError("Selected player blink profile has invalid color or duration fields");
     switch (next.phase)
     {
@@ -150,7 +190,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
             phases.angles[i] = i * 512U;
             SotnPlayerEffectQuad *q = &next.quads[i];
             q->palette = (Uint16)profile[3];
-            q->priority = (Uint16)(in.priority + (parameter == 0x1b ? 2U : 4U));
+            q->priority =
+                (Uint16)(in.priority + ((parameter == 0x20 || parameter == 0x21) ? 4U : 2U));
             q->draw_mode = (Uint16)(profile[8] + 0x304);
             for (Uint16 v = 0; v < 4; ++v)
                 q->red[v] = q->green[v] = q->blue[v] = 128;
@@ -169,11 +210,22 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         break;
     case 2:
-        if (profile[7] == 0x7008)
+        if (profile[7] == 0x7008 || profile[7] == 0x7009)
         {
             next.hold = 8;
-            if (!(in.status & 0x400000U))
-                ++next.phase;
+            if (profile[7] == 0x7008)
+            {
+                if (!(in.status & 0x400000U))
+                    ++next.phase;
+            }
+            else
+            {
+                if (in.player_step != 5 || in.player_substep != 3)
+                    ++next.phase;
+                // Original 0x7009 falls through 0x700B, including a second increment.
+                if (!(in.status & 0x40000000U))
+                    ++next.phase;
+            }
         }
         if (!next.hold)
             return SDL_SetError("Player blink finishing hold timer is invalid");
@@ -187,6 +239,9 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
             next.removed = true;
             goto done;
         }
+        break;
+    case 4:
+        // The original switch has no phase-four action; retained fan geometry still advances.
         break;
     case 8:
         phases.bat_lock = true;

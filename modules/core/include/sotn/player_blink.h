@@ -26,7 +26,8 @@ typedef struct SotnPlayerBlinkShared
 } SotnPlayerBlinkShared;
 
 /** @brief One real selected BlinkWhite controller and its eight owned primitives.
- * Initialize parameter to 0x20 (Bat entry) or 0x21 (return); retain until removed.
+ * Initialize parameter to 0x20 (Bat entry), 0x21 (return), 5 (Fire) or 0x5C (Wing Smash).
+ * Retain until removed; special flashes allocate their own real children.
  * Parameter 0x1B is the original automatic finishing flash, not a new child. */
 typedef struct SotnPlayerBlink
 {
@@ -42,7 +43,7 @@ typedef struct SotnPlayerBlinkInput
     SotnDataView dra, executable;
     SotnPlayerImage image;
     Sint16 x, y, rotation;
-    Uint16 priority;
+    Uint16 priority, player_step, player_substep;
     Uint32 status;
     Uint8 signal;
     bool facing_left, rotated, image_present;
@@ -55,7 +56,7 @@ typedef struct SotnPlayerBlinkEvents
     bool reset_afterimages;
 } SotnPlayerBlinkEvents;
 
-/** @brief Advance original selected Bat entry/return effects and finishing flash once.
+/** @brief Advance original selected Bat transformation and Wing/Fire flashes once.
  * @param effect Owned actual child and primitives. @param shared Owned shared phase/lock state.
  * @param input Borrowed verified private tables and actual decoded player snapshot.
  * @param out Copied original handshake/afterimage requests.

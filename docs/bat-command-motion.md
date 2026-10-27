@@ -3,7 +3,8 @@
 The core now reconstructs Wing Smash's directional command and the selected
 Wing Smash/Fire of Bat controller paths. This component does not yet enable these
 abilities in gameplay: actual attack children, visual owners and their shared
-allocation/combat services still need integration. Ordinary Bat flight continues
+allocation/combat services still need integration. [Special presentation
+components](bat-special-presentation.md) now cover selected flashes and trails. Ordinary Bat flight continues
 to use its existing [selected runtime](player-bat.md); Fire/Echo relic switches
 remain unavailable.
 

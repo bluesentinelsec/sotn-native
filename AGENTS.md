@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+[Bat special presentation components](docs/bat-special-presentation.md) now run
+selected Fire/Wing flashes and shrinking trails. They do not enable live command
+abilities. Preserve fan/strip mirror differences, original 0x7009 fallthrough and
+retained phase four, real transformation-lock removal, live frame/frozen trail
+orientation and scale-before-SDK-rotation. Shared factories/combat remain unintegrated.
+
 The [Bat command/motion component](docs/bat-command-motion.md) now reconstructs
 Wing Smash input and Wing/Fire controller paths after the form resource gate.
 It emits original requests; it does not enable command abilities in gameplay.

@@ -655,3 +655,7 @@ See [scope and evidence](docs/player-bat.md). Original tables/artwork stay priva
 The selected [Bat command/motion component](docs/bat-command-motion.md) adapts
 `dra/71830.c` and `5D5BC.c` from the same pinned AGPL-3.0-or-later reference.
 Spell tables remain private runtime inputs.
+
+[Bat special presentation components](docs/bat-special-presentation.md) adapt
+selected `dra/7879C.c` and `4B758.c` from the pinned AGPL-3.0-or-later reference.
+All source artwork/profiles/math tables remain private runtime inputs.
