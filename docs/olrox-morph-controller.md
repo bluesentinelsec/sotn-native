@@ -35,6 +35,7 @@ adapters. The original controller and mesh instructions execute. Its child is
 created and positioned but is not advanced in these component comparisons.
 
 No native gameplay or console-rendering parity is established for the morph.
+Selected [articulated motion components](olrox-monster-motion.md) now run separately.
 The articulated body, its owned parts, complete attacks, defeat/reward and
 connected BO0/NO2 travel still need integration. Existing humanoid gameplay stays
 on its current explicit development boundary; no missing body is silently acknowledged.

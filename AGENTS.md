@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+Selected [Olrox articulated movement components](docs/olrox-monster-motion.md)
+now retain joint velocities, paired poses, owned foot anchoring and floor contact.
+Preserve strict arrival, signed word/fixed-point wrap and the original four-pixel
+grounded/airborne origin difference. These are components; the real body, texture
+geometry, attacks and second-form gameplay remain unintegrated. Seeded instruction
+comparisons do not establish an encounter or console replay.
+
 The [Olrox morph controller component](docs/olrox-morph-controller.md) now
 reconstructs its 66-point/68-command mesh and original pulse/brightness timing.
 It is deliberately outside gameplay dispatch until the real articulated body

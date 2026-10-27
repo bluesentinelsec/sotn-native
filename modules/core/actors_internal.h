@@ -68,6 +68,14 @@ typedef struct ActorPrimitive
         bool initialized;
     } secret;
 } ActorPrimitive;
+/** Original Olrox leg metadata, with pointer links represented by its two owned array roles. */
+typedef struct OlroxLeg
+{
+    Sint16 upper, upper_velocity, lower, lower_velocity;
+    Sint32 horizontal, foot_x, foot_y, knee_x, knee_y;
+    Uint8 phase;
+    Uint16 contact;
+} OlroxLeg;
 typedef struct Actor
 {
     SotnActorState state;
@@ -399,6 +407,8 @@ typedef struct Actor
         Sint32 fire_length;
         Sint16 column_width, column_spread, column_radii[7];
         Sint16 morph_timer, morph_delay, morph_brightness;
+        Sint16 body_angle, body_velocity;
+        Uint8 support_leg;
     } olrox;
 } Actor;
 
@@ -483,6 +493,11 @@ struct SotnActors
         Uint32 generation;
         bool transforming;
     } olrox_morph;
+    struct
+    {
+        OlroxLeg legs[2];
+        Uint32 generation;
+    } olrox_monster;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
     Uint16 backdrop_color;

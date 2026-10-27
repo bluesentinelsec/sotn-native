@@ -13,6 +13,11 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 articulated movement helpers**, AGPL-3.0-or-later.
+  `modules/core/olrox_monster_motion.c` reconstructs selected BO0 `313A8.c`
+  pose, joint and anchoring helpers at the pinned revision below. SDK tables
+  remain private. See [scope and validation](docs/olrox-monster-motion.md).
+
 - **Reconstructed BO0 morph controller**, AGPL-3.0-or-later.
   `modules/core/olrox_morph.c` adapts `boss/bo0/3053C.c` at the pinned revision
   below. Original point/index/duration tables remain private. The component stays
