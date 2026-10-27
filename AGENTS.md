@@ -1,25 +1,37 @@
 # Working in sotn-native
 
+[Selected Wing Smash](docs/player-wing-smash.md) now connects owned Bat commands,
+private spell/critical-hit data, real factories/children, fan/trails, native enemy
+combat/EXP and original return. Preserve actual slot masks shared with Gas Cloud,
+critical retries, per-group cooldown across generations, full-parameter flash
+deduplication, original retained phase four and rebases without extra ticks.
+Pending factories never signal readiness. Ordinary starts grant no relics; saves
+remain v9. All-ability factory/group/primitive contention, afterimages, dust/shake,
+Fire/Echo/Wolf and whole-route/console parity remain incomplete. Do not call Bat,
+Alucard, the castle or the game complete.
+
 The [player-ability factory component](docs/player-ability-factories.md) now
 reconstructs private blueprint scheduling and actual-mask slot selection. It owns
 no second pool and enables no abilities by itself. Preserve critical retries,
 optional partial retirement, first/later origin ordering, per-cycle versus lifetime
 parameters, forced weapon replacement and valid zero-identity slot clears. Actual
 factory reservation, child generations, behaviors and shared attack/primitive
-ownership remain the native session's responsibility.
+ownership remain the native session's responsibility. The [selected Wing Smash runtime](docs/player-wing-smash.md)
+now owns real Bat factories/children; full all-ability sharing remains incomplete.
 
 [Bat special presentation components](docs/bat-special-presentation.md) now run
-selected Fire/Wing flashes and shrinking trails. They do not enable live command
-abilities. Preserve fan/strip mirror differences, original 0x7009 fallthrough and
+selected Fire/Wing flashes and shrinking trails. Their [selected Wing Smash integration](docs/player-wing-smash.md) now runs live;
+Fire remains a component. Preserve fan/strip mirror differences, original 0x7009 fallthrough and
 retained phase four, real transformation-lock removal, live frame/frozen trail
-orientation and scale-before-SDK-rotation. Shared factories/combat remain unintegrated.
+orientation and scale-before-SDK-rotation. Full shared factories/combat remain incomplete.
 
 The [Bat command/motion component](docs/bat-command-motion.md) now reconstructs
 Wing Smash input and Wing/Fire controller paths after the form resource gate.
-It emits original requests; it does not enable command abilities in gameplay.
+It emits original requests; [selected Wing Smash](docs/player-wing-smash.md) now consumes
+those requests in gameplay. Fire/Echo remain unavailable.
 Preserve exact directional words, wrapping timers, US repeat casts, exact-cost
 spell MP and slope ordering. Actual child/combat/visual ownership must be wired
-before enabling these controls or Fire/Echo relic switches.
+before enabling further controls or Fire/Echo relic switches.
 
 Selected [playable Bat](docs/player-bat.md) now connects owned E/Xbox RB entry,
 ordinary flight, real Blink/sensor restoration, MP, collision and damage. Preserve
@@ -27,7 +39,7 @@ actual generation ownership, per-frame rotation flags, shared settling, original
 16/24-tick lockouts and real Mist cross-conversion. Bat uses step five; its return
 uses step nine. Raw textured body packets must ignore vertex colors. Room changes
 rebase without advancing effects; stage initialization/Continue restore normal form.
-Ordinary starts grant no relics. Wing Smash, Fire/Echo, Wolf, shared effect contention,
+Ordinary starts grant no relics. Selected Wing Smash now runs; Fire/Echo, Wolf, shared effect contention,
 full effects/audio and whole-route/console parity remain incomplete.
 
 The [Bat presentation foundation](docs/player-bat-presentation.md) now decodes
@@ -39,7 +51,7 @@ separately from Mist capture profiles; retain original margins and immutable inp
 artwork. The owner must apply Bat's live settling pivot. Start/Select use original
 US words 0x0800/0x0100 internally, leaving shoulder bits available; keep SDL keyboard/
 gamepad menu controls unchanged. Runtime inputs/traces stay private. Shared effects,
-commands and full collision/damage/console parity remain incomplete.
+Fire/Echo commands and full collision/damage/console parity remain incomplete.
 
 Selected [Gas Cloud combat](docs/player-gas-cloud.md) now connects owned entry,
 private spell/INT/RNG/Mojo Mail initialization, actual cloud hitboxes and shared
@@ -48,8 +60,8 @@ seventeen-child request's sixteen-slot allocation limit, negative midpoint
 truncation and one RNG value per actual child. Relic toggles suspend/resume existing
 children; enabling midway through Mist never creates a missing factory. Room
 rebases refresh positions without advancing the visual; normal/stage reset retires
-transient children. The native budget is currently uncontended and its group-four
-channel is separate from other ability allocators. Shared factory/group contention,
+transient children. Actual Gas/Bat child masks now share selected slot availability; its group-four
+channel remains separate from other ability allocators. Shared factory/group contention,
 ordinary acquisition and whole-route/console parity remain incomplete.
 
 Selected [Mist traversal](docs/player-mist.md) now connects owned relic/MP gates,
@@ -59,7 +71,7 @@ starts grant no new relics. Use the absolute simulation clock, freeze original M
 recovery in transformed states, and retain generation ownership. Never substitute
 a timer for the actual visual phase-5 signal; normal return releases the real child.
 Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
-bottom room window. Bat commands/Wolf, shared effect contention,
+bottom room window. Fire/Echo/Wolf, shared effect contention,
 restoration flashes, full raster/audio/parity and ordinary acquisition remain
 incomplete. Do not call Alucard, the castle, its areas or the game complete.
 

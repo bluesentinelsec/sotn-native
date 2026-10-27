@@ -53,9 +53,12 @@ struct SotnPlayer
     SotnMistMotion mist_motion;
     SotnPlayerMist mist;
     SotnPlayerBat bat;
+    SotnBatCommand bat_command;
+    SotnBatCommandEvents bat_commands;
     Uint32 bat_counter;
+    Uint8 bat_input_hold;
     Uint16 animation_bank, form_pose;
-    bool bat_context, bat_factory_available, bat_screech, form_rotated;
+    bool bat_context, bat_factory_available, bat_screech, form_rotated, bat_specials;
     Uint32 mist_game_timer, mist_visual_generation;
     Uint8 mist_visual_phase, mist_lockout;
     bool mist_context, mist_visual_present, mist_underwater;

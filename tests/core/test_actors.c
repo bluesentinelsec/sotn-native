@@ -389,7 +389,9 @@ static bool TestGasContact(Fixture *f)
                                      .hit_effect = 1,
                                      .invincibility_frames = 8,
                                      .active = true};
-    cloud.children[0] = cloud.children[1] = (SotnGasCloudChild){160, 140, attack};
+    cloud.children[0] = (SotnGasCloudChild){.x = 160, .y = 140, .attack = attack, .slot = 32};
+    cloud.children[1] = cloud.children[0];
+    cloud.children[1].slot = 33;
     CHECK(SotnActors_SetGasCloud(actors, &cloud));
     SotnActorState enemy = {0};
     CHECK(SotnActors_Tick(actors, player, 0, 0));
@@ -408,6 +410,58 @@ static bool TestGasContact(Fixture *f)
     CHECK(SotnActors_Tick(actors, player, 0, 0));
     CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points <= 0);
     CHECK(SotnActors_SetGasCloud(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
+static bool TestWingContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    // Authored owned child snapshots isolate contact/cooldown from factory tests.
+    SotnBatRuntime runtime = {.wing_mask = 3};
+    runtime.children[1] = (SotnBatRuntimeChild){.source = {.x = 160 * 65536, .y = 140 * 65536},
+                                                .kind = 36,
+                                                .generation = 7,
+                                                .group = 3,
+                                                .initialized = true,
+                                                .state.attack = {.power = 3,
+                                                                 .width = 32,
+                                                                 .height = 32,
+                                                                 .hit_type = 2,
+                                                                 .hit_effect = 1,
+                                                                 .invincibility_frames = 8,
+                                                                 .active = true}};
+    runtime.children[2] = runtime.children[1];
+    runtime.children[2].generation = 8;
+    CHECK(SotnActors_SetBatRuntime(actors, &runtime));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9);
+    // Same-group overlapping children and replacements cannot restart enemy cooldown.
+    ++runtime.children[1].generation;
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+        CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9);
+    }
+    runtime.children[2].group = 4;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy));
+    CHECK(enemy.hit_points == 6);
+    runtime.wing_mask = 2;
+    for (Uint16 i = 0; i < 20; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points <= 0);
+    CHECK(SotnActors_SetBatRuntime(actors, NULL));
     SotnActors_Destroy(actors);
     SotnActorLayout_Close(layout);
     return true;
@@ -441,7 +495,7 @@ int main(void)
     const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
                         TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
                         TestKickContact(fixture) && TestGasContact(fixture) &&
-                        TestFailures(fixture);
+                        TestWingContact(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

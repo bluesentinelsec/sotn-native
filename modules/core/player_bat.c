@@ -35,17 +35,21 @@ static bool Generation(SotnPlayer *p)
     p->bat.generation = ++p->bat_counter;
     return true;
 }
-bool SotnPlayer_SetBatContext(SotnPlayer *p, const SotnPlayerBlink *effect, Uint32 generation,
-                              bool available)
+static bool Bind(SotnPlayer *p, const SotnPlayerBlink *effect, const SotnPlayerFactory *pending,
+                 Uint32 generation, bool available, bool specials)
 {
-    if (!p || (!effect && generation) ||
+    if (!p || (effect && pending) || (!effect && !pending && generation) ||
+        (pending && (!generation || generation != p->bat.generation || pending->removed ||
+                     !pending->entity_id || pending->blueprint != 44 ||
+                     (pending->parameter != 0x2000 && pending->parameter != 0x2100))) ||
         (effect &&
          (!generation || generation != p->bat.generation || effect->removed ||
           (effect->parameter != 0x20 && effect->parameter != 0x21 && effect->parameter != 0x1b))) ||
         (p && p->bat.active && p->bat.generation && p->bat.signal < 3 && !p->mist.active &&
-         (!effect || generation != p->bat.generation)))
+         ((!effect && !pending) || generation != p->bat.generation)))
         return SDL_SetError("Bat context requires the current actual generation-owned effect");
     p->bat_context = true;
+    p->bat_specials = specials;
     p->bat_factory_available = available;
     if (effect && generation == p->bat.generation)
     {
@@ -55,6 +59,17 @@ bool SotnPlayer_SetBatContext(SotnPlayer *p, const SotnPlayerBlink *effect, Uint
             p->bat.signal = 3;
     }
     return true;
+}
+bool SotnPlayer_SetBatContext(SotnPlayer *p, const SotnPlayerBlink *effect, Uint32 generation,
+                              bool available)
+{
+    return Bind(p, effect, NULL, generation, available, false);
+}
+bool SotnPlayer_SetBatRuntimeContext(SotnPlayer *p, const SotnPlayerBlink *effect,
+                                     const SotnPlayerFactory *pending, Uint32 generation,
+                                     bool available)
+{
+    return Bind(p, effect, pending, generation, available, true);
 }
 void SotnPlayer_BatCancel(SotnPlayer *p)
 {
@@ -146,6 +161,42 @@ void SotnPlayer_BatTick(SotnPlayer *p)
     const Uint16 directions = p->buttons & 0xf000U;
     const bool jump = (p->buttons & SOTN_BUTTON_JUMP) != 0;
     bool screech = false;
+    if (p->bat_specials)
+    {
+        SotnBatCommandFrame frame = {.animation = p->animation,
+                                     .substep = p->substep,
+                                     .velocity_x = p->vx,
+                                     .velocity_y = p->vy,
+                                     .rotation = p->bat.rotation,
+                                     .buttons = p->buttons,
+                                     .tapped = p->tapped,
+                                     .contacts = (Uint16)p->contact,
+                                     .mp = p->mp,
+                                     .game_timer = p->mist_game_timer,
+                                     .facing_left = p->facing_left};
+        if (!SotnBatCommand_Tick(&p->bat_command, p->dra, &frame, &p->bat_commands))
+        {
+            p->failed = true;
+            return;
+        }
+        p->animation = frame.animation;
+        p->substep = frame.substep;
+        p->vx = frame.velocity_x;
+        p->vy = frame.velocity_y;
+        p->bat.rotation = frame.rotation;
+        p->mp = frame.mp;
+        p->mp_spent = (Uint16)(p->mp_spent + p->bat_commands.mp_spent);
+        if (p->bat_commands.return_requested)
+        {
+            p->tapped = SOTN_BUTTON_BAT;
+            (void)Finished(p);
+            p->bat_input_hold = 32;
+            if (p->bat_commands.wall_impact)
+                p->sound = 0x644;
+        }
+        if (p->bat_commands.handled)
+            goto settling;
+    }
     switch (p->substep)
     {
     case 0:
@@ -280,6 +331,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
         SDL_SetError("Selected Bat flight has an unintegrated command state");
         return;
     }
+settling:
     if (p->bat.settle_y)
     {
         if (p->vx > 0)

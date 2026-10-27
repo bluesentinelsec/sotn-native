@@ -2,6 +2,7 @@
 #define SOTN_ACTORS_H
 
 #include <sotn/actor_layout.h>
+#include <sotn/bat_runtime.h>
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
 #include <sotn/gas_cloud.h>
@@ -295,6 +296,10 @@ bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
  * @return Success or SDL error. All children share one original group-four cooldown;
  * changing generations never resets an enemy's existing cooldown. */
 bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud);
+/** @brief Borrow actual selected Bat attack children and original attack-group identities.
+ * @param actors Borrowed scene. @param runtime Borrowed owner, alive until replaced/destruction.
+ * @return Success or SDL error. NULL disables this source; group cooldowns survive replacement. */
+bool SotnActors_SetBatRuntime(SotnActors *actors, const SotnBatRuntime *runtime);
 /** @brief Bind a borrowed projectile service, alive through actor destruction; NULL disables it.
  * @param actors Borrowed actors. @param service Borrowed service. @return Success or SDL error. */
 bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);

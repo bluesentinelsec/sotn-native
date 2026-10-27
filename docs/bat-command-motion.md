@@ -1,12 +1,11 @@
 # Bat command and special-flight motion
 
 The core now reconstructs Wing Smash's directional command and the selected
-Wing Smash/Fire of Bat controller paths. This component does not yet enable these
-abilities in gameplay: actual attack children, visual owners and their shared
-allocation/combat services still need integration. [Special presentation
-components](bat-special-presentation.md) now cover selected flashes and trails. Ordinary Bat flight continues
-to use its existing [selected runtime](player-bat.md); Fire/Echo relic switches
-remain unavailable.
+Wing Smash/Fire of Bat controller paths. [Selected Wing Smash](player-wing-smash.md)
+now connects the command to actual factories, attacks, visuals, learning and return
+in gameplay. Fire/Echo relic switches remain unavailable; their child behaviors
+and shared services still need integration. The component comparisons below cover
+supplied contexts independently of that selected runtime.
 
 The copied controller context advances after the form's own resource gate. Original
 Wing Smash input holds jump through up, up-back, back, down-back, down, down-forward

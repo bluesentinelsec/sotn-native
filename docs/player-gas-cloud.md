@@ -59,7 +59,8 @@ version-nine load retain all three relics and retire transient children. Existin
 user slots remain untouched. These fixtures do not establish ordinary acquisition,
 uninterrupted traversal or console parity.
 
-The session currently supplies an uncontended sixteen-slot budget. Shared original
+The session now exchanges actual slot masks with the [selected Bat runtime](player-wing-smash.md),
+retaining each allocated slot even while its hitbox is disabled. Shared original
 factory/entity contention with every projectile, familiar and spell remains
 incomplete, as does interleaving all original attack groups and entity update
 order. Gas Cloud uses one dedicated native cooldown channel for its original group;

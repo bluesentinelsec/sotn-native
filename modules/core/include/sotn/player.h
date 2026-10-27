@@ -2,10 +2,12 @@
 #define SOTN_PLAYER_H
 
 #include <sotn/animation.h>
+#include <sotn/bat_command.h>
 #include <sotn/character.h>
 #include <sotn/collision.h>
 #include <sotn/mist_effect.h>
 #include <sotn/player_blink.h>
+#include <sotn/player_factory.h>
 #include <sotn/world.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
@@ -179,8 +181,9 @@ typedef struct SotnPlayerState
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
     SotnPlayerMist mist;
     SotnPlayerBat bat;
-    Uint16 animation_bank; /**< Actual normal (1) or Bat (13) private artwork bank. */
-    bool rotated;          /**< This simulation frame's selected original transform draw flag. */
+    SotnBatCommandEvents bat_commands; /**< Actual this-tick special-ability factory requests. */
+    Uint16 animation_bank;             /**< Actual normal (1) or Bat (13) private artwork bank. */
+    bool rotated; /**< This simulation frame's selected original transform draw flag. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -276,6 +279,18 @@ bool SotnPlayer_SetMistContext(SotnPlayer *player, const SotnMistEffect *effect,
  * The caller must create started/return_started children and advance them before the next bind. */
 bool SotnPlayer_SetBatContext(SotnPlayer *player, const SotnPlayerBlink *effect, Uint32 generation,
                               bool factory_available);
+
+/** @brief Bind the actual Bat runtime, enabling selected Wing Smash commands.
+ * @param player Borrowed player. @param effect Actual current transformation child or NULL.
+ * @param pending Actual live transformation factory while its child awaits allocation, or NULL.
+ * @param generation Current nonzero owner identity if effect/pending exists, otherwise zero.
+ * @param factory_available Whether a real factory slot is available for a new request.
+ * @return Success or SDL error without mutation for stale/missing/incompatible owners.
+ * Effect and pending are mutually exclusive and copied immediately. A pending factory never
+ * advances visual readiness. The caller runs the real factories, children and combat service. */
+bool SotnPlayer_SetBatRuntimeContext(SotnPlayer *player, const SotnPlayerBlink *effect,
+                                     const SotnPlayerFactory *pending, Uint32 generation,
+                                     bool factory_available);
 
 /** @brief Deliver original contact feedback to the current owned dive-kick child.
  * @param player Borrowed simulation. @param generation Current nonzero child identity.
