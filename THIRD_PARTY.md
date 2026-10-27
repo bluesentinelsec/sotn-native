@@ -659,3 +659,7 @@ Spell tables remain private runtime inputs.
 [Bat special presentation components](docs/bat-special-presentation.md) adapt
 selected `dra/7879C.c` and `4B758.c` from the pinned AGPL-3.0-or-later reference.
 All source artwork/profiles/math tables remain private runtime inputs.
+
+The [player-ability factory component](docs/player-ability-factories.md) adapts
+`dra/7879C.c` and `get_free_entity.h` from the pinned AGPL-3.0-or-later reference.
+Factory blueprints/ranges remain private runtime inputs.

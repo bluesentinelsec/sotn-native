@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [player-ability factory component](docs/player-ability-factories.md) now
+reconstructs private blueprint scheduling and actual-mask slot selection. It owns
+no second pool and enables no abilities by itself. Preserve critical retries,
+optional partial retirement, first/later origin ordering, per-cycle versus lifetime
+parameters, forced weapon replacement and valid zero-identity slot clears. Actual
+factory reservation, child generations, behaviors and shared attack/primitive
+ownership remain the native session's responsibility.
+
 [Bat special presentation components](docs/bat-special-presentation.md) now run
 selected Fire/Wing flashes and shrinking trails. They do not enable live command
 abilities. Preserve fan/strip mirror differences, original 0x7009 fallthrough and
