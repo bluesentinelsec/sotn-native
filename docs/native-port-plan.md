@@ -64,7 +64,9 @@ not establish ordinary acquisition, connected travel or whole-route parity.
 The internal [transformation resource service](transformation-resources.md) now
 preserves Bat/Mist/Wolf relic eligibility, strict MP thresholds and original
 simulation-timer drain cadence. This is a tested component; transformation
-movement, collision, effects and controls remain unintegrated.
+movement, collision, effects and controls remain unintegrated. The selected
+[Mist movement component](mist-motion.md) now has independent instruction checks,
+but remains outside gameplay until collision, effects and restoration are ready.
 
 ## Pinned reference
 
