@@ -82,6 +82,14 @@ static bool Pair(OlroxLeg *leg, Sint16 upper, Sint16 lower, Sint16 amount)
     const bool b = Joint(&leg->lower, &leg->lower_velocity, lower, amount);
     return a && b;
 }
+bool OlroxMonster_Pair(SotnActors *s, Actor *body, Uint16 index, Sint16 upper, Sint16 lower,
+                       Sint16 amount, bool *arrived)
+{
+    if (!arrived || index > 1 || amount <= 0 || amount > 4096 || !OlroxMonster_Bind(s, body))
+        return SDL_SetError("Olrox joint pair requires its owned body, leg and positive step");
+    *arrived = Pair(&s->olrox_monster.legs[index], upper, lower, amount);
+    return true;
+}
 static void Advance(OlroxLeg *leg, Sint16 upper, Sint16 lower, Sint16 amount)
 {
     if (Pair(leg, upper, lower, amount))

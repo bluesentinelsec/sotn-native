@@ -172,3 +172,7 @@ changes that rule. Do not bulk-vendor the reference repository.
 
 The [native sound service](laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
+
+The selected [Olrox monster body component](olrox-monster-body.md) now connects
+articulated movement and head/arm commands. Shared combat and the complete
+defeat/reward flow still gate the second form's gameplay dispatch.
