@@ -822,16 +822,17 @@ static bool Death(SotnActors *s, Actor *a)
             !Pose(s, a, other, OLROX_SLOW_SWING, &arrived) || !Anchor(s, a))
             return false;
         head->state.palette = 0x8219;
-        Sint16 shift = 0;
-        if (!OlroxMonster_Floor(s, a, other, &shift))
+        Sint16 floor_shift = 0;
+        if (!OlroxMonster_Floor(s, a, other, &floor_shift))
             return false;
-        OlroxLeg *leg = &s->olrox_monster.legs[other], *base = &s->olrox_monster.legs[support];
-        if (leg->contact && base->horizontal < leg->horizontal)
+        OlroxLeg *other_leg = &s->olrox_monster.legs[other],
+                 *base = &s->olrox_monster.legs[support];
+        if (other_leg->contact && base->horizontal < other_leg->horizontal)
         {
             if (!ActorSound(s, 0x647))
                 return false;
             ++a->olrox.walk_count;
-            Whole(&leg->foot_y, Pixel(leg->foot_y) + shift);
+            Whole(&other_leg->foot_y, Pixel(other_leg->foot_y) + floor_shift);
             ClearPhases(s);
             if (a->olrox.walk_count >= 2)
             {

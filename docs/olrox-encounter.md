@@ -96,8 +96,8 @@ A second native sequence defeats both forms using ordinary development Gladius
 attacks, follows the actual transformation/defeat, collects the Life Max Up
 (original +5 maximum HP), checks restored area music and door release, and exits
 successfully. It uses an explicit arena start and contact protection, with no
-stat, equipment, relic or death-flag grants. The actual CMake Debug executable
-independently passes this sequence through muted LLDB at a seven-tick presentation
+stat, equipment, relic or death-flag grants. The actual CMake Debug and ASan/UBSan executables
+independently pass this sequence through muted LLDB at a seven-tick presentation
 cadence and closes through normal SDL quit without writing ordinary user slots.
 A focused three-versus-seven-tick presentation comparison also matches checkpoint
 image hashes, RNG streams, damage contacts and final simulation tick through the
