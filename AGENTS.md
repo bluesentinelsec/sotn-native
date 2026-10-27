@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+Selected [Olrox appendage components](docs/olrox-monster-appendages.md) now retain
+owned feet/knees, tail growth/poses, fifteen arm commands, hand break/recovery,
+selected captured defeat sprites and independent burst particles. Preserve the
+signed-controller/unsigned-geometry extension byte, fractional attachments,
+generation ownership and original burst RNG. These components remain outside
+gameplay dispatch pending the real body/head/attack/death flow. Seeded command
+and body-signal traces are not a playable second form or an encounter replay.
+
 Selected [Olrox articulated geometry components](docs/olrox-monster-geometry.md)
 now reconstruct four packets per leg, two torso packets, owned attachments and
 the original bank-seven sprite packet helper. Preserve signed rounding, circular

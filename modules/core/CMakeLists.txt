@@ -47,6 +47,7 @@ add_library(sotn-core STATIC
   olrox_morph.c
   olrox_monster_motion.c
   olrox_monster_geometry.c
+  olrox_monster_appendages.c
   olrox_monster_internal.h
   olrox_internal.h
   olrox_prisoner.c

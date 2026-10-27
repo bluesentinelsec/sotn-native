@@ -408,8 +408,18 @@ typedef struct Actor
         Sint16 column_width, column_spread, column_radii[7];
         Sint16 morph_timer, morph_delay, morph_brightness;
         Sint16 body_angle, body_velocity;
-        Uint8 support_leg, body_style;
+        Uint8 support_leg, body_style, death_phase;
     } olrox;
+    struct
+    {
+        Sint16 angle[9], velocity[8], growth;
+        Uint8 phase;
+    } olrox_tail;
+    struct
+    {
+        Sint16 angle[4], velocity[4];
+        Uint8 hand_frame[2], extension[2], rotate_hands, damaged;
+    } olrox_arms;
 } Actor;
 
 struct SotnActors

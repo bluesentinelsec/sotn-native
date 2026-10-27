@@ -13,6 +13,13 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 owned appendages**, AGPL-3.0-or-later.
+  `modules/core/olrox_monster_appendages.c` reconstructs selected BO0 `313A8.c`
+  part controllers and shared `st/e_misc.h` burst particles. Selected
+  `olrox_monster_geometry.c` captures follow `dra/4B758.c:func_800EB758`.
+  Original profiles, frames and SDK tables remain private. See
+  [scope and validation](docs/olrox-monster-appendages.md).
+
 - **Reconstructed BO0 articulated geometry helpers**, AGPL-3.0-or-later.
   `modules/core/olrox_monster_geometry.c` reconstructs selected BO0 `313A8.c`
   leg, torso and sprite packet helpers at the pinned revision below. Profiles,
