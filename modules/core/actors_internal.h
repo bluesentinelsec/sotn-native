@@ -394,6 +394,8 @@ typedef struct Actor
         Uint16 timer;
         Uint8 release_orbs, close_portal, fire_skulls, decision;
         bool movement_left;
+        Uint8 angle;
+        Sint16 angle12;
     } olrox;
 } Actor;
 

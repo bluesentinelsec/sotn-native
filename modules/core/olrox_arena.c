@@ -121,6 +121,10 @@ bool ActorOlroxArena(SotnActors *s, Actor *a)
     case 0x2b:
     case 0x2c:
         return ActorOlroxFirst(s, a);
+    case 0x2d:
+    case 0x2e:
+    case 0x2f:
+        return ActorOlroxOrbs(s, a);
     case 0x49:
         return BossDoor(s, a);
     default:

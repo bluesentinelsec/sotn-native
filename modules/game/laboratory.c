@@ -404,11 +404,6 @@ static Sint32 Pixel(Sint32 fixed)
     return fixed >= 0 ? fixed / 65536 : (Sint32)(-((-(Sint64)fixed + 65535) / 65536));
 }
 
-static Sint16 SpriteScale(Uint16 packed)
-{
-    return packed < 32768U ? (Sint16)packed : (Sint16)((Sint32)packed - 65536);
-}
-
 static void Camera(const SotnLaboratory *session, SotnPlayerState player, Sint32 *x, Sint32 *y)
 {
     (void)player;
@@ -1034,9 +1029,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     if (stage_id == 30)
         SDL_Log(
             "Olrox arena internal foundation: private room/artwork/sound resources, "
-            "common pickups, decorations, paired doors and selected humanoid body/physical damage. "
-            "Attack children, transformation, second form, final defeat/reward and connected "
-            "progression are not integrated.");
+            "common pickups, decorations, paired doors, humanoid combat, orbs, portals and bats. "
+            "Fireballs, skull columns, transformation, second form, final victory and connected "
+            "progression remain incomplete.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
@@ -1725,22 +1720,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (command.kind == SOTN_DRAW_ACTOR &&
             !DrawActorPrimitives(session, actor, camera_x, camera_y))
             return ActorDrawError(actor);
-        if ((actor.frame & 0x7fffU) == 0 ||
-            (actor.scale_set && (actor.scale_x == 0 || actor.scale_y == 0)))
+        const SotnSpriteTransform transform = SotnActorGraphics_GetTransform(actor);
+        if ((actor.frame & 0x7fffU) == 0 || transform.scale_x == 0 || transform.scale_y == 0)
             goto draw_complete;
-        if (!SotnActorGraphics_DrawTransform(
-                session->actor_graphics, sprite, Pixel(actor.x) - camera_x,
-                Pixel(actor.y) - camera_y,
-                (SotnSpriteTransform){.rotation = actor.rotated ? actor.rotation : 0,
-                                      .scale_x = actor.scale_x ? SpriteScale(actor.scale_x) : 256,
-                                      .scale_y = actor.scale_y ? SpriteScale(actor.scale_y) : 256,
-                                      .opacity =
-                                          actor.opacity_set || actor.opacity ? actor.opacity : 128,
-                                      .tint = actor.tinted,
-                                      .red = actor.red,
-                                      .green = actor.green,
-                                      .blue = actor.blue},
-                session->frame, SOTN_FRAME_PIXELS))
+        if (!SotnActorGraphics_DrawTransform(session->actor_graphics, sprite,
+                                             Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
+                                             transform, session->frame, SOTN_FRAME_PIXELS))
             return ActorDrawError(actor);
     draw_complete:
         if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,

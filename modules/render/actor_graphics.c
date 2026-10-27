@@ -944,6 +944,30 @@ bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q
     return QuadDraw(graphics, q, frame, count, true);
 }
 
+static Sint16 SpriteScale(Uint16 value)
+{
+    return value < 32768U ? (Sint16)value : (Sint16)((Sint32)value - 65536);
+}
+SotnSpriteTransform SotnActorGraphics_GetTransform(SotnActorState a)
+{
+    const bool explicit_flags = a.transform_flags_set;
+    const bool scale_x =
+        explicit_flags ? (a.transform_flags & SOTN_ACTOR_SCALE_X) != 0 : a.scale_set || a.scale_x;
+    const bool scale_y =
+        explicit_flags ? (a.transform_flags & SOTN_ACTOR_SCALE_Y) != 0 : a.scale_set || a.scale_y;
+    const bool rotation = explicit_flags ? (a.transform_flags & SOTN_ACTOR_ROTATE) != 0 : a.rotated;
+    const bool opacity =
+        explicit_flags ? (a.transform_flags & SOTN_ACTOR_OPACITY) != 0 : a.opacity_set || a.opacity;
+    return (SotnSpriteTransform){.rotation = rotation ? a.rotation : 0,
+                                 .scale_x = scale_x ? SpriteScale(a.scale_x) : 256,
+                                 .scale_y = scale_y ? SpriteScale(a.scale_y) : 256,
+                                 .opacity = opacity ? a.opacity : 128,
+                                 .tint = a.tinted,
+                                 .red = a.red,
+                                 .green = a.green,
+                                 .blue = a.blue};
+}
+
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
                                      Sint32 y, SotnSpriteTransform transform, Uint16 *frame,
                                      size_t count)

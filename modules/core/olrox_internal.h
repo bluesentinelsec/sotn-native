@@ -18,4 +18,9 @@ bool OlroxReserved(SotnActors *actors, Actor *parent, Uint16 relative, Uint16 id
                    Actor **out);
 /** @brief Get a generation-checked child from the body's original reserved block. */
 Actor *OlroxChild(SotnActors *actors, const Actor *parent, Uint16 relative);
+/** @brief Advance BO0 orbiting projectiles, portals or their owned bats/shadows.
+ * @param actors Borrowed arena services and private tables. @param actor Borrowed owned actor.
+ * @return Success, or false with SDL error on invalid state/resources/geometry.
+ * Missing/reused parent generations retire dependent effects without touching new owners. */
+bool ActorOlroxOrbs(SotnActors *actors, Actor *actor);
 #endif

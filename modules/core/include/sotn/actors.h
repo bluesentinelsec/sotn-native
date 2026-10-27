@@ -102,6 +102,15 @@ bool SotnActors_GetPaletteBlend(const SotnActors *actors, SotnPaletteBlend *out)
  * @return Success or SDL error; the renderer owns and validates the affected palette memory. */
 bool SotnActors_GetPaletteRedShift(const SotnActors *actors, SotnPaletteRedShift *out);
 
+/** @brief Selected original sprite-transform bits, independently enabling each stored value. */
+typedef enum SotnActorTransformFlag
+{
+    SOTN_ACTOR_SCALE_X = 1,
+    SOTN_ACTOR_SCALE_Y = 2,
+    SOTN_ACTOR_ROTATE = 4,
+    SOTN_ACTOR_OPACITY = 8
+} SotnActorTransformFlag;
+
 /** @brief Copied actor state used by native presentation and replay inspection. */
 typedef struct SotnActorState
 {
@@ -115,11 +124,13 @@ typedef struct SotnActorState
     bool tinted;
     Uint8 red, green, blue;
     Sint16 rotation, bat_offset;          /**< BO4's original current-pose horizontal adjustment. */
-    bool rotated, opacity_set, scale_set; /**< Flags distinguish explicit zero from defaults. */
+    bool rotated, opacity_set, scale_set; /**< Legacy explicit-zero selectors. */
+    Uint8 transform_flags; /**< Selected original bits above; stored values may remain disabled. */
+    bool transform_flags_set; /**< When true, these bits govern transforms, including flags zero. */
     Uint16 primitive_count;
     Uint16 slot;
-    Uint16 scale_x, scale_y,
-        opacity; /**< Zero selects unit scale/neutral color unless scale_set/opacity_set is true. */
+    Uint16 scale_x, scale_y, opacity; /**< Cached words; explicit transform bits override legacy
+                                         zero/default selectors. */
 } SotnActorState;
 
 /** @brief Copied stage primitive, owned by its actor; positions are room-local 16.16 pixels. */
