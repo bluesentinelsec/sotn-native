@@ -70,6 +70,9 @@ Ordinary starts grant no relics. [Gas Cloud combat](player-gas-cloud.md) now run
 within its selected scope. Bat/Wolf, complete effects
 and ordinary acquisition remain incomplete; component comparisons do not prove
 whole-route or console parity.
+The [Bat presentation foundation](player-bat-presentation.md) now has separate
+artwork and real effect-controller checks; live Bat movement/ownership remains
+unintegrated.
 
 ## Pinned reference
 

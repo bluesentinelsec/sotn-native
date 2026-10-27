@@ -150,6 +150,25 @@ static bool TestSprite(Buffers *buffers)
     CHECK(SotnAlucard_DecodeSprite(image, sheets, 1, &sprite));
     CHECK(sprite.width == 4 && sprite.height == 2 && sprite.pixels.size == 4);
     CHECK(sprite.pivot_x == -1 && sprite.pivot_y == 1);
+    Put32(dra, 0x2fe4c, 0x800cf800);
+    Put32(arc, 4, 0x8013c050);
+    Put32(arc, 84, 0x8013c060);
+    arc[96] = 8;
+    arc[97] = 3;
+    arc[98] = 5;
+    arc[99] = 7;
+    SotnAlucardSprite bat = {0};
+    CHECK(SotnAlucard_DecodeBat(image, sheets, 1, &bat));
+    CHECK(bat.width == 8 && bat.height == 3 && bat.pivot_x == 3 && bat.pivot_y == 6 &&
+          bat.pixels.bytes == arc + 100 && bat.pixels.size == 12);
+    const SotnAlucardSprite saved_bat = bat;
+    CHECK(!SotnAlucard_DecodeBat(image, (SotnDataView){arc, 111}, 1, &bat));
+    CHECK(!SDL_memcmp(&bat, &saved_bat, sizeof(bat)));
+    CHECK(!SotnAlucard_DecodeBat(image, sheets, 17, &bat));
+    CHECK(!SotnAlucard_DecodeBat(image, sheets, 18, &bat));
+    Put32(arc, 4, 0x8013c07f);
+    CHECK(!SotnAlucard_DecodeBat(image, sheets, 1, &bat));
+    CHECK(SotnAlucard_DecodeBat(image, sheets, 0, &bat) && bat.width == 0);
     SDL_memset(buffers->common + 0x40000, 0, 32);
     Put16(buffers->common, 0x40002, 0x001f);
     Put16(buffers->common, 0x40004, 0x03e0);

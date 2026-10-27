@@ -19,6 +19,13 @@ typedef struct SotnActorGraphics SotnActorGraphics;
  * when constructing a fresh player texture owner; never reset live palette jobs each frame. */
 bool SotnActorGraphics_InitPlayerPalettes(SotnActorGraphics *graphics);
 
+/** @brief Upload actual normal/Bat packed pixels into the original owned player display slot.
+ * @param graphics Borrowed texture owner. @param sprite Borrowed actual decoded private image.
+ * @return Success or SDL error without texture mutation for invalid pixels/display metadata.
+ * Preserves original right/bottom clear margins. Geometry, rotation and effect profiles
+ * belong to their respective callers; this operation changes no animation or readiness. */
+bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
+
 /** @brief Capture an unrotated normal Alucard pose into his original owned display slot.
  * @param graphics Borrowed texture owner. @param sprite Actual decoded private ARC pose.
  * @param x Signed-word screen anchor X. @param y Signed-word screen anchor Y.

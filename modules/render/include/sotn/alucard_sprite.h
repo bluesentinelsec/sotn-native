@@ -24,6 +24,15 @@ typedef struct SotnAlucardSprite
 bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
                               SotnAlucardSprite *out);
 
+/** @brief Decode original bank-thirteen Bat artwork through its separate ARC table.
+ * @param dra Borrowed private DRA metadata. @param arc Borrowed private ARC image.
+ * @param frame Original Bat frame below eighteen; zero is empty, null entries fail.
+ * @param out Borrowed sprite pixels and copied dimensions/pivot, unchanged on failure.
+ * @return Success or SDL error for invalid pointers, dimensions, table or frame.
+ * Both input images must outlive the decoded borrowed pixels. No artwork is copied. */
+bool SotnAlucard_DecodeBat(SotnDataView dra, SotnDataView arc, Uint16 frame,
+                           SotnAlucardSprite *out);
+
 /**
  * @brief Draw an untransformed Alucard sprite using the original base palette.
  * @param sprite Borrowed decoded sprite and immutable pixels.

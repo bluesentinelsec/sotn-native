@@ -1295,6 +1295,43 @@ static void CaptureEdge(Uint16 edge, Sint32 width, Sint32 height, Sint32 *x, Sin
         break;
     }
 }
+static bool PlayerSlot(const SotnActorGraphics *g, const SotnAlucardSprite *sprite, Uint32 *x,
+                       Uint32 *y)
+{
+    if (!g || !sprite || g->dra.size < 0x21bc || !sprite->width || sprite->width > 252 ||
+        sprite->width % 4 || !sprite->height || sprite->height > 254 || !sprite->pixels.bytes ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2)
+        return SDL_SetError("Player upload requires bounded actual packed sprite pixels");
+    const Uint32 sx = Read16(g->dra.bytes + 0x21b8), sy = Read16(g->dra.bytes + 0x21ba) & 511U;
+    if ((sx & 63U) * 4U != 4 || (sy & 255U) != 1 || (sx >> 6) + 0x10U != 0x18 ||
+        sx + sprite->width / 4U >= 1024 || sy + sprite->height + 4 > 512)
+        return SDL_SetError("Player display slot disagrees with original packed sprite UVs");
+    *x = sx;
+    *y = sy;
+    return true;
+}
+bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite)
+{
+    Uint32 slot_x = 0, slot_y = 0;
+    if (!PlayerSlot(g, sprite, &slot_x, &slot_y))
+        return false;
+    const Uint32 width = sprite->width / 4U, height = sprite->height;
+    Upload(g, slot_x, slot_y, width, height, sprite->pixels.bytes);
+    for (Uint32 row = 0; row < height + 4; ++row)
+    {
+        const size_t pixel = (size_t)(slot_y - 1U + row) * 1024U + slot_x + width;
+        g->words[pixel] = 0;
+        g->valid[pixel] = 1;
+    }
+    for (Uint32 row = 0; row < 4; ++row)
+        for (Uint32 column = 0; column < width + 2; ++column)
+        {
+            const size_t pixel = (size_t)(slot_y + height + row) * 1024U + slot_x - 1U + column;
+            g->words[pixel] = 0;
+            g->valid[pixel] = 1;
+        }
+    return true;
+}
 bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
                                      Sint32 x, Sint32 y, bool facing_left, SotnMistWedge out[8])
 {
@@ -1308,12 +1345,6 @@ bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *g, const SotnAlucardSpri
     if (Read16(g->dra.bytes + 0xd670 + 29U * 20U + 14U) != 0x700a)
         return SDL_SetError(
             "Player capture requires the original unperturbed Mist snapshot profile");
-    const Uint32 slot_x = Read16(g->dra.bytes + 0x21b8),
-                 slot_y = Read16(g->dra.bytes + 0x21ba) & 511U, width = sprite->width / 4U,
-                 height = sprite->height;
-    if ((slot_x & 63U) * 4U != 4 || (slot_y & 255U) != 1 || (slot_x >> 6) + 0x10U != 0x18 ||
-        slot_x + width >= 1024 || slot_y + height + 4 > 512)
-        return SDL_SetError("Player capture display slot disagrees with original Mist UVs");
     SotnMistWedge wedges[8] = {0};
     const Sint16 origin_x =
                      CaptureWord((Sint64)x + (facing_left ? -sprite->pivot_x : sprite->pivot_x)),
@@ -1336,20 +1367,8 @@ bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *g, const SotnAlucardSpri
         w->u[2] = (Uint8)(4U + sprite->width / 2U);
         w->v[2] = (Uint8)(1U + sprite->height / 2U);
     }
-    Upload(g, slot_x, slot_y, width, height, sprite->pixels.bytes);
-    for (Uint32 row = 0; row < height + 4; ++row)
-    {
-        const size_t pixel = (size_t)(slot_y - 1U + row) * 1024U + slot_x + width;
-        g->words[pixel] = 0;
-        g->valid[pixel] = 1;
-    }
-    for (Uint32 row = 0; row < 4; ++row)
-        for (Uint32 column = 0; column < width + 2; ++column)
-        {
-            const size_t pixel = (size_t)(slot_y + height + row) * 1024U + slot_x - 1U + column;
-            g->words[pixel] = 0;
-            g->valid[pixel] = 1;
-        }
+    if (!SotnActorGraphics_UploadPlayer(g, sprite))
+        return false;
     SDL_memcpy(out, wedges, sizeof(wedges));
     return true;
 }

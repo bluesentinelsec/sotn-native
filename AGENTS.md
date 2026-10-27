@@ -1,5 +1,16 @@
 # Working in sotn-native
 
+The [Bat presentation foundation](docs/player-bat-presentation.md) now decodes
+private bank-thirteen/separate-ARC artwork and runs actual selected BlinkWhite
+entry/return/finishing effects. It does not yet enable playable Bat. Preserve real
+signal two/three, sensor handshake, shared phase/lock ordering, status-held finishing
+flash, signed-word geometry and twelve-bit SDK rounding. Upload actual pixels
+separately from Mist capture profiles; retain original margins and immutable input
+artwork. The owner must apply Bat's live settling pivot. Start/Select use original
+US words 0x0800/0x0100 internally, leaving shoulder bits available; keep SDL keyboard/
+gamepad menu controls unchanged. Runtime inputs/traces stay private. Shared effects,
+flight/commands/collision/damage and console parity remain incomplete.
+
 Selected [Gas Cloud combat](docs/player-gas-cloud.md) now connects owned entry,
 private spell/INT/RNG/Mojo Mail initialization, actual cloud hitboxes and shared
 within-cloud enemy cooldown to native damage/death/EXP. Preserve the original

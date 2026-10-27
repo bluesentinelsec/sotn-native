@@ -10,9 +10,9 @@
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
 {
-    SOTN_BUTTON_SELECT = 0x0001,
+    SOTN_BUTTON_SELECT = 0x0100,
     SOTN_BUTTON_MIST = 0x0004,
-    SOTN_BUTTON_START = 0x0008,
+    SOTN_BUTTON_START = 0x0800,
     SOTN_BUTTON_CANCEL = 0x0010,
     SOTN_BUTTON_JUMP = 0x0040,
     SOTN_BUTTON_RIGHT_HAND = 0x0020,

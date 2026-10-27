@@ -130,7 +130,8 @@ or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owne
 active [Mist form](docs/player-mist.md). Owned, active
 [Gas Cloud](docs/player-gas-cloud.md) adds damage to that form; these starts grant
 no abilities.
-Bat/Wolf, spells and full ability parity remain incomplete.
+The internal [Bat presentation foundation](docs/player-bat-presentation.md) does
+not yet enable Bat controls. Bat/Wolf, spells and full ability parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.

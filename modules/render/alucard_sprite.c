@@ -34,23 +34,32 @@ static bool Pointer(SotnDataView source, size_t offset, Uint32 base, size_t size
     return true;
 }
 
-bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
-                              SotnAlucardSprite *out)
+static bool Decode(SotnDataView dra, SotnDataView arc, Uint16 frame, bool bat,
+                   SotnAlucardSprite *out)
 {
-    if (out == NULL || frame >= 265)
-        return SDL_SetError("Alucard sprite requires an output and a frame ID below 265");
+    if (out == NULL || frame >= (bat ? 18 : 265))
+        return SDL_SetError(
+            "Player sprite requires an output and a frame within its original bank");
     if (frame == 0)
     {
         *out = (SotnAlucardSprite){0};
         return true;
     }
     SotnDataView definition = {0}, sheet = {0};
-    if (!Pointer(dra, 0x2f324 + (size_t)frame * 4, 0x800a0000, 8, &definition))
+    if (!Pointer(dra, (bat ? 0x2fe48 : 0x2f324) + (size_t)frame * 4, 0x800a0000, 8, &definition))
         return false;
     const Uint16 sheet_id = Read16(definition.bytes);
     if ((sheet_id & 0x8000) == 0 || (sheet_id & 0x7fff) >= 256)
         return SDL_SetError("Alucard frame does not reference a supported ARC sprite sheet");
-    const size_t table = 32 + (size_t)(sheet_id & 0x7fff) * 4;
+    size_t table_start = 32;
+    if (bat)
+    {
+        SotnDataView table = {0};
+        if (!Pointer(arc, 4, 0x8013c000, 4, &table))
+            return false;
+        table_start = (size_t)(table.bytes - arc.bytes);
+    }
+    const size_t table = table_start + (size_t)(sheet_id & 0x7fff) * 4;
     if (!Pointer(arc, table, 0x8013c000, 4, &sheet))
         return false;
     SotnAlucardSprite sprite = {0};
@@ -66,6 +75,17 @@ bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
     sprite.pivot_y = Signed16(Read16(definition.bytes + 4)) + sheet.bytes[3];
     *out = sprite;
     return true;
+}
+
+bool SotnAlucard_DecodeSprite(SotnDataView dra, SotnDataView arc, Uint16 frame,
+                              SotnAlucardSprite *out)
+{
+    return Decode(dra, arc, frame, false, out);
+}
+
+bool SotnAlucard_DecodeBat(SotnDataView dra, SotnDataView arc, Uint16 frame, SotnAlucardSprite *out)
+{
+    return Decode(dra, arc, frame, true, out);
 }
 
 bool SotnAlucard_DrawSprite(const SotnAlucardSprite *sprite, SotnDataView common, Sint32 x,
