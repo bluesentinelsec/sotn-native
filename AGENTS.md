@@ -1,11 +1,17 @@
 # Working in sotn-native
 
+Selected [Olrox fireballs/effects](docs/olrox-fire-effects.md) now preserve original
+acceleration, growing hitboxes, owned gradient quads and configured retirement
+variants. Preserve fractional birth coordinates, screen-relative culling and
+explicit transform bits. Skull columns, transformation/second form, final victory
+and connected travel remain incomplete; component checks are not encounter parity.
+
 Selected [Olrox orbs/portals/bats](docs/olrox-orbs-portals.md) now advance real
 child readiness, spiral/orbit/release, portal growth/birth/closing and homing
 bats/shadows. Preserve stage sine samples separately from SDK quarter-wave math,
 packed timing, pool order, RNG and generation ownership. Explicit original
 transform bits override retained values; clearing the bits restores neutral
-presentation. Fireballs/skull columns, transformation/second form, final victory
+presentation. Skull columns, transformation/second form, final victory
 and connected BO0/NO2 travel remain incomplete. Native checks use explicit room
 starts/contact protection; no readiness or ongoing position/state grants.
 

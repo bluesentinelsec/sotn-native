@@ -78,7 +78,8 @@ remaining enemies, mechanisms and boss are integrated. The internal
 [Olrox arena foundation](docs/olrox-arena.md) adds its resources and paired door
 controls. Its selected [humanoid body](docs/olrox-first-form.md) now moves, takes
 physical damage and issues attack commands, with selected
-[orbs/portals/bats](docs/olrox-orbs-portals.md) now active. Other attacks, the second
+[orbs/portals/bats](docs/olrox-orbs-portals.md) and
+[fireballs/effects](docs/olrox-fire-effects.md) now active. Skull columns, the second
 form and connected progression remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.

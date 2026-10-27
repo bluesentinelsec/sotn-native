@@ -25,7 +25,7 @@ above Alucard, and optionally create a separate shadow. Shadows retain independe
 animation and fractional coordinates while copying the primary's integer
 position and opacity. Generation checks retire stale dependents without reading
 reused actor slots. The first-form transition flag requests the original bat
-retirement effect. Its full laser-explosion presentation remains unintegrated.
+retirement effect. Its selected [configured retirement presentation](olrox-fire-effects.md) now runs.
 
 Sprite presentation now accepts explicit original scale/rotation/opacity enable
 bits. Disabled values resolve to neutral transforms even when an actor retains
@@ -61,7 +61,7 @@ an explicit room arrival and contact protection; they do not grant states,
 positions during play, HP, stats, relics, equipment or readiness. User saves remain
 untouched and private inputs, scripts, traces and captures remain ignored.
 
-Fireballs, skull columns, transformation, second form, furnishing behavior, final
+Skull columns, transformation, second form, furnishing behavior, final
 defeat/reward and connected progression remain incomplete. BO0 and NO2 remain
 disconnected. These component/native checks do not establish ordinary castle
 entry, an uninterrupted route, console pixel/PCM parity or a complete game.

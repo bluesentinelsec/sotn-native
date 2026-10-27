@@ -36,7 +36,8 @@ it does not yet enable another castle route. An internal
 [Olrox arena foundation](olrox-arena.md) now adds BO0 resources, common services
 and paired door controls. Its selected [humanoid body](olrox-first-form.md) adds
 original movement, physical damage and attack commands; selected
-[orbs/portals/bats](olrox-orbs-portals.md) now advance. Fireballs/skull columns,
+[orbs/portals/bats](olrox-orbs-portals.md) and
+[fireballs/effects](olrox-fire-effects.md) now advance. Skull columns,
 transformation/second form, final victory and connected progression remain incomplete.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
