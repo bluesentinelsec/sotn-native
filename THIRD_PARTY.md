@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 skull columns**, AGPL-3.0-or-later.
+  `modules/core/olrox_column.c` reconstructs BO0 `func_us_801AE858` at the
+  pinned revision below. All runtime arrays remain private. The native frame
+  snapshot adapter is bounded first-party C, not GPU emulation.
+  See [scope and validation](docs/olrox-skull-columns.md).
+
 - **Reconstructed BO0 fireballs and retirement effects**, AGPL-3.0-or-later.
   `modules/core/olrox_fire.c` adapts BO0 `func_us_801AF31C` and shared
   `st/no2_unk_372E8.h` at the pinned revision below. Original private arrays

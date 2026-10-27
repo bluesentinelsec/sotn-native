@@ -79,7 +79,7 @@ remaining enemies, mechanisms and boss are integrated. The internal
 controls. Its selected [humanoid body](docs/olrox-first-form.md) now moves, takes
 physical damage and issues attack commands, with selected
 [orbs/portals/bats](docs/olrox-orbs-portals.md) and
-[fireballs/effects](docs/olrox-fire-effects.md) now active. Skull columns, the second
+[fireballs/effects](docs/olrox-fire-effects.md) and [skull columns](docs/olrox-skull-columns.md) now active. The second
 form and connected progression remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.

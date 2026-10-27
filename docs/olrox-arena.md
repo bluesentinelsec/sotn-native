@@ -47,9 +47,9 @@ captures, scripts and instruction traces remain ignored.
 
 The selected [humanoid body](olrox-first-form.md) now adds its introduction,
 movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
-Selected [orbs/portals/bats](olrox-orbs-portals.md) and
-[fireballs/effects](olrox-fire-effects.md) now advance. Skull
-columns, transformation, second form, final defeat/reward and connected
+Selected [orbs/portals/bats](olrox-orbs-portals.md),
+[fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
+now advance. Transformation, second form, final defeat/reward and connected
 progression still need native integration.
 Several BO0 shared enemies, scenery and effects are also unsupported. The pinned
 reference's central Olrox routines are assembly stubs and require reconstruction;

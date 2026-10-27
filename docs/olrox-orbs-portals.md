@@ -61,7 +61,7 @@ an explicit room arrival and contact protection; they do not grant states,
 positions during play, HP, stats, relics, equipment or readiness. User saves remain
 untouched and private inputs, scripts, traces and captures remain ignored.
 
-Skull columns, transformation, second form, furnishing behavior, final
+Transformation, second form, furnishing behavior, final
 defeat/reward and connected progression remain incomplete. BO0 and NO2 remain
 disconnected. These component/native checks do not establish ordinary castle
 entry, an uninterrupted route, console pixel/PCM parity or a complete game.

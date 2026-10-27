@@ -4,9 +4,9 @@ The internal BO0 checkpoint now runs the placed humanoid body's introduction,
 movement, teleport, original action selection and attack commands. Physical
 Gladius contact uses the existing native combat/defense service and the private
 original HP, damage and experience definition. This is one encounter component;
-selected [orbs/portals/bats](olrox-orbs-portals.md) now advance, along with selected
-[fireballs/effects](olrox-fire-effects.md);
-skull columns and the second form remain separate integration work.
+selected [orbs/portals/bats](olrox-orbs-portals.md),
+[fireballs/effects](olrox-fire-effects.md) and
+[skull columns](olrox-skull-columns.md) now advance. The second form remains separate work.
 
 The introduction retains its strict distance and exact grounded-contact check,
 original visit event and alternate reaction to the preceding furnishing's death.
@@ -59,7 +59,7 @@ LLDB with normal SDL quit. These checks supply an explicit room arrival and
 contact protection, preserve user save slots and keep all private inputs/captures
 ignored. They do not grant equipment, stats, relics or ongoing player positions.
 
-Skull columns, the transformation, second form, furnishings,
+The transformation, second form, furnishings,
 final defeat/reward and connected progression still need integration. Alucard's
 complete afterimage service and the boss's suppression of those images remain
 unintegrated, along with full effects/audio/frame parity. BO0 and NO2 stay

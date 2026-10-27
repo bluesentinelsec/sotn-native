@@ -119,9 +119,10 @@ typedef struct SotnTextureQuad
     Uint16 page, palette;
     bool blend, modulate, tint;
     Uint8 red, green, blue;
-    Uint8 opacity;   /**< Color multiplier, 128 neutral, used only when modulate is true. */
-    bool gouraud;    /**< Interpolate per-vertex multipliers instead of the uniform tint. */
-    bool untextured; /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
+    Uint8 opacity;    /**< Color multiplier, 128 neutral, used only when modulate is true. */
+    bool gouraud;     /**< Interpolate per-vertex multipliers instead of the uniform tint. */
+    bool framebuffer; /**< Sample an owned captured 256x240 frame through direct-color pages. */
+    bool untextured;  /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
 } SotnTextureQuad;
 /** @brief Draw a bounded textured or untextured quad as two triangles.
@@ -131,6 +132,13 @@ typedef struct SotnTextureQuad
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief Copy the current ordered RGB555 frame for subsequent framebuffer-sampling quads.
+ * @param graphics Borrowed texture owner. @param frame Borrowed full input frame.
+ * @param count Available pixels, at least SOTN_FRAME_PIXELS.
+ * @return Success or SDL error; invalid arguments leave the previous snapshot unchanged.
+ * The copy is owned until replacement/destruction; no private artwork memory is modified.
+ * Snapshot sampling avoids read/write aliasing; PS1 GPU texture-cache parity is unproven. */
+bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *frame, size_t count);
 /** @brief Apply BO4's original mutable horizontal bat-pose pivot.
  * @param graphics Owned service. @param frame Original backed bat pose.
  * @param offset Original form adjustment, -64..64. @return Success or SDL error.
