@@ -603,3 +603,9 @@ requests in `dra/71830.c:ControlMistForm/MistFormFinished` and the facing helper
 AGPL-3.0-or-later. [Component scope](docs/mist-motion.md) excludes collision,
 transformation effects and playable-form claims. Original data and traces remain
 private.
+
+`modules/core/form_collision.c` reconstructs the form-return helpers in
+`dra/71830.c:func_80111D24/func_80111DE8` at the pinned sotn-decomp revision above,
+AGPL-3.0-or-later. [Collision scope](docs/form-restoration-collision.md) documents
+raw tile distances, original Mist probe behavior and supplied-response instruction
+comparisons. Original runtime data and trace output remain private.

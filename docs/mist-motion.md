@@ -43,8 +43,9 @@ cancellation, MP exhaustion, facing locks, settling offsets and timer wrap. Debu
 and ASan/UBSan traces are byte-identical and exit successfully through muted LLDB. Original
 MP/relic, direction, deceleration and player-state helpers execute. Animation,
 palette, weapon-release and factory calls use explicit adapters, including checks
-of the original initialization requests. This is movement-component agreement;
-collision, actual visual effects, restoration completion, playable Mist and
+of the original initialization requests. This is movement-component agreement.
+The [form restoration collision checks](form-restoration-collision.md) now have
+separate component coverage. Actual visual effects, restoration completion, playable Mist and
 console/whole-route parity remain separate work. Original code/data and traces
 stay in ignored local paths.
 
