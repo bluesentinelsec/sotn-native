@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The internal [transformation resource service](docs/transformation-resources.md)
+now preserves original Bat/Mist/Wolf relic gates, strict MP thresholds and absolute
+wrapping simulation-timer charge cadence. Check-only never charges; inactive relics
+block entry even on an unbilled tick. Apply reported cost once and never substitute
+render frames or a local form timer. This component does not enable playable forms;
+movement, effects, collision and controls still require real integration.
+
 [Connected Olrox’s Quarters progression](docs/olrox-connections.md) now links
 Marble Gallery and Chapel, the original eastern Olrox boss override, return exits
 and defeated-arena revisits. Gate the encounter on its defeat time, not visited or
