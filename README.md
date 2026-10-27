@@ -130,8 +130,9 @@ or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owne
 active [Mist form](docs/player-mist.md). Owned, active
 [Gas Cloud](docs/player-gas-cloud.md) adds damage to that form; these starts grant
 no abilities.
-The internal [Bat presentation foundation](docs/player-bat-presentation.md) does
-not yet enable Bat controls. Bat/Wolf, spells and full ability parity remain incomplete.
+**E/Xbox RB** toggles owned, active [Bat flight](docs/player-bat.md), using
+original steering, MP and real transformation effects. Wing Smash, Fire/Echo of
+Bat, Wolf, spells and full ability parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
@@ -160,7 +161,7 @@ Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command
 MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
 and complete ability/castle parity remain acceptance work.
 The [Relics pause panel](docs/relic-menu.md) now switches owned Cube of Zoe,
-Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud, retaining active choices in saves.
+Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud, retaining active choices in saves.
 Other relic abilities and familiar controls remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct

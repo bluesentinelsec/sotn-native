@@ -1,9 +1,9 @@
 # Bat presentation foundation
 
 The native libraries now decode original Bat artwork and run selected original
-Bat entry/return BlinkWhite effects. These components are not yet connected to
-playable Bat movement, collision, damage, commands or input. Soul of Bat remains
-unavailable in the relic controls; ordinary starts grant no new abilities.
+Bat entry/return BlinkWhite effects. [Selected playable Bat](player-bat.md) now
+connects these components to owned flight, collision, damage and input. Command
+abilities remain incomplete; ordinary starts grant no new abilities.
 
 ## Artwork and ownership
 

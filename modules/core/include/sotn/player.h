@@ -5,6 +5,7 @@
 #include <sotn/character.h>
 #include <sotn/collision.h>
 #include <sotn/mist_effect.h>
+#include <sotn/player_blink.h>
 #include <sotn/world.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
@@ -12,6 +13,7 @@ typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_SELECT = 0x0100,
     SOTN_BUTTON_MIST = 0x0004,
+    SOTN_BUTTON_BAT = 0x0008,
     SOTN_BUTTON_START = 0x0800,
     SOTN_BUTTON_CANCEL = 0x0010,
     SOTN_BUTTON_JUMP = 0x0040,
@@ -31,9 +33,11 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_CROUCH,
     SOTN_PLAYER_FALL,
     SOTN_PLAYER_JUMP,
+    SOTN_PLAYER_BAT = 5,
     SOTN_PLAYER_STUCK = 6,
     SOTN_PLAYER_MIST = 7,
     SOTN_PLAYER_HIGH_JUMP = 8,
+    SOTN_PLAYER_UNMORPH_BAT = 9,
     SOTN_PLAYER_HIT = 10,
     SOTN_PLAYER_STONE = 11,
     SOTN_PLAYER_BOSS_GRAB = 12,
@@ -128,9 +132,18 @@ typedef struct SotnPlayerSleep
 typedef struct SotnPlayerMist
 {
     Uint32 generation;
-    Uint16 capture_sprite;
+    Uint16 capture_sprite, capture_bank;
     bool active, restoring, started, request_restore, retire;
 } SotnPlayerMist;
+
+/** @brief Selected Bat controller requests for actual generation-owned transformation effects. */
+typedef struct SotnPlayerBat
+{
+    Uint32 generation;
+    Sint16 rotation, settle_y;
+    Uint8 signal;
+    bool active, hidden, started, return_started, cramped;
+} SotnPlayerBat;
 
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
@@ -165,6 +178,9 @@ typedef struct SotnPlayerState
     SotnPlayerGravity gravity;
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
     SotnPlayerMist mist;
+    SotnPlayerBat bat;
+    Uint16 animation_bank; /**< Actual normal (1) or Bat (13) private artwork bank. */
+    bool rotated;          /**< This simulation frame's selected original transform draw flag. */
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -249,6 +265,17 @@ bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
  */
 bool SotnPlayer_SetMistContext(SotnPlayer *player, const SotnMistEffect *effect, Uint32 generation,
                                Uint32 game_timer, bool underwater);
+
+/** @brief Bind this tick's actual selected Bat effect and owned allocation availability.
+ * @param player Borrowed player. @param effect Actual owned current-generation effect, copied
+ * immediately; NULL is allowed before birth, during flight after its finishing flash,
+ * or while returning from a real Mist child. @param generation Current child identity or zero.
+ * @param factory_available The owner's selected factory/primitive budget has an actual free slot.
+ * @return Success or SDL error without mutation for missing/stale active effects.
+ * Readiness derives from this actual controller's phases, never a supplied completion timer.
+ * The caller must create started/return_started children and advance them before the next bind. */
+bool SotnPlayer_SetBatContext(SotnPlayer *player, const SotnPlayerBlink *effect, Uint32 generation,
+                              bool factory_available);
 
 /** @brief Deliver original contact feedback to the current owned dive-kick child.
  * @param player Borrowed simulation. @param generation Current nonzero child identity.

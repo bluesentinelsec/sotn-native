@@ -179,9 +179,33 @@ static bool TestDoppleFormPose(void)
     return true;
 }
 
+static bool TestPlayerFormPose(void)
+{
+    Uint8 image[0x11000] = {0};
+    const SotnDataView dra = {image, sizeof(image)};
+    Put32(image, 0x101b8 + 202U * 4U, 0x800afda4);
+    Put32(image, 0x101b8, 0x800a0100);
+    Record(image, 0xfda4, 1, 6);
+    Record(image, 0xfda8, 0xffff, 0);
+    Record(image, 0x100, 1, 17);
+    Record(image, 0x104, 0xffff, 0);
+    SotnAnimation cursor = {0};
+    CHECK(SotnAnimation_Set(&cursor, 202));
+    CHECK(SotnAnimation_TickPlayerForm(dra, 24, &cursor) && cursor.sprite == 24);
+    CHECK(SotnAnimation_TickPlayerForm(dra, 6, &cursor) && cursor.sprite == 6 &&
+          cursor.remaining == -1 && image[0xfda6] == 6);
+    const SotnAnimation before = cursor;
+    CHECK(!SotnAnimation_TickPlayerForm(dra, 512, &cursor) && cursor.sprite == before.sprite &&
+          cursor.pose == before.pose);
+    CHECK(SotnAnimation_Set(&cursor, 0));
+    CHECK(SotnAnimation_TickPlayerForm(dra, 24, &cursor) && cursor.sprite == 17);
+    CHECK(!SotnAnimation_TickPlayerForm(dra, 6, NULL));
+    return true;
+}
+
 int main(void)
 {
-    if (!TestAnimation() || !TestStageAnimation() || !TestDoppleFormPose())
+    if (!TestAnimation() || !TestStageAnimation() || !TestDoppleFormPose() || !TestPlayerFormPose())
         return 1;
     SDL_Log("SOTN_ANIMATION_TEST: PASS");
     return 0;

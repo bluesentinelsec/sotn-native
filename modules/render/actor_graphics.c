@@ -1103,6 +1103,32 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *g, SotnTextureQuad q
     return QuadDraw(g, quad, surface, true);
 }
 
+bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                    Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    if (!g || !p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 ||
+        offset_y < -2048 || offset_y > 2048)
+        return SDL_SetError("Player effect requires a texture owner, packet and bounded target");
+    if (p->draw_mode & 8U)
+        return true;
+    SotnTextureQuad q = {.page = (Uint16)(p->page + (p->draw_mode & 0x60U)),
+                         .palette = p->palette,
+                         .blend = (p->draw_mode & 1U) != 0,
+                         .modulate = (p->draw_mode & 4U) != 0,
+                         .gouraud = (p->draw_mode & 4U) != 0};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = p->x[v] + offset_x;
+        q.y[v] = p->y[v] + offset_y;
+        q.u[v] = p->u[v];
+        q.v[v] = p->v[v];
+        q.vertex_red[v] = p->red[v];
+        q.vertex_green[v] = p->green[v];
+        q.vertex_blue[v] = p->blue[v];
+    }
+    return SotnActorGraphics_QuadSurface(g, q, surface);
+}
+
 bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
                                    Sint32 y, SotnSpriteTransform transform,
                                    SotnActorSurface surface)

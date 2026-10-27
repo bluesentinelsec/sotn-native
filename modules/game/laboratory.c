@@ -53,9 +53,16 @@ struct SotnLaboratory
     SotnPlayer *player;
     SotnMistEffect mist_effect;
     SotnGasCloud gas_cloud;
+    struct
+    {
+        SotnPlayerBlink effect;
+        Uint32 generation;
+    } bat_visuals[2];
+    SotnPlayerBlinkShared blink_shared;
+    Sint32 blink_camera_x, blink_camera_y, blink_rebase_x, blink_rebase_y;
     Uint32 mist_generation;
     Sint32 mist_camera_x, mist_camera_y, mist_rebase_x, mist_rebase_y;
-    Uint16 mist_capture_sprite;
+    Uint16 mist_capture_sprite, mist_capture_bank;
     bool mist_present;
     SotnActors *actors;
     SotnSubweapons *subweapons;
@@ -80,7 +87,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 80];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 96];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -556,6 +563,108 @@ static bool VisitMap(SotnLaboratory *session)
                            (Sint32)layer.top + y / 256, false);
 }
 
+static bool DecodePlayerSprite(SotnLaboratory *s, SotnPlayerState player, SotnAlucardSprite *out)
+{
+    if (player.animation_bank == 13)
+    {
+        if (!SotnAlucard_DecodeBat(s->dra, SotnResource_View(s->arc), player.animation.sprite, out))
+            return false;
+        out->pivot_y += player.bat.settle_y;
+        return true;
+    }
+    if (player.animation_bank != 1)
+        return SDL_SetError("Player references an unintegrated private artwork bank");
+    return SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), player.animation.sprite,
+                                    out);
+}
+static const SotnPlayerBlink *BatVisual(const SotnLaboratory *s, Uint32 generation)
+{
+    for (Uint16 i = 0; i < 2; ++i)
+        if (generation && s->bat_visuals[i].generation == generation)
+            return &s->bat_visuals[i].effect;
+    return NULL;
+}
+static bool BatFactoryAvailable(const SotnLaboratory *s)
+{
+    return !s->bat_visuals[0].generation || !s->bat_visuals[1].generation;
+}
+static Sint16 BlinkWord(Sint64 value)
+{
+    const Uint16 bits = (Uint16)(Uint64)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
+}
+static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
+{
+    const Sint64 dx = (Sint64)s->blink_rebase_x + s->blink_camera_x - s->camera.x,
+                 dy = (Sint64)s->blink_rebase_y + s->blink_camera_y - s->camera.y;
+    if (dx < SDL_MIN_SINT16 || dx > SDL_MAX_SINT16 || dy < SDL_MIN_SINT16 || dy > SDL_MAX_SINT16)
+        return SDL_SetError("Player blink room/camera translation exceeds its original word");
+    s->blink_rebase_x = s->blink_rebase_y = 0;
+    s->blink_camera_x = s->camera.x;
+    s->blink_camera_y = s->camera.y;
+    for (Uint16 i = 0; i < 2; ++i)
+        if (s->bat_visuals[i].generation)
+            for (Uint16 q = 0; q < 8; ++q)
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    s->bat_visuals[i].effect.quads[q].x[v] =
+                        BlinkWord(s->bat_visuals[i].effect.quads[q].x[v] + dx);
+                    s->bat_visuals[i].effect.quads[q].y[v] =
+                        BlinkWord(s->bat_visuals[i].effect.quads[q].y[v] + dy);
+                }
+    if (entering)
+        return true;
+    if (player.bat.started || player.bat.return_started)
+    {
+        if (!player.bat.generation || BatVisual(s, player.bat.generation))
+            return SDL_SetError("Bat visual birth requires a new actual child generation");
+        Uint16 i = 0;
+        while (i < 2 && s->bat_visuals[i].generation)
+            ++i;
+        if (i == 2)
+            return SDL_SetError("Bat visual birth lost its selected reserved effect capacity");
+        s->bat_visuals[i].effect = (SotnPlayerBlink){.parameter = player.bat.started ? 0x20 : 0x21};
+        s->bat_visuals[i].generation = player.bat.generation;
+    }
+    if (!s->bat_visuals[0].generation && !s->bat_visuals[1].generation)
+        return true;
+    SotnAlucardSprite sprite = {0};
+    if (!DecodePlayerSprite(s, player, &sprite))
+        return false;
+    if (sprite.width && !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite))
+        return false;
+    const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y;
+    if (x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16 ||
+        sprite.pivot_x < SDL_MIN_SINT16 || sprite.pivot_x > SDL_MAX_SINT16 ||
+        sprite.pivot_y < SDL_MIN_SINT16 || sprite.pivot_y > SDL_MAX_SINT16)
+        return SDL_SetError("Bat effect references an invalid actual player image origin");
+    // Original reverse entity allocation places the newer child before the older tail.
+    for (Sint32 i = 1; i >= 0; --i)
+    {
+        if (!s->bat_visuals[i].generation)
+            continue;
+        const SotnPlayerBlinkInput input = {
+            .dra = s->dra,
+            .executable = s->executable,
+            .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x, (Sint16)sprite.pivot_y},
+            .x = (Sint16)x,
+            .y = (Sint16)y,
+            .rotation = player.bat.rotation,
+            .priority = player.priority,
+            .status = player.status,
+            .signal = player.bat.signal,
+            .facing_left = player.facing_left,
+            .rotated = player.rotated,
+            .image_present = sprite.width != 0};
+        SotnPlayerBlinkEvents events = {0};
+        if (!SotnPlayerBlink_Tick(&s->bat_visuals[i].effect, &s->blink_shared, input, &events))
+            return false;
+        if (s->bat_visuals[i].effect.removed)
+            s->bat_visuals[i].generation = 0;
+    }
+    return true;
+}
+
 static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->mist_rebase_x + s->mist_camera_x - s->camera.x,
@@ -595,6 +704,7 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->mist_generation = player.mist.generation;
         s->mist_present = true;
         s->mist_capture_sprite = player.mist.capture_sprite;
+        s->mist_capture_bank = player.mist.capture_bank;
         if ((s->world.relics[SOTN_RELIC_GAS_CLOUD] & 2U) &&
             !SotnGasCloud_Begin(&s->gas_cloud, s->dra, s->character, player.mist.generation,
                                 SDL_MAX_UINT16))
@@ -615,6 +725,7 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
         {
             s->mist_effect.phase = 3;
             s->mist_capture_sprite = player.animation.sprite;
+            s->mist_capture_bank = player.animation_bank;
         }
         SotnMistWedge capture[8] = {0};
         const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y;
@@ -632,8 +743,10 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
         if (s->mist_effect.phase == 0 || s->mist_effect.phase == 3)
         {
             SotnAlucardSprite sprite = {0};
-            if (!SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), s->mist_capture_sprite,
-                                          &sprite) ||
+            SotnPlayerState captured = player;
+            captured.animation.sprite = s->mist_capture_sprite;
+            captured.animation_bank = s->mist_capture_bank;
+            if (!DecodePlayerSprite(s, captured, &sprite) ||
                 !SotnActorGraphics_CapturePlayer(s->actor_graphics, &sprite, x, y,
                                                  player.facing_left, capture))
                 return false;
@@ -674,7 +787,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
-    if (!TickMist(session, player, entering))
+    if (!TickMist(session, player, entering) || !TickBlinks(session, player, entering))
         return false;
     SotnCharacterState profile = {0};
     if (!SotnCharacter_Get(session->character, &profile, NULL))
@@ -1000,6 +1113,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             return false;
         session->mist_rebase_x += offset_x;
         session->mist_rebase_y += offset_y;
+        session->blink_rebase_x += offset_x;
+        session->blink_rebase_y += offset_y;
         session->room = room;
         session->room_index = i;
         if (!EnterActors(session) || !EnterSaveRoom(session))
@@ -1400,6 +1515,10 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                    session->mist_present ? &session->mist_effect : NULL,
                                    session->mist_generation, (Uint32)session->simulation_ticks,
                                    (state.contacts & 0x80U) != 0) ||
+        !SotnPlayer_SetBatContext(session->player, BatVisual(session, state.bat.generation),
+                                  BatVisual(session, state.bat.generation) ? state.bat.generation
+                                                                           : 0,
+                                  BatFactoryAvailable(session)) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
@@ -1630,6 +1749,40 @@ static bool ActorDrawError(SotnActorState actor)
 
 // Selected LIB parallax precedes foreground tiles; Chapel/BO5 sky precedes both tile layers.
 // Original later-submitted primitive packets precede tile packets at the tied bucket.
+static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
+{
+    const SotnActorSurface surface =
+        s->draw_target.mode
+            ? s->draw_target.surface
+            : (SotnActorSurface){s->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
+    return SotnActorGraphics_PlayerEffect(s->actor_graphics, p, s->draw_target.offset_x,
+                                          s->draw_target.offset_y, surface);
+}
+static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
+                              const SotnAlucardSprite *sprite)
+{
+    if (!sprite->width)
+        return true;
+    if (!SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
+        return false;
+    const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
+                 left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
+                                           : x + sprite->pivot_x;
+    SotnPlayerEffectQuad q = {.page = 0x18, .palette = 0x100};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = BlinkWord(left + ((v & 1U) ? sprite->width : 0));
+        q.y[v] = BlinkWord(y + sprite->pivot_y + ((v & 2U) ? sprite->height : 0));
+        q.u[v] = (Uint8)(player.facing_left ? ((v & 1U) ? 3 : 3 + sprite->width)
+                                            : ((v & 1U) ? 4 + sprite->width : 4));
+        q.v[v] = (Uint8)(1 + ((v & 2U) ? sprite->height : 0));
+    }
+    if (player.rotated && !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y),
+                                                   player.bat.rotation, player.facing_left, &q))
+        return false;
+    return DrawPlayerEffectQuad(s, &q);
+}
+
 static bool DrawMistQuad(SotnLaboratory *s, Uint16 index)
 {
     if (!s->mist_present || index >= 80)
@@ -1765,6 +1918,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                     .primitive = i,
                                     .kind = SOTN_DRAW_MIST}))
                 return false;
+    if (!background)
+        for (Uint16 owner = 0; owner < 2; ++owner)
+            if (session->bat_visuals[owner].generation)
+                for (Uint16 q = 0; q < 8; ++q)
+                    if (!SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){
+                                .priority = session->bat_visuals[owner].effect.quads[q].priority,
+                                .primitive = (Uint16)(owner * 8U + q),
+                                .kind = SOTN_DRAW_PLAYER_BLINK}))
+                        return false;
     if (background)
     {
         for (size_t i = 0; i < draw_count; ++i)
@@ -1784,8 +1948,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         return true;
     }
     SotnAlucardSprite alucard = {0};
-    if (!SotnAlucard_DecodeSprite(session->dra, SotnResource_View(session->arc),
-                                  player.animation.sprite, &alucard))
+    if (!DecodePlayerSprite(session, player, &alucard))
         return false;
     bool player_drawn = false, weapon_drawn = false, beam_drawn = false;
     SotnFrameClip clip = {0, 0, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
@@ -1828,8 +1991,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =
-                player.mist.active ||
-                (player.stone.active
+                player.mist.active || player.bat.hidden ||
+                (player.animation_bank == 13 || player.rotated
+                     ? DrawRotatedPlayer(session, player, &alucard)
+                 : player.stone.active
                      ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
                                                  Pixel(player.y) - camera_y, player.facing_left,
                                                  player.stone, session->frame, SOTN_FRAME_PIXELS)
@@ -1862,6 +2027,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_PLAYER_BLINK)
+        {
+            const Uint16 owner = command.primitive / 8U, q = command.primitive % 8U;
+            if (owner >= 2 || !session->bat_visuals[owner].generation)
+                return SDL_SetError("Player blink draw lost its actual owned child");
+            if (!DrawPlayerEffectQuad(session, &session->bat_visuals[owner].effect.quads[q]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_MIST)
         {
             if (!DrawMistQuad(session, command.primitive) ||

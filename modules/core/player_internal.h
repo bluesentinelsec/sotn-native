@@ -52,6 +52,10 @@ struct SotnPlayer
     Uint16 mp, mp_spent, held;
     SotnMistMotion mist_motion;
     SotnPlayerMist mist;
+    SotnPlayerBat bat;
+    Uint32 bat_counter;
+    Uint16 animation_bank, form_pose;
+    bool bat_context, bat_factory_available, bat_screech, form_rotated;
     Uint32 mist_game_timer, mist_visual_generation;
     Uint8 mist_visual_phase, mist_lockout;
     bool mist_context, mist_visual_present, mist_underwater;
@@ -80,6 +84,17 @@ struct SotnPlayer
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
 
+/** @brief Select eligible original Bat entry after shared transformation lockout. */
+void SotnPlayer_BatInput(SotnPlayer *player);
+/** @brief Advance selected original Bat initialization and ordinary flight. */
+void SotnPlayer_BatTick(SotnPlayer *player);
+/** @brief Restore sensors and wait for the actual Bat-return effect handshake. */
+void SotnPlayer_UnmorphBatTick(SotnPlayer *player);
+/** @brief Reset transient Bat drawing on original normal-form interruptions. */
+void SotnPlayer_BatCancel(SotnPlayer *player);
+/** @brief Apply source facing selection for transformation completion. */
+void SotnPlayer_FormDirection(SotnPlayer *player);
+
 void SotnPlayer_StoneTick(SotnPlayer *player);
 /** @brief Select eligible original Mist entry after timers/input, before player dispatch. */
 void SotnPlayer_MistInput(SotnPlayer *player);
@@ -90,7 +105,7 @@ void SotnPlayer_UnmorphMistTick(SotnPlayer *player);
 /** @brief Advance original cramped-space recovery after restoration. */
 void SotnPlayer_StuckTick(SotnPlayer *player);
 /** @brief Apply original shared Jump/Fall/Crouch return helpers without bypassing effect waits. */
-void SotnPlayer_MistReturn(SotnPlayer *player, bool cramped);
+void SotnPlayer_FormReturn(SotnPlayer *player, bool cramped);
 /** @brief Advance the owned sleep effect from private DRA frames; false reports invalid data. */
 bool SotnPlayer_SleepTick(SotnPlayer *player);
 /** @brief Advance the selected original owned dive-kick child after player motion selection. */

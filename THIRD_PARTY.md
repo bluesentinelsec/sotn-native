@@ -647,3 +647,7 @@ in `modules/render/` follow `d_2FE48.c`, `692E8.c`, `4B758.c` and `pc/pl_arc.c`.
 [Bat presentation scope](docs/player-bat-presentation.md) documents the real effect
 handshake and component-only validation. Original profiles, images and instruction
 traces remain private; playable movement and full shared allocation are not implied.
+
+Selected playable Bat adapts `dra/692E8.c`, `71830.c`, `6DF70.c`, `7E4BC.c`,
+`7879C.c`, `4DA70.c` and `5087C.c` from the pinned AGPL-3.0-or-later reference.
+See [scope and evidence](docs/player-bat.md). Original tables/artwork stay private.

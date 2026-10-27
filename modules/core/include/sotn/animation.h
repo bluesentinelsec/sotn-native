@@ -31,6 +31,13 @@ bool SotnAnimation_Set(SotnAnimation *animation, Uint16 id);
  */
 bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation);
 
+/** @brief Advance Alucard with the original mutable transformation pose.
+ * @param dra Borrowed verified DRA. @param form_pose Actual displayed capture pose, below 512.
+ * @param animation Owned cursor, unchanged on failure. @return Success or SDL error.
+ * Replaces only the original record at DRA offset FDA4 without mutating private input bytes.
+ * Other timelines, controls, durations and frame properties retain ordinary semantics. */
+bool SotnAnimation_TickPlayerForm(SotnDataView dra, Uint16 form_pose, SotnAnimation *animation);
+
 /** @brief Select a supported overlay's player-format timeline without copying runtime tables.
  * @param animation Borrowed cursor. @param stage Original stage ID; currently BO4 (26).
  * @param id Original timeline ID, below 220 for BO4.
