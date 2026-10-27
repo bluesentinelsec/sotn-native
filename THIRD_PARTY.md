@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 orbiting projectiles and portals**, AGPL-3.0-or-later.
+  `modules/core/olrox_orbs.c` reconstructs the selected BO0 `2D26C.c` orb,
+  portal and bat routines and shared math/factory helpers at the pinned revision
+  below. Stage/SDK tables, artwork and audio remain private runtime inputs.
+  See [scope and validation](docs/olrox-orbs-portals.md).
+
 - **Reconstructed BO0 humanoid body**, AGPL-3.0-or-later.
   `modules/core/olrox_first.c` reconstructs `boss/bo0/2D26C.c`'s humanoid body
   and body-image routines from the matching private US instructions at the pinned

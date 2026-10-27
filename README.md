@@ -77,8 +77,9 @@ It remains disconnected while its
 remaining enemies, mechanisms and boss are integrated. The internal
 [Olrox arena foundation](docs/olrox-arena.md) adds its resources and paired door
 controls. Its selected [humanoid body](docs/olrox-first-form.md) now moves, takes
-physical damage and issues attack commands; attack children, the second form and
-connected progression remain incomplete.
+physical damage and issues attack commands, with selected
+[orbs/portals/bats](docs/olrox-orbs-portals.md) now active. Other attacks, the second
+form and connected progression remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

@@ -41,6 +41,7 @@ add_library(sotn-core STATIC
   olrox_quarter.c
   olrox_arena.c
   olrox_first.c
+  olrox_orbs.c
   olrox_internal.h
   olrox_prisoner.c
   olrox_valhalla.c

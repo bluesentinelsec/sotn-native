@@ -1,6 +1,7 @@
 #ifndef SOTN_ACTOR_GRAPHICS_H
 #define SOTN_ACTOR_GRAPHICS_H
 
+#include <sotn/actors.h>
 #include <sotn/dialogue.h>
 #include <sotn/equipment.h>
 #include <sotn/palette.h>
@@ -89,6 +90,13 @@ typedef struct SotnSpriteTransform
     bool tint; /**< When true, RGB multipliers replace opacity. */
     Uint8 red, green, blue;
 } SotnSpriteTransform;
+/** @brief Resolve a copied actor's explicit transform flags or its legacy value selectors.
+ * @param actor Copied presentation state; no ownership transfers.
+ * @return Signed affine/color values. Explicitly disabled values resolve to neutral defaults;
+ * enabled zero scales remain zero, so the caller can omit their invisible sprites.
+ * @note Does not validate drawing bounds; DrawTransform checks nonzero scales and color ranges.
+ * The original selected bits are authoritative only when transform_flags_set is true. */
+SotnSpriteTransform SotnActorGraphics_GetTransform(SotnActorState actor);
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
  * @param x Screen anchor. @param y Screen anchor. @param transform Nonzero signed scale

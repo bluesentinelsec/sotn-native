@@ -47,7 +47,8 @@ captures, scripts and instruction traces remain ignored.
 
 The selected [humanoid body](olrox-first-form.md) now adds its introduction,
 movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
-Attack children, transformation, second form, final defeat/reward and connected
+Selected [orbs/portals/bats](olrox-orbs-portals.md) now advance. Fireballs, skull
+columns, transformation, second form, final defeat/reward and connected
 progression still need native integration.
 Several BO0 shared enemies, scenery and effects are also unsupported. The pinned
 reference's central Olrox routines are assembly stubs and require reconstruction;

@@ -415,6 +415,47 @@ static bool TestRopeCache(Fixture *fixture)
     return true;
 }
 
+static bool TestTransformFlags(Fixture *fixture)
+{
+    MakeFixture(fixture);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(fixture, &g) && SotnActorGraphics_LoadBank(g, 0));
+    const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, false};
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_Draw(g, sprite, 20, 20, fixture->frame, SOTN_FRAME_PIXELS));
+    Uint16 expected[SOTN_FRAME_PIXELS] = {0};
+    SDL_memcpy(expected, fixture->frame, sizeof(expected));
+    // Original routines may retain all transform values when clearing their enable bits.
+    SotnActorState a = {.scale_x = 768,
+                        .scale_y = 512,
+                        .rotation = 1024,
+                        .opacity = 0,
+                        .scale_set = true,
+                        .rotated = true,
+                        .opacity_set = true,
+                        .transform_flags_set = true};
+    ClearFrame(fixture);
+    CHECK(SotnActorGraphics_DrawTransform(g, sprite, 20, 20, SotnActorGraphics_GetTransform(a),
+                                          fixture->frame, SOTN_FRAME_PIXELS));
+    CHECK(SDL_memcmp(expected, fixture->frame, sizeof(expected)) == 0);
+    a.transform_flags = SOTN_ACTOR_SCALE_Y;
+    a.scale_y = 0;
+    SotnSpriteTransform t = SotnActorGraphics_GetTransform(a);
+    CHECK(t.scale_x == 256 && t.scale_y == 0 && t.rotation == 0 && t.opacity == 128);
+    a.transform_flags = SOTN_ACTOR_SCALE_X | SOTN_ACTOR_ROTATE | SOTN_ACTOR_OPACITY;
+    a.scale_x = 0xff00;
+    t = SotnActorGraphics_GetTransform(a);
+    CHECK(t.scale_x == -256 && t.scale_y == 256 && t.rotation == 1024 && t.opacity == 0);
+    a = (SotnActorState){.scale_x = 512, .opacity = 64};
+    t = SotnActorGraphics_GetTransform(a);
+    CHECK(t.scale_x == 512 && t.scale_y == 256 && t.opacity == 64);
+    a = (SotnActorState){.scale_set = true, .opacity_set = true};
+    t = SotnActorGraphics_GetTransform(a);
+    CHECK(!t.scale_x && !t.scale_y && !t.opacity);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 static bool TestRotation(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -1009,12 +1050,12 @@ int main(void)
     if (fixture == NULL)
         return 1;
     const bool passed = TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-                        TestRotation(fixture) && TestColorQuad(fixture) && TestQuad(fixture) &&
-                        TestSprites(fixture) && TestFailures(fixture) &&
-                        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
-                        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-                        TestColorLine(fixture) && TestPaletteBlend(fixture) &&
-                        TestPaletteRedShift(fixture);
+                        TestTransformFlags(fixture) && TestRotation(fixture) &&
+                        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
+                        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+                        PackedSheets(fixture) && TestColorLine(fixture) &&
+                        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
