@@ -1881,10 +1881,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnPlayerEffectQuad *quads = NULL;
-            Uint16 count = 0;
-            if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &count))
+            Uint16 packet_count = 0;
+            if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &packet_count))
                 return false;
-            for (Uint16 q = 0; q < count; ++q)
+            for (Uint16 q = 0; q < packet_count; ++q)
                 if (!SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
                                         &draw_count,
                                         (SotnActorDraw){.priority = quads[q].priority,
@@ -1994,8 +1994,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const Uint16 owner = command.primitive / 8U, q = command.primitive % 8U;
             const SotnPlayerEffectQuad *quads = NULL;
-            Uint16 count = 0;
-            if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &count) || q >= count)
+            Uint16 packet_count = 0;
+            if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &packet_count) ||
+                q >= packet_count)
                 return SDL_SetError("Bat draw lost its actual owned child packet");
             if (!DrawPlayerEffectQuad(session, &quads[q]) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
