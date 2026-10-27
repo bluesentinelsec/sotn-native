@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The internal [Mist visual lifecycle](docs/mist-effect.md) now reconstructs the
+sixteen-point/eighty-quad cloud and real phase-5 restoration signal. Preserve
+retained point fractions, private tables, original color/geometry arithmetic and
+the signed phase-5 timer wrap. Readiness differs from destruction. Actual capture,
+texture/palette ownership, camera translation and player dispatch remain required;
+this component does not make Mist playable. Never substitute a fake readiness timer.
+
 Internal [form restoration collision checks](docs/form-restoration-collision.md)
 now preserve original Mist-only escape, asymmetric floor-edge masks and raw tile
 nudges. Apply barrier velocity only when blocked. A zero shift can still be a
