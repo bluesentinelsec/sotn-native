@@ -175,6 +175,26 @@ bool SotnActorGraphics_BeginTarget(SotnActorGraphics *graphics, SotnActorTarget 
  * @param graphics Borrowed owner with active target. @param commit Copy pixels to owned VRAM.
  * @return Success or SDL error; cancellation leaves texture memory unchanged. */
 bool SotnActorGraphics_EndTarget(SotnActorGraphics *graphics, bool commit);
+/** @brief Borrowed ordered-target view; mode 0 is main, 1 strict, 3 replaceable original env.
+ * Initialize with zero mode and the main surface. Surface views expire on every target change. */
+typedef struct SotnActorTargetCursor
+{
+    SotnActorSurface surface;
+    Sint32 offset_x, offset_y;
+    Uint8 mode;
+} SotnActorTargetCursor;
+/** @brief Apply a copied actor environment command to one ordered target cursor.
+ * @param graphics Borrowed texture owner, exclusively controlled by this cursor while active.
+ * @param main Borrowed writable normal surface, dimensions 1..256 and initialized pixels.
+ * @param command Original target operation: 1/2 strict begin/restore, 3/4 replaceable
+ * begin/restore.
+ * @param cursor Initialized borrowed state, updated after each completed commit/open operation.
+ * @return Success or SDL error. Strict intervals reject nesting/unmatched restores. Original
+ * environment intervals may replace/commit another such interval and repeat their main restore.
+ * Invalid bounds/modes fail before writes; a failed subsequent open retains the completed commit.
+ * On failure the caller must cancel any interval still identified by a nonzero cursor mode. */
+bool SotnActorGraphics_ApplyTarget(SotnActorGraphics *graphics, SotnActorSurface main,
+                                   SotnActorPrimitive command, SotnActorTargetCursor *cursor);
 /** @brief Copy the current ordered RGB555 frame for subsequent framebuffer-sampling quads.
  * @param graphics Borrowed texture owner. @param frame Borrowed full input frame.
  * @param count Available pixels, at least SOTN_FRAME_PIXELS.

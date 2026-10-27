@@ -630,3 +630,10 @@ target_include_directories(sotn-olrox-appendages-tests PRIVATE ../../modules/cor
 target_link_libraries(sotn-olrox-appendages-tests PRIVATE sotn-core)
 add_test(NAME olrox-monster-appendages COMMAND sotn-olrox-appendages-tests)
 set_tests_properties(olrox-monster-appendages PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-olrox-monster-attacks-tests test_olrox_monster_attacks.c)
+sotn_configure_c_target(sotn-olrox-monster-attacks-tests)
+target_include_directories(sotn-olrox-monster-attacks-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-olrox-monster-attacks-tests PRIVATE sotn-core)
+add_test(NAME olrox-monster-attacks COMMAND sotn-olrox-monster-attacks-tests)
+set_tests_properties(olrox-monster-attacks PROPERTIES TIMEOUT 20)

@@ -49,7 +49,10 @@ textured packets and owned attachment positions. Dispatch remains gated until
 the real monster body is integrated. Selected
 [owned appendage components](olrox-monster-appendages.md) now retain feet/knees,
 tail/arm commands, hand damage/recovery and captured sprites; they do not yet
-advance within a playable monster family.
+advance within a playable monster family. Selected
+[head and attack components](olrox-monster-attacks.md) now run roar/poses, laser
+and fireball requests, physical attack geometry, drool and their owned effects;
+body integration and complete death/reward remain pending.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,

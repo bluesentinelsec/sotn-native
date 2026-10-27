@@ -25,6 +25,7 @@ add_library(sotn-render STATIC
   alucard_sprite.c
   actor_graphics.c
   actor_order.c
+  actor_target_order.c
   frame_clip.c
   include/sotn/frame_clip.h
   include/sotn/actor_order.h

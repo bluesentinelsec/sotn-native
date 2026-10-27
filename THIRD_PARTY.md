@@ -13,6 +13,13 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 monster head and attacks**, AGPL-3.0-or-later.
+  `modules/core/olrox_monster_head.c` reconstructs selected BO0 `313A8.c` head
+  behavior; `olrox_monster_attacks.c` adapts `e_laser_attack.c`,
+  `e_olrox_drool.c` and selected shared primitive/dust helpers at the pinned
+  revision below. Runtime profiles, animation, SDK tables, artwork and audio
+  stay private. See [scope and validation](docs/olrox-monster-attacks.md).
+
 - **Reconstructed BO0 owned appendages**, AGPL-3.0-or-later.
   `modules/core/olrox_monster_appendages.c` reconstructs selected BO0 `313A8.c`
   part controllers and shared `st/e_misc.h` burst particles. Selected

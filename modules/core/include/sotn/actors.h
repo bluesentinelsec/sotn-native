@@ -153,7 +153,8 @@ typedef struct SotnActorPrimitive
     bool clip; /**< Ordered draw-environment change; bounds are screen pixels, right/bottom
                   exclusive. */
     Sint16 clip_left, clip_top, clip_right, clip_bottom;
-    Uint8 target; /**< Ordered owned render target: 0 normal, 1 begin, 2 restore. */
+    Uint8 target; /**< Ordered target: 0 normal, 1/2 strict begin/restore,
+                      3/4 original replaceable environment begin/restore. */
     Sint16 target_offset_x, target_offset_y;
     bool target_clear;
 } SotnActorPrimitive;

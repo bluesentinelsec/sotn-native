@@ -1,5 +1,15 @@
 # Working in sotn-native
 
+Selected [Olrox head/attack components](docs/olrox-monster-attacks.md) now retain
+head poses/roar timing, real laser request/release, laser floor/sweep/column phases,
+aimed fireballs and drool/dust. Preserve the packed pose/duration sound check,
+generation ownership, released fireball lifetime, triangle geometry and signed
+particle metadata. They remain outside gameplay dispatch pending the real body,
+linked combat and complete death/reward flow; seeded checks are not an encounter.
+Original replaceable environment modes 3/4 commit prior intervals and permit
+repeated restores; strict target modes 1/2 keep their original nesting checks.
+Native flash/shake presentation and console parity remain incomplete.
+
 Selected [Olrox appendage components](docs/olrox-monster-appendages.md) now retain
 owned feet/knees, tail growth/poses, fifteen arm commands, hand break/recovery,
 selected captured defeat sprites and independent burst particles. Preserve the
@@ -32,8 +42,9 @@ a playable transformation. Controller-only instruction traces do not advance the
 The [owned offscreen renderer](docs/olrox-render-targets.md) now supports explicit
 1..256 RGB555 surfaces, transactional target commit/cancellation and ordered
 begin/restore commands. Preserve final VRAM row511, clipping/stride, immutable
-private inputs and borrowed-view lifetimes. No actor emits these target commands
-yet; Olrox transformation/second form and full GPU parity remain incomplete.
+private inputs and borrowed-view lifetimes. No gameplay actor emits these target commands
+yet; selected morph/laser components use them in scoped diagnostics. Olrox
+transformation/second form and full GPU parity remain incomplete.
 
 Selected [Olrox skull columns](docs/olrox-skull-columns.md) now retain four birth
 delays, original release/squeeze/waves, damage and twenty-four owned quads. Preserve
