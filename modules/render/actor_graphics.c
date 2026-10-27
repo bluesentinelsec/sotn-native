@@ -452,6 +452,27 @@ static size_t PaletteIndex(Uint16 palette, Uint16 color)
     return (size_t)(240U + (palette % 256U) / 16U) * 1024U + x;
 }
 
+bool SotnActorGraphics_InitPlayerPalettes(SotnActorGraphics *g)
+{
+    if (!g || g->dra.size < 0x3bb8 + 23U * 4U)
+        return SDL_SetError(
+            "Player palette initialization requires private character-start metadata");
+    SotnDataView descriptor = {0}, colors = {0};
+    if (!Resolve(g->dra, 0x800a0000U, Read32(g->dra.bytes + 0x3bb8 + 22U * 4U), 16, 4, &descriptor))
+        return false;
+    const Uint32 start = Read32(descriptor.bytes + 4), count = Read32(descriptor.bytes + 8);
+    if (Read32(descriptor.bytes) != 1 || start != 0x1000 || !count || count > 0x1000 ||
+        !Resolve(g->dra, 0x800a0000U, Read32(descriptor.bytes + 12), count * 2U, 2, &colors))
+        return SDL_SetError("Player palette initialization requires its bounded original copy");
+    for (Uint32 i = 0; i < count; ++i)
+        if (!g->valid[PaletteIndex((Uint16)((start + i) / 16U), (Uint16)(i & 15U))])
+            return SDL_SetError("Player palette initialization requires resident common colors");
+    for (Uint32 i = 0; i < count; ++i)
+        g->words[PaletteIndex((Uint16)((start + i) / 16U), (Uint16)(i & 15U))] =
+            Read16(colors.bytes + i * 2U);
+    return true;
+}
+
 bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *g, SotnPaletteRedShift shift)
 {
     if (g == NULL || shift.count > 7)

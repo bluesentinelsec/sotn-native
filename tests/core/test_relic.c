@@ -38,7 +38,7 @@ int main(void)
     CHECK(SotnWorld_Validate(&world));
     for (Uint16 id = 0; id < SOTN_RELICS; ++id)
     {
-        const bool supported = id == 10 || id == 12 || id == 13 || id == 16;
+        const bool supported = id == 7 || id == 8 || id == 10 || id == 12 || id == 13 || id == 16;
         CHECK(SotnRelic_CanToggle(id) == supported);
         for (Uint8 bits = 0; bits < 4; ++bits)
         {

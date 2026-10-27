@@ -205,6 +205,31 @@ static void Jump(SotnPlayer *player)
     player->movement_flags &= ~1U;
 }
 
+void SotnPlayer_MistReturn(SotnPlayer *p, bool cramped)
+{
+    if (cramped)
+    {
+        if (p->tight_space == 1 || p->tight_space == 2)
+        {
+            Animate(p, 0xc7);
+            p->vx = p->vy = 0;
+            SetStep(p, SOTN_PLAYER_STUCK);
+            p->sound = 0x6f2;
+        }
+        else
+            Crouch(p, 0, 0);
+        return;
+    }
+    Jump(p);
+    if (!p->tight_space)
+        p->movement_flags |= 1U;
+    p->y.parts.high = (Sint16)(p->y.parts.high - 3);
+    if (!(p->contact & 0x8000))
+        p->vy = -FIX_ONE;
+    p->movement_flags |= 0x100U;
+    p->mist_lockout = 24;
+}
+
 void SotnPlayer_GravityLaunch(SotnPlayer *p)
 {
     if (Direction(p))
@@ -383,10 +408,12 @@ static bool TickShield(SotnPlayer *player)
     if (button == 0)
         button = player->equipment[0] == 16 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
     const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
-    const bool disabled = player->equipment[hand] != 16 || player->curse_ticks != 0 ||
-                          player->curse_failure || player->step == SOTN_PLAYER_KILL ||
-                          player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_STONE ||
-                          player->step == SOTN_PLAYER_BOSS_GRAB;
+    const bool disabled =
+        player->equipment[hand] != 16 || player->curse_ticks != 0 || player->curse_failure ||
+        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_HIT ||
+        player->step == SOTN_PLAYER_STONE || player->step == SOTN_PLAYER_MIST ||
+        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_STUCK ||
+        player->step == SOTN_PLAYER_BOSS_GRAB;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -990,7 +1017,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
     const Uint16 supported = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN |
                              SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND |
-                             SOTN_BUTTON_RIGHT_HAND;
+                             SOTN_BUTTON_RIGHT_HAND |
+                             (player && player->mist_context ? SOTN_BUTTON_MIST : 0);
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
@@ -1039,8 +1067,18 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     }
     SotnPlayer_GravityInput(&next);
+    SotnPlayer_MistInput(&next);
     switch (next.step)
     {
+    case SOTN_PLAYER_MIST:
+        SotnPlayer_MistTick(&next);
+        break;
+    case SOTN_PLAYER_UNMORPH_MIST:
+        SotnPlayer_UnmorphMistTick(&next);
+        break;
+    case SOTN_PLAYER_STUCK:
+        SotnPlayer_StuckTick(&next);
+        break;
     case SOTN_PLAYER_BOSS_GRAB:
         BossGrabTick(&next);
         break;
@@ -1124,6 +1162,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     default:
         return SDL_SetError("Unsupported Alucard movement state");
     }
+    next.status =
+        (next.status & ~2U) |
+        ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U);
+    if (next.status & 2U)
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
     if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation) || !ReadAttack(&next) ||
         !TickShield(&next) || !SotnPlayer_KickTick(&next))
         return false;
@@ -1163,6 +1206,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     player->dra = dra;
     player->hp = player->hp_max = 70;
     player->mp = 20;
+    player->mist_lockout = 16;
     player->attributes =
         (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}, .unarmed_attack = 6};
     player->map = map;
@@ -1270,6 +1314,12 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x38110000U;
     if (player->step == SOTN_PLAYER_HIGH_JUMP)
         status |= 0x38000000U;
+    if (player->step == SOTN_PLAYER_MIST)
+        status |= 0x28100002U;
+    if (player->step == SOTN_PLAYER_UNMORPH_MIST)
+        status |= 0x28900002U;
+    if (player->step == SOTN_PLAYER_STUCK)
+        status |= 0x18100030U;
     *out = (SotnPlayerState){
         .x = player->x.value,
         .y = player->y.value,
@@ -1310,7 +1360,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .kick = player->kick,
         .gravity = player->gravity,
         .mp = player->mp,
-        .mp_spent = player->mp_spent};
+        .mp_spent = player->mp_spent,
+        .mist = player->mist};
     return true;
 }
 

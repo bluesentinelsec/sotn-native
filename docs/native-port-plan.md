@@ -53,7 +53,7 @@ and [stage loading](castle-stage-loading.md), [Laboratory scope](laboratory-worl
 
 The selected [Leap Stone double jump](player-leap-stone.md) now consumes saved,
 active relic ownership through the normal-form player. Full dive-kick/Gravity Boots
-parity, transformations and full ability/progression parity remain incomplete. The selected
+parity, Bat/Wolf and full ability/progression parity remain incomplete. The selected
 [dive-kick attack/rebound](player-dive-kick.md) now runs; original shared-factory
 and attack-group contention still need integration.
 Selected [Gravity Boots](player-gravity-boots.md) now add original command/MP,
@@ -63,10 +63,12 @@ not establish ordinary acquisition, connected travel or whole-route parity.
 
 The internal [transformation resource service](transformation-resources.md) now
 preserves Bat/Mist/Wolf relic eligibility, strict MP thresholds and original
-simulation-timer drain cadence. This is a tested component; transformation
-movement, collision, effects and controls remain unintegrated. The selected
-[Mist movement component](mist-motion.md) now has independent instruction checks,
-but remains outside gameplay until collision, effects and restoration are ready.
+simulation-timer drain cadence. The selected
+[Mist integration](player-mist.md) now connects original movement, collision,
+capture/cloud/palettes and restoration through owned Q/Xbox LB controls.
+Ordinary starts grant no relics. Gas Cloud damage, Bat/Wolf, complete effects
+and ordinary acquisition remain incomplete; component comparisons do not prove
+whole-route or console parity.
 
 ## Pinned reference
 

@@ -27,6 +27,9 @@ static bool TestKeyboard(void)
     keys[SDL_SCANCODE_Z] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_LEFT_HAND);
     keys[SDL_SCANCODE_Z] = false;
+    keys[SDL_SCANCODE_Q] = true;
+    CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_MIST);
+    keys[SDL_SCANCODE_Q] = false;
     keys[SDL_SCANCODE_RIGHT] = true;
     keys[SDL_SCANCODE_X] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == (SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
@@ -84,6 +87,10 @@ static bool TestVirtualPad(LaboratoryInput *input, SDL_JoystickID id)
     CHECK(SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTY, -16000));
     SDL_UpdateGamepads();
     CHECK(LaboratoryInput_Buttons(input) == 0);
+    CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, true));
+    SDL_UpdateGamepads();
+    CHECK(LaboratoryInput_Buttons(input) == SOTN_BUTTON_MIST);
+    CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER, false));
     CHECK(SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTX, 24000));
     CHECK(SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTY, -24000));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, true));

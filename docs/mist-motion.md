@@ -1,10 +1,10 @@
 # Mist movement component
 
 The internal Mist movement cursor now reproduces the original initialization,
-steering, deceleration, duration, MP reduction and restoration request. It remains
-outside player/input dispatch until collision, transformation effects and the real
-unmorph controller are integrated. Mist is not playable yet; no ordinary-start
-relic grant or public control binding is introduced.
+steering, deceleration, duration, MP reduction and restoration request. The selected
+[player/session integration](player-mist.md) now connects it to real collision,
+visual effects, restoration and Q/Xbox LB controls. Ordinary starts grant no relics;
+full ability/effect/raster parity remains incomplete.
 
 The caller first applies [original transformation eligibility](transformation-resources.md),
 then supplies copied movement, relic, MP, direction and simulation-clock inputs.
@@ -45,8 +45,8 @@ MP/relic, direction, deceleration and player-state helpers execute. Animation,
 palette, weapon-release and factory calls use explicit adapters, including checks
 of the original initialization requests. This is movement-component agreement.
 The [form restoration collision checks](form-restoration-collision.md) now have
-separate component coverage. Actual visual effects, restoration completion, playable Mist and
-console/whole-route parity remain separate work. Original code/data and traces
+separate component coverage. Selected live Mist now runs through its real owners;
+these movement comparisons do not establish full effects, console or whole-route parity. Original code/data and traces
 stay in ignored local paths.
 
 Provenance: `dra/71830.c:ControlMistForm/MistFormFinished` and

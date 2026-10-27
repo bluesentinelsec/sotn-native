@@ -4,12 +4,14 @@
 #include <sotn/animation.h>
 #include <sotn/character.h>
 #include <sotn/collision.h>
+#include <sotn/mist_effect.h>
 #include <sotn/world.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_SELECT = 0x0001,
+    SOTN_BUTTON_MIST = 0x0004,
     SOTN_BUTTON_START = 0x0008,
     SOTN_BUTTON_CANCEL = 0x0010,
     SOTN_BUTTON_JUMP = 0x0040,
@@ -29,10 +31,13 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_CROUCH,
     SOTN_PLAYER_FALL,
     SOTN_PLAYER_JUMP,
+    SOTN_PLAYER_STUCK = 6,
+    SOTN_PLAYER_MIST = 7,
     SOTN_PLAYER_HIGH_JUMP = 8,
     SOTN_PLAYER_HIT = 10,
     SOTN_PLAYER_STONE = 11,
     SOTN_PLAYER_BOSS_GRAB = 12,
+    SOTN_PLAYER_UNMORPH_MIST = 14,
     SOTN_PLAYER_KILL = 16,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
@@ -119,6 +124,14 @@ typedef struct SotnPlayerSleep
     bool active;
 } SotnPlayerSleep;
 
+/** @brief Copied player requests for its real, generation-owned Mist visual child. */
+typedef struct SotnPlayerMist
+{
+    Uint32 generation;
+    Uint16 capture_sprite;
+    bool active, restoring, started, request_restore, retire;
+} SotnPlayerMist;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -151,6 +164,7 @@ typedef struct SotnPlayerState
     SotnPlayerKick kick;
     SotnPlayerGravity gravity;
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
+    SotnPlayerMist mist;
 } SotnPlayerState;
 
 typedef struct SotnSubweapons SotnSubweapons;
@@ -221,6 +235,20 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
  * Found-but-disabled relics do not enable abilities. This setter advances no time,
  * grants no relics and does not replenish the current airborne jump allowance. */
 bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
+
+/** @brief Bind this tick's actual Mist child and original simulation/environment snapshot.
+ * @param player Borrowed player. @param effect Borrowed actual owned effect, copied immediately;
+ * NULL is valid before entry or after retirement, never during an active transformation.
+ * @param generation Child's current player-issued generation, zero when absent.
+ * @param game_timer Absolute original wrapping simulation timer. @param underwater Real water
+ * state.
+ * @return Success or SDL error without mutation for stale/missing/removed child state.
+ * This enables the selected core controller only after the owner opts in. It never grants relics,
+ * creates effects, advances time or manufactures readiness; the owner must run the actual effect
+ * and consume generation-tagged start/restore/retire requests before supplying the next snapshot.
+ */
+bool SotnPlayer_SetMistContext(SotnPlayer *player, const SotnMistEffect *effect, Uint32 generation,
+                               Uint32 game_timer, bool underwater);
 
 /** @brief Deliver original contact feedback to the current owned dive-kick child.
  * @param player Borrowed simulation. @param generation Current nonzero child identity.

@@ -1,38 +1,32 @@
 # Working in sotn-native
 
-Selected [Mist capture/palette services](docs/mist-presentation.md) now upload real
-normal ARC poses, capture original wedges and run selected palette jobs in owned
-texture memory. Retain source pivots/UVs, odd-height rounding, clear margins, live
-source colors and optional queue exhaustion. Shared palette contention, alternate
-captures, final rendering and live player/sensor integration remain incomplete.
+Selected [Mist traversal](docs/player-mist.md) now connects owned relic/MP gates,
+steering, compact sensors, barrier escape, real sprite capture/cloud/palette jobs,
+restoration and cramped-space recovery. Q/Xbox LB toggles owned Mist; ordinary
+starts grant no new relics. Use the absolute simulation clock, freeze original MP
+recovery in transformed states, and retain generation ownership. Never substitute
+a timer for the actual visual phase-5 signal; normal return releases the real child.
+Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
+bottom room window. Full Gas Cloud damage, Bat/Wolf, shared effect contention,
+restoration flashes, full raster/audio/parity and ordinary acquisition remain
+incomplete. Do not call Alucard, the castle, its areas or the game complete.
 
-The internal [Mist visual lifecycle](docs/mist-effect.md) now reconstructs the
-sixteen-point/eighty-quad cloud and real phase-5 restoration signal. Preserve
-retained point fractions, private tables, original color/geometry arithmetic and
-the signed phase-5 timer wrap. Readiness differs from destruction. Connect the real
-capture/texture/palette services, camera translation and player dispatch before use;
-this component does not make Mist playable. Never substitute a fake readiness timer.
+[Mist motion](docs/mist-motion.md), [form collision](docs/form-restoration-collision.md),
+[visual lifecycle](docs/mist-effect.md) and [capture/palettes](docs/mist-presentation.md)
+retain their scoped component comparisons. Preserve raw tile distances/asymmetric
+masks, successful zero-shift ejection and the original second-probe Mist quirk.
+Camera/room rebases move retained ring fractions even when no child is alive;
+live anchors/quads move separately. Cached capture geometry remains unchanged.
+Initialize owned player palettes through original character-start job 22: raw
+F_GAME palettes contain placeholder Mist colors. Refresh current cape colors
+without resetting live fade jobs. Original full stage initialization retires form
+entities and restores normal Alucard; retained global ring/color state survives.
 
-Internal [form restoration collision checks](docs/form-restoration-collision.md)
-now preserve original Mist-only escape, asymmetric floor-edge masks and raw tile
-nudges. Apply barrier velocity only when blocked. A zero shift can still be a
-successful ejection; preserve that boolean. Retain the documented second-probe
-Mist quirk. These helpers do not complete sensor/effect restoration or enable
-playable forms; real effect ownership/readiness remains mandatory.
-
-The internal [Mist movement component](docs/mist-motion.md) now preserves source
-initialization, steering/deceleration, duration/MP ordering, facing locks and
-settling offsets. It remains outside gameplay/input dispatch. Entry still needs
-shared relic/MP eligibility; an ended cursor requests real unmorph work and never
-means that sensors/effects are restored. Retain strict effect readiness and finish
-collision/presentation/restoration before exposing playable Mist controls.
-
-The internal [transformation resource service](docs/transformation-resources.md)
-now preserves original Bat/Mist/Wolf relic gates, strict MP thresholds and absolute
-wrapping simulation-timer charge cadence. Check-only never charges; inactive relics
-block entry even on an unbilled tick. Apply reported cost once and never substitute
-render frames or a local form timer. This component does not enable playable forms;
-movement, effects, collision and controls still require real integration.
+The [transformation resource service](docs/transformation-resources.md) retains
+strict MP thresholds and absolute wrapping-timer charge cadence. Check-only never
+charges and found-but-disabled relics block entry even on an unbilled tick. Apply
+the reported cost once to each owning snapshot. Bat/Wolf movement/effects remain
+unavailable; their resource component does not make them playable.
 
 [Connected Olrox’s Quarters progression](docs/olrox-connections.md) now links
 Marble Gallery and Chapel, the original eastern Olrox boss override, return exits
@@ -112,7 +106,7 @@ original sound requests and checked primitive/tile ownership. Selected NO2 trave
 now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
-Zoe, Gravity Boots, Leap Stone and Jewel of Open. Preserve found bits, US cursor
+Zoe, Gravity Boots, Leap Stone, Jewel of Open, Mist and Power of Mist. Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
 Other abilities and familiars remain unavailable; never grant ownership or reset
 transient movement/MP when switching. Version-nine saves retain disabled relics.

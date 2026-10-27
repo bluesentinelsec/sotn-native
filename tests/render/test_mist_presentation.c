@@ -53,10 +53,21 @@ int main(void)
         Put16(common + 0x40000 + i * 2U, 0x7c00);
         Put16(common + 0x40000 + 0xb0U * 2U + i * 2U, 0x3ff);
     }
+    Put32(dra + 0x3bb8 + 22U * 4U, 0x800a2800U);
+    Put32(dra + 0x2800, 1);
+    Put32(dra + 0x2804, 0x1000);
+    Put32(dra + 0x2808, 0xe0);
+    Put32(dra + 0x280c, 0x800a5000U);
+    SDL_memcpy(dra + 0x5000, common + 0x40000, 0xe0U * 2U);
+    // Raw artwork carries a different authored source; character initialization must replace it.
+    for (Uint16 i = 0; i < 16; ++i)
+        Put16(common + 0x40000 + 0xa0U * 2U + i * 2U, 0x7c1f);
     SotnActorGraphics *graphics = NULL;
     CHECK(SotnActorGraphics_Create(
         (SotnDataView){dra, 0xe900}, (SotnDataView){overlay, sizeof(overlay)},
         (SotnTileSources){{stage, 0x40000}, {common, 0x42000}}, &graphics));
+    CHECK(SotnActorGraphics_InitPlayerPalettes(graphics));
+    CHECK(!SotnActorGraphics_InitPlayerPalettes(NULL));
     Uint8 pixels[16U * 17U / 2U] = {0};
     SDL_memset(pixels, 0x11, sizeof(pixels));
     const SotnAlucardSprite sprite = {{pixels, sizeof(pixels)}, 16, 17, -8, -12};

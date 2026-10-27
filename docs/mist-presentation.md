@@ -4,8 +4,10 @@ The owned actor texture service now captures real, unrotated normal Alucard pose
 for the [Mist visual cursor](mist-effect.md). It uploads borrowed ARC pixels into
 the original private display slot, clears the original right/bottom margins and
 returns the eight original BlinkWhite snapshot wedges. It never changes ARC, DRA
-or common artwork. The player/effect owners still need to call these services in
-gameplay; Mist controls remain unavailable.
+or common artwork. Selected [player/effect owners](player-mist.md) now call these
+services in gameplay. Character-start job 22 initializes the real player/Mist
+source rows from DRA before live equipment colors are applied; raw common artwork
+contains placeholder colors in those rows.
 
 Capture retains original pivot/facing conventions, half-edge and center rounding,
 negative screen coordinates and UV origin. Odd-height bottom edges use the original
@@ -33,7 +35,8 @@ The geometry cursor's texture pages are original primitive values. A renderer
 must apply draw-mode `0x537`, including the `+0x20` additive texture-page adjustment,
 vertex modulation, semi-transparency, dithering and hide flags. These services
 upload pixels and animate palettes; they do not establish final framebuffer/GPU
-parity or enable the live player transformation and sensor restoration.
+parity. Live player transformation and sensor restoration have separate integration
+coverage; shared allocation and complete effects remain unfinished.
 
 ## Validation
 

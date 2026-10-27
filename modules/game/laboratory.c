@@ -51,6 +51,11 @@ struct SotnLaboratory
     SotnDataView dra, nz0, executable;
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
+    SotnMistEffect mist_effect;
+    Uint32 mist_generation;
+    Sint32 mist_camera_x, mist_camera_y, mist_rebase_x, mist_rebase_y;
+    Uint16 mist_capture_sprite;
+    bool mist_present;
     SotnActors *actors;
     SotnSubweapons *subweapons;
     SotnActorLayout *actor_layout;
@@ -74,7 +79,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 80];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -550,6 +555,105 @@ static bool VisitMap(SotnLaboratory *session)
                            (Sint32)layer.top + y / 256, false);
 }
 
+static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
+{
+    const Sint64 dx = (Sint64)s->mist_rebase_x + s->mist_camera_x - s->camera.x,
+                 dy = (Sint64)s->mist_rebase_y + s->mist_camera_y - s->camera.y;
+    if (dx < SDL_MIN_SINT16 || dx > SDL_MAX_SINT16 || dy < SDL_MIN_SINT16 || dy > SDL_MAX_SINT16 ||
+        !SotnMistEffect_Translate(&s->mist_effect, (Sint32)dx, (Sint32)dy, s->mist_present))
+        return SDL_SetError("Mist camera/room translation exceeds its original coordinate word");
+    s->mist_rebase_x = s->mist_rebase_y = 0;
+    s->mist_camera_x = s->camera.x;
+    s->mist_camera_y = s->camera.y;
+    if (entering)
+        return true;
+    Uint16 colors[16] = {0};
+    for (Uint16 i = 0; i < 16; ++i)
+        colors[i] = (Uint16)(s->player_common[0x40000 + i * 2U] |
+                             (Uint16)s->player_common[0x40001 + i * 2U] << 8);
+    if (!SotnActorGraphics_SetPlayerPalette(s->actor_graphics, colors))
+        return false;
+    if (player.mist.retire && s->mist_present)
+    {
+        if (s->mist_generation != player.mist.generation || s->mist_effect.phase != 5)
+            return SDL_SetError("Mist retirement lost its ready generation-owned visual child");
+        s->mist_present = false;
+        s->mist_generation = 0;
+    }
+    if (player.mist.started && (!s->mist_present || s->mist_generation != player.mist.generation))
+    {
+        SotnMistEffect fresh = {.x = (Sint32)((Sint64)player.x - (Sint64)s->camera.x * 65536),
+                                .y = (Sint32)((Sint64)player.y - (Sint64)s->camera.y * 65536)};
+        // These globals outlive the original entity: initialization writes only point highs.
+        SDL_memcpy(fresh.points, s->mist_effect.points, sizeof(fresh.points));
+        SDL_memcpy(fresh.color_phase, s->mist_effect.color_phase, sizeof(fresh.color_phase));
+        SDL_memcpy(fresh.color_base, s->mist_effect.color_base, sizeof(fresh.color_base));
+        s->mist_effect = fresh;
+        s->mist_generation = player.mist.generation;
+        s->mist_present = true;
+        s->mist_capture_sprite = player.mist.capture_sprite;
+        bool accepted = false;
+        if (!SotnActorGraphics_RequestMistPalette(s->actor_graphics, 27, &accepted) ||
+            !SotnActorGraphics_CancelMistPalette(s->actor_graphics) ||
+            !SotnActorGraphics_RequestMistPalette(
+                s->actor_graphics, (s->world.relics[SOTN_RELIC_GAS_CLOUD] & 2U) ? 0x11f : 0x11c,
+                &accepted))
+            return false;
+    }
+    if (s->mist_present)
+    {
+        if (!player.mist.active || player.mist.generation != s->mist_generation)
+            return SDL_SetError("Mist visual child lost its active player generation");
+        if (player.mist.request_restore && s->mist_effect.phase < 3)
+        {
+            s->mist_effect.phase = 3;
+            s->mist_capture_sprite = player.animation.sprite;
+        }
+        SotnMistWedge capture[8] = {0};
+        const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y;
+        if (x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16)
+            return SDL_SetError("Mist player anchor exceeds its original screen coordinate word");
+        SotnMistEffectInput input = {.dra = s->dra,
+                                     .executable = s->executable,
+                                     .x = (Sint16)x,
+                                     .y = (Sint16)y,
+                                     .vx = player.velocity_x,
+                                     .vy = player.velocity_y,
+                                     .game_timer = (Uint32)s->simulation_ticks,
+                                     .priority = player.priority,
+                                     .facing_left = player.facing_left};
+        if (s->mist_effect.phase == 0 || s->mist_effect.phase == 3)
+        {
+            SotnAlucardSprite sprite = {0};
+            if (!SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), s->mist_capture_sprite,
+                                          &sprite) ||
+                !SotnActorGraphics_CapturePlayer(s->actor_graphics, &sprite, x, y,
+                                                 player.facing_left, capture))
+                return false;
+            input.capture = capture;
+        }
+        SotnActorProgress progress = {0};
+        const bool initialize = s->mist_effect.phase == 0;
+        if (initialize)
+        {
+            if (!SotnActors_GetProgress(s->actors, &progress))
+                return false;
+            for (Uint16 i = 0; i < 4; ++i)
+                input.random[i] = SotnCombat_Random(&progress.random);
+        }
+        SotnMistEffectEvents events = {0};
+        if (!SotnMistEffect_Tick(&s->mist_effect, input, &events) ||
+            (initialize && (events.random_count != 4 || !SotnActors_Restore(s->actors, progress))))
+            return false;
+        bool accepted = false;
+        if ((events.cancel_palette && !SotnActorGraphics_CancelMistPalette(s->actor_graphics)) ||
+            (events.restore_palette &&
+             !SotnActorGraphics_RequestMistPalette(s->actor_graphics, 0x11d, &accepted)))
+            return false;
+    }
+    return SotnActorGraphics_TickMistPalette(s->actor_graphics);
+}
+
 static bool UpdateActors(SotnLaboratory *session, bool entering)
 {
     SotnPlayerState player = {0};
@@ -560,6 +664,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
+    if (!TickMist(session, player, entering))
+        return false;
     SotnCharacterState profile = {0};
     if (!SotnCharacter_Get(session->character, &profile, NULL))
         return false;
@@ -837,11 +943,13 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         SotnRoomWindow window = {0};
         if (!SotnActors_GetRoomWindow(session->actors, &window) ||
             !SotnStageRoute_WindowCrossing(window, local_x, local_y, (Uint32)width, (Uint32)height,
-                                           (state->contacts & 1) != 0, &crossing))
+                                           (state->contacts & 1) != 0 || (state->status & 3U) != 0,
+                                           &crossing))
             return false;
     }
     else if (!SotnStageRoute_Crossing(local_x, local_y, (Uint32)width, (Uint32)height,
-                                      (state->contacts & 1) != 0, &crossing))
+                                      (state->contacts & 1) != 0 || (state->status & 3U) != 0,
+                                      &crossing))
         return false;
     if (!crossing.active)
         return true;
@@ -880,6 +988,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
             return false;
         if (!SotnSubweapons_Enter(session->subweapons, room.foreground.collision))
             return false;
+        session->mist_rebase_x += offset_x;
+        session->mist_rebase_y += offset_y;
         session->room = room;
         session->room_index = i;
         if (!EnterActors(session) || !EnterSaveRoom(session))
@@ -1017,6 +1127,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             session->dra, session->nz0,
             (SotnTileSources){StageGraphics(session), SotnResource_View(session->common)}, stage_id,
             &session->actor_graphics) ||
+        !SotnActorGraphics_InitPlayerPalettes(session->actor_graphics) ||
         !InitializeEquipment(session, saved) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->save_renderer) ||
@@ -1274,6 +1385,10 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
         !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
+        !SotnPlayer_SetMistContext(session->player,
+                                   session->mist_present ? &session->mist_effect : NULL,
+                                   session->mist_generation, (Uint32)session->simulation_ticks,
+                                   (state.contacts & 0x80U) != 0) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
@@ -1285,7 +1400,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return true;
     }
     if (!TickActors(session) || !TickCape(session) ||
-        !SotnCharacter_TickResources(session->character, session->simulation_ticks) ||
+        (!(state.status & 0x20000000U) &&
+         !SotnCharacter_TickResources(session->character, session->simulation_ticks)) ||
         !TickSaveRoom(session, buttons))
         return false;
     SotnActorCombat combat = {0};
@@ -1503,6 +1619,33 @@ static bool ActorDrawError(SotnActorState actor)
 
 // Selected LIB parallax precedes foreground tiles; Chapel/BO5 sky precedes both tile layers.
 // Original later-submitted primitive packets precede tile packets at the tied bucket.
+static bool DrawMistQuad(SotnLaboratory *s, Uint16 index)
+{
+    if (!s->mist_present || index >= 80)
+        return SDL_SetError("Mist draw command lost its owned visual primitive");
+    const SotnMistQuad *p = &s->mist_effect.quads[index];
+    if (p->hidden)
+        return true;
+    SotnTextureQuad q = {.page = (Uint16)(p->page + 0x20U),
+                         .palette = p->palette,
+                         .blend = true,
+                         .modulate = true,
+                         .gouraud = true};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        q.x[i] = p->x[i] + s->draw_target.offset_x;
+        q.y[i] = p->y[i] + s->draw_target.offset_y;
+        q.u[i] = p->u[i];
+        q.v[i] = p->v[i];
+        q.vertex_red[i] = q.vertex_green[i] = q.vertex_blue[i] = p->grey[i];
+    }
+    const SotnActorSurface surface =
+        s->draw_target.mode
+            ? s->draw_target.surface
+            : (SotnActorSurface){s->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
+    return SotnActorGraphics_QuadSurface(s->actor_graphics, q, surface);
+}
+
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y, bool background)
 {
@@ -1602,6 +1745,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                 .kind = split ? SOTN_DRAW_SPRITE : SOTN_DRAW_ACTOR}))
             return false;
     }
+    if (!background && session->mist_present)
+        for (Uint16 i = 0; i < 80; ++i)
+            if (!session->mist_effect.quads[i].hidden &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = session->mist_effect.quads[i].priority,
+                                    .primitive = i,
+                                    .kind = SOTN_DRAW_MIST}))
+                return false;
     if (background)
     {
         for (size_t i = 0; i < draw_count; ++i)
@@ -1665,17 +1817,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =
-                player.stone.active
-                    ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
-                                                Pixel(player.y) - camera_y, player.facing_left,
-                                                player.stone, session->frame, SOTN_FRAME_PIXELS)
-                : player.gravity.upside_down
-                    ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - camera_x,
-                                              Pixel(player.y) - camera_y, player.facing_left,
-                                              session->frame, SOTN_FRAME_PIXELS)
-                    : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - camera_x,
-                                            Pixel(player.y) - camera_y, player.facing_left,
-                                            player.death, session->frame, SOTN_FRAME_PIXELS);
+                player.mist.active ||
+                (player.stone.active
+                     ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
+                                                 Pixel(player.y) - camera_y, player.facing_left,
+                                                 player.stone, session->frame, SOTN_FRAME_PIXELS)
+                 : player.gravity.upside_down
+                     ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - camera_x,
+                                               Pixel(player.y) - camera_y, player.facing_left,
+                                               session->frame, SOTN_FRAME_PIXELS)
+                     : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - camera_x,
+                                             Pixel(player.y) - camera_y, player.facing_left,
+                                             player.death, session->frame, SOTN_FRAME_PIXELS));
             if (!drawn)
                 return false;
             if (player.sleep.active && player.sleep.frame &&
@@ -1698,6 +1851,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_MIST)
+        {
+            if (!DrawMistQuad(session, command.primitive) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.actor >= count)
             return SDL_SetError("Actor draw command lost its frame snapshot");
         const SotnActorState actor = list[command.actor];
@@ -2242,6 +2403,14 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
     }
     if (ready && travel)
     {
+        // Engine_Init destroys entities and AluInit restores normal form. Mist's global ring
+        // fractions/color phases outlive that entity reset and remain available on later entry.
+        SDL_memcpy(next->mist_effect.points, old->mist_effect.points,
+                   sizeof(next->mist_effect.points));
+        SDL_memcpy(next->mist_effect.color_phase, old->mist_effect.color_phase,
+                   sizeof(next->mist_effect.color_phase));
+        SDL_memcpy(next->mist_effect.color_base, old->mist_effect.color_base,
+                   sizeof(next->mist_effect.color_base));
         SotnPlayerState previous = {0};
         if (!SotnPlayer_GetState(old->player, &previous) ||
             !SotnPlayer_RestoreCurse(next->player, previous.curse_ticks) ||

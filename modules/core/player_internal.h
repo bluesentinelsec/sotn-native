@@ -3,6 +3,7 @@
 
 #include <SDL3/SDL.h>
 #include <sotn/equipment.h>
+#include <sotn/mist_motion.h>
 #include <sotn/player.h>
 #include <sotn/shield.h>
 
@@ -49,6 +50,11 @@ struct SotnPlayer
     Uint16 kick_hit;
     SotnPlayerGravity gravity;
     Uint16 mp, mp_spent, held;
+    SotnMistMotion mist_motion;
+    SotnPlayerMist mist;
+    Uint32 mist_game_timer, mist_visual_generation;
+    Uint8 mist_visual_phase, mist_lockout;
+    bool mist_context, mist_visual_present, mist_underwater;
     Uint8 gravity_combo;
     Uint16 gravity_combo_timer;
     bool gravity_spawn;
@@ -75,6 +81,16 @@ struct SotnPlayer
 };
 
 void SotnPlayer_StoneTick(SotnPlayer *player);
+/** @brief Select eligible original Mist entry after timers/input, before player dispatch. */
+void SotnPlayer_MistInput(SotnPlayer *player);
+/** @brief Advance selected original Mist steering/duration/MP and owned restoration requests. */
+void SotnPlayer_MistTick(SotnPlayer *player);
+/** @brief Restore original sensors and wait for the actual generation-owned visual child. */
+void SotnPlayer_UnmorphMistTick(SotnPlayer *player);
+/** @brief Advance original cramped-space recovery after restoration. */
+void SotnPlayer_StuckTick(SotnPlayer *player);
+/** @brief Apply original shared Jump/Fall/Crouch return helpers without bypassing effect waits. */
+void SotnPlayer_MistReturn(SotnPlayer *player, bool cramped);
 /** @brief Advance the owned sleep effect from private DRA frames; false reports invalid data. */
 bool SotnPlayer_SleepTick(SotnPlayer *player);
 /** @brief Advance the selected original owned dive-kick child after player motion selection. */
