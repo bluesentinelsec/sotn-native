@@ -16,8 +16,8 @@ source’s rotation/draw state. Invalid variants and motion overflow fail explic
 
 Original sitting uses the existing normal-form player service. The selected
 furniture integration does not implement transformations, Alucard afterimages,
-full effects/audio or whole-encounter/console parity. Connected NO2 travel remains
-a separate milestone. The [encounter](olrox-encounter.md) describes both boss forms
+full effects/audio or whole-encounter/console parity. [Selected NO2 connections](olrox-connections.md)
+now reach the arena. The [encounter](olrox-encounter.md) describes both boss forms
 and the actual defeat/reward flow.
 
 ## Validation

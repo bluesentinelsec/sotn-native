@@ -46,9 +46,8 @@ start at the placed room-11 door, observe forced entry
 and closing, then use ordinary Left input to reopen it and pass the collision
 column. The ordinary development character receives no stats, relics, equipment
 or position changes during play. This explicit room start does not establish
-connected travel, ordinary whole-castle traversal or console parity. NO2 remains
-disconnected while its other mechanisms/scenery, Olrox and progression are
-integrated. The full castle and Alucard's abilities remain incomplete.
+ordinary whole-castle traversal or console parity. Selected
+[NO2 connections](olrox-connections.md) now run within their documented scope. The full castle and Alucard's abilities remain incomplete.
 
 Provenance: `st/e_sealed_door_no2.h`, included by `st/no2/e_sealed_door.c`, at
 sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).

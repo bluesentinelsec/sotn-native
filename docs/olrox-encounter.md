@@ -8,9 +8,10 @@ arena release. A recorded original defeat time prevents the boss and doors from
 respawning in a fresh arena with that retained progress.
 
 This remains a selected native encounter. Complete flash/shake,
-Alucard afterimage suppression, full effects/audio/reverb, connected NO2 travel
-and uninterrupted original-console parity remain incomplete. The castle,
-Alucard and game are not complete. BO0 is still an explicit development start.
+Alucard afterimage suppression, full effects/audio/reverb and uninterrupted
+original-console parity remain incomplete. The castle,
+Alucard and game are not complete. [Selected NO2 connections](olrox-connections.md)
+now reach the arena through its original eastern approach.
 Selected [breakable furnishings and sitting](olrox-furnishings.md) now run.
 
 ## State and ownership

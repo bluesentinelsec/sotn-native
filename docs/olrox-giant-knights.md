@@ -3,7 +3,8 @@
 The internal NO2 checkpoint now runs the original placed Hammer and Blade enemies,
 their articulated limbs, independent weapons, physical damage, selected attack
 sounds, experience and staged deaths. Both appear in original room 4. This extends
-the disconnected development checkpoint; it does not open another castle route.
+the selected development checkpoint. [Connected travel](olrox-connections.md)
+now runs within its separately documented limits.
 
 ## Behavior and ownership
 

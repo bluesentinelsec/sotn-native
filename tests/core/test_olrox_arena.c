@@ -79,7 +79,7 @@ static bool Cycle(Fixture *f)
     SotnActors *s = NULL;
     CHECK(Open(f, &s, 1));
     const SotnStageProfile *p = SotnStageProfile_Get(30);
-    CHECK(p && !p->connected && p->sprite_banks == 50 && p->actor_limit == 0x4d &&
+    CHECK(p && p->connected && p->sprite_banks == 50 && p->actor_limit == 0x4d &&
           p->prize_count == 10 && p->prize_bit == 0 && p->door_types == 4 && p->camera_count == 7 &&
           !SotnStageProfile_SaveRoom(30, 0));
     CHECK(ActorStageOffset(s, 0xbc8) == 0x5f4 && ActorStageOffset(s, 0x1cc4) == 0x1bc8 &&

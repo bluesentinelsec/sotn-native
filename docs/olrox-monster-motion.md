@@ -34,8 +34,9 @@ body fixtures supply initial component state. This is not actor integration,
 ordinary boss traversal or console parity evidence.
 
 The selected [native encounter](olrox-encounter.md) now advances these helpers with
-real body, parts, morph and attack/death/reward controllers. Connected BO0/NO2 travel,
-full presentation/parity, castle and Alucard behavior remain incomplete.
+real body, parts, morph and attack/death/reward controllers. Selected
+[BO0/NO2 travel](olrox-connections.md) now runs. Full presentation/parity, castle
+and Alucard behavior remain incomplete.
 
 Provenance: reconstructed selected BO0 `313A8.c` routines
 `func_us_801B1590` through `func_us_801B24CC` at sotn-decomp

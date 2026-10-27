@@ -60,9 +60,9 @@ normal SDL quit. These explicit starts are not ordinary castle entry, an
 uninterrupted whole-area replay, or console parity evidence. User saves remain
 untouched; all inputs and diagnostic captures stay ignored.
 
-The original courtyard framebuffer effect (actor `0x20`), Olrox's encounter,
-remaining stage progression and full audiovisual/timing parity remain incomplete.
-NO2 stays disconnected until its progression has meaningful native validation.
+The original courtyard framebuffer effect (actor `0x20`), further destinations
+and full audiovisual/timing parity remain incomplete. Selected
+[Olrox combat](olrox-encounter.md) and [connected travel](olrox-connections.md) now run.
 Alucard's remaining forms/abilities and the rest of the castle remain separate
 work; this batch does not establish complete levels or a complete game.
 

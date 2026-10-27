@@ -1,3 +1,14 @@
+# Working in sotn-native
+
+[Connected Olrox’s Quarters progression](docs/olrox-connections.md) now links
+Marble Gallery and Chapel, the original eastern Olrox boss override, return exits
+and defeated-arena revisits. Gate the encounter on its defeat time, not visited or
+cutscene bits. Preserve original high exits and private route records; grant no
+abilities to ordinary starts. Isolated ordinary-character connector checks and
+protected strength/Gravity Boots boss fixtures are distinct evidence. Save-room
+transfers are explicit; do not claim continuous traversal, ordinary acquisition,
+whole-encounter or console parity. Colosseum/teleport destinations remain gated.
+
 The selected [Olrox furnishings](docs/olrox-furnishings.md) now add placed table,
 seats/candelabra, original adjacent-group destruction, thirteen debris variants
 and normal sitting controls. Retain private profiles, pure-Up triggering, fractional
@@ -5,15 +16,13 @@ motion, floor sensors and rotation through explosion conversion. Validate adjace
 groups before mutation; exhausted visual pools never replace unrelated actors.
 Explicit-entry/protected native checks are not full-route or console parity.
 
-# Working in sotn-native
-
 The selected [Olrox encounter](docs/olrox-encounter.md) now connects both forms,
 real morph/body/head/arm/attack updates, shared damage, independent hand recovery,
 captured-fragment defeat, Life Max Up conversion and arena release. Preserve the
 seven-part head-HP ring (roles 0..6), infinite-HP cooldown rules, independent arms/
 hands and packet-16 final body capture. Only final victory records the boss time;
 first-form transition never awards victory. Saved defeat times omit boss/doors
-on a fresh arena. BO0/NO2 travel, full effects/audio/shake/flash,
+on a fresh arena. Full effects/audio/shake/flash,
 Alucard afterimages and uninterrupted encounter/console parity remain incomplete.
 Do not call the boss presentation, area, castle, Alucard or game complete.
 
@@ -57,15 +66,16 @@ house models, repeated backgrounds, foreground/backdrop, linked lamps and glow.
 Preserve matrix-pair projection (distinct from quarter-wave trigonometry), face
 winding/signed midpoint division, effect-slot order and copied palette commands.
 Palette red increments preserve color zero, other channels and mask bits; never
-mutate borrowed assets. The framebuffer effect, Olrox and connected travel remain
-incomplete. Explicit start/protection checks are not whole-route/console parity.
+mutate borrowed assets. The framebuffer effect remains incomplete; selected Olrox
+and connected travel now run within their documented limits. Explicit start/protection
+checks are not whole-route/console parity.
 
 Selected [NO2 stone doors](docs/olrox-stone-doors.md) now retain the original
 forced entry/open/close sequence, alternate artwork and collision columns.
 They are ordinary doors, distinct from the magical Jewel barrier. Preserve the
 quarter-wave SDK trigonometry, right-side shading, retained edge UV at `0xA00`,
-original sound requests and checked primitive/tile ownership. NO2 remains
-disconnected; explicit placed-door checks are not whole-route/console parity.
+original sound requests and checked primitive/tile ownership. Selected NO2 travel
+now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
 Zoe, Gravity Boots, Leap Stone and Jewel of Open. Preserve found bits, US cursor
@@ -114,8 +124,8 @@ The internal [Olrox's Quarters foundation](docs/olrox-quarter-runtime.md) adds i
 own NO2 resources/music, common pickups/doors/camera, breakables/debris, decorations,
 Skelerang/boomerangs, selected Bloody Zombies and blood-effect adapters. Keep NO2
 identities distinct: zombie 0x2D, blood 0x2E/0x2F, Owl Knight sword/target 0x2B/0x2C.
-Stage 4 remains disconnected while its other enemies, mechanisms and Olrox need
-integration. Public synthetic and controlled private checks are not whole-area or
+Selected stage-4/BO0 travel now runs within the documented limits. Public synthetic
+and controlled private checks are not whole-area or
 console parity. Its ordinary save room uses the existing version-nine format.
 Selected [NO2 prisoners and spikes](docs/olrox-prisoners-spikes.md) now retain
 owned shadows, original appearance/rattle/retreat phases, temporary environmental
@@ -132,15 +142,15 @@ private articulated poses, independent weapons, linked physical damage and stage
 deaths. Preserve copied-root anchoring, signed SDK overextension and generation
 ownership after Blade releases its sword. Optional trail exhaustion omits only
 visuals; the original small-Y impact shake remains incomplete. Ordinary NO2 layouts
-do not place the compiled Owl/Owl Knight or Gurkha families. Stage 4 remains
-disconnected; component/protected checks do not establish route/console parity.
+do not place the compiled Owl/Owl Knight or Gurkha families. Selected stage-4 travel
+now runs; component/protected checks do not establish route/console parity.
 
 Selected [NO2 Spectral Sword combat](docs/olrox-spectral-sword.md) now runs its
 fifteen distinct weapons, three formations, staggered throws, independent weapon
 HP, count-once deaths, body defeat and owned aura. Preserve NO2 identities 3E/3F/40,
 camera-relative thresholds, surviving-weapon projection cursor and private tables;
 Chapel's encounter differs. Component/protected checks are not route/console parity.
-Stage 4 remains disconnected while mechanisms, Olrox and travel are integrated.
+Selected stage-4 travel and Olrox now run within their documented limits.
 
 Selected [NO2 secrets](docs/olrox-secrets.md) now connect the three-hit wall,
 128-HP ceiling, original tile patches and selected paired debris/dust. Flag32's
@@ -149,8 +159,8 @@ and feed the existing map renderer. Retain infinite HP0x7FFF, paired primitive
 ownership, fractions and distinct allocation fallbacks. The native wall crossing
 uses ordinary Gladius attacks. The initial ceiling fixture used explicit positioning;
 the selected Gravity Boots check now reaches it with normal commands and relic/
-protection grants. Neither proves whole-area/ability/console parity. Stage4
-remains disconnected while the other mechanisms, scenery and Olrox are integrated.
+protection grants. Neither proves whole-area/ability/console parity. Selected stage-4
+travel and Olrox now run within their documented limits.
 
 ## Purpose and priorities
 

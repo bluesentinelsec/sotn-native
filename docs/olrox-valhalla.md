@@ -2,8 +2,8 @@
 
 The internal NO2 profile now advances Valhalla Knight bodies, two adjacent contact
 actors and thirteen death pieces using original private initialization, animation,
-sensor, hitbox and launch profiles. The [area remains disconnected](olrox-quarter-runtime.md)
-while other enemies, mechanisms and Olrox still need integration.
+sensor, hitbox and launch profiles. [Selected connected travel](olrox-connections.md)
+now runs within its documented limits; full effects and encounter parity remain incomplete.
 
 Bodies retain the original landing, charge, brake/turn, player-airborne decision,
 run-up, leap, landing recovery and physical death paths. The patrol anchor uses

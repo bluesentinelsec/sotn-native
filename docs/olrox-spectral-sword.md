@@ -3,8 +3,8 @@
 The internal NO2 checkpoint now runs its original placed Spectral Sword in room 2,
 fifteen distinct poltergeist weapons and owned aura. This is NO2's encounter,
 with different formations, attack ordering, hitbox tables and identities from the
-Chapel version. Stage 4 remains disconnected while mechanisms, Olrox and travel
-are integrated. This is not a complete authentic area or game.
+Chapel version. Selected [stage-4 travel](olrox-connections.md) and
+[Olrox combat](olrox-encounter.md) now run within their documented limits. This is not a complete authentic area or game.
 
 ## Behavior
 

@@ -38,7 +38,7 @@ created and positioned but is not advanced in these component comparisons.
 These isolated comparisons do not establish gameplay or console-rendering parity.
 The [integrated encounter](olrox-encounter.md) now advances the articulated body,
 owned parts, attacks and defeat/reward. Pending offscreen writes survive skipped
-presentation frames. Connected BO0/NO2 travel and full parity remain incomplete;
+presentation frames. Selected [BO0/NO2 travel](olrox-connections.md) now runs; full parity remains incomplete;
 missing child readiness is never silently acknowledged.
 
 Provenance: BO0 `3053C.c` (`func_us_801B053C`, `func_us_801B088C`,

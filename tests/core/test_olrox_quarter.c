@@ -93,7 +93,7 @@ static bool Open(Fixture *f, SotnActors **out)
 static bool Metadata(Fixture *f)
 {
     const SotnStageProfile *p = SotnStageProfile_Get(4);
-    CHECK(p && !p->connected && p->actor_limit == 0x42 && p->sprite_banks == 24 &&
+    CHECK(p && p->connected && p->actor_limit == 0x42 && p->sprite_banks == 24 &&
           p->prize_count == 13 && p->prize_bit == 0x20 && p->door_types == 4 &&
           p->camera_count == 7);
     CHECK(SotnStageProfile_SaveRoom(4, 16) && !SotnStageProfile_SaveRoom(4, 17) &&
