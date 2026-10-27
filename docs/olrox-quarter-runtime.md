@@ -1,8 +1,8 @@
 # Olrox's Quarters foundation
 
 NO2, original stage 4, now has an internal native resource profile and selected
-shared actor adapters. Ordinary castle travel remains disabled until its remaining
-enemies, mechanisms and Olrox encounter are integrated. This is not a completed
+shared actor adapters. [Selected connected travel](olrox-connections.md) now links
+Marble Gallery, Chapel and its original Olrox encounter. This is not a completed
 area, a new public gameplay start, or proof of authentic full-game progression.
 
 The profile keeps its own actor identities, initialization, animation, palette,
@@ -86,10 +86,10 @@ fifteen-weapon encounter. The [secret wall and ceiling](olrox-secrets.md) now
 retain attacks, collision patches, selected debris and discovery across saves.
 [Selected stone doors](olrox-stone-doors.md) now add the original forced walking,
 collision columns and shaded panels. The [courtyard scenery](olrox-courtyard.md)
-now adds house models, backgrounds, lamps and glow. Its framebuffer effect and
-Olrox remain outside these batches. Other abilities, complete effects/audio, connected area progression
-and whole-route timing/console comparisons remain incomplete. Keep the connected
-profile disabled until that progression has meaningful native validation.
+now adds house models, backgrounds, lamps and glow. Its framebuffer feedback remains outside these batches. Selected
+[Olrox combat](olrox-encounter.md) and [connected travel](olrox-connections.md) now run.
+Other abilities, further destinations, complete effects/audio and whole-route
+timing/console comparisons remain incomplete.
 
 Provenance: shared `st/e_skelerang.h`, `st/e_bloody_zombie.h`,
 `st/e_breakable_with_debris.h`, `st/e_collect.h`, `st/entity_lock_camera.h`,

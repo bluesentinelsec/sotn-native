@@ -847,7 +847,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         return true;
     const Sint32 world_x = (Sint32)session->room.left * 256 + crossing.x;
     const Sint32 world_y = (Sint32)session->room.top * 256 + crossing.y;
-    if (session->stage_id == 1 || session->stage_id == 6)
+    if (session->stage_id == 1 || session->stage_id == 4 || session->stage_id == 6)
     {
         SotnStageRoute boss = {0};
         bool found = false;
@@ -1047,8 +1047,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats and "
             "fireballs/skull columns, real transformation/monster combat and captured "
             "defeat/reward, breakable furnishings and sitting. Full effects/audio/parity and "
-            "connected "
-            "NO2 progression remain incomplete.");
+            "further destinations remain incomplete. Original NO2 travel is enabled.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
@@ -1066,20 +1065,22 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                 "optional services and remaining scripts are incomplete. Selected Outer Wall "
                 "travel is enabled; this is not a complete Library or authentic game release.");
     else if (stage_id == 4)
-        SDL_Log("Olrox's Quarters internal checkpoint: selected prisoners, spikes, common pickups, "
-                "red doors, breakables/debris, decorations, camera, Valhalla/Hammer/Blade Knights, "
-                "Spectral Sword, Skelerang and Bloody Zombie adapters. Remaining mechanisms, Olrox "
-                "and connected "
-                "travel are incomplete.");
+        SDL_Log(
+            "Olrox's Quarters internal checkpoint: selected prisoners, spikes, common pickups, "
+            "red doors, breakables/debris, decorations, camera, Valhalla/Hammer/Blade Knights, "
+            "Spectral Sword, Skelerang and Bloody Zombie adapters. Selected Marble/Chapel travel "
+            "and original Olrox entry/return now connect. Further destinations and full "
+            "effects/audio/route parity remain incomplete.");
     else if (stage_id == 6)
-        SDL_Log("Royal Chapel checkpoint: private resources, selected shared actors, "
-                "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
-                "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
-                "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
-                "and selected internal tower exits, clouds, sky land, stained glass, chairs "
-                "and confessional ghosts/blades/chime, plus Maria's selected script, speech "
-                "and camera. Selected Hippogryph and Laboratory travel now connect; "
-                "further destinations and full area/encounter parity remain incomplete.");
+        SDL_Log(
+            "Royal Chapel checkpoint: private resources, selected shared actors, "
+            "lamps/debris, furnishings, shortcut, selected scenery/gargoyles and Winged "
+            "Guard/Bat/Crow/Raven/Skelerang/Halberd/Corner Guard/Bone Pillar/Hunting Girl/"
+            "Spectral Sword combat, Spike Breaker corridor tiles/damage/debris, bells "
+            "and selected internal tower exits, clouds, sky land, stained glass, chairs "
+            "and confessional ghosts/blades/chime, plus Maria's selected script, speech "
+            "and camera. Selected Hippogryph, Laboratory and Olrox's Quarters travel now connect; "
+            "further destinations and full area/encounter parity remain incomplete.");
     else if (stage_id == 0 || stage_id == 1)
         SDL_Log("Early castle development checkpoint: shared combat, selected actors, relics, "
                 "ordinary saves, music and connectors. Area-specific enemies, mechanisms and "

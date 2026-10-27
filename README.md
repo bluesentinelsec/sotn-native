@@ -73,8 +73,8 @@ Selected [Valhalla Knight combat](docs/olrox-valhalla.md) and articulated
 [Hammer/Blade encounters](docs/olrox-giant-knights.md), plus NO2’s
 [fifteen-weapon Spectral Sword](docs/olrox-spectral-sword.md) and selected
 [secret wall/ceiling mechanisms](docs/olrox-secrets.md), also run.
-It remains disconnected while its
-remaining enemies, mechanisms and boss are integrated. The internal
+[Selected connected travel](docs/olrox-connections.md) now links Marble Gallery,
+Chapel and its original boss approach. The internal
 [Olrox arena foundation](docs/olrox-arena.md) adds its resources and paired door
 controls. Its selected [humanoid body](docs/olrox-first-form.md) now moves, takes
 physical damage and issues attack commands, with selected
@@ -84,8 +84,7 @@ now active. The selected [Olrox encounter](docs/olrox-encounter.md) connects the
 transformation, monster combat, captured defeat/reward and door release.
 [Owned offscreen rendering](docs/olrox-render-targets.md) preserves its captures
 across presentation gaps. [Breakable furnishings and sitting](docs/olrox-furnishings.md)
-now run. Full effects/audio/parity and connected
-progression remain incomplete.
+now run. Full effects/audio/parity and further destinations remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.
 The combat checkpoint requires users to supply their own supported game dump.

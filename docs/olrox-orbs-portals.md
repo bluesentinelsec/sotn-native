@@ -63,14 +63,14 @@ untouched and private inputs, scripts, traces and captures remain ignored.
 
 Selected transformation, second form and defeat/reward now run in the
 [native encounter](olrox-encounter.md). Furnishing behavior and connected
-progression remain incomplete. BO0 and NO2 remain
-disconnected. These component/native checks do not establish ordinary castle
+full progression remain incomplete. Selected [NO2 connections](olrox-connections.md) now run. These component/native checks do not establish ordinary castle
 entry, an uninterrupted route, console pixel/PCM parity or a complete game.
 
 Current integration: the selected [native encounter](olrox-encounter.md) now
 connects both forms, real morph/attacks and captured defeat/reward. Earlier
-component checks above retain their narrower evidence scope. Furnishings, full
-effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
+component checks above retain their narrower evidence scope. Selected
+[furnishings](olrox-furnishings.md) and [connections](olrox-connections.md) now run;
+full effects/presentation/parity remain incomplete.
 
 Provenance: BO0 `2D26C.c` routines `func_us_801AFAF4`, `func_us_801AF8C0` and
 `func_us_801AF604`, and selected shared math/factory helpers, at sotn-decomp

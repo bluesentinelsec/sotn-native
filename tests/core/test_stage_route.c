@@ -117,6 +117,39 @@ static int ChapelBoss(void)
     return 0;
 }
 
+static int OlroxBoss(void)
+{
+    Uint8 bytes[0x297c + 2 * 20] = {0};
+    SotnDataView dra = {bytes, sizeof(bytes)};
+    Uint8 *boss = bytes + 0x297c, *arrival = bytes + 0x245c + 125 * 10;
+    // Authored coordinates differ from the private US record; only routing rules are tested.
+    Put32(boss, 7);
+    Put32(boss + 4, 8);
+    Put32(boss + 8, 4);
+    Put32(boss + 12, SOTN_TIME_OLROX);
+    Put32(boss + 16, 125);
+    Put32(boss + 20, 128);
+    Put16(arrival, 480);
+    Put16(arrival + 2, 100);
+    Put16(arrival + 6, 4);
+    Put16(arrival + 8, 30);
+    SotnWorldState world = {0};
+    SotnStageRoute route = {0};
+    bool found = false;
+    CHECK(SotnStageRoute_FindBoss(dra, 4, 7, 8, &world, &found, &route) && found &&
+          route.stage == 30 && route.room == 0 && route.source == 4 && route.x == 480);
+    CHECK(SotnWorld_VisitEvent(&world, SOTN_TIME_OLROX));
+    world.cutscenes_seen = 0x300;
+    CHECK(SotnStageRoute_FindBoss(dra, 4, 7, 8, &world, &found, &route) && found);
+    CHECK(SotnStageRoute_FindBoss(dra, 4, 6, 8, &world, &found, &route) && !found);
+    CHECK(SotnWorld_RecordTime(&world, SOTN_TIME_OLROX, 321));
+    route.stage = 99;
+    CHECK(SotnStageRoute_FindBoss(dra, 4, 7, 8, &world, &found, &route) && !found &&
+          route.stage == 99);
+    CHECK(SotnStageRoute_FindBoss(dra, 30, 7, 8, &world, &found, &route) && !found &&
+          route.stage == 99);
+    return 0;
+}
 static int Window(void)
 {
     SotnRoomWindow window = {.end_x = 1024, .last_cell = 3};
@@ -177,6 +210,7 @@ int main(void)
 {
     CHECK(Boss() == 0);
     CHECK(ChapelBoss() == 0);
+    CHECK(OlroxBoss() == 0);
     CHECK(Window() == 0);
     Uint8 bytes[0x245c + 131 * 10] = {0};
     SotnDataView dra = {bytes, sizeof(bytes)};

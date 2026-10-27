@@ -46,7 +46,7 @@ ongoing player positions. User save slots remain untouched. Private inputs,
 captures, scripts and instruction traces remain ignored.
 
 The selected [humanoid body](olrox-first-form.md) now adds its introduction,
-movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
+movement, physical damage and attack commands. [Selected BO0/NO2 travel](olrox-connections.md) now runs.
 Selected [orbs/portals/bats](olrox-orbs-portals.md),
 [fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
 now advance, including the selected [full controller flow](olrox-encounter.md)
@@ -62,7 +62,7 @@ route, GPU/PCM/frame parity, or complete castle/Alucard support.
 Current integration: the selected [native encounter](olrox-encounter.md) now
 connects both forms, real morph/attacks and captured defeat/reward. Earlier
 component checks above retain their narrower evidence scope. Furnishings, full
-effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
+effects/presentation/parity and further destinations remain incomplete.
 
 Provenance: `boss/bo0/e_boss_doors.c`, the BO0 stage header/symbol metadata and
 selected shared room/camera/collision algorithms at sotn-decomp

@@ -33,12 +33,14 @@ HP, equipment, relic or readiness grants. These checks preserve user save slots.
 
 [Skull columns](olrox-skull-columns.md) and the selected [native encounter](olrox-encounter.md)
 now advance transformation, second form and final defeat/reward. Furnishings,
-complete presentation/parity and connected BO0/NO2 travel remain incomplete.
+complete presentation/parity remain incomplete. Selected
+[connected travel](olrox-connections.md) now runs within its documented scope.
 
 Current integration: the selected [native encounter](olrox-encounter.md) now
 connects both forms, real morph/attacks and captured defeat/reward. Earlier
-component checks above retain their narrower evidence scope. Furnishings, full
-effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
+component checks above retain their narrower evidence scope. Selected
+[furnishings](olrox-furnishings.md) and [connections](olrox-connections.md) now run;
+full effects/presentation/parity remain incomplete.
 
 Provenance: reconstructed BO0 `func_us_801AF31C` and the shared
 `st/no2_unk_372E8.h` routine (`func_us_801B72E8`, BO0 address `801BA880`) at

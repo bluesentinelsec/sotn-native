@@ -8,8 +8,8 @@ record exists. The arena's two exits return to Chapel; later crossings use the
 ordinary Chapel room without replaying the boss or post-boss Maria event.
 
 This remains a development checkpoint, not a complete Chapel or authentic game.
-Exits to Olrox's Quarters, Colosseum and Castle Keep still report an unsupported
-destination. Forms, some player abilities, full effects/audio, original title/
+[Olrox's Quarters](olrox-connections.md) now connects through its original route.
+Exits to Colosseum and Castle Keep still report an unsupported destination. Forms, some player abilities, full effects/audio, original title/
 prologue initialization and whole-route/timing/console parity remain incomplete.
 Neither Chapel nor BO5 gains a separate public diagnostic gameplay start.
 
