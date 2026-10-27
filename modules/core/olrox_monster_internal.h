@@ -92,4 +92,14 @@ bool ActorOlroxAppendage(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid private animation or bounded motion.
  * No parent lifetime is retained after the original burst allocation. */
 bool ActorOlroxFirework(SotnActors *actors, Actor *actor);
+/** @brief Advance the original generation-owned monster head and its attack requests.
+ * @param actors Borrowed BO0 owner/private inputs. @param actor Active identity 0x35.
+ * @return Success or SDL error; expired parents retire only dependent heads.
+ * The unfinished body/attack family remains outside gameplay dispatch. */
+bool ActorOlroxHead(SotnActors *actors, Actor *actor);
+/** @brief Advance original owned laser/fireball/drool attack components.
+ * @param actors Borrowed BO0/private SDK inputs. @param actor Active identity 0x39, 0x3a or 0x3d.
+ * @return Success or SDL error for invalid state/data/geometry; expired parents retire dependents.
+ * This component does not register the unfinished monster family. */
+bool ActorOlroxMonsterAttack(SotnActors *actors, Actor *actor);
 #endif

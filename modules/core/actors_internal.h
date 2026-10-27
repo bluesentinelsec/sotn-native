@@ -67,6 +67,12 @@ typedef struct ActorPrimitive
         Uint8 tag, kind;
         bool initialized;
     } secret;
+    struct
+    {
+        Sint32 x, y, vx, vy;
+        Sint16 width, height, angle_x, angle_y, angle_z, scale_x, scale_y;
+        Uint8 tag, phase, grey;
+    } olrox_effect;
 } ActorPrimitive;
 /** Original Olrox leg metadata, with pointer links represented by its two owned array roles. */
 typedef struct OlroxLeg
@@ -409,6 +415,10 @@ typedef struct Actor
         Sint16 morph_timer, morph_delay, morph_brightness;
         Sint16 body_angle, body_velocity;
         Uint8 support_leg, body_style, death_phase;
+        Uint8 laser_pattern, laser_busy, laser_rank, fire_busy, fire_rank, roar_busy;
+        Sint16 head_target;
+        Uint16 head_delay;
+        bool head_sweep;
     } olrox;
     struct
     {
@@ -420,6 +430,11 @@ typedef struct Actor
         Sint16 angle[4], velocity[4];
         Uint8 hand_frame[2], extension[2], rotate_hands, damaged;
     } olrox_arms;
+    struct
+    {
+        Sint16 timer, delay, lifetime, width;
+        Sint32 previous_x;
+    } olrox_laser;
 } Actor;
 
 struct SotnActors

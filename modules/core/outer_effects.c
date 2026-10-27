@@ -17,7 +17,8 @@ bool ActorOuterDust(SotnActors *s, const Actor *a, Uint16 count, Uint16 kind, Si
             continue;
         SotnDataView size = {0};
         if (!Slice(s->nz0,
-                   (s->stage_id == 6   ? 0x19c8
+                   (s->stage_id == 30  ? 0x1dd0
+                    : s->stage_id == 6 ? 0x19c8
                     : s->stage_id == 4 ? 0x1980
                     : s->stage_id == 2 ? 0x230c
                                        : 0x239c) +
@@ -72,7 +73,8 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
     {
         SotnDataView velocity = {0};
         if (!Slice(s->nz0,
-                   (s->stage_id == 6   ? (gray ? 0x19e8 : 0x1a00)
+                   (s->stage_id == 30  ? (gray ? 0x1df0 : 0x1e08)
+                    : s->stage_id == 6 ? (gray ? 0x19e8 : 0x1a00)
                     : s->stage_id == 4 ? (gray ? 0x19a0 : 0x19b8)
                     : s->stage_id == 2 ? (gray ? 0x232c : 0x2344)
                                        : (gray ? 0x23bc : 0x23d4)) +
@@ -90,7 +92,8 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
         {
             SotnDataView size = {0};
             if (!Slice(s->nz0,
-                       (s->stage_id == 6   ? 0x19d8
+                       (s->stage_id == 30  ? 0x1de0
+                        : s->stage_id == 6 ? 0x19d8
                         : s->stage_id == 4 ? 0x1990
                         : s->stage_id == 2 ? 0x231c
                                            : 0x23ac) +
@@ -105,7 +108,8 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
         {
             SotnDataView frame = {0};
             if (!Slice(s->nz0,
-                       (s->stage_id == 6   ? 0x1a18
+                       (s->stage_id == 30  ? 0x1e20
+                        : s->stage_id == 6 ? 0x1a18
                         : s->stage_id == 4 ? 0x19d0
                         : s->stage_id == 2 ? 0x235c
                                            : 0x23ec) +
@@ -125,7 +129,8 @@ bool ActorOuterEffect(SotnActors *s, Actor *a)
     {
         SotnDataView time = {0};
         if (!Slice(s->nz0,
-                   (s->stage_id == 6   ? 0x1a1c
+                   (s->stage_id == 30  ? 0x1e24
+                    : s->stage_id == 6 ? 0x1a1c
                     : s->stage_id == 4 ? 0x19d4
                     : s->stage_id == 2 ? 0x2360
                                        : 0x23f0) +

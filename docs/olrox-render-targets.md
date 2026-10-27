@@ -43,3 +43,19 @@ Olrox's transformation, articulated second form, final defeat/reward and connect
 travel still need integration. This is renderer infrastructure, not a completed
 encounter or console pixel-parity claim. Existing selected skull-column/native
 checks remain the gameplay regression reference.
+
+## Original environment replacement
+
+The selected [monster laser components](olrox-monster-attacks.md) add ordered
+replaceable environments, using target modes 3/4. A replacement commits the
+current replaceable interval, then opens the next target. Repeated restores to
+the main surface succeed. The cursor owns the current borrowed surface and its
+coordinate offsets; the game presenter delegates those transitions to the render
+service. Strict modes 1/2 still reject nesting and unmatched restores, and the
+underlying owned-target API still permits only one open scratch view.
+
+Public pixel tests check replacement across distinct VRAM regions, retained
+commits, strict/mismatched operations, repeated restores and invalid bounds.
+Private native and actual CMake-app diagnostics exercise the original command
+ordering, including final VRAM row 511. These are controlled rendering checks,
+not a completed monster encounter or full GPU/texture-cache parity claim.

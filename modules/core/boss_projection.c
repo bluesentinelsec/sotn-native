@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Selected fixed matrix and UNR projection math adapted from PSY-Z
 // b52003e55c0d1b20719e984dd19bd4d760eeb14a, psyz/src/psyz/libgte.c.
-// Selected bounded reward, intro, book, bell, cloud and glass paths, not a general GTE emulator.
+// Selected bounded reward, effect, intro, book, bell, cloud and glass paths; not a GTE emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
 static Uint32 Divide(Uint32 depth, Uint32 distance)
@@ -193,6 +193,53 @@ bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose p, SotnPro
                                             Coordinate(p.anchor_y, vy, 65536)};
     }
     SDL_memcpy(out, projected, sizeof(projected));
+    return true;
+}
+
+// st/prim_helpers.h: selected sequential rotations, column scale and bounded SDK projection.
+bool SotnPrimitive_ProjectQuad(SotnDataView executable, SotnPrimitiveQuadPose p,
+                               SotnProjectedPoint out[4])
+{
+    if (!out || p.width < 0 || p.width > 128 || p.height < 0 || p.height > 128 || p.scale_x < 0 ||
+        p.scale_x > 4096 || p.scale_y < 0 || p.scale_y > 4096 || p.anchor_x < -16384 ||
+        p.anchor_x > 16384 || p.anchor_y < -16384 || p.anchor_y > 16384)
+        return SDL_SetError("Original effect projection exceeds its selected bounded controls");
+    SotnMathTrig x = {0}, y = {0}, z = {0};
+    if (!SotnMath_MatrixTrig(executable, p.x_angle, &x) ||
+        !SotnMath_MatrixTrig(executable, p.y_angle, &y) ||
+        !SotnMath_MatrixTrig(executable, p.z_angle, &z))
+        return false;
+    Sint32 m[3][3] = {{4096, 0, 0}, {0, x.cosine, -x.sine}, {0, x.sine, x.cosine}};
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        const Sint32 a = m[0][i], b = m[2][i];
+        m[0][i] = ActorShift((Sint64)y.cosine * a + (Sint64)y.sine * b, 12);
+        m[2][i] = ActorShift((Sint64)y.cosine * b - (Sint64)y.sine * a, 12);
+    }
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        const Sint32 a = m[0][i], b = m[1][i];
+        m[0][i] = ActorShift((Sint64)z.cosine * a - (Sint64)z.sine * b, 12);
+        m[1][i] = ActorShift((Sint64)z.sine * a + (Sint64)z.cosine * b, 12);
+    }
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        m[i][0] = ActorShift((Sint64)m[i][0] * p.scale_x, 12);
+        m[i][1] = ActorShift((Sint64)m[i][1] * p.scale_y, 12);
+    }
+    SotnProjectedPoint result[4] = {0};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const Sint32 vx = (i & 1U) ? p.width / 2 : -p.width / 2,
+                     vy = (i & 2U) ? p.height / 2 : -p.height / 2;
+        Sint32 v[3] = {0};
+        for (Uint16 row = 0; row < 3; ++row)
+            v[row] = ActorShift((Sint64)m[row][0] * vx + (Sint64)m[row][1] * vy, 12);
+        const Uint32 ratio = Divide((Uint32)(1024 + v[2]), 1024);
+        result[i] = (SotnProjectedPoint){Coordinate(p.anchor_x, v[0], ratio),
+                                         Coordinate(p.anchor_y, v[1], ratio)};
+    }
+    SDL_memcpy(out, result, sizeof(result));
     return true;
 }
 

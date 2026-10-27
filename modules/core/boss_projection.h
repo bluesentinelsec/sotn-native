@@ -75,6 +75,21 @@ typedef struct SotnDemonQuadPose
  * @return Success or SDL error. Retains SDK column-scale rounding; no global GTE state. */
 bool SotnDemon_ProjectQuad(SotnDataView executable, SotnDemonQuadPose pose,
                            SotnProjectedPoint out[4]);
+/** @brief Selected shared primitive-helper pose: sequential XYZ rotation, XY column scale.
+ * Angles use 4096 units, scale is 0..4096, dimensions 0..128, depth/screen1024. */
+typedef struct SotnPrimitiveQuadPose
+{
+    Sint16 x_angle, y_angle, z_angle, width, height, scale_x, scale_y;
+    Sint32 anchor_x, anchor_y;
+} SotnPrimitiveQuadPose;
+/** @brief Project the bounded shared original effect quad without global GTE state.
+ * @param executable Borrowed private SDK matrix-pair lookup input.
+ * @param pose Initialized selected pose; screen anchors within +/-16384.
+ * @param out Four copied saturated corners, unchanged on failure.
+ * @return Success or SDL error for invalid controls or lookup input.
+ * Retains separate rotation passes and column-scale rounding; this is not a GTE emulator. */
+bool SotnPrimitive_ProjectQuad(SotnDataView executable, SotnPrimitiveQuadPose pose,
+                               SotnProjectedPoint out[4]);
 /** @brief Project an original Chapel bell face with the selected SDK Z rotation and depth1024.
  * @param executable Borrowed private matrix-pair table. @param chapel Borrowed DAI model/pointers.
  * @param face Original face 0..2. @param angle Signed 4096-unit rotation.
