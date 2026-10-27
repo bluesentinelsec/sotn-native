@@ -396,6 +396,7 @@ typedef struct Actor
         bool movement_left;
         Uint8 angle;
         Sint16 angle12;
+        Sint32 fire_length;
     } olrox;
 } Actor;
 

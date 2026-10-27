@@ -1027,11 +1027,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
     if (stage_id == 30)
-        SDL_Log(
-            "Olrox arena internal foundation: private room/artwork/sound resources, "
-            "common pickups, decorations, paired doors, humanoid combat, orbs, portals and bats. "
-            "Fireballs, skull columns, transformation, second form, final victory and connected "
-            "progression remain incomplete.");
+        SDL_Log("Olrox arena internal foundation: private room/artwork/sound resources, "
+                "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats "
+                "and fireballs. "
+                "Skull columns, transformation, second form, final victory and connected "
+                "progression remain incomplete.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "

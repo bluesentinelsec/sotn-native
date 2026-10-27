@@ -23,4 +23,9 @@ Actor *OlroxChild(SotnActors *actors, const Actor *parent, Uint16 relative);
  * @return Success, or false with SDL error on invalid state/resources/geometry.
  * Missing/reused parent generations retire dependent effects without touching new owners. */
 bool ActorOlroxOrbs(SotnActors *actors, Actor *actor);
+/** @brief Advance BO0's accelerating fireball or configured retirement effect.
+ * @param actors Borrowed BO0 services and private tables. @param actor Borrowed active owner.
+ * @return Success or SDL error for invalid identity/state/resources or stale geometry.
+ * Optional primitive exhaustion retires only the fireball, preserving original behavior. */
+bool ActorOlroxFire(SotnActors *actors, Actor *actor);
 #endif

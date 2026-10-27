@@ -13,6 +13,11 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 fireballs and retirement effects**, AGPL-3.0-or-later.
+  `modules/core/olrox_fire.c` adapts BO0 `func_us_801AF31C` and shared
+  `st/no2_unk_372E8.h` at the pinned revision below. Original private arrays
+  remain runtime inputs. See [scope and validation](docs/olrox-fire-effects.md).
+
 - **Reconstructed BO0 orbiting projectiles and portals**, AGPL-3.0-or-later.
   `modules/core/olrox_orbs.c` reconstructs the selected BO0 `2D26C.c` orb,
   portal and bat routines and shared math/factory helpers at the pinned revision
