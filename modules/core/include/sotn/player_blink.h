@@ -1,0 +1,77 @@
+#ifndef SOTN_PLAYER_BLINK_H
+#define SOTN_PLAYER_BLINK_H
+
+#include <sotn/game_math.h>
+
+/** @brief Actual decoded player image geometry; its pixels stay with the texture owner. */
+typedef struct SotnPlayerImage
+{
+    Uint16 width, height;
+    Sint16 pivot_x, pivot_y;
+} SotnPlayerImage;
+
+/** @brief Original player-effect textured quad, in signed-word screen coordinates. */
+typedef struct SotnPlayerEffectQuad
+{
+    Sint16 x[4], y[4];
+    Uint8 u[4], v[4], red[4], green[4], blue[4];
+    Uint16 page, palette, priority, draw_mode;
+} SotnPlayerEffectQuad;
+
+/** @brief Owned original global BlinkWhite phases shared by selected live children. */
+typedef struct SotnPlayerBlinkShared
+{
+    Uint32 angles[8];
+    bool bat_lock;
+} SotnPlayerBlinkShared;
+
+/** @brief One real selected BlinkWhite controller and its eight owned primitives.
+ * Initialize parameter to 0x20 (Bat entry) or 0x21 (return); retain until removed.
+ * Parameter 0x1B is the original automatic finishing flash, not a new child. */
+typedef struct SotnPlayerBlink
+{
+    SotnPlayerEffectQuad quads[8];
+    Uint16 parameter, phase, angle, speed, wave, hold;
+    Sint16 brightness, amplitude;
+    bool removed;
+} SotnPlayerBlink;
+
+/** @brief Actual private tables, player image/transform and preceding owner handshake. */
+typedef struct SotnPlayerBlinkInput
+{
+    SotnDataView dra, executable;
+    SotnPlayerImage image;
+    Sint16 x, y, rotation;
+    Uint16 priority;
+    Uint32 status;
+    Uint8 signal;
+    bool facing_left, rotated, image_present;
+} SotnPlayerBlinkInput;
+
+/** @brief Original side effects for the player owner; zero signal means no new handshake. */
+typedef struct SotnPlayerBlinkEvents
+{
+    Uint8 signal;
+    bool reset_afterimages;
+} SotnPlayerBlinkEvents;
+
+/** @brief Advance original selected Bat entry/return effects and finishing flash once.
+ * @param effect Owned actual child and primitives. @param shared Owned shared phase/lock state.
+ * @param input Borrowed verified private tables and actual decoded player snapshot.
+ * @param out Copied original handshake/afterimage requests.
+ * @return Success or SDL error, preserving effect/shared/output on malformed input.
+ * No readiness timer is supplied: signals two/three come from the real effect's geometry
+ * phases. The caller owns allocation, duplicate suppression, texture upload and update order. */
+bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared,
+                          SotnPlayerBlinkInput input, SotnPlayerBlinkEvents *out);
+
+/** @brief Apply original rotation-only player quad geometry using private SDK math tables.
+ * @param executable Borrowed original SDK tables. @param x Signed-word pivot X.
+ * @param y Signed-word pivot Y. @param rotation Original signed rotation.
+ * @param facing_left Reverses rotation, as in the PS1 renderer.
+ * @param quad Owned quad, unchanged on failure. @return Success or SDL error.
+ * This does not apply scale, opacity, perspective or framebuffer rasterization. */
+bool SotnPlayerEffect_Rotate(SotnDataView executable, Sint16 x, Sint16 y, Sint16 rotation,
+                             bool facing_left, SotnPlayerEffectQuad *quad);
+
+#endif

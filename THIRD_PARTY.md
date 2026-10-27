@@ -639,3 +639,11 @@ and `5D5BC.c:GetSpellDef` at the same pinned AGPL-3.0-or-later revision.
 [Gas Cloud scope](docs/player-gas-cloud.md) documents original bounded allocation,
 owned spell initialization and the remaining shared-pool/group limitations.
 Blueprint/spell definitions, artwork and instruction traces remain private.
+
+`modules/core/player_blink.c` reconstructs selected
+`dra/7879C.c:EntityPlayerBlinkWhite` and `4B758.c:func_800EB758` at the same pinned
+AGPL-3.0-or-later revision. Bat metadata/table decoding and packed player uploads
+in `modules/render/` follow `d_2FE48.c`, `692E8.c`, `4B758.c` and `pc/pl_arc.c`.
+[Bat presentation scope](docs/player-bat-presentation.md) documents the real effect
+handshake and component-only validation. Original profiles, images and instruction
+traces remain private; playable movement and full shared allocation are not implied.

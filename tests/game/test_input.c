@@ -1,6 +1,10 @@
 #include "input.h"
 #include <sotn/player.h>
 
+_Static_assert(SOTN_BUTTON_START == 0x0800 && SOTN_BUTTON_SELECT == 0x0100 &&
+                   SOTN_BUTTON_MIST == 0x0004,
+               "US original Start, Select and Mist pad words must remain distinct");
+
 #define CHECK(condition)                                                                           \
     do                                                                                             \
     {                                                                                              \

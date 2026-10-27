@@ -128,6 +128,12 @@ int main(void)
     CHECK(!SotnActorGraphics_RequestMistPalette(graphics, 0x120, &accepted));
     CHECK(!SotnActorGraphics_SetPlayerPalette(graphics, NULL));
     CHECK(!SotnActorGraphics_CapturePlayer(graphics, &sprite, 32768, 0, false, wedges));
+    Put16(dra + 0xd670 + 29U * 20U + 14U, 0);
+    CHECK(!SotnActorGraphics_CapturePlayer(graphics, &sprite, 0, 0, false, wedges));
+    // Bat/player display uploads have no dependency on the Mist capture profile.
+    CHECK(SotnActorGraphics_UploadPlayer(graphics, &sprite));
+    CHECK(!SotnActorGraphics_UploadPlayer(graphics, &bad));
+    CHECK(!SotnActorGraphics_UploadPlayer(NULL, &sprite));
     CHECK(!SotnActorGraphics_GetMistPalette(NULL, colors));
     SotnActorGraphics_Destroy(graphics);
     SDL_free(dra);
