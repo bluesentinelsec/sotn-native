@@ -50,7 +50,7 @@ bool OlroxMonster_Pair(SotnActors *actors, Actor *body, Uint16 leg, Sint16 upper
 /** @brief Advance the original monster body component and owned articulation.
  * @param actors Borrowed BO0 services. @param body Active original identity 0x33.
  * @return Success or SDL error for invalid data, state, resources or ownership.
- * Gameplay dispatch stays gated until the complete defeat/reward flow is integrated. */
+ * Selected gameplay includes the original captured defeat/reward handoff. */
 bool ActorOlroxMonster(SotnActors *actors, Actor *body);
 /** @brief Change the original body state and reset only the two leg pose phases.
  * @param actors Borrowed owner. @param body Active monster. @param step Original low-byte state.
@@ -96,7 +96,7 @@ bool OlroxMonster_FreezeSprite(SotnActors *actors, Actor *sprite, Actor *body, U
  * @param actors Borrowed BO0 owner and private SDK/profile inputs.
  * @param actor Active original appendage identity with a generation-owned monster parent.
  * @return Success or SDL error; an expired parent retires only its dependent appendage.
- * This component does not register the unfinished monster family in gameplay dispatch. */
+ * Stage dispatch routes only the original BO0 part identities here. */
 bool ActorOlroxAppendage(SotnActors *actors, Actor *actor);
 /** @brief Advance an original independently owned BO0 red-fireball burst particle.
  * @param actors Borrowed BO0/SDK inputs. @param actor Active identity 0x28.
@@ -106,11 +106,17 @@ bool ActorOlroxFirework(SotnActors *actors, Actor *actor);
 /** @brief Advance the original generation-owned monster head and its attack requests.
  * @param actors Borrowed BO0 owner/private inputs. @param actor Active identity 0x35.
  * @return Success or SDL error; expired parents retire only dependent heads.
- * The unfinished body/attack family remains outside gameplay dispatch. */
+ * The active body owns all command/release handshakes. */
 bool ActorOlroxHead(SotnActors *actors, Actor *actor);
 /** @brief Advance original owned laser/fireball/drool attack components.
  * @param actors Borrowed BO0/private SDK inputs. @param actor Active identity 0x39, 0x3a or 0x3d.
  * @return Success or SDL error for invalid state/data/geometry; expired parents retire dependents.
- * This component does not register the unfinished monster family. */
+ * Stage dispatch retains distinct original BO0 attack identities. */
 bool ActorOlroxMonsterAttack(SotnActors *actors, Actor *actor);
+/** @brief Advance Olrox's owned captured-fragment defeat controller or independent rays.
+ * @param actors Borrowed BO0 service. @param actor Active identity 0x3c or 0x3e.
+ * @return Success or SDL error for invalid resources/ownership/state. Captures retain copied
+ * packets after the body retires; only the same live generation receives body signals. */
+bool ActorOlroxDefeat(SotnActors *actors, Actor *actor);
+bool ActorOlroxDeathRays(SotnActors *actors, Actor *actor);
 #endif

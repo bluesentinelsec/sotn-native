@@ -38,21 +38,11 @@ and paired door controls. Its selected [humanoid body](olrox-first-form.md) adds
 original movement, physical damage and attack commands; selected
 [orbs/portals/bats](olrox-orbs-portals.md),
 [fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
-now advance. Transformation/second form, final victory and connected progression remain incomplete.
-The [owned offscreen renderer](olrox-render-targets.md) now supplies the tall
-render targets needed for the transformation. Its
-[morph controller component](olrox-morph-controller.md) now has selected instruction
-comparisons. Selected [articulated motion components](olrox-monster-motion.md)
-now retain joint poses and foot anchoring; selected
-[articulated geometry components](olrox-monster-geometry.md) reconstruct their
-textured packets and owned attachment positions. Dispatch remains gated until
-the real monster body is integrated. Selected
-[owned appendage components](olrox-monster-appendages.md) now retain feet/knees,
-tail/arm commands, hand damage/recovery and captured sprites; they do not yet
-advance within a playable monster family. Selected
-[head and attack components](olrox-monster-attacks.md) now run roar/poses, laser
-and fireball requests, physical attack geometry, drool and their owned effects;
-body integration and complete death/reward remain pending.
+now advance. The selected [native encounter](olrox-encounter.md) connects real
+transformation, articulated movement, head/arm attacks, shared damage and captured
+defeat/reward. [Owned offscreen rendering](olrox-render-targets.md) preserves
+one-tick captures when presentation skips a simulation frame. Furnishings, full
+presentation/audio/parity and connected BO0/NO2 travel remain incomplete.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,
@@ -174,5 +164,10 @@ The [native sound service](laboratory-audio.md) now plays selected original
 combat sound effects and Laboratory music; reverb and full audio parity remain incomplete.
 
 The selected [Olrox monster body component](olrox-monster-body.md) now connects
-articulated movement and head/arm commands. Shared combat and the complete
-defeat/reward flow still gate the second form's gameplay dispatch.
+articulated movement and head/arm commands. The selected encounter now supplies shared combat and captured defeat/reward;
+full presentation/parity and connected travel remain incomplete.
+
+The selected [Olrox encounter](olrox-encounter.md) now connects both reconstructed
+forms, real morph/body/attacks, shared damage and captured defeat/reward. Pending
+offscreen writes survive presentation gaps. Furnishings, full effects/audio/parity
+and connected NO2 travel remain incomplete; this does not complete the castle or Alucard.

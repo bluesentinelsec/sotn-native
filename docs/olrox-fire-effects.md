@@ -31,9 +31,14 @@ commands until two fireballs have live geometry and hitboxes. The fixture uses
 an explicit room arrival and contact protection, with no ongoing position, state,
 HP, equipment, relic or readiness grants. These checks preserve user save slots.
 
-[Skull columns](olrox-skull-columns.md) now run separately. Transformation, second
-form, furnishings, final victory/reward
-and connected BO0/NO2 travel remain incomplete. This is not a completed boss or game.
+[Skull columns](olrox-skull-columns.md) and the selected [native encounter](olrox-encounter.md)
+now advance transformation, second form and final defeat/reward. Furnishings,
+complete presentation/parity and connected BO0/NO2 travel remain incomplete.
+
+Current integration: the selected [native encounter](olrox-encounter.md) now
+connects both forms, real morph/attacks and captured defeat/reward. Earlier
+component checks above retain their narrower evidence scope. Furnishings, full
+effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
 
 Provenance: reconstructed BO0 `func_us_801AF31C` and the shared
 `st/no2_unk_372E8.h` routine (`func_us_801B72E8`, BO0 address `801BA880`) at

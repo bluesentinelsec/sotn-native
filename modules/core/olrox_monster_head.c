@@ -208,7 +208,7 @@ bool ActorOlroxHead(SotnActors *s, Actor *a)
     }
     Actor *body = &s->slots[a->enemy_state.owner_slot];
     if (body->state.id != 0x33 || body->state.generation != a->enemy_state.owner_generation ||
-        OlroxChild(s, body, 3) != a)
+        !OlroxOwnsChild(s, body, a, 3))
     {
         a->remove = true;
         return true;

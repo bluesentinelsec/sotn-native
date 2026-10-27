@@ -48,6 +48,16 @@ void ActorPrimitivesClear(SotnActors *s, const Actor *a)
             s->primitives[a->primitive[i]].owner == a->state.generation)
             s->primitives[a->primitive[i]] = (ActorPrimitive){0};
 }
+bool SotnActors_HasTargets(const SotnActors *s)
+{
+    if (!s)
+        return false;
+    for (Uint32 i = 0; i < ACTOR_PRIMITIVE_CAPACITY; ++i)
+        if (s->primitives[i].owner && s->primitives[i].state.active &&
+            s->primitives[i].state.target)
+            return true;
+    return false;
+}
 bool SotnActors_GetPrimitive(const SotnActors *s, Uint32 slot, Uint32 index,
                              SotnActorPrimitive *out)
 {

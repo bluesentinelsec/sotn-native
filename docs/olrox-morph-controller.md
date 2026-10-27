@@ -2,8 +2,9 @@
 
 The core now reconstructs the original BO0 transformation controller, its
 66-point mesh, 68 owned primitives and ordered draw-environment commands.
-It remains outside gameplay dispatch until the articulated monster body is
-integrated. This component does not make the transformation or second form playable.
+It now advances the real articulated body in the selected
+[native encounter](olrox-encounter.md). Full presentation/parity and connected
+travel remain incomplete.
 
 The controller requests its owned monster child, configures the original initial
 127x256 target and following 128x128 target, and retains the output quad's facing,
@@ -34,11 +35,11 @@ environment allocation, audio and a nonclearing retirement observer are isolated
 adapters. The original controller and mesh instructions execute. Its child is
 created and positioned but is not advanced in these component comparisons.
 
-No native gameplay or console-rendering parity is established for the morph.
-Selected [articulated motion components](olrox-monster-motion.md) now run separately.
-The articulated body, its owned parts, complete attacks, defeat/reward and
-connected BO0/NO2 travel still need integration. Existing humanoid gameplay stays
-on its current explicit development boundary; no missing body is silently acknowledged.
+These isolated comparisons do not establish gameplay or console-rendering parity.
+The [integrated encounter](olrox-encounter.md) now advances the articulated body,
+owned parts, attacks and defeat/reward. Pending offscreen writes survive skipped
+presentation frames. Connected BO0/NO2 travel and full parity remain incomplete;
+missing child readiness is never silently acknowledged.
 
 Provenance: BO0 `3053C.c` (`func_us_801B053C`, `func_us_801B088C`,
 `func_us_801B0930`) at sotn-decomp

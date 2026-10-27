@@ -1,95 +1,49 @@
 # Working in sotn-native
 
-The [Olrox monster body component](docs/olrox-monster-body.md) now connects original
-entry, articulated movement and real head/arm commands. Preserve first-takeoff
-leg-zero ordering, strict child waits, camera-lock handoff and generation lineage.
-Shared combat and complete death/reward still gate gameplay dispatch; supplied
-child signals in component traces are not an encounter replay.
+The selected [Olrox encounter](docs/olrox-encounter.md) now connects both forms,
+real morph/body/head/arm/attack updates, shared damage, independent hand recovery,
+captured-fragment defeat, Life Max Up conversion and arena release. Preserve the
+seven-part head-HP ring (roles 0..6), infinite-HP cooldown rules, independent arms/
+hands and packet-16 final body capture. Only final victory records the boss time;
+first-form transition never awards victory. Saved defeat times omit boss/doors
+on a fresh arena. BO0/NO2 travel, furnishings, full effects/audio/shake/flash,
+Alucard afterimages and uninterrupted encounter/console parity remain incomplete.
+Do not call the boss presentation, area, castle, Alucard or game complete.
 
-Selected [Olrox head/attack components](docs/olrox-monster-attacks.md) now retain
-head poses/roar timing, real laser request/release, laser floor/sweep/column phases,
-aimed fireballs and drool/dust. Preserve the packed pose/duration sound check,
-generation ownership, released fireball lifetime, triangle geometry and signed
-particle metadata. They remain outside gameplay dispatch pending the real body,
-linked combat and complete death/reward flow; seeded checks are not an encounter.
-Original replaceable environment modes 3/4 commit prior intervals and permit
-repeated restores; strict target modes 1/2 keep their original nesting checks.
-Native flash/shake presentation and console parity remain incomplete.
+[Body/movement](docs/olrox-monster-body.md), [joint motion](docs/olrox-monster-motion.md),
+[geometry](docs/olrox-monster-geometry.md), [appendages](docs/olrox-monster-appendages.md)
+and [head/attacks](docs/olrox-monster-attacks.md) retain original strict waits,
+first-takeoff leg-zero ordering, signed word/fixed-point wrap, the four-pixel
+anchored/airborne origin difference, fractional attachments and packed roar timing.
+Keep stage sine samples, SDK quarter-wave trig and matrix-pair math distinct.
+Preserve signed-controller/unsigned-geometry extension bytes, released projectile
+lifetimes, triangle geometry, particle metadata and original RNG/pool order.
 
-Selected [Olrox appendage components](docs/olrox-monster-appendages.md) now retain
-owned feet/knees, tail growth/poses, fifteen arm commands, hand break/recovery,
-selected captured defeat sprites and independent burst particles. Preserve the
-signed-controller/unsigned-geometry extension byte, fractional attachments,
-generation ownership and original burst RNG. These components remain outside
-gameplay dispatch pending the real body/head/attack/death flow. Seeded command
-and body-signal traces are not a playable second form or an encounter replay.
+The [morph](docs/olrox-morph-controller.md) and [owned targets](docs/olrox-render-targets.md)
+now run in gameplay. Flush pending offscreen writes before the next simulation
+step can overwrite one-tick capture commands. Preserve 127x256 then 128x128 bounds,
+VRAM row511, immutable source images, borrowed surface lifetimes and ordered
+replacement/restoration. Modes3/4 permit original replacement/repeated restores;
+strict modes1/2 retain nesting checks. Fresh BO0 owners reproduce the bounded
+original menu-cleared actor atlas; other missing texture references still fail.
 
-Selected [Olrox articulated geometry components](docs/olrox-monster-geometry.md)
-now reconstruct four packets per leg, two torso packets, owned attachments and
-the original bank-seven sprite packet helper. Preserve signed rounding, circular
-floor projection, 127-unit offsets and ignored part cropping. The body, attacks
-and second-form gameplay remain unintegrated; seeded instruction comparisons
-are component evidence, not an encounter or console replay.
+Actor updates use working copies: compare slot, identity, generation and lineage,
+not C addresses. Keep bounded reserved handoffs and do not replace unrelated actors.
+Preserve the documented initialized midpoint metadata and omitted invalid optional
+burst concessions in [encounter scope](docs/olrox-encounter.md); do not reintroduce
+unwritten scratch bytes or exhausted/null packet access. Never fake readiness.
+Original XA92 fade requests remain separate from sound effects; later track317
+restores stream gain. Room entry resets articulation and morph lifetime caches.
 
-Selected [Olrox articulated movement components](docs/olrox-monster-motion.md)
-now retain joint velocities, paired poses, owned foot anchoring and floor contact.
-Preserve strict arrival, signed word/fixed-point wrap and the original four-pixel
-grounded/airborne origin difference. These are components; the real body, texture
-geometry, attacks and second-form gameplay remain unintegrated. Seeded instruction
-comparisons do not establish an encounter or console replay.
-
-The [Olrox morph controller component](docs/olrox-morph-controller.md) now
-reconstructs its 66-point/68-command mesh and original pulse/brightness timing.
-It is deliberately outside gameplay dispatch until the real articulated body
-exists. Preserve the initial 127x256 target, subsequent 128x128 target, signed
-word wrap and generation-owned handoff; never fake child readiness or call this
-a playable transformation. Controller-only instruction traces do not advance the monster child.
-
-The [owned offscreen renderer](docs/olrox-render-targets.md) now supports explicit
-1..256 RGB555 surfaces, transactional target commit/cancellation and ordered
-begin/restore commands. Preserve final VRAM row511, clipping/stride, immutable
-private inputs and borrowed-view lifetimes. No gameplay actor emits these target commands
-yet; selected morph/laser components use them in scoped diagnostics. Olrox
-transformation/second form and full GPU parity remain incomplete.
-
-Selected [Olrox skull columns](docs/olrox-skull-columns.md) now retain four birth
-delays, original release/squeeze/waves, damage and twenty-four owned quads. Preserve
-parent generations before release, independent released lifetime, signed geometry
-and source early returns. Ordered native framebuffer snapshots prevent aliasing;
-GPU texture-cache/console parity remains unproven. Transformation/second form,
-final victory and connected BO0/NO2 travel remain incomplete.
-
-Selected [Olrox fireballs/effects](docs/olrox-fire-effects.md) now preserve original
-acceleration, growing hitboxes, owned gradient quads and configured retirement
-variants. Preserve fractional birth coordinates, screen-relative culling and
-explicit transform bits. Transformation/second form, final victory
-and connected travel remain incomplete; component checks are not encounter parity.
-
-Selected [Olrox orbs/portals/bats](docs/olrox-orbs-portals.md) now advance real
-child readiness, spiral/orbit/release, portal growth/birth/closing and homing
-bats/shadows. Preserve stage sine samples separately from SDK quarter-wave math,
-packed timing, pool order, RNG and generation ownership. Explicit original
-transform bits override retained values; clearing the bits restores neutral
-presentation. Transformation/second form, final victory
-and connected BO0/NO2 travel remain incomplete. Native checks use explicit room
-starts/contact protection; no readiness or ongoing position/state grants.
-
-The internal [Olrox humanoid body](docs/olrox-first-form.md) now adds its placed
-introduction, physical damage, original movement/decisions, body images, attack
-commands and first-form transition request. Orb readiness must wait for actual
-owned children; never auto-acknowledge unsupported actors. Packed pose/duration
-checks govern fireball/skull release. The transformation, second form, final
-victory/reward and travel remain incomplete; a private death-flag fixture is not
-an ordinary boss defeat. All automated runtime checks stay muted.
-
-The internal [Olrox arena foundation](docs/olrox-arena.md) now loads BO0 stage 30
-with its own 50 sprite banks, private sound bank, common services and paired boss
-doors. Preserve BO0 identities and shared-table offsets; never alias Laboratory
-combat. The original door completion signal is overlay-lifetime state and is not
-a completed boss/save event. BO0 and NO2 remain disconnected; full Olrox combat,
-transformation, defeat/reward and connected progression still need integration.
-Private muted door checks inject a completion signal, not an actual boss defeat.
-The shared solid-object service now uses the original left/right contact bits.
+[Humanoid](docs/olrox-first-form.md), [orbs/portals](docs/olrox-orbs-portals.md),
+[fire/effects](docs/olrox-fire-effects.md), [skull columns](docs/olrox-skull-columns.md)
+and [arena doors](docs/olrox-arena.md) retain their own original BO0 tables/identities.
+Component instruction comparisons do not establish a complete encounter or console
+replay. Focused component integration uses an explicit first-form death fixture;
+a separate native/actual-app sequence defeats both forms by ordinary development
+Gladius damage and collects the original +5 HP reward. It uses explicit arena entry
+and contact protection, not uninterrupted traversal or an unmodified encounter.
+All automated runtime probes remain muted and preserve ordinary user saves.
 
 Selected [NO2 courtyard scenery](docs/olrox-courtyard.md) now renders private
 house models, repeated backgrounds, foreground/backdrop, linked lamps and glow.

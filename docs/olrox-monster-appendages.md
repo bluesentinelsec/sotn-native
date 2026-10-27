@@ -7,9 +7,9 @@ and rotate their generation-owned hands. Damaged hands disappear, wait, grow
 back and restore their original physical hitbox. Selected defeat commands retain
 captured original sprites until the body's next signal.
 
-These components remain outside gameplay dispatch while the monster body, head,
-attack children and complete defeat/reward flow are integrated. They are not a
-playable second form or a completed boss. Existing ordinary saves are unchanged.
+These components now participate in the selected [native encounter](olrox-encounter.md),
+including real body/head/attack commands and defeat/reward. Full presentation,
+connected travel and encounter parity remain incomplete. Save formats are unchanged.
 
 ## Ownership and original behavior
 

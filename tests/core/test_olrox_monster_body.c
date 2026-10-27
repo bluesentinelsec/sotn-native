@@ -252,12 +252,121 @@ static bool Handoff(Fixture *f)
     Close(f, s);
     return true;
 }
+static bool WorkingCopies(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *body = &s->slots[32];
+    Actor head = *OlroxChild(s, body, 3);
+    CHECK(OlroxOwnsChild(s, body, &head, 3));
+    CHECK(ActorOlroxHead(s, &head) && !head.remove && head.state.step == 1);
+    s->slots[35] = head;
+    head.state.step = 8;
+    head.substep = 0;
+    CHECK(ActorOlroxHead(s, &head) && !head.remove && head.state.primitive_count == 1);
+    s->slots[35] = head;
+    Actor foot = *OlroxChild(s, body, 1);
+    CHECK(ActorOlroxAppendage(s, &foot) && !foot.remove && foot.state.step == 1);
+    ++foot.state.generation;
+    CHECK(!OlroxOwnsChild(s, body, &foot, 1));
+    CHECK(ActorOlroxAppendage(s, &foot) && foot.remove);
+    Close(f, s);
+    return true;
+}
+static bool SharedDamage(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *body = &s->slots[32], *head = OlroxChild(s, body, 3), *hand = OlroxChild(s, body, 8);
+    for (Uint16 i = 0; i <= 6; ++i)
+    {
+        Actor *part = i ? OlroxChild(s, body, i) : body;
+        part->state.hit_points = i == 3 ? 80 : 0x7fff;
+        CHECK(ActorOlroxMonsterOwner(s, part) == body);
+    }
+    CHECK(ActorOlroxMonsterOwner(s, hand) == body);
+    ActorOlroxMonsterHit(s, head, body, 0, 12);
+    CHECK(body->cooldown[0] == 12 && body->hit_flags == 0x10 && !head->cooldown[0]);
+    CHECK(OlroxChild(s, body, 4)->cooldown[0] == 13 && !hand->cooldown[0]);
+    ActorOlroxMonsterHit(s, head, head, 1, 14);
+    CHECK(body->cooldown[1] == 14 && head->cooldown[1] == 14 &&
+          OlroxChild(s, body, 6)->cooldown[1] == 15);
+    head->state.flags |= 0x100U;
+    ActorOlroxMonsterHit(s, head, body, 0, 12);
+    for (Uint16 i = 0; i <= 6; ++i)
+        CHECK((i ? OlroxChild(s, body, i) : body)->state.flags & 0x100U);
+    CHECK(!(hand->state.flags & 0x100U));
+    head->enemy_state.owner_generation = 99;
+    CHECK(!ActorOlroxMonsterOwner(s, head));
+    Close(f, s);
+    return true;
+}
+static bool DefeatAndRays(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    Actor *body = &s->slots[32], *capture = NULL;
+    CHECK(ActorSpawnAt(s, body, 0x3c, 0, 42, &capture));
+    body->olrox.children[10] = capture->state.generation;
+    CHECK(!SotnActors_HasTargets(s) && !SotnActors_HasTargets(NULL));
+    ActorPrimitive *target = ActorPrimitiveGet(s, body, 0);
+    CHECK(target);
+    target->state.active = true;
+    target->state.target = 3;
+    CHECK(SotnActors_HasTargets(s));
+    target->state.active = false;
+    CHECK(!SotnActors_HasTargets(s));
+    target->state.target = 0;
+    Actor copy = *capture;
+    CHECK(ActorOlroxDefeat(s, &copy) && !copy.remove && copy.state.primitive_count == 264);
+    *capture = copy;
+    CHECK(ActorOlroxDefeat(s, capture) && capture->state.step == 2 && body->olrox.death_phase == 2);
+    CHECK(ActorOlroxDefeat(s, capture) && capture->state.step == 2);
+    body->olrox.death_phase = 3;
+    CHECK(ActorOlroxDefeat(s, capture) && capture->state.step == 3);
+    bool awarded = false;
+    for (Uint16 tick = 0; tick < 1000 && !capture->remove; ++tick)
+    {
+        s->ticks = tick;
+        CHECK(ActorOlroxDefeat(s, capture));
+        if (capture->state.step == 8)
+            awarded = true;
+    }
+    CHECK(capture->remove && awarded && s->olrox_defeated);
+    Actor *reward = NULL, *rays = NULL;
+    for (Uint16 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
+    {
+        if (s->slots[i].state.id == 0x3f)
+            reward = &s->slots[i];
+        if (s->slots[i].state.id == 0x3e)
+            rays = &s->slots[i];
+    }
+    CHECK(reward && rays && reward->state.parameters == 0);
+    reward->state.step = 6; // Selected visual-allocation fallback's conversion boundary.
+    CHECK(!ActorBossReward(s, reward));
+    Put16(f->stage + 0x24d4, 23);
+    CHECK(ActorBossReward(s, reward) && reward->state.id == 3 &&
+          reward->state.parameters == 0x8017);
+    rays->state.step = 0;
+    CHECK(ActorOlroxDeathRays(s, rays) && rays->state.primitive_count == 128);
+    ActorPrimitive *line = ActorPrimitiveGet(s, rays, 0);
+    CHECK(line && line->state.active && line->state.line && line->state.red == 96 &&
+          line->state.green == 96 && line->state.blue == 64 && line->state.line_blend_mode == 1);
+    rays->state.step = 2;
+    for (Uint16 tick = 0; tick < 160; ++tick)
+        CHECK(ActorOlroxDeathRays(s, rays));
+    for (Uint16 i = 0; i < rays->state.primitive_count; ++i)
+        CHECK(!ActorPrimitiveGet(s, rays, i)->state.active);
+    Close(f, s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Requests(f) && Handoff(f);
+    const bool ok =
+        Requests(f) && Handoff(f) && WorkingCopies(f) && SharedDamage(f) && DefeatAndRays(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

@@ -187,12 +187,18 @@ static bool RegistryAndArt(Fixture *f)
     SotnActors *s = NULL;
     CHECK(Open(f, &s, 0));
     // Boss/attack/enemy identities must not alias the Laboratory's existing registry.
-    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x2a, 0x33, 0x44, 0x4b};
+    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x2a, 0x4a, 0x44, 0x4b};
     for (Uint32 i = 0; i < SDL_arraysize(unsupported); ++i)
     {
         Actor a = {.state = {.id = unsupported[i], .generation = 17}};
         CHECK(ActorOlroxArena(s, &a) && a.state.unsupported && !a.state.step);
     }
+    s->world->time_attack[SOTN_TIME_OLROX] = 120;
+    Actor defeated_body = {.state = {.id = 0x2b, .generation = 17}},
+          defeated_door = {.state = {.id = 0x49, .generation = 18}};
+    CHECK(ActorOlroxArena(s, &defeated_body) && defeated_body.remove);
+    CHECK(ActorOlroxArena(s, &defeated_door) && defeated_door.remove);
+    s->world->time_attack[SOTN_TIME_OLROX] = 0;
     const size_t table[] = {0x748, 0x259c};
     for (Uint16 i = 0; i < 2; ++i)
     {

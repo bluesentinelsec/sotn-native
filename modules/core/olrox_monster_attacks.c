@@ -867,3 +867,145 @@ bool ActorOlroxMonsterAttack(SotnActors *s, Actor *a)
         return SDL_SetError("Unsupported original Olrox monster attack identity %u", a->state.id);
     }
 }
+
+static bool DeathParticle(SotnActors *s, Actor *a, Uint16 index)
+{
+    ActorPrimitive *p = Part(s, a, index);
+    if (!p)
+        return false;
+    if (!p->olrox_effect.phase)
+    {
+        p->state = (SotnActorPrimitive){.quad = true,
+                                        .screen_space = true,
+                                        .gouraud = true,
+                                        .priority_set = true,
+                                        .priority = 0xae};
+        p->olrox_effect.tag |= 0x30U;
+        p->olrox_effect.vy = -(Sint32)(ActorRandom(s) & 15U) * 0x4000 - 0x2000;
+        p->olrox_effect.grey = 0;
+        p->olrox_effect.width = (Sint16)((ActorRandom(s) & 7U) + 6U);
+        p->olrox_effect.height = (Sint16)((ActorRandom(s) & 7U) + 6U);
+        p->olrox_effect.scale_x = p->olrox_effect.scale_y = 4096;
+        p->olrox_effect.angle_x = p->olrox_effect.angle_y = p->olrox_effect.angle_z = 0;
+        p->olrox_effect.phase = 1;
+    }
+    else
+    {
+        if (p->olrox_effect.vy < SDL_MIN_SINT32 + 0x4000)
+            return SDL_SetError("Olrox death particle exceeds its fixed-point velocity");
+        p->olrox_effect.vy -= 0x4000;
+        p->olrox_effect.angle_y =
+            Word(p->olrox_effect.angle_y + (Sint32)((ActorRandom(s) & 3U) + 2U) * 64);
+        p->olrox_effect.angle_x = Word(p->olrox_effect.angle_x + 64);
+        p->olrox_effect.angle_z = Word(p->olrox_effect.angle_z + 64);
+        p->olrox_effect.scale_x = Word(p->olrox_effect.scale_x - 64);
+        p->olrox_effect.scale_y = p->olrox_effect.scale_x;
+        p->olrox_effect.grey = (Uint8)(ActorShift(p->olrox_effect.scale_x, 4) / 2);
+        if (p->olrox_effect.scale_x < 256)
+            return FreePair(s, a, index);
+    }
+    if (!ProjectPair(s, p))
+        return false;
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        p->state.vertex_red[i] = p->state.vertex_red[2] / 2U;
+        p->state.vertex_green[i] = p->state.vertex_green[2] / 2U;
+        p->state.vertex_blue[i] = p->state.vertex_blue[2] / 2U;
+    }
+    return true;
+}
+bool ActorOlroxDeathRays(SotnActors *s, Actor *a)
+{
+    if (!s || !a || s->stage_id != 30 || a->state.id != 0x3e || !a->state.generation)
+        return SDL_SetError("Olrox death rays require their original active BO0 identity");
+    if (!a->state.step)
+    {
+        if (!ActorInitialize(s, a, 0x624))
+            return false;
+        a->state.animation_set = 0;
+        if (!ActorPrimitives(s, a, 128))
+        {
+            SDL_ClearError();
+            a->remove = true;
+            return true;
+        }
+        a->state.flags |= 0x800000U;
+        for (Uint16 i = 0; i < 128; ++i)
+        {
+            ActorPrimitive *p = Part(s, a, i);
+            if (!p)
+                return false;
+            p->state.priority_set = true;
+            p->state.priority = 176;
+        }
+    }
+    if (a->state.step == 1)
+    {
+        Uint16 index = SDL_MAX_UINT16;
+        if (!Find(s, a, 0, 128, 1, &index))
+            return false;
+        if (index != SDL_MAX_UINT16)
+        {
+            ActorPrimitive *p = Part(s, a, index);
+            if (!p)
+                return false;
+            const Uint16 priority = p->state.priority;
+            const Sint16 x = (Sint16)(ActorRandom(s) & 255U),
+                         end = (Sint16)((ActorRandom(s) & 31U) + 288U),
+                         speed = (Sint16)((ActorRandom(s) & 15U) + 12U);
+            p->state = (SotnActorPrimitive){.active = true,
+                                            .line = true,
+                                            .screen_space = true,
+                                            .gouraud = true,
+                                            .blend = true,
+                                            .page = 0x20,
+                                            .line_blend_mode = 1,
+                                            .red = 96,
+                                            .green = 96,
+                                            .blue = 64,
+                                            .priority_set = true,
+                                            .priority = priority,
+                                            .offset_x = {x, x, 0, 0},
+                                            .offset_y = {240, end, 0, 0},
+                                            .vertex_red = {96, 0, 0, 0},
+                                            .vertex_green = {96, 0, 0, 0},
+                                            .vertex_blue = {64, 0, 0, 0}};
+            p->olrox_effect.tag = 4;
+            p->olrox_effect.height = speed;
+        }
+        if (!(s->ticks & 3U))
+        {
+            if (!Find(s, a, 0, 128, 2, &index))
+                return false;
+            if (index != SDL_MAX_UINT16)
+            {
+                ActorPrimitive *p = NULL;
+                if (!Pair(s, a, index, &p))
+                    return false;
+                p->olrox_effect.x = (Sint32)(ActorRandom(s) & 255U) * 65536;
+                p->olrox_effect.y = Word(464 - s->camera_y) * 65536;
+            }
+        }
+    }
+    else if (a->state.step != 2)
+        return SDL_SetError("Olrox death rays have an invalid original phase");
+    for (Uint16 i = 0; i < 128; ++i)
+    {
+        ActorPrimitive *p = Part(s, a, i);
+        if (!p)
+            return false;
+        if (p->olrox_effect.tag == 4)
+        {
+            p->state.offset_y[0] = Word(p->state.offset_y[0] - p->olrox_effect.height);
+            p->state.offset_y[1] = Word(p->state.offset_y[1] - p->olrox_effect.height);
+            if (p->state.offset_y[1] < 0)
+            {
+                p->state.active = false;
+                p->olrox_effect.tag = 0;
+            }
+        }
+        if ((p->olrox_effect.tag & 8U) && !DeathParticle(s, a, i))
+            return false;
+    }
+    return true;
+}

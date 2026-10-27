@@ -7,8 +7,9 @@ roles. A separate helper copies a single-part bank-seven sprite to an owned
 packet while preserving the caller's visibility, texture page and blend state.
 Selected [owned appendage controllers](olrox-monster-appendages.md) now use the
 geometry alongside their own original tail/arm packets and sprite captures.
-These components do not register or advance the monster actor. The playable
-transformation, body, attacks, defeat/reward and connected travel remain incomplete.
+The selected [native encounter](olrox-encounter.md) now uses these components for
+its real transformation, body, attacks and defeat/reward. Connected travel and
+full encounter/presentation parity remain incomplete.
 
 Joint state stays separate from primitive packets. Geometry uses the original
 SDK lookup inputs and signed word coordinates, including the distinction between

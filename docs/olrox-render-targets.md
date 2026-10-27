@@ -2,11 +2,10 @@
 
 Olrox's original transformation first renders its monster image into a 127x256
 VRAM rectangle, then renders the morph into a 128x128 target. The existing
-240-row game frame cannot hold the complete first target. This batch adds the
-bounded renderer and ordered scene services needed for that integration; it does
-not yet advance the transformation or second-form actors. The
-[morph controller component](olrox-morph-controller.md) retains its original
-command/timing sequence, with gameplay dispatch still gated.
+240-row game frame cannot hold the complete first target. The bounded renderer
+now supports the real [morph and monster encounter](olrox-encounter.md). Pending
+offscreen commands flush before the next simulation update when presentation
+skips a frame, preserving the original capture sequence.
 
 Sprite, transformed-sprite, quad and line drawing now share a borrowed tightly
 packed RGB555 surface with explicit width, height and pixel count. Dimensions
@@ -39,10 +38,10 @@ sample commands, writes VRAM row 511, and verifies the displayed result. Removin
 the fixture restores a byte-identical ordinary frame. The fixture does not advance
 an actor or simulate boss completion. Private inputs and helpers remain ignored.
 
-Olrox's transformation, articulated second form, final defeat/reward and connected
-travel still need integration. This is renderer infrastructure, not a completed
-encounter or console pixel-parity claim. Existing selected skull-column/native
-checks remain the gameplay regression reference.
+The selected [native encounter](olrox-encounter.md) now advances transformation,
+articulated second form and final defeat/reward. Connected travel, full GPU
+presentation and console pixel parity remain incomplete. The isolated renderer
+checks above do not themselves establish encounter parity.
 
 ## Original environment replacement
 

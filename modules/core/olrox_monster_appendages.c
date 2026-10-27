@@ -820,7 +820,7 @@ bool ActorOlroxAppendage(SotnActors *s, Actor *a)
     Actor *body = &s->slots[a->enemy_state.owner_slot];
     if (body->state.id != 0x33 || body->state.generation != a->enemy_state.owner_generation ||
         a->slot <= body->slot || a->slot - body->slot > 13 ||
-        OlroxChild(s, body, (Uint16)(a->slot - body->slot)) != a)
+        !OlroxOwnsChild(s, body, a, (Uint16)(a->slot - body->slot)))
     {
         a->remove = true;
         return true;

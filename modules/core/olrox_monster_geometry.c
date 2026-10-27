@@ -241,7 +241,7 @@ static bool SpriteGeometry(SotnActors *s, const Actor *sprite, Actor *body, Acto
         (owner != body && owner != sprite) || !(packet = ActorPrimitiveGet(s, owner, index)))
         return SDL_SetError("Olrox sprite packet requires its active body or owned child");
     if (sprite != body && (sprite->slot <= body->slot || sprite->slot - body->slot > 13 ||
-                           OlroxChild(s, body, (Uint16)(sprite->slot - body->slot)) != sprite))
+                           !OlroxOwnsChild(s, body, sprite, (Uint16)(sprite->slot - body->slot))))
         return SDL_SetError("Olrox sprite packet source belongs to another generation");
     SotnActorPrimitive *p[1] = {&packet->state};
     const Actor frame = {.state = {.animation_set = 0x8007, .frame = sprite->state.frame}};

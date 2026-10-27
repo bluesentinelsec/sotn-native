@@ -571,3 +571,15 @@ remain private runtime inputs.
   BO0 `313A8.c:func_us_801B365C` and `func_us_801B171C` at the pinned sotn-decomp
   revision above, AGPL-3.0-or-later. Private profiles, source disassembly, generated
   analysis and instruction traces remain local; see [body scope](docs/olrox-monster-body.md).
+
+`modules/core/olrox_monster_defeat.c`, `olrox_monster_combat.c` and the selected
+body/ray/ownership adapters reconstruct BO0 `313A8.c:func_us_801B365C`,
+`func_us_801B7CC8`, `e_olrox_drool.c:func_us_801BA4AC`, selected
+`e_laser_attack.c`, `st/collision.h`, `st/e_misc.h` subdivision and
+`st/e_life_up.h` at pinned sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`,
+AGPL-3.0-or-later. The selected XA92 command follows `dra/sound.c`; the fresh
+BO0 cleared atlas follows `dra/menu.c:func_800FAC48` and `dra/d_CD80.c`.
+[Encounter scope](docs/olrox-encounter.md) documents bounded optional-burst and
+initialized midpoint-metadata adaptations, component versus native validation,
+and remaining parity limits. Runtime tables/assets and generated authoring traces
+remain private; none are embedded or distributed.

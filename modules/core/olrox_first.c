@@ -38,6 +38,14 @@ Actor *OlroxChild(SotnActors *s, const Actor *a, Uint16 relative)
                ? child
                : NULL;
 }
+bool OlroxOwnsChild(SotnActors *s, const Actor *parent, const Actor *child, Uint16 relative)
+{
+    const Actor *owned = OlroxChild(s, parent, relative);
+    return child && owned && owned->slot == child->slot &&
+           owned->state.generation == child->state.generation &&
+           owned->state.id == child->state.id && child->enemy_state.owner_slot == parent->slot &&
+           child->enemy_state.owner_generation == parent->state.generation;
+}
 bool OlroxReserved(SotnActors *s, Actor *a, Uint16 relative, Uint16 id, Uint16 parameters,
                    Actor **out)
 {
@@ -630,6 +638,11 @@ bool ActorOlroxFirst(SotnActors *s, Actor *a)
     {
         a->state.hitbox_state = 0;
         SetStep(a, 14);
+    }
+    if (!a->state.step && s->world->time_attack[SOTN_TIME_OLROX])
+    {
+        a->remove = true;
+        return true;
     }
     bool finished = false;
     switch (a->state.step)

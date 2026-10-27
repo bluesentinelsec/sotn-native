@@ -81,7 +81,7 @@ struct SotnLaboratory
     Uint8 rgba[SOTN_FRAME_PIXELS * 4];
     Uint32 room_index;
     Uint64 last_time, clock_units;
-    bool dirty, paused;
+    bool dirty, paused, targets_pending;
     bool warned_actors[0x63];
     Uint16 displayed_hp, displayed_hearts, displayed_subweapon;
     Uint32 displayed_gold;
@@ -254,6 +254,11 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                                            &next))
                     return false;
             }
+            else if (combat->music == 0x317 && session->stage_id == 30)
+            {
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 4, &next))
+                    return false;
+            }
             else if (combat->music == 0x30f)
             {
                 if (!SotnMusic_CreateEntrance(session->dra, session->music_stream, true, &next))
@@ -270,19 +275,28 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                     return false;
             }
             else
-                return SDL_SetError("Unsupported Laboratory event music request");
+                return SDL_SetError("Unsupported event music request 0x%x in stage %u",
+                                    combat->music, session->stage_id);
         }
         SotnMusic_Destroy(session->music);
         session->music = next;
+        if (next)
+        {
+            session->music_gain = 127;
+            session->music_paused = session->music_fading = false;
+            session->xa_command = 0;
+        }
     }
     if (combat->cd_command)
     {
-        if (combat->cd_command == 0x90 || combat->cd_command == 0x91 || combat->cd_command == 0x80)
+        if (combat->cd_command == 0x90 || combat->cd_command == 0x91 ||
+            combat->cd_command == 0x92 || combat->cd_command == 0x80)
         {
             session->xa_command = combat->cd_command == 0x80 ? 3 : 1;
             session->xa_fade_counter = 0;
             session->xa_fade_multiplier = combat->cd_command == 0x90   ? 128
                                           : combat->cd_command == 0x91 ? 8
+                                          : combat->cd_command == 0x92 ? 4
                                                                        : 32;
         }
         else if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
@@ -1028,11 +1042,12 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
     if (stage_id == 30)
-        SDL_Log("Olrox arena internal foundation: private room/artwork/sound resources, "
-                "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats "
-                "and fireballs/skull columns. "
-                "Transformation, second form, final victory and connected "
-                "progression remain incomplete.");
+        SDL_Log(
+            "Olrox arena internal foundation: private room/artwork/sound resources, "
+            "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats and "
+            "fireballs/skull columns, real transformation/monster combat and captured "
+            "defeat/reward. Furnishings, full effects/audio/parity and connected "
+            "NO2 progression remain incomplete.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
@@ -1157,12 +1172,20 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
     return true;
 }
 
+static bool DrawGameplay(SotnLaboratory *session);
+
 bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
     if (session->stage_pending)
         return true; // The application commits an arrival once, after its catch-up ticks.
+    // Original render-target writes are simulation-frame side effects. Preserve a skipped
+    // presentation's captures before the next actor update can replace their one-tick commands.
+    if (session->targets_pending && SotnActors_HasTargets(session->actors) &&
+        !DrawGameplay(session))
+        return false;
+    session->targets_pending = false;
     session->blocked_buttons &= buttons;
     buttons &= (Uint16)~session->blocked_buttons;
     const bool select =
@@ -1308,6 +1331,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                 "remain unintegrated.");
     }
     session->dirty = true;
+    session->targets_pending = true;
     return true;
 }
 
@@ -1938,6 +1962,7 @@ bool SotnLaboratory_Draw(SotnLaboratory *session)
                                     SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT))
             return false;
         session->dirty = false;
+        session->targets_pending = false;
     }
     return SotnPresenter_Draw(session->presenter);
 }

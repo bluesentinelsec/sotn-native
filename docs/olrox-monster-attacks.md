@@ -7,10 +7,10 @@ retires its owned particles. Fireballs retain their original motion, animated
 trails, physical hitboxes and boundary retirement. Drool follows its owned head,
 stretches, falls and emits the selected impact sound and shared BO0 dust.
 
-These components remain outside gameplay dispatch until the real monster body,
-linked damage, complete death/reward flow and transformation are integrated.
-They do not provide a playable second form or a completed boss. Existing ordinary
-saves and normal audio defaults are unchanged.
+These components now participate in the selected [native encounter](olrox-encounter.md).
+Shared damage, real body/morph commands and defeat/reward now advance. Full
+presentation/parity and connected travel remain incomplete. Existing ordinary
+save formats and normal audio defaults are unchanged.
 
 ## Behavior and ownership
 
