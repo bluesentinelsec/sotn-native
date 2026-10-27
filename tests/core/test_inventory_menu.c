@@ -84,7 +84,8 @@ int main(void)
         const Uint16 id = cursor < 23 ? cursor : (Uint16)(cursor + 2);
         world.relics[id] = 1;
         CHECK(SotnInventoryMenu_Tick(&m, c, SOTN_BUTTON_JUMP, &sound, &changed, &world, dra));
-        CHECK(changed == (id == 7 || id == 8 || id == 10 || id == 12 || id == 13 || id == 16));
+        CHECK(changed ==
+              (id == 7 || id == 8 || id == 9 || id == 10 || id == 12 || id == 13 || id == 16));
         CHECK(world.relics[id] == (changed ? 3 : 1));
         CHECK((m.message[0] == '\0') == changed);
         const SotnWorldState before = world;

@@ -21,7 +21,9 @@ enum
     ACTOR_FOREIGN_ATTACK_GROUPS = 4,
     ACTOR_CHAPEL_BALL_LINKS = 15,
     ACTOR_HAND_PROJECTILE_CHANNELS = 2 + SOTN_SUBWEAPON_SLOTS,
-    ACTOR_KICK_CHANNEL = ACTOR_HAND_PROJECTILE_CHANNELS + ACTOR_FOREIGN_ATTACK_GROUPS
+    ACTOR_KICK_CHANNEL = ACTOR_HAND_PROJECTILE_CHANNELS + ACTOR_FOREIGN_ATTACK_GROUPS,
+    ACTOR_GAS_CHANNEL,
+    ACTOR_ATTACK_CHANNELS
 };
 typedef struct ActorPrimitive
 {
@@ -92,7 +94,7 @@ typedef struct Actor
     } clouds;
     Uint16 pose, remaining, timer, substep;
     size_t animation_stream;
-    Uint8 parallax, cooldown[ACTOR_KICK_CHANNEL + 1], damage_effect;
+    Uint8 parallax, cooldown[ACTOR_ATTACK_CHANNELS], damage_effect;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
     Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;
@@ -535,6 +537,7 @@ struct SotnActors
     Uint16 backdrop_color;
     SotnCharacter *character;
     SotnSubweapons *subweapons;
+    const SotnGasCloud *gas_cloud;
 };
 
 static inline Uint16 Read16(const Uint8 *bytes)

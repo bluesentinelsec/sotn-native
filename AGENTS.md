@@ -1,5 +1,16 @@
 # Working in sotn-native
 
+Selected [Gas Cloud combat](docs/player-gas-cloud.md) now connects owned entry,
+private spell/INT/RNG/Mojo Mail initialization, actual cloud hitboxes and shared
+within-cloud enemy cooldown to native damage/death/EXP. Preserve the original
+seventeen-child request's sixteen-slot allocation limit, negative midpoint
+truncation and one RNG value per actual child. Relic toggles suspend/resume existing
+children; enabling midway through Mist never creates a missing factory. Room
+rebases refresh positions without advancing the visual; normal/stage reset retires
+transient children. The native budget is currently uncontended and its group-four
+channel is separate from other ability allocators. Shared factory/group contention,
+ordinary acquisition and whole-route/console parity remain incomplete.
+
 Selected [Mist traversal](docs/player-mist.md) now connects owned relic/MP gates,
 steering, compact sensors, barrier escape, real sprite capture/cloud/palette jobs,
 restoration and cramped-space recovery. Q/Xbox LB toggles owned Mist; ordinary
@@ -7,7 +18,7 @@ starts grant no new relics. Use the absolute simulation clock, freeze original M
 recovery in transformed states, and retain generation ownership. Never substitute
 a timer for the actual visual phase-5 signal; normal return releases the real child.
 Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
-bottom room window. Full Gas Cloud damage, Bat/Wolf, shared effect contention,
+bottom room window. Bat/Wolf, shared effect contention,
 restoration flashes, full raster/audio/parity and ordinary acquisition remain
 incomplete. Do not call Alucard, the castle, its areas or the game complete.
 
@@ -106,7 +117,7 @@ original sound requests and checked primitive/tile ownership. Selected NO2 trave
 now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
-Zoe, Gravity Boots, Leap Stone, Jewel of Open, Mist and Power of Mist. Preserve found bits, US cursor
+Zoe, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud. Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
 Other abilities and familiars remain unavailable; never grant ownership or reset
 transient movement/MP when switching. Version-nine saves retain disabled relics.

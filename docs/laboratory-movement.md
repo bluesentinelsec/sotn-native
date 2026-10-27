@@ -30,7 +30,8 @@ The [combat checkpoint](laboratory-combat.md) adds unarmed hits, selected damage
 candle prizes, and [audio](laboratory-audio.md). Original startup, complete actors/scripts,
 complete equipped weapons, full effects and full progression remain incomplete.
 Selected [Mist traversal](player-mist.md) now runs through owned relic/MP checks,
-real cloud capture and restoration; Gas Cloud damage and Bat/Wolf remain unfinished.
+real cloud capture and restoration. Selected [Gas Cloud combat](player-gas-cloud.md)
+now runs; Bat/Wolf remain unfinished.
 Reaching an
 unsupported external stage/boundary fails with a clear message. Movement
 support does not establish parity for the full original player state machine.

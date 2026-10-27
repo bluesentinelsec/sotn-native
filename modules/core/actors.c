@@ -582,14 +582,32 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     if (screen_x <= -32 || screen_x >= 288 || screen_y <= -32 || screen_y >= 256)
         return true;
     const Uint32 normal_channels = ACTOR_HAND_PROJECTILE_CHANNELS;
-    const Uint32 total_channels =
+    const Uint32 gas_start =
         normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
+    const Uint32 total_channels =
+        gas_start + (actors->gas_cloud && actors->gas_cloud->generation ? SOTN_GAS_CLOUD_SLOTS : 0);
     for (Uint32 channel = 0; channel < total_channels; ++channel)
     {
         SotnPlayerState source = player;
         Uint32 hand = channel;
         const bool kick = channel == normal_channels;
-        if (kick)
+        if (channel >= gas_start)
+        {
+            const Uint32 index = channel - gas_start;
+            const SotnGasCloud *cloud = actors->gas_cloud;
+            if (!(cloud->mask & (Uint16)(1U << index)))
+                continue;
+            const SotnGasCloudChild child = cloud->children[index];
+            if (child.x < SDL_MIN_SINT16 || child.x > SDL_MAX_SINT16 || child.y < SDL_MIN_SINT16 ||
+                child.y > SDL_MAX_SINT16)
+                return SDL_SetError("Gas Cloud attack exceeds original whole-position bounds");
+            source.x = child.x * 65536;
+            source.y = child.y * 65536;
+            source.facing_left = false;
+            source.attack = child.attack;
+            hand = ACTOR_GAS_CHANNEL;
+        }
+        else if (kick)
         {
             if (player.kick.generation == 0)
                 continue;
@@ -2039,6 +2057,14 @@ void SotnActors_Destroy(SotnActors *actors)
         SDL_free(actors->background_tiles);
         SDL_free(actors);
     }
+}
+
+bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud)
+{
+    if (!actors)
+        return SDL_InvalidParamError("actors");
+    actors->gas_cloud = cloud;
+    return true;
 }
 
 bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service)

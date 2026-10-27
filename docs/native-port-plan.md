@@ -66,7 +66,8 @@ preserves Bat/Mist/Wolf relic eligibility, strict MP thresholds and original
 simulation-timer drain cadence. The selected
 [Mist integration](player-mist.md) now connects original movement, collision,
 capture/cloud/palettes and restoration through owned Q/Xbox LB controls.
-Ordinary starts grant no relics. Gas Cloud damage, Bat/Wolf, complete effects
+Ordinary starts grant no relics. [Gas Cloud combat](player-gas-cloud.md) now runs
+within its selected scope. Bat/Wolf, complete effects
 and ordinary acquisition remain incomplete; component comparisons do not prove
 whole-route or console parity.
 
