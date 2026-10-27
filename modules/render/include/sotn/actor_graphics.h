@@ -2,13 +2,47 @@
 #define SOTN_ACTOR_GRAPHICS_H
 
 #include <sotn/actors.h>
+#include <sotn/alucard_sprite.h>
 #include <sotn/dialogue.h>
 #include <sotn/equipment.h>
+#include <sotn/mist_effect.h>
 #include <sotn/palette.h>
 #include <sotn/tilemap.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
 typedef struct SotnActorGraphics SotnActorGraphics;
+
+/** @brief Capture an unrotated normal Alucard pose into his original owned display slot.
+ * @param graphics Borrowed texture owner. @param sprite Actual decoded private ARC pose.
+ * @param x Signed-word screen anchor X. @param y Signed-word screen anchor Y.
+ * @param facing_left Original facing. @param out Receives eight real snapshot wedges.
+ * @return Success or SDL error, leaving texture memory/output unchanged on invalid input.
+ * Reproduces original right/bottom clear margins and BlinkWhite's Mist wedge geometry.
+ * Rotated, Bat and Wolf captures require their own original adapters. */
+bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite,
+                                     Sint32 x, Sint32 y, bool facing_left, SotnMistWedge out[8]);
+/** @brief Queue one original selected Mist palette operation (27, 0x11C, 0x11D or 0x11F).
+ * @param graphics Borrowed texture owner. @param operation Original operation/flag word.
+ * @param accepted Receives false if all 32 selected job slots are occupied; no slot is replaced.
+ * @return Success or SDL error with owner/output unchanged on malformed descriptors/colors.
+ * A successful full-pool result mirrors the source's omitted optional palette request. */
+bool SotnActorGraphics_RequestMistPalette(SotnActorGraphics *graphics, Uint16 operation,
+                                          bool *accepted);
+/** @brief Cancel the selected jobs matching original palette channel eight, retaining copies.
+ * @param graphics Borrowed owner. @return Success or SDL error for a missing owner. */
+bool SotnActorGraphics_CancelMistPalette(SotnActorGraphics *graphics);
+/** @brief Advance queued selected Mist palette jobs once per original simulation tick.
+ * @param graphics Borrowed owner. @return Success or SDL error; failed validation changes
+ * neither colors nor job cursors. Palette source rows remain live owned data, not stale copies. */
+bool SotnActorGraphics_TickMistPalette(SotnActorGraphics *graphics);
+/** @brief Refresh normal Alucard's owned palette used by the original Mist restoration job.
+ * @param graphics Borrowed owner. @param colors Sixteen copied current character colors.
+ * @return Success or SDL error before mutation. Borrowed private artwork stays unchanged. */
+bool SotnActorGraphics_SetPlayerPalette(SotnActorGraphics *graphics, const Uint16 colors[16]);
+/** @brief Copy the current owned sixteen-color Mist palette for presentation/diagnostics.
+ * @param graphics Borrowed owner. @param out Unchanged on failure.
+ * @return Success or SDL error for missing owner, output or resident palette colors. */
+bool SotnActorGraphics_GetMistPalette(const SotnActorGraphics *graphics, Uint16 out[16]);
 
 /** @brief Borrowed tightly packed RGB555 raster surface; each dimension is 1..256. */
 typedef struct SotnActorSurface

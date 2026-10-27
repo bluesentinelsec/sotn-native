@@ -9,6 +9,12 @@
 #define VRAM_WORDS (1024U * 512U)
 #define UPLOAD_BUDGET (2U * 1024U * 1024U)
 
+typedef struct MistPaletteJob
+{
+    Uint32 descriptor;
+    Uint16 mode, delay, remaining;
+} MistPaletteJob;
+
 struct SotnActorGraphics
 {
     SotnDataView dra, nz0;
@@ -25,6 +31,7 @@ struct SotnActorGraphics
     Uint16 target_pixels[256U * 256U];
     SotnActorTarget target;
     bool target_active;
+    MistPaletteJob mist_jobs[32];
 };
 
 static bool ValidSurface(SotnActorSurface surface)
@@ -1236,4 +1243,234 @@ bool SotnActorGraphics_DoppleDissolve(SotnActorGraphics *g, SotnActorSprite spri
         }
     g->dopple_death_cached = true;
     return true;
+}
+
+// dra/7879C.c:EntityPlayerBlinkWhite (profile 0x5D) and 4B758.c packed display upload.
+static Sint16 CaptureWord(Sint64 value)
+{
+    const Uint16 bits = (Uint16)(Uint64)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
+}
+static void CaptureEdge(Uint16 edge, Sint32 width, Sint32 height, Sint32 *x, Sint32 *y)
+{
+    const bool half = (edge & 1U) != 0;
+    switch ((edge & 7U) / 2U)
+    {
+    case 0:
+        *x = half ? width / 2 : 0;
+        *y = 0;
+        break;
+    case 1:
+        *x = width;
+        *y = half ? height / 2 : 0;
+        break;
+    case 2:
+        *x = half ? width / 2 : width;
+        *y = height;
+        break;
+    default:
+        *x = 0;
+        *y = half ? height / 2 : height;
+        break;
+    }
+}
+bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
+                                     Sint32 x, Sint32 y, bool facing_left, SotnMistWedge out[8])
+{
+    if (!g || !sprite || !out || x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 ||
+        y > SDL_MAX_SINT16 || g->dra.size < 0xd670 + 30U * 20U || sprite->width == 0 ||
+        sprite->width > 252 || sprite->width % 4 || sprite->height == 0 || sprite->height > 254 ||
+        sprite->pivot_x < -512 || sprite->pivot_x > 512 || sprite->pivot_y < -512 ||
+        sprite->pivot_y > 512 || !sprite->pixels.bytes ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2)
+        return SDL_SetError("Player capture requires a bounded real normal pose and screen anchor");
+    if (Read16(g->dra.bytes + 0xd670 + 29U * 20U + 14U) != 0x700a)
+        return SDL_SetError(
+            "Player capture requires the original unperturbed Mist snapshot profile");
+    const Uint32 slot_x = Read16(g->dra.bytes + 0x21b8),
+                 slot_y = Read16(g->dra.bytes + 0x21ba) & 511U, width = sprite->width / 4U,
+                 height = sprite->height;
+    if ((slot_x & 63U) * 4U != 4 || (slot_y & 255U) != 1 || (slot_x >> 6) + 0x10U != 0x18 ||
+        slot_x + width >= 1024 || slot_y + height + 4 > 512)
+        return SDL_SetError("Player capture display slot disagrees with original Mist UVs");
+    SotnMistWedge wedges[8] = {0};
+    const Sint16 origin_x =
+                     CaptureWord((Sint64)x + (facing_left ? -sprite->pivot_x : sprite->pivot_x)),
+                 origin_y = CaptureWord((Sint64)y + sprite->pivot_y);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        SotnMistWedge *w = &wedges[i];
+        for (Uint16 vertex = 0; vertex < 2; ++vertex)
+        {
+            Sint32 px = 0, py = 0;
+            CaptureEdge((Uint16)(i + vertex), sprite->width, sprite->height, &px, &py);
+            w->x[vertex] = CaptureWord(origin_x + (facing_left ? -px : px));
+            w->y[vertex] = CaptureWord(origin_y + py);
+            w->u[vertex] = (Uint8)(4 + px);
+            w->v[vertex] = (Uint8)(1 + py);
+        }
+        w->x[2] = CaptureWord(
+            origin_x + (facing_left ? -(Sint32)sprite->width / 2 : (Sint32)sprite->width / 2));
+        w->y[2] = CaptureWord(origin_y + sprite->height / 2);
+        w->u[2] = (Uint8)(4U + sprite->width / 2U);
+        w->v[2] = (Uint8)(1U + sprite->height / 2U);
+    }
+    Upload(g, slot_x, slot_y, width, height, sprite->pixels.bytes);
+    for (Uint32 row = 0; row < height + 4; ++row)
+    {
+        const size_t pixel = (size_t)(slot_y - 1U + row) * 1024U + slot_x + width;
+        g->words[pixel] = 0;
+        g->valid[pixel] = 1;
+    }
+    for (Uint32 row = 0; row < 4; ++row)
+        for (Uint32 column = 0; column < width + 2; ++column)
+        {
+            const size_t pixel = (size_t)(slot_y + height + row) * 1024U + slot_x - 1U + column;
+            g->words[pixel] = 0;
+            g->valid[pixel] = 1;
+        }
+    SDL_memcpy(out, wedges, sizeof(wedges));
+    return true;
+}
+
+// dra/4A538.c: selected original copy/blend jobs; all colors live in owned VRAM.
+static bool MistColors(const SotnActorGraphics *g, Uint16 palette, Uint16 out[16])
+{
+    if (!g || !out || palette >= 768)
+        return SDL_SetError("Mist colors require a texture owner and bounded palette row");
+    Uint16 colors[16] = {0};
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        const size_t pixel = PaletteIndex(palette, i);
+        if (!g->valid[pixel])
+            return SDL_SetError("Mist palette references an unloaded owned color");
+        colors[i] = g->words[pixel];
+    }
+    SDL_memcpy(out, colors, sizeof(colors));
+    return true;
+}
+static bool MistDescriptor(const SotnActorGraphics *g, Uint32 descriptor, Uint16 mode,
+                           Uint16 *source, Uint16 *interval)
+{
+    if (descriptor > g->dra.size || g->dra.size - descriptor < 16 || descriptor % 4)
+        return SDL_SetError("Mist palette descriptor exceeds its private main image");
+    const Uint8 *p = g->dra.bytes + descriptor;
+    const Uint32 op = Read32(p), address = Read32(p + 12);
+    if ((mode & 255U) != (op & 255U) || (op & 255U) < 1 || (op & 255U) > 2 ||
+        Read32(p + 4) != 0x10f0 || Read32(p + 8) != 16 || address < 0x8006cbccU ||
+        address - 0x8006cbccU > 0x6000U - 32U || (address - 0x8006cbccU) % 32U)
+        return SDL_SetError("Mist palette job requires its original copy/blend and aligned rows");
+    const Uint32 row = (address - 0x8006cbccU) / 32U;
+    if (row == 0x10f)
+        return SDL_SetError("Mist palette source must not alias its destination row");
+    if ((mode & 255U) == 2 &&
+        ((op >> 16) == 0 || g->dra.size - descriptor < 20 || Read32(p + 16) != SDL_MAX_UINT32))
+        return SDL_SetError(
+            "Mist blend requires a bounded interval and its original final sentinel");
+    *source = (Uint16)row;
+    *interval = (Uint16)(op >> 16);
+    return true;
+}
+bool SotnActorGraphics_RequestMistPalette(SotnActorGraphics *g, Uint16 operation, bool *accepted)
+{
+    if (!g || !accepted ||
+        (operation != 27 && operation != 0x11c && operation != 0x11d && operation != 0x11f) ||
+        g->dra.size < 0x3bb8 + 32U * 4U)
+        return SDL_SetError("Mist palette request requires its owner and a selected original job");
+    const Uint32 address = Read32(g->dra.bytes + 0x3bb8 + (operation & 255U) * 4U);
+    if (address < 0x800a0000U || address - 0x800a0000U > g->dra.size ||
+        g->dra.size - (address - 0x800a0000U) < 4)
+        return SDL_SetError("Mist palette pointer exceeds its private main image");
+    const Uint32 descriptor = address - 0x800a0000U;
+    const Uint16 mode =
+        (Uint16)((Read32(g->dra.bytes + descriptor) & 255U) | (operation & 0xff00U));
+    Uint16 source = 0, interval = 0, colors[16] = {0};
+    if (!MistDescriptor(g, descriptor, mode, &source, &interval) ||
+        !MistColors(g, source, colors) || !MistColors(g, 0x10f, colors))
+        return false;
+    for (Uint16 i = 0; i < 32; ++i)
+        if (!g->mist_jobs[i].mode)
+        {
+            g->mist_jobs[i] = (MistPaletteJob){.descriptor = descriptor,
+                                               .mode = mode,
+                                               .remaining = (Uint16)((mode & 255U) == 2 ? 31 : 0)};
+            *accepted = true;
+            return true;
+        }
+    *accepted = false;
+    return true;
+}
+bool SotnActorGraphics_CancelMistPalette(SotnActorGraphics *g)
+{
+    if (!g)
+        return SDL_InvalidParamError("graphics");
+    for (Uint16 i = 0; i < 32; ++i)
+        if (g->mist_jobs[i].mode & 0x100U)
+            g->mist_jobs[i].mode = 0;
+    return true;
+}
+static Uint16 MistBlend(Uint16 target, Uint16 color)
+{
+    Uint16 result = color & 0x8000U;
+    for (Uint16 shift = 0; shift < 15; shift += 5)
+    {
+        const Sint32 from = (color >> shift) & 31, to = (target >> shift) & 31;
+        result |= (Uint16)((Uint16)(from + (from < to) - (from > to)) << shift);
+    }
+    return result;
+}
+bool SotnActorGraphics_TickMistPalette(SotnActorGraphics *g)
+{
+    Uint16 colors[16] = {0};
+    if (!MistColors(g, 0x10f, colors))
+        return false;
+    MistPaletteJob jobs[32] = {0};
+    SDL_memcpy(jobs, g->mist_jobs, sizeof(jobs));
+    for (Uint16 i = 0; i < 32; ++i)
+    {
+        MistPaletteJob *job = &jobs[i];
+        if (!job->mode)
+            continue;
+        Uint16 source = 0, interval = 0, target[16] = {0};
+        if (!MistDescriptor(g, job->descriptor, job->mode, &source, &interval) ||
+            !MistColors(g, source, target))
+            return false;
+        if (job->delay)
+        {
+            --job->delay;
+            continue;
+        }
+        const bool blend = (job->mode & 255U) == 2;
+        for (Uint16 color = 0; color < 16; ++color)
+            colors[color] = blend ? MistBlend(target[color], colors[color]) : target[color];
+        if (!blend)
+            job->mode = 0;
+        else if (job->remaining)
+        {
+            --job->remaining;
+            job->delay = (Uint16)(interval - 1U);
+        }
+        else
+        {
+            job->remaining = 31;
+            job->mode = 0;
+        }
+    }
+    for (Uint16 color = 0; color < 16; ++color)
+        g->words[PaletteIndex(0x10f, color)] = colors[color];
+    SDL_memcpy(g->mist_jobs, jobs, sizeof(jobs));
+    return true;
+}
+bool SotnActorGraphics_SetPlayerPalette(SotnActorGraphics *g, const Uint16 colors[16])
+{
+    Uint16 previous[16] = {0};
+    if (!colors || !MistColors(g, 0x100, previous))
+        return SDL_SetError("Normal player palette requires an owner and sixteen current colors");
+    for (Uint16 i = 0; i < 16; ++i)
+        g->words[PaletteIndex(0x100, i)] = colors[i];
+    return true;
+}
+bool SotnActorGraphics_GetMistPalette(const SotnActorGraphics *g, Uint16 out[16])
+{
+    return MistColors(g, 0x10f, out);
 }
