@@ -370,6 +370,49 @@ static bool TestKickContact(Fixture *f)
     return true;
 }
 
+static bool TestGasContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnGasCloud cloud = {.generation = 1, .mask = 3};
+    const SotnPlayerAttack attack = {.power = 6,
+                                     .width = 32,
+                                     .height = 32,
+                                     .hit_type = 2,
+                                     .hit_effect = 1,
+                                     .invincibility_frames = 8,
+                                     .active = true};
+    cloud.children[0] = cloud.children[1] = (SotnGasCloudChild){160, 140, attack};
+    CHECK(SotnActors_SetGasCloud(actors, &cloud));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    // A second overlapping child and a new form generation retain group-four cooldown.
+    cloud.generation = 2;
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+        CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    }
+    cloud.children[0].attack.active = cloud.children[1].attack.active = false;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    cloud.children[1].attack.active = true;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points <= 0);
+    CHECK(SotnActors_SetGasCloud(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -397,7 +440,8 @@ int main(void)
         return 1;
     const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
                         TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
-                        TestKickContact(fixture) && TestFailures(fixture);
+                        TestKickContact(fixture) && TestGasContact(fixture) &&
+                        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

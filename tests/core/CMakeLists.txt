@@ -675,3 +675,9 @@ target_include_directories(sotn-player-mist-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-player-mist-tests PRIVATE sotn-core)
 add_test(NAME player-mist-controller COMMAND sotn-player-mist-tests)
 set_tests_properties(player-mist-controller PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-gas-cloud-tests test_gas_cloud.c)
+sotn_configure_c_target(sotn-gas-cloud-tests)
+target_link_libraries(sotn-gas-cloud-tests PRIVATE sotn-core)
+add_test(NAME gas-cloud-children COMMAND sotn-gas-cloud-tests)
+set_tests_properties(gas-cloud-children PROPERTIES TIMEOUT 20)

@@ -69,7 +69,8 @@ simulation tick. Capture/palette comparisons initialize the real source palette
 before checking 1,578 captures and 1,492 palette records. Runtime inputs and all
 authoring traces/images remain private.
 
-Gas Cloud damage, Bat/Wolf, restoration flashes, original shared factory/palette
+[Gas Cloud combat](player-gas-cloud.md) now runs within its selected scope.
+Bat/Wolf, restoration flashes, original shared factory/palette
 contention, complete water-volume behavior and full audio/raster/timing parity
 remain incomplete. The current rasterizer does not reproduce requested PS1
 dithering. Whole-pixel camera/rebase checks do not establish fractional stage

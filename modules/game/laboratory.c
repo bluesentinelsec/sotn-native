@@ -52,6 +52,7 @@ struct SotnLaboratory
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
     SotnMistEffect mist_effect;
+    SotnGasCloud gas_cloud;
     Uint32 mist_generation;
     Sint32 mist_camera_x, mist_camera_y, mist_rebase_x, mist_rebase_y;
     Uint16 mist_capture_sprite;
@@ -566,7 +567,9 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
     s->mist_camera_x = s->camera.x;
     s->mist_camera_y = s->camera.y;
     if (entering)
-        return true;
+        return SotnGasCloud_Tick(&s->gas_cloud, player, s->mist_present ? &s->mist_effect : NULL,
+                                 s->mist_generation, s->camera.x, s->camera.y,
+                                 (s->world.relics[SOTN_RELIC_GAS_CLOUD] & 2U) != 0);
     Uint16 colors[16] = {0};
     for (Uint16 i = 0; i < 16; ++i)
         colors[i] = (Uint16)(s->player_common[0x40000 + i * 2U] |
@@ -592,6 +595,10 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->mist_generation = player.mist.generation;
         s->mist_present = true;
         s->mist_capture_sprite = player.mist.capture_sprite;
+        if ((s->world.relics[SOTN_RELIC_GAS_CLOUD] & 2U) &&
+            !SotnGasCloud_Begin(&s->gas_cloud, s->dra, s->character, player.mist.generation,
+                                SDL_MAX_UINT16))
+            return false;
         bool accepted = false;
         if (!SotnActorGraphics_RequestMistPalette(s->actor_graphics, 27, &accepted) ||
             !SotnActorGraphics_CancelMistPalette(s->actor_graphics) ||
@@ -651,7 +658,10 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
              !SotnActorGraphics_RequestMistPalette(s->actor_graphics, 0x11d, &accepted)))
             return false;
     }
-    return SotnActorGraphics_TickMistPalette(s->actor_graphics);
+    return SotnGasCloud_Tick(&s->gas_cloud, player, s->mist_present ? &s->mist_effect : NULL,
+                             s->mist_generation, s->camera.x, s->camera.y,
+                             (s->world.relics[SOTN_RELIC_GAS_CLOUD] & 2U) != 0) &&
+           SotnActorGraphics_TickMistPalette(s->actor_graphics);
 }
 
 static bool UpdateActors(SotnLaboratory *session, bool entering)
@@ -1121,6 +1131,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnActors_SetWorld(session->actors, &session->world) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
         !SotnActors_SetSubweapons(session->actors, session->subweapons) ||
+        !SotnActors_SetGasCloud(session->actors, &session->gas_cloud) ||
         !SotnInventoryRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->inventory_renderer) ||
         !SotnActorGraphics_CreateStage(

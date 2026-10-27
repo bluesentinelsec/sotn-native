@@ -632,3 +632,10 @@ and `4A538.c`. All use the same pinned AGPL-3.0-or-later revision above.
 private fixture grants and native integration from ordinary acquisition, complete
 forms and whole-route/console parity. Runtime tables, artwork and traces remain
 private and are not distributed.
+
+`modules/core/gas_cloud.c` and selected native combat adapters reconstruct
+`dra/7E4BC.c:UnknownEntId48`, `7879C.c:EntityFactory/func_8011A328/func_80118894`
+and `5D5BC.c:GetSpellDef` at the same pinned AGPL-3.0-or-later revision.
+[Gas Cloud scope](docs/player-gas-cloud.md) documents original bounded allocation,
+owned spell initialization and the remaining shared-pool/group limitations.
+Blueprint/spell definitions, artwork and instruction traces remain private.

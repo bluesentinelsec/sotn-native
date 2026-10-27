@@ -127,7 +127,9 @@ Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
 Xbox **X/B** use the equipped hands (default: Gladius left, empty right).
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
 or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owned,
-active [Mist form](docs/player-mist.md); no ability is granted by these starts.
+active [Mist form](docs/player-mist.md). Owned, active
+[Gas Cloud](docs/player-gas-cloud.md) adds damage to that form; these starts grant
+no abilities.
 Bat/Wolf, spells and full ability parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
@@ -157,7 +159,7 @@ Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command
 MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
 and complete ability/castle parity remain acceptance work.
 The [Relics pause panel](docs/relic-menu.md) now switches owned Cube of Zoe,
-Gravity Boots, Leap Stone, Jewel of Open, Mist and Power of Mist, retaining active choices in saves.
+Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud, retaining active choices in saves.
 Other relic abilities and familiar controls remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct

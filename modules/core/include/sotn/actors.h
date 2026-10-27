@@ -4,6 +4,7 @@
 #include <sotn/actor_layout.h>
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
+#include <sotn/gas_cloud.h>
 #include <sotn/palette.h>
 #include <sotn/player.h>
 #include <sotn/stage_route.h>
@@ -289,6 +290,11 @@ bool SotnActors_GetCombat(const SotnActors *actors, SotnActorCombat *out);
  * actor destruction. @return Success or false with SDL_GetError(). NULL retains legacy test
  * profile. */
 bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
+/** @brief Borrow current generation-owned Gas Cloud children; NULL disables this source.
+ * @param actors Borrowed scene. @param cloud Borrowed owner, alive until replaced or destruction.
+ * @return Success or SDL error. All children share one original group-four cooldown;
+ * changing generations never resets an enemy's existing cooldown. */
+bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud);
 /** @brief Bind a borrowed projectile service, alive through actor destruction; NULL disables it.
  * @param actors Borrowed actors. @param service Borrowed service. @return Success or SDL error. */
 bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);

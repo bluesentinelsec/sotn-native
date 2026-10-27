@@ -29,7 +29,7 @@ void ActorOlroxMonsterHit(SotnActors *s, Actor *recipient, Actor *hit, Uint32 ch
                           Uint8 cooldown)
 {
     if (!s || !recipient || !hit || s->stage_id != 30 || recipient->state.id != 0x35 ||
-        channel > ACTOR_KICK_CHANNEL)
+        channel >= ACTOR_ATTACK_CHANNELS)
         return;
     Actor *body = ActorOlroxMonsterOwner(s, recipient);
     if (!body || ActorOlroxMonsterOwner(s, hit) != body || hit->slot > body->slot + 6U)
