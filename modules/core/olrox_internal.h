@@ -28,4 +28,9 @@ bool ActorOlroxOrbs(SotnActors *actors, Actor *actor);
  * @return Success or SDL error for invalid identity/state/resources or stale geometry.
  * Optional primitive exhaustion retires only the fireball, preserving original behavior. */
 bool ActorOlroxFire(SotnActors *actors, Actor *actor);
+/** @brief Advance BO0's reserved skull-column attack and owned beam/feedback quads.
+ * @param actors Borrowed BO0/private-table owner. @param actor Borrowed active column.
+ * @return Success or SDL error for invalid state, data, math or owned geometry.
+ * A missing parent retires an unreleased column; a released beam owns its remaining lifetime. */
+bool ActorOlroxColumn(SotnActors *actors, Actor *actor);
 #endif

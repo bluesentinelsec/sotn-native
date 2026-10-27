@@ -20,6 +20,8 @@ struct SotnActorGraphics
     Uint16 dopple_death_words[1024], dopple_death_frame, dopple_death_bank;
     Sint16 bat_pivot[18];
     bool bat_pivot_set[18];
+    Uint16 framebuffer[SOTN_FRAME_PIXELS];
+    bool framebuffer_valid;
 };
 
 static Uint16 Read16(const Uint8 *bytes)
@@ -836,6 +838,9 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
     if ((!q.untextured && graphics == NULL) || frame == NULL || count < SOTN_FRAME_PIXELS ||
         q.page > 0x1ff || (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
         return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
+    if (q.framebuffer && (q.untextured || !graphics || !graphics->framebuffer_valid ||
+                          (q.page != 0x100 && q.page != 0x104)))
+        return SDL_SetError("Framebuffer quad requires a captured frame and original direct page");
     Sint32 left = 2048, right = -2048, top = 2048, bottom = -2048;
     for (Uint32 i = 0; i < 4; ++i)
     {
@@ -897,10 +902,16 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint1
                 Uint16 color = 0;
                 if (q.untextured)
                     color = (Uint16)((shade[0] / 8) | (shade[1] / 8) << 5 | (shade[2] / 8) << 10);
-                else if (u < 0 || u >= 256 || v < 0 || v >= 256 ||
-                         !Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))
-                    return SDL_SetError("Projectile texture reference is invalid: %s",
-                                        SDL_GetError());
+                else
+                {
+                    if (u < 0 || u >= 256 || v < 0 || v >= (q.framebuffer ? 240 : 256))
+                        return SDL_SetError("Projectile texture coordinates exceed their source");
+                    if (q.framebuffer)
+                        color = graphics->framebuffer[(size_t)v * SOTN_FRAME_WIDTH + (size_t)u];
+                    else if (!Texel(graphics, q.page, q.palette, (Uint8)u, (Uint8)v, &color))
+                        return SDL_SetError("Projectile texture reference is invalid: %s",
+                                            SDL_GetError());
+                }
                 if (write && pass != 0 && (color != 0 || q.untextured))
                 {
                     if (!q.untextured && (q.modulate || q.tint || q.gouraud))
@@ -937,6 +948,15 @@ bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorS
     const SotnSpriteTransform transform = {
         .rotation = angle, .scale_x = 256, .scale_y = 256, .opacity = 128};
     return Draw(graphics, sprite, x, y, frame, count, (angle & 4095) == 0 ? NULL : &transform);
+}
+bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *frame, size_t count)
+{
+    if (!graphics || !frame || count < SOTN_FRAME_PIXELS)
+        return SDL_SetError(
+            "Framebuffer capture requires an owned graphics service and full frame");
+    SDL_memcpy(graphics->framebuffer, frame, sizeof(graphics->framebuffer));
+    graphics->framebuffer_valid = true;
+    return true;
 }
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q, Uint16 *frame,
                             size_t count)

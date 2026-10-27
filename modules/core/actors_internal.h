@@ -397,6 +397,7 @@ typedef struct Actor
         Uint8 angle;
         Sint16 angle12;
         Sint32 fire_length;
+        Sint16 column_width, column_spread, column_radii[7];
     } olrox;
 } Actor;
 

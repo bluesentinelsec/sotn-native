@@ -1029,8 +1029,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     if (stage_id == 30)
         SDL_Log("Olrox arena internal foundation: private room/artwork/sound resources, "
                 "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats "
-                "and fireballs. "
-                "Skull columns, transformation, second form, final victory and connected "
+                "and fireballs/skull columns. "
+                "Transformation, second form, final victory and connected "
                 "progression remain incomplete.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
@@ -1398,6 +1398,7 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                                  .green = p.green,
                                  .blue = p.blue,
                                  .gouraud = p.gouraud,
+                                 .framebuffer = p.framebuffer,
                                  .untextured = !p.textured};
             for (Uint32 uv = 0; uv < 4; ++uv)
             {
@@ -1412,6 +1413,9 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
                 q.vertex_green[uv] = p.vertex_green[uv];
                 q.vertex_blue[uv] = p.vertex_blue[uv];
             }
+            if (p.framebuffer && !SotnActorGraphics_CaptureFrame(session->actor_graphics,
+                                                                 session->frame, SOTN_FRAME_PIXELS))
+                return false;
             if (!SotnActorGraphics_Quad(session->actor_graphics, q, session->frame,
                                         SOTN_FRAME_PIXELS))
                 return false;

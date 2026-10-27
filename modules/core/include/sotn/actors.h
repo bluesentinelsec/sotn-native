@@ -140,6 +140,7 @@ typedef struct SotnActorPrimitive
     Uint16 width, height, page, palette;
     Uint8 u[4], v[4], red, green, blue;
     bool active, textured, blend, modulate;
+    bool framebuffer;  /**< Sample the ordered RGB555 framebuffer snapshot, not stage artwork. */
     bool screen_space; /**< Projected screen coordinates; camera is already applied. */
     bool priority_set; /**< Use this primitive's original ordering-table priority. */
     Uint16 priority;

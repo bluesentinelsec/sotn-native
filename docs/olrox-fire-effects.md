@@ -31,7 +31,8 @@ commands until two fireballs have live geometry and hitboxes. The fixture uses
 an explicit room arrival and contact protection, with no ongoing position, state,
 HP, equipment, relic or readiness grants. These checks preserve user save slots.
 
-Skull columns, transformation, second form, furnishings, final victory/reward
+[Skull columns](olrox-skull-columns.md) now run separately. Transformation, second
+form, furnishings, final victory/reward
 and connected BO0/NO2 travel remain incomplete. This is not a completed boss or game.
 
 Provenance: reconstructed BO0 `func_us_801AF31C` and the shared

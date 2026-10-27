@@ -1044,18 +1044,56 @@ static bool TestPaletteRedShift(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestFramebuffer(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    SotnTextureQuad q = {.framebuffer = true,
+                         .page = 0x100,
+                         .x = {1, 5, 1, 5},
+                         .y = {0, 0, 1, 1},
+                         .u = {0, 4, 0, 4},
+                         .v = {0, 0, 1, 1}};
+    ClearFrame(f);
+    CHECK(!SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    for (Uint16 i = 0; i < 5; ++i)
+        f->frame[i] = (Uint16)(i + 1);
+    CHECK(SotnActorGraphics_CaptureFrame(g, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SotnActorGraphics_CaptureFrame(g, f->frame, 1));
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    // Overlapping output samples the immutable snapshot, not earlier writes in this quad.
+    CHECK(f->frame[0] == 1 && f->frame[1] == 1 && f->frame[2] == 2 && f->frame[3] == 3 &&
+          f->frame[4] == 4);
+    q.page = 0x104;
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[3] == 3 && f->frame[4] == 4);
+    CHECK(SotnActorGraphics_CaptureFrame(g, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[2] == 1 && f->frame[3] == 2 && f->frame[4] == 3);
+    q.v[0] = q.v[1] = 240;
+    q.v[2] = q.v[3] = 241;
+    const Uint16 saved = f->frame[4];
+    CHECK(!SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[4] == saved);
+    q.page = 0x80;
+    CHECK(!SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SotnActorGraphics_CaptureFrame(NULL, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SotnActorGraphics_CaptureFrame(g, NULL, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-                        TestTransformFlags(fixture) && TestRotation(fixture) &&
-                        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
-                        TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-                        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
-                        PackedSheets(fixture) && TestColorLine(fixture) &&
-                        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture);
+    const bool passed =
+        TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
+        TestTransformFlags(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
+        TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
+        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
+        DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
+        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
