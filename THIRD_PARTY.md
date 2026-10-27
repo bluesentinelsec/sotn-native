@@ -566,3 +566,8 @@ dialogue/event and portrait adapters follow `st/dai/e_cutscene_dialogue.c` and
 `dra/5087C.c:func_800F0CD8` camera adapter. Native checked room coordinates replace
 screen/scroll storage; original scripts, text, animations, portraits and audio
 remain private runtime inputs.
+
+- `modules/core/olrox_monster_body.c` and the selected joint-pair wrapper adapt
+  BO0 `313A8.c:func_us_801B365C` and `func_us_801B171C` at the pinned sotn-decomp
+  revision above, AGPL-3.0-or-later. Private profiles, source disassembly, generated
+  analysis and instruction traces remain local; see [body scope](docs/olrox-monster-body.md).

@@ -41,6 +41,17 @@ bool OlroxMonster_Smooth(Sint16 *value, Sint16 *velocity, Sint16 target, Sint16 
  * This does not register or update the monster actor. */
 bool OlroxMonster_Pose(SotnActors *actors, Actor *body, Uint16 leg, OlroxLegPose pose,
                        bool *arrived);
+/** @brief Approach both original leg joints with strict signed-word boundaries.
+ * @param actors Borrowed BO0 owner. @param body Active monster. @param leg Original 0/1 role.
+ * @param upper Upper target. @param lower Lower target. @param step Positive bounded increment.
+ * @param arrived Receives conjunction of both original arrivals. @return Success or SDL error. */
+bool OlroxMonster_Pair(SotnActors *actors, Actor *body, Uint16 leg, Sint16 upper, Sint16 lower,
+                       Sint16 step, bool *arrived);
+/** @brief Advance the original monster body component and owned articulation.
+ * @param actors Borrowed BO0 services. @param body Active original identity 0x33.
+ * @return Success or SDL error for invalid data, state, resources or ownership.
+ * Gameplay dispatch stays gated until the complete defeat/reward flow is integrated. */
+bool ActorOlroxMonster(SotnActors *actors, Actor *body);
 /** @brief Change the original body state and reset only the two leg pose phases.
  * @param actors Borrowed owner. @param body Active monster. @param step Original low-byte state.
  * @return Success or SDL error; joint angles, velocities and body pose are retained. */

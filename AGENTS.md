@@ -1,5 +1,11 @@
 # Working in sotn-native
 
+The [Olrox monster body component](docs/olrox-monster-body.md) now connects original
+entry, articulated movement and real head/arm commands. Preserve first-takeoff
+leg-zero ordering, strict child waits, camera-lock handoff and generation lineage.
+Shared combat and complete death/reward still gate gameplay dispatch; supplied
+child signals in component traces are not an encounter replay.
+
 Selected [Olrox head/attack components](docs/olrox-monster-attacks.md) now retain
 head poses/roar timing, real laser request/release, laser floor/sweep/column phases,
 aimed fireballs and drool/dust. Preserve the packed pose/duration sound check,

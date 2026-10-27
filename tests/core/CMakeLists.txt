@@ -637,3 +637,10 @@ target_include_directories(sotn-olrox-monster-attacks-tests PRIVATE ../../module
 target_link_libraries(sotn-olrox-monster-attacks-tests PRIVATE sotn-core)
 add_test(NAME olrox-monster-attacks COMMAND sotn-olrox-monster-attacks-tests)
 set_tests_properties(olrox-monster-attacks PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-olrox-monster-body-tests test_olrox_monster_body.c)
+sotn_configure_c_target(sotn-olrox-monster-body-tests)
+target_include_directories(sotn-olrox-monster-body-tests PRIVATE ../../modules/core)
+target_link_libraries(sotn-olrox-monster-body-tests PRIVATE sotn-core)
+add_test(NAME olrox-monster-body COMMAND sotn-olrox-monster-body-tests)
+set_tests_properties(olrox-monster-body PROPERTIES TIMEOUT 20)

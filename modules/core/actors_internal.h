@@ -414,7 +414,7 @@ typedef struct Actor
         Sint16 column_width, column_spread, column_radii[7];
         Sint16 morph_timer, morph_delay, morph_brightness;
         Sint16 body_angle, body_velocity;
-        Uint8 support_leg, body_style, death_phase;
+        Uint8 support_leg, body_style, death_phase, walk_count;
         Uint8 laser_pattern, laser_busy, laser_rank, fire_busy, fire_rank, roar_busy;
         Sint16 head_target;
         Uint16 head_delay;
