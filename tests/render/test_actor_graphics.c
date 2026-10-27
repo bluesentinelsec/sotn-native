@@ -939,6 +939,10 @@ static bool TestActorOrder(void)
         (SotnActorDraw){.kind = SOTN_DRAW_MIST, .primitive = 79, .priority = 152}));
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_MIST, .primitive = 80}));
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_PLAYER_BLINK, .primitive = 15}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_PLAYER_BLINK, .primitive = 16}));
     count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));

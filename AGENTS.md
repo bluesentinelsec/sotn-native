@@ -1,15 +1,24 @@
 # Working in sotn-native
 
+Selected [playable Bat](docs/player-bat.md) now connects owned E/Xbox RB entry,
+ordinary flight, real Blink/sensor restoration, MP, collision and damage. Preserve
+actual generation ownership, per-frame rotation flags, shared settling, original
+16/24-tick lockouts and real Mist cross-conversion. Bat uses step five; its return
+uses step nine. Raw textured body packets must ignore vertex colors. Room changes
+rebase without advancing effects; stage initialization/Continue restore normal form.
+Ordinary starts grant no relics. Wing Smash, Fire/Echo, Wolf, shared effect contention,
+full effects/audio and whole-route/console parity remain incomplete.
+
 The [Bat presentation foundation](docs/player-bat-presentation.md) now decodes
 private bank-thirteen/separate-ARC artwork and runs actual selected BlinkWhite
-entry/return/finishing effects. It does not yet enable playable Bat. Preserve real
+entry/return/finishing effects used by selected playable Bat. Preserve real
 signal two/three, sensor handshake, shared phase/lock ordering, status-held finishing
 flash, signed-word geometry and twelve-bit SDK rounding. Upload actual pixels
 separately from Mist capture profiles; retain original margins and immutable input
 artwork. The owner must apply Bat's live settling pivot. Start/Select use original
 US words 0x0800/0x0100 internally, leaving shoulder bits available; keep SDL keyboard/
 gamepad menu controls unchanged. Runtime inputs/traces stay private. Shared effects,
-flight/commands/collision/damage and console parity remain incomplete.
+commands and full collision/damage/console parity remain incomplete.
 
 Selected [Gas Cloud combat](docs/player-gas-cloud.md) now connects owned entry,
 private spell/INT/RNG/Mojo Mail initialization, actual cloud hitboxes and shared
@@ -29,7 +38,7 @@ starts grant no new relics. Use the absolute simulation clock, freeze original M
 recovery in transformed states, and retain generation ownership. Never substitute
 a timer for the actual visual phase-5 signal; normal return releases the real child.
 Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
-bottom room window. Bat/Wolf, shared effect contention,
+bottom room window. Bat commands/Wolf, shared effect contention,
 restoration flashes, full raster/audio/parity and ordinary acquisition remain
 incomplete. Do not call Alucard, the castle, its areas or the game complete.
 
@@ -47,8 +56,8 @@ entities and restores normal Alucard; retained global ring/color state survives.
 The [transformation resource service](docs/transformation-resources.md) retains
 strict MP thresholds and absolute wrapping-timer charge cadence. Check-only never
 charges and found-but-disabled relics block entry even on an unbilled tick. Apply
-the reported cost once to each owning snapshot. Bat/Wolf movement/effects remain
-unavailable; their resource component does not make them playable.
+the reported cost once to each owning snapshot. Selected Bat/Mist now run; Wolf remains unavailable. Resource component checks
+do not establish full-form parity.
 
 [Connected Olrox’s Quarters progression](docs/olrox-connections.md) now links
 Marble Gallery and Chapel, the original eastern Olrox boss override, return exits
@@ -128,7 +137,7 @@ original sound requests and checked primitive/tile ownership. Selected NO2 trave
 now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
-Zoe, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud. Preserve found bits, US cursor
+Zoe, Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud. Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
 Other abilities and familiars remain unavailable; never grant ownership or reset
 transient movement/MP when switching. Version-nine saves retain disabled relics.

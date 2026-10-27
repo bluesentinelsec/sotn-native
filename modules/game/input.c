@@ -75,6 +75,8 @@ Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
         buttons |= SOTN_BUTTON_RIGHT_HAND;
     if (keys[SDL_SCANCODE_Q])
         buttons |= SOTN_BUTTON_MIST;
+    if (keys[SDL_SCANCODE_E])
+        buttons |= SOTN_BUTTON_BAT;
     return buttons;
 }
 
@@ -110,6 +112,8 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_RIGHT_HAND;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER))
             buttons |= SOTN_BUTTON_MIST;
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER))
+            buttons |= SOTN_BUTTON_BAT;
     }
     return buttons;
 }

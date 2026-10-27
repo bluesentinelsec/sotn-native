@@ -132,6 +132,29 @@ int main(void)
     CHECK(!SotnActorGraphics_CapturePlayer(graphics, &sprite, 0, 0, false, wedges));
     // Bat/player display uploads have no dependency on the Mist capture profile.
     CHECK(SotnActorGraphics_UploadPlayer(graphics, &sprite));
+    // Raw Bat body packets carry zero color bytes; only DRAW_COLORS may shade them.
+    Uint16 raster[32U * 32U] = {0};
+    const SotnActorSurface surface = {raster, SDL_arraysize(raster), 32, 32};
+    SotnPlayerEffectQuad packet = {.page = 0x18, .palette = 0x100};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        packet.x[v] = (Sint16)((v & 1U) ? 16 : 0);
+        packet.y[v] = (Sint16)((v & 2U) ? 17 : 0);
+        packet.u[v] = (Uint8)((v & 1U) ? 20 : 4);
+        packet.v[v] = (Uint8)((v & 2U) ? 18 : 1);
+    }
+    CHECK(SotnActorGraphics_PlayerEffect(graphics, &packet, 2, 3, surface));
+    CHECK((raster[4U * 32U + 3U] & 0x7fffU) == 0x7c00);
+    SDL_memset(raster, 0, sizeof(raster));
+    packet.draw_mode = 4;
+    CHECK(SotnActorGraphics_PlayerEffect(graphics, &packet, 2, 3, surface));
+    CHECK((raster[4U * 32U + 3U] & 0x7fffU) == 0);
+    raster[4U * 32U + 3U] = 0x3e0;
+    packet.draw_mode = 8;
+    CHECK(SotnActorGraphics_PlayerEffect(graphics, &packet, 2, 3, surface));
+    CHECK(raster[4U * 32U + 3U] == 0x3e0);
+    CHECK(!SotnActorGraphics_PlayerEffect(graphics, &packet, SDL_MAX_SINT32, 0, surface));
+    CHECK(!SotnActorGraphics_PlayerEffect(graphics, NULL, 0, 0, surface));
     CHECK(!SotnActorGraphics_UploadPlayer(graphics, &bad));
     CHECK(!SotnActorGraphics_UploadPlayer(NULL, &sprite));
     CHECK(!SotnActorGraphics_GetMistPalette(NULL, colors));

@@ -620,16 +620,20 @@ static void CollideStep(SotnPlayer *player)
     const Sint16 crouch_y[] = {24, 17, 9, 5, 5, 1, 1};
     const Sint16 horizontal[] = {0, 0, 4, -4};
     const bool crouching = player->step == SOTN_PLAYER_CROUCH || player->step == SOTN_PLAYER_STUCK;
-    const bool mist = (player->status & PLAYER_STATUS_MIST_FORM) != 0;
-    const bool restoring = player->step == SOTN_PLAYER_UNMORPH_MIST;
+    const bool compact = (player->status & 3U) != 0;
+    const bool mist = (player->status & PLAYER_STATUS_MIST_FORM) != 0 || player->mist.active;
+    const bool restoring =
+        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_UNMORPH_BAT;
     for (int i = 0; i < 4 && !restoring; ++i)
     {
-        player->floor_sensors[i] = (PlayerSensor){horizontal[i], mist ? 8 : floor_y[i]};
-        player->ceiling_sensors[i] = (PlayerSensor){horizontal[i], mist ? -8 : crouching ? 0 : -22};
+        player->floor_sensors[i] = (PlayerSensor){horizontal[i], compact ? 8 : floor_y[i]};
+        player->ceiling_sensors[i] = (PlayerSensor){horizontal[i], compact     ? -8
+                                                                   : crouching ? 0
+                                                                               : -22};
     }
     for (int i = 0; i < 7 && !restoring; ++i)
     {
-        const Sint16 y = mist        ? (i == 0   ? 7
+        const Sint16 y = compact     ? (i == 0   ? 7
                                         : i == 6 ? -7
                                                  : 0)
                          : crouching ? crouch_y[i]
@@ -671,7 +675,7 @@ static void CollideStep(SotnPlayer *player)
                 player->floor[i].effects = 0;
         }
         if ((mist && (player->floor[i].effects & SOTN_EFFECT_MIST_ONLY)) ||
-            (player->step == SOTN_PLAYER_MIST &&
+            ((player->step == SOTN_PLAYER_MIST || player->step == SOTN_PLAYER_BAT) &&
              (player->floor[i].effects &
               (SOTN_EFFECT_SOLID_FROM_ABOVE | SOTN_EFFECT_SOLID_FROM_BELOW))))
             player->floor[i].effects = SOTN_EFFECT_NONE;
@@ -691,7 +695,7 @@ static void CollideStep(SotnPlayer *player)
         Query(player, player->x.parts.high + player->ceiling_sensors[i].x,
               player->y.parts.high + player->ceiling_sensors[i].y, &player->ceiling[i]);
         if ((mist && (player->ceiling[i].effects & SOTN_EFFECT_MIST_ONLY)) ||
-            (player->step == SOTN_PLAYER_MIST &&
+            ((player->step == SOTN_PLAYER_MIST || player->step == SOTN_PLAYER_BAT) &&
              (player->ceiling[i].effects &
               (SOTN_EFFECT_SOLID_FROM_ABOVE | SOTN_EFFECT_SOLID_FROM_BELOW))))
             player->ceiling[i].effects = SOTN_EFFECT_NONE;

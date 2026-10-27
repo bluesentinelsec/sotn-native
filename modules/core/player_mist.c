@@ -53,6 +53,10 @@ void SotnPlayer_MistInput(SotnPlayer *p)
     case SOTN_PLAYER_STUCK:
     case SOTN_PLAYER_HIGH_JUMP:
         break;
+    case SOTN_PLAYER_BAT:
+        if (!p->substep)
+            return;
+        break;
     default:
         return;
     }
@@ -74,11 +78,16 @@ void SotnPlayer_MistInput(SotnPlayer *p)
     }
     const bool inverted = p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down;
     SotnPlayer_GravityCancel(p);
-    p->mist_motion = (SotnMistMotion){.vx = p->vx, .vy = p->vy, .facing_left = p->facing_left};
+    const Sint16 settle = p->mist_motion.settle_y;
+    p->mist_motion = (SotnMistMotion){
+        .vx = p->vx, .vy = p->vy, .facing_left = p->facing_left, .settle_y = settle};
     p->mist = (SotnPlayerMist){.generation = p->mist.generation + 1U,
                                .capture_sprite = inverted ? 0x9d : p->animation.sprite,
+                               .capture_bank = p->animation_bank,
                                .active = true,
                                .started = true};
+    p->form_pose = p->mist.capture_sprite;
+    p->bat.active = false;
     p->step = SOTN_PLAYER_MIST;
     p->substep = 0;
     p->sound = 0x6a0;
@@ -178,6 +187,7 @@ void SotnPlayer_UnmorphMistTick(SotnPlayer *p)
             p->vx = barrier.velocity_x;
             return;
         }
+        p->animation_bank = 1;
         Animate(p, p->substep ? 0xcc : 0xcb);
         if (p->mist_visual_phase < 3)
         {
@@ -189,7 +199,7 @@ void SotnPlayer_UnmorphMistTick(SotnPlayer *p)
             p->mist.active = p->mist.restoring = false;
             p->mist.retire = true;
             const bool cramped = p->substep != 0;
-            SotnPlayer_MistReturn(p, cramped);
+            SotnPlayer_FormReturn(p, cramped);
             if (cramped)
                 return;
         }

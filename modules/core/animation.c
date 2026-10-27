@@ -60,9 +60,11 @@ static bool Frame(const AnimationSource *source, Uint16 id, Uint16 pose, Uint16 
         if (!Resolve(source, address + i * 4, 4, &entry))
             return false;
         const Uint16 time = Read16(entry.bytes);
-        const Uint16 value = source->override_form && address + i * 4U == 0x80183b0cU
-                                 ? source->form_pose
-                                 : Read16(entry.bytes + 2);
+        const Uint16 value =
+            source->override_form &&
+                    address + i * 4U == (source->base == 0x800a0000U ? 0x800afda4U : 0x80183b0cU)
+                ? source->form_pose
+                : Read16(entry.bytes + 2);
         if (time == 0xfffd)
         {
             Uint32 subaddress = 0;
@@ -168,7 +170,8 @@ static bool Tick(const AnimationSource *source, SotnAnimation *animation)
     return true;
 }
 
-bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation)
+static bool TickPlayer(SotnDataView dra, bool override_form, Uint16 form_pose,
+                       SotnAnimation *animation)
 {
     const AnimationSource source = {.image = dra,
                                     .base = 0x800a0000,
@@ -179,8 +182,22 @@ bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation)
                                     .subanimation_count = 29,
                                     .property_count = 34,
                                     .adjacent_property = SDL_MAX_UINT16,
+                                    .override_form = override_form,
+                                    .form_pose = form_pose,
                                     .name = "Alucard"};
     return Tick(&source, animation);
+}
+
+bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation)
+{
+    return TickPlayer(dra, false, 0, animation);
+}
+
+bool SotnAnimation_TickPlayerForm(SotnDataView dra, Uint16 form_pose, SotnAnimation *animation)
+{
+    if (form_pose >= 512)
+        return SDL_SetError("Alucard mutable form pose exceeds original frame bits");
+    return TickPlayer(dra, true, form_pose, animation);
 }
 
 bool SotnAnimation_SetStage(SotnAnimation *animation, Uint16 stage, Uint16 id)

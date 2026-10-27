@@ -7,6 +7,7 @@
 #include <sotn/equipment.h>
 #include <sotn/mist_effect.h>
 #include <sotn/palette.h>
+#include <sotn/player_blink.h>
 #include <sotn/tilemap.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
@@ -210,6 +211,15 @@ bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad q
  * @return Success or SDL error; validation precedes writes, as with the frame quad API. */
 bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextureQuad quad,
                                    SotnActorSurface surface);
+/** @brief Draw a selected original player/effect packet into a borrowed raster surface.
+ * @param graphics Borrowed texture owner. @param packet Borrowed original packet attributes.
+ * @param offset_x Target X offset, -2048..2048. @param offset_y Target Y offset, same bounds.
+ * @param surface Borrowed destination, alive for this call only.
+ * @return Success or SDL error for invalid input. Hidden packets leave the surface unchanged.
+ * Raw packets ignore vertex colors; DRAW_COLORS enables texture modulation and interpolation. */
+bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *graphics,
+                                    const SotnPlayerEffectQuad *packet, Sint32 offset_x,
+                                    Sint32 offset_y, SotnActorSurface surface);
 /** @brief Open one owned offscreen VRAM target for ordered drawing.
  * @param graphics Borrowed texture owner; no other target may be active.
  * @param target Rectangle in 1024x512 owned texture memory, width/height 1..256.
