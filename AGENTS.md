@@ -1,10 +1,18 @@
 # Working in sotn-native
 
+The internal [Olrox humanoid body](docs/olrox-first-form.md) now adds its placed
+introduction, physical damage, original movement/decisions, body images, attack
+commands and first-form transition request. Orb readiness must wait for actual
+owned children; never auto-acknowledge unsupported actors. Packed pose/duration
+checks govern fireball/skull release. The transformation, second form, final
+victory/reward and travel remain incomplete; a private death-flag fixture is not
+an ordinary boss defeat. All automated runtime checks stay muted.
+
 The internal [Olrox arena foundation](docs/olrox-arena.md) now loads BO0 stage 30
 with its own 50 sprite banks, private sound bank, common services and paired boss
 doors. Preserve BO0 identities and shared-table offsets; never alias Laboratory
 combat. The original door completion signal is overlay-lifetime state and is not
-a completed boss/save event. BO0 and NO2 remain disconnected; Olrox combat,
+a completed boss/save event. BO0 and NO2 remain disconnected; full Olrox combat,
 transformation, defeat/reward and connected progression still need integration.
 Private muted door checks inject a completion signal, not an actual boss defeat.
 The shared solid-object service now uses the original left/right contact bits.

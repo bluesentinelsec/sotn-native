@@ -68,7 +68,7 @@ static bool Playback(const char *directory)
     const SotnDataView image = {dra, 0x20000};
     CHECK(SotnMusic_Create(image, stream, &music));
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
-    const Uint16 stages[] = {0, 1, 2, 4, 6, 25};
+    const Uint16 stages[] = {0, 1, 2, 4, 6, 25, 30};
     for (Uint16 i = 0; i < SDL_arraysize(stages); ++i)
     {
         SotnMusic *selected = NULL;

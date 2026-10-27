@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // BO0 e_boss_doors.c at sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // Original initialization, tile definitions and artwork remain private runtime data.
-#include "actors_internal.h"
+#include "olrox_internal.h"
 
 static bool DoorTiles(SotnActors *s, const Actor *a, bool closed)
 {
@@ -118,6 +118,9 @@ bool ActorOlroxArena(SotnActors *s, Actor *a)
         return ActorRoomDecoration(s, a);
     case 0x12:
         return ActorCamera(s, a);
+    case 0x2b:
+    case 0x2c:
+        return ActorOlroxFirst(s, a);
     case 0x49:
         return BossDoor(s, a);
     default:

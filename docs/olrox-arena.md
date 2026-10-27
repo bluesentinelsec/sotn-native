@@ -45,8 +45,10 @@ and use normal SDL quit. These fixtures do not grant stats, relics, equipment or
 ongoing player positions. User save slots remain untouched. Private inputs,
 captures, scripts and instruction traces remain ignored.
 
-BO0 and NO2 remain disconnected. Olrox's first and second forms, transformation,
-attacks, defeat, reward and connected progression still need native integration.
+The selected [humanoid body](olrox-first-form.md) now adds its introduction,
+movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
+Attack children, transformation, second form, final defeat/reward and connected
+progression still need native integration.
 Several BO0 shared enemies, scenery and effects are also unsupported. The pinned
 reference's central Olrox routines are assembly stubs and require reconstruction;
 this foundation does not substitute an approximate fight. The checks above do

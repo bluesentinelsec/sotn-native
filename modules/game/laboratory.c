@@ -247,9 +247,10 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                 if (!SotnMusic_CreateStage(session->dra, session->music_stream, 1, &next))
                     return false;
             }
-            else if (combat->music == 0x334 && session->stage_id == 25)
+            else if (combat->music == 0x334 && (session->stage_id == 25 || session->stage_id == 30))
             {
-                if (!SotnMusic_CreateStage(session->dra, session->music_stream, 25, &next))
+                if (!SotnMusic_CreateStage(session->dra, session->music_stream, session->stage_id,
+                                           &next))
                     return false;
             }
             else if (combat->music == 0x30f)
@@ -1031,9 +1032,11 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->dirty = true;
     SDL_Log("Native development start: stage %u room %u", stage_id, (unsigned int)start_room);
     if (stage_id == 30)
-        SDL_Log("Olrox arena internal foundation: private room/artwork/sound resources, "
-                "common pickups, decorations and paired door controls. Boss combat, defeat, "
-                "reward and connected progression are not integrated.");
+        SDL_Log(
+            "Olrox arena internal foundation: private room/artwork/sound resources, "
+            "common pickups, decorations, paired doors and selected humanoid body/physical damage. "
+            "Attack children, transformation, second form, final defeat/reward and connected "
+            "progression are not integrated.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "
                 "seals, reward and connected Outer Wall progression. Full effects/parity remain "
