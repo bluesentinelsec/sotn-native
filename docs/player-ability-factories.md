@@ -5,7 +5,8 @@ slot selection. This service consumes the caller's actual occupied-slot mask and
 returns ordered slot writes. It does not reserve a second pool or enable live
 Bat commands, spells or familiars. The native session must still reserve actual
 factory slots 8..15, own child generations, initialize behaviors and retain original
-update order and shared primitive/attack-group contention.
+update order and shared primitive/attack-group contention. [Selected Wing Smash](player-wing-smash.md)
+now supplies actual Bat factory/child ownership; all-ability sharing remains incomplete.
 
 Original blueprints and entity ranges are read from bounded private DRA views.
 No runtime tables ship in public source. A factory retains its original source

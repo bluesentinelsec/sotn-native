@@ -3,8 +3,9 @@
 Owned, enabled Soul of Bat now connects original entry, ordinary flight, collision,
 MP use, damage and restoration to the native session. E or Xbox RB toggles it;
 the Relics panel can enable or disable an owned Soul of Bat. Ordinary starts grant
-no abilities. [Bat command/motion components](bat-command-motion.md) are available,
-but Wing Smash, Fire of Bat, Echo of Bat and Wolf remain unfinished in gameplay.
+no abilities. [Selected Wing Smash](player-wing-smash.md) now connects the command,
+owned attacks, flash/trails, enemy damage and real return. Fire of Bat, Echo of Bat
+and Wolf remain unfinished in gameplay.
 
 ## Flight and real restoration
 
@@ -25,8 +26,9 @@ Per-frame rotation flags remain distinct from the movement state, including the
 first cancellation frame and the sensor-ready frame. Damage/script/grab/stone
 adapters restore normal artwork and retire transformed ownership.
 
-The session reserves two actual selected visual owners and updates newer children
-first, retaining shared Blink phases and lock ordering. Body/effect packets use
+The session now reserves actual private-blueprint factory/child slots through the
+[Bat runtime](player-wing-smash.md), retaining shared Blink phases and original
+slot/lock ordering. Body/effect packets use
 original texture pages, palettes, priorities, target offsets and clip. Raw body
 packets ignore color bytes; only original DRAW_COLORS packets modulate texture.
 Camera/room changes translate geometry without advancing effects a second time.
@@ -66,7 +68,7 @@ user slots remain untouched. These fixtures do not prove ordinary acquisition,
 uninterrupted castle traversal or console parity. All runtime inputs, artwork,
 traces and screenshots remain private.
 
-Shared factory/primitive contention, afterimages, command abilities, complete
+Full shared factory/primitive contention, afterimages, Fire/Echo commands, complete
 water volumes, full effects/audio and raster/timing parity remain incomplete.
 Do not describe Bat, Alucard, any area, the castle or the game as complete.
 

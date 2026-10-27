@@ -41,6 +41,7 @@ bool SotnGasCloud_Begin(SotnGasCloud *cloud, SotnDataView dra, SotnCharacter *ch
         while (!(remaining & (Uint16)(1U << slot)))
             ++slot;
         remaining &= (Uint16) ~(1U << slot);
+        next.children[parameter].slot = (Uint16)(32U + slot);
         Uint32 power =
             base + (stats.total[2] * 2U + SotnCombat_Random(&profile.random) % 12U) / 10U;
         if (profile.equipment[SOTN_EQUIP_ARMOR] == 21)
@@ -61,6 +62,22 @@ bool SotnGasCloud_Begin(SotnGasCloud *cloud, SotnDataView dra, SotnCharacter *ch
     if (!SotnCharacter_Restore(character, &profile))
         return false;
     *cloud = next;
+    return true;
+}
+bool SotnGasCloud_Occupied(const SotnGasCloud *cloud, Uint64 *out)
+{
+    if (!cloud || !out || (cloud->mask && !cloud->generation))
+        return SDL_SetError("Gas Cloud slots require a generation-owned cursor and output");
+    Uint64 occupied = 0;
+    for (Uint16 i = 0; i < SOTN_GAS_CLOUD_SLOTS; ++i)
+        if (cloud->mask & (Uint16)(1U << i))
+        {
+            const Uint16 slot = cloud->children[i].slot;
+            if (slot < 32 || slot > 47 || (occupied & ((Uint64)1 << slot)))
+                return SDL_SetError("Gas Cloud has duplicate or invalid actual DRA slot ownership");
+            occupied |= (Uint64)1 << slot;
+        }
+    *out = occupied;
     return true;
 }
 bool SotnGasCloud_Tick(SotnGasCloud *cloud, SotnPlayerState player, const SotnMistEffect *effect,

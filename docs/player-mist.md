@@ -71,7 +71,9 @@ authoring traces/images remain private.
 
 [Gas Cloud combat](player-gas-cloud.md) now runs within its selected scope.
 [Selected ordinary Bat flight](player-bat.md) now runs, including real cross-form
-conversion. Bat commands/Wolf, complete restoration flashes, original shared factory/palette
+conversion. [Selected Wing Smash](player-wing-smash.md) now connects its commands
+and owned attacks/effects. Fire/Echo of Bat, Wolf, complete restoration flashes,
+original shared factory/palette
 contention, complete water-volume behavior and full audio/raster/timing parity
 remain incomplete. The current rasterizer does not reproduce requested PS1
 dithering. Whole-pixel camera/rebase checks do not establish fractional stage

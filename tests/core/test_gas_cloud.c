@@ -37,6 +37,10 @@ int main(void)
     CHECK(SotnCharacter_Get(character, &before, NULL));
     CHECK(SotnGasCloud_Begin(&cloud, dra, character, 17, SDL_MAX_UINT16));
     CHECK(cloud.generation == 17 && cloud.mask == SDL_MAX_UINT16);
+    Uint64 occupied = 0;
+    CHECK(SotnGasCloud_Occupied(&cloud, &occupied) && occupied == (Uint64)0xffff << 32);
+    for (Uint16 i = 0; i < SOTN_GAS_CLOUD_SLOTS; ++i)
+        CHECK(cloud.children[i].slot == 32U + i);
     Uint32 random = before.random;
     for (Uint16 i = 0; i < SOTN_GAS_CLOUD_SLOTS; ++i)
     {
@@ -49,6 +53,20 @@ int main(void)
     CHECK(SotnCharacter_Get(character, &after, NULL) && after.random == random);
     CHECK(SotnCharacter_Restore(character, &before));
     CHECK(SotnGasCloud_Begin(&cloud, dra, character, 17, 0xaaaa) && cloud.mask == 0xff);
+    CHECK(SotnGasCloud_Occupied(&cloud, &occupied) && occupied == (Uint64)0xaaaa << 32);
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(cloud.children[i].slot == 33U + 2U * i);
+    const SotnGasCloud valid_slots = cloud;
+    cloud.children[1].slot = cloud.children[0].slot;
+    occupied = 123;
+    CHECK(!SotnGasCloud_Occupied(&cloud, &occupied) && occupied == 123);
+    cloud = valid_slots;
+    cloud.children[1].slot = 48;
+    CHECK(!SotnGasCloud_Occupied(&cloud, &occupied) && occupied == 123);
+    cloud = valid_slots;
+    cloud.generation = 0;
+    CHECK(!SotnGasCloud_Occupied(&cloud, &occupied) && occupied == 123);
+    cloud = valid_slots;
     random = before.random;
     for (Uint16 i = 0; i < 8; ++i)
         (void)SotnCombat_Random(&random);

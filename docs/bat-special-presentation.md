@@ -1,10 +1,10 @@
 # Bat special-ability presentation components
 
 The native core now reconstructs the selected Wing Smash and Fire BlinkWhite
-flashes and the shrinking Wing Smash trail. These components do not yet enable
-special abilities in gameplay. Actual shared factory/attack integration follows
-the [command/motion component](bat-command-motion.md); ordinary Bat flight keeps
-its existing runtime. No relics are granted to ordinary starts.
+flashes and the shrinking Wing Smash trail. [Selected Wing Smash](player-wing-smash.md)
+now connects its actual factories, attacks and visual owners in gameplay. Fire
+remains a component, awaiting child/combat integration. No relics are granted to
+ordinary starts. The component comparisons below retain their scoped evidence.
 
 Fire uses original strip packets and profile five. Wing Smash uses the original
 `0x5C` fan with profile `0x1C`: eight boundary edges, moving center, per-edge colors,

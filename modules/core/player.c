@@ -1034,6 +1034,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.sound = 0;
     next.extra_sound = 0;
     next.mp_spent = 0;
+    next.bat_commands = (SotnBatCommandEvents){0};
     next.form_rotated = false;
     next.sleep_event = false;
     if (next.curse_ticks)
@@ -1042,6 +1043,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         --next.poison_ticks;
     if (next.script_hold)
         buttons = 0;
+    if (next.bat_input_hold)
+    {
+        --next.bat_input_hold;
+        buttons = 0;
+    }
     if (next.bell_inside)
         buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
     next.bell_inside = false;
@@ -1183,7 +1189,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         (next.status & ~3U) |
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
         ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U);
-    if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT)
+    if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
+        (next.step == SOTN_PLAYER_BAT && next.substep == 3))
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
     if (next.failed)
         return false;
@@ -1391,6 +1398,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .mp_spent = player->mp_spent,
         .mist = player->mist,
         .bat = player->bat,
+        .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated};
     return true;

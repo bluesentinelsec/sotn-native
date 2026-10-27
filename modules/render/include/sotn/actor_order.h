@@ -8,7 +8,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_SPRITE,
     SOTN_DRAW_PRIMITIVE,
     SOTN_DRAW_MIST,        /**< Owned player visual; primitive indexes 0..79, actor is unused. */
-    SOTN_DRAW_PLAYER_BLINK /**< Two owned player effects; primitive indexes 0..15. */
+    SOTN_DRAW_PLAYER_BLINK /**< Original slots 16..63, eight packets each; indexes 0..383. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

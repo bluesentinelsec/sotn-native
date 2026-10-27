@@ -13,6 +13,7 @@ typedef struct SotnGasCloudChild
 {
     Sint32 x, y;
     SotnPlayerAttack attack;
+    Uint16 slot; /**< Actual original DRA slot 32..47 selected by the shared available mask. */
 } SotnGasCloudChild;
 
 /** @brief Owned transient children for one generation of the real Mist effect.
@@ -36,6 +37,11 @@ typedef struct SotnGasCloud
  * The caller must account for shared allocation contention when providing available. */
 bool SotnGasCloud_Begin(SotnGasCloud *cloud, SotnDataView dra, SotnCharacter *character,
                         Uint32 generation, Uint16 available);
+
+/** @brief Read the actual occupied DRA slots, including disabled but retained children.
+ * @param cloud Borrowed owner. @param out Receives a validated slot mask, unchanged on failure.
+ * @return Success or SDL error for malformed generations, duplicate or out-of-range slots. */
+bool SotnGasCloud_Occupied(const SotnGasCloud *cloud, Uint64 *out);
 
 /** @brief Update actual cloud hitboxes after the generation-owned visual has advanced.
  * @param cloud Owned cursor. @param player Copied actual player; leaving Mist retires children.
