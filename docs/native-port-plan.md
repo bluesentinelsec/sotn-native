@@ -46,7 +46,10 @@ comparisons. Selected [articulated motion components](olrox-monster-motion.md)
 now retain joint poses and foot anchoring; selected
 [articulated geometry components](olrox-monster-geometry.md) reconstruct their
 textured packets and owned attachment positions. Dispatch remains gated until
-the real monster body is integrated.
+the real monster body is integrated. Selected
+[owned appendage components](olrox-monster-appendages.md) now retain feet/knees,
+tail/arm commands, hand damage/recovery and captured sprites; they do not yet
+advance within a playable monster family.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the
 [early castle batch review](early-castle-review.md) for the actual validation scope,

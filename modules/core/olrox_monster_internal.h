@@ -75,4 +75,21 @@ bool OlroxMonster_BodyGeometry(SotnActors *actors, Actor *body, Uint16 first);
  * The original helper ignores part cropping and uses 127-unit texture offsets. */
 bool OlroxMonster_SpriteGeometry(SotnActors *actors, const Actor *sprite, Actor *body,
                                  Uint16 index);
+/** @brief Capture an owned part's bank-seven sprite and original scale/rotation into its packet.
+ * @param actors Borrowed BO0/SDK inputs. @param sprite Body or generation-owned child.
+ * @param body Active monster owner. @param index Primitive owned by sprite, already allocated.
+ * @return Success or SDL error on ownership, private frame or bounded SDK geometry failure.
+ * Selected parts use zero rotation pivots; no image input is mutated or retained. */
+bool OlroxMonster_FreezeSprite(SotnActors *actors, Actor *sprite, Actor *body, Uint16 index);
+/** @brief Advance the original owned feet, knee hitboxes, tail, arms or hands.
+ * @param actors Borrowed BO0 owner and private SDK/profile inputs.
+ * @param actor Active original appendage identity with a generation-owned monster parent.
+ * @return Success or SDL error; an expired parent retires only its dependent appendage.
+ * This component does not register the unfinished monster family in gameplay dispatch. */
+bool ActorOlroxAppendage(SotnActors *actors, Actor *actor);
+/** @brief Advance an original independently owned BO0 red-fireball burst particle.
+ * @param actors Borrowed BO0/SDK inputs. @param actor Active identity 0x28.
+ * @return Success or SDL error for invalid private animation or bounded motion.
+ * No parent lifetime is retained after the original burst allocation. */
+bool ActorOlroxFirework(SotnActors *actors, Actor *actor);
 #endif

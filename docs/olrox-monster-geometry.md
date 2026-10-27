@@ -5,6 +5,8 @@ textured packets per leg and two torso packets, with the original palette and
 priority roles. The torso also positions its generation-owned head/attachment
 roles. A separate helper copies a single-part bank-seven sprite to an owned
 packet while preserving the caller's visibility, texture page and blend state.
+Selected [owned appendage controllers](olrox-monster-appendages.md) now use the
+geometry alongside their own original tail/arm packets and sprite captures.
 These components do not register or advance the monster actor. The playable
 transformation, body, attacks, defeat/reward and connected travel remain incomplete.
 

@@ -233,14 +233,17 @@ bool OlroxMonster_BodyGeometry(SotnActors *s, Actor *body, Uint16 first)
     Whole(&seventh->state.y, seventh_position.y + s->camera_y);
     return true;
 }
-bool OlroxMonster_SpriteGeometry(SotnActors *s, const Actor *sprite, Actor *body, Uint16 index)
+static bool SpriteGeometry(SotnActors *s, const Actor *sprite, Actor *body, Actor *owner,
+                           Uint16 index)
 {
-    SotnActorPrimitive *p[1] = {0};
-    if (!sprite || !sprite->state.generation || !Parts(s, body, index, 1, p))
+    ActorPrimitive *packet = NULL;
+    if (!sprite || !sprite->state.generation || !OlroxMonster_Bind(s, body) ||
+        (owner != body && owner != sprite) || !(packet = ActorPrimitiveGet(s, owner, index)))
         return SDL_SetError("Olrox sprite packet requires its active body or owned child");
     if (sprite != body && (sprite->slot <= body->slot || sprite->slot - body->slot > 13 ||
                            OlroxChild(s, body, (Uint16)(sprite->slot - body->slot)) != sprite))
         return SDL_SetError("Olrox sprite packet source belongs to another generation");
+    SotnActorPrimitive *p[1] = {&packet->state};
     const Actor frame = {.state = {.animation_set = 0x8007, .frame = sprite->state.frame}};
     SotnDataView parts = {0};
     if (!ActorStageParts(s, &frame, &parts))
@@ -268,5 +271,51 @@ bool OlroxMonster_SpriteGeometry(SotnActors *s, const Actor *sprite, Actor *body
     p[0]->palette = Read16(part + 10);
     UV(p[0], facing ? u1 : u0, facing ? u0 : u1, facing ? u1 : u0, facing ? u0 : u1, v0, v0, v1,
        v1);
+    return true;
+}
+
+bool OlroxMonster_SpriteGeometry(SotnActors *s, const Actor *sprite, Actor *body, Uint16 index)
+{
+    return SpriteGeometry(s, sprite, body, body, index);
+}
+bool OlroxMonster_FreezeSprite(SotnActors *s, Actor *sprite, Actor *body, Uint16 index)
+{
+    if (!SpriteGeometry(s, sprite, body, sprite, index))
+        return false;
+    ActorPrimitive *packet = ActorPrimitiveGet(s, sprite, index);
+    if (!packet)
+        return false;
+    SotnActorPrimitive *p = &packet->state;
+    const Sint32 px = Pixel(sprite->state.x) - s->camera_x,
+                 py = Pixel(sprite->state.y) - s->camera_y;
+    const Uint8 flags = sprite->state.transform_flags;
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        Sint16 x = Word((Sint32)p->offset_x[i] - px), y = Word((Sint32)p->offset_y[i] - py);
+        if (flags & SOTN_ACTOR_SCALE_X)
+            x = Word(ActorShift((Sint64)sprite->state.scale_x * x, 8));
+        if (flags & SOTN_ACTOR_SCALE_Y)
+            y = Word(ActorShift((Sint64)sprite->state.scale_y * y, 8));
+        if (flags & SOTN_ACTOR_ROTATE)
+        {
+            const Sint64 square = (Sint64)x * x + (Sint64)y * y;
+            Uint32 distance = 0;
+            Sint16 angle = 0;
+            SotnMathTrig t = {0};
+            if (square > 0x7ffff ||
+                !SotnMath_Sqrt12(s->executable, (Uint32)square * 4096U, &distance) ||
+                !SotnMath_Atan2(s->executable, y, x, &angle) ||
+                !Trig(s,
+                      angle + (sprite->state.facing_left ? -sprite->state.rotation
+                                                         : sprite->state.rotation),
+                      &t))
+                return SDL_SetError(
+                    "Olrox captured sprite exceeds its original SDK rotation bounds");
+            x = Word(ActorShift((Sint64)ActorShift(t.cosine, 4) * distance + 524288, 20));
+            y = Word(ActorShift((Sint64)ActorShift(t.sine, 4) * distance + 524288, 20));
+        }
+        p->offset_x[i] = Word(px + x);
+        p->offset_y[i] = Word(py + y);
+    }
     return true;
 }
