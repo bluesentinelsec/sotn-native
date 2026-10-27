@@ -7,10 +7,11 @@ laser/fireball/drool attacks, captured-fragment defeat, Life Max Up creation and
 arena release. A recorded original defeat time prevents the boss and doors from
 respawning in a fresh arena with that retained progress.
 
-This remains a selected native encounter. Furnishings, complete flash/shake,
+This remains a selected native encounter. Complete flash/shake,
 Alucard afterimage suppression, full effects/audio/reverb, connected NO2 travel
 and uninterrupted original-console parity remain incomplete. The castle,
 Alucard and game are not complete. BO0 is still an explicit development start.
+Selected [breakable furnishings and sitting](olrox-furnishings.md) now run.
 
 ## State and ownership
 
@@ -98,7 +99,7 @@ attacks, follows the actual transformation/defeat, collects the Life Max Up
 successfully. It uses an explicit arena start and contact protection, with no
 stat, equipment, relic or death-flag grants. The actual CMake Debug and ASan/UBSan executables
 independently pass this sequence through muted LLDB at a seven-tick presentation
-cadence and closes through normal SDL quit without writing ordinary user slots.
+cadence and close through normal SDL quit without writing ordinary user slots.
 A focused three-versus-seven-tick presentation comparison also matches checkpoint
 image hashes, RNG streams, damage contacts and final simulation tick through the
 fixture's reward conversion. These checks are not uninterrupted castle traversal

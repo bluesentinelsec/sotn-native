@@ -1046,7 +1046,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             "Olrox arena internal foundation: private room/artwork/sound resources, "
             "common pickups, decorations, paired doors, humanoid combat, orbs, portals, bats and "
             "fireballs/skull columns, real transformation/monster combat and captured "
-            "defeat/reward. Furnishings, full effects/audio/parity and connected "
+            "defeat/reward, breakable furnishings and sitting. Full effects/audio/parity and "
+            "connected "
             "NO2 progression remain incomplete.");
     else if (stage_id == 26)
         SDL_Log("Doppleganger checkpoint: placed opening, selected combat, physical defeat, "

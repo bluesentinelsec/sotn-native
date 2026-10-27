@@ -187,7 +187,7 @@ static bool RegistryAndArt(Fixture *f)
     SotnActors *s = NULL;
     CHECK(Open(f, &s, 0));
     // Boss/attack/enemy identities must not alias the Laboratory's existing registry.
-    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x2a, 0x4a, 0x44, 0x4b};
+    const Uint16 unsupported[] = {1, 0x16, 0x20, 0x21, 0x4a, 0x44};
     for (Uint32 i = 0; i < SDL_arraysize(unsupported); ++i)
     {
         Actor a = {.state = {.id = unsupported[i], .generation = 17}};
@@ -222,12 +222,114 @@ static bool RegistryAndArt(Fixture *f)
     Close(f, s);
     return true;
 }
+static bool Furnishings(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s, 0));
+    for (Uint16 kind = 1; kind <= 4; ++kind)
+    {
+        Uint8 *p = f->stage + 0xd94 + (kind - 1U) * 12;
+        Put16(p, 9 + kind);
+        Put16(p + 2, 12);
+        Put16(p + 4, (Uint16)-3);
+        Put16(p + 6, 4);
+        Put16(p + 8, 8);
+        Put16(p + 10, 107 + kind);
+        s->slots[16] = (Actor){.slot = 16,
+                               .state = {.id = 0x2a,
+                                         .parameters = kind,
+                                         .generation = 19,
+                                         .x = 128 * 65536,
+                                         .y = 180 * 65536}};
+        Actor *a = &s->slots[16];
+        CHECK(ActorOlroxArena(s, a) && a->state.step == 1 && a->state.frame == kind &&
+              a->state.animation_set == 0x8006 && a->state.texture_offset == 0x48 &&
+              a->state.palette == 0x209 && a->state.hit_points == 8 && a->state.hitbox_x == -3 &&
+              a->state.hitbox_y == 4 && a->state.hitbox_width == 9 + kind &&
+              a->state.hitbox_height == 12 && a->state.priority == 107 + kind);
+        CHECK(ActorOlroxArena(s, a) && a->state.step == 1);
+        a->state.flags |= 0x100U;
+        CHECK(ActorOlroxArena(s, a) && a->state.step == 1 + kind && !a->state.hitbox_state);
+        if (kind == 2)
+        {
+            CHECK(!ActorOlroxArena(s, a) && a->state.step == 3);
+            for (Uint16 i = 1; i <= 3; ++i)
+                s->slots[16 + i] =
+                    (Actor){.slot = (Uint16)(16 + i), .state = {.id = 0x2a, .generation = 20U + i}};
+        }
+        CHECK(ActorOlroxArena(s, a));
+        if (kind == 1)
+            CHECK(a->state.step == 11 && a->state.frame == 10 && a->vx == -65536);
+        else
+            CHECK(a->state.step == 32 && !a->state.frame);
+        if (kind == 2)
+            for (Uint16 i = 1; i <= 3; ++i)
+                CHECK(s->slots[16 + i].state.flags & 0x100U);
+    }
+    for (Uint16 kind = 5; kind <= 13; ++kind)
+    {
+        Actor a = {.state = {.id = 0x2a,
+                             .generation = 19,
+                             .parameters = kind,
+                             .x = 128 * 65536,
+                             .y = 180 * 65536}};
+        CHECK(ActorOlroxArena(s, &a) && a.state.step == kind + 1 && a.state.frame == kind);
+        CHECK(ActorOlroxArena(s, &a));
+    }
+    Actor *chair = &s->slots[24];
+    *chair = (Actor){
+        .slot = 24,
+        .state = {
+            .id = 0x4b, .generation = 55, .parameters = 1, .x = 128 * 65536, .y = 180 * 65536}};
+    s->player = (SotnPlayerState){.x = 126 * 65536, .y = 180 * 65536};
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 1);
+    s->buttons = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT;
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 1);
+    s->buttons = SOTN_BUTTON_UP;
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 2 && s->control.timer == 10 &&
+          s->control.buttons == SOTN_BUTTON_UP && s->motion.chair_kind == 1);
+    CHECK(ActorOlroxArena(s, chair) && s->motion.x == 65536);
+    s->player.x = chair->state.x;
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 3);
+    s->player.substep = 4;
+    s->player.animation.remaining = -1;
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 4);
+    s->player.substep = 0;
+    CHECK(ActorOlroxArena(s, chair) && chair->state.step == 1);
+    s->slots[23].state.flags = 0x100;
+    CHECK(ActorOlroxArena(s, chair) && chair->remove);
+    Actor invalid = {.state = {.id = 0x2a, .generation = 2, .parameters = 0}};
+    CHECK(!ActorOlroxArena(s, &invalid));
+    invalid.state.parameters = 14;
+    CHECK(!ActorOlroxArena(s, &invalid));
+    // Preserve rotating debris into its original explosion identity on floor contact.
+    f->types[0] = 3;
+    Actor debris = {.state = {.id = 0x2a,
+                              .parameters = 8,
+                              .generation = 3,
+                              .step = 9,
+                              .rotation = 500,
+                              .x = 128 * 65536,
+                              .y = 180 * 65536}};
+    CHECK(ActorOlroxArena(s, &debris) && debris.state.id == 2 && !debris.state.step &&
+          debris.state.rotated && debris.state.rotation == 484 && !debris.state.parameters);
+    debris.state.id = 0x2a;
+    debris.state.parameters = 8;
+    debris.state.step = 7;
+    CHECK(ActorOlroxArena(s, &debris) && debris.state.step == 32);
+    debris.state.step = 7;
+    debris.vx = SDL_MAX_SINT32;
+    const Sint32 previous_x = debris.state.x;
+    CHECK(!ActorOlroxArena(s, &debris) && debris.state.x == previous_x);
+    Close(f, s);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Cycle(f) && FailureAndCollision(f) && RegistryAndArt(f);
+    const bool ok = Cycle(f) && FailureAndCollision(f) && RegistryAndArt(f) && Furnishings(f);
     SDL_free(f);
     if (!ok)
         return 1;
