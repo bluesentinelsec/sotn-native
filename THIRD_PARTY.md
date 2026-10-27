@@ -596,3 +596,10 @@ are distributed.
 revision above, AGPL-3.0-or-later. [Resource scope](docs/transformation-resources.md)
 distinguishes component instruction agreement from playable transformation behavior.
 No original DRA bytes or runtime trace output are distributed.
+
+`modules/core/mist_motion.c` reconstructs selected Mist movement and finish
+requests in `dra/71830.c:ControlMistForm/MistFormFinished` and the facing helper in
+`dra/6DF70.c:CheckMoveDirection`, at the pinned sotn-decomp revision above,
+AGPL-3.0-or-later. [Component scope](docs/mist-motion.md) excludes collision,
+transformation effects and playable-form claims. Original data and traces remain
+private.

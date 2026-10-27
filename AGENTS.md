@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The internal [Mist movement component](docs/mist-motion.md) now preserves source
+initialization, steering/deceleration, duration/MP ordering, facing locks and
+settling offsets. It remains outside gameplay/input dispatch. Entry still needs
+shared relic/MP eligibility; an ended cursor requests real unmorph work and never
+means that sensors/effects are restored. Retain strict effect readiness and finish
+collision/presentation/restoration before exposing playable Mist controls.
+
 The internal [transformation resource service](docs/transformation-resources.md)
 now preserves original Bat/Mist/Wolf relic gates, strict MP thresholds and absolute
 wrapping simulation-timer charge cadence. Check-only never charges; inactive relics
