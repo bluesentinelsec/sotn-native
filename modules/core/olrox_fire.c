@@ -77,7 +77,7 @@ static bool Fireball(SotnActors *s, Actor *a)
         p->state.offset_y[2] = p->state.offset_y[3] = 8;
         const Sint32 size = SDL_abs((Sint32)length);
         a->state.hitbox_width = (Uint8)(size / 4);
-        a->state.hitbox_x = Wrap16(size - a->state.hitbox_width - 4);
+        a->state.hitbox_x = (Sint16)Wrap16(size - a->state.hitbox_width - 4);
     }
     else
         return SDL_SetError("Olrox fireball entered an invalid phase");
