@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+Internal [form restoration collision checks](docs/form-restoration-collision.md)
+now preserve original Mist-only escape, asymmetric floor-edge masks and raw tile
+nudges. Apply barrier velocity only when blocked. A zero shift can still be a
+successful ejection; preserve that boolean. Retain the documented second-probe
+Mist quirk. These helpers do not complete sensor/effect restoration or enable
+playable forms; real effect ownership/readiness remains mandatory.
+
 The internal [Mist movement component](docs/mist-motion.md) now preserves source
 initialization, steering/deceleration, duration/MP ordering, facing locks and
 settling offsets. It remains outside gameplay/input dispatch. Entry still needs
