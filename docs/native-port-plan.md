@@ -67,13 +67,15 @@ simulation-timer drain cadence. The selected
 [Mist integration](player-mist.md) now connects original movement, collision,
 capture/cloud/palettes and restoration through owned Q/Xbox LB controls.
 Ordinary starts grant no relics. [Gas Cloud combat](player-gas-cloud.md) now runs
-within its selected scope. Bat commands/Wolf, complete effects
+within its selected scope. Fire/Echo of Bat, Wolf, complete effects
 and ordinary acquisition remain incomplete; component comparisons do not prove
 whole-route or console parity.
 The [Bat presentation foundation](player-bat-presentation.md) now has separate
 artwork and real effect-controller checks. [Selected playable Bat](player-bat.md)
 now connects owned entry, ordinary flight, collision, MP and actual restoration;
-Wing Smash, Fire/Echo and full Bat parity remain incomplete.
+[Selected Wing Smash](player-wing-smash.md) now connects commands, owned attacks,
+flash/trails, native damage/EXP and real return. Fire/Echo, Wolf and full Bat
+parity remain incomplete.
 
 ## Pinned reference
 

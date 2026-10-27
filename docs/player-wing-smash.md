@@ -61,7 +61,9 @@ no player-position or enemy-state injection. An explicit save-room transfer uses
 an isolated slot fifteen and a fresh byte-identical version-nine load, retaining
 the learned spell and relic while restoring normal form. Existing user saves stay
 untouched. Ordinary Bat flight, Bat/Mist transitions and connected room travel
-also retain their regression checks.
+also retain their regression checks. A separate explicit connector start crosses
+Laboratory rooms during Wing Smash with live form and attack ownership retained;
+it does not establish uninterrupted traversal.
 
 This remains selected integration. Other projectiles, dive kick, Gravity Boots,
 familiars and spells do not yet share one global factory, primitive or attack-group
