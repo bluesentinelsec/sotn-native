@@ -12,6 +12,13 @@
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
 typedef struct SotnActorGraphics SotnActorGraphics;
 
+/** @brief Initialize original Alucard/effect palette rows from private character-start job 22.
+ * @param graphics Borrowed texture owner, before current equipment colors are applied.
+ * @return Success or SDL error with unchanged memory for invalid descriptors/source colors.
+ * The raw common artwork palettes do not contain the final Mist source rows. Invoke once
+ * when constructing a fresh player texture owner; never reset live palette jobs each frame. */
+bool SotnActorGraphics_InitPlayerPalettes(SotnActorGraphics *graphics);
+
 /** @brief Capture an unrotated normal Alucard pose into his original owned display slot.
  * @param graphics Borrowed texture owner. @param sprite Actual decoded private ARC pose.
  * @param x Signed-word screen anchor X. @param y Signed-word screen anchor Y.

@@ -339,3 +339,27 @@ bool SotnMistEffect_Tick(SotnMistEffect *effect, SotnMistEffectInput in, SotnMis
     *out = events;
     return true;
 }
+
+bool SotnMistEffect_Translate(SotnMistEffect *effect, Sint32 x, Sint32 y, bool live)
+{
+    if (!effect || x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 ||
+        y > SDL_MAX_SINT16 || (live && (effect->removed || effect->phase > 5)))
+        return SDL_SetError("Mist translation requires bounded camera deltas and its actual owner");
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        effect->points[i].x = Fixed((Sint64)effect->points[i].x + (Sint64)x * 65536);
+        effect->points[i].y = Fixed((Sint64)effect->points[i].y + (Sint64)y * 65536);
+    }
+    if (live)
+    {
+        effect->x = Fixed((Sint64)effect->x + (Sint64)x * 65536);
+        effect->y = Fixed((Sint64)effect->y + (Sint64)y * 65536);
+        for (Uint16 i = 0; i < 80; ++i)
+            for (Uint16 vertex = 0; vertex < 4; ++vertex)
+            {
+                effect->quads[i].x[vertex] = Word((Sint32)effect->quads[i].x[vertex] + x);
+                effect->quads[i].y[vertex] = Word((Sint32)effect->quads[i].y[vertex] + y);
+            }
+    }
+    return true;
+}

@@ -32,7 +32,7 @@ bool LaboratoryInput_Event(LaboratoryInput *input, const SDL_Event *event)
     if (!input->menu_open && !input->warned_unsupported && (unsupported_key || unsupported_pad))
     {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "Ability controls are not implemented in this combat checkpoint; "
+                    "This ability control is not integrated in this checkpoint; "
                     "input ignored. Z/D or gamepad X/B attack; X/Space or gamepad A jumps.");
         input->warned_unsupported = true;
     }
@@ -73,6 +73,8 @@ Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
         buttons |= SOTN_BUTTON_LEFT_HAND;
     if (keys[SDL_SCANCODE_D])
         buttons |= SOTN_BUTTON_RIGHT_HAND;
+    if (keys[SDL_SCANCODE_Q])
+        buttons |= SOTN_BUTTON_MIST;
     return buttons;
 }
 
@@ -106,6 +108,8 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_LEFT_HAND;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_EAST))
             buttons |= SOTN_BUTTON_RIGHT_HAND;
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER))
+            buttons |= SOTN_BUTTON_MIST;
     }
     return buttons;
 }

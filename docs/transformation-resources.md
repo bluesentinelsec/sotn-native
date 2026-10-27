@@ -3,8 +3,9 @@
 The internal transformation resource service reconstructs the original Bat,
 Mist and Wolf relic/MP checks. It returns eligibility and the charge owed for one
 simulation tick. It never grants a relic, changes player state or deducts MP itself.
-Movement, collision, transformation effects, attacks and controls remain separate
-work; this service does not make any of those forms playable.
+Selected [Mist traversal](player-mist.md) now consumes these decisions through the
+player and real effect owners. Bat/Wolf movement, effects and controls remain
+separate work; the resource service alone does not enable a form.
 
 | Form | Required active relic | Strict MP requirement | Active-form charge |
 |---|---|---|---|

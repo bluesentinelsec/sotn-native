@@ -622,3 +622,13 @@ uploads and `4A538.c` copy/blend job services at the same pinned AGPL-3.0-or-lat
 revision. [Presentation scope](docs/mist-presentation.md) documents source metadata,
 owned colors, selected queue limits and component comparisons. All artwork,
 descriptor tables and diagnostic traces remain private.
+
+`modules/core/player_mist.c`, selected player/sensor adapters and the native Mist
+owner connect original `dra/692E8.c`, `71830.c`, `6DF70.c`, `7E4BC.c` and
+`5087C.c` entry, restoration, cramped recovery, collision, room movement and stage
+reset rules. The character-start palette initialization follows `dra/692E8.c`
+and `4A538.c`. All use the same pinned AGPL-3.0-or-later revision above.
+[Playable scope](docs/player-mist.md) distinguishes component comparisons,
+private fixture grants and native integration from ordinary acquisition, complete
+forms and whole-route/console parity. Runtime tables, artwork and traces remain
+private and are not distributed.

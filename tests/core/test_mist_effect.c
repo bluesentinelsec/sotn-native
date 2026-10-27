@@ -60,6 +60,18 @@ int main(void)
     CHECK(effect.quads[0].page == 0x18 && effect.quads[0].palette == 0x10f &&
           effect.quads[0].priority == 130 && effect.quads[16].priority == 132);
     CHECK(effect.quads[0].grey[0] == 0 && effect.quads[0].grey[2] == 255);
+    SotnMistEffect translated = effect;
+    CHECK(SotnMistEffect_Translate(&translated, -7, 9, true));
+    CHECK(translated.x == effect.x - 7 * 65536 && translated.y == effect.y + 9 * 65536 &&
+          translated.points[0].x == effect.points[0].x - 7 * 65536 &&
+          translated.quads[0].x[0] == effect.quads[0].x[0] - 7 &&
+          !SDL_memcmp(translated.capture, effect.capture, sizeof(effect.capture)));
+    translated = effect;
+    CHECK(SotnMistEffect_Translate(&translated, 3, -4, false));
+    CHECK(translated.x == effect.x && translated.y == effect.y &&
+          translated.points[0].x == effect.points[0].x + 3 * 65536 &&
+          !SDL_memcmp(translated.quads, effect.quads, sizeof(effect.quads)));
+    CHECK(!SotnMistEffect_Translate(&translated, 32768, 0, true));
     in.capture = NULL;
     for (Uint32 tick = 1; tick <= 79; ++tick)
     {

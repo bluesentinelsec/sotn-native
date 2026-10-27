@@ -3,8 +3,9 @@
 Internal collision services now reconstruct the original Mist-only barrier escape
 and shared floor-edge ejection used when restoring Alucard. They return decisions
 without moving the player, changing the map or completing a transformation.
-Player sensors, animation, effects and live transformation controls still need
-integration. Mist, Bat and Wolf remain unavailable in ordinary gameplay.
+The selected [Mist controller](player-mist.md) now applies their decisions with
+real sensor/effect restoration. Bat and Wolf remain unavailable; these pure checks
+do not independently complete any transformation.
 
 The barrier check probes seven pixels to either side of the player. A barrier on
 one side pushes away at the original three-quarter-pixel speed; barriers on both

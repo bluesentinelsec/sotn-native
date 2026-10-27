@@ -119,14 +119,16 @@ graphics, and selected behaviors. Its inspection mode validates every layout.
 Build and launch this project's Debug executable through LLDB (macOS):
 
 ```sh
-make && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory --laboratory-room 3
+make debug-build && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --game-data /path/to/private/extracted/us --laboratory --laboratory-room 3
 ```
 
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
 Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
 Xbox **X/B** use the equipped hands (default: Gladius left, empty right).
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
-or Xbox A selects and keyboard A/Xbox Y goes back. Ability inputs remain unsupported.
+or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owned,
+active [Mist form](docs/player-mist.md); no ability is granted by these starts.
+Bat/Wolf, spells and full ability parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
@@ -155,7 +157,7 @@ Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command
 MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
 and complete ability/castle parity remain acceptance work.
 The [Relics pause panel](docs/relic-menu.md) now switches owned Cube of Zoe,
-Gravity Boots, Leap Stone and Jewel of Open, retaining active choices in saves.
+Gravity Boots, Leap Stone, Jewel of Open, Mist and Power of Mist, retaining active choices in saves.
 Other relic abilities and familiar controls remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct

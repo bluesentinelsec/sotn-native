@@ -619,15 +619,21 @@ static void CollideStep(SotnPlayer *player)
     const Sint16 wall_y[] = {24, 17, 9, 1, -7, -14, -21};
     const Sint16 crouch_y[] = {24, 17, 9, 5, 5, 1, 1};
     const Sint16 horizontal[] = {0, 0, 4, -4};
-    const bool crouching = player->step == SOTN_PLAYER_CROUCH;
-    for (int i = 0; i < 4; ++i)
+    const bool crouching = player->step == SOTN_PLAYER_CROUCH || player->step == SOTN_PLAYER_STUCK;
+    const bool mist = (player->status & PLAYER_STATUS_MIST_FORM) != 0;
+    const bool restoring = player->step == SOTN_PLAYER_UNMORPH_MIST;
+    for (int i = 0; i < 4 && !restoring; ++i)
     {
-        player->floor_sensors[i] = (PlayerSensor){horizontal[i], floor_y[i]};
-        player->ceiling_sensors[i] = (PlayerSensor){horizontal[i], crouching ? 0 : -22};
+        player->floor_sensors[i] = (PlayerSensor){horizontal[i], mist ? 8 : floor_y[i]};
+        player->ceiling_sensors[i] = (PlayerSensor){horizontal[i], mist ? -8 : crouching ? 0 : -22};
     }
-    for (int i = 0; i < 7; ++i)
+    for (int i = 0; i < 7 && !restoring; ++i)
     {
-        const Sint16 y = crouching ? crouch_y[i] : wall_y[i];
+        const Sint16 y = mist        ? (i == 0   ? 7
+                                        : i == 6 ? -7
+                                                 : 0)
+                         : crouching ? crouch_y[i]
+                                     : wall_y[i];
         player->wall_sensors[i] = (PlayerSensor){7, y};
         player->wall_sensors[i + 7] = (PlayerSensor){-7, y};
     }
@@ -664,17 +670,42 @@ static void CollideStep(SotnPlayer *player)
             if (!(below.effects & SOTN_EFFECT_SOLID))
                 player->floor[i].effects = 0;
         }
+        if ((mist && (player->floor[i].effects & SOTN_EFFECT_MIST_ONLY)) ||
+            (player->step == SOTN_PLAYER_MIST &&
+             (player->floor[i].effects &
+              (SOTN_EFFECT_SOLID_FROM_ABOVE | SOTN_EFFECT_SOLID_FROM_BELOW))))
+            player->floor[i].effects = SOTN_EFFECT_NONE;
     }
     CheckFloor(player);
+    if (restoring && (player->ceiling[1].effects & SOTN_EFFECT_SOLID) &&
+        !(player->ceiling[1].effects & SOTN_EFFECT_SOLID_FROM_ABOVE) &&
+        (player->floor[1].effects & SOTN_EFFECT_SOLID) &&
+        !(player->floor[1].effects & SOTN_EFFECT_SOLID_FROM_BELOW))
+    {
+        player->contact = 3;
+        player->x.value -= speed;
+        return;
+    }
     for (int i = 0; i < 4; ++i)
+    {
         Query(player, player->x.parts.high + player->ceiling_sensors[i].x,
               player->y.parts.high + player->ceiling_sensors[i].y, &player->ceiling[i]);
+        if ((mist && (player->ceiling[i].effects & SOTN_EFFECT_MIST_ONLY)) ||
+            (player->step == SOTN_PLAYER_MIST &&
+             (player->ceiling[i].effects &
+              (SOTN_EFFECT_SOLID_FROM_ABOVE | SOTN_EFFECT_SOLID_FROM_BELOW))))
+            player->ceiling[i].effects = SOTN_EFFECT_NONE;
+    }
     CheckCeiling(player);
     if (((player->contact & 1) && player->vy >= 0) || ((player->contact & 2) && player->vy <= 0))
         player->y.parts.low = 0;
     for (int i = 0; i < 14; ++i)
+    {
         Query(player, player->x.parts.high + player->wall_sensors[i].x,
               player->y.parts.high + player->wall_sensors[i].y, &player->wall[i]);
+        if (mist && (player->wall[i].effects & SOTN_EFFECT_MIST_ONLY))
+            player->wall[i].effects = SOTN_EFFECT_NONE;
+    }
     CheckWallRight(player);
     CheckWallLeft(player);
     if (((player->contact & 4) && player->vx > 0) || ((player->contact & 8) && player->vx < 0))

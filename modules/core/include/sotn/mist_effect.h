@@ -73,4 +73,13 @@ typedef struct SotnMistEffectEvents
 bool SotnMistEffect_Tick(SotnMistEffect *effect, SotnMistEffectInput input,
                          SotnMistEffectEvents *out);
 
+/** @brief Apply an original whole-pixel camera/room translation to retained Mist state.
+ * @param effect Owned initialized cursor, including retained points when no entity is alive.
+ * @param x Signed whole-pixel horizontal delta, within an original position word.
+ * @param y Signed whole-pixel vertical delta. @param live The actual child currently exists.
+ * @return Success or SDL error without mutation. Always moves global ring points; moves
+ * the entity anchor and primitive geometry only while live. Cached capture geometry and
+ * UVs remain unchanged, matching the original separate snapshot lifetime. */
+bool SotnMistEffect_Translate(SotnMistEffect *effect, Sint32 x, Sint32 y, bool live);
+
 #endif

@@ -28,7 +28,9 @@ The [actor checkpoint](laboratory-actors.md) now adds selected original room
 objects and Bloody Zombie active motion/animation to this movement foundation.
 The [combat checkpoint](laboratory-combat.md) adds unarmed hits, selected damage/death,
 candle prizes, and [audio](laboratory-audio.md). Original startup, complete actors/scripts,
-equipped weapons, HUD, saves/continue, transformations, and full progression remain incomplete.
+complete equipped weapons, full effects and full progression remain incomplete.
+Selected [Mist traversal](player-mist.md) now runs through owned relic/MP checks,
+real cloud capture and restoration; Gas Cloud damage and Bat/Wolf remain unfinished.
 Reaching an
 unsupported external stage/boundary fails with a clear message. Movement
 support does not establish parity for the full original player state machine.

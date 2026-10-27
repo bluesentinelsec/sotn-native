@@ -2,9 +2,9 @@
 
 The internal Mist visual cursor reconstructs the original sixteen-point cloud,
 eighty textured quads, four color oscillators, sprite fade and contraction back
-to a captured player outline. This is an owned simulation component; live player
-dispatch, real sprite capture/upload, palette jobs, camera translation and shared
-effect allocation still need integration. Mist remains unavailable in gameplay.
+to a captured player outline. Its selected [live integration](player-mist.md) now
+connects real capture/upload, owned palette jobs, camera translation and player
+restoration. Shared effect allocation and full raster/effect parity remain incomplete.
 
 The owner supplies eight actual BlinkWhite snapshot wedges at initialization and
 again when requesting restoration. The original private DRA weights, flow flags
@@ -31,7 +31,9 @@ Phase 5 increments a signed sixteen-bit timer initialized to 16; it does not
 decrement it. The original destroys the effect only when that timer wraps negative.
 The native cursor preserves this behavior and retains the last geometry during
 that wait. The owner must distinguish restoration readiness from effect retirement
-and apply original entity replacement/lifetime rules when integration is added.
+and apply original entity replacement/lifetime rules. The live normal-return
+controller releases this child immediately after its actual readiness signal;
+it does not leave phase-five geometry visible until timer wrap.
 
 Checked table ranges, permutations, geometry arithmetic and SDK lookups fail with
 an SDL error before changing the cursor or output requests. Missing captures fail

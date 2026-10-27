@@ -61,7 +61,7 @@ bool SotnRelic_Collect(SotnWorldState *world, SotnDataView dra, Uint16 id)
 bool SotnRelic_CanToggle(Uint16 id)
 {
     return id == SOTN_RELIC_CUBE || id == SOTN_RELIC_GRAVITY || id == SOTN_RELIC_LEAP ||
-           id == SOTN_RELIC_JEWEL;
+           id == SOTN_RELIC_JEWEL || id == SOTN_RELIC_MIST || id == SOTN_RELIC_POWER_MIST;
 }
 
 bool SotnRelic_Toggle(SotnWorldState *world, SotnDataView dra, Uint16 id)
