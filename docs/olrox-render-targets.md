@@ -1,10 +1,12 @@
 # Owned offscreen render targets
 
-Olrox's original transformation first renders its monster image into a 128x256
-VRAM rectangle, then renders the morph into its upper 128x128 region. The existing
+Olrox's original transformation first renders its monster image into a 127x256
+VRAM rectangle, then renders the morph into a 128x128 target. The existing
 240-row game frame cannot hold the complete first target. This batch adds the
 bounded renderer and ordered scene services needed for that integration; it does
-not yet advance the transformation or second-form actors.
+not yet advance the transformation or second-form actors. The
+[morph controller component](olrox-morph-controller.md) retains its original
+command/timing sequence, with gameplay dispatch still gated.
 
 Sprite, transformed-sprite, quad and line drawing now share a borrowed tightly
 packed RGB555 surface with explicit width, height and pixel count. Dimensions

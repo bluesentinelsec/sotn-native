@@ -398,6 +398,7 @@ typedef struct Actor
         Sint16 angle12;
         Sint32 fire_length;
         Sint16 column_width, column_spread, column_radii[7];
+        Sint16 morph_timer, morph_delay, morph_brightness;
     } olrox;
 } Actor;
 
@@ -476,6 +477,12 @@ struct SotnActors
     /** BO0 overlay-lifetime door signal; encounter integration must drive it explicitly. */
     bool olrox_defeated;
     Uint32 olrox_flags;
+    struct
+    {
+        Sint32 points[66][2];
+        Uint32 generation;
+        bool transforming;
+    } olrox_morph;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
     Uint16 backdrop_color;

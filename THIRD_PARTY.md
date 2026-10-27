@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 morph controller**, AGPL-3.0-or-later.
+  `modules/core/olrox_morph.c` adapts `boss/bo0/3053C.c` at the pinned revision
+  below. Original point/index/duration tables remain private. The component stays
+  outside gameplay dispatch pending the monster body.
+  See [scope and validation](docs/olrox-morph-controller.md).
+
 - **Reconstructed BO0 skull columns**, AGPL-3.0-or-later.
   `modules/core/olrox_column.c` reconstructs BO0 `func_us_801AE858` at the
   pinned revision below. All runtime arrays remain private. The native frame
