@@ -148,6 +148,18 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
     graphics->nz0 = nz0;
     graphics->sprite_banks = profile->sprite_banks;
     graphics->stage_id = stage;
+    if (stage == 30)
+    {
+        // Original dra/menu.c clears g_Vram.D_800ACDC8 before gameplay. BO0's fifteen
+        // texture transfers leave part of this actor atlas as transparent zero.
+        // Preserve that defined baseline for a fresh native arena; other unloaded regions stay
+        // invalid so malformed references still fail explicitly.
+        for (Uint32 row = 256; row < 512; ++row)
+        {
+            SDL_memset(graphics->words + row * 1024U + 128U, 0, 384U * sizeof(Uint16));
+            SDL_memset(graphics->valid + row * 1024U + 128U, 1, 384U);
+        }
+    }
     RawTiles(graphics, sources.stage, 0);
     RawTiles(graphics, sources.common, 256);
     Upload(graphics, 0, 240, 256, 16, sources.common.bytes + 0x40000);

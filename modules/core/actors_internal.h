@@ -435,6 +435,12 @@ typedef struct Actor
         Sint16 timer, delay, lifetime, width;
         Sint32 previous_x;
     } olrox_laser;
+    struct
+    {
+        Uint16 copied_end, source_begin, timer, ticks, effect_slot;
+        Sint16 remaining;
+        Uint32 effect_generation;
+    } olrox_death;
 } Actor;
 
 struct SotnActors
@@ -841,6 +847,11 @@ bool ActorMaria(SotnActors *actors, Actor *actor);
 /* These services accept only validated Laboratory (12) or first-visit Entrance (65)
  * or revisited Entrance (7) profiles. Offsets identify private tables; actor IDs always retain
  * their stage meaning. */
+/** @brief Resolve an original monster part to its live, generation-owned body. */
+Actor *ActorOlroxMonsterOwner(SotnActors *actors, const Actor *part);
+/** @brief Propagate the original seven-part cooldown/death ring after a head HP hit. */
+void ActorOlroxMonsterHit(SotnActors *actors, Actor *recipient, Actor *hit, Uint32 channel,
+                          Uint8 cooldown);
 size_t ActorStageOffset(const SotnActors *actors, size_t laboratory);
 Uint16 ActorStageId(const SotnActors *actors, Uint16 laboratory);
 bool ActorDoppleEntry(SotnActors *actors, Actor *actor);

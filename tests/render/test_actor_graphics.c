@@ -1193,6 +1193,28 @@ static bool TestTargetSequence(Fixture *f)
     return true;
 }
 
+static bool ClearedBo0Atlas(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    const SotnTileSources sources = {{f->stage, sizeof(f->stage)}, {f->common, sizeof(f->common)}};
+    CHECK(SotnActorGraphics_CreateStage((SotnDataView){f->dra, sizeof(f->dra)},
+                                        (SotnDataView){f->nz0, sizeof(f->nz0)}, sources, 30, &g));
+    ClearFrame(f);
+    f->frame[0] = 31;
+    SotnTextureQuad q = {.page = 0x15,
+                         .palette = 0x200,
+                         .x = {0, 1, 0, 1},
+                         .y = {0, 0, 1, 1},
+                         .u = {128, 129, 128, 129},
+                         .v = {129, 129, 130, 130}};
+    CHECK(SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    q.page = 0x10;
+    q.u[0] = q.u[1] = q.u[2] = q.u[3] = 0;
+    CHECK(!SotnActorGraphics_Quad(g, q, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -1205,7 +1227,7 @@ int main(void)
         TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
         DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
         TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture) &&
-        TestTargets(fixture) && TestTargetSequence(fixture);
+        TestTargets(fixture) && TestTargetSequence(fixture) && ClearedBo0Atlas(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

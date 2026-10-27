@@ -407,7 +407,8 @@ static SotnCombatBox PlayerBox(SotnPlayerState player, bool attack)
 static bool EnemyHitbox(const SotnActors *actors, Uint16 id)
 {
     if (actors->stage_id == 30)
-        return id == 0x2b || id == 0x2d || id == 0x2f || id == 0x30 || id == 0x31;
+        return id == 0x2b || id == 0x2d || id == 0x2f || id == 0x30 || id == 0x31 ||
+               (id >= 0x33 && id <= 0x3b);
     if (actors->stage_id == 4)
         return id == 0x16 || id == 0x17 || id == 0x24 || id == 0x25 || id == 0x2d || id == 0x31 ||
                id == 0x34 || id == 0x35 || id == 0x37 || id == 0x38 || id == 0x39 || id == 0x3c ||
@@ -494,6 +495,21 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         (actor->state.flags & 0x100))
         return true;
     Actor *recipient = actor;
+    if (actors->stage_id == 30 &&
+        (actor->state.id == 0x33 || actor->state.id == 0x34 || actor->state.id == 0x35 ||
+         actor->state.id == 0x36 || actor->state.id == 0x3b))
+    {
+        Actor *body = ActorOlroxMonsterOwner(actors, actor);
+        if (!body || (body->state.flags & 0x100U))
+            return true;
+        const Uint32 slot = (Uint32)body->slot + 3U;
+        if (slot >= SOTN_STAGE_ACTOR_SLOTS)
+            return SDL_SetError("Olrox linked head exceeds its original actor block");
+        recipient = &actors->slots[slot];
+        if (recipient->state.id != 0x35 || ActorOlroxMonsterOwner(actors, recipient) != body ||
+            !recipient->state.step || (recipient->state.flags & 0x100U))
+            return true;
+    }
     if (actors->stage_id == 4 && actor->state.id == 0x35)
     {
         Actor *body = ActorValhallaOwner(actors, actor);
@@ -651,6 +667,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     HippogryphHit(actors, recipient, actor, hand,
                                   source.attack.invincibility_frames);
                 }
+                ActorOlroxMonsterHit(actors, recipient, actor, hand,
+                                     source.attack.invincibility_frames);
                 ActorGiantHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
                 ActorValhallaHit(actors, recipient, actor, hand,
                                  source.attack.invincibility_frames);
@@ -669,6 +687,14 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 return false;
             actor->hit_flags = source.attack.hit_type;
             recipient->hit_flags = source.attack.hit_type;
+            if (actors->stage_id == 30 && recipient->state.id == 0x35 && damage != 0xc000 &&
+                !(damage & 0x8000U))
+            {
+                const Uint32 amount = damage & 0x3fffU;
+                recipient->hit_flags = recipient->state.hit_points < (Sint32)(amount * 2U)   ? 3
+                                       : recipient->state.hit_points < (Sint32)(amount * 4U) ? 2
+                                                                                             : 1;
+            }
             if (actors->stage_id == 26 && recipient->state.id == 0x16)
             {
                 if (damage == 0xc000)
@@ -749,6 +775,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     !(stun_flags & 0x400000U))
                     recipient->stun = source.attack.stun_frames;
             }
+            ActorOlroxMonsterHit(actors, recipient, actor, hand,
+                                 source.attack.invincibility_frames);
             HippogryphHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
             ActorValhallaHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
             ActorGiantHit(actors, recipient, actor, hand, source.attack.invincibility_frames);
@@ -1711,6 +1739,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     }
     SDL_memset(actors->slots, 0, sizeof(actors->slots));
     SDL_zero(actors->chapel_ball);
+    SDL_zero(actors->olrox_morph);
+    SDL_zero(actors->olrox_monster);
     SDL_memset(actors->primitives, 0, sizeof(actors->primitives));
     return true;
 }

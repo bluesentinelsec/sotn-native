@@ -18,6 +18,11 @@ bool OlroxReserved(SotnActors *actors, Actor *parent, Uint16 relative, Uint16 id
                    Actor **out);
 /** @brief Get a generation-checked child from the body's original reserved block. */
 Actor *OlroxChild(SotnActors *actors, const Actor *parent, Uint16 relative);
+/** @brief Check a reserved child identity/generation, including an update's copied working state.
+ * @param actors Borrowed BO0 service. @param parent Active owner or working copy.
+ * @param child Borrowed owned slot or matching working copy. @param relative Reserved role.
+ * @return True only for the same original identity, slot, generation and parent lineage. */
+bool OlroxOwnsChild(SotnActors *actors, const Actor *parent, const Actor *child, Uint16 relative);
 /** @brief Advance BO0 orbiting projectiles, portals or their owned bats/shadows.
  * @param actors Borrowed arena services and private tables. @param actor Borrowed owned actor.
  * @return Success, or false with SDL error on invalid state/resources/geometry.
@@ -36,7 +41,7 @@ bool ActorOlroxColumn(SotnActors *actors, Actor *actor);
 /** @brief Reconstruct the original BO0 morph controller and its owned mesh/target commands.
  * @param actors Borrowed BO0 services/private inputs. @param actor Borrowed active identity 0x32.
  * @return Success or SDL error on invalid tables, ownership, state or geometry.
- * This component requests identity 0x33; stage dispatch stays gated until that body is integrated.
+ * This controller hands off to its real generation-owned identity 0x33.
  */
 bool ActorOlroxMorph(SotnActors *actors, Actor *actor);
 #endif

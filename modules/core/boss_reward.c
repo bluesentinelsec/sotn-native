@@ -104,7 +104,8 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (a->state.parameters != (s->stage_id == 25   ? 6
+        if (a->state.parameters != (s->stage_id == 30   ? 0
+                                    : s->stage_id == 25 ? 6
                                     : s->stage_id == 26 ? 4
                                     : s->stage_id == 2  ? 7
                                                         : 5) ||
@@ -200,7 +201,8 @@ bool ActorBossReward(SotnActors *s, Actor *a)
     }
     SotnDataView drop = {0};
     if (!Slice(s->nz0,
-               (s->stage_id == 25   ? 0x18b8
+               (s->stage_id == 30   ? 0x24d4
+                : s->stage_id == 25 ? 0x18b8
                 : s->stage_id == 26 ? 0x42b0
                 : s->stage_id == 2  ? 0x31bc
                                     : 0x2850) +

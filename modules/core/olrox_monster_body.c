@@ -661,6 +661,223 @@ static bool Turn(SotnActors *s, Actor *a)
     }
     return true;
 }
+static bool CaptureBody(SotnActors *s, Actor *a, bool alternate)
+{
+    if (!OlroxMonster_FreezeSprite(s, a, a, 16))
+        return false;
+    ActorPrimitive *p = ActorPrimitiveGet(s, a, 16);
+    if (!p)
+        return false;
+    p->state.page = alternate ? 0x15 : 0x14;
+    p->state.palette = alternate ? 0x219 : 0x20b;
+    p->state.active = true;
+    p->state.priority_set = true;
+    p->state.priority = a->state.priority;
+    return true;
+}
+static bool DeathBurst(SotnActors *s, Actor *a)
+{
+    Actor *effect = NULL;
+    if (!ActorSpawn(s, a, 6, 0, 160, 192, &effect))
+        return false;
+    if (!effect)
+        return true;
+    const Uint16 index = (Uint16)(2U + (ActorRandom(s) & 15U));
+    const bool fire = (ActorRandom(s) & 1U) != 0;
+    if (index >= a->state.primitive_count)
+    {
+        // The original can walk beyond its 17-packet chain. Omit that optional burst safely.
+        *effect = (Actor){0};
+        return true;
+    }
+    ActorPrimitive *p = ActorPrimitiveGet(s, a, index);
+    if (!p)
+        return false;
+    effect->state.id = fire ? 0x47 : 6;
+    effect->state.parameters =
+        (Uint16)((fire ? 1U : 0U) | (Uint16)(s->olrox_monster.priority + 16U) << 8);
+    effect->state.x = (p->state.offset_x[0] + s->camera_x) * 65536;
+    effect->state.y = (p->state.offset_y[0] + s->camera_y) * 65536;
+    effect->state.facing_left = false;
+    return true;
+}
+static bool Death(SotnActors *s, Actor *a)
+{
+    const Uint16 support = a->olrox.support_leg, other = support ^ 1U;
+    Actor *head = OlroxChild(s, a, 3), *tail = OlroxChild(s, a, 4), *arms = OlroxChild(s, a, 7);
+    if (!head || !tail || !arms)
+        return SDL_SetError("Olrox defeat lost its owned head, tail or arms");
+    if (!Anchor(s, a))
+        return false;
+    bool arrived = false;
+    switch (a->substep)
+    {
+    case 0:
+        for (Uint16 i = 1; i <= 9; ++i)
+        {
+            Actor *part = OlroxChild(s, a, i);
+            if (!part)
+                return SDL_SetError("Olrox defeat lost a linked original part");
+            part->state.flags |= 0x100U;
+        }
+        if (!ActorSound(s, 0x819) ||
+            !SotnWorld_RecordTime(s->world, SOTN_TIME_OLROX, s->game_seconds) ||
+            !ActorSound(s, 0x7c6))
+            return false;
+        head->state.step = 5;
+        head->substep = 0;
+        tail->state.step = 9;
+        tail->substep = 0;
+        s->combat.cd_command = 0x92;
+        a->olrox.death_phase = 0;
+        a->olrox.timer = 96;
+        ++a->substep;
+        break;
+    case 1:
+        if (!Pose(s, a, support, OLROX_RECOVER, &arrived) || !Anchor(s, a))
+            return false;
+        Sint16 shift = 0;
+        if (!OlroxMonster_Floor(s, a, other, &shift))
+            return false;
+        OlroxLeg *leg = &s->olrox_monster.legs[other];
+        if (leg->contact)
+        {
+            Whole(&leg->foot_y, Pixel(leg->foot_y) + shift);
+            ClearPhases(s);
+            ++a->substep;
+        }
+        SDL_FALLTHROUGH;
+    case 2:
+        if (!(a->olrox.timer & 1U))
+        {
+            if (!(a->olrox.timer & 7U) && !ActorSound(s, 0x655))
+                return false;
+            if (!DeathBurst(s, a))
+                return false;
+        }
+        if (!OlroxMonster_Approach(&a->olrox.body_angle,
+                                   Word(a->olrox.body_angle + (a->olrox.timer & 1U ? -24 : 24)), 24,
+                                   &arrived))
+            return false;
+        if (!--a->olrox.timer)
+            ++a->substep;
+        break;
+    case 3: {
+        head->state.step = 8;
+        head->substep = 0;
+        tail->state.step = 5;
+        tail->substep = 0;
+        arms->state.step = 10;
+        arms->substep = 0;
+        for (Uint16 i = 8; i <= 9; ++i)
+        {
+            Actor *hand = OlroxChild(s, a, i);
+            if (!hand)
+                return SDL_SetError("Olrox defeat lost an owned hand capture");
+            hand->state.step = 3;
+            hand->substep = 0;
+        }
+        Actor *capture = NULL;
+        if (!Reserved(s, a, 10, 0x3c, 0, &capture))
+            return false;
+        capture->state.facing_left = a->state.facing_left;
+        if (!CaptureBody(s, a, false))
+            return false;
+        ++a->substep;
+        break;
+    }
+    case 4: {
+        a->state.palette = 0x219;
+        a->state.texture_offset = 0x54;
+        ActorPrimitive *p = ActorPrimitiveGet(s, a, 16);
+        if (!p)
+            return false;
+        p->state.active = false;
+        a->olrox.death_phase = 1;
+        if (!ActorSound(s, 0x817))
+            return false;
+        ++a->substep;
+        break;
+    }
+    case 5:
+        a->state.palette = 0x219;
+        a->state.texture_offset = 0x54;
+        if (!(s->ticks & 31U) && !ActorSound(s, 0x817))
+            return false;
+        if (a->olrox.death_phase == 2)
+        {
+            if (AbsoluteX(a) >= 129)
+            {
+                tail->state.step = 3;
+                a->olrox.walk_count = 0;
+                ++a->substep;
+            }
+            else
+                a->substep = 7;
+        }
+        break;
+    case 6: {
+        if (!OlroxMonster_Approach(&head->state.rotation, -256, 6, &arrived) ||
+            !Tilt(s, a, 384, 8, &arrived) || !Pose(s, a, support, OLROX_SLOW_SUPPORT, &arrived) ||
+            !Pose(s, a, other, OLROX_SLOW_SWING, &arrived) || !Anchor(s, a))
+            return false;
+        head->state.palette = 0x8219;
+        Sint16 shift = 0;
+        if (!OlroxMonster_Floor(s, a, other, &shift))
+            return false;
+        OlroxLeg *leg = &s->olrox_monster.legs[other], *base = &s->olrox_monster.legs[support];
+        if (leg->contact && base->horizontal < leg->horizontal)
+        {
+            if (!ActorSound(s, 0x647))
+                return false;
+            ++a->olrox.walk_count;
+            Whole(&leg->foot_y, Pixel(leg->foot_y) + shift);
+            ClearPhases(s);
+            if (a->olrox.walk_count >= 2)
+            {
+                tail->substep = 0;
+                tail->state.step = 5;
+                ++a->substep;
+            }
+            else
+                a->olrox.support_leg ^= 1U;
+        }
+        break;
+    }
+    case 7: {
+        Actor *capture = OlroxChild(s, a, 10);
+        if (!capture || capture->state.id != 0x3c)
+            return SDL_SetError("Olrox final capture lost its original controller");
+        a->olrox.death_phase = 3;
+        Whole(&capture->state.x, Pixel(a->state.x));
+        Whole(&capture->state.y, Pixel(a->state.y));
+        if (!CaptureBody(s, a, true))
+            return false;
+        ++a->substep;
+        break;
+    }
+    case 8:
+        for (Uint16 i = 1; i <= 9; ++i)
+        {
+            Actor *part = OlroxChild(s, a, i);
+            if (part)
+            {
+                ActorPrimitivesClear(s, part);
+                part->state.primitive_count = 0;
+                part->state.id = 0;
+                part->remove = true;
+            }
+        }
+        ActorPrimitivesClear(s, a);
+        a->state.primitive_count = 0;
+        a->state.id = 0;
+        a->remove = true;
+        break;
+    default:
+        return SDL_SetError("Olrox monster defeat has an invalid original phase");
+    }
+    return true;
+}
 static bool Geometry(SotnActors *s, Actor *a)
 {
     if (!OlroxMonster_LegGeometry(s, a, 0, 2, 0) || !OlroxMonster_LegGeometry(s, a, 1, 6, 1) ||
@@ -744,9 +961,10 @@ bool ActorOlroxMonster(SotnActors *s, Actor *a)
         ok = Turn(s, a);
         break;
     case 16:
-        return SDL_SetError("Olrox monster defeat remains outside this body component");
+        ok = Death(s, a);
+        break;
     default:
         break;
     }
-    return ok && Geometry(s, a);
+    return ok && (a->remove || Geometry(s, a));
 }

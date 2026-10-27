@@ -49,15 +49,20 @@ The selected [humanoid body](olrox-first-form.md) now adds its introduction,
 movement, physical damage and attack commands. BO0 and NO2 remain disconnected.
 Selected [orbs/portals/bats](olrox-orbs-portals.md),
 [fireballs/effects](olrox-fire-effects.md) and [skull columns](olrox-skull-columns.md)
-now advance. Transformation, second form, final defeat/reward and connected
-progression still need native integration. The
-[owned offscreen renderer](olrox-render-targets.md) now supplies the required tall
-render target, without advancing those actors yet.
+now advance, including the selected [full controller flow](olrox-encounter.md)
+through morph, second form and defeat/reward. Connected progression still needs
+integration. The [owned offscreen renderer](olrox-render-targets.md) supplies the
+tall capture and preserves its one-tick commands across presentation gaps.
 Several BO0 shared enemies, scenery and effects are also unsupported. The pinned
 reference's central Olrox routines are assembly stubs and require reconstruction;
 this foundation does not substitute an approximate fight. The checks above do
 not establish an authentic boss encounter, ordinary castle entry, uninterrupted
 route, GPU/PCM/frame parity, or complete castle/Alucard support.
+
+Current integration: the selected [native encounter](olrox-encounter.md) now
+connects both forms, real morph/attacks and captured defeat/reward. Earlier
+component checks above retain their narrower evidence scope. Furnishings, full
+effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
 
 Provenance: `boss/bo0/e_boss_doors.c`, the BO0 stage header/symbol metadata and
 selected shared room/camera/collision algorithms at sotn-decomp

@@ -158,6 +158,10 @@ typedef struct SotnActorPrimitive
     Sint16 target_offset_x, target_offset_y;
     bool target_clear;
 } SotnActorPrimitive;
+/** @brief Report whether live owned packets contain active offscreen environment commands.
+ * @param actors Borrowed owner or NULL. @return True when a simulation frame needs its target
+ * side effects rendered before actor state can advance; false for no commands or NULL. */
+bool SotnActors_HasTargets(const SotnActors *actors);
 /** @brief Read one owned actor primitive without exposing mutable storage.
  * @param actors Borrowed entered simulation. @param slot Stage slot. @param index Primitive 0..383.
  * @param out Copied state; inactive for unused indices. @return Success or SDL error. */

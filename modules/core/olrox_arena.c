@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // BO0 e_boss_doors.c at sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // Original initialization, tile definitions and artwork remain private runtime data.
-#include "olrox_internal.h"
+#include "olrox_monster_internal.h"
 
 static bool DoorTiles(SotnActors *s, const Actor *a, bool closed)
 {
@@ -35,7 +35,7 @@ static bool BossDoor(SotnActors *s, Actor *a)
     switch (a->state.step)
     {
     case 0:
-        if (s->olrox_defeated)
+        if (s->olrox_defeated || s->world->time_attack[SOTN_TIME_OLROX])
         {
             a->remove = true;
             return true;
@@ -130,6 +130,32 @@ bool ActorOlroxArena(SotnActors *s, Actor *a)
         return ActorOlroxFire(s, a);
     case 0x31:
         return ActorOlroxColumn(s, a);
+    case 0x14:
+    case 0x15:
+        return ActorOuterEffect(s, a);
+    case 0x28:
+        return ActorOlroxFirework(s, a);
+    case 0x32:
+        return ActorOlroxMorph(s, a);
+    case 0x33:
+        return ActorOlroxMonster(s, a);
+    case 0x34:
+    case 0x36:
+    case 0x37:
+    case 0x38:
+    case 0x3b:
+        return ActorOlroxAppendage(s, a);
+    case 0x35:
+        return ActorOlroxHead(s, a);
+    case 0x39:
+    case 0x3a:
+    case 0x3d:
+        return ActorOlroxMonsterAttack(s, a);
+    case 0x3c:
+    case 0x3e:
+        return ActorOlroxDefeat(s, a);
+    case 0x3f:
+        return ActorBossReward(s, a);
     case 0x49:
         return BossDoor(s, a);
     default:

@@ -59,11 +59,17 @@ LLDB with normal SDL quit. These checks supply an explicit room arrival and
 contact protection, preserve user save slots and keep all private inputs/captures
 ignored. They do not grant equipment, stats, relics or ongoing player positions.
 
-The transformation, second form, furnishings,
-final defeat/reward and connected progression still need integration. Alucard's
+The [selected encounter](olrox-encounter.md) now connects transformation, second
+form and final defeat/reward. Furnishings and connected progression still need
+integration. Alucard's
 complete afterimage service and the boss's suppression of those images remain
 unintegrated, along with full effects/audio/frame parity. BO0 and NO2 stay
 disconnected. Do not call the boss, level, Alucard or game complete.
+
+Current integration: the selected [native encounter](olrox-encounter.md) now
+connects both forms, real morph/attacks and captured defeat/reward. Earlier
+component checks above retain their narrower evidence scope. Furnishings, full
+effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
 
 Provenance: `boss/bo0/2D26C.c:func_us_801AD338` and `EntityOlroxAfterImage` at
 sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later),

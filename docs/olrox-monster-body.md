@@ -6,9 +6,10 @@ steps, turns, takeoff, leap/slam, swipe and HP-ranked laser/fireball requests.
 Requests wait on real child busy/release fields. The first takeoff tick retains
 its original leg-zero selection even after selecting the eventual support leg.
 
-The body remains outside gameplay dispatch until shared combat, complete defeat
-and reward flow are integrated. It does not yet make the second form playable.
-No ordinary progression, relics, equipment or save state are granted by this work.
+The body now advances in the selected [native encounter](olrox-encounter.md) with
+shared combat and captured defeat/reward. Connected travel, full presentation and
+encounter parity remain incomplete. Ordinary progression, relics and equipment
+are never granted by the controller.
 
 ## Ownership and coordinates
 

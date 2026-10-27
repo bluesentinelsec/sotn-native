@@ -37,8 +37,14 @@ measures their rendered contribution. Fixtures supply only an explicit room
 arrival and contact protection, with no ongoing positions, boss state, HP,
 equipment, relic or readiness grants. User saves remain untouched.
 
-Transformation, second form, furnishings, final victory/reward and connected
-BO0/NO2 travel remain incomplete. The encounter and game are not complete.
+Selected transformation, second form and defeat/reward now run in the
+[native encounter](olrox-encounter.md). Furnishings, full presentation/parity and
+connected BO0/NO2 travel remain incomplete. The area and game are not complete.
+
+Current integration: the selected [native encounter](olrox-encounter.md) now
+connects both forms, real morph/attacks and captured defeat/reward. Earlier
+component checks above retain their narrower evidence scope. Furnishings, full
+effects/presentation/parity and connected BO0/NO2 travel remain incomplete.
 
 Provenance: reconstructed BO0 `func_us_801AE858` in `boss/bo0/2D26C.c` at
 sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, AGPL-3.0-or-later.
