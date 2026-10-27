@@ -5,7 +5,7 @@ layers directly from private runtime data. This is a graphics-only diagnostic,
 not a playable game. It does not run Alucard, enemies, room objects, combat,
 palette animation, sound, or progression.
 
-Build with `make`, then launch the macOS project executable through LLDB:
+Build with `make debug-build`, then launch the macOS project executable through LLDB:
 
 ```sh
 lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native \

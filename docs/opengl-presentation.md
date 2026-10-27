@@ -12,7 +12,7 @@ build until reviewed C logic and runtime-loaded game tables are integrated.
 
 ## Local checks
 
-Build with `make`, then run the native executable:
+Build with `make debug-build`, then run the native executable:
 
 ```sh
 build/debug/bin/sotn-native.app/Contents/MacOS/sotn-native --graphics-test
