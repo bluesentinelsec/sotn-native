@@ -8,7 +8,7 @@ and hashes; they contain no game bytes. The data library is original C.
 
 ## Usage
 
-Build with `make`, then run the native executable with:
+Build with `make debug-build`, then run the native executable with:
 
 ```sh
 sotn-native --game-data /path/to/private/extracted/us --validate-only

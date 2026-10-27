@@ -265,6 +265,11 @@ The selected route is a **decompilation-based native port**; read the current
 - CMake owns build logic; GNU Make wraps it. Use `make`, `make test`,
   `make sanitizer` (Linux), `make package`, and platform targets. List sources
   explicitly; reusable code belongs in focused modules as the project grows.
+- `make` and `make dev` build Debug and launch the supported Castle Entrance
+  beginning; `make release` builds and launches Release. Build-only automation
+  uses `make debug-build`, `make release-build` or CMake. `make debug` launches
+  through LLDB. Automated runtime checks still require muted audio and LLDB;
+  the original title/prologue flow remains incomplete.
 - Pin dependencies and avoid competing utility stacks where SDL3 suffices.
   Build and release packaging must not require private game inputs.
 
