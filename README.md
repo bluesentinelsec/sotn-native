@@ -83,7 +83,8 @@ physical damage and issues attack commands, with selected
 now active. The selected [Olrox encounter](docs/olrox-encounter.md) connects the real
 transformation, monster combat, captured defeat/reward and door release.
 [Owned offscreen rendering](docs/olrox-render-targets.md) preserves its captures
-across presentation gaps. Furnishings, full effects/audio/parity and connected
+across presentation gaps. [Breakable furnishings and sitting](docs/olrox-furnishings.md)
+now run. Full effects/audio/parity and connected
 progression remain incomplete.
 
 No ROM, BIOS, extracted game data, artwork, or audio is distributed.

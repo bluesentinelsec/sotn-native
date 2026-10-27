@@ -40,6 +40,7 @@ add_library(sotn-core STATIC
   early_castle.c
   olrox_quarter.c
   olrox_arena.c
+  olrox_furnishings.c
   olrox_first.c
   olrox_orbs.c
   olrox_fire.c

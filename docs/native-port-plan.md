@@ -41,7 +41,8 @@ original movement, physical damage and attack commands; selected
 now advance. The selected [native encounter](olrox-encounter.md) connects real
 transformation, articulated movement, head/arm attacks, shared damage and captured
 defeat/reward. [Owned offscreen rendering](olrox-render-targets.md) preserves
-one-tick captures when presentation skips a simulation frame. Furnishings, full
+one-tick captures when presentation skips a simulation frame. Selected
+[furnishings and sitting](olrox-furnishings.md) now run. Full
 presentation/audio/parity and connected BO0/NO2 travel remain incomplete.
 This is not a complete authentic game. Further stages, complete area actors/scripts,
 prologue initialization and full audiovisual/timing parity remain incomplete. Read the

@@ -118,6 +118,9 @@ bool ActorOlroxArena(SotnActors *s, Actor *a)
         return ActorRoomDecoration(s, a);
     case 0x12:
         return ActorCamera(s, a);
+    case 0x2a:
+    case 0x4b:
+        return ActorOlroxFurnishing(s, a);
     case 0x2b:
     case 0x2c:
         return ActorOlroxFirst(s, a);

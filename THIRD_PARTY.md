@@ -583,3 +583,10 @@ BO0 cleared atlas follows `dra/menu.c:func_800FAC48` and `dra/d_CD80.c`.
 initialized midpoint-metadata adaptations, component versus native validation,
 and remaining parity limits. Runtime tables/assets and generated authoring traces
 remain private; none are embedded or distributed.
+
+`modules/core/olrox_furnishings.c` reconstructs BO0
+`2D26C.c:func_us_801B001C` and shared `st/e_chair.h` at the pinned sotn-decomp
+revision above, AGPL-3.0-or-later. Private profiles and artwork remain runtime inputs;
+[furnishing scope](docs/olrox-furnishings.md) distinguishes synthetic, instruction
+comparison and protected native validation. No original tables or authoring output
+are distributed.

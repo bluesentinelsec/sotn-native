@@ -1,3 +1,10 @@
+The selected [Olrox furnishings](docs/olrox-furnishings.md) now add placed table,
+seats/candelabra, original adjacent-group destruction, thirteen debris variants
+and normal sitting controls. Retain private profiles, pure-Up triggering, fractional
+motion, floor sensors and rotation through explosion conversion. Validate adjacent
+groups before mutation; exhausted visual pools never replace unrelated actors.
+Explicit-entry/protected native checks are not full-route or console parity.
+
 # Working in sotn-native
 
 The selected [Olrox encounter](docs/olrox-encounter.md) now connects both forms,
@@ -6,7 +13,7 @@ captured-fragment defeat, Life Max Up conversion and arena release. Preserve the
 seven-part head-HP ring (roles 0..6), infinite-HP cooldown rules, independent arms/
 hands and packet-16 final body capture. Only final victory records the boss time;
 first-form transition never awards victory. Saved defeat times omit boss/doors
-on a fresh arena. BO0/NO2 travel, furnishings, full effects/audio/shake/flash,
+on a fresh arena. BO0/NO2 travel, full effects/audio/shake/flash,
 Alucard afterimages and uninterrupted encounter/console parity remain incomplete.
 Do not call the boss presentation, area, castle, Alucard or game complete.
 

@@ -44,4 +44,8 @@ bool ActorOlroxColumn(SotnActors *actors, Actor *actor);
  * This controller hands off to its real generation-owned identity 0x33.
  */
 bool ActorOlroxMorph(SotnActors *actors, Actor *actor);
+/** @brief Advance private-profile BO0 furniture, debris or original sitting controls.
+ * @param actors Borrowed entered BO0 owner. @param actor Active identity 0x2a or 0x4b.
+ * @return Success or SDL error for invalid data, state, adjacency or bounded motion. */
+bool ActorOlroxFurnishing(SotnActors *actors, Actor *actor);
 #endif
