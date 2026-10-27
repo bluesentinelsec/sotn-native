@@ -1,10 +1,16 @@
 # Working in sotn-native
 
+Selected [Mist capture/palette services](docs/mist-presentation.md) now upload real
+normal ARC poses, capture original wedges and run selected palette jobs in owned
+texture memory. Retain source pivots/UVs, odd-height rounding, clear margins, live
+source colors and optional queue exhaustion. Shared palette contention, alternate
+captures, final rendering and live player/sensor integration remain incomplete.
+
 The internal [Mist visual lifecycle](docs/mist-effect.md) now reconstructs the
 sixteen-point/eighty-quad cloud and real phase-5 restoration signal. Preserve
 retained point fractions, private tables, original color/geometry arithmetic and
-the signed phase-5 timer wrap. Readiness differs from destruction. Actual capture,
-texture/palette ownership, camera translation and player dispatch remain required;
+the signed phase-5 timer wrap. Readiness differs from destruction. Connect the real
+capture/texture/palette services, camera translation and player dispatch before use;
 this component does not make Mist playable. Never substitute a fake readiness timer.
 
 Internal [form restoration collision checks](docs/form-restoration-collision.md)

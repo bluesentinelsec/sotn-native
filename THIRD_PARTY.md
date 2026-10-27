@@ -615,3 +615,10 @@ at the pinned sotn-decomp revision above, AGPL-3.0-or-later. Its private weights
 flow, facing permutations, artwork and instruction traces remain runtime/local
 inputs. [Effect scope](docs/mist-effect.md) separates geometry/lifecycle agreement
 from real sprite capture, palette/texture ownership and playable transformation.
+
+Selected Mist capture and palette services in `modules/render/actor_graphics.c`
+adapt `dra/7879C.c:EntityPlayerBlinkWhite`, `4B758.c:RenderEntities` packed display
+uploads and `4A538.c` copy/blend job services at the same pinned AGPL-3.0-or-later
+revision. [Presentation scope](docs/mist-presentation.md) documents source metadata,
+owned colors, selected queue limits and component comparisons. All artwork,
+descriptor tables and diagnostic traces remain private.
