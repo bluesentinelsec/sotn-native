@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+Selected [Olrox articulated geometry components](docs/olrox-monster-geometry.md)
+now reconstruct four packets per leg, two torso packets, owned attachments and
+the original bank-seven sprite packet helper. Preserve signed rounding, circular
+floor projection, 127-unit offsets and ignored part cropping. The body, attacks
+and second-form gameplay remain unintegrated; seeded instruction comparisons
+are component evidence, not an encounter or console replay.
+
 Selected [Olrox articulated movement components](docs/olrox-monster-motion.md)
 now retain joint velocities, paired poses, owned foot anchoring and floor contact.
 Preserve strict arrival, signed word/fixed-point wrap and the original four-pixel

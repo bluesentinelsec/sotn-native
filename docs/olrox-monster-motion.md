@@ -33,7 +33,8 @@ printing is isolated; original helper and SDK instructions execute. Seeded foot/
 body fixtures supply initial component state. This is not actor integration,
 ordinary boss traversal or console parity evidence.
 
-Remaining work includes the body, articulated texture geometry, owned parts,
+Selected [articulated texture geometry](olrox-monster-geometry.md) now runs as a
+separate component. Remaining work includes the body, owned parts,
 complete attack/death/reward flow and connected BO0/NO2 travel. The existing
 [morph controller](olrox-morph-controller.md) remains gated until the real body
 is integrated. Full castle and Alucard behavior remain incomplete.

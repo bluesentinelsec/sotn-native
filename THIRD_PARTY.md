@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed BO0 articulated geometry helpers**, AGPL-3.0-or-later.
+  `modules/core/olrox_monster_geometry.c` reconstructs selected BO0 `313A8.c`
+  leg, torso and sprite packet helpers at the pinned revision below. Profiles,
+  artwork and SDK tables remain private. See
+  [scope and validation](docs/olrox-monster-geometry.md).
+
 - **Reconstructed BO0 articulated movement helpers**, AGPL-3.0-or-later.
   `modules/core/olrox_monster_motion.c` reconstructs selected BO0 `313A8.c`
   pose, joint and anchoring helpers at the pinned revision below. SDK tables

@@ -408,7 +408,7 @@ typedef struct Actor
         Sint16 column_width, column_spread, column_radii[7];
         Sint16 morph_timer, morph_delay, morph_brightness;
         Sint16 body_angle, body_velocity;
-        Uint8 support_leg;
+        Uint8 support_leg, body_style;
     } olrox;
 } Actor;
 
@@ -497,6 +497,7 @@ struct SotnActors
     {
         OlroxLeg legs[2];
         Uint32 generation;
+        Uint16 priority;
     } olrox_monster;
     Uint32 library_enemy_flags;
     bool library_arena_active, library_camera_unlocked;
