@@ -144,7 +144,7 @@ static bool Orb(SotnActors *s, Actor *a)
         if (!ActorAnimate(s, a, 0xd38, &animated) || !Move(a))
             return false;
         a->state.facing_left = a->vx > 0;
-        a->state.priority = (Uint16)(parent->state.priority + (a->vx > 0 ? 2U : -2U));
+        a->state.priority = (Uint16)((Sint32)parent->state.priority + (a->vx > 0 ? 2 : -2));
         Uint8 target = 0;
         if (!Angle8(s, Pixel(parent->state.x) - Pixel(a->state.x),
                     Pixel(parent->state.y) - Pixel(a->state.y), &target))
