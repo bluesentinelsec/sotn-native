@@ -651,3 +651,7 @@ traces remain private; playable movement and full shared allocation are not impl
 Selected playable Bat adapts `dra/692E8.c`, `71830.c`, `6DF70.c`, `7E4BC.c`,
 `7879C.c`, `4DA70.c` and `5087C.c` from the pinned AGPL-3.0-or-later reference.
 See [scope and evidence](docs/player-bat.md). Original tables/artwork stay private.
+
+The selected [Bat command/motion component](docs/bat-command-motion.md) adapts
+`dra/71830.c` and `5D5BC.c` from the same pinned AGPL-3.0-or-later reference.
+Spell tables remain private runtime inputs.

@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The [Bat command/motion component](docs/bat-command-motion.md) now reconstructs
+Wing Smash input and Wing/Fire controller paths after the form resource gate.
+It emits original requests; it does not enable command abilities in gameplay.
+Preserve exact directional words, wrapping timers, US repeat casts, exact-cost
+spell MP and slope ordering. Actual child/combat/visual ownership must be wired
+before enabling these controls or Fire/Echo relic switches.
+
 Selected [playable Bat](docs/player-bat.md) now connects owned E/Xbox RB entry,
 ordinary flight, real Blink/sensor restoration, MP, collision and damage. Preserve
 actual generation ownership, per-frame rotation flags, shared settling, original

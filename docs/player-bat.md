@@ -3,7 +3,8 @@
 Owned, enabled Soul of Bat now connects original entry, ordinary flight, collision,
 MP use, damage and restoration to the native session. E or Xbox RB toggles it;
 the Relics panel can enable or disable an owned Soul of Bat. Ordinary starts grant
-no abilities. Wing Smash, Fire of Bat, Echo of Bat and Wolf remain unfinished.
+no abilities. [Bat command/motion components](bat-command-motion.md) are available,
+but Wing Smash, Fire of Bat, Echo of Bat and Wolf remain unfinished in gameplay.
 
 ## Flight and real restoration
 
