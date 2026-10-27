@@ -609,3 +609,9 @@ private.
 AGPL-3.0-or-later. [Collision scope](docs/form-restoration-collision.md) documents
 raw tile distances, original Mist probe behavior and supplied-response instruction
 comparisons. Original runtime data and trace output remain private.
+
+`modules/core/mist_effect.c` reconstructs `dra/7E4BC.c:EntityMist/func_80121F58`
+at the pinned sotn-decomp revision above, AGPL-3.0-or-later. Its private weights,
+flow, facing permutations, artwork and instruction traces remain runtime/local
+inputs. [Effect scope](docs/mist-effect.md) separates geometry/lifecycle agreement
+from real sprite capture, palette/texture ownership and playable transformation.

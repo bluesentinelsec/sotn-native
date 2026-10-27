@@ -179,6 +179,8 @@ add_library(sotn-core STATIC
   actor_camera.c
   form_collision.c
   include/sotn/form_collision.h
+  mist_effect.c
+  include/sotn/mist_effect.h
   mist_motion.c
   include/sotn/mist_motion.h
   transformation.c
