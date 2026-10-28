@@ -773,5 +773,8 @@ comparisons remain private.
 The [afterimage controller](docs/player-afterimages.md) adapts selected capture/fade
 paths in `dra/alu_anim.c`, reset/enable/force in `dra/6DF70.c` and original previous-
 button assignment in `dra/692E8.c`, at the same pinned AGPL-3.0-or-later revision.
-Timing/color tables remain private runtime data. The component owns no actual
-entity/primitive/texture resources and does not enable live afterimages.
+Timing/color tables remain private runtime data. The pure controller confers no
+entity/primitive/texture ownership. Native shared-row initialization follows the
+original global eight-row allocation in `dra/692E8.c:AluInit`, retaining its final
+two rows through the existing common Wolf capture owner. Actual display/texture
+ownership remains unwired; this does not enable live afterimages.

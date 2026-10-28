@@ -3,10 +3,11 @@
 #include <sotn/primitive_slots.h>
 #include <sotn/wolf_head.h>
 #include <sotn/wolf_root_effect.h>
-/** @brief Native tag for the original common capture environment, distinct from a DRA entity. */
+/** @brief Native tags for original global player rows, distinct from DRA entity identities. */
 enum
 {
-    SOTN_WOLF_ENVIRONMENT_TAG = 0xff01
+    SOTN_WOLF_ENVIRONMENT_TAG = 0xff01,
+    SOTN_PLAYER_AFTERIMAGE_TAG = 0xff02
 };
 /** @brief Actual selected DRA body entity in original slots 17..30. */
 typedef struct SotnWolfRuntimeChild

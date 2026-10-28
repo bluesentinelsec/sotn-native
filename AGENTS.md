@@ -4,8 +4,12 @@ The [afterimage controller](docs/player-afterimages.md) now reconstructs six sam
 three parity-selected displays and original reset/enable/force semantics. It is
 a component, not live afterimages. Preserve pre-collision capture/post-collision
 fade, raw previous button words, byte timers, frame bits, display fractions and
-no-tick rebases. Actual shared eight-row ownership, movement hooks, system-clock
-parity, private ARC uploads and rendering remain unwired. Never enable guessed
+no-tick rebases. Native stage initialization now reserves its actual common eight
+rows before actors prime: six hidden metadata rows and the same two environment
+rows used by Wolf. Shared commit/update retain the lease through rooms/body return;
+standalone Wolf commits cannot replace it. Full stage reset creates a fresh owner.
+Display ownership, movement hooks, system-clock parity, private ARC uploads and
+rendering remain unwired. Never enable guessed
 trails or allocate a second pool. Alucard remains incomplete.
 
 Selected [Gravity Boots ceiling effects](docs/player-gravity-impact.md) now consume

@@ -55,6 +55,8 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    Uint32 common_generation;  /**< Original global player eight-row lease, not a factory child. */
+    Uint16 afterimage_rows[6]; /**< Hidden metadata rows; the final two rows live in wolf. */
     SotnWolfRuntime wolf;
     SotnWolfControllerFrame wolf_frame;
     SotnWolfRuntimeEvents wolf_events;
@@ -94,6 +96,15 @@ typedef struct SotnBatRuntimeInput
     bool entering;
     bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
 } SotnBatRuntimeInput;
+
+/** @brief Reserve the original global player's eight rows before stage actors advance.
+ * @param runtime Fresh zeroed stage owner. @param slots Actual stage primitive occupancy.
+ * @return Success or SDL error without mutation, including exhausted capacity.
+ * Reserves six hidden metadata rows and the same two common environment rows used by Wolf.
+ * Commit through SotnActors_CommitBatPrimitives before another owner allocates. These rows
+ * persist through body retirement and room changes; they confer no effect readiness or
+ * afterimage display/texture ownership. Full stage reset requires a fresh stage owner. */
+bool SotnBatRuntime_InitCommon(SotnBatRuntime *runtime, SotnPrimitiveSlots slots);
 
 /** @brief Current selected occupied child/factory slots for shared allocation.
  * @param runtime Borrowed owner. @return Actual nonzero owners, or zero for NULL. */
