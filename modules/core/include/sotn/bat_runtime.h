@@ -1,6 +1,7 @@
 #ifndef SOTN_BAT_RUNTIME_H
 #define SOTN_BAT_RUNTIME_H
 
+#include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
 #include <sotn/player.h>
 
@@ -22,6 +23,13 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerBlink blink;
         SotnBatTrail trail;
         SotnPlayerAttack attack;
+        struct
+        {
+            SotnBatFireball motion;
+            SotnPlayerAttack attack;
+            Uint16 pose, remaining, frame;
+            Uint8 hit_flags;
+        } fire;
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
@@ -41,6 +49,9 @@ typedef struct SotnBatRuntime
     SotnPlayerBlinkShared shared;
     Uint32 serial;
     Uint16 wing_mask;
+    Uint64 fire_mask;
+    Uint16 sounds[48], sound_count;
+    Uint8 use_ticks;
     Uint8 groups[11];
 } SotnBatRuntime;
 
@@ -81,5 +92,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
  * @return Success or SDL error for invalid inputs. No allocation or simulation advances. */
 bool SotnBatRuntime_Visual(const SotnBatRuntime *runtime, Uint16 index,
                            const SotnPlayerEffectQuad **quads, Uint16 *count);
+
+/** @brief Deliver actual enemy contact to one generation-owned fireball.
+ * @param runtime Borrowed owner. @param index Original slot minus sixteen.
+ * @param generation Observed child identity. @param flags Original contact word, 1..3.
+ * @return Success or SDL error without mutation on stale/non-fire ownership. */
+bool SotnBatRuntime_Hit(SotnBatRuntime *runtime, Uint16 index, Uint32 generation, Uint8 flags);
 
 #endif

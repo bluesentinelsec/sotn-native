@@ -585,9 +585,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Uint32 gas_start =
         normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
     const Uint32 wing_start = gas_start + SOTN_GAS_CLOUD_SLOTS;
-    const bool wing = actors->bat_runtime && actors->bat_runtime->wing_mask;
+    const bool wing =
+        actors->bat_runtime && (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask);
     const Uint32 total_channels =
-        wing ? wing_start + 15U
+        wing ? wing_start + 48U
              : gas_start +
                    (actors->gas_cloud && actors->gas_cloud->generation ? SOTN_GAS_CLOUD_SLOTS : 0);
     for (Uint32 channel = 0; channel < total_channels; ++channel)
@@ -599,16 +600,20 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         {
             const Uint32 index = channel - wing_start;
             const SotnBatRuntime *runtime = actors->bat_runtime;
-            if (!(runtime->wing_mask & (Uint16)(1U << index)))
+            const bool selected_wing =
+                index >= 1 && index <= 15 && (runtime->wing_mask & (Uint16)(1U << (index - 1U)));
+            const bool selected_fire = (runtime->fire_mask & ((Uint64)1 << index)) != 0;
+            if (!selected_wing && !selected_fire)
                 continue;
-            const SotnBatRuntimeChild *child = &runtime->children[index + 1U];
-            if (child->kind != 36 || !child->generation || !child->initialized ||
-                child->group < 3 || child->group > 6)
-                return SDL_SetError("Wing Smash attack lost its actual child or original group");
+            const SotnBatRuntimeChild *child = &runtime->children[index];
+            if (!child->generation || !child->initialized ||
+                (selected_wing && (child->kind != 36 || child->group < 3 || child->group > 6)) ||
+                (selected_fire && (child->kind != 45 || child->group < 7 || child->group > 10)))
+                return SDL_SetError("Bat attack lost its actual child or original group");
             source.x = child->source.x;
             source.y = child->source.y;
             source.facing_left = child->source.facing_left;
-            source.attack = child->state.attack;
+            source.attack = selected_fire ? child->state.fire.attack : child->state.attack;
             hand = ACTOR_WING_CHANNEL + child->group - 3U;
         }
         else if (channel >= gas_start)
@@ -754,6 +759,20 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->hit_params = source.attack.hit_effect & 127;
             if (actors->stage_id == 25 && recipient->state.id == 0x22)
                 recipient->hit_params = actor->hit_params;
+            if (channel >= wing_start)
+            {
+                const Uint16 index = (Uint16)(channel - wing_start);
+                const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
+                if (child->kind == 45)
+                {
+                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                        flags = 2;
+                    if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
+                        return false;
+                }
+            }
             if (channel >= 2 && channel <= normal_channels)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
@@ -2086,7 +2105,7 @@ bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud)
     actors->gas_cloud = cloud;
     return true;
 }
-bool SotnActors_SetBatRuntime(SotnActors *actors, const SotnBatRuntime *runtime)
+bool SotnActors_SetBatRuntime(SotnActors *actors, SotnBatRuntime *runtime)
 {
     if (!actors)
         return SDL_InvalidParamError("actors");

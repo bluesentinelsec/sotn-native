@@ -456,6 +456,26 @@ static bool TestTransformFlags(Fixture *fixture)
     return true;
 }
 
+static bool TestSdkScale(Fixture *f)
+{
+    MakeFixture(f);
+    // Authored solid row, negative pivot: quarter X scale must floor -1/4 to -1.
+    f->nz0[0x500] = 0x11;
+    f->nz0[0x501] = 0x11;
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    ClearFrame(f);
+    const SotnActorSurface dst = {f->frame, SOTN_FRAME_PIXELS, 256, 240};
+    CHECK(SotnActorGraphics_DrawScaled(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                       64, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31 && f->frame[20 * 256 + 20] == 7);
+    CHECK(!SotnActorGraphics_DrawScaled(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                        0, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 static bool TestRotation(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -944,6 +964,12 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PLAYER_BLINK, .primitive = 384}));
     count = 0;
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_BAT_FIREBALL, .primitive = 47}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_BAT_FIREBALL, .primitive = 48}));
+    CHECK(count == 1);
+    count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));
     CHECK(!SotnActorOrder_Add(NULL, 4, &count, (SotnActorDraw){0}));
@@ -1232,12 +1258,13 @@ int main(void)
         return 1;
     const bool passed =
         TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-        TestTransformFlags(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
-        TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
-        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
-        DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
-        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture) &&
-        TestTargets(fixture) && TestTargetSequence(fixture) && ClearedBo0Atlas(fixture);
+        TestTransformFlags(fixture) && TestSdkScale(fixture) && TestRotation(fixture) &&
+        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+        TestFailures(fixture) && TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
+        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
+        TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
+        TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
+        ClearedBo0Atlas(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

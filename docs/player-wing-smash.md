@@ -70,7 +70,7 @@ familiars and spells do not yet share one global factory, primitive or attack-gr
 allocator. The new owner's duplicate scan covers its selected children, not every
 stage actor. Afterimages, floor/ceiling dust, camera shake, full water volumes,
 freeze/effect contention and complete audio/raster/timing remain incomplete.
-Fire/Echo of Bat and Wolf remain unavailable. These controlled starts and relic
+Echo of Bat and Wolf remain unavailable. These controlled starts and relic
 grants do not establish ordinary acquisition, uninterrupted route or console
 parity, or complete Bat, Alucard, castle or game support.
 

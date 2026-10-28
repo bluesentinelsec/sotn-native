@@ -4,8 +4,8 @@ Owned, enabled Soul of Bat now connects original entry, ordinary flight, collisi
 MP use, damage and restoration to the native session. E or Xbox RB toggles it;
 the Relics panel can enable or disable an owned Soul of Bat. Ordinary starts grant
 no abilities. [Selected Wing Smash](player-wing-smash.md) now connects the command,
-owned attacks, flash/trails, enemy damage and real return. Fire of Bat, Echo of Bat
-and Wolf remain unfinished in gameplay.
+owned attacks, flash/trails, enemy damage and real return. [Selected Fire of Bat](player-fire-of-bat.md) now connects its owned command and
+projectile; Echo of Bat and Wolf remain unfinished in gameplay.
 
 ## Flight and real restoration
 
@@ -68,7 +68,7 @@ user slots remain untouched. These fixtures do not prove ordinary acquisition,
 uninterrupted castle traversal or console parity. All runtime inputs, artwork,
 traces and screenshots remain private.
 
-Full shared factory/primitive contention, afterimages, Fire/Echo commands, complete
+Full shared factory/primitive contention, afterimages, Echo commands, complete
 water volumes, full effects/audio and raster/timing parity remain incomplete.
 Do not describe Bat, Alucard, any area, the castle or the game as complete.
 

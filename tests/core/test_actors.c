@@ -467,6 +467,51 @@ static bool TestWingContact(Fixture *f)
     return true;
 }
 
+static bool TestBatFireContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnBatRuntime runtime = {.fire_mask = (Uint64)1 << 16};
+    runtime.children[16] = (SotnBatRuntimeChild){.source = {.x = 160 * 65536, .y = 140 * 65536},
+                                                 .kind = 45,
+                                                 .generation = 19,
+                                                 .group = 7,
+                                                 .initialized = true,
+                                                 .state.fire.attack = {.power = 6,
+                                                                       .width = 32,
+                                                                       .height = 32,
+                                                                       .hit_type = 2,
+                                                                       .hit_effect = 1,
+                                                                       .invincibility_frames = 8,
+                                                                       .active = true}};
+    CHECK(SotnActors_SetBatRuntime(actors, &runtime));
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    CHECK(runtime.children[16].state.fire.hit_flags == 1);
+    runtime.children[16].generation = 20;
+    runtime.children[16].state.fire.hit_flags = 0;
+    for (Uint16 i = 0; i < 7; ++i)
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    CHECK(!runtime.children[16].state.fire.hit_flags);
+    runtime.children[16].group = 8;
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points <= 0);
+    CHECK(runtime.children[16].state.fire.hit_flags == 1);
+    CHECK(SotnActors_SetBatRuntime(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestFailures(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
@@ -492,10 +537,10 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
-                        TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
-                        TestKickContact(fixture) && TestGasContact(fixture) &&
-                        TestWingContact(fixture) && TestFailures(fixture);
+    const bool passed =
+        TestBehaviors(fixture) && TestCombat(fixture) && TestEquipmentPickup(fixture) &&
+        TestExperienceReward(fixture) && TestKickContact(fixture) && TestGasContact(fixture) &&
+        TestWingContact(fixture) && TestBatFireContact(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
