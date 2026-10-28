@@ -108,16 +108,13 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
             ++r->groups[r->children[i].group];
     return true;
 }
-static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
+static bool RequestSource(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                          Uint32 generation)
 {
     for (Uint16 i = 0; i < 8; ++i)
         if (!r->factories[i].cursor.entity_id)
         {
-            if (!SotnPlayerFactory_Begin(
-                    &r->factories[i].cursor,
-                    (SotnPlayerFactorySource){
-                        .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
-                    packed, 0))
+            if (!SotnPlayerFactory_Begin(&r->factories[i].cursor, source, packed, 0))
                 return false;
             r->factories[i].bat_generation = generation;
             return true;
@@ -125,6 +122,21 @@ static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 
     // Original CreateEntFactoryFromEntity returns NULL; optional commands never invent a child.
     if (generation)
         return SDL_SetError("Bat transformation lost its reserved actual factory slot");
+    return true;
+}
+static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
+{
+    return RequestSource(
+        r,
+        (SotnPlayerFactorySource){
+            .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
+        packed, generation);
+}
+static bool Sound(SotnBatRuntime *r, Uint16 sound)
+{
+    if (r->sound_count >= SDL_arraysize(r->sounds))
+        return SDL_SetError("Shared player effects exceeded their bounded sound requests");
+    r->sounds[r->sound_count++] = sound;
     return true;
 }
 static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterStats stats,
@@ -158,8 +170,9 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
-        (child.entity_id != 11 && child.entity_id != 35 && child.entity_id != 36 &&
-         child.entity_id != 45 && child.entity_id != 52) ||
+        (child.entity_id != 2 && child.entity_id != 5 && child.entity_id != 11 &&
+         child.entity_id != 35 && child.entity_id != 36 && child.entity_id != 45 &&
+         child.entity_id != 52) ||
         r->children[child.slot - 16U].kind || r->serial == SDL_MAX_UINT32)
         return SDL_SetError("Bat factory produced an unsupported or occupied actual child slot");
     SotnBatRuntimeChild c = {.source = child.source,
@@ -265,6 +278,8 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
     r->wolf_mask = 0;
     if (!active)
         return true;
+    if (r->wolf_events.sound && !Sound(r, r->wolf_events.sound))
+        return false;
     if (p->mp < frame.mp || p->mp - frame.mp != r->wolf_events.mp_spent)
         return SDL_SetError("Shared Wolf body MP report differs from its actual player snapshot");
     profile->mp = frame.mp;
@@ -299,6 +314,14 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
         r->wolf_attacks[attack].height = body->height;
         r->wolf_mask |= (Uint8)(1U << attack);
     }
+    if (r->wolf_events.bubble)
+    {
+        SotnPlayerFactorySource source = r->wolf_events.bubble_source;
+        source.x = FixedShift(source.x, (Sint16)in->camera_x);
+        source.y = FixedShift(source.y, (Sint16)in->camera_y);
+        if (!RequestSource(r, source, 0xd0004, 0))
+            return false;
+    }
     p->mp = frame.mp;
     p->wolf.controller = frame;
     p->velocity_x = frame.motion.velocity_x;
@@ -315,7 +338,8 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
     if (!runtime || !character || in.camera_x < 0 || in.camera_x > 16384 || in.camera_y < 0 ||
-        in.camera_y > 16384)
+        in.camera_y > 16384 || in.wolf_command_camera_x < 0 || in.wolf_command_camera_x > 16384 ||
+        in.wolf_command_camera_y < 0 || in.wolf_command_camera_y > 16384)
         return SDL_SetError(
             "Bat runtime requires actual owned progress and bounded camera context");
     if (((in.player.wolf.started || in.player.wolf.return_started || in.player.wolf.finish_flash) &&
@@ -339,19 +363,25 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         const SotnBatRuntimeChild *c = &r.children[i];
         if ((c->kind == 45 &&
              (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
-            (c->kind && (!c->generation || (c->kind != 11 && c->kind != 35 && c->kind != 36 &&
-                                            c->kind != 45 && c->kind != 52))) ||
+            (c->kind &&
+             (!c->generation || (c->kind != 2 && c->kind != 5 && c->kind != 11 && c->kind != 35 &&
+                                 c->kind != 36 && c->kind != 45 && c->kind != 52))) ||
             (c->kind == 52 &&
              (i != 31 || (c->initialized && (r.echo_generation != c->generation ||
                                              (c->group && (c->group < 7 || c->group > 10)))))) ||
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
-        if (c->primitive_count > 8 ||
+        if (c->primitive_count > SOTN_PLAYER_PARTICLE_LIMIT + 1 ||
             (c->primitive_count &&
              (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                                   (c->kind == 35 && c->primitive_count == 1)))) ||
-            ((c->kind == 11 || c->kind == 35) && c->initialized && !c->primitive_count) ||
+                                   (c->kind == 35 && c->primitive_count == 1) ||
+                                   (c->kind == 5 && c->state.particles.phase == 1 &&
+                                    !c->state.particles.removed && c->state.particles.count &&
+                                    c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
+                                    c->primitive_count == c->state.particles.count + 1U)))) ||
+            ((c->kind == 5 || c->kind == 11 || c->kind == 35) && c->initialized &&
+             !c->primitive_count) ||
             !RetainRows(&in.primitive_slots, &retained, c->primitives, c->primitive_count))
             return SDL_SetError("Bat visual lost its actual primitive reservation");
     }
@@ -387,6 +417,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             c->state.fire.motion.x = FixedShift(c->state.fire.motion.x, in.room_shift_x);
             c->state.fire.motion.y = FixedShift(c->state.fire.motion.y, in.room_shift_y);
         }
+        if (c->kind == 2 &&
+            !SotnPlayerSmoke_Rebase(&c->state.smoke, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 5 &&
+            !SotnPlayerParticles_Rebase(&c->state.particles, in.screen_shift_x, in.screen_shift_y))
+            return false;
         SotnPlayerEffectQuad *q = c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
         const Uint16 count = c->kind == 11 ? 8 : c->kind == 35 ? 1 : 0;
         for (Uint16 j = 0; j < count; ++j)
@@ -423,6 +459,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return true;
     }
     r.sound_count = 0;
+    r.wolf_shake_count = 0;
     r.use_ticks = 0;
     SotnPlayerState p = in.player;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
@@ -450,6 +487,36 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (p.bat.return_started && !Request(&r, p, 0x21002cU, p.bat.generation)) ||
         (p.bat_commands.trail && !Request(&r, p, 65, 0)))
         return false;
+    if (in.wolf_owned)
+    {
+        if (p.wolf.commands.count > SDL_arraysize(p.wolf.commands.requests))
+            return SDL_SetError("Wolf controller exceeded its actual ordered request list");
+        for (Uint16 i = 0; i < p.wolf.commands.count; ++i)
+        {
+            const SotnWolfRequest request = p.wolf.commands.requests[i];
+            if (request.kind == SOTN_WOLF_FACTORY)
+            {
+                SotnPlayerFactorySource source = request.source;
+                source.x = FixedShift(FixedShift(source.x, (Sint16)in.wolf_command_camera_x),
+                                      in.room_shift_x);
+                source.y = FixedShift(FixedShift(source.y, (Sint16)in.wolf_command_camera_y),
+                                      in.room_shift_y);
+                if (!RequestSource(&r, source, request.parameter, 0))
+                    return false;
+            }
+            else if (request.kind == SOTN_WOLF_SOUND)
+            {
+                if (request.parameter > 65535)
+                    return SDL_SetError("Wolf sound identity exceeds its original word");
+                if (!Sound(&r, (Uint16)request.parameter))
+                    return false;
+            }
+            else if (request.kind == SOTN_WOLF_SHAKE && request.parameter <= 255)
+                r.wolf_shakes[r.wolf_shake_count++] = (Uint8)request.parameter;
+            else
+                return SDL_SetError("Wolf controller requested an unsupported actual effect");
+        }
+    }
     if (SotnBatRuntime_Occupied(&r) & in.other_occupied)
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     for (Uint16 i = 0; i < 8; ++i)
@@ -490,7 +557,43 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             continue;
         bool removed = false;
         c->draw_count = 0;
-        if (c->kind == 11)
+        if (c->kind == 2)
+        {
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, (Sint16)-in.camera_x);
+            source.y = FixedShift(source.y, (Sint16)-in.camera_y);
+            if (!SotnPlayerSmoke_Tick(&c->state.smoke, in.dra, source, c->parameter, p.priority,
+                                      p.contacts, p.status))
+                return false;
+            removed = c->state.smoke.removed;
+            c->initialized = !removed;
+        }
+        else if (c->kind == 5)
+        {
+            bool allocated = c->primitive_count != 0;
+            Uint16 count = 0;
+            if (!SotnPlayerParticles_Rows(in.dra, c->parameter, &count) ||
+                (!allocated && !SotnPrimitiveSlots_Reserve(&in.primitive_slots, count,
+                                                           c->primitives, &allocated)))
+                return false;
+            c->primitive_count = allocated ? (Uint8)count : 0;
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, (Sint16)-in.camera_x);
+            source.y = FixedShift(source.y, (Sint16)-in.camera_y);
+            if (!SotnPlayerParticles_Tick(
+                    &c->state.particles, in.dra,
+                    (SotnPlayerParticlesInput){.source = source,
+                                               .parameter = c->parameter,
+                                               .player_priority = p.priority,
+                                               .player_y = Word(Pixel(p.y) - in.camera_y),
+                                               .water_level = p.wolf.controller.fall_water_level,
+                                               .allocated = allocated},
+                    &progress.random))
+                return false;
+            removed = c->state.particles.removed;
+            c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 11)
         {
             if (!c->state.blink.phase && Duplicate(&r, i))
                 removed = true;
@@ -616,7 +719,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 ++r.groups[group];
                 c->group = group;
                 c->initialized = true;
-                r.sounds[r.sound_count++] = events.sound;
+                if (!Sound(&r, events.sound))
+                    return false;
                 r.use_ticks = events.player_use_ticks;
             }
             c->source.x = c->state.fire.motion.x;
@@ -650,8 +754,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                      .force_enabled = in.force_echo_enabled},
                                   &events))
                 return false;
-            if (events.sound)
-                r.sounds[r.sound_count++] = events.sound;
+            if (events.sound && !Sound(&r, events.sound))
+                return false;
             removed = r.echo.removed;
             if (!removed)
             {

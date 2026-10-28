@@ -740,3 +740,8 @@ AGPL-3.0-or-later revision. It embeds no original game data.
 The [selected Wolf combat owner](docs/player-wolf-combat.md) adapts selected
 `dra/wolfForm.c`, `7879C.c` and `5D5BC.c:GetSpellDef` at that same pinned
 AGPL-3.0-or-later revision. It embeds no original spell tables or artwork.
+
+The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) adapt
+`dra/7879C.c:EntitySmokePuff`, `7E4BC.c:func_8011E4BC`, `alu_anim.c:UpdateAnim`
+and Wolf request ordering at the same pinned AGPL-3.0-or-later revision.
+Original effect/animation tables and artwork remain private runtime inputs.
