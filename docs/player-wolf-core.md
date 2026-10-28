@@ -44,7 +44,8 @@ writes no saves. Its duplicate-feedback check rejects a second body commit.
 
 The normal-entry fixture is not a native-app controls playtest, continuous route
 or console replay. Selected native scene/combat/render/factory owners now consume
-these interfaces. Wolf-to-Bat/Mist conversion, actual water-depth/swimming,
+these interfaces. [Selected cross-form conversions](player-wolf-cross-forms.md)
+now run. Actual water-depth/swimming,
 complete shared ownership and full parity remain incomplete. Standalone component
 reports confer no ownership by themselves. Do not call Wolf, Alucard or the game complete.
 

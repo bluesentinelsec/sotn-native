@@ -57,6 +57,10 @@ void SotnPlayer_MistInput(SotnPlayer *p)
         if (!p->substep)
             return;
         break;
+    case SOTN_PLAYER_WOLF:
+        if (!p->substep || p->substep == 8)
+            return;
+        break;
     default:
         return;
     }
@@ -88,6 +92,9 @@ void SotnPlayer_MistInput(SotnPlayer *p)
                                .started = true};
     p->form_pose = p->mist.capture_sprite;
     p->bat.active = false;
+    p->wolf.active = false;
+    p->wolf.draw_flags = 0;
+    p->wolf.blend = 0;
     p->step = SOTN_PLAYER_MIST;
     p->substep = 0;
     p->sound = 0x6a0;

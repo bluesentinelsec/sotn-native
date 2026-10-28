@@ -754,3 +754,8 @@ It embeds no original artwork, runtime snapshots or capture pixels.
 The [selected playable Wolf integration](docs/player-wolf.md) connects selected
 `dra/{692E8,wolfForm,704D0,alu_anim}.c` ownership and reconstructed components
 at the same pinned AGPL-3.0-or-later revision. It embeds no original game data.
+
+The [selected Wolf cross-form adapters](docs/player-wolf-cross-forms.md) connect
+original gates, retained packet attributes and Mist snapshot geometry from
+`dra/{692E8,71830,7879C,7E4BC}.c` at that same pinned AGPL-3.0-or-later revision.
+Original images, profiles and comparison traces remain private.

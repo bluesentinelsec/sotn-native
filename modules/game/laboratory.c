@@ -568,6 +568,13 @@ static bool DecodePlayerSprite(SotnLaboratory *s, SotnPlayerState player, SotnAl
 {
     if (player.animation_bank == 15)
     {
+        // Wolf -> Mist -> Wolf legitimately saves bank15. It uses the retained direct-color
+        // image, not a normal/Bat ARC upload; Mist entry creates no Blink23 saved-image child.
+        if (player.wolf.capture_bank == 15)
+        {
+            *out = (SotnAlucardSprite){0};
+            return true;
+        }
         player.animation_bank = player.wolf.capture_bank;
         player.animation.sprite = player.wolf.capture_sprite;
     }
@@ -724,17 +731,27 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                      .vy = player.velocity_y,
                                      .game_timer = (Uint32)s->simulation_ticks,
                                      .priority = player.priority,
+                                     .alternate_sheet = player.animation_bank == 15,
                                      .facing_left = player.facing_left};
         if (s->mist_effect.phase == 0 || s->mist_effect.phase == 3)
         {
-            SotnAlucardSprite sprite = {0};
-            SotnPlayerState captured = player;
-            captured.animation.sprite = s->mist_capture_sprite;
-            captured.animation_bank = s->mist_capture_bank;
-            if (!DecodePlayerSprite(s, captured, &sprite) ||
-                !SotnActorGraphics_CapturePlayer(s->actor_graphics, &sprite, x, y,
-                                                 player.facing_left, capture))
-                return false;
+            if (s->mist_capture_bank == 15)
+            {
+                if (!SotnWolfCapture_Snapshot(s->dra, s->bat_runtime.wolf.body.capture, x, y,
+                                              player.facing_left, capture))
+                    return false;
+            }
+            else
+            {
+                SotnAlucardSprite sprite = {0};
+                SotnPlayerState captured = player;
+                captured.animation.sprite = s->mist_capture_sprite;
+                captured.animation_bank = s->mist_capture_bank;
+                if (!DecodePlayerSprite(s, captured, &sprite) ||
+                    !SotnActorGraphics_CapturePlayer(s->actor_graphics, &sprite, x, y,
+                                                     player.facing_left, capture))
+                    return false;
+            }
             input.capture = capture;
         }
         SotnActorProgress progress = {0};

@@ -6,7 +6,9 @@ owned Soul/Power/Skill switches. Preserve real pending entry, once-per-clock bod
 feedback, room-space captured command origins and no-extra-tick room rebases;
 raw controller callers still supply their actual command camera. Relic changes
 freeze gameplay and never grant resources. Ordinary starts grant no Wolf relics;
-saves stay v9. Cross-form/water/shake, normal afterimages, all-ability contention
+saves stay v9. Selected [cross-form conversions](docs/player-wolf-cross-forms.md) now
+retain actual Wolf snapshots and Bat packet attributes through real handshakes.
+Water/shake, normal afterimages, all-ability contention
 and full parity remain incomplete. Do not call Wolf or Alucard complete.
 
 The [owned Wolf scene presentation](docs/wolf-native-presentation.md) now draws
@@ -15,8 +17,8 @@ capture. Preserve primitive-before-entity equal ties, previous-image sampling,
 63x63 bounds, return player packets after body retirement, repeated-draw input
 restoration and simulation-side capture flushing. Child culling follows actual
 initialization/RNG and retires real rows. Selected playable Wolf now binds the
-native contexts/body feedback and controls. Cross-form/water/shake,
-global GPU contention and full parity remain incomplete; Alucard is not complete.
+native contexts/body feedback and controls. Selected cross-form conversion now
+runs; water/shake, global GPU contention and full parity remain incomplete; Alucard is not complete.
 
 The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) now consume
 actual controller factories/sounds and deferred head bubbles through owned children
@@ -48,7 +50,7 @@ and body interfaces. Preserve actual signals, pending entry, signed QCF timers a
 captured facing, immutable mutable-cadence substitution, current-clock/once-per-tick
 body feedback, original return without Bat/Mist's Y shift, and the explicit unchecked
 missing-return-factory wait. Selected native scene/controls/relic switches now run;
-Wolf-to-other-form/water integration and Alucard remain incomplete.
+selected cross-form conversion now runs. Water integration and Alucard remain incomplete.
 BlinkWhite is not weapon/Mist slot16: use its actual factory-selected slot (selected
 private fixture63). Interleave body17..30 and other children by actual slot; never
 run every flash before the body.

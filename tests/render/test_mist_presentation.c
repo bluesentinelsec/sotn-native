@@ -1,5 +1,6 @@
 #include <SDL3/SDL.h>
 #include <sotn/actor_graphics.h>
+#include <sotn/wolf_capture.h>
 
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -92,6 +93,38 @@ int main(void)
     --bad.pixels.size;
     CHECK(!SotnActorGraphics_CapturePlayer(graphics, &bad, 100, 80, false, wedges));
     CHECK(!SDL_memcmp(previous, wedges, sizeof(previous)));
+    // Wolf snapshots retain signed raw bounds and never mirror their captured geometry.
+    const SotnWolfCaptureBounds wolf = {.left = -31, .right = 18, .top = -19, .bottom = 20};
+    CHECK(SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900}, wolf, -20, -30, false, wedges));
+    CHECK(wedges[0].x[0] == -51 && wedges[0].x[1] == -27 && wedges[0].y[0] == -49 &&
+          wedges[0].x[2] == -27 && wedges[0].y[2] == -30 && wedges[0].u[0] == 13 &&
+          wedges[0].v[0] == 197 && wedges[3].v[1] == 236 && wedges[6].y[1] == -30);
+    SDL_memcpy(previous, wedges, sizeof(previous));
+    CHECK(SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900}, wolf, -20, -30, true, wedges));
+    CHECK(!SDL_memcmp(previous[0].x, wedges[0].x, sizeof(wedges[0].x)) &&
+          !SDL_memcmp(previous[0].y, wedges[0].y, sizeof(wedges[0].y)) && wedges[0].u[0] == 245 &&
+          wedges[0].u[1] == 13 && wedges[0].u[2] == 13);
+    CHECK(SotnWolfCapture_Snapshot(
+        (SotnDataView){dra, 0xe900},
+        (SotnWolfCaptureBounds){.left = 11, .right = -10, .top = 3, .bottom = -6}, 32760, -32768,
+        false, wedges));
+    CHECK(wedges[0].x[0] == -32765 && wedges[0].x[1] == 32761 && wedges[0].x[2] == 32761 &&
+          wedges[0].y[2] == 32767 && wedges[4].y[0] == 32762);
+    CHECK(SotnWolfCapture_Snapshot(
+        (SotnDataView){dra, 0xe900},
+        (SotnWolfCaptureBounds){.left = -32768, .right = 32767, .top = -32768, .bottom = 32767},
+        128, 160, false, wedges));
+    CHECK(wedges[0].x[0] == -32640 && wedges[0].x[1] == -32640 && wedges[0].x[2] == -32640 &&
+          wedges[0].y[2] == -32608 && wedges[2].x[0] == -32641 && wedges[0].u[0] == 44 &&
+          wedges[0].v[0] == 216);
+    SDL_memcpy(previous, wedges, sizeof(previous));
+    CHECK(!SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900}, wolf, 32768, 0, false, wedges));
+    CHECK(!SDL_memcmp(previous, wedges, sizeof(previous)));
+    CHECK(!SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900}, wolf, 0, 0, false, NULL));
+    CHECK(!SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900},
+                                    (SotnWolfCaptureBounds){.left = SDL_MIN_SINT32}, 0, 0, false,
+                                    wedges));
+    CHECK(!SDL_memcmp(previous, wedges, sizeof(previous)));
     bool accepted = false;
     CHECK(SotnActorGraphics_RequestMistPalette(graphics, 27, &accepted) && accepted);
     CHECK(SotnActorGraphics_RequestMistPalette(graphics, 0x11c, &accepted) && accepted);
@@ -130,6 +163,7 @@ int main(void)
     CHECK(!SotnActorGraphics_CapturePlayer(graphics, &sprite, 32768, 0, false, wedges));
     Put16(dra + 0xd670 + 29U * 20U + 14U, 0);
     CHECK(!SotnActorGraphics_CapturePlayer(graphics, &sprite, 0, 0, false, wedges));
+    CHECK(!SotnWolfCapture_Snapshot((SotnDataView){dra, 0xe900}, wolf, 0, 0, false, wedges));
     // Bat/player display uploads have no dependency on the Mist capture profile.
     CHECK(SotnActorGraphics_UploadPlayer(graphics, &sprite));
     // Raw Bat body packets carry zero color bytes; only DRAW_COLORS may shade them.
