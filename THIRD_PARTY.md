@@ -697,3 +697,8 @@ tables and enable no live form.
 The [Wolf active controller component](docs/wolf-controller.md) adapts selected
 `dra/wolfForm.c` substates and helpers at that same pinned AGPL-3.0-or-later
 revision. It embeds no spell, animation or body tables and enables no live form.
+
+The [Wolf linked body component](docs/wolf-articulation.md) adapts selected
+`dra/wolfForm.c:func_80130264/func_80130618/func_80130E94/func_8013136C` at the
+same pinned AGPL-3.0-or-later revision. All original pose, sprite and spell tables
+remain private inputs.

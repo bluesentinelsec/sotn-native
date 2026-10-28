@@ -5,7 +5,8 @@ turning, sprinting, crouching, jumping, falling, recoil, sliding and swimming.
 It consumes copied body-root/contact/input/relic snapshots after the owning form
 resource gate. It enables no live Wolf controls or relic switches. Actual entry,
 return, articulated bodies, attacks, animation advancement, collision integration
-and presentation remain unwired.
+and presentation remain unwired. Selected [linked body components](wolf-articulation.md)
+retain their own scoped comparisons.
 
 The owner decrements shared player timers before calling the service. The service
 then decrements its wrapping run/swim windows, evaluates original swim eligibility,

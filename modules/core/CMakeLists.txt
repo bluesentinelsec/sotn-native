@@ -1,6 +1,8 @@
 add_library(sotn-core STATIC
   wolf_motion.c
   include/sotn/wolf_motion.h
+  wolf_articulation.c
+  include/sotn/wolf_articulation.h
   wolf_controller.c
   include/sotn/wolf_controller.h
   primitive_slots.c
