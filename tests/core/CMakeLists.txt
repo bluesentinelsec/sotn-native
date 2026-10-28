@@ -736,3 +736,9 @@ target_include_directories(sotn-bat-echo-pool-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-bat-echo-pool-tests PRIVATE sotn-core)
 add_test(NAME bat-echo-primitive-pool COMMAND sotn-bat-echo-pool-tests)
 set_tests_properties(bat-echo-primitive-pool PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-wolf-motion-tests test_wolf_motion.c)
+sotn_configure_c_target(sotn-wolf-motion-tests)
+target_link_libraries(sotn-wolf-motion-tests PRIVATE sotn-core)
+add_test(NAME wolf-motion-foundation COMMAND sotn-wolf-motion-tests)
+set_tests_properties(wolf-motion-foundation PROPERTIES TIMEOUT 20)

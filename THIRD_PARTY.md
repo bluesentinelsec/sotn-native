@@ -688,3 +688,8 @@ All original tables and traces remain private runtime/local inputs.
 `dra/4DA70.c:AllocPrimitives/FreePrimitives` ordering with US BlinkWhite retries
 and trail retirement from `dra/7879C.c` at the same pinned AGPL-3.0-or-later revision.
 It distributes no original tables or primitive/image traces.
+
+The [Wolf movement/capture components](docs/wolf-motion.md) reconstruct selected
+`dra/wolfForm.c:func_8012C600/func_8012CCE4/PlayerStepMorphWolf` algorithms at the
+same pinned AGPL-3.0-or-later revision. They embed no original body/frame/artwork
+tables and enable no live form.
