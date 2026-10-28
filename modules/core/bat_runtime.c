@@ -25,6 +25,20 @@ static Uint16 Read16(const Uint8 *p)
 {
     return (Uint16)(p[0] | (Uint16)p[1] << 8);
 }
+static bool RetainRows(SotnPrimitiveSlots *slots, SotnPrimitiveSlots *retained,
+                       const Uint16 *indices, Uint16 count)
+{
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const Uint16 id = indices[i];
+        if (id >= SOTN_PRIMITIVE_SLOTS ||
+            (retained->occupied[id / 64U] & ((Uint64)1 << (id % 64U))))
+            return SDL_SetError("Bat effects have duplicate or invalid actual primitive rows");
+        retained->occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+        slots->occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
+    return true;
+}
 Uint64 SotnBatRuntime_Occupied(const SotnBatRuntime *r)
 {
     Uint64 mask = 0;
@@ -197,6 +211,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (SotnBatRuntime_Occupied(runtime) & in.other_occupied)
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     SotnBatRuntime r = *runtime;
+    SotnPrimitiveSlots retained = {0};
     for (Uint16 i = 0; i < 48; ++i)
     {
         const SotnBatRuntimeChild *c = &r.children[i];
@@ -210,11 +225,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if (c->primitive_count > 8 ||
+            (c->primitive_count &&
+             (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
+                                   (c->kind == 35 && c->primitive_count == 1)))) ||
+            ((c->kind == 11 || c->kind == 35) && c->initialized && !c->primitive_count) ||
+            !RetainRows(&in.primitive_slots, &retained, c->primitives, c->primitive_count))
+            return SDL_SetError("Bat visual lost its actual primitive reservation");
     }
     if (r.echo_generation &&
         (r.children[31].kind != 52 || r.children[31].generation != r.echo_generation ||
          !r.children[31].initialized))
         return SDL_SetError("Bat Echo primitive owner no longer matches its actual child");
+    if (r.echo_generation &&
+        !RetainRows(&in.primitive_slots, &retained, r.echo_primitives, SOTN_BAT_ECHO_PRIMITIVES))
+        return false;
     for (Uint16 i = 0; i < 8; ++i)
         if (r.factories[i].cursor.entity_id)
         {
@@ -316,6 +341,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 removed = true;
             else
             {
+                bool allocated = c->primitive_count != 0;
+                if (!allocated &&
+                    !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 8, c->primitives, &allocated))
+                    return false;
+                c->primitive_count = allocated ? 8 : 0;
+                c->initialized = allocated;
                 SotnPlayerBlinkEvents events = {0};
                 const Uint16 parameter = c->state.blink.parameter;
                 if (!SotnPlayerBlink_Tick(
@@ -333,17 +364,29 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .signal = p.bat.signal,
                                                .facing_left = p.facing_left,
                                                .rotated = p.rotated,
-                                               .image_present = in.image.width != 0},
+                                               .image_present = in.image.width != 0,
+                                               .allocation_failed = !allocated},
                         &events))
                     return false;
                 removed = c->state.blink.removed;
                 if (parameter != c->state.blink.parameter)
                     c->parameter = (Uint16)(c->state.blink.parameter << 8);
-                c->draw_count = removed ? 0 : 8;
+                c->draw_count = removed || !allocated ? 0 : 8;
             }
         }
         else if (c->kind == 35)
         {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 1, c->primitives, &allocated))
+                return false;
+            if (!allocated)
+            {
+                removed = true;
+                goto finish_child;
+            }
+            c->primitive_count = 1;
+            c->initialized = true;
             if (!SotnBatTrail_Tick(&c->state.trail,
                                    (SotnBatTrailInput){.frame = p.animation.sprite,
                                                        .bank = p.animation_bank,
@@ -481,6 +524,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             else
             {
+                if (r.echo_generation &&
+                    !SotnPrimitiveSlots_Release(&in.primitive_slots, SOTN_BAT_ECHO_PRIMITIVES,
+                                                r.echo_primitives))
+                    return false;
                 r.echo_generation = 0;
                 r.echo = (SotnBatEcho){0};
                 SDL_zero(r.echo_primitives);
@@ -488,8 +535,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         else
             return SDL_SetError("Bat runtime child has an unsupported original identity");
+    finish_child:
         if (removed)
+        {
+            if (c->primitive_count &&
+                !SotnPrimitiveSlots_Release(&in.primitive_slots, c->primitive_count, c->primitives))
+                return false;
             *c = (SotnBatRuntimeChild){0};
+        }
     }
     SDL_memset(r.groups, 0, sizeof(r.groups));
     for (Uint16 i = 0; i < 48; ++i)
@@ -507,7 +560,9 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
     if (!r || index >= 48 || !quads || !count)
         return SDL_SetError("Bat visual requires its actual bounded slot");
     const SotnBatRuntimeChild *c = &r->children[index];
-    if (c->draw_count > 8 || (c->draw_count && c->kind != 11 && c->kind != 35))
+    if (c->draw_count > 8 ||
+        (c->draw_count && (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
+                                                (c->kind == 35 && c->primitive_count == 1)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
     *quads = !c->draw_count ? NULL : c->kind == 11 ? c->state.blink.quads : &c->trail_quad;

@@ -1,12 +1,20 @@
 # Working in sotn-native
 
+Selected [Bat primitive sharing](docs/bat-primitive-sharing.md) now reserves real
+stage-pool rows for BlinkWhite, trails and Echo. Preserve eight-row US Blink
+retries without fake readiness, one-row trail retirement, real Echo exhaustion,
+child-slot release ordering, tagged generation ownership and atomic whole-Bat
+commits. Room entry retains leases; full stage/Continue resets them. Mist/legacy
+sharing, original packed-stage capacity differences, all-ability factories/groups,
+Wolf and full route/console parity remain incomplete.
+
 [Selected Echo of Bat](docs/player-echo-of-bat.md) now connects owned A/Xbox Y
 commands, actual factory/slot47 and forty-nine rows shared with the stage primitive
 pool, original wave packets, quarter-add rendering and Force spell-ten native combat.
 Preserve captured facing/priority, live rotation, SDK rounding, birth-only Force,
 strict attack cutoff, group7..10 cooldown across Fire/Echo generations, actual
 exhaustion and no-extra-tick room rebases. Closing menus must not cast Echo.
-Ordinary starts grant no relics; saves remain v9. Mist/Blink/trail primitive sharing,
+Ordinary starts grant no relics; saves remain v9. Mist/legacy primitive sharing,
 all-ability factory/groups, Wolf and route/console parity remain incomplete. The
 [Echo component](docs/bat-echo.md) retains its scoped comparison evidence.
 Do not call Bat, Alucard, the castle or the game complete.

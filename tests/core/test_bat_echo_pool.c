@@ -69,6 +69,14 @@ static bool TestPool(void)
     CHECK(SotnPrimitiveSlots_Reserve(&slots, 49, indices, &allocated) && !allocated);
     CHECK(indices[48] == 96 && !SDL_memcmp(&slots, &before, sizeof(slots)));
     CHECK(!SotnPrimitiveSlots_Reserve(&slots, 0, indices, &allocated));
+    Uint16 duplicate[2] = {0, 0};
+    CHECK(!SotnPrimitiveSlots_Release(&slots, 2, duplicate));
+    CHECK(!SDL_memcmp(&slots, &before, sizeof(slots)));
+    CHECK(SotnPrimitiveSlots_Release(&slots, 49, indices));
+    CHECK(!(slots.occupied[0] & 1U));
+    const SotnPrimitiveSlots released = slots;
+    CHECK(!SotnPrimitiveSlots_Release(&slots, 49, indices));
+    CHECK(!SDL_memcmp(&slots, &released, sizeof(slots)));
     SDL_free(s);
     return true;
 }
@@ -121,7 +129,49 @@ static bool TestRoomLifetime(void)
     SotnActorLayout_Close(layout);
     return true;
 }
+static bool TestBatOwners(void)
+{
+    SotnActors *s = SDL_calloc(1, sizeof(*s));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(s && r);
+    Actor stage = {.state = {.generation = 1}};
+    CHECK(ActorPrimitives(s, &stage, 40));
+    s->primitives[1023] = (ActorPrimitive){.owner = 3, .ability_kind = 34};
+    r->children[0] = (SotnBatRuntimeChild){
+        .kind = 11, .generation = 1, .initialized = true, .primitive_count = 8};
+    for (Uint16 i = 0; i < 8; ++i)
+        r->children[0].primitives[i] = (Uint16)(40 + i);
+    r->children[31] = (SotnBatRuntimeChild){.kind = 52, .generation = 2, .initialized = true};
+    r->echo_generation = 2;
+    r->echo = (SotnBatEcho){.phase = 1, .priority = 142};
+    for (Uint16 i = 0; i < 49; ++i)
+        r->echo_primitives[i] = (Uint16)(48 + i);
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    CHECK(s->primitives[40].ability_kind == 11 && s->primitives[40].owner == 1 &&
+          s->primitives[48].ability_kind == 52 && s->primitives[48].owner == 2);
+    SotnPrimitiveSlots before = {0}, after = {0};
+    CHECK(SotnActors_PrimitiveSlots(s, &before));
+    r->children[1] = (SotnBatRuntimeChild){
+        .kind = 35, .generation = 3, .initialized = true, .primitive_count = 1, .primitives = {48}};
+    CHECK(!SotnActors_CommitBatPrimitives(s, r));
+    CHECK(SotnActors_PrimitiveSlots(s, &after) && !SDL_memcmp(&before, &after, sizeof(before)));
+    r->children[1].primitives[0] = 97;
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    r->echo_primitives[0] = 40;
+    CHECK(!SotnActors_CommitBatEcho(s, 2, r->echo_primitives, &r->echo));
+    CHECK(s->primitives[40].ability_kind == 11 && s->primitives[97].ability_kind == 35);
+    SDL_zero(*r);
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    CHECK(ActorPrimitiveGet(s, &stage, 0));
+    CHECK(SotnActors_PrimitiveSlots(s, &after) && after.occupied[0] == (((Uint64)1 << 40) - 1));
+    for (Uint16 i = 1; i < SOTN_PRIMITIVE_WORDS - 1; ++i)
+        CHECK(!after.occupied[i]);
+    CHECK(after.occupied[15] == (Uint64)1 << 63 && s->primitives[1023].ability_kind == 34);
+    SDL_free(r);
+    SDL_free(s);
+    return true;
+}
 int main(void)
 {
-    return TestPool() && TestRoomLifetime() ? 0 : 1;
+    return TestPool() && TestRoomLifetime() && TestBatOwners() ? 0 : 1;
 }

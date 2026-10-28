@@ -33,7 +33,7 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *s, const Actor *a, Uint16 index)
     if (s == NULL || a == NULL || index >= a->state.primitive_count ||
         index >= ACTOR_PRIMITIVE_LIMIT || a->primitive[index] >= ACTOR_PRIMITIVE_CAPACITY ||
         s->primitives[a->primitive[index]].owner != a->state.generation ||
-        s->primitives[a->primitive[index]].bat_echo_owner)
+        s->primitives[a->primitive[index]].ability_kind)
     {
         SDL_SetError("Actor primitive index or owner generation is invalid");
         return NULL;
@@ -47,7 +47,7 @@ void ActorPrimitivesClear(SotnActors *s, const Actor *a)
     for (Uint32 i = 0; i < a->state.primitive_count && i < ACTOR_PRIMITIVE_LIMIT; ++i)
         if (a->primitive[i] < ACTOR_PRIMITIVE_CAPACITY &&
             s->primitives[a->primitive[i]].owner == a->state.generation &&
-            !s->primitives[a->primitive[i]].bat_echo_owner)
+            !s->primitives[a->primitive[i]].ability_kind)
             s->primitives[a->primitive[i]] = (ActorPrimitive){0};
 }
 bool SotnActors_HasTargets(const SotnActors *s)
@@ -74,7 +74,7 @@ bool SotnActors_GetPrimitive(const SotnActors *s, Uint32 slot, Uint32 index,
     }
     const Uint16 id = a->primitive[index];
     if (id >= ACTOR_PRIMITIVE_CAPACITY || s->primitives[id].owner != a->state.generation ||
-        s->primitives[id].bat_echo_owner)
+        s->primitives[id].ability_kind)
         return SDL_SetError("Actor primitive generation is stale");
     *out = s->primitives[id].state;
     return true;
@@ -90,60 +90,116 @@ bool SotnActors_PrimitiveSlots(const SotnActors *s, SotnPrimitiveSlots *out)
     *out = slots;
     return true;
 }
+static bool EchoValid(const SotnBatEcho *echo)
+{
+    return echo && echo->phase && echo->phase <= 3 && !echo->removed && echo->priority <= 509;
+}
+static bool BatPrimitiveKind(Uint16 kind)
+{
+    return kind == 11 || kind == 35 || kind == 52;
+}
+static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16 *indices,
+                     Uint16 count, Uint16 replace_kind)
+{
+    if (!indices)
+        return SDL_SetError("Player effect reservation has no actual row indices");
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const Uint16 id = indices[i];
+        if (id >= SOTN_PRIMITIVE_SLOTS || (used->occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
+            (s->primitives[id].owner &&
+             (!BatPrimitiveKind(s->primitives[id].ability_kind) ||
+              (replace_kind && s->primitives[id].ability_kind != replace_kind))))
+            return SDL_SetError("Player effect reservation collides with a live primitive owner");
+        used->occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
+    return true;
+}
+static void WriteEcho(SotnActors *s, Uint32 generation, const Uint16 *indices,
+                      const SotnBatEcho *echo)
+{
+    for (Uint16 i = 0; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
+    {
+        ActorPrimitive *p = &s->primitives[indices[i]];
+        *p = (ActorPrimitive){.owner = generation, .ability_kind = 52};
+        if (i < SOTN_BAT_ECHO_DRIVERS)
+            continue;
+        const SotnBatEchoQuad *q = &echo->quads[i - SOTN_BAT_ECHO_DRIVERS];
+        p->state = (SotnActorPrimitive){.active = !echo->hidden,
+                                        .screen_space = true,
+                                        .priority_set = true,
+                                        .priority = echo->priority,
+                                        .page = 0x60,
+                                        .blend = true,
+                                        .gouraud = true,
+                                        .quad = true};
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            p->state.offset_x[v] = q->x[v];
+            p->state.offset_y[v] = q->y[v];
+            p->state.vertex_red[v] = q->red[v];
+            p->state.vertex_green[v] = q->green[v];
+            p->state.vertex_blue[v] = q->blue[v];
+        }
+    }
+}
 bool SotnActors_CommitBatEcho(SotnActors *s, Uint32 generation, const Uint16 *indices,
                               const SotnBatEcho *echo)
 {
-    if (!s ||
-        (generation && (!indices || !echo || !echo->phase || echo->phase > 3 || echo->removed ||
-                        echo->priority > 509)) ||
-        (!generation && (indices || echo)))
+    if (!s || (generation && !EchoValid(echo)) || (!generation && (indices || echo)))
         return SDL_SetError("Echo commit requires its actual child, reservation and live packets");
     SotnPrimitiveSlots used = {0};
-    if (generation)
-        for (Uint16 i = 0; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
-        {
-            const Uint16 id = indices[i];
-            if (id >= SOTN_PRIMITIVE_SLOTS ||
-                (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
-                (s->primitives[id].owner && !s->primitives[id].bat_echo_owner))
-                return SDL_SetError("Echo reservation collides with a live primitive owner");
-            used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
-        }
+    if (generation && !PlanRows(s, &used, indices, SOTN_BAT_ECHO_PRIMITIVES, 52))
+        return false;
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
-        if (s->primitives[i].bat_echo_owner)
+        if (s->primitives[i].ability_kind == 52)
             s->primitives[i] = (ActorPrimitive){0};
     if (generation)
-        for (Uint16 i = 0; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
-        {
-            ActorPrimitive *p = &s->primitives[indices[i]];
-            *p = (ActorPrimitive){.owner = generation, .bat_echo_owner = true};
-            if (i < SOTN_BAT_ECHO_DRIVERS)
-                continue;
-            const SotnBatEchoQuad *q = &echo->quads[i - SOTN_BAT_ECHO_DRIVERS];
-            p->state = (SotnActorPrimitive){.active = !echo->hidden,
-                                            .screen_space = true,
-                                            .priority_set = true,
-                                            .priority = echo->priority,
-                                            .page = 0x60,
-                                            .blend = true,
-                                            .gouraud = true,
-                                            .quad = true};
-            for (Uint16 v = 0; v < 4; ++v)
-            {
-                p->state.offset_x[v] = q->x[v];
-                p->state.offset_y[v] = q->y[v];
-                p->state.vertex_red[v] = q->red[v];
-                p->state.vertex_green[v] = q->green[v];
-                p->state.vertex_blue[v] = q->blue[v];
-            }
-        }
+        WriteEcho(s, generation, indices, echo);
+    return true;
+}
+bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
+{
+    if (!s || !r)
+        return SDL_SetError("Bat primitive commit requires its actual session and runtime owner");
+    SotnPrimitiveSlots used = {0};
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *c = &r->children[i];
+        if (((c->kind == 11 || c->kind == 35) && c->initialized && !c->primitive_count) ||
+            (c->kind == 52 && c->initialized && r->echo_generation != c->generation))
+            return SDL_SetError("Bat primitive commit lost a retained child reservation");
+        if (c->primitive_count && (!c->generation || !c->initialized ||
+                                   !((c->kind == 11 && c->primitive_count == 8) ||
+                                     (c->kind == 35 && c->primitive_count == 1))))
+            return SDL_SetError("Bat primitive reservation lost its actual initialized child");
+        if (c->primitive_count && !PlanRows(s, &used, c->primitives, c->primitive_count, 0))
+            return false;
+    }
+    if (r->echo_generation &&
+        (r->children[31].kind != 52 || r->children[31].generation != r->echo_generation ||
+         !r->children[31].initialized || !EchoValid(&r->echo) ||
+         !PlanRows(s, &used, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 0)))
+        return SDL_SetError("Bat Echo primitive reservation lost its actual child or free rows");
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (BatPrimitiveKind(s->primitives[i].ability_kind))
+            s->primitives[i] = (ActorPrimitive){0};
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *c = &r->children[i];
+        for (Uint16 j = 0; j < c->primitive_count; ++j)
+            s->primitives[c->primitives[j]] =
+                (ActorPrimitive){.owner = c->generation, .ability_kind = c->kind};
+    }
+    if (r->echo_generation)
+        WriteEcho(s, r->echo_generation, r->echo_primitives, &r->echo);
     return true;
 }
 bool SotnActors_GetBatEchoPrimitive(const SotnActors *s, Uint32 generation, Uint16 index,
                                     SotnActorPrimitive *out)
 {
     if (!s || !out || !generation || index >= SOTN_PRIMITIVE_SLOTS ||
-        !s->primitives[index].bat_echo_owner || s->primitives[index].owner != generation)
+        s->primitives[index].ability_kind != 52 || s->primitives[index].owner != generation)
         return SDL_SetError("Echo packet read requires its actual primitive and child generation");
     *out = s->primitives[index].state;
     return true;

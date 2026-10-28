@@ -495,12 +495,63 @@ static bool Echo(Fixture *f)
     Close(f);
     return true;
 }
+static bool PrimitivePressure(Fixture *f)
+{
+    CHECK(Create(f));
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        f->primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(Tick(f, SOTN_BUTTON_BAT));
+    for (Uint16 i = 0; i < 50; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step == SOTN_PLAYER_BAT && !f->state.substep && f->state.bat.signal == 1);
+    const SotnPlayerBlink *effect = NULL;
+    const SotnPlayerFactory *pending = NULL;
+    CHECK(SotnBatRuntime_Context(&f->runtime, f->state.bat.generation, &effect, &pending));
+    CHECK(effect && !pending && !effect->phase && !effect->removed && !f->runtime.shared.bat_lock);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!f->runtime.children[i].draw_count && !f->runtime.children[i].primitive_count);
+    f->primitive_slots = (SotnPrimitiveSlots){0};
+    for (Uint16 i = 0; i < 45; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step == SOTN_PLAYER_BAT && f->state.substep == 1);
+    bool leased = false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        leased |= f->runtime.children[i].kind == 11 &&
+                  f->runtime.children[i].primitive_count == 8 && f->runtime.children[i].initialized;
+    CHECK(leased);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (f->runtime.children[i].draw_count)
+        {
+            SotnBatRuntimeChild *child = &f->runtime.children[i];
+            const Uint8 count = child->primitive_count;
+            child->primitive_count = 0;
+            const SotnPlayerEffectQuad *quads = NULL;
+            Uint16 drawn = 99;
+            CHECK(!SotnBatRuntime_Visual(&f->runtime, i, &quads, &drawn) && !quads && drawn == 99);
+            child->primitive_count = count;
+        }
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        f->primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    SotnPlayerState player = f->state;
+    player.bat_commands = (SotnBatCommandEvents){.trail = true};
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character,
+                              (SotnBatRuntimeInput){.dra = {f->dra, sizeof(f->dra)},
+                                                    .executable = {f->exe, sizeof(f->exe)},
+                                                    .player = player,
+                                                    .image = {32, 48, -16, -24},
+                                                    .primitive_slots = f->primitive_slots}));
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(f->runtime.children[i].kind != 35);
+    Close(f);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+                    PrimitivePressure(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

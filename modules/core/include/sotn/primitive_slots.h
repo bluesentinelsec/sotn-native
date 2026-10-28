@@ -20,4 +20,10 @@ typedef struct SotnPrimitiveSlots
  * commit the resulting reservation before other owners advance. No primitive storage is owned. */
 bool SotnPrimitiveSlots_Reserve(SotnPrimitiveSlots *slots, Uint16 count, Uint16 *indices,
                                 bool *allocated);
+/** @brief Release a checked reservation from a copied actual-pool snapshot.
+ * @param slots In/out availability. @param count Rows, 1..1024.
+ * @param indices Borrowed unique occupied row indices, count entries.
+ * @return Success or SDL error without mutation for duplicate/free/out-of-range rows.
+ * The actual owner still validates generation and commits the resulting pool transaction. */
+bool SotnPrimitiveSlots_Release(SotnPrimitiveSlots *slots, Uint16 count, const Uint16 *indices);
 #endif

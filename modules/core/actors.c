@@ -1803,7 +1803,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_zero(actors->olrox_morph);
     SDL_zero(actors->olrox_monster);
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
-        if (!actors->primitives[i].bat_echo_owner)
+        if (!actors->primitives[i].ability_kind)
             actors->primitives[i] = (ActorPrimitive){0};
     return true;
 }

@@ -185,6 +185,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
     switch (next.phase)
     {
     case 0:
+        if (in.allocation_failed)
+            goto done;
         for (Uint16 i = 0; i < 8; ++i)
         {
             phases.angles[i] = i * 512U;
