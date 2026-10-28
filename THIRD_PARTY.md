@@ -702,3 +702,8 @@ The [Wolf linked body component](docs/wolf-articulation.md) adapts selected
 `dra/wolfForm.c:func_80130264/func_80130618/func_80130E94/func_8013136C` at the
 same pinned AGPL-3.0-or-later revision. All original pose, sprite and spell tables
 remain private inputs.
+
+The [Wolf root/head components](docs/wolf-root-head.md) adapt selected
+`dra/wolfForm.c:func_8012F894/func_8012F83C/func_801309B4` and head animation
+semantics from `dra/alu_anim.c:UpdateAnim`, at the same pinned AGPL-3.0-or-later
+revision. Original collision contexts, pose/frame/SDK tables and traces remain private.

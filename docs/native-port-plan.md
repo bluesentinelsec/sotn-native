@@ -81,8 +81,9 @@ shared effects/ability/route parity remain incomplete.
 The [Wolf movement/capture foundation](wolf-motion.md) retains scoped component
 comparisons; the [active Wolf controller](wolf-controller.md) now reconstructs
 selected substates. The [linked Wolf body component](wolf-articulation.md) now
-reconstructs selected followers. Actual Wolf root/head/entry/return/combat/
-presentation ownership remains unwired and live Wolf controls remain disabled.
+reconstructs selected followers, and [root/head components](wolf-root-head.md)
+retain scoped instruction comparisons. Actual native Wolf entry/return/combat/
+primitive/presentation ownership remains unwired and live controls remain disabled.
 
 ## Pinned reference
 

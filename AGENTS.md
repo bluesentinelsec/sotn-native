@@ -1,11 +1,21 @@
 # Working in sotn-native
 
+The [Wolf root/head components](docs/wolf-root-head.md) now reconstruct original
+root floor probing, slopes/ledge slides, frame/drawing choices and head attachment,
+bite/charge/bark/bubble intent with separate private animation advancement. Retain
+actual six-row allocation retries, screen-relative edge rules, ordered entity/
+collision updates, full-width private offsets and signed image-cycle wrap. Negative
+image indices select no retained image. No request establishes actual readiness,
+attack/factory success or native form ownership. Wolf transformation, shared
+combat/effects/render ownership and live controls remain unwired; full Alucard/
+game/console parity remains incomplete.
+
 The [Wolf linked body component](docs/wolf-articulation.md) now reconstructs
 selected slots18/19/21..30, private pose/frame choices, fractional attachments,
 spine waves and final capture bounds. Preserve actual slot order around head20,
 each child's first-update wave reset, two angular comparisons, retained frames
 and rush-hit spell-thirteen MP/skid feedback. Attack intent creates no hitbox.
-Actual root/head/transformation/combat/render ownership remains unwired; no live
+Actual native root/head/transformation/combat/render ownership remains unwired; no live
 Wolf controls/relic switches or full-form/Alucard/parity claim is enabled.
 
 The [Wolf active controller component](docs/wolf-controller.md) now reconstructs
