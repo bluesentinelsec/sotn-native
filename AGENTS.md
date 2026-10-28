@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The [Wolf transition component](docs/wolf-transition.md) reconstructs selected
+entry0/8 and return0/1/2 to the real normal/stuck helper boundaries. Preserve actual
+factory/Mist/signal gates, signed timer14 maxima, signal word wrap, all three
+movement words, per-tick floor restoration and delayed ceiling readiness. Requests
+confer no body allocation, successful return or lockout; the session must invoke
+real helpers and commit ownership. Live Wolf controls and Alucard remain incomplete.
+
 The [Wolf multipart/capture services](docs/wolf-presentation.md) now reconstruct
 bank15 pieces with original SDK pivots, cropping, raw-color semantics, capacity
 ordering and capture copies into the owned 63x63 target at512,448. Preserve
