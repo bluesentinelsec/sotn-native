@@ -54,6 +54,22 @@ class IOSReportTest(unittest.TestCase):
             sleep.assert_not_called()
 
 
+class IOSDeviceTest(unittest.TestCase):
+    def test_compact_phone_must_be_in_selected_runtime_supported_types(self):
+        devices = [{"name": "iPhone 16 Pro", "identifier": "modern"},
+                   {"name": "iPhone SE (3rd generation)", "identifier": "compact"}]
+        self.assertEqual(harness.select_device(devices), devices[1])
+
+    def test_runtime_without_compact_model_uses_its_own_supported_phone(self):
+        devices = [{"name": "iPad Pro", "identifier": "tablet"},
+                   {"name": "iPhone 17", "identifier": "modern"}]
+        self.assertEqual(harness.select_device(devices), devices[1])
+
+    def test_missing_supported_phone_fails(self):
+        with self.assertRaisesRegex(SystemExit, "iPhone device type"):
+            harness.select_device([{"name": "iPad Pro", "identifier": "tablet"}])
+
+
 class IOSDisplayTest(unittest.TestCase):
     def test_graphical_frontend_and_compositor_are_required(self):
         with patch.object(harness.subprocess, "run") as frontend, \
@@ -68,7 +84,7 @@ class IOSDisplayTest(unittest.TestCase):
         args = compositor.call_args.args
         self.assertEqual(args[:4], ("io", "fresh-device", "screenshot", "--type=png"))
         self.assertEqual(Path(args[4]).name, "ready.png")
-        self.assertEqual(compositor.call_args.kwargs, {"timeout": 60})
+        self.assertEqual(compositor.call_args.kwargs, {"timeout": 180})
 
     def test_frontend_failure_cannot_be_ignored(self):
         with patch.object(harness.subprocess, "run",
@@ -85,7 +101,7 @@ class IOSDisplayTest(unittest.TestCase):
              patch.object(harness.subprocess, "check_output",
                           return_value=str(SIMCTL) + "\n"), \
              patch.object(harness, "simctl",
-                          side_effect=subprocess.TimeoutExpired("screenshot", 60)):
+                          side_effect=subprocess.TimeoutExpired("screenshot", 180)):
             with self.assertRaises(subprocess.TimeoutExpired):
                 harness.prepare_display("fresh-device")
 
