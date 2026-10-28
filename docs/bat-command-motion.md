@@ -4,7 +4,7 @@ The core now reconstructs Wing Smash's directional command and the selected
 Wing Smash/Fire of Bat controller paths. [Selected Wing Smash](player-wing-smash.md)
 now connects the command to actual factories, attacks, visuals, learning and return
 in gameplay. [Selected Fire of Bat](player-fire-of-bat.md) now connects its actual
-factory/attack/animation/render ownership too. Echo remains unavailable. These
+factory/attack/animation/render ownership too. [Selected Echo](player-echo-of-bat.md) now owns its actual wave/attack. These
 component comparisons cover supplied contexts independently of the live owner.
 
 The copied controller context advances after the form's own resource gate. Original

@@ -46,6 +46,8 @@ typedef enum SotnRelicId
 {
     SOTN_RELIC_BAT = 0,
     SOTN_RELIC_FIRE_BAT = 1,
+    SOTN_RELIC_ECHO_BAT = 2,
+    SOTN_RELIC_FORCE_ECHO = 3,
     SOTN_RELIC_WOLF = 4,
     SOTN_RELIC_MIST = 7,
     SOTN_RELIC_POWER_MIST = 8,

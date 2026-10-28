@@ -587,7 +587,9 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         return SDL_SetError("Bat room/camera translation exceeds its original word");
     SotnAlucardSprite sprite = {0};
     Uint64 other = 0;
+    SotnPrimitiveSlots primitive_slots = {0};
     if (!DecodePlayerSprite(s, player, &sprite) || !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
+        !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
         (sprite.width && !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
             &s->bat_runtime, s->character,
@@ -597,13 +599,20 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
                                             (Sint16)sprite.pivot_y},
                                   .other_occupied = other | (s->mist_present ? (Uint64)1 << 16 : 0),
+                                  .primitive_slots = primitive_slots,
+                                  .force_echo_enabled =
+                                      (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
                                   .camera_x = s->camera.x,
                                   .camera_y = s->camera.y,
                                   .room_shift_x = (Sint16)s->blink_rebase_x,
                                   .room_shift_y = (Sint16)s->blink_rebase_y,
                                   .screen_shift_x = (Sint16)dx,
                                   .screen_shift_y = (Sint16)dy,
-                                  .entering = entering}))
+                                  .entering = entering}) ||
+        !SotnActors_CommitBatEcho(s->actors, s->bat_runtime.echo_generation,
+                                  s->bat_runtime.echo_generation ? s->bat_runtime.echo_primitives
+                                                                 : NULL,
+                                  s->bat_runtime.echo_generation ? &s->bat_runtime.echo : NULL))
         return false;
     if (!entering)
     {
@@ -1455,6 +1464,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         if (!TickAudio(session, &silent, 0, 0))
             return false;
         session->input.menu_open = session->menu.phase != SOTN_MENU_CLOSED;
+        if (!session->input.menu_open)
+            session->blocked_buttons |= buttons & SOTN_BUTTON_CANCEL;
         session->dirty = true;
         return true;
     }
@@ -1463,7 +1474,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
     if (control.timer)
         player_buttons = control.buttons;
-    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_CANCEL | SOTN_BUTTON_SELECT);
+    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT |
+                                 (state.step == SOTN_PLAYER_BAT ? 0 : SOTN_BUTTON_CANCEL));
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     const SotnPlayerBlink *bat_effect = NULL;
     const SotnPlayerFactory *bat_factory = NULL;
@@ -1886,6 +1898,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                     .primitive = i,
                                     .kind = SOTN_DRAW_MIST}))
                 return false;
+    if (!background && session->bat_runtime.echo_generation)
+        for (Uint16 i = SOTN_BAT_ECHO_DRIVERS; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
+        {
+            SotnActorPrimitive p = {0};
+            const Uint16 id = session->bat_runtime.echo_primitives[i];
+            if (!SotnActors_GetBatEchoPrimitive(session->actors,
+                                                session->bat_runtime.echo_generation, id, &p) ||
+                (p.active && !SotnActorOrder_Add(session->draw_items,
+                                                 SDL_arraysize(session->draw_items), &draw_count,
+                                                 (SotnActorDraw){.priority = p.priority,
+                                                                 .primitive = id,
+                                                                 .kind = SOTN_DRAW_BAT_ECHO})))
+                return false;
+        }
     if (!background)
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
@@ -2007,6 +2033,29 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_BAT_ECHO)
+        {
+            SotnActorPrimitive p = {0};
+            if (!SotnActors_GetBatEchoPrimitive(
+                    session->actors, session->bat_runtime.echo_generation, command.primitive, &p))
+                return false;
+            SotnTextureQuad q = {
+                .page = p.page, .blend = true, .gouraud = true, .untextured = true};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = p.offset_x[v] + session->draw_target.offset_x;
+                q.y[v] = p.offset_y[v] + session->draw_target.offset_y;
+                q.vertex_red[v] = p.vertex_red[v];
+                q.vertex_green[v] = p.vertex_green[v];
+                q.vertex_blue[v] = p.vertex_blue[v];
+            }
+            if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                               session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_BAT_FIREBALL)
         {
             if (command.primitive >= 48)

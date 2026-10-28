@@ -32,7 +32,8 @@ ActorPrimitive *ActorPrimitiveGet(SotnActors *s, const Actor *a, Uint16 index)
 {
     if (s == NULL || a == NULL || index >= a->state.primitive_count ||
         index >= ACTOR_PRIMITIVE_LIMIT || a->primitive[index] >= ACTOR_PRIMITIVE_CAPACITY ||
-        s->primitives[a->primitive[index]].owner != a->state.generation)
+        s->primitives[a->primitive[index]].owner != a->state.generation ||
+        s->primitives[a->primitive[index]].bat_echo_owner)
     {
         SDL_SetError("Actor primitive index or owner generation is invalid");
         return NULL;
@@ -45,7 +46,8 @@ void ActorPrimitivesClear(SotnActors *s, const Actor *a)
         return;
     for (Uint32 i = 0; i < a->state.primitive_count && i < ACTOR_PRIMITIVE_LIMIT; ++i)
         if (a->primitive[i] < ACTOR_PRIMITIVE_CAPACITY &&
-            s->primitives[a->primitive[i]].owner == a->state.generation)
+            s->primitives[a->primitive[i]].owner == a->state.generation &&
+            !s->primitives[a->primitive[i]].bat_echo_owner)
             s->primitives[a->primitive[i]] = (ActorPrimitive){0};
 }
 bool SotnActors_HasTargets(const SotnActors *s)
@@ -71,9 +73,79 @@ bool SotnActors_GetPrimitive(const SotnActors *s, Uint32 slot, Uint32 index,
         return true;
     }
     const Uint16 id = a->primitive[index];
-    if (id >= ACTOR_PRIMITIVE_CAPACITY || s->primitives[id].owner != a->state.generation)
+    if (id >= ACTOR_PRIMITIVE_CAPACITY || s->primitives[id].owner != a->state.generation ||
+        s->primitives[id].bat_echo_owner)
         return SDL_SetError("Actor primitive generation is stale");
     *out = s->primitives[id].state;
+    return true;
+}
+bool SotnActors_PrimitiveSlots(const SotnActors *s, SotnPrimitiveSlots *out)
+{
+    if (!s || !out)
+        return SDL_SetError("Primitive availability requires its actual pool and output");
+    SotnPrimitiveSlots slots = {0};
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (s->primitives[i].owner)
+            slots.occupied[i / 64U] |= (Uint64)1 << (i % 64U);
+    *out = slots;
+    return true;
+}
+bool SotnActors_CommitBatEcho(SotnActors *s, Uint32 generation, const Uint16 *indices,
+                              const SotnBatEcho *echo)
+{
+    if (!s ||
+        (generation && (!indices || !echo || !echo->phase || echo->phase > 3 || echo->removed ||
+                        echo->priority > 509)) ||
+        (!generation && (indices || echo)))
+        return SDL_SetError("Echo commit requires its actual child, reservation and live packets");
+    SotnPrimitiveSlots used = {0};
+    if (generation)
+        for (Uint16 i = 0; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
+        {
+            const Uint16 id = indices[i];
+            if (id >= SOTN_PRIMITIVE_SLOTS ||
+                (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
+                (s->primitives[id].owner && !s->primitives[id].bat_echo_owner))
+                return SDL_SetError("Echo reservation collides with a live primitive owner");
+            used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+        }
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (s->primitives[i].bat_echo_owner)
+            s->primitives[i] = (ActorPrimitive){0};
+    if (generation)
+        for (Uint16 i = 0; i < SOTN_BAT_ECHO_PRIMITIVES; ++i)
+        {
+            ActorPrimitive *p = &s->primitives[indices[i]];
+            *p = (ActorPrimitive){.owner = generation, .bat_echo_owner = true};
+            if (i < SOTN_BAT_ECHO_DRIVERS)
+                continue;
+            const SotnBatEchoQuad *q = &echo->quads[i - SOTN_BAT_ECHO_DRIVERS];
+            p->state = (SotnActorPrimitive){.active = !echo->hidden,
+                                            .screen_space = true,
+                                            .priority_set = true,
+                                            .priority = echo->priority,
+                                            .page = 0x60,
+                                            .blend = true,
+                                            .gouraud = true,
+                                            .quad = true};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                p->state.offset_x[v] = q->x[v];
+                p->state.offset_y[v] = q->y[v];
+                p->state.vertex_red[v] = q->red[v];
+                p->state.vertex_green[v] = q->green[v];
+                p->state.vertex_blue[v] = q->blue[v];
+            }
+        }
+    return true;
+}
+bool SotnActors_GetBatEchoPrimitive(const SotnActors *s, Uint32 generation, Uint16 index,
+                                    SotnActorPrimitive *out)
+{
+    if (!s || !out || !generation || index >= SOTN_PRIMITIVE_SLOTS ||
+        !s->primitives[index].bat_echo_owner || s->primitives[index].owner != generation)
+        return SDL_SetError("Echo packet read requires its actual primitive and child generation");
+    *out = s->primitives[index].state;
     return true;
 }
 static bool Resolve(SotnDataView image, Uint32 address, size_t bytes, Uint32 alignment,

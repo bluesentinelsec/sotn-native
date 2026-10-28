@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  primitive_slots.c
+  include/sotn/primitive_slots.h
   launch_menu.c
   include/sotn/launch_menu.h
   subweapon.c

@@ -677,4 +677,9 @@ tables/artwork stay private; full ability/console parity remains incomplete.
 
 The [Bat Echo component](docs/bat-echo.md) reconstructs
 `dra/8BEF8.c:EntityBatEcho` at the same pinned AGPL-3.0-or-later revision.
-Shape/color and SDK tables remain private; this component enables no live ability.
+Shape/color and SDK tables remain private; this component enables no controls by itself.
+
+[Selected playable Echo](docs/player-echo-of-bat.md) connects factory, pool,
+spell/group, controller and presentation algorithms from `dra/7879C.c`, `4DA70.c`,
+`5D5BC.c`, `71830.c` and `8BEF8.c` at the same pinned AGPL-3.0-or-later revision.
+All original tables and traces remain private runtime/local inputs.

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Selected dra/7879C.c factories/BlinkWhite/WingSmashTrail/func_8011B480/func_80118894,
-// 84B88.c:EntityBatFireball, alu_anim.c:UpdateAnim and 5D5BC.c:GetSpellDef, sotn-decomp
+// 84B88.c:EntityBatFireball, 8BEF8.c:EntityBatEcho, alu_anim.c:UpdateAnim and
+// 5D5BC.c:GetSpellDef, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Original blueprint/profile/spell/artwork data remains
 // private.
 #include <sotn/bat_runtime.h>
@@ -126,7 +127,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         (child.entity_id != 11 && child.entity_id != 35 && child.entity_id != 36 &&
-         child.entity_id != 45) ||
+         child.entity_id != 45 && child.entity_id != 52) ||
         r->children[child.slot - 16U].kind || r->serial == SDL_MAX_UINT32)
         return SDL_SetError("Bat factory produced an unsupported or occupied actual child slot");
     SotnBatRuntimeChild c = {.source = child.source,
@@ -140,6 +141,12 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.trail = (SotnBatTrail){.x = child.source.x, .y = child.source.y};
     if (c.kind == 45)
         c.state.fire.motion = (SotnBatFireball){.x = child.source.x, .y = child.source.y};
+    if (c.kind == 52)
+    {
+        if (child.slot != 47 || r->echo_generation)
+            return SDL_SetError("Bat Echo lost its original single-child slot ownership");
+        r->echo = (SotnBatEcho){.facing_left = child.source.facing_left};
+    }
     r->children[child.slot - 16U] = c;
     return true;
 }
@@ -195,12 +202,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         const SotnBatRuntimeChild *c = &r.children[i];
         if ((c->kind == 45 &&
              (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
-            (c->kind && (!c->generation ||
-                         (c->kind != 11 && c->kind != 35 && c->kind != 36 && c->kind != 45))) ||
+            (c->kind && (!c->generation || (c->kind != 11 && c->kind != 35 && c->kind != 36 &&
+                                            c->kind != 45 && c->kind != 52))) ||
+            (c->kind == 52 &&
+             (i != 31 || (c->initialized && (r.echo_generation != c->generation ||
+                                             (c->group && (c->group < 7 || c->group > 10)))))) ||
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
     }
+    if (r.echo_generation &&
+        (r.children[31].kind != 52 || r.children[31].generation != r.echo_generation ||
+         !r.children[31].initialized))
+        return SDL_SetError("Bat Echo primitive owner no longer matches its actual child");
     for (Uint16 i = 0; i < 8; ++i)
         if (r.factories[i].cursor.entity_id)
         {
@@ -235,6 +249,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 q[j].y[v] = Word(q[j].y[v] + in.screen_shift_y);
             }
     }
+    if (r.echo_generation)
+        for (Uint16 i = 0; i < SOTN_BAT_ECHO_QUADS; ++i)
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                r.echo.quads[i].x[v] = Word(r.echo.quads[i].x[v] + in.screen_shift_x);
+                r.echo.quads[i].y[v] = Word(r.echo.quads[i].y[v] + in.screen_shift_y);
+            }
     if (in.entering)
     {
         *runtime = r;
@@ -248,6 +269,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (p.bat_commands.wing_attack && !Request(&r, p, 67, 0)) ||
         (p.bat_commands.fire_flash && !Request(&r, p, 0x5002cU, 0)) ||
         (p.bat_commands.fireball && !Request(&r, p, 81, 0)) ||
+        (p.bat_commands.echo && !Request(&r, p, 103, 0)) ||
         (p.bat.return_started && !Request(&r, p, 0x21002cU, p.bat.generation)) ||
         (p.bat_commands.trail && !Request(&r, p, 65, 0)))
         return false;
@@ -280,6 +302,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const Uint32 previous_random = progress.random;
     r.wing_mask = 0;
     r.fire_mask = 0;
+    r.echo_attack = false;
     for (Uint16 i = 0; i < 48; ++i)
     {
         SotnBatRuntimeChild *c = &r.children[i];
@@ -407,6 +430,62 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.fire_mask |= (Uint64)1 << i;
             }
         }
+        else if (c->kind == 52)
+        {
+            bool allocated = c->initialized;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_BAT_ECHO_PRIMITIVES,
+                                            r.echo_primitives, &allocated))
+                return false;
+            SotnBatEchoEvents events = {0};
+            if (!SotnBatEcho_Tick(&r.echo,
+                                  (SotnBatEchoInput){.dra = in.dra,
+                                                     .executable = in.executable,
+                                                     .x = Word(Pixel(p.x) - in.camera_x),
+                                                     .y = Word(Pixel(p.y) - in.camera_y),
+                                                     .rotation = p.bat.rotation,
+                                                     .priority = p.priority,
+                                                     .primitives_allocated = allocated,
+                                                     .force_enabled = in.force_echo_enabled},
+                                  &events))
+                return false;
+            if (events.sound)
+                r.sounds[r.sound_count++] = events.sound;
+            removed = r.echo.removed;
+            if (!removed)
+            {
+                c->initialized = true;
+                r.echo_generation = c->generation;
+                if (events.initialize_attack)
+                {
+                    if (!Spell(in.dra, &progress, stats, 10, &c->state.attack))
+                        return false;
+                    c->state.attack.offset_x = 64;
+                    c->state.attack.offset_y = -4;
+                    c->state.attack.width = 40;
+                    c->state.attack.height = 12;
+                    Uint8 group = 7;
+                    for (Uint8 j = 8; j < 11; ++j)
+                        if (r.groups[j] < r.groups[group])
+                            group = j;
+                    if (r.groups[group] == 255)
+                        return SDL_SetError("Force of Echo attack group overflow");
+                    ++r.groups[group];
+                    c->group = group;
+                }
+                if (events.disable_attack)
+                    c->state.attack.active = false;
+                c->source.x = (Sint32)((Sint64)Pixel(p.x) * 65536 + (Uint16)(Uint32)c->source.x);
+                c->source.y = (Sint32)((Sint64)Pixel(p.y) * 65536 + (Uint16)(Uint32)c->source.y);
+                r.echo_attack = c->state.attack.active;
+            }
+            else
+            {
+                r.echo_generation = 0;
+                r.echo = (SotnBatEcho){0};
+                SDL_zero(r.echo_primitives);
+            }
+        }
         else
             return SDL_SetError("Bat runtime child has an unsupported original identity");
         if (removed)
@@ -414,7 +493,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     }
     SDL_memset(r.groups, 0, sizeof(r.groups));
     for (Uint16 i = 0; i < 48; ++i)
-        if (r.children[i].kind == 36 || r.children[i].kind == 45)
+        if (r.children[i].kind == 36 || r.children[i].kind == 45 ||
+            (r.children[i].kind == 52 && r.children[i].group))
             ++r.groups[r.children[i].group];
     if (progress.random != previous_random && !SotnCharacter_Restore(character, &progress))
         return false;

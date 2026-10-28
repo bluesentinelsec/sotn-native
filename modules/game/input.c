@@ -23,19 +23,6 @@ bool LaboratoryInput_Init(LaboratoryInput *input)
 
 bool LaboratoryInput_Event(LaboratoryInput *input, const SDL_Event *event)
 {
-    const bool unsupported_key = event->type == SDL_EVENT_KEY_DOWN && !event->key.repeat &&
-                                 event->key.scancode == SDL_SCANCODE_A;
-    const bool unsupported_pad = event->type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
-                                 input->pad != NULL &&
-                                 event->gbutton.which == SDL_GetGamepadID(input->pad) &&
-                                 event->gbutton.button == SDL_GAMEPAD_BUTTON_NORTH;
-    if (!input->menu_open && !input->warned_unsupported && (unsupported_key || unsupported_pad))
-    {
-        SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
-                    "This ability control is not integrated in this checkpoint; "
-                    "input ignored. Z/D or gamepad X/B attack; X/Space or gamepad A jumps.");
-        input->warned_unsupported = true;
-    }
     if (event->type == SDL_EVENT_GAMEPAD_REMOVED && input->pad != NULL &&
         SDL_GetGamepadID(input->pad) == event->gdevice.which)
     {
@@ -77,6 +64,8 @@ Uint16 LaboratoryInput_KeyboardButtons(const bool *keys)
         buttons |= SOTN_BUTTON_MIST;
     if (keys[SDL_SCANCODE_E])
         buttons |= SOTN_BUTTON_BAT;
+    if (keys[SDL_SCANCODE_A])
+        buttons |= SOTN_BUTTON_CANCEL;
     return buttons;
 }
 
@@ -84,8 +73,6 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
 {
     const bool *keys = SDL_GetKeyboardState(NULL);
     Uint16 buttons = LaboratoryInput_KeyboardButtons(keys);
-    if (input->menu_open && keys[SDL_SCANCODE_A])
-        buttons |= SOTN_BUTTON_CANCEL;
     if (input->pad != NULL)
     {
         const Sint16 x = SDL_GetGamepadAxis(input->pad, SDL_GAMEPAD_AXIS_LEFTX);
@@ -98,7 +85,7 @@ Uint16 LaboratoryInput_Buttons(const LaboratoryInput *input)
             buttons |= SOTN_BUTTON_UP;
         if (y > 16000 || SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_DPAD_DOWN))
             buttons |= SOTN_BUTTON_DOWN;
-        if (input->menu_open && SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_NORTH))
+        if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_NORTH))
             buttons |= SOTN_BUTTON_CANCEL;
         if (SDL_GetGamepadButton(input->pad, SDL_GAMEPAD_BUTTON_BACK))
             buttons |= SOTN_BUTTON_SELECT;

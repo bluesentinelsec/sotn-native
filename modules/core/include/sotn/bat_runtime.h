@@ -1,9 +1,11 @@
 #ifndef SOTN_BAT_RUNTIME_H
 #define SOTN_BAT_RUNTIME_H
 
+#include <sotn/bat_echo.h>
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
 #include <sotn/player.h>
+#include <sotn/primitive_slots.h>
 
 enum
 {
@@ -47,12 +49,16 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    SotnBatEcho echo; /**< Single original slot-47 wave; not multiplied across the child union. */
+    Uint16 echo_primitives[SOTN_BAT_ECHO_PRIMITIVES];
+    Uint32 echo_generation;
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask;
     Uint16 sounds[48], sound_count;
     Uint8 use_ticks;
     Uint8 groups[11];
+    bool echo_attack;
 } SotnBatRuntime;
 
 /** @brief Actual owned context and room/camera translation at this update point. */
@@ -62,9 +68,11 @@ typedef struct SotnBatRuntimeInput
     SotnPlayerState player;
     SotnPlayerImage image;
     Uint64 other_occupied;
+    SotnPrimitiveSlots primitive_slots; /**< Snapshot of actual stage/player primitive occupancy. */
     Sint32 camera_x, camera_y;
     Sint16 room_shift_x, room_shift_y, screen_shift_x, screen_shift_y;
     bool entering;
+    bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
 } SotnBatRuntimeInput;
 
 /** @brief Current selected occupied child/factory slots for shared allocation.
@@ -83,7 +91,9 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * @param runtime Owned stage lifetime. @param character Borrowed owner of spell stats/RNG.
  * @param input Actual player/artwork/context. Entering only rebases and never advances time.
  * @return Success or SDL error. Malformed inputs preserve runtime and character progress.
- * Supports real Bat morphs, Wing Smash flash, trails and physical spell children. */
+ * Supports selected Bat morphs, Wing/Fire children and the actual single Echo wave.
+ * The owner must commit Echo's planned rows to the actual primitive pool before advancing
+ * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
                          SotnBatRuntimeInput input);
 /** @brief Borrow one child's current draw packets, valid until the next runtime update.

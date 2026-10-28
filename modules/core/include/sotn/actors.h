@@ -8,6 +8,7 @@
 #include <sotn/gas_cloud.h>
 #include <sotn/palette.h>
 #include <sotn/player.h>
+#include <sotn/primitive_slots.h>
 #include <sotn/stage_route.h>
 #include <sotn/world.h>
 
@@ -16,7 +17,7 @@ typedef struct SotnActors SotnActors;
 /** @brief Bounded native original-actor primitive budgets. */
 enum
 {
-    SOTN_ACTOR_PRIMITIVES_MAX = 1024,
+    SOTN_ACTOR_PRIMITIVES_MAX = SOTN_PRIMITIVE_SLOTS,
     SOTN_ACTOR_PRIMITIVES_PER_ACTOR_MAX = 384
 };
 
@@ -169,6 +170,25 @@ bool SotnActors_HasTargets(const SotnActors *actors);
  * @param out Copied state; inactive for unused indices. @return Success or SDL error. */
 bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index,
                              SotnActorPrimitive *out);
+
+/** @brief Copy actual stage/player primitive occupancy for transactional ability planning.
+ * @param actors Borrowed pool owner. @param out Receives all 1024 occupied bits.
+ * @return Success or SDL error, leaving output unchanged on failure. */
+bool SotnActors_PrimitiveSlots(const SotnActors *actors, SotnPrimitiveSlots *out);
+/** @brief Commit the single actual slot-47 Echo child's primitive reservation and packets.
+ * @param actors Borrowed actual pool. @param generation Nonzero child identity, or zero to retire.
+ * @param indices Forty-nine unique actual rows, or NULL when retiring.
+ * @param echo Borrowed initialized component, or NULL when retiring. Copies all visible packets.
+ * @return Success or SDL error without mutation on invalid/colliding ownership. Echo shares this
+ * pool with stage actors. Existing selected Mist/Blink primitive sharing remains incomplete. */
+bool SotnActors_CommitBatEcho(SotnActors *actors, Uint32 generation, const Uint16 *indices,
+                              const SotnBatEcho *echo);
+/** @brief Copy one actual Echo strip from its generation-owned primitive row.
+ * @param actors Borrowed pool owner. @param generation Current nonzero child identity.
+ * @param index Actual row 0..1023. @param out Copied packet, unchanged on stale ownership.
+ * @return Success or SDL error; no simulation or allocation occurs. */
+bool SotnActors_GetBatEchoPrimitive(const SotnActors *actors, Uint32 generation, Uint16 index,
+                                    SotnActorPrimitive *out);
 
 /** @brief Read the original scene backdrop color set by initialized stage actors.
  * @param actors Borrowed owner. @param out Receives RGB555, initially black.

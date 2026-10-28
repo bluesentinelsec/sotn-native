@@ -586,7 +586,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
     const Uint32 wing_start = gas_start + SOTN_GAS_CLOUD_SLOTS;
     const bool wing =
-        actors->bat_runtime && (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask);
+        actors->bat_runtime && (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
+                                actors->bat_runtime->echo_attack);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -603,12 +604,15 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_wing =
                 index >= 1 && index <= 15 && (runtime->wing_mask & (Uint16)(1U << (index - 1U)));
             const bool selected_fire = (runtime->fire_mask & ((Uint64)1 << index)) != 0;
-            if (!selected_wing && !selected_fire)
+            const bool selected_echo = index == 31 && runtime->echo_attack;
+            if (!selected_wing && !selected_fire && !selected_echo)
                 continue;
             const SotnBatRuntimeChild *child = &runtime->children[index];
             if (!child->generation || !child->initialized ||
                 (selected_wing && (child->kind != 36 || child->group < 3 || child->group > 6)) ||
-                (selected_fire && (child->kind != 45 || child->group < 7 || child->group > 10)))
+                (selected_fire && (child->kind != 45 || child->group < 7 || child->group > 10)) ||
+                (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
+                                   runtime->echo_generation != child->generation)))
                 return SDL_SetError("Bat attack lost its actual child or original group");
             source.x = child->source.x;
             source.y = child->source.y;
@@ -1798,7 +1802,9 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     SDL_zero(actors->chapel_ball);
     SDL_zero(actors->olrox_morph);
     SDL_zero(actors->olrox_monster);
-    SDL_memset(actors->primitives, 0, sizeof(actors->primitives));
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (!actors->primitives[i].bat_echo_owner)
+            actors->primitives[i] = (ActorPrimitive){0};
     return true;
 }
 
