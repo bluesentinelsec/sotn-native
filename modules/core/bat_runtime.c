@@ -50,7 +50,7 @@ Uint64 SotnBatRuntime_Occupied(const SotnBatRuntime *r)
     for (Uint16 i = 0; i < 48; ++i)
         if (r->children[i].kind)
             mask |= (Uint64)1 << (16U + i);
-    return mask;
+    return mask | SotnWolfRuntime_Occupied(&r->wolf);
 }
 bool SotnBatRuntime_Available(const SotnBatRuntime *r)
 {
@@ -218,6 +218,68 @@ static bool FireAnimation(SotnDataView dra, SotnBatRuntimeChild *c)
     c->state.fire.frame = Read16(record + 2);
     return true;
 }
+static bool WolfRows(SotnPrimitiveSlots *slots, const SotnWolfRuntime *before,
+                     const SotnWolfRuntime *after)
+{
+    if (before->root_reserved && !after->root_reserved &&
+        !SotnPrimitiveSlots_Release(slots, 6, before->root_rows))
+        return false;
+    if (after->root_reserved)
+        for (Uint16 i = 0; i < 6; ++i)
+            slots->occupied[after->root_rows[i] / 64U] |= (Uint64)1 << (after->root_rows[i] % 64U);
+    if (after->environment_reserved)
+        for (Uint16 i = 0; i < 2; ++i)
+            slots->occupied[after->environment_rows[i] / 64U] |=
+                (Uint64)1 << (after->environment_rows[i] % 64U);
+    return true;
+}
+static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnPlayerState *p,
+                     SotnBatRuntimeInput *in)
+{
+    const SotnWolfRuntime before = r->wolf;
+    SotnWolfControllerFrame frame = p->wolf.controller;
+    frame.x = FixedShift(p->x, (Sint16)-in->camera_x);
+    frame.y = FixedShift(p->y, (Sint16)-in->camera_y);
+    frame.mp = p->mp;
+    frame.priority = p->priority;
+    const bool active = p->step == SOTN_PLAYER_WOLF && r->wolf.generation;
+    if (active && (r->wolf.generation != p->wolf.body_generation || profile->mp != p->mp))
+        return SDL_SetError("Shared Wolf body lost its actual lineage or current MP owner");
+    if (!SotnWolfRuntime_Tick(
+            &r->wolf, &frame,
+            (SotnWolfRuntimeInput){.dra = in->dra,
+                                   .executable = in->executable,
+                                   .primitive_slots = in->primitive_slots,
+                                   .query = in->wolf_query,
+                                   .context = in->wolf_context,
+                                   .other_occupied = (SotnBatRuntime_Occupied(r) &
+                                                      ~SotnWolfRuntime_Occupied(&r->wolf)) |
+                                                     in->other_occupied,
+                                   .palette = p->wolf.palette,
+                                   .active = active,
+                                   .attack_requested = p->wolf.commands.attack_requested},
+            &r->wolf_events) ||
+        !WolfRows(&in->primitive_slots, &before, &r->wolf))
+        return false;
+    r->wolf_frame = frame;
+    if (!active)
+        return true;
+    if (p->mp < frame.mp || p->mp - frame.mp != r->wolf_events.mp_spent)
+        return SDL_SetError("Shared Wolf body MP report differs from its actual player snapshot");
+    profile->mp = frame.mp;
+    p->mp = frame.mp;
+    p->wolf.controller = frame;
+    p->velocity_x = frame.motion.velocity_x;
+    p->velocity_y = frame.motion.velocity_y;
+    p->animation = frame.motion.animation;
+    p->substep = frame.motion.substep;
+    p->wolf.palette = r->wolf.root.player_palette;
+    p->wolf.draw_flags = r->wolf.root.player_draw_flags;
+    p->wolf.blend = r->wolf.root.player_blend;
+    p->wolf.opacity = r->wolf.root.player_opacity;
+    p->wolf.hidden = p->wolf.palette == 0x810d;
+    return true;
+}
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
     if (!runtime || !character || in.camera_x < 0 || in.camera_x > 16384 || in.camera_y < 0 ||
@@ -231,7 +293,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (SotnBatRuntime_Occupied(runtime) & in.other_occupied)
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     SotnBatRuntime r = *runtime;
+    if (r.wolf_bound && !in.wolf_owned)
+        return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
+    r.wolf_bound = in.wolf_owned;
     SotnPrimitiveSlots retained = {0};
+    if ((r.wolf.root_reserved &&
+         !RetainRows(&in.primitive_slots, &retained, r.wolf.root_rows, 6)) ||
+        (r.wolf.environment_reserved &&
+         !RetainRows(&in.primitive_slots, &retained, r.wolf.environment_rows, 2)))
+        return false;
     for (Uint16 i = 0; i < 48; ++i)
     {
         const SotnBatRuntimeChild *c = &r.children[i];
@@ -301,14 +371,41 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.echo.quads[i].x[v] = Word(r.echo.quads[i].x[v] + in.screen_shift_x);
                 r.echo.quads[i].y[v] = Word(r.echo.quads[i].y[v] + in.screen_shift_y);
             }
+    if (in.wolf_owned && (in.screen_shift_x || in.screen_shift_y))
+    {
+        SotnWolfRuntimeEvents ignored = {0};
+        if (!SotnWolfRuntime_Tick(&r.wolf, &r.wolf_frame,
+                                  (SotnWolfRuntimeInput){.primitive_slots = in.primitive_slots,
+                                                         .entering = true,
+                                                         .screen_shift_x = in.screen_shift_x,
+                                                         .screen_shift_y = in.screen_shift_y},
+                                  &ignored))
+            return false;
+        r.wolf_frame.x = FixedShift(r.wolf_frame.x, in.screen_shift_x);
+        r.wolf_frame.y = FixedShift(r.wolf_frame.y, in.screen_shift_y);
+    }
     if (in.entering)
     {
+        r.wolf_events = (SotnWolfRuntimeEvents){0};
         *runtime = r;
         return true;
     }
     r.sound_count = 0;
     r.use_ticks = 0;
-    const SotnPlayerState p = in.player;
+    SotnPlayerState p = in.player;
+    r.wolf_events = (SotnWolfRuntimeEvents){0};
+    if (in.wolf_owned && p.wolf.body_started)
+    {
+        for (Uint16 i = 1; i <= 14; ++i)
+            if (r.children[i].primitive_count &&
+                !SotnPrimitiveSlots_Release(&in.primitive_slots, r.children[i].primitive_count,
+                                            r.children[i].primitives))
+                return false;
+        if (!SotnBatRuntime_ReplaceWolfSlots(&r) ||
+            !SotnWolfRuntime_Begin(&r.wolf, p.wolf.body_generation,
+                                   SotnBatRuntime_Occupied(&r) | in.other_occupied))
+            return false;
+    }
     if ((p.wolf.started && !Request(&r, p, 0x23002cU, p.wolf.generation)) ||
         (p.wolf.return_started && !Request(&r, p, 0x24002cU, p.wolf.generation)) ||
         (p.wolf.finish_flash && !Request(&r, p, 0x1b002cU, p.wolf.generation)) ||
@@ -348,11 +445,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (!SotnCharacter_Get(character, &progress, &stats))
         return false;
     const Uint32 previous_random = progress.random;
+    const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
     r.fire_mask = 0;
     r.echo_attack = false;
     for (Uint16 i = 0; i < 48; ++i)
     {
+        if (i == 1 && in.wolf_owned && !TickWolf(&r, &progress, &p, &in))
+            return false;
         SotnBatRuntimeChild *c = &r.children[i];
         if (!c->kind)
             continue;
@@ -378,7 +478,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                             .dra = in.dra,
                             .executable = in.executable,
                             .image = in.image,
-                            .wolf_bounds = in.wolf_bounds,
+                            .wolf_bounds = in.wolf_owned ? r.wolf.body.capture : in.wolf_bounds,
                             .wolf_form = p.animation_bank == 15,
                             .x = Word(Pixel(p.x) - in.camera_x),
                             .y = Word(Pixel(p.y) - in.camera_y),
@@ -575,7 +675,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (r.children[i].kind == 36 || r.children[i].kind == 45 ||
             (r.children[i].kind == 52 && r.children[i].group))
             ++r.groups[r.children[i].group];
-    if (progress.random != previous_random && !SotnCharacter_Restore(character, &progress))
+    if ((progress.random != previous_random || progress.mp != previous_mp) &&
+        !SotnCharacter_Restore(character, &progress))
         return false;
     *runtime = r;
     return true;

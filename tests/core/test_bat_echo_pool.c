@@ -171,7 +171,66 @@ static bool TestBatOwners(void)
     SDL_free(s);
     return true;
 }
+static bool TestSharedWolfRows(void)
+{
+    SotnActors *s = SDL_calloc(1, sizeof(*s));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(s && r);
+    Actor stage = {.state = {.generation = 1}};
+    CHECK(ActorPrimitives(s, &stage, 40));
+    r->wolf_bound = true;
+    r->children[47] = (SotnBatRuntimeChild){
+        .kind = 11, .generation = 1, .initialized = true, .primitive_count = 8};
+    for (Uint16 i = 0; i < 8; ++i)
+        r->children[47].primitives[i] = (Uint16)(40U + i);
+    CHECK(SotnWolfRuntime_Begin(&r->wolf, 1, 0));
+    r->wolf.environment_generation = ++r->wolf.serial;
+    r->wolf.environment_reserved = true;
+    r->wolf.environment_rows[0] = 48;
+    r->wolf.environment_rows[1] = 49;
+    r->wolf.root_reserved = true;
+    r->wolf.body.parts[0].step = 1;
+    for (Uint16 i = 0; i < 6; ++i)
+        r->wolf.root_rows[i] = (Uint16)(50U + i);
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    CHECK(s->primitives[40].ability_kind == 11 &&
+          s->primitives[48].ability_kind == SOTN_WOLF_ENVIRONMENT_TAG &&
+          s->primitives[50].ability_kind == 56);
+    SotnWolfControllerFrame player = {0};
+    SotnWolfRuntimeEvents events = {0};
+    CHECK(SotnWolfRuntime_Tick(&r->wolf, &player, (SotnWolfRuntimeInput){0}, &events));
+    r->children[1] = (SotnBatRuntimeChild){
+        .kind = 35, .generation = 2, .initialized = true, .primitive_count = 1, .primitives = {50}};
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    CHECK(s->primitives[50].ability_kind == 35 && !s->primitives[51].owner &&
+          s->primitives[48].ability_kind == SOTN_WOLF_ENVIRONMENT_TAG);
+    CHECK(SotnBatRuntime_ReplaceWolfSlots(r) && SotnWolfRuntime_Begin(&r->wolf, 2, 0));
+    r->wolf.root_reserved = true;
+    r->wolf.body.parts[0].step = 1;
+    for (Uint16 i = 0; i < 6; ++i)
+        r->wolf.root_rows[i] = (Uint16)(50U + i);
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && s->primitives[50].ability_kind == 56);
+    void *before = SDL_malloc(sizeof(s->primitives));
+    CHECK(before);
+    SDL_memcpy(before, s->primitives, sizeof(s->primitives));
+    r->wolf.root_rows[0] = 40;
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) &&
+          !SDL_memcmp(before, s->primitives, sizeof(s->primitives)));
+    r->wolf.root_rows[0] = stage.primitive[0];
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) &&
+          !SDL_memcmp(before, s->primitives, sizeof(s->primitives)) &&
+          ActorPrimitiveGet(s, &stage, 0));
+    r->wolf.root_rows[0] = 50;
+    r->wolf.children[0].lineage = 3;
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) &&
+          !SDL_memcmp(before, s->primitives, sizeof(s->primitives)));
+    SDL_free(before);
+    SDL_free(r);
+    SDL_free(s);
+    return true;
+}
+
 int main(void)
 {
-    return TestPool() && TestRoomLifetime() && TestBatOwners() ? 0 : 1;
+    return TestPool() && TestRoomLifetime() && TestBatOwners() && TestSharedWolfRows() ? 0 : 1;
 }

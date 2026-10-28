@@ -91,7 +91,9 @@ The [linked body owner](wolf-body-owner.md) now creates generation-owned parts
 and commits real root/environment rows to the stage pool. The [owned player core](player-wolf-core.md)
 now connects selected entry/controller/collision/return interfaces. Native scene,
 controls, attacks/factories and shared presentation wiring remain incomplete; live
-controls remain disabled.
+controls remain disabled. The [shared Wolf runtime](wolf-shared-runtime.md) now
+interleaves the actual body with factory-selected flash slots and commits selected
+Bat/Echo/Wolf row reservations together; it enables no live controls by itself.
 
 ## Pinned reference
 
