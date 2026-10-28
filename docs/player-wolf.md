@@ -45,9 +45,10 @@ with frozen simulation and Soul disabling. Explicit relic/MP fixtures are separa
 evidence and write no saves. They do not establish ordinary acquisition, an
 uninterrupted route, unmodified full encounters or console parity.
 
+[Selected impact shakes](player-camera-shake.md) now run.
 [Selected Wolf/Bat/Mist conversions](player-wolf-cross-forms.md) now preserve actual
 images and transformation handshakes. Actual water-depth/swimming providers,
-camera shake, normal afterimages, full shared factory/group/GPU contention and complete
+normal afterimages, other shake producers, full shared factory/group/GPU contention and complete
 effects/audio remain incomplete. Selected land gameplay does not establish a
 complete Wolf, Alucard, castle or game. [Core](player-wolf-core.md),
 [combat](player-wolf-combat.md), [secondary effects](wolf-secondary-effects.md)

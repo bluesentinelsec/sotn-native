@@ -143,9 +143,16 @@ static void Triangle(const SotnSavePointRenderer *renderer, Vertex v[3], Uint8 u
 bool SotnSavePointRenderer_Draw(const SotnSavePointRenderer *renderer, SotnSavePoint point,
                                 bool front, Uint16 *frame, size_t count)
 {
+    return SotnSavePointRenderer_DrawOffset(renderer, point, front, 0, 0, frame, count);
+}
+bool SotnSavePointRenderer_DrawOffset(const SotnSavePointRenderer *renderer, SotnSavePoint point,
+                                      bool front, Sint32 offset_x, Sint32 offset_y, Uint16 *frame,
+                                      size_t count)
+{
     if (renderer == NULL || frame == NULL || count < SOTN_FRAME_PIXELS || point.scale > 256 ||
         point.scatter > 127 || point.angle > 4095 || point.phase < SOTN_SAVE_POINT_IDLE ||
-        point.phase > SOTN_SAVE_POINT_ERROR)
+        point.phase > SOTN_SAVE_POINT_ERROR || offset_x < -256 || offset_x > 256 ||
+        offset_y < -256 || offset_y > 256)
         return SDL_SetError("Save-point drawing requires bounded state and a full frame");
     const bool coffin = point.phase >= SOTN_SAVE_POINT_COFFIN;
     const Uint32 faces = coffin ? 24 : 20;
@@ -175,7 +182,8 @@ bool SotnSavePointRenderer_Draw(const SotnSavePointRenderer *renderer, SotnSaveP
                     clipped = true;
                     break;
                 }
-                vertices[j] = (Vertex){128 + x * 256 / z, 136 + v.y * 256 / z, z};
+                vertices[j] =
+                    (Vertex){128 + x * 256 / z + offset_x, 136 + v.y * 256 / z + offset_y, z};
             }
             if (clipped)
                 continue;

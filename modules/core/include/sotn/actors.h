@@ -146,6 +146,7 @@ typedef struct SotnActorPrimitive
     bool active, textured, blend, modulate;
     bool framebuffer;  /**< Sample the ordered RGB555 framebuffer snapshot, not stage artwork. */
     bool screen_space; /**< Projected screen coordinates; camera is already applied. */
+    bool camera_fixed; /**< Original DRAW_ABSPOS/DRAW_MENU: omit shared camera-shake offsets. */
     bool priority_set; /**< Use this primitive's original ordering-table priority. */
     Uint16 priority;
     bool line; /**< Two-color line through offset vertices 0 and 1. */

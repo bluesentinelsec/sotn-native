@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  camera_shake.c
+  include/sotn/camera_shake.h
   player_particles.c
   include/sotn/player_particles.h
   player_smoke.c

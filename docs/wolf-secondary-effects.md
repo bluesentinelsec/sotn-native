@@ -12,7 +12,7 @@ Controller origins retain the camera at command creation, then apply the room
 transfer before current-camera projection. Body-created bubble origins use the
 current body camera. Room/camera changes rebase retained particle and puff fractions
 without advancing animation, lifetime or RNG. Sounds retain request ordering;
-shake requests remain explicit reports for the native camera owner to consume.
+shake requests now feed the [selected original camera service](player-camera-shake.md).
 
 Particle children reserve their private count plus the original sentinel row from
 the actual stage pool. There is no second primitive pool. Exhaustion retires the
@@ -39,7 +39,7 @@ the undefined US status branch. These are component comparisons, not native-app
 or console replays. Private inputs and traces stay ignored; no saves are written.
 
 Selected native scene rendering and owned controls now run. Actual water providers,
-camera shake and complete shared effects remain incomplete;
+other camera-shake producers and complete shared effects remain incomplete;
 ordinary starts grant no relics and saves remain version nine. Do not call Wolf,
 Alucard or the game complete.
 

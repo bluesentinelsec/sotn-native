@@ -49,6 +49,18 @@ int main(void)
     CHECK(SotnSavePoint_Reset(&point, 15, 1, 0));
     CHECK(SotnSavePointRenderer_Draw(renderer, point, false, frame, SOTN_FRAME_PIXELS));
     CHECK(frame[136 * 256 + 128] == 31);
+    Uint16 previous[SOTN_FRAME_PIXELS] = {0};
+    SDL_memcpy(previous, frame, sizeof(previous));
+    SDL_memset(frame, 0, sizeof(previous));
+    CHECK(
+        SotnSavePointRenderer_DrawOffset(renderer, point, false, 3, -2, frame, SOTN_FRAME_PIXELS));
+    for (Sint32 y = 2; y < SOTN_FRAME_HEIGHT; ++y)
+        for (Sint32 x = 0; x < SOTN_FRAME_WIDTH - 3; ++x)
+            CHECK(frame[(y - 2) * 256 + x + 3] == previous[y * 256 + x]);
+    SDL_memcpy(previous, frame, sizeof(previous));
+    CHECK(!SotnSavePointRenderer_DrawOffset(renderer, point, false, 257, 0, frame,
+                                            SOTN_FRAME_PIXELS));
+    CHECK(!SDL_memcmp(previous, frame, sizeof(previous)));
     point.phase = SOTN_SAVE_POINT_CONFIRM;
     CHECK(SotnSavePointRenderer_Dialog(renderer, point, false, frame, SOTN_FRAME_PIXELS));
     CHECK(frame[76 * 256 + 24] == 0x7fff);
