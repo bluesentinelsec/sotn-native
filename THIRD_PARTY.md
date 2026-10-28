@@ -745,3 +745,8 @@ The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) adapt
 `dra/7879C.c:EntitySmokePuff`, `7E4BC.c:func_8011E4BC`, `alu_anim.c:UpdateAnim`
 and Wolf request ordering at the same pinned AGPL-3.0-or-later revision.
 Original effect/animation tables and artwork remain private runtime inputs.
+
+The [owned Wolf scene presentation](docs/wolf-native-presentation.md) connects
+selected presentation ordering from `dra/{42398,4B758,4DA70,692E8,wolfForm}.c`
+and the reconstructed components at the same pinned AGPL-3.0-or-later revision.
+It embeds no original artwork, runtime snapshots or capture pixels.

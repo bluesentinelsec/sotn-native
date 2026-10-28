@@ -565,7 +565,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!SotnPlayerSmoke_Tick(&c->state.smoke, in.dra, source, c->parameter, p.priority,
                                       p.contacts, p.status))
                 return false;
-            removed = c->state.smoke.removed;
+            const Sint32 x = Pixel(c->state.smoke.x), y = Pixel(c->state.smoke.y);
+            removed = c->state.smoke.removed || x < -32 || x > 288 || y < -16 || y > 256;
             c->initialized = !removed;
         }
         else if (c->kind == 5)
@@ -590,7 +591,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .allocated = allocated},
                     &progress.random))
                 return false;
-            removed = c->state.particles.removed;
+            const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
+            removed = c->state.particles.removed || (!(c->state.particles.flags & 0x20000U) &&
+                                                     (x < -32 || x > 288 || y < -16 || y > 256));
             c->initialized = !removed && allocated;
         }
         else if (c->kind == 11)

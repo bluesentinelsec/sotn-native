@@ -25,6 +25,7 @@
 #include <sotn/stage_profile.h>
 #include <sotn/stage_route.h>
 #include <sotn/subweapon_renderer.h>
+#include <sotn/wolf_capture.h>
 
 struct SotnLaboratory
 {
@@ -54,6 +55,11 @@ struct SotnLaboratory
     SotnMistEffect mist_effect;
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
+    SotnWolfDrawPacket wolf_packets[SOTN_WOLF_FRAME_PACKETS];
+    size_t wolf_packet_count;
+    Uint16 wolf_previous_capture[63 * 63];
+    Uint64 wolf_capture_tick;
+    bool wolf_capture_ready;
     Sint32 blink_camera_x, blink_camera_y, blink_rebase_x, blink_rebase_y;
     Uint32 mist_generation;
     Sint32 mist_camera_x, mist_camera_y, mist_rebase_x, mist_rebase_y;
@@ -82,7 +88,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 464];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1348];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -560,6 +566,11 @@ static bool VisitMap(SotnLaboratory *session)
 
 static bool DecodePlayerSprite(SotnLaboratory *s, SotnPlayerState player, SotnAlucardSprite *out)
 {
+    if (player.animation_bank == 15)
+    {
+        player.animation_bank = player.wolf.capture_bank;
+        player.animation.sprite = player.wolf.capture_sprite;
+    }
     if (player.animation_bank == 13)
     {
         if (!SotnAlucard_DecodeBat(s->dra, SotnResource_View(s->arc), player.animation.sprite, out))
@@ -1383,7 +1394,9 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return true; // The application commits an arrival once, after its catch-up ticks.
     // Original render-target writes are simulation-frame side effects. Preserve a skipped
     // presentation's captures before the next actor update can replace their one-tick commands.
-    if (session->targets_pending && SotnActors_HasTargets(session->actors) &&
+    if (session->targets_pending &&
+        (SotnActors_HasTargets(session->actors) ||
+         session->bat_runtime.wolf.environment_reserved) &&
         !DrawGameplay(session))
         return false;
     session->targets_pending = false;
@@ -1735,6 +1748,72 @@ static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *
     return SotnActorGraphics_PlayerEffect(s->actor_graphics, p, s->draw_target.offset_x,
                                           s->draw_target.offset_y, surface);
 }
+static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32 camera_x,
+                                    Sint32 camera_y)
+{
+    s->wolf_packet_count = 0;
+    const SotnWolfRuntime *wolf = &s->bat_runtime.wolf;
+    if (!wolf->environment_reserved)
+        return true;
+    // Repeated/paused draws must sample the same previous simulation frame, even
+    // after this frame's ordered environment has written the next capture.
+    SotnActorSurface target = {0};
+    if (!SotnActorGraphics_BeginTarget(
+            s->actor_graphics, (SotnActorTarget){.x = 512, .y = 448, .width = 63, .height = 63},
+            &target))
+        return false;
+    const bool snapshot = !s->wolf_capture_ready || s->wolf_capture_tick != s->simulation_ticks;
+    if (snapshot)
+        SDL_memcpy(s->wolf_previous_capture, target.pixels, sizeof(s->wolf_previous_capture));
+    else
+        SDL_memcpy(target.pixels, s->wolf_previous_capture, sizeof(s->wolf_previous_capture));
+    if (!SotnActorGraphics_EndTarget(s->actor_graphics, !snapshot))
+        return false;
+    s->wolf_capture_ready = true;
+    s->wolf_capture_tick = s->simulation_ticks;
+    if (!wolf->generation && p.animation_bank != 15)
+        return true;
+    for (Uint16 i = 0; i < 15; ++i)
+    {
+        const Uint16 slot = i ? (Uint16)(i + 16U) : 0;
+        if (i && !wolf->generation)
+            continue;
+        if (!i && p.animation_bank != 15)
+            continue;
+        if (i && (!wolf->children[i - 1U].generation ||
+                  wolf->children[i - 1U].lineage != wolf->generation ||
+                  wolf->children[i - 1U].slot != slot))
+            return SDL_SetError("Wolf presentation lost its actual body lineage");
+        const SotnWolfPart part = i ? wolf->body.parts[i - 1U]
+                                    : (SotnWolfPart){.x = p.x - camera_x * 65536,
+                                                     .y = p.y - camera_y * 65536,
+                                                     .bank = 15,
+                                                     .sprite = p.animation.sprite,
+                                                     .texture_offset = 126,
+                                                     .palette = p.wolf.palette,
+                                                     .priority = p.priority,
+                                                     .rotation = p.wolf.rotation,
+                                                     .draw_flags = p.wolf.draw_flags,
+                                                     .blend = p.wolf.blend,
+                                                     .opacity = p.wolf.opacity,
+                                                     .facing_left = p.facing_left};
+        size_t count = 0;
+        if (!SotnWolfPresentation_Packets(
+                s->dra, s->executable,
+                (SotnWolfDrawInput){.part = part,
+                                    .player_x = BlinkWord(Pixel(p.x) - camera_x),
+                                    .player_y = BlinkWord(Pixel(p.y) - camera_y),
+                                    .player_priority = p.priority,
+                                    .slot = slot,
+                                    .available = 768,
+                                    .game_timer = (Uint32)s->simulation_ticks},
+                s->wolf_packets + s->wolf_packet_count,
+                SDL_arraysize(s->wolf_packets) - s->wolf_packet_count, &count))
+            return false;
+        s->wolf_packet_count += count;
+    }
+    return true;
+}
 static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
                               const SotnAlucardSprite *sprite)
 {
@@ -1913,6 +1992,31 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 2 && child->initialized && child->state.smoke.sprite &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->state.smoke.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_PLAYER_SMOKE}))
+                return false;
+            if (child->kind == 5 && child->initialized)
+            {
+                if (!child->generation ||
+                    child->state.particles.count > SOTN_PLAYER_PARTICLE_LIMIT ||
+                    !child->state.particles.count || child->state.particles.phase != 1 ||
+                    child->state.particles.removed ||
+                    child->primitive_count != child->state.particles.count + 1U)
+                    return SDL_SetError(
+                        "Particle presentation lost its actual child/row ownership");
+                for (Uint16 tile = child->state.particles.count; tile > 0; --tile)
+                    if (!(child->state.particles.tiles[tile - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = child->state.particles.priority,
+                                            .primitive = (Uint16)(owner * 16U + tile - 1U),
+                                            .kind = SOTN_DRAW_PLAYER_PARTICLE}))
+                        return false;
+            }
             if (child->kind == 45 && child->initialized && child->state.fire.frame &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
                                     &draw_count,
@@ -1932,6 +2036,35 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .kind = SOTN_DRAW_PLAYER_BLINK}))
                     return false;
         }
+    if (!background && session->bat_runtime.wolf.environment_reserved)
+    {
+        if (session->bat_runtime.wolf.root_reserved)
+            for (Uint16 i = 6; i > 0; --i)
+                if (!(session->bat_runtime.wolf.effect.quads[i - 1U].draw_mode & 8U) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority =
+                                            session->bat_runtime.wolf.effect.quads[i - 1U].priority,
+                                        .primitive = (Uint16)(i - 1U),
+                                        .kind = SOTN_DRAW_WOLF_IMAGE}))
+                    return false;
+        // Original RenderPrimitives follows RenderEntities and inserts at the OT head:
+        // retained primitive images draw before entity packets at equal priority.
+        for (size_t i = session->wolf_packet_count; i > 0; --i)
+            if (!SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = session->wolf_packets[i - 1U].quad.priority,
+                                    .primitive = (Uint16)(i - 1U),
+                                    .kind = SOTN_DRAW_WOLF_PACKET}))
+                return false;
+        for (Uint16 i = 0; i < 2; ++i)
+            if (!SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = i ? 0x1b0 : 0x190,
+                                                    .primitive = i,
+                                                    .kind = SOTN_DRAW_WOLF_TARGET}))
+                return false;
+    }
     if (background)
     {
         for (size_t i = 0; i < draw_count; ++i)
@@ -1994,7 +2127,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =
-                player.mist.active || player.bat.hidden ||
+                player.mist.active || player.bat.hidden || player.animation_bank == 15 ||
                 (player.animation_bank == 13 || player.rotated
                      ? DrawRotatedPlayer(session, player, &alucard)
                  : player.stone.active
@@ -2030,6 +2163,92 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_WOLF_TARGET)
+        {
+            if (!session->bat_runtime.wolf.environment_reserved ||
+                !SwitchTarget(session, (SotnActorPrimitive){.target = command.primitive ? 4 : 3,
+                                                            .clip_left = 512,
+                                                            .clip_top = 448,
+                                                            .clip_right = 575,
+                                                            .clip_bottom = 511,
+                                                            .target_offset_x = 512,
+                                                            .target_offset_y = 448,
+                                                            .target_clear =
+                                                                (player.status & 0x4000000U) != 0}))
+                return false;
+            clip = (SotnFrameClip){0, 0, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_WOLF_PACKET || command.kind == SOTN_DRAW_WOLF_IMAGE)
+        {
+            const SotnWolfRuntime *wolf = &session->bat_runtime.wolf;
+            if ((command.kind == SOTN_DRAW_WOLF_PACKET &&
+                 command.primitive >= session->wolf_packet_count) ||
+                (command.kind == SOTN_DRAW_WOLF_IMAGE &&
+                 (!wolf->root_reserved || command.primitive >= 6)))
+                return SDL_SetError("Wolf draw lost its actual body packet/root owner");
+            const SotnPlayerEffectQuad *q = command.kind == SOTN_DRAW_WOLF_PACKET
+                                                ? &session->wolf_packets[command.primitive].quad
+                                                : &wolf->effect.quads[command.primitive];
+            if (!DrawPlayerEffectQuad(session, q) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_PLAYER_SMOKE || command.kind == SOTN_DRAW_PLAYER_PARTICLE)
+        {
+            const Uint16 index = command.kind == SOTN_DRAW_PLAYER_SMOKE ? command.primitive
+                                                                        : command.primitive / 16U;
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[index];
+            if (!child->generation || !child->initialized ||
+                child->kind != (command.kind == SOTN_DRAW_PLAYER_SMOKE ? 2 : 5))
+                return SDL_SetError("Player secondary effect draw lost its actual child");
+            if (child->kind == 2)
+            {
+                const SotnPlayerSmoke puff = child->state.smoke;
+                if (!SotnActorGraphics_DrawScaled(
+                        session->actor_graphics,
+                        (SotnActorSprite){.animation_set = 5,
+                                          .frame = puff.sprite,
+                                          .palette = 0x8195,
+                                          .blend_mode = 0x10,
+                                          .facing_left = puff.facing_left},
+                        Pixel(puff.x) + session->draw_target.offset_x,
+                        Pixel(puff.y) + session->draw_target.offset_y, puff.scale, puff.scale,
+                        session->draw_target.surface))
+                    return false;
+            }
+            else
+            {
+                const Uint16 tile = command.primitive % 16U;
+                if (tile >= child->state.particles.count)
+                    return SDL_SetError("Particle draw exceeds its actual owned tile list");
+                const SotnPlayerParticle t = child->state.particles.tiles[tile];
+                const Sint32 x = t.screen_x + session->draw_target.offset_x,
+                             y = t.screen_y + session->draw_target.offset_y;
+                if (x > -(Sint32)t.width && y > -(Sint32)t.height &&
+                    x < session->draw_target.surface.width &&
+                    y < session->draw_target.surface.height)
+                {
+                    const SotnTextureQuad q = {.x = {x, x + t.width, x, x + t.width},
+                                               .y = {y, y, y + t.height, y + t.height},
+                                               .untextured = true,
+                                               .red = t.red,
+                                               .green = t.green,
+                                               .blue = t.blue,
+                                               .blend = (t.draw_mode & 1U) != 0,
+                                               .page = (Uint16)(t.draw_mode & 0x60U)};
+                    if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                                       session->draw_target.surface))
+                        return false;
+                }
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_BAT_ECHO)
         {
             SotnActorPrimitive p = {0};
@@ -2253,6 +2472,8 @@ static bool DrawGameplay(SotnLaboratory *session)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, state, &camera_x, &camera_y);
+    if (!PrepareWolfPresentation(session, state, camera_x, camera_y))
+        return false;
     const SotnTileSources sources = {StageGraphics(session), SotnResource_View(session->common)};
     Uint16 backdrop = 0;
     if (!SotnActors_GetBackdrop(session->actors, &backdrop))

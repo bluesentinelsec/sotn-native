@@ -975,6 +975,21 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
+    const Uint8 player_kinds[] = {SOTN_DRAW_WOLF_PACKET, SOTN_DRAW_WOLF_IMAGE,
+                                  SOTN_DRAW_WOLF_TARGET, SOTN_DRAW_PLAYER_SMOKE,
+                                  SOTN_DRAW_PLAYER_PARTICLE};
+    const Uint16 limits[] = {60, 6, 2, 48, 768};
+    for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
+    {
+        count = 0;
+        CHECK(SotnActorOrder_Add(
+            items, 4, &count,
+            (SotnActorDraw){.kind = player_kinds[i], .primitive = (Uint16)(limits[i] - 1U)}));
+        CHECK(
+            !SotnActorOrder_Add(items, 4, &count,
+                                (SotnActorDraw){.kind = player_kinds[i], .primitive = limits[i]}) &&
+            count == 1);
+    }
     count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));

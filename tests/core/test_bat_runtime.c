@@ -747,6 +747,15 @@ static bool WolfEffectOwnership(Fixture *f)
     CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
     CHECK(!f->runtime.children[47].kind && f->runtime.children[46].kind == 2);
     CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == character.random);
+    // Original engine culling follows actual initialization; RNG is consumed but rows retire.
+    f->runtime = (SotnBatRuntime){0};
+    in.primitive_slots = (SotnPrimitiveSlots){0};
+    in.player.wolf.commands.requests[0].source.x = 400 * 65536;
+    in.player.wolf.commands.requests[1].source.x = 400 * 65536;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!SotnBatRuntime_Occupied(&f->runtime) && !f->runtime.children[47].primitive_count &&
+          !f->runtime.children[46].kind);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random != character.random);
     Close(f);
     CHECK(Create(f));
     f->wolf_owned = true;
