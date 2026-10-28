@@ -51,6 +51,6 @@ typedef struct SotnBatEchoEvents
  * @return Success or SDL error, retaining both outputs on malformed inputs/state.
  * Actual49-primitive exhaustion removes the child after its original sound request.
  * Force is sampled only at birth. The owner supplies spell-ten combat/group,
- * original blend/render ordering and room translation. Live Echo is not enabled. */
+ * original blend/render ordering and room translation; this component enables no controls. */
 bool SotnBatEcho_Tick(SotnBatEcho *echo, SotnBatEchoInput input, SotnBatEchoEvents *events);
 #endif

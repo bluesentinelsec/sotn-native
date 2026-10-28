@@ -1,9 +1,9 @@
 # Bat Echo component
 
 The core reconstructs the original Echo controller and its seventeen wave/color
-drivers and thirty-two untextured strips. This component does not enable Echo
-controls or relic switches. The native owner must first connect actual factory,
-primitive, attack and rendering ownership.
+drivers and thirty-two untextured strips. [Selected playable Echo](player-echo-of-bat.md)
+now connects actual factory, primitive, attack and rendering ownership. The
+comparisons below retain their component-only scope.
 
 The caller must report a real forty-nine-primitive allocation. Exhaustion retains
 the original sound request and retires the child without creating an attack.

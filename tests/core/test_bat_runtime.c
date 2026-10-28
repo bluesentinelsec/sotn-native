@@ -25,6 +25,7 @@ typedef struct Fixture
     SotnWorldState world;
     SotnBatRuntime runtime;
     Uint64 occupied;
+    SotnPrimitiveSlots primitive_slots;
     Uint32 tick, spent;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 n)
@@ -70,7 +71,9 @@ static bool Tick(Fixture *f, Uint16 buttons)
             .player = f->state,
             .image = bat ? (SotnPlayerImage){32, 48, -16, (Sint16)(-24 + f->state.bat.settle_y)}
                          : (SotnPlayerImage){40, 64, -20, -48},
-            .other_occupied = f->occupied}));
+            .other_occupied = f->occupied,
+            .primitive_slots = f->primitive_slots,
+            .force_echo_enabled = (f->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3}));
     if (f->runtime.use_ticks)
         CHECK(SotnPlayer_SetUseTimer(f->player, f->runtime.use_ticks));
     ++f->tick;
@@ -415,12 +418,89 @@ static bool AtomicAndRebase(Fixture *f)
     Close(f);
     return true;
 }
+static bool Echo(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *bp = f->dra + 0xd1d4 + 103 * 6;
+    bp[0] = 52;
+    bp[1] = 1;
+    bp[2] = 129; // Authored noncritical single-child schedule.
+    bp[4] = 9;
+    f->dra[0xd4ca] = f->dra[0xd4cb] = 47;
+    for (Uint16 i = 0; i < 17; ++i)
+    {
+        Put16(f->dra + 0x10884 + i * 2, (Uint16)(i % 6));
+        Put16(f->dra + 0x108a8 + i * 2, (Uint16)(i * 8));
+    }
+    Uint8 *spell = f->dra + 0x8410 + 10 * 28;
+    spell[13] = 20;
+    spell[16] = 2;
+    spell[18] = 3;
+    spell[20] = 16;
+    spell[24] = 5;
+    CHECK(Enter(f));
+    CHECK(Tick(f, SOTN_BUTTON_CANCEL) && !f->state.bat_commands.echo);
+    CHECK(Tick(f, 0));
+    f->world.relics[SOTN_RELIC_ECHO_BAT] = 3;
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(Tick(f, SOTN_BUTTON_CANCEL) && f->state.bat_commands.echo);
+    CHECK(f->runtime.echo_generation && f->runtime.children[31].kind == 52 &&
+          !f->runtime.echo_attack && f->runtime.echo.limit == 160 && f->runtime.sound_count == 1 &&
+          f->runtime.sounds[0] == 0x61f && !f->state.mp_spent);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == before.random);
+    const Uint32 generation = f->runtime.echo_generation;
+    // Original single-slot exhaustion cannot replace the current wave.
+    CHECK(Tick(f, 0) && Tick(f, SOTN_BUTTON_CANCEL));
+    CHECK(f->runtime.echo_generation == generation);
+    f->world.relics[SOTN_RELIC_FORCE_ECHO] = 3;
+    CHECK(Tick(f, 0) && f->runtime.echo.limit == 160 && !f->runtime.echo_attack);
+    // Room/camera rebases translate packets without advancing retained driver phases.
+    const Sint16 angle = f->runtime.echo.drivers[0].angle, x = f->runtime.echo.quads[3].x[0];
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character,
+                              (SotnBatRuntimeInput){.entering = true, .screen_shift_x = -23}));
+    CHECK(f->runtime.echo.drivers[0].angle == angle && f->runtime.echo.quads[3].x[0] == x - 23);
+    for (Uint16 i = 0; i < 40; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(!f->runtime.echo_generation);
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(Tick(f, SOTN_BUTTON_CANCEL));
+    CHECK(f->runtime.echo_generation && f->runtime.echo.limit == 256 && f->runtime.echo_attack &&
+          f->runtime.children[31].group == 7 && f->runtime.children[31].state.attack.width == 40 &&
+          f->runtime.children[31].state.attack.offset_x == 64);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random != before.random);
+    f->world.relics[SOTN_RELIC_FORCE_ECHO] = 1;
+    for (Uint16 i = 0; i < 27; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->runtime.echo_generation && !f->runtime.echo_attack && f->runtime.echo.limit == 256);
+    for (Uint16 i = 0; i < 30; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(!f->runtime.echo_generation);
+    // A real full pool removes the requested wave after its sound, without RNG or attacks.
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        f->primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(Tick(f, SOTN_BUTTON_CANCEL));
+    CHECK(!f->runtime.echo_generation && !f->runtime.children[31].kind &&
+          f->runtime.sound_count == 1 && !f->runtime.echo_attack);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == before.random);
+    CHECK(Tick(f, 0));
+    f->primitive_slots = (SotnPrimitiveSlots){0};
+    f->world.relics[SOTN_RELIC_FORCE_ECHO] = 3;
+    Put16(spell + 24, 65535);
+    const SotnBatRuntime saved_runtime = f->runtime;
+    CHECK(!Tick(f, SOTN_BUTTON_CANCEL));
+    CHECK(!SDL_memcmp(&saved_runtime, &f->runtime, sizeof(saved_runtime)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == before.random);
+    Close(f);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

@@ -1,8 +1,8 @@
 # Selected relic pause controls
 
 The native pause menu now opens Relics and switches owned Cube of Zoe, Gravity
-Boots, Leap Stone, Jewel of Open, Soul of Bat, Fire of Bat, Mist, Power of Mist and
-Gas Cloud on or off. Enter/Xbox Start opens or closes
+Boots, Leap Stone, Jewel of Open, Soul of Bat, Fire of Bat, Echo of Bat, Force of
+Echo, Mist, Power of Mist and Gas Cloud on or off. Enter/Xbox Start opens or closes
 pause; X/Space/Xbox A selects, and keyboard A/Xbox Y returns. Gameplay and elapsed
 ticks remain paused while the menu owns control; music continues.
 

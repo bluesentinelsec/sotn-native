@@ -32,6 +32,7 @@ typedef struct ActorPrimitive
     Sint32 vx, vy;
     Sint16 corner_angle;
     Uint32 owner;
+    bool bat_echo_owner;
     Uint16 timer, phase;
     struct
     {

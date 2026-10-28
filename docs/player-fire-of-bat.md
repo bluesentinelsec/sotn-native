@@ -3,7 +3,7 @@
 Owned, enabled Soul of Bat and Fire of Bat now connect hand-attack input during
 ordinary flight to the original casting animation, spell MP cost, recoil and
 recovery. Z/D or Xbox X/B fires. The relic panel can switch an owned Fire of Bat;
-ordinary starts grant no relics. Echo and Wolf remain unavailable.
+ordinary starts grant no relics. [Selected Echo](player-echo-of-bat.md) now runs; Wolf remains unavailable.
 
 The command runs after Bat's own resource gate. Casting accepts the original exact
 spell cost; transformation eligibility still uses its strict threshold. A paid

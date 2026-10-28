@@ -37,46 +37,15 @@ static bool TestKeyboard(void)
     keys[SDL_SCANCODE_E] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_BAT);
     keys[SDL_SCANCODE_E] = false;
+    keys[SDL_SCANCODE_A] = true;
+    CHECK(LaboratoryInput_KeyboardButtons(keys) == SOTN_BUTTON_CANCEL);
+    keys[SDL_SCANCODE_A] = false;
     keys[SDL_SCANCODE_RIGHT] = true;
     keys[SDL_SCANCODE_X] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == (SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
     keys[SDL_SCANCODE_X] = false;
     keys[SDL_SCANCODE_SPACE] = true;
     CHECK(LaboratoryInput_KeyboardButtons(keys) == (SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP));
-    return true;
-}
-
-static void CountWarnings(void *userdata, int category, SDL_LogPriority priority,
-                          const char *message)
-{
-    Uint32 *count = userdata;
-    if (category == SDL_LOG_CATEGORY_APPLICATION && priority == SDL_LOG_PRIORITY_WARN &&
-        SDL_strstr(message, "input ignored") != NULL)
-        ++*count;
-}
-
-static bool TestUnsupportedWarning(LaboratoryInput *input)
-{
-    Uint32 warnings = 0;
-    SDL_LogOutputFunction previous = NULL;
-    void *previous_userdata = NULL;
-    SDL_GetLogOutputFunction(&previous, &previous_userdata);
-    SDL_SetLogOutputFunction(CountWarnings, &warnings);
-    SDL_Event event = {0};
-    event.type = SDL_EVENT_KEY_DOWN;
-    event.key.scancode = SDL_SCANCODE_A;
-    bool handled = LaboratoryInput_Event(input, &event);
-    event.key.repeat = true;
-    handled = LaboratoryInput_Event(input, &event) && handled;
-    event.key.repeat = false;
-    event.key.scancode = SDL_SCANCODE_A;
-    handled = LaboratoryInput_Event(input, &event) && handled;
-    event.type = SDL_EVENT_GAMEPAD_BUTTON_DOWN;
-    event.gbutton.which = SDL_GetGamepadID(input->pad);
-    event.gbutton.button = SDL_GAMEPAD_BUTTON_NORTH;
-    handled = LaboratoryInput_Event(input, &event) && handled;
-    SDL_SetLogOutputFunction(previous, previous_userdata);
-    CHECK(handled && warnings == 1);
     return true;
 }
 
@@ -87,7 +56,6 @@ static bool TestVirtualPad(LaboratoryInput *input, SDL_JoystickID id)
     event.gdevice.which = id;
     CHECK(LaboratoryInput_Event(input, &event));
     CHECK(input->pad != NULL);
-    CHECK(TestUnsupportedWarning(input));
     SDL_Joystick *joystick = SDL_GetGamepadJoystick(input->pad);
     CHECK(joystick != NULL);
     CHECK(SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTX, 16000));
@@ -121,12 +89,14 @@ static bool TestVirtualPad(LaboratoryInput *input, SDL_JoystickID id)
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_NORTH, true));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, true));
     SDL_UpdateGamepads();
-    CHECK(LaboratoryInput_Buttons(input) == (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND));
+    CHECK(LaboratoryInput_Buttons(input) ==
+          (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND | SOTN_BUTTON_CANCEL));
     input->menu_open = true;
     CHECK((LaboratoryInput_Buttons(input) & SOTN_BUTTON_CANCEL) != 0);
     input->menu_open = false;
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_WEST, false));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_EAST, false));
+    CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_NORTH, false));
     CHECK(SDL_SetJoystickVirtualButton(joystick, SDL_GAMEPAD_BUTTON_SOUTH, true));
     CHECK(SDL_SetJoystickVirtualAxis(joystick, SDL_GAMEPAD_AXIS_LEFTX, 24000));
     SDL_UpdateGamepads();

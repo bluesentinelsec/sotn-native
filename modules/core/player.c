@@ -1021,11 +1021,12 @@ static void DeathTick(SotnPlayer *player)
 
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
-    const Uint16 supported = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN |
-                             SOTN_BUTTON_LEFT | SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND |
-                             SOTN_BUTTON_RIGHT_HAND |
-                             (player && player->mist_context ? SOTN_BUTTON_MIST : 0) |
-                             (player && player->bat_context ? SOTN_BUTTON_BAT : 0);
+    const Uint16 supported =
+        SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN | SOTN_BUTTON_LEFT |
+        SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND |
+        (player && player->mist_context ? SOTN_BUTTON_MIST : 0) |
+        (player && player->bat_context ? SOTN_BUTTON_BAT : 0) |
+        (player && player->bat_context && player->step == SOTN_PLAYER_BAT ? SOTN_BUTTON_CANCEL : 0);
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
