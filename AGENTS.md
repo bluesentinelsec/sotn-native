@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [afterimage controller](docs/player-afterimages.md) now reconstructs six samples,
+three parity-selected displays and original reset/enable/force semantics. It is
+a component, not live afterimages. Preserve pre-collision capture/post-collision
+fade, raw previous button words, byte timers, frame bits, display fractions and
+no-tick rebases. Actual shared eight-row ownership, movement hooks, system-clock
+parity, private ARC uploads and rendering remain unwired. Never enable guessed
+trails or allocate a second pool. Alucard remains incomplete.
+
 Selected [Gravity Boots ceiling effects](docs/player-gravity-impact.md) now consume
 one-update impact intents through actual shared factories/children/rows and shake3.
 Preserve pre-flip facing, captured room-space X±3/Y-22 with fractions/word wrap,

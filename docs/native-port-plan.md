@@ -105,8 +105,9 @@ owned controls, body feedback, combat, MP/learning and supported relic switching
 [Selected cross-form conversions](player-wolf-cross-forms.md) now retain actual
 snapshots and readiness. [Selected Wolf impact shakes](player-camera-shake.md) now
 run. [Selected Gravity Boots ceilings](player-gravity-impact.md) now add their
-actual dust/shake requests. Water, other impact producers and full ability/route
-parity remain incomplete.
+actual dust/shake requests. The [afterimage controller](player-afterimages.md) now
+reconstructs retained samples/fades, without live resource/render ownership. Water,
+live afterimages, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference
 
