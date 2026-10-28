@@ -715,3 +715,8 @@ It embeds no captured image or other original game data.
 The [Wolf BlinkWhite component](docs/wolf-blink.md) extends selected
 `dra/7879C.c:EntityPlayerBlinkWhite` paths at that same pinned AGPL-3.0-or-later
 revision. All original profiles, saved images and captures remain private inputs.
+
+The [Wolf multipart/capture services](docs/wolf-presentation.md) adapt selected
+`dra/4B758.c:RenderEntities` bank-fifteen paths and
+`dra/692E8.c:func_801093C4` environment at the same pinned AGPL-3.0-or-later
+revision. Original artwork, multipart tables, palette data and captures remain private.
