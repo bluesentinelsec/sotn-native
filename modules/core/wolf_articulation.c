@@ -52,7 +52,7 @@ static Sint16 Pose(SotnDataView dra, size_t address, Uint16 index)
 static void Opacity(SotnWolfPart *part, Sint32 speed, Sint32 cap)
 {
     part->blend = 0;
-    part->draw_flags &= (Uint8)~8U;
+    part->draw_flags = (Uint8)(part->draw_flags & 0xf7U);
     if (speed > 3 * 65536)
     {
         part->draw_flags |= 8;
