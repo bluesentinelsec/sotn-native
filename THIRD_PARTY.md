@@ -674,3 +674,7 @@ spell/group, animation, projectile and BlinkWhite algorithms from `dra/7879C.c`,
 `5D5BC.c`, `alu_anim.c`, `84B88.c` and `71830.c` at the same pinned revision.
 Its scale-only renderer follows `dra/4B758.c` SDK signed-floor geometry. Runtime
 tables/artwork stay private; full ability/console parity remains incomplete.
+
+The [Bat Echo component](docs/bat-echo.md) reconstructs
+`dra/8BEF8.c:EntityBatEcho` at the same pinned AGPL-3.0-or-later revision.
+Shape/color and SDK tables remain private; this component enables no live ability.

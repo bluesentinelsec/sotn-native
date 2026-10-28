@@ -185,6 +185,8 @@ add_library(sotn-core STATIC
   include/sotn/mist_effect.h
   mist_motion.c
   include/sotn/mist_motion.h
+  bat_echo.c
+  include/sotn/bat_echo.h
   bat_fireball.c
   include/sotn/bat_fireball.h
   bat_runtime.c
