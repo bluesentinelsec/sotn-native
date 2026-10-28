@@ -139,7 +139,8 @@ With owned, active [Echo of Bat](docs/player-echo-of-bat.md), A or Xbox Y emits
 a wave; owned Force of Echo adds its original attack. **R/Xbox RT** toggles owned
 [Wolf](docs/player-wolf.md); Z/Xbox X bites. Owned Power of Wolf enables faster
 double-forward sprinting; Skill of Wolf enables Down, Down-forward, Forward then
-bite to charge. Wolf cross-form/water paths, other spells and full ability parity
+bite to charge. [Direct form conversions](docs/player-wolf-cross-forms.md) retain
+original gates and snapshots. Wolf water paths, other spells and full ability parity
 remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 

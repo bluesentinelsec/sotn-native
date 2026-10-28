@@ -42,7 +42,7 @@ console replay.
 
 The [selected native session](player-wolf.md) now binds Wolf contexts/body feedback,
 owned controls and relic switches. Original complete shared GPU packet
-capacity, all primitive/stage ties, cross-form/water/shake integration and full
+capacity, all primitive/stage ties, water/shake integration and full
 raster/audio parity remain incomplete. Selected Wolf packets retain the bounded
 768-packet component input; this does not prove global original GPU contention.
 Ordinary starts grant no relics; saves remain version nine. Do not call Wolf,

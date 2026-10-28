@@ -217,10 +217,94 @@ static bool RequestOrigins(void)
     CHECK(!SotnPlayer_ChangeRoom(&p, map, -1, 0) && !SDL_memcmp(&before, &p, sizeof(p)));
     return true;
 }
+static bool CrossFormGates(void)
+{
+    for (Uint16 target = 0; target < 2; ++target)
+        for (Uint16 phase = 0; phase < 10; ++phase)
+            for (Uint16 gate = 0; gate < 6; ++gate)
+            {
+                SotnPlayer p = Player();
+                p.step = SOTN_PLAYER_WOLF;
+                p.substep = phase;
+                p.animation_bank = 15;
+                p.animation.sprite = 6;
+                p.wolf = (SotnPlayerWolf){.active = true,
+                                          .generation = 9,
+                                          .body_generation = 9,
+                                          .capture_bank = 13,
+                                          .capture_sprite = 7,
+                                          .draw_flags = 4,
+                                          .rotation = 900,
+                                          .blend = 0x60};
+                p.bat_context = p.mist_context = true;
+                p.relics[target ? SOTN_RELIC_MIST : SOTN_RELIC_BAT] = gate == 1 ? 1 : 3;
+                p.tapped = target ? SOTN_BUTTON_MIST : SOTN_BUTTON_BAT;
+                p.mp = gate == 2 ? 1 : 20;
+                p.mist_lockout = gate == 3 ? 2 : 0;
+                p.script_hold = gate == 4;
+                p.mist_underwater = gate == 5;
+                const Uint16 mp = p.mp;
+                if (target)
+                    SotnPlayer_MistInput(&p);
+                else
+                    SotnPlayer_BatInput(&p);
+                const bool allowed = !gate && phase && phase != 8;
+                CHECK(!p.failed && p.mp == mp && p.wolf.active == !allowed &&
+                      p.wolf.capture_bank == 13 && p.wolf.capture_sprite == 7 &&
+                      p.wolf.body_generation == 9 && p.animation_bank == 15);
+                CHECK(p.step ==
+                      (allowed ? target ? SOTN_PLAYER_MIST : SOTN_PLAYER_BAT : SOTN_PLAYER_WOLF));
+                if (allowed)
+                {
+                    CHECK(!p.substep && p.sound == 0x6a0);
+                    if (target)
+                        CHECK(p.mist.active && p.mist.started && p.mist.capture_bank == 15 &&
+                              p.mist.capture_sprite == 6 && !p.wolf.draw_flags && !p.wolf.blend);
+                    else
+                    {
+                        CHECK(p.bat.active && !p.bat.generation && !p.bat.signal);
+                        p.bat_factory_available = true;
+                        SotnPlayer_BatTick(&p);
+                        CHECK(!p.failed && p.bat.started && p.bat.signal == 1 &&
+                              p.wolf.palette == 0x810d && !p.wolf.rotation &&
+                              p.wolf.draw_flags == 4 && !p.wolf.blend && p.animation_bank == 15);
+                    }
+                }
+            }
+    return true;
+}
+static bool RetainedWolfMistEntry(void)
+{
+    SotnPlayer p = Player();
+    p.step = SOTN_PLAYER_MIST;
+    p.substep = 1;
+    p.animation_bank = 15;
+    p.animation.sprite = 6;
+    p.mist.active = true;
+    p.mist.generation = 3;
+    p.mist_visual_phase = 1;
+    p.relics[SOTN_RELIC_WOLF] = 3;
+    p.tapped = SOTN_BUTTON_WOLF;
+    SotnPlayer_WolfInput(&p);
+    CHECK(p.step == SOTN_PLAYER_WOLF && p.wolf.active && p.mist.active);
+    SotnPlayer_WolfTick(&p);
+    CHECK(!p.failed && p.substep == 8 && p.wolf.body_started && !p.wolf.started &&
+          p.wolf.capture_bank == 15 && p.wolf.capture_sprite == 6 && p.mist.request_restore &&
+          !p.mist.retire && !p.wolf.finish_flash);
+    p.mist_visual_phase = 4;
+    SotnPlayer_WolfTick(&p);
+    CHECK(!p.failed && p.substep == 8 && p.mist.active && !p.wolf.finish_flash);
+    p.mist_visual_phase = 5;
+    SotnPlayer_WolfTick(&p);
+    CHECK(!p.failed && p.substep == 5 && !p.mist.active && p.mist.retire && p.wolf.finish_flash &&
+          !p.wolf.started && p.wolf.capture_bank == 15);
+    return true;
+}
 int main(void)
 {
     return GatesAndPending() && CommandAndReturn() && CollisionPasses() && ForcedSlots() &&
-                   MissingReturnFactory() && RequestOrigins()
+                   MissingReturnFactory() && RequestOrigins() && CrossFormGates() &&
+                   RetainedWolfMistEntry()
                ? 0
                : 1;
 }

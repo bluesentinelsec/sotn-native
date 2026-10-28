@@ -96,6 +96,10 @@ void SotnPlayer_BatInput(SotnPlayer *p)
     case SOTN_PLAYER_HIGH_JUMP:
     case SOTN_PLAYER_MIST:
         break;
+    case SOTN_PLAYER_WOLF:
+        if (!p->substep || p->substep == 8)
+            return;
+        break;
     default:
         return;
     }
@@ -116,6 +120,7 @@ void SotnPlayer_BatInput(SotnPlayer *p)
         p->animation.sprite = 0x9d;
     SotnPlayer_GravityCancel(p);
     p->bat = (SotnPlayerBat){.active = true, .hidden = p->mist.active, .settle_y = settling};
+    p->wolf.active = false;
     p->mist_motion.settle_y = settling;
     p->step = SOTN_PLAYER_BAT;
     p->substep = 0;
@@ -203,6 +208,12 @@ void SotnPlayer_BatTick(SotnPlayer *p)
     {
     case 0:
         p->bat.rotation = 0;
+        if (p->animation_bank == 15)
+        {
+            p->wolf.rotation = 0;
+            p->wolf.draw_flags = 4;
+            p->wolf.blend = 0;
+        }
         p->movement_flags = 0;
         if (p->mist.active)
         {
@@ -252,6 +263,8 @@ void SotnPlayer_BatTick(SotnPlayer *p)
             p->form_pose = p->animation.sprite;
             Animate(p, 0xca);
             p->bat.hidden = true;
+            if (p->animation_bank == 15)
+                p->wolf.palette = 0x810d;
             if (p->bat.signal == 1)
                 return;
             if (p->bat.signal == 2)

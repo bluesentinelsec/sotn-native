@@ -102,7 +102,8 @@ packets and secondary visuals through ordered capture, with repeated-frame input
 restoration.
 Selected [playable Wolf](player-wolf.md) now connects the normal simulation,
 owned controls, body feedback, combat, MP/learning and supported relic switching.
-Cross-form/water/shake and full ability/route parity remain incomplete.
+[Selected cross-form conversions](player-wolf-cross-forms.md) now retain actual
+snapshots and readiness. Water/shake and full ability/route parity remain incomplete.
 
 ## Pinned reference
 
