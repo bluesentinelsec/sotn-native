@@ -94,6 +94,9 @@ controls, attacks/factories and shared presentation wiring remain incomplete; li
 controls remain disabled. The [shared Wolf runtime](wolf-shared-runtime.md) now
 interleaves the actual body with factory-selected flash slots and commits selected
 Bat/Echo/Wolf row reservations together; it enables no live controls by itself.
+Selected [Wolf combat ownership](player-wolf-combat.md) now consumes body spell
+requests through private attacks/RNG and retained native enemy cooldown; scene,
+presentation and live controls remain incomplete.
 
 ## Pinned reference
 

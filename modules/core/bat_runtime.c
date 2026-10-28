@@ -233,8 +233,8 @@ static bool WolfRows(SotnPrimitiveSlots *slots, const SotnWolfRuntime *before,
                 (Uint64)1 << (after->environment_rows[i] % 64U);
     return true;
 }
-static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnPlayerState *p,
-                     SotnBatRuntimeInput *in)
+static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharacterStats stats,
+                     SotnPlayerState *p, SotnBatRuntimeInput *in)
 {
     const SotnWolfRuntime before = r->wolf;
     SotnWolfControllerFrame frame = p->wolf.controller;
@@ -262,11 +262,43 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnPlayerS
         !WolfRows(&in->primitive_slots, &before, &r->wolf))
         return false;
     r->wolf_frame = frame;
+    r->wolf_mask = 0;
     if (!active)
         return true;
     if (p->mp < frame.mp || p->mp - frame.mp != r->wolf_events.mp_spent)
         return SDL_SetError("Shared Wolf body MP report differs from its actual player snapshot");
     profile->mp = frame.mp;
+    // GetSpellDef uses INT/RNG/Mojo, not MP. Body updates consume no RNG themselves;
+    // preserve their front-before-head requests before any later actual entity advances.
+    for (Uint16 i = 0; i < r->wolf_events.spell_count; ++i)
+    {
+        const SotnWolfRuntimeSpell request = r->wolf_events.spells[i];
+        const Uint16 part = request.slot == 18 ? 1 : 3;
+        const Uint16 attack = part == 1 ? 0 : 1;
+        if ((request.slot != 18 && request.slot != 20) ||
+            request.generation != r->wolf.children[part].generation ||
+            !((request.slot == 18 && request.spell == 13) ||
+              (request.slot == 20 && (request.spell == 4 || request.spell == 14))))
+            return SDL_SetError("Wolf attack lost its actual child or spell identity");
+        if (!Spell(in->dra, profile, stats, request.spell, &r->wolf_attacks[attack]))
+            return false;
+        Uint8 group = 3;
+        for (Uint8 j = 4; j < 7; ++j)
+            if (r->groups[j] < r->groups[group])
+                group = j;
+        if (r->groups[group] == 255)
+            return SDL_SetError("Wolf spell attack group overflow");
+        ++r->groups[group];
+        // Original Wolf overrides the newly selected enemyId after incrementing its count.
+        SotnWolfPart *body = &r->wolf.body.parts[part];
+        body->enemy_id = 3;
+        body->hitbox_state = r->wolf_attacks[attack].hit_type;
+        r->wolf_attacks[attack].offset_x = body->hitbox_x;
+        r->wolf_attacks[attack].offset_y = body->hitbox_y;
+        r->wolf_attacks[attack].width = body->width;
+        r->wolf_attacks[attack].height = body->height;
+        r->wolf_mask |= (Uint8)(1U << attack);
+    }
     p->mp = frame.mp;
     p->wolf.controller = frame;
     p->velocity_x = frame.motion.velocity_x;
@@ -451,7 +483,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.echo_attack = false;
     for (Uint16 i = 0; i < 48; ++i)
     {
-        if (i == 1 && in.wolf_owned && !TickWolf(&r, &progress, &p, &in))
+        if (i == 1 && in.wolf_owned && !TickWolf(&r, &progress, stats, &p, &in))
             return false;
         SotnBatRuntimeChild *c = &r.children[i];
         if (!c->kind)
@@ -671,6 +703,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
     }
     SDL_memset(r.groups, 0, sizeof(r.groups));
+    if (r.wolf.generation)
+        for (Uint16 i = 0; i < 14; ++i)
+            if (r.wolf.body.parts[i].enemy_id > 2 && r.wolf.body.parts[i].enemy_id < 11)
+                ++r.groups[r.wolf.body.parts[i].enemy_id];
     for (Uint16 i = 0; i < 48; ++i)
         if (r.children[i].kind == 36 || r.children[i].kind == 45 ||
             (r.children[i].kind == 52 && r.children[i].group))

@@ -736,3 +736,7 @@ at the same pinned AGPL-3.0-or-later revision. It embeds no original game data.
 The [shared Wolf runtime](docs/wolf-shared-runtime.md) adapts selected original
 `dra/wolfForm.c`, `7879C.c` and entity update ordering at that same pinned
 AGPL-3.0-or-later revision. It embeds no original game data.
+
+The [selected Wolf combat owner](docs/player-wolf-combat.md) adapts selected
+`dra/wolfForm.c`, `7879C.c` and `5D5BC.c:GetSpellDef` at that same pinned
+AGPL-3.0-or-later revision. It embeds no original spell tables or artwork.
