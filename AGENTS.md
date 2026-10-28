@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+The [linked Wolf body owner](docs/wolf-body-owner.md) now creates actual slots17..30
+with generation/lineage checks, original body/head-animation ordering, real shared
+root/environment row plans, MP feedback and no-extra-tick rebases. Preserve root
+allocation retries, pending actual owners, common environment retention and stage
+pool transaction checks. Feed its actual slot mask to other allocators; perform
+original forced replacement explicitly before Begin. Spell/bubble intents confer
+no attack/factory readiness. Player transformation/resource/control/combat/render
+wiring remains incomplete; Wolf controls stay disabled and Alucard is not complete.
+
 The [Wolf transition component](docs/wolf-transition.md) reconstructs selected
 entry0/8 and return0/1/2 to the real normal/stuck helper boundaries. Preserve actual
 factory/Mist/signal gates, signed timer14 maxima, signal word wrap, all three

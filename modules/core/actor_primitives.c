@@ -195,6 +195,41 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         WriteEcho(s, r->echo_generation, r->echo_primitives, &r->echo);
     return true;
 }
+bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
+{
+    if (!s || !r || r->body.parts[0].step > 1 || r->root_reserved != (r->body.parts[0].step == 1) ||
+        (r->root_reserved &&
+         (!r->generation || !r->children[0].generation || r->children[0].lineage != r->generation ||
+          r->children[0].slot != 17 || r->children[0].identity != 56)) ||
+        r->environment_reserved != (r->environment_generation != 0))
+        return SDL_SetError("Wolf primitive commit requires its actual root/environment owners");
+    SotnPrimitiveSlots used = {0};
+    const Uint16 *rows[2] = {r->root_rows, r->environment_rows};
+    const Uint16 counts[2] = {(Uint16)(r->root_reserved ? 6 : 0),
+                              (Uint16)(r->environment_reserved ? 2 : 0)};
+    const Uint16 kinds[2] = {56, SOTN_WOLF_ENVIRONMENT_TAG};
+    const Uint32 owners[2] = {r->children[0].generation, r->environment_generation};
+    for (Uint16 owner = 0; owner < 2; ++owner)
+        for (Uint16 i = 0; i < counts[owner]; ++i)
+        {
+            const Uint16 id = rows[owner][i];
+            if (id >= SOTN_PRIMITIVE_SLOTS ||
+                (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
+                (s->primitives[id].owner && (s->primitives[id].owner != owners[owner] ||
+                                             s->primitives[id].ability_kind != kinds[owner])))
+                return SDL_SetError("Wolf primitive reservation collides with an actual owner");
+            used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+        }
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (s->primitives[i].ability_kind == 56 ||
+            s->primitives[i].ability_kind == SOTN_WOLF_ENVIRONMENT_TAG)
+            s->primitives[i] = (ActorPrimitive){0};
+    for (Uint16 owner = 0; owner < 2; ++owner)
+        for (Uint16 i = 0; i < counts[owner]; ++i)
+            s->primitives[rows[owner][i]] =
+                (ActorPrimitive){.owner = owners[owner], .ability_kind = kinds[owner]};
+    return true;
+}
 bool SotnActors_GetBatEchoPrimitive(const SotnActors *s, Uint32 generation, Uint16 index,
                                     SotnActorPrimitive *out)
 {

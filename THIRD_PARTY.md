@@ -724,3 +724,7 @@ revision. Original artwork, multipart tables, palette data and captures remain p
 The [Wolf transition component](docs/wolf-transition.md) adapts selected
 `dra/wolfForm.c:WolfStepS_0/WolfStepS_8/PlayerStepUnmorphWolf` at that same pinned
 AGPL-3.0-or-later revision. It embeds no game data or runtime snapshots.
+
+The [linked Wolf body owner](docs/wolf-body-owner.md) adapts selected body
+initialization/update ordering in `dra/wolfForm.c` at the same pinned
+AGPL-3.0-or-later revision. It embeds no original game tables or artwork.

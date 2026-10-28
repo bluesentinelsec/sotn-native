@@ -10,6 +10,7 @@
 #include <sotn/player.h>
 #include <sotn/primitive_slots.h>
 #include <sotn/stage_route.h>
+#include <sotn/wolf_runtime.h>
 #include <sotn/world.h>
 
 /** @brief Owned development actor simulation, borrowing private images and room data. */
@@ -181,6 +182,12 @@ bool SotnActors_PrimitiveSlots(const SotnActors *actors, SotnPrimitiveSlots *out
  * Retires previous selected Bat rows only; stage-owned rows and ordinary progress survive.
  * Full shared Mist/other-ability allocation remains incomplete. */
 bool SotnActors_CommitBatPrimitives(SotnActors *actors, const SotnBatRuntime *runtime);
+/** @brief Commit the actual Wolf root/common-environment row plan to the stage pool.
+ * @param actors Actual stage primitive owner. @param runtime Borrowed current body owner.
+ * @return Success or SDL error, without pool mutation on invalid/overlapping/stale reservations.
+ * Replaces only this selected root/environment owner's rows; never replaces stage or Bat rows.
+ * Call before other allocators advance. This does not allocate bodies or enable Wolf controls. */
+bool SotnActors_CommitWolfPrimitives(SotnActors *actors, const SotnWolfRuntime *runtime);
 /** @brief Commit the single actual slot-47 Echo child's primitive reservation and packets.
  * @param actors Borrowed actual pool. @param generation Nonzero child identity, or zero to retire.
  * @param indices Forty-nine unique actual rows, or NULL when retiring.

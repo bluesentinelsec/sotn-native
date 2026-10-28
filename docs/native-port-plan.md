@@ -87,8 +87,10 @@ now reconstruct selected packets, and [Wolf BlinkWhite](wolf-blink.md) retains
 scoped entry/return/capture comparisons. [Multipart/capture services](wolf-presentation.md)
 now generate original packets and apply the owned shared target. The [transition component](wolf-transition.md)
 retains original entry/sensor/effect gates to the normal/stuck helper boundaries.
-Actual native Wolf entry/return/combat/
-primitive/presentation ownership remains unwired and live controls remain disabled.
+The [linked body owner](wolf-body-owner.md) now creates generation-owned parts
+and commits real root/environment rows to the stage pool. Actual player entry/
+return, resource/control, attack/factory and shared presentation wiring remain
+incomplete; live controls remain disabled.
 
 ## Pinned reference
 
