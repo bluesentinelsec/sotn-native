@@ -21,12 +21,20 @@ static Sint16 Read16(const Uint8 *p)
 static bool Selected(Uint16 parameter)
 {
     return parameter == 0x20 || parameter == 0x21 || parameter == 0x1b || parameter == 5 ||
-           parameter == 0x5c;
+           parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25;
+}
+static bool Morph(Uint16 parameter)
+{
+    return parameter == 0x20 || parameter == 0x21 || parameter == 0x23 || parameter == 0x24;
+}
+static bool WolfCapture(SotnPlayerBlinkInput in, Uint16 parameter)
+{
+    return in.wolf_form && !(parameter == 0x23 && in.signal < 2);
 }
 static bool Fan(SotnPlayerEffectQuad *q, SotnPlayerBlinkInput in, Uint16 index, Sint16 origin_x,
-                Sint16 origin_y, Uint16 angle)
+                Sint16 origin_y, Uint16 angle, Sint32 width, Sint32 height, Sint32 texture_x,
+                Sint32 texture_y)
 {
-    const Sint32 width = in.image.width, height = in.image.height;
     const Sint32 x[8] = {0, width / 2, width, width, width, width / 2, 0, 0},
                  y[8] = {0, 0, 0, height / 2, height, height, height, height / 2};
     const Uint16 end = (Uint16)((index + 1U) % 8U);
@@ -35,8 +43,8 @@ static bool Fan(SotnPlayerEffectQuad *q, SotnPlayerBlinkInput in, Uint16 index, 
         const Uint16 at = v ? end : index;
         q->x[v] = Word(origin_x + (in.facing_left ? -x[at] : x[at]));
         q->y[v] = Word(origin_y + y[at]);
-        q->u[v] = (Uint8)(4 + x[at]);
-        q->v[v] = (Uint8)(1 + y[at]);
+        q->u[v] = (Uint8)(Uint32)(texture_x + x[at]);
+        q->v[v] = (Uint8)(Uint32)(texture_y + y[at]);
     }
     SotnMathTrig trig = {0};
     if (!SotnMath_Trig(in.executable, angle, &trig))
@@ -44,8 +52,8 @@ static bool Fan(SotnPlayerEffectQuad *q, SotnPlayerBlinkInput in, Uint16 index, 
     q->x[2] = q->x[3] = Word(origin_x + (in.facing_left ? -width / 2 : width / 2) +
                              Shift((Sint64)Shift(trig.cosine, 4) * 3, 12));
     q->y[2] = q->y[3] = Word(origin_y + height / 2 - Shift((Sint64)Shift(trig.sine, 4) * 6, 8));
-    q->u[2] = q->u[3] = (Uint8)(4 + width / 2);
-    q->v[2] = q->v[3] = (Uint8)(1 + height / 2);
+    q->u[2] = q->u[3] = (Uint8)(Uint32)(texture_x + width / 2);
+    q->v[2] = q->v[3] = (Uint8)(Uint32)(texture_y + height / 2);
     return true;
 }
 bool SotnPlayerEffect_Rotate(SotnDataView executable, Sint16 x, Sint16 y, Sint16 rotation,
@@ -74,17 +82,26 @@ bool SotnPlayerEffect_Rotate(SotnDataView executable, Sint16 x, Sint16 y, Sint16
 static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlayerBlinkInput in,
                      const Sint16 profile[10], Uint16 parameter)
 {
-    const Sint16 origin_x = Word(in.x + (in.facing_left ? -in.image.pivot_x : in.image.pivot_x)),
-                 origin_y = Word(in.y + in.image.pivot_y);
-    const Sint32 width = in.image.width, height = in.image.height;
+    const bool capture = WolfCapture(in, parameter);
+    const bool facing = capture ? false : in.facing_left;
+    const Sint32 width = capture ? in.wolf_bounds.right - in.wolf_bounds.left : in.image.width,
+                 height = capture ? in.wolf_bounds.bottom - in.wolf_bounds.top : in.image.height;
+    const Sint32 pivot_x = capture ? in.wolf_bounds.left : in.image.pivot_x,
+                 pivot_y = capture ? in.wolf_bounds.top : in.image.pivot_y;
+    const Sint16 origin_x = Word(in.x + (facing ? -pivot_x : pivot_x)),
+                 origin_y = Word(in.y + pivot_y);
+    const Sint32 texture_x = capture ? (in.facing_left ? 20 : 44) + in.wolf_bounds.left : 4,
+                 texture_y = capture ? in.wolf_bounds.top - 40 : 1;
+    SotnPlayerBlinkInput geometry = in;
+    geometry.facing_left = facing;
     Uint16 wave = e->wave;
     e->angle = (Uint16)(e->angle + e->speed);
     for (Uint16 i = 0; i < 8; ++i)
     {
         SotnPlayerEffectQuad *q = &e->quads[i];
-        q->page = 0x18;
+        q->page = capture ? 0x118 : 0x18;
         Sint32 upper = 0, lower = 0;
-        const bool morph = parameter == 0x20 || parameter == 0x21;
+        const bool morph = Morph(parameter);
         if (morph)
         {
             SotnMathTrig trig = {0};
@@ -96,22 +113,23 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
                 return false;
             lower = Shift(trig.sine, 7) * e->amplitude / 256;
         }
-        const Sint32 left = in.facing_left ? origin_x - width + 1 : origin_x,
-                     right = in.facing_left ? origin_x + 1 : origin_x + width;
+        const Sint32 left = facing ? origin_x - width + 1 : origin_x,
+                     right = facing ? origin_x + 1 : origin_x + width;
         q->x[0] = Word(left + upper);
         q->x[1] = Word(right + upper);
         q->x[2] = Word(left + lower);
         q->x[3] = Word(right + lower);
-        q->y[0] = q->y[1] = Word(origin_y + height * i / 8);
-        q->y[2] = q->y[3] = Word(origin_y + height * (i + 1U) / 8);
-        q->u[0] = q->u[2] = (Uint8)(in.facing_left ? 3 + width : 4);
-        q->u[1] = q->u[3] = (Uint8)(in.facing_left ? 3 : 4 + width);
-        q->v[0] = q->v[1] = (Uint8)(1 + height * i / 8);
-        q->v[2] = q->v[3] = (Uint8)(1 + height * (i + 1U) / 8);
-        if ((parameter & 0x40U) && !Fan(q, in, i, origin_x, origin_y, e->angle))
+        q->y[0] = q->y[1] = Word(origin_y + height * (Sint32)i / 8);
+        q->y[2] = q->y[3] = Word(origin_y + height * ((Sint32)i + 1) / 8);
+        q->u[0] = q->u[2] = (Uint8)(Uint32)(facing ? texture_x + width - 1 : texture_x);
+        q->u[1] = q->u[3] = (Uint8)(Uint32)(facing ? texture_x - 1 : texture_x + width);
+        q->v[0] = q->v[1] = (Uint8)(Uint32)(texture_y + height * (Sint32)i / 8);
+        q->v[2] = q->v[3] = (Uint8)(Uint32)(texture_y + height * ((Sint32)i + 1) / 8);
+        if ((parameter & 0x40U) &&
+            !Fan(q, geometry, i, origin_x, origin_y, e->angle, width, height, texture_x, texture_y))
             return false;
-        if (in.rotated &&
-            !SotnPlayerEffect_Rotate(in.executable, in.x, in.y, in.rotation, in.facing_left, q))
+        if (!capture && in.rotated &&
+            !SotnPlayerEffect_Rotate(in.executable, in.x, in.y, in.rotation, facing, q))
             return false;
         if (!morph)
         {
@@ -152,35 +170,62 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
     SotnPlayerBlinkShared phases = *shared;
     SotnPlayerBlinkEvents events = {0};
     const bool incompatible_form = (in.status & (2U | 0x1000000U)) != 0;
-    if (incompatible_form || !in.image_present ||
-        (phases.bat_lock && next.parameter != 0x20 && next.parameter != 0x21))
+    if (incompatible_form)
     {
         next.removed = true;
-        if (incompatible_form || !in.image_present)
-            phases.bat_lock = false;
+        phases.bat_lock = phases.wolf_lock = false;
+        goto done;
+    }
+    if (phases.bat_lock && next.parameter != 0x20 && next.parameter != 0x21)
+    {
+        next.removed = true;
+        phases.wolf_lock = false;
+        goto done;
+    }
+    if (phases.wolf_lock && next.parameter != 0x23 && next.parameter != 0x24)
+    {
+        next.removed = true;
+        phases.bat_lock = false;
+        goto done;
+    }
+    if (!in.image_present)
+    {
+        next.removed = true;
+        phases.bat_lock = phases.wolf_lock = false;
         goto done;
     }
     if (next.brightness < 0 || next.brightness > 256 || next.amplitude < -8 ||
-        next.amplitude > 128 ||
+        next.amplitude > 256 ||
         (next.parameter == 0x20 && next.phase != 0 && next.phase != 8 && next.phase != 9) ||
         (next.parameter == 0x21 && next.phase != 0 && next.phase != 10 && next.phase != 11) ||
-        ((next.parameter == 0x1b || next.parameter == 5) && next.phase > 3) ||
+        (next.parameter == 0x23 && next.phase != 0 && next.phase != 12 && next.phase != 13) ||
+        (next.parameter == 0x24 && next.phase != 0 && next.phase != 14 && next.phase != 15) ||
+        ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5) &&
+         next.phase > 3) ||
         (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");
     const Uint16 parameter = next.parameter;
+    const bool capture = WolfCapture(in, parameter);
     const size_t at = 0xd670 + (size_t)(parameter & 0x3fU) * 20U;
-    if (!in.dra.bytes || at > in.dra.size || in.dra.size - at < 20 || !in.image.width ||
-        in.image.width > 252 || !in.image.height || in.image.height > 254 ||
-        in.image.pivot_x < -512 || in.image.pivot_x > 512 || in.image.pivot_y < -512 ||
-        in.image.pivot_y > 512 || in.priority > 507)
+    if (!in.dra.bytes || at > in.dra.size || in.dra.size - at < 20 ||
+        (!capture && (!in.image.width || in.image.width > 252 || !in.image.height ||
+                      in.image.height > 254 || in.image.pivot_x < -512 || in.image.pivot_x > 512 ||
+                      in.image.pivot_y < -512 || in.image.pivot_y > 512)) ||
+        in.priority > 507)
         return SDL_SetError(
             "Player blink requires bounded actual image geometry and private profile");
+    if (capture && (in.wolf_bounds.left < -131072 || in.wolf_bounds.left > 131072 ||
+                    in.wolf_bounds.right < -131072 || in.wolf_bounds.right > 131072 ||
+                    in.wolf_bounds.top < -131072 || in.wolf_bounds.top > 131072 ||
+                    in.wolf_bounds.bottom < -131072 || in.wolf_bounds.bottom > 131072))
+        return SDL_SetError("Wolf blink requires bounded actual raw capture offsets");
     Sint16 profile[10] = {0};
     for (Uint16 i = 0; i < 10; ++i)
         profile[i] = Read16(in.dra.bytes + at + i * 2U);
     if (profile[0] < 0 || profile[1] < 0 || profile[2] < 0 || profile[3] < 0 || profile[3] >= 768 ||
         profile[4] <= 0 || profile[5] <= 0 || profile[6] <= 0 || profile[7] <= 0 ||
-        (profile[7] >= 0x7000 && profile[7] != 0x7008 && profile[7] != 0x7009))
+        (profile[7] >= 0x7000 && profile[7] != 0x7008 && profile[7] != 0x7009 &&
+         profile[7] != 0x700b))
         return SDL_SetError("Selected player blink profile has invalid color or duration fields");
     switch (next.phase)
     {
@@ -192,15 +237,18 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
             phases.angles[i] = i * 512U;
             SotnPlayerEffectQuad *q = &next.quads[i];
             q->palette = (Uint16)profile[3];
-            q->priority =
-                (Uint16)(in.priority + ((parameter == 0x20 || parameter == 0x21) ? 4U : 2U));
+            q->priority = (Uint16)(in.priority + (Morph(parameter) ? 4U : 2U));
             q->draw_mode = (Uint16)(profile[8] + 0x304);
             for (Uint16 v = 0; v < 4; ++v)
                 q->red[v] = q->green[v] = q->blue[v] = 128;
         }
         next.speed = (Uint16)profile[9];
         next.brightness = next.amplitude = 0;
-        next.phase = parameter == 0x20 ? 8 : parameter == 0x21 ? 10 : 1;
+        next.phase = parameter == 0x20   ? 8
+                     : parameter == 0x21 ? 10
+                     : parameter == 0x23 ? 12
+                     : parameter == 0x24 ? 14
+                                         : 1;
         break;
     case 1:
         next.brightness = (Sint16)(next.brightness + (profile[7] == 0x7008 ? 80 : 10));
@@ -212,7 +260,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         break;
     case 2:
-        if (profile[7] == 0x7008 || profile[7] == 0x7009)
+        if (profile[7] == 0x7008 || profile[7] == 0x7009 || profile[7] == 0x700b)
         {
             next.hold = 8;
             if (profile[7] == 0x7008)
@@ -220,7 +268,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
                 if (!(in.status & 0x400000U))
                     ++next.phase;
             }
-            else
+            else if (profile[7] == 0x7009)
             {
                 if (in.player_step != 5 || in.player_substep != 3)
                     ++next.phase;
@@ -228,6 +276,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
                 if (!(in.status & 0x40000000U))
                     ++next.phase;
             }
+            else if (!(in.status & 0x40000000U))
+                ++next.phase;
         }
         if (!next.hold)
             return SDL_SetError("Player blink finishing hold timer is invalid");
@@ -248,10 +298,10 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
     case 8:
         phases.bat_lock = true;
         next.wave = (Uint16)(next.wave + 256U);
-        next.amplitude = (Sint16)(next.amplitude + 8);
-        if (next.amplitude > 128)
+        next.amplitude = (Sint16)(next.amplitude + (in.wolf_form ? 16 : 8));
+        if (next.amplitude > (in.wolf_form ? 256 : 128))
         {
-            next.amplitude = 128;
+            next.amplitude = in.wolf_form ? 256 : 128;
             events.signal = 2;
             ++next.phase;
         }
@@ -274,6 +324,40 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
     case 10:
         phases.bat_lock = true;
         next.amplitude = (Sint16)SDL_min(128, next.amplitude + 8);
+        next.wave = (Uint16)(next.wave + 256U);
+        if (in.signal == 1)
+            ++next.phase;
+        break;
+    case 12:
+        phases.wolf_lock = true;
+        next.wave = (Uint16)(next.wave + 256U);
+        next.amplitude = (Sint16)(next.amplitude + 16);
+        if (next.amplitude > 256)
+        {
+            next.amplitude = 256;
+            events.signal = 2;
+            ++next.phase;
+        }
+        break;
+    case 13:
+    case 15:
+        next.amplitude = (Sint16)(next.amplitude - 8);
+        next.wave = (Uint16)(next.wave + 256U);
+        if (next.amplitude < 0)
+        {
+            events.signal = 3;
+            next.parameter = next.phase == 13 ? 0x25 : 0x1b;
+            if (next.phase == 15)
+                for (Uint16 i = 0; i < 8; ++i)
+                    next.quads[i].palette = 0x15f;
+            next.phase = 1;
+            phases.wolf_lock = false;
+            goto done;
+        }
+        break;
+    case 14:
+        phases.wolf_lock = true;
+        next.amplitude = (Sint16)SDL_min(256, next.amplitude + 16);
         next.wave = (Uint16)(next.wave + 256U);
         if (in.signal == 1)
             ++next.phase;

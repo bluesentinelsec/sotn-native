@@ -2,6 +2,7 @@
 #define SOTN_PLAYER_BLINK_H
 
 #include <sotn/game_math.h>
+#include <sotn/wolf_motion.h>
 
 /** @brief Actual decoded player image geometry; its pixels stay with the texture owner. */
 typedef struct SotnPlayerImage
@@ -22,13 +23,13 @@ typedef struct SotnPlayerEffectQuad
 typedef struct SotnPlayerBlinkShared
 {
     Uint32 angles[8];
-    bool bat_lock;
+    bool bat_lock, wolf_lock;
 } SotnPlayerBlinkShared;
 
 /** @brief One real selected BlinkWhite controller and its eight owned primitives.
- * Initialize parameter to 0x20 (Bat entry), 0x21 (return), 5 (Fire) or 0x5C (Wing Smash).
+ * Initialize parameter to 0x20/0x21 (Bat), 0x23/0x24 (Wolf), 5 (Fire) or 0x5C (Wing Smash).
  * Retain until removed; special flashes allocate their own real children.
- * Parameter 0x1B is the original automatic finishing flash, not a new child. */
+ * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
 {
     SotnPlayerEffectQuad quads[8];
@@ -42,11 +43,13 @@ typedef struct SotnPlayerBlinkInput
 {
     SotnDataView dra, executable;
     SotnPlayerImage image;
+    SotnWolfCaptureBounds wolf_bounds;
     Sint16 x, y, rotation;
     Uint16 priority, player_step, player_substep;
     Uint32 status;
     Uint8 signal;
     bool facing_left, rotated, image_present;
+    bool wolf_form; /**< Actual bank15. Entry23 before signal2 uses the saved ordinary/Bat image. */
     bool allocation_failed; /**< Real eight-row exhaustion at phase zero; the US child retries. */
 } SotnPlayerBlinkInput;
 
@@ -57,7 +60,7 @@ typedef struct SotnPlayerBlinkEvents
     bool reset_afterimages;
 } SotnPlayerBlinkEvents;
 
-/** @brief Advance original selected Bat transformation and Wing/Fire flashes once.
+/** @brief Advance selected original Bat/Wolf transformation and Wing/Fire flashes once.
  * @param effect Owned actual child and primitives. @param shared Owned shared phase/lock state.
  * @param input Borrowed verified private tables and actual decoded player snapshot.
  * @param out Copied original handshake/afterimage requests.
