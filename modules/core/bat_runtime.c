@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Selected dra/7879C.c factories/BlinkWhite/WingSmashTrail/func_8011B480/func_80118894,
-// and 5D5BC.c:GetSpellDef, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// Original blueprint/profile/spell/artwork data remains private.
+// 84B88.c:EntityBatFireball, alu_anim.c:UpdateAnim and 5D5BC.c:GetSpellDef, sotn-decomp
+// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Original blueprint/profile/spell/artwork data remains
+// private.
 #include <sotn/bat_runtime.h>
 #include <sotn/combat.h>
 
@@ -94,23 +95,23 @@ static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 
     return true;
 }
 static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterStats stats,
-                  SotnPlayerAttack *attack)
+                  Uint16 id, SotnPlayerAttack *attack)
 {
-    const size_t at = 0x8410U + 6U * 28U;
+    const size_t at = 0x8410U + id * 28U;
     if (!dra.bytes || at > dra.size || dra.size - at < 28)
-        return SDL_SetError("Wing Smash requires its private spell definition");
+        return SDL_SetError("Bat attack requires its private spell definition");
     const Uint8 *s = dra.bytes + at;
     const Uint16 base = Read16(s + 24);
     if (base > 900 || Read16(s + 16) != 2 || Read16(s + 20) > 255)
-        return SDL_SetError("Wing Smash has invalid spell attack metadata");
+        return SDL_SetError("Bat attack has invalid spell attack metadata");
     Uint32 power = base + (stats.total[2] * 2U + SotnCombat_Random(&profile->random) % 12U) / 10U;
     if (profile->equipment[SOTN_EQUIP_ARMOR] == 21)
         power += power / 2U;
     if (power > 999)
-        return SDL_SetError("Wing Smash attack exceeds original native combat bounds");
-    *attack = (SotnPlayerAttack){.offset_x = 4,
-                                 .width = 12,
-                                 .height = 12,
+        return SDL_SetError("Bat spell attack exceeds original native combat bounds");
+    *attack = (SotnPlayerAttack){.offset_x = id == 6 ? 4 : 0,
+                                 .width = id == 6 ? 12 : 4,
+                                 .height = id == 6 ? 12 : 8,
                                  .power = (Uint16)power,
                                  .element = Read16(s + 22),
                                  .critical_rate = (Uint8)Read16(s + 20),
@@ -124,7 +125,8 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
-        (child.entity_id != 11 && child.entity_id != 35 && child.entity_id != 36) ||
+        (child.entity_id != 11 && child.entity_id != 35 && child.entity_id != 36 &&
+         child.entity_id != 45) ||
         r->children[child.slot - 16U].kind || r->serial == SDL_MAX_UINT32)
         return SDL_SetError("Bat factory produced an unsupported or occupied actual child slot");
     SotnBatRuntimeChild c = {.source = child.source,
@@ -136,6 +138,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
     if (c.kind == 35)
         c.state.trail = (SotnBatTrail){.x = child.source.x, .y = child.source.y};
+    if (c.kind == 45)
+        c.state.fire.motion = (SotnBatFireball){.x = child.source.x, .y = child.source.y};
     r->children[child.slot - 16U] = c;
     return true;
 }
@@ -146,6 +150,34 @@ static bool Duplicate(const SotnBatRuntime *r, Uint16 index)
         if (i != index && r->children[i].kind == 11 && r->children[i].parameter == c.parameter)
             return true;
     return false;
+}
+static bool FireAnimation(SotnDataView dra, SotnBatRuntimeChild *c)
+{
+    Uint16 pose = c->state.fire.pose, remaining = c->state.fire.remaining;
+    if (pose >= 9 || remaining > 32767 || !dra.bytes || dra.size < 0x10798U + 9U * 4U)
+        return SDL_SetError("Bat fireball requires its bounded private animation stream");
+    if (remaining && --remaining == 0)
+        ++pose;
+    if (pose >= 9)
+        return SDL_SetError("Bat fireball animation lacks its bounded loop");
+    const Uint8 *record = dra.bytes + 0x10798U + pose * 4U;
+    if (!remaining)
+    {
+        if (!Read16(record))
+        {
+            pose = Read16(record + 2);
+            if (pose >= 8)
+                return SDL_SetError("Bat fireball animation has invalid loop target");
+            record = dra.bytes + 0x10798U + pose * 4U;
+        }
+        remaining = Read16(record);
+    }
+    if (!remaining || remaining > 32767 || (Read16(record + 2) & 0xfe00U))
+        return SDL_SetError("Bat fireball animation has invalid duration/frame metadata");
+    c->state.fire.pose = pose;
+    c->state.fire.remaining = remaining;
+    c->state.fire.frame = Read16(record + 2);
+    return true;
 }
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
@@ -161,7 +193,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     for (Uint16 i = 0; i < 48; ++i)
     {
         const SotnBatRuntimeChild *c = &r.children[i];
-        if ((c->kind && (!c->generation || (c->kind != 11 && c->kind != 35 && c->kind != 36))) ||
+        if ((c->kind == 45 &&
+             (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
+            (c->kind && (!c->generation ||
+                         (c->kind != 11 && c->kind != 35 && c->kind != 36 && c->kind != 45))) ||
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
@@ -186,6 +221,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             c->state.trail.x = FixedShift(c->state.trail.x, in.room_shift_x);
             c->state.trail.y = FixedShift(c->state.trail.y, in.room_shift_y);
         }
+        if (c->kind == 45)
+        {
+            c->state.fire.motion.x = FixedShift(c->state.fire.motion.x, in.room_shift_x);
+            c->state.fire.motion.y = FixedShift(c->state.fire.motion.y, in.room_shift_y);
+        }
         SotnPlayerEffectQuad *q = c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
         const Uint16 count = c->kind == 11 ? 8 : c->kind == 35 ? 1 : 0;
         for (Uint16 j = 0; j < count; ++j)
@@ -200,10 +240,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         *runtime = r;
         return true;
     }
+    r.sound_count = 0;
+    r.use_ticks = 0;
     const SotnPlayerState p = in.player;
     if ((p.bat.started && !Request(&r, p, 0x20002cU, p.bat.generation)) ||
         (p.bat_commands.wing_flash && !Request(&r, p, 0x5c002cU, 0)) ||
         (p.bat_commands.wing_attack && !Request(&r, p, 67, 0)) ||
+        (p.bat_commands.fire_flash && !Request(&r, p, 0x5002cU, 0)) ||
+        (p.bat_commands.fireball && !Request(&r, p, 81, 0)) ||
         (p.bat.return_started && !Request(&r, p, 0x21002cU, p.bat.generation)) ||
         (p.bat_commands.trail && !Request(&r, p, 65, 0)))
         return false;
@@ -235,6 +279,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return false;
     const Uint32 previous_random = progress.random;
     r.wing_mask = 0;
+    r.fire_mask = 0;
     for (Uint16 i = 0; i < 48; ++i)
     {
         SotnBatRuntimeChild *c = &r.children[i];
@@ -306,7 +351,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 if (!c->initialized)
                 {
-                    if (i < 1 || i > 15 || !Spell(in.dra, &progress, stats, &c->state.attack))
+                    if (i < 1 || i > 15 || !Spell(in.dra, &progress, stats, 6, &c->state.attack))
                         return false;
                     Uint8 group = 3;
                     for (Uint8 j = 4; j < 7; ++j)
@@ -324,6 +369,44 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.wing_mask |= (Uint16)(1U << (i - 1U));
             }
         }
+        else if (c->kind == 45)
+        {
+            SotnBatFireballEvents events = {0};
+            if (!SotnBatFireball_Tick(&c->state.fire.motion,
+                                      (SotnBatFireballInput){.player_priority = p.priority,
+                                                             .player_facing_left = p.facing_left,
+                                                             .hit_flags = c->state.fire.hit_flags},
+                                      &events))
+                return false;
+            removed = c->state.fire.motion.removed;
+            if (events.initialize)
+            {
+                if (!Spell(in.dra, &progress, stats, 9, &c->state.fire.attack))
+                    return false;
+                Uint8 group = 7;
+                for (Uint8 j = 8; j < 11; ++j)
+                    if (r.groups[j] < r.groups[group])
+                        group = j;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Bat fireball attack group overflow");
+                ++r.groups[group];
+                c->group = group;
+                c->initialized = true;
+                r.sounds[r.sound_count++] = events.sound;
+                r.use_ticks = events.player_use_ticks;
+            }
+            c->source.x = c->state.fire.motion.x;
+            c->source.y = c->state.fire.motion.y;
+            c->source.facing_left = c->state.fire.motion.facing_left;
+            const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
+            removed |= x > 288 || x < -32 || y > 256 || y < -16;
+            if (!removed)
+            {
+                if (!FireAnimation(in.dra, c))
+                    return false;
+                r.fire_mask |= (Uint64)1 << i;
+            }
+        }
         else
             return SDL_SetError("Bat runtime child has an unsupported original identity");
         if (removed)
@@ -331,7 +414,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     }
     SDL_memset(r.groups, 0, sizeof(r.groups));
     for (Uint16 i = 0; i < 48; ++i)
-        if (r.children[i].kind == 36)
+        if (r.children[i].kind == 36 || r.children[i].kind == 45)
             ++r.groups[r.children[i].group];
     if (progress.random != previous_random && !SotnCharacter_Restore(character, &progress))
         return false;
@@ -348,5 +431,14 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
     *quads = !c->draw_count ? NULL : c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
+    return true;
+}
+
+bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags)
+{
+    if (!r || i >= 48 || !flags || flags > 3 || r->children[i].kind != 45 || !generation ||
+        r->children[i].generation != generation || !r->children[i].initialized)
+        return SDL_SetError("Bat fireball feedback requires its actual live child generation");
+    r->children[i].state.fire.hit_flags = flags;
     return true;
 }

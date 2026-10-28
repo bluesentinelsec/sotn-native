@@ -3,10 +3,9 @@
 The core now reconstructs Wing Smash's directional command and the selected
 Wing Smash/Fire of Bat controller paths. [Selected Wing Smash](player-wing-smash.md)
 now connects the command to actual factories, attacks, visuals, learning and return
-in gameplay. Fire/Echo relic switches remain unavailable; their child behaviors
-and shared services still need integration. The [fireball motion component](bat-fireball-motion.md)
-now covers launch, travel/growth and impact retirement, without enabling live Fire. The component comparisons below cover
-supplied contexts independently of that selected runtime.
+in gameplay. [Selected Fire of Bat](player-fire-of-bat.md) now connects its actual
+factory/attack/animation/render ownership too. Echo remains unavailable. These
+component comparisons cover supplied contexts independently of the live owner.
 
 The copied controller context advances after the form's own resource gate. Original
 Wing Smash input holds jump through up, up-back, back, down-back, down, down-forward

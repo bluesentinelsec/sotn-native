@@ -1718,3 +1718,11 @@ bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
     *player = next;
     return true;
 }
+
+bool SotnPlayer_SetUseTimer(SotnPlayer *p, Uint8 ticks)
+{
+    if (!p || ticks > 32)
+        return SDL_SetError("Player use timer requires its owner and bounded ticks");
+    p->timers[0] = ticks;
+    return true;
+}

@@ -173,7 +173,8 @@ void SotnPlayer_BatTick(SotnPlayer *p)
                                      .contacts = (Uint16)p->contact,
                                      .mp = p->mp,
                                      .game_timer = p->mist_game_timer,
-                                     .facing_left = p->facing_left};
+                                     .facing_left = p->facing_left,
+                                     .fire_enabled = (p->relics[SOTN_RELIC_FIRE_BAT] & 2U) != 0};
         if (!SotnBatCommand_Tick(&p->bat_command, p->dra, &frame, &p->bat_commands))
         {
             p->failed = true;

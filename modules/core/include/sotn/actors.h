@@ -297,9 +297,10 @@ bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
  * changing generations never resets an enemy's existing cooldown. */
 bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud);
 /** @brief Borrow actual selected Bat attack children and original attack-group identities.
- * @param actors Borrowed scene. @param runtime Borrowed owner, alive until replaced/destruction.
+ * @param actors Borrowed scene. @param runtime Borrowed mutable owner for generation-checked impact
+ * feedback; alive until replaced/destruction.
  * @return Success or SDL error. NULL disables this source; group cooldowns survive replacement. */
-bool SotnActors_SetBatRuntime(SotnActors *actors, const SotnBatRuntime *runtime);
+bool SotnActors_SetBatRuntime(SotnActors *actors, SotnBatRuntime *runtime);
 /** @brief Bind a borrowed projectile service, alive through actor destruction; NULL disables it.
  * @param actors Borrowed actors. @param service Borrowed service. @return Success or SDL error. */
 bool SotnActors_SetSubweapons(SotnActors *actors, SotnSubweapons *service);

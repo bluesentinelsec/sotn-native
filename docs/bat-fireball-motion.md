@@ -1,9 +1,9 @@
 # Bat fireball motion component
 
 The core now reconstructs the motion/lifecycle of the projectile requested by
-Fire of Bat. This component does not enable Fire of Bat in gameplay. Actual
-factory/child ownership, spell attack initialization, private animation/artwork,
-combat feedback and rendering must connect before enabling the relic or controls.
+Fire of Bat. [Selected live Fire of Bat](player-fire-of-bat.md) now connects this component
+to actual factories, attacks, animation, rendering and feedback. The comparisons
+below retain their motion-only scope; the component itself reserves no slots.
 
 An actual child starts at its factory's fixed-point origin. Birth takes facing
 and priority from Alucard, including the original unconditional facing overwrite

@@ -24,7 +24,7 @@ enum
     ACTOR_KICK_CHANNEL = ACTOR_HAND_PROJECTILE_CHANNELS + ACTOR_FOREIGN_ATTACK_GROUPS,
     ACTOR_GAS_CHANNEL,
     ACTOR_WING_CHANNEL,
-    ACTOR_ATTACK_CHANNELS = ACTOR_WING_CHANNEL + 4
+    ACTOR_ATTACK_CHANNELS = ACTOR_WING_CHANNEL + 8
 };
 typedef struct ActorPrimitive
 {
@@ -539,7 +539,7 @@ struct SotnActors
     SotnCharacter *character;
     SotnSubweapons *subweapons;
     const SotnGasCloud *gas_cloud;
-    const SotnBatRuntime *bat_runtime;
+    SotnBatRuntime *bat_runtime;
 };
 
 static inline Uint16 Read16(const Uint8 *bytes)

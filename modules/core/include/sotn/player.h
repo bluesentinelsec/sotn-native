@@ -434,4 +434,8 @@ bool SotnPlayer_StageStopHorizontal(SotnPlayer *player);
  */
 void SotnPlayer_Close(SotnPlayer *player);
 
+/** @brief Apply the original subweapon-use timer after an actual ability child is born.
+ * @param player Borrowed owner. @param ticks Original timer value, 0..32.
+ * @return Success or SDL error without mutation. This grants no invincibility. */
+bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
 #endif

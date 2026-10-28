@@ -71,6 +71,8 @@ static bool Tick(Fixture *f, Uint16 buttons)
             .image = bat ? (SotnPlayerImage){32, 48, -16, (Sint16)(-24 + f->state.bat.settle_y)}
                          : (SotnPlayerImage){40, 64, -20, -48},
             .other_occupied = f->occupied}));
+    if (f->runtime.use_ticks)
+        CHECK(SotnPlayer_SetUseTimer(f->player, f->runtime.use_ticks));
     ++f->tick;
     return true;
 }
@@ -205,6 +207,103 @@ static bool Wing(Fixture *f)
     Close(f);
     return true;
 }
+static bool Fire(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *bp = f->dra + 0xd1d4 + 81 * 6;
+    bp[0] = 45;
+    bp[1] = 1;
+    bp[2] = 0x81;
+    bp[4] = 2;
+    Uint8 *spell = f->dra + 0x8410 + 9 * 28;
+    spell[12] = 3;
+    spell[13] = 10;
+    spell[14] = 6;
+    spell[16] = 2;
+    spell[18] = 1;
+    spell[20] = 16;
+    spell[24] = 30;
+    Put32(f->dra + 0x101b8 + 0xc9 * 4, 0x800a0200);
+    Put32(f->dra + 0x200, 2U | (13U << 16));
+    Put32(f->dra + 0x204, 0xffff);
+    Put32(f->dra + 0x101b8 + 0xc3 * 4, 0x800a0220);
+    Put32(f->dra + 0x220, 1U | (2U << 16));
+    Put32(f->dra + 0x224, 1U | (3U << 16));
+    Put32(f->dra + 0x228, 1U | (4U << 16));
+    Put32(f->dra + 0x22c, 0xfffeU | (0xc4U << 16));
+    Put32(f->dra + 0x101b8 + 0xc4 * 4, 0x800a0240);
+    for (Uint16 i = 0; i < 9; ++i)
+        Put32(f->dra + 0x240 + i * 4, 1U | ((Uint32)i + 1U) << 16);
+    Put32(f->dra + 0x264, 0);
+    for (Uint16 i = 0; i < 8; ++i)
+        Put32(f->dra + 0x10798 + i * 4, 2U | ((Uint32)i + 100U) << 16);
+    Put32(f->dra + 0x107b8, 0);
+    SDL_memcpy(f->dra + 0xd670 + 5 * 20, f->dra + 0xd670 + 0x20 * 20, 20);
+    CHECK(Enter(f));
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND) && !f->state.bat_commands.fire_flash);
+    CHECK(Tick(f, 0));
+    f->world.relics[SOTN_RELIC_FIRE_BAT] = 3;
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND) && f->state.bat_commands.fire_flash &&
+          f->state.bat_commands.mp_spent == 3 && f->state.substep == 4);
+    Uint16 wait = 0;
+    while (!f->runtime.fire_mask && wait++ < 20)
+        CHECK(Tick(f, 0));
+    CHECK(f->runtime.fire_mask == ((Uint64)1 << 16));
+    const SotnBatRuntimeChild child = f->runtime.children[16];
+    CHECK(child.kind == 45 && child.initialized && child.group == 7 &&
+          child.state.fire.frame == 100 && child.state.fire.attack.width == 4 &&
+          child.state.fire.attack.height == 8 && child.state.fire.attack.critical_rate == 16 &&
+          f->runtime.use_ticks == 4 && f->runtime.sound_count == 1 &&
+          f->runtime.sounds[0] == 0x680);
+    SotnCharacterState owned_before = {0};
+    CHECK(SotnCharacter_Get(f->character, &owned_before, NULL));
+    const SotnBatRuntime before_rebase = f->runtime;
+    CHECK(SotnBatRuntime_Tick(
+        &f->runtime, f->character,
+        (SotnBatRuntimeInput){.entering = true, .room_shift_x = -16, .room_shift_y = 8}));
+    CHECK(f->runtime.children[16].state.fire.motion.x == child.state.fire.motion.x - 16 * 65536 &&
+          f->runtime.children[16].state.fire.motion.y == child.state.fire.motion.y + 8 * 65536 &&
+          f->runtime.children[16].state.fire.frame == child.state.fire.frame &&
+          f->runtime.children[16].state.fire.remaining == child.state.fire.remaining &&
+          f->runtime.children[16].state.fire.motion.scale_x == child.state.fire.motion.scale_x);
+    SotnCharacterState after_rebase = {0};
+    CHECK(SotnCharacter_Get(f->character, &after_rebase, NULL) &&
+          after_rebase.random == owned_before.random);
+    f->runtime = before_rebase;
+    // A malformed next private animation record cannot advance any owned state/RNG.
+    f->runtime.children[16].state.fire.remaining = 1;
+    const SotnBatRuntime invalid_before = f->runtime;
+    Put16(f->dra + 0x10798 + 4, 0);
+    SotnBatRuntimeInput malformed = {.dra = {f->dra, sizeof(f->dra)},
+                                     .executable = {f->exe, sizeof(f->exe)},
+                                     .player = f->state,
+                                     .image = {32, 48, -16, -24}};
+    malformed.player.bat_commands = (SotnBatCommandEvents){0};
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, malformed));
+    CHECK(!SDL_memcmp(&invalid_before, &f->runtime, sizeof(invalid_before)));
+    CHECK(SotnCharacter_Get(f->character, &after_rebase, NULL) &&
+          after_rebase.random == owned_before.random);
+    Put16(f->dra + 0x10798 + 4, 2);
+    f->runtime = before_rebase;
+    CHECK(!SotnBatRuntime_Hit(&f->runtime, 16, child.generation + 1, 1));
+    CHECK(SotnBatRuntime_Hit(&f->runtime, 16, child.generation, 2));
+    CHECK(Tick(f, 0) && !f->runtime.fire_mask && !f->runtime.children[16].kind);
+    for (Uint16 i = 0; i < 35; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.substep == 1);
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+    wait = 0;
+    while (!f->runtime.fire_mask && wait++ < 20)
+        CHECK(Tick(f, 0));
+    CHECK(f->runtime.fire_mask && f->runtime.children[16].generation > child.generation);
+    CHECK(Tick(f, SOTN_BUTTON_BAT));
+    CHECK(f->runtime.fire_mask); // A launched shot outlives its owner's form.
+    for (Uint16 i = 0; i < 180; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(!f->state.bat.active && !SotnBatRuntime_Occupied(&f->runtime));
+    Close(f);
+    return true;
+}
 static bool Capacity(Fixture *f)
 {
     CHECK(Create(f));
@@ -321,7 +420,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Wing(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

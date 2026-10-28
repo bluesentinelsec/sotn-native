@@ -317,4 +317,12 @@ bool SotnActorGraphics_BlendPalette(SotnActorGraphics *graphics, SotnPaletteBlen
  * @return Success or SDL error. All rows/residency are checked before any write;
  * transparency entry zero, RGB555 green/blue and mask bits remain unchanged. */
 bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *graphics, SotnPaletteRedShift shift);
+/** @brief Draw original multipart scale-only geometry using SDK signed-floor rounding.
+ * @param graphics Borrowed texture owner. @param sprite Original multipart frame/attributes.
+ * @param x Screen anchor. @param y Screen anchor. @param scale_x 8.8 scale, 1..1024.
+ * @param scale_y 8.8 scale, 1..1024. @param surface Owned destination.
+ * @return Success or SDL error before drawing on invalid input. No rotation or packed sheets. */
+bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                  Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
+                                  SotnActorSurface surface);
 #endif

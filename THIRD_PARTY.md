@@ -668,3 +668,9 @@ The [Bat fireball motion component](docs/bat-fireball-motion.md) adapts
 `dra/84B88.c:EntityBatFireball` at the same pinned AGPL-3.0-or-later revision.
 It reconstructs motion and one-shot requests; original artwork, animation and
 spell tables remain private, and live attack integration remains incomplete.
+
+[Selected live Fire of Bat](docs/player-fire-of-bat.md) connects original factory,
+spell/group, animation, projectile and BlinkWhite algorithms from `dra/7879C.c`,
+`5D5BC.c`, `alu_anim.c`, `84B88.c` and `71830.c` at the same pinned revision.
+Its scale-only renderer follows `dra/4B758.c` SDK signed-floor geometry. Runtime
+tables/artwork stay private; full ability/console parity remains incomplete.

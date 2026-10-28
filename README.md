@@ -133,8 +133,9 @@ no abilities.
 **E/Xbox RB** toggles owned, active [Bat flight](docs/player-bat.md), using
 original steering, MP and real transformation effects. For [Wing Smash](docs/player-wing-smash.md),
 hold Jump through Up, Up-back, Back, Down-back, Down, Down-forward and Forward,
-then release Jump; back/forward follow facing. Fire/Echo of Bat, Wolf, other spells
-and full ability parity remain incomplete.
+then release Jump; back/forward follow facing. With owned, active
+[Fire of Bat](docs/player-fire-of-bat.md), Z/D or Xbox X/B fires while flying.
+Echo of Bat, Wolf, other spells and full ability parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.

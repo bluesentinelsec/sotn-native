@@ -605,6 +605,15 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .screen_shift_y = (Sint16)dy,
                                   .entering = entering}))
         return false;
+    if (!entering)
+    {
+        if (s->bat_runtime.use_ticks &&
+            !SotnPlayer_SetUseTimer(s->player, s->bat_runtime.use_ticks))
+            return false;
+        for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
+            if (!SotnSound_Queue(s->sound, s->bat_runtime.sounds[i]))
+                return false;
+    }
     s->blink_rebase_x = s->blink_rebase_y = 0;
     s->blink_camera_x = s->camera.x;
     s->blink_camera_y = s->camera.y;
@@ -1880,6 +1889,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     if (!background)
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 45 && child->initialized && child->state.fire.frame &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->state.fire.motion.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_BAT_FIREBALL}))
+                return false;
             const SotnPlayerEffectQuad *quads = NULL;
             Uint16 packet_count = 0;
             if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &packet_count))
@@ -1990,6 +2007,27 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_BAT_FIREBALL)
+        {
+            if (command.primitive >= 48)
+                return SDL_SetError("Invalid Bat fireball draw slot");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            if (child->kind != 45 || !child->initialized)
+                return SDL_SetError("Bat fireball draw lost its owner");
+            const SotnBatFireball motion = child->state.fire.motion;
+            if (!SotnActorGraphics_DrawScaled(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = 9,
+                                      .frame = child->state.fire.frame,
+                                      .facing_left = motion.facing_left},
+                    Pixel(motion.x) - camera_x + session->draw_target.offset_x,
+                    Pixel(motion.y) - camera_y + session->draw_target.offset_y, motion.scale_x,
+                    motion.scale_y, session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_PLAYER_BLINK)
         {
             const Uint16 owner = command.primitive / 8U, q = command.primitive % 8U;
