@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  wolf_motion.c
+  include/sotn/wolf_motion.h
   primitive_slots.c
   include/sotn/primitive_slots.h
   launch_menu.c

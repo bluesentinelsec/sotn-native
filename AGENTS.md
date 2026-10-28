@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf movement/capture components](docs/wolf-motion.md) reconstruct articulated
+raw bounds, sprint/slope/Up/swim jump ordering, signed-word angle wrap and selected
+run-frame cadence. Preserve actual parts 17..30, US asymmetric one-sided clamps,
+inverted supplied offsets and wrap-before-post-clamp ordering. The eventual owner
+must provide the actual body generation; these components allocate no bodies and
+enable no Wolf controls/relic switches. Preserve the original left-running cap
+quirk in further controller work. Complete Wolf/Alucard remains unfinished.
+
 Selected [Bat primitive sharing](docs/bat-primitive-sharing.md) now reserves real
 stage-pool rows for BlinkWhite, trails and Echo. Preserve eight-row US Blink
 retries without fake readiness, one-row trail retirement, real Echo exhaustion,

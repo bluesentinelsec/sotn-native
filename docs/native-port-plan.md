@@ -78,6 +78,8 @@ flash/trails, native damage/EXP and real return.
 [Selected Fire](player-fire-of-bat.md) and [Echo/Force](player-echo-of-bat.md) now
 connect owned commands, real attacks and native presentation. Wolf and full
 shared effects/ability/route parity remain incomplete.
+The [Wolf movement/capture foundation](wolf-motion.md) retains scoped component
+comparisons; actual Wolf body/controller/presentation ownership remains unwired.
 
 ## Pinned reference
 
