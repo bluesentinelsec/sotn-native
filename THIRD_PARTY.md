@@ -720,3 +720,7 @@ The [Wolf multipart/capture services](docs/wolf-presentation.md) adapt selected
 `dra/4B758.c:RenderEntities` bank-fifteen paths and
 `dra/692E8.c:func_801093C4` environment at the same pinned AGPL-3.0-or-later
 revision. Original artwork, multipart tables, palette data and captures remain private.
+
+The [Wolf transition component](docs/wolf-transition.md) adapts selected
+`dra/wolfForm.c:WolfStepS_0/WolfStepS_8/PlayerStepUnmorphWolf` at that same pinned
+AGPL-3.0-or-later revision. It embeds no game data or runtime snapshots.
