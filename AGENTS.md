@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The [Bat Echo component](docs/bat-echo.md) reconstructs the original controller,
+seventeen drivers and thirty-two wave strips. Preserve actual forty-nine-primitive
+allocation, captured facing/priority, live rotation, SDK rounding, birth-only Force
+snapshot, strict attack cutoff and real cancellation requests. It enables no live
+controls or relic switches; actual factory/primitive/combat/render ownership remains
+unwired. Component comparisons do not establish ability or console parity.
+
 [Selected Fire of Bat](docs/player-fire-of-bat.md) now connects owned hand-attack
 casts, real factories/slots32..47, private spell-nine attacks/groups7..10, impact
 feedback, bank-nine animation/artwork, SDK scale, flash/sound and ordinary use
