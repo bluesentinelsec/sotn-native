@@ -39,7 +39,7 @@ typedef struct SotnBatRuntimeChild
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
 
-/** @brief Owned selected Bat factories/children sharing original DRA slot indices.
+/** @brief Owned selected Bat/Wolf factories and children sharing original DRA slot indices.
  * Zero-initialize for a fresh stage. The owner supplies other actual occupied slots;
  * this service never overrides their availability or invents visual readiness. */
 typedef struct SotnBatRuntime
@@ -51,6 +51,10 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    SotnWolfRuntime wolf;
+    SotnWolfControllerFrame wolf_frame;
+    SotnWolfRuntimeEvents wolf_events;
+    bool wolf_bound;  /**< This stage owner includes actual Wolf entities/common environment. */
     SotnBatEcho echo; /**< Single original slot-47 wave; not multiplied across the child union. */
     Uint16 echo_primitives[SOTN_BAT_ECHO_PRIMITIVES];
     Uint32 echo_generation;
@@ -69,7 +73,10 @@ typedef struct SotnBatRuntimeInput
     SotnDataView dra, executable;
     SotnPlayerState player;
     SotnPlayerImage image;
-    SotnWolfCaptureBounds wolf_bounds;
+    SotnWolfCaptureBounds wolf_bounds; /**< External bounds only when Wolf is not bound here. */
+    SotnWolfCollisionQuery wolf_query;
+    void *wolf_context;
+    bool wolf_owned; /**< Bind the actual Wolf body to this shared entity update order. */
     Uint64 other_occupied;
     SotnPrimitiveSlots primitive_slots; /**< Snapshot of actual stage/player primitive occupancy. */
     Sint32 camera_x, camera_y;
@@ -99,7 +106,10 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * @param runtime Owned stage lifetime. @param character Borrowed owner of spell stats/RNG.
  * @param input Actual player/artwork/context. Entering only rebases and never advances time.
  * @return Success or SDL error. Malformed inputs preserve runtime and character progress.
- * Supports selected Bat morphs, Wing/Fire children and the actual single Echo wave.
+ * Supports selected Bat morphs, Wing/Fire children, Echo and an optional actual Wolf body.
+ * Bound Wolf runs at slots17..30; later flashes read its current capture bounds. The owning
+ * player must commit wolf_frame once after success. Body MP charges commit here, not again
+ * through wolf_events. Wolf spell/bubble intents still require real combat/factory owners.
  * The owner must commit the planned rows to the actual primitive pool before advancing
  * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,

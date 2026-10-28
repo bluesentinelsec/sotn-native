@@ -732,3 +732,7 @@ AGPL-3.0-or-later revision. It embeds no original game tables or artwork.
 The [owned Wolf player core](docs/player-wolf-core.md) adapts selected
 `dra/{692E8,wolfForm,704D0,alu_anim}.c` and original normal/stuck return helpers
 at the same pinned AGPL-3.0-or-later revision. It embeds no original game data.
+
+The [shared Wolf runtime](docs/wolf-shared-runtime.md) adapts selected original
+`dra/wolfForm.c`, `7879C.c` and entity update ordering at that same pinned
+AGPL-3.0-or-later revision. It embeds no original game data.

@@ -98,8 +98,12 @@ static bool BatPrimitiveKind(Uint16 kind)
 {
     return kind == 11 || kind == 35 || kind == 52;
 }
+static bool WolfPrimitiveKind(Uint16 kind)
+{
+    return kind == 56 || kind == SOTN_WOLF_ENVIRONMENT_TAG;
+}
 static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16 *indices,
-                     Uint16 count, Uint16 replace_kind)
+                     Uint16 count, Uint16 replace_kind, bool include_wolf)
 {
     if (!indices)
         return SDL_SetError("Player effect reservation has no actual row indices");
@@ -108,7 +112,8 @@ static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16
         const Uint16 id = indices[i];
         if (id >= SOTN_PRIMITIVE_SLOTS || (used->occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
             (s->primitives[id].owner &&
-             (!BatPrimitiveKind(s->primitives[id].ability_kind) ||
+             ((!BatPrimitiveKind(s->primitives[id].ability_kind) &&
+               !(include_wolf && WolfPrimitiveKind(s->primitives[id].ability_kind))) ||
               (replace_kind && s->primitives[id].ability_kind != replace_kind))))
             return SDL_SetError("Player effect reservation collides with a live primitive owner");
         used->occupied[id / 64U] |= (Uint64)1 << (id % 64U);
@@ -149,7 +154,7 @@ bool SotnActors_CommitBatEcho(SotnActors *s, Uint32 generation, const Uint16 *in
     if (!s || (generation && !EchoValid(echo)) || (!generation && (indices || echo)))
         return SDL_SetError("Echo commit requires its actual child, reservation and live packets");
     SotnPrimitiveSlots used = {0};
-    if (generation && !PlanRows(s, &used, indices, SOTN_BAT_ECHO_PRIMITIVES, 52))
+    if (generation && !PlanRows(s, &used, indices, SOTN_BAT_ECHO_PRIMITIVES, 52, false))
         return false;
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
         if (s->primitives[i].ability_kind == 52)
@@ -173,16 +178,29 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
                                    !((c->kind == 11 && c->primitive_count == 8) ||
                                      (c->kind == 35 && c->primitive_count == 1))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
-        if (c->primitive_count && !PlanRows(s, &used, c->primitives, c->primitive_count, 0))
+        if (c->primitive_count &&
+            !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))
             return false;
     }
     if (r->echo_generation &&
         (r->children[31].kind != 52 || r->children[31].generation != r->echo_generation ||
          !r->children[31].initialized || !EchoValid(&r->echo) ||
-         !PlanRows(s, &used, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 0)))
+         !PlanRows(s, &used, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 0, r->wolf_bound)))
         return SDL_SetError("Bat Echo primitive reservation lost its actual child or free rows");
+    const SotnWolfRuntime *w = &r->wolf;
+    if ((w->root_reserved || w->environment_reserved) && !r->wolf_bound)
+        return SDL_SetError("Shared primitive commit lost its actual Wolf lifetime binding");
+    if (w->body.parts[0].step > 1 || w->root_reserved != (w->body.parts[0].step == 1) ||
+        (w->root_reserved &&
+         (!w->generation || !w->children[0].generation || w->children[0].lineage != w->generation ||
+          w->children[0].slot != 17 || w->children[0].identity != 56)) ||
+        w->environment_reserved != (w->environment_generation != 0) ||
+        (w->root_reserved && !PlanRows(s, &used, w->root_rows, 6, 0, true)) ||
+        (w->environment_reserved && !PlanRows(s, &used, w->environment_rows, 2, 0, true)))
+        return SDL_SetError("Shared primitive commit has an invalid actual Wolf reservation");
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
-        if (BatPrimitiveKind(s->primitives[i].ability_kind))
+        if (BatPrimitiveKind(s->primitives[i].ability_kind) ||
+            (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind)))
             s->primitives[i] = (ActorPrimitive){0};
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
     {
@@ -193,6 +211,14 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
     }
     if (r->echo_generation)
         WriteEcho(s, r->echo_generation, r->echo_primitives, &r->echo);
+    if (w->root_reserved)
+        for (Uint16 i = 0; i < 6; ++i)
+            s->primitives[w->root_rows[i]] =
+                (ActorPrimitive){.owner = w->children[0].generation, .ability_kind = 56};
+    if (w->environment_reserved)
+        for (Uint16 i = 0; i < 2; ++i)
+            s->primitives[w->environment_rows[i]] = (ActorPrimitive){
+                .owner = w->environment_generation, .ability_kind = SOTN_WOLF_ENVIRONMENT_TAG};
     return true;
 }
 bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)

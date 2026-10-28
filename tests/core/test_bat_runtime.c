@@ -27,6 +27,7 @@ typedef struct Fixture
     Uint64 occupied;
     SotnPrimitiveSlots primitive_slots;
     Uint32 tick, spent;
+    bool wolf_owned;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 n)
 {
@@ -37,6 +38,13 @@ static void Put32(Uint8 *p, Uint32 n)
 {
     for (Uint16 i = 0; i < 4; ++i)
         p[i] = (Uint8)(n >> (i * 8U));
+}
+static bool WolfQuery(void *context, Sint32 x, Sint32 y, SotnCollider *out)
+{
+    Fixture *f = context;
+    const SotnCollisionMap map = {
+        {f->tiles, sizeof(f->tiles)}, {f->types, sizeof(f->types)}, 64, 16};
+    return SotnCollision_Query(&map, x, y, out);
 }
 static bool Tick(Fixture *f, Uint16 buttons)
 {
@@ -53,6 +61,16 @@ static bool Tick(Fixture *f, Uint16 buttons)
     CHECK(SotnPlayer_SetBatRuntimeContext(f->player, effect, pending,
                                           effect || pending ? f->state.bat.generation : 0,
                                           SotnBatRuntime_Available(&f->runtime)));
+    if (f->wolf_owned)
+    {
+        const SotnPlayerBlink *wolf_effect = NULL;
+        const SotnPlayerFactory *wolf_factory = NULL;
+        CHECK(SotnBatRuntime_Context(&f->runtime, f->state.wolf.generation, &wolf_effect,
+                                     &wolf_factory));
+        CHECK(SotnPlayer_SetWolfContext(f->player, &f->runtime.wolf, wolf_effect, wolf_factory,
+                                        wolf_effect || wolf_factory ? f->state.wolf.generation : 0,
+                                        SotnBatRuntime_Available(&f->runtime), 0, 0));
+    }
     CHECK(SotnPlayer_Tick(f->player, buttons) && SotnPlayer_GetState(f->player, &f->state));
     CHECK(SotnCharacter_SpendMP(f->character, f->state.mp_spent));
     f->spent += f->state.mp_spent;
@@ -72,10 +90,19 @@ static bool Tick(Fixture *f, Uint16 buttons)
             .image = bat ? (SotnPlayerImage){32, 48, -16, (Sint16)(-24 + f->state.bat.settle_y)}
                          : (SotnPlayerImage){40, 64, -20, -48},
             .other_occupied = f->occupied,
+            .wolf_owned = f->wolf_owned,
+            .wolf_query = WolfQuery,
+            .wolf_context = f,
             .primitive_slots = f->primitive_slots,
             .force_echo_enabled = (f->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3}));
     if (f->runtime.use_ticks)
         CHECK(SotnPlayer_SetUseTimer(f->player, f->runtime.use_ticks));
+    if (f->wolf_owned && f->state.step == SOTN_PLAYER_WOLF && f->runtime.wolf.generation)
+    {
+        CHECK(SotnPlayer_CommitWolfBody(f->player, &f->runtime.wolf, &f->runtime.wolf_frame, 0, 0));
+        f->spent += f->runtime.wolf_events.mp_spent;
+        CHECK(SotnPlayer_GetState(f->player, &f->state));
+    }
     ++f->tick;
     return true;
 }
@@ -108,6 +135,29 @@ static bool Create(Fixture *f)
         Put16(p + 14, i == 2 ? 0x7008 : i == 3 ? 0x7009 : 16);
         Put16(p + 16, 0x31);
         Put16(p + 18, 512);
+    }
+    for (Uint16 i = 0; i < 17; ++i)
+    {
+        Put32(f->dra + 0x109f8 + i * 4U, 0x800b0800U + i * 16U);
+        for (Uint16 j = 0; j < 8; ++j)
+            Put16(f->dra + 0x10800 + i * 16U + j * 2U, 1);
+    }
+    for (Uint16 i = 0; i < 6; ++i)
+    {
+        Put16(f->dra + 0x10abc + i * 4U, i == 5 ? 65535 : 2);
+        Put16(f->dra + 0x10abe + i * 4U, 72);
+    }
+    const Uint16 wolf_profiles[] = {0x23, 0x24, 0x25};
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        Uint8 *profile = f->dra + 0xd670 + wolf_profiles[i] * 20U;
+        Put16(profile + 6, 0x123);
+        Put16(profile + 8, 256);
+        Put16(profile + 10, 256);
+        Put16(profile + 12, 256);
+        Put16(profile + 14, i == 2 ? 0x700b : 16);
+        Put16(profile + 16, 0x31);
+        Put16(profile + 18, 512);
     }
     f->types[1] = 3;
     f->types[2] = 0xf8;
@@ -545,13 +595,94 @@ static bool PrimitivePressure(Fixture *f)
     Close(f);
     return true;
 }
+static bool WolfOrder(Fixture *f)
+{
+    CHECK(Create(f));
+    f->wolf_owned = true;
+    f->world.relics[SOTN_RELIC_WOLF] = 3;
+    CHECK(Tick(f, SOTN_BUTTON_WOLF) && f->state.wolf.body_started &&
+          f->runtime.wolf.root_reserved && f->runtime.wolf.environment_reserved &&
+          f->runtime.wolf_bound);
+    CHECK(f->runtime.children[47].kind == 11 && f->runtime.children[47].parameter == 0x2300);
+    CHECK(f->runtime.wolf.environment_rows[0] == 0 && f->runtime.wolf.root_rows[0] == 2 &&
+          f->runtime.children[47].primitives[0] == 8);
+    Uint16 wait = 0;
+    while (f->runtime.children[47].state.blink.phase != 13 && wait++ < 40)
+        CHECK(Tick(f, 0));
+    CHECK(wait < 40);
+    // A previous-frame bound cannot leak into the later actual slot-63 flash.
+    f->runtime.wolf.body.capture =
+        (SotnWolfCaptureBounds){.left = -200, .right = 200, .top = -200, .bottom = 200};
+    CHECK(Tick(f, 0));
+    const SotnPlayerEffectQuad q = f->runtime.children[47].state.blink.quads[0];
+    const SotnWolfCaptureBounds bounds = f->runtime.wolf.body.capture;
+    CHECK(q.x[1] - q.x[0] == bounds.right - bounds.left &&
+          q.y[0] == f->state.y / 65536 + bounds.top && q.u[0] == (Uint8)(Uint32)(44 + bounds.left));
+    wait = 0;
+    while (f->state.substep == 8 && wait++ < 100)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step == SOTN_PLAYER_WOLF && f->state.wolf.signal == 3 && wait < 100);
+    for (Uint16 i = 0; i < 35; ++i)
+        CHECK(Tick(f, SOTN_BUTTON_RIGHT));
+    // A later child's malformed private spell must roll back the already advanced body.
+    SotnBatRuntime before = f->runtime;
+    SotnCharacterState progress = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &progress, NULL));
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .image = {40, 64, -20, -48},
+                              .wolf_owned = true,
+                              .wolf_query = WolfQuery,
+                              .wolf_context = f,
+                              .primitive_slots = f->primitive_slots};
+    in.player.bat_commands.fireball = true;
+    const size_t spell = 0x8410U + 9U * 28U + 24U;
+    const Uint16 original = (Uint16)(f->dra[spell] | (Uint16)f->dra[spell + 1] << 8);
+    Put16(f->dra + spell, 65535);
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!SDL_memcmp(&before, &f->runtime, sizeof(before)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) &&
+          !SDL_memcmp(&progress, &after, sizeof(after)));
+    Put16(f->dra + spell, original);
+    // Camera rebases move the actual entities/packets, without advancing motion or MP.
+    in.player.bat_commands = (SotnBatCommandEvents){0};
+    in.entering = true;
+    in.screen_shift_x = -23;
+    in.screen_shift_y = 7;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    for (Uint16 i = 0; i < 14; ++i)
+        CHECK(f->runtime.wolf.body.parts[i].x == before.wolf.body.parts[i].x - 23 * 65536 &&
+              f->runtime.wolf.body.parts[i].y == before.wolf.body.parts[i].y + 7 * 65536);
+    CHECK(f->runtime.wolf.body.wave == before.wolf.body.wave &&
+          !SDL_memcmp(&f->runtime.wolf.body.capture, &before.wolf.body.capture,
+                      sizeof(before.wolf.body.capture)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) &&
+          !SDL_memcmp(&progress, &after, sizeof(after)));
+    in.screen_shift_x = 23;
+    in.screen_shift_y = -7;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    before.wolf_events = (SotnWolfRuntimeEvents){0};
+    CHECK(!SDL_memcmp(&before, &f->runtime, sizeof(before)));
+    CHECK(Tick(f, 0));
+    CHECK(Tick(f, SOTN_BUTTON_WOLF) && f->state.wolf.return_started &&
+          !f->runtime.wolf.generation && !f->runtime.wolf.root_reserved &&
+          f->runtime.wolf.environment_reserved);
+    wait = 0;
+    while (f->state.wolf.active && wait++ < 150)
+        CHECK(Tick(f, 0));
+    CHECK(!f->state.wolf.active && f->state.animation_bank == 1 && wait < 150);
+    Close(f);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f);
+                    PrimitivePressure(f) && WolfOrder(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

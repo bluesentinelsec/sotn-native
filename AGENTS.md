@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [shared Wolf runtime](docs/wolf-shared-runtime.md) now interleaves actual
+body17..30 with factory-selected Blink slots and commits Bat/Echo/Wolf rows in one
+stage-pool transaction. Preserve current body bounds for later flashes, forced
+replacement before birth, once-only MP/body feedback, retained environment rows
+and no-extra-tick rebases. Late failures preserve runtime and character snapshots.
+Native scene/render/combat/factory wiring remains incomplete; controls stay disabled
+and Alucard is not complete.
+
 The [owned Wolf player core](docs/player-wolf-core.md) connects selected original
 entry/controller/8-pass collision/return to real generation-owned factories/Blink
 and body interfaces. Preserve actual signals, pending entry, signed QCF timers and
