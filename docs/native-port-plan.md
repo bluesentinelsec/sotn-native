@@ -83,7 +83,8 @@ comparisons; the [active Wolf controller](wolf-controller.md) now reconstructs
 selected substates. The [linked Wolf body component](wolf-articulation.md) now
 reconstructs selected followers, and [root/head components](wolf-root-head.md)
 retain scoped instruction comparisons. [Retained Wolf images](wolf-root-effect.md)
-now reconstruct selected packets. Actual native Wolf entry/return/combat/
+now reconstruct selected packets, and [Wolf BlinkWhite](wolf-blink.md) retains
+scoped entry/return/capture comparisons. Actual native Wolf entry/return/combat/
 primitive/presentation ownership remains unwired and live controls remain disabled.
 
 ## Pinned reference

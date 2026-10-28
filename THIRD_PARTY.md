@@ -711,3 +711,7 @@ revision. Original collision contexts, pose/frame/SDK tables and traces remain p
 The [Wolf retained-image component](docs/wolf-root-effect.md) adapts
 `dra/wolfForm.c:func_8012F178` at the same pinned AGPL-3.0-or-later revision.
 It embeds no captured image or other original game data.
+
+The [Wolf BlinkWhite component](docs/wolf-blink.md) extends selected
+`dra/7879C.c:EntityPlayerBlinkWhite` paths at that same pinned AGPL-3.0-or-later
+revision. All original profiles, saved images and captures remain private inputs.

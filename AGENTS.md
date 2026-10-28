@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf BlinkWhite component](docs/wolf-blink.md) now reconstructs selected
+entry23/return24/finish25, saved ordinary/Bat artwork before actual signal2, raw
+Wolf capture bounds/US V wrap, exact limits, return handshake and shared Bat/Wolf
+lock precedence. Preserve signed/inverted stripe bounds and unmirrored Wolf UVs.
+Entry25 retains its palette; return1B switches white. Pending allocations never
+signal readiness. Actual Wolf body/transformation/shared capture/combat/render
+ownership remains unwired; controls stay disabled and Alucard remains incomplete.
+
 The [Wolf retained-image component](docs/wolf-root-effect.md) now reconstructs
 five retained-position rows and the live sixth overlay. Preserve first-selection
 initialization, captured facing/positions, asymmetric fade and later hide, live
