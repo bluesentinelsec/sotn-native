@@ -1,5 +1,16 @@
 # Working in sotn-native
 
+The [owned Wolf player core](docs/player-wolf-core.md) connects selected original
+entry/controller/8-pass collision/return to real generation-owned factories/Blink
+and body interfaces. Preserve actual signals, pending entry, signed QCF timers and
+captured facing, immutable mutable-cadence substitution, current-clock/once-per-tick
+body feedback, original return without Bat/Mist's Y shift, and the explicit unchecked
+missing-return-factory wait. Native scene/controls/relic switches/render/combat and
+Wolf-to-other-form/water integration remain unwired; Alucard remains incomplete.
+BlinkWhite is not weapon/Mist slot16: use its actual factory-selected slot (selected
+private fixture63). Interleave body17..30 and other children by actual slot; never
+run every flash before the body.
+
 The [linked Wolf body owner](docs/wolf-body-owner.md) now creates actual slots17..30
 with generation/lineage checks, original body/head-animation ordering, real shared
 root/environment row plans, MP feedback and no-extra-tick rebases. Preserve root

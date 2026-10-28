@@ -14,6 +14,7 @@ typedef struct AnimationSource
     Uint16 animation_count, subanimation_count, property_count;
     Uint16 adjacent_property, form_pose;
     bool override_form;
+    const Uint16 *wolf_durations;
     const char *name;
 } AnimationSource;
 
@@ -59,7 +60,11 @@ static bool Frame(const AnimationSource *source, Uint16 id, Uint16 pose, Uint16 
             return SDL_SetError("Animation address arithmetic overflow");
         if (!Resolve(source, address + i * 4, 4, &entry))
             return false;
-        const Uint16 time = Read16(entry.bytes);
+        const Uint32 current = address + i * 4U;
+        const Uint16 time =
+            source->wolf_durations && current >= 0x800affb8U && current < 0x800affd8U
+                ? source->wolf_durations[(current - 0x800affb8U) / 4U]
+                : Read16(entry.bytes);
         const Uint16 value =
             source->override_form &&
                     address + i * 4U == (source->base == 0x800a0000U ? 0x800afda4U : 0x80183b0cU)
@@ -171,7 +176,7 @@ static bool Tick(const AnimationSource *source, SotnAnimation *animation)
 }
 
 static bool TickPlayer(SotnDataView dra, bool override_form, Uint16 form_pose,
-                       SotnAnimation *animation)
+                       const Uint16 *wolf_durations, SotnAnimation *animation)
 {
     const AnimationSource source = {.image = dra,
                                     .base = 0x800a0000,
@@ -184,20 +189,32 @@ static bool TickPlayer(SotnDataView dra, bool override_form, Uint16 form_pose,
                                     .adjacent_property = SDL_MAX_UINT16,
                                     .override_form = override_form,
                                     .form_pose = form_pose,
+                                    .wolf_durations = wolf_durations,
                                     .name = "Alucard"};
     return Tick(&source, animation);
 }
 
 bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation)
 {
-    return TickPlayer(dra, false, 0, animation);
+    return TickPlayer(dra, false, 0, NULL, animation);
 }
 
 bool SotnAnimation_TickPlayerForm(SotnDataView dra, Uint16 form_pose, SotnAnimation *animation)
 {
     if (form_pose >= 512)
         return SDL_SetError("Alucard mutable form pose exceeds original frame bits");
-    return TickPlayer(dra, true, form_pose, animation);
+    return TickPlayer(dra, true, form_pose, NULL, animation);
+}
+
+bool SotnAnimation_TickWolf(SotnDataView dra, Uint16 form_pose, const Uint16 durations[8],
+                            SotnAnimation *animation)
+{
+    if (!durations || form_pose >= 512)
+        return SDL_SetError("Wolf animation requires its actual mutable form pose and cadence");
+    for (Uint16 i = 0; i < 8; ++i)
+        if (durations[i] < 1 || durations[i] > 4)
+            return SDL_SetError("Wolf run duration leaves the original one-to-four-tick range");
+    return TickPlayer(dra, true, form_pose, durations, animation);
 }
 
 bool SotnAnimation_SetStage(SotnAnimation *animation, Uint16 stage, Uint16 id)

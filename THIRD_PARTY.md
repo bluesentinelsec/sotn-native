@@ -728,3 +728,7 @@ AGPL-3.0-or-later revision. It embeds no game data or runtime snapshots.
 The [linked Wolf body owner](docs/wolf-body-owner.md) adapts selected body
 initialization/update ordering in `dra/wolfForm.c` at the same pinned
 AGPL-3.0-or-later revision. It embeds no original game tables or artwork.
+
+The [owned Wolf player core](docs/player-wolf-core.md) adapts selected
+`dra/{692E8,wolfForm,704D0,alu_anim}.c` and original normal/stuck return helpers
+at the same pinned AGPL-3.0-or-later revision. It embeds no original game data.

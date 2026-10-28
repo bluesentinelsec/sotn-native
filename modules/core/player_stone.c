@@ -166,6 +166,7 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
     SotnPlayer next = *p;
     SotnPlayer_GravityCancel(&next);
     SotnPlayer_BatCancel(&next);
+    SotnPlayer_WolfCancel(&next);
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     if (next.step == SOTN_PLAYER_STONE)
     {

@@ -88,9 +88,10 @@ scoped entry/return/capture comparisons. [Multipart/capture services](wolf-prese
 now generate original packets and apply the owned shared target. The [transition component](wolf-transition.md)
 retains original entry/sensor/effect gates to the normal/stuck helper boundaries.
 The [linked body owner](wolf-body-owner.md) now creates generation-owned parts
-and commits real root/environment rows to the stage pool. Actual player entry/
-return, resource/control, attack/factory and shared presentation wiring remain
-incomplete; live controls remain disabled.
+and commits real root/environment rows to the stage pool. The [owned player core](player-wolf-core.md)
+now connects selected entry/controller/collision/return interfaces. Native scene,
+controls, attacks/factories and shared presentation wiring remain incomplete; live
+controls remain disabled.
 
 ## Pinned reference
 

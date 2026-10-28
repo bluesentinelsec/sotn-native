@@ -53,6 +53,13 @@ struct SotnPlayer
     SotnMistMotion mist_motion;
     SotnPlayerMist mist;
     SotnPlayerBat bat;
+    SotnPlayerWolf wolf;
+    Sint32 wolf_camera_x, wolf_camera_y;
+    Sint16 wolf_combo_timer;
+    Uint16 wolf_combo;
+    bool wolf_combo_facing, wolf_context, wolf_factory_available;
+    Sint16 wolf_body_root_y;
+    Uint32 wolf_body_commit_frame;
     SotnBatCommand bat_command;
     SotnBatCommandEvents bat_commands;
     Uint32 bat_counter;
@@ -86,6 +93,18 @@ struct SotnPlayer
     SotnCollider floor[4], ceiling[4], wall[14];
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
+
+/** @brief Advance original command/owned Wolf entry selection before state dispatch. */
+void SotnPlayer_WolfInput(SotnPlayer *player);
+/** @brief Advance original Wolf resource, entry and active controller paths. */
+void SotnPlayer_WolfTick(SotnPlayer *player);
+/** @brief Restore original Wolf sensors and wait on the actual return effect. */
+void SotnPlayer_UnmorphWolfTick(SotnPlayer *player);
+/** @brief Retire transient Wolf form drawing when original normal states interrupt it. */
+void SotnPlayer_WolfCancel(SotnPlayer *player);
+/** @brief Invoke selected original normal/stuck Wolf return without Bat/Mist position adjustment.
+ */
+void SotnPlayer_WolfReturn(SotnPlayer *player, bool cramped);
 
 /** @brief Select eligible original Bat entry after shared transformation lockout. */
 void SotnPlayer_BatInput(SotnPlayer *player);

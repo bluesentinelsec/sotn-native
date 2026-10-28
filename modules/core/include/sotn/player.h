@@ -8,12 +8,15 @@
 #include <sotn/mist_effect.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
+#include <sotn/wolf_runtime.h>
+#include <sotn/wolf_transition.h>
 #include <sotn/world.h>
 
 /** @brief Original PS1 button bits accepted by normal Alucard and supported hand attacks. */
 typedef enum SotnPlayerButton
 {
     SOTN_BUTTON_SELECT = 0x0100,
+    SOTN_BUTTON_WOLF = 0x0002,
     SOTN_BUTTON_MIST = 0x0004,
     SOTN_BUTTON_BAT = 0x0008,
     SOTN_BUTTON_START = 0x0800,
@@ -45,6 +48,8 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_BOSS_GRAB = 12,
     SOTN_PLAYER_UNMORPH_MIST = 14,
     SOTN_PLAYER_KILL = 16,
+    SOTN_PLAYER_WOLF = 24,
+    SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
 
@@ -147,6 +152,19 @@ typedef struct SotnPlayerBat
     bool active, hidden, started, return_started, cramped;
 } SotnPlayerBat;
 
+/** @brief Copied requests and drawing/controller state for actual generation-owned Wolf bodies. */
+typedef struct SotnPlayerWolf
+{
+    SotnWolfControllerFrame controller;
+    SotnWolfControllerEvents commands;
+    Uint32 generation, body_generation;
+    Uint16 capture_bank, capture_sprite, palette, texture, priority;
+    Sint16 rotation;
+    Uint8 signal, draw_flags, blend, opacity;
+    bool active, hidden, started, body_started, finish_flash, return_started, cramped;
+    bool return_factory_missing; /**< Original unchecked allocation failed; no readiness exists. */
+} SotnPlayerWolf;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -181,6 +199,7 @@ typedef struct SotnPlayerState
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
     SotnPlayerMist mist;
     SotnPlayerBat bat;
+    SotnPlayerWolf wolf;
     SotnBatCommandEvents bat_commands; /**< Actual this-tick special-ability factory requests. */
     Uint16 animation_bank;             /**< Actual normal (1) or Bat (13) private artwork bank. */
     bool rotated; /**< This simulation frame's selected original transform draw flag. */
@@ -190,6 +209,27 @@ typedef struct SotnSubweapons SotnSubweapons;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
+
+/** @brief Bind the actual Wolf body/effect/factory context before the next player tick.
+ * @param player Actual player. @param body Borrowed stage-owned body.
+ * @param effect Actual current transformation child or NULL. @param pending Actual factory or NULL.
+ * @param generation Effect/factory lineage, or zero for neither. @param available Actual free
+ * factory.
+ * @param camera_x Room-local whole camera X. @param camera_y Room-local whole camera Y.
+ * @return Success or SDL error without mutation for stale/invalid ownership. Does not grant relics.
+ */
+bool SotnPlayer_SetWolfContext(SotnPlayer *player, const SotnWolfRuntime *body,
+                               const SotnPlayerBlink *effect, const SotnPlayerFactory *pending,
+                               Uint32 generation, bool available, Sint32 camera_x, Sint32 camera_y);
+/** @brief Commit this tick's generation-owned body feedback after actual physical integration.
+ * @param player Actual player. @param body Actual stage-owned linked body.
+ * @param frame Root/front-modified screen-space controller for this same update.
+ * @param camera_x Whole room camera X. @param camera_y Whole room camera Y.
+ * @return Success or SDL error on stale identity, moved origin or invalid body state.
+ * This commits original motion/drawing and MP feedback only; the session owns MP accounting. */
+bool SotnPlayer_CommitWolfBody(SotnPlayer *player, const SotnWolfRuntime *body,
+                               const SotnWolfControllerFrame *frame, Sint32 camera_x,
+                               Sint32 camera_y);
 
 /**
  * @brief Initialize normal Alucard movement at a development room start.
