@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) now consume
+actual controller factories/sounds and deferred head bubbles through owned children
+and the shared stage pool, including real particle sentinel rows. Preserve captured
+command-camera origins, body-camera bubble origins, next-tick factories, allocation
+failure before RNG, original bubble fallthrough and no-tick rebases. US smoke's
+unwritten status0x20000 birth branch fails explicitly. Native scene rendering, water
+providers and shake remain unwired; controls stay disabled and Alucard is incomplete.
+
 Selected [Wolf combat ownership](docs/player-wolf-combat.md) now connects actual
 front/head spells, INT/RNG/Mojo/critical metadata, retained group-three enemy
 cooldown and native damage/death/EXP. Preserve source least-used counter increment

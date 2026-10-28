@@ -97,6 +97,9 @@ Bat/Echo/Wolf row reservations together; it enables no live controls by itself.
 Selected [Wolf combat ownership](player-wolf-combat.md) now consumes body spell
 requests through private attacks/RNG and retained native enemy cooldown; scene,
 presentation and live controls remain incomplete.
+The [selected secondary effects](wolf-secondary-effects.md) now own controller
+factories, puffs and tile particles in shared capacity; native scene rendering,
+water and shake still need integration.
 
 ## Pinned reference
 

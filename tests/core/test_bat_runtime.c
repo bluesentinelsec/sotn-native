@@ -677,6 +677,123 @@ static bool WolfOrder(Fixture *f)
     return true;
 }
 
+static bool WolfEffectOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    const Uint16 ids[] = {4, 69};
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *bp = f->dra + 0xd1d4 + ids[i] * 6U;
+        bp[0] = i ? 2 : 5;
+        bp[1] = bp[2] = 1;
+    }
+    Put32(f->dra + 0xdb98 + 9 * 4U, 0x800b0c00);
+    Uint8 *profile = f->dra + 0x10c00;
+    profile[0] = 3;
+    profile[1] = profile[2] = profile[3] = 80;
+    profile[4] = profile[5] = 2;
+    Put16(profile + 6, 2);
+    Put16(profile + 10, 9);
+    for (Uint16 i = 0; i < 24; ++i)
+    {
+        Put16(f->dra + 0xd57c + i * 4U, 1);
+        Put16(f->dra + 0xd57e + i * 4U, (Uint16)(i + 1U));
+    }
+    Put16(f->dra + 0xd5dc, 65535);
+    Put16(f->dra + 0xd572, 96);
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .wolf_owned = true,
+                              .wolf_query = WolfQuery,
+                              .wolf_context = f,
+                              .camera_x = 20,
+                              .wolf_command_camera_x = 16,
+                              .room_shift_x = -4};
+    const SotnPlayerFactorySource source = {
+        .x = 10 * 65536 + 123, .y = 20 * 65536 + 456, .priority = 148};
+    in.player.wolf.commands = (SotnWolfControllerEvents){
+        .count = 4,
+        .requests = {{.source = source, .parameter = 0x90004, .kind = SOTN_WOLF_FACTORY},
+                     {.source = source, .parameter = 0x10045, .kind = SOTN_WOLF_FACTORY},
+                     {.parameter = 0x644, .kind = SOTN_WOLF_SOUND},
+                     {.parameter = 2, .kind = SOTN_WOLF_SHAKE}}};
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.children[47].kind == 5 && f->runtime.children[47].initialized &&
+          f->runtime.children[47].primitive_count == 4 &&
+          f->runtime.children[47].state.particles.tiles[0].x == 2 * 65536 &&
+          f->runtime.children[46].kind == 2 && f->runtime.children[46].initialized &&
+          f->runtime.children[46].state.smoke.x == -6 * 65536 + 123 &&
+          f->runtime.children[46].state.smoke.y == 44 * 65536 + 456 &&
+          f->runtime.sound_count == 1 && f->runtime.sounds[0] == 0x644 &&
+          f->runtime.wolf_shake_count == 1 && f->runtime.wolf_shakes[0] == 2);
+    const SotnBatRuntime before = f->runtime;
+    SotnCharacterState character = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &character, NULL));
+    in.entering = true;
+    in.screen_shift_x = -3;
+    in.screen_shift_y = 5;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.children[47].state.particles.tiles[0].x == -65536 &&
+          f->runtime.children[46].state.smoke.x == -9 * 65536 + 123 &&
+          f->runtime.children[46].state.smoke.remaining ==
+              before.children[46].state.smoke.remaining);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == character.random);
+    f->runtime = (SotnBatRuntime){0};
+    in.entering = false;
+    in.screen_shift_x = in.screen_shift_y = 0;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!f->runtime.children[47].kind && f->runtime.children[46].kind == 2);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == character.random);
+    Close(f);
+    CHECK(Create(f));
+    f->wolf_owned = true;
+    f->world.relics[SOTN_RELIC_WOLF] = 3;
+    Uint8 *bp = f->dra + 0xd1d4 + 4 * 6U;
+    bp[0] = 5;
+    bp[1] = bp[2] = 1;
+    Put32(f->dra + 0xdb98 + 13 * 4U, 0x800b0c00);
+    profile = f->dra + 0x10c00;
+    profile[0] = 3;
+    profile[1] = profile[2] = profile[3] = 80;
+    profile[4] = profile[5] = 2;
+    Put16(profile + 6, 2);
+    Put16(profile + 8, 8);
+    Put16(profile + 10, 13);
+    CHECK(Tick(f, SOTN_BUTTON_WOLF));
+    for (Uint16 i = 0; i < 80; ++i)
+        CHECK(Tick(f, 0));
+    Uint16 wait = 0;
+    while (f->runtime.children[47].kind == 11 && wait++ < 100)
+        CHECK(Tick(f, 0));
+    CHECK(wait < 100 && !f->runtime.children[47].kind);
+    f->runtime.wolf.head.remaining = -1;
+    f->runtime.wolf.head.breath_timer = 0;
+    in = (SotnBatRuntimeInput){.dra = {f->dra, sizeof(f->dra)},
+                               .executable = {f->exe, sizeof(f->exe)},
+                               .player = f->state,
+                               .wolf_owned = true,
+                               .wolf_query = WolfQuery,
+                               .wolf_context = f};
+    in.player.wolf.controller.fall_water_level = 40;
+    CHECK(SotnCharacter_Get(f->character, &character, NULL));
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && f->runtime.wolf_events.bubble);
+    const SotnPlayerFactorySource bubble = f->runtime.wolf_events.bubble_source;
+    CHECK(f->runtime.factories[0].cursor.entity_id &&
+          f->runtime.factories[0].cursor.blueprint == 4 && !f->runtime.children[47].kind);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == character.random);
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.wolf_events.bubble);
+    CHECK(f->runtime.children[47].kind == 5 && f->runtime.children[47].parameter == 0xd00 &&
+          f->runtime.children[47].initialized && f->runtime.children[47].primitive_count == 4 &&
+          f->runtime.children[47].primitives[0] == 8 &&
+          f->runtime.children[47].state.particles.tiles[0].x / 65536 == bubble.x / 65536 &&
+          f->runtime.children[47].state.particles.tiles[1].timer == 4);
+    Close(f);
+    return true;
+}
+
 static bool WolfSpellOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -752,7 +869,8 @@ int main(void)
     if (!f)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f) && WolfOrder(f) && WolfSpellOwnership(f);
+                    PrimitivePressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
+                    WolfEffectOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

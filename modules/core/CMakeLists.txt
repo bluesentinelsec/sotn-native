@@ -1,4 +1,8 @@
 add_library(sotn-core STATIC
+  player_particles.c
+  include/sotn/player_particles.h
+  player_smoke.c
+  include/sotn/player_smoke.h
   wolf_transition.c
   include/sotn/wolf_transition.h
   wolf_runtime.c

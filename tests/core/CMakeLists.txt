@@ -798,6 +798,12 @@ target_link_libraries(sotn-wolf-runtime-tests PRIVATE sotn-core)
 add_test(NAME wolf-linked-body-owner COMMAND sotn-wolf-runtime-tests)
 set_tests_properties(wolf-linked-body-owner PROPERTIES TIMEOUT 20)
 
+add_executable(sotn-player-particle-tests test_player_particles.c)
+sotn_configure_c_target(sotn-player-particle-tests)
+target_link_libraries(sotn-player-particle-tests PRIVATE sotn-core)
+add_test(NAME player-tile-particles COMMAND sotn-player-particle-tests)
+set_tests_properties(player-tile-particles PROPERTIES TIMEOUT 20)
+
 add_executable(sotn-player-wolf-tests test_player_wolf.c)
 sotn_configure_c_target(sotn-player-wolf-tests)
 target_include_directories(sotn-player-wolf-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

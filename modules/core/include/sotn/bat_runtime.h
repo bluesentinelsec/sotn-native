@@ -5,6 +5,8 @@
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
 #include <sotn/player.h>
+#include <sotn/player_particles.h>
+#include <sotn/player_smoke.h>
 #include <sotn/primitive_slots.h>
 
 enum
@@ -25,6 +27,8 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerBlink blink;
         SotnBatTrail trail;
         SotnPlayerAttack attack;
+        SotnPlayerParticles particles;
+        SotnPlayerSmoke smoke;
         struct
         {
             SotnBatFireball motion;
@@ -35,7 +39,7 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[8]; /**< Actual shared rows; eight for BlinkWhite, one for a trail. */
+    Uint16 primitives[SOTN_PLAYER_PARTICLE_LIMIT + 1]; /**< Includes particle sentinel rows. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
 
@@ -65,6 +69,7 @@ typedef struct SotnBatRuntime
     Uint16 wing_mask;
     Uint64 fire_mask;
     Uint16 sounds[48], sound_count;
+    Uint8 wolf_shakes[8], wolf_shake_count;
     Uint8 use_ticks;
     Uint8 groups[11];
     bool echo_attack;
@@ -83,6 +88,7 @@ typedef struct SotnBatRuntimeInput
     Uint64 other_occupied;
     SotnPrimitiveSlots primitive_slots; /**< Snapshot of actual stage/player primitive occupancy. */
     Sint32 camera_x, camera_y;
+    Sint32 wolf_command_camera_x, wolf_command_camera_y; /**< Camera at player command creation. */
     Sint16 room_shift_x, room_shift_y, screen_shift_x, screen_shift_y;
     bool entering;
     bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
@@ -113,7 +119,8 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * Bound Wolf runs at slots17..30; later flashes read its current capture bounds. The owning
  * player must commit wolf_frame once after success. Body MP charges commit here, not again
  * through wolf_events. Selected Wolf spell requests initialize real wolf_attacks here;
- * the native combat owner applies them. Bubble requests still require actual factories.
+ * the native combat owner applies them. Selected Wolf puffs/particles use real factories
+ * and primitive rows; the native scene must draw their retained state and consume shakes.
  * The owner must commit the planned rows to the actual primitive pool before advancing
  * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
