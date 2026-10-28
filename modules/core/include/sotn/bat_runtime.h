@@ -54,6 +54,9 @@ typedef struct SotnBatRuntime
     SotnWolfRuntime wolf;
     SotnWolfControllerFrame wolf_frame;
     SotnWolfRuntimeEvents wolf_events;
+    SotnPlayerAttack
+        wolf_attacks[2]; /**< Actual front18/head20 attacks, sharing enemy group three. */
+    Uint8 wolf_mask;
     bool wolf_bound;  /**< This stage owner includes actual Wolf entities/common environment. */
     SotnBatEcho echo; /**< Single original slot-47 wave; not multiplied across the child union. */
     Uint16 echo_primitives[SOTN_BAT_ECHO_PRIMITIVES];
@@ -109,7 +112,8 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * Supports selected Bat morphs, Wing/Fire children, Echo and an optional actual Wolf body.
  * Bound Wolf runs at slots17..30; later flashes read its current capture bounds. The owning
  * player must commit wolf_frame once after success. Body MP charges commit here, not again
- * through wolf_events. Wolf spell/bubble intents still require real combat/factory owners.
+ * through wolf_events. Selected Wolf spell requests initialize real wolf_attacks here;
+ * the native combat owner applies them. Bubble requests still require actual factories.
  * The owner must commit the planned rows to the actual primitive pool before advancing
  * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,

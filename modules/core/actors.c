@@ -587,7 +587,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Uint32 wing_start = gas_start + SOTN_GAS_CLOUD_SLOTS;
     const bool wing =
         actors->bat_runtime && (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
-                                actors->bat_runtime->echo_attack);
+                                actors->bat_runtime->echo_attack || actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -605,20 +605,47 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 index >= 1 && index <= 15 && (runtime->wing_mask & (Uint16)(1U << (index - 1U)));
             const bool selected_fire = (runtime->fire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
-            if (!selected_wing && !selected_fire && !selected_echo)
+            const bool selected_wolf = (index == 2 && (runtime->wolf_mask & 1U)) ||
+                                       (index == 4 && (runtime->wolf_mask & 2U));
+            if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf)
                 continue;
-            const SotnBatRuntimeChild *child = &runtime->children[index];
-            if (!child->generation || !child->initialized ||
-                (selected_wing && (child->kind != 36 || child->group < 3 || child->group > 6)) ||
-                (selected_fire && (child->kind != 45 || child->group < 7 || child->group > 10)) ||
-                (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
-                                   runtime->echo_generation != child->generation)))
-                return SDL_SetError("Bat attack lost its actual child or original group");
-            source.x = child->source.x;
-            source.y = child->source.y;
-            source.facing_left = child->source.facing_left;
-            source.attack = selected_fire ? child->state.fire.attack : child->state.attack;
-            hand = ACTOR_WING_CHANNEL + child->group - 3U;
+            if (selected_wolf)
+            {
+                const Uint16 part = index == 2 ? 1 : 3;
+                const SotnWolfRuntimeChild owner = runtime->wolf.children[part];
+                const SotnWolfPart body = runtime->wolf.body.parts[part];
+                if (!runtime->wolf_bound || !runtime->wolf.generation || !owner.generation ||
+                    owner.lineage != runtime->wolf.generation || owner.slot != index + 16U ||
+                    owner.identity != (part == 1 ? 55 : 58) || body.enemy_id != 3 ||
+                    body.hitbox_state != runtime->wolf_attacks[part == 1 ? 0 : 1].hit_type)
+                    return SDL_SetError("Wolf attack lost its actual body identity or group");
+                source.x =
+                    (Sint32)((Sint64)Wrap16((Sint64)Pixel(body.x) + actors->camera_x) * 65536 +
+                             ((Uint32)body.x & 65535U));
+                source.y =
+                    (Sint32)((Sint64)Wrap16((Sint64)Pixel(body.y) + actors->camera_y) * 65536 +
+                             ((Uint32)body.y & 65535U));
+                source.facing_left = body.facing_left;
+                source.attack = runtime->wolf_attacks[part == 1 ? 0 : 1];
+                hand = ACTOR_WING_CHANNEL;
+            }
+            else
+            {
+                const SotnBatRuntimeChild *child = &runtime->children[index];
+                if (!child->generation || !child->initialized ||
+                    (selected_wing &&
+                     (child->kind != 36 || child->group < 3 || child->group > 6)) ||
+                    (selected_fire &&
+                     (child->kind != 45 || child->group < 7 || child->group > 10)) ||
+                    (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
+                                       runtime->echo_generation != child->generation)))
+                    return SDL_SetError("Bat attack lost its actual child or original group");
+                source.x = child->source.x;
+                source.y = child->source.y;
+                source.facing_left = child->source.facing_left;
+                source.attack = selected_fire ? child->state.fire.attack : child->state.attack;
+                hand = ACTOR_WING_CHANNEL + child->group - 3U;
+            }
         }
         else if (channel >= gas_start)
         {
@@ -767,7 +794,18 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             {
                 const Uint16 index = (Uint16)(channel - wing_start);
                 const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
-                if (child->kind == 45)
+                if (index == 2 && (actors->bat_runtime->wolf_mask & 1U))
+                {
+                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                        flags = 2;
+                    if (!SotnWolfRuntime_Hit(&actors->bat_runtime->wolf,
+                                             actors->bat_runtime->wolf.children[1].generation,
+                                             flags))
+                        return false;
+                }
+                else if (child->kind == 45)
                 {
                     Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                     if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||

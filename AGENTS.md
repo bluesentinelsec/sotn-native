@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+Selected [Wolf combat ownership](docs/player-wolf-combat.md) now connects actual
+front/head spells, INT/RNG/Mojo/critical metadata, retained group-three enemy
+cooldown and native damage/death/EXP. Preserve source least-used counter increment
+before forced enemyId3, end-of-tick actual identity recount, current pose geometry
+and once-only front contact MP feedback. Late failures preserve body/MP/RNG.
+Native scene/render/controls and real child effects remain unwired; Wolf and
+Alucard are incomplete. Private protected component sessions are not full encounters.
+
 The [shared Wolf runtime](docs/wolf-shared-runtime.md) now interleaves actual
 body17..30 with factory-selected Blink slots and commits Bat/Echo/Wolf rows in one
 stage-pool transaction. Preserve current body bounds for later flashes, forced

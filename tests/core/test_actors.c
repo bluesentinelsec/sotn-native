@@ -467,6 +467,55 @@ static bool TestWingContact(Fixture *f)
     return true;
 }
 
+static bool TestWolfContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnBatRuntime runtime = {.wolf_bound = true, .wolf_mask = 3};
+    CHECK(SotnWolfRuntime_Begin(&runtime.wolf, 10, 0));
+    // Authored owned poses isolate original group-three contact from body motion.
+    runtime.wolf.body.parts[1] = (SotnWolfPart){
+        .x = 160 * 65536 + 123, .y = 140 * 65536, .step = 1, .enemy_id = 3, .hitbox_state = 2};
+    runtime.wolf.body.parts[3] = runtime.wolf.body.parts[1];
+    runtime.wolf_attacks[0] = (SotnPlayerAttack){.power = 3,
+                                                 .width = 32,
+                                                 .height = 32,
+                                                 .hit_type = 2,
+                                                 .hit_effect = 1,
+                                                 .invincibility_frames = 8,
+                                                 .active = true};
+    runtime.wolf_attacks[1] = runtime.wolf_attacks[0];
+    CHECK(SotnActors_SetBatRuntime(actors, &runtime));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Tick(actors, player, 64, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9 &&
+          runtime.wolf.body.parts[1].hit_flags == 1);
+    runtime.wolf.children[1].generation = ++runtime.wolf.serial;
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        CHECK(SotnActors_Tick(actors, player, 64, 0));
+        CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9);
+    }
+    // Head and a new front generation share the same retained enemy cooldown.
+    CHECK(SotnActors_Tick(actors, player, 64, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    runtime.wolf_mask = 2;
+    for (Uint16 i = 0; i < 20; ++i)
+        CHECK(SotnActors_Tick(actors, player, 64, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points <= 0);
+    CHECK(SotnActors_SetBatRuntime(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestBatFireContact(Fixture *f)
 {
     const SotnCollisionMap map = MakeCombatFixture(f);
@@ -591,11 +640,11 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestBehaviors(fixture) && TestCombat(fixture) &&
-                        TestEquipmentPickup(fixture) && TestExperienceReward(fixture) &&
-                        TestKickContact(fixture) && TestGasContact(fixture) &&
-                        TestWingContact(fixture) && TestBatFireContact(fixture) &&
-                        TestEchoContact(fixture) && TestFailures(fixture);
+    const bool passed =
+        TestBehaviors(fixture) && TestCombat(fixture) && TestEquipmentPickup(fixture) &&
+        TestExperienceReward(fixture) && TestKickContact(fixture) && TestGasContact(fixture) &&
+        TestWingContact(fixture) && TestWolfContact(fixture) && TestBatFireContact(fixture) &&
+        TestEchoContact(fixture) && TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

@@ -1,6 +1,7 @@
 #include "character_fixture.h"
 #include <SDL3/SDL.h>
 #include <sotn/bat_runtime.h>
+#include <sotn/combat.h>
 
 _Static_assert(SOTN_PLAYER_BAT == 5 && SOTN_PLAYER_UNMORPH_BAT == 9 && SOTN_BUTTON_BAT == 8 &&
                    SOTN_BUTTON_START == 0x800,
@@ -676,13 +677,82 @@ static bool WolfOrder(Fixture *f)
     return true;
 }
 
+static bool WolfSpellOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    f->wolf_owned = true;
+    f->world.relics[SOTN_RELIC_WOLF] = 3;
+    const Uint16 spells[] = {4, 13, 14};
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        Uint8 *spell = f->dra + 0x8410 + spells[i] * 28U;
+        spell[12] = 3;
+        spell[13] = 8;
+        spell[14] = 6;
+        spell[16] = 2;
+        spell[18] = 1;
+        spell[20] = 16;
+        spell[24] = 20;
+    }
+    CHECK(Tick(f, SOTN_BUTTON_WOLF));
+    for (Uint16 i = 0; i < 80; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.wolf.active && f->state.substep != 8);
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .image = {40, 64, -20, -48},
+                              .wolf_owned = true,
+                              .wolf_query = WolfQuery,
+                              .wolf_context = f};
+    in.player.velocity_x = in.player.wolf.controller.motion.velocity_x = 6 * 65536;
+    in.player.wolf.controller.motion.substep = 1;
+    f->runtime.wolf.body.parts[3].sprite = 75;
+    CHECK(SotnWolfRuntime_Hit(&f->runtime.wolf, f->runtime.wolf.children[1].generation, 1));
+    f->runtime.groups[3] = 5;
+    f->runtime.groups[4] = 1;
+    f->runtime.groups[5] = 2;
+    f->runtime.groups[6] = 0;
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    SotnBatRuntime saved = f->runtime;
+    Put16(f->dra + 0x8410 + 14 * 28 + 24, 65535);
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!SDL_memcmp(&saved, &f->runtime, sizeof(saved)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) &&
+          !SDL_memcmp(&before, &after, sizeof(after)));
+    Put16(f->dra + 0x8410 + 14 * 28 + 24, 20);
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.wolf_events.spell_count == 2 && f->runtime.wolf_mask == 3 &&
+          f->runtime.wolf_events.spells[0].spell == 13 &&
+          f->runtime.wolf_events.spells[1].spell == 14 && f->runtime.groups[3] == 2 &&
+          f->runtime.groups[4] == 0 && f->runtime.groups[5] == 0 && f->runtime.groups[6] == 0);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.mp + 3U == before.mp &&
+          f->runtime.wolf_frame.mp == after.mp && f->runtime.wolf_events.mp_spent == 3);
+    Uint32 expected = before.random;
+    for (Uint16 i = 0; i < 2; ++i)
+        (void)SotnCombat_Random(&expected);
+    CHECK(after.random == expected);
+    // A supplied later Bat snapshot retires Wolf while retaining its prior count for
+    // this tick's allocation. The end-of-tick scan then counts only living children.
+    in.player.step = SOTN_PLAYER_BAT;
+    in.player.substep = 3;
+    in.player.bat_commands.wing_attack = true;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!f->runtime.wolf_mask && !f->runtime.wolf.generation &&
+          f->runtime.children[15].kind == 36 && f->runtime.children[15].group == 4 &&
+          f->runtime.groups[3] == 0 && f->runtime.groups[4] == 1);
+    Close(f);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f) && WolfOrder(f);
+                    PrimitivePressure(f) && WolfOrder(f) && WolfSpellOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
