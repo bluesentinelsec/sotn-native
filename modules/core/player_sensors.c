@@ -619,11 +619,14 @@ static void CollideStep(SotnPlayer *player)
     const Sint16 wall_y[] = {24, 17, 9, 1, -7, -14, -21};
     const Sint16 crouch_y[] = {24, 17, 9, 5, 5, 1, 1};
     const Sint16 horizontal[] = {0, 0, 4, -4};
-    const bool crouching = player->step == SOTN_PLAYER_CROUCH || player->step == SOTN_PLAYER_STUCK;
+    const bool crouching = player->step == SOTN_PLAYER_CROUCH ||
+                           player->step == SOTN_PLAYER_STUCK || player->step == SOTN_PLAYER_WOLF;
     const bool compact = (player->status & 3U) != 0;
     const bool mist = (player->status & PLAYER_STATUS_MIST_FORM) != 0 || player->mist.active;
     const bool restoring =
-        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_UNMORPH_BAT;
+        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_UNMORPH_BAT ||
+        player->step == SOTN_PLAYER_UNMORPH_WOLF ||
+        (player->step == SOTN_PLAYER_WOLF && (!player->substep || player->substep == 8));
     for (int i = 0; i < 4 && !restoring; ++i)
     {
         player->floor_sensors[i] = (PlayerSensor){horizontal[i], compact ? 8 : floor_y[i]};
@@ -722,7 +725,8 @@ static void CollideStep(SotnPlayer *player)
 
 void SotnPlayer_Collide(SotnPlayer *p)
 {
-    if (p->vx > -2 * 65536 && p->vx < 2 * 65536 && p->step != SOTN_PLAYER_HIGH_JUMP)
+    if (p->vx > -2 * 65536 && p->vx < 2 * 65536 && p->step != SOTN_PLAYER_HIGH_JUMP &&
+        p->step != SOTN_PLAYER_WOLF && p->step != SOTN_PLAYER_UNMORPH_WOLF)
     {
         CollideStep(p);
         return;

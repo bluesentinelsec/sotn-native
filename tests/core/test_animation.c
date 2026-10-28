@@ -203,9 +203,43 @@ static bool TestPlayerFormPose(void)
     return true;
 }
 
+static bool TestWolfCadence(void)
+{
+    Uint8 image[0x11000] = {0};
+    const SotnDataView dra = {image, sizeof(image)};
+    Put32(image, 0x101b8 + 0xe2U * 4U, 0x800affb8);
+    Put32(image, 0x101b8 + 202U * 4U, 0x800afda4);
+    for (Uint16 i = 0; i < 8; ++i)
+        Record(image, 0xffb8 + i * 4U, 4, (Uint16)(10U + i));
+    Record(image, 0xffd8, 0, 0);
+    Record(image, 0xfda4, 1, 6);
+    Record(image, 0xfda8, 0xffff, 0);
+    Uint16 durations[8] = {1, 1, 1, 1, 1, 1, 1, 1};
+    SotnAnimation cursor = {0};
+    CHECK(SotnAnimation_Set(&cursor, 0xe2));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(SotnAnimation_TickWolf(dra, 1, durations, &cursor) && cursor.sprite == 10U + i);
+    CHECK(image[0xffb8] == 4 && image[0xffd4] == 4);
+    CHECK(SotnAnimation_Set(&cursor, 0xe2));
+    CHECK(SotnAnimation_Tick(dra, &cursor) && cursor.sprite == 10 && cursor.remaining == 4);
+    CHECK(SotnAnimation_Set(&cursor, 202));
+    CHECK(SotnAnimation_TickWolf(dra, 95, durations, &cursor) && cursor.sprite == 95 &&
+          image[0xfda6] == 6);
+    const SotnAnimation before = cursor;
+    durations[3] = 0;
+    CHECK(!SotnAnimation_TickWolf(dra, 95, durations, &cursor) &&
+          !SDL_memcmp(&cursor, &before, sizeof(cursor)));
+    durations[3] = 5;
+    CHECK(!SotnAnimation_TickWolf(dra, 95, durations, &cursor));
+    CHECK(!SotnAnimation_TickWolf(dra, 512, durations, &cursor));
+    CHECK(!SotnAnimation_TickWolf(dra, 95, NULL, &cursor));
+    return true;
+}
+
 int main(void)
 {
-    if (!TestAnimation() || !TestStageAnimation() || !TestDoppleFormPose() || !TestPlayerFormPose())
+    if (!TestAnimation() || !TestStageAnimation() || !TestDoppleFormPose() ||
+        !TestPlayerFormPose() || !TestWolfCadence())
         return 1;
     SDL_Log("SOTN_ANIMATION_TEST: PASS");
     return 0;

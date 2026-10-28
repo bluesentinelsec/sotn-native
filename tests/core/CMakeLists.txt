@@ -797,3 +797,10 @@ target_include_directories(sotn-wolf-runtime-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-wolf-runtime-tests PRIVATE sotn-core)
 add_test(NAME wolf-linked-body-owner COMMAND sotn-wolf-runtime-tests)
 set_tests_properties(wolf-linked-body-owner PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-wolf-tests test_player_wolf.c)
+sotn_configure_c_target(sotn-player-wolf-tests)
+target_include_directories(sotn-player-wolf-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-wolf-tests PRIVATE sotn-core)
+add_test(NAME player-wolf-owner-gates COMMAND sotn-player-wolf-tests)
+set_tests_properties(player-wolf-owner-gates PROPERTIES TIMEOUT 20)

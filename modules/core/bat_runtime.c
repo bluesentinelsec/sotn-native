@@ -90,6 +90,24 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *r, Uint32 generation,
     *pending = waiting;
     return true;
 }
+bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_SetError("Wolf forced replacement requires the actual selected slot owner");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52) &&
+            r->children[i].group >= SDL_arraysize(r->groups))
+            return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
+    for (Uint16 i = 1; i <= 14; ++i)
+        r->children[i] = (SotnBatRuntimeChild){0};
+    r->wing_mask &= 0x4000U;
+    SDL_zero(r->groups);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52) &&
+            r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
+            ++r->groups[r->children[i].group];
+    return true;
+}
 static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
 {
     for (Uint16 i = 0; i < 8; ++i)
@@ -206,7 +224,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         in.camera_y > 16384)
         return SDL_SetError(
             "Bat runtime requires actual owned progress and bounded camera context");
-    if ((in.player.bat.started || in.player.bat.return_started) && !in.player.bat.generation)
+    if (((in.player.wolf.started || in.player.wolf.return_started || in.player.wolf.finish_flash) &&
+         !in.player.wolf.generation) ||
+        ((in.player.bat.started || in.player.bat.return_started) && !in.player.bat.generation))
         return SDL_SetError("Bat transformation requires a nonzero actual owner generation");
     if (SotnBatRuntime_Occupied(runtime) & in.other_occupied)
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
@@ -289,7 +309,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.sound_count = 0;
     r.use_ticks = 0;
     const SotnPlayerState p = in.player;
-    if ((p.bat.started && !Request(&r, p, 0x20002cU, p.bat.generation)) ||
+    if ((p.wolf.started && !Request(&r, p, 0x23002cU, p.wolf.generation)) ||
+        (p.wolf.return_started && !Request(&r, p, 0x24002cU, p.wolf.generation)) ||
+        (p.wolf.finish_flash && !Request(&r, p, 0x1b002cU, p.wolf.generation)) ||
+        (p.bat.started && !Request(&r, p, 0x20002cU, p.bat.generation)) ||
         (p.bat_commands.wing_flash && !Request(&r, p, 0x5c002cU, 0)) ||
         (p.bat_commands.wing_attack && !Request(&r, p, 67, 0)) ||
         (p.bat_commands.fire_flash && !Request(&r, p, 0x5002cU, 0)) ||
@@ -351,21 +374,24 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 const Uint16 parameter = c->state.blink.parameter;
                 if (!SotnPlayerBlink_Tick(
                         &c->state.blink, &r.shared,
-                        (SotnPlayerBlinkInput){.dra = in.dra,
-                                               .executable = in.executable,
-                                               .image = in.image,
-                                               .x = Word(Pixel(p.x) - in.camera_x),
-                                               .y = Word(Pixel(p.y) - in.camera_y),
-                                               .rotation = p.bat.rotation,
-                                               .priority = p.priority,
-                                               .status = p.status,
-                                               .player_step = (Uint16)p.step,
-                                               .player_substep = p.substep,
-                                               .signal = p.bat.signal,
-                                               .facing_left = p.facing_left,
-                                               .rotated = p.rotated,
-                                               .image_present = in.image.width != 0,
-                                               .allocation_failed = !allocated},
+                        (SotnPlayerBlinkInput){
+                            .dra = in.dra,
+                            .executable = in.executable,
+                            .image = in.image,
+                            .wolf_bounds = in.wolf_bounds,
+                            .wolf_form = p.animation_bank == 15,
+                            .x = Word(Pixel(p.x) - in.camera_x),
+                            .y = Word(Pixel(p.y) - in.camera_y),
+                            .rotation = p.bat.rotation,
+                            .priority = p.priority,
+                            .status = p.status,
+                            .player_step = (Uint16)p.step,
+                            .player_substep = p.substep,
+                            .signal = p.wolf.active ? p.wolf.signal : p.bat.signal,
+                            .facing_left = p.facing_left,
+                            .rotated = p.rotated,
+                            .image_present = p.animation_bank == 15 || in.image.width != 0,
+                            .allocation_failed = !allocated},
                         &events))
                     return false;
                 removed = c->state.blink.removed;

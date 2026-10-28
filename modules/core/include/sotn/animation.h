@@ -38,6 +38,14 @@ bool SotnAnimation_Tick(SotnDataView dra, SotnAnimation *animation);
  * Other timelines, controls, durations and frame properties retain ordinary semantics. */
 bool SotnAnimation_TickPlayerForm(SotnDataView dra, Uint16 form_pose, SotnAnimation *animation);
 
+/** @brief Advance actual Wolf animation with the original eight mutable run durations.
+ * @param dra Borrowed private DRA. @param form_pose Current original CA return-pose word.
+ * @param durations Eight source cadence values, each1..4. @param animation Actual player cursor.
+ * @return Success or SDL error without cursor mutation. Replaces only duration words at original
+ * FFB8..FFD4 and the mutable form pose; never mutates borrowed game bytes. */
+bool SotnAnimation_TickWolf(SotnDataView dra, Uint16 form_pose, const Uint16 durations[8],
+                            SotnAnimation *animation);
+
 /** @brief Select a supported overlay's player-format timeline without copying runtime tables.
  * @param animation Borrowed cursor. @param stage Original stage ID; currently BO4 (26).
  * @param id Original timeline ID, below 220 for BO4.

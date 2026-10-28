@@ -235,6 +235,22 @@ void SotnPlayer_FormReturn(SotnPlayer *p, bool cramped)
     p->mist_lockout = 24;
 }
 
+void SotnPlayer_WolfReturn(SotnPlayer *p, bool cramped)
+{
+    if (cramped)
+    {
+        SotnPlayer_FormReturn(p, true);
+        return;
+    }
+    Jump(p);
+    if (!p->tight_space)
+        p->movement_flags |= 1U;
+    if (!(p->contact & 0x8000))
+        p->vy = -FIX_ONE;
+    p->movement_flags |= 0x100U;
+    p->mist_lockout = 24;
+}
+
 void SotnPlayer_GravityLaunch(SotnPlayer *p)
 {
     if (Direction(p))
@@ -417,7 +433,8 @@ static bool TickShield(SotnPlayer *player)
         player->equipment[hand] != 16 || player->curse_ticks != 0 || player->curse_failure ||
         player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_HIT ||
         player->step == SOTN_PLAYER_STONE || player->step == SOTN_PLAYER_MIST ||
-        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_BAT ||
+        player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_WOLF ||
+        player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
         player->step == SOTN_PLAYER_BOSS_GRAB;
     const bool starting = player->shield_cursor.phase == 0;
@@ -1026,7 +1043,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND |
         (player && player->mist_context ? SOTN_BUTTON_MIST : 0) |
         (player && player->bat_context ? SOTN_BUTTON_BAT : 0) |
-        (player && player->bat_context && player->step == SOTN_PLAYER_BAT ? SOTN_BUTTON_CANCEL : 0);
+        (player && player->wolf_context ? SOTN_BUTTON_WOLF : 0) |
+        ((player && player->bat_context && player->step == SOTN_PLAYER_BAT) ||
+                 (player && player->wolf_context && player->step == SOTN_PLAYER_WOLF)
+             ? SOTN_BUTTON_CANCEL
+             : 0);
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
@@ -1036,6 +1057,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.extra_sound = 0;
     next.mp_spent = 0;
     next.bat_commands = (SotnBatCommandEvents){0};
+    next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
     next.sleep_event = false;
     if (next.curse_ticks)
@@ -1072,6 +1094,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     {
         SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
+        SotnPlayer_WolfCancel(&next);
         // PAD_SIM mode 2 changes step without selecting a new animation (692E8.c/alu_anim.c).
         SetStep(&next, SOTN_PLAYER_SCRIPT);
         next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
@@ -1081,13 +1104,21 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     {
         SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
+        SotnPlayer_WolfCancel(&next);
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     }
     SotnPlayer_GravityInput(&next);
     SotnPlayer_MistInput(&next);
     SotnPlayer_BatInput(&next);
+    SotnPlayer_WolfInput(&next);
     switch (next.step)
     {
+    case SOTN_PLAYER_WOLF:
+        SotnPlayer_WolfTick(&next);
+        break;
+    case SOTN_PLAYER_UNMORPH_WOLF:
+        SotnPlayer_UnmorphWolfTick(&next);
+        break;
     case SOTN_PLAYER_BAT:
         SotnPlayer_BatTick(&next);
         break;
@@ -1187,16 +1218,22 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return SDL_SetError("Unsupported Alucard movement state");
     }
     next.status =
-        (next.status & ~3U) |
+        (next.status & ~7U) |
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
-        ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U);
+        ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U) |
+        (next.step == SOTN_PLAYER_WOLF ? 4U : 0U);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
+        next.step == SOTN_PLAYER_UNMORPH_WOLF ||
+        (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
         (next.step == SOTN_PLAYER_BAT && next.substep == 3))
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
     if (next.failed)
         return false;
     const bool animated =
-        next.bat.active || next.mist.active
+        next.wolf.active
+            ? SotnAnimation_TickWolf(next.dra, next.form_pose,
+                                     next.wolf.controller.cadence.durations, &next.animation)
+        : next.bat.active || next.mist.active
             ? SotnAnimation_TickPlayerForm(next.dra, next.form_pose, &next.animation)
             : SotnAnimation_Tick(next.dra, &next.animation);
     if (!animated || !ReadAttack(&next) || !TickShield(&next) || !SotnPlayer_KickTick(&next))
@@ -1354,6 +1391,16 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x28100002U;
     if (player->step == SOTN_PLAYER_UNMORPH_MIST)
         status |= 0x28900002U;
+    if (player->step == SOTN_PLAYER_WOLF)
+    {
+        status |= 0x2c100204U;
+        if (!player->substep || player->substep == 8)
+            status |= 0x40000000U;
+        if (player->substep == 3)
+            status |= 0x20U;
+    }
+    if (player->step == SOTN_PLAYER_UNMORPH_WOLF)
+        status |= 0x68100000U;
     if (player->step == SOTN_PLAYER_STUCK)
         status |= 0x18100030U;
     *out = (SotnPlayerState){
@@ -1392,16 +1439,32 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .poison_ticks = player->poison_ticks,
         .extra_sound = player->extra_sound,
         .grab = player->grab,
-        .priority = 148,
+        .priority = player->wolf.active ? player->wolf.priority : 148,
         .kick = player->kick,
         .gravity = player->gravity,
         .mp = player->mp,
         .mp_spent = player->mp_spent,
         .mist = player->mist,
         .bat = player->bat,
+        .wolf = player->wolf,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated};
+    if (player->wolf.active)
+    {
+        out->wolf.controller.x =
+            (Sint32)((Sint64)player->x.value - (Sint64)player->wolf_camera_x * 65536);
+        out->wolf.controller.y =
+            (Sint32)((Sint64)player->y.value - (Sint64)player->wolf_camera_y * 65536);
+        out->wolf.controller.motion.animation = player->animation;
+        out->wolf.controller.motion.velocity_x = player->vx;
+        out->wolf.controller.motion.velocity_y = player->vy;
+        out->wolf.controller.motion.contacts = (Uint32)player->contact;
+        out->wolf.controller.motion.substep = player->substep;
+        out->wolf.controller.motion.facing_left = player->facing_left;
+        out->wolf.controller.mp = player->mp;
+        out->wolf.controller.priority = player->wolf.priority;
+    }
     return true;
 }
 
@@ -1427,6 +1490,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     SotnPlayer next = *player;
     SotnPlayer_GravityCancel(&next);
     SotnPlayer_BatCancel(&next);
+    SotnPlayer_WolfCancel(&next);
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     const Sint32 center_x =
         next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);

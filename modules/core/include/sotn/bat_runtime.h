@@ -69,6 +69,7 @@ typedef struct SotnBatRuntimeInput
     SotnDataView dra, executable;
     SotnPlayerState player;
     SotnPlayerImage image;
+    SotnWolfCaptureBounds wolf_bounds;
     Uint64 other_occupied;
     SotnPrimitiveSlots primitive_slots; /**< Snapshot of actual stage/player primitive occupancy. */
     Sint32 camera_x, camera_y;
@@ -82,6 +83,11 @@ typedef struct SotnBatRuntimeInput
 Uint64 SotnBatRuntime_Occupied(const SotnBatRuntime *runtime);
 /** @brief Whether an actual factory slot 8..15 is free in this selected owner. */
 bool SotnBatRuntime_Available(const SotnBatRuntime *runtime);
+/** @brief Perform original Wolf entry's forced replacement of selected slots17..30.
+ * @param runtime Actual shared factory/child owner. @return Success or SDL error.
+ * Retires only those original slots, retaining groups' enemy cooldowns in their combat owner.
+ * Commit this retirement to the stage pool before reserving new Wolf root/environment rows. */
+bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *runtime);
 /** @brief Find the actual current transformation child or pending real factory.
  * @param runtime Borrowed owner. @param generation Current nonzero Bat identity.
  * @param effect Receives borrowed child or NULL. @param pending Receives borrowed factory or NULL.
