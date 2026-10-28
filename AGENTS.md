@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf active controller component](docs/wolf-controller.md) now reconstructs
+selected idle/run/turn/crouch/jump/fall/recoil/slide/swim substates after the form
+resource gate. Preserve US left-speed and wall quirks, separate landing tests,
+ordered request origins, wrapping windows and exact-cost spell-four charge.
+Return requests never manufacture body/readiness or transformation completion.
+Actual Wolf entry/return/body/combat/render ownership remains unwired; controls
+and relic switches remain disabled. Alucard and full parity remain incomplete.
+
 The [Wolf movement/capture components](docs/wolf-motion.md) reconstruct articulated
 raw bounds, sprint/slope/Up/swim jump ordering, signed-word angle wrap and selected
 run-frame cadence. Preserve actual parts 17..30, US asymmetric one-sided clamps,
