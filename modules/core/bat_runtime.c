@@ -463,6 +463,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.use_ticks = 0;
     SotnPlayerState p = in.player;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
+    if (p.gravity.ceiling_impact && !RequestSource(&r, p.gravity.impact_source, 0x10004, 0))
+        return false;
     if (in.wolf_owned && p.wolf.body_started)
     {
         for (Uint16 i = 1; i <= 14; ++i)

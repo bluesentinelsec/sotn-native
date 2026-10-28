@@ -764,3 +764,8 @@ The [selected player camera shake](docs/player-camera-shake.md) adapts original
 `dra/624DC.c` request/update and selected rendering-offset paths from
 `{4B758,4CE2C,4DA70,62DEC,wolfForm}.c` at that same pinned AGPL-3.0-or-later revision.
 Original shake patterns and runtime comparisons remain private.
+
+The [selected Gravity Boots ceiling effects](docs/player-gravity-impact.md) connect
+`dra/71830.c:CreateCeilingHitEffect` requests to reconstructed shared factory/particle
+owners at that same pinned AGPL-3.0-or-later revision. Original profiles and runtime
+comparisons remain private.

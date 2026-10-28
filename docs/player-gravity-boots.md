@@ -24,8 +24,9 @@ Four owned cosmetic beam slots retain original anchored position/fractions,
 four narrowing Gouraud quads, additive color, priority and fade rules. Room
 changes rebase their anchors. Pool exhaustion omits the optional visual and
 preserves movement. The inverted sprite uses an integer 180-degree rotation
-about the original Y pivot two. Original dust, camera shake, dithering, GPU edge
-rasterization and shared factory-capacity contention remain incomplete.
+about the original Y pivot two. [Selected ceiling dust and camera shake](player-gravity-impact.md)
+now run through actual shared owners. Dithering, GPU edge rasterization and complete
+shared factory-capacity contention remain incomplete.
 
 The player owns an MP snapshot and reports the current tick's approved cost.
 The session spends it once from ordinary character progress after a successful

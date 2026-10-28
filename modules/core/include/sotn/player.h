@@ -107,6 +107,8 @@ typedef struct SotnPlayerGravity
 {
     Uint16 timer;
     bool upside_down;
+    bool ceiling_impact; /**< One simulation update; an intent, never child/allocation readiness. */
+    SotnPlayerFactorySource impact_source; /**< Captured room-space origin before facing flip. */
     SotnPlayerGravityBeam beams[SOTN_PLAYER_GRAVITY_BEAMS];
 } SotnPlayerGravity;
 

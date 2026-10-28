@@ -133,16 +133,29 @@ static bool TestCeilings(Fixture *f)
     const Uint16 roofs[] = {46, 30};
     for (Uint32 i = 0; i < 2; ++i)
     {
-        SotnPlayerState p = {0};
+        SotnPlayerState p = {0}, origin = {0};
         CHECK(Start(f, 3, 20, roofs[i]) && Command(f));
         Uint32 n = 0;
         do
         {
+            CHECK(SotnPlayer_GetState(f->p, &origin));
             CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_GetState(f->p, &p));
         } while (p.substep == 0 && n++ < 50);
         CHECK(p.step == SOTN_PLAYER_HIGH_JUMP && p.substep == (i ? 2 : 3) && p.velocity_y == 0 &&
               p.velocity_x == 0 && p.sound == 0x644);
         CHECK(p.gravity.upside_down == (i != 0) && p.facing_left == (i != 0));
+        CHECK(p.gravity.ceiling_impact && p.gravity.impact_source.x == origin.x + 3 * 65536 &&
+              p.gravity.impact_source.y == origin.y - 22 * 65536 &&
+              !p.gravity.impact_source.facing_left && p.gravity.impact_source.priority == 148);
+        const SotnCollisionMap map = {{f->tiles, sizeof(f->tiles)}, {f->types, 2}, 64, 64};
+        const SotnPlayerState captured = p;
+        CHECK(SotnPlayer_ChangeRoom(f->p, map, 16, -8) && SotnPlayer_GetState(f->p, &p));
+        CHECK(p.gravity.ceiling_impact && p.gravity.timer == captured.gravity.timer &&
+              p.gravity.impact_source.x == captured.gravity.impact_source.x + 16 * 65536 &&
+              p.gravity.impact_source.y == captured.gravity.impact_source.y - 8 * 65536);
+        CHECK(SotnPlayer_ChangeRoom(f->p, map, -16, 8) && SotnPlayer_GetState(f->p, &p));
+        CHECK(!SDL_memcmp(&p.gravity.impact_source, &captured.gravity.impact_source,
+                          sizeof(p.gravity.impact_source)));
         if (i)
         {
             CHECK(p.animation.id == 43);
@@ -156,6 +169,7 @@ static bool TestCeilings(Fixture *f)
         while (p.step == SOTN_PLAYER_HIGH_JUMP && n++ < 80)
             CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_GetState(f->p, &p));
         CHECK(p.step == SOTN_PLAYER_JUMP && p.substep == 1);
+        CHECK(!p.gravity.ceiling_impact);
     }
     CHECK(Start(f, 3, 20, 30) && Command(f));
     SotnPlayerState p = {0};
