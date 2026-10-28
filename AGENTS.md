@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+The [owned Wolf scene presentation](docs/wolf-native-presentation.md) now draws
+real bank15 player/body packets, retained images, puffs/tiles and ordered common
+capture. Preserve primitive-before-entity equal ties, previous-image sampling,
+63x63 bounds, return player packets after body retirement, repeated-draw input
+restoration and simulation-side capture flushing. Child culling follows actual
+initialization/RNG and retires real rows. The native simulation entrypoint still
+needs Wolf contexts/body feedback; controls remain disabled. Cross-form/water/shake,
+global GPU contention and full parity remain incomplete; Alucard is not complete.
+
 The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) now consume
 actual controller factories/sounds and deferred head bubbles through owned children
 and the shared stage pool, including real particle sentinel rows. Preserve captured

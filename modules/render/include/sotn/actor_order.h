@@ -7,10 +7,15 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_ACTOR = 0,
     SOTN_DRAW_SPRITE,
     SOTN_DRAW_PRIMITIVE,
-    SOTN_DRAW_MIST,         /**< Owned player visual; primitive indexes 0..79, actor is unused. */
-    SOTN_DRAW_BAT_FIREBALL, /**< Actual child slot index 0..47. */
-    SOTN_DRAW_PLAYER_BLINK, /**< Original slots 16..63, eight packets each; indexes 0..383. */
-    SOTN_DRAW_BAT_ECHO      /**< Actual row 0..1023, owned by the single Echo child. */
+    SOTN_DRAW_MIST,           /**< Owned player visual; primitive indexes 0..79, actor is unused. */
+    SOTN_DRAW_BAT_FIREBALL,   /**< Actual child slot index 0..47. */
+    SOTN_DRAW_PLAYER_BLINK,   /**< Original slots 16..63, eight packets each; indexes 0..383. */
+    SOTN_DRAW_BAT_ECHO,       /**< Actual row 0..1023, owned by the single Echo child. */
+    SOTN_DRAW_WOLF_PACKET,    /**< Actual prepared player/body packet, index0..59. */
+    SOTN_DRAW_WOLF_IMAGE,     /**< Actual retained root image, index0..5. */
+    SOTN_DRAW_WOLF_TARGET,    /**< Actual common environment begin0/restore1. */
+    SOTN_DRAW_PLAYER_SMOKE,   /**< Actual owned child index0..47. */
+    SOTN_DRAW_PLAYER_PARTICLE /**< Actual owned child/tile, index0..767. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

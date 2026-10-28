@@ -100,6 +100,9 @@ presentation and live controls remain incomplete.
 The [selected secondary effects](wolf-secondary-effects.md) now own controller
 factories, puffs and tile particles in shared capacity; native scene rendering,
 water and shake still need integration.
+The [owned scene presentation](wolf-native-presentation.md) now consumes Wolf
+packets and secondary visuals through ordered capture, with repeated-frame input
+restoration. Native simulation binding and controls remain incomplete.
 
 ## Pinned reference
 
