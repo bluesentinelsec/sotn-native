@@ -132,7 +132,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
             t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
             if (type == 13)
             {
-                t->draw_mode &= (Uint16)~8U;
+                t->draw_mode = (Uint16)(t->draw_mode & 0xfff7U);
                 if (!in.water_level || Pixel(t->y) <= (Sint32)in.player_y - in.water_level + 25)
                     t->draw_mode |= 8;
             }
