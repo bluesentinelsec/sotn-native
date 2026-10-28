@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+Selected [Wolf camera shake](docs/player-camera-shake.md) now consumes actual impact
+requests and applies original presentation offsets. Preserve last-request-wins,
+other-axis retention, look-ahead terminal sample discard, no-op identities 0/5,
+paused/repeated-draw clocks and unshifted logical camera/collision. Wolf entity
+projection applies shake before normal/capture packets; never add it twice at draw.
+Menu/absolute packet flags retain target offsets while omitting shake. Patterns stay
+private. Other shake producers, full primitive flags/shared effects and parity remain
+incomplete; do not call Wolf or Alucard complete.
+
 Selected [playable Wolf](docs/player-wolf.md) now binds native contexts/body
 feedback, R/Xbox RT, bites/rush/charge combat, MP/learning, original rendering and
 owned Soul/Power/Skill switches. Preserve real pending entry, once-per-clock body
@@ -8,7 +17,7 @@ raw controller callers still supply their actual command camera. Relic changes
 freeze gameplay and never grant resources. Ordinary starts grant no Wolf relics;
 saves stay v9. Selected [cross-form conversions](docs/player-wolf-cross-forms.md) now
 retain actual Wolf snapshots and Bat packet attributes through real handshakes.
-Water/shake, normal afterimages, all-ability contention
+Water, other shake producers, normal afterimages, all-ability contention
 and full parity remain incomplete. Do not call Wolf or Alucard complete.
 
 The [owned Wolf scene presentation](docs/wolf-native-presentation.md) now draws
@@ -18,7 +27,8 @@ capture. Preserve primitive-before-entity equal ties, previous-image sampling,
 restoration and simulation-side capture flushing. Child culling follows actual
 initialization/RNG and retires real rows. Selected playable Wolf now binds the
 native contexts/body feedback and controls. Selected cross-form conversion now
-runs; water/shake, global GPU contention and full parity remain incomplete; Alucard is not complete.
+runs; selected Wolf shakes now run. Water, other shake producers, global GPU
+contention and full parity remain incomplete; Alucard is not complete.
 
 The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) now consume
 actual controller factories/sounds and deferred head bubbles through owned children
@@ -26,7 +36,7 @@ and the shared stage pool, including real particle sentinel rows. Preserve captu
 command-camera origins, body-camera bubble origins, next-tick factories, allocation
 failure before RNG, original bubble fallthrough and no-tick rebases. US smoke's
 unwritten status0x20000 birth branch fails explicitly. Native drawing now runs;
-water providers and shake remain unwired and Alucard is incomplete.
+water providers remain unwired. Selected Wolf shakes now run; Alucard is incomplete.
 
 Selected [Wolf combat ownership](docs/player-wolf-combat.md) now connects actual
 front/head spells, INT/RNG/Mojo/critical metadata, retained group-three enemy

@@ -19,6 +19,15 @@ bool SotnSavePointRenderer_Create(SotnDataView dra, SotnDataView common,
  * @note Selected CPU projection replaces GTE; complete lighting/effect parity is unproven. */
 bool SotnSavePointRenderer_Draw(const SotnSavePointRenderer *renderer, SotnSavePoint point,
                                 bool front, Uint16 *frame, size_t count);
+/** @brief Draw the selected save-point world mesh with the shared presentation offset.
+ * @param renderer Borrowed cache. @param point Copied simulation state.
+ * @param front Original priority half. @param offset_x Shared screen offset, -256..256.
+ * @param offset_y Shared screen offset, -256..256. @param frame Writable RGB555 frame.
+ * @param count At least SOTN_FRAME_PIXELS. @return Success or SDL error before writes for
+ * invalid input. This shifts projected vertices only, leaving simulation and dialogs fixed. */
+bool SotnSavePointRenderer_DrawOffset(const SotnSavePointRenderer *renderer, SotnSavePoint point,
+                                      bool front, Sint32 offset_x, Sint32 offset_y, Uint16 *frame,
+                                      size_t count);
 /** @brief Draw the native slot/confirmation adapter using the original font.
  * @param renderer Borrowed cache. @param point Copied state. @param gamepad Show Xbox hints.
  * @param frame Writable RGB555 frame. @param count At least SOTN_FRAME_PIXELS.

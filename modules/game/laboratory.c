@@ -3,6 +3,7 @@
 #include <sotn/actor_order.h>
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
+#include <sotn/camera_shake.h>
 #include <sotn/castle_map.h>
 #include <sotn/combat.h>
 #include <sotn/dialogue_renderer.h>
@@ -49,6 +50,7 @@ struct SotnLaboratory
     SotnStageRoom room;
     SotnWorldState world;
     SotnCamera camera;
+    SotnCameraShake shake;
     SotnDataView dra, nz0, executable;
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
@@ -649,6 +651,9 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
             return false;
         for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
             if (!SotnSound_Queue(s->sound, s->bat_runtime.sounds[i]))
+                return false;
+        for (Uint16 i = 0; i < s->bat_runtime.wolf_shake_count; ++i)
+            if (!SotnCameraShake_Request(&s->shake, s->dra, s->bat_runtime.wolf_shakes[i]))
                 return false;
     }
     s->blink_rebase_x = s->blink_rebase_y = 0;
@@ -1600,6 +1605,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                 return false;
         }
     }
+    if (!SotnCameraShake_Tick(&session->shake, session->dra))
+        return false;
     if (state.death.phase == 128)
     {
         session->dirty = true;
@@ -1675,9 +1682,11 @@ static bool DrawPrimitiveRange(SotnLaboratory *session, SotnActorState actor, Si
             continue;
         if (p.clip || p.target)
             return SDL_SetError("Actor draw-area changes require ordered stage presentation");
-        const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x) +
+        const Sint32 shake_x = p.camera_fixed ? 0 : session->shake.x,
+                     shake_y = p.camera_fixed ? 0 : session->shake.y;
+        const Sint32 x = Pixel(p.x) - (p.screen_space ? 0 : camera_x) + shake_x +
                          session->draw_target.offset_x,
-                     y = Pixel(p.y) - (p.screen_space ? 0 : camera_y) +
+                     y = Pixel(p.y) - (p.screen_space ? 0 : camera_y) + shake_y +
                          session->draw_target.offset_y;
         if (p.line)
         {
@@ -1793,8 +1802,10 @@ static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *
         s->draw_target.mode
             ? s->draw_target.surface
             : (SotnActorSurface){s->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
-    return SotnActorGraphics_PlayerEffect(s->actor_graphics, p, s->draw_target.offset_x,
-                                          s->draw_target.offset_y, surface);
+    const bool fixed = (p->draw_mode & 0x2080U) != 0;
+    return SotnActorGraphics_PlayerEffect(
+        s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
+        s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
 }
 static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32 camera_x,
                                     Sint32 camera_y)
@@ -1832,19 +1843,26 @@ static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32
                   wolf->children[i - 1U].lineage != wolf->generation ||
                   wolf->children[i - 1U].slot != slot))
             return SDL_SetError("Wolf presentation lost its actual body lineage");
-        const SotnWolfPart part = i ? wolf->body.parts[i - 1U]
-                                    : (SotnWolfPart){.x = p.x - camera_x * 65536,
-                                                     .y = p.y - camera_y * 65536,
-                                                     .bank = 15,
-                                                     .sprite = p.animation.sprite,
-                                                     .texture_offset = 126,
-                                                     .palette = p.wolf.palette,
-                                                     .priority = p.priority,
-                                                     .rotation = p.wolf.rotation,
-                                                     .draw_flags = p.wolf.draw_flags,
-                                                     .blend = p.wolf.blend,
-                                                     .opacity = p.wolf.opacity,
-                                                     .facing_left = p.facing_left};
+        SotnWolfPart part = i ? wolf->body.parts[i - 1U]
+                              : (SotnWolfPart){.x = p.x - camera_x * 65536,
+                                               .y = p.y - camera_y * 65536,
+                                               .bank = 15,
+                                               .sprite = p.animation.sprite,
+                                               .texture_offset = 126,
+                                               .palette = p.wolf.palette,
+                                               .priority = p.priority,
+                                               .rotation = p.wolf.rotation,
+                                               .draw_flags = p.wolf.draw_flags,
+                                               .blend = p.wolf.blend,
+                                               .opacity = p.wolf.opacity,
+                                               .facing_left = p.facing_left};
+        // RenderEntities adds the shared offset before both normal and capture packets.
+        const Uint32 shifted_x = (Uint32)((Sint64)part.x + (Sint64)s->shake.x * 65536),
+                     shifted_y = (Uint32)((Sint64)part.y + (Sint64)s->shake.y * 65536);
+        part.x = (Sint32)(shifted_x <= SDL_MAX_SINT32 ? (Sint64)shifted_x
+                                                      : (Sint64)shifted_x - 4294967296LL);
+        part.y = (Sint32)(shifted_y <= SDL_MAX_SINT32 ? (Sint64)shifted_y
+                                                      : (Sint64)shifted_y - 4294967296LL);
         size_t count = 0;
         if (!SotnWolfPresentation_Packets(
                 s->dra, s->executable,
@@ -1901,8 +1919,8 @@ static bool DrawMistQuad(SotnLaboratory *s, Uint16 index)
                          .gouraud = true};
     for (Uint16 i = 0; i < 4; ++i)
     {
-        q.x[i] = p->x[i] + s->draw_target.offset_x;
-        q.y[i] = p->y[i] + s->draw_target.offset_y;
+        q.x[i] = p->x[i] + s->draw_target.offset_x + s->shake.x;
+        q.y[i] = p->y[i] + s->draw_target.offset_y + s->shake.y;
         q.u[i] = p->u[i];
         q.v[i] = p->v[i];
         q.vertex_red[i] = q.vertex_green[i] = q.vertex_blue[i] = p->grey[i];
@@ -1917,6 +1935,7 @@ static bool DrawMistQuad(SotnLaboratory *s, Uint16 index)
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y, bool background)
 {
+    const Sint32 view_x = camera_x - session->shake.x, view_y = camera_y - session->shake.y;
     if (session->stage_id == 26)
     {
         SotnActorState body = {0};
@@ -2143,7 +2162,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             return false;
         if (!beam_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
         {
-            if (!DrawGravityBeams(session, player, camera_x, camera_y))
+            if (!DrawGravityBeams(session, player, view_x, view_y))
                 return false;
             beam_drawn = true;
         }
@@ -2165,7 +2184,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                         (Uint16)(item.equipment == 86 || item.equipment == 123 ? 0x30 : 0),
                     .facing_left = player.facing_left};
                 if (!SotnActorGraphics_Draw(session->actor_graphics, weapon,
-                                            Pixel(player.x) - camera_x, Pixel(player.y) - camera_y,
+                                            Pixel(player.x) - view_x, Pixel(player.y) - view_y,
                                             session->frame, SOTN_FRAME_PIXELS))
                     return false;
             }
@@ -2179,15 +2198,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 (player.animation_bank == 13 || player.rotated
                      ? DrawRotatedPlayer(session, player, &alucard)
                  : player.stone.active
-                     ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - camera_x,
-                                                 Pixel(player.y) - camera_y, player.facing_left,
+                     ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - view_x,
+                                                 Pixel(player.y) - view_y, player.facing_left,
                                                  player.stone, session->frame, SOTN_FRAME_PIXELS)
                  : player.gravity.upside_down
-                     ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - camera_x,
-                                               Pixel(player.y) - camera_y, player.facing_left,
+                     ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - view_x,
+                                               Pixel(player.y) - view_y, player.facing_left,
                                                session->frame, SOTN_FRAME_PIXELS)
-                     : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - camera_x,
-                                             Pixel(player.y) - camera_y, player.facing_left,
+                     : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - view_x,
+                                             Pixel(player.y) - view_y, player.facing_left,
                                              player.death, session->frame, SOTN_FRAME_PIXELS));
             if (!drawn)
                 return false;
@@ -2197,8 +2216,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                           .frame = player.sleep.frame,
                                                           .palette = 0x819f,
                                                           .texture_offset = 0x50},
-                                        Pixel(player.sleep.x) - camera_x,
-                                        Pixel(player.sleep.y) - camera_y, session->frame,
+                                        Pixel(player.sleep.x) - view_x,
+                                        Pixel(player.sleep.y) - view_y, session->frame,
                                         SOTN_FRAME_PIXELS))
                 return false;
             player_drawn = true;
@@ -2238,9 +2257,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnPlayerEffectQuad *q = command.kind == SOTN_DRAW_WOLF_PACKET
                                                 ? &session->wolf_packets[command.primitive].quad
                                                 : &wolf->effect.quads[command.primitive];
-            if (!DrawPlayerEffectQuad(session, q) ||
-                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
-                                           SOTN_FRAME_PIXELS))
+            const bool drawn = command.kind == SOTN_DRAW_WOLF_PACKET
+                                   ? SotnActorGraphics_PlayerEffect(session->actor_graphics, q,
+                                                                    session->draw_target.offset_x,
+                                                                    session->draw_target.offset_y,
+                                                                    session->draw_target.surface)
+                                   : DrawPlayerEffectQuad(session, q);
+            if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                                     SOTN_FRAME_PIXELS))
                 return false;
             continue;
         }
@@ -2262,9 +2286,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                           .palette = 0x8195,
                                           .blend_mode = 0x10,
                                           .facing_left = puff.facing_left},
-                        Pixel(puff.x) + session->draw_target.offset_x,
-                        Pixel(puff.y) + session->draw_target.offset_y, puff.scale, puff.scale,
-                        session->draw_target.surface))
+                        Pixel(puff.x) + session->draw_target.offset_x + session->shake.x,
+                        Pixel(puff.y) + session->draw_target.offset_y + session->shake.y,
+                        puff.scale, puff.scale, session->draw_target.surface))
                     return false;
             }
             else
@@ -2273,8 +2297,11 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 if (tile >= child->state.particles.count)
                     return SDL_SetError("Particle draw exceeds its actual owned tile list");
                 const SotnPlayerParticle t = child->state.particles.tiles[tile];
-                const Sint32 x = t.screen_x + session->draw_target.offset_x,
-                             y = t.screen_y + session->draw_target.offset_y;
+                const bool fixed = (t.draw_mode & 0x2080U) != 0;
+                const Sint32 x = t.screen_x + session->draw_target.offset_x +
+                                 (fixed ? 0 : session->shake.x),
+                             y = t.screen_y + session->draw_target.offset_y +
+                                 (fixed ? 0 : session->shake.y);
                 if (x > -(Sint32)t.width && y > -(Sint32)t.height &&
                     x < session->draw_target.surface.width &&
                     y < session->draw_target.surface.height)
@@ -2307,8 +2334,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 .page = p.page, .blend = true, .gouraud = true, .untextured = true};
             for (Uint16 v = 0; v < 4; ++v)
             {
-                q.x[v] = p.offset_x[v] + session->draw_target.offset_x;
-                q.y[v] = p.offset_y[v] + session->draw_target.offset_y;
+                q.x[v] = p.offset_x[v] + session->draw_target.offset_x +
+                         (p.camera_fixed ? 0 : session->shake.x);
+                q.y[v] = p.offset_y[v] + session->draw_target.offset_y +
+                         (p.camera_fixed ? 0 : session->shake.y);
                 q.vertex_red[v] = p.vertex_red[v];
                 q.vertex_green[v] = p.vertex_green[v];
                 q.vertex_blue[v] = p.vertex_blue[v];
@@ -2333,8 +2362,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     (SotnActorSprite){.animation_set = 9,
                                       .frame = child->state.fire.frame,
                                       .facing_left = motion.facing_left},
-                    Pixel(motion.x) - camera_x + session->draw_target.offset_x,
-                    Pixel(motion.y) - camera_y + session->draw_target.offset_y, motion.scale_x,
+                    Pixel(motion.x) - view_x + session->draw_target.offset_x,
+                    Pixel(motion.y) - view_y + session->draw_target.offset_y, motion.scale_x,
                     motion.scale_y, session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
@@ -2395,7 +2424,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (actor.id == 0xa || actor.id == 0xb)
         {
             // Persistent pickups can remain far behind a tall-room camera; icons are 16 pixels.
-            const Sint32 x = Pixel(actor.x) - camera_x - 8, y = Pixel(actor.y) - camera_y - 8;
+            const Sint32 x = Pixel(actor.x) - view_x - 8, y = Pixel(actor.y) - view_y - 8;
             if (x <= -16 || y <= -16 || x >= SOTN_FRAME_WIDTH || y >= SOTN_FRAME_HEIGHT)
                 goto draw_complete;
         }
@@ -2403,9 +2432,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             SotnItem relic = {0};
             if (!SotnRelic_Read(session->dra, actor.parameters & 0x7fff, &relic) ||
-                !SotnItemIcon_Draw(session->dra, relic, Pixel(actor.x) - camera_x - 8,
-                                   Pixel(actor.y) - camera_y - 8, session->frame,
-                                   SOTN_FRAME_PIXELS))
+                !SotnItemIcon_Draw(session->dra, relic, Pixel(actor.x) - view_x - 8,
+                                   Pixel(actor.y) - view_y - 8, session->frame, SOTN_FRAME_PIXELS))
                 return false;
             goto draw_complete;
         }
@@ -2416,15 +2444,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!SotnItem_Read(session->dra, id >= SOTN_HAND_ITEMS,
                                id >= SOTN_HAND_ITEMS ? (Uint16)(id - SOTN_HAND_ITEMS) : id,
                                &item) ||
-                !SotnItemIcon_Draw(session->dra, item, Pixel(actor.x) - camera_x - 8,
-                                   Pixel(actor.y) - camera_y - 8, session->frame,
-                                   SOTN_FRAME_PIXELS))
+                !SotnItemIcon_Draw(session->dra, item, Pixel(actor.x) - view_x - 8,
+                                   Pixel(actor.y) - view_y - 8, session->frame, SOTN_FRAME_PIXELS))
                 return false;
             goto draw_complete;
         }
         if (session->stage_id == 65 && actor.id == 0x59 && actor.step >= 3 &&
             !SotnDialogueRenderer_Item(session->dra, session->nz0, actor.parameters,
-                                       Pixel(actor.x) - camera_x, Pixel(actor.y) - camera_y,
+                                       Pixel(actor.x) - view_x, Pixel(actor.y) - view_y,
                                        (Uint16)(actor.scale_x / 16), (Uint16)(actor.scale_y / 16),
                                        actor.step == 4 && (session->simulation_ticks & 2),
                                        session->frame, SOTN_FRAME_PIXELS))
@@ -2437,11 +2464,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         const SotnSpriteTransform transform = SotnActorGraphics_GetTransform(actor);
         if ((actor.frame & 0x7fffU) == 0 || transform.scale_x == 0 || transform.scale_y == 0)
             goto draw_complete;
-        if (!SotnActorGraphics_DrawSurface(
-                session->actor_graphics, sprite,
-                Pixel(actor.x) - camera_x + session->draw_target.offset_x,
-                Pixel(actor.y) - camera_y + session->draw_target.offset_y, transform,
-                session->draw_target.surface))
+        if (!SotnActorGraphics_DrawSurface(session->actor_graphics, sprite,
+                                           Pixel(actor.x) - view_x + session->draw_target.offset_x,
+                                           Pixel(actor.y) - view_y + session->draw_target.offset_y,
+                                           transform, session->draw_target.surface))
             return ActorDrawError(actor);
     draw_complete:
         if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
@@ -2522,6 +2548,7 @@ static bool DrawGameplay(SotnLaboratory *session)
     Camera(session, state, &camera_x, &camera_y);
     if (!PrepareWolfPresentation(session, state, camera_x, camera_y))
         return false;
+    const Sint32 view_x = camera_x - session->shake.x, view_y = camera_y - session->shake.y;
     const SotnTileSources sources = {StageGraphics(session), SotnResource_View(session->common)};
     Uint16 backdrop = 0;
     if (!SotnActors_GetBackdrop(session->actors, &backdrop))
@@ -2530,24 +2557,26 @@ static bool DrawGameplay(SotnLaboratory *session)
         session->frame[i] = backdrop;
     return ((session->stage_id != 6 && session->stage_id != 25) ||
             DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
-           SotnTilemap_Draw(&session->room.background, sources, camera_x, camera_y, session->frame,
+           SotnTilemap_Draw(&session->room.background, sources, view_x, view_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
            (session->stage_id != 2 ||
             DrawActorsAndPlayer(session, state, camera_x, camera_y, true)) &&
            SotnDialogueRenderer_Background(session->dialogue.fade, session->frame,
                                            SOTN_FRAME_PIXELS) &&
-           SotnTilemap_Draw(&session->room.foreground, sources, camera_x, camera_y, session->frame,
+           SotnTilemap_Draw(&session->room.foreground, sources, view_x, view_y, session->frame,
                             SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
-            SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, false,
-                                       session->frame, SOTN_FRAME_PIXELS)) &&
+            SotnSavePointRenderer_DrawOffset(session->save_renderer, session->save_point, false,
+                                             session->shake.x, session->shake.y, session->frame,
+                                             SOTN_FRAME_PIXELS)) &&
            DrawActorsAndPlayer(session, state, camera_x, camera_y, false) &&
            SotnSubweapons_Draw(session->subweapons, session->actor_graphics, session->dra,
-                               session->simulation_ticks, camera_x, camera_y, session->frame,
+                               session->simulation_ticks, view_x, view_y, session->frame,
                                SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
-            SotnSavePointRenderer_Draw(session->save_renderer, session->save_point, true,
-                                       session->frame, SOTN_FRAME_PIXELS)) &&
+            SotnSavePointRenderer_DrawOffset(session->save_renderer, session->save_point, true,
+                                             session->shake.x, session->shake.y, session->frame,
+                                             SOTN_FRAME_PIXELS)) &&
            SotnHud_Draw(session->hud, session->frame, SOTN_FRAME_PIXELS) && DrawDialogue(session) &&
            (!session->save_room ||
             SotnSavePointRenderer_Dialog(session->save_renderer, session->save_point,

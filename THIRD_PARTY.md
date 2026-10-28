@@ -759,3 +759,8 @@ The [selected Wolf cross-form adapters](docs/player-wolf-cross-forms.md) connect
 original gates, retained packet attributes and Mist snapshot geometry from
 `dra/{692E8,71830,7879C,7E4BC}.c` at that same pinned AGPL-3.0-or-later revision.
 Original images, profiles and comparison traces remain private.
+
+The [selected player camera shake](docs/player-camera-shake.md) adapts original
+`dra/624DC.c` request/update and selected rendering-offset paths from
+`{4B758,4CE2C,4DA70,62DEC,wolfForm}.c` at that same pinned AGPL-3.0-or-later revision.
+Original shake patterns and runtime comparisons remain private.

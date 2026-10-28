@@ -45,7 +45,8 @@ seven MP, returns normally and exits via an ordinary SDL quit event. Debug and
 ASan/UBSan both pass through LLDB. The explicit relic/contact fixtures are not
 ordinary acquisition, uninterrupted castle traversal or console replay evidence.
 
-Water-depth/swimming, camera shake, normal afterimages, full factory/group/GPU
+[Selected Wolf impact shakes](player-camera-shake.md) now run. Water-depth/swimming,
+other shake producers, normal afterimages, full factory/group/GPU
 contention, complete effects/audio, ordinary acquisition and whole-route/console
 parity remain incomplete. These selected conversions do not make Wolf, Alucard,
 the castle or the game complete. Ordinary starts grant no relics; version-nine
