@@ -1056,6 +1056,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.sound = 0;
     next.extra_sound = 0;
     next.mp_spent = 0;
+    next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
@@ -1334,6 +1335,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         return SDL_SetError("Player room rebase is outside the new bounded room");
     if (player->wolf.commands.count > SDL_arraysize(player->wolf.commands.requests))
         return SDL_SetError("Wolf room transfer lost its bounded command list");
+    const Sint64 impact_x = (Sint64)player->gravity.impact_source.x + (Sint64)offset_x * FIX_ONE,
+                 impact_y = (Sint64)player->gravity.impact_source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->gravity.ceiling_impact && (impact_x < SDL_MIN_SINT32 || impact_x > SDL_MAX_SINT32 ||
+                                           impact_y < SDL_MIN_SINT32 || impact_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured Gravity Boots impact origin");
     for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
     {
         const Sint64 source_x = (Sint64)player->wolf.commands.requests[i].source.x +
@@ -1362,6 +1368,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
                 (Sint32)((Sint64)player->gravity.beams[i].y + (Sint64)offset_y * FIX_ONE);
         }
     player->map = map;
+    if (player->gravity.ceiling_impact)
+    {
+        player->gravity.impact_source.x = (Sint32)impact_x;
+        player->gravity.impact_source.y = (Sint32)impact_y;
+    }
     for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
     {
         player->wolf.commands.requests[i].source.x =

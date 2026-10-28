@@ -652,6 +652,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
             if (!SotnSound_Queue(s->sound, s->bat_runtime.sounds[i]))
                 return false;
+        if (player.gravity.ceiling_impact && !SotnCameraShake_Request(&s->shake, s->dra, 3))
+            return false;
         for (Uint16 i = 0; i < s->bat_runtime.wolf_shake_count; ++i)
             if (!SotnCameraShake_Request(&s->shake, s->dra, s->bat_runtime.wolf_shakes[i]))
                 return false;

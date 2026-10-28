@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+Selected [Gravity Boots ceiling effects](docs/player-gravity-impact.md) now consume
+one-update impact intents through actual shared factories/children/rows and shake3.
+Preserve pre-flip facing, captured room-space X±3/Y-22 with fractions/word wrap,
+no-tick room rebases, no double camera shift, optional allocation before RNG,
+particle sentinel ownership and late-failure rollback. Existing jump MP/motion and
+ordinary saves remain unchanged. Other impact producers/shared effects and Alucard
+remain incomplete; private relic grants are not ordinary acquisition parity.
+
 Selected [Wolf camera shake](docs/player-camera-shake.md) now consumes actual impact
 requests and applies original presentation offsets. Preserve last-request-wins,
 other-axis retention, look-ahead terminal sample discard, no-op identities 0/5,
@@ -347,8 +355,8 @@ original command, strict MP threshold/cost, high-jump/ceiling states and owned
 beam. Preserve sixteen-bit command timers, signed duration comparisons, the late
 ceiling facing flip, and eight collision passes for high jumps/fast horizontal
 motion. Successful player steps report one MP cost to ordinary character progress.
-Dust/shake/dithering, shared factory contention and full ability parity remain
-incomplete. Native ceiling checks use explicit relic/protection grants; no default
+Selected [ceiling dust/shake](docs/player-gravity-impact.md) now run. Dithering,
+full shared factory contention and complete ability parity remain incomplete. Native ceiling checks use explicit relic/protection grants; no default
 grant or ordinary acquisition claim is authorized by that evidence.
 
 The selected [Leap Stone double jump](docs/player-leap-stone.md) now uses a copied,

@@ -702,6 +702,72 @@ static bool WolfOrder(Fixture *f)
     return true;
 }
 
+static bool GravityImpactOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *bp = f->dra + 0xd1d4 + 4U * 6U;
+    bp[0] = 5;
+    bp[1] = bp[2] = 1;
+    Put32(f->dra + 0xdb98 + 4U, 0x800b0c00);
+    Uint8 *profile = f->dra + 0x10c00;
+    profile[0] = 3;
+    profile[1] = profile[2] = profile[3] = 80;
+    profile[4] = profile[5] = 2;
+    Put16(profile + 6, 2);
+    Put16(profile + 10, 1);
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .camera_x = 20,
+                              .camera_y = 8};
+    in.player.gravity.ceiling_impact = true;
+    in.player.gravity.impact_source = (SotnPlayerFactorySource){
+        .x = 10 * 65536 + 123, .y = 20 * 65536 + 456, .priority = 148, .facing_left = true};
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    profile[0] = 17;
+    const SotnBatRuntime unchanged = f->runtime;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&unchanged, &f->runtime, sizeof(unchanged)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) &&
+          !SDL_memcmp(&before, &after, sizeof(before)));
+    profile[0] = 3;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    const SotnBatRuntimeChild child = f->runtime.children[47];
+    CHECK(child.kind == 5 && child.initialized && child.parameter == 0x100 &&
+          child.primitive_count == 4 && child.source.facing_left &&
+          child.source.x == in.player.gravity.impact_source.x &&
+          child.source.y == in.player.gravity.impact_source.y &&
+          child.state.particles.tiles[0].x == -10 * 65536 &&
+          child.state.particles.tiles[0].y == 12 * 65536);
+    Uint32 expected = before.random;
+    for (Uint16 i = 0; i < 6; ++i)
+        (void)SotnCombat_Random(&expected);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == expected &&
+          after.mp == before.mp);
+    in.entering = true;
+    in.camera_x = 19;
+    in.room_shift_x = -4;
+    in.screen_shift_x = -3;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          f->runtime.children[47].generation == child.generation &&
+          f->runtime.children[47].source.x == child.source.x - 4 * 65536 &&
+          f->runtime.children[47].state.particles.tiles[0].x == -13 * 65536 &&
+          !f->runtime.children[46].generation);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == expected);
+    f->runtime = (SotnBatRuntime){0};
+    in.entering = false;
+    in.room_shift_x = in.screen_shift_x = 0;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SotnBatRuntime_Occupied(&f->runtime));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == expected &&
+          after.mp == before.mp);
+    Close(f);
+    return true;
+}
+
 static bool WolfEffectOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -904,7 +970,7 @@ int main(void)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
-                    WolfSpellOwnership(f) && WolfEffectOwnership(f);
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

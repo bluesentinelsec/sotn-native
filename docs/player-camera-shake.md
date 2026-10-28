@@ -51,7 +51,8 @@ verifies actual impact dispatch, stable repeated pixel draws, logical-camera
 retention, original return/cleanup and an ordinary SDL quit. Debug and ASan/UBSan
 pass. Runtime inputs and rendered pixels stay private.
 
-Other player/actor shake producers, complete original primitive-flag propagation,
+[Selected Gravity Boots ceilings](player-gravity-impact.md) now request the same
+service. Other player/actor shake producers, complete original primitive-flag propagation,
 full palette/GPU contention and raster/audio/timing/route parity remain incomplete.
 This service does not establish a complete Wolf, Alucard, area, castle or game.
 Ordinary starts and version-nine saves remain unchanged.

@@ -68,7 +68,15 @@ void SotnPlayer_GravityInput(SotnPlayer *p)
 
 static void Ceiling(SotnPlayer *p)
 {
-    // CreateCeilingHitEffect(3): stop both axes and request the original impact sound.
+    // CreateCeilingHitEffect(3) captures these high-word shifts before its later facing flip.
+    const Uint32 x = (Uint32)((Sint64)p->x.value + (p->facing_left ? -3LL : 3LL) * 65536),
+                 y = (Uint32)((Sint64)p->y.value - 22LL * 65536);
+    p->gravity.impact_source = (SotnPlayerFactorySource){
+        .x = (Sint32)(x <= SDL_MAX_SINT32 ? (Sint64)x : (Sint64)x - 4294967296LL),
+        .y = (Sint32)(y <= SDL_MAX_SINT32 ? (Sint64)y : (Sint64)y - 4294967296LL),
+        .priority = 148,
+        .facing_left = p->facing_left};
+    p->gravity.ceiling_impact = true;
     p->vx = p->vy = 0;
     p->sound = 0x644;
 }
