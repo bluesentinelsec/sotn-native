@@ -47,6 +47,7 @@ typedef struct SotnPlayerBlinkInput
     Uint32 status;
     Uint8 signal;
     bool facing_left, rotated, image_present;
+    bool allocation_failed; /**< Real eight-row exhaustion at phase zero; the US child retries. */
 } SotnPlayerBlinkInput;
 
 /** @brief Original side effects for the player owner; zero signal means no new handshake. */
@@ -62,7 +63,8 @@ typedef struct SotnPlayerBlinkEvents
  * @param out Copied original handshake/afterimage requests.
  * @return Success or SDL error, preserving effect/shared/output on malformed input.
  * No readiness timer is supplied: signals two/three come from the real effect's geometry
- * phases. The caller owns allocation, duplicate suppression, texture upload and update order. */
+ * phases. US phase-zero allocation failures retain the pending child without packets/signals.
+ * The caller owns allocation, duplicate suppression, texture upload and update order. */
 bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared,
                           SotnPlayerBlinkInput input, SotnPlayerBlinkEvents *out);
 

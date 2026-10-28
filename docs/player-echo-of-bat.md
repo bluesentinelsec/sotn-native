@@ -52,8 +52,9 @@ app passes a separate muted LLDB sequence including menu-close/held-A suppressio
 and normal SDL quit. These checks do not establish ordinary
 acquisition, uninterrupted routes or console parity.
 
-Full primitive sharing with selected Mist/Blink/trails and other legacy player
-effects remains incomplete, as do global factory/group contention, Wolf, full
+[Selected Bat primitive sharing](bat-primitive-sharing.md) now includes Blink and
+trails. Sharing with Mist and other legacy player effects remains incomplete,
+as do global factory/group contention, Wolf, full
 effects/audio and whole-route parity. Do not call Bat, Alucard or the game complete.
 
 Provenance: selected `dra/71830.c`, `7879C.c`, `8BEF8.c`, `4DA70.c` and

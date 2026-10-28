@@ -609,10 +609,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .screen_shift_x = (Sint16)dx,
                                   .screen_shift_y = (Sint16)dy,
                                   .entering = entering}) ||
-        !SotnActors_CommitBatEcho(s->actors, s->bat_runtime.echo_generation,
-                                  s->bat_runtime.echo_generation ? s->bat_runtime.echo_primitives
-                                                                 : NULL,
-                                  s->bat_runtime.echo_generation ? &s->bat_runtime.echo : NULL))
+        !SotnActors_CommitBatPrimitives(s->actors, &s->bat_runtime))
         return false;
     if (!entering)
     {

@@ -175,12 +175,18 @@ bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index
  * @param actors Borrowed pool owner. @param out Receives all 1024 occupied bits.
  * @return Success or SDL error, leaving output unchanged on failure. */
 bool SotnActors_PrimitiveSlots(const SotnActors *actors, SotnPrimitiveSlots *out);
+/** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
+ * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
+ * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.
+ * Retires previous selected Bat rows only; stage-owned rows and ordinary progress survive.
+ * Full shared Mist/other-ability allocation remains incomplete. */
+bool SotnActors_CommitBatPrimitives(SotnActors *actors, const SotnBatRuntime *runtime);
 /** @brief Commit the single actual slot-47 Echo child's primitive reservation and packets.
  * @param actors Borrowed actual pool. @param generation Nonzero child identity, or zero to retire.
  * @param indices Forty-nine unique actual rows, or NULL when retiring.
  * @param echo Borrowed initialized component, or NULL when retiring. Copies all visible packets.
  * @return Success or SDL error without mutation on invalid/colliding ownership. Echo shares this
- * pool with stage actors. Existing selected Mist/Blink primitive sharing remains incomplete. */
+ * pool with stage actors and selected Bat flashes/trails. Full Mist sharing remains incomplete. */
 bool SotnActors_CommitBatEcho(SotnActors *actors, Uint32 generation, const Uint16 *indices,
                               const SotnBatEcho *echo);
 /** @brief Copy one actual Echo strip from its generation-owned primitive row.

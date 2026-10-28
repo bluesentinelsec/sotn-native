@@ -44,6 +44,23 @@ int main(void)
                                   .priority = 144,
                                   .image_present = true};
     SotnPlayerBlinkEvents events = {0};
+    input.allocation_failed = true;
+    SotnPlayerBlink blocked = {.parameter = 5};
+    SotnPlayerBlinkShared locked = {.bat_lock = true};
+    CHECK(SotnPlayerBlink_Tick(&blocked, &locked, input, &events));
+    CHECK(blocked.removed && locked.bat_lock && !events.signal && !events.reset_afterimages);
+    blocked = (SotnPlayerBlink){.parameter = 0x20};
+    input.status = 2;
+    CHECK(SotnPlayerBlink_Tick(&blocked, &locked, input, &events));
+    CHECK(blocked.removed && !locked.bat_lock && !events.signal);
+    input.status = 0;
+    for (Uint16 i = 0; i < 25; ++i)
+    {
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        CHECK(!effect.phase && !effect.removed && !events.signal && !events.reset_afterimages &&
+              !shared.bat_lock && !effect.quads[0].priority);
+    }
+    input.allocation_failed = false;
     CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     CHECK(effect.phase == 8 && !events.signal && events.reset_afterimages);
     CHECK(effect.quads[0].x[0] == 90 && effect.quads[0].x[1] == 110 &&

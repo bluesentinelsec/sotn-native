@@ -35,6 +35,8 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
+    Uint16 primitives[8]; /**< Actual shared rows; eight for BlinkWhite, one for a trail. */
+    Uint8 primitive_count;
 } SotnBatRuntimeChild;
 
 /** @brief Owned selected Bat factories/children sharing original DRA slot indices.
@@ -92,7 +94,7 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * @param input Actual player/artwork/context. Entering only rebases and never advances time.
  * @return Success or SDL error. Malformed inputs preserve runtime and character progress.
  * Supports selected Bat morphs, Wing/Fire children and the actual single Echo wave.
- * The owner must commit Echo's planned rows to the actual primitive pool before advancing
+ * The owner must commit the planned rows to the actual primitive pool before advancing
  * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
                          SotnBatRuntimeInput input);

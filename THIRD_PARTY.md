@@ -683,3 +683,8 @@ Shape/color and SDK tables remain private; this component enables no controls by
 spell/group, controller and presentation algorithms from `dra/7879C.c`, `4DA70.c`,
 `5D5BC.c`, `71830.c` and `8BEF8.c` at the same pinned AGPL-3.0-or-later revision.
 All original tables and traces remain private runtime/local inputs.
+
+[Selected Bat primitive sharing](docs/bat-primitive-sharing.md) connects
+`dra/4DA70.c:AllocPrimitives/FreePrimitives` ordering with US BlinkWhite retries
+and trail retirement from `dra/7879C.c` at the same pinned AGPL-3.0-or-later revision.
+It distributes no original tables or primitive/image traces.
