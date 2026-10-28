@@ -89,20 +89,20 @@ now generate original packets and apply the owned shared target. The [transition
 retains original entry/sensor/effect gates to the normal/stuck helper boundaries.
 The [linked body owner](wolf-body-owner.md) now creates generation-owned parts
 and commits real root/environment rows to the stage pool. The [owned player core](player-wolf-core.md)
-now connects selected entry/controller/collision/return interfaces. Native scene,
-controls, attacks/factories and shared presentation wiring remain incomplete; live
-controls remain disabled. The [shared Wolf runtime](wolf-shared-runtime.md) now
+now connects selected entry/controller/collision/return interfaces.
+The [shared Wolf runtime](wolf-shared-runtime.md) now
 interleaves the actual body with factory-selected flash slots and commits selected
 Bat/Echo/Wolf row reservations together; it enables no live controls by itself.
 Selected [Wolf combat ownership](player-wolf-combat.md) now consumes body spell
-requests through private attacks/RNG and retained native enemy cooldown; scene,
-presentation and live controls remain incomplete.
+requests through private attacks/RNG and retained native enemy cooldown.
 The [selected secondary effects](wolf-secondary-effects.md) now own controller
-factories, puffs and tile particles in shared capacity; native scene rendering,
-water and shake still need integration.
+factories, puffs and tile particles in shared capacity; water and shake still need integration.
 The [owned scene presentation](wolf-native-presentation.md) now consumes Wolf
 packets and secondary visuals through ordered capture, with repeated-frame input
-restoration. Native simulation binding and controls remain incomplete.
+restoration.
+Selected [playable Wolf](player-wolf.md) now connects the normal simulation,
+owned controls, body feedback, combat, MP/learning and supported relic switching.
+Cross-form/water/shake and full ability/route parity remain incomplete.
 
 ## Pinned reference
 

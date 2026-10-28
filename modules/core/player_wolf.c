@@ -120,8 +120,8 @@ static SotnWolfControllerFrame Snapshot(const SotnPlayer *p)
     f.game_timer = p->mist_game_timer;
     f.raw_contacts = (Uint32)p->previous_contact;
     f.direction_locked = (p->movement_flags & 2U) != 0;
-    f.skill_enabled = Relic(p, 6);
-    f.power_enabled = Relic(p, 5);
+    f.skill_enabled = Relic(p, SOTN_RELIC_SKILL_WOLF);
+    f.power_enabled = Relic(p, SOTN_RELIC_POWER_WOLF);
     f.holy_symbol_enabled = Relic(p, 14);
     f.quarter_circle_complete = p->wolf_combo == 255;
     return f;
@@ -354,6 +354,22 @@ void SotnPlayer_WolfTick(SotnPlayer *p)
             p->failed = true;
             return;
         }
+        // The component reproduces original screen-space requests. Export owned
+        // room-space sources before physics/camera follow can change their origin.
+        for (Uint16 i = 0; i < e.count; ++i)
+        {
+            const Sint64 x = (Sint64)e.requests[i].source.x + (Sint64)p->wolf_camera_x * 65536,
+                         y = (Sint64)e.requests[i].source.y + (Sint64)p->wolf_camera_y * 65536;
+            if (x < SDL_MIN_SINT32 || x > SDL_MAX_SINT32 || y < SDL_MIN_SINT32 ||
+                y > SDL_MAX_SINT32)
+            {
+                p->failed = true;
+                SDL_SetError("Wolf command source exceeds the owned room coordinate range");
+                return;
+            }
+            e.requests[i].source.x = (Sint32)x;
+            e.requests[i].source.y = (Sint32)y;
+        }
         Apply(p, f);
         p->wolf.commands = e;
         p->mp_spent = (Uint16)(p->mp_spent + e.mp_spent);
@@ -389,10 +405,12 @@ bool SotnPlayer_CommitWolfBody(SotnPlayer *p, const SotnWolfRuntime *r,
         f->motion.substep > 9 || f->motion.mode > 4 || f->motion.animation.pose >= 8 ||
         f->motion.animation.remaining < -1 || f->motion.animation.remaining > 32767 ||
         f->motion.body_angle < 0 || f->motion.body_angle > 4095 || p->mp - f->mp > 255 ||
-        f->coyote_ticks > 255 || f->drop_ticks > 255 || f->motion.animation.id < 0xde ||
-        f->motion.animation.id > 0xed || f->motion.velocity_x < -16 * 65536 ||
-        f->motion.velocity_x > 16 * 65536 || f->motion.velocity_y < -16 * 65536 ||
-        f->motion.velocity_y > 16 * 65536)
+        f->coyote_ticks > 255 || f->drop_ticks > 255 ||
+        ((f->motion.animation.id < 0xde || f->motion.animation.id > 0xed) &&
+         !(f->motion.animation.id == 0xca && (!p->substep || p->substep == 8) &&
+           !r->root_reserved && !r->body.parts[0].step)) ||
+        f->motion.velocity_x < -16 * 65536 || f->motion.velocity_x > 16 * 65536 ||
+        f->motion.velocity_y < -16 * 65536 || f->motion.velocity_y > 16 * 65536)
         return SDL_SetError("Wolf body feedback lost its actual player/generation/update origin");
     p->wolf_camera_x = camera_x;
     p->wolf_camera_y = camera_y;

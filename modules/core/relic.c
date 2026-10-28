@@ -63,7 +63,8 @@ bool SotnRelic_CanToggle(Uint16 id)
     return id == SOTN_RELIC_BAT || id == SOTN_RELIC_FIRE_BAT || id == SOTN_RELIC_ECHO_BAT ||
            id == SOTN_RELIC_FORCE_ECHO || id == SOTN_RELIC_CUBE || id == SOTN_RELIC_GRAVITY ||
            id == SOTN_RELIC_LEAP || id == SOTN_RELIC_JEWEL || id == SOTN_RELIC_MIST ||
-           id == SOTN_RELIC_POWER_MIST || id == SOTN_RELIC_GAS_CLOUD;
+           id == SOTN_RELIC_POWER_MIST || id == SOTN_RELIC_GAS_CLOUD || id == SOTN_RELIC_WOLF ||
+           id == SOTN_RELIC_POWER_WOLF || id == SOTN_RELIC_SKILL_WOLF;
 }
 
 bool SotnRelic_Toggle(SotnWorldState *world, SotnDataView dra, Uint16 id)

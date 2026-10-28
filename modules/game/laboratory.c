@@ -588,6 +588,12 @@ static Sint16 BlinkWord(Sint64 value)
     const Uint16 bits = (Uint16)(Uint64)value;
     return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
 }
+static bool WolfCollision(void *context, Sint32 x, Sint32 y, SotnCollider *out)
+{
+    const SotnLaboratory *s = context;
+    return SotnCollision_Query(&s->room.foreground.collision, x + s->camera.x, y + s->camera.y,
+                               out);
+}
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->blink_rebase_x + s->blink_camera_x - s->camera.x,
@@ -610,6 +616,9 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
                                             (Sint16)sprite.pivot_y},
                                   .other_occupied = other | (s->mist_present ? (Uint64)1 << 16 : 0),
+                                  .wolf_owned = true,
+                                  .wolf_query = WolfCollision,
+                                  .wolf_context = s,
                                   .primitive_slots = primitive_slots,
                                   .force_echo_enabled =
                                       (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
@@ -624,6 +633,10 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         return false;
     if (!entering)
     {
+        if (player.step == SOTN_PLAYER_WOLF && s->bat_runtime.wolf.generation &&
+            !SotnPlayer_CommitWolfBody(s->player, &s->bat_runtime.wolf, &s->bat_runtime.wolf_frame,
+                                       s->camera.x, s->camera.y))
+            return false;
         if (s->bat_runtime.use_ticks &&
             !SotnPlayer_SetUseTimer(s->player, s->bat_runtime.use_ticks))
             return false;
@@ -759,7 +772,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
-    if (!TickMist(session, player, entering) || !TickBlinks(session, player, entering))
+    if (!TickMist(session, player, entering) || !TickBlinks(session, player, entering) ||
+        !SotnPlayer_GetState(session->player, &player))
         return false;
     SotnCharacterState profile = {0};
     if (!SotnCharacter_Get(session->character, &profile, NULL))
@@ -1489,8 +1503,12 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     const SotnPlayerBlink *bat_effect = NULL;
     const SotnPlayerFactory *bat_factory = NULL;
+    const SotnPlayerBlink *wolf_effect = NULL;
+    const SotnPlayerFactory *wolf_factory = NULL;
     if (!SotnBatRuntime_Context(&session->bat_runtime, state.bat.generation, &bat_effect,
-                                &bat_factory))
+                                &bat_factory) ||
+        !SotnBatRuntime_Context(&session->bat_runtime, state.wolf.generation, &wolf_effect,
+                                &wolf_factory))
         return false;
     if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
         !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
@@ -1501,6 +1519,11 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetBatRuntimeContext(session->player, bat_effect, bat_factory,
                                          bat_effect || bat_factory ? state.bat.generation : 0,
                                          SotnBatRuntime_Available(&session->bat_runtime)) ||
+        !SotnPlayer_SetWolfContext(session->player, &session->bat_runtime.wolf, wolf_effect,
+                                   wolf_factory,
+                                   wolf_effect || wolf_factory ? state.wolf.generation : 0,
+                                   SotnBatRuntime_Available(&session->bat_runtime),
+                                   session->camera.x, session->camera.y) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
@@ -1511,6 +1534,14 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         SotnCharacterState learned = {0};
         if (!SotnCharacter_Get(session->character, &learned, NULL) ||
             !SotnCharacter_LearnSpell(&learned, 6) ||
+            !SotnCharacter_Restore(session->character, &learned))
+            return false;
+    }
+    if (state.wolf.commands.learn_charge)
+    {
+        SotnCharacterState learned = {0};
+        if (!SotnCharacter_Get(session->character, &learned, NULL) ||
+            !SotnCharacter_LearnSpell(&learned, 4) ||
             !SotnCharacter_Restore(session->character, &learned))
             return false;
     }

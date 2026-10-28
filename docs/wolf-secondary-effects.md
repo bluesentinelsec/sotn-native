@@ -38,8 +38,8 @@ particle comparison; the puff comparison adapts destruction only and excludes
 the undefined US status branch. These are component comparisons, not native-app
 or console replays. Private inputs and traces stay ignored; no saves are written.
 
-Native scene rendering, actual water providers, camera shake and complete shared
-effects remain incomplete. Live Wolf controls/relic switches stay disabled;
+Selected native scene rendering and owned controls now run. Actual water providers,
+camera shake and complete shared effects remain incomplete;
 ordinary starts grant no relics and saves remain version nine. Do not call Wolf,
 Alucard or the game complete.
 

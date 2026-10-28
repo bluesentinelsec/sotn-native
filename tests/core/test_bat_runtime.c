@@ -596,6 +596,31 @@ static bool PrimitivePressure(Fixture *f)
     Close(f);
     return true;
 }
+static bool WolfPressure(Fixture *f)
+{
+    CHECK(Create(f));
+    f->wolf_owned = true;
+    f->world.relics[SOTN_RELIC_WOLF] = 3;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        f->primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(Tick(f, SOTN_BUTTON_WOLF));
+    const Uint32 generation = f->runtime.wolf.generation;
+    CHECK(generation && !f->runtime.wolf.root_reserved && !f->runtime.wolf.environment_reserved);
+    for (Uint16 i = 0; i < 30; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step == SOTN_PLAYER_WOLF && f->state.substep == 8 && f->state.wolf.signal == 1 &&
+          f->runtime.wolf.generation == generation && !f->runtime.wolf.root_reserved &&
+          !f->runtime.children[47].initialized);
+    f->primitive_slots = (SotnPrimitiveSlots){0};
+    Uint16 wait = 0;
+    while (f->state.substep == 8 && wait++ < 100)
+        CHECK(Tick(f, 0));
+    CHECK(wait < 100 && f->state.wolf.signal == 3 && f->runtime.wolf.generation == generation &&
+          f->runtime.wolf.root_reserved && f->runtime.wolf.environment_reserved);
+    Close(f);
+    return true;
+}
+
 static bool WolfOrder(Fixture *f)
 {
     CHECK(Create(f));
@@ -878,8 +903,8 @@ int main(void)
     if (!f)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
-                    WolfEffectOwnership(f);
+                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

@@ -40,8 +40,8 @@ screen and target. Entry/active/return capture checks write no saves. These are
 controlled session checks, not an unmodified encounter, native-input playtest or
 console replay.
 
-The native simulation entrypoint has not yet bound Wolf contexts/body feedback;
-controls and relic switches remain disabled. Original complete shared GPU packet
+The [selected native session](player-wolf.md) now binds Wolf contexts/body feedback,
+owned controls and relic switches. Original complete shared GPU packet
 capacity, all primitive/stage ties, cross-form/water/shake integration and full
 raster/audio parity remain incomplete. Selected Wolf packets retain the bounded
 768-packet component input; this does not prove global original GPU contention.

@@ -2,8 +2,8 @@
 
 The selected player core now connects original Wolf entry, active controller,
 physical collision and return to generation-owned factories, BlinkWhite effects
-and the linked body owner. These interfaces remain unbound in the native scene;
-Wolf controls and relic switches stay disabled until the remaining owners are wired.
+and the linked body owner. [Selected playable Wolf](player-wolf.md) now binds
+these interfaces in the native scene, with owned controls and relic switching.
 BlinkWhite uses its actual factory-selected slot (the selected private fixture uses
 slot63), not the weapon/Mist slot16. Interleave its update with the body by that
 actual slot; running all flashes before body17..30 would use stale bounds.
@@ -43,11 +43,10 @@ uses the ordinary Laboratory character with an explicit Soul of Wolf grant and
 writes no saves. Its duplicate-feedback check rejects a second body commit.
 
 The normal-entry fixture is not a native-app controls playtest, continuous route
-or console replay. Native scene/render scheduling, live controls/relic switching,
-Wolf-to-Bat/Mist conversion, actual water-depth/swimming integration, attack/critical/
-shared-group/RNG ownership, native enemy combat and child factory/effects still
-need integration. Reported attack, sound and factory requests are intents until
-their real owners consume them. Do not call Wolf, Alucard or the game complete.
+or console replay. Selected native scene/combat/render/factory owners now consume
+these interfaces. Wolf-to-Bat/Mist conversion, actual water-depth/swimming,
+complete shared ownership and full parity remain incomplete. Standalone component
+reports confer no ownership by themselves. Do not call Wolf, Alucard or the game complete.
 
 Provenance: selected `dra/{692E8,wolfForm,704D0,alu_anim}.c` and original return
 helpers, pinned sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, AGPL-3.0-or-later.
