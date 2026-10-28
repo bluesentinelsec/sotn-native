@@ -13,6 +13,9 @@ harness = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(harness)
 
 
+SIMCTL = Path(tempfile.gettempdir()) / "active-Xcode.app/Contents/Developer/usr/bin/simctl"
+
+
 class IOSReportTest(unittest.TestCase):
     def test_runtime_matches_active_sdk_instead_of_newest_installed(self):
         runtimes = [{"identifier": f"com.apple.CoreSimulator.SimRuntime.iOS-{version}",
@@ -55,11 +58,11 @@ class IOSDisplayTest(unittest.TestCase):
     def test_graphical_frontend_and_compositor_are_required(self):
         with patch.object(harness.subprocess, "run") as frontend, \
              patch.object(harness.subprocess, "check_output",
-                          return_value="/active/Xcode.app/Contents/Developer/usr/bin/simctl\n"), \
+                          return_value=str(SIMCTL) + "\n"), \
              patch.object(harness, "simctl") as compositor:
             harness.prepare_display("fresh-device")
         frontend.assert_called_once_with(
-            ["open", "-a", "/active/Xcode.app/Contents/Developer/Applications/Simulator.app",
+            ["open", "-a", str(SIMCTL.parents[2] / "Applications/Simulator.app"),
              "--args", "-CurrentDeviceUDID", "fresh-device"],
             check=True, timeout=60)
         args = compositor.call_args.args
@@ -71,7 +74,7 @@ class IOSDisplayTest(unittest.TestCase):
         with patch.object(harness.subprocess, "run",
                           side_effect=subprocess.CalledProcessError(1, "open")), \
              patch.object(harness.subprocess, "check_output",
-                          return_value="/active/Xcode.app/Contents/Developer/usr/bin/simctl\n"), \
+                          return_value=str(SIMCTL) + "\n"), \
              patch.object(harness, "simctl") as compositor:
             with self.assertRaises(subprocess.CalledProcessError):
                 harness.prepare_display("fresh-device")
@@ -80,7 +83,7 @@ class IOSDisplayTest(unittest.TestCase):
     def test_compositor_timeout_stays_a_failure(self):
         with patch.object(harness.subprocess, "run"), \
              patch.object(harness.subprocess, "check_output",
-                          return_value="/active/Xcode.app/Contents/Developer/usr/bin/simctl\n"), \
+                          return_value=str(SIMCTL) + "\n"), \
              patch.object(harness, "simctl",
                           side_effect=subprocess.TimeoutExpired("screenshot", 60)):
             with self.assertRaises(subprocess.TimeoutExpired):
