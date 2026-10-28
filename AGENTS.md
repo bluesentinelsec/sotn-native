@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf multipart/capture services](docs/wolf-presentation.md) now reconstruct
+bank15 pieces with original SDK pivots, cropping, raw-color semantics, capacity
+ordering and capture copies into the owned 63x63 target at512,448. Preserve
+ascending priorities/reverse emission ties, original clear bit, outer texels and
+transactional target ownership. Retained images share current pixels; never freeze
+separate captures or mutate private source artwork. These components enable no
+Wolf controls or actual transformation/body/combat ownership; Alucard remains incomplete.
+
 The [Wolf BlinkWhite component](docs/wolf-blink.md) now reconstructs selected
 entry23/return24/finish25, saved ordinary/Bat artwork before actual signal2, raw
 Wolf capture bounds/US V wrap, exact limits, return handshake and shared Bat/Wolf

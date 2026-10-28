@@ -23,6 +23,8 @@ add_library(sotn-render STATIC
   include/sotn/hud.h
   tilemap.c
   alucard_sprite.c
+  wolf_capture.c
+  include/sotn/wolf_capture.h
   actor_graphics.c
   actor_order.c
   actor_target_order.c

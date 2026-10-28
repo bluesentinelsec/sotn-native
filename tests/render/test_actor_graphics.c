@@ -2,6 +2,7 @@
 #include <sotn/actor_graphics.h>
 #include <sotn/actor_order.h>
 #include <sotn/dialogue_renderer.h>
+#include <sotn/wolf_capture.h>
 
 #define CHECK(condition)                                                                           \
     do                                                                                             \
@@ -1256,6 +1257,89 @@ static bool ClearedBo0Atlas(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestWolfCapture(Fixture *f)
+{
+    MakeFixture(f);
+    Put16(f->common + 0x40082, 31);
+    Put16(f->common + 0x40084, 0x3e0);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    SotnActorSurface target = {0};
+    CHECK(SotnActorGraphics_BeginTarget(
+        g,
+        (SotnActorTarget){
+            .x = 960, .y = 256, .width = 1, .height = 1, .clear = true, .color = 0x0021},
+        &target));
+    CHECK(SotnActorGraphics_EndTarget(g, true));
+    CHECK(SotnActorGraphics_BeginTarget(
+        g,
+        (SotnActorTarget){
+            .x = 575, .y = 511, .width = 1, .height = 1, .clear = true, .color = 0x7c00},
+        &target));
+    CHECK(SotnActorGraphics_EndTarget(g, true));
+    SotnWolfDrawPacket p[3] = {0};
+    p[0] = (SotnWolfDrawPacket){.capture = true,
+                                .quad = {.page = 31,
+                                         .palette = 0x104,
+                                         .priority = 416,
+                                         .x = {0, 1, 0, 1},
+                                         .y = {0, 0, 1, 1},
+                                         .u = {0, 1, 0, 1},
+                                         .v = {0, 0, 1, 1}}};
+    p[1] = p[0];
+    for (Uint16 i = 0; i < 4; ++i)
+        ++p[1].quad.u[i];
+    CHECK(SotnWolfCapture_Render(g, p, 3, true));
+    SotnTextureQuad sample = {.page = 0x118,
+                              .x = {0, 1, 0, 1},
+                              .y = {0, 0, 1, 1},
+                              .u = {0, 1, 0, 1},
+                              .v = {192, 192, 193, 193}};
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    p[1].quad.priority = 417;
+    CHECK(SotnWolfCapture_Render(g, p, 3, true));
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0x3e0);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        p[0].quad.x[i] += 62;
+        p[0].quad.y[i] += 62;
+    }
+    CHECK(SotnWolfCapture_Render(g, p, 1, true));
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        sample.u[i] += 62;
+        sample.v[i] += 62;
+    }
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    CHECK(SotnWolfCapture_Render(g, NULL, 0, false));
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    p[1] = p[0];
+    p[1].quad.priority = 417;
+    p[1].quad.page = 0x1ff;
+    CHECK(!SotnWolfCapture_Render(g, p, 2, true));
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    CHECK(SotnWolfCapture_Render(g, NULL, 0, true));
+    f->frame[0] = 0x7fff;
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0x7fff);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        ++sample.u[i];
+        ++sample.v[i];
+    }
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 0x7c00);
+    CHECK(SotnActorGraphics_BeginTarget(
+        g, (SotnActorTarget){.x = 64, .y = 100, .width = 1, .height = 1, .clear = true}, &target));
+    CHECK(!SotnWolfCapture_Render(g, NULL, 0, true));
+    CHECK(SotnActorGraphics_EndTarget(g, false));
+    p[0].quad.priority = 432;
+    CHECK(!SotnWolfCapture_Render(g, p, 1, true));
+    CHECK(!SotnWolfCapture_Render(g, p, SOTN_WOLF_FRAME_PACKETS + 1U, true));
+    CHECK(!SotnWolfCapture_Render(g, NULL, 1, true));
+    CHECK(!SotnWolfCapture_Render(NULL, NULL, 0, true));
+    CHECK((f->common[0x40082] | (Uint16)f->common[0x40083] << 8) == 31);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -1269,7 +1353,7 @@ int main(void)
         TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
         TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
         TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
-        ClearedBo0Atlas(fixture);
+        ClearedBo0Atlas(fixture) && TestWolfCapture(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;
