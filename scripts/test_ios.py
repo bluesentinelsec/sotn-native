@@ -99,7 +99,7 @@ def prepare_display(udid):
     # Compositor readiness is a prerequisite, never evidence that this app rendered.
     with tempfile.TemporaryDirectory(prefix="sotn-ios-display-") as display:
         simctl("io", udid, "screenshot", "--type=png", str(Path(display) / "ready.png"),
-               timeout=60)
+               timeout=180)
 
 
 def select_runtime(runtimes, sdk_version):
@@ -111,6 +111,15 @@ def select_runtime(runtimes, sdk_version):
     return runtime
 
 
+def select_device(types):
+    """Prefer a supported compact iPhone to reduce cold simulator display work."""
+    phones = [device for device in types if device["name"].startswith("iPhone")]
+    if not phones:
+        raise SystemExit("Install an iPhone device type for the selected Simulator runtime")
+    return next((device for device in phones if device["name"] == "iPhone SE (3rd generation)"),
+                phones[0])
+
+
 def run_smoke(app):
     runtimes = json.loads(simctl("list", "runtimes", "-j"))["runtimes"]
     sdk = subprocess.check_output(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"],
@@ -119,7 +128,7 @@ def run_smoke(app):
     print(f"Testing iOS SDK {sdk} with {runtime['identifier']}", flush=True)
     types = runtime.get("supportedDeviceTypes") or json.loads(
         simctl("list", "devicetypes", "-j"))["devicetypes"]
-    device = next(d for d in types if d["name"].startswith("iPhone"))
+    device = select_device(types)
     udid = simctl("create", "SOTN Native smoke test", device["identifier"], runtime["identifier"]).strip()
     try:
         simctl("boot", udid)
