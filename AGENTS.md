@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf retained-image component](docs/wolf-root-effect.md) now reconstructs
+five retained-position rows and the live sixth overlay. Preserve first-selection
+initialization, captured facing/positions, asymmetric fade and later hide, live
+priority, nonmirrored UVs, byte-color wrap and shared current capture texture.
+It owns no rows/pixels and signals no readiness. Actual Wolf transformation,
+shared combat/effects/capture/render ownership and controls remain unwired; full
+Alucard/game/console parity remains incomplete.
+
 The [Wolf root/head components](docs/wolf-root-head.md) now reconstruct original
 root floor probing, slopes/ledge slides, frame/drawing choices and head attachment,
 bite/charge/bark/bubble intent with separate private animation advancement. Retain

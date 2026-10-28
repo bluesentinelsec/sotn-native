@@ -19,7 +19,8 @@ It computes private pose-dependent length, SDK angles and quantized distance,
 ordered floor probes, slope/frame choices and ledge slides. Preserve whole-word
 position wrap, original fractions, player/body drawing words, asymmetric screen
 edges and signed image-cycle wrap. Negative image selections select no retained
-image. The reported six-row image effects still require their actual visual owner.
+image. The [six-row image component](wolf-root-effect.md) now reconstructs its selected
+packets; they still require their actual capture/primitive/render owner.
 
 Root collision searches are bounded to fail clearly on a nonterminating supplied
 map; invalid tile-top distances, out-of-range SDK geometry, malformed private
