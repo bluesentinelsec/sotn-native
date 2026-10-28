@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [Wolf linked body component](docs/wolf-articulation.md) now reconstructs
+selected slots18/19/21..30, private pose/frame choices, fractional attachments,
+spine waves and final capture bounds. Preserve actual slot order around head20,
+each child's first-update wave reset, two angular comparisons, retained frames
+and rush-hit spell-thirteen MP/skid feedback. Attack intent creates no hitbox.
+Actual root/head/transformation/combat/render ownership remains unwired; no live
+Wolf controls/relic switches or full-form/Alucard/parity claim is enabled.
+
 The [Wolf active controller component](docs/wolf-controller.md) now reconstructs
 selected idle/run/turn/crouch/jump/fall/recoil/slide/swim substates after the form
 resource gate. Preserve US left-speed and wall quirks, separate landing tests,

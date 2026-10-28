@@ -80,8 +80,9 @@ connect owned commands, real attacks and native presentation. Wolf and full
 shared effects/ability/route parity remain incomplete.
 The [Wolf movement/capture foundation](wolf-motion.md) retains scoped component
 comparisons; the [active Wolf controller](wolf-controller.md) now reconstructs
-selected substates. Actual Wolf body/entry/return/presentation ownership remains
-unwired and live Wolf controls remain disabled.
+selected substates. The [linked Wolf body component](wolf-articulation.md) now
+reconstructs selected followers. Actual Wolf root/head/entry/return/combat/
+presentation ownership remains unwired and live Wolf controls remain disabled.
 
 ## Pinned reference
 
