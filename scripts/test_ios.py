@@ -50,7 +50,7 @@ def wait_for_report(report, timeout=90):
 
 def launch_and_wait(udid, report, env):
     """Require the app's complete report even when simctl does not return."""
-    command = ["xcrun", "simctl", "launch", udid, BUNDLE, "--smoke-test"]
+    command = ["xcrun", "simctl", "launch", "--console-pty", udid, BUNDLE, "--smoke-test"]
     print("Launching iOS Simulator app and waiting for its rendering/cleanup report", flush=True)
     # A file avoids pipe backpressure while CoreSimulator finishes a cold launch.
     with tempfile.TemporaryFile(mode="w+t") as output:
@@ -87,6 +87,21 @@ def launch_and_wait(udid, report, env):
             print(output.read(65536), end="", flush=True)
 
 
+def prepare_display(udid):
+    """Require a working graphical frontend after OS/data migration completes."""
+    tool = Path(subprocess.check_output(["xcrun", "--find", "simctl"],
+                                        text=True, timeout=60).strip())
+    if not tool.is_absolute() or len(tool.parents) < 3:
+        raise SystemExit("Cannot locate the active Xcode Simulator frontend")
+    frontend = tool.parents[2] / "Applications/Simulator.app"
+    subprocess.run(["open", "-a", str(frontend), "--args", "-CurrentDeviceUDID", udid],
+                   check=True, timeout=60)
+    # Compositor readiness is a prerequisite, never evidence that this app rendered.
+    with tempfile.TemporaryDirectory(prefix="sotn-ios-display-") as display:
+        simctl("io", udid, "screenshot", "--type=png", str(Path(display) / "ready.png"),
+               timeout=60)
+
+
 def select_runtime(runtimes, sdk_version):
     identifier = "com.apple.CoreSimulator.SimRuntime.iOS-" + sdk_version.strip().replace(".", "-")
     runtime = next((r for r in runtimes if r.get("isAvailable") and
@@ -109,6 +124,7 @@ def run_smoke(app):
     try:
         simctl("boot", udid)
         simctl("bootstatus", udid, "-bd", timeout=300)
+        prepare_display(udid)
         simctl("install", udid, str(app), timeout=240)
         container = Path(simctl("get_app_container", udid, BUNDLE, "data").strip())
         report = container / "Library/Application Support/bluesentinelsec/sotn-native/smoke-result.txt"
@@ -116,6 +132,7 @@ def run_smoke(app):
             raise SystemExit("Fresh simulator unexpectedly contains a stale smoke report")
         env = os.environ.copy()
         env["SIMCTL_CHILD_SOTN_SMOKE_REPORT"] = "1"
+        env["SIMCTL_CHILD_SDL_AUDIO_DRIVER"] = "dummy"
         try:
             launch_and_wait(udid, report, env)
         except SystemExit:
