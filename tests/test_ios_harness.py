@@ -13,6 +13,9 @@ harness = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(harness)
 
 
+SIMCTL = Path(tempfile.gettempdir()) / "active-Xcode.app/Contents/Developer/usr/bin/simctl"
+
+
 class IOSReportTest(unittest.TestCase):
     def test_runtime_matches_active_sdk_instead_of_newest_installed(self):
         runtimes = [{"identifier": f"com.apple.CoreSimulator.SimRuntime.iOS-{version}",
@@ -51,6 +54,42 @@ class IOSReportTest(unittest.TestCase):
             sleep.assert_not_called()
 
 
+class IOSDisplayTest(unittest.TestCase):
+    def test_graphical_frontend_and_compositor_are_required(self):
+        with patch.object(harness.subprocess, "run") as frontend, \
+             patch.object(harness.subprocess, "check_output",
+                          return_value=str(SIMCTL) + "\n"), \
+             patch.object(harness, "simctl") as compositor:
+            harness.prepare_display("fresh-device")
+        frontend.assert_called_once_with(
+            ["open", "-a", str(SIMCTL.parents[2] / "Applications/Simulator.app"),
+             "--args", "-CurrentDeviceUDID", "fresh-device"],
+            check=True, timeout=60)
+        args = compositor.call_args.args
+        self.assertEqual(args[:4], ("io", "fresh-device", "screenshot", "--type=png"))
+        self.assertEqual(Path(args[4]).name, "ready.png")
+        self.assertEqual(compositor.call_args.kwargs, {"timeout": 60})
+
+    def test_frontend_failure_cannot_be_ignored(self):
+        with patch.object(harness.subprocess, "run",
+                          side_effect=subprocess.CalledProcessError(1, "open")), \
+             patch.object(harness.subprocess, "check_output",
+                          return_value=str(SIMCTL) + "\n"), \
+             patch.object(harness, "simctl") as compositor:
+            with self.assertRaises(subprocess.CalledProcessError):
+                harness.prepare_display("fresh-device")
+        compositor.assert_not_called()
+
+    def test_compositor_timeout_stays_a_failure(self):
+        with patch.object(harness.subprocess, "run"), \
+             patch.object(harness.subprocess, "check_output",
+                          return_value=str(SIMCTL) + "\n"), \
+             patch.object(harness, "simctl",
+                          side_effect=subprocess.TimeoutExpired("screenshot", 60)):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                harness.prepare_display("fresh-device")
+
+
 class IOSLaunchTest(unittest.TestCase):
     def test_hung_launcher_requires_completed_app_and_reaps_process(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -64,6 +103,18 @@ class IOSLaunchTest(unittest.TestCase):
             process.terminate.assert_called_once()
             process.wait.assert_called_once_with(timeout=5)
             process.kill.assert_not_called()
+
+    def test_launcher_captures_application_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "result.txt"
+            report.write_text(harness.COMPLETE)
+            process = Mock(returncode=None)
+            process.poll.return_value = None
+            with patch.object(harness.subprocess, "Popen", return_value=process) as launch:
+                harness.launch_and_wait("fresh-device", report, {})
+            self.assertEqual(launch.call_args.args[0],
+                             ["xcrun", "simctl", "launch", "--console-pty", "fresh-device",
+                              harness.BUNDLE, "--smoke-test"])
 
     def test_frames_without_cleanup_cannot_rescue_hung_launch(self):
         with tempfile.TemporaryDirectory() as directory:
