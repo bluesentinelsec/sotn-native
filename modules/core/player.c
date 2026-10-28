@@ -1076,7 +1076,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
     next.bell_inside = false;
     next.buttons = buttons;
-    next.held = (Uint16)(buttons & next.previous_buttons);
+    next.held = next.previous_buttons;
     next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
     next.previous_buttons = buttons;
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)

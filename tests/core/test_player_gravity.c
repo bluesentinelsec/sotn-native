@@ -116,8 +116,9 @@ static bool TestCommands(Fixture *f)
           p.step != SOTN_PLAYER_HIGH_JUMP);
     CHECK(Start(f, 3, 20, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP) &&
           SotnPlayer_Tick(f->p, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP));
-    CHECK(Command(f) && SotnPlayer_GetState(f->p, &p) && p.step == SOTN_PLAYER_HIGH_JUMP &&
-          p.mp == 16);
+    // Original command requires a neutral previous word before the initial Down.
+    CHECK(SotnPlayer_Tick(f->p, 0) && Command(f) && SotnPlayer_GetState(f->p, &p) &&
+          p.step == SOTN_PLAYER_HIGH_JUMP && p.mp == 16);
     CHECK(Start(f, 3, 20, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_DOWN) &&
           SotnPlayer_Tick(f->p, SOTN_BUTTON_UP));
     Put32(f->dra + 0x101b8 + 33 * 4, 0x800b1000);
@@ -182,6 +183,22 @@ static bool TestCeilings(Fixture *f)
     return true;
 }
 
+static bool TestPreviousButtons(Fixture *f)
+{
+    const Uint16 previous[] = {SOTN_BUTTON_LEFT, SOTN_BUTTON_RIGHT, SOTN_BUTTON_UP};
+    for (Uint16 i = 0; i < SDL_arraysize(previous); ++i)
+    {
+        SotnPlayerState p = {0};
+        CHECK(Start(f, 3, 20, 0) && SotnPlayer_Tick(f->p, previous[i]) && Command(f) &&
+              SotnPlayer_GetState(f->p, &p));
+        CHECK(p.step != SOTN_PLAYER_HIGH_JUMP && p.mp == 20 && !p.mp_spent);
+    }
+    CHECK(Start(f, 3, 20, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_LEFT) &&
+          SotnPlayer_Tick(f->p, 0) && Command(f));
+    SotnPlayerState p = {0};
+    CHECK(SotnPlayer_GetState(f->p, &p) && p.step == SOTN_PLAYER_HIGH_JUMP && p.mp == 16);
+    return true;
+}
 static bool TestLateCeilingAndRoom(Fixture *f)
 {
     SotnPlayerState p = {0}, before = {0};
@@ -216,7 +233,8 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    bool ok = TestLaunch(f) && TestCommands(f) && TestCeilings(f) && TestLateCeilingAndRoom(f);
+    bool ok = TestLaunch(f) && TestCommands(f) && TestCeilings(f) && TestLateCeilingAndRoom(f) &&
+              TestPreviousButtons(f);
     SotnPlayer_Close(f->p);
     SDL_free(f);
     if (!ok)

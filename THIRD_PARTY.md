@@ -769,3 +769,9 @@ The [selected Gravity Boots ceiling effects](docs/player-gravity-impact.md) conn
 `dra/71830.c:CreateCeilingHitEffect` requests to reconstructed shared factory/particle
 owners at that same pinned AGPL-3.0-or-later revision. Original profiles and runtime
 comparisons remain private.
+
+The [afterimage controller](docs/player-afterimages.md) adapts selected capture/fade
+paths in `dra/alu_anim.c`, reset/enable/force in `dra/6DF70.c` and original previous-
+button assignment in `dra/692E8.c`, at the same pinned AGPL-3.0-or-later revision.
+Timing/color tables remain private runtime data. The component owns no actual
+entity/primitive/texture resources and does not enable live afterimages.

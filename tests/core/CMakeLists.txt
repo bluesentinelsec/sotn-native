@@ -149,6 +149,12 @@ target_link_libraries(sotn-camera-shake-tests PRIVATE sotn-core)
 add_test(NAME original-camera-shake COMMAND sotn-camera-shake-tests)
 set_tests_properties(original-camera-shake PROPERTIES TIMEOUT 20)
 
+add_executable(sotn-afterimage-tests test_player_afterimage.c)
+sotn_configure_c_target(sotn-afterimage-tests)
+target_link_libraries(sotn-afterimage-tests PRIVATE sotn-core)
+add_test(NAME player-afterimage-controller COMMAND sotn-afterimage-tests)
+set_tests_properties(player-afterimage-controller PROPERTIES TIMEOUT 20)
+
 add_executable(sotn-game-math-tests test_game_math.c)
 sotn_configure_c_target(sotn-game-math-tests)
 target_link_libraries(sotn-game-math-tests PRIVATE sotn-core)
