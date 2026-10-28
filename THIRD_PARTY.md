@@ -707,3 +707,7 @@ The [Wolf root/head components](docs/wolf-root-head.md) adapt selected
 `dra/wolfForm.c:func_8012F894/func_8012F83C/func_801309B4` and head animation
 semantics from `dra/alu_anim.c:UpdateAnim`, at the same pinned AGPL-3.0-or-later
 revision. Original collision contexts, pose/frame/SDK tables and traces remain private.
+
+The [Wolf retained-image component](docs/wolf-root-effect.md) adapts
+`dra/wolfForm.c:func_8012F178` at the same pinned AGPL-3.0-or-later revision.
+It embeds no captured image or other original game data.
