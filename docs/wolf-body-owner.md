@@ -36,8 +36,9 @@ A native supplied-controller fixture exhausts the actual stage pool, resumes the
 same body after freeing fixture rows, renders private artwork/capture in both
 facings, then retires it while preserving common environment rows. It writes no saves.
 
-Actual player entry/return, resource/control wiring, spell/group/combat/factory
-ownership and shared render scheduling remain to be connected before enabling Wolf.
+Selected [native player entry/return, controls and rendering](player-wolf.md) now
+consume these interfaces. Complete global sharing, cross-form/water/shake and full
+parity remain incomplete.
 This is not a live-form, ordinary-acquisition, whole-route or console-parity claim.
 Private data, contexts, traces and captures remain ignored.
 

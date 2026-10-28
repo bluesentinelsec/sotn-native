@@ -136,8 +136,11 @@ hold Jump through Up, Up-back, Back, Down-back, Down, Down-forward and Forward,
 then release Jump; back/forward follow facing. With owned, active
 [Fire of Bat](docs/player-fire-of-bat.md), Z/D or Xbox X/B fires while flying.
 With owned, active [Echo of Bat](docs/player-echo-of-bat.md), A or Xbox Y emits
-a wave; owned Force of Echo adds its original attack. Wolf, other spells and full
-ability parity remain incomplete.
+a wave; owned Force of Echo adds its original attack. **R/Xbox RT** toggles owned
+[Wolf](docs/player-wolf.md); Z/Xbox X bites. Owned Power of Wolf enables faster
+double-forward sprinting; Skill of Wolf enables Down, Down-forward, Forward then
+bite to charge. Wolf cross-form/water paths, other spells and full ability parity
+remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 The command starts directly in development room 3, with zombies and candles.
@@ -166,7 +169,8 @@ Owned [Gravity Boots](docs/player-gravity-boots.md) now add the original command
 MP cost, high jump and selected ceiling recovery/beam. Ordinary relic acquisition
 and complete ability/castle parity remain acceptance work.
 The [Relics pause panel](docs/relic-menu.md) now switches owned Cube of Zoe,
-Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud, retaining active choices in saves.
+Soul of Bat, Soul/Power/Skill of Wolf, Gravity Boots, Leap Stone, Jewel of Open,
+Mist, Power of Mist and Gas Cloud, retaining active choices in saves.
 Other relic abilities and familiar controls remain incomplete.
 The [save-room checkpoint](docs/laboratory-save-rooms.md) restores HP/MP and saves
 supported progress to fifteen native slots. Use `--laboratory-room 23` for a direct

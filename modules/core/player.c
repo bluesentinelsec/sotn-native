@@ -1332,6 +1332,18 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     const Sint64 y = player->y.value + (Sint64)offset_y * FIX_ONE;
     if (!PositionValid(map, x, y))
         return SDL_SetError("Player room rebase is outside the new bounded room");
+    if (player->wolf.commands.count > SDL_arraysize(player->wolf.commands.requests))
+        return SDL_SetError("Wolf room transfer lost its bounded command list");
+    for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
+    {
+        const Sint64 source_x = (Sint64)player->wolf.commands.requests[i].source.x +
+                                (Sint64)offset_x * FIX_ONE,
+                     source_y = (Sint64)player->wolf.commands.requests[i].source.y +
+                                (Sint64)offset_y * FIX_ONE;
+        if (source_x < SDL_MIN_SINT32 || source_x > SDL_MAX_SINT32 || source_y < SDL_MIN_SINT32 ||
+            source_y > SDL_MAX_SINT32)
+            return SDL_SetError("Wolf room transfer exceeds a captured command origin");
+    }
     for (Uint32 i = 0; i < SOTN_PLAYER_GRAVITY_BEAMS; ++i)
     {
         const SotnPlayerGravityBeam b = player->gravity.beams[i];
@@ -1350,6 +1362,15 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
                 (Sint32)((Sint64)player->gravity.beams[i].y + (Sint64)offset_y * FIX_ONE);
         }
     player->map = map;
+    for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
+    {
+        player->wolf.commands.requests[i].source.x =
+            (Sint32)((Sint64)player->wolf.commands.requests[i].source.x +
+                     (Sint64)offset_x * FIX_ONE);
+        player->wolf.commands.requests[i].source.y =
+            (Sint32)((Sint64)player->wolf.commands.requests[i].source.y +
+                     (Sint64)offset_y * FIX_ONE);
+    }
     player->x.value = (Sint32)x;
     player->y.value = (Sint32)y;
     player->sleep = (SotnPlayerSleep){0};

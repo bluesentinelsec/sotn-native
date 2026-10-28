@@ -750,3 +750,7 @@ The [owned Wolf scene presentation](docs/wolf-native-presentation.md) connects
 selected presentation ordering from `dra/{42398,4B758,4DA70,692E8,wolfForm}.c`
 and the reconstructed components at the same pinned AGPL-3.0-or-later revision.
 It embeds no original artwork, runtime snapshots or capture pixels.
+
+The [selected playable Wolf integration](docs/player-wolf.md) connects selected
+`dra/{692E8,wolfForm,704D0,alu_anim}.c` ownership and reconstructed components
+at the same pinned AGPL-3.0-or-later revision. It embeds no original game data.

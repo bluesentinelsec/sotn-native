@@ -185,10 +185,42 @@ static bool ForcedSlots(void)
     SDL_free(r);
     return true;
 }
+static bool RequestOrigins(void)
+{
+    Uint8 tiles[32 * 16 * 2] = {0}, types[1] = {0};
+    const SotnCollisionMap map = {{tiles, sizeof(tiles)}, {types, sizeof(types)}, 32, 16};
+    SotnPlayer p = Player();
+    p.map = map;
+    p.step = SOTN_PLAYER_WOLF;
+    p.substep = 2;
+    p.wolf.active = true;
+    p.wolf.controller.motion.mode = 2;
+    p.wolf.controller.motion.body_angle = 2048;
+    p.contact = 1;
+    p.vx = 4 * 65536;
+    p.relics[SOTN_RELIC_WOLF] = 3;
+    p.wolf_camera_x = 40;
+    p.wolf_camera_y = 30;
+    p.mist_game_timer = 6;
+    SotnPlayer_WolfTick(&p);
+    CHECK(!p.failed && p.wolf.commands.count &&
+          p.wolf.commands.requests[0].kind == SOTN_WOLF_FACTORY &&
+          p.wolf.commands.requests[0].parameter == 0x10045 &&
+          p.wolf.commands.requests[0].source.x == 100 * 65536 &&
+          p.wolf.commands.requests[0].source.y == 100 * 65536);
+    const Uint32 frame = p.frame_number;
+    CHECK(SotnPlayer_ChangeRoom(&p, map, -16, 8) &&
+          p.wolf.commands.requests[0].source.x == 84 * 65536 &&
+          p.wolf.commands.requests[0].source.y == 108 * 65536 && p.frame_number == frame);
+    p.wolf.commands.requests[0].source.x = SDL_MIN_SINT32;
+    const SotnPlayer before = p;
+    CHECK(!SotnPlayer_ChangeRoom(&p, map, -1, 0) && !SDL_memcmp(&before, &p, sizeof(p)));
+    return true;
+}
 int main(void)
 {
     return GatesAndPending() && CommandAndReturn() && CollisionPasses() && ForcedSlots() &&
-                   MissingReturnFactory()
+                   MissingReturnFactory() && RequestOrigins()
                ? 0
                : 1;
 }

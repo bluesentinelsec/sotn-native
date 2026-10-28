@@ -1,12 +1,21 @@
 # Working in sotn-native
 
+Selected [playable Wolf](docs/player-wolf.md) now binds native contexts/body
+feedback, R/Xbox RT, bites/rush/charge combat, MP/learning, original rendering and
+owned Soul/Power/Skill switches. Preserve real pending entry, once-per-clock body
+feedback, room-space captured command origins and no-extra-tick room rebases;
+raw controller callers still supply their actual command camera. Relic changes
+freeze gameplay and never grant resources. Ordinary starts grant no Wolf relics;
+saves stay v9. Cross-form/water/shake, normal afterimages, all-ability contention
+and full parity remain incomplete. Do not call Wolf or Alucard complete.
+
 The [owned Wolf scene presentation](docs/wolf-native-presentation.md) now draws
 real bank15 player/body packets, retained images, puffs/tiles and ordered common
 capture. Preserve primitive-before-entity equal ties, previous-image sampling,
 63x63 bounds, return player packets after body retirement, repeated-draw input
 restoration and simulation-side capture flushing. Child culling follows actual
-initialization/RNG and retires real rows. The native simulation entrypoint still
-needs Wolf contexts/body feedback; controls remain disabled. Cross-form/water/shake,
+initialization/RNG and retires real rows. Selected playable Wolf now binds the
+native contexts/body feedback and controls. Cross-form/water/shake,
 global GPU contention and full parity remain incomplete; Alucard is not complete.
 
 The [selected Wolf secondary effects](docs/wolf-secondary-effects.md) now consume
@@ -14,32 +23,32 @@ actual controller factories/sounds and deferred head bubbles through owned child
 and the shared stage pool, including real particle sentinel rows. Preserve captured
 command-camera origins, body-camera bubble origins, next-tick factories, allocation
 failure before RNG, original bubble fallthrough and no-tick rebases. US smoke's
-unwritten status0x20000 birth branch fails explicitly. Native scene rendering, water
-providers and shake remain unwired; controls stay disabled and Alucard is incomplete.
+unwritten status0x20000 birth branch fails explicitly. Native drawing now runs;
+water providers and shake remain unwired and Alucard is incomplete.
 
 Selected [Wolf combat ownership](docs/player-wolf-combat.md) now connects actual
 front/head spells, INT/RNG/Mojo/critical metadata, retained group-three enemy
 cooldown and native damage/death/EXP. Preserve source least-used counter increment
 before forced enemyId3, end-of-tick actual identity recount, current pose geometry
 and once-only front contact MP feedback. Late failures preserve body/MP/RNG.
-Native scene/render/controls and real child effects remain unwired; Wolf and
-Alucard are incomplete. Private protected component sessions are not full encounters.
+Selected native scene/controls and child effects now run; Wolf and Alucard remain
+incomplete. Private protected component sessions are not full encounters.
 
 The [shared Wolf runtime](docs/wolf-shared-runtime.md) now interleaves actual
 body17..30 with factory-selected Blink slots and commits Bat/Echo/Wolf rows in one
 stage-pool transaction. Preserve current body bounds for later flashes, forced
 replacement before birth, once-only MP/body feedback, retained environment rows
 and no-extra-tick rebases. Late failures preserve runtime and character snapshots.
-Native scene/render/combat/factory wiring remains incomplete; controls stay disabled
-and Alucard is not complete.
+Selected native scene/render/combat/factories now consume these interfaces;
+full sharing and Alucard remain incomplete.
 
 The [owned Wolf player core](docs/player-wolf-core.md) connects selected original
 entry/controller/8-pass collision/return to real generation-owned factories/Blink
 and body interfaces. Preserve actual signals, pending entry, signed QCF timers and
 captured facing, immutable mutable-cadence substitution, current-clock/once-per-tick
 body feedback, original return without Bat/Mist's Y shift, and the explicit unchecked
-missing-return-factory wait. Native scene/controls/relic switches/render/combat and
-Wolf-to-other-form/water integration remain unwired; Alucard remains incomplete.
+missing-return-factory wait. Selected native scene/controls/relic switches now run;
+Wolf-to-other-form/water integration and Alucard remain incomplete.
 BlinkWhite is not weapon/Mist slot16: use its actual factory-selected slot (selected
 private fixture63). Interleave body17..30 and other children by actual slot; never
 run every flash before the body.
@@ -50,15 +59,15 @@ root/environment row plans, MP feedback and no-extra-tick rebases. Preserve root
 allocation retries, pending actual owners, common environment retention and stage
 pool transaction checks. Feed its actual slot mask to other allocators; perform
 original forced replacement explicitly before Begin. Spell/bubble intents confer
-no attack/factory readiness. Player transformation/resource/control/combat/render
-wiring remains incomplete; Wolf controls stay disabled and Alucard is not complete.
+no attack/factory readiness by themselves. Selected native transformation/resource/
+control/combat/render owners now consume them; Alucard remains incomplete.
 
 The [Wolf transition component](docs/wolf-transition.md) reconstructs selected
 entry0/8 and return0/1/2 to the real normal/stuck helper boundaries. Preserve actual
 factory/Mist/signal gates, signed timer14 maxima, signal word wrap, all three
 movement words, per-tick floor restoration and delayed ceiling readiness. Requests
 confer no body allocation, successful return or lockout; the session must invoke
-real helpers and commit ownership. Live Wolf controls and Alucard remain incomplete.
+real helpers and commit ownership. Selected playable Wolf now does so; Alucard remains incomplete.
 
 The [Wolf multipart/capture services](docs/wolf-presentation.md) now reconstruct
 bank15 pieces with original SDK pivots, cropping, raw-color semantics, capacity
@@ -73,16 +82,15 @@ entry23/return24/finish25, saved ordinary/Bat artwork before actual signal2, raw
 Wolf capture bounds/US V wrap, exact limits, return handshake and shared Bat/Wolf
 lock precedence. Preserve signed/inverted stripe bounds and unmirrored Wolf UVs.
 Entry25 retains its palette; return1B switches white. Pending allocations never
-signal readiness. Actual Wolf body/transformation/shared capture/combat/render
-ownership remains unwired; controls stay disabled and Alucard remains incomplete.
+signal readiness. Selected native Wolf now owns these body/transformation/capture/
+combat/render interfaces; global sharing and Alucard remain incomplete.
 
 The [Wolf retained-image component](docs/wolf-root-effect.md) now reconstructs
 five retained-position rows and the live sixth overlay. Preserve first-selection
 initialization, captured facing/positions, asymmetric fade and later hide, live
 priority, nonmirrored UVs, byte-color wrap and shared current capture texture.
-It owns no rows/pixels and signals no readiness. Actual Wolf transformation,
-shared combat/effects/capture/render ownership and controls remain unwired; full
-Alucard/game/console parity remains incomplete.
+It owns no rows/pixels and signals no readiness itself. Selected native Wolf now
+owns those lifetimes and controls; full sharing/Alucard/game/console parity remain incomplete.
 
 The [Wolf root/head components](docs/wolf-root-head.md) now reconstruct original
 root floor probing, slopes/ledge slides, frame/drawing choices and head attachment,
@@ -90,25 +98,24 @@ bite/charge/bark/bubble intent with separate private animation advancement. Reta
 actual six-row allocation retries, screen-relative edge rules, ordered entity/
 collision updates, full-width private offsets and signed image-cycle wrap. Negative
 image indices select no retained image. No request establishes actual readiness,
-attack/factory success or native form ownership. Wolf transformation, shared
-combat/effects/render ownership and live controls remain unwired; full Alucard/
-game/console parity remains incomplete.
+attack/factory success or native form ownership. Selected native Wolf now consumes
+these interfaces; full sharing/Alucard/game/console parity remain incomplete.
 
 The [Wolf linked body component](docs/wolf-articulation.md) now reconstructs
 selected slots18/19/21..30, private pose/frame choices, fractional attachments,
 spine waves and final capture bounds. Preserve actual slot order around head20,
 each child's first-update wave reset, two angular comparisons, retained frames
 and rush-hit spell-thirteen MP/skid feedback. Attack intent creates no hitbox.
-Actual native root/head/transformation/combat/render ownership remains unwired; no live
-Wolf controls/relic switches or full-form/Alucard/parity claim is enabled.
+Selected native root/head/transformation/combat/render owners now consume these
+interfaces; this does not establish full-form/Alucard/console parity.
 
 The [Wolf active controller component](docs/wolf-controller.md) now reconstructs
 selected idle/run/turn/crouch/jump/fall/recoil/slide/swim substates after the form
 resource gate. Preserve US left-speed and wall quirks, separate landing tests,
 ordered request origins, wrapping windows and exact-cost spell-four charge.
 Return requests never manufacture body/readiness or transformation completion.
-Actual Wolf entry/return/body/combat/render ownership remains unwired; controls
-and relic switches remain disabled. Alucard and full parity remain incomplete.
+Selected native entry/return/body/combat/render owners and controls now run.
+Cross-form/water/shake, Alucard and full parity remain incomplete.
 
 The [Wolf movement/capture components](docs/wolf-motion.md) reconstruct articulated
 raw bounds, sprint/slope/Up/swim jump ordering, signed-word angle wrap and selected

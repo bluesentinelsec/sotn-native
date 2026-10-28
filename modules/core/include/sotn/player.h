@@ -156,7 +156,7 @@ typedef struct SotnPlayerBat
 typedef struct SotnPlayerWolf
 {
     SotnWolfControllerFrame controller;
-    SotnWolfControllerEvents commands;
+    SotnWolfControllerEvents commands; /**< Owned player exports captured room-local sources. */
     Uint32 generation, body_generation;
     Uint16 capture_bank, capture_sprite, palette, texture, priority;
     Sint16 rotation;

@@ -88,7 +88,8 @@ typedef struct SotnBatRuntimeInput
     Uint64 other_occupied;
     SotnPrimitiveSlots primitive_slots; /**< Snapshot of actual stage/player primitive occupancy. */
     Sint32 camera_x, camera_y;
-    Sint32 wolf_command_camera_x, wolf_command_camera_y; /**< Camera at player command creation. */
+    Sint32 wolf_command_camera_x, wolf_command_camera_y; /**< Raw controller capture camera;
+                                                            zero for owned room-space exports. */
     Sint16 room_shift_x, room_shift_y, screen_shift_x, screen_shift_y;
     bool entering;
     bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
