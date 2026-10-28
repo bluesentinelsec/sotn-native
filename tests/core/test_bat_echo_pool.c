@@ -125,6 +125,17 @@ static bool TestRoomLifetime(void)
     CHECK(SotnActors_PrimitiveSlots(s, &slots));
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
         CHECK(!slots.occupied[i]);
+    SotnBatRuntime *common = SDL_calloc(1, sizeof(*common));
+    CHECK(common && SotnBatRuntime_InitCommon(common, slots) &&
+          SotnActors_CommitBatPrimitives(s, common));
+    a.state.primitive_count = 0;
+    CHECK(ActorPrimitives(s, &a, 1) && a.primitive[0] == 8);
+    CHECK(SotnActors_Enter(s, layout, map, 0, 0));
+    CHECK(SotnActors_PrimitiveSlots(s, &slots) && slots.occupied[0] == 255);
+    for (Uint16 i = 1; i < SOTN_PRIMITIVE_WORDS; ++i)
+        CHECK(!slots.occupied[i]);
+    CHECK(SotnActors_CommitBatPrimitives(s, common));
+    SDL_free(common);
     SotnActors_Destroy(s);
     SotnActorLayout_Close(layout);
     return true;
@@ -263,10 +274,80 @@ static bool TestParticleRows(void)
     return true;
 }
 
+static bool TestCommonPlayerRows(void)
+{
+    SotnActors *s = SDL_calloc(1, sizeof(*s));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r)), *bad = SDL_calloc(1, sizeof(*bad));
+    CHECK(s && r && bad);
+    Actor prior = {.state = {.generation = 9}};
+    CHECK(ActorPrimitives(s, &prior, 3));
+    SotnPrimitiveSlots slots = {0};
+    CHECK(SotnActors_PrimitiveSlots(s, &slots));
+    CHECK(SotnBatRuntime_InitCommon(r, slots) && r->common_generation == 1 && r->wolf_bound &&
+          r->afterimage_rows[0] == 3 && r->afterimage_rows[5] == 8 &&
+          r->wolf.environment_reserved && r->wolf.environment_rows[0] == 9 &&
+          r->wolf.environment_rows[1] == 10 && !SotnBatRuntime_Occupied(r));
+    CHECK(SotnActors_CommitBatPrimitives(s, r));
+    CHECK(!SotnActors_CommitWolfPrimitives(s, &r->wolf));
+    for (Uint16 i = 3; i < 11; ++i)
+        CHECK(s->primitives[i].owner == 1 && !s->primitives[i].state.active &&
+              s->primitives[i].ability_kind ==
+                  (i < 9 ? SOTN_PLAYER_AFTERIMAGE_TAG : SOTN_WOLF_ENVIRONMENT_TAG));
+    Actor next = {.state = {.generation = 10}};
+    CHECK(ActorPrimitives(s, &next, 2) && next.primitive[0] == 11);
+    // Equal numeric generations cannot turn metadata into a stage actor's rows.
+    Actor stale = {.state = {.generation = 1, .primitive_count = 1}};
+    stale.primitive[0] = 3;
+    CHECK(!ActorPrimitiveGet(s, &stale, 0));
+    ActorPrimitivesClear(s, &stale);
+    CHECK(s->primitives[3].owner == 1);
+    *bad = *r;
+    CHECK(!SotnBatRuntime_InitCommon(r, slots) && !SDL_memcmp(r, bad, sizeof(*r)));
+    const SotnBatRuntime empty = {0};
+    CHECK(!SotnActors_CommitBatPrimitives(s, &empty) && s->primitives[3].owner == 1);
+    bad->afterimage_rows[0] = bad->afterimage_rows[1];
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    *bad = *r;
+    bad->afterimage_rows[0] = 0;
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    *bad = *r;
+    bad->wolf.environment_generation = 2;
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    *bad = *r;
+    bad->wolf.environment_rows[0] = 3;
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    bad->wolf.environment_rows[0] = 20;
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    *bad = *r;
+    bad->children[47] = (SotnBatRuntimeChild){
+        .generation = 2, .kind = 35, .initialized = true, .primitive_count = 1, .primitives = {3}};
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    // Moving metadata elsewhere cannot free one of the original persistent rows.
+    *bad = *r;
+    bad->afterimage_rows[0] = 20;
+    CHECK(!SotnActors_CommitBatPrimitives(s, bad));
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && ActorPrimitiveGet(s, &prior, 0) &&
+          ActorPrimitiveGet(s, &next, 0) && s->primitives[3].owner == 1 &&
+          s->primitives[9].owner == 1);
+    SDL_memset(bad, 0, sizeof(*bad));
+    for (Uint16 i = 0; i < 16; ++i)
+        slots.occupied[i] = SDL_MAX_UINT64;
+    slots.occupied[0] &= ~((Uint64)127);
+    CHECK(!SotnBatRuntime_InitCommon(bad, slots) && !SDL_memcmp(bad, &empty, sizeof(*bad)));
+    slots.occupied[0] &= ~((Uint64)1 << 7);
+    CHECK(SotnBatRuntime_InitCommon(bad, slots) && bad->afterimage_rows[0] == 0 &&
+          bad->wolf.environment_rows[1] == 7);
+    CHECK(!SotnBatRuntime_InitCommon(NULL, slots));
+    SDL_free(bad);
+    SDL_free(r);
+    SDL_free(s);
+    return true;
+}
+
 int main(void)
 {
     return TestPool() && TestRoomLifetime() && TestBatOwners() && TestSharedWolfRows() &&
-                   TestParticleRows()
+                   TestParticleRows() && TestCommonPlayerRows()
                ? 0
                : 1;
 }

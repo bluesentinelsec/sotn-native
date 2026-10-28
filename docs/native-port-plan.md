@@ -106,7 +106,8 @@ owned controls, body feedback, combat, MP/learning and supported relic switching
 snapshots and readiness. [Selected Wolf impact shakes](player-camera-shake.md) now
 run. [Selected Gravity Boots ceilings](player-gravity-impact.md) now add their
 actual dust/shake requests. The [afterimage controller](player-afterimages.md) now
-reconstructs retained samples/fades, without live resource/render ownership. Water,
+reconstructs retained samples/fades; native stages now retain the original common
+eight-row lease before actor updates. Display/texture/render ownership, water,
 live afterimages, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference

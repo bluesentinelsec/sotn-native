@@ -963,6 +963,33 @@ static bool WolfSpellOwnership(Fixture *f)
     return true;
 }
 
+static bool CommonPlayerLifetime(Fixture *f)
+{
+    CHECK(Create(f));
+    f->wolf_owned = true;
+    CHECK(SotnBatRuntime_InitCommon(&f->runtime, f->primitive_slots));
+    CHECK(Tick(f, 0) && !SotnBatRuntime_Occupied(&f->runtime) &&
+          f->runtime.common_generation == 1 && f->runtime.afterimage_rows[5] == 5 &&
+          f->runtime.wolf.environment_rows[0] == 6 && f->runtime.wolf.environment_rows[1] == 7);
+    f->world.relics[SOTN_RELIC_WOLF] = 3;
+    CHECK(Tick(f, SOTN_BUTTON_WOLF) && f->runtime.wolf.root_reserved &&
+          f->runtime.wolf.root_rows[0] == 8 && f->runtime.children[47].primitives[0] == 14);
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step == SOTN_PLAYER_WOLF && f->state.substep != 8 &&
+          f->runtime.wolf.environment_generation == 1);
+    CHECK(Tick(f, SOTN_BUTTON_WOLF));
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->state.step != SOTN_PLAYER_WOLF && f->state.step != SOTN_PLAYER_UNMORPH_WOLF &&
+          !SotnBatRuntime_Occupied(&f->runtime) && !f->runtime.wolf.root_reserved &&
+          f->runtime.common_generation == 1 && f->runtime.afterimage_rows[0] == 0 &&
+          f->runtime.afterimage_rows[5] == 5 && f->runtime.wolf.environment_rows[0] == 6 &&
+          f->runtime.wolf.environment_rows[1] == 7 && f->runtime.wolf.environment_generation == 1);
+    Close(f);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -970,7 +997,8 @@ int main(void)
         return 1;
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
-                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f);
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
+                    CommonPlayerLifetime(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

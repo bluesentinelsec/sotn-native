@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Selected dra/7879C.c factories/BlinkWhite/WingSmashTrail/func_8011B480/func_80118894,
 // 84B88.c:EntityBatFireball, 8BEF8.c:EntityBatEcho, alu_anim.c:UpdateAnim and
-// 5D5BC.c:GetSpellDef, sotn-decomp
+// 5D5BC.c:GetSpellDef and 692E8.c:AluInit common primitive lease, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Original blueprint/profile/spell/artwork data remains
 // private.
 #include <sotn/bat_runtime.h>
@@ -231,6 +231,29 @@ static bool FireAnimation(SotnDataView dra, SotnBatRuntimeChild *c)
     c->state.fire.frame = Read16(record + 2);
     return true;
 }
+bool SotnBatRuntime_InitCommon(SotnBatRuntime *runtime, SotnPrimitiveSlots slots)
+{
+    if (!runtime || runtime->serial || runtime->wolf.serial || runtime->wolf_bound ||
+        runtime->common_generation || runtime->wolf.environment_reserved ||
+        runtime->wolf.generation || SotnBatRuntime_Occupied(runtime))
+        return SDL_SetError("Common player initialization requires its fresh stage lifetime");
+    Uint16 rows[8] = {0};
+    bool allocated = false;
+    if (!SotnPrimitiveSlots_Reserve(&slots, 8, rows, &allocated))
+        return false;
+    if (!allocated)
+        return SDL_SetError("Common player initialization requires eight free primitive rows");
+    SotnBatRuntime next = *runtime;
+    next.common_generation = next.serial = 1;
+    SDL_memcpy(next.afterimage_rows, rows, sizeof(next.afterimage_rows));
+    next.wolf.environment_rows[0] = rows[6];
+    next.wolf.environment_rows[1] = rows[7];
+    next.wolf.environment_reserved = true;
+    next.wolf.environment_generation = next.wolf.serial = 1;
+    next.wolf_bound = true;
+    *runtime = next;
+    return true;
+}
 static bool WolfRows(SotnPrimitiveSlots *slots, const SotnWolfRuntime *before,
                      const SotnWolfRuntime *after)
 {
@@ -352,8 +375,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (r.wolf_bound && !in.wolf_owned)
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
+    if (r.common_generation &&
+        (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
+        return SDL_SetError("Common player update lost its retained eight-row lease");
     SotnPrimitiveSlots retained = {0};
-    if ((r.wolf.root_reserved &&
+    if ((r.common_generation &&
+         !RetainRows(&in.primitive_slots, &retained, r.afterimage_rows, 6)) ||
+        (r.wolf.root_reserved &&
          !RetainRows(&in.primitive_slots, &retained, r.wolf.root_rows, 6)) ||
         (r.wolf.environment_reserved &&
          !RetainRows(&in.primitive_slots, &retained, r.wolf.environment_rows, 2)))

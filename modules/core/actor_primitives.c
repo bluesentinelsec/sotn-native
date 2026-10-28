@@ -100,7 +100,7 @@ static bool BatPrimitiveKind(Uint16 kind)
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
-    return kind == 56 || kind == SOTN_WOLF_ENVIRONMENT_TAG;
+    return kind == 56 || kind == SOTN_WOLF_ENVIRONMENT_TAG || kind == SOTN_PLAYER_AFTERIMAGE_TAG;
 }
 static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16 *indices,
                      Uint16 count, Uint16 replace_kind, bool include_wolf)
@@ -193,6 +193,28 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
          !PlanRows(s, &used, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 0, r->wolf_bound)))
         return SDL_SetError("Bat Echo primitive reservation lost its actual child or free rows");
     const SotnWolfRuntime *w = &r->wolf;
+    if (r->common_generation && (!r->wolf_bound || !w->environment_reserved ||
+                                 r->common_generation != w->environment_generation ||
+                                 !PlanRows(s, &used, r->afterimage_rows, 6, 0, true)))
+        return SDL_SetError("Common player commit lost its original eight-row lease");
+    bool common_owned = false;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (s->primitives[i].ability_kind == SOTN_PLAYER_AFTERIMAGE_TAG)
+        {
+            common_owned = true;
+            bool retained = false;
+            for (Uint16 j = 0; j < 6; ++j)
+                retained = retained || r->afterimage_rows[j] == i;
+            if (!r->common_generation || s->primitives[i].owner != r->common_generation ||
+                !retained)
+                return SDL_SetError("Common player commit cannot detach its live stage lease");
+        }
+    if (common_owned)
+        for (Uint16 i = 0; i < 2; ++i)
+            if (w->environment_rows[i] >= SOTN_PRIMITIVE_SLOTS ||
+                s->primitives[w->environment_rows[i]].ability_kind != SOTN_WOLF_ENVIRONMENT_TAG ||
+                s->primitives[w->environment_rows[i]].owner != r->common_generation)
+                return SDL_SetError("Common player commit cannot replace its environment rows");
     if ((w->root_reserved || w->environment_reserved) && !r->wolf_bound)
         return SDL_SetError("Shared primitive commit lost its actual Wolf lifetime binding");
     if (w->body.parts[0].step > 1 || w->root_reserved != (w->body.parts[0].step == 1) ||
@@ -224,6 +246,10 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         for (Uint16 i = 0; i < 2; ++i)
             s->primitives[w->environment_rows[i]] = (ActorPrimitive){
                 .owner = w->environment_generation, .ability_kind = SOTN_WOLF_ENVIRONMENT_TAG};
+    if (r->common_generation)
+        for (Uint16 i = 0; i < 6; ++i)
+            s->primitives[r->afterimage_rows[i]] = (ActorPrimitive){
+                .owner = r->common_generation, .ability_kind = SOTN_PLAYER_AFTERIMAGE_TAG};
     return true;
 }
 bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
@@ -234,6 +260,9 @@ bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
           r->children[0].slot != 17 || r->children[0].identity != 56)) ||
         r->environment_reserved != (r->environment_generation != 0))
         return SDL_SetError("Wolf primitive commit requires its actual root/environment owners");
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (s->primitives[i].ability_kind == SOTN_PLAYER_AFTERIMAGE_TAG)
+            return SDL_SetError("Common player rows require the shared primitive commit");
     SotnPrimitiveSlots used = {0};
     const Uint16 *rows[2] = {r->root_rows, r->environment_rows};
     const Uint16 counts[2] = {(Uint16)(r->root_reserved ? 6 : 0),

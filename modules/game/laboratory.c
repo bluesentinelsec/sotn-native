@@ -1183,6 +1183,13 @@ static bool ValidateStart(const SotnLaboratory *session, SessionStart start)
     return true;
 }
 
+static bool InitializeCommonPlayer(SotnLaboratory *session)
+{
+    SotnPrimitiveSlots slots = {0};
+    return SotnActors_PrimitiveSlots(session->actors, &slots) &&
+           SotnBatRuntime_InitCommon(&session->bat_runtime, slots) &&
+           SotnActors_CommitBatPrimitives(session->actors, &session->bat_runtime);
+}
 static bool CreateSession(const SotnGameData *data, const char *directory, SessionStart start,
                           SotnLaboratory **out)
 {
@@ -1252,6 +1259,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
          !SotnPlayer_SetArrivalFacing(session->player, (start.arrival->x & 255) >= 128)) ||
         (start.arrival == NULL && !SotnPlayer_Tick(session->player, 0)) ||
         !SotnActors_CreateStage(session->dra, session->nz0, stage_id, &session->actors) ||
+        !InitializeCommonPlayer(session) ||
         !SotnActors_SetCamera(session->actors, &session->camera) ||
         !SotnActors_SetWorld(session->actors, &session->world) ||
         !SotnActors_SetCharacter(session->actors, session->character) ||
