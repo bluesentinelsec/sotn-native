@@ -2,7 +2,8 @@
 
 The core reconstructs selected original US Wolf capture-bounds, jump and animation
 cadence rules. Live Wolf controls and relic switches remain disabled pending
-actual body/factory ownership, controller, collision and presentation integration.
+actual body/factory ownership, collision and presentation integration. The
+[active controller component](wolf-controller.md) retains its own scoped checks.
 These components allocate no entities and establish no transformation readiness.
 
 Transformation capture bounds read copied signed whole-position words from actual

@@ -79,7 +79,9 @@ flash/trails, native damage/EXP and real return.
 connect owned commands, real attacks and native presentation. Wolf and full
 shared effects/ability/route parity remain incomplete.
 The [Wolf movement/capture foundation](wolf-motion.md) retains scoped component
-comparisons; actual Wolf body/controller/presentation ownership remains unwired.
+comparisons; the [active Wolf controller](wolf-controller.md) now reconstructs
+selected substates. Actual Wolf body/entry/return/presentation ownership remains
+unwired and live Wolf controls remain disabled.
 
 ## Pinned reference
 

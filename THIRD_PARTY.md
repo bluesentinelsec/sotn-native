@@ -693,3 +693,7 @@ The [Wolf movement/capture components](docs/wolf-motion.md) reconstruct selected
 `dra/wolfForm.c:func_8012C600/func_8012CCE4/PlayerStepMorphWolf` algorithms at the
 same pinned AGPL-3.0-or-later revision. They embed no original body/frame/artwork
 tables and enable no live form.
+
+The [Wolf active controller component](docs/wolf-controller.md) adapts selected
+`dra/wolfForm.c` substates and helpers at that same pinned AGPL-3.0-or-later
+revision. It embeds no spell, animation or body tables and enables no live form.
