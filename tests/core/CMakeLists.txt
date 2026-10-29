@@ -869,3 +869,9 @@ target_include_directories(sotn-player-dark-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-player-dark-tests PRIVATE sotn-core)
 add_test(NAME player-dark-metamorphosis COMMAND sotn-player-dark-tests)
 set_tests_properties(player-dark-metamorphosis PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-spirit-spell-tests test_spirit_spell.c)
+sotn_configure_c_target(sotn-spirit-spell-tests)
+target_link_libraries(sotn-spirit-spell-tests PRIVATE sotn-core)
+add_test(NAME spirit-spell-components COMMAND sotn-spirit-spell-tests)
+set_tests_properties(spirit-spell-components PROPERTIES TIMEOUT 20)
