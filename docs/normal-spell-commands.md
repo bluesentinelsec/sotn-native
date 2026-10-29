@@ -5,9 +5,9 @@ Dark Metamorphosis, Summon Spirit, Hellfire, Tetra Spirit, Soul Steal and Sword
 Brothers. This is an input/resource component. It enables no live spell controls,
 allocates no player/effect/combat children, grants no spells or relics, and writes
 no saves. [Selected playable Dark Metamorphosis](player-dark-metamorphosis.md) now owns
-its command; the other native spell paths remain to be integrated.
-The [spirit component foundation](spirit-spells.md) now covers portal/flight/target
-services, with actual freeze/capture/combat owners still required.
+its command; [selected playable Summon/Tetra](player-spirit-spells.md) now bind
+their actual freeze/capture/factory/target/combat owners. Other native spell paths
+remain to be integrated.
 
 Call it once at the original special-command point, after earlier Gravity Boots/
 weapon commands have had their priority. It preserves the six spells' original
@@ -51,7 +51,7 @@ Alucard, whole-route or console parity.
 Further integration must supply actual spell controllers, shared factories/children,
 primitives, artwork/palettes, combat/healing, learning and their lifetimes before
 making another command available in gameplay. Selected Dark now supplies those
-owners; other availability bits stay disabled. Existing saves and ordinary starts
+owners; selected Summon/Tetra now supply theirs too. Other availability bits stay disabled. Existing saves and ordinary starts
 remain unchanged.
 
 Provenance: selected `dra/704D0.c:{CheckDarkMetamorphosisInput,CheckSummonSpiritInput,

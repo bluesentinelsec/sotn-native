@@ -3,8 +3,8 @@
 The native sound service now accepts original queued commands0xE/0xF. They pause
 and resume eligible sound-script cursors in queue order, while already playing
 voices, direct effects, music and the audio device continue. Script mode5 is exempt.
-This supplies an audio dependency for spirit casting; the native spell engine has
-not yet connected these commands to spirit controls or scene freeze.
+The [selected native spirit integration](player-spirit-spells.md) now connects
+these commands at actual scene-freeze entry/release edges.
 
 The actual sound owner retains four original channels and four copied cursor
 slots. Pause stores each eligible running cursor and clears its live identity,
@@ -43,9 +43,9 @@ protected equipment/position/Bloodstone fixtures from its existing checkpoint.
 It verifies existing combat/healing/effect/sound paths; it is not a spirit-freeze,
 complete sound, uninterrupted-route or console replay. No ordinary saves are written.
 
-Ordinary audio defaults and version-nine saves remain unchanged. The next owner
-must connect these commands to the real [spell-freeze edges](spirit-casting.md)
-and [selected frozen-stage dispatch](stage-spell-freeze.md).
+Ordinary audio defaults and version-nine saves remain unchanged. The selected
+native owner now connects these commands to real [spell-freeze edges](spirit-casting.md)
+and [frozen-stage dispatch](stage-spell-freeze.md).
 
 Provenance: selected `dra/sound.c:{PauseSfxScripts,UnpauseSfxScripts,
 RestoreSfxScriptData,PlaySfxScript,func_8013572C,func_80135D8C,func_80136010}`,

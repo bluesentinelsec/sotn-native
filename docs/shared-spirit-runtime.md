@@ -2,11 +2,10 @@
 
 The selected shared player runtime now owns Summon Spirit/Tetra Spirit's actual
 factories and children, private animation/attacks and real stage primitive leases.
-It also supplies a native stage-target snapshot and damage adapter. Native spell
-controls remain disabled: the engine must still connect capture, body/portal
-presentation, freeze/release, sound commands and progress learning. Dark
-Metamorphosis remains the only playable ordinary spell. These interfaces alone do
-not make Alucard, the castle or the game complete.
+It also supplies a native stage-target snapshot and damage adapter. The
+[selected playable integration](player-spirit-spells.md) now binds actual capture,
+presentation, freeze/release, sound commands and progress learning. These shared
+interfaces alone do not make Alucard, the castle or the game complete.
 
 The original root factory117 retains its full parameter. Its real child63 requests
 freeze3 and flash13 at birth, waits ten updates, then reserves nine actual rows
@@ -41,8 +40,8 @@ identity/generation before any pool or mark mutation. The caller must acknowledg
 those one-update marks after successful commit before committing the same runtime
 again against a later stage. A retained target follows its original raw slot:
 a nonzero replacement identity continues steering; identity zero starts departure.
-Target acquisition consumes no RNG. Preserve the original global circular cursor
-when a native engine owner later transfers between stage sessions.
+Target acquisition consumes no RNG. The native engine owner preserves the original
+global circular cursor when transferring between stage sessions.
 
 Flight/target steering uses retained pre-camera screen positions. Only the later
 engine camera translation moves the body, metadata rows and visible trails; room

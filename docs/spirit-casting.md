@@ -1,11 +1,11 @@
 # Spirit casting and scene freeze foundation
 
 Alucard's core now supports the original Summon Spirit and Tetra Spirit cast
-states when an actual owner explicitly binds their context. The native game
-leaves that context disabled: portal capture, stage freeze dispatch, actual spirit
-children, attack groups, artwork and enemy damage still need connected owners.
-Selected Dark Metamorphosis remains the only live ordinary spell. This foundation
-creates no effects, learns no progress and grants no relics or resources.
+states when an actual owner explicitly binds their context. The
+[selected playable integration](player-spirit-spells.md) now supplies capture,
+stage freeze, actual children, attacks, artwork and enemy combat. Standalone
+callers remain disabled by default. This foundation alone creates no effects,
+learns no progress and grants no relics or resources.
 
 Successful commands charge the private spell cost once, retain the original low
 attack mode, remove the real shield cursor and emit the original root factory117

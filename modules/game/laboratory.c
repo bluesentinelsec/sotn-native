@@ -21,7 +21,9 @@
 #include <sotn/resource.h>
 #include <sotn/save.h>
 #include <sotn/save_point_renderer.h>
+#include <sotn/scene_freeze.h>
 #include <sotn/sound.h>
+#include <sotn/spirit_capture.h>
 #include <sotn/stage_assets.h>
 #include <sotn/stage_profile.h>
 #include <sotn/stage_route.h>
@@ -57,10 +59,13 @@ struct SotnLaboratory
     SotnMistEffect mist_effect;
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
+    SotnSceneFreeze spell_freeze;
+    bool spell_pause_pending;
     SotnWolfDrawPacket wolf_packets[SOTN_WOLF_FRAME_PACKETS];
     size_t wolf_packet_count;
     Uint16 wolf_previous_capture[63 * 63];
     Uint64 wolf_capture_tick;
+    Uint32 player_effect_frame;
     bool wolf_capture_ready;
     Sint32 blink_camera_x, blink_camera_y, blink_rebase_x, blink_rebase_y;
     Uint32 mist_generation;
@@ -120,6 +125,7 @@ typedef struct SessionStart
     Uint16 stage;
     Uint32 room, slot;
     Uint32 system_timer;
+    Uint16 spirit_target_cursor;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -372,6 +378,12 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
 {
     if (!QueueAudio(session, combat, player_sound, player_extra_sound))
         return false;
+    if (session->spell_pause_pending)
+    {
+        if (session->sound && !SotnSound_Queue(session->sound, 0x0e))
+            return false;
+        session->spell_pause_pending = false;
+    }
     if (session->sound == NULL)
         return true;
     if (session->xa_command == 1 || session->xa_command == 3)
@@ -616,7 +628,9 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     SotnAlucardSprite sprite = {0};
     Uint64 other = 0;
     SotnPrimitiveSlots primitive_slots = {0};
-    if (!DecodePlayerSprite(s, player, &sprite) || !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
+    SotnSpiritTargetSnapshot targets = {0};
+    if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
+        !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
         (sprite.width && !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
@@ -631,6 +645,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .wolf_query = WolfCollision,
                                   .wolf_context = s,
                                   .primitive_slots = primitive_slots,
+                                  .freeze = s->spell_freeze.request,
+                                  .spirit_targets = &targets,
                                   .force_echo_enabled =
                                       (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
                                   .camera_x = s->camera.x,
@@ -642,8 +658,26 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .entering = entering}) ||
         !SotnActors_CommitBatPrimitives(s->actors, &s->bat_runtime))
         return false;
+    // Marks are one-update writes; later row commits must not replay stale target identities.
+    s->bat_runtime.target_marks[0] = s->bat_runtime.target_marks[1] = 0;
     if (!entering)
     {
+        if (s->bat_runtime.freeze_changed &&
+            !SotnSceneFreeze_Request(&s->spell_freeze, s->bat_runtime.freeze))
+            return false;
+        for (Uint16 i = 0; i < s->bat_runtime.capture_count; ++i)
+        {
+            const SotnSpiritCapture capture = s->bat_runtime.captures[i];
+            if (capture.slot < 16 || capture.slot >= 64 || !capture.generation ||
+                s->bat_runtime.children[capture.slot - 16U].kind != 63 ||
+                s->bat_runtime.children[capture.slot - 16U].generation != capture.generation ||
+                s->bat_runtime.children[capture.slot - 16U].primitive_count != 9)
+                return SDL_SetError("Spirit capture lost its actual nine-row portal generation");
+            if (!SotnSpiritCapture_Frame(s->actor_graphics, s->frame, SOTN_FRAME_PIXELS, capture.x,
+                                         capture.y))
+                return false;
+        }
+        s->bat_runtime.capture_count = 0;
         if (s->bat_runtime.afterimage_reset && !SotnPlayer_ResetAfterimages(s->player, 1))
             return false;
         if (player.step == SOTN_PLAYER_WOLF && s->bat_runtime.wolf.generation &&
@@ -1237,6 +1271,12 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     if (session == NULL)
         return false;
     session->system_timer = start.system_timer;
+    if (start.spirit_target_cursor >= SOTN_SPELL_TARGETS)
+    {
+        SDL_free(session);
+        return SDL_SetError("Native start lost its original spirit target cursor");
+    }
+    session->bat_runtime.target_cursor = start.spirit_target_cursor;
     if (saved != NULL)
     {
         session->world = saved->world;
@@ -1301,6 +1341,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !InitializeEquipment(session, saved) ||
         !SotnActorGraphics_InitPlayerGlow(session->actor_graphics) ||
         !SotnPlayer_SetDarkContext(session->player, true) ||
+        !SotnPlayer_SetSpiritContext(session->player, true) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
@@ -1459,6 +1500,66 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
 
 static bool DrawGameplay(SotnLaboratory *session);
 
+static bool EnterSpellFreeze(SotnLaboratory *s)
+{
+    bool entered = false;
+    if (!SotnSceneFreeze_EndFrame(&s->spell_freeze, &entered))
+        return false;
+    if (entered)
+    {
+        if (!SotnPlayer_ResetAfterimages(s->player, 1))
+            return false;
+        s->spell_pause_pending = true;
+    }
+    return true;
+}
+
+static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFrame mode)
+{
+    const bool release = mode == SOTN_SCENE_RELEASE;
+    SotnPlayerState player = {0};
+    SotnActorCombat combat = {0};
+    if (!SotnPlayer_SetAfterimageContext(s->player, s->bat_runtime.common_generation,
+                                         s->system_timer) ||
+        !SotnPlayer_TickSpellFreeze(s->player, buttons, !release) ||
+        !SotnPlayer_GetState(s->player, &player))
+        return false;
+    if (release)
+    {
+        // Original engine five thaws on a separate frame, without any child/stage tick.
+        if (!SotnPlayer_EndSpellFreeze(s->player) || !SotnSound_Queue(s->sound, 0x0f))
+            return false;
+    }
+    else
+    {
+        ++s->player_effect_frame;
+        if (!TickBlinks(s, player, false) ||
+            !SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks,
+                                    s->music != NULL) ||
+            !SotnActors_SetButtons(s->actors, buttons) ||
+            !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
+            !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
+            !SotnActors_GetCombat(s->actors, &combat) ||
+            !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), &s->dialogue))
+            return false;
+        SotnPaletteBlend blend = {0};
+        SotnPaletteRedShift red = {0};
+        if (!SotnActors_GetPaletteBlend(s->actors, &blend) ||
+            !SotnActorGraphics_BlendPalette(s->actor_graphics, blend) ||
+            !SotnActors_GetPaletteRedShift(s->actors, &red) ||
+            !SotnActorGraphics_ReddenPalette(s->actor_graphics, red) ||
+            !SotnActorGraphics_TickMistPalette(s->actor_graphics) ||
+            !SotnCameraShake_Tick(&s->shake, s->dra))
+            return false;
+        // Mist/Gas and the selected subweapons have no initialized flag10000 update.
+        // Their controllers and pending contacts remain held, not reset or consumed.
+    }
+    if (!TickAudio(s, &combat, 0, 0))
+        return false;
+    s->dirty = s->targets_pending = true;
+    return true;
+}
+
 bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
@@ -1508,6 +1609,11 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnPlayerState state = {0};
     if (!SotnPlayer_GetState(session->player, &state))
         return false;
+    SotnSceneFreezeFrame spell_frame = SOTN_SCENE_NORMAL;
+    if (!SotnSceneFreeze_BeginFrame(&session->spell_freeze, &spell_frame))
+        return false;
+    if (spell_frame != SOTN_SCENE_NORMAL)
+        return TickSpellFreeze(session, buttons, spell_frame);
     SotnActorControl control = {0};
     if (!SotnActors_GetControl(session->actors, &control))
         return false;
@@ -1564,6 +1670,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         player_buttons = control.buttons;
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
+    ++session->player_effect_frame;
     const SotnPlayerBlink *bat_effect = NULL;
     const SotnPlayerFactory *bat_factory = NULL;
     const SotnPlayerBlink *wolf_effect = NULL;
@@ -1594,11 +1701,11 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
-    if (state.dark.started)
+    if (state.dark.started || state.spirit.started)
     {
         SotnCharacterState learned = {0};
         if (!SotnCharacter_Get(session->character, &learned, NULL) ||
-            !SotnCharacter_LearnSpell(&learned, 0) ||
+            !SotnCharacter_LearnSpell(&learned, state.spirit.started ? state.spirit.spell : 0) ||
             !SotnCharacter_Restore(session->character, &learned))
             return false;
     }
@@ -1626,7 +1733,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!TickActors(session) || !TickCape(session) ||
         (!(state.status & 0x20000000U) &&
          !SotnCharacter_TickResources(session->character, session->simulation_ticks)) ||
-        !TickSaveRoom(session, buttons))
+        !TickSaveRoom(session, buttons) || !EnterSpellFreeze(session))
         return false;
     SotnActorCombat combat = {0};
     SotnCharacterState progress = {0};
@@ -1872,7 +1979,7 @@ static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32
             s->actor_graphics, (SotnActorTarget){.x = 512, .y = 448, .width = 63, .height = 63},
             &target))
         return false;
-    const bool snapshot = !s->wolf_capture_ready || s->wolf_capture_tick != s->simulation_ticks;
+    const bool snapshot = !s->wolf_capture_ready || s->wolf_capture_tick != s->player_effect_frame;
     if (snapshot)
         SDL_memcpy(s->wolf_previous_capture, target.pixels, sizeof(s->wolf_previous_capture));
     else
@@ -1880,7 +1987,7 @@ static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32
     if (!SotnActorGraphics_EndTarget(s->actor_graphics, !snapshot))
         return false;
     s->wolf_capture_ready = true;
-    s->wolf_capture_tick = s->simulation_ticks;
+    s->wolf_capture_tick = s->player_effect_frame;
     if (!wolf->generation && p.animation_bank != 15)
         return true;
     for (Uint16 i = 0; i < 15; ++i)
@@ -2165,6 +2272,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_BAT_FIREBALL}))
                 return false;
+            if (child->kind == 61 && child->initialized && child->state.spirit.frame &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){
+                        .priority = 0x1c3, .primitive = owner, .kind = SOTN_DRAW_SPIRIT}))
+                return false;
+            if (child->kind == 63 && child->initialized && child->primitive_count == 9 &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){
+                        .priority = 0x1c0, .primitive = owner, .kind = SOTN_DRAW_SPIRIT_PORTAL}))
+                return false;
             const SotnPlayerEffectQuad *quads = NULL;
             Uint16 packet_count = 0;
             if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &packet_count))
@@ -2425,6 +2544,54 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
                                                session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_SPIRIT || command.kind == SOTN_DRAW_SPIRIT_PORTAL)
+        {
+            if (command.primitive >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Spirit draw exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            if (!child->generation || !child->initialized ||
+                child->kind != (command.kind == SOTN_DRAW_SPIRIT ? 61 : 63) ||
+                child->primitive_count != (command.kind == SOTN_DRAW_SPIRIT ? 16 : 9))
+                return SDL_SetError("Spirit draw lost its actual child/row owner");
+            if (child->kind == 61)
+            {
+                const SotnSpirit motion = child->state.spirit.motion;
+                if (!SotnActorGraphics_DrawSurface(
+                        session->actor_graphics,
+                        (SotnActorSprite){.animation_set = 9,
+                                          .frame = child->state.spirit.frame,
+                                          .palette = 0x819f,
+                                          .blend_mode = 0x70,
+                                          .facing_left = motion.facing_left},
+                        Pixel(motion.x) + session->shake.x + session->draw_target.offset_x,
+                        Pixel(motion.y) + session->shake.y + session->draw_target.offset_y,
+                        (SotnSpriteTransform){.rotation = motion.rotation,
+                                              .scale_x = 256,
+                                              .scale_y = 256,
+                                              .opacity = 128},
+                        session->draw_target.surface))
+                    return false;
+            }
+            else
+            {
+                const SotnSpiritPortal portal = child->state.portal;
+                const Sint32 x = Pixel(portal.x), y = Pixel(portal.y),
+                             ox = session->shake.x + session->draw_target.offset_x,
+                             oy = session->shake.y + session->draw_target.offset_y;
+                const SotnTextureQuad q = {.x = {BlinkWord(x - 32) + ox, BlinkWord(x + 31) + ox,
+                                                 BlinkWord(x - 32) + ox, BlinkWord(x + 31) + ox},
+                                           .y = {BlinkWord(y - 32) + oy, BlinkWord(y - 32) + oy,
+                                                 BlinkWord(y + 31) + oy, BlinkWord(y + 31) + oy},
+                                           .untextured = true};
+                if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                                   session->draw_target.surface))
+                    return false;
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;
@@ -2999,36 +3166,42 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
     {
         saved.stage = old->arrival.stage;
         saved.room = old->arrival.room;
-        ready = CreateSession(data, old->directory,
-                              (SessionStart){.stage = saved.stage,
-                                             .room = saved.room,
-                                             .saved = &saved,
-                                             .arrival = &old->arrival,
-                                             .music = old->music_stream,
-                                             .system_timer = old->system_timer},
-                              &next);
+        ready =
+            CreateSession(data, old->directory,
+                          (SessionStart){.stage = saved.stage,
+                                         .room = saved.room,
+                                         .saved = &saved,
+                                         .arrival = &old->arrival,
+                                         .music = old->music_stream,
+                                         .system_timer = old->system_timer,
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                          &next);
     }
     else if (action == SOTN_LAUNCH_CHECKPOINT)
-        ready = CreateSession(data, old->directory,
-                              (SessionStart){.stage = 12,
-                                             .room = 1,
-                                             .music = old->music_stream,
-                                             .system_timer = old->system_timer},
-                              &next);
+        ready =
+            CreateSession(data, old->directory,
+                          (SessionStart){.stage = 12,
+                                         .room = 1,
+                                         .music = old->music_stream,
+                                         .system_timer = old->system_timer,
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                          &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
     {
         // save_mgr.h:ApplySaveData retains both completion words across in-session loads.
         saved.world.time_attack_visited |= old->world.time_attack_visited;
         saved.world.cutscenes_seen |= old->world.cutscenes_seen;
-        ready = CreateSession(data, old->directory,
-                              (SessionStart){.stage = saved.stage,
-                                             .room = saved.room,
-                                             .saved = &saved,
-                                             .slot = slot,
-                                             .music = old->music_stream,
-                                             .system_timer = old->system_timer},
-                              &next);
+        ready =
+            CreateSession(data, old->directory,
+                          (SessionStart){.stage = saved.stage,
+                                         .room = saved.room,
+                                         .saved = &saved,
+                                         .slot = slot,
+                                         .music = old->music_stream,
+                                         .system_timer = old->system_timer,
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                          &next);
     }
     if (ready && travel)
     {
