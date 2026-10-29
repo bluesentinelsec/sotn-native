@@ -168,6 +168,15 @@ typedef struct SotnPlayerWolf
     bool return_factory_missing; /**< Original unchecked allocation failed; no readiness exists. */
 } SotnPlayerWolf;
 
+/** @brief Captured original ordinary-movement factory intent; blueprint zero is valid.
+ * A request is not a successful factory/child allocation. Sources remain room-local. */
+typedef struct SotnPlayerMovementEffects
+{
+    SotnPlayerFactorySource smoke_source;
+    Uint32 smoke_blueprint;
+    bool smoke;
+} SotnPlayerMovementEffects;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -208,6 +217,7 @@ typedef struct SotnPlayerState
     bool rotated; /**< This simulation frame's selected original transform draw flag. */
     SotnPlayerAfterimage afterimage; /**< Original global display state, not copied frame pixels. */
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
+    SotnPlayerMovementEffects movement_effects;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */

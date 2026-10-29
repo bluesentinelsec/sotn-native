@@ -125,6 +125,9 @@ make debug-build && lldb -o run -- build/debug/bin/sotn-native.app/Contents/MacO
 Use arrows to move/look/crouch, **X or Space** to jump, and Escape to quit.
 Xbox controls use the d-pad or left stick and **A** to jump. **Z/D** or
 Xbox **X/B** use the equipped hands (default: Gladius left, empty right).
+In normal form, **A/Xbox Y** performs the original [backdash](docs/player-backdash.md),
+with its movement/cancel timing, afterimages and selected movement puffs.
+
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
 or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owned,
 active [Mist form](docs/player-mist.md). Owned, active

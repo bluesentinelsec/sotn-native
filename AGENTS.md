@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+Selected [normal backdash/movement puffs](docs/player-backdash.md) now connect A /
+Xbox Y, original standing phase/cancel gates, scrape/landing sounds and actual
+optional smoke factories. Preserve held-versus-tapped recovery, animation lock,
+pre-collision room-space origins and zero-blueprint request identity. Walk starts
+use original profile five with low parameters 0..2 and reversed velocity indexing.
+Shared allocation failure omits only optional effects; no new pool/RNG/MP is used.
+Do not replace the original undefined US smoke birth branch with guessed state.
+Normal status/water/spell/equipment/familiar/full-sharing parity remains incomplete.
+
 Selected [native Alucard afterimages](docs/player-afterimages.md) now connect the
 original six samples/three global displays, timer15/reset hooks, private ARC slots
 and ordered color/texture rendering to the real common eight-row stage lease.

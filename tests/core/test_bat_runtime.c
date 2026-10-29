@@ -990,6 +990,76 @@ static bool CommonPlayerLifetime(Fixture *f)
     return true;
 }
 
+static bool OrdinarySmokeOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *bp = f->dra + 0xd1d4 + i * 6U;
+        bp[0] = 2;
+        bp[1] = bp[2] = i ? 3 : 1;
+    }
+    for (Uint16 i = 0; i < 24; ++i)
+    {
+        Put16(f->dra + 0xd57c + i * 4U, 1);
+        Put16(f->dra + 0xd57e + i * 4U, (Uint16)(i + 1U));
+    }
+    Put16(f->dra + 0xd5dc, 65535);
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .camera_x = 20};
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148, .facing_left = true};
+    in.player.movement_effects = (SotnPlayerMovementEffects){.smoke = true, .smoke_source = source};
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.children[47].kind == 2 && !f->runtime.children[47].parameter &&
+          f->runtime.children[47].initialized && f->runtime.children[47].source.x == source.x &&
+          f->runtime.children[47].state.smoke.x == 74 * 65536 + 123);
+    in.player.movement_effects.smoke_blueprint = 0x50001;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    for (Uint16 i = 0; i < 3; ++i)
+        CHECK(f->runtime.children[46U - i].kind == 2 &&
+              f->runtime.children[46U - i].parameter == 0x500U + i &&
+              f->runtime.children[46U - i].initialized &&
+              f->runtime.children[46U - i].state.smoke.x == 86 * 65536 + 123);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && before.random == after.random &&
+          before.mp == after.mp);
+    const Sint32 position = f->runtime.children[46].state.smoke.x;
+    const Uint16 pose = f->runtime.children[46].state.smoke.pose;
+    in.entering = true;
+    in.screen_shift_x = -16;
+    in.room_shift_x = 16;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          f->runtime.children[46].state.smoke.x == position - 16 * 65536 &&
+          f->runtime.children[46].state.smoke.pose == pose);
+    f->runtime = (SotnBatRuntime){0};
+    in.entering = false;
+    in.screen_shift_x = in.room_shift_x = 0;
+    Put16(f->dra + 0xd57c, 0);
+    const SotnBatRuntime empty = f->runtime;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&empty, &f->runtime, sizeof(empty)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && before.random == after.random &&
+          before.mp == after.mp);
+    Put16(f->dra + 0xd57c, 1);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[i].cursor, source, 0, 0));
+        f->runtime.factories[i].cursor.initialized = true;
+        f->runtime.factories[i].cursor.child = 2;
+        f->runtime.factories[i].cursor.amount = f->runtime.factories[i].cursor.per_cycle = 1;
+        f->runtime.factories[i].cursor.delay = 100;
+    }
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(!f->runtime.children[i].kind);
+    Close(f);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -998,7 +1068,7 @@ int main(void)
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
                     WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
-                    CommonPlayerLifetime(f);
+                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

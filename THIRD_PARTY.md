@@ -781,3 +781,9 @@ adapts selected `dra/692E8.c` timer/status ordering, `dra/71830.c` movement rese
 `dra/42398.c` system-clock ownership and `dra/4B758.c` private display initialization/
 packed uploads and packets. Original profiles, ARC pixels and comparisons stay
 private; full GPU/status/script/route/console parity remains incomplete.
+
+The [selected backdash/movement puffs](docs/player-backdash.md) adapt ordinary
+Triangle command/constructor and standing phase paths in `dra/6E42C.c`, `6FDF8.c`
+and `71830.c`, with shared factory requests and profile-five smoke behavior from
+`7879C.c`, at the same pinned AGPL-3.0-or-later revision. Original tables/artwork
+and runtime comparisons remain private.

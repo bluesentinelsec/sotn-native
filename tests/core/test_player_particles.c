@@ -136,6 +136,15 @@ static bool Smoke(void)
     CHECK(SotnPlayerSmoke_Tick(&puff, view, source, 0x102, 148, 0, 0) && puff.removed);
     puff = (SotnPlayerSmoke){0};
     CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0, 148, 0, 0x20000) && !puff.phase);
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        puff = (SotnPlayerSmoke){0};
+        CHECK(SotnPlayerSmoke_Tick(&puff, view, source, (Uint16)(0x500U + i), 148, 0, 0));
+        CHECK(puff.x == 70 * 65536 + 123 && puff.y == 124 * 65536 + 456 && !puff.velocity_x &&
+              puff.velocity_y == -(Sint32)(5U - i * 2U) * 4096 && puff.scale == 144 + i * 16U);
+    }
+    puff = (SotnPlayerSmoke){0};
+    CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0x503, 148, 0, 0) && !puff.phase);
     Put16(dra + 0xd57c, 0);
     CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0, 148, 0, 0) && !puff.phase);
     return true;

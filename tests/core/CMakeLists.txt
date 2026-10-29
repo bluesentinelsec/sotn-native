@@ -829,3 +829,10 @@ target_include_directories(sotn-afterimage-owner-tests PRIVATE "${PROJECT_SOURCE
 target_link_libraries(sotn-afterimage-owner-tests PRIVATE sotn-core)
 add_test(NAME player-afterimage-owner COMMAND sotn-afterimage-owner-tests)
 set_tests_properties(player-afterimage-owner PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-backdash-tests test_player_backdash.c)
+sotn_configure_c_target(sotn-player-backdash-tests)
+target_include_directories(sotn-player-backdash-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-backdash-tests PRIVATE sotn-core)
+add_test(NAME player-backdash COMMAND sotn-player-backdash-tests)
+set_tests_properties(player-backdash PROPERTIES TIMEOUT 20)
