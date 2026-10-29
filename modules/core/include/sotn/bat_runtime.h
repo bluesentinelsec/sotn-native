@@ -4,6 +4,9 @@
 #include <sotn/bat_echo.h>
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
+#include <sotn/hellfire_beam.h>
+#include <sotn/hellfire_effects.h>
+#include <sotn/hellfire_fireball.h>
 #include <sotn/player.h>
 #include <sotn/player_outline.h>
 #include <sotn/player_particles.h>
@@ -41,6 +44,22 @@ typedef struct SotnBatRuntimeChild
     Uint8 group;
     bool initialized;
     union {
+        SotnHellfireBeam hellfire_beam;
+        SotnHellfireEffect hellfire_effect;
+        struct
+        {
+            SotnHellfireTrail motion;
+            Uint16 pose, frame;
+            Sint16 remaining;
+        } hellfire_trail;
+        struct
+        {
+            SotnHellfireFireball motion;
+            SotnPlayerAttack attack;
+            Uint16 pose, frame;
+            Sint16 remaining;
+            Uint8 hit_flags;
+        } hellfire_fire;
         SotnPlayerBlink blink;
         SotnBatTrail trail;
         SotnPlayerAttack attack;
@@ -98,7 +117,9 @@ typedef struct SotnBatRuntime
     Uint32 echo_generation;
     Uint32 serial;
     Uint16 wing_mask;
-    Uint64 fire_mask, spirit_mask;
+    Uint64 fire_mask, spirit_mask, hellfire_mask;
+    Uint16 hellfire_signal, hellfire_palette;
+    bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
         target_marks[2]; /**< New original flag80000 writes, committed with real row ownership. */
     Uint32 target_generations[SOTN_SPELL_TARGETS];
@@ -131,7 +152,9 @@ typedef struct SotnBatRuntimeInput
                                                             zero for owned room-space exports. */
     Sint16 room_shift_x, room_shift_y, screen_shift_x, screen_shift_y;
     bool entering;
-    Uint16 freeze; /**< Original request snapshotted before ALL actual factory/child updates. */
+    Uint32 game_timer; /**< Actual wrapping game clock for Hellfire, never a local child age. */
+    bool hellfire_up;  /**< Actual current Up input, sampled when the beam requests projectiles. */
+    Uint16 freeze;     /**< Original request snapshotted before ALL actual factory/child updates. */
     const SotnSpiritTargetSnapshot
         *spirit_targets;     /**< Actual preceding stage view; required by spirits. */
     bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
@@ -198,4 +221,12 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *runtime, Uint16 index,
  * @return Success or SDL error without mutation on stale/non-fire ownership. */
 bool SotnBatRuntime_Hit(SotnBatRuntime *runtime, Uint16 index, Uint32 generation, Uint8 flags);
 
+/** @brief Reserve an actual shared factory for root33/circle37 or original finishing flashes.
+ * @param runtime Actual shared owner. @param source Current player source.
+ * @param packed Original request. @param allocated Receives actual reservation outcome.
+ * @return Success or SDL error preserving runtime/output. Exhaustion returns success/false;
+ * no child/readiness is manufactured. The ordinary shared update advances the reserved factory.
+ * Call once at the original player boundary; this does not enable native Hellfire controls. */
+bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                    Uint32 packed, bool *allocated);
 #endif

@@ -586,10 +586,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const Uint32 gas_start =
         normal_channels + 1 + (actors->stage_id == 6 ? ACTOR_CHAPEL_BALL_LINKS : 0);
     const Uint32 wing_start = gas_start + SOTN_GAS_CLOUD_SLOTS;
-    const bool wing =
-        actors->bat_runtime && (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
-                                actors->bat_runtime->spirit_mask ||
-                                actors->bat_runtime->echo_attack || actors->bat_runtime->wolf_mask);
+    const bool wing = actors->bat_runtime &&
+                      (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
+                       actors->bat_runtime->spirit_mask || actors->bat_runtime->hellfire_mask ||
+                       actors->bat_runtime->echo_attack || actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -606,12 +606,13 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_wing =
                 index >= 1 && index <= 15 && (runtime->wing_mask & (Uint16)(1U << (index - 1U)));
             const bool selected_fire = (runtime->fire_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_hellfire = (runtime->hellfire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_spirit = (runtime->spirit_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
             const bool selected_wolf = (index == 2 && (runtime->wolf_mask & 1U)) ||
                                        (index == 4 && (runtime->wolf_mask & 2U));
             if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf &&
-                !selected_spirit)
+                !selected_spirit && !selected_hellfire)
                 continue;
             if (selected_wolf)
             {
@@ -641,6 +642,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                      (child->kind != 36 || child->group < 3 || child->group > 6)) ||
                     (selected_fire &&
                      (child->kind != 45 || child->group < 7 || child->group > 10)) ||
+                    (selected_hellfire && ((child->kind != 26 && child->kind != 27) ||
+                                           child->group < (index < 16 ? 3 : 7) ||
+                                           child->group > (index < 16 ? 6 : 10))) ||
                     (selected_spirit &&
                      (child->kind != 61 || child->group < 3 || child->group > 10 ||
                       (index < 16 ? child->group > 6 : child->group < 7))) ||
@@ -650,7 +654,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_fire     ? child->state.fire.attack
+                source.attack = selected_hellfire ? child->state.hellfire_fire.attack
+                                : selected_fire   ? child->state.fire.attack
                                 : selected_spirit ? child->state.spirit.attack
                                                   : child->state.attack;
                 hand = ACTOR_WING_CHANNEL + child->group - 3U;
@@ -814,7 +819,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                              flags))
                         return false;
                 }
-                else if (child->kind == 45)
+                else if (child->kind == 45 || child->kind == 26 || child->kind == 27)
                 {
                     Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                     if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||

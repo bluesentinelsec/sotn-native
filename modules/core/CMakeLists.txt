@@ -245,6 +245,7 @@ add_library(sotn-core STATIC
   bat_fireball.c
   include/sotn/bat_fireball.h
   bat_runtime.c
+  bat_runtime_internal.h
   include/sotn/bat_runtime.h
   player_factory.c
   include/sotn/player_factory.h

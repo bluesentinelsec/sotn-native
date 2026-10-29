@@ -53,6 +53,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_DARK = 32,
     SOTN_PLAYER_SUMMON = 33,
+    SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
