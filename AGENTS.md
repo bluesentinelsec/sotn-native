@@ -1,3 +1,12 @@
+The [Hellfire supporting effects](docs/hellfire-effects.md) now reconstruct circle28,
+flash29, selected trail24 and rising particle profile10. Preserve real one-row leases,
+post-increment flash retirement, allocation-failure FFFF without successful signal reset,
+live high-word following/fractions, trail birth-only RNG and profile10 no-RNG/double
+lifetime decrement. Shared particle culling uses real KEEP04000000, after initialization.
+These components enable no Hellfire controls; connect actual player/factories/rows/
+gradients/animation/spell/combat/render owners first. Saves/default grants remain unchanged;
+playable Hellfire, full sharing, Alucard/castle/console completeness remain unproven.
+
 The [Hellfire fireball components](docs/hellfire-fireballs.md) now reconstruct
 normal spread/byte-hit retirement and big pre-animation-gated acceleration,
 piercing, rotation and late-even RNG/factory requests. Preserve private vectors,
