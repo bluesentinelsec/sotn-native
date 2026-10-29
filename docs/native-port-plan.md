@@ -111,7 +111,9 @@ eight-row lease before actor updates. Selected native normal afterimages now bin
 player reset/timer/clock hooks and private display uploads/rendering. Selected
 [backdash and ordinary movement puffs](player-backdash.md) now run through original
 controls and actual shared factories. [Selected status reconstruction](player-status.md)
-now restores walking capture clear and hit/stone MP recovery gates. Water, remaining
+now restores walking capture clear and hit/stone MP recovery gates. The
+[ordinary spell command component](normal-spell-commands.md) reconstructs six
+recognizers; live normal spells remain unavailable. Water, remaining
 status/script effects, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference

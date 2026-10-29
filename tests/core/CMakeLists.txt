@@ -843,3 +843,9 @@ target_include_directories(sotn-player-status-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-player-status-tests PRIVATE sotn-core)
 add_test(NAME player-status COMMAND sotn-player-status-tests)
 set_tests_properties(player-status PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-spell-command-tests test_spell_commands.c)
+sotn_configure_c_target(sotn-spell-command-tests)
+target_link_libraries(sotn-spell-command-tests PRIVATE sotn-core)
+add_test(NAME normal-spell-commands COMMAND sotn-spell-command-tests)
+set_tests_properties(normal-spell-commands PROPERTIES TIMEOUT 20)

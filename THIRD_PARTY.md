@@ -791,3 +791,8 @@ and runtime comparisons remain private.
 The [selected player status owner](docs/player-status.md) adapts the supported
 state/timer mask assembly in `dra/692E8.c:EntityAlucard` at the same pinned
 AGPL-3.0-or-later revision. Private instruction contexts remain ignored.
+
+The [ordinary spell command component](docs/normal-spell-commands.md) adapts the six
+selected input recognizers/relative order in `dra/704D0.c` and copied MP spending
+in `5D5BC.c:CastSpell` at the same pinned AGPL-3.0-or-later revision. Original spell
+definitions and instruction traces remain private; this enables no live spells.

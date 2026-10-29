@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+The [ordinary spell command component](docs/normal-spell-commands.md) now reconstructs
+six original recognizers and copied MP requests. Preserve full-word/subset input
+tests, signed-word timers, facing captures, relative priority, expiration-frame
+casts, Soul Steal asymmetry and retained Sword Brothers notifications. Availability
+requires an actual native spell owner; default zero enables no controls. Spell
+controllers/effects/combat/healing/learning remain unwired. Do not claim live spells
+or complete Alucard from component instruction comparisons.
+
 Selected [Alucard status reconstruction](docs/player-status.md) now shares supported
 normal/form/ailment/use/invincibility masks with native snapshots and afterimages.
 Preserve walking capture clear, crouch-two/seated/death80 distinctions, separate
