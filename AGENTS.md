@@ -1,3 +1,13 @@
+The [Hellfire fireball components](docs/hellfire-fireballs.md) now reconstruct
+normal spread/byte-hit retirement and big pre-animation-gated acceleration,
+piercing, rotation and late-even RNG/factory requests. Preserve private vectors,
+no birth movement, the twentieth curved Y update, retained velocity, raw speed16,
+existing draw flags, original facing and signed fixed/word wrap. Big motion's RNG
+is separate from actual spell initialization; optional factory exhaustion still
+consumes its eligible rand. Requests confer no attack/animation/factory readiness.
+Native Hellfire stays disabled until player/beam/gradient/palette/factory/animation/
+combat owners connect. v9 saves/default grants and scoped parity claims stay unchanged.
+
 The [Hellfire beam component](docs/hellfire-beam.md) now reconstructs original
 one-row allocation failure/signalFFFF, beam phases/quad, palette/sound/gradient
 upload requests and live-Up projectile choice. Preserve high-word follow with
