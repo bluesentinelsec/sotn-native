@@ -107,8 +107,9 @@ snapshots and readiness. [Selected Wolf impact shakes](player-camera-shake.md) n
 run. [Selected Gravity Boots ceilings](player-gravity-impact.md) now add their
 actual dust/shake requests. The [afterimage controller](player-afterimages.md) now
 reconstructs retained samples/fades; native stages now retain the original common
-eight-row lease before actor updates. Display/texture/render ownership, water,
-live afterimages, other impact producers and full ability/route parity remain incomplete.
+eight-row lease before actor updates. Selected native normal afterimages now bind
+player reset/timer/clock hooks and private display uploads/rendering. Water, remaining
+status/script effects, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference
 

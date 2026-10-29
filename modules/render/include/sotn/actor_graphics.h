@@ -7,6 +7,7 @@
 #include <sotn/equipment.h>
 #include <sotn/mist_effect.h>
 #include <sotn/palette.h>
+#include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/tilemap.h>
 
@@ -26,6 +27,19 @@ bool SotnActorGraphics_InitPlayerPalettes(SotnActorGraphics *graphics);
  * Preserves original right/bottom clear margins. Geometry, rotation and effect profiles
  * belong to their respective callers; this operation changes no animation or readiness. */
 bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
+
+/** @brief Prepare an original normal-ARC afterimage packet and its actual private display upload.
+ * @param graphics Owned texture memory. @param sprite Borrowed immutable decoded ARC pose.
+ * @param display Actual global display slot1..3, with a flagged original palette identity.
+ * @param x Screen anchor X, including original camera shake. @param y Screen anchor Y.
+ * @param out Receives the source packet; hidden on original empty/culled paths.
+ * @return Success or SDL error. Invalid metadata leaves texture memory/output unchanged.
+ * Reads private display coordinates/flip, preserves packed clear margins and frame-load skips.
+ * Does not advance animation, capture/fade, clock or ownership. Caller must own the common lease.
+ */
+bool SotnActorGraphics_Afterimage(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite,
+                                  SotnAfterimageDisplay display, Sint32 x, Sint32 y,
+                                  SotnPlayerEffectQuad *out);
 
 /** @brief Capture an unrotated normal Alucard pose into his original owned display slot.
  * @param graphics Borrowed texture owner. @param sprite Actual decoded private ARC pose.

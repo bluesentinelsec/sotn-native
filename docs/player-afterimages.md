@@ -1,9 +1,9 @@
 # Original afterimage controller
 
-The selected controller reconstructs the original six retained samples and three
-alternating display states. It does not yet run in gameplay. Actual display entity ownership, movement/reset hooks, frame-clock ownership,
-private ARC texture uploads and rendering must connect before enabling normal
-Alucard afterimages. The native stage now owns the shared primitive lease.
+Selected normal Alucard afterimages now run in the native session. The original
+six retained samples drive three real global display slots, using the existing
+common stage lease and private ARC artwork. The player captures before collision,
+fades/selects displays afterward, and consumes actual later BlinkWhite reset intents.
 
 Capture runs at the original pre-collision point. It keeps the captured signed-word
 position, frame-load bit, palette and facing, and samples once every three eligible
@@ -45,10 +45,10 @@ match. They supply original linked metadata rows, player/display state and the
 system-clock word; they do not execute a native gameplay frame or console replay.
 Private tables, traces and input binaries stay ignored.
 
-All 153 tests pass in Debug, Release and macOS ASan/UBSan, alongside 34 Python
+All 155 tests pass in Debug, Release and macOS ASan/UBSan, alongside 34 Python
 checks and release packaging.
 
-Full display/texture ownership, live afterimages, all-ability contention and complete
+Full original GPU contention, remaining status/script/palette effects and complete
 Alucard/route/console parity remain incomplete. Ordinary starts grant no relics and
 save/application versions remain unchanged.
 
@@ -66,7 +66,8 @@ validates the entire plan before writing rows, rejects duplicate/colliding indic
 and prevents a live common lease from being detached or remapped by an effect.
 A standalone Wolf commit cannot bypass that shared owner. Metadata rows stay hidden
 and cannot be read/freed through stage-actor or Echo APIs, even with an equal numeric
-generation. They confer no actual display entity, texture or effect readiness.
+generation. Rows alone confer no display texture or effect readiness; native player/display
+ownership now connects their retained state and actual uploads.
 
 Room entry retires stage actors while preserving these global player rows. Body
 return retires transient Wolf parts/root effects while retaining all eight common
@@ -92,3 +93,56 @@ Provenance: selected `dra/alu_anim.c:{InitPlayerAfterImage,DrawPlayerAfterImage}
 `dra/6DF70.c:{func_8010DFF0,EnableAfterImage,ForceAfterImageOn}` and previous-button
 assignment and global initialization in `dra/692E8.c`, pinned sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, AGPL-3.0-or-later.
+
+## Native player and presentation integration
+
+The actual common stage generation binds the player's three initialized display
+identities/slots. Existing public component callers remain unbound unless they
+supply a real owner. Bound updates require a new engine-clock context; another
+Tick on the same context fails without mutation. Context updates and room rebases
+do not advance capture, fade or timer15. The selected original 16-bit timer15 loop
+runs before movement, including the original poison-expiry request before its
+own decrement; attack/crouch/status resets and later BlinkWhite child resets
+retain their original update boundaries. Normal movement/jump/dive-kick can retain
+afterimages; selected transformed, seated, hurt, dead, stone, grabbed and script
+states suppress them. Full status recovery/palette and unintegrated spell/script
+producers remain incomplete.
+
+The native engine clock advances through pause, map, launcher and game-over updates.
+Gameplay and afterimage cursors stay frozen while paused. Successful stage/session
+replacement carries that current unsigned clock; it is not part of ordinary save
+data. A fresh player/common lease initializes new displays on stage/Continue entry.
+Rendering never advances either clock or cursor, and room/camera translation never
+recaptures a pose at its later collision position.
+
+Private display records initialize each slot's upload coordinates, flip and page.
+Rendering decodes immutable ARC poses and uploads into those actual separate slots,
+with original right/bottom margins and frame-load skips. Palette identities sample
+current owned colors rather than storing old framebuffer pixels. Preserve the
+source's distinct facing/slot-flip anchor rules, signed-word geometry, byte UVs,
+culling after camera shake, original color modulation and STP-gated blending.
+Shake enters packet projection once; later rasterization adds only the active target
+offset. Equal-priority global displays draw in original slot order 3,2,1 after
+later stage/weapon slots. Full ordering-table/GPU capacity contention remains unproven.
+
+The 155 public tests include authored pre-collision samples, clock ownership/wrap,
+reset/expiry, no-tick room rebases, status gates and atomic failure. Renderer cases
+exercise separate slots, private descriptor flips, current palettes/modulation,
+frame-load skips, culling and invalid metadata without publishing original profiles.
+Private Debug/ASan traces match 4,734 supplied original RenderEntities contexts:
+2,338 packed packets and 1,170 uploads, including CRC comparisons of actual ARC
+uploads and right/bottom clear margins. They execute original packet/OT/metadata
+instructions with explicit LoadImage/ClearImage driver adapters. They do not prove
+complete GPU raster or console parity.
+
+Private muted native checks verify twelve pre-collision captures, 678 contributed
+pixels, stable repeated/skipped presentation, paused cursors with an advancing engine
+clock, and attack/damage resets while ordinary development HP falls from 70 to 60.
+Separate checks of the CMake executable verify 861 contributed pixels, pause/clock
+and real ownership/input/damage, followed by ordinary SDL quit. Debug and ASan/UBSan
+pass. They use the ordinary development character/enemies without relic, protection,
+position, HP/MP or stat grants, and write no saves. In-memory ordinary-save and
+checkpoint replacement checks cover fresh displays, retained gameplay ticks,
+current engine clock and unsigned wrap; they do not write user slots or prove an
+uninterrupted route. Transformation regression evidence remains scoped to its
+explicit relic/contact fixtures, not ordinary acquisition or whole-form parity.

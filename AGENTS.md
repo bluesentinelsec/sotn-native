@@ -1,16 +1,15 @@
 # Working in sotn-native
 
-The [afterimage controller](docs/player-afterimages.md) now reconstructs six samples,
-three parity-selected displays and original reset/enable/force semantics. It is
-a component, not live afterimages. Preserve pre-collision capture/post-collision
-fade, raw previous button words, byte timers, frame bits, display fractions and
-no-tick rebases. Native stage initialization now reserves its actual common eight
-rows before actors prime: six hidden metadata rows and the same two environment
-rows used by Wolf. Shared commit/update retain the lease through rooms/body return;
-standalone Wolf commits cannot replace it. Full stage reset creates a fresh owner.
-Display ownership, movement hooks, system-clock parity, private ARC uploads and
-rendering remain unwired. Never enable guessed
-trails or allocate a second pool. Alucard remains incomplete.
+Selected [native Alucard afterimages](docs/player-afterimages.md) now connect the
+original six samples/three global displays, timer15/reset hooks, private ARC slots
+and ordered color/texture rendering to the real common eight-row stage lease.
+Preserve pre-collision capture/post-collision fade, previous full button words,
+frame-load skips, private slot flips, display fractions and no-tick room rebases.
+The unsigned engine clock advances through pause and survives session replacement;
+simulation/display cursors pause and renders never tick. Later real BlinkWhite
+requests clear the actual player displays. Shake enters projection once. Ordinary
+starts grant no relics; saves remain v9. Full status/script/palette effects, GPU/
+all-ability contention and Alucard/route/console parity remain incomplete.
 
 Selected [Gravity Boots ceiling effects](docs/player-gravity-impact.md) now consume
 one-update impact intents through actual shared factories/children/rows and shake3.
@@ -37,7 +36,7 @@ raw controller callers still supply their actual command camera. Relic changes
 freeze gameplay and never grant resources. Ordinary starts grant no Wolf relics;
 saves stay v9. Selected [cross-form conversions](docs/player-wolf-cross-forms.md) now
 retain actual Wolf snapshots and Bat packet attributes through real handshakes.
-Water, other shake producers, normal afterimages, all-ability contention
+Water, other shake producers, all-ability contention
 and full parity remain incomplete. Do not call Wolf or Alucard complete.
 
 The [owned Wolf scene presentation](docs/wolf-native-presentation.md) now draws

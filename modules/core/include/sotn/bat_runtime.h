@@ -75,6 +75,7 @@ typedef struct SotnBatRuntime
     Uint8 use_ticks;
     Uint8 groups[11];
     bool echo_attack;
+    bool afterimage_reset; /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
 
 /** @brief Actual owned context and room/camera translation at this update point. */

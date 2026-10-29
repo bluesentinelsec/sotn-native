@@ -776,5 +776,8 @@ button assignment in `dra/692E8.c`, at the same pinned AGPL-3.0-or-later revisio
 Timing/color tables remain private runtime data. The pure controller confers no
 entity/primitive/texture ownership. Native shared-row initialization follows the
 original global eight-row allocation in `dra/692E8.c:AluInit`, retaining its final
-two rows through the existing common Wolf capture owner. Actual display/texture
-ownership remains unwired; this does not enable live afterimages.
+two rows through the existing common Wolf capture owner. Native integration now
+adapts selected `dra/692E8.c` timer/status ordering, `dra/71830.c` movement resets,
+`dra/42398.c` system-clock ownership and `dra/4B758.c` private display initialization/
+packed uploads and packets. Original profiles, ARC pixels and comparisons stay
+private; full GPU/status/script/route/console parity remains incomplete.

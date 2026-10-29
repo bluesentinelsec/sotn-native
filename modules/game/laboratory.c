@@ -85,6 +85,7 @@ struct SotnLaboratory
     SotnGameOver *game_over;
     Uint16 scene_buttons, mp, hands[2];
     Uint64 simulation_ticks;
+    Uint32 system_timer;
     SotnSaveStore *saves;
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
@@ -118,6 +119,7 @@ typedef struct SessionStart
 {
     Uint16 stage;
     Uint32 room, slot;
+    Uint32 system_timer;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -642,6 +644,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         return false;
     if (!entering)
     {
+        if (s->bat_runtime.afterimage_reset && !SotnPlayer_ResetAfterimages(s->player, 1))
+            return false;
         if (player.step == SOTN_PLAYER_WOLF && s->bat_runtime.wolf.generation &&
             !SotnPlayer_CommitWolfBody(s->player, &s->bat_runtime.wolf, &s->bat_runtime.wolf_frame,
                                        s->camera.x, s->camera.y))
@@ -1188,7 +1192,9 @@ static bool InitializeCommonPlayer(SotnLaboratory *session)
     SotnPrimitiveSlots slots = {0};
     return SotnActors_PrimitiveSlots(session->actors, &slots) &&
            SotnBatRuntime_InitCommon(&session->bat_runtime, slots) &&
-           SotnActors_CommitBatPrimitives(session->actors, &session->bat_runtime);
+           SotnActors_CommitBatPrimitives(session->actors, &session->bat_runtime) &&
+           SotnPlayer_SetAfterimageContext(session->player, session->bat_runtime.common_generation,
+                                           session->system_timer);
 }
 static bool CreateSession(const SotnGameData *data, const char *directory, SessionStart start,
                           SotnLaboratory **out)
@@ -1212,6 +1218,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
+    session->system_timer = start.system_timer;
     if (saved != NULL)
     {
         session->world = saved->world;
@@ -1446,6 +1453,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !DrawGameplay(session))
         return false;
     session->targets_pending = false;
+    ++session->system_timer; // Original g_Timer advances through paused engine frames.
     session->blocked_buttons &= buttons;
     buttons &= (Uint16)~session->blocked_buttons;
     const bool select =
@@ -1556,6 +1564,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                    wolf_effect || wolf_factory ? state.wolf.generation : 0,
                                    SotnBatRuntime_Available(&session->bat_runtime),
                                    session->camera.x, session->camera.y) ||
+        !SotnPlayer_SetAfterimageContext(session->player, session->bat_runtime.common_generation,
+                                         session->system_timer) ||
         !SotnPlayer_Tick(session->player, player_buttons) ||
         !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
@@ -1942,6 +1952,29 @@ static bool DrawMistQuad(SotnLaboratory *s, Uint16 index)
     return SotnActorGraphics_QuadSurface(s->actor_graphics, q, surface);
 }
 
+static bool DrawAfterimages(SotnLaboratory *s, SotnPlayerState p, Sint32 camera_x, Sint32 camera_y)
+{
+    if (!p.afterimage_generation || p.afterimage_generation != s->bat_runtime.common_generation)
+        return SDL_SetError("Afterimage displays lost their actual common stage lease");
+    // Original addPrim reverses equal-priority entity slots: 3,2,1 after later stage/weapon slots.
+    for (Uint16 i = 3; i > 0; --i)
+    {
+        const SotnAfterimageDisplay d = p.afterimage.displays[i - 1U];
+        if (!(d.sprite & 0x7fffU))
+            continue;
+        SotnAlucardSprite image = {0};
+        SotnPlayerEffectQuad q = {0};
+        if (!SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), d.sprite & 0x7fffU,
+                                      &image) ||
+            !SotnActorGraphics_Afterimage(s->actor_graphics, &image, d,
+                                          Pixel(d.x) - camera_x + s->shake.x,
+                                          Pixel(d.y) - camera_y + s->shake.y, &q) ||
+            !SotnActorGraphics_PlayerEffect(s->actor_graphics, &q, s->draw_target.offset_x,
+                                            s->draw_target.offset_y, s->draw_target.surface))
+            return false;
+    }
+    return true;
+}
 static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player, Sint32 camera_x,
                                 Sint32 camera_y, bool background)
 {
@@ -2163,7 +2196,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
     SotnAlucardSprite alucard = {0};
     if (!DecodePlayerSprite(session, player, &alucard))
         return false;
-    bool player_drawn = false, weapon_drawn = false, beam_drawn = false;
+    bool player_drawn = false, weapon_drawn = false, beam_drawn = false, afterimages_drawn = false;
     SotnFrameClip clip = {0, 0, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
     for (size_t i = 0; i <= draw_count; ++i)
     {
@@ -2199,6 +2232,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
             }
             weapon_drawn = true;
+        }
+        if (!afterimages_drawn && (i == draw_count || session->draw_items[i].priority > 0x92))
+        {
+            if (!DrawAfterimages(session, player, camera_x, camera_y))
+                return false;
+            afterimages_drawn = true;
         }
         if (!player_drawn && (i == draw_count || session->draw_items[i].priority > 0x94))
         {
@@ -2925,12 +2964,16 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                              .room = saved.room,
                                              .saved = &saved,
                                              .arrival = &old->arrival,
-                                             .music = old->music_stream},
+                                             .music = old->music_stream,
+                                             .system_timer = old->system_timer},
                               &next);
     }
     else if (action == SOTN_LAUNCH_CHECKPOINT)
         ready = CreateSession(data, old->directory,
-                              (SessionStart){.stage = 12, .room = 1, .music = old->music_stream},
+                              (SessionStart){.stage = 12,
+                                             .room = 1,
+                                             .music = old->music_stream,
+                                             .system_timer = old->system_timer},
                               &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
@@ -2943,7 +2986,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                              .room = saved.room,
                                              .saved = &saved,
                                              .slot = slot,
-                                             .music = old->music_stream},
+                                             .music = old->music_stream,
+                                             .system_timer = old->system_timer},
                               &next);
     }
     if (ready && travel)

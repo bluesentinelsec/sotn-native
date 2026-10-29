@@ -489,6 +489,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.sound_count = 0;
     r.wolf_shake_count = 0;
     r.use_ticks = 0;
+    r.afterimage_reset = false;
     SotnPlayerState p = in.player;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
     if (p.gravity.ceiling_impact && !RequestSource(&r, p.gravity.impact_source, 0x10004, 0))
@@ -662,6 +663,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                             .allocation_failed = !allocated},
                         &events))
                     return false;
+                r.afterimage_reset = r.afterimage_reset || events.reset_afterimages;
                 removed = c->state.blink.removed;
                 if (parameter != c->state.blink.parameter)
                     c->parameter = (Uint16)(c->state.blink.parameter << 8);

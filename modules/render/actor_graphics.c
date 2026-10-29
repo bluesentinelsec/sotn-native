@@ -1345,11 +1345,9 @@ static bool PlayerSlot(const SotnActorGraphics *g, const SotnAlucardSprite *spri
     *y = sy;
     return true;
 }
-bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite)
+static void UploadPlayerSlot(SotnActorGraphics *g, const SotnAlucardSprite *sprite, Uint32 slot_x,
+                             Uint32 slot_y)
 {
-    Uint32 slot_x = 0, slot_y = 0;
-    if (!PlayerSlot(g, sprite, &slot_x, &slot_y))
-        return false;
     const Uint32 width = sprite->width / 4U, height = sprite->height;
     Upload(g, slot_x, slot_y, width, height, sprite->pixels.bytes);
     for (Uint32 row = 0; row < height + 4; ++row)
@@ -1365,8 +1363,68 @@ bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprit
             g->words[pixel] = 0;
             g->valid[pixel] = 1;
         }
+}
+bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite)
+{
+    Uint32 slot_x = 0, slot_y = 0;
+    if (!PlayerSlot(g, sprite, &slot_x, &slot_y))
+        return false;
+    UploadPlayerSlot(g, sprite, slot_x, slot_y);
     return true;
 }
+// dra/4B758.c packed sprite branch; PlayerDraw slots retain private UVs/flip and palette identity.
+bool SotnActorGraphics_Afterimage(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
+                                  SotnAfterimageDisplay d, Sint32 x, Sint32 y,
+                                  SotnPlayerEffectQuad *out)
+{
+    if (!g || !out || d.bank != 1 || d.texture_slot < 1 || d.texture_slot > 3 || d.priority > 511 ||
+        x < SDL_MIN_SINT16 || x > SDL_MAX_SINT16 || y < SDL_MIN_SINT16 || y > SDL_MAX_SINT16 ||
+        !(d.palette & 0x8000U) || (d.palette & 0x7fffU) >= 768 || d.blend > 0x7f)
+        return SDL_SetError("Afterimage packet requires its actual display slot and palette");
+    SotnPlayerEffectQuad q = {.draw_mode = 8};
+    if (!(d.sprite & 0x7fffU) || x < -512 || x > 512 || y < -512 || y > 512)
+    {
+        *out = q;
+        return true;
+    }
+    const size_t offset = 0x21b8U + d.texture_slot * 4U;
+    if (!sprite || !sprite->width || sprite->width > 252 || sprite->width % 4 || !sprite->height ||
+        sprite->height > 254 || !sprite->pixels.bytes ||
+        sprite->pixels.size != (size_t)sprite->width * sprite->height / 2U ||
+        sprite->pivot_x < -1024 || sprite->pivot_x > 1024 || sprite->pivot_y < -1024 ||
+        sprite->pivot_y > 1024 || g->dra.size < offset + 4U)
+        return SDL_SetError(
+            "Afterimage upload requires bounded immutable ARC pixels and display data");
+    const Uint16 sx = Read16(g->dra.bytes + offset), raw_y = Read16(g->dra.bytes + offset + 2U),
+                 sy = raw_y & 511U;
+    if (!sx || !sy || sx + sprite->width / 4U >= 1024U || sy + sprite->height + 4U > 512U)
+        return SDL_SetError("Afterimage display and clear margins exceed owned VRAM");
+    const Uint16 flip = (Uint16)((d.facing_left ? 2U : 0U) ^ ((raw_y >> 8) & 0xfeU));
+    const Sint32 px = x + ((flip & 2U) ? -sprite->pivot_x : sprite->pivot_x),
+                 py = y + sprite->pivot_y;
+    const Uint8 u0 = (Uint8)((sx & 63U) * 4U), v0 = (Uint8)sy;
+    q.page = (Uint16)((sx >> 6) + 0x10U);
+    q.palette = d.palette & 0x7fffU;
+    q.priority = d.priority;
+    q.draw_mode = (Uint16)((d.color_enabled ? 4 : 0) | (d.blend ? 1 : 0) | (d.blend & 0x60U));
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = CaptureWord(px + (flip ? ((v & 1U) ? 1 : 1 - (Sint32)sprite->width)
+                                        : ((v & 1U) ? sprite->width : 0)));
+        q.y[v] = CaptureWord(py + (v >= 2 ? sprite->height : 0));
+        q.u[v] = (Uint8)(flip ? ((v & 1U) ? (Sint32)u0 - 1 : u0 + sprite->width - 1)
+                              : u0 + ((v & 1U) ? sprite->width : 0));
+        q.v[v] = (Uint8)(v0 + (v >= 2 ? sprite->height : 0));
+        q.red[v] = d.red;
+        q.green[v] = d.green;
+        q.blue[v] = d.blue;
+    }
+    if (!(d.sprite & 0x8000U))
+        UploadPlayerSlot(g, sprite, sx, sy);
+    *out = q;
+    return true;
+}
+
 bool SotnActorGraphics_CapturePlayer(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
                                      Sint32 x, Sint32 y, bool facing_left, SotnMistWedge out[8])
 {
