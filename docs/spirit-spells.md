@@ -4,12 +4,12 @@ The core now reconstructs the shared portal, spirit flight/trails and target
 selection used by Summon Spirit and Tetra Spirit. These are component services.
 The pure components enable no additional spell controls and own no factories,
 combat, framebuffer capture or scene freeze. The [shared runtime](shared-spirit-runtime.md)
-now supplies selected actual factory/child/target/combat ownership; native capture,
-presentation and scene freeze remain unconnected. Selected Dark Metamorphosis remains the only connected
-ordinary spell. Actual native owners must connect those boundaries before the
-Summon/Tetra availability bits become usable. The [casting/freeze foundation](spirit-casting.md)
-now supplies selected player states and engine boundaries; native ownership remains
-unwired.
+now supplies selected actual factory/child/target/combat ownership, and the
+[playable integration](player-spirit-spells.md) binds native capture/presentation/
+freeze. Actual native owners must connect those boundaries before enabling further
+spell availability. Selected Dark/Summon/Tetra now have scoped gameplay owners.
+The [casting/freeze foundation](spirit-casting.md)
+supplies selected player states and engine boundaries.
 
 The portal retains its original ten-update delay, nine-row allocation request,
 63×63 capture into the shared target at 512,448, private outer shape and eight raw

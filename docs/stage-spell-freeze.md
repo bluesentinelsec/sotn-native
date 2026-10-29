@@ -1,9 +1,9 @@
 # Selected frozen stage updates
 
 The core actor owner now exposes the original selected frozen-stage dispatch used
-by spirit casting. This is an integration interface; the native engine has not yet
-connected spirit controls, scene freeze, capture or spirit combat. Selected Dark
-Metamorphosis remains the only live ordinary spell.
+by spirit casting. The [selected playable integration](player-spirit-spells.md) now
+connects spirit controls, scene freeze, capture and native combat. This dispatcher
+interface alone does not establish complete scene or console parity.
 
 Frozen updates visit the actual 192 stage slots in original order. Supported live
 step-zero actors initialize even without flag0x10000. Initialized actors without
@@ -51,9 +51,9 @@ fixture it advances, retires and draws. It writes no saves and runs muted throug
 LLDB. This is a selected dispatcher check, not a live spirit spell, whole-scene,
 whole-route, Alucard or console parity claim.
 
-The next owner must connect the [scene-freeze boundaries](spirit-casting.md),
-actual player/effect factories, ordered framebuffer capture, targets and native
-combat before enabling [spirit spell controls](spirit-spells.md). Ordinary starts
+The [selected native owner](player-spirit-spells.md) now connects the
+[scene-freeze boundaries](spirit-casting.md), actual factories, ordered framebuffer
+capture, targets and native combat. Ordinary starts
 and version-nine saves remain unchanged.
 
 Provenance: selected `st/st_update.h:UpdateStageEntities`, pinned sotn-decomp

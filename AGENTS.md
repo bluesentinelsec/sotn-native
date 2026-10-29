@@ -1,11 +1,24 @@
+Selected [playable Summon/Tetra Spirit](docs/player-spirit-spells.md) now connects
+normal commands/MP/learning, actual factories/rows/targets/combat, prior-frame63x63
+capture, black portal/body/trail/Blink presentation and real scene/audio freeze.
+Preserve ordinary birth,33 frozen updates in the selected private contexts, final
+frozen retirement and separate release-only frame; physical input updates but
+ordinary clocks/timers/resources/hits/menus/saves do not. Consume capture once
+before drawing; acknowledge committed marks, retain raw target slots and carry
+cursor across sessions without saving it. The shared capture cache advances on
+actual effect updates, including freeze, and stays held through menus. Off-frame
+capture sources fail explicitly. v9 saves/default grants remain unchanged.
+Protected/positioned and in-memory transfer checks are not whole-route/console
+parity; full OT/raster/audio/camera/contention and Alucard remain incomplete.
+
 The [shared spirit runtime](docs/shared-spirit-runtime.md) now owns selected real
 portal/spirit/Blink factories,9/16-row leases, animation, private spell attacks,
 actual target snapshots/atomic marks and native enemy damage/groups. Preserve the
 snapshotted frozen gate, next-frame descendants, pre-animation birth trails, raw
 retained target slots, camera-after-steering, global flash tail and Wolf slot31
 survival/group counts. New marks need acknowledgement after successful stage commit.
-Capture intents are not completed copies. Native capture/render/engine freeze/
-learning remain unwired; keep spirit controls disabled. Portal-row exhaustion fails
+Capture intents alone are not completed copies; selected native owners now fulfil
+them through the playable integration above. Portal-row exhaustion fails
 explicitly before an indefinite original freeze; optional spirit exhaustion retires
 before RNG. Saves stayv9/default grants unchanged. Full sharing/Alucard/castle/
 console parity remain incomplete.
@@ -15,9 +28,9 @@ original pause/resume commands0xE/0xF, preserves mode5 and continuing voices/mus
 and retains four real script channels with separate cursor/allocation lifetimes.
 Preserve strict-before-equal priority, ringing leases, unreserved restore overwrite,
 dropped ordinary copies, retained blocked fourth copy and original fourth-channel
-key-off12..15 versus playback14..17. Native spell/scene freeze remains unwired;
-full SDK/SEQ/audio timing and console parity remain incomplete. Do not enable spirit
-controls until actual capture/factories/combat and engine ownership connect.
+key-off12..15 versus playback14..17. Selected native spirit freeze now consumes
+these commands; full SDK/SEQ/audio timing and console parity remain incomplete. Other spell controls still require
+their actual capture/factory/combat/engine owners.
 
 The [selected frozen-stage dispatcher](docs/stage-spell-freeze.md) now initializes
 real step-zero actors and updates only flag10000 initialized actors, including
@@ -25,13 +38,14 @@ private hit-palette countdown and actual behavior/hit clearing. Preserve origina
 slot order, queued contacts and real primitive retirement; no layout scroll/culling,
 hit detection, stun/cooldown/control/game-clock advances belong in this path.
 The US palette reference parser validates its exported instruction/data bounds.
-Native scene freeze/spirit capture/combat remain unwired; do not enable controls
-or claim live spells/Alucard/castle/console completeness from this interface alone.
+Selected native spirit owners now connect this interface; the dispatcher alone
+does not establish whole-scene/Alucard/castle/console completeness.
 
 The [spirit casting/freeze foundation](docs/spirit-casting.md) now supplies original
 Summon/Tetra cast states, timer12, crouch recovery and selected animation-only
-freeze/release boundaries. The native context remains disabled until actual stage
-freeze/capture/children/combat owners connect. Preserve the ordinary birth frame,
+freeze/release boundaries. The selected native context binds actual stage freeze/
+capture/children/combat owners; standalone callers still default to disabled.
+Preserve the ordinary birth frame,
 frozen retirement frame and following release-only frame; never tick player timers
 or replay one-shot events during freeze. Only actual attack substates run crouched
 weapon recovery. Ordinary starts and v9 saves remain unchanged; do not claim live
@@ -45,7 +59,8 @@ requests, pending capture/factory boundaries, the original freeze retained after
 portal allocation failure, private adjacent birth UV bytes, signed-word/fixed-point
 wrap, retained target-slot semantics and mark/cursor ordering without RNG. They
 own no native scene freeze/capture/combat/animation or actual row leases and enable
-no new spell controls. Wire those real owners before Summon/Tetra availability.
+no new spell controls by themselves. Selected native owners now connect them;
+further controls still require actual ownership.
 Stage/game/Alucard/shared-contention and console parity remain incomplete.
 
 Selected [playable Dark Metamorphosis](docs/player-dark-metamorphosis.md) now owns
@@ -87,8 +102,7 @@ The [ordinary spell command component](docs/normal-spell-commands.md) now recons
 six original recognizers and copied MP requests. Preserve full-word/subset input
 tests, signed-word timers, facing captures, relative priority, expiration-frame
 casts, Soul Steal asymmetry and retained Sword Brothers notifications. Availability
-requires an actual native spell owner; default zero enables no controls. Spell
-owners remain unwired except selected playable Dark. Do not claim complete spells
+requires an actual native spell owner; default zero enables no controls. Selected Dark/Summon/Tetra now bind their actual owners; other spells remain unwired. Do not claim complete spells
 or Alucard from component instruction comparisons.
 
 Selected [Alucard status reconstruction](docs/player-status.md) now shares supported
