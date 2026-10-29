@@ -63,8 +63,8 @@ static bool BodySupported(Uint16 id)
     /* Additive records and selected implemented armor/head/cape services. */
     return id == 14 || id == 15 || id == 21 || id == 45 || id == 56 || id == 78 || id <= 9 ||
            (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 || id == 48 ||
-           id == 49 || id == 51 || id == 57 || (id >= 63 && id <= 73) || id == 76 || id == 77 ||
-           id == 79 || id == 82 || id == 85;
+           id == 49 || id == 51 || id == 57 || id == 60 || (id >= 63 && id <= 73) || id == 76 ||
+           id == 77 || id == 79 || id == 82 || id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {

@@ -567,7 +567,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     if (!rock && !(actors->stage_id == 1 && actor->state.id == 0x33) &&
         !(actors->stage_id == 2 && actor->state.id == 0x3d) &&
         !EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
-        actor->state.id != 0xa && actor->state.id != 0xb &&
+        actor->state.id != 0xa && actor->state.id != 0xb && actor->state.id != 0xd &&
         (actors->stage_id != 12 ||
          (actor->state.id != 0x34 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
           actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
@@ -838,6 +838,22 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                         (Sint16)SDL_min(32767, recipient->state.hit_points + (damage & 0x3fff));
                 else
                 {
+                    if ((damage & 0x3fffU) && (source.attack.element & 0x40U) &&
+                        (recipient->state.hitbox_state & 0x10U))
+                    {
+                        Actor *blood = NULL;
+                        const Uint16 facing = target.x > Pixel(actor->state.x) ? 1 : 0;
+                        if (!ActorSpawn(actors, actor, 0xd, facing, 96, 128, &blood))
+                            return false;
+                        if (blood)
+                        {
+                            blood->state.x = (Sint32)((Sint64)Wrap16(target.x) * 65536 +
+                                                      ((Uint32)actor->state.x & 65535U));
+                            blood->state.y = (Sint32)((Sint64)Wrap16(target.y) * 65536 +
+                                                      ((Uint32)actor->state.y & 65535U));
+                            blood->state.priority = 192;
+                        }
+                    }
                     recipient->state.hit_points =
                         (Sint16)SDL_max(-32768, recipient->state.hit_points - (damage & 0x3fff));
                     if (recipient->state.hit_points <= 0)
@@ -932,13 +948,15 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
         (actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb ||
-         !player.invulnerable) &&
+         actor->state.id == 0xd || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
     {
         if ((actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb) &&
             actor->state.step > (actor->state.id == 0xb ? 0U : 1U) && actor->state.step < 5 &&
             (actor->state.id == 0xb || actor->timer == 0))
             actor->state.step = 5;
+        else if (actor->state.id == 0xd)
+            actor->hit_flags |= 0x80;
         else if (EnemyHitbox(actors, actor->state.id) ||
                  (actors->stage_id == 12 && (actor->state.id == 0x1a || actor->state.id == 0x25)))
         {
@@ -1469,6 +1487,8 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor)
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
+    if (actor->state.id == 0xd)
+        return ActorEnemyBlood(actors, actor, player);
     if (actors->stage_id == 25 && actor->state.id > 0xc)
     {
         if (actor->state.id == 0x1f || actor->state.id == 0x20)
@@ -1912,6 +1932,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->combat.sound_count = 0;
     actors->combat.contact_damage = 0;
     actors->combat.contact_element = 0;
+    actors->combat.blood_heal = actors->combat.blood_contacts = 0;
     actors->combat.kick_generation = 0;
     actors->combat.kick_hit = 0;
     if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))

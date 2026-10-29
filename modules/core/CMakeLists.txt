@@ -1,4 +1,7 @@
 add_library(sotn-core STATIC
+  actor_enemy_blood.c
+  enemy_blood.c
+  include/sotn/enemy_blood.h
   player_outline.c
   include/sotn/player_outline.h
   spell_commands.c

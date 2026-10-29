@@ -230,6 +230,7 @@ typedef struct SotnActorCombat
     bool voice_change;
     bool voice_stop; /**< Stop XA speech independently of the sequence owner. */
     Uint16 contact_damage, contact_element;
+    Uint16 blood_heal, blood_contacts; /**< Deferred first-heal request and consumed contacts. */
     Sint32 contact_x, contact_velocity;
     Uint32 kick_generation; /**< Current owned dive-kick child receiving contact feedback. */
     Uint16 kick_hit;        /**< Original hit result, 1..3; zero means no hit this tick. */

@@ -853,6 +853,9 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     if (!SotnActors_GetCombat(session->actors, &combat) ||
         !SotnCharacter_Get(session->character, &profile, &attributes))
         return false;
+    if (combat.blood_contacts &&
+        !SotnPlayer_QueueBloodHealing(session->player, combat.blood_heal, combat.blood_contacts))
+        return false;
     if (combat.kick_hit &&
         !SotnPlayer_KickHit(session->player, combat.kick_generation, combat.kick_hit))
         return false;

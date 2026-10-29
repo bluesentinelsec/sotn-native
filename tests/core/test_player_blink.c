@@ -22,7 +22,7 @@ int main(void)
     CHECK(dra && exe);
     for (Uint16 i = 0; i < 1025; ++i)
         Put16(exe + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
-    const Uint16 ids[5] = {0x20, 0x21, 0x1b, 5, 0x1c};
+    const Uint16 ids[] = {0x20, 0x21, 0x1b, 5, 0x1c, 4, 8};
     for (Uint16 i = 0; i < SDL_arraysize(ids); ++i)
     {
         Uint8 *p = dra + 0xd670 + ids[i] * 20U;
@@ -164,6 +164,25 @@ int main(void)
     for (Uint16 i = 0; i < 100 && !effect.removed; ++i)
         CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !events.signal);
     CHECK(effect.removed);
+    shared = (SotnPlayerBlinkShared){0};
+    for (Uint16 kind = 0; kind < 2; ++kind)
+    {
+        effect = (SotnPlayerBlink){.parameter = kind ? 0x48 : 0x44};
+        input.allocation_failed = true;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !effect.phase &&
+              !effect.removed && !events.reset_afterimages);
+        input.allocation_failed = false;
+        Uint16 ticks = 0;
+        while (!effect.removed && ticks < 100)
+        {
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !events.signal &&
+                  !shared.bat_lock && !shared.wolf_lock);
+            if (!effect.removed)
+                CHECK(effect.quads[0].priority == 146 && effect.quads[0].palette == 0x123);
+            ++ticks;
+        }
+        CHECK(effect.removed && ticks > 50 && ticks < 64);
+    }
     SDL_free(dra);
     SDL_free(exe);
     return 0;

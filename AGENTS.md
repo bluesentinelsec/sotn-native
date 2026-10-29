@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+Selected [enemy blood/deferred healing](docs/enemy-blood.md) now connects cutting
+hits to actual common actors and twelve contiguous stage rows. Preserve distinct
+stage Random, descending particle order, packed fractions, permanent absorption
+cutoff, pending-heal precedence and Bloodstone8/16. The next successful player tick
+applies HP once and requests real sound/two shared flash owners; stone suppresses
+flashes and death is never revived. Dark casting/status production remains unwired;
+private queued-heal/contact fixtures are not playable-spell evidence. Keep ordinary
+starts/saves unchanged. Full effects/shared contention/Alucard parity remain incomplete.
+
 Selected [shared native outlines](docs/shared-player-outlines.md) now consume real
 factory children, full parameters, stage primitive leases, uploaded artwork and
 actual afterimage resets. Preserve all six blueprint40 lifetimes, retained original

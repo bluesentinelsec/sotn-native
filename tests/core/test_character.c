@@ -32,7 +32,7 @@ int main(void)
             Put32(p, 0x800a0100);
             Put32(p + 4, 0x800a0180);
             if (body)
-                p[28] = (Uint8)(id == 26 ? 0 : id == 48 ? 2 : id == 57 ? 3 : 1);
+                p[28] = (Uint8)(id == 26 ? 0 : id == 48 ? 2 : (id == 57 || id == 60) ? 3 : 1);
         }
     bytes[0x1000 + 86 * 52 + 8] = 4;
     bytes[0x1000 + 128 * 52 + 8] = 12;
@@ -83,6 +83,9 @@ int main(void)
     CHECK(SotnItem_Name(item, name, sizeof(name)) && SDL_strcmp(name, "Test") == 0);
     CHECK(!SotnItem_Name(item, name, 2));
     CHECK(!SotnItem_Read(dra, true, 90, &item));
+    CHECK(SotnCharacter_Collect(c, true, 60) && SotnCharacter_Equip(c, SOTN_EQUIP_RING1, 60) &&
+          SotnCharacter_Get(c, &s, NULL) && s.equipment[SOTN_EQUIP_RING1] == 60 &&
+          !s.body_count[60]);
     const Uint16 stolen_hand[] = {123, 16};
     const Uint16 stolen_body[] = {15, 45, 56, 78};
     for (Uint32 i = 0; i < 2; ++i)
