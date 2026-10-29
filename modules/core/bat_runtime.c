@@ -252,6 +252,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                              .bat_generation = generation,
                              .kind = child.entity_id,
                              .parameter = child.parameter};
+    // Zero the complete union storage before selecting a member larger than BlinkWhite.
+    SDL_zero(c.state);
     if (c.kind == 11)
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
     if (c.kind == 31)
