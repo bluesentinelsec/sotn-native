@@ -208,7 +208,7 @@ static bool TargetsAndCamera(Fixture *f)
     f->runtime.children[1] = (SotnBatRuntimeChild){.kind = 61,
                                                    .generation = 1,
                                                    .source = {.x = 100 * 65536, .y = -33 * 65536},
-                                                   .state.spirit = {0}};
+                                                   .state.spirit = {.motion = {.parameter = 0}}};
     f->runtime.serial = 1;
     CHECK(Tick(f) && Tick(f));
     SotnSpirit expected = f->runtime.children[1].state.spirit.motion;
@@ -267,8 +267,10 @@ static bool PoolAndFreeze(Fixture *f)
     CHECK(Create(f));
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
         f->input.primitive_slots.occupied[i] = SDL_MAX_UINT64;
-    f->runtime.children[1] = (SotnBatRuntimeChild){
-        .kind = 61, .generation = 1, .source = {.flags = 0x10000}, .state.spirit = {0}};
+    f->runtime.children[1] = (SotnBatRuntimeChild){.kind = 61,
+                                                   .generation = 1,
+                                                   .source = {.flags = 0x10000},
+                                                   .state.spirit = {.motion = {.parameter = 0}}};
     f->runtime.serial = 1;
     SotnCharacterState before = {0}, after = {0};
     CHECK(SotnCharacter_Get(f->character, &before, NULL) && Tick(f) &&
@@ -278,7 +280,7 @@ static bool PoolAndFreeze(Fixture *f)
     f->runtime.children[47] = (SotnBatRuntimeChild){.kind = 63,
                                                     .generation = 1,
                                                     .source = {.x = 100 * 65536, .y = 140 * 65536},
-                                                    .state.portal = {0}};
+                                                    .state.portal = {.phase = 0}};
     f->runtime.serial = 1;
     CHECK(Tick(f));
     for (Uint16 i = 0; i < 9; ++i)
