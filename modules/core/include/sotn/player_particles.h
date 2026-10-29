@@ -11,7 +11,7 @@ typedef struct SotnPlayerParticle
     Uint16 timer, draw_mode;
     Uint8 red, green, blue, width, height;
 } SotnPlayerParticle;
-/** @brief Selected entity-five profiles1/9/13, with no primitive pool or factory ownership. */
+/** @brief Selected entity-five profiles1/9/10/13, with no primitive pool or factory ownership. */
 typedef struct SotnPlayerParticles
 {
     SotnPlayerParticle tiles[SOTN_PLAYER_PARTICLE_LIMIT];
@@ -25,9 +25,9 @@ typedef struct SotnPlayerParticlesInput
 {
     SotnPlayerFactorySource
         source; /**< Owner projects the actual factory source into screen space. */
-    Sint16 player_y;
+    Sint16 player_x, player_y;
     Sint32 water_level;
-    Uint16 parameter, player_priority;
+    Uint16 parameter, player_priority, player_step;
     bool allocated;
 } SotnPlayerParticlesInput;
 /** @brief Read selected private profile capacity, including the original final sentinel row.

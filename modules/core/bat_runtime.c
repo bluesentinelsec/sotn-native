@@ -772,13 +772,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     (SotnPlayerParticlesInput){.source = source,
                                                .parameter = c->parameter,
                                                .player_priority = p.priority,
+                                               .player_x = Word(Pixel(p.x) - in.camera_x),
                                                .player_y = Word(Pixel(p.y) - in.camera_y),
+                                               .player_step = (Uint16)p.step,
                                                .water_level = p.wolf.controller.fall_water_level,
                                                .allocated = allocated},
                     &progress.random))
                 return false;
             const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
-            removed = c->state.particles.removed || (!(c->state.particles.flags & 0x20000U) &&
+            removed = c->state.particles.removed || (!(c->state.particles.flags & 0x04000000U) &&
                                                      (x < -32 || x > 288 || y < -16 || y > 256));
             c->initialized = !removed && allocated;
         }
