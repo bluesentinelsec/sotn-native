@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Selected dra/7879C.c factories/BlinkWhite/WingSmashTrail/func_8011B480/func_80118894,
-// 84B88.c:EntityBatFireball, 8BEF8.c:EntityBatEcho, alu_anim.c:UpdateAnim and
+// 84B88.c:EntityBatFireball/func_80129864/EntitySummonSpirit, 8BEF8.c:EntityBatEcho,
+// alu_anim.c:UpdateAnim, 7879C.c:UpdatePlayerEntities/func_80118970 and
 // 5D5BC.c:GetSpellDef and 692E8.c:AluInit common primitive lease, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Original blueprint/profile/spell/artwork data remains
 // private.
@@ -95,15 +96,20 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
     if (!r)
         return SDL_SetError("Wolf forced replacement requires the actual selected slot owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52) &&
+        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
+             r->children[i].kind == 61) &&
             r->children[i].group >= SDL_arraysize(r->groups))
             return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
     for (Uint16 i = 1; i <= 14; ++i)
+    {
         r->children[i] = (SotnBatRuntimeChild){0};
+        r->spirit_mask &= ~((Uint64)1 << i);
+    }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52) &&
+        if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
+             r->children[i].kind == 61) &&
             r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
             ++r->groups[r->children[i].group];
     return true;
@@ -155,8 +161,12 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
     if (power > 999)
         return SDL_SetError("Bat spell attack exceeds original native combat bounds");
     *attack = (SotnPlayerAttack){.offset_x = id == 6 ? 4 : 0,
-                                 .width = id == 6 ? 12 : 4,
-                                 .height = id == 6 ? 12 : 8,
+                                 .width = id == 6                ? 12
+                                          : (id == 1 || id == 3) ? 6
+                                                                 : 4,
+                                 .height = id == 6                ? 12
+                                           : (id == 1 || id == 3) ? 6
+                                                                  : 8,
                                  .power = (Uint16)power,
                                  .element = Read16(s + 22),
                                  .critical_rate = (Uint8)Read16(s + 20),
@@ -167,13 +177,75 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
                                  .active = true};
     return true;
 }
+static bool ChildKind(Uint16 kind)
+{
+    return kind == 2 || kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 36 ||
+           kind == 45 || kind == 52 || kind == 61 || kind == 63;
+}
+static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
+{
+    if (!c->initialized)
+        return c->source.flags;
+    switch (c->kind)
+    {
+    case 2:
+        return 0x08110000U;
+    case 5:
+        return c->state.particles.flags;
+    case 11:
+    case 31:
+        return 0x04870000U;
+    case 35:
+        return 0x08000000U;
+    case 36:
+        return 0x00060000U;
+    case 45:
+        return 0x08100000U;
+    case 52:
+        return 0x00840000U;
+    case 61:
+        return c->state.spirit.motion.flags;
+    case 63:
+        return c->state.portal.flags;
+    default:
+        return 0;
+    }
+}
+static bool Flash(SotnBatRuntime *r, SotnDataView dra, Uint16 profile)
+{
+    const size_t at = 0xcfb4U + profile * 4U;
+    if (!dra.bytes || at > dra.size || dra.size - at < 4)
+        return SDL_SetError("Player flash requires its original private profile%u", profile);
+    const Uint8 *data = dra.bytes + at;
+    r->screen_flash_ticks = data[0];
+    r->screen_red = data[1];
+    r->screen_green = data[2];
+    r->screen_blue = data[3];
+    return true;
+}
+static bool SpiritRows(const SotnBatRuntimeChild *c)
+{
+    if (c->kind == 61)
+        return c->parameter == c->state.spirit.motion.parameter &&
+               (c->initialized
+                    ? c->state.spirit.motion.phase && c->state.spirit.motion.phase <= 3 &&
+                          !c->state.spirit.motion.removed && c->primitive_count == 16 &&
+                          c->group >= 3 && c->group <= 10
+                    : !c->state.spirit.motion.phase && !c->primitive_count) &&
+               (!c->state.spirit.target_bound || c->state.spirit.target_slot < SOTN_SPELL_TARGETS);
+    if (c->kind == 63)
+        return c->parameter == c->state.portal.parameter && !c->state.portal.removed &&
+               (c->initialized ? c->state.portal.phase && c->state.portal.phase <= 3 &&
+                                     (c->state.portal.phase == 1 ? !c->primitive_count
+                                                                 : c->primitive_count == 9)
+                               : !c->state.portal.phase && !c->primitive_count);
+    return true;
+}
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
-        (child.entity_id != 2 && child.entity_id != 5 && child.entity_id != 11 &&
-         child.entity_id != 31 && child.entity_id != 35 && child.entity_id != 36 &&
-         child.entity_id != 45 && child.entity_id != 52) ||
-        r->children[child.slot - 16U].kind || r->serial == SDL_MAX_UINT32)
+        !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
+        r->serial == SDL_MAX_UINT32)
         return SDL_SetError("Bat factory produced an unsupported or occupied actual child slot");
     SotnBatRuntimeChild c = {.source = child.source,
                              .generation = ++r->serial,
@@ -188,6 +260,10 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.trail = (SotnBatTrail){.x = child.source.x, .y = child.source.y};
     if (c.kind == 45)
         c.state.fire.motion = (SotnBatFireball){.x = child.source.x, .y = child.source.y};
+    if (c.kind == 61)
+        c.state.spirit.motion.parameter = child.parameter;
+    if (c.kind == 63)
+        c.state.portal.parameter = child.parameter;
     if (c.kind == 52)
     {
         if (child.slot != 47 || r->echo_generation)
@@ -205,9 +281,9 @@ static bool Duplicate(const SotnBatRuntime *r, Uint16 index)
             return true;
     return false;
 }
-static bool FireAnimation(SotnDataView dra, SotnBatRuntimeChild *c)
+static bool LoopAnimation(SotnDataView dra, Uint16 *cursor, Uint16 *duration, Uint16 *frame)
 {
-    Uint16 pose = c->state.fire.pose, remaining = c->state.fire.remaining;
+    Uint16 pose = *cursor, remaining = *duration;
     if (pose >= 9 || remaining > 32767 || !dra.bytes || dra.size < 0x10798U + 9U * 4U)
         return SDL_SetError("Bat fireball requires its bounded private animation stream");
     if (remaining && --remaining == 0)
@@ -228,9 +304,9 @@ static bool FireAnimation(SotnDataView dra, SotnBatRuntimeChild *c)
     }
     if (!remaining || remaining > 32767 || (Read16(record + 2) & 0xfe00U))
         return SDL_SetError("Bat fireball animation has invalid duration/frame metadata");
-    c->state.fire.pose = pose;
-    c->state.fire.remaining = remaining;
-    c->state.fire.frame = Read16(record + 2);
+    *cursor = pose;
+    *duration = remaining;
+    *frame = Read16(record + 2);
     return true;
 }
 bool SotnBatRuntime_InitCommon(SotnBatRuntime *runtime, SotnPrimitiveSlots slots)
@@ -362,8 +438,9 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
 }
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
-    if (!runtime || !character || in.camera_x < 0 || in.camera_x > 16384 || in.camera_y < 0 ||
-        in.camera_y > 16384 || in.wolf_command_camera_x < 0 || in.wolf_command_camera_x > 16384 ||
+    if (!runtime || !character || (in.freeze != 0 && in.freeze != 3) || in.camera_x < 0 ||
+        in.camera_x > 16384 || in.camera_y < 0 || in.camera_y > 16384 ||
+        in.wolf_command_camera_x < 0 || in.wolf_command_camera_x > 16384 ||
         in.wolf_command_camera_y < 0 || in.wolf_command_camera_y > 16384)
         return SDL_SetError(
             "Bat runtime requires actual owned progress and bounded camera context");
@@ -393,15 +470,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         const SotnBatRuntimeChild *c = &r.children[i];
         if ((c->kind == 45 &&
              (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
-            (c->kind && (!c->generation ||
-                         (c->kind != 2 && c->kind != 5 && c->kind != 11 && c->kind != 31 &&
-                          c->kind != 35 && c->kind != 36 && c->kind != 45 && c->kind != 52))) ||
+            (c->kind && (!c->generation || !ChildKind(c->kind))) ||
             (c->kind == 52 &&
              (i != 31 || (c->initialized && (r.echo_generation != c->generation ||
                                              (c->group && (c->group < 7 || c->group > 10)))))) ||
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if (!SpiritRows(c) ||
+            (c->kind == 61 &&
+             (i < 1 || i > 31 || (c->initialized && (i < 16 ? c->group > 6 : c->group < 7)))))
+            return SDL_SetError("Spirit child lost its actual motion/row/target/group ownership");
         if (c->kind == 31 &&
             (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
              (c->initialized ? !c->state.outline.phase || c->state.outline.phase > 3
@@ -411,6 +490,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             (c->primitive_count &&
              (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
                                    ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
+                                   (c->kind == 61 && c->primitive_count == 16) ||
+                                   (c->kind == 63 && c->primitive_count == 9) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -461,6 +542,28 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 31 &&
             !SotnPlayerOutline_Translate(&c->state.outline, in.screen_shift_x, in.screen_shift_y))
             return false;
+        if (in.entering && c->kind == 61)
+        {
+            if (!SotnSpirit_Translate(&c->state.spirit.motion, in.screen_shift_x,
+                                      in.screen_shift_y))
+                return false;
+            for (Uint16 j = 0; j < 8; ++j)
+                c->state.spirit.quads[j] = c->state.spirit.motion.trails[j].quad;
+        }
+        if (in.entering && c->kind == 63 && c->state.portal.phase)
+        {
+            c->state.portal.x = FixedShift(c->state.portal.x, in.screen_shift_x);
+            c->state.portal.y = FixedShift(c->state.portal.y, in.screen_shift_y);
+            if (c->primitive_count)
+                for (Uint16 j = 0; j < 8; ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        c->state.portal.quads[j].x[v] =
+                            Word(c->state.portal.quads[j].x[v] + in.screen_shift_x);
+                        c->state.portal.quads[j].y[v] =
+                            Word(c->state.portal.quads[j].y[v] + in.screen_shift_y);
+                    }
+        }
         SotnPlayerEffectQuad *q = c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
         const Uint16 count = c->kind == 11 ? 8 : c->kind == 35 ? 1 : 0;
         for (Uint16 j = 0; j < count; ++j)
@@ -493,6 +596,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (in.entering)
     {
         r.wolf_events = (SotnWolfRuntimeEvents){0};
+        r.target_marks[0] = r.target_marks[1] = 0;
+        r.capture_count = 0;
+        r.freeze_changed = false;
         *runtime = r;
         return true;
     }
@@ -501,21 +607,20 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.use_ticks = 0;
     r.afterimage_reset = false;
     SotnPlayerState p = in.player;
-    if (p.dark.started)
-    {
-        if (!in.dra.bytes || in.dra.size < 0xcfb4 + 12U * 4U)
-            return SDL_SetError("Dark spell flash requires its original private profile");
-        const Uint8 *flash = in.dra.bytes + 0xcfb4 + 11U * 4U;
-        r.screen_flash_ticks = flash[0];
-        r.screen_red = flash[1];
-        r.screen_green = flash[2];
-        r.screen_blue = flash[3];
-        if (!RequestSource(&r, p.dark.source, 0x110028U, 0))
-            return false;
-    }
-    r.screen_flash = false;
-    if (r.screen_flash_ticks)
-        r.screen_flash = (--r.screen_flash_ticks & 1U) != 0;
+    r.target_marks[0] = r.target_marks[1] = 0;
+    r.capture_count = 0;
+    r.freeze_changed = false;
+    r.freeze = in.freeze;
+    if (r.target_cursor >= SOTN_SPELL_TARGETS)
+        return SDL_SetError("Spirit selector lost its original circular target cursor");
+    if (p.dark.started &&
+        (!Flash(&r, in.dra, 11) || !RequestSource(&r, p.dark.source, 0x110028U, 0)))
+        return false;
+    if (p.spirit.started && ((p.spirit.spell != 1 && p.spirit.spell != 3) ||
+                             p.spirit.blueprint != (p.spirit.spell == 1 ? 117U : 0x10075U)))
+        return SDL_SetError("Spirit cast lost its original spell/root factory parameter");
+    if (p.spirit.started && !RequestSource(&r, p.spirit.source, p.spirit.blueprint, 0))
+        return false;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
     if (p.healing.applied && !Sound(&r, 0x68e))
         return false;
@@ -585,7 +690,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     for (Uint16 i = 0; i < 8; ++i)
     {
-        if (!r.factories[i].cursor.entity_id)
+        if (!r.factories[i].cursor.entity_id ||
+            (in.freeze && !(r.factories[i].cursor.source.flags & 0x10000U)))
             continue;
         SotnPlayerFactoryEvents events = {0};
         if (!SotnPlayerFactory_Tick(&r.factories[i].cursor, in.dra,
@@ -610,15 +716,29 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
-    r.fire_mask = 0;
+    r.fire_mask = r.spirit_mask = 0;
+    const bool previous_echo_attack = r.echo_attack;
     r.echo_attack = false;
+    SotnSpiritTargetSnapshot targets = {0};
+    if (in.spirit_targets)
+        targets = *in.spirit_targets;
     for (Uint16 i = 0; i < 48; ++i)
     {
-        if (i == 1 && in.wolf_owned && !TickWolf(&r, &progress, stats, &p, &in))
+        if (i == 1 && in.wolf_owned && !in.freeze && !TickWolf(&r, &progress, stats, &p, &in))
             return false;
         SotnBatRuntimeChild *c = &r.children[i];
         if (!c->kind)
             continue;
+        if (in.freeze && !(ChildFlags(c) & 0x10000U))
+        {
+            if (c->initialized && c->kind == 36)
+                r.wing_mask |= (Uint16)(1U << (i - 1U));
+            if (c->initialized && c->kind == 45)
+                r.fire_mask |= (Uint64)1 << i;
+            if (c->initialized && c->kind == 52)
+                r.echo_attack = previous_echo_attack;
+            continue;
+        }
         bool removed = false;
         c->draw_count = 0;
         if (c->kind == 2)
@@ -834,9 +954,159 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             removed |= x > 288 || x < -32 || y > 256 || y < -16;
             if (!removed)
             {
-                if (!FireAnimation(in.dra, c))
+                if (!LoopAnimation(in.dra, &c->state.fire.pose, &c->state.fire.remaining,
+                                   &c->state.fire.frame))
                     return false;
                 r.fire_mask |= (Uint64)1 << i;
+            }
+        }
+        else if (c->kind == 61)
+        {
+            if (!in.spirit_targets)
+                return SDL_SetError("Live spirit requires its actual stage target snapshot");
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 16, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 16 : 0;
+            const Uint16 slot = c->state.spirit.target_slot;
+            const SotnSpellTarget target =
+                c->state.spirit.target_bound ? targets.slots[slot] : (SotnSpellTarget){0};
+            SotnSpiritEvents events = {0};
+            if (!SotnSpirit_Tick(
+                    &c->state.spirit.motion,
+                    (SotnSpiritInput){.dra = in.dra,
+                                      .executable = in.executable,
+                                      .x = FixedShift(FixedShift(c->source.x, (Sint16)-in.camera_x),
+                                                      Word(-(Sint32)in.screen_shift_x)),
+                                      .y = FixedShift(FixedShift(c->source.y, (Sint16)-in.camera_y),
+                                                      Word(-(Sint32)in.screen_shift_y)),
+                                      .frame = c->state.spirit.frame,
+                                      .target_x = target.x,
+                                      .target_y = target.y,
+                                      .target_bound = c->state.spirit.target_bound,
+                                      .target_alive = target.identity != 0,
+                                      .allocated = allocated,
+                                      .player_facing_left = p.facing_left},
+                    &events))
+                return false;
+            removed = c->state.spirit.motion.removed;
+            if (events.initialize_attack)
+            {
+                if (!Spell(in.dra, &progress, stats, events.spell, &c->state.spirit.attack))
+                    return false;
+                Uint8 group = i < 16 ? 3 : 7;
+                const Uint8 end = i < 16 ? 7 : 11;
+                for (Uint8 j = (Uint8)(group + 1U); j < end; ++j)
+                    if (r.groups[j] < r.groups[group])
+                        group = j;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Spirit attack group count overflow");
+                ++r.groups[group];
+                c->group = group;
+                c->initialized = true;
+            }
+            if (events.select_target)
+            {
+                Uint16 selected = SDL_MAX_UINT16;
+                if (!SotnSpellTarget_Select(targets.slots, &r.target_cursor, &selected))
+                    return false;
+                c->state.spirit.target_slot = selected;
+                c->state.spirit.target_bound = selected != SDL_MAX_UINT16;
+                if (selected != SDL_MAX_UINT16 &&
+                    !(in.spirit_targets->slots[selected].flags & 0x80000U))
+                {
+                    if (!targets.generations[selected])
+                        return SDL_SetError(
+                            "Spirit selected a target without an actual generation");
+                    r.target_marks[selected / 64U] |= (Uint64)1 << (selected % 64U);
+                    r.target_generations[selected] = targets.generations[selected];
+                    r.target_identities[selected] = targets.slots[selected].identity;
+                }
+            }
+            const Sint32 x = Pixel(c->state.spirit.motion.x), y = Pixel(c->state.spirit.motion.y);
+            removed |= !(c->state.spirit.motion.flags & 0x04000000U) &&
+                       (x > 288 || x < -32 || y > 256 || y < -16);
+            if (!removed)
+            {
+                if (!LoopAnimation(in.dra, &c->state.spirit.pose, &c->state.spirit.remaining,
+                                   &c->state.spirit.frame) ||
+                    !SotnSpirit_Translate(&c->state.spirit.motion, in.screen_shift_x,
+                                          in.screen_shift_y))
+                    return false;
+                for (Uint16 j = 0; j < 8; ++j)
+                    c->state.spirit.quads[j] = c->state.spirit.motion.trails[j].quad;
+                c->draw_count = 8;
+                c->source.x = FixedShift(c->state.spirit.motion.x, (Sint16)in.camera_x);
+                c->source.y = FixedShift(c->state.spirit.motion.y, (Sint16)in.camera_y);
+                c->source.facing_left = c->state.spirit.motion.facing_left;
+                r.spirit_mask |= (Uint64)1 << i;
+            }
+        }
+        else if (c->kind == 63)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated && c->state.portal.phase == 1 && c->state.portal.delay == 1 &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 9, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 9 : 0;
+            SotnSpiritPortalEvents events = {0};
+            if (!SotnSpiritPortal_Tick(
+                    &c->state.portal,
+                    (SotnSpiritPortalInput){
+                        .dra = in.dra,
+                        .executable = in.executable,
+                        .x = FixedShift(FixedShift(c->source.x, (Sint16)-in.camera_x),
+                                        Word(-(Sint32)in.screen_shift_x)),
+                        .y = FixedShift(FixedShift(c->source.y, (Sint16)-in.camera_y),
+                                        Word(-(Sint32)in.screen_shift_y)),
+                        .player_y = Word(Pixel(p.y) - in.camera_y - in.screen_shift_y),
+                        .allocated = allocated},
+                    &events))
+                return false;
+            if (c->state.portal.removed && !events.release_freeze)
+                return SDL_SetError("Spirit portal cannot reserve nine real rows; stopping before "
+                                    "the original unreleased scene freeze");
+            removed = c->state.portal.removed;
+            c->initialized = !removed;
+            c->source.x =
+                FixedShift(FixedShift(c->state.portal.x, (Sint16)in.camera_x), in.screen_shift_x);
+            c->source.y =
+                FixedShift(FixedShift(c->state.portal.y, (Sint16)in.camera_y), in.screen_shift_y);
+            c->source.flags = c->state.portal.flags;
+            if (events.freeze || events.release_freeze)
+            {
+                r.freeze_changed = true;
+                r.freeze = events.freeze;
+            }
+            if ((events.flash && !Flash(&r, in.dra, events.flash)) ||
+                (events.sound && !Sound(&r, events.sound)))
+                return false;
+            for (Uint16 j = 0; j < 2; ++j)
+                if (events.factories[j] && !RequestSource(&r, c->source, events.factories[j], 0))
+                    return false;
+            if (events.capture)
+            {
+                if (r.capture_count >= SDL_arraysize(r.captures))
+                    return SDL_SetError("Spirit capture exceeded its actual root slot count");
+                r.captures[r.capture_count++] = (SotnSpiritCapture){.generation = c->generation,
+                                                                    .slot = (Uint16)(i + 16U),
+                                                                    .x = events.capture_x,
+                                                                    .y = events.capture_y};
+            }
+            c->state.portal.x = FixedShift(c->state.portal.x, in.screen_shift_x);
+            c->state.portal.y = FixedShift(c->state.portal.y, in.screen_shift_y);
+            if (allocated && !removed)
+            {
+                c->draw_count = 8;
+                for (Uint16 j = 0; j < 8; ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        c->state.portal.quads[j].x[v] =
+                            Word(c->state.portal.quads[j].x[v] + in.screen_shift_x);
+                        c->state.portal.quads[j].y[v] =
+                            Word(c->state.portal.quads[j].y[v] + in.screen_shift_y);
+                    }
             }
         }
         else if (c->kind == 52)
@@ -910,14 +1180,18 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             *c = (SotnBatRuntimeChild){0};
         }
     }
+    r.screen_flash = false;
+    if (r.screen_flash_ticks)
+        r.screen_flash = (--r.screen_flash_ticks & 1U) != 0;
     SDL_memset(r.groups, 0, sizeof(r.groups));
     if (r.wolf.generation)
         for (Uint16 i = 0; i < 14; ++i)
             if (r.wolf.body.parts[i].enemy_id > 2 && r.wolf.body.parts[i].enemy_id < 11)
                 ++r.groups[r.wolf.body.parts[i].enemy_id];
     for (Uint16 i = 0; i < 48; ++i)
-        if (r.children[i].kind == 36 || r.children[i].kind == 45 ||
-            (r.children[i].kind == 52 && r.children[i].group))
+        if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 61 ||
+             r.children[i].kind == 52) &&
+            r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if ((progress.random != previous_random || progress.mp != previous_mp) &&
         !SotnCharacter_Restore(character, &progress))
@@ -934,12 +1208,16 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
     if (c->draw_count > 8 ||
         (c->draw_count &&
          (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1)))))
+                               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
+                               (c->kind == 61 && c->primitive_count == 16) ||
+                               (c->kind == 63 && c->primitive_count == 9)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
     *quads = !c->draw_count  ? NULL
              : c->kind == 11 ? c->state.blink.quads
              : c->kind == 31 ? &c->state.outline.quad
+             : c->kind == 61 ? c->state.spirit.quads
+             : c->kind == 63 ? c->state.portal.quads
                              : &c->trail_quad;
     return true;
 }

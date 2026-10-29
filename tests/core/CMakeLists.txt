@@ -889,3 +889,9 @@ target_include_directories(sotn-stage-freeze-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-stage-freeze-tests PRIVATE sotn-core)
 add_test(NAME stage-spell-freeze COMMAND sotn-stage-freeze-tests)
 set_tests_properties(stage-spell-freeze PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-spirit-runtime-tests test_spirit_runtime.c)
+sotn_configure_c_target(sotn-spirit-runtime-tests)
+target_link_libraries(sotn-spirit-runtime-tests PRIVATE sotn-core)
+add_test(NAME shared-spirit-runtime COMMAND sotn-spirit-runtime-tests)
+set_tests_properties(shared-spirit-runtime PROPERTIES TIMEOUT 20)

@@ -1,3 +1,15 @@
+The [shared spirit runtime](docs/shared-spirit-runtime.md) now owns selected real
+portal/spirit/Blink factories,9/16-row leases, animation, private spell attacks,
+actual target snapshots/atomic marks and native enemy damage/groups. Preserve the
+snapshotted frozen gate, next-frame descendants, pre-animation birth trails, raw
+retained target slots, camera-after-steering, global flash tail and Wolf slot31
+survival/group counts. New marks need acknowledgement after successful stage commit.
+Capture intents are not completed copies. Native capture/render/engine freeze/
+learning remain unwired; keep spirit controls disabled. Portal-row exhaustion fails
+explicitly before an indefinite original freeze; optional spirit exhaustion retires
+before RNG. Saves stayv9/default grants unchanged. Full sharing/Alucard/castle/
+console parity remain incomplete.
+
 The [spell sound-script service](docs/spell-sound-freeze.md) now accepts queued
 original pause/resume commands0xE/0xF, preserves mode5 and continuing voices/music,
 and retains four real script channels with separate cursor/allocation lifetimes.

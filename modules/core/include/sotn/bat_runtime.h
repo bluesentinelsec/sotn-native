@@ -9,12 +9,28 @@
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
 #include <sotn/primitive_slots.h>
+#include <sotn/spell_target.h>
+#include <sotn/spirit_spell.h>
 
 enum
 {
     SOTN_BAT_RUNTIME_SLOTS = 48,
     SOTN_BAT_RUNTIME_FACTORIES = 8
 };
+
+/** @brief Actual stage target view before this frame's stage update; no ownership transfers. */
+typedef struct SotnSpiritTargetSnapshot
+{
+    SotnSpellTarget slots[SOTN_SPELL_TARGETS];
+    Uint32 generations[SOTN_SPELL_TARGETS];
+} SotnSpiritTargetSnapshot;
+/** @brief One completed portal capture intent, fulfilled by the native ordered-frame owner. */
+typedef struct SotnSpiritCapture
+{
+    Uint32 generation;
+    Uint16 slot;
+    Sint16 x, y;
+} SotnSpiritCapture;
 
 /** @brief One actual selected DRA child, indexed by original slot minus sixteen. */
 typedef struct SotnBatRuntimeChild
@@ -31,6 +47,15 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerParticles particles;
         SotnPlayerSmoke smoke;
         SotnPlayerOutline outline;
+        SotnSpiritPortal portal;
+        struct
+        {
+            SotnSpirit motion;
+            SotnPlayerAttack attack;
+            SotnPlayerEffectQuad quads[8];
+            Uint16 pose, remaining, frame, target_slot;
+            bool target_bound;
+        } spirit;
         struct
         {
             SotnBatFireball motion;
@@ -73,7 +98,14 @@ typedef struct SotnBatRuntime
     Uint32 echo_generation;
     Uint32 serial;
     Uint16 wing_mask;
-    Uint64 fire_mask;
+    Uint64 fire_mask, spirit_mask;
+    Uint64
+        target_marks[2]; /**< New original flag80000 writes, committed with real row ownership. */
+    Uint32 target_generations[SOTN_SPELL_TARGETS];
+    Uint16 target_identities[SOTN_SPELL_TARGETS], target_cursor;
+    SotnSpiritCapture captures[SOTN_BAT_RUNTIME_SLOTS];
+    Uint16 capture_count, freeze;
+    bool freeze_changed; /**< Actual child request this tick, never capture/factory readiness. */
     Uint16 sounds[48], sound_count;
     Uint8 wolf_shakes[8], wolf_shake_count;
     Uint8 use_ticks;
@@ -99,6 +131,9 @@ typedef struct SotnBatRuntimeInput
                                                             zero for owned room-space exports. */
     Sint16 room_shift_x, room_shift_y, screen_shift_x, screen_shift_y;
     bool entering;
+    Uint16 freeze; /**< Original request snapshotted before ALL actual factory/child updates. */
+    const SotnSpiritTargetSnapshot
+        *spirit_targets;     /**< Actual preceding stage view; required by spirits. */
     bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
 } SotnBatRuntimeInput;
 
@@ -132,7 +167,7 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * @param runtime Owned stage lifetime. @param character Borrowed owner of spell stats/RNG.
  * @param input Actual player/artwork/context. Entering only rebases and never advances time.
  * @return Success or SDL error. Malformed inputs preserve runtime and character progress.
- * Supports selected Bat morphs, Wing/Fire children, Echo and an optional actual Wolf body.
+ * Supports selected Bat morphs, Wing/Fire children, Echo, spirit61/portal63 and optional Wolf.
  * Bound Wolf runs at slots17..30; later flashes read its current capture bounds. The owning
  * player must commit wolf_frame once after success. Body MP charges commit here, not again
  * through wolf_events. Selected Wolf spell requests initialize real wolf_attacks here;
@@ -141,7 +176,13 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * Actual entity31 outlines retain full parameters, share one row per child, and propagate
  * real afterimage resets. Normal spell/MP-refill/curse request producers remain separate.
  * The owner must commit the planned rows to the actual primitive pool before advancing
- * other owners; no pool storage is mutated by this transactional update. */
+ * other owners; no pool storage is mutated by this transactional update.
+ * Spirits require an actual pre-stage target snapshot. Commit target_marks atomically against
+ * its identity/generation, then acknowledge them before another non-Tick row commit. Retained
+ * targets follow original raw slots. Consume captures/freeze_changed once through real engine
+ * owners; an intent never establishes capture readiness. Input freeze is fixed for all slots.
+ * Portal row exhaustion fails transactionally rather than hanging in its original freeze. No
+ * native spell controls or scene freeze are enabled by this service alone. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
                          SotnBatRuntimeInput input);
 /** @brief Borrow one child's current draw packets, valid until the next runtime update.

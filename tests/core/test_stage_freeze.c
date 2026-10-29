@@ -201,12 +201,103 @@ static bool ActualStage(Fixture *f)
     SotnActors_Destroy(s);
     return true;
 }
+
+static bool SpiritOwnership(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnActors *s = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &s));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    SotnPlayerState p = {
+        .x = 10 * 65536, .y = 140 * 65536, .hp = 70, .hp_max = 70, .invulnerable = true};
+    CHECK(SotnActors_Enter(s, layout, map, 0, 0));
+    for (Uint16 i = 0; i < 3; ++i)
+        CHECK(SotnActors_Tick(s, p, 0, 0));
+    Actor *target = &s->slots[3];
+    target->state.hit_points = 50;
+    target->state.hitbox_state = 2;
+    target->state.hitbox_x = 7;
+    target->state.hitbox_width = 10;
+    target->state.hitbox_height = 12;
+    SotnSpiritTargetSnapshot snapshot = {0};
+    CHECK(SotnActors_SpiritTargets(s, &snapshot) && snapshot.slots[3].x == Pixel(target->state.x) &&
+          snapshot.slots[3].identity == target->state.id && snapshot.slots[3].hp == 50 &&
+          snapshot.generations[3] == target->state.generation);
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(r != NULL);
+    r->target_marks[0] = (Uint64)1 << 3;
+    r->target_generations[3] = snapshot.generations[3];
+    r->target_identities[3] = snapshot.slots[3].identity;
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && (target->state.flags & 0x80000U));
+    target->state.flags &= 0xfff7ffffU;
+    r->target_marks[0] |= (Uint64)1 << 4;
+    r->target_generations[4] = SDL_MAX_UINT32;
+    r->target_identities[4] = 99;
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) && !(target->state.flags & 0x80000U));
+    r->target_marks[0] = (Uint64)1 << 3;
+    CHECK(ActorPrimitives(s, target, 1));
+    const Uint16 occupied = target->primitive[0];
+    SotnBatRuntimeChild *spirit = &r->children[1];
+    *spirit = (SotnBatRuntimeChild){.kind = 61,
+                                    .generation = 1000,
+                                    .initialized = true,
+                                    .group = 3,
+                                    .primitive_count = 16,
+                                    .state.spirit.motion = {.phase = 1}};
+    for (Uint16 i = 0; i < 16; ++i)
+        spirit->primitives[i] = (Uint16)(occupied + i);
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) && !(target->state.flags & 0x80000U) &&
+          s->primitives[occupied].owner == target->state.generation);
+    ActorPrimitivesClear(s, target);
+    target->state.primitive_count = 0;
+    SotnPrimitiveSlots slots = {0};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(s, &slots) &&
+          SotnPrimitiveSlots_Reserve(&slots, 16, spirit->primitives, &allocated) && allocated);
+    r->target_marks[0] = 0;
+    spirit->source = (SotnPlayerFactorySource){
+        .x = target->state.x + (target->state.facing_left ? -7 : 7) * 65536, .y = target->state.y};
+    spirit->state.spirit.motion.x = spirit->source.x;
+    spirit->state.spirit.motion.y = spirit->source.y;
+    spirit->state.spirit.attack = (SotnPlayerAttack){.active = true,
+                                                     .hit_type = 2,
+                                                     .width = 6,
+                                                     .height = 6,
+                                                     .power = 10,
+                                                     .element = 8,
+                                                     .invincibility_frames = 4};
+    r->spirit_mask = (Uint64)1 << 1;
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && SotnActors_SetBatRuntime(s, r));
+    CHECK(SotnActors_Tick(s, p, 0, 0));
+    const Sint16 first_hp = target->state.hit_points;
+    CHECK(first_hp < 50 && first_hp > 0 && target->cooldown[ACTOR_WING_CHANNEL] == 4);
+    spirit->generation = 1001;
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && SotnActors_Tick(s, p, 0, 0) &&
+          target->state.hit_points == first_hp && target->cooldown[ACTOR_WING_CHANNEL] == 3);
+    for (Uint16 i = 0; i < 3; ++i)
+        CHECK(SotnActors_Tick(s, p, 0, 0));
+    CHECK(target->state.hit_points < first_hp);
+    const Uint8 death[] = {2, 1, 255, 0};
+    SDL_memcpy(f->nz0 + 0x2334, death, sizeof(death));
+    target->state.hit_points = 1;
+    target->cooldown[ACTOR_WING_CHANNEL] = 0;
+    spirit->state.spirit.attack.power = 100;
+    CHECK(SotnActors_Tick(s, p, 0, 0) && target->state.hit_points <= 0 &&
+          (target->state.flags & 0x100U) && s->combat.kills == 1 && spirit->kind == 61);
+    CHECK(!SotnActors_SpiritTargets(NULL, &snapshot));
+    SotnActorLayout_Close(layout);
+    SotnActors_Destroy(s);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = FieldsAndReferences(f) && ActualStage(f);
+    const bool ok = FieldsAndReferences(f) && ActualStage(f) && SpiritOwnership(f);
     SDL_free(f);
     if (ok)
         SDL_Log("SOTN_STAGE_FREEZE_TEST: PASS");
