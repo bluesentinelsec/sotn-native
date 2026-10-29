@@ -1,3 +1,12 @@
+The [Hellfire casting controller](docs/hellfire-casting.md) now reconstructs the
+original phase0..4 player actions with real factory-result/helper boundaries.
+Preserve failure-normal then animation1/substate increment, hidden steering floor/
+edge tests, signal2 stop, signal3-only Down cancel, timer12 before circle37 and
+ordered finishing/status-flash calls, including double normal on failure+FFFF.
+It enables no native spell controls; connect actual MP/learning/player/factory/
+child/gradient/palette/animation/combat/render owners first. Saves/default grants
+stay unchanged. Playable Hellfire/Alucard/castle/console parity remain incomplete.
+
 The [Hellfire supporting effects](docs/hellfire-effects.md) now reconstruct circle28,
 flash29, selected trail24 and rising particle profile10. Preserve real one-row leases,
 post-increment flash retirement, allocation-failure FFFF without successful signal reset,

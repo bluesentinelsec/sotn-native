@@ -5,6 +5,8 @@ add_library(sotn-core STATIC
   include/sotn/spell_target.h
   scene_freeze.c
   include/sotn/scene_freeze.h
+  hellfire_cast.c
+  include/sotn/hellfire_cast.h
   hellfire_effects.c
   include/sotn/hellfire_effects.h
   hellfire_fireball.c
