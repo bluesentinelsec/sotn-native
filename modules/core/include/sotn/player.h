@@ -52,6 +52,8 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_WOLF = 24,
     SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_DARK = 32,
+    SOTN_PLAYER_SUMMON = 33,
+    SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
 
@@ -195,6 +197,15 @@ typedef struct SotnPlayerDark
     bool started;
 } SotnPlayerDark;
 
+/** @brief One-update original spirit cast, fulfilled only by its actual native owner. */
+typedef struct SotnPlayerSpirit
+{
+    SotnPlayerFactorySource source;
+    Uint32 blueprint;
+    Uint16 spell;
+    bool started;
+} SotnPlayerSpirit;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -239,6 +250,8 @@ typedef struct SotnPlayerState
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
+    SotnPlayerSpirit spirit;
+    Uint8 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -539,4 +552,19 @@ bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 cont
  * @param player Borrowed owner. @param enabled Actual complete selected owner availability.
  * @return Success or SDL error without mutation. Default false; no relic or MP is granted. */
 bool SotnPlayer_SetDarkContext(SotnPlayer *player, bool enabled);
+/** @brief Bind actual shared portal/capture/freeze/target/combat owners for both spirit commands.
+ * @param player Borrowed simulation. @param enabled Complete selected native availability.
+ * @return Success or SDL error without mutation. Defaults false; no ownership/resources granted.
+ * Component tests may bind a fixture. Gameplay must leave this false until every owner is wired. */
+bool SotnPlayer_SetSpiritContext(SotnPlayer *player, bool enabled);
+/** @brief Run original engine-five animation selection without a normal player update.
+ * @param player Borrowed owner. @param buttons Current physical US buttons for next-frame edges.
+ * @param animate False on the original release-only frame; true runs only BA/BB/BE/F0/F1.
+ * @return Success or SDL error without mutation. Clears consumed one-frame requests; retains
+ * motion, collision, timers, resources, pending healing, commands and simulation frame number.
+ * Updating the native previous-buttons adapter prevents replaying a tap held during freeze. */
+bool SotnPlayer_TickSpellFreeze(SotnPlayer *player, Uint16 buttons, bool animate);
+/** @brief Apply original engine-five release protection (timer14=max(timer14,48)).
+ * @param player Borrowed owner. @return Success or SDL error. No simulation or animation tick. */
+bool SotnPlayer_EndSpellFreeze(SotnPlayer *player);
 #endif

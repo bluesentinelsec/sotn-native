@@ -40,7 +40,9 @@ struct SotnPlayer
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
     SotnSpellCommands spell_commands;
-    bool dark_context;
+    bool dark_context, spirit_context;
+    SotnPlayerSpirit spirit;
+    Uint8 spell_use_ticks;
     Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
     Uint16 afterimage_timer15;
     bool afterimage_pending, afterimage_ticked;

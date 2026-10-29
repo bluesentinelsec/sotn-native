@@ -1,6 +1,8 @@
 add_library(sotn-core STATIC
   spell_target.c
   include/sotn/spell_target.h
+  scene_freeze.c
+  include/sotn/scene_freeze.h
   spirit_spell.c
   include/sotn/spirit_spell.h
   player_glow.c

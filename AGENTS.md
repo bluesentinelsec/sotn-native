@@ -1,3 +1,12 @@
+The [spirit casting/freeze foundation](docs/spirit-casting.md) now supplies original
+Summon/Tetra cast states, timer12, crouch recovery and selected animation-only
+freeze/release boundaries. The native context remains disabled until actual stage
+freeze/capture/children/combat owners connect. Preserve the ordinary birth frame,
+frozen retirement frame and following release-only frame; never tick player timers
+or replay one-shot events during freeze. Only actual attack substates run crouched
+weapon recovery. Ordinary starts and v9 saves remain unchanged; do not claim live
+spirit spells, Alucard, castle or console parity complete.
+
 # Working in sotn-native
 
 The [spirit spell components](docs/spirit-spells.md) reconstruct the original
