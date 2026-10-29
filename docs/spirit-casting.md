@@ -36,7 +36,8 @@ input adapter observes physical buttons on frozen and release frames, preventing
 a held button from becoming a new tap after thaw. The release frame advances no
 animation and applies original protection max(timer14,48).
 
-Further integration must call the actual stage freeze dispatcher: new step-zero
+The [selected stage-freeze interface](stage-spell-freeze.md) now supplies the
+dispatcher that native integration must call: new step-zero
 actors initialize; initialized actors advance only with flag0x10000, including the
 original hit-palette countdown. It must not perform layout scrolling, hit detection
 or ordinary stun/cooldown updates. Actual effects continue in original slot order.

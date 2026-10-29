@@ -8,6 +8,7 @@
 #include <SDL3/SDL_error.h>
 #include <sotn/actors.h>
 #include <sotn/combat.h>
+#include <sotn/stage_freeze.h>
 #include <sotn/subweapon.h>
 
 bool ActorReplaceExplosion(SotnActors *s, Actor *a, Uint16 kind)
@@ -1889,16 +1890,34 @@ void ActorRepeatButtons(SotnActors *actors)
     }
 }
 
-bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x, Sint32 camera_y)
+static bool CommitActor(SotnActors *actors, Uint32 i, Actor next)
 {
-    if (actors == NULL || !actors->entered || camera_x < 0 || camera_x > 16384 || camera_y < 0 ||
-        camera_y > 16384)
-        return SDL_SetError("Laboratory actor tick requires an entered room and bounded camera");
-    const Sint64 min_position = -256LL * 65536;
-    const Sint64 max_x = ((Sint64)actors->map.width * 16 + 256) * 65536;
-    const Sint64 max_y = ((Sint64)actors->map.height * 16 + 256) * 65536;
-    if (player.x < min_position || player.x > max_x || player.y < min_position || player.y > max_y)
-        return SDL_SetError("Laboratory actors require a player within the bounded current room");
+    if (next.permanent)
+    {
+        if (!SotnRoomActors_Release(actors->spawns, i, true))
+            return false;
+        next.permanent = false;
+    }
+    if (next.remove)
+    {
+        ActorPrimitivesClear(actors, &next);
+        if (!SotnRoomActors_Release(actors->spawns, i, false))
+            return false;
+        next = (Actor){0};
+    }
+    if (!(actors->stage_id == 26 && next.state.id == 0x17) &&
+        ((Sint64)next.state.x < -1024LL * 65536 || (Sint64)next.state.x > 17408LL * 65536 ||
+         (Sint64)next.state.y < -1024LL * 65536 || (Sint64)next.state.y > 17408LL * 65536))
+        return SDL_SetError("Stage %u actor 0x%x slot %u step %u moved outside the bounded "
+                            "room region (%d,%d)",
+                            actors->stage_id, next.state.id, i, next.state.step,
+                            Pixel(next.state.x), Pixel(next.state.y));
+    actors->slots[i] = next;
+    return true;
+}
+
+static bool BeginActorFrame(SotnActors *actors, SotnPlayerState player, bool frozen)
+{
     if (actors->character != NULL)
     {
         SotnCharacterState state = {0};
@@ -1910,7 +1929,7 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
         actors->combat.gold = state.gold;
         actors->combat.kills = state.kills;
     }
-    if (actors->control.timer)
+    if (!frozen && actors->control.timer)
         --actors->control.timer;
     actors->tapped_buttons = (Uint16)(actors->buttons & ~actors->previous_buttons);
     actors->previous_buttons = actors->buttons;
@@ -1921,7 +1940,8 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->motion = (SotnActorMotion){0};
     actors->palette_blend = (SotnPaletteBlend){0};
     actors->palette_red_shift = (SotnPaletteRedShift){0};
-    ++actors->ticks;
+    if (!frozen)
+        ++actors->ticks;
     actors->combat.music_change = false;
     actors->combat.restart_stage_music = false;
     actors->combat.sequence_change = false;
@@ -1935,7 +1955,22 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
     actors->combat.blood_heal = actors->combat.blood_contacts = 0;
     actors->combat.kick_generation = 0;
     actors->combat.kick_hit = 0;
-    if (player.attack.sound && !ActorSound(actors, player.attack.sound_id))
+    if (!frozen && player.attack.sound && !ActorSound(actors, player.attack.sound_id))
+        return false;
+    return true;
+}
+
+bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x, Sint32 camera_y)
+{
+    if (actors == NULL || !actors->entered || camera_x < 0 || camera_x > 16384 || camera_y < 0 ||
+        camera_y > 16384)
+        return SDL_SetError("Laboratory actor tick requires an entered room and bounded camera");
+    const Sint64 min_position = -256LL * 65536;
+    const Sint64 max_x = ((Sint64)actors->map.width * 16 + 256) * 65536;
+    const Sint64 max_y = ((Sint64)actors->map.height * 16 + 256) * 65536;
+    if (player.x < min_position || player.x > max_x || player.y < min_position || player.y > max_y)
+        return SDL_SetError("Laboratory actors require a player within the bounded current room");
+    if (!BeginActorFrame(actors, player, false))
         return false;
     const Sint32 dx = camera_x - actors->camera_x, dy = camera_y - actors->camera_y;
     for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
@@ -2053,32 +2088,71 @@ bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x
             next.hit_params = 0;
             next.hit_flags = 0;
         }
-        if (next.permanent)
-        {
-            if (!SotnRoomActors_Release(actors->spawns, i, true))
-                return false;
-            next.permanent = false;
-        }
-        if (next.remove)
-        {
-            ActorPrimitivesClear(actors, &next);
-            if (!SotnRoomActors_Release(actors->spawns, i, false))
-                return false;
-            next = (Actor){0};
-        }
-        if (!(actors->stage_id == 26 && next.state.id == 0x17) &&
-            ((Sint64)next.state.x < -1024LL * 65536 || (Sint64)next.state.x > 17408LL * 65536 ||
-             (Sint64)next.state.y < -1024LL * 65536 || (Sint64)next.state.y > 17408LL * 65536))
-            return SDL_SetError("Stage %u actor 0x%x slot %u step %u moved outside the bounded "
-                                "room region (%d,%d)",
-                                actors->stage_id, next.state.id, i, next.state.step,
-                                Pixel(next.state.x), Pixel(next.state.y));
-        *actor = next;
+        if (!CommitActor(actors, i, next))
+            return false;
     }
     if (actors->stage_id == 26 && (actors->dopple.body.motion.status & 0xc0000U))
         for (Uint16 i = 4; i < 80; ++i)
             actors->slots[i].state.hitbox_state = 0;
     if (actors->character != NULL)
+    {
+        SotnCharacterState state = {0};
+        if (!SotnCharacter_Get(actors->character, &state, NULL))
+            return false;
+        state.hearts = actors->combat.hearts;
+        state.subweapon = actors->combat.subweapon;
+        state.gold = actors->combat.gold;
+        state.kills = actors->combat.kills;
+        if (!SotnCharacter_Restore(actors->character, &state))
+            return false;
+    }
+    return true;
+}
+
+bool SotnActors_TickFrozen(SotnActors *actors, SotnPlayerState player, Sint32 camera_x,
+                           Sint32 camera_y)
+{
+    if (!actors || !actors->entered || camera_x != actors->camera_x || camera_y != actors->camera_y)
+        return SDL_SetError("Frozen stage requires its entered room and retained camera");
+    const Sint64 minimum = -256LL * 65536,
+                 maximum_x = ((Sint64)actors->map.width * 16 + 256) * 65536,
+                 maximum_y = ((Sint64)actors->map.height * 16 + 256) * 65536;
+    if (player.x < minimum || player.x > maximum_x || player.y < minimum || player.y > maximum_y)
+        return SDL_SetError("Frozen stage requires its player within the bounded current room");
+    SotnDataView palettes = {0};
+    if (!SotnStageFreeze_Palettes(actors->nz0, &palettes) || !BeginActorFrame(actors, player, true))
+        return false;
+    for (Uint32 i = 0; i < SOTN_STAGE_ACTOR_SLOTS; ++i)
+    {
+        const Actor *actual = &actors->slots[i];
+        if (!actual->state.generation || actual->state.unsupported)
+            continue;
+        Actor next = *actual;
+        SotnStageFreezeActor fields = {.flags = next.state.flags,
+                                       .step = next.state.step,
+                                       .palette = next.state.palette,
+                                       .hit_palette = next.hit_palette,
+                                       .palette_effect = next.palette_effect};
+        bool advance = false;
+        if (!SotnStageFreeze_Begin(&fields, palettes, &advance))
+            return false;
+        if (!advance)
+            continue;
+        next.state.flags = fields.flags;
+        next.state.palette = fields.palette;
+        next.hit_palette = fields.hit_palette;
+        if (!Behavior(actors, &next, player))
+        {
+            char detail[256] = {0};
+            SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+            return SDL_SetError("Frozen stage actor0x%02x slot%u step%u: %s", next.state.id, i,
+                                next.state.step, detail);
+        }
+        next.hit_params = next.hit_flags = 0;
+        if (!CommitActor(actors, i, next))
+            return false;
+    }
+    if (actors->character)
     {
         SotnCharacterState state = {0};
         if (!SotnCharacter_Get(actors->character, &state, NULL))

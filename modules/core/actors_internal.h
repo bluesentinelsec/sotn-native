@@ -98,7 +98,8 @@ typedef struct Actor
     } clouds;
     Uint16 pose, remaining, timer, substep;
     size_t animation_stream;
-    Uint8 parallax, cooldown[ACTOR_ATTACK_CHANNELS], damage_effect;
+    Uint8 parallax, cooldown[ACTOR_ATTACK_CHANNELS], damage_effect, palette_effect;
+    Uint16 hit_palette;
     Uint16 attack, attack_element, stun, hit_params, hit_flags, life_timer, level, experience;
     Uint32 projectile_generation[SOTN_SUBWEAPON_SLOTS];
     SotnCombatEnemy enemy;

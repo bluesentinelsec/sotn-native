@@ -882,3 +882,10 @@ target_include_directories(sotn-player-spirit-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-player-spirit-tests PRIVATE sotn-core)
 add_test(NAME player-spirit-casting-freeze COMMAND sotn-player-spirit-tests)
 set_tests_properties(player-spirit-casting-freeze PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stage-freeze-tests test_stage_freeze.c)
+sotn_configure_c_target(sotn-stage-freeze-tests)
+target_include_directories(sotn-stage-freeze-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-stage-freeze-tests PRIVATE sotn-core)
+add_test(NAME stage-spell-freeze COMMAND sotn-stage-freeze-tests)
+set_tests_properties(stage-spell-freeze PROPERTIES TIMEOUT 20)
