@@ -1,3 +1,13 @@
+The [shared Hellfire runtime](docs/shared-hellfire-runtime.md) now owns actual
+factories/children24..29, one-row leases, private animation, spell-two attacks/groups
+and selected native enemy damage. Preserve next-pass descendants, real reservation
+outcomes, root/flash priority448, pre-movement trail origins, separate big-trigger/
+trail-birth RNG, raw group counts/slot31 survival and no-tick rebases. New upload
+requests are intents, not completed pixels. Actual player/MP/learning/gradient/
+palette/render owners remain unwired; keep Hellfire controls disabled. Ordinary
+starts/savesv9 remain unchanged. Full sharing/Alucard/castle/console parity remain
+incomplete; protected supplied-cast stage checks are not ordinary spell replay.
+
 The [Hellfire casting controller](docs/hellfire-casting.md) now reconstructs the
 original phase0..4 player actions with real factory-result/helper boundaries.
 Preserve failure-normal then animation1/substate increment, hidden steering floor/

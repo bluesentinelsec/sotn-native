@@ -5,7 +5,7 @@
 // 5D5BC.c:GetSpellDef and 692E8.c:AluInit common primitive lease, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Original blueprint/profile/spell/artwork data remains
 // private.
-#include <sotn/bat_runtime.h>
+#include "bat_runtime_internal.h"
 #include <sotn/combat.h>
 
 static Sint16 Word(Sint32 value)
@@ -97,19 +97,20 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         return SDL_SetError("Wolf forced replacement requires the actual selected slot owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
-             r->children[i].kind == 61) &&
+             r->children[i].kind == 26 || r->children[i].kind == 27 || r->children[i].kind == 61) &&
             r->children[i].group >= SDL_arraysize(r->groups))
             return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
     for (Uint16 i = 1; i <= 14; ++i)
     {
         r->children[i] = (SotnBatRuntimeChild){0};
         r->spirit_mask &= ~((Uint64)1 << i);
+        r->hellfire_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
-             r->children[i].kind == 61) &&
+             r->children[i].kind == 26 || r->children[i].kind == 27 || r->children[i].kind == 61) &&
             r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
             ++r->groups[r->children[i].group];
     return true;
@@ -128,6 +129,26 @@ static bool RequestSource(SotnBatRuntime *r, SotnPlayerFactorySource source, Uin
     // Original CreateEntFactoryFromEntity returns NULL; optional commands never invent a child.
     if (generation)
         return SDL_SetError("Bat transformation lost its reserved actual factory slot");
+    return true;
+}
+bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *r, SotnPlayerFactorySource source,
+                                    Uint32 packed, bool *allocated)
+{
+    if (!r || !allocated ||
+        (packed != 33 && packed != 37 && packed != 0x17002c && packed != 0x16002c))
+        return SDL_SetError("Hellfire requires its actual original player factory boundary");
+    for (Uint16 i = 0; i < 8; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 0))
+                return false;
+            r->factories[i].cursor = f;
+            r->factories[i].bat_generation = 0;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
     return true;
 }
 static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
@@ -180,7 +201,7 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 36 ||
-           kind == 45 || kind == 52 || kind == 61 || kind == 63;
+           kind == 45 || kind == 52 || kind == 61 || kind == 63 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -199,6 +220,16 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x08000000U;
     case 36:
         return 0x00060000U;
+    case 24:
+        return c->state.hellfire_trail.motion.flags;
+    case 25:
+        return c->state.hellfire_beam.flags;
+    case 26:
+    case 27:
+        return c->state.hellfire_fire.motion.flags;
+    case 28:
+    case 29:
+        return c->state.hellfire_effect.flags;
     case 45:
         return 0x08100000U;
     case 52:
@@ -241,6 +272,35 @@ static bool SpiritRows(const SotnBatRuntimeChild *c)
                                : !c->state.portal.phase && !c->primitive_count);
     return true;
 }
+bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (c->kind == 24)
+        return c->parameter == c->state.hellfire_trail.motion.parameter &&
+               (c->parameter >> 8) == 1 && !c->state.hellfire_trail.motion.removed &&
+               !c->primitive_count &&
+               (c->initialized ? c->state.hellfire_trail.motion.phase == 1
+                               : !c->state.hellfire_trail.motion.phase);
+    if (c->kind == 25)
+        return !c->state.hellfire_beam.removed &&
+               (c->initialized ? c->state.hellfire_beam.phase >= 1 &&
+                                     c->state.hellfire_beam.phase <= 7 && c->primitive_count == 1
+                               : !c->state.hellfire_beam.phase && !c->primitive_count);
+    if (c->kind == 26 || c->kind == 27)
+        return index >= 1 && index <= 31 &&
+               c->parameter == c->state.hellfire_fire.motion.parameter &&
+               c->state.hellfire_fire.motion.big == (c->kind == 27) &&
+               !c->state.hellfire_fire.motion.removed && !c->primitive_count &&
+               (c->initialized
+                    ? c->state.hellfire_fire.motion.phase >= 1 &&
+                          c->state.hellfire_fire.motion.phase <= (c->kind == 26 ? 2 : 1) &&
+                          c->group >= (index < 16 ? 3 : 7) && c->group <= (index < 16 ? 6 : 10)
+                    : !c->state.hellfire_fire.motion.phase && !c->group);
+    if (c->kind == 28 || c->kind == 29)
+        return c->state.hellfire_effect.kind == c->kind && !c->state.hellfire_effect.removed &&
+               (c->initialized ? c->state.hellfire_effect.phase == 1 && c->primitive_count == 1
+                               : !c->state.hellfire_effect.phase && !c->primitive_count);
+    return true;
+}
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
@@ -254,6 +314,22 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                              .parameter = child.parameter};
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
+    if (c.kind == 24)
+        c.state.hellfire_trail.motion =
+            (SotnHellfireTrail){.x = child.source.x,
+                                .y = child.source.y,
+                                .parameter = child.parameter,
+                                .facing_left = child.source.facing_left};
+    if (c.kind == 25)
+        c.state.hellfire_beam = (SotnHellfireBeam){.x = child.source.x, .y = child.source.y};
+    if (c.kind == 26 || c.kind == 27)
+        c.state.hellfire_fire.motion = (SotnHellfireFireball){.x = child.source.x,
+                                                              .y = child.source.y,
+                                                              .parameter = child.parameter,
+                                                              .big = c.kind == 27};
+    if (c.kind == 28 || c.kind == 29)
+        c.state.hellfire_effect =
+            (SotnHellfireEffect){.x = child.source.x, .y = child.source.y, .kind = c.kind};
     if (c.kind == 11)
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
     if (c.kind == 31)
@@ -309,6 +385,52 @@ static bool LoopAnimation(SotnDataView dra, Uint16 *cursor, Uint16 *duration, Ui
     *cursor = pose;
     *duration = remaining;
     *frame = Read16(record + 2);
+    return true;
+}
+static bool HellfireAnimation(SotnDataView dra, Uint32 offset, Uint16 limit, Uint16 *pose,
+                              Sint16 *remaining, Uint16 *frame)
+{
+    if (!dra.bytes || offset > dra.size || (size_t)limit * 4U > dra.size - offset ||
+        *pose >= limit || *remaining < -1)
+        return SDL_SetError("Hellfire child lost its bounded private animation cursor");
+    Uint16 p = *pose;
+    Sint16 t = *remaining;
+    if (t == 0)
+    {
+        const Uint16 duration = Read16(dra.bytes + offset + p * 4U);
+        if (!duration || duration > 32767)
+            return SDL_SetError("Hellfire child animation has an invalid birth duration");
+        t = (Sint16)duration;
+    }
+    else if (t > 0 && --t == 0)
+    {
+        if (++p >= limit)
+            return SDL_SetError("Hellfire child animation escapes its actual timeline");
+        Uint16 duration = Read16(dra.bytes + offset + p * 4U);
+        if (duration == 0)
+        {
+            p = Read16(dra.bytes + offset + p * 4U + 2U);
+            if (p >= limit)
+                return SDL_SetError("Hellfire child animation has an invalid loop target");
+            duration = Read16(dra.bytes + offset + p * 4U);
+        }
+        else if (duration == 0xffffU)
+        {
+            --p;
+            t = -1;
+        }
+        if (t != -1)
+        {
+            if (!duration || duration > 32767)
+                return SDL_SetError("Hellfire child animation has an unsupported duration/control");
+            t = (Sint16)duration;
+        }
+    }
+    if (!t || t < -1)
+        return SDL_SetError("Hellfire child animation resolved an invalid birth duration");
+    *pose = p;
+    *remaining = t;
+    *frame = Read16(dra.bytes + offset + p * 4U + 2U) & 511U;
     return true;
 }
 bool SotnBatRuntime_InitCommon(SotnBatRuntime *runtime, SotnPrimitiveSlots slots)
@@ -479,6 +601,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if (!SotnBatRuntime_HellfireChildValid(c, i))
+            return SDL_SetError(
+                "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SpiritRows(c) ||
             (c->kind == 61 &&
              (i < 1 || i > 31 || (c->initialized && (i < 16 ? c->group > 6 : c->group < 7)))))
@@ -491,15 +616,18 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->primitive_count > SOTN_PLAYER_PARTICLE_LIMIT + 1 ||
             (c->primitive_count &&
              (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                                   ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
+                                   ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
+                                     c->kind == 31 || c->kind == 35) &&
+                                    c->primitive_count == 1) ||
                                    (c->kind == 61 && c->primitive_count == 16) ||
                                    (c->kind == 63 && c->primitive_count == 9) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
                                     c->primitive_count == c->state.particles.count + 1U)))) ||
-            ((c->kind == 5 || c->kind == 11 || c->kind == 31 || c->kind == 35) && c->initialized &&
-             !c->primitive_count) ||
+            ((c->kind == 5 || c->kind == 11 || c->kind == 25 || c->kind == 28 || c->kind == 29 ||
+              c->kind == 31 || c->kind == 35) &&
+             c->initialized && !c->primitive_count) ||
             !RetainRows(&in.primitive_slots, &retained, c->primitives, c->primitive_count))
             return SDL_SetError("Bat visual lost its actual primitive reservation");
     }
@@ -529,6 +657,35 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         {
             c->state.trail.x = FixedShift(c->state.trail.x, in.room_shift_x);
             c->state.trail.y = FixedShift(c->state.trail.y, in.room_shift_y);
+        }
+        if (c->kind == 24)
+        {
+            c->state.hellfire_trail.motion.x =
+                FixedShift(c->state.hellfire_trail.motion.x, in.room_shift_x);
+            c->state.hellfire_trail.motion.y =
+                FixedShift(c->state.hellfire_trail.motion.y, in.room_shift_y);
+        }
+        if (c->kind == 26 || c->kind == 27)
+        {
+            c->state.hellfire_fire.motion.x =
+                FixedShift(c->state.hellfire_fire.motion.x, in.room_shift_x);
+            c->state.hellfire_fire.motion.y =
+                FixedShift(c->state.hellfire_fire.motion.y, in.room_shift_y);
+        }
+        if (in.entering && (c->kind == 25 || c->kind == 28 || c->kind == 29))
+        {
+            Sint32 *x = c->kind == 25 ? &c->state.hellfire_beam.x : &c->state.hellfire_effect.x;
+            Sint32 *y = c->kind == 25 ? &c->state.hellfire_beam.y : &c->state.hellfire_effect.y;
+            SotnPlayerEffectQuad *q =
+                c->kind == 25 ? &c->state.hellfire_beam.quad : &c->state.hellfire_effect.quad;
+            *x = FixedShift(*x, in.screen_shift_x);
+            *y = FixedShift(*y, in.screen_shift_y);
+            if (c->initialized)
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    q->x[v] = Word(q->x[v] + in.screen_shift_x);
+                    q->y[v] = Word(q->y[v] + in.screen_shift_y);
+                }
         }
         if (c->kind == 45)
         {
@@ -601,9 +758,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.target_marks[0] = r.target_marks[1] = 0;
         r.capture_count = 0;
         r.freeze_changed = false;
+        r.hellfire_upload = false;
         *runtime = r;
         return true;
     }
+    r.hellfire_upload = false;
     r.sound_count = 0;
     r.wolf_shake_count = 0;
     r.use_ticks = 0;
@@ -718,7 +877,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
-    r.fire_mask = r.spirit_mask = 0;
+    r.fire_mask = r.spirit_mask = r.hellfire_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.echo_attack = false;
     SotnSpiritTargetSnapshot targets = {0};
@@ -737,6 +896,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.wing_mask |= (Uint16)(1U << (i - 1U));
             if (c->initialized && c->kind == 45)
                 r.fire_mask |= (Uint64)1 << i;
+            if (c->initialized && (c->kind == 26 || c->kind == 27))
+                r.hellfire_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 52)
                 r.echo_attack = previous_echo_attack;
             continue;
@@ -898,6 +1059,150 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             const Sint32 x = Pixel(c->state.trail.x) - in.camera_x,
                          y = Pixel(c->state.trail.y) - in.camera_y;
             removed |= x > 288 || x < -32 || y > 256 || y < -16;
+        }
+        else if (c->kind == 24)
+        {
+            SotnHellfireTrailEvents events = {0};
+            const bool birth = !c->state.hellfire_trail.motion.phase;
+            const Uint16 random = birth ? (Uint16)SotnCombat_Random(&progress.random) : 0;
+            if (!SotnHellfireTrail_Tick(
+                    &c->state.hellfire_trail.motion,
+                    (SotnHellfireTrailInput){.player_priority = p.priority,
+                                             .random = random,
+                                             .random_ready = birth,
+                                             .remaining = c->state.hellfire_trail.remaining},
+                    &events))
+                return false;
+            removed = c->state.hellfire_trail.motion.removed;
+            c->source.priority = c->state.hellfire_trail.motion.priority;
+            c->source.x = c->state.hellfire_trail.motion.x;
+            c->source.y = c->state.hellfire_trail.motion.y;
+            const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
+            removed |= x > 288 || x < -32 || y > 256 || y < -16;
+            if (!removed)
+            {
+                if (!HellfireAnimation(in.dra, 0xd5fc, 13, &c->state.hellfire_trail.pose,
+                                       &c->state.hellfire_trail.remaining,
+                                       &c->state.hellfire_trail.frame))
+                    return false;
+                c->initialized = true;
+            }
+        }
+        else if (c->kind == 25 || c->kind == 28 || c->kind == 29)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated && (c->kind == 28 || p.step == SOTN_PLAYER_HELLFIRE) &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 1, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 1 : 0;
+            if (c->kind == 25)
+            {
+                SotnHellfireBeamEvents events = {0};
+                if (!SotnHellfireBeam_Tick(
+                        &c->state.hellfire_beam,
+                        (SotnHellfireBeamInput){.player_x = Word(Pixel(p.x) - in.camera_x),
+                                                .game_timer = in.game_timer,
+                                                .casting = p.step == SOTN_PLAYER_HELLFIRE,
+                                                .up = in.hellfire_up,
+                                                .allocated = allocated},
+                        &events))
+                    return false;
+                removed = c->state.hellfire_beam.removed;
+                if (!removed)
+                    c->source.priority = 0x1c0;
+                c->source.x = FixedShift(c->state.hellfire_beam.x, (Sint16)in.camera_x);
+                c->source.y = FixedShift(c->state.hellfire_beam.y, (Sint16)in.camera_y);
+                if (events.signal_changed)
+                    r.hellfire_signal = events.signal;
+                if (events.palette)
+                    r.hellfire_palette = events.palette;
+                r.hellfire_upload |= events.upload;
+                if ((events.factory && !RequestSource(&r, c->source, events.factory, 0)) ||
+                    (events.sound && !Sound(&r, events.sound)))
+                    return false;
+            }
+            else
+            {
+                SotnHellfireEffectEvents events = {0};
+                if (!SotnHellfireEffect_Tick(
+                        &c->state.hellfire_effect,
+                        (SotnHellfireEffectInput){.player_x = Word(Pixel(p.x) - in.camera_x),
+                                                  .player_y = Word(Pixel(p.y) - in.camera_y),
+                                                  .player_priority = p.priority,
+                                                  .game_timer = in.game_timer,
+                                                  .casting = p.step == SOTN_PLAYER_HELLFIRE,
+                                                  .facing_left = p.facing_left,
+                                                  .allocated = allocated},
+                        &events))
+                    return false;
+                removed = c->state.hellfire_effect.removed;
+                if (!removed && c->kind == 29)
+                    c->source.priority = 0x1c0;
+                c->source.x = FixedShift(c->state.hellfire_effect.x, (Sint16)in.camera_x);
+                c->source.y = FixedShift(c->state.hellfire_effect.y, (Sint16)in.camera_y);
+                if (events.signal_changed)
+                    r.hellfire_signal = events.signal;
+            }
+            c->initialized = !removed && allocated;
+            c->draw_count = c->initialized ? 1 : 0;
+        }
+        else if (c->kind == 26 || c->kind == 27)
+        {
+            const SotnPlayerFactorySource factory_source = c->source;
+            const bool random_ready = c->state.hellfire_fire.motion.phase && c->kind == 27 &&
+                                      c->state.hellfire_fire.pose >= 23 && !(in.game_timer & 1U);
+            const Uint16 random = random_ready ? (Uint16)SotnCombat_Random(&progress.random) : 0;
+            SotnHellfireFireballEvents events = {0};
+            if (!SotnHellfireFireball_Tick(
+                    &c->state.hellfire_fire.motion,
+                    (SotnHellfireFireballInput){.dra = in.dra,
+                                                .game_timer = in.game_timer,
+                                                .player_priority = p.priority,
+                                                .pose = c->state.hellfire_fire.pose,
+                                                .random = random,
+                                                .random_ready = random_ready,
+                                                .hit_flags = c->state.hellfire_fire.hit_flags,
+                                                .player_facing_left = p.facing_left},
+                    &events))
+                return false;
+            removed = c->state.hellfire_fire.motion.removed;
+            if (events.initialize)
+            {
+                if (i < 1 || i > 31)
+                    return SDL_SetError("Hellfire spell lost its actual child slot range");
+                if (!Spell(in.dra, &progress, stats, 2, &c->state.hellfire_fire.attack))
+                    return false;
+                c->state.hellfire_fire.attack.width = c->state.hellfire_fire.motion.width;
+                c->state.hellfire_fire.attack.height = c->state.hellfire_fire.motion.height;
+                Uint8 group = i < 16 ? 3 : 7;
+                const Uint8 end = i < 16 ? 7 : 11;
+                for (Uint8 j = (Uint8)(group + 1U); j < end; ++j)
+                    if (r.groups[j] < r.groups[group])
+                        group = j;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Hellfire spell attack group overflow");
+                ++r.groups[group];
+                c->group = group;
+                c->initialized = true;
+            }
+            c->source.priority = c->state.hellfire_fire.motion.priority;
+            c->source.x = c->state.hellfire_fire.motion.x;
+            c->source.y = c->state.hellfire_fire.motion.y;
+            c->source.facing_left = c->state.hellfire_fire.motion.facing_left;
+            if ((events.factory && !RequestSource(&r, factory_source, events.factory, 0)) ||
+                (events.sound && !Sound(&r, events.sound)))
+                return false;
+            const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
+            removed |= x > 288 || x < -32 || y > 256 || y < -16;
+            if (!removed)
+            {
+                if (!HellfireAnimation(in.dra, c->kind == 26 ? 0x10798 : 0x107c8,
+                                       c->kind == 26 ? 9 : 26, &c->state.hellfire_fire.pose,
+                                       &c->state.hellfire_fire.remaining,
+                                       &c->state.hellfire_fire.frame))
+                    return false;
+                r.hellfire_mask |= (Uint64)1 << i;
+            }
         }
         else if (c->kind == 36)
         {
@@ -1193,8 +1498,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (r.wolf.body.parts[i].enemy_id > 2 && r.wolf.body.parts[i].enemy_id < 11)
                 ++r.groups[r.wolf.body.parts[i].enemy_id];
     for (Uint16 i = 0; i < 48; ++i)
-        if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 61 ||
-             r.children[i].kind == 52) &&
+        if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 26 ||
+             r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if ((progress.random != previous_random || progress.mp != previous_mp) &&
@@ -1210,27 +1515,34 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
         return SDL_SetError("Bat visual requires its actual bounded slot");
     const SotnBatRuntimeChild *c = &r->children[index];
     if (c->draw_count > 8 ||
-        (c->draw_count &&
-         (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
-                               (c->kind == 61 && c->primitive_count == 16) ||
-                               (c->kind == 63 && c->primitive_count == 9)))))
+        (c->draw_count && (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
+                                                ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
+                                                  c->kind == 31 || c->kind == 35) &&
+                                                 c->primitive_count == 1) ||
+                                                (c->kind == 61 && c->primitive_count == 16) ||
+                                                (c->kind == 63 && c->primitive_count == 9)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
-    *quads = !c->draw_count  ? NULL
-             : c->kind == 11 ? c->state.blink.quads
-             : c->kind == 31 ? &c->state.outline.quad
-             : c->kind == 61 ? c->state.spirit.quads
-             : c->kind == 63 ? c->state.portal.quads
-                             : &c->trail_quad;
+    *quads = !c->draw_count                     ? NULL
+             : c->kind == 11                    ? c->state.blink.quads
+             : c->kind == 25                    ? &c->state.hellfire_beam.quad
+             : (c->kind == 28 || c->kind == 29) ? &c->state.hellfire_effect.quad
+             : c->kind == 31                    ? &c->state.outline.quad
+             : c->kind == 61                    ? c->state.spirit.quads
+             : c->kind == 63                    ? c->state.portal.quads
+                                                : &c->trail_quad;
     return true;
 }
 
 bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags)
 {
-    if (!r || i >= 48 || !flags || flags > 3 || r->children[i].kind != 45 || !generation ||
-        r->children[i].generation != generation || !r->children[i].initialized)
+    if (!r || i >= 48 || !flags || flags > 3 ||
+        (r->children[i].kind != 45 && r->children[i].kind != 26 && r->children[i].kind != 27) ||
+        !generation || r->children[i].generation != generation || !r->children[i].initialized)
         return SDL_SetError("Bat fireball feedback requires its actual live child generation");
-    r->children[i].state.fire.hit_flags = flags;
+    if (r->children[i].kind == 45)
+        r->children[i].state.fire.hit_flags = flags;
+    else
+        r->children[i].state.hellfire_fire.hit_flags = flags;
     return true;
 }
