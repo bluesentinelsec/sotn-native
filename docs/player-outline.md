@@ -2,8 +2,9 @@
 
 The core now reconstructs entity31's 24 outline profiles, including the ripple
 used by Dark Metamorphosis, ordinary MP refill, cursed attacks and later spells.
-This is a controller/packet component. Actual shared primitive/factory allocation,
-live spell controllers and rendering remain unwired; no new controls are enabled.
+This is a controller/packet component. [Selected native ownership](shared-player-outlines.md)
+now connects shared primitives/factories, rendering and actual afterimage resets.
+Live spell controllers/producers remain unwired; no new controls are enabled.
 
 The owner supplies a real normal-body image and current player context. The
 component follows the live pose and facing, retains birth-time scales/pivots,

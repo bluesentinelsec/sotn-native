@@ -96,7 +96,7 @@ static bool EchoValid(const SotnBatEcho *echo)
 }
 static bool BatPrimitiveKind(Uint16 kind)
 {
-    return kind == 5 || kind == 11 || kind == 35 || kind == 52;
+    return kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 52;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -171,17 +171,22 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
     {
         const SotnBatRuntimeChild *c = &r->children[i];
-        if (((c->kind == 5 || c->kind == 11 || c->kind == 35) && c->initialized &&
+        if (c->kind == 31 && c->initialized &&
+            (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
+             !c->state.outline.phase || c->state.outline.phase > 3))
+            return SDL_SetError("Player outline commit lost its actual child/profile lifecycle");
+        if (((c->kind == 5 || c->kind == 11 || c->kind == 31 || c->kind == 35) && c->initialized &&
              !c->primitive_count) ||
             (c->kind == 52 && c->initialized && r->echo_generation != c->generation))
             return SDL_SetError("Bat primitive commit lost a retained child reservation");
-        if (c->primitive_count && (!c->generation || !c->initialized ||
-                                   !((c->kind == 5 && c->state.particles.phase == 1 &&
-                                      !c->state.particles.removed && c->state.particles.count &&
-                                      c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
-                                      c->primitive_count == c->state.particles.count + 1U) ||
-                                     (c->kind == 11 && c->primitive_count == 8) ||
-                                     (c->kind == 35 && c->primitive_count == 1))))
+        if (c->primitive_count &&
+            (!c->generation || !c->initialized ||
+             !((c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
+                c->state.particles.count &&
+                c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
+                c->primitive_count == c->state.particles.count + 1U) ||
+               (c->kind == 11 && c->primitive_count == 8) ||
+               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))

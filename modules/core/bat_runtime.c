@@ -171,8 +171,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         (child.entity_id != 2 && child.entity_id != 5 && child.entity_id != 11 &&
-         child.entity_id != 35 && child.entity_id != 36 && child.entity_id != 45 &&
-         child.entity_id != 52) ||
+         child.entity_id != 31 && child.entity_id != 35 && child.entity_id != 36 &&
+         child.entity_id != 45 && child.entity_id != 52) ||
         r->children[child.slot - 16U].kind || r->serial == SDL_MAX_UINT32)
         return SDL_SetError("Bat factory produced an unsupported or occupied actual child slot");
     SotnBatRuntimeChild c = {.source = child.source,
@@ -182,6 +182,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                              .parameter = child.parameter};
     if (c.kind == 11)
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
+    if (c.kind == 31)
+        c.state.outline.parameter = child.parameter;
     if (c.kind == 35)
         c.state.trail = (SotnBatTrail){.x = child.source.x, .y = child.source.y};
     if (c.kind == 45)
@@ -391,24 +393,29 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         const SotnBatRuntimeChild *c = &r.children[i];
         if ((c->kind == 45 &&
              (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
-            (c->kind &&
-             (!c->generation || (c->kind != 2 && c->kind != 5 && c->kind != 11 && c->kind != 35 &&
-                                 c->kind != 36 && c->kind != 45 && c->kind != 52))) ||
+            (c->kind && (!c->generation ||
+                         (c->kind != 2 && c->kind != 5 && c->kind != 11 && c->kind != 31 &&
+                          c->kind != 35 && c->kind != 36 && c->kind != 45 && c->kind != 52))) ||
             (c->kind == 52 &&
              (i != 31 || (c->initialized && (r.echo_generation != c->generation ||
                                              (c->group && (c->group < 7 || c->group > 10)))))) ||
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if (c->kind == 31 &&
+            (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
+             (c->initialized ? !c->state.outline.phase || c->state.outline.phase > 3
+                             : c->state.outline.phase != 0)))
+            return SDL_SetError("Player outline lost its actual child/profile lifecycle");
         if (c->primitive_count > SOTN_PLAYER_PARTICLE_LIMIT + 1 ||
             (c->primitive_count &&
              (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                                   (c->kind == 35 && c->primitive_count == 1) ||
+                                   ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
                                     c->primitive_count == c->state.particles.count + 1U)))) ||
-            ((c->kind == 5 || c->kind == 11 || c->kind == 35) && c->initialized &&
+            ((c->kind == 5 || c->kind == 11 || c->kind == 31 || c->kind == 35) && c->initialized &&
              !c->primitive_count) ||
             !RetainRows(&in.primitive_slots, &retained, c->primitives, c->primitive_count))
             return SDL_SetError("Bat visual lost its actual primitive reservation");
@@ -450,6 +457,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 5 &&
             !SotnPlayerParticles_Rebase(&c->state.particles, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 31 &&
+            !SotnPlayerOutline_Translate(&c->state.outline, in.screen_shift_x, in.screen_shift_y))
             return false;
         SotnPlayerEffectQuad *q = c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
         const Uint16 count = c->kind == 11 ? 8 : c->kind == 35 ? 1 : 0;
@@ -673,6 +683,42 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->draw_count = removed || !allocated ? 0 : 8;
             }
         }
+        else if (c->kind == 31)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 1, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 1 : 0;
+            SotnPlayerOutlineEvents events = {0};
+            if (!SotnPlayerOutline_Tick(
+                    &c->state.outline,
+                    (SotnPlayerOutlineInput){.dra = in.dra,
+                                             .executable = in.executable,
+                                             .image = in.image,
+                                             .x = Word(Pixel(p.x) - in.camera_x),
+                                             .y = Word(Pixel(p.y) - in.camera_y),
+                                             .scale_x = 256,
+                                             .scale_y = 256,
+                                             .pivot_x = p.draw_pivot_x,
+                                             .pivot_y = p.draw_pivot_y,
+                                             .rotation =
+                                                 p.gravity.upside_down ? 0x800 : p.bat.rotation,
+                                             .bank = p.animation_bank,
+                                             .frame = p.animation.sprite,
+                                             .palette = 0x8100,
+                                             .step = (Uint16)p.step,
+                                             .priority = p.priority,
+                                             .status = p.status,
+                                             .facing_left = p.facing_left,
+                                             .allocation_failed = !allocated},
+                    &events))
+                return false;
+            r.afterimage_reset = r.afterimage_reset || events.reset_afterimages;
+            removed = c->state.outline.removed;
+            c->initialized = allocated && !removed;
+            c->draw_count = c->initialized ? 1 : 0;
+        }
         else if (c->kind == 35)
         {
             bool allocated = c->primitive_count != 0;
@@ -866,11 +912,15 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
         return SDL_SetError("Bat visual requires its actual bounded slot");
     const SotnBatRuntimeChild *c = &r->children[index];
     if (c->draw_count > 8 ||
-        (c->draw_count && (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                                                (c->kind == 35 && c->primitive_count == 1)))))
+        (c->draw_count &&
+         (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
+                               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
-    *quads = !c->draw_count ? NULL : c->kind == 11 ? c->state.blink.quads : &c->trail_quad;
+    *quads = !c->draw_count  ? NULL
+             : c->kind == 11 ? c->state.blink.quads
+             : c->kind == 31 ? &c->state.outline.quad
+                             : &c->trail_quad;
     return true;
 }
 

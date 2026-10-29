@@ -98,6 +98,8 @@ void SotnPlayer_GravityTick(SotnPlayer *p)
             {
                 p->substep = 2;
                 p->gravity.upside_down = true;
+                p->draw_pivot_x = 0;
+                p->draw_pivot_y = 2;
                 p->facing_left = !p->facing_left;
                 Animate(p, 43);
             }
@@ -125,6 +127,8 @@ void SotnPlayer_GravityTick(SotnPlayer *p)
         }
         break;
     case 2:
+        p->draw_pivot_x = 0;
+        p->draw_pivot_y = 2;
         if (elapsed > 56)
         {
             Animate(p, 45);

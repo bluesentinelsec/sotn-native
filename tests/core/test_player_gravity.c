@@ -144,7 +144,8 @@ static bool TestCeilings(Fixture *f)
         } while (p.substep == 0 && n++ < 50);
         CHECK(p.step == SOTN_PLAYER_HIGH_JUMP && p.substep == (i ? 2 : 3) && p.velocity_y == 0 &&
               p.velocity_x == 0 && p.sound == 0x644);
-        CHECK(p.gravity.upside_down == (i != 0) && p.facing_left == (i != 0));
+        CHECK(p.gravity.upside_down == (i != 0) && p.facing_left == (i != 0) &&
+              p.draw_pivot_x == 0 && p.draw_pivot_y == (i ? 2 : 0));
         CHECK(p.gravity.ceiling_impact && p.gravity.impact_source.x == origin.x + 3 * 65536 &&
               p.gravity.impact_source.y == origin.y - 22 * 65536 &&
               !p.gravity.impact_source.facing_left && p.gravity.impact_source.priority == 148);
@@ -170,7 +171,7 @@ static bool TestCeilings(Fixture *f)
         while (p.step == SOTN_PLAYER_HIGH_JUMP && n++ < 80)
             CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_GetState(f->p, &p));
         CHECK(p.step == SOTN_PLAYER_JUMP && p.substep == 1);
-        CHECK(!p.gravity.ceiling_impact);
+        CHECK(!p.gravity.ceiling_impact && p.draw_pivot_y == (i ? 2 : 0));
     }
     CHECK(Start(f, 3, 20, 30) && Command(f));
     SotnPlayerState p = {0};

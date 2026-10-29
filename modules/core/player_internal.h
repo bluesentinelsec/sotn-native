@@ -32,6 +32,7 @@ struct SotnPlayer
     SotnCollisionMap map;
     PlayerFixed x, y;
     Sint32 vx, vy, contact, previous_contact;
+    Sint16 draw_pivot_x, draw_pivot_y;
     Uint32 status, frame_number, movement_flags;
     SotnPlayerAfterimage afterimage;
     SotnPlayerMovementEffects movement_effects;

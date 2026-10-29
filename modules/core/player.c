@@ -999,6 +999,7 @@ static void PhysicalDeath(SotnPlayer *player, bool right)
     player->step = SOTN_PLAYER_KILL;
     player->substep = 1;
     player->death = (SotnPlayerDeath){.phase = 1, .red = 128, .blue = 128};
+    player->draw_pivot_x = player->draw_pivot_y = 0;
     player->vx = right ? 81920 : -81920;
     player->vy = -212992;
     player->sound = 0x6f6;
@@ -1593,7 +1594,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .movement_effects = player->movement_effects,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
-        .rotated = player->form_rotated};
+        .rotated = player->form_rotated,
+        .draw_pivot_x = player->draw_pivot_x,
+        .draw_pivot_y = player->draw_pivot_y};
     if (player->wolf.active)
     {
         out->wolf.controller.x =
