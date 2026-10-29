@@ -188,33 +188,55 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
         SotnDataView pointer = {0};
         if (data[1] >= 171 || !View(sound->dra, 0x21ecc + ((size_t)data[1] + 1) * 4, 4, &pointer))
             return SDL_SetError("Sound event has an invalid script index");
-        Uint32 selected = 3;
-        for (Uint32 i = 0; i < 3; ++i)
-            if (sound->scripts[i].id == id)
-            {
-                selected = i;
-                break;
-            }
-        if (selected == 3)
-            for (Uint32 i = 0; i < 3; ++i)
-                if (sound->scripts[i].id == 0)
-                {
-                    selected = i;
-                    break;
-                }
-        if (selected == 3)
-            for (Uint32 i = 0; i < 3; ++i)
-                if (data[6] >= sound->scripts[i].priority)
-                {
-                    selected = i;
-                    break;
-                }
-        if (selected < 3)
+        if (data[4] > 5)
+            return SDL_SetError("Sound script has an unsupported original mode");
+        Uint32 selected = 4;
+        bool replace = false;
+        if (sound->sequence.playing)
         {
-            for (Uint32 voice = selected * 4; voice < selected * 4 + 4; ++voice)
-                sound->voices[voice].key_off = 1;
+            if (data[6] >= sound->scripts[3].priority)
+            {
+                selected = 3;
+                replace = true;
+            }
+        }
+        else
+        {
+            for (Uint32 i = 0; i < 3; ++i)
+                if (sound->scripts[i].allocation_id == id)
+                {
+                    selected = i;
+                    replace = true;
+                    break;
+                }
+            if (selected == 4)
+                for (Uint32 i = 0; i < 3; ++i)
+                    if (!sound->scripts[i].allocation_id)
+                    {
+                        selected = i;
+                        break;
+                    }
+            for (Uint16 pass = 0; selected == 4 && pass < 2; ++pass)
+                for (Uint32 i = 0; i < 3; ++i)
+                    if (pass ? data[6] == sound->scripts[i].priority
+                             : data[6] > sound->scripts[i].priority)
+                    {
+                        selected = i;
+                        replace = true;
+                        break;
+                    }
+        }
+        if (selected < 4)
+        {
+            // Original group3 releases12..15 even though its playback range is14..17.
+            const Uint32 first_voice = selected * 4;
+            if (replace)
+                for (Uint32 voice = first_voice; voice < first_voice + 4; ++voice)
+                    sound->voices[voice].key_off = 1;
             sound->scripts[selected] = (SoundScript){.address = U32(pointer.bytes),
                                                      .id = id,
+                                                     .allocation_id = id,
+                                                     .mode = data[4],
                                                      .volume = volume,
                                                      .priority = data[6],
                                                      .pan = pan};
@@ -287,7 +309,7 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
 
 bool SotnSound_Queue(SotnSound *sound, Uint16 id)
 {
-    if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1) ||
+    if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1 && id != 0xe && id != 0xf) ||
         sound->queued >= SDL_arraysize(sound->queue))
         return SDL_SetError("Sound event is invalid or the bounded queue is full");
     const Uint16 slot = sound->queued++;
@@ -300,7 +322,7 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id)
 
 bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan)
 {
-    if (id == 0xa1 || volume > 127 || pan < -8 || pan > 8)
+    if (id == 0xa1 || id == 0xe || id == 0xf || volume > 127 || pan < -8 || pan > 8)
         return SDL_SetError("Sound volume/pan event exceeds its original bounds");
     if (!SotnSound_Queue(sound, id))
         return false;
@@ -331,6 +353,10 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
             if (!AmbienceVolume(sound, sound->queue[i].volume, sound->queue[i].pan))
                 return false;
         }
+        else if (sound->queue[i].id == 0xe)
+            SoundPauseScripts(sound);
+        else if (sound->queue[i].id == 0xf)
+            SoundResumeScripts(sound);
         else if (sound->queue[i].id == 0xa1)
         {
             for (Uint32 v = 20; v <= 21; ++v)
@@ -343,7 +369,9 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
         else if (!Event(sound, sound->queue[i].id, sound->queue[i].volume, sound->queue[i].pan))
             return false;
     sound->queued = 0;
-    for (Uint32 i = 0; i < 3; ++i)
+    const Uint32 first_script = sound->sequence.playing ? 3 : 0,
+                 end_script = sound->sequence.playing ? 4 : 3;
+    for (Uint32 i = first_script; i < end_script; ++i)
     {
         SoundScript *script = &sound->scripts[i];
         if (script->id == 0)
@@ -361,7 +389,7 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
             {
                 if (!Dra(sound, script->address, 6, &entry))
                     return false;
-                Uint32 voice = i * 4;
+                Uint32 voice = i == 3 ? 14 : i * 4;
                 if (sound->voices[voice].active)
                     voice += 2;
                 if (!Pair(sound, voice, entry.bytes[0], entry.bytes[1], entry.bytes[3],
@@ -394,6 +422,21 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
         pcm[frame * 2] = clamp16(left);
         pcm[frame * 2 + 1] = clamp16(right);
     }
+    for (Uint32 i = first_script; i < end_script; ++i)
+    {
+        if (sound->scripts[i].id)
+            continue;
+        const Uint32 first = i == 3 ? 14 : i * 4;
+        bool silent = true;
+        for (Uint32 voice = first; voice < first + 4; ++voice)
+            silent = silent && sound->voices[voice].env_state == ADSR_OFF;
+        if (silent)
+        {
+            sound->scripts[i].allocation_id = 0;
+            sound->scripts[i].priority = 0;
+        }
+    }
+
     return true;
 }
 

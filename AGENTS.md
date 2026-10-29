@@ -1,3 +1,12 @@
+The [spell sound-script service](docs/spell-sound-freeze.md) now accepts queued
+original pause/resume commands0xE/0xF, preserves mode5 and continuing voices/music,
+and retains four real script channels with separate cursor/allocation lifetimes.
+Preserve strict-before-equal priority, ringing leases, unreserved restore overwrite,
+dropped ordinary copies, retained blocked fourth copy and original fourth-channel
+key-off12..15 versus playback14..17. Native spell/scene freeze remains unwired;
+full SDK/SEQ/audio timing and console parity remain incomplete. Do not enable spirit
+controls until actual capture/factories/combat and engine ownership connect.
+
 The [selected frozen-stage dispatcher](docs/stage-spell-freeze.md) now initializes
 real step-zero actors and updates only flag10000 initialized actors, including
 private hit-palette countdown and actual behavior/hit clearing. Preserve original
