@@ -308,6 +308,17 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
  * On failure stop the session; a partially advanced multi-actor tick is not resumable.
  */
 bool SotnActors_Tick(SotnActors *actors, SotnPlayerState player, Sint32 camera_x, Sint32 camera_y);
+/** @brief Run original selected frozen-stage updates with no ordinary simulation pass.
+ * @param actors Borrowed entered stage owner. @param player Current animation-only snapshot.
+ * @param camera_x Retained room camera X. @param camera_y Retained room camera Y.
+ * @return Success or SDL error; stop after any partially advanced multi-actor failure.
+ * Step-zero supported actors initialize. Initialized actors run only with flag10000, retaining
+ * original palette countdown. No layout scroll/culling, hit detection, contact generation,
+ * stun/cooldown, control timer or game-clock update occurs. Actual eligible behaviors can emit
+ * their normal effects/sounds. Input edges/repeats observe engine frames; unsupported actors
+ * stay omitted. This interface enables no spell controls or native engine freeze by itself. */
+bool SotnActors_TickFrozen(SotnActors *actors, SotnPlayerState player, Sint32 camera_x,
+                           Sint32 camera_y);
 /**
  * @brief Copy a stage-relative slot for inspection or rendering.
  * @param actors Borrowed simulation.

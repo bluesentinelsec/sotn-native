@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  stage_freeze.c
+  include/sotn/stage_freeze.h
   spell_target.c
   include/sotn/spell_target.h
   scene_freeze.c

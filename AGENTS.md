@@ -1,3 +1,12 @@
+The [selected frozen-stage dispatcher](docs/stage-spell-freeze.md) now initializes
+real step-zero actors and updates only flag10000 initialized actors, including
+private hit-palette countdown and actual behavior/hit clearing. Preserve original
+slot order, queued contacts and real primitive retirement; no layout scroll/culling,
+hit detection, stun/cooldown/control/game-clock advances belong in this path.
+The US palette reference parser validates its exported instruction/data bounds.
+Native scene freeze/spirit capture/combat remain unwired; do not enable controls
+or claim live spells/Alucard/castle/console completeness from this interface alone.
+
 The [spirit casting/freeze foundation](docs/spirit-casting.md) now supplies original
 Summon/Tetra cast states, timer12, crouch recovery and selected animation-only
 freeze/release boundaries. The native context remains disabled until actual stage
