@@ -96,7 +96,8 @@ static bool EchoValid(const SotnBatEcho *echo)
 }
 static bool BatPrimitiveKind(Uint16 kind)
 {
-    return kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 52;
+    return kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 52 || kind == 61 ||
+           kind == 63;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -167,10 +168,33 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
 {
     if (!s || !r)
         return SDL_SetError("Bat primitive commit requires its actual session and runtime owner");
+    for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
+        if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
+        {
+            const SotnActorState actual = s->slots[i].state;
+            if (!r->target_generations[i] || !r->target_identities[i] ||
+                actual.generation != r->target_generations[i] ||
+                actual.id != r->target_identities[i])
+                return SDL_SetError("Spirit mark lost its actual target%u identity/generation", i);
+        }
     SotnPrimitiveSlots used = {0};
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
     {
         const SotnBatRuntimeChild *c = &r->children[i];
+        if ((c->kind == 61 &&
+             (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
+              c->state.spirit.motion.removed ||
+              (c->initialized ? !c->state.spirit.motion.phase || c->state.spirit.motion.phase > 3 ||
+                                    c->primitive_count != 16 || c->group < 3 || c->group > 10 ||
+                                    (i < 16 ? c->group > 6 : c->group < 7)
+                              : c->state.spirit.motion.phase || c->primitive_count))) ||
+            (c->kind == 63 &&
+             (c->parameter != c->state.portal.parameter || c->state.portal.removed ||
+              (c->initialized ? !c->state.portal.phase || c->state.portal.phase > 3 ||
+                                    (c->state.portal.phase == 1 ? c->primitive_count != 0
+                                                                : c->primitive_count != 9)
+                              : c->state.portal.phase || c->primitive_count))))
+            return SDL_SetError("Spirit primitive commit lost its actual child/lifecycle rows");
         if (c->kind == 31 && c->initialized &&
             (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
              !c->state.outline.phase || c->state.outline.phase > 3))
@@ -186,7 +210,9 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
                 c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
                 c->primitive_count == c->state.particles.count + 1U) ||
                (c->kind == 11 && c->primitive_count == 8) ||
-               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1))))
+               ((c->kind == 31 || c->kind == 35) && c->primitive_count == 1) ||
+               (c->kind == 61 && c->primitive_count == 16) ||
+               (c->kind == 63 && c->primitive_count == 9))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))
@@ -255,6 +281,9 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         for (Uint16 i = 0; i < 6; ++i)
             s->primitives[r->afterimage_rows[i]] = (ActorPrimitive){
                 .owner = r->common_generation, .ability_kind = SOTN_PLAYER_AFTERIMAGE_TAG};
+    for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
+        if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
+            s->slots[i].state.flags |= 0x80000U;
     return true;
 }
 bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
