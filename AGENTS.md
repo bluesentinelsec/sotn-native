@@ -1,5 +1,14 @@
 # Working in sotn-native
 
+The [spirit spell components](docs/spirit-spells.md) reconstruct the original
+portal, child flight/trails and128-slot target selector. Preserve real9/16-row
+requests, pending capture/factory boundaries, the original freeze retained after
+portal allocation failure, private adjacent birth UV bytes, signed-word/fixed-point
+wrap, retained target-slot semantics and mark/cursor ordering without RNG. They
+own no native scene freeze/capture/combat/animation or actual row leases and enable
+no new spell controls. Wire those real owners before Summon/Tetra availability.
+Stage/game/Alucard/shared-contention and console parity remain incomplete.
+
 Selected [playable Dark Metamorphosis](docs/player-dark-metamorphosis.md) now owns
 normal commands, original state32/animation/MP/learning, duration, six real outline
 children, global flash, palette job23 and actual blood absorption. Preserve captured

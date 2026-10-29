@@ -6,6 +6,8 @@ Brothers. This is an input/resource component. It enables no live spell controls
 allocates no player/effect/combat children, grants no spells or relics, and writes
 no saves. [Selected playable Dark Metamorphosis](player-dark-metamorphosis.md) now owns
 its command; the other native spell paths remain to be integrated.
+The [spirit component foundation](spirit-spells.md) now covers portal/flight/target
+services, with actual freeze/capture/combat owners still required.
 
 Call it once at the original special-command point, after earlier Gravity Boots/
 weapon commands have had their priority. It preserves the six spells' original
