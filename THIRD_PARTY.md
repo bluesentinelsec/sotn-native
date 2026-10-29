@@ -787,3 +787,7 @@ Triangle command/constructor and standing phase paths in `dra/6E42C.c`, `6FDF8.c
 and `71830.c`, with shared factory requests and profile-five smoke behavior from
 `7879C.c`, at the same pinned AGPL-3.0-or-later revision. Original tables/artwork
 and runtime comparisons remain private.
+
+The [selected player status owner](docs/player-status.md) adapts the supported
+state/timer mask assembly in `dra/692E8.c:EntityAlucard` at the same pinned
+AGPL-3.0-or-later revision. Private instruction contexts remain ignored.

@@ -1,5 +1,13 @@
 # Working in sotn-native
 
+Selected [Alucard status reconstruction](docs/player-status.md) now shares supported
+normal/form/ailment/use/invincibility masks with native snapshots and afterimages.
+Preserve walking capture clear, crouch-two/seated/death80 distinctions, separate
+use/invincibility bits and immutable snapshots. Physical hit/stone now freeze native
+MP recovery; normal movement resumes its existing absolute-clock cadence. The
+collision owner retains its selected form word. Full palette/helper-timing/water/
+spell/equipment/familiar/shared-effect parity remains incomplete.
+
 Selected [normal backdash/movement puffs](docs/player-backdash.md) now connect A /
 Xbox Y, original standing phase/cancel gates, scrape/landing sounds and actual
 optional smoke factories. Preserve held-versus-tapped recovery, animation lock,

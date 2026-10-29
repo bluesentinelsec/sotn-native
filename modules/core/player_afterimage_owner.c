@@ -50,9 +50,8 @@ bool SotnPlayer_AfterimageCapture(SotnPlayer *p)
 {
     if (!p->afterimage_generation)
         return true;
-    // Selected original NO_AFTERIMAGE states, including ordinary seated/ailment states.
-    if (!NormalStep(p->step) || (p->step == SOTN_PLAYER_STAND && p->substep == 4) ||
-        p->poison_ticks || p->curse_ticks)
+    // Status is rebuilt before animation/collision, as in the original player update.
+    if (SotnPlayer_Status(p) & 0x8000000U)
         SotnPlayer_AfterimageReset(p);
     const bool recovering = p->previous_step == SOTN_PLAYER_HIT ||
                             p->previous_step == SOTN_PLAYER_STONE ||
