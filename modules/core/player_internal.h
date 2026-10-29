@@ -99,6 +99,9 @@ struct SotnPlayer
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
 
+/** @brief Rebuild supported original status bits from current state/timers, without mutation. */
+Uint32 SotnPlayer_Status(const SotnPlayer *player);
+
 /** @brief Apply selected original reset intents only when the common owner is bound. */
 void SotnPlayer_AfterimageReset(SotnPlayer *player);
 /** @brief Run original timer15 before movement, with no display/render update. */

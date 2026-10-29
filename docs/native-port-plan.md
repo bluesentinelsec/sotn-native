@@ -110,7 +110,8 @@ reconstructs retained samples/fades; native stages now retain the original commo
 eight-row lease before actor updates. Selected native normal afterimages now bind
 player reset/timer/clock hooks and private display uploads/rendering. Selected
 [backdash and ordinary movement puffs](player-backdash.md) now run through original
-controls and actual shared factories. Water, remaining
+controls and actual shared factories. [Selected status reconstruction](player-status.md)
+now restores walking capture clear and hit/stone MP recovery gates. Water, remaining
 status/script effects, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference

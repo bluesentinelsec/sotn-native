@@ -1479,27 +1479,33 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     return true;
 }
 
-bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
+Uint32 SotnPlayer_Status(const SotnPlayer *player)
 {
-    if (player == NULL || out == NULL)
-        return SDL_SetError("Player state requires a simulation and output");
-    Uint32 status = player->status;
+    Uint32 status = 0;
     if (player->bell_inside)
         status |= 0x100008U;
     if (player->curse_ticks)
         status |= 0x28108000U;
     if (player->poison_ticks)
         status |= 0x28104000U;
-    if (player->step == SOTN_PLAYER_CROUCH && player->substep != 2)
-        status |= 0x20U;
+    if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
+    {
+        status |= 0x10000000U;
+        if (player->step == SOTN_PLAYER_WALK)
+            status |= 0x4000000U;
+        if (player->substep == 4)
+            status |= 0x8100000U;
+    }
+    if (player->step == SOTN_PLAYER_CROUCH)
+        status |= 0x10000000U | (player->substep != 2 ? 0x20U : 0U);
     if (player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP)
-        status |= 0x2000U;
+        status |= 0x10002000U;
     if (player->step == SOTN_PLAYER_HIT)
-        status |= 0x110000U;
+        status |= 0x38110000U;
     if (player->step == SOTN_PLAYER_KILL)
-        status |= 0x150000U;
+        status |= 0x18150000U | (player->substep == 0x80 ? 0x80000U : 0U);
     if (player->step == SOTN_PLAYER_STONE)
-        status |= 0x110080U;
+        status |= 0x38110080U;
     if (player->step == SOTN_PLAYER_BOSS_GRAB)
         status |= 0x38110040U;
     if (player->step == SOTN_PLAYER_SCRIPT)
@@ -1526,6 +1532,18 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         status |= 0x68100000U;
     if (player->step == SOTN_PLAYER_STUCK)
         status |= 0x18100030U;
+    if (player->invincibility)
+        status |= 0x100U;
+    if (player->timers[0])
+        status |= 0x800U;
+    return status;
+}
+
+bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
+{
+    if (player == NULL || out == NULL)
+        return SDL_SetError("Player state requires a simulation and output");
+    const Uint32 status = SotnPlayer_Status(player);
     *out = (SotnPlayerState){
         .x = player->x.value,
         .y = player->y.value,

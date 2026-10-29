@@ -836,3 +836,10 @@ target_include_directories(sotn-player-backdash-tests PRIVATE "${PROJECT_SOURCE_
 target_link_libraries(sotn-player-backdash-tests PRIVATE sotn-core)
 add_test(NAME player-backdash COMMAND sotn-player-backdash-tests)
 set_tests_properties(player-backdash PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-status-tests test_player_status.c)
+sotn_configure_c_target(sotn-player-status-tests)
+target_include_directories(sotn-player-status-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-status-tests PRIVATE sotn-core)
+add_test(NAME player-status COMMAND sotn-player-status-tests)
+set_tests_properties(player-status PROPERTIES TIMEOUT 20)
