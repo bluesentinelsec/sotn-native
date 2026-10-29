@@ -6,6 +6,7 @@
 #include <sotn/character.h>
 #include <sotn/collision.h>
 #include <sotn/mist_effect.h>
+#include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
 #include <sotn/wolf_runtime.h>
@@ -205,12 +206,27 @@ typedef struct SotnPlayerState
     SotnBatCommandEvents bat_commands; /**< Actual this-tick special-ability factory requests. */
     Uint16 animation_bank;             /**< Actual normal (1) or Bat (13) private artwork bank. */
     bool rotated; /**< This simulation frame's selected original transform draw flag. */
+    SotnPlayerAfterimage afterimage; /**< Original global display state, not copied frame pixels. */
+    Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
 } SotnPlayerState;
-
-typedef struct SotnSubweapons SotnSubweapons;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
+
+/** @brief Bind the actual common stage lease and current original engine-frame clock.
+ * @param player Owned simulation. @param generation Actual nonzero common row owner.
+ * @param timer Original system timer, including paused frames; not the saved gameplay timer.
+ * @return Success or SDL error without mutation. The caller validates/commits the actual rows.
+ * A bound player cannot change lease or advance twice on one clock. Full stage reset creates
+ * a fresh player. Rebinding context alone never advances capture, fades or timer15. */
+bool SotnPlayer_SetAfterimageContext(SotnPlayer *player, Uint32 generation, Uint32 timer);
+/** @brief Apply an actual child/script's original clear/reset request after player updates.
+ * @param player Owned simulation with a real common lease. @param duration Original timer15
+ * request.
+ * @return Success or SDL error without mutation. Advances no clock/cursor or effect readiness. */
+bool SotnPlayer_ResetAfterimages(SotnPlayer *player, Sint32 duration);
+
+typedef struct SotnSubweapons SotnSubweapons;
 
 /** @brief Bind the actual Wolf body/effect/factory context before the next player tick.
  * @param player Actual player. @param body Borrowed stage-owned body.

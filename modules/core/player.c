@@ -624,6 +624,7 @@ static void StandTick(SotnPlayer *player)
     }
     if (player->attack_mode != 0)
     {
+        SotnPlayer_AfterimageReset(player);
         if (player->animation.pose < player->attack_lock)
         {
             if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
@@ -731,6 +732,7 @@ static void JumpTick(SotnPlayer *player)
     }
     if (player->attack_mode != 0 && player->substep >= 0x40)
     {
+        SotnPlayer_AfterimageReset(player);
         if (player->buttons & SOTN_BUTTON_LEFT)
             player->vx = -WALK_SPEED;
         if (player->buttons & SOTN_BUTTON_RIGHT)
@@ -809,6 +811,7 @@ static void CrouchTick(SotnPlayer *player)
     }
     if (player->attack_mode != 0)
     {
+        SotnPlayer_AfterimageReset(player);
         if (player->animation.pose < player->attack_lock)
         {
             if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
@@ -873,10 +876,12 @@ static void CrouchTick(SotnPlayer *player)
         break;
     case 3:
     case 4:
+        SotnPlayer_AfterimageReset(player);
         if (player->animation.remaining < 0)
             flags = 0x20;
         break;
     case 5:
+        SotnPlayer_AfterimageReset(player);
         if (player->tight_space == player->animation.pose || player->animation.remaining < 0)
             flags = 0x20;
         break;
@@ -889,6 +894,7 @@ static void CrouchTick(SotnPlayer *player)
         }
         if (player->tight_space)
         {
+            SotnPlayer_AfterimageReset(player);
             const Uint16 limit = (Uint16)(player->tight_space - 1);
             if (player->animation.pose >= limit)
             {
@@ -1061,6 +1067,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
     next.sleep_event = false;
+    const bool poison_recovery =
+        next.poison_ticks == 1 && next.step != SOTN_PLAYER_STONE && !next.curse_ticks;
     if (next.curse_ticks)
         --next.curse_ticks;
     if (next.poison_ticks)
@@ -1082,6 +1090,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
         if (next.timers[i] != 0)
             --next.timers[i];
+    // Original poison expiry requests timer15 before that later timer's own decrement.
+    if (poison_recovery && next.afterimage_generation)
+        next.afterimage_timer15 = 12;
+    if (!SotnPlayer_AfterimageBegin(&next))
+        return false;
     if (next.weapon_startup)
         --next.weapon_startup;
     if (next.step != SOTN_PLAYER_KILL)
@@ -1239,6 +1252,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             : SotnAnimation_Tick(next.dra, &next.animation);
     if (!animated || !ReadAttack(&next) || !TickShield(&next) || !SotnPlayer_KickTick(&next))
         return false;
+    if (!SotnPlayer_AfterimageCapture(&next))
+        return false;
     if (next.step == SOTN_PLAYER_KILL)
     {
         next.x.value += next.vx;
@@ -1247,6 +1262,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     else if (next.step != SOTN_PLAYER_BOSS_GRAB)
         SotnPlayer_Collide(&next);
     if (next.failed)
+        return false;
+    if (!SotnPlayer_AfterimagePresent(&next))
         return false;
     if (!PositionValid(next.map, next.x.value, next.y.value))
         return SDL_SetError("Player left the bounded room region without a supported transition");
@@ -1273,6 +1290,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     if (player == NULL)
         return false;
     player->dra = dra;
+    (void)SotnPlayerAfterimage_Init(&player->afterimage);
     player->hp = player->hp_max = 70;
     player->mp = 20;
     player->mist_lockout = 16;
@@ -1333,6 +1351,10 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     const Sint64 y = player->y.value + (Sint64)offset_y * FIX_ONE;
     if (!PositionValid(map, x, y))
         return SDL_SetError("Player room rebase is outside the new bounded room");
+    SotnPlayerAfterimage afterimage = player->afterimage;
+    if (player->afterimage_generation &&
+        !SotnPlayerAfterimage_Rebase(&afterimage, offset_x, offset_y))
+        return false;
     if (player->wolf.commands.count > SDL_arraysize(player->wolf.commands.requests))
         return SDL_SetError("Wolf room transfer lost its bounded command list");
     const Sint64 impact_x = (Sint64)player->gravity.impact_source.x + (Sint64)offset_x * FIX_ONE,
@@ -1368,6 +1390,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
                 (Sint32)((Sint64)player->gravity.beams[i].y + (Sint64)offset_y * FIX_ONE);
         }
     player->map = map;
+    player->afterimage = afterimage;
     if (player->gravity.ceiling_impact)
     {
         player->gravity.impact_source.x = (Sint32)impact_x;
@@ -1479,6 +1502,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .mist = player->mist,
         .bat = player->bat,
         .wolf = player->wolf,
+        .afterimage = player->afterimage,
+        .afterimage_generation = player->afterimage_generation,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated};

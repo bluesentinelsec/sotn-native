@@ -33,6 +33,10 @@ struct SotnPlayer
     PlayerFixed x, y;
     Sint32 vx, vy, contact, previous_contact;
     Uint32 status, frame_number, movement_flags;
+    SotnPlayerAfterimage afterimage;
+    Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
+    Uint16 afterimage_timer15;
+    bool afterimage_pending, afterimage_ticked;
     SotnAnimation animation;
     SotnPlayerStep step, previous_step;
     Uint16 buttons, previous_buttons, tapped, substep;
@@ -93,6 +97,15 @@ struct SotnPlayer
     SotnCollider floor[4], ceiling[4], wall[14];
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
+
+/** @brief Apply selected original reset intents only when the common owner is bound. */
+void SotnPlayer_AfterimageReset(SotnPlayer *player);
+/** @brief Run original timer15 before movement, with no display/render update. */
+bool SotnPlayer_AfterimageBegin(SotnPlayer *player);
+/** @brief Apply original selected status gates and capture before collision. */
+bool SotnPlayer_AfterimageCapture(SotnPlayer *player);
+/** @brief Fade/select displays after collision and commit this engine clock once. */
+bool SotnPlayer_AfterimagePresent(SotnPlayer *player);
 
 /** @brief Advance original command/owned Wolf entry selection before state dispatch. */
 void SotnPlayer_WolfInput(SotnPlayer *player);

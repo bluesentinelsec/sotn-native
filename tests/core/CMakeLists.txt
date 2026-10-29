@@ -822,3 +822,10 @@ target_include_directories(sotn-player-wolf-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-player-wolf-tests PRIVATE sotn-core)
 add_test(NAME player-wolf-owner-gates COMMAND sotn-player-wolf-tests)
 set_tests_properties(player-wolf-owner-gates PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-afterimage-owner-tests test_player_afterimage_owner.c)
+sotn_configure_c_target(sotn-afterimage-owner-tests)
+target_include_directories(sotn-afterimage-owner-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-afterimage-owner-tests PRIVATE sotn-core)
+add_test(NAME player-afterimage-owner COMMAND sotn-afterimage-owner-tests)
+set_tests_properties(player-afterimage-owner PROPERTIES TIMEOUT 20)
