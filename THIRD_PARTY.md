@@ -796,3 +796,8 @@ The [ordinary spell command component](docs/normal-spell-commands.md) adapts the
 selected input recognizers/relative order in `dra/704D0.c` and copied MP spending
 in `5D5BC.c:CastSpell` at the same pinned AGPL-3.0-or-later revision. Original spell
 definitions and instruction traces remain private; this enables no live spells.
+
+The [player outline component](docs/player-outline.md) adapts the selected entity31
+profiles/controller in `dra/7879C.c:EntityPlayerOutline` and SDK scale/pivot geometry
+in `4B758.c:func_800EB758`, at the same pinned AGPL-3.0-or-later revision. Profile
+colors, normal artwork and instruction traces remain private.

@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  player_outline.c
+  include/sotn/player_outline.h
   spell_commands.c
   include/sotn/spell_commands.h
   player_afterimage.c

@@ -1,5 +1,12 @@
 # Working in sotn-native
 
+The [player outline component](docs/player-outline.md) reconstructs entity31
+profiles0..23 and original SDK packets. Preserve birth scales/pivots versus live
+pose/facing, byte/word wrap, distinct profile15/16/18/19 paths, scale-before-rotation
+and post-geometry afterimage reset. Actual shared factory/row/texture/render/reset
+ownership remains unwired; this component enables no spells. No substitute pool
+or readiness is authorized. Ordinary starts/saves remain unchanged.
+
 The [ordinary spell command component](docs/normal-spell-commands.md) now reconstructs
 six original recognizers and copied MP requests. Preserve full-word/subset input
 tests, signed-word timers, facing captures, relative priority, expiration-frame
