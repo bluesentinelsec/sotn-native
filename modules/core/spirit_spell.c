@@ -48,7 +48,7 @@ static bool Trail(SotnSpiritTrail *p, SotnSpiritInput in)
         q->v[2] = q->v[3] = (Uint8)(v + 15U);
         for (Uint16 i = 0; i < 4; ++i)
             q->red[i] = q->green[i] = q->blue[i] = 128;
-        q->draw_mode &= (Uint16)~8U;
+        q->draw_mode &= 0xfff7U;
         p->state = 2;
     }
     else
