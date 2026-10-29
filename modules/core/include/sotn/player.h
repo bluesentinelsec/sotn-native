@@ -51,6 +51,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_KILL = 16,
     SOTN_PLAYER_WOLF = 24,
     SOTN_PLAYER_UNMORPH_WOLF = 25,
+    SOTN_PLAYER_DARK = 32,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
 
@@ -186,6 +187,14 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Selected owned Dark Metamorphosis timer and one-update cast request. */
+typedef struct SotnPlayerDark
+{
+    SotnPlayerFactorySource source;
+    Uint16 ticks;
+    bool started;
+} SotnPlayerDark;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -229,6 +238,7 @@ typedef struct SotnPlayerState
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
+    SotnPlayerDark dark;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -525,4 +535,8 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * grants no ability and writes no save; successful player ticks consume the request once. */
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
 
+/** @brief Bind the actual native Dark spell/effect/palette/healing owner, enabling its command.
+ * @param player Borrowed owner. @param enabled Actual complete selected owner availability.
+ * @return Success or SDL error without mutation. Default false; no relic or MP is granted. */
+bool SotnPlayer_SetDarkContext(SotnPlayer *player, bool enabled);
 #endif

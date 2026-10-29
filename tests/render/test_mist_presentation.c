@@ -193,6 +193,50 @@ int main(void)
     CHECK(!SotnActorGraphics_UploadPlayer(NULL, &sprite));
     CHECK(!SotnActorGraphics_GetMistPalette(NULL, colors));
     SotnActorGraphics_Destroy(graphics);
+    graphics = NULL;
+    Put32(dra + 0x3bb8 + 23U * 4U, 0x800a3800);
+    Put32(dra + 0x3800, 0x20004);
+    Put32(dra + 0x3804, 0x100a);
+    Put32(dra + 0x3808, 1);
+    Put32(dra + 0x380c, 0x800a37d8);
+    Put32(dra + 0x3810, 0x800a37da);
+    Put32(dra + 0x3814, SDL_MAX_UINT32);
+    Put32(dra + 0xce50, 0x8001);
+    Put32(dra + 0xce54, 0x8003);
+    CHECK(SotnActorGraphics_Create(
+        (SotnDataView){dra, 0xe900}, (SotnDataView){overlay, sizeof(overlay)},
+        (SotnTileSources){{stage, 0x40000}, {common, 0x42000}}, &graphics));
+    CHECK(SotnActorGraphics_InitPlayerGlow(graphics) &&
+          !SotnActorGraphics_InitPlayerGlow(graphics));
+    CHECK(SotnActorGraphics_SetAbsorption(graphics, true));
+    SotnPlayerGlow glow = {0}, saved = {0};
+    CHECK(SotnActorGraphics_GetPlayerGlow(graphics, &glow) && glow.color == 0x8001 && !glow.phase);
+    CHECK(SotnActorGraphics_TickPlayerGlow(graphics) &&
+          SotnActorGraphics_GetPlayerGlow(graphics, &saved) && saved.phase == 1 &&
+          saved.delay == 1);
+    CHECK(SotnActorGraphics_TickMistPalette(graphics) &&
+          SotnActorGraphics_GetPlayerGlow(graphics, &glow) &&
+          !SDL_memcmp(&saved, &glow, sizeof(glow)));
+    for (Uint16 i = 0; i < 16; ++i)
+        colors[i] = 0x7c00;
+    CHECK(SotnActorGraphics_SetPlayerPalette(graphics, colors));
+    SDL_memset(pixels, 0xaa, sizeof(pixels));
+    SDL_memset(raster, 0, sizeof(raster));
+    packet.draw_mode = 0;
+    CHECK(SotnActorGraphics_UploadPlayer(graphics, &sprite) &&
+          SotnActorGraphics_PlayerEffect(graphics, &packet, 2, 3, surface) &&
+          (raster[4U * 32U + 3U] & 0x7fffU) == 1);
+    for (Uint16 i = 0; i < 31; ++i)
+        CHECK(SotnActorGraphics_RequestMistPalette(graphics, 0x11f, &accepted) && accepted);
+    CHECK(SotnActorGraphics_RequestMistPalette(graphics, 0x11f, &accepted) && !accepted);
+    CHECK(SotnActorGraphics_CancelMistPalette(graphics) &&
+          SotnActorGraphics_GetPlayerGlow(graphics, &glow) &&
+          !SDL_memcmp(&saved, &glow, sizeof(glow)));
+    CHECK(SotnActorGraphics_SetAbsorption(graphics, false) &&
+          SotnActorGraphics_GetPlayerGlow(graphics, &glow) && !glow.color &&
+          glow.phase == saved.phase && glow.delay == saved.delay && dra[0xce50] == 1 &&
+          dra[0xce51] == 128);
+    SotnActorGraphics_Destroy(graphics);
     SDL_free(dra);
     SDL_free(stage);
     SDL_free(common);

@@ -57,6 +57,8 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
+    bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */
     Uint32 common_generation;  /**< Original global player eight-row lease, not a factory child. */
     Uint16 afterimage_rows[6]; /**< Hidden metadata rows; the final two rows live in wolf. */
     SotnWolfRuntime wolf;

@@ -668,6 +668,19 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     return true;
 }
 
+static bool SyncDarkPalette(SotnLaboratory *s)
+{
+    SotnPlayerState p = {0};
+    SotnPlayerGlow glow = {0};
+    if (!SotnPlayer_GetState(s->player, &p) ||
+        !SotnActorGraphics_SetAbsorption(s->actor_graphics, p.dark.ticks != 0) ||
+        !SotnActorGraphics_GetPlayerGlow(s->actor_graphics, &glow))
+        return false;
+    s->player_common[0x40014] = (Uint8)glow.color;
+    s->player_common[0x40015] = (Uint8)(glow.color >> 8);
+    return true;
+}
+
 static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->mist_rebase_x + s->mist_camera_x - s->camera.x,
@@ -678,6 +691,8 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
     s->mist_rebase_x = s->mist_rebase_y = 0;
     s->mist_camera_x = s->camera.x;
     s->mist_camera_y = s->camera.y;
+    if (!SyncDarkPalette(s))
+        return false;
     if (entering)
         return SotnGasCloud_Tick(&s->gas_cloud, player, s->mist_present ? &s->mist_effect : NULL,
                                  s->mist_generation, s->camera.x, s->camera.y,
@@ -1284,6 +1299,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             &session->actor_graphics) ||
         !SotnActorGraphics_InitPlayerPalettes(session->actor_graphics) ||
         !InitializeEquipment(session, saved) ||
+        !SotnActorGraphics_InitPlayerGlow(session->actor_graphics) ||
+        !SotnPlayer_SetDarkContext(session->player, true) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
@@ -1456,6 +1473,10 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !DrawGameplay(session))
         return false;
     session->targets_pending = false;
+    // Original palette jobs run after the previous frame, including pause. Apply
+    // that update before this frame can change timers or capture current artwork.
+    if (!SotnActorGraphics_TickPlayerGlow(session->actor_graphics) || !SyncDarkPalette(session))
+        return false;
     ++session->system_timer; // Original g_Timer advances through paused engine frames.
     session->blocked_buttons &= buttons;
     buttons &= (Uint16)~session->blocked_buttons;
@@ -1573,6 +1594,14 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
+    if (state.dark.started)
+    {
+        SotnCharacterState learned = {0};
+        if (!SotnCharacter_Get(session->character, &learned, NULL) ||
+            !SotnCharacter_LearnSpell(&learned, 0) ||
+            !SotnCharacter_Restore(session->character, &learned))
+            return false;
+    }
     if (state.bat_commands.learn_wing_smash)
     {
         SotnCharacterState learned = {0};
@@ -2588,6 +2617,15 @@ static bool DrawDialogue(SotnLaboratory *session)
 
 static bool DrawGameplay(SotnLaboratory *session)
 {
+    if (session->bat_runtime.screen_flash)
+    {
+        const SotnBatRuntime *r = &session->bat_runtime;
+        const Uint16 color = (Uint16)((r->screen_red >> 3) | (r->screen_green >> 3) << 5 |
+                                      (r->screen_blue >> 3) << 10);
+        for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
+            session->frame[i] = color;
+        return true;
+    }
     if (session->draw_target.mode)
         return SDL_SetError("Actor presentation retained an unfinished render target");
     session->draw_target.surface = MainSurface(session);

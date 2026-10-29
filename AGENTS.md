@@ -1,19 +1,30 @@
 # Working in sotn-native
 
+Selected [playable Dark Metamorphosis](docs/player-dark-metamorphosis.md) now owns
+normal commands, original state32/animation/MP/learning, duration, six real outline
+children, global flash, palette job23 and actual blood absorption. Preserve captured
+facing, exact-cost casts, retained hand-recovery words, shield removal, original
+odd-frame flash, INT duration, timer cancellation on actual form entry and no-tick
+rebases. Glow shares real Mist palette-job capacity and continues through engine
+pause without changing simulation; never reset its phase or mutate source colors.
+Protected HP/position/equipment fixtures are not ordinary encounter/route parity.
+Saves stay v9; no default grants. Other spells/equipment/familiars/water/shared
+contention and Alucard remain incomplete.
+
 Selected [enemy blood/deferred healing](docs/enemy-blood.md) now connects cutting
 hits to actual common actors and twelve contiguous stage rows. Preserve distinct
 stage Random, descending particle order, packed fractions, permanent absorption
 cutoff, pending-heal precedence and Bloodstone8/16. The next successful player tick
 applies HP once and requests real sound/two shared flash owners; stone suppresses
-flashes and death is never revived. Dark casting/status production remains unwired;
-private queued-heal/contact fixtures are not playable-spell evidence. Keep ordinary
+flashes and death is never revived. Selected Dark now supplies its casting/status
+owner; earlier queued-heal/contact fixtures remain distinct evidence. Keep ordinary
 starts/saves unchanged. Full effects/shared contention/Alucard parity remain incomplete.
 
 Selected [shared native outlines](docs/shared-player-outlines.md) now consume real
 factory children, full parameters, stage primitive leases, uploaded artwork and
 actual afterimage resets. Preserve all six blueprint40 lifetimes, retained original
 player pivots, no-tick rebases, unrelated owners and late-failure rollback. Native
-normal spell/MP/curse producers remain unwired; no new spell controls are enabled.
+Dark now supplies its spell producer; MP/curse and other spell producers remain unwired.
 Unit body scale/normal palette are the supported owner context; other transform/
 palette producers and Alucard remain incomplete. Saves/ordinary starts are unchanged.
 
@@ -29,8 +40,8 @@ six original recognizers and copied MP requests. Preserve full-word/subset input
 tests, signed-word timers, facing captures, relative priority, expiration-frame
 casts, Soul Steal asymmetry and retained Sword Brothers notifications. Availability
 requires an actual native spell owner; default zero enables no controls. Spell
-controllers/effects/combat/healing/learning remain unwired. Do not claim live spells
-or complete Alucard from component instruction comparisons.
+owners remain unwired except selected playable Dark. Do not claim complete spells
+or Alucard from component instruction comparisons.
 
 Selected [Alucard status reconstruction](docs/player-status.md) now shares supported
 normal/form/ailment/use/invincibility masks with native snapshots and afterimages.

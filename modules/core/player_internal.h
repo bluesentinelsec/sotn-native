@@ -6,6 +6,7 @@
 #include <sotn/mist_motion.h>
 #include <sotn/player.h>
 #include <sotn/shield.h>
+#include <sotn/spell_commands.h>
 
 typedef union PlayerFixed {
     Sint32 value;
@@ -37,6 +38,9 @@ struct SotnPlayer
     SotnPlayerAfterimage afterimage;
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
+    SotnPlayerDark dark;
+    SotnSpellCommands spell_commands;
+    bool dark_context;
     Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
     Uint16 afterimage_timer15;
     bool afterimage_pending, afterimage_ticked;

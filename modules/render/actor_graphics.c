@@ -32,6 +32,8 @@ struct SotnActorGraphics
     SotnActorTarget target;
     bool target_active;
     MistPaletteJob mist_jobs[32];
+    SotnPlayerGlow player_glow;
+    Uint16 player_glow_slot;
 };
 
 static bool ValidSurface(SotnActorSurface surface)
@@ -1562,7 +1564,7 @@ bool SotnActorGraphics_TickMistPalette(SotnActorGraphics *g)
     for (Uint16 i = 0; i < 32; ++i)
     {
         MistPaletteJob *job = &jobs[i];
-        if (!job->mode)
+        if (!job->mode || job->mode == 4)
             continue;
         Uint16 source = 0, interval = 0, target[16] = {0};
         if (!MistDescriptor(g, job->descriptor, job->mode, &source, &interval) ||
@@ -1594,13 +1596,64 @@ bool SotnActorGraphics_TickMistPalette(SotnActorGraphics *g)
     SDL_memcpy(g->mist_jobs, jobs, sizeof(jobs));
     return true;
 }
+bool SotnActorGraphics_InitPlayerGlow(SotnActorGraphics *g)
+{
+    if (!g || g->player_glow.initialized)
+        return SDL_SetError("Player glow requires a fresh actual palette owner");
+    SotnPlayerGlow glow = {0};
+    Uint16 colors[16] = {0};
+    if (!SotnPlayerGlow_Init(&glow, g->dra) || !MistColors(g, 0x100, colors))
+        return false;
+    for (Uint16 i = 0; i < 32; ++i)
+        if (!g->mist_jobs[i].mode)
+        {
+            g->mist_jobs[i] = (MistPaletteJob){
+                .descriptor = Read32(g->dra.bytes + 0x3bb8 + 23U * 4U) - 0x800a0000U, .mode = 4};
+            g->player_glow_slot = i;
+            g->player_glow = glow;
+            g->words[PaletteIndex(0x100, 10)] = glow.color;
+            return true;
+        }
+    return SDL_SetError("Player glow cannot reserve its original shared palette job");
+}
+static bool PlayerGlowOwner(const SotnActorGraphics *g)
+{
+    return g && g->player_glow.initialized && g->player_glow_slot < 32 &&
+           g->mist_jobs[g->player_glow_slot].mode == 4;
+}
+bool SotnActorGraphics_SetAbsorption(SotnActorGraphics *g, bool absorbing)
+{
+    if (!PlayerGlowOwner(g))
+        return SDL_SetError("Absorption lost its actual shared palette job owner");
+    if (!SotnPlayerGlow_Set(&g->player_glow, g->dra, absorbing))
+        return false;
+    g->words[PaletteIndex(0x100, 10)] = g->player_glow.color;
+    return true;
+}
+bool SotnActorGraphics_TickPlayerGlow(SotnActorGraphics *g)
+{
+    if (!PlayerGlowOwner(g))
+        return SDL_SetError("Player glow lost its actual shared palette job owner");
+    if (!SotnPlayerGlow_Tick(&g->player_glow))
+        return false;
+    g->words[PaletteIndex(0x100, 10)] = g->player_glow.color;
+    return true;
+}
+bool SotnActorGraphics_GetPlayerGlow(const SotnActorGraphics *g, SotnPlayerGlow *out)
+{
+    if (!out || !PlayerGlowOwner(g))
+        return SDL_SetError("Player glow snapshot requires its actual palette job");
+    *out = g->player_glow;
+    return true;
+}
 bool SotnActorGraphics_SetPlayerPalette(SotnActorGraphics *g, const Uint16 colors[16])
 {
     Uint16 previous[16] = {0};
     if (!colors || !MistColors(g, 0x100, previous))
         return SDL_SetError("Normal player palette requires an owner and sixteen current colors");
     for (Uint16 i = 0; i < 16; ++i)
-        g->words[PaletteIndex(0x100, i)] = colors[i];
+        g->words[PaletteIndex(0x100, i)] =
+            i == 10 && g->player_glow.initialized ? g->player_glow.color : colors[i];
     return true;
 }
 bool SotnActorGraphics_GetMistPalette(const SotnActorGraphics *g, Uint16 out[16])

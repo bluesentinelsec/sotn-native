@@ -9,6 +9,7 @@
 #include <sotn/palette.h>
 #include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
+#include <sotn/player_glow.h>
 #include <sotn/tilemap.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
@@ -20,6 +21,20 @@ typedef struct SotnActorGraphics SotnActorGraphics;
  * The raw common artwork palettes do not contain the final Mist source rows. Invoke once
  * when constructing a fresh player texture owner; never reset live palette jobs each frame. */
 bool SotnActorGraphics_InitPlayerPalettes(SotnActorGraphics *graphics);
+/** @brief Reserve original permanent player glow job23 in the actual shared palette-job array.
+ * @param graphics Borrowed initialized texture owner. @return Success or SDL error unchanged.
+ * Invoke once per fresh stage; exhaustion never substitutes an unrelated palette job. */
+bool SotnActorGraphics_InitPlayerGlow(SotnActorGraphics *graphics);
+/** @brief Apply the actual absorption timer edge to owned colors without restarting job phase.
+ * @param graphics Borrowed owner. @param absorbing Actual timer presence.
+ * @return Success or SDL error without mutation. Borrowed DRA/artwork remains immutable. */
+bool SotnActorGraphics_SetAbsorption(SotnActorGraphics *graphics, bool absorbing);
+/** @brief Advance only the permanent player glow once per engine frame, including pause.
+ * @param graphics Borrowed actual palette owner. @return Success or SDL error unchanged.
+ * The game invokes this before the next simulation; drawing never advances it. */
+bool SotnActorGraphics_TickPlayerGlow(SotnActorGraphics *graphics);
+/** @brief Copy current owned player glow state; does not tick or expose borrowed colors. */
+bool SotnActorGraphics_GetPlayerGlow(const SotnActorGraphics *graphics, SotnPlayerGlow *out);
 
 /** @brief Upload actual normal/Bat packed pixels into the original owned player display slot.
  * @param graphics Borrowed texture owner. @param sprite Borrowed actual decoded private image.

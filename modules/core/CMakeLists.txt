@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  player_glow.c
+  include/sotn/player_glow.h
   actor_enemy_blood.c
   enemy_blood.c
   include/sotn/enemy_blood.h

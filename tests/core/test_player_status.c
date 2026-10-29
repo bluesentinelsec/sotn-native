@@ -29,11 +29,11 @@ static bool Snapshots(void)
         {SOTN_PLAYER_UNMORPH_MIST, 0, 0x28900002}, {SOTN_PLAYER_WOLF, 0, 0x6c100204},
         {SOTN_PLAYER_WOLF, 1, 0x2c100204},         {SOTN_PLAYER_WOLF, 3, 0x2c100224},
         {SOTN_PLAYER_WOLF, 8, 0x6c100204},         {SOTN_PLAYER_UNMORPH_WOLF, 0, 0x68100000},
-        {SOTN_PLAYER_STUCK, 0, 0x18100030}};
+        {SOTN_PLAYER_DARK, 0, 0x38000200},         {SOTN_PLAYER_STUCK, 0, 0x18100030}};
     SotnPlayer *p = SDL_calloc(1, sizeof(*p));
     CHECK(p);
     for (Uint16 i = 0; i < SDL_arraysize(cases); ++i)
-        for (Uint16 timers = 0; timers < 16; ++timers)
+        for (Uint16 timers = 0; timers < 32; ++timers)
         {
             *p = (SotnPlayer){.step = cases[i].step,
                               .substep = cases[i].substep,
@@ -41,11 +41,12 @@ static bool Snapshots(void)
                               .invincibility = (timers & 1) ? 1 : 0,
                               .timers = {(timers & 2) ? 1 : 0},
                               .poison_ticks = (timers & 4) ? 1 : 0,
-                              .curse_ticks = (timers & 8) ? 1 : 0};
+                              .curse_ticks = (timers & 8) ? 1 : 0,
+                              .dark = {.ticks = (timers & 16) ? 1 : 0}};
             const SotnPlayer before = *p;
             Uint32 expected = cases[i].status | ((timers & 1) ? 0x100U : 0U) |
                               ((timers & 2) ? 0x800U : 0U) | ((timers & 4) ? 0x28104000U : 0U) |
-                              ((timers & 8) ? 0x28108000U : 0U);
+                              ((timers & 8) ? 0x28108000U : 0U) | ((timers & 16) ? 0x2000000U : 0U);
             SotnPlayerState s = {0};
             CHECK(SotnPlayer_GetState(p, &s) && s.status == expected &&
                   !SDL_memcmp(p, &before, sizeof(before)));

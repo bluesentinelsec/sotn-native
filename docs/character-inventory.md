@@ -21,7 +21,8 @@ Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-
 Its original ownership, armor stats and equipped slot use the existing save fields;
 other stages still require their own spike-controller integration.
 Owned Bloodstone now equips as an accessory and doubles selected
-[blood absorption requests](enemy-blood.md); Dark Metamorphosis casting remains unwired.
+[blood absorption requests](enemy-blood.md) from selected playable
+[Dark Metamorphosis](player-dark-metamorphosis.md).
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,

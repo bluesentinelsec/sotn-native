@@ -466,7 +466,7 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_WOLF ||
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
-        player->step == SOTN_PLAYER_BOSS_GRAB;
+        player->step == SOTN_PLAYER_BOSS_GRAB || player->step == SOTN_PLAYER_DARK;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -681,7 +681,7 @@ static void StandTick(SotnPlayer *player)
             Walk(player, false);
         return;
     }
-    if (player->attack_mode != 0)
+    if (player->attack_mode != 0 && player->substep >= 0x40)
     {
         SotnPlayer_AfterimageReset(player);
         if (player->animation.pose < player->attack_lock)
@@ -1102,6 +1102,50 @@ static void DeathTick(SotnPlayer *player)
     }
 }
 
+static void DarkInput(SotnPlayer *p)
+{
+    if (!p->dark_context || p->mp_spent)
+        return;
+    SotnSpellCommandFrame frame = {.pressed = p->buttons,
+                                   .tapped = p->tapped,
+                                   .step = p->step,
+                                   .attack_mode = p->attack_mode,
+                                   .mp = p->mp,
+                                   .available = 1,
+                                   .facing_left = p->facing_left,
+                                   .cramped = p->tight_space != 0};
+    SotnSpellCommandEvents events = {0};
+    if (!SotnSpellCommands_Tick(&p->spell_commands, p->dra, &frame, &events))
+    {
+        p->failed = true;
+        return;
+    }
+    if (!events.cast)
+        return;
+    p->mp = frame.mp;
+    p->mp_spent = events.mp_spent;
+    p->vx = p->vy = 0;
+    SetStep(p, SOTN_PLAYER_DARK);
+    p->shield_cursor = (SotnShield){0};
+    p->shield = (SotnPlayerAttack){0};
+    Animate(p, 0xba);
+    p->sound = 0x6f3;
+    p->extra_sound = 0x67d;
+    p->dark = (SotnPlayerDark){
+        .ticks = (Uint16)(1024U + p->attributes.total[2] * 4U),
+        .started = true,
+        .source = {
+            .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left}};
+}
+bool SotnPlayer_SetDarkContext(SotnPlayer *p, bool enabled)
+{
+    if (!p || (enabled && (!p->dra.bytes || p->dra.size < 0xcfb4 + 12U * 4U)))
+        return SDL_SetError("Dark spell requires its actual native effects/palette/healing owner "
+                            "and private metadata");
+    p->dark_context = enabled;
+    return true;
+}
+
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
     const Uint16 supported =
@@ -1118,6 +1162,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.sound = 0;
     next.extra_sound = 0;
     next.mp_spent = 0;
+    next.dark.started = false;
+    if (next.dark.ticks)
+        --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
     if (next.healing.pending)
     {
@@ -1189,6 +1236,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     }
     SotnPlayer_GravityInput(&next);
+    DarkInput(&next);
     SotnPlayer_MistInput(&next);
     SotnPlayer_BatInput(&next);
     SotnPlayer_WolfInput(&next);
@@ -1217,6 +1265,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         break;
     case SOTN_PLAYER_BOSS_GRAB:
         BossGrabTick(&next);
+        break;
+    case SOTN_PLAYER_DARK:
+        if (next.animation.remaining < 0)
+            Land(&next, 0);
         break;
     case SOTN_PLAYER_SCRIPT:
         next.vx = next.vy = 0;
@@ -1303,6 +1355,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
         ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U) |
         (next.step == SOTN_PLAYER_WOLF ? 4U : 0U);
+    if (next.step == SOTN_PLAYER_DARK)
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 16);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
         (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
@@ -1437,6 +1491,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
                                            smoke_y < SDL_MIN_SINT32 || smoke_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured ordinary movement source");
 
+    const Sint64 dark_x = (Sint64)player->dark.source.x + (Sint64)offset_x * FIX_ONE,
+                 dark_y = (Sint64)player->dark.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->dark.started && (dark_x < SDL_MIN_SINT32 || dark_x > SDL_MAX_SINT32 ||
+                                 dark_y < SDL_MIN_SINT32 || dark_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured Dark spell source");
     const Sint64 heal_x = (Sint64)player->healing.source.x + (Sint64)offset_x * FIX_ONE,
                  heal_y = (Sint64)player->healing.source.y + (Sint64)offset_y * FIX_ONE;
     if (player->healing.effects && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
@@ -1471,6 +1530,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         }
     player->map = map;
     player->afterimage = afterimage;
+    if (player->dark.started)
+    {
+        player->dark.source.x = (Sint32)dark_x;
+        player->dark.source.y = (Sint32)dark_y;
+    }
     if (player->healing.effects)
     {
         player->healing.source.x = (Sint32)heal_x;
@@ -1530,6 +1594,10 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x38110080U;
     if (player->step == SOTN_PLAYER_BOSS_GRAB)
         status |= 0x38110040U;
+    if (player->step == SOTN_PLAYER_DARK)
+        status |= 0x38000200U;
+    if (player->dark.ticks)
+        status |= 0x2000000U;
     if (player->step == SOTN_PLAYER_SCRIPT)
         status |= 0x38110000U;
     if (player->step == SOTN_PLAYER_HIGH_JUMP)
@@ -1614,6 +1682,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .afterimage_generation = player->afterimage_generation,
         .movement_effects = player->movement_effects,
         .healing = player->healing,
+        .dark = player->dark,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated,

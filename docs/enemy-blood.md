@@ -22,9 +22,9 @@ stone suppresses the flashes. Both flashes use actual existing child slots, real
 eight-row stage leases and uploaded body artwork. Allocation remains a retry;
 no pending child signals readiness. Healing does not revive a death state.
 
-**Dark Metamorphosis casting is not connected yet.** No ordinary control currently
-sets its absorption status. Private contact/queued-heal fixtures establish these
-boundaries separately; they are not evidence of a playable spell. Floating HP
+[Selected Dark Metamorphosis](player-dark-metamorphosis.md) now supplies the actual
+casting/timer/status owner. The earlier private contact/queued-heal fixtures
+establish these component boundaries separately from that playable integration. Floating HP
 numbers, other healing producers, all-ability contention and full raster/audio/
 whole-route/console parity remain incomplete. Bloodstone can now equip through the
 ordinary owned accessory path; no default item or ability is granted. Saves remain

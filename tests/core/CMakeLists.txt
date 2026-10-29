@@ -862,3 +862,10 @@ target_include_directories(sotn-enemy-blood-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-enemy-blood-tests PRIVATE sotn-core)
 add_test(NAME enemy-blood COMMAND sotn-enemy-blood-tests)
 set_tests_properties(enemy-blood PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-dark-tests test_player_dark.c)
+sotn_configure_c_target(sotn-player-dark-tests)
+target_include_directories(sotn-player-dark-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-dark-tests PRIVATE sotn-core)
+add_test(NAME player-dark-metamorphosis COMMAND sotn-player-dark-tests)
+set_tests_properties(player-dark-metamorphosis PROPERTIES TIMEOUT 20)
