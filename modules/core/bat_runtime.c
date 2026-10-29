@@ -502,6 +502,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.afterimage_reset = false;
     SotnPlayerState p = in.player;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
+    if (p.healing.applied && !Sound(&r, 0x68e))
+        return false;
+    if (p.healing.effects && (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
+                              !RequestSource(&r, p.healing.source, 0x44002c, 0)))
+        return false;
     if (p.movement_effects.smoke &&
         !RequestSource(&r, p.movement_effects.smoke_source, p.movement_effects.smoke_blueprint, 0))
         return false;

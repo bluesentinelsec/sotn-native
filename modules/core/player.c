@@ -1118,6 +1118,16 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.sound = 0;
     next.extra_sound = 0;
     next.mp_spent = 0;
+    next.healing.applied = next.healing.effects = false;
+    if (next.healing.pending)
+    {
+        next.hp = (Uint16)SDL_min(next.hp_max, (Uint32)next.hp + next.healing.pending);
+        next.healing.pending = 0;
+        next.healing.applied = true;
+        next.healing.effects = next.step != SOTN_PLAYER_STONE;
+        next.healing.source = (SotnPlayerFactorySource){
+            .x = next.x.value, .y = next.y.value, .priority = 148, .facing_left = next.facing_left};
+    }
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};
@@ -1426,6 +1436,12 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->movement_effects.smoke && (smoke_x < SDL_MIN_SINT32 || smoke_x > SDL_MAX_SINT32 ||
                                            smoke_y < SDL_MIN_SINT32 || smoke_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured ordinary movement source");
+
+    const Sint64 heal_x = (Sint64)player->healing.source.x + (Sint64)offset_x * FIX_ONE,
+                 heal_y = (Sint64)player->healing.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->healing.effects && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
+                                    heal_y < SDL_MIN_SINT32 || heal_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured blood-healing source");
     for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
     {
         const Sint64 source_x = (Sint64)player->wolf.commands.requests[i].source.x +
@@ -1455,6 +1471,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         }
     player->map = map;
     player->afterimage = afterimage;
+    if (player->healing.effects)
+    {
+        player->healing.source.x = (Sint32)heal_x;
+        player->healing.source.y = (Sint32)heal_y;
+    }
     if (player->movement_effects.smoke)
     {
         player->movement_effects.smoke_source.x = (Sint32)smoke_x;
@@ -1592,6 +1613,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .afterimage = player->afterimage,
         .afterimage_generation = player->afterimage_generation,
         .movement_effects = player->movement_effects,
+        .healing = player->healing,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated,
@@ -1936,5 +1958,15 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *p, Uint8 ticks)
     if (!p || ticks > 32)
         return SDL_SetError("Player use timer requires its owner and bounded ticks");
     p->timers[0] = ticks;
+    return true;
+}
+
+bool SotnPlayer_QueueBloodHealing(SotnPlayer *p, Uint16 amount, Uint16 contacts)
+{
+    if (!p || (amount != 0 && amount != 8 && amount != 16) || !contacts || contacts > 32)
+        return SDL_SetError("Blood healing requires an actual original amount and contact count");
+    if (!p->healing.pending)
+        p->healing.pending = amount;
+    p->healing.contacts += contacts;
     return true;
 }

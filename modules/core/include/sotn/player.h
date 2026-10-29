@@ -177,6 +177,15 @@ typedef struct SotnPlayerMovementEffects
     bool smoke;
 } SotnPlayerMovementEffects;
 
+/** @brief Original deferred blood-healing state and this update's owned effect requests. */
+typedef struct SotnPlayerHealing
+{
+    SotnPlayerFactorySource source;
+    Uint32 contacts;
+    Uint16 pending;
+    bool applied, effects;
+} SotnPlayerHealing;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -219,6 +228,7 @@ typedef struct SotnPlayerState
     SotnPlayerAfterimage afterimage; /**< Original global display state, not copied frame pixels. */
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
     SotnPlayerMovementEffects movement_effects;
+    SotnPlayerHealing healing;
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
@@ -507,4 +517,12 @@ void SotnPlayer_Close(SotnPlayer *player);
  * @param player Borrowed owner. @param ticks Original timer value, 0..32.
  * @return Success or SDL error without mutation. This grants no invincibility. */
 bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Queue actual blood contact healing for the following player update.
+ * @param player Borrowed owner. @param amount Original first-request amount0/8/16.
+ * @param contacts Actual consumed contacts this stage update,1..32.
+ * @return Success or SDL error without mutation. An existing pending amount wins;
+ * the original contact counter still advances with unsigned word wrap. This changes no HP,
+ * grants no ability and writes no save; successful player ticks consume the request once. */
+bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
+
 #endif

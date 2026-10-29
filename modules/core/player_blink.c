@@ -21,7 +21,8 @@ static Sint16 Read16(const Uint8 *p)
 static bool Selected(Uint16 parameter)
 {
     return parameter == 0x20 || parameter == 0x21 || parameter == 0x1b || parameter == 5 ||
-           parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25;
+           parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25 ||
+           parameter == 0x44 || parameter == 0x48;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -200,7 +201,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         (next.parameter == 0x21 && next.phase != 0 && next.phase != 10 && next.phase != 11) ||
         (next.parameter == 0x23 && next.phase != 0 && next.phase != 12 && next.phase != 13) ||
         (next.parameter == 0x24 && next.phase != 0 && next.phase != 14 && next.phase != 15) ||
-        ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5) &&
+        ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5 ||
+          next.parameter == 0x44 || next.parameter == 0x48) &&
          next.phase > 3) ||
         (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");

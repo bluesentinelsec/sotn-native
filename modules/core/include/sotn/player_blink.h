@@ -29,6 +29,7 @@ typedef struct SotnPlayerBlinkShared
 /** @brief One real selected BlinkWhite controller and its eight owned primitives.
  * Initialize parameter to 0x20/0x21 (Bat), 0x23/0x24 (Wolf), 5 (Fire) or 0x5C (Wing Smash).
  * Retain until removed; special flashes allocate their own real children.
+ * Parameters 0x44/0x48 support original blood-healing flashes.
  * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
 {

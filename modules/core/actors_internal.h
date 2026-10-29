@@ -6,6 +6,7 @@
 #include <sotn/dialogue.h>
 #include <sotn/dopple_ai.h>
 #include <sotn/dopple_body.h>
+#include <sotn/enemy_blood.h>
 #include <sotn/game_math.h>
 #include <sotn/relic.h>
 #include <sotn/shop.h>
@@ -89,6 +90,7 @@ typedef struct OlroxLeg
 typedef struct Actor
 {
     SotnActorState state;
+    SotnEnemyBlood enemy_blood;
     Sint32 vx, vy;
     struct
     {
@@ -1014,6 +1016,8 @@ bool ActorWideAnimation(SotnActors *actors, Actor *actor, size_t offset, bool *e
 bool ActorSlinger(SotnActors *actors, Actor *actor);
 bool ActorReplaceExplosion(SotnActors *actors, Actor *actor, Uint16 kind);
 bool ActorExplosionTick(SotnActors *actors, Actor *actor);
+/** @brief Advance actual common blood actor, contiguous tiles and deferred healing events. */
+bool ActorEnemyBlood(SotnActors *actors, Actor *actor, SotnPlayerState player);
 
 static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
                                 size_t revisited)
