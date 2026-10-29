@@ -4,8 +4,9 @@ The native shared effect owner now accepts actual entity31 children from private
 factory blueprints. Each child retains its full parameter and generation, reserves
 one real stage primitive row, follows the current normal artwork and renders its
 copied outline packet through the existing ordered player-effect renderer. The
-normal spell/MP-refill/curse request producers remain unwired; no new spell controls
-are available yet. Internal factory fixtures are separate from playable casting.
+[selected Dark Metamorphosis producer](player-dark-metamorphosis.md) now runs;
+MP-refill/curse and other spell producers remain unwired. The earlier internal
+factory fixtures remain separate from playable casting evidence.
 
 The original Dark Metamorphosis outline blueprint emits six children over time,
 with distinct full parameters and lifetimes. Preserve all six actual owners; they
@@ -47,8 +48,8 @@ sound use explicit boundary adapters; Debug and ASan traces match. This is not a
 spell cast, healing, full-frame, uninterrupted route or console comparison.
 
 Ordinary starts and version-nine saves remain unchanged. Next work must connect
-actual spell controllers, MP/learning, palettes and combat/healing before enabling
-those commands. Full Alucard/shared factory/GPU and game parity remain incomplete.
+remaining spell controllers, MP/learning, palettes and combat/healing before
+enabling further commands. Selected Dark now connects those owners. Full Alucard/shared factory/GPU and game parity remain incomplete.
 
 Provenance: selected `dra/7879C.c:{EntityFactory,EntityPlayerOutline}`,
 `71830.c:{PlayerStepHighJump,PlayerStepStoned,ControlBatForm,PlayerStepKill}` and

@@ -81,6 +81,7 @@ void SotnPlayer_MistInput(SotnPlayer *p)
         return;
     }
     const bool inverted = p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down;
+    p->dark.ticks = 0;
     SotnPlayer_GravityCancel(p);
     const Sint16 settle = p->mist_motion.settle_y;
     p->mist_motion = (SotnMistMotion){

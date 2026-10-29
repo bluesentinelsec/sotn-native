@@ -128,7 +128,9 @@ Xbox **X/B** use the equipped hands (default: Gladius left, empty right).
 In normal form, **A/Xbox Y** performs the original [backdash](docs/player-backdash.md),
 with its movement/cancel timing, afterimages and selected movement puffs.
 Cutting hits on supported blood-bearing enemies now render original
-[blood particles](docs/enemy-blood.md). Dark Metamorphosis casting remains unavailable.
+[blood particles](docs/enemy-blood.md). For [Dark Metamorphosis](docs/player-dark-metamorphosis.md), enter Back,
+Up-back, Up, Up-forward, Forward, then either hand attack; directions follow the
+facing captured at the first input. It costs 10 MP. Move into blood to absorb it.
 
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
 or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owned,

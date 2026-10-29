@@ -4,7 +4,8 @@ The core now reconstructs the six original normal-form command recognizers for
 Dark Metamorphosis, Summon Spirit, Hellfire, Tetra Spirit, Soul Steal and Sword
 Brothers. This is an input/resource component. It enables no live spell controls,
 allocates no player/effect/combat children, grants no spells or relics, and writes
-no saves. The owning native spell paths remain to be integrated.
+no saves. [Selected playable Dark Metamorphosis](player-dark-metamorphosis.md) now owns
+its command; the other native spell paths remain to be integrated.
 
 Call it once at the original special-command point, after earlier Gravity Boots/
 weapon commands have had their priority. It preserves the six spells' original
@@ -45,10 +46,11 @@ children are not established by these comparisons. Debug and ASan traces match.
 Private tables/traces remain ignored. This does not establish live spell, full
 Alucard, whole-route or console parity.
 
-Next integration must supply actual spell controllers, shared factories/children,
+Further integration must supply actual spell controllers, shared factories/children,
 primitives, artwork/palettes, combat/healing, learning and their lifetimes before
-making a command available in gameplay. Existing saves and ordinary starts remain
-unchanged.
+making another command available in gameplay. Selected Dark now supplies those
+owners; other availability bits stay disabled. Existing saves and ordinary starts
+remain unchanged.
 
 Provenance: selected `dra/704D0.c:{CheckDarkMetamorphosisInput,CheckSummonSpiritInput,
 CheckHellfireInput,CheckTetraSpiritInput,CheckSoulStealInput,CheckSwordBrothersInput,

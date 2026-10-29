@@ -118,6 +118,7 @@ void SotnPlayer_BatInput(SotnPlayer *p)
                                 : p->mist_motion.settle_y;
     if (p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down)
         p->animation.sprite = 0x9d;
+    p->dark.ticks = 0;
     SotnPlayer_GravityCancel(p);
     p->bat = (SotnPlayerBat){.active = true, .hidden = p->mist.active, .settle_y = settling};
     p->wolf.active = false;

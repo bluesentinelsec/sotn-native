@@ -1072,13 +1072,18 @@ static bool OutlineOwnership(Fixture *f)
     Put16(f->dra + 0xd9b8 + 17U * 10U + 8U, 49);
     const SotnPlayerFactorySource source = {
         .x = 120 * 65536 + 123, .y = 135 * 65536 + 456, .priority = 148};
-    CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[0].cursor, source, 0x110028, 0));
+    f->dra[0xcfb4 + 11U * 4U] = 18;
+    f->dra[0xcfb4 + 11U * 4U + 1U] = 127;
     SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
                               .executable = {f->exe, sizeof(f->exe)},
                               .image = {32, 48, -16, -24},
                               .player = f->state};
     in.player.draw_pivot_y = 2;
+    in.player.dark = (SotnPlayerDark){.source = source, .started = true, .ticks = 1048};
     CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.screen_flash && f->runtime.screen_flash_ticks == 17 &&
+          f->runtime.screen_red == 127 && !f->runtime.screen_green && !f->runtime.screen_blue);
+    in.player.dark.started = false;
     SotnBatRuntimeChild *c = &f->runtime.children[47];
     CHECK(c->kind == 31 && c->parameter == 0x1100 && c->initialized && c->primitive_count == 1 &&
           c->draw_count == 1 && c->state.outline.phase == 1 && c->state.outline.pivot_y == 2 &&
@@ -1114,6 +1119,18 @@ static bool OutlineOwnership(Fixture *f)
     in.player.status = 0;
     CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !c->kind &&
           !f->runtime.afterimage_reset);
+    f->runtime.screen_flash_ticks = 18;
+    in.entering = true;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          f->runtime.screen_flash_ticks == 18);
+    in.entering = false;
+    for (Uint16 t = 0; t < 18; ++t)
+    {
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+              f->runtime.screen_flash_ticks == 17 - t &&
+              f->runtime.screen_flash == ((t & 1U) == 0));
+    }
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.screen_flash);
     Close(f);
     return true;
 }

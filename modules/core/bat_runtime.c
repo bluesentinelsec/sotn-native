@@ -501,6 +501,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.use_ticks = 0;
     r.afterimage_reset = false;
     SotnPlayerState p = in.player;
+    if (p.dark.started)
+    {
+        if (!in.dra.bytes || in.dra.size < 0xcfb4 + 12U * 4U)
+            return SDL_SetError("Dark spell flash requires its original private profile");
+        const Uint8 *flash = in.dra.bytes + 0xcfb4 + 11U * 4U;
+        r.screen_flash_ticks = flash[0];
+        r.screen_red = flash[1];
+        r.screen_green = flash[2];
+        r.screen_blue = flash[3];
+        if (!RequestSource(&r, p.dark.source, 0x110028U, 0))
+            return false;
+    }
+    r.screen_flash = false;
+    if (r.screen_flash_ticks)
+        r.screen_flash = (--r.screen_flash_ticks & 1U) != 0;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
     if (p.healing.applied && !Sound(&r, 0x68e))
         return false;

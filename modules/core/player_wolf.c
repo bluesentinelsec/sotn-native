@@ -186,6 +186,7 @@ void SotnPlayer_WolfInput(SotnPlayer *p)
         return;
     if (p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down)
         p->animation.sprite = 0x9d;
+    p->dark.ticks = 0;
     SotnPlayer_GravityCancel(p);
     const SotnWolfControllerFrame retained = p->wolf.controller;
     p->wolf = (SotnPlayerWolf){.controller = retained,
