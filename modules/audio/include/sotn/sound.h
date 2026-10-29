@@ -47,10 +47,15 @@ bool SotnSound_PlaySequence(SotnSound *sound, Uint16 id);
 void SotnSound_StopSequence(SotnSound *sound);
 
 /** @brief Queue an original sound-effect ID for the next simulation tick.
- * @param sound Borrowed owned simulation. @param id Original US ID, 0x601..0x8e0, or 0xa1 to
- * release ambience channels 20/21.
- * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue. */
+ * @param sound Borrowed owned simulation. @param id Original US effect0x601..0x8e0,
+ * ambience release0xA1 or script pause/resume0xE/0xF.
+ * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue.
+ * @note Queue also accepts original commands0xE/0xF for script pause/resume. They preserve playing
+ * voices, direct effects and stage music. They run in queue order on the next Tick. Script mode5
+ * remains live; copied cursors restore with original allocation/overwrite rules. These commands do
+ * not stop the audio device or grant live spell availability. */
 bool SotnSound_Queue(SotnSound *sound, Uint16 id);
+
 /** @brief Queue an original effect with explicit volume and signed stereo distance.
  * @param sound Borrowed simulation. @param id Original effect ID, 0x601..0x8e0.
  * @param volume Original 0..127 multiplier. @param pan Original distance, -8..8.

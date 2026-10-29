@@ -14,8 +14,8 @@ typedef struct SoundBank
 typedef struct SoundScript
 {
     Uint32 address;
-    Uint16 id, steps;
-    Uint8 timer, volume, priority;
+    Uint16 id, steps, allocation_id;
+    Uint8 timer, volume, priority, mode;
     Sint8 pan;
 } SoundScript;
 
@@ -38,7 +38,8 @@ struct SotnSound
     SoundBank banks[4];
     SotnVoice voices[24];
     SotnVoiceRegisters registers[24];
-    SoundScript scripts[3];
+    SoundScript scripts[4], script_backup[4];
+    bool scripts_paused;
     struct
     {
         Uint16 id, volume;
@@ -48,6 +49,15 @@ struct SotnSound
     Uint16 queued, ambience_id;
     Uint8 priority[4];
 };
+
+/** @brief Apply original script-cursor pause, retaining already playing voices and mode-five
+ * scripts.
+ * @param sound Non-NULL actual sound owner. Backup slots retain original order/lifetime. */
+void SoundPauseScripts(SotnSound *sound);
+/** @brief Restore original copied cursors into free allocation channels without retriggering
+ * voices.
+ * @param sound Non-NULL actual owner. Preserves original unreserved restore/overwrite behavior. */
+void SoundResumeScripts(SotnSound *sound);
 
 /** @brief Start one validated voice, invalidating any previous sequence owner. */
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,

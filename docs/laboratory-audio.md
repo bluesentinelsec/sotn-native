@@ -96,3 +96,7 @@ filter/format validation, and nonzero output through SDL conversion. A private
 A native LLDB encounter with two zombie defeats and player HP decreasing to 60
 passed with music and effects enabled. These are exercised-path checks, not
 proof of complete listening quality or audiovisual parity.
+
+The [selected spell script-pause service](spell-sound-freeze.md) now retains original
+queued pause/resume, non-pausing scripts and copied cursor/allocation behavior.
+The native spirit-casting owner and full audio parity remain incomplete.
