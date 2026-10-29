@@ -114,7 +114,8 @@ controls and actual shared factories. [Selected status reconstruction](player-st
 now restores walking capture clear and hit/stone MP recovery gates. The
 [ordinary spell command component](normal-spell-commands.md) reconstructs six
 recognizers; the [outline component](player-outline.md) reconstructs dependent
-ripple packets. Native spell/outline ownership remains unwired. Water, remaining
+ripple packets. [Selected shared outline ownership](shared-player-outlines.md)
+now runs; ordinary spell controllers/producers remain unwired. Water, remaining
 status/script effects, other impact producers and full ability/route parity remain incomplete.
 
 ## Pinned reference

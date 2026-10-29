@@ -346,7 +346,8 @@ static bool TestStone(Fixture *fixture)
         CHECK(SotnPlayer_Tick(player, buttons));
     }
     CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.stone.active &&
-          state.hp == 62);
+          state.hp == 62 && state.draw_pivot_x == 0 &&
+          (state.draw_pivot_y == 20 || state.draw_pivot_y == 24));
     const Sint32 x = state.x;
     CHECK(!SotnPlayer_Petrify(player, 10000, 128, 0));
     CHECK(State(player, &state) && state.x == x && state.hp == 62 && !state.stone.active);

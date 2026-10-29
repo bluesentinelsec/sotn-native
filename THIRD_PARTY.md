@@ -801,3 +801,8 @@ The [player outline component](docs/player-outline.md) adapts the selected entit
 profiles/controller in `dra/7879C.c:EntityPlayerOutline` and SDK scale/pivot geometry
 in `4B758.c:func_800EB758`, at the same pinned AGPL-3.0-or-later revision. Profile
 colors, normal artwork and instruction traces remain private.
+
+The [shared native outline owner](docs/shared-player-outlines.md) connects the same
+original factory/entity31 paths to native stage leases and presentation, preserving
+selected retained player pivots from `dra/71830.c` and initialization in `692E8.c`,
+at the same pinned AGPL-3.0-or-later revision. Original inputs remain private.

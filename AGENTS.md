@@ -1,11 +1,19 @@
 # Working in sotn-native
 
+Selected [shared native outlines](docs/shared-player-outlines.md) now consume real
+factory children, full parameters, stage primitive leases, uploaded artwork and
+actual afterimage resets. Preserve all six blueprint40 lifetimes, retained original
+player pivots, no-tick rebases, unrelated owners and late-failure rollback. Native
+normal spell/MP/curse producers remain unwired; no new spell controls are enabled.
+Unit body scale/normal palette are the supported owner context; other transform/
+palette producers and Alucard remain incomplete. Saves/ordinary starts are unchanged.
+
 The [player outline component](docs/player-outline.md) reconstructs entity31
 profiles0..23 and original SDK packets. Preserve birth scales/pivots versus live
 pose/facing, byte/word wrap, distinct profile15/16/18/19 paths, scale-before-rotation
-and post-geometry afterimage reset. Actual shared factory/row/texture/render/reset
-ownership remains unwired; this component enables no spells. No substitute pool
-or readiness is authorized. Ordinary starts/saves remain unchanged.
+and post-geometry afterimage reset. Selected [native ownership](docs/shared-player-outlines.md)
+now runs; the component itself enables no spells. No substitute pool or readiness
+is authorized. Ordinary starts/saves remain unchanged.
 
 The [ordinary spell command component](docs/normal-spell-commands.md) now reconstructs
 six original recognizers and copied MP requests. Preserve full-word/subset input

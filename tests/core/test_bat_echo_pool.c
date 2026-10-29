@@ -344,10 +344,40 @@ static bool TestCommonPlayerRows(void)
     return true;
 }
 
+static bool TestOutlineRows(void)
+{
+    SotnActors *s = SDL_calloc(1, sizeof(*s));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(s && r);
+    Actor stage = {.state = {.generation = 1}};
+    CHECK(ActorPrimitives(s, &stage, 40));
+    r->children[47] = (SotnBatRuntimeChild){.kind = 31,
+                                            .generation = 4,
+                                            .parameter = 0x1100,
+                                            .initialized = true,
+                                            .primitive_count = 1,
+                                            .primitives = {40},
+                                            .state.outline = {.phase = 1, .parameter = 0x1100}};
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && s->primitives[40].owner == 4 &&
+          s->primitives[40].ability_kind == 31);
+    r->children[47].state.outline.parameter = 0;
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) && s->primitives[40].owner == 4);
+    r->children[47].state.outline.parameter = 0x1100;
+    r->children[47].primitives[0] = 0;
+    CHECK(!SotnActors_CommitBatPrimitives(s, r) && s->primitives[40].owner == 4 &&
+          ActorPrimitiveGet(s, &stage, 0));
+    r->children[47] = (SotnBatRuntimeChild){0};
+    CHECK(SotnActors_CommitBatPrimitives(s, r) && !s->primitives[40].owner &&
+          ActorPrimitiveGet(s, &stage, 0));
+    SDL_free(r);
+    SDL_free(s);
+    return true;
+}
+
 int main(void)
 {
     return TestPool() && TestRoomLifetime() && TestBatOwners() && TestSharedWolfRows() &&
-                   TestParticleRows() && TestCommonPlayerRows()
+                   TestParticleRows() && TestCommonPlayerRows() && TestOutlineRows()
                ? 0
                : 1;
 }

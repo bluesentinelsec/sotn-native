@@ -5,6 +5,7 @@
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
 #include <sotn/player.h>
+#include <sotn/player_outline.h>
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
 #include <sotn/primitive_slots.h>
@@ -29,6 +30,7 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerAttack attack;
         SotnPlayerParticles particles;
         SotnPlayerSmoke smoke;
+        SotnPlayerOutline outline;
         struct
         {
             SotnBatFireball motion;
@@ -134,6 +136,8 @@ bool SotnBatRuntime_Context(const SotnBatRuntime *runtime, Uint32 generation,
  * through wolf_events. Selected Wolf spell requests initialize real wolf_attacks here;
  * the native combat owner applies them. Selected Wolf puffs/particles use real factories
  * and primitive rows; the native scene must draw their retained state and consume shakes.
+ * Actual entity31 outlines retain full parameters, share one row per child, and propagate
+ * real afterimage resets. Normal spell/MP-refill/curse request producers remain separate.
  * The owner must commit the planned rows to the actual primitive pool before advancing
  * other owners; no pool storage is mutated by this transactional update. */
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,

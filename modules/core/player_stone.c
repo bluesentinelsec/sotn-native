@@ -43,6 +43,8 @@ static void Wiggle(SotnPlayer *p)
     }
     p->stone.rotation = (Sint16)(angle >= 0 ? angle / 16 : -((-angle + 15) / 16));
     p->stone.pivot = p->stone.rotation ? 20 : 24;
+    p->draw_pivot_x = 0;
+    p->draw_pivot_y = p->stone.pivot;
 }
 void SotnPlayer_StoneTick(SotnPlayer *p)
 {

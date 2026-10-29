@@ -163,6 +163,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
     if (Finished(p))
         return;
     p->form_rotated = true;
+    p->draw_pivot_y = 0;
     const Uint16 directions = p->buttons & 0xf000U;
     const bool jump = (p->buttons & SOTN_BUTTON_JUMP) != 0;
     bool screech = false;
