@@ -1,3 +1,14 @@
+The [Hellfire beam component](docs/hellfire-beam.md) now reconstructs original
+one-row allocation failure/signalFFFF, beam phases/quad, palette/sound/gradient
+upload requests and live-Up projectile choice. Preserve high-word follow with
+retained fractions, signed-word dimensions/timers, width24/negative hidden width,
+post-phase color work, pre/post-decrement waits and actual signal1/2/3 timing.
+Requests confer no factory/capture/attack readiness; cancellation needs the real
+player finishing palette restoration. Native Hellfire remains disabled until
+player/rows/gradient/palette/factories/projectile-combat owners connect. v9 saves
+and default grants are unchanged. Component instruction comparisons establish no
+playable-Hellfire/Alucard/castle/console completeness.
+
 Selected [playable Summon/Tetra Spirit](docs/player-spirit-spells.md) now connects
 normal commands/MP/learning, actual factories/rows/targets/combat, prior-frame63x63
 capture, black portal/body/trail/Blink presentation and real scene/audio freeze.
