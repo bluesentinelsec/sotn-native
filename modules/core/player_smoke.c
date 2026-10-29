@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7879C.c:EntitySmokePuff profiles0/1 and alu_anim.c:UpdateAnim,
+// Selected dra/7879C.c:EntitySmokePuff profiles0/1/5 and alu_anim.c:UpdateAnim,
 // sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Tables stay private.
 #include <SDL3/SDL_error.h>
 #include <sotn/player_smoke.h>
@@ -41,10 +41,12 @@ static bool Animate(SotnPlayerSmoke *s, SotnDataView dra)
 bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFactorySource source,
                           Uint16 parameter, Uint16 priority, Uint32 contacts, Uint32 status)
 {
+    const Uint16 high = parameter >> 8, low = parameter & 255U;
     if (!smoke || smoke->phase > 1 || smoke->pose >= 24 || smoke->remaining < -1 ||
-        smoke->removed || priority > 509 || parameter >> 8 > 1 || (parameter & 255U) > 5 ||
-        !dra.bytes || dra.size < 0xd5e0)
-        return SDL_SetError("Player smoke requires selected private ground/slide snapshots");
+        smoke->removed || priority > 509 || (high != 0 && high != 1 && high != 5) || low > 5 ||
+        (high == 5 && low > 2) || !dra.bytes || dra.size < 0xd5e0)
+        return SDL_SetError(
+            "Player smoke requires selected private ground/slide/walking snapshots");
     if (!smoke->phase && (status & 0x20000U))
         return SDL_SetError("US smoke birth uses an unwritten parameter for player status0x20000");
     if (smoke->phase && smoke->parameter != parameter)
@@ -52,9 +54,9 @@ bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFa
     SotnPlayerSmoke next = *smoke;
     if (!next.phase)
     {
-        const Uint16 low = parameter & 255U;
-        const bool slide = (parameter >> 8) == 1;
-        Sint32 offset = Word(Read16(dra.bytes + 0xd54c + low * 2U)) + (slide ? -8 : 6);
+        const bool slide = high == 1, walking = high == 5;
+        Sint32 offset =
+            walking ? -6 : Word(Read16(dra.bytes + 0xd54c + low * 2U)) + (slide ? -8 : 6);
         if (slide && (contacts & 0x8000U))
             offset /= 2;
         if (source.facing_left)
@@ -62,7 +64,8 @@ bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFa
         next.x = Fixed((Uint32)source.x + (Uint32)offset * 65536U);
         next.y = Fixed((Uint32)source.y + 24U * 65536U);
         const Uint16 index = slide ? 1 : low;
-        const Uint8 *velocity = dra.bytes + 0xd558 + index * 4U;
+        const Uint16 velocity_index = walking ? (Uint16)(4U - low * 2U) : index;
+        const Uint8 *velocity = dra.bytes + 0xd558 + velocity_index * 4U;
         const Uint32 bits = (Uint32)Read16(velocity) | (Uint32)Read16(velocity + 2) << 16;
         next.velocity_y = slide ? -16384 : Fixed(bits);
         next.velocity_x = slide ? (source.facing_left ? 12288 : -12288) : 0;

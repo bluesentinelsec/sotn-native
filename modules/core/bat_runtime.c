@@ -492,6 +492,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.afterimage_reset = false;
     SotnPlayerState p = in.player;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
+    if (p.movement_effects.smoke &&
+        !RequestSource(&r, p.movement_effects.smoke_source, p.movement_effects.smoke_blueprint, 0))
+        return false;
     if (p.gravity.ceiling_impact && !RequestSource(&r, p.gravity.impact_source, 0x10004, 0))
         return false;
     if (in.wolf_owned && p.wolf.body_started)

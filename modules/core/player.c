@@ -125,12 +125,30 @@ static void Land(SotnPlayer *player, Sint32 speed)
     Animate(player, animation);
 }
 
+static void MovementSmoke(SotnPlayer *player, Uint32 blueprint)
+{
+    if (player->movement_effects.smoke)
+    {
+        player->failed = true;
+        SDL_SetError("Ordinary movement exceeded its selected one-update factory request");
+        return;
+    }
+    player->movement_effects =
+        (SotnPlayerMovementEffects){.smoke = true,
+                                    .smoke_blueprint = blueprint,
+                                    .smoke_source = {.x = player->x.value,
+                                                     .y = player->y.value,
+                                                     .priority = 148,
+                                                     .facing_left = player->facing_left}};
+}
 static void Walk(SotnPlayer *player, bool force)
 {
     const bool ledge = (player->contact & 0x20) != 0;
     SetSpeed(player, WALK_SPEED);
     player->vy = 0;
     SetStep(player, SOTN_PLAYER_WALK);
+    if (!force)
+        MovementSmoke(player, 0x50001);
     if (force)
     {
         if (player->animation.id != 13)
@@ -295,6 +313,18 @@ static void ClearAttack(SotnPlayer *player)
     player->curse_failure = false;
     player->attack_mode = 0;
     player->attack = (SotnPlayerAttack){0};
+}
+
+static void Backdash(SotnPlayer *player)
+{
+    SetStep(player, SOTN_PLAYER_STAND);
+    player->substep = 3;
+    SetSpeed(player, -229376);
+    player->vy = 0;
+    Animate(player, 0xdb);
+    MovementSmoke(player, 0);
+    ClearAttack(player);
+    player->sound = 0x617;
 }
 
 // Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
@@ -561,6 +591,9 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     if (player->vy >= 0 && (flags & 1) && (player->contact & 1))
     {
         const bool diving = player->step == SOTN_PLAYER_JUMP && player->substep == 0x70;
+        const bool hard =
+            player->vy > 450560 || (!player->attack_mode && !(player->movement_flags & 0x10) &&
+                                    (player->vx > 2 * FIX_ONE || player->vx < -2 * FIX_ONE));
         if (player->vy > 450560)
             Crouch(player, diving ? 3U : 1U, diving ? player->vx / 2 : 0);
         else if (player->movement_flags & 0x10)
@@ -570,6 +603,9 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
         else
             Land(player, 0);
         ClearAttack(player);
+        player->sound = hard ? 0x647 : 0x64c;
+        if (hard)
+            MovementSmoke(player, 0);
         return true;
     }
     if ((flags & 4) && !(player->contact & 1))
@@ -603,6 +639,12 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
         ClearAttack(player);
         return true;
     }
+    if ((flags & 0x40000) && !(player->attack_mode & 0x8000) && player->animation.id != 0xdb &&
+        ((player->attack_mode & 0x7fff ? player->buttons : player->tapped) & SOTN_BUTTON_CANCEL))
+    {
+        Backdash(player);
+        return true;
+    }
     return false;
 }
 
@@ -620,6 +662,23 @@ static void StandTick(SotnPlayer *player)
             Land(player, 0);
             ClearAttack(player);
         }
+        return;
+    }
+    if (player->substep == 3)
+    {
+        if (player->animation.pose >= 7 || player->animation.remaining < 0)
+        {
+            Land(player, 0);
+            if (player->buttons & SOTN_BUTTON_UP)
+            {
+                Animate(player, (player->contact & 0x20) ? 1 : 0);
+                player->substep = 1;
+            }
+            if (Direction(player))
+                Walk(player, false);
+        }
+        else if ((player->animation.pose >= 4 || player->animation.id == 14) && Direction(player))
+            Walk(player, false);
         return;
     }
     if (player->attack_mode != 0)
@@ -1049,11 +1108,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SOTN_BUTTON_JUMP | SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND |
         (player && player->mist_context ? SOTN_BUTTON_MIST : 0) |
         (player && player->bat_context ? SOTN_BUTTON_BAT : 0) |
-        (player && player->wolf_context ? SOTN_BUTTON_WOLF : 0) |
-        ((player && player->bat_context && player->step == SOTN_PLAYER_BAT) ||
-                 (player && player->wolf_context && player->step == SOTN_PLAYER_WOLF)
-             ? SOTN_BUTTON_CANCEL
-             : 0);
+        (player && player->wolf_context ? SOTN_BUTTON_WOLF : 0) | SOTN_BUTTON_CANCEL;
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
@@ -1067,6 +1122,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
     next.sleep_event = false;
+    next.movement_effects = (SotnPlayerMovementEffects){0};
     const bool poison_recovery =
         next.poison_ticks == 1 && next.step != SOTN_PLAYER_STONE && !next.curse_ticks;
     if (next.curse_ticks)
@@ -1362,6 +1418,13 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->gravity.ceiling_impact && (impact_x < SDL_MIN_SINT32 || impact_x > SDL_MAX_SINT32 ||
                                            impact_y < SDL_MIN_SINT32 || impact_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured Gravity Boots impact origin");
+    const Sint64 smoke_x =
+                     (Sint64)player->movement_effects.smoke_source.x + (Sint64)offset_x * FIX_ONE,
+                 smoke_y =
+                     (Sint64)player->movement_effects.smoke_source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->movement_effects.smoke && (smoke_x < SDL_MIN_SINT32 || smoke_x > SDL_MAX_SINT32 ||
+                                           smoke_y < SDL_MIN_SINT32 || smoke_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured ordinary movement source");
     for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
     {
         const Sint64 source_x = (Sint64)player->wolf.commands.requests[i].source.x +
@@ -1391,6 +1454,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         }
     player->map = map;
     player->afterimage = afterimage;
+    if (player->movement_effects.smoke)
+    {
+        player->movement_effects.smoke_source.x = (Sint32)smoke_x;
+        player->movement_effects.smoke_source.y = (Sint32)smoke_y;
+    }
     if (player->gravity.ceiling_impact)
     {
         player->gravity.impact_source.x = (Sint32)impact_x;
@@ -1504,6 +1572,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .wolf = player->wolf,
         .afterimage = player->afterimage,
         .afterimage_generation = player->afterimage_generation,
+        .movement_effects = player->movement_effects,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
         .rotated = player->form_rotated};

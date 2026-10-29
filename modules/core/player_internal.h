@@ -34,6 +34,7 @@ struct SotnPlayer
     Sint32 vx, vy, contact, previous_contact;
     Uint32 status, frame_number, movement_flags;
     SotnPlayerAfterimage afterimage;
+    SotnPlayerMovementEffects movement_effects;
     Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
     Uint16 afterimage_timer15;
     bool afterimage_pending, afterimage_ticked;

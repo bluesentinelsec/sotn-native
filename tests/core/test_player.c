@@ -87,7 +87,7 @@ static bool TestMovement(Fixture *fixture)
     CHECK(State(player, &state));
     CHECK(state.step == SOTN_PLAYER_STAND);
     const Sint32 before_x = state.x, before_y = state.y;
-    CHECK(!SotnPlayer_Tick(player, 0x0010));
+    CHECK(!SotnPlayer_Tick(player, 0x0001));
     CHECK(State(player, &state) && state.x == before_x && state.y == before_y);
     CHECK(SotnPlayer_ChangeRoom(player, map, 16, 0));
     CHECK(State(player, &state) && state.x == before_x + 16 * 65536);

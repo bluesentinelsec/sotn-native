@@ -1538,8 +1538,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
     if (control.timer)
         player_buttons = control.buttons;
-    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT |
-                                 (state.step == SOTN_PLAYER_BAT ? 0 : SOTN_BUTTON_CANCEL));
+    player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     const SotnPlayerBlink *bat_effect = NULL;
     const SotnPlayerFactory *bat_factory = NULL;
