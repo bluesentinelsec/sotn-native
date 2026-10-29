@@ -5,7 +5,9 @@ selection used by Summon Spirit and Tetra Spirit. These are component services.
 They enable no additional spell controls and own no factories, combat, framebuffer
 capture or scene freeze. Selected Dark Metamorphosis remains the only connected
 ordinary spell. Actual native owners must connect those boundaries before the
-Summon/Tetra availability bits become usable.
+Summon/Tetra availability bits become usable. The [casting/freeze foundation](spirit-casting.md)
+now supplies selected player states and engine boundaries; native ownership remains
+unwired.
 
 The portal retains its original ten-update delay, nine-row allocation request,
 63×63 capture into the shared target at 512,448, private outer shape and eight raw
