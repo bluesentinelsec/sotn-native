@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  spell_commands.c
+  include/sotn/spell_commands.h
   player_afterimage.c
   player_afterimage_owner.c
   include/sotn/player_afterimage.h
