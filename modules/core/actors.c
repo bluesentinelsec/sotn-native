@@ -1866,6 +1866,7 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
                                       .last_cell = (Sint32)((map.width + 15) / 16) - 1};
     actors->frame_start_x = 0;
     actors->player_initialized = false;
+    actors->water = (SotnWaterVolume){0};
     if (actors->camera == &actors->fallback_camera)
     {
         // Synthetic collision fixtures may be smaller than a screen; their camera is unused.
@@ -2334,6 +2335,14 @@ bool SotnActors_GetMap(const SotnActors *s, SotnCollisionMap *out)
     *out = s->map;
     return true;
 }
+bool SotnActors_GetWater(const SotnActors *s, SotnWaterVolume *out)
+{
+    if (!s || !s->entered || !out)
+        return SDL_SetError("Stage water requires an entered owner and output");
+    *out = s->water;
+    return true;
+}
+
 bool SotnActors_GetMotion(const SotnActors *s, SotnActorMotion *out)
 {
     if (s == NULL || !s->entered || out == NULL)

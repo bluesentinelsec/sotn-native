@@ -10,6 +10,7 @@
 #include <sotn/player.h>
 #include <sotn/primitive_slots.h>
 #include <sotn/stage_route.h>
+#include <sotn/water_volume.h>
 #include <sotn/wolf_runtime.h>
 #include <sotn/world.h>
 
@@ -92,6 +93,12 @@ bool SotnActors_SetTileArt(SotnActors *actors, SotnDataView pages, SotnDataView 
  * @param actors Entered simulation. @param out Receives copied motion.
  * @return Success or SDL error. */
 bool SotnActors_GetMotion(const SotnActors *actors, SotnActorMotion *out);
+/** @brief Copy the retained original stage water query and three distinct depth words.
+ * @param actors Entered owner. @param out Copied state, unchanged on failure.
+ * @return Success or SDL error. Only an actual placed controller publishes feedback after
+ * committed child reservations. Room entry clears depths; menus/freeze never sample anew.
+ * This does not itself wire player drag, form gates, swimming, damage or bubbles. */
+bool SotnActors_GetWater(const SotnActors *actors, SotnWaterVolume *out);
 /** @brief Copy transient original room limits after actor updates and before room lookup.
  * @param actors Entered simulation. @param out Copied window, unchanged on failure.
  * @return Success or SDL error. Room entry resets all limits; no save state is changed. */

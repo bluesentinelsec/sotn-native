@@ -1,10 +1,21 @@
+Selected [native Entrance water actors](docs/native-water-actors.md) now commit
+actual controller plans, auxiliary slots224..255, shared primitive leases,
+original GT4/tile rendering, sound requests, currents and retained three depths.
+Preserve pre-current sampling, zero child fractions, separate stage/libc RNG,
+default drop priority, contiguous33-row sentinel, no-tick camera translation,
+optional exhaustion and late-birth row rollback. Room entry clears water depths.
+Player drag/forms/swimming/bubbles/damage remain unwired; never substitute tile
+contacts for real depth words. Savesv9/default grants and Alucard/castle/console
+incompleteness remain unchanged.
+
 The [ordinary water-effect components](docs/water-effects.md) reconstruct main/
 surfacing/side GT4s and small/32-particle drops. Preserve real2/4/1/33-row leases,
 allocation-before-RNG, separate stage/libc streams, whole-word child origins,
 birth-motion distinctions, cached world surfaces, packed fractions and sentinel.
 Camera shifts body/packets once; draws never tick. Sound/drop requests are not
-completed playback/factories. Native actor/primitive/render/player/damage ownership
-remains unwired; no new pool/default grants/saves change. Alucard/castle/console
+completed playback/factories. Selected native Entrance owners now supply stage
+actor/primitive/render ownership; player/damage ownership remains unwired.
+No new pool/default grants/saves change. Alucard/castle/console
 parity remain incomplete.
 
 The [ordinary water-controller component](docs/water-controller.md) reconstructs
@@ -13,15 +24,17 @@ cooldown and signed currents. Preserve original entry-variant overwrite, whole-w
 Y tests, prior exit row/origins, zero child fractions and pre-current sampling.
 Plans are not completed factories: validate/commit every real slot224..255 before
 controller/depth/current feedback. No second pool or fake surface cooldown is
-allowed. Native placed/effect/player/damage ownership remains unwired; ordinary
-starts/savesv9 stay unchanged. Alucard/castle/console parity remain incomplete.
+allowed. Selected native Entrance now supplies placed/effect owners; player/damage
+ownership remains unwired. Ordinary starts/savesv9 stay unchanged.
+Alucard/castle/console parity remain incomplete.
 
 The [water-volume query](docs/water-volume-query.md) reconstructs original private
 volume/slope sampling and three distinct form-dependent depths. Preserve word wrap,
 strict right/bottom edges, first match, contact at zero depth and crouch/form
 precedence. Unused no-contact scratch initializes safely and confers no selected
-row/readiness. Actual placed controllers/currents/splashes/player feedback/damage
-remain unwired; no controls/default grants/saves change. Do not substitute a tile
+row/readiness. Selected native Entrance now supplies placed controllers/currents/
+splashes; further player feedback/damage remain unwired. No controls/default grants/
+saves change. Do not substitute a tile
 boolean or invent successful auxiliary allocation. Alucard/castle/console parity
 remain incomplete.
 

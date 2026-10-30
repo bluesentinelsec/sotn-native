@@ -35,8 +35,9 @@ check body state, randomness, sound/drop requests and camera shifts with explici
 primitive, allocation, playback and destruction adapters. These supplied contexts
 are not native water traversal, full audiovisual or console parity evidence.
 
-Native placed actors, actual shared primitive/factory/render ownership, player
-depth/current feedback and water damage remain separate work. Ordinary starts and
+Selected [native Entrance actors](native-water-actors.md) now supply actual stage
+primitive/factory/render ownership, retained depths and currents. Player drag,
+form feedback, swimming, bubbles and water damage remain separate work. Ordinary starts and
 version-nine saves remain unchanged. Alucard and the castle are incomplete.
 
 Provenance: `st/entity_splash_water.h`, `st/water_effects.h` and

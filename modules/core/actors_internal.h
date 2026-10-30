@@ -13,6 +13,9 @@
 #include <sotn/soul_orb.h>
 #include <sotn/stage_profile.h>
 #include <sotn/subweapon.h>
+#include <sotn/water_actor.h>
+#include <sotn/water_drops.h>
+#include <sotn/water_effect.h>
 #include <sotn/world.h>
 
 enum
@@ -93,6 +96,11 @@ typedef struct Actor
     SotnActorState state;
     SotnEnemyBlood enemy_blood;
     SotnSoulOrb soul_orb;
+    union {
+        SotnWaterActor controller;
+        SotnWaterEffect effect;
+        SotnWaterDrops drops;
+    } water;
     Sint32 vx, vy;
     struct
     {
@@ -466,6 +474,7 @@ struct SotnActors
     Sint32 frame_start_x;
     bool player_initialized;
     SotnActorMotion motion;
+    SotnWaterVolume water;
     SotnPaletteBlend palette_blend;
     SotnPaletteRedShift palette_red_shift;
     SotnActorControl control;
@@ -1023,6 +1032,8 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor);
 bool ActorEnemyBlood(SotnActors *actors, Actor *actor, SotnPlayerState player);
 /** @brief Advance actual common Soul Steal orb, its real row and deferred healing. */
 bool ActorSoulOrb(SotnActors *actors, Actor *actor, SotnPlayerState player);
+/** @brief Advance actual Entrance water controllers/effects and their shared native leases. */
+bool ActorWater(SotnActors *actors, Actor *actor);
 
 static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
                                 size_t revisited)

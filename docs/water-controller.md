@@ -1,8 +1,9 @@
 # Ordinary water-controller transaction
 
 The core reconstructs the placed US water controller's cache, current displacement
-and ordered splash/surfacing plans. It still enables no native water feedback,
-swimming or damage behavior. Its [volume query](water-volume-query.md) supplies the
+and ordered splash/surfacing plans. The component enables no feedback by itself;
+selected [native Entrance owners](native-water-actors.md) now commit its stage
+children, currents and depths. Swimming and damage remain separate. Its [volume query](water-volume-query.md) supplies the
 original private geometry and three distinct depths.
 
 Birth caches the query; the native owner must initialize the placed actor. Depth
@@ -33,8 +34,9 @@ Debug and ASan/UBSan traces match byte for byte.
 
 The [water-effect components](water-effects.md) now reconstruct the child packets
 and particle behavior; they still require real native ownership.
-Actual placed-controller, splash/drop/primitive ownership, native player feedback,
-water damage and uninterrupted-route/console parity remain separate work. Ordinary
+Selected [native Entrance actors](native-water-actors.md) now supply actual placed
+controllers, children, shared rows, rendering and current/depth feedback. Player drag,
+form gates, water damage and uninterrupted-route/console parity remain separate work. Ordinary
 starts and version-nine saves stay unchanged; Alucard and the castle are incomplete.
 
 Provenance: `st/water_effects.h:EntityAlucardWaterEffect` and stage
