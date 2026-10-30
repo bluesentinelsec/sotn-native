@@ -1,4 +1,7 @@
 add_library(sotn-core STATIC
+  soul_orb.c
+  actor_soul_orb.c
+  include/sotn/soul_orb.h
   stage_freeze.c
   include/sotn/stage_freeze.h
   spell_target.c

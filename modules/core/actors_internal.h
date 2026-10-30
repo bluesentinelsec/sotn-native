@@ -10,6 +10,7 @@
 #include <sotn/game_math.h>
 #include <sotn/relic.h>
 #include <sotn/shop.h>
+#include <sotn/soul_orb.h>
 #include <sotn/stage_profile.h>
 #include <sotn/subweapon.h>
 #include <sotn/world.h>
@@ -91,6 +92,7 @@ typedef struct Actor
 {
     SotnActorState state;
     SotnEnemyBlood enemy_blood;
+    SotnSoulOrb soul_orb;
     Sint32 vx, vy;
     struct
     {
@@ -1019,6 +1021,8 @@ bool ActorReplaceExplosion(SotnActors *actors, Actor *actor, Uint16 kind);
 bool ActorExplosionTick(SotnActors *actors, Actor *actor);
 /** @brief Advance actual common blood actor, contiguous tiles and deferred healing events. */
 bool ActorEnemyBlood(SotnActors *actors, Actor *actor, SotnPlayerState player);
+/** @brief Advance actual common Soul Steal orb, its real row and deferred healing. */
+bool ActorSoulOrb(SotnActors *actors, Actor *actor, SotnPlayerState player);
 
 static inline size_t ActorTable(const SotnActors *actors, size_t laboratory, size_t entrance,
                                 size_t revisited)
