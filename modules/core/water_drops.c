@@ -145,7 +145,7 @@ bool SotnWaterDrops_Tick(SotnWaterDrops *drops, SotnWaterDropsInput in, Uint32 *
             p->x = Pixel(p->fixed_x);
             p->y = Pixel(p->fixed_y);
         }
-        s.tiles[32].draw_mode &= (Uint16)~8U;
+        s.tiles[32].draw_mode &= 0xfff7U;
         s.tiles[32].x = s.tiles[32].y = 0;
         s.tiles[32].width = 0;
     }
