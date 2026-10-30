@@ -3,6 +3,7 @@
 
 #include <sotn/actors.h>
 #include <sotn/alucard_sprite.h>
+#include <sotn/death_image.h>
 #include <sotn/dialogue.h>
 #include <sotn/equipment.h>
 #include <sotn/mist_effect.h>
@@ -42,6 +43,20 @@ bool SotnActorGraphics_GetPlayerGlow(const SotnActorGraphics *graphics, SotnPlay
  * Preserves original right/bottom clear margins. Geometry, rotation and effect profiles
  * belong to their respective callers; this operation changes no animation or readiness. */
 bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
+
+/** @brief Copy the original private death rectangle from committed owned display texture memory.
+ * @param graphics Actual texture owner. @param out Receives packed pixels and fresh decay cursor.
+ * @return Success or SDL error preserving output for malformed bounds or missing uploaded words.
+ * This performs the actual selected StoreImage copy; it does not upload private art, tick the
+ * player, signal a completed death or authorize controls. Flush prior owned uploads first. */
+bool SotnActorGraphics_StoreDeathImage(const SotnActorGraphics *graphics, SotnDeathImage *out);
+/** @brief Upload the actual retained/decayed packed image into its original private rectangle.
+ * @param graphics Actual texture owner. @param image Complete captured runtime image.
+ * @return Success or SDL error preserving texture memory on invalid input. Never mutates private
+ * source artwork. Simulation owns the capture/decay timing and must commit its cursor only after
+ * this upload succeeds; repeated drawing must not advance decay or overwrite it with source art.
+ */
+bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *graphics, const SotnDeathImage *image);
 
 /** @brief Prepare an original normal-ARC afterimage packet and its actual private display upload.
  * @param graphics Owned texture memory. @param sprite Borrowed immutable decoded ARC pose.

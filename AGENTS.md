@@ -1,3 +1,13 @@
+The [owned death-image APIs](docs/player-death-capture.md) now copy actual resident
+display-texture pixels and reconstruct original packed-nibble decay/uploads.
+Preserve private rectangle bounds, full5120-byte copies, four40-nibble groups,
+cursor+35 byte wrap,64-update completion, immutable source art and unrelated VRAM.
+Commit copied cursors only after actual upload succeeds. Requests are not completed
+player color/velocity/substate/game-over transitions. Native death timing remains
+unwired; explicit decay/draw fixtures are not actual dying-player/route/console
+evidence. Physical death is not a water-death substitute. Savesv9/default grants
+and Alucard/castle incompleteness remain unchanged.
+
 Selected [death particles](docs/player-death-particles.md) now bind original
 AluInit vectors to shared profile6 factories/rows/rendering. Initialize32 vectors
 with64 actual selected-character RNG calls once after full new/Continue restoration;

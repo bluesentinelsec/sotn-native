@@ -1374,6 +1374,48 @@ bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprit
     UploadPlayerSlot(g, sprite, slot_x, slot_y);
     return true;
 }
+static bool DeathRectangle(const SotnActorGraphics *g, Uint16 *x, Uint16 *y)
+{
+    if (!g || !g->dra.bytes || g->dra.size < 0xe138)
+        return SDL_SetError("Death capture requires its private original display rectangle");
+    const Uint16 sx = Read16(g->dra.bytes + 0xe130), sy = Read16(g->dra.bytes + 0xe132);
+    if (Read16(g->dra.bytes + 0xe134) != 32 || Read16(g->dra.bytes + 0xe136) != 80 ||
+        sx > 1024 - 32 || sy > 512 - 80)
+        return SDL_SetError("Death capture rectangle escapes its original packed image bounds");
+    *x = sx;
+    *y = sy;
+    return true;
+}
+bool SotnActorGraphics_StoreDeathImage(const SotnActorGraphics *g, SotnDeathImage *out)
+{
+    Uint16 x = 0, y = 0;
+    if (!out)
+        return SDL_InvalidParamError("out");
+    if (!DeathRectangle(g, &x, &y))
+        return false;
+    Uint8 pixels[SOTN_DEATH_IMAGE_BYTES] = {0};
+    for (Uint16 row = 0; row < 80; ++row)
+        for (Uint16 column = 0; column < 32; ++column)
+        {
+            const size_t source = (size_t)(y + row) * 1024U + x + column;
+            if (!g->valid[source])
+                return SDL_SetError("Death capture references an unloaded owned display word");
+            const size_t at = ((size_t)row * 32U + column) * 2U;
+            pixels[at] = (Uint8)g->words[source];
+            pixels[at + 1U] = (Uint8)(g->words[source] >> 8);
+        }
+    return SotnDeathImage_Begin(out, (SotnDataView){pixels, sizeof(pixels)});
+}
+bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *g, const SotnDeathImage *image)
+{
+    Uint16 x = 0, y = 0;
+    if (!image || !image->captured || image->remaining > 64)
+        return SDL_SetError("Death upload requires its actual captured packed image");
+    if (!DeathRectangle(g, &x, &y))
+        return false;
+    Upload(g, x, y, 32, 80, image->pixels);
+    return true;
+}
 // dra/4B758.c packed sprite branch; PlayerDraw slots retain private UVs/flip and palette identity.
 bool SotnActorGraphics_Afterimage(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
                                   SotnAfterimageDisplay d, Sint32 x, Sint32 y,

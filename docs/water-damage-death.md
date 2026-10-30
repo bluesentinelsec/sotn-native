@@ -22,7 +22,7 @@ rotation drawing through the normal helper while retaining rotation512; subseque
 updates restore the rotation flag. Its blue increases toward248 while red/green
 fall toward8. Vertical speed wraps before the original strict positive reset; it
 is not a conventional cap. Cramped-space birth cancels upward velocity. A finished
-animation requests the original framebuffer capture and common disintegration
+animation requests the original display-texture capture and common disintegration
 state16; an already completed global fade preempts initialized state13 into17.
 The component never moves, animates, copies pixels or substitutes physical death.
 
@@ -41,7 +41,9 @@ Selected [water Blink flashes](water-blink-effects.md) now supply their shared
 child/row/rendering owners and native input snapshots; actual damage/death producers
 remain unwired. Selected [death particles](player-death-particles.md) now supply
 their initialization/factory/row/rendering dependency; actual capture and common
-death operations still need their owners.
+death timing still needs its owners. The [owned death-image APIs](player-death-capture.md)
+now supply real display-texture copies and packed decay/uploads; they do not
+establish actual dying-player capture or common-death completion.
 Ordinary starts, grants and version-nine saves remain unchanged. The existing
 unsupported US wet-smoke birth guard remains. Native water damage/death, full
 equipment and shared effects, Alucard, castle and console parity remain incomplete.

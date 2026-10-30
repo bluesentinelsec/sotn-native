@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  death_image.c
+  include/sotn/death_image.h
   water_death.c
   include/sotn/water_death.h
   water_damage.c
