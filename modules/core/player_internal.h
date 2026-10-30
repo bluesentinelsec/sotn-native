@@ -42,6 +42,11 @@ struct SotnPlayer
     SotnSpellCommands spell_commands;
     bool dark_context, spirit_context;
     SotnPlayerSpirit spirit;
+    SotnPlayerHellfireFactory hellfire_factory;
+    void *hellfire_context;
+    Sint32 hellfire_camera_x;
+    Uint16 hellfire_signal, hellfire_palette;
+    bool hellfire_started;
     Uint8 spell_use_ticks;
     Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
     Uint16 afterimage_timer15;

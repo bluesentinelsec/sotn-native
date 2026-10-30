@@ -23,6 +23,8 @@ add_library(sotn-render STATIC
   include/sotn/hud.h
   tilemap.c
   alucard_sprite.c
+  hellfire_graphics.c
+  include/sotn/hellfire_graphics.h
   spirit_capture.c
   include/sotn/spirit_capture.h
   wolf_capture.c

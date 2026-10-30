@@ -972,6 +972,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                             .rotation = p.bat.rotation,
                             .priority = p.priority,
                             .status = p.status,
+                            .poison_ticks = p.poison_ticks,
+                            .curse_ticks = p.curse_ticks,
                             .player_step = (Uint16)p.step,
                             .player_substep = p.substep,
                             .signal = p.wolf.active ? p.wolf.signal : p.bat.signal,

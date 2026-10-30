@@ -5,6 +5,7 @@
 // and selected unarmed paths in 7879C.c and alu_anim.c.
 #include "player_internal.h"
 #include <sotn/combat.h>
+#include <sotn/hellfire_cast.h>
 #include <sotn/subweapon.h>
 
 enum
@@ -467,7 +468,8 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
         player->step == SOTN_PLAYER_BOSS_GRAB || player->step == SOTN_PLAYER_DARK ||
-        player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA;
+        player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA ||
+        player->step == SOTN_PLAYER_HELLFIRE;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -1105,17 +1107,18 @@ static void DeathTick(SotnPlayer *player)
 
 static void NormalSpellInput(SotnPlayer *p)
 {
-    if ((!p->dark_context && !p->spirit_context) || p->mp_spent)
+    if ((!p->dark_context && !p->spirit_context && !p->hellfire_factory) || p->mp_spent)
         return;
-    SotnSpellCommandFrame frame = {
-        .pressed = p->buttons,
-        .tapped = p->tapped,
-        .step = p->step,
-        .attack_mode = p->attack_mode,
-        .mp = p->mp,
-        .available = (Uint8)((p->dark_context ? 1U : 0U) | (p->spirit_context ? 0xaU : 0U)),
-        .facing_left = p->facing_left,
-        .cramped = p->tight_space != 0};
+    SotnSpellCommandFrame frame = {.pressed = p->buttons,
+                                   .tapped = p->tapped,
+                                   .step = p->step,
+                                   .attack_mode = p->attack_mode,
+                                   .mp = p->mp,
+                                   .available = (Uint8)((p->dark_context ? 1U : 0U) |
+                                                        (p->spirit_context ? 0xaU : 0U) |
+                                                        (p->hellfire_factory ? 4U : 0U)),
+                                   .facing_left = p->facing_left,
+                                   .cramped = p->tight_space != 0};
     SotnSpellCommandEvents events = {0};
     if (!SotnSpellCommands_Tick(&p->spell_commands, p->dra, &frame, &events))
     {
@@ -1129,9 +1132,16 @@ static void NormalSpellInput(SotnPlayer *p)
     p->vx = p->vy = 0;
     SetStep(p, events.spell == 1   ? SOTN_PLAYER_SUMMON
                : events.spell == 3 ? SOTN_PLAYER_TETRA
+               : events.spell == 2 ? SOTN_PLAYER_HELLFIRE
                                    : SOTN_PLAYER_DARK);
     p->shield_cursor = (SotnShield){0};
     p->shield = (SotnPlayerAttack){0};
+    if (events.spell == 2)
+    {
+        p->hellfire_started = true;
+        p->invincibility = (Uint16)SDL_max(p->invincibility, 16);
+        return;
+    }
     if (events.spell == 1 || events.spell == 3)
     {
         Animate(p, events.spell == 1 ? 0xf0 : 0xf1);
@@ -1164,6 +1174,111 @@ bool SotnPlayer_SetDarkContext(SotnPlayer *p, bool enabled)
     return true;
 }
 
+static bool HellfireFeedbackValid(Uint16 signal, Uint16 palette)
+{
+    return (signal <= 3 || signal == 0xffffU) &&
+           (palette == 0 || palette == 0x8100 || palette == 0x810d);
+}
+bool SotnPlayer_SetHellfireContext(SotnPlayer *p, SotnPlayerHellfireFactory factory, void *context,
+                                   Sint32 camera_x, Uint16 signal, Uint16 palette)
+{
+    if (!p || (factory != NULL) != (context != NULL) || camera_x < 0 || camera_x > 16384 ||
+        !HellfireFeedbackValid(signal, palette) ||
+        (!factory && (p->step == SOTN_PLAYER_HELLFIRE || signal || palette)))
+        return SDL_SetError("Hellfire requires its actual shared owner, camera and child feedback");
+    p->hellfire_factory = factory;
+    p->hellfire_context = context;
+    p->hellfire_camera_x = camera_x;
+    p->hellfire_signal = signal;
+    p->hellfire_palette = palette;
+    return true;
+}
+bool SotnPlayer_CommitHellfire(SotnPlayer *p, Uint16 signal, Uint16 palette)
+{
+    if (!p || !HellfireFeedbackValid(signal, palette) ||
+        (!p->hellfire_factory && (signal || palette)))
+        return SDL_SetError("Hellfire feedback requires its actual committed native child owner");
+    p->hellfire_signal = signal;
+    p->hellfire_palette = palette;
+    return true;
+}
+static void HellfireTick(SotnPlayer *p)
+{
+    if (!p->hellfire_factory)
+    {
+        p->failed = true;
+        SDL_SetError("Hellfire casting has no actual shared factory owner");
+        return;
+    }
+    SotnPlayerFactorySource source = {
+        .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left};
+    bool root_created = false;
+    if (!p->substep && !p->hellfire_factory(p->hellfire_context, source, 33, &root_created))
+    {
+        p->failed = true;
+        return;
+    }
+    const bool raised = p->shield_cursor.phase != 0 && p->shield_cursor.phase < 3 &&
+                        (p->buttons & p->shield_button);
+    SotnHellfireCast cast = {
+        .velocity_x = p->vx, .phase = p->substep, .facing_left = p->facing_left};
+    SotnHellfireCastEvents events = {0};
+    if (!SotnHellfireCast_Tick(
+            &cast,
+            (SotnHellfireCastInput){.buttons = p->buttons,
+                                    .movement_flags = p->movement_flags,
+                                    .floor_center = (Uint16)p->floor[1].effects,
+                                    .floor_right = (Uint16)p->floor[2].effects,
+                                    .floor_left = (Uint16)p->floor[3].effects,
+                                    .signal = p->hellfire_signal,
+                                    .pose = p->animation.pose,
+                                    .remaining = (Sint16)p->animation.remaining,
+                                    .normal_phase = raised ? 2 : 0,
+                                    .x = (Sint16)(p->x.parts.high - p->hellfire_camera_x),
+                                    .root_created = root_created},
+            &events))
+    {
+        p->failed = true;
+        return;
+    }
+    p->facing_left = cast.facing_left;
+    source.facing_left = p->facing_left;
+    p->turned |= events.turned;
+    for (Uint16 i = 0; i < events.count; ++i)
+    {
+        const SotnHellfireCastAction action = events.actions[i];
+        if (action.kind == SOTN_HELLFIRE_FACTORY)
+        {
+            if (action.value == 33)
+                continue;
+            bool allocated = false;
+            if (!p->hellfire_factory(p->hellfire_context, source, action.value, &allocated))
+                p->failed = true;
+        }
+        else if (action.kind == SOTN_HELLFIRE_NORMAL)
+            Land(p, 0);
+        else if (action.kind == SOTN_HELLFIRE_ANIMATION)
+            Animate(p, action.value);
+        else if (action.kind == SOTN_HELLFIRE_USE_TIMER)
+            p->spell_use_ticks = (Uint8)action.value;
+        else if (action.kind == SOTN_HELLFIRE_RESTORE_FLASHES)
+        {
+            const Uint32 factories[2] = {p->curse_ticks ? 0x17002cU : 0U,
+                                         p->poison_ticks ? 0x16002cU : 0U};
+            for (Uint16 j = 0; j < 2; ++j)
+            {
+                bool allocated = false;
+                if (factories[j] &&
+                    !p->hellfire_factory(p->hellfire_context, source, factories[j], &allocated))
+                    p->failed = true;
+            }
+        }
+        if (p->failed)
+            return;
+    }
+    p->substep = cast.phase;
+    p->vx = cast.velocity_x;
+}
 bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
 {
     const Uint16 supported =
@@ -1182,6 +1297,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.mp_spent = 0;
     next.dark.started = false;
     next.spirit.started = false;
+    next.hellfire_started = false;
     if (next.spell_use_ticks)
         --next.spell_use_ticks;
     if (next.dark.ticks)
@@ -1287,6 +1403,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     case SOTN_PLAYER_BOSS_GRAB:
         BossGrabTick(&next);
         break;
+    case SOTN_PLAYER_HELLFIRE:
+        HellfireTick(&next);
+        break;
     case SOTN_PLAYER_SUMMON:
     case SOTN_PLAYER_TETRA:
         if (next.animation.remaining < 0)
@@ -1382,7 +1501,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U) |
         (next.step == SOTN_PLAYER_WOLF ? 4U : 0U);
     if (next.step == SOTN_PLAYER_DARK || next.step == SOTN_PLAYER_SUMMON ||
-        next.step == SOTN_PLAYER_TETRA)
+        next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 16);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
@@ -1631,7 +1750,7 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x38110080U;
     if (player->step == SOTN_PLAYER_BOSS_GRAB)
         status |= 0x38110040U;
-    if (player->step == SOTN_PLAYER_DARK)
+    if (player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_HELLFIRE)
         status |= 0x38000200U;
     if (player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA)
         status |= 0x38000220U;
@@ -1688,6 +1807,10 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .sleep_event = player->sleep_event,
         .sleep = player->sleep,
         .facing_left = player->facing_left,
+        .hellfire_started = player->hellfire_started,
+        .hellfire_hidden = player->hellfire_palette == 0x810d,
+        .hellfire_signal = player->hellfire_signal,
+        .buttons = player->buttons,
         .attack = player->attack,
         .hp = player->hp,
         .hp_max = player->hp_max,
@@ -2100,6 +2223,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.previous_buttons = buttons;
     next.sound = next.extra_sound = next.mp_spent = 0;
     next.dark.started = next.spirit.started = false;
+    next.hellfire_started = false;
     next.healing.applied = next.healing.effects = false;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};

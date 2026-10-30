@@ -135,7 +135,10 @@ facing captured at the first input. It costs 10 MP. Move into blood to absorb it
 original MP, portal/freeze, artwork and enemy damage. Summon costs 5 MP: Back, Up,
 Down, then Down+attack. Tetra costs 20 MP: hold Up for about half a second, then
 Up-forward, Forward, Down-forward, Down, then Down+attack. These remain selected
-development paths; other normal spells and complete Alucard remain unfinished.
+development paths. [Hellfire](docs/player-hellfire.md) costs 15 MP: Up, Down,
+Down-forward, Forward, then either hand attack. Hold Up during casting for large
+fireballs; Down cancels at the reappearance/attack boundary. Other normal spells
+and complete Alucard remain unfinished.
 
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
 or Xbox A selects and keyboard A/Xbox Y goes back. **Q/Xbox LB** toggles an owned,

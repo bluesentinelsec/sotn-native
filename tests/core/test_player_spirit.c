@@ -1,4 +1,5 @@
 #include "player_internal.h"
+#include <sotn/bat_runtime.h>
 #include <sotn/scene_freeze.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -18,6 +19,7 @@ typedef struct Fixture
 {
     Uint8 dra[0x11000], tiles[32 * 16 * 2], types[2];
     SotnPlayer *p;
+    SotnBatRuntime runtime;
     SotnCollisionMap map;
 } Fixture;
 static bool Create(Fixture *f, bool enabled)
@@ -229,12 +231,100 @@ static bool FreezeEdges(void)
     CHECK(!SotnSceneFreeze_BeginFrame(NULL, &frame));
     return true;
 }
+static bool HellfireFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                            bool *allocated)
+{
+    return SotnBatRuntime_RequestHellfire(context, source, packed, allocated);
+}
+static bool HellfireCommand(Fixture *f, bool face)
+{
+    const Uint16 forward = face ? SOTN_BUTTON_LEFT : SOTN_BUTTON_RIGHT;
+    f->p->facing_left = face;
+    CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP));
+    CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_DOWN));
+    CHECK(SotnPlayer_Tick(f->p, (Uint16)(SOTN_BUTTON_DOWN | forward)));
+    CHECK(SotnPlayer_Tick(f->p, forward));
+    CHECK(SotnPlayer_Tick(f->p, (Uint16)(forward | SOTN_BUTTON_LEFT_HAND)));
+    return true;
+}
+static bool Hellfire(Fixture *f)
+{
+    for (Uint16 face = 0; face < 2; ++face)
+    {
+        CHECK(Create(f, true));
+        f->dra[0x8410 + 2 * 28 + 12] = 8;
+        f->p->mp = 8;
+        Put32(f->dra + 0x101b8 + 0x3c * 4, 0x800a0400);
+        for (Uint16 i = 0; i < 12; ++i)
+            Put32(f->dra + 0x400 + i * 4U, 1U | ((Uint32)i + 1U) << 16);
+        Put32(f->dra + 0x430, 65535);
+        CHECK(SotnPlayer_SetHellfireContext(f->p, HellfireFactory, &f->runtime, 0, 0, 0));
+        CHECK(HellfireCommand(f, face != 0));
+        SotnPlayerState state = {0};
+        CHECK(SotnPlayer_GetState(f->p, &state) && state.hellfire_started && state.step == 34 &&
+              state.substep == 1 && state.mp_spent == 8 && !state.mp && state.invulnerable &&
+              (state.status & 0x38000200U) == 0x38000200U &&
+              f->runtime.factories[0].cursor.blueprint == 33);
+        CHECK(SotnPlayer_Tick(f->p, 0) && f->p->substep == 1 && !f->p->hellfire_started &&
+              !f->p->mp_spent);
+        CHECK(SotnPlayer_CommitHellfire(f->p, 1, 0x810d) && SotnPlayer_Tick(f->p, 0) &&
+              f->p->substep == 2 && SotnPlayer_GetState(f->p, &state) && state.hellfire_hidden);
+        CHECK(SotnPlayer_CommitHellfire(f->p, 2, 0x8100) && SotnPlayer_Tick(f->p, 0) &&
+              f->p->substep == 3);
+        CHECK(SotnPlayer_CommitHellfire(f->p, 3, 0x8100) && SotnPlayer_Tick(f->p, 0) &&
+              f->p->substep == 4);
+        f->p->poison_ticks = 1000;
+        f->p->curse_ticks = 100;
+        bool circle = false, timer = false;
+        for (Uint16 t = 0; t < 20 && f->p->step == 34; ++t)
+        {
+            CHECK(SotnPlayer_Tick(f->p, 0));
+            timer |= f->p->spell_use_ticks == 4;
+            for (Uint16 i = 0; i < 8; ++i)
+                circle |= f->runtime.factories[i].cursor.entity_id &&
+                          f->runtime.factories[i].cursor.blueprint == 37;
+        }
+        CHECK(f->p->step == SOTN_PLAYER_STAND && f->p->animation.id == 0x3d && circle && timer);
+        bool poison = false, curse = false;
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            const SotnPlayerFactory factory = f->runtime.factories[i].cursor;
+            poison |= factory.entity_id && factory.blueprint == 44 && factory.parameter == 0x1600;
+            curse |= factory.entity_id && factory.blueprint == 44 && factory.parameter == 0x1700;
+        }
+        CHECK(poison && curse);
+    }
+    CHECK(Create(f, true));
+    f->dra[0x8410 + 2 * 28 + 12] = 8;
+    f->p->mp = 8;
+    CHECK(SotnPlayer_SetHellfireContext(f->p, HellfireFactory, &f->runtime, 0, 0, 0));
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        bool allocated = false;
+        CHECK(SotnBatRuntime_RequestHellfire(
+                  &f->runtime, (SotnPlayerFactorySource){.priority = 148}, 33, &allocated) &&
+              allocated);
+    }
+    CHECK(HellfireCommand(f, false) && f->p->step == SOTN_PLAYER_STAND && f->p->substep == 1 &&
+          f->p->hellfire_started && f->p->mp_spent == 8 && !f->p->mp);
+    CHECK(Create(f, true));
+    f->dra[0x8410 + 2 * 28 + 12] = 8;
+    f->p->mp = 7;
+    CHECK(SotnPlayer_SetHellfireContext(f->p, HellfireFactory, &f->runtime, 0, 0, 0) &&
+          HellfireCommand(f, false) && f->p->step != 34 && !f->p->hellfire_started &&
+          !f->p->mp_spent && f->p->mp == 7 && !f->runtime.factories[0].cursor.entity_id);
+    CHECK(!SotnPlayer_SetHellfireContext(f->p, HellfireFactory, NULL, 0, 0, 0));
+    CHECK(!SotnPlayer_SetHellfireContext(f->p, NULL, NULL, 0, 1, 0));
+    CHECK(!SotnPlayer_CommitHellfire(f->p, 4, 0));
+    CHECK(!SotnPlayer_CommitHellfire(f->p, 0, 0x8123));
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Casting(f) && FrozenPlayer(f) && FreezeEdges();
+    const bool ok = Casting(f) && FrozenPlayer(f) && FreezeEdges() && Hellfire(f);
     SotnPlayer_Close(f->p);
     SDL_free(f);
     if (ok)

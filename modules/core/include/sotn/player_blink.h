@@ -29,6 +29,7 @@ typedef struct SotnPlayerBlinkShared
 /** @brief One real selected BlinkWhite controller and its eight owned primitives.
  * Initialize parameter to 0x20/0x21 (Bat), 0x23/0x24 (Wolf), 5 (Fire) or 0x5C (Wing Smash).
  * Retain until removed; special flashes allocate their own real children.
+ * Parameters 0x16/0x17 restore original poison/curse glows after casting.
  * Parameters 0x44/0x48 support original blood-healing flashes; 0x67 is the spirit fan.
  * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
@@ -47,6 +48,7 @@ typedef struct SotnPlayerBlinkInput
     SotnWolfCaptureBounds wolf_bounds;
     Sint16 x, y, rotation;
     Uint16 priority, player_step, player_substep;
+    Uint16 poison_ticks, curse_ticks; /**< Actual ailment timer0/1, held through scene freeze. */
     Uint32 status;
     Uint8 signal;
     bool facing_left, rotated, image_present;
