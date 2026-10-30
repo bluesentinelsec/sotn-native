@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  water_volume.c
+  include/sotn/water_volume.h
   soul_orb.c
   actor_soul_orb.c
   include/sotn/soul_orb.h

@@ -939,3 +939,9 @@ target_include_directories(sotn-soul-runtime-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-soul-runtime-tests PRIVATE sotn-core)
 add_test(NAME soul-steal-runtime COMMAND sotn-soul-runtime-tests)
 set_tests_properties(soul-steal-runtime PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-water-volume-tests test_water_volume.c)
+sotn_configure_c_target(sotn-water-volume-tests)
+target_link_libraries(sotn-water-volume-tests PRIVATE sotn-core)
+add_test(NAME water-volume-query COMMAND sotn-water-volume-tests)
+set_tests_properties(water-volume-query PROPERTIES TIMEOUT 20)

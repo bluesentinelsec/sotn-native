@@ -1,3 +1,12 @@
+The [water-volume query](docs/water-volume-query.md) reconstructs original private
+volume/slope sampling and three distinct form-dependent depths. Preserve word wrap,
+strict right/bottom edges, first match, contact at zero depth and crouch/form
+precedence. Unused no-contact scratch initializes safely and confers no selected
+row/readiness. Actual placed controllers/currents/splashes/player feedback/damage
+remain unwired; no controls/default grants/saves change. Do not substitute a tile
+boolean or invent successful auxiliary allocation. Alucard/castle/console parity
+remain incomplete.
+
 Selected [playable Soul Steal](docs/player-soul-steal.md) now owns original
 command/50MP/learning5, actual state37/animationDA/pose7 requests, flash12/outlines22,
 shared factory112/child53/slot47, global hit-state82 and native damage/orb healing.
