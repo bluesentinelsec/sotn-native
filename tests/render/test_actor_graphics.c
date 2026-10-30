@@ -978,8 +978,8 @@ static bool TestActorOrder(void)
     const Uint8 player_kinds[] = {SOTN_DRAW_WOLF_PACKET,     SOTN_DRAW_WOLF_IMAGE,
                                   SOTN_DRAW_WOLF_TARGET,     SOTN_DRAW_PLAYER_SMOKE,
                                   SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
-                                  SOTN_DRAW_SPIRIT_PORTAL};
-    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48};
+                                  SOTN_DRAW_SPIRIT_PORTAL,   SOTN_DRAW_HELLFIRE_SPRITE};
+    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48};
     for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
     {
         count = 0;

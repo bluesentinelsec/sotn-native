@@ -183,6 +183,40 @@ int main(void)
         }
         CHECK(effect.removed && ticks > 50 && ticks < 64);
     }
+    for (Uint16 parameter = 0x16; parameter <= 0x17; ++parameter)
+    {
+        Uint8 *p = dra + 0xd670 + parameter * 20U;
+        Put16(p + 6, 0x123);
+        Put16(p + 8, 256);
+        Put16(p + 10, 256);
+        Put16(p + 12, 256);
+        Put16(p + 14, parameter == 0x16 ? 0x7002 : 0x7000);
+        Put16(p + 16, 0x31);
+        Put16(p + 18, 512);
+        effect = (SotnPlayerBlink){.parameter = parameter};
+        SDL_zero(shared);
+        input.status = 0;
+        input.allocation_failed = false;
+        input.poison_ticks = input.curse_ticks = 4095;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        for (Uint16 t = 0; t < 26; ++t)
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        CHECK(effect.phase == 2 && effect.brightness == 256);
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2 &&
+              effect.hold == 7 && effect.brightness == (parameter == 0x16 ? 208 : 256));
+        input.poison_ticks = 2048;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) &&
+              effect.brightness == (parameter == 0x16 ? 112 : 256));
+        if (parameter == 0x16)
+            input.poison_ticks = 0;
+        else
+            input.curse_ticks = 0;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3 &&
+              effect.hold == 7);
+        for (Uint16 t = 0; t < 32 && !effect.removed; ++t)
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        CHECK(effect.removed);
+    }
     SDL_free(dra);
     SDL_free(exe);
     return 0;

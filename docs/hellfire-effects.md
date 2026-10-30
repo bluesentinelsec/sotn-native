@@ -1,10 +1,9 @@
 # Hellfire supporting effects
 
 The core reconstructs selected original expanding circle 28, red flash 29, trailing
-sprite 24 and rising tile-particle profile 10. These components enable no Hellfire
-controls. Actual player casting, shared factories/rows, gradient uploads, private
-animation/artwork, spell attacks and native rendering/combat still need to connect.
-Selected Dark Metamorphosis, Summon Spirit and Tetra Spirit remain playable.
+sprite 24 and rising tile-particle profile 10. The [selected native owner](player-hellfire.md) now connects casting, actual shared
+factories/rows, private gradients/animation/artwork, attacks, rendering and combat.
+These interfaces alone enable no controls or complete-ability parity.
 
 The circle borrows one actual GT4 row, follows the live player's high position
 words/facing while retaining its own fractions, expands by two and fades only

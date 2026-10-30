@@ -1,9 +1,9 @@
 # Hellfire projectile motion components
 
 The core reconstructs the original normal and large Hellfire fireballs. These are
-motion/initialization services. Native Hellfire remains disabled until actual
-player casting, factories, private animation/artwork, spell/group ownership,
-rendering and enemy combat connect. Selected Dark/Summon/Tetra remain playable.
+motion/initialization services. The [selected native owner](player-hellfire.md) now
+connects player casting, actual factories, private animation/artwork, spell/groups,
+rendering and enemy combat. These interfaces alone enable no command or full parity.
 These components allocate no child, initialize no actual attack, charge no MP,
 learn no spell and write no ordinary save data.
 

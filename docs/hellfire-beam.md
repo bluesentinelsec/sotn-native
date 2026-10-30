@@ -1,17 +1,18 @@
 # Hellfire beam component
 
-The core reconstructs Hellfire's original beam controller and retained quad. This
-is a component service. Hellfire remains unavailable in gameplay: its actual
-player movement/animation, factories, primitive lease, gradient uploads, palette
-ownership, projectile combat and cleanup must connect before enabling its command.
-Selected Dark Metamorphosis, Summon Spirit and Tetra Spirit remain playable.
-This component grants no abilities, MP, learned progress or ordinary save changes.
+The core reconstructs Hellfire's original beam controller and retained quad.
+The [selected playable owner](player-hellfire.md) now supplies actual casting,
+factories, row leases, private gradients, palette feedback, rendering and combat.
+This component owns none of those resources itself and grants no MP, learned
+progress or ordinary save changes. Full Hellfire/Alucard/console parity remains
+outside its scoped instruction comparisons.
 
 An actual successful one-row allocation starts the beam and emits two private
 LoadImage requests, sound 0x636 and signal zero. Exhaustion retires the child and
 reports original signal 0xFFFF; a pending factory never supplies a ready signal.
 A player that leaves Hellfire retires the beam immediately. Retirement alone does
-not restore the player palette: the actual player finishing helper owns that work.
+not invent a palette reset: actual beam feedback and the original player recovery/
+status-flash helper retain their separate ownership.
 The service neither reserves rows nor uploads substitute gradient pixels.
 
 The controller preserves the eight original phases: initialization, vertical growth, widening,

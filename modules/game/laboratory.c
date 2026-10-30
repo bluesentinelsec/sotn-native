@@ -9,6 +9,7 @@
 #include <sotn/dialogue_renderer.h>
 #include <sotn/frame_clip.h>
 #include <sotn/game_over.h>
+#include <sotn/hellfire_graphics.h>
 #include <sotn/hud.h>
 #include <sotn/inventory.h>
 #include <sotn/laboratory.h>
@@ -617,6 +618,23 @@ static bool WolfCollision(void *context, Sint32 x, Sint32 y, SotnCollider *out)
     return SotnCollision_Query(&s->room.foreground.collision, x + s->camera.x, y + s->camera.y,
                                out);
 }
+static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
+{
+    // Player callbacks reserve only actual factory records. Restore those reservations if a
+    // later player/animation/collision validation fails before its working copy commits.
+    Uint8 factories[sizeof(s->bat_runtime.factories)] = {0};
+    SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
+    if (SotnPlayer_Tick(s->player, buttons))
+        return true;
+    SDL_memcpy(s->bat_runtime.factories, factories, sizeof(factories));
+    return false;
+}
+static bool HellfireFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                            bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestHellfire(&s->bat_runtime, source, packed, allocated);
+}
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->blink_rebase_x + s->blink_camera_x - s->camera.x,
@@ -646,6 +664,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .wolf_context = s,
                                   .primitive_slots = primitive_slots,
                                   .freeze = s->spell_freeze.request,
+                                  .game_timer = (Uint32)s->simulation_ticks,
+                                  .hellfire_up = (player.buttons & SOTN_BUTTON_UP) != 0,
                                   .spirit_targets = &targets,
                                   .force_echo_enabled =
                                       (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
@@ -662,6 +682,12 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     s->bat_runtime.target_marks[0] = s->bat_runtime.target_marks[1] = 0;
     if (!entering)
     {
+        if (!SotnPlayer_CommitHellfire(s->player, s->bat_runtime.hellfire_signal,
+                                       s->bat_runtime.hellfire_palette) ||
+            (s->bat_runtime.hellfire_upload &&
+             !SotnHellfireGraphics_Upload(s->actor_graphics, s->dra)))
+            return false;
+        s->bat_runtime.hellfire_upload = false;
         if (s->bat_runtime.freeze_changed &&
             !SotnSceneFreeze_Request(&s->spell_freeze, s->bat_runtime.freeze))
             return false;
@@ -1696,16 +1722,20 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                    session->camera.x, session->camera.y) ||
         !SotnPlayer_SetAfterimageContext(session->player, session->bat_runtime.common_generation,
                                          session->system_timer) ||
-        !SotnPlayer_Tick(session->player, player_buttons) ||
-        !SotnPlayer_GetState(session->player, &state) ||
+        !SotnPlayer_SetHellfireContext(session->player, HellfireFactory, session, session->camera.x,
+                                       session->bat_runtime.hellfire_signal,
+                                       session->bat_runtime.hellfire_palette) ||
+        !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
-    if (state.dark.started || state.spirit.started)
+    if (state.dark.started || state.spirit.started || state.hellfire_started)
     {
         SotnCharacterState learned = {0};
         if (!SotnCharacter_Get(session->character, &learned, NULL) ||
-            !SotnCharacter_LearnSpell(&learned, state.spirit.started ? state.spirit.spell : 0) ||
+            !SotnCharacter_LearnSpell(&learned, state.spirit.started     ? state.spirit.spell
+                                                : state.hellfire_started ? 2
+                                                                         : 0) ||
             !SotnCharacter_Restore(session->character, &learned))
             return false;
     }
@@ -2272,6 +2302,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_BAT_FIREBALL}))
                 return false;
+            if (child->initialized &&
+                ((child->kind == 24 && child->state.hellfire_trail.frame) ||
+                 ((child->kind == 26 || child->kind == 27) && child->state.hellfire_fire.frame)) &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_HELLFIRE_SPRITE}))
+                return false;
             if (child->kind == 61 && child->initialized && child->state.spirit.frame &&
                 !SotnActorOrder_Add(
                     session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -2393,7 +2432,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnDataView common = {session->player_common, sizeof(session->player_common)};
             const bool drawn =
-                player.mist.active || player.bat.hidden || player.animation_bank == 15 ||
+                player.mist.active || player.bat.hidden || player.hellfire_hidden ||
+                player.animation_bank == 15 ||
                 (player.animation_bank == 13 || player.rotated
                      ? DrawRotatedPlayer(session, player, &alucard)
                  : player.stone.active
@@ -2596,6 +2636,39 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_HELLFIRE_SPRITE)
+        {
+            if (command.primitive >= 48)
+                return SDL_SetError("Hellfire sprite exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            if (!child->generation || !child->initialized ||
+                (child->kind != 24 && child->kind != 26 && child->kind != 27))
+                return SDL_SetError("Hellfire sprite lost its actual child owner");
+            const bool trail = child->kind == 24;
+            const SotnHellfireTrail retained =
+                trail ? child->state.hellfire_trail.motion : (SotnHellfireTrail){0};
+            const SotnHellfireFireball fire =
+                trail ? (SotnHellfireFireball){0} : child->state.hellfire_fire.motion;
+            if (!SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = trail ? 2 : 9,
+                                      .frame = trail ? child->state.hellfire_trail.frame
+                                                     : child->state.hellfire_fire.frame,
+                                      .palette = trail ? retained.palette : 0,
+                                      .blend_mode = trail ? retained.blend_mode : 0,
+                                      .facing_left = child->source.facing_left},
+                    Pixel(child->source.x) - view_x + session->draw_target.offset_x,
+                    Pixel(child->source.y) - view_y + session->draw_target.offset_y,
+                    (SotnSpriteTransform){.rotation = trail ? 0 : fire.rotation,
+                                          .scale_x = trail ? (Sint16)retained.scale_x : 256,
+                                          .scale_y = trail ? (Sint16)retained.scale_y : 256,
+                                          .opacity = 128},
+                    session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_BAT_FIREBALL)
         {
             if (command.primitive >= 48)
@@ -2625,9 +2698,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!SotnBatRuntime_Visual(&session->bat_runtime, owner, &quads, &packet_count) ||
                 q >= packet_count)
                 return SDL_SetError("Bat draw lost its actual owned child packet");
-            if (!DrawPlayerEffectQuad(session, &quads[q]) ||
-                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
-                                           SOTN_FRAME_PIXELS))
+            const bool flash = session->bat_runtime.children[owner].kind == 29;
+            const bool drawn =
+                flash ? SotnHellfireGraphics_Flash(session->actor_graphics, &quads[q],
+                                                   session->draw_target.offset_x + session->shake.x,
+                                                   session->draw_target.offset_y + session->shake.y,
+                                                   session->draw_target.surface)
+                      : DrawPlayerEffectQuad(session, &quads[q]);
+            if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                                     SOTN_FRAME_PIXELS))
                 return false;
             continue;
         }

@@ -3,10 +3,10 @@
 The selected shared player runtime now owns original Hellfire factories and
 children 24..29 alongside existing player effects. It advances real private
 animations, borrows real stage rows, initializes spell-two attacks/groups and
-connects those attacks to native enemy damage. Native Hellfire controls remain
-disabled until the actual player casting/MP/learning, gradient uploads, palette
-visibility and sprite rendering owners connect. An upload intent is not completed
-texture data. This is not playable-Hellfire or Alucard completeness.
+connects those attacks to native enemy damage. The [selected playable owner](player-hellfire.md)
+now supplies actual casting/MP/learning, gradient uploads, visibility and rendering.
+An upload intent alone is not completed texture data. This runtime alone establishes
+no complete Hellfire, Alucard or console parity.
 
 The player boundary can reserve an actual root33/circle37 or original finishing
 flash factory and receive its real outcome. Eight occupied factory slots return

@@ -1,51 +1,53 @@
-The [shared Hellfire runtime](docs/shared-hellfire-runtime.md) now owns actual
+Selected [playable Hellfire](docs/player-hellfire.md) now owns ordinary commands,
+MP15/learning, real same-frame root reservation, original hidden steering/recovery,
+actual private gradient uploads, sprite/G4 rendering and native enemy damage.
+Preserve feedback after stage commit, pre-collision factory origins, live-Up choice,
+signal3-only Down cancel, timer12/circle timing, original exhaustion fallback and
+rollback of actual reservations after failed player updates. Finishing restores
+real poison/curse Blink16/17 with actual timers; no invented palette reset. Bind
+the current session callback after replacement; draws never tick. Ordinary starts
+and savesv9 stay unchanged. Protected explicit checks are not ordinary-route/full
+Hellfire/shared-contention/Alucard/castle/console parity.
+
+The [shared Hellfire runtime](docs/shared-hellfire-runtime.md) owns actual
 factories/children24..29, one-row leases, private animation, spell-two attacks/groups
-and selected native enemy damage. Preserve next-pass descendants, real reservation
-outcomes, root/flash priority448, pre-movement trail origins, separate big-trigger/
-trail-birth RNG, raw group counts/slot31 survival and no-tick rebases. New upload
-requests are intents, not completed pixels. Actual player/MP/learning/gradient/
-palette/render owners remain unwired; keep Hellfire controls disabled. Ordinary
-starts/savesv9 remain unchanged. Full sharing/Alucard/castle/console parity remain
-incomplete; protected supplied-cast stage checks are not ordinary spell replay.
+and selected native damage. Preserve next-pass descendants, real reservation
+outcomes, root/flash priority448, pre-movement trail origins, separate trigger/birth
+RNG, raw groups/slot31 survival and no-tick rebases. Upload requests remain intents
+until the native owner commits actual pixels. Selected playable Hellfire now
+supplies its player/MP/learning/gradient/palette/render owners. Full sharing,
+Alucard/castle/console parity remain incomplete; supplied-cast stage checks are
+separate evidence from ordinary command checks.
 
-The [Hellfire casting controller](docs/hellfire-casting.md) now reconstructs the
-original phase0..4 player actions with real factory-result/helper boundaries.
-Preserve failure-normal then animation1/substate increment, hidden steering floor/
-edge tests, signal2 stop, signal3-only Down cancel, timer12 before circle37 and
-ordered finishing/status-flash calls, including double normal on failure+FFFF.
-It enables no native spell controls; connect actual MP/learning/player/factory/
-child/gradient/palette/animation/combat/render owners first. Saves/default grants
-stay unchanged. Playable Hellfire/Alucard/castle/console parity remain incomplete.
+The [Hellfire casting controller](docs/hellfire-casting.md) reconstructs original
+phase0..4 actions. Preserve failure-normal then animation1/substate increment,
+hidden steering floor/edge tests, signal2 stop, signal3-only Down cancel, timer12
+before circle37 and ordered finishing/status-flash calls, including double normal
+on failure+FFFF. Selected native ownership now consumes these actions; this
+interface alone enables no controls or full-Hellfire/Alucard/console parity.
 
-The [Hellfire supporting effects](docs/hellfire-effects.md) now reconstruct circle28,
-flash29, selected trail24 and rising particle profile10. Preserve real one-row leases,
-post-increment flash retirement, allocation-failure FFFF without successful signal reset,
-live high-word following/fractions, trail birth-only RNG and profile10 no-RNG/double
-lifetime decrement. Shared particle culling uses real KEEP04000000, after initialization.
-These components enable no Hellfire controls; connect actual player/factories/rows/
-gradients/animation/spell/combat/render owners first. Saves/default grants remain unchanged;
-playable Hellfire, full sharing, Alucard/castle/console completeness remain unproven.
+The [Hellfire supporting effects](docs/hellfire-effects.md) reconstruct circle28,
+flash29, selected trail24 and rising particle profile10. Preserve real leases,
+post-increment flash retirement, failureFFFF without successful signal reset,
+live high words/fractions, trail birth-only RNG and profile10 no-RNG/double lifetime.
+Shared particle culling uses actual KEEP04000000 after initialization. Selected
+native Hellfire now consumes these effects. Full sharing/parity remain incomplete.
 
-The [Hellfire fireball components](docs/hellfire-fireballs.md) now reconstruct
-normal spread/byte-hit retirement and big pre-animation-gated acceleration,
-piercing, rotation and late-even RNG/factory requests. Preserve private vectors,
-no birth movement, the twentieth curved Y update, retained velocity, raw speed16,
-existing draw flags, original facing and signed fixed/word wrap. Big motion's RNG
-is separate from actual spell initialization; optional factory exhaustion still
-consumes its eligible rand. Requests confer no attack/animation/factory readiness.
-Native Hellfire stays disabled until player/beam/gradient/palette/factory/animation/
-combat owners connect. v9 saves/default grants and scoped parity claims stay unchanged.
+The [Hellfire fireball components](docs/hellfire-fireballs.md) reconstruct normal
+spread/byte-hit retirement and big pre-animation-gated acceleration/piercing/rotation.
+Preserve private vectors, no birth movement, twentieth curved Y update, retained
+velocity, raw speed16, draw flags/facing and signed fixed/word wrap. Big motion RNG
+is separate from spell initialization and survives optional factory exhaustion.
+Requests confer no attack/factory readiness; selected native owners now consume
+them. Saves/default grants and scoped comparison claims remain unchanged.
 
-The [Hellfire beam component](docs/hellfire-beam.md) now reconstructs original
-one-row allocation failure/signalFFFF, beam phases/quad, palette/sound/gradient
-upload requests and live-Up projectile choice. Preserve high-word follow with
-retained fractions, signed-word dimensions/timers, width24/negative hidden width,
-post-phase color work, pre/post-decrement waits and actual signal1/2/3 timing.
-Requests confer no factory/capture/attack readiness; cancellation needs the real
-player finishing palette restoration. Native Hellfire remains disabled until
-player/rows/gradient/palette/factories/projectile-combat owners connect. v9 saves
-and default grants are unchanged. Component instruction comparisons establish no
-playable-Hellfire/Alucard/castle/console completeness.
+The [Hellfire beam component](docs/hellfire-beam.md) reconstructs original one-row
+failure/signalFFFF, phases/quad, palette/sound/gradient and live-Up requests.
+Preserve high-word fractions, signed dimensions/timers, width24/negative hidden
+width, post-phase color work and exact signal timing. The selected native owner
+now supplies real rows/gradients/palettes/factories/combat/rendering. Cancellation
+uses actual player recovery/status-flash restoration, without an invented palette
+reset. Component comparisons alone prove no complete ability, Alucard or console parity.
 
 Selected [playable Summon/Tetra Spirit](docs/player-spirit-spells.md) now connects
 normal commands/MP/learning, actual factories/rows/targets/combat, prior-frame63x63
@@ -151,7 +153,8 @@ The [ordinary spell command component](docs/normal-spell-commands.md) now recons
 six original recognizers and copied MP requests. Preserve full-word/subset input
 tests, signed-word timers, facing captures, relative priority, expiration-frame
 casts, Soul Steal asymmetry and retained Sword Brothers notifications. Availability
-requires an actual native spell owner; default zero enables no controls. Selected Dark/Summon/Tetra now bind their actual owners; other spells remain unwired. Do not claim complete spells
+requires an actual native spell owner; default zero enables no controls. Selected Dark/Summon/Tetra/Hellfire now bind their actual owners; other spells
+remain unwired. Do not claim complete spells
 or Alucard from component instruction comparisons.
 
 Selected [Alucard status reconstruction](docs/player-status.md) now shares supported

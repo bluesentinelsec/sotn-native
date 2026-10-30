@@ -252,6 +252,9 @@ typedef struct SotnPlayerState
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
     SotnPlayerSpirit spirit;
+    bool hellfire_started,
+        hellfire_hidden;             /**< Accepted cast intent and actual palette visibility. */
+    Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
     Uint8 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
 } SotnPlayerState;
 
@@ -548,6 +551,26 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * the original contact counter still advances with unsigned word wrap. This changes no HP,
  * grants no ability and writes no save; successful player ticks consume the request once. */
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
+
+/** @brief Actual shared factory reservation, called once at the original player boundary.
+ * false availability is real exhaustion; success never implies child readiness. */
+typedef bool (*SotnPlayerHellfireFactory)(void *context, SotnPlayerFactorySource source,
+                                          Uint32 packed, bool *allocated);
+/** @brief Bind real native casting/effect ownership before the next player update.
+ * @param player Actual player. @param factory Real shared reservation callback or NULL to disable.
+ * @param context Borrowed stable owner, required with callback. @param camera_x Actual room camera.
+ * @param signal Current original beam signal. @param palette Current actual beam palette or zero.
+ * @return Success or SDL error without mutation. Refresh after session replacement; binding never
+ * ticks or creates children. The caller rolls back real reservations if a later player Tick fails.
+ * Native owner must fulfill gradients, rendering, combat and feedback.
+ */
+bool SotnPlayer_SetHellfireContext(SotnPlayer *player, SotnPlayerHellfireFactory factory,
+                                   void *context, Sint32 camera_x, Uint16 signal, Uint16 palette);
+/** @brief Commit real child signal/palette after successful shared stage-row commit.
+ * @param player Actual bound player. @param signal Actual original shared word.
+ * @param palette Actual beam palette or zero before its first write.
+ * @return Success or SDL error without mutation; no simulation or readiness advances. */
+bool SotnPlayer_CommitHellfire(SotnPlayer *player, Uint16 signal, Uint16 palette);
 
 /** @brief Bind the actual native Dark spell/effect/palette/healing owner, enabling its command.
  * @param player Borrowed owner. @param enabled Actual complete selected owner availability.

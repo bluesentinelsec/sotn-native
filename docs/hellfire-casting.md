@@ -19,12 +19,12 @@ and the expanding-circle factory in that order. Negative duration or FFFF invoke
 the normal helper, recovery animation and original status-flash restoration. An
 allocation failure combined with FFFF preserves both normal-helper calls.
 
-Actual MP/learning, state entry/invincibility, shield removal, root/child generation,
-gradients/palettes, spell attacks, child animation, drawing, room rebases and native
-combat remain separate ownership work. In particular, finishing requests the real
+The [selected native owner](player-hellfire.md) now supplies actual MP/learning,
+state entry/invincibility, shield removal, root/child generation, gradients/palettes,
+spell attacks, child animation, drawing, room rebases and combat. In particular, finishing requests the real
 status-flash helper; it does not invent a palette reset. Ordinary starts and v9
-saves remain unchanged. Selected Dark/Summon/Tetra remain playable; Hellfire stays
-disabled until the full native path connects.
+saves remain unchanged. Selected Dark/Summon/Tetra/Hellfire are playable; complete
+spells, Alucard and console parity remain unfinished.
 
 Public tests cover the lifecycle, signal waits, strict edge/floor movement, both
 facings, opposing input, movement lock, Down cancellation, timer/factory ordering,
