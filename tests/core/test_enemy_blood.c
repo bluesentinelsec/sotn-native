@@ -148,11 +148,12 @@ static bool Contacts(SotnDataView exe)
                                (SotnCollisionMap){{tiles, sizeof(tiles)}, {types, 1}, 32, 16}, 0,
                                0) &&
               SotnActors_SetServices(s, exe, 0, false));
-        SotnPlayerState player = {.x = 100 * 65536,
-                                  .y = 140 * 65536,
-                                  .status = 0x2000000U,
-                                  .invulnerable = true,
-                                  .healing = {.pending = pending ? 8 : 0}};
+        SotnPlayerState player = {
+            .x = 100 * 65536,
+            .y = 140 * 65536,
+            .status = 0x2000000U,
+            .invulnerable = true,
+            .healing = {.pending = pending ? 8 : 0, .pending_kind = pending ? 1 : 0}};
         player.animation.hitbox_width = 8;
         player.animation.hitbox_height = 16;
         SotnActorCombat combat = {0};

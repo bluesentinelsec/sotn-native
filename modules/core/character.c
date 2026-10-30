@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #include <sotn/character.h>
 #include <sotn/combat.h>
+#include <sotn/hud_resources.h>
 struct SotnCharacter
 {
     SotnDataView dra;
@@ -67,10 +68,10 @@ static bool IsEmpty(bool body, Uint16 id)
 static bool BodySupported(Uint16 id)
 {
     /* Additive records and selected implemented armor/head/cape services. */
-    return id == 14 || id == 15 || id == 21 || id == 22 || id == 45 || id == 56 || id == 78 ||
-           id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
-           id == 48 || id == 49 || id == 51 || id == 57 || id == 60 || (id >= 63 && id <= 73) ||
-           id == 76 || id == 77 || id == 79 || id == 82 || id == 85;
+    return id == 14 || id == 15 || id == 17 || id == 21 || id == 22 || id == 45 || id == 56 ||
+           id == 78 || id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 ||
+           id == 47 || id == 48 || id == 49 || id == 51 || id == 57 || id == 60 ||
+           (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -644,11 +645,17 @@ bool SotnCharacter_TickResources(SotnCharacter *c, Uint64 ticks)
 {
     if (c == NULL)
         return SDL_InvalidParamError("character");
-    if (c->state.hp == 0)
-        return true;
     const bool pendant = c->state.equipment[5] == 76 || c->state.equipment[6] == 76;
-    if ((ticks & 63) == 0 || (pendant && (ticks & 63) == 31))
-        c->state.mp = (Uint16)SDL_min(c->state.mp_max, c->state.mp + 1);
+    SotnHudResources state = {0};
+    SotnHudResourcesEvents events = {0};
+    if (!SotnHudResources_Tick(&state,
+                               (SotnHudResourcesInput){.game_timer = (Uint32)ticks,
+                                                       .mp = c->state.mp,
+                                                       .mp_max = c->state.mp_max,
+                                                       .mystic_pendant = pendant},
+                               &events))
+        return false;
+    c->state.mp = events.mp;
     return true;
 }
 

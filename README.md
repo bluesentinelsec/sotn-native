@@ -176,7 +176,9 @@ connects actual lethal results to those owners and game over. Selected
 Holy Symbol, queued-contact priority, HP and pain effects. Complete damage,
 equipment, effects and water/route parity remain unfinished.
 Owned [Fury Plate](docs/stat-buff-ownership.md) now supplies its original defense
-buff through actual HUD timers; other equipment and buff producers remain incomplete.
+buff through actual HUD timers. Owned [Healing Mail](docs/hud-healing-resources.md)
+now heals while walking, with original deferred effects and gameplay-clock MP
+recovery. Other equipment, floating HP numbers and buff producers remain incomplete.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,
