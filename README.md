@@ -162,6 +162,10 @@ original gates and snapshots. Wolf water paths, other spells and full ability pa
 remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
+[Entrance water actors](docs/native-water-actors.md) now supply original splashes,
+wakes, drops, currents and retained depths. Player drag, swimming, form feedback
+and water damage remain unfinished.
+
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,
 `sword` for Gladius/empty, or `unarmed` for the earlier test. Inventory menus

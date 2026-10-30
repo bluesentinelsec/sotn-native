@@ -278,6 +278,9 @@ static bool Hallway(SotnActors *s, Actor *a)
 
 bool ActorEntrance(SotnActors *s, Actor *a)
 {
+    if ((s->stage_id == 65 && a->state.id >= 0x34 && a->state.id <= 0x39) ||
+        (s->stage_id == 7 && a->state.id >= 0x2c && a->state.id <= 0x31))
+        return ActorWater(s, a);
     if ((s->stage_id == 65 && (a->state.id == 0x5c || a->state.id == 0x5d)) ||
         (s->stage_id == 7 && (a->state.id == 0x4b || a->state.id == 0x4c)))
         return ActorEntranceStairway(s, a);
