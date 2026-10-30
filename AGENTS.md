@@ -1,3 +1,12 @@
+Selected [Soul Steal orbs](docs/soul-steal-orbs.md) now own actual common actor7,
+one real shared stage row, original private homing/animation/opaque GT4 and deferred
+healing. Preserve allocation-before-RNG, original stage Random, age16 contact,
+first-pending-heal precedence, eight HP without Bloodstone scaling and no-tick
+rebases. The native dispatcher records contact through invincibility and retires
+real rows. This supplies no Soul Steal command/global attack owner yet; controls
+remain disabled. Savesv9/default grants stay unchanged; Alucard/castle/console
+and full shared contention remain incomplete.
+
 Selected [playable Hellfire](docs/player-hellfire.md) now owns ordinary commands,
 MP15/learning, real same-frame root reservation, original hidden steering/recovery,
 actual private gradient uploads, sprite/G4 rendering and native enemy damage.

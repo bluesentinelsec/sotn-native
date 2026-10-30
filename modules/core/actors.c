@@ -569,6 +569,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         !(actors->stage_id == 2 && actor->state.id == 0x3d) &&
         !EnemyHitbox(actors, actor->state.id) && actor->state.id != 1 && actor->state.id != 3 &&
         actor->state.id != 0xa && actor->state.id != 0xb && actor->state.id != 0xd &&
+        actor->state.id != 7 &&
         (actors->stage_id != 12 ||
          (actor->state.id != 0x34 && actor->state.id != 0x17 && actor->state.id != 0x18 &&
           actor->state.id != 0x1a && actor->state.id != 0x25 && actor->state.id != 0x20 &&
@@ -962,14 +963,14 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
         (actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb ||
-         actor->state.id == 0xd || !player.invulnerable) &&
+         actor->state.id == 0xd || actor->state.id == 7 || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
     {
         if ((actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb) &&
             actor->state.step > (actor->state.id == 0xb ? 0U : 1U) && actor->state.step < 5 &&
             (actor->state.id == 0xb || actor->timer == 0))
             actor->state.step = 5;
-        else if (actor->state.id == 0xd)
+        else if (actor->state.id == 0xd || actor->state.id == 7)
             actor->hit_flags |= 0x80;
         else if (EnemyHitbox(actors, actor->state.id) ||
                  (actors->stage_id == 12 && (actor->state.id == 0x1a || actor->state.id == 0x25)))
@@ -1501,6 +1502,8 @@ bool ActorExplosionTick(SotnActors *actors, Actor *actor)
 static bool Behavior(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     Uint8 animation = 0;
+    if (actor->state.id == 7)
+        return ActorSoulOrb(actors, actor, player);
     if (actor->state.id == 0xd)
         return ActorEnemyBlood(actors, actor, player);
     if (actors->stage_id == 25 && actor->state.id > 0xc)
