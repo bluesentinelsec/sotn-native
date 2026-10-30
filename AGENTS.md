@@ -1,3 +1,16 @@
+Selected [stat buffs/Fury Plate](docs/stat-buff-ownership.md) now owns actual
+sixteen-word DRA counters, derived stat masks, pre-damage attributes and surviving
+Fury refreshes. Preserve all16 HUD decrements (including the switch default),
+512-to511 birth, longer buffs, ordinary/frozen/release clocks, menu/map/draw holds,
+new/Continue reset versus connected-stage retention after bootstrap and request
+commit only after player success. No second pool or ordinary-save fields. Preserve
+pre-cap bonuses, signed-word attack/DEF, computed original SDK root normalization,
+US stone immunity and no stale defense after expiry. Only Fury is a new live
+producer; masks/Give are not consumable/other-equipment availability. Explicit
+equipment/pose/protection/clock/arrival fixtures and authored metadata copies are
+not acquisition/route/console evidence. Default grants/savesv9 and Alucard/castle
+incompleteness remain unchanged.
+
 Selected [ordinary water damage/contact ownership](docs/player-water-contact.md)
 now queues actual raw stage contacts after combat and consumes them after healing/
 timers before player control. Preserve strongest/first-equal priority, high-only
@@ -7,8 +20,8 @@ Menus/freeze/draws hold HP/counters; session handoffs restore clock/counter afte
 bootstrap without serializing them. Dead states retain input/timers/healing without
 revival. Failed updates retain queued contacts/HP/RNG/counter; native capture
 rollback remains required. Owned Holy can toggle; no default grants/savesv9 change.
-Fury Plate and US wet-smoke remain explicit unsupported owners, never guessed or
-silently enabled. Supplied pose/protection/clock fixtures and the actual app's
+Fury now has its actual stat-buff owner. US wet-smoke remains explicitly unsupported,
+never guessed or silently enabled. Supplied pose/protection/clock fixtures and the actual app's
 ordinary70HP water-position fixture are not route/acquisition/console evidence.
 Full damage/equipment/fade/timing, Alucard and castle remain incomplete.
 

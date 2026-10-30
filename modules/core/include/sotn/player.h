@@ -277,6 +277,7 @@ typedef struct SotnPlayerState
     SotnPlayerWaterDeath water_death;
     SotnPlayerWaterPain water_pain;
     Uint8 water_pain_timer;
+    Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
@@ -340,12 +341,19 @@ bool SotnPlayer_QueueContact(SotnPlayer *player, SotnPlayerContact contact);
  * @param player Owner with actual water-death capture/upload callbacks already bound.
  * @param timer Current original gameplay clock, distinct from saved play time.
  * @return Success or SDL error without mutation. Supply once per ordinary player update;
- * menus/frozen updates must not consume this boundary. Unsupported Fury equipment fails. */
+ * menus/frozen updates must not consume this boundary. Fury requires its actual buff owner. */
 bool SotnPlayer_SetDamageContext(SotnPlayer *player, Uint32 timer);
 /** @brief Restore the runtime-only DRA water voice timer after candidate bootstrap.
  * @param player Actual owner. @param timer Retained0..32 counter; never ordinary save data.
  * @return Success or SDL error without mutation or an extra simulation tick. */
 bool SotnPlayer_SetWaterPainTimer(SotnPlayer *player, Uint8 timer);
+/** @brief Bind actual DRA stat counters and current derived attributes before player damage.
+ * @param player Actual player. @param buffs Borrowed actual owner, retained until replacement;
+ * counters are read only here. @param attributes Current actual character stats with buff bits
+ * applied before original clamps. The caller commits reported minimum requests after success.
+ * @return Success or SDL error without mutation. No timer, HP, item, spell or RNG advances. */
+bool SotnPlayer_SetStatBuffContext(SotnPlayer *player, const SotnStatBuffs *buffs,
+                                   SotnCharacterStats attributes);
 
 /** @brief Bind the actual common stage lease and current original engine-frame clock.
  * @param player Owned simulation. @param generation Actual nonzero common row owner.

@@ -175,6 +175,8 @@ connects actual lethal results to those owners and game over. Selected
 [ordinary water damage](docs/player-water-contact.md) now connects real depths,
 Holy Symbol, queued-contact priority, HP and pain effects. Complete damage,
 equipment, effects and water/route parity remain unfinished.
+Owned [Fury Plate](docs/stat-buff-ownership.md) now supplies its original defense
+buff through actual HUD timers; other equipment and buff producers remain incomplete.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,

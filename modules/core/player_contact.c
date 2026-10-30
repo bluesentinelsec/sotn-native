@@ -15,7 +15,7 @@ bool SotnPlayer_QueueContact(SotnPlayer *p, SotnPlayerContact contact)
 }
 bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
 {
-    if (p && p->armor == 22)
+    if (p && p->armor == 22 && !p->stat_buffs)
         return SDL_SetError(
             "Fury Plate damage requires its unintegrated original defense-buff owner");
     if (!p || !p->death_capture || !p->death_decay || !p->death_context ||
@@ -25,6 +25,17 @@ bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
             "Damage context requires actual capture owners and a new gameplay clock");
     p->damage_clock = timer;
     p->damage_context = p->damage_pending = true;
+    return true;
+}
+bool SotnPlayer_SetStatBuffContext(SotnPlayer *p, const SotnStatBuffs *buffs,
+                                   SotnCharacterStats attributes)
+{
+    if (!p || !SotnStatBuffs_Mask(buffs, NULL) || attributes.defense > 999 ||
+        attributes.attack[0] > 999 || attributes.attack[1] > 999 || attributes.unarmed_attack > 999)
+        return SDL_SetError(
+            "Stat-buff context requires actual counters and current bounded attributes");
+    p->stat_buffs = buffs;
+    p->attributes = attributes;
     return true;
 }
 bool SotnPlayer_SetWaterPainTimer(SotnPlayer *p, Uint8 timer)
@@ -70,7 +81,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                    .holy_symbol = (p->relics[SOTN_RELIC_HOLY_SYMBOL] & 3U) == 3,
                                    .invincible = p->invincibility != 0,
                                    .grabbed = p->grab.state != SOTN_GRAB_NONE || p->script_hold ||
-                                              p->step == SOTN_PLAYER_SCRIPT},
+                                              p->step == SOTN_PLAYER_SCRIPT,
+                                   .fury_plate = p->armor == 22 && p->stat_buffs != NULL},
             &water))
         return false;
     p->queued_contact = (SotnPlayerContact){0};
@@ -79,6 +91,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     if (water.response == 9)
     {
         p->hp = water.hp;
+        p->defense_buff_minimum = water.defense_buff_min;
         p->water_pain = (SotnPlayerWaterPain){
             .events = water,
             .source = {
@@ -132,6 +145,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                  : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
     }
     p->contact_dispatch = false;
+    if (ok && p->hp && previous != SOTN_PLAYER_HIT && p->armor == 22 && p->stat_buffs)
+        p->defense_buff_minimum = 512;
     *born = ok && p->step != previous;
     return ok;
 }

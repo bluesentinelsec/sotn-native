@@ -1474,6 +1474,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.water_death.started = false;
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     next.water_pain = (SotnPlayerWaterPain){0};
+    next.defense_buff_minimum = 0;
     if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
     if (alive && next.dark.ticks)
@@ -2088,6 +2089,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .water_death = player->water_death,
         .water_pain = player->water_pain,
         .water_pain_timer = player->water_damage.pain_timer,
+        .defense_buff_minimum = player->defense_buff_minimum,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
@@ -2500,6 +2502,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
     next.water_pain = (SotnPlayerWaterPain){0};
+    next.defense_buff_minimum = 0;
     next.healing.applied = next.healing.effects = false;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};

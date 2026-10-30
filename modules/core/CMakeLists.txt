@@ -7,6 +7,7 @@ add_library(sotn-core STATIC
   include/sotn/water_damage.h
   player_water.c
   player_contact.c
+  stat_buffs.c
   actor_water.c
   water_drops.c
   include/sotn/water_drops.h
