@@ -32,7 +32,7 @@ bool SotnPlayer_AfterimageBegin(SotnPlayer *p)
         return true;
     if (!p->afterimage_pending)
         return SDL_SetError("Afterimage player tick requires its next engine-clock context");
-    if (p->afterimage_timer15)
+    if (!SotnPlayerStep_IsDead(p->step) && p->afterimage_timer15)
     {
         if (!SotnPlayerAfterimage_Reset(&p->afterimage, false, 0, &p->afterimage_timer15))
             return false;

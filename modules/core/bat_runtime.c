@@ -783,6 +783,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.capture_count = 0;
     r.freeze_changed = false;
     r.freeze = in.freeze;
+    if ((p.water_pain.events.blink && !RequestSource(&r, p.water_pain.source, 0x4e002c, 0)) ||
+        (p.water_pain.events.voice && !Sound(&r, 0x6eb)) ||
+        (p.water_pain.events.scrape && !Sound(&r, 0x6a3)))
+        return false;
     if (p.water_death.started &&
         (!Flash(&r, in.dra, 1) || !RequestSource(&r, p.water_death.source, 0x59002c, 0) ||
          !RequestSource(&r, p.water_death.source, 0x60031, 0)))

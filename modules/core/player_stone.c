@@ -208,7 +208,8 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
         next.timers[0] = next.timers[1] = next.timers[2] = 0;
         next.invincibility = 4;
         next.sound = 0x6ec;
-        if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+        if (next.failed ||
+            (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
             return false;
     }
     *p = next;

@@ -46,7 +46,8 @@ real afterimage resets under muted LLDB, then exits normally through SDL quit.
 Selected [normal standing/crouching bubbles](normal-water-bubbles.md) now use their
 own original shared DRA counter and real particle factories.
 
-Water damage, water death, further state/equipment effects, other stage-specific
+Selected [ordinary water HP and death](player-water-contact.md) now consume these
+depths through actual native ownership. Further state/equipment effects, other stage-specific
 water owners, whole-route and console parity remain incomplete. In particular,
 this checkpoint does not substitute ordinary physical recoil or death for the
 original water-damage path. Alucard and the castle remain unfinished.

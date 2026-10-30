@@ -40,7 +40,7 @@ int main(void)
     {
         const bool supported = id == 0 || id == 1 || id == 2 || id == 3 || id == 4 || id == 5 ||
                                id == 6 || id == 7 || id == 8 || id == 9 || id == 10 || id == 12 ||
-                               id == 13 || id == 16;
+                               id == 13 || id == 14 || id == 16;
         CHECK(SotnRelic_CanToggle(id) == supported);
         for (Uint8 bits = 0; bits < 4; ++bits)
         {
