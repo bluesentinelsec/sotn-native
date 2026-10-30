@@ -1,6 +1,7 @@
 #include "player_internal.h"
 #include <sotn/bat_runtime.h>
 #include <sotn/scene_freeze.h>
+_Static_assert(SOTN_PLAYER_SOUL == 37, "Soul Steal retains original state37");
 #define CHECK(v)                                                                                   \
     do                                                                                             \
     {                                                                                              \
@@ -338,7 +339,6 @@ static bool SoulCommand(Fixture *f, bool face)
 }
 static bool Soul(Fixture *f)
 {
-    CHECK(SOTN_PLAYER_SOUL == 37);
     for (Uint16 face = 0; face < 2; ++face)
     {
         CHECK(Create(f, true) && SotnPlayer_SetSoulContext(f->p, true));
