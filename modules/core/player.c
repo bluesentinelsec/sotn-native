@@ -1163,7 +1163,7 @@ static void WaterDeathTick(SotnPlayer *p)
     {
         SotnWaterDeathEvents events = {0};
         if (!SotnWaterDeath_Tick(&motion,
-                                 (SotnWaterDeathInput){.remaining = p->animation.remaining,
+                                 (SotnWaterDeathInput){.remaining = (Sint16)p->animation.remaining,
                                                        .tight_space = p->tight_space != 0},
                                  &events))
         {
