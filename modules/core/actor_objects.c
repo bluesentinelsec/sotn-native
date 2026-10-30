@@ -26,7 +26,7 @@ bool ActorObjectCollision(SotnActors *s, const Actor *a, Uint16 width, Uint16 he
         return SDL_SetError("Stage object collision has invalid extents");
     *result = 0;
     const Sint32 sx = Pixel(a->state.x) - s->camera_x, sy = Pixel(a->state.y) - s->camera_y;
-    if (sx > 288 || sx < -32 || sy < -384 || sy > 384 || s->player.step == SOTN_PLAYER_KILL)
+    if (sx > 288 || sx < -32 || sy < -384 || sy > 384 || SotnPlayerStep_IsDead(s->player.step))
         return true;
     Sint32 x = Pixel(s->player.x) - Pixel(a->state.x) +
                (a->state.facing_left ? a->state.hitbox_x : -a->state.hitbox_x);

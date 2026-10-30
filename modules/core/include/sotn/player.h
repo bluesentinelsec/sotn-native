@@ -9,6 +9,8 @@
 #include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
+#include <sotn/water_damage.h>
+#include <sotn/water_death.h>
 #include <sotn/wolf_runtime.h>
 #include <sotn/wolf_transition.h>
 #include <sotn/world.h>
@@ -53,8 +55,10 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HIT = 10,
     SOTN_PLAYER_STONE = 11,
     SOTN_PLAYER_BOSS_GRAB = 12,
+    SOTN_PLAYER_KILL_WATER = 13,
     SOTN_PLAYER_UNMORPH_MIST = 14,
     SOTN_PLAYER_KILL = 16,
+    SOTN_PLAYER_DEATH_HOLD = 17,
     SOTN_PLAYER_WOLF = 24,
     SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_DARK = 32,
@@ -64,6 +68,9 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_SOUL = 37,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
+
+/** @brief Classify original selected dead-body states independently of physical/water cause. */
+bool SotnPlayerStep_IsDead(SotnPlayerStep step);
 
 /** @brief Original grab handshake used by Hippogryph; its release clears the state to NONE.
  * Other bosses' thrown-release state 4 and stone reactions are not integrated here. */
@@ -131,6 +138,19 @@ typedef struct SotnPlayerDeath
     Uint16 timer, cursor;
     Sint16 rotation;
 } SotnPlayerDeath;
+
+/** @brief Selected owned water-death controller and actual native capture acknowledgement. */
+typedef struct SotnPlayerWaterDeath
+{
+    SotnWaterDeath motion;
+    SotnPlayerFactorySource source;
+    Uint32 generation;
+    bool active, started, captured;
+} SotnPlayerWaterDeath;
+/** @brief Complete a real original packed display capture for this nonzero death generation. */
+typedef bool (*SotnPlayerDeathCapture)(void *context, Uint32 generation);
+/** @brief Decay and upload the actual retained image once, reporting real committed completion. */
+typedef bool (*SotnPlayerDeathDecay)(void *context, Uint32 generation, bool *finished);
 
 /** @brief Selected petrification presentation and directional escape cursor. */
 typedef struct SotnPlayerStone
@@ -242,6 +262,7 @@ typedef struct SotnPlayerState
     bool invulnerable;
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
+    SotnPlayerWaterDeath water_death;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
@@ -279,6 +300,23 @@ typedef struct SotnPlayerState
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
+
+/** @brief Bind real capture/decay owners for selected ordinary unfaded water death.
+ * @param player Actual simulation. @param capture Actual StoreImage owner.
+ * @param decay Actual decay/LoadImage owner. @param context Retained owner context.
+ * @return Success or SDL error. Both callbacks and context are required. Callbacks run inside
+ * working player updates; the native caller must roll back its image/texture on late failure.
+ * This binding grants no HP/relics or water damage availability. Scene-fade recovery remains
+ * outside this selected ordinary context; no replacement fade timer is supplied. */
+bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture capture,
+                                SotnPlayerDeathDecay decay, void *context);
+/** @brief Apply an actual selected lethal-water result, leaving birth work to the player tick.
+ * @param player Living unprotected owner at1HP, outside grabs/scripts/stone/Mist.
+ * @param damage Actual kind6 lethal result after pending healing/contact/protection gates.
+ * @return Success or SDL error preserving the player. Requires real capture owners, clears no
+ * private assets and grants no damage controls. The stage must supply actual damage ordering;
+ * this API does not itself enable ordinary water HP loss or replace the general contact owner. */
+bool SotnPlayer_StartWaterDeath(SotnPlayer *player, SotnWaterDamageEvents damage);
 
 /** @brief Bind the actual common stage lease and current original engine-frame clock.
  * @param player Owned simulation. @param generation Actual nonzero common row owner.

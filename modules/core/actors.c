@@ -492,7 +492,7 @@ static void HippogryphHit(SotnActors *s, Actor *root, const Actor *hit, Uint32 c
 }
 static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
-    if (player.step == SOTN_PLAYER_KILL || actor->state.step == 0 || actor->state.unsupported ||
+    if (SotnPlayerStep_IsDead(player.step) || actor->state.step == 0 || actor->state.unsupported ||
         (actor->state.flags & 0x100))
         return true;
     Actor *recipient = actor;

@@ -783,6 +783,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.capture_count = 0;
     r.freeze_changed = false;
     r.freeze = in.freeze;
+    if (p.water_death.started &&
+        (!Flash(&r, in.dra, 1) || !RequestSource(&r, p.water_death.source, 0x59002c, 0) ||
+         !RequestSource(&r, p.water_death.source, 0x60031, 0)))
+        return false;
     if (r.target_cursor >= SOTN_SPELL_TARGETS)
         return SDL_SetError("Spirit selector lost its original circular target cursor");
     if (p.dark.started &&

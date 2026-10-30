@@ -126,7 +126,7 @@ bool SotnSubweapons_Use(SotnSubweapons *s, SotnPlayerState player, bool *used, U
     const Uint16 id = profile.subweapon;
     if (id == 6 && s->paused)
         return true;
-    if (id == 0 || player.hp == 0 || player.step == SOTN_PLAYER_KILL)
+    if (id == 0 || player.hp == 0 || SotnPlayerStep_IsDead(player.step))
         return true;
     if (id != 1 && id != 2 && id != 3 && id != 6)
     {

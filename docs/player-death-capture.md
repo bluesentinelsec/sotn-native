@@ -3,8 +3,9 @@
 The selected common death-image component now reconstructs the original packed
 texture decay. The renderer supplies real StoreImage/LoadImage operations against
 owned display-texture memory, using the bounded rectangle parsed from private DRA
-data. This supplies capture operations, not live water-death timing or a completed
-dying-player controller.
+data. These APIs supply capture operations. The selected
+[native water-death owner](player-water-death.md) now supplies actual C1 capture
+timing, committed decay uploads and game-over completion for a lethal-result boundary.
 
 Capture copies the complete5,120-byte packed image after checking that every source
 word is resident. It initializes the common cursor and64-update lifetime. Each
@@ -38,9 +39,9 @@ use an explicitly supplied decay/packet sequence outside ordinary gameplay, writ
 no saves, and do not exercise an actual dying player or game-over transition.
 
 The [water-death controller](water-damage-death.md), [flashes](water-blink-effects.md)
-and [particles](player-death-particles.md) still need their actual player/equipment/
-HP/contact, capture-timing and remaining common-death owners connected before live
-water damage. The existing physical-death presentation is a separate selected path,
+and [particles](player-death-particles.md) now connect through that native owner.
+Ordinary water HP/contact production and global-fade recovery remain unwired.
+The existing physical-death presentation is a separate selected path,
 not a substitute for water death. Ordinary starts, grants and version-nine saves
 remain unchanged by these capture APIs. Alucard, the castle, full shared effects
 and console parity remain incomplete.
