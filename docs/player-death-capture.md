@@ -40,7 +40,8 @@ no saves, and do not exercise an actual dying player or game-over transition.
 
 The [water-death controller](water-damage-death.md), [flashes](water-blink-effects.md)
 and [particles](player-death-particles.md) now connect through that native owner.
-Ordinary water HP/contact production and global-fade recovery remain unwired.
+Selected [ordinary water HP/contact ownership](player-water-contact.md) now runs;
+global-fade recovery remains unwired.
 The existing physical-death presentation is a separate selected path,
 not a substitute for water death. Ordinary starts, grants and version-nine saves
 remain unchanged by these capture APIs. Alucard, the castle, full shared effects

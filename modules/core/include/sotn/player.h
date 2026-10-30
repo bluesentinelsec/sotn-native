@@ -147,6 +147,18 @@ typedef struct SotnPlayerWaterDeath
     Uint32 generation;
     bool active, started, captured;
 } SotnPlayerWaterDeath;
+/** @brief Actual preceding stage contact; raw original parameters retain kind/element bits. */
+typedef struct SotnPlayerContact
+{
+    Uint16 attack, parameters;
+    Sint32 source_x, source_velocity;
+} SotnPlayerContact;
+/** @brief One-update original water-pain requests and their pre-movement source. */
+typedef struct SotnPlayerWaterPain
+{
+    SotnWaterDamageEvents events;
+    SotnPlayerFactorySource source;
+} SotnPlayerWaterPain;
 /** @brief Complete a real original packed display capture for this nonzero death generation. */
 typedef bool (*SotnPlayerDeathCapture)(void *context, Uint32 generation);
 /** @brief Decay and upload the actual retained image once, reporting real committed completion. */
@@ -263,6 +275,8 @@ typedef struct SotnPlayerState
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
     SotnPlayerWaterDeath water_death;
+    SotnPlayerWaterPain water_pain;
+    Uint8 water_pain_timer;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
@@ -317,6 +331,21 @@ bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture captu
  * private assets and grants no damage controls. The stage must supply actual damage ordering;
  * this API does not itself enable ordinary water HP loss or replace the general contact owner. */
 bool SotnPlayer_StartWaterDeath(SotnPlayer *player, SotnWaterDamageEvents damage);
+/** @brief Queue an actual stage contact for pre-controller damage after healing/timers.
+ * @param player Actual owner. @param contact Highest-power stage contact, or zero attack.
+ * @return Success or SDL error without mutation. Existing stronger/equal queued contacts retain
+ * priority. No damage, RNG or animation runs here; raw parameters are never normalized. */
+bool SotnPlayer_QueueContact(SotnPlayer *player, SotnPlayerContact contact);
+/** @brief Supply the actual wrapping gameplay clock and enable the connected damage owner.
+ * @param player Owner with actual water-death capture/upload callbacks already bound.
+ * @param timer Current original gameplay clock, distinct from saved play time.
+ * @return Success or SDL error without mutation. Supply once per ordinary player update;
+ * menus/frozen updates must not consume this boundary. Unsupported Fury equipment fails. */
+bool SotnPlayer_SetDamageContext(SotnPlayer *player, Uint32 timer);
+/** @brief Restore the runtime-only DRA water voice timer after candidate bootstrap.
+ * @param player Actual owner. @param timer Retained0..32 counter; never ordinary save data.
+ * @return Success or SDL error without mutation or an extra simulation tick. */
+bool SotnPlayer_SetWaterPainTimer(SotnPlayer *player, Uint8 timer);
 
 /** @brief Bind the actual common stage lease and current original engine-frame clock.
  * @param player Owned simulation. @param generation Actual nonzero common row owner.

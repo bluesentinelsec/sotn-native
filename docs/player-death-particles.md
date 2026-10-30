@@ -3,8 +3,8 @@
 Selected entity-five profile6 now uses the shared factory, primitive and drawing
 owners. Its motion comes from the original32-entry velocity tables generated at
 full player initialization, rather than a substitute particle pattern. This
-prepares another dependency of water death; the dying-player producer, capture
-and remaining common death operations are still unwired.
+supplies [native water death](player-water-death.md), including its selected
+ordinary HP/contact producer, actual capture and common texture-decay owner.
 
 Initialization consumes64 values from the selected shared character RNG and uses
 the original SDK sine/cosine table, signed shifts and intensity ordering. The

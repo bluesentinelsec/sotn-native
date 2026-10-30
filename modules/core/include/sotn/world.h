@@ -58,6 +58,7 @@ typedef enum SotnRelicId
     SOTN_RELIC_SPIRIT = 11,
     SOTN_RELIC_GRAVITY = 12,
     SOTN_RELIC_LEAP = 13,
+    SOTN_RELIC_HOLY_SYMBOL = 14,
     SOTN_RELIC_SCROLL = 15,
     SOTN_RELIC_JEWEL = 16
 } SotnRelicId;

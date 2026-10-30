@@ -996,3 +996,10 @@ target_include_directories(sotn-player-water-death-tests PRIVATE "${PROJECT_SOUR
 target_link_libraries(sotn-player-water-death-tests PRIVATE sotn-core)
 add_test(NAME player-water-death COMMAND sotn-player-water-death-tests)
 set_tests_properties(player-water-death PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-contact-tests test_player_contact.c)
+sotn_configure_c_target(sotn-player-contact-tests)
+target_include_directories(sotn-player-contact-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-contact-tests PRIVATE sotn-core)
+add_test(NAME player-contact-ordering COMMAND sotn-player-contact-tests)
+set_tests_properties(player-contact-ordering PROPERTIES TIMEOUT 20)

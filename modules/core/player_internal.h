@@ -33,6 +33,12 @@ struct SotnPlayer
     SotnCollisionMap map;
     PlayerFixed x, y;
     SotnPlayerWater water;
+    SotnPlayerContact queued_contact;
+    SotnWaterDamage water_damage;
+    SotnPlayerWaterPain water_pain;
+    Uint32 damage_clock, damage_last_clock;
+    Uint16 armor;
+    bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     Uint16 water_breath_timer;
     Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
@@ -127,6 +133,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player);
 void SotnPlayer_AfterimageReset(SotnPlayer *player);
 /** @brief Run original timer15 before movement, with no display/render update. */
 bool SotnPlayer_AfterimageBegin(SotnPlayer *player);
+/** @brief Consume actual queued contact/water once after healing and damage timers. */
+bool SotnPlayer_ContactTick(SotnPlayer *player, bool *reaction_born);
 /** @brief Apply original selected status gates and capture before collision. */
 bool SotnPlayer_AfterimageCapture(SotnPlayer *player);
 /** @brief Fade/select displays after collision and commit this engine clock once. */

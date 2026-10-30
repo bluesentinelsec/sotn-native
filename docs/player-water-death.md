@@ -4,8 +4,8 @@ The native player now consumes an actual selected lethal-water result through
 original state13, animationC1 and common death phase2. This connects the existing
 [controller](water-damage-death.md), [flashes](water-blink-effects.md),
 [particles](player-death-particles.md) and [texture owner](player-death-capture.md).
-Ordinary water HP loss and the general queued-contact ordering remain unwired;
-this boundary alone does not enable water damage during ordinary gameplay.
+Selected [ordinary water HP/contact ownership](player-water-contact.md) now supplies
+this boundary during gameplay; the boundary alone supplies no damage ordering.
 
 Entry requires an unprotected living player at1HP, an actual kind6 lethal result,
 no pending healing/grab/script/stone/Mist, and bound real capture/upload owners.

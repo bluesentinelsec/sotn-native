@@ -93,7 +93,7 @@ struct SotnLaboratory
     SotnGameOver *game_over;
     Uint16 scene_buttons, mp, hands[2];
     Uint64 simulation_ticks;
-    Uint32 system_timer;
+    Uint32 system_timer, game_timer;
     SotnSaveStore *saves;
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
@@ -127,9 +127,10 @@ typedef struct SessionStart
 {
     Uint16 stage;
     Uint32 room, slot;
-    Uint32 system_timer;
+    Uint32 system_timer, game_timer;
     Uint16 spirit_target_cursor;
     Uint16 water_breath_timer;
+    Uint8 water_pain_timer;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -963,9 +964,8 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     if (!SotnPlayer_SetChairKind(session->player, motion.chair_kind))
         return false;
     SotnActorCombat combat = {0};
-    SotnCharacterStats attributes = {0};
     if (!SotnActors_GetCombat(session->actors, &combat) ||
-        !SotnCharacter_Get(session->character, &profile, &attributes))
+        !SotnCharacter_Get(session->character, &profile, NULL))
         return false;
     if (combat.blood_contacts &&
         !SotnPlayer_QueueBloodHealing(session->player, combat.blood_heal, combat.blood_contacts))
@@ -975,54 +975,12 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         return false;
     if (!SotnPlayerStep_IsDead(player.step) && !ApplyCharacter(session))
         return false;
-    SotnContactPower power = {0};
-    const SotnCombatEnemy elements = {.weaknesses = attributes.weakness,
-                                      .strengths = attributes.resistance,
-                                      .immunes = attributes.immunity,
-                                      .absorbs = attributes.absorption};
-    if (!SotnCombat_ContactPower(combat.contact_damage, combat.contact_element, elements, &power))
+    if (!SotnPlayer_QueueContact(session->player,
+                                 (SotnPlayerContact){.attack = combat.contact_damage,
+                                                     .parameters = combat.contact_element,
+                                                     .source_x = combat.contact_x,
+                                                     .source_velocity = combat.contact_velocity}))
         return false;
-    if (combat.contact_damage && power.absorb && player.hp && !SotnPlayerStep_IsDead(player.step))
-    {
-        profile.hp = (Uint16)SDL_min(profile.hp_max, (Uint32)player.hp + power.attack);
-        if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session))
-            return false;
-    }
-    else
-    {
-        const bool stone = (power.effects & 0x200) || player.step == SOTN_PLAYER_STONE;
-        if (combat.contact_damage && !power.immune && stone)
-        {
-            const Uint16 damage =
-                player.step == SOTN_PLAYER_STONE
-                    ? (Uint16)(player.hp_max / 8)
-                    : (Uint16)SDL_clamp((Sint32)power.attack - (Sint32)attributes.defense * 2, 0,
-                                        9999);
-            if (!SotnPlayer_Petrify(session->player, damage, combat.contact_x,
-                                    combat.contact_velocity))
-                return false;
-        }
-        else
-        {
-            Uint16 damage = 0;
-            if (combat.contact_damage &&
-                !((combat.contact_element & 31U) >= 16
-                      ? SotnCombat_EnvironmentalContact(power, player.hp_max,
-                                                        player.poison_ticks != 0, &damage)
-                      : SotnCombat_NormalContact(power, attributes.defense,
-                                                 player.poison_ticks != 0, &damage)))
-                return false;
-            if ((power.effects & 0x100U)
-                    ? !SotnPlayer_CurseDamage(session->player, damage, combat.contact_x,
-                                              combat.contact_velocity)
-                : (power.effects & 0x80U)
-                    ? !SotnPlayer_PoisonDamage(session->player, damage, combat.contact_x,
-                                               combat.contact_velocity)
-                    : !SotnPlayer_Damage(session->player, damage, combat.contact_x,
-                                         combat.contact_velocity))
-                return false;
-        }
-    }
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
     profile.hp = player.hp;
@@ -1347,6 +1305,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     if (session == NULL)
         return false;
     session->system_timer = start.system_timer;
+    session->game_timer = start.game_timer;
     if (start.spirit_target_cursor >= SOTN_SPELL_TARGETS)
     {
         SDL_free(session);
@@ -1429,6 +1388,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
         (saved != NULL && !RestoreSession(session, *saved, slot)) ||
         !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
+        !SotnPlayer_SetWaterPainTimer(session->player, start.water_pain_timer) ||
         !InitializeParticleVectors(session) ||
         !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
         !LaboratoryInput_Init(&session->input) ||
@@ -1751,6 +1711,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     ++session->player_effect_frame;
+    ++session->game_timer;
     const SotnPlayerBlink *bat_effect = NULL;
     const SotnPlayerFactory *bat_factory = NULL;
     const SotnPlayerBlink *wolf_effect = NULL;
@@ -1782,6 +1743,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetHellfireContext(session->player, HellfireFactory, session, session->camera.x,
                                        session->bat_runtime.hellfire_signal,
                                        session->bat_runtime.hellfire_palette) ||
+        !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && !SotnPlayerStep_IsDead(state.step) &&
@@ -3333,8 +3295,10 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .arrival = &old->arrival,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
+                                         .game_timer = old->game_timer,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
-                                         .water_breath_timer = previous_player.water_breath_timer},
+                                         .water_breath_timer = previous_player.water_breath_timer,
+                                         .water_pain_timer = previous_player.water_pain_timer},
                           &next);
     }
     else if (action == SOTN_LAUNCH_CHECKPOINT)
@@ -3344,8 +3308,10 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .room = 1,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
+                                         .game_timer = old->game_timer,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
-                                         .water_breath_timer = previous_player.water_breath_timer},
+                                         .water_breath_timer = previous_player.water_breath_timer,
+                                         .water_pain_timer = previous_player.water_pain_timer},
                           &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
@@ -3361,8 +3327,10 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .slot = slot,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
+                                         .game_timer = old->game_timer,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
-                                         .water_breath_timer = previous_player.water_breath_timer},
+                                         .water_breath_timer = previous_player.water_breath_timer,
+                                         .water_pain_timer = previous_player.water_pain_timer},
                           &next);
     }
     if (ready && travel)

@@ -1,3 +1,17 @@
+Selected [ordinary water damage/contact ownership](docs/player-water-contact.md)
+now queues actual raw stage contacts after combat and consumes them after healing/
+timers before player control. Preserve strongest/first-equal priority, high-only
+water replacement before protection/grabs, one reaction birth/animation, actual
+Holy ownership, wrapping gameplay clock, shared Blink4E/sounds and DRA voice timer.
+Menus/freeze/draws hold HP/counters; session handoffs restore clock/counter after
+bootstrap without serializing them. Dead states retain input/timers/healing without
+revival. Failed updates retain queued contacts/HP/RNG/counter; native capture
+rollback remains required. Owned Holy can toggle; no default grants/savesv9 change.
+Fury Plate and US wet-smoke remain explicit unsupported owners, never guessed or
+silently enabled. Supplied pose/protection/clock fixtures and the actual app's
+ordinary70HP water-position fixture are not route/acquisition/console evidence.
+Full damage/equipment/fade/timing, Alucard and castle remain incomplete.
+
 Selected [native water death](docs/player-water-death.md) now consumes an actual
 lethal result through state13/C1, normal reset, shared birth effects, resident
 texture capture and64 committed decay/uploads to real game over. Preserve actual
@@ -5,8 +19,8 @@ generation/callback ownership, retained pivots, birth rotation-flag clear, origi
 color/velocity/pose boundaries, no artwork reupload after capture, frozen/repeated
 draw clocks and real texture/factory rollback on late failure. Dead healing stays
 pending without revival. Supplied lethal-result/HP1/pose and protected form-entry
-fixtures are not ordinary water HP or route/console evidence. Actual queued damage
-and global-fade recovery remain unwired; no replacement timer or fake readiness.
+fixtures are not ordinary water HP or route/console evidence. Selected ordinary
+water/queued damage now runs; global-fade recovery remains unwired. No replacement timer or fake readiness.
 Ordinary starts/grants/savesv9 and Alucard/castle incompleteness remain unchanged.
 
 The [owned death-image APIs](docs/player-death-capture.md) now copy actual resident
@@ -37,9 +51,9 @@ animation snapshots. Preserve pain7004 and death7005's animationC0 condition,
 duplicate full parameters, pending US retries, original fan/colors/rotation,
 afterimage resets and no-tick rebases. Explicit native requests/relic/pose fixtures
 are not live water HP/death, ordinary acquisition or route/console evidence.
-Selected native water death supplies its producer/capture/common death; ordinary
-water HP/contact production remains unwired. Savesv9/default
-grants and Alucard/castle incompleteness remain unchanged.
+Selected native water death supplies its producer/capture/common death; selected
+ordinary water HP/contact production now runs. Savesv9/default grants and
+Alucard/castle incompleteness remain unchanged.
 
 The [water damage/death components](docs/water-damage-death.md) now reconstruct
 original waist injection, priority/protection gates, kind6 HP/Fury work, pain timer
@@ -47,8 +61,9 @@ and state13 color/velocity/helper/capture transitions. Preserve high-only contac
 replacement before grab/invincibility, absolute modulo10, repeated Blink4E and
 voice refresh, lethal response6, birth rotation-flag clear, signed velocity wrap,
 strict reset and fade preemption. Stone/other contacts delegate to real damage;
-helper/factory/capture requests are not completed native operations. Connect
-actual equipment/effects/HP/capture/common death owners before live water damage.
+helper/factory/capture requests are not completed native operations. Selected native
+HP/contact/capture/common death now run; actual remaining equipment/effects owners
+are required before extending their scope.
 Ordinary physical death is not a substitute. Savesv9/default grants stay unchanged;
 native water damage/death and Alucard/castle/console parity remain incomplete.
 
@@ -79,8 +94,8 @@ original GT4/tile rendering, sound requests, currents and retained three depths.
 Preserve pre-current sampling, zero child fractions, separate stage/libc RNG,
 default drop priority, contiguous33-row sentinel, no-tick camera translation,
 optional exhaustion and late-birth row rollback. Room entry clears water depths.
-Selected player drag/forms/swimming/bubbles now bind those real depths; water
-damage remains unwired. Never substitute tile contacts for real depth words.
+Selected player drag/forms/swimming/bubbles now bind those real depths; selected ordinary water
+damage now runs. Never substitute tile contacts for real depth words.
 Savesv9/default grants and Alucard/castle/console
 incompleteness remain unchanged.
 
@@ -90,7 +105,7 @@ allocation-before-RNG, separate stage/libc streams, whole-word child origins,
 birth-motion distinctions, cached world surfaces, packed fractions and sentinel.
 Camera shifts body/packets once; draws never tick. Sound/drop requests are not
 completed playback/factories. Selected native Entrance owners now supply stage
-actor/primitive/render ownership and selected player consumers; water damage remains unwired.
+actor/primitive/render ownership and selected player consumers; selected ordinary water damage now runs.
 No new pool/default grants/saves change. Alucard/castle/console
 parity remain incomplete.
 
@@ -101,7 +116,7 @@ Y tests, prior exit row/origins, zero child fractions and pre-current sampling.
 Plans are not completed factories: validate/commit every real slot224..255 before
 controller/depth/current feedback. No second pool or fake surface cooldown is
 allowed. Selected native Entrance now supplies placed/effect owners and selected
-player consumers; water damage remains unwired. Ordinary starts/savesv9 stay unchanged.
+player consumers; selected ordinary water damage now runs. Ordinary starts/savesv9 stay unchanged.
 Alucard/castle/console parity remain incomplete.
 
 The [water-volume query](docs/water-volume-query.md) reconstructs original private
@@ -109,7 +124,7 @@ volume/slope sampling and three distinct form-dependent depths. Preserve word wr
 strict right/bottom edges, first match, contact at zero depth and crouch/form
 precedence. Unused no-contact scratch initializes safely and confers no selected
 row/readiness. Selected native Entrance now supplies placed controllers/currents/
-splashes and selected player feedback; water damage remains unwired. No controls/default grants/
+splashes and selected player feedback; selected ordinary water damage now runs. No controls/default grants/
 saves change. Do not substitute a tile
 boolean or invent successful auxiliary allocation. Alucard/castle/console parity
 remain incomplete.

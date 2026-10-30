@@ -1472,9 +1472,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
-    if (next.spell_use_ticks)
+    const bool alive = !SotnPlayerStep_IsDead(next.step);
+    next.water_pain = (SotnPlayerWaterPain){0};
+    if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
-    if (next.dark.ticks)
+    if (alive && next.dark.ticks)
         --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
     if (next.healing.pending && !SotnPlayerStep_IsDead(next.step))
@@ -1493,43 +1495,46 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.sleep_event = false;
     next.movement_effects = (SotnPlayerMovementEffects){0};
     const bool poison_recovery =
-        next.poison_ticks == 1 && next.step != SOTN_PLAYER_STONE && !next.curse_ticks;
-    if (next.curse_ticks)
+        alive && next.poison_ticks == 1 && next.step != SOTN_PLAYER_STONE && !next.curse_ticks;
+    if (alive && next.curse_ticks)
         --next.curse_ticks;
-    if (next.poison_ticks)
+    if (alive && next.poison_ticks)
         --next.poison_ticks;
-    if (next.script_hold)
-        buttons = 0;
-    if (next.bat_input_hold)
+    if (alive)
     {
-        --next.bat_input_hold;
-        buttons = 0;
+        if (next.script_hold)
+            buttons = 0;
+        if (next.bat_input_hold)
+        {
+            --next.bat_input_hold;
+            buttons = 0;
+        }
+        if (next.bell_inside)
+            buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
+        next.bell_inside = false;
+        next.buttons = buttons;
+        next.held = next.previous_buttons;
+        next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
+        next.previous_buttons = buttons;
     }
-    if (next.bell_inside)
-        buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
-    next.bell_inside = false;
-    next.buttons = buttons;
-    next.held = next.previous_buttons;
-    next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
-    next.previous_buttons = buttons;
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
-        if (next.timers[i] != 0)
+        if (alive && next.timers[i] != 0)
             --next.timers[i];
     // Original poison expiry requests timer15 before that later timer's own decrement.
     if (poison_recovery && next.afterimage_generation)
         next.afterimage_timer15 = 12;
     if (!SotnPlayer_AfterimageBegin(&next))
         return false;
-    if (next.weapon_startup)
+    if (alive && next.weapon_startup)
         --next.weapon_startup;
     if (!SotnPlayerStep_IsDead(next.step))
         next.tight_space = SotnPlayer_TightSpace(&next);
     if (next.failed)
         return false;
     next.previous_step = next.step;
-    if (next.invincibility)
+    if (alive && next.invincibility)
         --next.invincibility;
-    if (next.script_hold)
+    if (alive && next.script_hold)
     {
         SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
@@ -1539,157 +1544,170 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
         ClearAttack(&next);
     }
-    if (next.grab.state == SOTN_GRAB_START)
+    if (alive && next.grab.state == SOTN_GRAB_START)
     {
         SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
         SotnPlayer_WolfCancel(&next);
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     }
-    SotnPlayer_GravityInput(&next);
-    NormalSpellInput(&next);
-    SotnPlayer_MistInput(&next);
-    SotnPlayer_BatInput(&next);
-    SotnPlayer_WolfInput(&next);
-    switch (next.step)
+    bool reaction_born = false;
+    if (!SotnPlayer_ContactTick(&next, &reaction_born))
+        return false;
+    if (!SotnPlayerStep_IsDead(next.step))
     {
-    case SOTN_PLAYER_WOLF:
-        SotnPlayer_WolfTick(&next);
-        break;
-    case SOTN_PLAYER_UNMORPH_WOLF:
-        SotnPlayer_UnmorphWolfTick(&next);
-        break;
-    case SOTN_PLAYER_BAT:
-        SotnPlayer_BatTick(&next);
-        break;
-    case SOTN_PLAYER_UNMORPH_BAT:
-        SotnPlayer_UnmorphBatTick(&next);
-        break;
-    case SOTN_PLAYER_MIST:
-        SotnPlayer_MistTick(&next);
-        break;
-    case SOTN_PLAYER_UNMORPH_MIST:
-        SotnPlayer_UnmorphMistTick(&next);
-        break;
-    case SOTN_PLAYER_STUCK:
-        SotnPlayer_StuckTick(&next);
-        break;
-    case SOTN_PLAYER_BOSS_GRAB:
-        BossGrabTick(&next);
-        break;
-    case SOTN_PLAYER_HELLFIRE:
-        HellfireTick(&next);
-        break;
-    case SOTN_PLAYER_SUMMON:
-    case SOTN_PLAYER_TETRA:
-        if (next.animation.remaining < 0)
-            Crouch(&next, 0, 0);
-        break;
-    case SOTN_PLAYER_SOUL:
-        if (next.animation.pose == 7 && next.animation.remaining == 1)
-        {
-            next.soul.attack = true;
-            next.soul.source = (SotnPlayerFactorySource){.x = next.x.value,
-                                                         .y = next.y.value,
-                                                         .priority = 148,
-                                                         .facing_left = next.facing_left};
-            next.sound = 0x67d;
-        }
-        if (next.animation.remaining < 0)
-            Land(&next, 0);
-        break;
-    case SOTN_PLAYER_DARK:
-        if (next.animation.remaining < 0)
-            Land(&next, 0);
-        break;
-    case SOTN_PLAYER_SCRIPT:
-        next.vx = next.vy = 0;
-        if (!next.script_hold)
-            Land(&next, 0);
-        break;
-    case SOTN_PLAYER_STAND:
-        StandTick(&next);
-        break;
-    case SOTN_PLAYER_WALK:
-        if (!Transitions(&next, 0x4301c))
-        {
-            SetSpeed(&next, WALK_SPEED);
-            if (Direction(&next) == 0)
-                Land(&next, 0);
-        }
-        break;
-    case SOTN_PLAYER_JUMP:
-        JumpTick(&next);
-        break;
-    case SOTN_PLAYER_HIGH_JUMP:
-        SotnPlayer_GravityTick(&next);
-        break;
-    case SOTN_PLAYER_CROUCH:
-        CrouchTick(&next);
-        break;
-    case SOTN_PLAYER_FALL:
-        if (next.timers[5] && (next.tapped & SOTN_BUTTON_JUMP))
-        {
-            Jump(&next);
-            ClearAttack(&next);
-        }
-        else if (!Transitions(&next, 0x9029))
-        {
-            Decelerate(&next, 4096);
-            if (Direction(&next))
-                SetSpeed(&next, 49152);
-        }
-        break;
-    case SOTN_PLAYER_STONE:
-        SotnPlayer_StoneTick(&next);
-        break;
-    case SOTN_PLAYER_KILL:
-        if (next.water_death.active)
-            WaterDeathTick(&next);
-        else
-            DeathTick(&next);
-        break;
-    case SOTN_PLAYER_KILL_WATER:
-        WaterDeathTick(&next);
-        break;
-    case SOTN_PLAYER_HIT:
-        next.invincibility = 12;
-        if (next.substep == 1)
-        {
-            Sint32 gravity = next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY;
-            if (next.water.feet > 40)
-                gravity /= 4;
-            next.vy = SDL_min(7 * FIX_ONE, next.vy + gravity);
-            if ((next.contact & 2) && next.vy < -FIX_ONE)
-                next.vy = -FIX_ONE;
-            if (next.vy >= 0 && (next.contact & 1))
-            {
-                Crouch(&next, 3, next.vx);
-                next.invincibility = 12;
-            }
-            else if (next.animation.remaining < 0)
-            {
-                Animate(&next, 28);
-                next.facing_left = !next.facing_left;
-            }
-        }
-        else
-        {
-            Decelerate(&next, 8192);
-            if (!(next.contact & 1))
-                Fall(&next);
-            else if (next.animation.remaining < 0)
-            {
-                if (next.substep == 6)
-                    Land(&next, 0);
-                else
-                    Crouch(&next, 0, next.vx);
-            }
-        }
-        break;
-    default:
-        return SDL_SetError("Unsupported Alucard movement state");
+        SotnPlayer_GravityInput(&next);
+        NormalSpellInput(&next);
+        SotnPlayer_MistInput(&next);
+        SotnPlayer_BatInput(&next);
+        SotnPlayer_WolfInput(&next);
     }
+    else
+    {
+        next.bat.started = next.bat.return_started = false;
+        next.wolf.started = next.wolf.body_started = next.wolf.finish_flash =
+            next.wolf.return_started = false;
+    }
+    if (!reaction_born)
+        switch (next.step)
+        {
+        case SOTN_PLAYER_WOLF:
+            SotnPlayer_WolfTick(&next);
+            break;
+        case SOTN_PLAYER_UNMORPH_WOLF:
+            SotnPlayer_UnmorphWolfTick(&next);
+            break;
+        case SOTN_PLAYER_BAT:
+            SotnPlayer_BatTick(&next);
+            break;
+        case SOTN_PLAYER_UNMORPH_BAT:
+            SotnPlayer_UnmorphBatTick(&next);
+            break;
+        case SOTN_PLAYER_MIST:
+            SotnPlayer_MistTick(&next);
+            break;
+        case SOTN_PLAYER_UNMORPH_MIST:
+            SotnPlayer_UnmorphMistTick(&next);
+            break;
+        case SOTN_PLAYER_STUCK:
+            SotnPlayer_StuckTick(&next);
+            break;
+        case SOTN_PLAYER_BOSS_GRAB:
+            BossGrabTick(&next);
+            break;
+        case SOTN_PLAYER_HELLFIRE:
+            HellfireTick(&next);
+            break;
+        case SOTN_PLAYER_SUMMON:
+        case SOTN_PLAYER_TETRA:
+            if (next.animation.remaining < 0)
+                Crouch(&next, 0, 0);
+            break;
+        case SOTN_PLAYER_SOUL:
+            if (next.animation.pose == 7 && next.animation.remaining == 1)
+            {
+                next.soul.attack = true;
+                next.soul.source = (SotnPlayerFactorySource){.x = next.x.value,
+                                                             .y = next.y.value,
+                                                             .priority = 148,
+                                                             .facing_left = next.facing_left};
+                next.sound = 0x67d;
+            }
+            if (next.animation.remaining < 0)
+                Land(&next, 0);
+            break;
+        case SOTN_PLAYER_DARK:
+            if (next.animation.remaining < 0)
+                Land(&next, 0);
+            break;
+        case SOTN_PLAYER_SCRIPT:
+            next.vx = next.vy = 0;
+            if (!next.script_hold)
+                Land(&next, 0);
+            break;
+        case SOTN_PLAYER_STAND:
+            StandTick(&next);
+            break;
+        case SOTN_PLAYER_WALK:
+            if (!Transitions(&next, 0x4301c))
+            {
+                SetSpeed(&next, WALK_SPEED);
+                if (Direction(&next) == 0)
+                    Land(&next, 0);
+            }
+            break;
+        case SOTN_PLAYER_JUMP:
+            JumpTick(&next);
+            break;
+        case SOTN_PLAYER_HIGH_JUMP:
+            SotnPlayer_GravityTick(&next);
+            break;
+        case SOTN_PLAYER_CROUCH:
+            CrouchTick(&next);
+            break;
+        case SOTN_PLAYER_FALL:
+            if (next.timers[5] && (next.tapped & SOTN_BUTTON_JUMP))
+            {
+                Jump(&next);
+                ClearAttack(&next);
+            }
+            else if (!Transitions(&next, 0x9029))
+            {
+                Decelerate(&next, 4096);
+                if (Direction(&next))
+                    SetSpeed(&next, 49152);
+            }
+            break;
+        case SOTN_PLAYER_STONE:
+            SotnPlayer_StoneTick(&next);
+            break;
+        case SOTN_PLAYER_KILL:
+            if (next.water_death.active)
+                WaterDeathTick(&next);
+            else
+                DeathTick(&next);
+            break;
+        case SOTN_PLAYER_KILL_WATER:
+            WaterDeathTick(&next);
+            break;
+        case SOTN_PLAYER_HIT:
+            next.invincibility = 12;
+            if (next.substep == 1)
+            {
+                Sint32 gravity = next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY;
+                if (next.water.feet > 40)
+                    gravity /= 4;
+                next.vy = SDL_min(7 * FIX_ONE, next.vy + gravity);
+                if ((next.contact & 2) && next.vy < -FIX_ONE)
+                    next.vy = -FIX_ONE;
+                if (next.vy >= 0 && (next.contact & 1))
+                {
+                    Crouch(&next, 3, next.vx);
+                    next.invincibility = 12;
+                }
+                else if (next.animation.remaining < 0)
+                {
+                    Animate(&next, 28);
+                    next.facing_left = !next.facing_left;
+                }
+            }
+            else
+            {
+                Decelerate(&next, 8192);
+                if (!(next.contact & 1))
+                    Fall(&next);
+                else if (next.animation.remaining < 0)
+                {
+                    if (next.substep == 6)
+                        Land(&next, 0);
+                    else
+                        Crouch(&next, 0, next.vx);
+                }
+            }
+            break;
+        default:
+            return SDL_SetError("Unsupported Alucard movement state");
+        }
     next.status =
         (next.status & ~7U) |
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
@@ -1750,6 +1768,12 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     SotnPlayer_GravityBeams(&next);
     next.chair_kind = 0;
     ++next.frame_number;
+    if (next.damage_context)
+    {
+        next.damage_last_clock = next.damage_clock;
+        next.damage_ticked = true;
+    }
+    next.damage_pending = false;
     *player = next;
     return true;
 }
@@ -2062,6 +2086,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .sound = player->sound,
         .death = player->death,
         .water_death = player->water_death,
+        .water_pain = player->water_pain,
+        .water_pain_timer = player->water_damage.pain_timer,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
@@ -2152,7 +2178,8 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     if (next.hp == 0)
     {
         PhysicalDeath(&next, right);
-        if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+        if (next.failed ||
+            (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
             return false;
         *player = next;
         return true;
@@ -2198,7 +2225,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         next.vx = -next.vx;
     next.step = SOTN_PLAYER_HIT;
     Animate(&next, animation);
-    if (next.failed || !SotnAnimation_Tick(next.dra, &next.animation))
+    if (next.failed || (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
         return false;
     *player = next;
     return true;
@@ -2228,6 +2255,7 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
     player->hp_max = state->hp_max;
     player->mp = state->mp;
     player->attributes = stats;
+    player->armor = state->equipment[3];
     return true;
 }
 
@@ -2471,6 +2499,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
+    next.water_pain = (SotnPlayerWaterPain){0};
     next.healing.applied = next.healing.effects = false;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};
