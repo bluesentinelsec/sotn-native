@@ -79,7 +79,7 @@ static bool Run(void)
           p->animation.id == 0xc1 && p->sound == 0x6f6 && p->draw_pivot_y == 2 && !p->attack_mode &&
           !p->vx);
     const Sint32 x = p->x.value;
-    const Sint16 held_animation = p->animation.remaining;
+    const Sint32 held_animation = p->animation.remaining;
     Owner unrelated = {0};
     CHECK(!SotnPlayer_SetDeathCapture(p, Capture, Decay, &unrelated));
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, true) && p->animation.remaining == held_animation &&
