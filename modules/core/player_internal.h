@@ -40,7 +40,8 @@ struct SotnPlayer
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
     SotnSpellCommands spell_commands;
-    bool dark_context, spirit_context;
+    bool dark_context, spirit_context, soul_context;
+    SotnPlayerSoul soul;
     SotnPlayerSpirit spirit;
     SotnPlayerHellfireFactory hellfire_factory;
     void *hellfire_context;

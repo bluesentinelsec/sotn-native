@@ -1,11 +1,23 @@
+Selected [playable Soul Steal](docs/player-soul-steal.md) now owns original
+command/50MP/learning5, actual state37/animationDA/pose7 requests, flash12/outlines22,
+shared factory112/child53/slot47, global hit-state82 and native damage/orb healing.
+Preserve captured pre-collision origins, exact-cost casts, shield removal, no scene
+freeze, shared group7..10 cooldown across births and optional failure before RNG.
+Stage contacts bypass AABB through original bit80, retain active-screen/mask/slot
+rules and spawn real orbs BEFORE damage/immunity. Never replace Echo or unrelated
+actors on exhaustion. Menus/draws never tick owners; rebases add no updates.
+v9 saves/default20MP starts stay unchanged. Protected MP50/HP50 explicit fixtures
+are not ordinary acquisition/route/console parity; Alucard/castle remain incomplete.
+
 Selected [Soul Steal orbs](docs/soul-steal-orbs.md) now own actual common actor7,
 one real shared stage row, original private homing/animation/opaque GT4 and deferred
 healing. Preserve allocation-before-RNG, original stage Random, age16 contact,
 first-pending-heal precedence, eight HP without Bloodstone scaling and no-tick
 rebases. The native dispatcher records contact through invincibility and retires
-real rows. This supplies no Soul Steal command/global attack owner yet; controls
-remain disabled. Savesv9/default grants stay unchanged; Alucard/castle/console
-and full shared contention remain incomplete.
+real rows. Selected [playable Soul Steal](docs/player-soul-steal.md) supplies the
+actual command/global attack owner; this component alone establishes no casting
+readiness. Savesv9/default grants stay unchanged; Alucard/castle/console and full
+shared contention remain incomplete.
 
 Selected [playable Hellfire](docs/player-hellfire.md) now owns ordinary commands,
 MP15/learning, real same-frame root reservation, original hidden steering/recovery,
@@ -162,7 +174,7 @@ The [ordinary spell command component](docs/normal-spell-commands.md) now recons
 six original recognizers and copied MP requests. Preserve full-word/subset input
 tests, signed-word timers, facing captures, relative priority, expiration-frame
 casts, Soul Steal asymmetry and retained Sword Brothers notifications. Availability
-requires an actual native spell owner; default zero enables no controls. Selected Dark/Summon/Tetra/Hellfire now bind their actual owners; other spells
+requires an actual native spell owner; default zero enables no controls. Selected Dark/Summon/Tetra/Hellfire/Soul Steal now bind their actual owners; other spells
 remain unwired. Do not claim complete spells
 or Alucard from component instruction comparisons.
 

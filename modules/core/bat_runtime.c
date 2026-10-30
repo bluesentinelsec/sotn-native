@@ -97,7 +97,8 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         return SDL_SetError("Wolf forced replacement requires the actual selected slot owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
-             r->children[i].kind == 26 || r->children[i].kind == 27 || r->children[i].kind == 61) &&
+             r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
+             r->children[i].kind == 61) &&
             r->children[i].group >= SDL_arraysize(r->groups))
             return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
     for (Uint16 i = 1; i <= 14; ++i)
@@ -110,7 +111,8 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
     SDL_zero(r->groups);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
-             r->children[i].kind == 26 || r->children[i].kind == 27 || r->children[i].kind == 61) &&
+             r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
+             r->children[i].kind == 61) &&
             r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
             ++r->groups[r->children[i].group];
     return true;
@@ -174,7 +176,7 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
         return SDL_SetError("Bat attack requires its private spell definition");
     const Uint8 *s = dra.bytes + at;
     const Uint16 base = Read16(s + 24);
-    if (base > 900 || Read16(s + 16) != 2 || Read16(s + 20) > 255)
+    if (base > 900 || Read16(s + 16) != (id == 5 ? 0x82U : 2U) || Read16(s + 20) > 255)
         return SDL_SetError("Bat attack has invalid spell attack metadata");
     Uint32 power = base + (stats.total[2] * 2U + SotnCombat_Random(&profile->random) % 12U) / 10U;
     if (profile->equipment[SOTN_EQUIP_ARMOR] == 21)
@@ -201,7 +203,8 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 36 ||
-           kind == 45 || kind == 52 || kind == 61 || kind == 63 || (kind >= 24 && kind <= 29);
+           kind == 45 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
+           (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -219,6 +222,7 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
     case 35:
         return 0x08000000U;
     case 36:
+    case 53:
         return 0x00060000U;
     case 24:
         return c->state.hellfire_trail.motion.flags;
@@ -601,6 +605,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if (c->kind == 53 &&
+            (i != 31 || c->primitive_count ||
+             (c->initialized ? (c->group < 7 || c->group > 10 || c->state.attack.hit_type != 0x82 ||
+                                c->state.attack.hit_effect != 2 || !c->state.attack.active)
+                             : c->group != 0)))
+            return SDL_SetError(
+                "Soul Steal attack lost its actual slot47/group/metadata ownership");
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError(
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
@@ -782,6 +793,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return SDL_SetError("Spirit cast lost its original spell/root factory parameter");
     if (p.spirit.started && !RequestSource(&r, p.spirit.source, p.spirit.blueprint, 0))
         return false;
+    if ((p.soul.started && !Flash(&r, in.dra, 12)) ||
+        (p.soul.attack && (!RequestSource(&r, p.soul.source, 0x160028U, 0) ||
+                           !RequestSource(&r, p.soul.source, 112, 0))))
+        return false;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
     if (p.healing.applied && !Sound(&r, 0x68e))
         return false;
@@ -879,6 +894,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
+    r.soul_attack = false;
     r.echo_attack = false;
     SotnSpiritTargetSnapshot targets = {0};
     if (in.spirit_targets)
@@ -900,6 +916,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.hellfire_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 52)
                 r.echo_attack = previous_echo_attack;
+            if (c->initialized && c->kind == 53)
+                r.soul_attack = true;
             continue;
         }
         bool removed = false;
@@ -1420,6 +1438,30 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     }
             }
         }
+        else if (c->kind == 53)
+        {
+            if (p.step != SOTN_PLAYER_SOUL)
+                removed = true;
+            else
+            {
+                if (!c->initialized)
+                {
+                    if (!Spell(in.dra, &progress, stats, 5, &c->state.attack))
+                        return false;
+                    c->state.attack.width = c->state.attack.height = 0;
+                    Uint8 group = 7;
+                    for (Uint8 j = 8; j < 11; ++j)
+                        if (r.groups[j] < r.groups[group])
+                            group = j;
+                    if (r.groups[group] == 255)
+                        return SDL_SetError("Soul Steal attack group overflow");
+                    ++r.groups[group];
+                    c->group = group;
+                    c->initialized = true;
+                }
+                r.soul_attack = true;
+            }
+        }
         else if (c->kind == 52)
         {
             bool allocated = c->initialized;
@@ -1501,7 +1543,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 ++r.groups[r.wolf.body.parts[i].enemy_id];
     for (Uint16 i = 0; i < 48; ++i)
         if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 26 ||
-             r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52) &&
+             r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
+             r.children[i].kind == 53) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if ((progress.random != previous_random || progress.mp != previous_mp) &&

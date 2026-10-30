@@ -1,8 +1,9 @@
 # Soul Steal orb ownership
 
 The selected ordinary US stage orb now runs as actual common actor seven with one
-row in the shared stage primitive pool. This supplies the healing-child owner for
-future Soul Steal integration; it does not enable the spell command or its attack.
+row in the shared stage primitive pool. The
+[playable Soul Steal owner](player-soul-steal.md) now consumes this healing-child
+service. The component alone does not enable the spell command or its attack.
 
 The controller preserves the original stage `Random` stream, signed-word angle
 limits, SDK trigonometry, fixed-point fractions, speed/turn growth, private byte
@@ -32,9 +33,10 @@ LLDB check in Debug and ASan/UBSan draws the actual orb, observes its homing/con
 heals HP50 to58 exactly once and verifies actor retirement. This uses explicit
 room/position/HP/contact-protection fixtures; it writes no ordinary saves.
 
-This is scoped component/native-child evidence. The spell command, global attack,
-full shared contention, uninterrupted routes and console presentation parity require
-separate evidence. Alucard and the castle remain incomplete. Saves stay version nine,
+This is scoped component/native-child evidence. The selected spell command/global
+attack have separate evidence in the playable integration above. Full shared contention, uninterrupted routes and console
+presentation parity remain unproven. Alucard and the castle remain incomplete.
+Saves stay version nine,
 and ordinary starts grant no resources or abilities.
 
 Provenance: adapted from `src/st/e_particles.h:EntitySoulStealOrb` and
