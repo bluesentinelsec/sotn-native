@@ -462,7 +462,7 @@ static bool TickShield(SotnPlayer *player)
     const Uint32 hand = button == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
     const bool disabled =
         player->equipment[hand] != 16 || player->curse_ticks != 0 || player->curse_failure ||
-        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_HIT ||
+        SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_HIT ||
         player->step == SOTN_PLAYER_STONE || player->step == SOTN_PLAYER_MIST ||
         player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_WOLF ||
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
@@ -1111,6 +1111,149 @@ static void DeathTick(SotnPlayer *player)
     }
 }
 
+bool SotnPlayerStep_IsDead(SotnPlayerStep step)
+{
+    return step == SOTN_PLAYER_KILL || step == SOTN_PLAYER_KILL_WATER ||
+           step == SOTN_PLAYER_DEATH_HOLD;
+}
+bool SotnPlayer_SetDeathCapture(SotnPlayer *p, SotnPlayerDeathCapture capture,
+                                SotnPlayerDeathDecay decay, void *context)
+{
+    if (!p || !capture || !decay || !context ||
+        (p->water_death.active &&
+         (p->death_capture != capture || p->death_decay != decay || p->death_context != context)))
+        return SDL_SetError("Water death requires real capture, decay/upload and context owners");
+    p->death_capture = capture;
+    p->death_decay = decay;
+    p->death_context = context;
+    return true;
+}
+bool SotnPlayer_StartWaterDeath(SotnPlayer *p, SotnWaterDamageEvents damage)
+{
+    if (!p || damage.response != 6 || damage.hp || damage.damage != 1 || p->hp != 1 ||
+        p->invincibility || p->healing.pending || p->grab.state != SOTN_GRAB_NONE ||
+        p->script_hold || p->step == SOTN_PLAYER_SCRIPT || p->step == SOTN_PLAYER_STONE ||
+        p->step == SOTN_PLAYER_BOSS_GRAB || p->mist.active || SotnPlayerStep_IsDead(p->step) ||
+        !p->death_capture || !p->death_decay || !p->death_context ||
+        p->water_death.generation == SDL_MAX_UINT32)
+        return SDL_SetError("Water death requires an actual unprotected lethal result and owners");
+    const Uint32 generation = p->water_death.generation + 1U;
+    p->water_death =
+        (SotnPlayerWaterDeath){.generation = generation, .active = true, .motion = {.step = 13}};
+    p->death = (SotnPlayerDeath){0};
+    p->hp = 0;
+    SetStep(p, SOTN_PLAYER_KILL_WATER);
+    return true;
+}
+static void WaterDeathTick(SotnPlayer *p)
+{
+    if (!p->water_death.active || !p->water_death.generation || !p->death_capture ||
+        !p->death_decay || !p->death_context)
+    {
+        SDL_SetError("Water death lost its actual controller/capture ownership");
+        p->failed = true;
+        return;
+    }
+    SotnWaterDeath motion = p->water_death.motion;
+    motion.velocity_x = p->vx;
+    motion.velocity_y = p->vy;
+    motion.step = (Uint16)p->step;
+    motion.phase = p->substep;
+    if (p->step == SOTN_PLAYER_KILL_WATER)
+    {
+        SotnWaterDeathEvents events = {0};
+        if (!SotnWaterDeath_Tick(&motion,
+                                 (SotnWaterDeathInput){.remaining = (Sint16)p->animation.remaining,
+                                                       .tight_space = p->tight_space != 0},
+                                 &events))
+        {
+            p->failed = true;
+            return;
+        }
+        for (Uint16 i = 0; i < events.count; ++i)
+        {
+            const SotnWaterDeathAction a = events.actions[i];
+            if (a.kind == SOTN_WATER_DEATH_SOUND)
+                p->sound = (Uint16)a.value;
+            else if (a.kind == SOTN_WATER_DEATH_RESET_NORMAL)
+            {
+                SotnPlayer_GravityCancel(p);
+                SotnPlayer_BatCancel(p);
+                SotnPlayer_WolfCancel(p);
+                p->animation.pose = 0;
+                p->animation.remaining = 0;
+                p->movement_flags = 0;
+                ClearAttack(p);
+            }
+            else if (a.kind == SOTN_WATER_DEATH_ANIMATION)
+                Animate(p, (Uint16)a.value);
+            else if (a.kind == SOTN_WATER_DEATH_GLOBAL_EFFECT)
+            {
+                p->water_death.started = true;
+                p->water_death.source = (SotnPlayerFactorySource){.x = p->x.value,
+                                                                  .y = p->y.value,
+                                                                  .priority = 148,
+                                                                  .facing_left = p->facing_left};
+            }
+            else if (a.kind == SOTN_WATER_DEATH_CAPTURE)
+            {
+                if (!p->death_capture(p->death_context, p->water_death.generation))
+                {
+                    p->failed = true;
+                    return;
+                }
+                p->water_death.captured = true;
+            }
+            // Birth factory intents are consumed together, in original order, by the shared
+            // native owner after this player update commits. No child readiness is inferred.
+        }
+    }
+    else if (p->step == SOTN_PLAYER_KILL && p->substep == 2)
+    {
+        bool finished = false;
+        if (!p->water_death.captured ||
+            !p->death_decay(p->death_context, p->water_death.generation, &finished))
+        {
+            if (!p->water_death.captured)
+                SDL_SetError("Common water death cannot advance before its actual capture");
+            p->failed = true;
+            return;
+        }
+        motion.draw_flags = 4;
+        if (finished)
+        {
+            motion.velocity_y = 0;
+            motion.color_blend = false;
+            motion.phase = 128;
+            p->death.phase = 128;
+        }
+        p->vx = motion.velocity_x;
+        Decelerate(p, 1024);
+        motion.velocity_x = p->vx;
+        if (p->animation.pose >= 15)
+        {
+            Sint32 rotation =
+                motion.rotation < 32768 ? motion.rotation : (Sint32)motion.rotation - 65536;
+            if (p->animation.pose == 22 && p->animation.remaining == 1)
+                rotation -= 256;
+            const Uint16 bits = (Uint16)(Uint32)(rotation - 6);
+            rotation = bits < 32768 ? bits : (Sint32)bits - 65536;
+            motion.rotation = (Uint16)(Sint16)SDL_max(-640, rotation);
+        }
+    }
+    else if (p->step != SOTN_PLAYER_KILL || p->substep != 128)
+    {
+        SDL_SetError("Water death entered an unsupported common/fade-recovery context");
+        p->failed = true;
+        return;
+    }
+    p->water_death.motion = motion;
+    p->step = (SotnPlayerStep)motion.step;
+    p->substep = motion.phase;
+    p->vx = motion.velocity_x;
+    p->vy = motion.velocity_y;
+    p->form_rotated = (motion.draw_flags & 4U) != 0;
+}
 static void NormalSpellInput(SotnPlayer *p)
 {
     if ((!p->dark_context && !p->spirit_context && !p->hellfire_factory && !p->soul_context) ||
@@ -1328,12 +1471,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.spirit.started = false;
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
+    next.water_death.started = false;
     if (next.spell_use_ticks)
         --next.spell_use_ticks;
     if (next.dark.ticks)
         --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
-    if (next.healing.pending)
+    if (next.healing.pending && !SotnPlayerStep_IsDead(next.step))
     {
         next.hp = (Uint16)SDL_min(next.hp_max, (Uint32)next.hp + next.healing.pending);
         next.healing.pending = 0;
@@ -1378,7 +1522,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return false;
     if (next.weapon_startup)
         --next.weapon_startup;
-    if (next.step != SOTN_PLAYER_KILL)
+    if (!SotnPlayerStep_IsDead(next.step))
         next.tight_space = SotnPlayer_TightSpace(&next);
     if (next.failed)
         return false;
@@ -1500,7 +1644,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SotnPlayer_StoneTick(&next);
         break;
     case SOTN_PLAYER_KILL:
-        DeathTick(&next);
+        if (next.water_death.active)
+            WaterDeathTick(&next);
+        else
+            DeathTick(&next);
+        break;
+    case SOTN_PLAYER_KILL_WATER:
+        WaterDeathTick(&next);
         break;
     case SOTN_PLAYER_HIT:
         next.invincibility = 12;
@@ -1549,6 +1699,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE ||
         next.step == SOTN_PLAYER_SOUL)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 16);
+    if (SotnPlayerStep_IsDead(next.step))
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
         (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
@@ -1573,7 +1725,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.vx = SotnPlayer_WaterScale(next.vx, false);
         next.vy = SotnPlayer_WaterScale(next.vy, false);
     }
-    if (next.step == SOTN_PLAYER_KILL)
+    if (SotnPlayerStep_IsDead(next.step))
     {
         next.x.value += next.vx;
         next.y.value += next.vy;
@@ -1830,8 +1982,10 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x10002000U;
     if (player->step == SOTN_PLAYER_HIT)
         status |= 0x38110000U;
-    if (player->step == SOTN_PLAYER_KILL)
-        status |= 0x18150000U | (player->substep == 0x80 ? 0x80000U : 0U);
+    if (SotnPlayerStep_IsDead(player->step))
+        status |=
+            0x18150000U |
+            (player->step != SOTN_PLAYER_DEATH_HOLD && player->substep == 0x80 ? 0x80000U : 0U);
     if (player->step == SOTN_PLAYER_STONE)
         status |= 0x38110080U;
     if (player->step == SOTN_PLAYER_BOSS_GRAB)
@@ -1904,11 +2058,12 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .hp = player->hp,
         .hp_max = player->hp_max,
         .invulnerable = player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
-                        player->step == SOTN_PLAYER_KILL || player->grab.state != SOTN_GRAB_NONE,
+                        SotnPlayerStep_IsDead(player->step) || player->grab.state != SOTN_GRAB_NONE,
         .sound = player->sound,
         .death = player->death,
+        .water_death = player->water_death,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
-        .can_pause = player->attack_mode == 0 && player->step != SOTN_PLAYER_KILL &&
+        .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
                      player->step != SOTN_PLAYER_SCRIPT && player->grab.state == SOTN_GRAB_NONE &&
                      player->step != SOTN_PLAYER_BOSS_GRAB,
@@ -2051,7 +2206,7 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
 
 bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random)
 {
-    if (player == NULL || hp == 0 || hp > player->hp_max || player->step == SOTN_PLAYER_KILL ||
+    if (player == NULL || hp == 0 || hp > player->hp_max || SotnPlayerStep_IsDead(player->step) ||
         player->attack_mode != 0)
         return SDL_SetError("Health restore requires a living, non-attacking player and health "
                             "within the current maximum");
@@ -2066,7 +2221,7 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
     if (player == NULL || state == NULL || state->hp_max == 0 || state->hp_max > 9999 ||
         state->hp > state->hp_max || state->mp > state->mp_max || state->mp_max > 9999 ||
         stats.attack[0] > 999 || stats.attack[1] > 999 || stats.unarmed_attack > 999 ||
-        player->step == SOTN_PLAYER_KILL)
+        SotnPlayerStep_IsDead(player->step))
         return SDL_SetError(
             "Player character update requires bounded living progress and attributes");
     player->hp = state->hp;
@@ -2118,7 +2273,7 @@ bool SotnPlayer_StageStop(SotnPlayer *p)
 {
     if (p == NULL)
         return SDL_InvalidParamError("player");
-    if (p->step != SOTN_PLAYER_KILL)
+    if (!SotnPlayerStep_IsDead(p->step))
         p->vx = p->vy = 0;
     return true;
 }
@@ -2135,7 +2290,7 @@ bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
 {
     if (p == NULL)
         return SDL_InvalidParamError("player");
-    if (p->step == SOTN_PLAYER_KILL)
+    if (SotnPlayerStep_IsDead(p->step))
         return true;
     if (halt_vertical)
         p->vy = 0;
@@ -2155,7 +2310,7 @@ bool SotnPlayer_BellInside(SotnPlayer *player, bool inside)
 // pinned reconstruction. Native adapters retain the transient timer across stage arrivals.
 bool SotnPlayer_RestoreCurse(SotnPlayer *player, Uint16 ticks)
 {
-    if (player == NULL || ticks > 1024 || player->step == SOTN_PLAYER_KILL)
+    if (player == NULL || ticks > 1024 || SotnPlayerStep_IsDead(player->step))
         return SDL_SetError("Curse timer restore requires a living player and 0..1024 ticks");
     player->curse_ticks = ticks;
     return true;
@@ -2167,7 +2322,7 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Curse contact requires bounded damage and source motion");
     if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
-        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
         player->grab.state != SOTN_GRAB_NONE)
         return true;
     if (player->step == SOTN_PLAYER_STONE)
@@ -2187,7 +2342,7 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
 {
     if (player == NULL ||
-        (hold && (player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        (hold && (SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
                   player->grab.state != SOTN_GRAB_NONE)))
         return SDL_SetError("Script hold requires a living normal-form player owner");
     player->script_hold = hold;
@@ -2227,8 +2382,8 @@ bool SotnPlayer_RequestGrab(SotnPlayer *p, SotnPlayerGrab request)
         p->grab.state = SOTN_GRAB_NONE;
         return true;
     }
-    if (!p->hp || p->step == SOTN_PLAYER_KILL || p->script_hold || p->step == SOTN_PLAYER_SCRIPT ||
-        p->step == SOTN_PLAYER_STONE)
+    if (!p->hp || SotnPlayerStep_IsDead(p->step) || p->script_hold ||
+        p->step == SOTN_PLAYER_SCRIPT || p->step == SOTN_PLAYER_STONE)
         return SDL_SetError("Boss grab requires a living normal-form player outside a script");
     if ((request.state == SOTN_GRAB_START &&
          (p->grab.state != SOTN_GRAB_NONE || p->step == SOTN_PLAYER_BOSS_GRAB)) ||
@@ -2249,7 +2404,7 @@ bool SotnPlayer_SetChairKind(SotnPlayer *player, Uint16 kind)
 // dra/71830.c applies poison after the normal surviving hit; curse takes precedence in scene.
 bool SotnPlayer_RestorePoison(SotnPlayer *player, Uint16 ticks)
 {
-    if (!player || ticks > 4095 || player->step == SOTN_PLAYER_KILL)
+    if (!player || ticks > 4095 || SotnPlayerStep_IsDead(player->step))
         return SDL_SetError("Poison timer restore requires a living player and 0..4095 ticks");
     player->poison_ticks = ticks;
     return true;
@@ -2261,7 +2416,7 @@ bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Poison contact requires bounded damage and source motion");
     if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
-        player->step == SOTN_PLAYER_KILL || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
         player->grab.state != SOTN_GRAB_NONE)
         return true;
     if (player->step == SOTN_PLAYER_STONE)
@@ -2315,6 +2470,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.dark.started = next.spirit.started = false;
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
+    next.water_death.started = false;
     next.healing.applied = next.healing.effects = false;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};

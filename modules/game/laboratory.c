@@ -60,6 +60,8 @@ struct SotnLaboratory
     SotnMistEffect mist_effect;
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
+    SotnDeathImage death_image;
+    Uint32 death_image_generation;
     SotnSceneFreeze spell_freeze;
     bool spell_pause_pending;
     SotnWolfDrawPacket wolf_packets[SOTN_WOLF_FRAME_PACKETS];
@@ -619,15 +621,49 @@ static bool WolfCollision(void *context, Sint32 x, Sint32 y, SotnCollider *out)
     return SotnCollision_Query(&s->room.foreground.collision, x + s->camera.x, y + s->camera.y,
                                out);
 }
+static bool CaptureDeathImage(void *context, Uint32 generation)
+{
+    SotnLaboratory *s = context;
+    if (!s || !generation || s->death_image.captured)
+        return SDL_SetError("Water-death capture requires its fresh actual texture owner");
+    SotnDeathImage image = {0};
+    if (!SotnActorGraphics_StoreDeathImage(s->actor_graphics, &image))
+        return false;
+    s->death_image = image;
+    s->death_image_generation = generation;
+    return true;
+}
+static bool DecayDeathImage(void *context, Uint32 generation, bool *finished)
+{
+    SotnLaboratory *s = context;
+    if (!s || !generation || generation != s->death_image_generation || !finished)
+        return SDL_SetError("Water-death upload lost its actual captured image generation");
+    SotnDeathImage image = s->death_image;
+    if (!SotnDeathImage_Tick(&image) ||
+        !SotnActorGraphics_LoadDeathImage(s->actor_graphics, &image))
+        return false;
+    s->death_image = image;
+    *finished = image.remaining == 0;
+    return true;
+}
 static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
 {
     // Player callbacks reserve only actual factory records. Restore those reservations if a
     // later player/animation/collision validation fails before its working copy commits.
     Uint8 factories[sizeof(s->bat_runtime.factories)] = {0};
+    const SotnDeathImage death_image = s->death_image;
+    const Uint32 death_generation = s->death_image_generation;
     SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
     if (SotnPlayer_Tick(s->player, buttons))
         return true;
     SDL_memcpy(s->bat_runtime.factories, factories, sizeof(factories));
+    char detail[512] = {0};
+    SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+    s->death_image = death_image;
+    s->death_image_generation = death_generation;
+    if (death_image.captured && !SotnActorGraphics_LoadDeathImage(s->actor_graphics, &death_image))
+        return false;
+    SDL_SetError("%s", detail);
     return false;
 }
 static bool HellfireFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
@@ -651,7 +687,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
         !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
-        (sprite.width && !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
+        (sprite.width && !player.water_death.captured &&
+         !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
             &s->bat_runtime, s->character,
             (SotnBatRuntimeInput){.dra = s->dra,
@@ -936,7 +973,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     if (combat.kick_hit &&
         !SotnPlayer_KickHit(session->player, combat.kick_generation, combat.kick_hit))
         return false;
-    if (player.step != SOTN_PLAYER_KILL && !ApplyCharacter(session))
+    if (!SotnPlayerStep_IsDead(player.step) && !ApplyCharacter(session))
         return false;
     SotnContactPower power = {0};
     const SotnCombatEnemy elements = {.weaknesses = attributes.weakness,
@@ -945,7 +982,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
                                       .absorbs = attributes.absorption};
     if (!SotnCombat_ContactPower(combat.contact_damage, combat.contact_element, elements, &power))
         return false;
-    if (combat.contact_damage && power.absorb && player.hp && player.step != SOTN_PLAYER_KILL)
+    if (combat.contact_damage && power.absorb && player.hp && !SotnPlayerStep_IsDead(player.step))
     {
         profile.hp = (Uint16)SDL_min(profile.hp_max, (Uint32)player.hp + power.attack);
         if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session))
@@ -1392,7 +1429,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
         (saved != NULL && !RestoreSession(session, *saved, slot)) ||
         !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
-        !InitializeParticleVectors(session) || !LaboratoryInput_Init(&session->input) ||
+        !InitializeParticleVectors(session) ||
+        !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
+        !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
@@ -1745,7 +1784,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                        session->bat_runtime.hellfire_palette) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
-        (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
+        (session->stage_id != 6 && !SotnPlayerStep_IsDead(state.step) &&
+         !Transition(session, &state)))
         return false;
     if (state.dark.started || state.spirit.started || state.hellfire_started || state.soul.started)
     {
@@ -1796,7 +1836,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                       combat.hearts, combat.subweapon}) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound))
         return false;
-    if (session->stage_id == 6 && state.step != SOTN_PLAYER_KILL)
+    if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))
     {
         // Original DAI exit actors change limits after player motion and before
         // the same frame's room lookup. Preserve departing sounds and synthesize
@@ -2092,7 +2132,7 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
 {
     if (!sprite->width)
         return true;
-    if (!SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
+    if (!player.water_death.captured && !SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
         return false;
     const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
                  left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
@@ -2106,8 +2146,26 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
                                             : ((v & 1U) ? 4 + sprite->width : 4));
         q.v[v] = (Uint8)(1 + ((v & 2U) ? sprite->height : 0));
     }
-    if (player.rotated && !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y),
-                                                   player.bat.rotation, player.facing_left, &q))
+    if (player.water_death.active)
+    {
+        const SotnWaterDeath d = player.water_death.motion;
+        q.draw_mode =
+            (Uint16)((d.blend & 0x60U) | (d.blend & 0x10U ? 1U : 0U) | (d.color_blend ? 4U : 0U));
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.red[v] = q.green[v] = d.red;
+            q.blue[v] = d.blue;
+        }
+        if (player.rotated &&
+            !SotnPlayerEffect_Rotate(
+                s->executable,
+                BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
+                BlinkWord(y + player.draw_pivot_y), BlinkWord(d.rotation), player.facing_left, &q))
+            return false;
+    }
+    else if (player.rotated &&
+             !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y),
+                                      player.bat.rotation, player.facing_left, &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
 }
@@ -2453,7 +2511,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool drawn =
                 player.mist.active || player.bat.hidden || player.hellfire_hidden ||
                 player.animation_bank == 15 ||
-                (player.animation_bank == 13 || player.rotated
+                (player.water_death.active || player.animation_bank == 13 || player.rotated
                      ? DrawRotatedPlayer(session, player, &alucard)
                  : player.stone.active
                      ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - view_x,

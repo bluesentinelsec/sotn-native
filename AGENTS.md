@@ -1,10 +1,21 @@
+Selected [native water death](docs/player-water-death.md) now consumes an actual
+lethal result through state13/C1, normal reset, shared birth effects, resident
+texture capture and64 committed decay/uploads to real game over. Preserve actual
+generation/callback ownership, retained pivots, birth rotation-flag clear, original
+color/velocity/pose boundaries, no artwork reupload after capture, frozen/repeated
+draw clocks and real texture/factory rollback on late failure. Dead healing stays
+pending without revival. Supplied lethal-result/HP1/pose and protected form-entry
+fixtures are not ordinary water HP or route/console evidence. Actual queued damage
+and global-fade recovery remain unwired; no replacement timer or fake readiness.
+Ordinary starts/grants/savesv9 and Alucard/castle incompleteness remain unchanged.
+
 The [owned death-image APIs](docs/player-death-capture.md) now copy actual resident
 display-texture pixels and reconstruct original packed-nibble decay/uploads.
 Preserve private rectangle bounds, full5120-byte copies, four40-nibble groups,
 cursor+35 byte wrap,64-update completion, immutable source art and unrelated VRAM.
 Commit copied cursors only after actual upload succeeds. Requests are not completed
-player color/velocity/substate/game-over transitions. Native death timing remains
-unwired; explicit decay/draw fixtures are not actual dying-player/route/console
+player color/velocity/substate/game-over transitions. Selected native water death
+now owns those transitions; earlier explicit decay/draw fixtures are not dying-player/route/console
 evidence. Physical death is not a water-death substitute. Savesv9/default grants
 and Alucard/castle incompleteness remain unchanged.
 
@@ -17,7 +28,8 @@ thresholds, sentinel and optional exhaustion before RNG. No substitute vectors o
 particle pool. This corrects initialization RNG consumption without changing HP/MP/
 equipment/relic defaults or savesv9. Native supplied death-factory/protected/pose
 fixtures are not actual dying-player, acquisition, route or console evidence.
-Water HP/death producer/capture/common death and Alucard/castle remain incomplete.
+Selected native water death now supplies birth/capture/common death. Ordinary
+water HP/contact production and Alucard/castle remain incomplete.
 
 Selected [water Blink effects](docs/water-blink-effects.md) now run parameters4E/59
 through actual shared factories/eight-row leases/rendering and native waist/Holy/
@@ -25,7 +37,8 @@ animation snapshots. Preserve pain7004 and death7005's animationC0 condition,
 duplicate full parameters, pending US retries, original fan/colors/rotation,
 afterimage resets and no-tick rebases. Explicit native requests/relic/pose fixtures
 are not live water HP/death, ordinary acquisition or route/console evidence.
-Actual damage/death producers/capture/common death remain unwired. Savesv9/default
+Selected native water death supplies its producer/capture/common death; ordinary
+water HP/contact production remains unwired. Savesv9/default
 grants and Alucard/castle incompleteness remain unchanged.
 
 The [water damage/death components](docs/water-damage-death.md) now reconstruct

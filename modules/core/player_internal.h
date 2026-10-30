@@ -104,6 +104,10 @@ struct SotnPlayer
     Uint8 attack_critical;
     Uint16 attack_power, shield_power;
     SotnPlayerDeath death;
+    SotnPlayerWaterDeath water_death;
+    SotnPlayerDeathCapture death_capture;
+    SotnPlayerDeathDecay death_decay;
+    void *death_context;
     SotnPlayerStone stone;
     SotnPlayerGrab grab;
     Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;

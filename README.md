@@ -170,7 +170,9 @@ adds gravity/drag, form gates, Wolf swimming and bubbles. Original
 checks, and their selected [Blink flashes](docs/water-blink-effects.md) have shared
 owners. Their [death particles](docs/player-death-particles.md) now use original
 initialized motion and shared rows. [Death-image capture/decay](docs/player-death-capture.md)
-now has owned texture APIs; native water damage and death remain unfinished.
+now has owned texture APIs. Selected [native water death](docs/player-water-death.md)
+connects an actual lethal-result boundary to those owners and game over; ordinary
+water HP loss and complete damage ordering remain unfinished.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,
