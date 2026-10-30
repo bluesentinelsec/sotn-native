@@ -1003,3 +1003,10 @@ target_include_directories(sotn-player-contact-tests PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(sotn-player-contact-tests PRIVATE sotn-core)
 add_test(NAME player-contact-ordering COMMAND sotn-player-contact-tests)
 set_tests_properties(player-contact-ordering PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stat-buff-tests test_stat_buffs.c)
+sotn_configure_c_target(sotn-stat-buff-tests)
+target_include_directories(sotn-stat-buff-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-stat-buff-tests PRIVATE sotn-core)
+add_test(NAME stat-buff-ownership COMMAND sotn-stat-buff-tests)
+set_tests_properties(stat-buff-ownership PROPERTIES TIMEOUT 20)

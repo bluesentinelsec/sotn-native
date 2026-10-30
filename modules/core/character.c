@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected inventory/order and unbuffed stat calculations from sotn-decomp
+// Selected inventory/order, stat calculations and positive-word SDK root from sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5: dra/5D5BC.c and menu.c.
 // Definitions, strings, icons, and progression tables remain private runtime inputs.
 #include <SDL3/SDL.h>
@@ -10,6 +10,7 @@ struct SotnCharacter
     SotnDataView dra;
     SotnCharacterState state;
     SotnCharacterStats stats;
+    Uint16 stat_buff_mask;
 };
 static Uint16 Read16(const Uint8 *p)
 {
@@ -23,6 +24,11 @@ static Sint16 Signed16(const Uint8 *p)
 {
     const Uint16 v = Read16(p);
     return (Sint16)(v < 32768 ? v : (Sint32)v - 65536);
+}
+static Sint16 Word(Sint32 value)
+{
+    const Uint16 bits = (Uint16)(Uint32)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
 }
 static bool Resolve(SotnDataView dra, Uint64 address, size_t size, SotnDataView *out)
 {
@@ -61,10 +67,10 @@ static bool IsEmpty(bool body, Uint16 id)
 static bool BodySupported(Uint16 id)
 {
     /* Additive records and selected implemented armor/head/cape services. */
-    return id == 14 || id == 15 || id == 21 || id == 45 || id == 56 || id == 78 || id <= 9 ||
-           (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 || id == 48 ||
-           id == 49 || id == 51 || id == 57 || id == 60 || (id >= 63 && id <= 73) || id == 76 ||
-           id == 77 || id == 79 || id == 82 || id == 85;
+    return id == 14 || id == 15 || id == 21 || id == 22 || id == 45 || id == 56 || id == 78 ||
+           id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
+           id == 48 || id == 49 || id == 51 || id == 57 || id == 60 || (id >= 63 && id <= 73) ||
+           id == 76 || id == 77 || id == 79 || id == 82 || id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -174,12 +180,37 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
             return SDL_SetError("Body inventory exceeds 99");
     return true;
 }
-static Uint16 Root(Uint16 v)
+static Uint16 Root(Uint16 value)
 {
-    Uint16 r = 0;
-    while ((Uint32)(r + 1) * (r + 1) <= v)
-        ++r;
-    return r;
+    if (!value)
+        return 0;
+    // Original positive-word SDK SquareRoot0 normalization. Its table value is exactly the
+    // integer root of normalized<<18; compute that value without embedding a private table.
+    Uint32 bits = value;
+    Uint16 leading = 0;
+    while (!(bits & 0x80000000U))
+    {
+        bits <<= 1;
+        ++leading;
+    }
+    const Uint16 even = (Uint16)(leading & 0xfffeU);
+    const Uint32 normalized =
+        even >= 24 ? (Uint32)value << (even - 24U) : (Uint32)value >> (24U - even);
+    Uint32 remaining = normalized << 18, root = 0, bit = 1U << 30;
+    while (bit > remaining)
+        bit >>= 2;
+    while (bit)
+    {
+        if (remaining >= root + bit)
+        {
+            remaining -= root + bit;
+            root = (root >> 1) + bit;
+        }
+        else
+            root >>= 1;
+        bit >>= 2;
+    }
+    return (Uint16)((root << ((31U - even) / 2U)) >> 12);
 }
 static bool Calculate(SotnCharacter *c)
 {
@@ -207,25 +238,60 @@ static bool Calculate(SotnCharacter *c)
     }
     for (Uint32 i = 0; i < 4; ++i)
     {
+        if ((i == 0 && (c->stat_buff_mask & (1U << SOTN_BUFF_STRENGTH))) ||
+            (i == 2 && (c->stat_buff_mask & (1U << SOTN_BUFF_INTELLIGENCE))) ||
+            (i == 3 && (c->stat_buff_mask & (1U << SOTN_BUFF_LUCK))))
+            bonus[i] += 20;
         bonus[i] = SDL_min(99, bonus[i]);
         result.bonus[i] = (Sint16)bonus[i];
         const Sint32 multiplier = i == 1 ? 8 : i == 2 ? 4 : 1;
         result.total[i] = (Uint16)SDL_max(0, c->state.base[i] + bonus[i] * multiplier);
     }
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
+        attack += 20;
     for (Uint32 i = 0; i < 2; ++i)
         result.attack[i] = (Uint16)SDL_clamp(
-            items[i].attack + attack +
-                (items[i].attack <= result.total[0] ? result.total[0] : result.total[0] / 2),
+            Word(items[i].attack + attack +
+                 (items[i].attack <= result.total[0] ? result.total[0] : result.total[0] / 2)),
             0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
         return false;
     result.unarmed_attack = (Uint16)SDL_clamp(
-        empty.attack + attack +
-            (empty.attack <= result.total[0] ? result.total[0] : result.total[0] / 2),
+        Word(empty.attack + attack +
+             (empty.attack <= result.total[0] ? result.total[0] : result.total[0] / 2)),
         0, 999);
-    result.defense = (Uint16)SDL_clamp(defense + Root(result.total[1]) - 2, 0, 999);
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_DEFENSE))
+        defense += 20;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_FIRE))
+        result.resistance |= 0x8000;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_ICE))
+        result.resistance |= 0x2000;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_THUNDER))
+        result.resistance |= 0x4000;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_CURSE))
+        result.resistance |= 0x100;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_HOLY))
+        result.resistance |= 0x1000;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_STONE))
+        result.immunity |= 0x200;
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_DARK))
+        result.resistance |= 0x800;
+    result.defense = (Uint16)SDL_clamp(Word(defense + Root(result.total[1]) - 2), 0, 999);
     c->stats = result;
+    return true;
+}
+bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    if (c->stat_buff_mask == mask)
+        return true;
+    SotnCharacter next = *c;
+    next.stat_buff_mask = mask;
+    if (!Calculate(&next))
+        return false;
+    *c = next;
     return true;
 }
 bool SotnCharacter_Create(SotnDataView dra, SotnCharacter **out)

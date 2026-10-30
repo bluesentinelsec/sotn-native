@@ -23,8 +23,9 @@ refresh the shared32-update pain voice counter, and request a scrape only when H
 changes. The native shared factory owns the real eight-row effect; ordinary
 optional allocation rules still apply. The final HP requests actual state13/C1
 death, capture,64 committed texture decays and game over. Stone water contacts
-delegate to their real stone owner. Unsupported Fury Plate still fails explicitly
-because its defense-buff owner is incomplete; it is not enabled as additive armor.
+delegate to their real stone owner. Selected [Fury Plate ownership](stat-buff-ownership.md)
+now supplies its actual surviving defense-buff producer and HUD timer; a missing
+actual buff context still fails explicitly.
 
 Owned Holy Symbol now has its normal Relics-menu switch. Found/disabled ownership
 does not protect Alucard. Menus, spell freeze and repeated draws do not consume
@@ -62,7 +63,7 @@ position/fixed-floor pose, without health, clock, relic, protection or damage-re
 injection. This is not an uninterrupted route or ordinary acquisition playthrough.
 
 The original US wet-smoke birth remains explicitly unsupported; its unwritten
-input is not guessed. Global fade recovery, Fury/other equipment, other water
+input is not guessed. Global fade recovery, other equipment, other water
 owners, full damage/hit-detection/effect timing, shared contention, Alucard, castle
 and console parity remain incomplete.
 

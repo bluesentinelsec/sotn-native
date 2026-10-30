@@ -1,6 +1,7 @@
 #ifndef SOTN_CHARACTER_H
 #define SOTN_CHARACTER_H
 #include <sotn/game_data.h>
+#include <sotn/stat_buffs.h>
 
 enum
 {
@@ -41,15 +42,22 @@ typedef struct SotnItem
     bool
         name_ascii; /**< Relic names use bounded ASCII; equipment uses the private font encoding. */
 } SotnItem;
-/** @brief Derived unbuffed attributes; conditional effects not integrated are rejected at equip. */
+/** @brief Derived original attributes with selected actual stat-buff mask; other conditional
+ * effects remain rejected at equip. */
 typedef struct SotnCharacterStats
 {
     Uint16 total[4], attack[2], defense, weakness, resistance, immunity, absorption;
     Sint16 bonus[4];
-    Uint16 unarmed_attack; /**< Original unbuffed empty-hand power including body attack bonuses. */
+    Uint16 unarmed_attack; /**< Original empty-hand power including body/selected buff bonuses. */
 } SotnCharacterStats;
 /** @brief Owned character borrowing immutable DRA bytes until Destroy. */
 typedef struct SotnCharacter SotnCharacter;
+/** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
+ * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
+ * selected stat effect. The caller retains actual timers separately, never in ordinary saves.
+ * @return Success or SDL error preserving character/stats. Applies bonuses before original
+ * clamps and US stone immunity. Enables no item/ability or replacement timer pool. */
+bool SotnCharacter_SetStatBuffMask(SotnCharacter *character, Uint16 mask);
 /** @brief Read a bounded original item definition and encoded name/description.
  * @param dra Borrowed image. @param body Select body versus hand table.
  * @param id Original item ID within that table. @param out Unchanged on failure.

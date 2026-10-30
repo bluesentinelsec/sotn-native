@@ -62,6 +62,7 @@ struct SotnLaboratory
     SotnBatRuntime bat_runtime;
     SotnDeathImage death_image;
     Uint32 death_image_generation;
+    SotnStatBuffs stat_buffs;
     SotnSceneFreeze spell_freeze;
     bool spell_pause_pending;
     SotnWolfDrawPacket wolf_packets[SOTN_WOLF_FRAME_PACKETS];
@@ -131,6 +132,7 @@ typedef struct SessionStart
     Uint16 spirit_target_cursor;
     Uint16 water_breath_timer;
     Uint8 water_pain_timer;
+    const SotnStatBuffs *stat_buffs;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -551,6 +553,25 @@ static bool ApplyCharacter(SotnLaboratory *session)
            SotnPlayer_SetRelics(session->player, &session->world);
 }
 
+static bool SyncStatBuffs(SotnLaboratory *s)
+{
+    Uint16 mask = 0;
+    return SotnStatBuffs_Mask(&s->stat_buffs, &mask) &&
+           SotnCharacter_SetStatBuffMask(s->character, mask);
+}
+static bool BindStatBuffs(SotnLaboratory *s)
+{
+    SotnCharacterStats attributes = {0};
+    return SyncStatBuffs(s) && SotnCharacter_Get(s->character, NULL, &attributes) &&
+           SotnPlayer_SetStatBuffContext(s->player, &s->stat_buffs, attributes);
+}
+static bool RestoreStatBuffs(SotnLaboratory *s, const SotnStatBuffs *retained)
+{
+    if (retained && !SotnStatBuffs_Mask(retained, NULL))
+        return false;
+    s->stat_buffs = retained ? *retained : (SotnStatBuffs){0};
+    return SyncStatBuffs(s);
+}
 static bool TickCape(SotnLaboratory *session)
 {
     if (session->cape != 56)
@@ -1391,7 +1412,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnPlayer_SetWaterPainTimer(session->player, start.water_pain_timer) ||
         !InitializeParticleVectors(session) ||
         !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
-        !LaboratoryInput_Init(&session->input) ||
+        !RestoreStatBuffs(session, start.stat_buffs) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
@@ -1594,7 +1615,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
         // Mist/Gas and the selected subweapons have no initialized flag10000 update.
         // Their controllers and pending contacts remain held, not reset or consumed.
     }
-    if (!TickAudio(s, &combat, 0, 0))
+    if (!SotnStatBuffs_Tick(&s->stat_buffs) || !TickAudio(s, &combat, 0, 0))
         return false;
     s->dirty = s->targets_pending = true;
     return true;
@@ -1616,7 +1637,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->targets_pending = false;
     // Original palette jobs run after the previous frame, including pause. Apply
     // that update before this frame can change timers or capture current artwork.
-    if (!SotnActorGraphics_TickPlayerGlow(session->actor_graphics) || !SyncDarkPalette(session))
+    if (!SyncStatBuffs(session) || !SotnActorGraphics_TickPlayerGlow(session->actor_graphics) ||
+        !SyncDarkPalette(session))
         return false;
     ++session->system_timer; // Original g_Timer advances through paused engine frames.
     session->blocked_buttons &= buttons;
@@ -1743,8 +1765,13 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetHellfireContext(session->player, HellfireFactory, session, session->camera.x,
                                        session->bat_runtime.hellfire_signal,
                                        session->bat_runtime.hellfire_palette) ||
+        !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
+        (state.defense_buff_minimum &&
+         (!SotnStatBuffs_Minimum(&session->stat_buffs, SOTN_BUFF_DEFENSE,
+                                 state.defense_buff_minimum) ||
+          !SyncStatBuffs(session))) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && !SotnPlayerStep_IsDead(state.step) &&
          !Transition(session, &state)))
@@ -1796,6 +1823,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnHud_Tick(session->hud,
                       (SotnHudStatus){state.hp, state.hp_max, session->mp, progress.mp_max,
                                       combat.hearts, combat.subweapon}) ||
+        !SotnStatBuffs_Tick(&session->stat_buffs) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound))
         return false;
     if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))
@@ -3296,6 +3324,7 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
+                                         .stat_buffs = &old->stat_buffs,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
                                          .water_breath_timer = previous_player.water_breath_timer,
                                          .water_pain_timer = previous_player.water_pain_timer},
