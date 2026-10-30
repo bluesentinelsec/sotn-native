@@ -1,5 +1,6 @@
 #ifndef SOTN_PLAYER_PARTICLES_H
 #define SOTN_PLAYER_PARTICLES_H
+#include <sotn/game_math.h>
 #include <sotn/player_factory.h>
 /** @brief Selected original tile particles; the actual owner reserves count+one stage rows. */
 #define SOTN_PLAYER_PARTICLE_LIMIT 16
@@ -11,7 +12,20 @@ typedef struct SotnPlayerParticle
     Uint16 timer, draw_mode;
     Uint8 red, green, blue, width, height;
 } SotnPlayerParticle;
-/** @brief Selected entity-five profiles1/9/10/13, with no primitive pool or factory ownership. */
+/** @brief Actual AluInit velocity tables, retained until the next full player initialization. */
+typedef struct SotnPlayerParticleVectors
+{
+    Sint32 x[32], y[32];
+    bool initialized;
+} SotnPlayerParticleVectors;
+/** @brief Reconstruct original player-initialization vectors from the actual shared RNG.
+ * @param vectors Actual stage/player-lifetime owner. @param executable Private SDK tables.
+ * @param random Actual libc RNG cursor, charged64 calls only after successful initialization.
+ * @return Success or SDL error preserving vectors/RNG. Invoke once at real full initialization,
+ * never at particle birth, room rebasing, menus or drawing. No rows/factories are allocated. */
+bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnDataView executable,
+                                    Uint32 *random);
+/** @brief Selected entity-five profiles1/6/9/10/13, with no primitive pool or factory ownership. */
 typedef struct SotnPlayerParticles
 {
     SotnPlayerParticle tiles[SOTN_PLAYER_PARTICLE_LIMIT];
@@ -29,6 +43,7 @@ typedef struct SotnPlayerParticlesInput
     Sint32 water_level;
     Uint16 parameter, player_priority, player_step;
     bool allocated;
+    const SotnPlayerParticleVectors *vectors; /**< Actual initialized owner, required by6 birth. */
 } SotnPlayerParticlesInput;
 /** @brief Read selected private profile capacity, including the original final sentinel row.
  * @param dra Borrowed private profile pointers/records. @param parameter Actual child parameter.

@@ -168,7 +168,8 @@ adds gravity/drag, form gates, Wolf swimming and bubbles. Original
 [normal breathing bubbles](docs/normal-water-bubbles.md) now run too. The
 [water damage/death controllers](docs/water-damage-death.md) have scoped component
 checks, and their selected [Blink flashes](docs/water-blink-effects.md) have shared
-owners. Native water damage and death remain unfinished.
+owners. Their [death particles](docs/player-death-particles.md) now use original
+initialized motion and shared rows. Native water damage and death remain unfinished.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,

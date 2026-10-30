@@ -1194,6 +1194,70 @@ static bool WaterBlinkOwnership(Fixture *f)
     return true;
 }
 
+static bool DeathParticlesOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *bp = f->dra + 0xd1d4 + 49U * 6U;
+    bp[0] = 5;
+    bp[1] = 3;
+    bp[2] = 0xc1;
+    bp[3] = 2;
+    Put32(f->dra + 0xdb98 + 6U * 4U, 0x800a0100);
+    Uint8 *profile = f->dra + 0x100;
+    profile[0] = 2;
+    profile[1] = profile[2] = profile[3] = 63;
+    profile[4] = profile[5] = 3;
+    Put16(profile + 6, 2);
+    Put16(profile + 8, 49);
+    Put16(profile + 10, 4);
+    SotnCharacterState progress = {0};
+    CHECK(SotnCharacter_Get(f->character, &progress, NULL));
+    CHECK(SotnPlayerParticleVectors_Init(&f->runtime.particle_vectors,
+                                         (SotnDataView){f->exe, sizeof(f->exe)}, &progress.random));
+    CHECK(SotnCharacter_Restore(f->character, &progress));
+    const SotnPlayerParticleVectors vectors = f->runtime.particle_vectors;
+    const Uint32 random = progress.random;
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state};
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[0].cursor, source, 0x60031, 0));
+    for (Uint16 t = 0; t < 8; ++t)
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(SotnCharacter_Get(f->character, &progress, NULL) && progress.random == random);
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(!f->runtime.children[i].kind);
+    in.primitive_slots = (SotnPrimitiveSlots){0};
+    in.primitive_slots.occupied[0] = 1;
+    CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[0].cursor, source, 0x60031, 0));
+    Uint16 births = 0;
+    for (Uint16 t = 0; t < 60; ++t)
+    {
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+        for (Uint16 i = 0; i < 48; ++i)
+        {
+            const SotnBatRuntimeChild *c = &f->runtime.children[i];
+            if (c->kind == 5)
+            {
+                CHECK(c->initialized && c->primitive_count == 3 && c->primitives[0] != 0 &&
+                      c->parameter >= 0x600 && c->parameter <= 0x602);
+                if (c->state.particles.lifetime == 47)
+                    ++births;
+            }
+        }
+    }
+    CHECK(births == 3);
+    CHECK(SotnCharacter_Get(f->character, &progress, NULL) && progress.random != random &&
+          !SDL_memcmp(&vectors, &f->runtime.particle_vectors, sizeof(vectors)));
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(!f->runtime.children[i].kind);
+    Close(f);
+    return true;
+}
+
 static bool OutlineOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1278,7 +1342,8 @@ int main(void)
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
                     WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
                     CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) &&
-                    NormalWaterRequests(f) && WaterBlinkOwnership(f) && OutlineOwnership(f);
+                    NormalWaterRequests(f) && WaterBlinkOwnership(f) &&
+                    DeathParticlesOwnership(f) && OutlineOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
