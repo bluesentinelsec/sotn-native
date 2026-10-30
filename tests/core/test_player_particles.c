@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <sotn/combat.h>
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
 #define CHECK(v)                                                                                   \
@@ -99,6 +100,93 @@ static bool Run(void)
     CHECK(!SotnPlayerParticles_Rows(view, 0x100, &unchanged) && unchanged == 90);
     return true;
 }
+static bool Death(void)
+{
+    Uint8 dra[0xdbd4] = {0};
+    Put32(dra + 0xdb98 + 6U * 4U, 0x800a0100);
+    Uint8 *profile = dra + 0x100;
+    profile[0] = 2;
+    profile[1] = 63;
+    profile[2] = 64;
+    profile[3] = 65;
+    profile[4] = profile[5] = 3;
+    Put16(profile + 6, 2);
+    Put16(profile + 8, 49);
+    Put16(profile + 10, 4);
+    SotnPlayerParticles p = {0};
+    SotnPlayerParticleVectors vectors = {.initialized = true};
+    for (Uint16 i = 0; i < 32; ++i)
+    {
+        vectors.x[i] = 65;
+        vectors.y[i] = -33;
+    }
+    const SotnDataView view = {dra, sizeof(dra)};
+    SotnPlayerParticlesInput in = {.parameter = 0x637,
+                                   .source = {.x = -65536 + 123, .y = 100 * 65536 + 456},
+                                   .player_priority = 148};
+    Uint32 rng = 17;
+    Uint16 rows = 0;
+    CHECK(SotnPlayerParticles_Rows(view, in.parameter, &rows) && rows == 3);
+    CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && p.removed && rng == 17);
+    p = (SotnPlayerParticles){0};
+    in.allocated = true;
+    CHECK(!SotnPlayerParticles_Tick(&p, view, in, &rng) && !p.phase && !p.count && rng == 17);
+    in.vectors = &vectors;
+    CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && p.phase == 1 && p.lifetime == 47 &&
+          p.count == 2 && p.tiles[0].velocity_x == 65 && p.tiles[0].velocity_y == -33 &&
+          !(p.tiles[0].x & 65535) && !(p.tiles[0].y & 65535));
+    Uint32 expected = 17;
+    for (Uint16 i = 0; i < 6; ++i)
+        SotnCombat_Random(&expected);
+    CHECK(rng == expected);
+    const SotnPlayerParticles live = p;
+    p.lifetime = 48;
+    const SotnPlayerParticles invalid = p;
+    CHECK(!SotnPlayerParticles_Tick(&p, view, in, &rng) && !SDL_memcmp(&p, &invalid, sizeof(p)) &&
+          rng == expected);
+    p = live;
+    const Sint32 x = p.tiles[0].x, y = p.tiles[0].y;
+    in.vectors = NULL;
+    CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && p.tiles[0].x == x + 65 &&
+          p.tiles[0].y == y - 33 && p.tiles[0].velocity_y == -31 && p.tiles[0].red == 63);
+    while (p.lifetime > 40)
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+    CHECK(p.tiles[0].velocity_x == 32 && p.tiles[0].velocity_y == -7 && p.tiles[0].width == 3);
+    while (p.lifetime > 24)
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+    CHECK(p.tiles[0].draw_mode == 2 && p.tiles[0].width == 3);
+    while (p.lifetime > 8)
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+    CHECK(p.tiles[0].width == 2 && p.tiles[0].height == 2);
+    while (p.lifetime > 3)
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+    CHECK(p.tiles[0].width == 1 && p.tiles[0].height == 1 && p.tiles[0].red == 63);
+    while (!p.removed)
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+    CHECK(!p.lifetime && rng == expected);
+    return true;
+}
+static bool Vectors(void)
+{
+    Uint8 *exe = SDL_calloc(1, 0x24000);
+    CHECK(exe);
+    for (Uint16 i = 0; i < 1025; ++i)
+        Put16(exe + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
+    SotnPlayerParticleVectors vectors = {0};
+    Uint32 rng = 17, expected = 17;
+    for (Uint16 i = 0; i < 64; ++i)
+        SotnCombat_Random(&expected);
+    CHECK(SotnPlayerParticleVectors_Init(&vectors, (SotnDataView){exe, 0x24000}, &rng) &&
+          vectors.initialized && rng == expected);
+    for (Uint16 i = 0; i < 32; ++i)
+        CHECK(vectors.x[i] >= -131072 && vectors.x[i] <= 131072 && vectors.y[i] < 0 &&
+              vectors.y[i] >= -262144);
+    const SotnPlayerParticleVectors before = vectors;
+    CHECK(!SotnPlayerParticleVectors_Init(&vectors, (SotnDataView){0}, &rng) &&
+          !SDL_memcmp(&vectors, &before, sizeof(vectors)) && rng == expected);
+    SDL_free(exe);
+    return true;
+}
 static bool Smoke(void)
 {
     Uint8 dra[0xd5e0] = {0};
@@ -151,5 +239,5 @@ static bool Smoke(void)
 }
 int main(void)
 {
-    return Run() && Smoke() ? 0 : 1;
+    return Run() && Death() && Vectors() && Smoke() ? 0 : 1;
 }

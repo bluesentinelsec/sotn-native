@@ -1,3 +1,14 @@
+Selected [death particles](docs/player-death-particles.md) now bind original
+AluInit vectors to shared profile6 factories/rows/rendering. Initialize32 vectors
+with64 actual selected-character RNG calls once after full new/Continue restoration;
+room entry/menus/draws retain them. Preserve three-call births, whole-word wrap,
+retained vectors, signed damping/halving, single lifetime decrement, mode/thickness
+thresholds, sentinel and optional exhaustion before RNG. No substitute vectors or
+particle pool. This corrects initialization RNG consumption without changing HP/MP/
+equipment/relic defaults or savesv9. Native supplied death-factory/protected/pose
+fixtures are not actual dying-player, acquisition, route or console evidence.
+Water HP/death producer/capture/common death and Alucard/castle remain incomplete.
+
 Selected [water Blink effects](docs/water-blink-effects.md) now run parameters4E/59
 through actual shared factories/eight-row leases/rendering and native waist/Holy/
 animation snapshots. Preserve pain7004 and death7005's animationC0 condition,

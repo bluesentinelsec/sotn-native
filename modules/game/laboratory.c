@@ -1276,6 +1276,17 @@ static bool InitializeCommonPlayer(SotnLaboratory *session)
            SotnPlayer_SetAfterimageContext(session->player, session->bat_runtime.common_generation,
                                            session->system_timer);
 }
+static bool InitializeParticleVectors(SotnLaboratory *session)
+{
+    SotnCharacterState progress = {0};
+    SotnPlayerParticleVectors vectors = {0};
+    if (!SotnCharacter_Get(session->character, &progress, NULL) ||
+        !SotnPlayerParticleVectors_Init(&vectors, session->executable, &progress.random) ||
+        !SotnCharacter_Restore(session->character, &progress))
+        return false;
+    session->bat_runtime.particle_vectors = vectors;
+    return true;
+}
 static bool CreateSession(const SotnGameData *data, const char *directory, SessionStart start,
                           SotnLaboratory **out)
 {
@@ -1381,7 +1392,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
         (saved != NULL && !RestoreSession(session, *saved, slot)) ||
         !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
-        !LaboratoryInput_Init(&session->input) ||
+        !InitializeParticleVectors(session) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
         !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
