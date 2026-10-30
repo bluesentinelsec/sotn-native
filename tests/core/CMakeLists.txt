@@ -977,3 +977,9 @@ target_include_directories(sotn-player-water-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-player-water-tests PRIVATE sotn-core)
 add_test(NAME player-water-feedback COMMAND sotn-player-water-tests)
 set_tests_properties(player-water-feedback PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-water-damage-tests test_water_damage.c)
+sotn_configure_c_target(sotn-water-damage-tests)
+target_link_libraries(sotn-water-damage-tests PRIVATE sotn-core)
+add_test(NAME water-damage-death COMMAND sotn-water-damage-tests)
+set_tests_properties(water-damage-death PROPERTIES TIMEOUT 20)

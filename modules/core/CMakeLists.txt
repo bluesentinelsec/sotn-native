@@ -1,4 +1,8 @@
 add_library(sotn-core STATIC
+  water_death.c
+  include/sotn/water_death.h
+  water_damage.c
+  include/sotn/water_damage.h
   player_water.c
   actor_water.c
   water_drops.c
