@@ -69,8 +69,8 @@ bool ActorSoulOrb(SotnActors *s, Actor *a, SotnPlayerState player)
                                .tables = tables,
                                .x = orb.x,
                                .y = orb.y,
-                               .player_x = Wrap16(Pixel(player.x) - s->camera_x),
-                               .player_y = Wrap16(Pixel(player.y) - s->camera_y),
+                               .player_x = (Sint16)Wrap16(Pixel(player.x) - s->camera_x),
+                               .player_y = (Sint16)Wrap16(Pixel(player.y) - s->camera_y),
                                .allocated = true,
                                .hit = a->hit_flags != 0,
                                .heal_pending = player.healing.pending || s->combat.blood_heal},
@@ -105,8 +105,8 @@ bool ActorSoulOrb(SotnActors *s, Actor *a, SotnPlayerState player)
                                       .quad = true};
     for (Uint16 i = 0; i < 4; ++i)
     {
-        row->state.offset_x[i] = Wrap16(out.x[i] + s->camera_x);
-        row->state.offset_y[i] = Wrap16(out.y[i] + s->camera_y);
+        row->state.offset_x[i] = (Sint16)Wrap16(out.x[i] + s->camera_x);
+        row->state.offset_y[i] = (Sint16)Wrap16(out.y[i] + s->camera_y);
         row->state.u[i] = out.u[i];
         row->state.v[i] = out.v[i];
     }
