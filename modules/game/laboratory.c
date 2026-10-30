@@ -1702,17 +1702,20 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     const SotnPlayerFactory *bat_factory = NULL;
     const SotnPlayerBlink *wolf_effect = NULL;
     const SotnPlayerFactory *wolf_factory = NULL;
-    if (!SotnBatRuntime_Context(&session->bat_runtime, state.bat.generation, &bat_effect,
+    SotnWaterVolume water = {0};
+    if (!SotnActors_GetWater(session->actors, &water) ||
+        !SotnPlayer_SetWaterContext(session->player,
+                                    (SotnPlayerWater){water.feet, water.waist, water.head}) ||
+        !SotnBatRuntime_Context(&session->bat_runtime, state.bat.generation, &bat_effect,
                                 &bat_factory) ||
         !SotnBatRuntime_Context(&session->bat_runtime, state.wolf.generation, &wolf_effect,
                                 &wolf_factory))
         return false;
     if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
         !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
-        !SotnPlayer_SetMistContext(session->player,
-                                   session->mist_present ? &session->mist_effect : NULL,
-                                   session->mist_generation, (Uint32)session->simulation_ticks,
-                                   (state.contacts & 0x80U) != 0) ||
+        !SotnPlayer_SetMistContext(
+            session->player, session->mist_present ? &session->mist_effect : NULL,
+            session->mist_generation, (Uint32)session->simulation_ticks, water.waist != 0) ||
         !SotnPlayer_SetBatRuntimeContext(session->player, bat_effect, bat_factory,
                                          bat_effect || bat_factory ? state.bat.generation : 0,
                                          SotnBatRuntime_Available(&session->bat_runtime)) ||

@@ -12,7 +12,9 @@ static void Animate(SotnPlayer *p, Uint16 id)
 }
 static void Gravity(SotnPlayer *p, bool apex)
 {
-    const Sint32 acceleration = apex && p->vy < 24576 && p->vy > -8192 ? 5632 : 11264;
+    Sint32 acceleration = apex && p->vy < 24576 && p->vy > -8192 ? 5632 : 11264;
+    if (p->water.feet > 40)
+        acceleration /= 4;
     p->vy = SDL_min(7 * 65536, p->vy + acceleration);
     if ((p->contact & 2) && p->vy < -65536)
         p->vy = -65536;

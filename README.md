@@ -163,8 +163,9 @@ remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 [Entrance water actors](docs/native-water-actors.md) now supply original splashes,
-wakes, drops, currents and retained depths. Player drag, swimming, form feedback
-and water damage remain unfinished.
+wakes, drops, currents and retained depths. Selected [player water feedback](docs/player-water.md)
+adds gravity/drag, form gates, Wolf swimming and bubbles. Water damage and death
+remain unfinished.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,

@@ -590,6 +590,8 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
                           (player->buttons & SOTN_BUTTON_JUMP)
                       ? 2252
                       : GRAVITY;
+    if (player->water.feet > 40)
+        gravity /= 4;
     player->vy = SDL_min(7 * FIX_ONE, player->vy + gravity);
     if (player->vy >= 0 && (flags & 1) && (player->contact & 1))
     {
@@ -1500,8 +1502,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.invincibility = 12;
         if (next.substep == 1)
         {
-            next.vy = SDL_min(7 * FIX_ONE,
-                              next.vy + (next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY));
+            Sint32 gravity = next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY;
+            if (next.water.feet > 40)
+                gravity /= 4;
+            next.vy = SDL_min(7 * FIX_ONE, next.vy + gravity);
             if ((next.contact & 2) && next.vy < -FIX_ONE)
                 next.vy = -FIX_ONE;
             if (next.vy >= 0 && (next.contact & 1))
@@ -1559,6 +1563,12 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         return false;
     if (!SotnPlayer_AfterimageCapture(&next))
         return false;
+    const bool water_drag = SotnPlayer_WaterDrag(&next);
+    if (water_drag)
+    {
+        next.vx = SotnPlayer_WaterScale(next.vx, false);
+        next.vy = SotnPlayer_WaterScale(next.vy, false);
+    }
     if (next.step == SOTN_PLAYER_KILL)
     {
         next.x.value += next.vx;
@@ -1566,6 +1576,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     }
     else if (next.step != SOTN_PLAYER_BOSS_GRAB)
         SotnPlayer_Collide(&next);
+    if (water_drag)
+    {
+        next.vx = SotnPlayer_WaterScale(next.vx, true);
+        next.vy = SotnPlayer_WaterScale(next.vy, true);
+    }
+    if (!(SotnPlayer_Status(&next) & 0x50U))
+        next.collision_invincibility = 0;
     if (next.failed)
         return false;
     if (!SotnPlayer_AfterimagePresent(&next))
@@ -1725,6 +1742,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         }
     player->map = map;
     player->afterimage = afterimage;
+    player->water = (SotnPlayerWater){0};
     if (player->soul.started || player->soul.attack)
     {
         player->soul.source.x = (Sint32)soul_x;
@@ -1779,6 +1797,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x28108000U;
     if (player->poison_ticks)
         status |= 0x28104000U;
+    if (player->water.feet)
+        status |= 0x08020000U;
     if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
     {
         status |= 0x10000000U;
@@ -1845,6 +1865,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         return SDL_SetError("Player state requires a simulation and output");
     const Uint32 status = SotnPlayer_Status(player);
     *out = (SotnPlayerState){
+        .water = player->water,
         .x = player->x.value,
         .y = player->y.value,
         .velocity_x = player->vx,

@@ -878,6 +878,7 @@ static bool WolfEffectOwnership(Fixture *f)
                                .wolf_query = WolfQuery,
                                .wolf_context = f};
     in.player.wolf.controller.fall_water_level = 40;
+    in.player.water.feet = 40;
     CHECK(SotnCharacter_Get(f->character, &character, NULL));
     CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && f->runtime.wolf_events.bubble);
     const SotnPlayerFactorySource bubble = f->runtime.wolf_events.bubble_source;

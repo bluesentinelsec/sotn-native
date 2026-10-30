@@ -1,4 +1,5 @@
 add_library(sotn-core STATIC
+  player_water.c
   actor_water.c
   water_drops.c
   include/sotn/water_drops.h
