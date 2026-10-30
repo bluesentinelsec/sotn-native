@@ -32,6 +32,8 @@ struct SotnPlayer
     SotnDataView dra;
     SotnCollisionMap map;
     PlayerFixed x, y;
+    SotnPlayerWater water;
+    Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
     Sint16 draw_pivot_x, draw_pivot_y;
     Uint32 status, frame_number, movement_flags;
@@ -175,6 +177,10 @@ void SotnPlayer_GravityBeams(SotnPlayer *player);
 void SotnPlayer_GravityCancel(SotnPlayer *player);
 void SotnPlayer_StoneDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
+/** @brief Original wrapping/truncating pre/post-collision water speed scaling. */
+Sint32 SotnPlayer_WaterScale(Sint32 velocity, bool restore);
+/** @brief Actual feet/form/status/entity-byte gate, independent of player damage immunity. */
+bool SotnPlayer_WaterDrag(const SotnPlayer *player);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);
 
 #endif

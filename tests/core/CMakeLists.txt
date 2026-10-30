@@ -970,3 +970,10 @@ target_include_directories(sotn-native-water-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-native-water-tests PRIVATE sotn-core)
 add_test(NAME native-water-actors COMMAND sotn-native-water-tests)
 set_tests_properties(native-water-actors PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-water-tests test_player_water.c)
+sotn_configure_c_target(sotn-player-water-tests)
+target_include_directories(sotn-player-water-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-water-tests PRIVATE sotn-core)
+add_test(NAME player-water-feedback COMMAND sotn-player-water-tests)
+set_tests_properties(player-water-feedback PROPERTIES TIMEOUT 20)

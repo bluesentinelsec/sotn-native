@@ -954,7 +954,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .player_x = Word(Pixel(p.x) - in.camera_x),
                                                .player_y = Word(Pixel(p.y) - in.camera_y),
                                                .player_step = (Uint16)p.step,
-                                               .water_level = p.wolf.controller.fall_water_level,
+                                               .water_level = p.water.feet,
                                                .allocated = allocated},
                     &progress.random))
                 return false;

@@ -31,6 +31,12 @@ typedef enum SotnPlayerButton
     SOTN_BUTTON_LEFT = 0x8000
 } SotnPlayerButton;
 
+/** @brief Copied original stage depth globals; independent feet, waist and head samples. */
+typedef struct SotnPlayerWater
+{
+    Uint16 feet, waist, head;
+} SotnPlayerWater;
+
 /** @brief Original normal-Alucard movement state IDs. */
 typedef enum SotnPlayerStep
 {
@@ -218,6 +224,7 @@ typedef struct SotnPlayerSoul
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
+    SotnPlayerWater water;
     Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
     Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
     Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
@@ -369,13 +376,20 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
  * Found-but-disabled relics do not enable abilities. This setter advances no time,
  * grants no relics and does not replenish the current airborne jump allowance. */
 bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
+/** @brief Copy the actual preceding stage controller's three water depth words.
+ * @param player Actual player. @param water Validated feet/waist/head, each0..32767.
+ * @return Success or SDL error without mutation. This advances no clock and grants no
+ * relics, protection or HP. The stage owner supplies real volumes after committed updates;
+ * never substitute a collision-tile boolean. Room entry clears this transient context.
+ */
+bool SotnPlayer_SetWaterContext(SotnPlayer *player, SotnPlayerWater water);
 
 /** @brief Bind this tick's actual Mist child and original simulation/environment snapshot.
  * @param player Borrowed player. @param effect Borrowed actual owned effect, copied immediately;
  * NULL is valid before entry or after retirement, never during an active transformation.
  * @param generation Child's current player-issued generation, zero when absent.
- * @param game_timer Absolute original wrapping simulation timer. @param underwater Real water
- * state.
+ * @param game_timer Absolute original wrapping simulation timer. @param underwater Actual
+ * nonzero waist depth, never a tile flag or feet-only surface contact.
  * @return Success or SDL error without mutation for stale/missing/removed child state.
  * This enables the selected core controller only after the owner opts in. It never grants relics,
  * creates effects, advances time or manufactures readiness; the owner must run the actual effect

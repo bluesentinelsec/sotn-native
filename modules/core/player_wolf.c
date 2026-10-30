@@ -123,6 +123,8 @@ static SotnWolfControllerFrame Snapshot(const SotnPlayer *p)
     f.skill_enabled = Relic(p, SOTN_RELIC_SKILL_WOLF);
     f.power_enabled = Relic(p, SOTN_RELIC_POWER_WOLF);
     f.holy_symbol_enabled = Relic(p, 14);
+    f.water_level = p->water.waist;
+    f.fall_water_level = p->water.feet;
     f.quarter_circle_complete = p->wolf_combo == 255;
     return f;
 }
