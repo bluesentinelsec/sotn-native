@@ -43,6 +43,8 @@ It uses explicit room/position/relic/contact-protection and head-cadence fixture
 not an ordinary-acquisition or full-route playthrough.
 The actual CMake-built Debug app also verifies preceding-stage depth sampling and
 real afterimage resets under muted LLDB, then exits normally through SDL quit.
+Selected [normal standing/crouching bubbles](normal-water-bubbles.md) now use their
+own original shared DRA counter and real particle factories.
 
 Water damage, water death, further state/equipment effects, other stage-specific
 water owners, whole-route and console parity remain incomplete. In particular,

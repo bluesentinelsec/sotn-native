@@ -1061,6 +1061,59 @@ static bool OrdinarySmokeOwnership(Fixture *f)
     return true;
 }
 
+static bool NormalWaterRequests(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *smoke = f->dra + 0xd1d4 + 6;
+    smoke[0] = 2;
+    smoke[1] = smoke[2] = 3;
+    for (Uint16 i = 0; i < 24; ++i)
+    {
+        Put16(f->dra + 0xd57c + i * 4U, 1);
+        Put16(f->dra + 0xd57e + i * 4U, (Uint16)(i + 1U));
+    }
+    Put16(f->dra + 0xd5dc, 65535);
+    Uint8 *bp = f->dra + 0xd1d4 + 4 * 6U;
+    bp[0] = 5;
+    bp[1] = bp[2] = 1;
+    Put32(f->dra + 0xdb98 + 13 * 4U, 0x800b0c00);
+    Uint8 *profile = f->dra + 0x10c00;
+    profile[0] = 1;
+    profile[1] = profile[2] = profile[3] = 80;
+    profile[4] = profile[5] = 2;
+    Put16(profile + 6, 2);
+    Put16(profile + 8, 8);
+    Put16(profile + 10, 13);
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state};
+    in.player.water.feet = 60;
+    in.player.movement_effects = (SotnPlayerMovementEffects){.water_bubble = true,
+                                                             .bubble_source = source,
+                                                             .smoke = true,
+                                                             .smoke_source = source,
+                                                             .smoke_blueprint = 0x50001};
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(f->runtime.children[47].kind == 5 && f->runtime.children[47].parameter == 0xd00 &&
+          f->runtime.children[47].primitive_count == 2 &&
+          f->runtime.children[47].source.x == source.x);
+    for (Uint16 i = 0; i < 3; ++i)
+        CHECK(f->runtime.children[46U - i].kind == 2 &&
+              f->runtime.children[46U - i].parameter == 0x500U + i);
+    f->runtime = (SotnBatRuntime){0};
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.children[47].kind &&
+          f->runtime.children[46].kind == 2);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == before.random);
+    Close(f);
+    return true;
+}
+
 static bool OutlineOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1144,7 +1197,8 @@ int main(void)
     const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
                     WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
-                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) && OutlineOwnership(f);
+                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) &&
+                    NormalWaterRequests(f) && OutlineOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

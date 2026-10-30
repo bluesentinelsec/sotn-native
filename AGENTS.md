@@ -1,3 +1,14 @@
+Selected [normal water bubbles](docs/normal-water-bubbles.md) now use real shared
+factory4/profile13 children and original standing/Crouch0 source/counter gates.
+Preserve strict48/24 depths, shield-specific countdown, expiration-only decrement,
+full fractions/facing, optional failure cooldown and bubble-before-walking-puff
+order. Both requests may coexist. The shared DRA counter survives room/session
+replacement after bootstrap without an extra tick; never put it in v9 saves.
+Freeze clears requests, not the counter. Standing native checks use a fixed-floor
+pose fixture; crouch uses ordinary collision. The existing unsupported US wet-smoke
+birth guard remains; do not guess its unwritten value. Water damage/death and
+Alucard/castle/console parity remain incomplete; default grants stay unchanged.
+
 Selected [native player water feedback](docs/player-water.md) now binds actual
 prior-stage feet/waist/head samples, selected normal gravity/drag/status,
 Mist/Bat/Wolf waist gates, Wolf swimming/falling and shared particle water input.

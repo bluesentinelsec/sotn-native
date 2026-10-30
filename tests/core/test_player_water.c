@@ -126,12 +126,88 @@ static bool Stone(void)
     CHECK(!p.failed && p.vy == 11264);
     return true;
 }
+static bool Breathing(void)
+{
+    SotnPlayer p = {.x = {.value = 100 * 65536 + 123},
+                    .y = {.value = 140 * 65536 + 456},
+                    .water = {49, 33, 1},
+                    .damage_random = 17};
+    const Sint32 x = p.x.value, y = p.y.value;
+    SotnPlayer_WaterBreath(&p, false, false);
+    CHECK(!p.failed && p.water_breath_timer == 96 && p.movement_effects.water_bubble &&
+          p.movement_effects.bubble_source.x == x + 4 * 65536 &&
+          p.movement_effects.bubble_source.y == y - 16 * 65536 &&
+          p.movement_effects.bubble_source.priority == 148 && p.x.value == x && p.y.value == y &&
+          p.damage_random == 17);
+    p.movement_effects = (SotnPlayerMovementEffects){0};
+    SotnPlayer_WaterBreath(&p, false, true);
+    CHECK(p.water_breath_timer == 96 && !p.movement_effects.water_bubble);
+    SotnPlayer_WaterBreath(&p, true, true);
+    CHECK(p.water_breath_timer == 95 && !p.movement_effects.water_bubble);
+    CHECK(SotnPlayer_SetWaterBreathTimer(&p, 1));
+    SotnPlayer_WaterBreath(&p, false, false);
+    CHECK(!p.water_breath_timer && !p.movement_effects.water_bubble);
+    SotnPlayer_WaterBreath(&p, false, false);
+    CHECK(p.water_breath_timer == 96 && p.movement_effects.water_bubble);
+    p.movement_effects = (SotnPlayerMovementEffects){0};
+    CHECK(SotnPlayer_SetWaterBreathTimer(&p, 0));
+    p.water.feet = 48;
+    SotnPlayer_WaterBreath(&p, false, false);
+    CHECK(!p.water_breath_timer && !p.movement_effects.water_bubble);
+    p.water.feet = 24;
+    SotnPlayer_WaterBreath(&p, true, false);
+    CHECK(!p.water_breath_timer && !p.movement_effects.water_bubble);
+    p.water.feet = 25;
+    SotnPlayer_WaterBreath(&p, true, true);
+    CHECK(!p.water_breath_timer && !p.movement_effects.water_bubble);
+    p.facing_left = true;
+    SotnPlayer_WaterBreath(&p, true, false);
+    CHECK(p.water_breath_timer == 96 && p.movement_effects.water_bubble &&
+          p.movement_effects.bubble_source.x == x - 12 * 65536 &&
+          p.movement_effects.bubble_source.y == y + 2 * 65536 &&
+          p.movement_effects.bubble_source.facing_left);
+    const SotnPlayer before = p;
+    CHECK(!SotnPlayer_SetWaterBreathTimer(&p, 97) && !SDL_memcmp(&p, &before, sizeof(p)));
+    return true;
+}
+static bool BreathingUpdates(Fixture *f)
+{
+    const SotnCollisionMap map = {
+        {f->tiles, sizeof(f->tiles)}, {f->types, sizeof(f->types)}, 32, 16};
+    SotnPlayer *p = NULL;
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){49, 33, 1}));
+    CHECK(SotnPlayer_Tick(p, 0) && p->movement_effects.water_bubble && p->water_breath_timer == 96);
+    const Sint32 origin = p->movement_effects.bubble_source.x;
+    CHECK(SotnPlayer_ChangeRoom(p, map, 16, 0) && p->water_breath_timer == 96 &&
+          p->movement_effects.bubble_source.x == origin + 16 * 65536);
+    CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && !p->movement_effects.water_bubble &&
+          p->water_breath_timer == 96);
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT) && p->water_breath_timer == 95 &&
+          p->step == SOTN_PLAYER_WALK && !p->movement_effects.water_bubble);
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT) && p->water_breath_timer == 95);
+    CHECK(SotnPlayer_Tick(p, 0) && p->step == SOTN_PLAYER_STAND && p->water_breath_timer == 95);
+    CHECK(SotnPlayer_Tick(p, 0) && p->water_breath_timer == 94);
+    SotnPlayerState snapshot = {0};
+    CHECK(SotnPlayer_GetState(p, &snapshot) && snapshot.water_breath_timer == 94);
+    SotnPlayer_Close(p);
+    p = NULL;
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){49, 33, 1}));
+    CHECK(SotnPlayer_Tick(p, SOTN_BUTTON_RIGHT) && p->step == SOTN_PLAYER_WALK &&
+          p->water_breath_timer == 96 && p->movement_effects.water_bubble &&
+          p->movement_effects.smoke && p->movement_effects.bubble_source.x == 68 * 65536 &&
+          p->movement_effects.smoke_source.x == 64 * 65536);
+    SotnPlayer_Close(p);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Gates() && Movement(f) && Wolf() && Stone();
+    const bool ok =
+        Gates() && Movement(f) && Wolf() && Stone() && Breathing() && BreathingUpdates(f);
     SDL_free(f);
     if (ok)
         SDL_Log("PLAYER_WATER: PASS authored depth/status/drag/gravity/collision-byte/Wolf/room "

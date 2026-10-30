@@ -183,6 +183,8 @@ typedef struct SotnPlayerWolf
  * A request is not a successful factory/child allocation. Sources remain room-local. */
 typedef struct SotnPlayerMovementEffects
 {
+    SotnPlayerFactorySource bubble_source;
+    bool water_bubble;
     SotnPlayerFactorySource smoke_source;
     Uint32 smoke_blueprint;
     bool smoke;
@@ -225,6 +227,7 @@ typedef struct SotnPlayerSoul
 typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
+    Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
     Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
     Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
     Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
@@ -383,6 +386,13 @@ bool SotnPlayer_SetRelics(SotnPlayer *player, const SotnWorldState *world);
  * never substitute a collision-tile boolean. Room entry clears this transient context.
  */
 bool SotnPlayer_SetWaterContext(SotnPlayer *player, SotnPlayerWater water);
+/** @brief Restore the actual DRA-lifetime normal breathing counter during session replacement.
+ * @param player Candidate owner. @param timer Retained original counter,0..96.
+ * @return Success or SDL error without mutation. Copies no one-shot request and advances no
+ * clocks/RNG. Ordinary room rebases retain it; fresh processes start at zero. This counter is
+ * runtime state, never ordinary save data. Restore after bootstrap updates to avoid extra ticks.
+ */
+bool SotnPlayer_SetWaterBreathTimer(SotnPlayer *player, Uint16 timer);
 
 /** @brief Bind this tick's actual Mist child and original simulation/environment snapshot.
  * @param player Borrowed player. @param effect Borrowed actual owned effect, copied immediately;

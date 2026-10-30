@@ -127,6 +127,7 @@ typedef struct SessionStart
     Uint32 room, slot;
     Uint32 system_timer;
     Uint16 spirit_target_cursor;
+    Uint16 water_breath_timer;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -1378,6 +1379,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         // the owned tiles before the first player collision, as in original room entry.
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
         (saved != NULL && !RestoreSession(session, *saved, slot)) ||
+        !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
         !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
@@ -3242,6 +3244,9 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
     old->stage_pending = false;
     if (action == SOTN_LAUNCH_NONE && !travel)
         return true;
+    SotnPlayerState previous_player = {0};
+    if (!SotnPlayer_GetState(old->player, &previous_player))
+        return false;
     SotnSaveState saved = {0};
     const Uint32 slot = old->launcher.slot;
     SotnLaboratory *next = NULL;
@@ -3258,7 +3263,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .arrival = &old->arrival,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
-                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor,
+                                         .water_breath_timer = previous_player.water_breath_timer},
                           &next);
     }
     else if (action == SOTN_LAUNCH_CHECKPOINT)
@@ -3268,7 +3274,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .room = 1,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
-                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor,
+                                         .water_breath_timer = previous_player.water_breath_timer},
                           &next);
     else if (action == SOTN_LAUNCH_LOAD && old->saves != NULL &&
              SotnSaveStore_Read(old->saves, slot, &saved))
@@ -3284,7 +3291,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .slot = slot,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
-                                         .spirit_target_cursor = old->bat_runtime.target_cursor},
+                                         .spirit_target_cursor = old->bat_runtime.target_cursor,
+                                         .water_breath_timer = previous_player.water_breath_timer},
                           &next);
     }
     if (ready && travel)

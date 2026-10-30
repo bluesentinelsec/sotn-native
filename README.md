@@ -164,7 +164,8 @@ At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 [Entrance water actors](docs/native-water-actors.md) now supply original splashes,
 wakes, drops, currents and retained depths. Selected [player water feedback](docs/player-water.md)
-adds gravity/drag, form gates, Wolf swimming and bubbles. Water damage and death
+adds gravity/drag, form gates, Wolf swimming and bubbles. Original
+[normal breathing bubbles](docs/normal-water-bubbles.md) now run too. Water damage and death
 remain unfinished.
 
 The command starts directly in development room 3, with zombies and candles.
