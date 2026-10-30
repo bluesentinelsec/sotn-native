@@ -23,7 +23,7 @@ static bool Selected(Uint16 parameter)
     return parameter == 0x20 || parameter == 0x21 || parameter == 0x1b || parameter == 5 ||
            parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25 ||
            parameter == 0x44 || parameter == 0x48 || parameter == 0x67 || parameter == 0x16 ||
-           parameter == 0x17;
+           parameter == 0x17 || parameter == 0x4e || parameter == 0x59;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -166,7 +166,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
                           SotnPlayerBlinkInput in, SotnPlayerBlinkEvents *out)
 {
     if (!effect || !shared || !out || effect->removed || in.signal > 3 ||
-        !Selected(effect->parameter) || in.poison_ticks > 4095 || in.curse_ticks > 4095)
+        !Selected(effect->parameter) || in.poison_ticks > 4095 || in.curse_ticks > 4095 ||
+        in.water_waist > 32767)
         return SDL_SetError("Player blink requires its actual selected child and owner handshake");
     SotnPlayerBlink next = *effect;
     SotnPlayerBlinkShared phases = *shared;
@@ -204,7 +205,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         (next.parameter == 0x24 && next.phase != 0 && next.phase != 14 && next.phase != 15) ||
         ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5 ||
           next.parameter == 0x44 || next.parameter == 0x48 || next.parameter == 0x67 ||
-          next.parameter == 0x16 || next.parameter == 0x17) &&
+          next.parameter == 0x16 || next.parameter == 0x17 || next.parameter == 0x4e ||
+          next.parameter == 0x59) &&
          next.phase > 3) ||
         (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");
@@ -230,7 +232,9 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         profile[4] <= 0 || profile[5] <= 0 || profile[6] <= 0 || profile[7] <= 0 ||
         (profile[7] >= 0x7000 && profile[7] != 0x7008 && profile[7] != 0x7009 &&
          profile[7] != 0x700b && !(parameter == 0x16 && profile[7] == 0x7002) &&
-         !(parameter == 0x17 && profile[7] == 0x7000)))
+         !(parameter == 0x17 && profile[7] == 0x7000) &&
+         !(parameter == 0x4e && profile[7] == 0x7004) &&
+         !(parameter == 0x59 && profile[7] == 0x7005)))
         return SDL_SetError("Selected player blink profile has invalid color or duration fields");
     switch (next.phase)
     {
@@ -265,6 +269,13 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         break;
     case 2:
+        if (profile[7] == 0x7004 || profile[7] == 0x7005)
+        {
+            next.hold = 8;
+            if (profile[7] == 0x7004 ? (!in.water_waist || in.holy_symbol)
+                                     : in.player_animation != 0xc0)
+                ++next.phase;
+        }
         if (profile[7] == 0x7000 || profile[7] == 0x7002)
         {
             next.hold = 8;

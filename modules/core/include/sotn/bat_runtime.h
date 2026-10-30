@@ -157,8 +157,9 @@ typedef struct SotnBatRuntimeInput
     bool hellfire_up;  /**< Actual current Up input, sampled when the beam requests projectiles. */
     Uint16 freeze;     /**< Original request snapshotted before ALL actual factory/child updates. */
     const SotnSpiritTargetSnapshot
-        *spirit_targets;     /**< Actual preceding stage view; required by spirits. */
-    bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
+        *spirit_targets;      /**< Actual preceding stage view; required by spirits. */
+    bool force_echo_enabled;  /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
+    bool holy_symbol_enabled; /**< Actual relic snapshot for selected water-pain Blink holding. */
 } SotnBatRuntimeInput;
 
 /** @brief Reserve the original global player's eight rows before stage actors advance.

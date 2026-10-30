@@ -1,3 +1,12 @@
+Selected [water Blink effects](docs/water-blink-effects.md) now run parameters4E/59
+through actual shared factories/eight-row leases/rendering and native waist/Holy/
+animation snapshots. Preserve pain7004 and death7005's animationC0 condition,
+duplicate full parameters, pending US retries, original fan/colors/rotation,
+afterimage resets and no-tick rebases. Explicit native requests/relic/pose fixtures
+are not live water HP/death, ordinary acquisition or route/console evidence.
+Actual damage/death producers/capture/common death remain unwired. Savesv9/default
+grants and Alucard/castle incompleteness remain unchanged.
+
 The [water damage/death components](docs/water-damage-death.md) now reconstruct
 original waist injection, priority/protection gates, kind6 HP/Fury work, pain timer
 and state13 color/velocity/helper/capture transitions. Preserve high-only contact

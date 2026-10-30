@@ -1114,6 +1114,86 @@ static bool NormalWaterRequests(Fixture *f)
     return true;
 }
 
+static bool WaterBlinkOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .image = {32, 48, -16, -24},
+                              .player = f->state};
+    in.player.water.waist = 1;
+    in.player.animation.id = 0xc0;
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    for (Uint16 kind = 0; kind < 2; ++kind)
+    {
+        const Uint16 parameter = kind ? 0x59 : 0x4e;
+        Uint8 *profile = f->dra + 0xd670 + (parameter & 0x3fU) * 20U;
+        for (Uint16 i = 0; i < 3; ++i)
+            Put16(profile + 8U + i * 2U, 256);
+        Put16(profile + 6, 0x123);
+        Put16(profile + 14, kind ? 0x7005 : 0x7004);
+        Put16(profile + 16, 0x31);
+        Put16(profile + 18, 512);
+        f->runtime = (SotnBatRuntime){0};
+        in.holy_symbol_enabled = false;
+        in.player.animation.id = 0xc0;
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+            in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+        CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[0].cursor, source,
+                                      (Uint32)parameter * 65536U + 44U, 0));
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+        SotnBatRuntimeChild *child = NULL;
+        for (Uint16 i = 0; i < 48; ++i)
+            if (f->runtime.children[i].kind == 11)
+            {
+                CHECK(!child);
+                child = &f->runtime.children[i];
+            }
+        CHECK(child && !child->initialized && !child->primitive_count && !child->draw_count &&
+              !child->state.blink.phase && !f->runtime.afterimage_reset);
+        in.primitive_slots = (SotnPrimitiveSlots){0};
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && child->initialized &&
+              child->primitive_count == 8 && child->draw_count == 8 &&
+              child->state.blink.phase == 1 && f->runtime.afterimage_reset);
+        const Uint32 generation = child->generation;
+        for (Uint16 t = 0; t < 40; ++t)
+        {
+            CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[0].cursor, source,
+                                          (Uint32)parameter * 65536U + 44U, 0));
+            CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+                  child->generation == generation && child->primitive_count == 8);
+            Uint16 children = 0;
+            for (Uint16 i = 0; i < 48; ++i)
+                children += f->runtime.children[i].kind == 11 ? 1 : 0;
+            CHECK(children == 1);
+        }
+        CHECK(child->state.blink.phase == 2 && child->state.blink.hold == 7);
+        const Sint16 x = child->state.blink.quads[0].x[0];
+        const Uint16 angle = child->state.blink.angle;
+        in.entering = true;
+        in.screen_shift_x = -16;
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+              child->state.blink.angle == angle && child->state.blink.quads[0].x[0] == x - 16);
+        in.entering = false;
+        in.screen_shift_x = 0;
+        if (kind)
+            in.player.animation.id = 0xc1;
+        else
+            in.holy_symbol_enabled = true;
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && child->state.blink.phase == 3);
+        for (Uint16 t = 0; t < 30 && child->kind; ++t)
+            CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+        CHECK(!child->kind && !child->primitive_count);
+    }
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && after.random == before.random &&
+          after.hp == before.hp);
+    Close(f);
+    return true;
+}
+
 static bool OutlineOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1198,7 +1278,7 @@ int main(void)
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
                     WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
                     CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) &&
-                    NormalWaterRequests(f) && OutlineOwnership(f);
+                    NormalWaterRequests(f) && WaterBlinkOwnership(f) && OutlineOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
