@@ -1,3 +1,14 @@
+The [water damage/death components](docs/water-damage-death.md) now reconstruct
+original waist injection, priority/protection gates, kind6 HP/Fury work, pain timer
+and state13 color/velocity/helper/capture transitions. Preserve high-only contact
+replacement before grab/invincibility, absolute modulo10, repeated Blink4E and
+voice refresh, lethal response6, birth rotation-flag clear, signed velocity wrap,
+strict reset and fade preemption. Stone/other contacts delegate to real damage;
+helper/factory/capture requests are not completed native operations. Connect
+actual equipment/effects/HP/capture/common death owners before live water damage.
+Ordinary physical death is not a substitute. Savesv9/default grants stay unchanged;
+native water damage/death and Alucard/castle/console parity remain incomplete.
+
 Selected [normal water bubbles](docs/normal-water-bubbles.md) now use real shared
 factory4/profile13 children and original standing/Crouch0 source/counter gates.
 Preserve strict48/24 depths, shield-specific countdown, expiration-only decrement,
