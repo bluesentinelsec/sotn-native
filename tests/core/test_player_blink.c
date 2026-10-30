@@ -217,6 +217,58 @@ int main(void)
             CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
         CHECK(effect.removed);
     }
+    for (Uint16 kind = 0; kind < 2; ++kind)
+    {
+        const Uint16 parameter = kind ? 0x59 : 0x4e;
+        Uint8 *p = dra + 0xd670 + (parameter & 0x3fU) * 20U;
+        Put16(p + 6, 0x123);
+        Put16(p + 8, 256);
+        Put16(p + 10, 256);
+        Put16(p + 12, 256);
+        Put16(p + 14, kind ? 0x7005 : 0x7004);
+        Put16(p + 16, 0x31);
+        Put16(p + 18, 512);
+        effect = (SotnPlayerBlink){.parameter = parameter};
+        SDL_zero(shared);
+        input.water_waist = 1;
+        input.holy_symbol = false;
+        input.player_animation = 0xc0;
+        input.allocation_failed = true;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !effect.phase &&
+              !effect.removed && !events.reset_afterimages);
+        input.allocation_failed = false;
+        for (Uint16 t = 0; t < 27; ++t)
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        CHECK(effect.phase == 2 && effect.brightness == 256);
+        for (Uint16 t = 0; t < 100; ++t)
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2 &&
+                  effect.hold == 7 && !events.signal);
+        if (kind)
+            input.player_animation = 0xc1;
+        else
+            input.holy_symbol = true;
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3 &&
+              effect.hold == 7);
+        for (Uint16 t = 0; t < 30 && !effect.removed; ++t)
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+        CHECK(effect.removed);
+        if (!kind)
+        {
+            input.holy_symbol = false;
+            input.water_waist = 0;
+            effect = (SotnPlayerBlink){.parameter = parameter, .phase = 2, .brightness = 256};
+            CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3);
+        }
+    }
+    effect = (SotnPlayerBlink){.parameter = 0x4e};
+    input.water_waist = 32768;
+    const SotnPlayerBlink invalid_depth = effect;
+    const SotnPlayerBlinkShared invalid_shared = shared;
+    const SotnPlayerBlinkEvents invalid_events = events;
+    CHECK(!SotnPlayerBlink_Tick(&effect, &shared, input, &events) &&
+          !SDL_memcmp(&effect, &invalid_depth, sizeof(effect)) &&
+          !SDL_memcmp(&shared, &invalid_shared, sizeof(shared)) &&
+          !SDL_memcmp(&events, &invalid_events, sizeof(events)));
     SDL_free(dra);
     SDL_free(exe);
     return 0;

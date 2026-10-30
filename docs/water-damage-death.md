@@ -37,6 +37,9 @@ runs the actual normal-reset helper; global effect, factory, sound and SDK captu
 calls are adapted. These are component checks, not native water damage, actual
 captured pixels, complete death/game-over, route or console evidence.
 
+Selected [water Blink flashes](water-blink-effects.md) now supply their shared
+child/row/rendering owners and native input snapshots; actual damage/death producers
+and the remaining birth/capture/common-death operations are still unwired.
 Ordinary starts, grants and version-nine saves remain unchanged. The existing
 unsupported US wet-smoke birth guard remains. Native water damage/death, full
 equipment and shared effects, Alucard, castle and console parity remain incomplete.

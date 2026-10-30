@@ -670,6 +670,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .spirit_targets = &targets,
                                   .force_echo_enabled =
                                       (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
+                                  .holy_symbol_enabled = (s->world.relics[14] & 3U) == 3,
                                   .camera_x = s->camera.x,
                                   .camera_y = s->camera.y,
                                   .room_shift_x = (Sint16)s->blink_rebase_x,
