@@ -590,7 +590,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const bool wing = actors->bat_runtime &&
                       (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
                        actors->bat_runtime->spirit_mask || actors->bat_runtime->hellfire_mask ||
-                       actors->bat_runtime->echo_attack || actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
+                       actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -610,10 +611,11 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_hellfire = (runtime->hellfire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_spirit = (runtime->spirit_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
+            const bool selected_soul = index == 31 && runtime->soul_attack;
             const bool selected_wolf = (index == 2 && (runtime->wolf_mask & 1U)) ||
                                        (index == 4 && (runtime->wolf_mask & 2U));
             if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf &&
-                !selected_spirit && !selected_hellfire)
+                !selected_spirit && !selected_hellfire && !selected_soul)
                 continue;
             if (selected_wolf)
             {
@@ -649,6 +651,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     (selected_spirit &&
                      (child->kind != 61 || child->group < 3 || child->group > 10 ||
                       (index < 16 ? child->group > 6 : child->group < 7))) ||
+                    (selected_soul && (child->kind != 53 || child->group < 7 || child->group > 10 ||
+                                       child->state.attack.hit_type != 0x82 ||
+                                       child->state.attack.hit_effect != 2)) ||
                     (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
                                        runtime->echo_generation != child->generation)))
                     return SDL_SetError("Bat attack lost its actual child or original group");
@@ -725,8 +730,15 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         const SotnCombatBox attacker = PlayerBox(source, true);
         if (source.attack.active && actor->cooldown[hand] == 0 &&
             (actor->state.hitbox_state & source.attack.hit_type & 0x3e) &&
-            SotnCombat_Overlap(attacker, target))
+            ((source.attack.hit_type & 0x80U) || SotnCombat_Overlap(attacker, target)))
         {
+            // Original collision.h creates the orb after contact selection, before damage/immunity.
+            if ((source.attack.hit_effect & 127U) == 2)
+            {
+                Actor *orb = NULL;
+                if (!ActorSpawn(actors, actor, 7, 0, 96, 128, &orb))
+                    return false;
+            }
             Uint16 stats[4] = {6, 6, 6, 6};
             Uint16 luck = 6;
             bool dragon_helm = false;

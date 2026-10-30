@@ -1368,6 +1368,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnActorGraphics_InitPlayerGlow(session->actor_graphics) ||
         !SotnPlayer_SetDarkContext(session->player, true) ||
         !SotnPlayer_SetSpiritContext(session->player, true) ||
+        !SotnPlayer_SetSoulContext(session->player, true) ||
         !SotnSavePointRenderer_Create(session->dra, SotnResource_View(session->common),
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
@@ -1729,12 +1730,13 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
         (session->stage_id != 6 && state.step != SOTN_PLAYER_KILL && !Transition(session, &state)))
         return false;
-    if (state.dark.started || state.spirit.started || state.hellfire_started)
+    if (state.dark.started || state.spirit.started || state.hellfire_started || state.soul.started)
     {
         SotnCharacterState learned = {0};
         if (!SotnCharacter_Get(session->character, &learned, NULL) ||
             !SotnCharacter_LearnSpell(&learned, state.spirit.started     ? state.spirit.spell
                                                 : state.hellfire_started ? 2
+                                                : state.soul.started     ? 5
                                                                          : 0) ||
             !SotnCharacter_Restore(session->character, &learned))
             return false;

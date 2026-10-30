@@ -137,7 +137,10 @@ Down, then Down+attack. Tetra costs 20 MP: hold Up for about half a second, then
 Up-forward, Forward, Down-forward, Down, then Down+attack. These remain selected
 development paths. [Hellfire](docs/player-hellfire.md) costs 15 MP: Up, Down,
 Down-forward, Forward, then either hand attack. Hold Up during casting for large
-fireballs; Down cancels at the reappearance/attack boundary. Other normal spells
+fireballs; Down cancels at the reappearance/attack boundary.
+[Soul Steal](docs/player-soul-steal.md) costs 50 MP: Back, Forward, Down-forward,
+Down, Down-back, Back, Forward, then either hand attack. Its healing orbs return HP
+on contact. Ordinary starts retain their existing MP maximum. Other normal spells
 and complete Alucard remain unfinished.
 
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space

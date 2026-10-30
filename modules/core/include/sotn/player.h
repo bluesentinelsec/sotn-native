@@ -55,6 +55,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_SUMMON = 33,
     SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
+    SOTN_PLAYER_SOUL = 37,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
 
@@ -207,6 +208,13 @@ typedef struct SotnPlayerSpirit
     bool started;
 } SotnPlayerSpirit;
 
+/** @brief Original Soul Steal cast/pose-seven requests, consumed by actual native owners. */
+typedef struct SotnPlayerSoul
+{
+    SotnPlayerFactorySource source;
+    bool started, attack;
+} SotnPlayerSoul;
+
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -252,6 +260,7 @@ typedef struct SotnPlayerState
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
     SotnPlayerSpirit spirit;
+    SotnPlayerSoul soul;
     bool hellfire_started,
         hellfire_hidden;             /**< Accepted cast intent and actual palette visibility. */
     Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
@@ -581,6 +590,11 @@ bool SotnPlayer_SetDarkContext(SotnPlayer *player, bool enabled);
  * @return Success or SDL error without mutation. Defaults false; no ownership/resources granted.
  * Component tests may bind a fixture. Gameplay must leave this false until every owner is wired. */
 bool SotnPlayer_SetSpiritContext(SotnPlayer *player, bool enabled);
+/** @brief Bind the actual shared Soul Steal factory/global-attack/orb/healing owners.
+ * @param player Actual player. @param enabled True only after all native owners connect.
+ * @return Success or SDL error for a missing owner/private metadata. Defaults to disabled;
+ * grants no MP, learning or spell readiness. Cannot detach during actual casting. */
+bool SotnPlayer_SetSoulContext(SotnPlayer *player, bool enabled);
 /** @brief Run original engine-five animation selection without a normal player update.
  * @param player Borrowed owner. @param buttons Current physical US buttons for next-frame edges.
  * @param animate False on the original release-only frame; true runs only BA/BB/BE/F0/F1.

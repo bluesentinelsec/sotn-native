@@ -319,12 +319,77 @@ static bool Hellfire(Fixture *f)
     CHECK(!SotnPlayer_CommitHellfire(f->p, 0, 0x8123));
     return true;
 }
+static bool SoulCommand(Fixture *f, bool face)
+{
+    const Uint16 back = face ? SOTN_BUTTON_RIGHT : SOTN_BUTTON_LEFT,
+                 forward = face ? SOTN_BUTTON_LEFT : SOTN_BUTTON_RIGHT;
+    f->p->facing_left = face;
+    const Uint16 sequence[] = {back,
+                               forward,
+                               (Uint16)(SOTN_BUTTON_DOWN | forward),
+                               SOTN_BUTTON_DOWN,
+                               (Uint16)(SOTN_BUTTON_DOWN | back),
+                               back,
+                               forward,
+                               (Uint16)(forward | SOTN_BUTTON_LEFT_HAND)};
+    for (Uint16 i = 0; i < SDL_arraysize(sequence); ++i)
+        CHECK(SotnPlayer_Tick(f->p, sequence[i]));
+    return true;
+}
+static bool Soul(Fixture *f)
+{
+    CHECK(SOTN_PLAYER_SOUL == 37);
+    for (Uint16 face = 0; face < 2; ++face)
+    {
+        CHECK(Create(f, true) && SotnPlayer_SetSoulContext(f->p, true));
+        f->dra[0x8410 + 5 * 28 + 12] = 6;
+        Put32(f->dra + 0x101b8 + 0xda * 4U, 0x800a0300);
+        for (Uint16 i = 0; i < 8; ++i)
+            Put32(f->dra + 0x300 + i * 4U, 2U | ((Uint32)i + 1U) << 16);
+        Put32(f->dra + 0x320, 65535);
+        f->p->mp = 6;
+        CHECK(SoulCommand(f, face != 0) && f->p->step == SOTN_PLAYER_SOUL &&
+              f->p->animation.id == 0xda && f->p->soul.started && !f->p->soul.attack &&
+              f->p->mp_spent == 6 && !f->p->mp && f->p->sound == 0x6f4 &&
+              f->p->spell_use_ticks == 4 && f->p->invincibility == 16);
+        SotnPlayerState state = {0};
+        CHECK(SotnPlayer_GetState(f->p, &state) && state.soul.started &&
+              (state.status & 0x38000200U) == 0x38000200U && !(state.status & 0x20U));
+        CHECK(!SotnPlayer_SetSoulContext(f->p, false));
+        const SotnPlayerSoul source = f->p->soul;
+        CHECK(SotnPlayer_ChangeRoom(f->p, f->map, 16, 0) &&
+              f->p->soul.source.x == source.source.x + 16 * 65536 && f->p->mp_spent == 6);
+        Uint16 attacks = 0;
+        for (Uint16 t = 0; t < 24; ++t)
+        {
+            CHECK(SotnPlayer_Tick(f->p, 0) && !f->p->mp_spent && !f->p->soul.started);
+            if (f->p->soul.attack)
+            {
+                ++attacks;
+                CHECK(f->p->sound == 0x67d && f->p->soul.source.priority == 148);
+            }
+        }
+        CHECK(attacks == 1 && f->p->step == SOTN_PLAYER_STAND &&
+              SotnPlayer_SetSoulContext(f->p, false));
+    }
+    CHECK(Create(f, true));
+    f->dra[0x8410 + 5 * 28 + 12] = 6;
+    f->p->mp = 6;
+    CHECK(SoulCommand(f, false) && f->p->step != SOTN_PLAYER_SOUL && !f->p->soul.started &&
+          !f->p->mp_spent && f->p->mp == 6);
+    CHECK(Create(f, true) && SotnPlayer_SetSoulContext(f->p, true));
+    f->dra[0x8410 + 5 * 28 + 12] = 6;
+    f->p->mp = 5;
+    CHECK(SoulCommand(f, false) && f->p->step != SOTN_PLAYER_SOUL && !f->p->soul.started &&
+          !f->p->mp_spent && f->p->mp == 5);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Casting(f) && FrozenPlayer(f) && FreezeEdges() && Hellfire(f);
+    const bool ok = Casting(f) && FrozenPlayer(f) && FreezeEdges() && Hellfire(f) && Soul(f);
     SotnPlayer_Close(f->p);
     SDL_free(f);
     if (ok)

@@ -131,6 +131,7 @@ typedef struct SotnBatRuntime
     Uint8 wolf_shakes[8], wolf_shake_count;
     Uint8 use_ticks;
     Uint8 groups[11];
+    bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
     bool echo_attack;
     bool afterimage_reset; /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
