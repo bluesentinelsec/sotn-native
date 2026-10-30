@@ -46,7 +46,7 @@ typedef struct SotnWaterDeathEvents
  * @param input Actual owner snapshots. Fade0xFFF preempts any initialized phase.
  * @param out Ordered original helper/sound/factory/capture commands, not successful allocations.
  * @return Success or SDL error preserving state/output. The owner must invoke real normal reset,
- * animationC1, global effect1, Blink59, factory49/parameter6, framebuffer capture and common
+ * animationC1, global effect1, Blink59, factory49/parameter6, display-texture capture and common
  * state16/17 controllers before exposing live water death. Birth rotation flags clear through
  * the normal helper and return next update. Phase1 velocity wraps before the strict positive
  * reset. Motion/collision/animation follow this function in their original engine boundaries.
