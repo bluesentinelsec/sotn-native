@@ -1,3 +1,12 @@
+The [ordinary water-effect components](docs/water-effects.md) reconstruct main/
+surfacing/side GT4s and small/32-particle drops. Preserve real2/4/1/33-row leases,
+allocation-before-RNG, separate stage/libc streams, whole-word child origins,
+birth-motion distinctions, cached world surfaces, packed fractions and sentinel.
+Camera shifts body/packets once; draws never tick. Sound/drop requests are not
+completed playback/factories. Native actor/primitive/render/player/damage ownership
+remains unwired; no new pool/default grants/saves change. Alucard/castle/console
+parity remain incomplete.
+
 The [ordinary water-controller component](docs/water-controller.md) reconstructs
 birth/cache timing, ordered splash/surfacing plans, actual auxiliary occupancy,
 cooldown and signed currents. Preserve original entry-variant overwrite, whole-word

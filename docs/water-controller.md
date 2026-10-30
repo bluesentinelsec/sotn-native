@@ -31,6 +31,8 @@ auxiliary allocation/destruction use explicit adapters. The contexts supply play
 motion and occupancy, rather than claiming native traversal or effects rendering.
 Debug and ASan/UBSan traces match byte for byte.
 
+The [water-effect components](water-effects.md) now reconstruct the child packets
+and particle behavior; they still require real native ownership.
 Actual placed-controller, splash/drop/primitive ownership, native player feedback,
 water damage and uninterrupted-route/console parity remain separate work. Ordinary
 starts and version-nine saves stay unchanged; Alucard and the castle are incomplete.
