@@ -134,13 +134,13 @@ static void MovementSmoke(SotnPlayer *player, Uint32 blueprint)
         SDL_SetError("Ordinary movement exceeded its selected one-update factory request");
         return;
     }
-    player->movement_effects =
-        (SotnPlayerMovementEffects){.smoke = true,
-                                    .smoke_blueprint = blueprint,
-                                    .smoke_source = {.x = player->x.value,
-                                                     .y = player->y.value,
-                                                     .priority = 148,
-                                                     .facing_left = player->facing_left}};
+    player->movement_effects.smoke = true;
+    player->movement_effects.smoke_blueprint = blueprint;
+    player->movement_effects.smoke_source =
+        (SotnPlayerFactorySource){.x = player->x.value,
+                                  .y = player->y.value,
+                                  .priority = 148,
+                                  .facing_left = player->facing_left};
 }
 static void Walk(SotnPlayer *player, bool force)
 {
@@ -660,6 +660,8 @@ static void StandTick(SotnPlayer *player)
     if (Transitions(player, 0x4301c))
         return;
     Decelerate(player, 8192);
+    SotnPlayer_WaterBreath(player, false,
+                           player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2);
     if (player->curse_failure)
     {
         if (player->animation.remaining < 0)
@@ -919,6 +921,8 @@ static void CrouchTick(SotnPlayer *player)
     switch (player->substep)
     {
     case 0:
+        SotnPlayer_WaterBreath(
+            player, true, player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2);
         flags = 6;
         break;
     case 1:
@@ -1691,6 +1695,14 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->movement_effects.smoke && (smoke_x < SDL_MIN_SINT32 || smoke_x > SDL_MAX_SINT32 ||
                                            smoke_y < SDL_MIN_SINT32 || smoke_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured ordinary movement source");
+    const Sint64 bubble_x =
+                     (Sint64)player->movement_effects.bubble_source.x + (Sint64)offset_x * FIX_ONE,
+                 bubble_y =
+                     (Sint64)player->movement_effects.bubble_source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->movement_effects.water_bubble &&
+        (bubble_x < SDL_MIN_SINT32 || bubble_x > SDL_MAX_SINT32 || bubble_y < SDL_MIN_SINT32 ||
+         bubble_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured normal water bubble source");
 
     const Sint64 dark_x = (Sint64)player->dark.source.x + (Sint64)offset_x * FIX_ONE,
                  dark_y = (Sint64)player->dark.source.y + (Sint64)offset_y * FIX_ONE;
@@ -1762,6 +1774,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     {
         player->movement_effects.smoke_source.x = (Sint32)smoke_x;
         player->movement_effects.smoke_source.y = (Sint32)smoke_y;
+    }
+    if (player->movement_effects.water_bubble)
+    {
+        player->movement_effects.bubble_source.x = (Sint32)bubble_x;
+        player->movement_effects.bubble_source.y = (Sint32)bubble_y;
     }
     if (player->gravity.ceiling_impact)
     {
@@ -1866,6 +1883,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     const Uint32 status = SotnPlayer_Status(player);
     *out = (SotnPlayerState){
         .water = player->water,
+        .water_breath_timer = player->water_breath_timer,
         .x = player->x.value,
         .y = player->y.value,
         .velocity_x = player->vx,

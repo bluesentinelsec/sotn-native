@@ -33,6 +33,7 @@ struct SotnPlayer
     SotnCollisionMap map;
     PlayerFixed x, y;
     SotnPlayerWater water;
+    Uint16 water_breath_timer;
     Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
     Sint16 draw_pivot_x, draw_pivot_y;
@@ -181,6 +182,8 @@ void SotnPlayer_Collide(SotnPlayer *player);
 Sint32 SotnPlayer_WaterScale(Sint32 velocity, bool restore);
 /** @brief Actual feet/form/status/entity-byte gate, independent of player damage immunity. */
 bool SotnPlayer_WaterDrag(const SotnPlayer *player);
+/** @brief Original eligible Stand/Crouch0 breathing branch with its shared retained counter. */
+void SotnPlayer_WaterBreath(SotnPlayer *player, bool crouched, bool shielded);
 Uint8 SotnPlayer_TightSpace(SotnPlayer *player);
 
 #endif
