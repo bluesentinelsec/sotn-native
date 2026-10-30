@@ -1,4 +1,8 @@
 add_library(sotn-core STATIC
+  water_drops.c
+  include/sotn/water_drops.h
+  water_effect.c
+  include/sotn/water_effect.h
   water_actor.c
   include/sotn/water_actor.h
   water_volume.c
