@@ -1,3 +1,12 @@
+The [ordinary water-controller component](docs/water-controller.md) reconstructs
+birth/cache timing, ordered splash/surfacing plans, actual auxiliary occupancy,
+cooldown and signed currents. Preserve original entry-variant overwrite, whole-word
+Y tests, prior exit row/origins, zero child fractions and pre-current sampling.
+Plans are not completed factories: validate/commit every real slot224..255 before
+controller/depth/current feedback. No second pool or fake surface cooldown is
+allowed. Native placed/effect/player/damage ownership remains unwired; ordinary
+starts/savesv9 stay unchanged. Alucard/castle/console parity remain incomplete.
+
 The [water-volume query](docs/water-volume-query.md) reconstructs original private
 volume/slope sampling and three distinct form-dependent depths. Preserve word wrap,
 strict right/bottom edges, first match, contact at zero depth and crouch/form
