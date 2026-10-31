@@ -889,6 +889,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (p.movement_effects.smoke &&
         !RequestSource(&r, p.movement_effects.smoke_source, p.movement_effects.smoke_blueprint, 0))
         return false;
+    if (p.script_reaction.started)
+    {
+        if (in.freeze || p.step != SOTN_PLAYER_SCRIPT_REACTION || p.substep != 1 ||
+            p.animation.id != 0x33 || !p.hp)
+            return SDL_SetError("Script reaction lost its actual ordinary player birth");
+        if (!RequestSource(&r, p.script_reaction.source, 0x58002c, 0))
+            return false;
+    }
     if (p.gravity.ceiling_impact && !RequestSource(&r, p.gravity.impact_source, 0x10004, 0))
         return false;
     if (in.wolf_owned && p.wolf.body_started)

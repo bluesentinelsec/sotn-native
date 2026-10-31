@@ -32,6 +32,7 @@ typedef struct SotnPlayerBlinkShared
  * Parameters 0x16/0x17 restore original poison/curse glows after casting.
  * Parameters 0x4E/0x59 support original water-pain/death flashes; requests remain with the owner.
  * Parameters 0x44/0x48 support original blood-healing flashes; 0x67 is the spirit fan.
+ * Parameter 0x58 is the scripted reaction fan; its 0x7007 hold tests original Hit state10.
  * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
 {

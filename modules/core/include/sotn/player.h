@@ -66,8 +66,25 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SOUL = 37,
+    SOTN_PLAYER_SCRIPT_REACTION = 48,
     SOTN_PLAYER_SCRIPT = 49
 } SotnPlayerStep;
+
+/** @brief Original simulated pad word and shared demo_timer, retained outside ordinary saves.
+ * Mode zero supplies buttons, one enters the scripted reaction, two holds the player.
+ * A zero timer resumes physical input; mode two still holds until its pad word changes. */
+typedef struct SotnPlayerSimulatedPad
+{
+    Uint16 buttons, mode;
+    Uint32 remaining;
+} SotnPlayerSimulatedPad;
+
+/** @brief One committed scripted-reaction factory source, captured before collision. */
+typedef struct SotnPlayerScriptReaction
+{
+    SotnPlayerFactorySource source;
+    bool started;
+} SotnPlayerScriptReaction;
 
 /** @brief Classify original selected dead-body states independently of physical/water cause. */
 bool SotnPlayerStep_IsDead(SotnPlayerStep step);
@@ -187,6 +204,7 @@ typedef struct SotnPlayerMist
     Uint32 generation;
     Uint16 capture_sprite, capture_bank;
     bool active, restoring, started, request_restore, retire;
+    bool interrupted; /**< Original reset destroys a live Mist child without a return handshake. */
 } SotnPlayerMist;
 
 /** @brief Selected Bat controller requests for actual generation-owned transformation effects. */
@@ -281,6 +299,11 @@ typedef struct SotnPlayerState
     Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
     Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
     SotnAnimation animation;
+    SotnPlayerSimulatedPad simulated_pad;
+    SotnPlayerScriptReaction script_reaction;
+    Uint16 palette;     /**< Current original player CLUT, including its high flag. */
+    Uint8 body_grey[4]; /**< Original draw colors, in GT4 vertex order. */
+    bool body_color_blend;
     SotnPlayerStep step;
     Uint16 substep;   /**< Original movement substate; standing 4 is seated. */
     bool sleep_event; /**< Original sleeping-letter factory requested this tick. */
@@ -434,6 +457,16 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
  * The next simulation tick retains animation, refreshes original protection and handles release.
  * No advancement occurs in this setter. Call false when the script interval expires. */
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
+/** @brief Bind actual private SDK tables for scripted hit/recovery presentation.
+ * @param player Borrowed owner. @param executable Borrowed verified US boot image, outliving
+ * player.
+ * @return Success or SDL error without mutation. Does not advance clocks or grant controls. */
+bool SotnPlayer_SetScriptContext(SotnPlayer *player, SotnDataView executable);
+/** @brief Write the original simulated-pad word and shared remaining interval.
+ * @param player Borrowed living owner. @param input Actual script request, modes0..2.
+ * @return Success or SDL error without mutation; mode1 requires the native presentation binding.
+ * No tick occurs here. Physical taps rebase once after the final simulated frame. */
+bool SotnPlayer_SetSimulatedPad(SotnPlayer *player, SotnPlayerSimulatedPad input);
 /** @brief Supply a stage chair's transient original seating hint for the next player update.
  * @param player Borrowed simulation. @param kind Zero disables, 1..4 choose original pose/facing.
  * @return Success or SDL error. Does not force a state; normal input/transitions retain control.

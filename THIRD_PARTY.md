@@ -107,6 +107,11 @@
   simulated-input release in `692E8.c`, and Bat's outer eight-pass collision
   boundary. Runtime animation/weapon/shield tables remain private; these changes
   do not implement all original player states.
+  The [scripted player owner](docs/player-script-control.md) in `player_script.c`
+  and native bindings additionally adapts `692E8.c` simulated input/timer2/4 and
+  recovery, `71830.c:PlayerStepUnk48/49`, Blink58 in `7879C.c`, and the actual
+  `st/no3/e_death.c` producer at that same revision. Palette definitions, SDK sine
+  values, animations and script data remain private runtime inputs.
   The selected [Leap Stone double jump](docs/player-leap-stone.md) follows
   `6E42C.c:func_8010E940`, `6FDF8.c:func_8010FDF8`, and the Jump/Fall paths
   in `71830.c`; its animation bytes remain private runtime data.

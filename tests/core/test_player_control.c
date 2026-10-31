@@ -340,9 +340,9 @@ static bool PhysicalInputRebase(Fixture *f)
     CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP) &&
           f->p->step == SOTN_PLAYER_JUMP);
     CHECK(Create(f));
-    f->p->bat_input_hold = 1;
+    SotnPlayer_HoldInput(f->p, 1);
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP) && f->p->simulated_input &&
-          !f->p->bat_input_hold && !f->p->buttons);
+          !f->p->simulated_pad.remaining && !f->p->buttons);
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP) && f->p->step == SOTN_PLAYER_STAND &&
           !f->p->tapped && !f->p->simulated_input);
     CHECK(SotnPlayer_Tick(f->p, 0) && SotnPlayer_Tick(f->p, SOTN_BUTTON_JUMP) &&

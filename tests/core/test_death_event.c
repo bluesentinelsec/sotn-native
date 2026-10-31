@@ -1,4 +1,5 @@
 #include "actors_internal.h"
+#include "character_fixture.h"
 #define CHECK(v)                                                                                   \
     do                                                                                             \
     {                                                                                              \
@@ -72,10 +73,20 @@ static bool Manager(Fixture *f)
 {
     SotnActors *s = NULL;
     CHECK(Open(f, &s));
+    Uint8 *image = SDL_calloc(1, 0x11000);
+    CHECK(image);
+    TestCharacter_Fill(image);
+    SotnCharacter *character = NULL;
+    CHECK(SotnCharacter_Create((SotnDataView){image, 0x11000}, &character));
+    CHECK(SotnActors_SetCharacter(s, character));
     Actor a = {.state = {.id = 0x58, .generation = 1}};
     CHECK(ActorDeath(s, &a) && s->control.buttons == SOTN_BUTTON_RIGHT);
     CHECK(s->camera->top == 252 && (s->death_event.flags & 0x100));
     CHECK(ActorDeath(s, &a) && a.state.step == 2 && (s->death_event.flags & 0x80));
+    s->death_event.flags |= 0x20;
+    CHECK(ActorDeath(s, &a) && a.state.step == 3 && s->control.mode == 1 && s->control.timer == 1 &&
+          s->control.block_stopwatch);
+    CHECK(ActorDeath(s, &a) && s->control.mode == 0 && s->control.timer == 1);
     a.state.step = 3;
     a.timer = 1;
     s->death_event.flags |= 0x40;
@@ -97,6 +108,8 @@ static bool Manager(Fixture *f)
         CHECK(ActorDeath(s, &a));
     CHECK(a.remove);
     SotnActors_Destroy(s);
+    SotnCharacter_Destroy(character);
+    SDL_free(image);
     return true;
 }
 static bool Failures(Fixture *f)

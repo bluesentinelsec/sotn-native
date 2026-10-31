@@ -24,13 +24,23 @@ No second pool, grants or savesv9 change. Explicit equipment/HP/MP/protection/po
 fixtures are not acquisition/route/console evidence. Other number producers and
 damage/equipment/familiars/sharing/Alucard/castle parity remain incomplete.
 
+Selected [scripted input/reaction](docs/player-script-control.md) now binds Death's
+actual mode1 request to state48, normal reset, timer2/red palette, real BP0/Blink58
+and animation/WHAT/recovery. Preserve the single stage/Bat/Wolf input counter,
+raw mode2 hold, US physical-input rebase, timer4's private SDK colors/gameplay clock,
+timer15 boundary, optional shared exhaustion, pending US retries and failed-update
+rollback. Mist interruption destroys its actual generation without fake readiness
+or palette-job resets. Dead/frozen/menu/map/draw paths hold counters and never
+revive. Explicit room/relic/pose/palette/lethal/protection fixtures are not route/
+acquisition/console evidence. No default grants or savesv9 changes; milestone1 remains open.
+
 Selected [normal control corrections](docs/player-control-audit.md) preserve original
 timer6 ledge expiry, heavy-Jump versus attack landing, fast landing momentum,
 ordered standing/crouch hand cancels, Basilard holds, prior-child shield state,
 Jump's early return and low-speed Bat/return eight-pass collision. Preserve the US
 first-physical-frame tap rebase after selected simulated input, failure rollback,
 no-tick room rebases and menu/map/draw holds. Held shield startup is not a subweapon
-tap. The source-backed inventory has 34 original handled states versus 24 native
+tap. The source-backed inventory has 34 original handled states versus 25 native
 dispatches; all remaining equipment/familiar/script/damage/death dependencies must
 close before milestone 1 is complete. Explicit equipment/pose/protection fixtures
 are not acquisition/route/console evidence. No default grants or savesv9 changes.

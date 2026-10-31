@@ -1,7 +1,7 @@
 # Alucard milestone status
 
 This is the consolidated status and completion checklist for the Alucard milestone,
-reviewed on 2026-10-30. The goal remains original Alucard behavior. Selected playable
+reviewed on 2026-10-31. The goal remains original Alucard behavior. Selected playable
 paths are implemented; complete Alucard, castle progression and console parity are
 unfinished. There is no measured completion percentage or reliable finish estimate.
 
@@ -39,7 +39,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   points: [movement](laboratory-movement.md), [forms](player-wolf-cross-forms.md),
   [status](player-status.md), [boss grabs](player-boss-grab.md). The
   [control inventory](player-control-audit.md) lists all 34 original dispatch states,
-  normal substates and cross-workstream dependencies.
+  normal substates and cross-workstream dependencies. The selected
+  [scripted input/theft reaction](player-script-control.md) adds state48 and its
+  actual input/palette/factory/render/recovery owners; 25 states now dispatch.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. Verify contact/healing priority and failure

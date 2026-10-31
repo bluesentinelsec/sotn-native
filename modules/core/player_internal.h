@@ -67,6 +67,12 @@ struct SotnPlayer
     Uint16 afterimage_timer15;
     bool afterimage_pending, afterimage_ticked;
     SotnAnimation animation;
+    SotnPlayerSimulatedPad simulated_pad;
+    SotnPlayerScriptReaction script_reaction;
+    SotnDataView script_executable;
+    Uint16 palette, damage_palette;
+    Uint8 body_grey[4];
+    bool body_color_blend;
     SotnPlayerStep step, previous_step;
     Uint16 buttons, previous_buttons, tapped, substep;
     Uint16 chair_kind, chair_sleep;
@@ -96,7 +102,6 @@ struct SotnPlayer
     SotnBatCommand bat_command;
     SotnBatCommandEvents bat_commands;
     Uint32 bat_counter;
-    Uint8 bat_input_hold;
     Uint16 animation_bank, form_pose;
     bool bat_context, bat_factory_available, bat_screech, form_rotated, bat_specials;
     Uint32 mist_game_timer, mist_visual_generation;
@@ -123,7 +128,8 @@ struct SotnPlayer
     SotnPlayerGrab grab;
     Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
     bool curse_failure, script_hold, bell_inside;
-    bool simulated_input; /**< US first physical frame rebases taps after simulated controls. */
+    bool simulated_input;    /**< US first physical frame rebases taps after simulated controls. */
+    bool legacy_script_hold; /**< Boolean stage adapter renews its one-frame mode2 request. */
     SotnCharacterStats attributes;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;
@@ -134,6 +140,12 @@ struct SotnPlayer
 
 /** @brief Rebuild supported original status bits from current state/timers, without mutation. */
 Uint32 SotnPlayer_Status(const SotnPlayer *player);
+/** @brief Apply original timer2/timer4 palette and draw-color work before decrements. */
+bool SotnPlayer_ScriptTimers(SotnPlayer *player);
+/** @brief Replace the shared simulated-input interval from an actual Bat/Wolf controller. */
+void SotnPlayer_HoldInput(SotnPlayer *player, Uint32 ticks);
+/** @brief Apply the selected original scripted-state exit helper after state dispatch. */
+void SotnPlayer_ScriptRecovery(SotnPlayer *player);
 
 /** @brief Apply selected original reset intents only when the common owner is bound. */
 void SotnPlayer_AfterimageReset(SotnPlayer *player);

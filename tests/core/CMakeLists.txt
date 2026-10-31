@@ -1044,3 +1044,10 @@ target_include_directories(sotn-player-control-tests PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(sotn-player-control-tests PRIVATE sotn-core)
 add_test(NAME player-control-recovery COMMAND sotn-player-control-tests)
 set_tests_properties(player-control-recovery PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-script-tests test_player_script.c)
+sotn_configure_c_target(sotn-player-script-tests)
+target_include_directories(sotn-player-script-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-script-tests PRIVATE sotn-core)
+add_test(NAME player-script-input-reaction COMMAND sotn-player-script-tests)
+set_tests_properties(player-script-input-reaction PROPERTIES TIMEOUT 20)

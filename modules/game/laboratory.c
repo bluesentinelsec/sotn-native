@@ -49,6 +49,7 @@ struct SotnLaboratory
     SotnResource *map_art;
     SotnMapRenderer *map_renderer;
     bool map_open;
+    Uint16 stage_script_mode;
     Uint8 map_opacity;
     Uint64 map_ticks;
     SotnStageRoom room;
@@ -882,6 +883,13 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->mist_present = false;
         s->mist_generation = 0;
     }
+    if (player.mist.interrupted && s->mist_present)
+    {
+        if (s->mist_generation != player.mist.generation || player.mist.active)
+            return SDL_SetError("Script reset lost its actual live Mist owner");
+        s->mist_present = false;
+        s->mist_generation = 0;
+    }
     if (player.mist.started && (!s->mist_present || s->mist_generation != player.mist.generation))
     {
         SotnMistEffect fresh = {.x = (Sint32)((Sint64)player.x - (Sint64)s->camera.x * 65536),
@@ -1424,6 +1432,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             : stage_id == 65 && start_room == 11 ? 388
                                                  : 135,
             &session->player) ||
+        !SotnPlayer_SetScriptContext(session->player, session->executable) ||
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
                                &session->subweapons) ||
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
@@ -1779,8 +1788,6 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     session->menu.previous = buttons;
     Uint16 player_buttons =
         session->save_room ? SotnSavePoint_Buttons(&session->save_point, state, buttons) : buttons;
-    if (control.timer)
-        player_buttons = control.buttons;
     player_buttons &= (Uint16) ~(SOTN_BUTTON_START | SOTN_BUTTON_SELECT);
     session->simulation_ticks = SDL_min(session->simulation_ticks + 1, 99999ULL * 3600 * 60);
     ++session->player_effect_frame;
@@ -1798,8 +1805,18 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnBatRuntime_Context(&session->bat_runtime, state.wolf.generation, &wolf_effect,
                                 &wolf_factory))
         return false;
-    if (!SotnPlayer_SetScriptHold(session->player, control.hold) ||
-        !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
+    const Uint16 script_mode = control.hold ? 2 : control.mode;
+    if (!SotnPlayerStep_IsDead(state.step) &&
+        (control.timer || script_mode || session->stage_script_mode) &&
+        !SotnPlayer_SetSimulatedPad(
+            session->player, (SotnPlayerSimulatedPad){.buttons = control.buttons,
+                                                      .mode = script_mode,
+                                                      .remaining = control.timer  ? control.timer
+                                                                   : control.hold ? 1
+                                                                                  : 0}))
+        return false;
+    session->stage_script_mode = script_mode;
+    if (!SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
         !SotnPlayer_SetMistContext(
             session->player, session->mist_present ? &session->mist_effect : NULL,
             session->mist_generation, session->game_timer, water.waist != 0) ||
@@ -2170,7 +2187,7 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
     const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
                  left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
                                            : x + sprite->pivot_x;
-    SotnPlayerEffectQuad q = {.page = 0x18, .palette = 0x100};
+    SotnPlayerEffectQuad q = {.page = 0x18, .palette = (Uint16)(player.palette & 0x7fffU)};
     for (Uint16 v = 0; v < 4; ++v)
     {
         q.x[v] = BlinkWord(left + ((v & 1U) ? sprite->width : 0));
@@ -2178,6 +2195,13 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
         q.u[v] = (Uint8)(player.facing_left ? ((v & 1U) ? 3 : 3 + sprite->width)
                                             : ((v & 1U) ? 4 + sprite->width : 4));
         q.v[v] = (Uint8)(1 + ((v & 2U) ? sprite->height : 0));
+        if (player.gravity.upside_down)
+        {
+            const Sint32 local_x = sprite->pivot_x + ((v & 1U) ? sprite->width : 0);
+            q.x[v] = BlinkWord(x + (player.facing_left ? local_x : 1 - local_x));
+            q.y[v] = BlinkWord(y + 5 - sprite->pivot_y - ((v & 2U) ? sprite->height : 0));
+            q.u[v] = (Uint8)((v & 1U) ? 4 + sprite->width : 4);
+        }
     }
     if (player.water_death.active)
     {
@@ -2196,9 +2220,15 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
                 BlinkWord(y + player.draw_pivot_y), BlinkWord(d.rotation), player.facing_left, &q))
             return false;
     }
-    else if (player.rotated &&
-             !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y),
-                                      player.bat.rotation, player.facing_left, &q))
+    else if (player.body_color_blend)
+    {
+        q.draw_mode = 4;
+        for (Uint16 v = 0; v < 4; ++v)
+            q.red[v] = q.green[v] = q.blue[v] = player.body_grey[v];
+    }
+    if (!player.water_death.active && player.rotated &&
+        !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y), player.bat.rotation,
+                                 player.facing_left, &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
 }
@@ -2572,7 +2602,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool drawn =
                 player.mist.active || player.bat.hidden || player.hellfire_hidden ||
                 player.animation_bank == 15 ||
-                (player.water_death.active || player.animation_bank == 13 || player.rotated
+                (player.water_death.active || player.animation_bank == 13 || player.rotated ||
+                         (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
+                          (player.palette != 0x8100 || player.body_color_blend))
                      ? DrawRotatedPlayer(session, player, &alucard)
                  : player.stone.active
                      ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - view_x,

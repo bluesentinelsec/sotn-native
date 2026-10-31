@@ -8,6 +8,7 @@ add_library(sotn-core STATIC
   include/sotn/water_damage.h
   player_water.c
   player_contact.c
+  player_script.c
   stat_buffs.c
   hud_resources.c
   rising_heart.c

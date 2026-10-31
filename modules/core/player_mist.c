@@ -38,6 +38,7 @@ bool SotnPlayer_SetMistContext(SotnPlayer *p, const SotnMistEffect *effect, Uint
 void SotnPlayer_MistInput(SotnPlayer *p)
 {
     p->mist.started = p->mist.request_restore = p->mist.retire = false;
+    p->mist.interrupted = false;
     if (p->mist_lockout)
         --p->mist_lockout;
     if (!p->mist_context || p->mist_lockout || p->script_hold || p->mist_underwater ||
