@@ -1819,6 +1819,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
+        (state.heart_gain.requested &&
+         !SotnCharacter_AddHearts(session->character, state.heart_gain.amount)) ||
         (state.defense_buff_minimum &&
          (!SotnStatBuffs_Minimum(&session->stat_buffs, SOTN_BUFF_DEFENSE,
                                  state.defense_buff_minimum) ||
@@ -2378,6 +2380,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 51 && child->initialized &&
+                !(child->state.heart.blink && (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->state.heart.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_RISING_HEART}))
+                return false;
             if (child->kind == 2 && child->initialized && child->state.smoke.sprite &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
                                     &draw_count,
@@ -2612,6 +2622,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    : DrawPlayerEffectQuad(session, q);
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_RISING_HEART)
+        {
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            if (child->kind != 51 || !child->generation || !child->initialized ||
+                !child->state.heart.initialized || child->state.heart.removed)
+                return SDL_SetError("Rising heart draw lost its actual child owner");
+            if (!SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){
+                        .animation_set = 3, .frame = 14, .facing_left = child->source.facing_left},
+                    Pixel(child->state.heart.x) + session->draw_target.offset_x + session->shake.x,
+                    Pixel(child->state.heart.y) + session->draw_target.offset_y + session->shake.y,
+                    (SotnSpriteTransform){.scale_x = 256, .scale_y = 256, .opacity = 128},
+                    session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
                 return false;
             continue;
         }

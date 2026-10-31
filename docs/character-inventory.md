@@ -23,6 +23,10 @@ other stages still require their own spike-controller integration.
 Owned Bloodstone now equips as an accessory and doubles selected
 [blood absorption requests](enemy-blood.md) from selected playable
 [Dark Metamorphosis](player-dark-metamorphosis.md).
+Owned [Fury Plate](stat-buff-ownership.md), [Healing Mail/Mystic Pendant](hud-healing-resources.md)
+and [Blood Cloak](player-blood-cloak.md) now have their selected actual gameplay
+owners. Their availability does not establish all equipment effects; see the
+[current Alucard checklist](alucard-status.md).
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,
@@ -58,8 +62,9 @@ nearby location; jump left onto the ledge when collecting its item.
 Body stats and effective LCK now feed attacks and ordinary physical damage.
 Original critical selection uses base stats separately from effective LCK.
 The zero-effective-LCK remainder edge remains explicitly unsupported rather than
-invoking undefined C division. Elemental ailments and special item passives
-remain outside the supported physical-contact slice.
+invoking undefined C division. Selected [queued contacts](player-water-contact.md)
+now connect poison/curse/stone and selected equipment passives; full elemental
+reactions and other special item behavior remain unfinished.
 
 The [progression service](character-progression.md) now awards EXP and updates
 levels/resources. Version 3 [native saves](native-saves.md) retain this supported

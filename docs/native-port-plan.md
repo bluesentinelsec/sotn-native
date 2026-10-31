@@ -2,6 +2,11 @@
 
 ## Decision and current state
 
+The [Alucard milestone checklist](alucard-status.md) tracks current selected
+playable behavior and the remaining completion gates. Historical integration
+notes below retain their batch scope; newer linked owners supersede older
+availability statements. Full Alucard and castle progression remain unfinished.
+
 Build on reconstructed C game logic, with native implementations of the PS1
 services it needs. Preserve the US PS1 experience before adding enhancements.
 Keep original simulation timing, integer/fixed-point behavior, audiovisual

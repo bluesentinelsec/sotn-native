@@ -145,6 +145,12 @@ bool SotnCharacter_TickResources(SotnCharacter *character, Uint64 ticks);
  * @return Success or SDL error without mutation when insufficient or invalid.
  * Ability-specific thresholds are checked by the simulation before this transfer. */
 bool SotnCharacter_SpendMP(SotnCharacter *character, Uint16 amount);
+/** @brief Commit the resource part of an actual original AddHearts request after player success.
+ * @param character Owned progress. @param amount Original nonnegative HP loss, 0..9999.
+ * @return Success or SDL error without mutation. Caps at hearts_max; no RNG or save-format change.
+ * The producer gates its real shared factory99/pickup sound on the pre-add heart count.
+ * This operation alone does not create an effect or implement another item. */
+bool SotnCharacter_AddHearts(SotnCharacter *character, Uint16 amount);
 /** @brief Release character, retaining borrowed private bytes. @param character Owned or NULL. */
 void SotnCharacter_Destroy(SotnCharacter *character);
 #endif

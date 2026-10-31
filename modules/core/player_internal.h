@@ -37,7 +37,9 @@ struct SotnPlayer
     SotnWaterDamage water_damage;
     SotnPlayerWaterPain water_pain;
     Uint32 damage_clock, damage_last_clock;
-    Uint16 armor;
+    Uint16 armor, cape;
+    Uint16 hearts, hearts_max; /**< Borrowed resource snapshot, refreshed before player control. */
+    SotnPlayerHeartGain heart_gain;
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;
     Uint16 defense_buff_minimum;
