@@ -8,6 +8,7 @@
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
 #include <sotn/hellfire_fireball.h>
+#include <sotn/immunity_text.h>
 #include <sotn/player.h>
 #include <sotn/player_outline.h>
 #include <sotn/player_particles.h>
@@ -78,6 +79,7 @@ typedef struct SotnBatRuntimeChild
         } sword;
         SotnRisingHeart heart;
         SotnHealingNumber healing_number;
+        SotnImmunityText immunity_text;
         SotnSpiritPortal portal;
         struct
         {

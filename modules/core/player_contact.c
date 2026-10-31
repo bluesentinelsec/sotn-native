@@ -124,7 +124,15 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         return true;
     }
     if (power.immune)
+    {
+        p->immunity = (SotnPlayerImmunity){.source = {.x = p->x.value,
+                                                      .y = p->y.value,
+                                                      .priority = 148,
+                                                      .facing_left = p->facing_left},
+                                           .applied = true};
+        p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
         return true;
+    }
     const SotnPlayerStep previous = p->step;
     const Uint16 previous_hp = p->hp;
     const SotnPlayerFactorySource source = {

@@ -21,14 +21,16 @@ typedef struct SotnHealingNumber
     Sint16 half_width, half_height, timer, lower_x, angle, distance, swirl;
     Uint16 number;
     Uint8 phase, extra_digits;
+    bool zero_damage; /**< Original type0/number0 immunity visual and blue trails. */
     bool removed;
 } SotnHealingNumber;
-/** @brief Advance the original green healing number once, including its motionless birth.
+/** @brief Advance the original healing or selected immunity-zero number, including birth.
  * @param number Zeroed actual child or retained live state. Set number before first update.
  * @param executable Borrowed private SDK tables. @param source Captured screen-space player
  * position, used only at birth. @param allocated Actual twenty-row reservation outcome.
  * @return Success or SDL error preserving state. Exhaustion retires only this optional visual.
- * Deferred healing and contact absorption use this same type1 visual, including full HP and
+ * Explicit zero_damage selects original type0/number0; other nonhealing types stay unavailable.
+ * Deferred healing and contact absorption use type1, including full HP and
  * stone. Original unsigned-word amounts above9999 display their four least significant digits. */
 bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView executable,
                             SotnPlayerFactorySource source, bool allocated);

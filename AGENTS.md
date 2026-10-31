@@ -1,3 +1,18 @@
+Selected [contact immunity](docs/player-contact-immunity.md) now owns actual response0,
+factory47/entity37 parameter0 text, Blink43 then51, type0 zero number and protection12.
+Owned Coral44 uses private curse immunity; preserve US stone-element removal order,
+immunity before absorption/Cat-eye, prior deferred healing, existing ailments,
+pre-controller fractional sources and commit after player success. Preserve actual
+current/prior-frame ground wait, delayed eighteen-row text lease, hidden spare rows,
+private metadata/SDK sine, signed wrap, fifty-six display updates and real retirement.
+Zero19 uses the actual twenty-row owner with original blue palette/trails; green
+healing remains separate. Optional exhaustion omits visuals; US Blink retries remain.
+Initialized effects advance on frozen updates while protection holds; release-only/
+menu/map/draw and no-tick rebases retain their boundaries. No new pool/grants/savesv9.
+Equipment/arrival/Ectoplasm-position/post-contact-protection fixtures are not route/
+acquisition/console evidence. Guard/Talisman/hurt/elemental death/stone/other text,
+equipment/shared contention and milestone1/Alucard remain incomplete at26/34 states.
+
 Selected [Alucard sword command/recovery](docs/player-sword-warp.md) now owns actual
 QCF/virtual197/five-MP, state15, shared root54/slot16 and next-pass strike62,
 private weapon43 images/animation/combat, outlines20/21 and sixteen-update recovery.

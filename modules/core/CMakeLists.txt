@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  immunity_text.c
+  include/sotn/immunity_text.h
   healing_number.c
   death_image.c
   include/sotn/death_image.h

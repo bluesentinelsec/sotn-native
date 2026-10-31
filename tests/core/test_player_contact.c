@@ -156,8 +156,10 @@ static bool Contacts(Fixture *f)
     p->invincibility = 0; // Independent immunity fixture, outside absorption's protection window.
     p->attributes.immunity = 0x8000;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 3, .parameters = 0x8001}) &&
-          Tick(p, 40) && p->hp == 11 && !p->water_pain.events.response);
+          Tick(p, 40) && p->hp == 11 && !p->water_pain.events.response && p->immunity.applied &&
+          p->invincibility == 12);
     p->attributes.immunity = 0;
+    p->invincibility = 0; // Subsequent independent fixture, outside immunity protection.
     p->poison_ticks = 2;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 3, .parameters = 1}) &&
           Tick(p, 50) && p->hp == 7 && p->poison_ticks == 1);
@@ -237,6 +239,7 @@ static bool BloodCloak(Fixture *f)
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
           Tick(p, 4) && !p->heart_gain.requested && p->hp == 41);
     p->attributes.immunity = 0;
+    p->invincibility = 0; // Subsequent independent fixture, outside immunity protection.
     p->attributes.absorption = 0x8000;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
           Tick(p, 5) && !p->heart_gain.requested && p->hp == 45);

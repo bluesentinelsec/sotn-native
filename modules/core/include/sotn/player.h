@@ -251,6 +251,13 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief This successful contact's original response0 immunity feedback, separate from healing. */
+typedef struct SotnPlayerImmunity
+{
+    SotnPlayerFactorySource source; /**< Captured before controller/collision movement. */
+    bool applied;
+} SotnPlayerImmunity;
+
 /** @brief This successful contact's immediate original response5, separate from deferred healing.
  */
 typedef struct SotnPlayerAbsorption
@@ -297,8 +304,9 @@ typedef struct SotnPlayerState
     SotnPlayerWater water;
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
     Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
-    Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
-    Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
+    Uint32 status;            /**< Original status bits for stage scripts and enemy observations. */
+    Uint32 contacts;          /**< Original floor/ceiling/wall and slope flags. */
+    Uint32 previous_contacts; /**< Actual pre-collision contact word retained by the player. */
     SotnAnimation animation;
     SotnPlayerSimulatedPad simulated_pad;
     SotnPlayerScriptReaction script_reaction;
@@ -321,6 +329,7 @@ typedef struct SotnPlayerState
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
+    SotnPlayerImmunity immunity;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */

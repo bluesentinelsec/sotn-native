@@ -2431,6 +2431,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_SWORD}))
                 return false;
+            if (child->kind == 37 && child->initialized && child->primitive_count &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){
+                        .priority = 0x1b8, .primitive = owner, .kind = SOTN_DRAW_IMMUNITY_TEXT}))
+                return false;
             if (child->kind == 19 && child->initialized)
             {
                 if (owner < 40 || !child->generation || child->primitive_count != 20 ||
@@ -2698,6 +2704,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_IMMUNITY_TEXT)
+        {
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            if (child->kind != 37 || !child->initialized || !child->generation ||
+                child->primitive_count != 18 || child->state.immunity_text.phase < 3 ||
+                child->state.immunity_text.removed)
+                return SDL_SetError("Immunity text draw lost its actual child and eighteen rows");
+            if (!DrawPlayerEffectQuad(session, &child->state.immunity_text.quad) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_HEALING_NUMBER)
         {
             const Uint16 owner = command.primitive / 20U, row = command.primitive % 20U;
@@ -2721,8 +2740,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                            .y = {y, y, y + 1, y + 1},
                                            .untextured = true,
                                            .red = 64,
-                                           .green = 255,
-                                           .blue = 64};
+                                           .green = n->zero_damage ? 64 : 255,
+                                           .blue = n->zero_damage ? 255 : 64};
                 if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
                                                    session->draw_target.surface))
                     return false;

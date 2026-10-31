@@ -833,3 +833,9 @@ The [shared native outline owner](docs/shared-player-outlines.md) connects the s
 original factory/entity31 paths to native stage leases and presentation, preserving
 selected retained player pivots from `dra/71830.c` and initialization in `692E8.c`,
 at the same pinned AGPL-3.0-or-later revision. Original inputs remain private.
+
+The [selected contact immunity owner](docs/player-contact-immunity.md) adapts
+response0 in `dra/692E8.c`, its early `5D5BC.c:HandleDamage` boundary, timer14
+helper in `6DF70.c` and parameter0 `7879C.c:EntityGuardText`, Blink43/51 and the
+zero/type0 `EntityNumberMovesToHpMeter`, at the same pinned AGPL-3.0-or-later
+revision. Text profiles/artwork, SDK lookup data and comparisons remain private.

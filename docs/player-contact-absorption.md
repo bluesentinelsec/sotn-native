@@ -43,7 +43,7 @@ owner retains its own evidence boundary.
 
 | Original response | Current native boundary | Remaining work |
 | --- | --- | --- |
-| 0, immunity | Element prepass suppresses HP loss | Original text/Blink43+51, zero number and helper timing |
+| 0, immunity | [Actual response0, text37/Blink43+51/zero number/protection12](player-contact-immunity.md) | Remaining immunity encounter/equipment/shared-contention breadth |
 | 1, high-defense guard | Ordinary minimum-one damage remains selected | Distinct guard outcome, palette/timers, voice and number |
 | 2, Talisman dodge | No live Talisman producer | Actual count/LCK/RNG selection, effects and recovery |
 | 3, hurt | [Queued contact owner](player-water-contact.md) delegates to selected physical/ailment helpers | Original kind promotion0/1→2/3/4, distinct kinds2/3/4/5/16..18, collision/recovery and all dependent effects |

@@ -228,9 +228,9 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
-           kind == 36 || kind == 45 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
-           kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
-           (kind >= 24 && kind <= 29);
+           kind == 36 || kind == 37 || kind == 45 || kind == 51 || kind == 52 || kind == 53 ||
+           kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
+           kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -247,6 +247,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04870000U;
     case 19:
         return 0x04810000U;
+    case 37:
+        return c->primitive_count ? 0x04830000U : 0x04030000U;
     case 35:
     case 51:
         return 0x08000000U;
@@ -340,13 +342,24 @@ bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *c, Uint16 inde
                                : !c->state.hellfire_effect.phase && !c->primitive_count);
     return true;
 }
+bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 37)
+        return true;
+    const SotnImmunityText *n = &c->state.immunity_text;
+    return c->generation && !c->parameter && !c->bat_generation && !c->group && !c->draw_count &&
+           !n->removed && n->phase <= 5 &&
+           (c->initialized
+                ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
+                : !n->phase && !c->primitive_count);
+}
 bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (c->kind != 19)
         return true;
     const SotnHealingNumber *n = &c->state.healing_number;
     return index >= 40 && index < 48 && c->generation && !c->group && !c->draw_count &&
-           !n->removed && n->number && n->extra_digits <= 3 &&
+           !n->removed && (n->zero_damage ? !n->number : n->number != 0) && n->extra_digits <= 3 &&
            (c->initialized ? n->phase && n->phase <= 11 && c->primitive_count == 20
                            : !n->phase && !c->primitive_count);
 }
@@ -388,6 +401,9 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.bat_generation = 0;
         c.state.sword.parent_generation = generation;
     }
+    if (c.kind == 37 && (child.parameter || generation))
+        return SDL_SetError(
+            "Immunity text requires actual parameter0 and no transformation parent");
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
             (SotnHellfireTrail){.x = child.source.x,
@@ -434,7 +450,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     return true;
 }
 static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFactorySource source,
-                          Uint16 amount)
+                          Uint16 amount, bool zero_damage)
 {
     const Uint64 occupied = SotnBatRuntime_Occupied(r) | other_occupied;
     for (Uint16 slot = 56; slot < 64; ++slot)
@@ -444,6 +460,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
                        0))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
+            r->children[slot - 16U].state.healing_number.zero_damage = zero_damage;
             break;
         }
     return true;
@@ -708,6 +725,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError(
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
+        if (!SotnBatRuntime_ImmunityTextValid(c))
+            return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
             return SDL_SetError("Healing number lost its actual child/lifetime/row ownership");
         if (!SotnBatRuntime_SwordChildValid(c, i))
@@ -736,6 +755,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                    (c->kind == 61 && c->primitive_count == 16) ||
                                    (c->kind == 63 && c->primitive_count == 9) ||
                                    (c->kind == 19 && c->primitive_count == 20) ||
+                                   (c->kind == 37 && c->primitive_count == 18) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -817,6 +837,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 51 &&
             !SotnRisingHeart_Rebase(&c->state.heart, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 37 &&
+            !SotnImmunityText_Rebase(&c->state.immunity_text, in.screen_shift_x, in.screen_shift_y))
             return false;
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
@@ -935,7 +958,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (in.freeze || !p.healing.applied_amount || p.healing.applied_amount > 9999)
             return SDL_SetError(
                 "Healing number requires this ordinary player's actual applied amount");
-        if (!RequestNumber(&r, in.other_occupied, p.healing.source, p.healing.applied_amount))
+        if (!RequestNumber(&r, in.other_occupied, p.healing.source, p.healing.applied_amount,
+                           false))
             return false;
     }
     if (p.healing.applied && p.healing.applied_kind == 1 && !Sound(&r, 0x68e))
@@ -944,6 +968,16 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
          (p.healing.applied_kind == 1 && !RequestSource(&r, p.healing.source, 0x44002c, 0))))
         return false;
+    if (p.immunity.applied)
+    {
+        if (in.freeze || !p.hp || p.hp > p.hp_max || p.absorption.applied)
+            return SDL_SetError("Contact immunity requires its actual living ordinary result");
+        if (!RequestSource(&r, p.immunity.source, 47, 0) ||
+            !RequestSource(&r, p.immunity.source, 0x43002c, 0) ||
+            !RequestSource(&r, p.immunity.source, 0x51002c, 0) ||
+            !RequestNumber(&r, in.other_occupied, p.immunity.source, 0, true))
+            return false;
+    }
     if (p.absorption.applied)
     {
         if (in.freeze || !p.hp || p.hp > p.hp_max || !p.absorption.amount ||
@@ -952,7 +986,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         // Original response5 is silent and emits both flashes even while stone/full HP.
         if (!RequestSource(&r, p.absorption.source, 0x44002c, 0) ||
             !RequestSource(&r, p.absorption.source, 0x48002c, 0) ||
-            !RequestNumber(&r, in.other_occupied, p.absorption.source, p.absorption.amount))
+            !RequestNumber(&r, in.other_occupied, p.absorption.source, p.absorption.amount, false))
             return false;
     }
     if (p.movement_effects.water_bubble &&
@@ -1121,6 +1155,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!SotnHealingNumber_Tick(&c->state.healing_number, in.executable, source, allocated))
                 return false;
             removed = c->state.healing_number.removed;
+            c->initialized = !removed;
+        }
+        else if (c->kind == 37)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (c->state.immunity_text.phase == 2 &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 18, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 18 : 0;
+            if (!SotnImmunityText_Tick(&c->state.immunity_text, in.dra, in.executable,
+                                       FixedShift(p.x, (Sint16)-in.camera_x),
+                                       FixedShift(p.y, (Sint16)-in.camera_y),
+                                       ((p.contacts | p.previous_contacts) & 1U) != 0, allocated))
+                return false;
+            removed = c->state.immunity_text.removed;
             c->initialized = !removed;
         }
         else if (c->kind == 51)

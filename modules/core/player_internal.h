@@ -42,12 +42,14 @@ struct SotnPlayer
     Uint16 hearts, hearts_max; /**< Borrowed resource snapshot, refreshed before player control. */
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
+    SotnPlayerImmunity immunity;
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;
     Uint16 defense_buff_minimum;
     Uint16 water_breath_timer;
     Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
+    Uint32 frame_contacts;
     Sint16 draw_pivot_x, draw_pivot_y;
     Uint32 status, frame_number, movement_flags;
     SotnPlayerAfterimage afterimage;

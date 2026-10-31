@@ -1058,3 +1058,10 @@ target_include_directories(sotn-sword-warp-tests PRIVATE "${PROJECT_SOURCE_DIR}/
 target_link_libraries(sotn-sword-warp-tests PRIVATE sotn-core)
 add_test(NAME player-sword-warp COMMAND sotn-sword-warp-tests)
 set_tests_properties(player-sword-warp PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-immunity-tests test_player_immunity.c)
+sotn_configure_c_target(sotn-player-immunity-tests)
+target_include_directories(sotn-player-immunity-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-immunity-tests PRIVATE sotn-core)
+add_test(NAME player-contact-immunity COMMAND sotn-player-immunity-tests)
+set_tests_properties(player-contact-immunity PROPERTIES TIMEOUT 20)

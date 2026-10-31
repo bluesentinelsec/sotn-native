@@ -21,6 +21,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_HELLFIRE_SPRITE, /**< Actual initialized projectile/trail child index0..47. */
     SOTN_DRAW_RISING_HEART,    /**< Actual child51 index0..47; no primitive lease. */
     SOTN_DRAW_SWORD,           /**< Actual weapon43 callback image/strike child index0..47. */
+    SOTN_DRAW_IMMUNITY_TEXT,   /**< Actual entity37 parameter0 child index0..47. */
     SOTN_DRAW_HEALING_NUMBER   /**< Actual child19 index times20 plus digit/tile index. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
