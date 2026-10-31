@@ -13,8 +13,8 @@ bool SotnPlayer_SetScriptContext(SotnPlayer *p, SotnDataView executable)
 
 bool SotnPlayer_SetSimulatedPad(SotnPlayer *p, SotnPlayerSimulatedPad input)
 {
-    if (!p || input.mode > 2 || input.remaining > SDL_MAX_SINT32 ||
-        (input.buttons & (Uint16)~0xf0feU) || (input.mode == 1 && !p->script_executable.bytes) ||
+    if (!p || input.mode > 2 || input.remaining > SDL_MAX_SINT32 || (input.buttons & ~0xf0feU) ||
+        (input.mode == 1 && !p->script_executable.bytes) ||
         ((input.remaining || input.mode) &&
          (!p->hp || SotnPlayerStep_IsDead(p->step) || p->step == SOTN_PLAYER_BOSS_GRAB ||
           p->grab.state != SOTN_GRAB_NONE)))
