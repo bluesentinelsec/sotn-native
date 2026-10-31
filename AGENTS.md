@@ -5,8 +5,9 @@ after ordinary absorption/immunity. Preserve weakness/resistance and US stone
 immunity order, minimum-one, fullHP/stone effects, existing ailment timers,
 pre-controller fractions and request commit after player success. Deferred healing
 still runs first and retains its independent number/sound; absorption gives no
-Blood Cloak/Fury work. Keep full unsigned-word/four-low-digit numbers, optional
-exhaustion, frozen/release/menu/map/draw holds and no-tick rebases. No new pool,
+Blood Cloak/Fury work. Keep full unsigned-word/four-low-digit numbers and optional
+exhaustion. Freeze holds HP/protection while flag10000 effects advance; release-only/
+menu/map/draws hold effects. Preserve no-tick rebases. No new pool,
 grants or savesv9 change. Equipment/HP/arrival/seed-position/protection/kind7 fixtures
 are not acquisition/route/console evidence. The linked source-backed damage
 inventory retains incomplete immunity/guard/Talisman/hurt/elemental death/stone
