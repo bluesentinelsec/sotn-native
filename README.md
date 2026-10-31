@@ -186,8 +186,9 @@ number producers and buff producers remain incomplete.
 Owned [absorption circlets](docs/player-contact-absorption.md) now use original
 immediate contact healing, silent flashes/numbers and protection; Cat-eye retains
 its separate kind7 conversion. Owned [Talisman](docs/player-contact-talisman.md) now
-uses original luck-based contact dodge, shared visuals and recovery. Full original
-damage reactions remain unfinished.
+uses original luck-based contact dodge, shared visuals and recovery. Owned
+[Ballroom Mask](docs/player-ballroom-mask.md) now applies its conditional reduction
+before defense and poison. Full original damage reactions remain unfinished.
 Owned [Blood Cloak](docs/player-blood-cloak.md) now refunds surviving selected contact
 damage as hearts and uses the original shared rising-heart child and pickup sound.
 

@@ -1,3 +1,15 @@
+Selected [Ballroom Mask](docs/player-ballroom-mask.md) now applies actual head28's
+conditional raw-contact reduction after weakness/resistance/US stone immunity/
+immunity/absorption and before defense/poison/new stone/guard/hurt selection.
+Preserve attack-minus-truncated-fifth on effectsF980, raw strongest/first-equal
+queue priority, actual one-head ownership, existing-stone/environment/water
+fractions, Talisman's later roll and reduced surviving Blood Cloak/Fury boundaries.
+No new RNG/effect/pool/grants/savev9 fields. Bind actual equipment before consuming
+queued contacts, including menu changes; preserve healing, rollback, freeze/
+release/menu/map/draw holds. Explicit arrival/item/position/protection fixtures are
+not acquisition/routes/console evidence. Remaining hurt/elemental/interrupt death/
+stone/gear/familiars/sharing and milestone1/Alucard remain incomplete at26/34 states.
+
 Selected [Talisman dodge](docs/player-contact-talisman.md) now owns response2:
 actual accessory83 count, derived LCK, one inclusive roll before guard/hurt and
 actual shared factory115/entity46 pair/Blink58. Preserve earlier immunity/absorb/

@@ -133,6 +133,10 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
         return true;
     }
+    // HandleDamage's head-slot check follows absorption/immunity and precedes
+    // defense, poison and reaction selection. There is one actual head slot.
+    if (p->head == 28 && (power.effects & 0xf980U))
+        power.attack = (Uint16)(power.attack - power.attack / 5U);
     const SotnPlayerStep previous = p->step;
     const Uint16 previous_hp = p->hp;
     const SotnPlayerFactorySource source = {

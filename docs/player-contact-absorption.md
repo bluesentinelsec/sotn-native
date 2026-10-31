@@ -53,9 +53,11 @@ owner retains its own evidence boundary.
 | 7/8, stone/new or existing | [Selected petrification](player-petrification.md) | Statue variants, children/fragments, full lethal branches and numbers |
 | 9, water pain | [Ordinary water contact](player-water-contact.md) | Remaining dependent effects/timing and broader original contexts |
 
-Ballroom Mask's conditional reduction and remaining special equipment also need
-actual owners. This batch does not replace the selected physical-damage adapter
-or implement the remaining ordinary hurt/death number producers. Full damage/ailments/death,
+[Selected Ballroom Mask](player-ballroom-mask.md) now applies its original
+conditional reduction after absorption and before defense/poison/stone/reaction
+selection. Remaining special equipment still needs actual owners. This batch does
+not replace the selected physical-damage adapter or implement the remaining
+ordinary hurt/death number producers. Full damage/ailments/death,
 equipment/familiars/sharing, Alucard, castle and console parity remain unfinished.
 
 ## Validation and evidence

@@ -36,6 +36,9 @@ DEF without granting stats or items in ordinary starts.
 Owned [Talisman](player-contact-talisman.md) now uses the actual accessory count,
 derived LCK and one libc roll for contact dodge, with shared visuals and original
 recovery. This establishes no acquisition or remaining injury parity.
+Owned [Ballroom Mask](player-ballroom-mask.md) now applies its original conditional
+contact reduction as well as its existing additive attributes. Its single actual
+head slot, pre-defense ordering and existing inventory/save ownership remain intact.
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,
