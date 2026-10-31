@@ -17,8 +17,8 @@ static void Put16(Uint8 *p, Uint16 value)
 }
 static bool Motion(SotnDataView exe)
 {
-    const Uint16 amounts[] = {1, 8, 10, 100, 1000, 9999};
-    const Uint8 counts[] = {0, 0, 1, 2, 3, 3};
+    const Uint16 amounts[] = {1, 8, 10, 100, 1000, 9999, 10000, 32767, 32768, 39996, 65535};
+    const Uint8 counts[] = {0, 0, 1, 2, 3, 3, 3, 3, 3, 3, 3};
     for (Uint16 i = 0; i < SDL_arraysize(amounts); ++i)
     {
         SotnHealingNumber n = {.number = amounts[i]};
@@ -65,7 +65,7 @@ static bool Motion(SotnDataView exe)
     SotnHealingNumber n = {.number = 8};
     CHECK(SotnHealingNumber_Tick(&n, (SotnDataView){0}, (SotnPlayerFactorySource){0}, false) &&
           n.removed && !n.phase);
-    n = (SotnHealingNumber){.number = 10000};
+    n = (SotnHealingNumber){0};
     CHECK(!SotnHealingNumber_Tick(&n, exe, (SotnPlayerFactorySource){0}, true) && !n.phase);
     n = (SotnHealingNumber){.number = 16};
     CHECK(SotnHealingNumber_Tick(

@@ -24,8 +24,8 @@ static Sint32 Shift(Sint32 value, Uint16 bits)
 bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView exe,
                             SotnPlayerFactorySource source, bool allocated)
 {
-    if (!number || number->removed || !number->number || number->number > 9999 ||
-        number->phase > 11 || number->extra_digits > 3 ||
+    if (!number || number->removed || !number->number || number->phase > 11 ||
+        number->extra_digits > 3 ||
         (number->phase && (!allocated || number->half_width < 0 || number->half_width > 8 ||
                            number->half_height < 1 || number->half_height > 10 ||
                            number->timer < -11 || number->timer > 24)))

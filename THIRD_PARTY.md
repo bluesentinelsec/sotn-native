@@ -343,6 +343,10 @@ cache and Gouraud presentation do not establish console pixel parity.
 reference. Native deferred healing integrates its direct `CreateHPNumMove`
 slot allocation and actual twenty-row leases. Private SDK tables and digit
 artwork remain runtime data; other number types and producers remain unintegrated.
+Selected contact absorption in `player_contact.c` and its shared runtime requests
+adapt early `dra/5D5BC.c:HandleDamage`, `dra/692E8.c` response5 and the timer14
+branch of `dra/6DF70.c:func_8010E168` under that pinned AGPL-3.0-or-later reference.
+Circlet attributes, number artwork and comparison inputs remain private.
 `modules/core/game_sqrt.c` adapts `SquareRoot12_impl` and its whole-root scaling from PSY-Z
 `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
 `psyz/src/psyz/libgte_sw_sqrt.c`, under MPL-2.0; the

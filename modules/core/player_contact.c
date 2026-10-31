@@ -109,9 +109,18 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                                    .absorbs = attributes.absorption},
                                  &power))
         return false;
-    if (power.absorb)
+    if (!power.immune && (power.absorb || (p->head == 43 && (water.hit_params & 31U) == 7)))
     {
-        p->hp = (Uint16)SDL_min(p->hp_max, (Uint32)p->hp + power.attack);
+        // Elemental absorption wins before Cat-eye; its minimum-one prepass must not double.
+        const Uint16 amount = power.absorb ? power.attack : (Uint16)SDL_max(1, power.attack * 2U);
+        p->hp = (Uint16)SDL_min(p->hp_max, (Uint32)p->hp + amount);
+        p->absorption = (SotnPlayerAbsorption){.source = {.x = p->x.value,
+                                                          .y = p->y.value,
+                                                          .priority = 148,
+                                                          .facing_left = p->facing_left},
+                                               .amount = amount,
+                                               .applied = true};
+        p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
         return true;
     }
     if (power.immune)

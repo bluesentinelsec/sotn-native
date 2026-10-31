@@ -1030,3 +1030,10 @@ target_include_directories(sotn-healing-number-tests PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(sotn-healing-number-tests PRIVATE sotn-core)
 add_test(NAME healing-number-ownership COMMAND sotn-healing-number-tests)
 set_tests_properties(healing-number-ownership PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-absorption-tests test_player_absorption.c)
+sotn_configure_c_target(sotn-player-absorption-tests)
+target_include_directories(sotn-player-absorption-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-absorption-tests PRIVATE sotn-core)
+add_test(NAME player-contact-absorption COMMAND sotn-player-absorption-tests)
+set_tests_properties(player-contact-absorption PROPERTIES TIMEOUT 20)
