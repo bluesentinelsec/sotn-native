@@ -11,6 +11,7 @@
 #include <sotn/game_over.h>
 #include <sotn/hellfire_graphics.h>
 #include <sotn/hud.h>
+#include <sotn/hud_resources.h>
 #include <sotn/inventory.h>
 #include <sotn/laboratory.h>
 #include <sotn/launch_renderer.h>
@@ -63,6 +64,7 @@ struct SotnLaboratory
     SotnDeathImage death_image;
     Uint32 death_image_generation;
     SotnStatBuffs stat_buffs;
+    SotnHudResources hud_resources;
     SotnSceneFreeze spell_freeze;
     bool spell_pause_pending;
     SotnWolfDrawPacket wolf_packets[SOTN_WOLF_FRAME_PACKETS];
@@ -561,9 +563,58 @@ static bool SyncStatBuffs(SotnLaboratory *s)
 }
 static bool BindStatBuffs(SotnLaboratory *s)
 {
+    SotnCharacterState progress = {0};
     SotnCharacterStats attributes = {0};
-    return SyncStatBuffs(s) && SotnCharacter_Get(s->character, NULL, &attributes) &&
+    SotnPlayerState player = {0};
+    return SyncStatBuffs(s) && SotnCharacter_Get(s->character, &progress, &attributes) &&
+           SotnPlayer_GetState(s->player, &player) &&
+           (SotnPlayerStep_IsDead(player.step) ||
+            SotnPlayer_SetCharacter(s->player, &progress, attributes)) &&
            SotnPlayer_SetStatBuffContext(s->player, &s->stat_buffs, attributes);
+}
+static bool TickHudResources(SotnLaboratory *s)
+{
+    SotnPlayerState player = {0};
+    SotnCharacterState progress = {0};
+    SotnHudResources next = s->hud_resources;
+    SotnHudResourcesEvents events = {0};
+    if (!SotnPlayer_GetState(s->player, &player) ||
+        !SotnCharacter_Get(s->character, &progress, NULL) ||
+        !SotnHudResources_Tick(
+            &next,
+            (SotnHudResourcesInput){.game_timer = s->game_timer,
+                                    .player_status = player.status,
+                                    .mp = progress.mp,
+                                    .mp_max = progress.mp_max,
+                                    .healing_mail = progress.equipment[SOTN_EQUIP_ARMOR] == 17,
+                                    .mystic_pendant =
+                                        progress.equipment[5] == 76 || progress.equipment[6] == 76},
+            &events))
+        return false;
+    if (events.mp != progress.mp)
+    {
+        progress.mp = events.mp;
+        if (!SotnCharacter_Restore(s->character, &progress))
+            return false;
+    }
+    if (events.heal && !SotnPlayer_QueueMailHealing(s->player))
+        return false;
+    s->hud_resources = next;
+    return true;
+}
+static bool TickHudFrame(SotnLaboratory *s)
+{
+    SotnPlayerState player = {0};
+    SotnCharacterState progress = {0};
+    if (!TickHudResources(s) || !SotnPlayer_GetState(s->player, &player) ||
+        !SotnCharacter_Get(s->character, &progress, NULL) ||
+        !SotnHud_Tick(s->hud,
+                      (SotnHudStatus){player.hp, player.hp_max, progress.mp, progress.mp_max,
+                                      progress.hearts, progress.subweapon}) ||
+        !SotnStatBuffs_Tick(&s->stat_buffs))
+        return false;
+    s->mp = progress.mp;
+    return true;
 }
 static bool RestoreStatBuffs(SotnLaboratory *s, const SotnStatBuffs *retained)
 {
@@ -724,7 +775,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                   .wolf_context = s,
                                   .primitive_slots = primitive_slots,
                                   .freeze = s->spell_freeze.request,
-                                  .game_timer = (Uint32)s->simulation_ticks,
+                                  .game_timer = s->game_timer,
                                   .hellfire_up = (player.buttons & SOTN_BUTTON_UP) != 0,
                                   .spirit_targets = &targets,
                                   .force_echo_enabled =
@@ -876,7 +927,7 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
                                      .y = (Sint16)y,
                                      .vx = player.velocity_x,
                                      .vy = player.velocity_y,
-                                     .game_timer = (Uint32)s->simulation_ticks,
+                                     .game_timer = s->game_timer,
                                      .priority = player.priority,
                                      .alternate_sheet = player.animation_bank == 15,
                                      .facing_left = player.facing_left};
@@ -1615,7 +1666,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
         // Mist/Gas and the selected subweapons have no initialized flag10000 update.
         // Their controllers and pending contacts remain held, not reset or consumed.
     }
-    if (!SotnStatBuffs_Tick(&s->stat_buffs) || !TickAudio(s, &combat, 0, 0))
+    if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0))
         return false;
     s->dirty = s->targets_pending = true;
     return true;
@@ -1751,7 +1802,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnSubweapons_SetPaused(session->subweapons, control.block_stopwatch) ||
         !SotnPlayer_SetMistContext(
             session->player, session->mist_present ? &session->mist_effect : NULL,
-            session->mist_generation, (Uint32)session->simulation_ticks, water.waist != 0) ||
+            session->mist_generation, session->game_timer, water.waist != 0) ||
         !SotnPlayer_SetBatRuntimeContext(session->player, bat_effect, bat_factory,
                                          bat_effect || bat_factory ? state.bat.generation : 0,
                                          SotnBatRuntime_Available(&session->bat_runtime)) ||
@@ -1808,22 +1859,12 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->dirty = true;
         return true;
     }
-    if (!TickActors(session) || !TickCape(session) ||
-        (!(state.status & 0x20000000U) &&
-         !SotnCharacter_TickResources(session->character, session->simulation_ticks)) ||
-        !TickSaveRoom(session, buttons) || !EnterSpellFreeze(session))
+    if (!TickActors(session) || !TickCape(session) || !TickSaveRoom(session, buttons) ||
+        !EnterSpellFreeze(session))
         return false;
     SotnActorCombat combat = {0};
-    SotnCharacterState progress = {0};
-    if (!SotnCharacter_Get(session->character, &progress, NULL))
-        return false;
-    session->mp = progress.mp;
     if (!SotnPlayer_GetState(session->player, &state) ||
-        !SotnActors_GetCombat(session->actors, &combat) ||
-        !SotnHud_Tick(session->hud,
-                      (SotnHudStatus){state.hp, state.hp_max, session->mp, progress.mp_max,
-                                      combat.hearts, combat.subweapon}) ||
-        !SotnStatBuffs_Tick(&session->stat_buffs) ||
+        !SotnActors_GetCombat(session->actors, &combat) || !TickHudFrame(session) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound))
         return false;
     if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))

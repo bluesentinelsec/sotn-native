@@ -135,9 +135,10 @@ bool SotnCharacter_NextLevel(const SotnCharacter *character, Uint32 *remaining);
  * @return Success or false with SDL_GetError(); caps and full-heal behavior follow the selected
  * original path. */
 bool SotnCharacter_CollectVessel(SotnCharacter *character, bool life);
-/** @brief Advance selected original MP regeneration at a gameplay tick, never a render call.
- * @param character Borrowed living progress. @param ticks Gameplay clock.
- * @return Success or false with SDL_GetError(); pause/menu callers do not invoke this function. */
+/** @brief Advance selected MP regeneration for a caller with an already-approved status gate.
+ * @param character Borrowed progress; HP does not gate MP. @param ticks Actual gameplay clock.
+ * @return Success or SDL error. The native HUD uses SotnHudResources_Tick with actual status
+ * instead; this compatibility helper owns no walking-heal counter or player-status gate. */
 bool SotnCharacter_TickResources(SotnCharacter *character, Uint64 ticks);
 /** @brief Spend an already-approved ability cost from ordinary character MP.
  * @param character Borrowed owner. @param amount MP cost, 0..9999.

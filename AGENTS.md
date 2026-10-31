@@ -1,3 +1,15 @@
+Selected [HUD resources/Healing Mail](docs/hud-healing-resources.md) now owns actual
+walking128/counter reset, kind2 deferred healing and actual gameplay-clock MP.
+Preserve status-based walking, Mail overwrite versus blood first-pending priority,
+silent Blink48 versus kind1 sound/Blink48+44, frozen/dead pending holds and no
+revival. HUD runs ordinary/frozen/release, holds menu/map/draw/GameOver; Mail resets
+on full stage/Continue, unlike retained global buffs. MP has no HP gate, two
+Pendants still add one, and fresh actual MP binds before next player control.
+Do not substitute saved playtime or a cooldown for actual gameplay phases/status.
+Floating HP numbers and other equipment remain incomplete; no fake effects/pool.
+Explicit grants/health/protection/clock/pose/arrival fixtures are not acquisition,
+route or console evidence. Savesv9/default grants/Alucard incompleteness unchanged.
+
 Selected [stat buffs/Fury Plate](docs/stat-buff-ownership.md) now owns actual
 sixteen-word DRA counters, derived stat masks, pre-damage attributes and surviving
 Fury refreshes. Preserve all16 HUD decrements (including the switch default),

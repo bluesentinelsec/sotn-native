@@ -1010,3 +1010,10 @@ target_include_directories(sotn-stat-buff-tests PRIVATE "${PROJECT_SOURCE_DIR}/m
 target_link_libraries(sotn-stat-buff-tests PRIVATE sotn-core)
 add_test(NAME stat-buff-ownership COMMAND sotn-stat-buff-tests)
 set_tests_properties(stat-buff-ownership PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-hud-resource-tests test_hud_resources.c)
+sotn_configure_c_target(sotn-hud-resource-tests)
+target_include_directories(sotn-hud-resource-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-hud-resource-tests PRIVATE sotn-core)
+add_test(NAME hud-resource-ownership COMMAND sotn-hud-resource-tests)
+set_tests_properties(hud-resource-ownership PROPERTIES TIMEOUT 20)

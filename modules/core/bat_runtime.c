@@ -806,10 +806,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                            !RequestSource(&r, p.soul.source, 112, 0))))
         return false;
     r.wolf_events = (SotnWolfRuntimeEvents){0};
-    if (p.healing.applied && !Sound(&r, 0x68e))
+    if (p.healing.applied && p.healing.applied_kind != 1 && p.healing.applied_kind != 2)
+        return SDL_SetError("Shared healing effects require their actual original applied kind");
+    if (p.healing.applied && p.healing.applied_kind == 1 && !Sound(&r, 0x68e))
         return false;
-    if (p.healing.effects && (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
-                              !RequestSource(&r, p.healing.source, 0x44002c, 0)))
+    if (p.healing.effects &&
+        (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
+         (p.healing.applied_kind == 1 && !RequestSource(&r, p.healing.source, 0x44002c, 0))))
         return false;
     if (p.movement_effects.water_bubble &&
         !RequestSource(&r, p.movement_effects.bubble_source, 0xd0004U, 0))

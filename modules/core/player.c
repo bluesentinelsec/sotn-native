@@ -1480,9 +1480,14 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (alive && next.dark.ticks)
         --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
+    next.healing.applied_kind = 0;
     if (next.healing.pending && !SotnPlayerStep_IsDead(next.step))
     {
+        if (next.healing.pending_kind != 1 && next.healing.pending_kind != 2)
+            return SDL_SetError("Deferred healing lost its actual original kind");
         next.hp = (Uint16)SDL_min(next.hp_max, (Uint32)next.hp + next.healing.pending);
+        next.healing.applied_kind = next.healing.pending_kind;
+        next.healing.pending_kind = 0;
         next.healing.pending = 0;
         next.healing.applied = true;
         next.healing.effects = next.step != SOTN_PLAYER_STONE;
@@ -2476,8 +2481,20 @@ bool SotnPlayer_QueueBloodHealing(SotnPlayer *p, Uint16 amount, Uint16 contacts)
     if (!p || (amount != 0 && amount != 8 && amount != 16) || !contacts || contacts > 32)
         return SDL_SetError("Blood healing requires an actual original amount and contact count");
     if (!p->healing.pending)
+    {
         p->healing.pending = amount;
+        if (amount)
+            p->healing.pending_kind = 1;
+    }
     p->healing.contacts += contacts;
+    return true;
+}
+bool SotnPlayer_QueueMailHealing(SotnPlayer *p)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    p->healing.pending = 1;
+    p->healing.pending_kind = 2;
     return true;
 }
 
@@ -2504,6 +2521,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.healing.applied = next.healing.effects = false;
+    next.healing.applied_kind = 0;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};

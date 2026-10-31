@@ -228,6 +228,7 @@ typedef struct SotnPlayerHealing
     SotnPlayerFactorySource source;
     Uint32 contacts;
     Uint16 pending;
+    Uint8 pending_kind, applied_kind; /**< Original heal kinds1 (blood/orbs) and2 (HUD mail). */
     bool applied, effects;
 } SotnPlayerHealing;
 
@@ -659,6 +660,12 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * the original contact counter still advances with unsigned word wrap. This changes no HP,
  * grants no ability and writes no save; successful player ticks consume the request once. */
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
+/** @brief Commit the actual Healing Mail HUD request after stage updates.
+ * @param player Actual owner. @return Success or SDL error on a missing owner. Original HUD
+ * kind2/amount1 overwrites earlier pending healing; it is not a blood/contact event. The next
+ * successful living player update applies it once. Dead/frozen players retain it without
+ * revival or a simulated tick. Actual equipment/counter qualification stays with the HUD. */
+bool SotnPlayer_QueueMailHealing(SotnPlayer *player);
 
 /** @brief Actual shared factory reservation, called once at the original player boundary.
  * false availability is real exhaustion; success never implies child readiness. */
