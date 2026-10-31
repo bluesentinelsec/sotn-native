@@ -338,7 +338,12 @@ BO4 bat/mist body controls and white-blink geometry adapt `bo4/unk_465F0.c`,
 `dra/4B758.c:func_800EB758` logic under the pinned AGPL-3.0-or-later reference.
 Runtime profiles, sprite offsets and artwork remain private. Bounded native display
 cache and Gouraud presentation do not establish console pixel parity.
-`modules/core/game_sqrt.c` adapts `SquareRoot12_impl` from PSY-Z
+`modules/core/healing_number.c` adapts the selected type1 path of
+`dra/7879C.c:EntityNumberMovesToHpMeter` under the same pinned AGPL-3.0-or-later
+reference. Native deferred healing integrates its direct `CreateHPNumMove`
+slot allocation and actual twenty-row leases. Private SDK tables and digit
+artwork remain runtime data; other number types and producers remain unintegrated.
+`modules/core/game_sqrt.c` adapts `SquareRoot12_impl` and its whole-root scaling from PSY-Z
 `b52003e55c0d1b20719e984dd19bd4d760eeb14a`,
 `psyz/src/psyz/libgte_sw_sqrt.c`, under MPL-2.0; the
 [full notice](licenses/MPL-2.0.txt) ships with releases. Its lookup remains private.

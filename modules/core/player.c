@@ -1482,12 +1482,14 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
+    next.healing.applied_amount = 0;
     if (next.healing.pending && !SotnPlayerStep_IsDead(next.step))
     {
         if (next.healing.pending_kind != 1 && next.healing.pending_kind != 2)
             return SDL_SetError("Deferred healing lost its actual original kind");
         next.hp = (Uint16)SDL_min(next.hp_max, (Uint32)next.hp + next.healing.pending);
         next.healing.applied_kind = next.healing.pending_kind;
+        next.healing.applied_amount = next.healing.pending;
         next.healing.pending_kind = 0;
         next.healing.pending = 0;
         next.healing.applied = true;
@@ -1905,7 +1907,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         return SDL_SetError("Room rebase exceeds the captured Dark spell source");
     const Sint64 heal_x = (Sint64)player->healing.source.x + (Sint64)offset_x * FIX_ONE,
                  heal_y = (Sint64)player->healing.source.y + (Sint64)offset_y * FIX_ONE;
-    if (player->healing.effects && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
+    if (player->healing.applied && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
                                     heal_y < SDL_MIN_SINT32 || heal_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured blood-healing source");
     const Sint64 heart_x = (Sint64)player->heart_gain.source.x + (Sint64)offset_x * FIX_ONE,
@@ -1953,7 +1955,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         player->dark.source.x = (Sint32)dark_x;
         player->dark.source.y = (Sint32)dark_y;
     }
-    if (player->healing.effects)
+    if (player->healing.applied)
     {
         player->healing.source.x = (Sint32)heal_x;
         player->healing.source.y = (Sint32)heal_y;
@@ -2539,6 +2541,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.heart_gain = (SotnPlayerHeartGain){0};
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
+    next.healing.applied_amount = 0;
     next.gravity.ceiling_impact = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};

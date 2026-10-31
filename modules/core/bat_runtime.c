@@ -202,9 +202,9 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 }
 static bool ChildKind(Uint16 kind)
 {
-    return kind == 2 || kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 36 ||
-           kind == 45 || kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
-           (kind >= 24 && kind <= 29);
+    return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
+           kind == 36 || kind == 45 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
+           kind == 63 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -219,6 +219,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
     case 11:
     case 31:
         return 0x04870000U;
+    case 19:
+        return 0x04810000U;
     case 35:
     case 51:
         return 0x08000000U;
@@ -305,6 +307,16 @@ bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *c, Uint16 inde
                (c->initialized ? c->state.hellfire_effect.phase == 1 && c->primitive_count == 1
                                : !c->state.hellfire_effect.phase && !c->primitive_count);
     return true;
+}
+bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (c->kind != 19)
+        return true;
+    const SotnHealingNumber *n = &c->state.healing_number;
+    return index >= 40 && index < 48 && c->generation && !c->group && !c->draw_count &&
+           !n->removed && n->number && n->number <= 9999 && n->extra_digits <= 3 &&
+           (c->initialized ? n->phase && n->phase <= 11 && c->primitive_count == 20
+                           : !n->phase && !c->primitive_count);
 }
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
@@ -616,6 +628,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError(
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
+        if (!SotnBatRuntime_HealingNumberValid(c, i))
+            return SDL_SetError("Healing number lost its actual child/lifetime/row ownership");
         if (c->kind == 51 &&
             (c->primitive_count || c->draw_count || c->state.heart.removed ||
              c->initialized != c->state.heart.initialized ||
@@ -631,7 +645,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              (c->initialized ? !c->state.outline.phase || c->state.outline.phase > 3
                              : c->state.outline.phase != 0)))
             return SDL_SetError("Player outline lost its actual child/profile lifecycle");
-        if (c->primitive_count > SOTN_PLAYER_PARTICLE_LIMIT + 1 ||
+        if (c->primitive_count > SDL_arraysize(c->primitives) ||
             (c->primitive_count &&
              (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
                                    ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
@@ -639,6 +653,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                     c->primitive_count == 1) ||
                                    (c->kind == 61 && c->primitive_count == 16) ||
                                    (c->kind == 63 && c->primitive_count == 9) ||
+                                   (c->kind == 19 && c->primitive_count == 20) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -715,6 +730,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 51 &&
             !SotnRisingHeart_Rebase(&c->state.heart, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
+                                                       in.screen_shift_y))
             return false;
         if (c->kind == 5 &&
             !SotnPlayerParticles_Rebase(&c->state.particles, in.screen_shift_x, in.screen_shift_y))
@@ -825,6 +843,24 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wolf_events = (SotnWolfRuntimeEvents){0};
     if (p.healing.applied && p.healing.applied_kind != 1 && p.healing.applied_kind != 2)
         return SDL_SetError("Shared healing effects require their actual original applied kind");
+    if (p.healing.applied)
+    {
+        if (in.freeze || !p.healing.applied_amount || p.healing.applied_amount > 9999)
+            return SDL_SetError(
+                "Healing number requires this ordinary player's actual applied amount");
+        const Uint64 occupied = SotnBatRuntime_Occupied(&r) | in.other_occupied;
+        for (Uint16 slot = 56; slot < 64; ++slot)
+            if (!(occupied & ((Uint64)1 << slot)))
+            {
+                if (!Spawn(&r,
+                           (SotnPlayerFactoryChild){
+                               .slot = slot, .entity_id = 19, .source = p.healing.source},
+                           0))
+                    return false;
+                r.children[slot - 16U].state.healing_number.number = p.healing.applied_amount;
+                break;
+            }
+    }
     if (p.healing.applied && p.healing.applied_kind == 1 && !Sound(&r, 0x68e))
         return false;
     if (p.healing.effects &&
@@ -953,7 +989,22 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->kind == 51)
+        if (c->kind == 19)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 20, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 20 : 0;
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, (Sint16)-in.camera_x);
+            source.y = FixedShift(source.y, (Sint16)-in.camera_y);
+            if (!SotnHealingNumber_Tick(&c->state.healing_number, in.executable, source, allocated))
+                return false;
+            removed = c->state.healing_number.removed;
+            c->initialized = !removed;
+        }
+        else if (c->kind == 51)
         {
             SotnPlayerFactorySource source = c->source;
             source.x = FixedShift(source.x, (Sint16)-in.camera_x);

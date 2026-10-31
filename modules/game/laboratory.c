@@ -102,7 +102,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1348];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1508];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -2380,6 +2380,26 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 19 && child->initialized)
+            {
+                if (owner < 40 || !child->generation || child->primitive_count != 20 ||
+                    !child->state.healing_number.phase || child->state.healing_number.removed)
+                    return SDL_SetError("Healing number draw lost its actual child and rows");
+                for (Uint16 row = 20; row > 0; --row)
+                {
+                    const Uint16 id = row - 1;
+                    const SotnHealingNumber *n = &child->state.healing_number;
+                    const bool hidden =
+                        id < 4 ? (n->digits[id].draw_mode & 8U) != 0 : n->tiles[id - 4U].hidden;
+                    if (!hidden &&
+                        !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                            &draw_count,
+                                            (SotnActorDraw){.priority = 0x1b8,
+                                                            .primitive = (Uint16)(owner * 20U + id),
+                                                            .kind = SOTN_DRAW_HEALING_NUMBER}))
+                        return false;
+                }
+            }
             if (child->kind == 51 && child->initialized &&
                 !(child->state.heart.blink && (((owner + 16U) ^ session->system_timer) & 1U)) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -2622,6 +2642,40 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    : DrawPlayerEffectQuad(session, q);
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_HEALING_NUMBER)
+        {
+            const Uint16 owner = command.primitive / 20U, row = command.primitive % 20U;
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 19 || !child->initialized || !child->generation ||
+                child->primitive_count != 20 || child->state.healing_number.removed)
+                return SDL_SetError("Healing number packet lost its actual child/row owner");
+            const SotnHealingNumber *n = &child->state.healing_number;
+            if (row < 4)
+            {
+                if (!DrawPlayerEffectQuad(session, &n->digits[row]))
+                    return false;
+            }
+            else
+            {
+                const Sint32 x = n->tiles[row - 4U].x + session->draw_target.offset_x +
+                                 session->shake.x,
+                             y = n->tiles[row - 4U].y + session->draw_target.offset_y +
+                                 session->shake.y;
+                const SotnTextureQuad q = {.x = {x, x + 1, x, x + 1},
+                                           .y = {y, y, y + 1, y + 1},
+                                           .untextured = true,
+                                           .red = 64,
+                                           .green = 255,
+                                           .blue = 64};
+                if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                                   session->draw_target.surface))
+                    return false;
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
                 return false;
             continue;
         }

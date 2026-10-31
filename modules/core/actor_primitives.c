@@ -97,8 +97,8 @@ static bool EchoValid(const SotnBatEcho *echo)
 }
 static bool BatPrimitiveKind(Uint16 kind)
 {
-    return kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 52 || kind == 61 ||
-           kind == 63 || kind == 25 || kind == 28 || kind == 29;
+    return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 52 ||
+           kind == 61 || kind == 63 || kind == 25 || kind == 28 || kind == 29;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -184,6 +184,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         const SotnBatRuntimeChild *c = &r->children[i];
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError("Hellfire primitive commit lost its actual child lifecycle");
+        if (!SotnBatRuntime_HealingNumberValid(c, i))
+            return SDL_SetError("Healing number commit lost its actual child/lifetime/rows");
         if ((c->kind == 61 &&
              (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
               c->state.spirit.motion.removed ||
@@ -217,6 +219,7 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
                                        c->kind == 31 || c->kind == 35) &&
                                       c->primitive_count == 1) ||
                                      (c->kind == 61 && c->primitive_count == 16) ||
+                                     (c->kind == 19 && c->primitive_count == 20) ||
                                      (c->kind == 63 && c->primitive_count == 9))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&

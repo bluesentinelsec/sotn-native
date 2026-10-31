@@ -1,3 +1,14 @@
+Selected [deferred healing numbers](docs/player-healing-numbers.md) now own direct
+entity19/first-free slots56..63, twenty real shared rows, private digit GT4s and
+sixteen trail tiles for both healing kinds. Preserve uncapped requested amounts,
+full-HP/stone numbers, pre-controller fractions, twelve phases/birth+108 updates,
+private SDK math, signed wrap, descending trail births and optional exhaustion.
+Initialized numbers advance on frozen effect frames; release-only/menu/map/draws
+hold. Preserve no-tick rebases, offscreen keep-alive and actual row retirement.
+No second pool, grants or savesv9 change. Explicit equipment/HP/MP/protection/pose
+fixtures are not acquisition/route/console evidence. Other number producers and
+damage/equipment/familiars/sharing/Alucard/castle parity remain incomplete.
+
 Selected [Blood Cloak](docs/player-blood-cloak.md) now owns surviving selected queued
 contact refunds, actual shared factory99/child51, private sprite rendering and pickup
 sound. Preserve pre-add full-heart suppression, zero-loss stone AddHearts(0), lethal/
@@ -20,7 +31,7 @@ revival. HUD runs ordinary/frozen/release, holds menu/map/draw/GameOver; Mail re
 on full stage/Continue, unlike retained global buffs. MP has no HP gate, two
 Pendants still add one, and fresh actual MP binds before next player control.
 Do not substitute saved playtime or a cooldown for actual gameplay phases/status.
-Floating HP numbers and other equipment remain incomplete; no fake effects/pool.
+Other equipment and remaining number producers stay incomplete; no fake effects/pool.
 Explicit grants/health/protection/clock/pose/arrival fixtures are not acquisition,
 route or console evidence. Savesv9/default grants/Alucard incompleteness unchanged.
 

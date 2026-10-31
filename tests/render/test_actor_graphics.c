@@ -992,6 +992,15 @@ static bool TestActorOrder(void)
             count == 1);
     }
     count = 0;
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 800}));
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 959}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 799}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 960}));
+    count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));
     CHECK(!SotnActorOrder_Add(NULL, 4, &count, (SotnActorDraw){0}));
