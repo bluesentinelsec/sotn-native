@@ -726,6 +726,7 @@ static void CollideStep(SotnPlayer *player)
 void SotnPlayer_Collide(SotnPlayer *p)
 {
     if (p->vx > -2 * 65536 && p->vx < 2 * 65536 && p->step != SOTN_PLAYER_HIGH_JUMP &&
+        p->step != SOTN_PLAYER_BAT && p->step != SOTN_PLAYER_UNMORPH_BAT &&
         p->step != SOTN_PLAYER_WOLF && p->step != SOTN_PLAYER_UNMORPH_WOLF)
     {
         CollideStep(p);

@@ -37,7 +37,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   against the native dispatch. Implement uncovered branches and verify transitions
   among normal movement, attacks, forms, scripts, grabs and death. Relevant starting
   points: [movement](laboratory-movement.md), [forms](player-wolf-cross-forms.md),
-  [status](player-status.md), [boss grabs](player-boss-grab.md).
+  [status](player-status.md), [boss grabs](player-boss-grab.md). The
+  [control inventory](player-control-audit.md) lists all 34 original dispatch states,
+  normal substates and cross-workstream dependencies.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. Verify contact/healing priority and failure

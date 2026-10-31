@@ -123,6 +123,7 @@ struct SotnPlayer
     SotnPlayerGrab grab;
     Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
     bool curse_failure, script_hold, bell_inside;
+    bool simulated_input; /**< US first physical frame rebases taps after simulated controls. */
     SotnCharacterStats attributes;
     Uint32 damage_random;
     Uint8 timers[8], tight_space;

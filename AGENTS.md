@@ -24,6 +24,17 @@ No second pool, grants or savesv9 change. Explicit equipment/HP/MP/protection/po
 fixtures are not acquisition/route/console evidence. Other number producers and
 damage/equipment/familiars/sharing/Alucard/castle parity remain incomplete.
 
+Selected [normal control corrections](docs/player-control-audit.md) preserve original
+timer6 ledge expiry, heavy-Jump versus attack landing, fast landing momentum,
+ordered standing/crouch hand cancels, Basilard holds, prior-child shield state,
+Jump's early return and low-speed Bat/return eight-pass collision. Preserve the US
+first-physical-frame tap rebase after selected simulated input, failure rollback,
+no-tick room rebases and menu/map/draw holds. Held shield startup is not a subweapon
+tap. The source-backed inventory has 34 original handled states versus 24 native
+dispatches; all remaining equipment/familiar/script/damage/death dependencies must
+close before milestone 1 is complete. Explicit equipment/pose/protection fixtures
+are not acquisition/route/console evidence. No default grants or savesv9 changes.
+
 Selected [Blood Cloak](docs/player-blood-cloak.md) now owns surviving selected queued
 contact refunds, actual shared factory99/child51, private sprite rendering and pickup
 sound. Preserve pre-add full-heart suppression, zero-loss stone AddHearts(0), lethal/

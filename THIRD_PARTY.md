@@ -102,6 +102,11 @@
   `modules/core/player_sensors.c` adapts `6BF64.c`, `70394.c`, and the
   normal-form collision path in `692E8.c`. See
   [movement integration](docs/laboratory-movement.md) for scope and validation.
+  The [control inventory and selected recovery corrections](docs/player-control-audit.md)
+  follow the same original standing/crouch/jump and landing routines, timer6/US
+  simulated-input release in `692E8.c`, and Bat's outer eight-pass collision
+  boundary. Runtime animation/weapon/shield tables remain private; these changes
+  do not implement all original player states.
   The selected [Leap Stone double jump](docs/player-leap-stone.md) follows
   `6E42C.c:func_8010E940`, `6FDF8.c:func_8010FDF8`, and the Jump/Fall paths
   in `71830.c`; its animation bytes remain private runtime data.
