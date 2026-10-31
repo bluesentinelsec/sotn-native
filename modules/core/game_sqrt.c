@@ -32,3 +32,11 @@ bool SotnMath_Sqrt12(SotnDataView image, Uint32 value, Uint32 *out)
     *out = (Uint32)(((Uint64)coefficient << shift) >> 6);
     return true;
 }
+bool SotnMath_Sqrt0(SotnDataView image, Uint32 value, Uint32 *out)
+{
+    Uint32 root = 0;
+    if (!out || !SotnMath_Sqrt12(image, value, &root))
+        return SDL_SetError("SDK whole root requires an output and valid private normalization");
+    *out = root >> 6;
+    return true;
+}

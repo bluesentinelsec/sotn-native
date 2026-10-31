@@ -128,13 +128,13 @@ static bool Healing(void)
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && p->hp == 40 && p->healing.pending == 1 &&
           p->healing.pending_kind == 2 && !p->healing.applied_kind);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 41 && !p->healing.pending && !p->healing.pending_kind &&
-          p->healing.applied && p->healing.applied_kind == 2 && p->healing.effects &&
-          p->healing.source.x == 100 * 65536);
+          p->healing.applied && p->healing.applied_kind == 2 && p->healing.applied_amount == 1 &&
+          p->healing.effects && p->healing.source.x == 100 * 65536);
     CHECK(SotnPlayer_Tick(p, 0) && !p->healing.applied && !p->healing.applied_kind &&
-          !p->healing.effects);
+          !p->healing.effects && !p->healing.applied_amount);
     p->hp = p->hp_max;
     CHECK(SotnPlayer_QueueMailHealing(p) && SotnPlayer_Tick(p, 0) && p->hp == p->hp_max &&
-          p->healing.applied_kind == 2 && p->healing.effects);
+          p->healing.applied_kind == 2 && p->healing.applied_amount == 1 && p->healing.effects);
     CHECK(SotnPlayer_QueueMailHealing(p));
     p->animation.id = 247;
     const SotnPlayer before = *p;
@@ -142,7 +142,8 @@ static bool Healing(void)
     p->animation.id = 1;
     CHECK(SotnPlayer_Tick(p, 0));
     CHECK(SotnPlayer_Petrify(p, 0, 10, 0) && SotnPlayer_QueueMailHealing(p) &&
-          SotnPlayer_Tick(p, 0) && p->healing.applied_kind == 2 && !p->healing.effects);
+          SotnPlayer_Tick(p, 0) && p->healing.applied_kind == 2 && p->healing.applied_amount == 1 &&
+          !p->healing.effects);
     p->invincibility = 0;
     CHECK(SotnPlayer_Damage(p, 9999, 10, 0) && !p->hp && SotnPlayer_QueueMailHealing(p) &&
           SotnPlayer_Tick(p, 0) && !p->hp && p->healing.pending == 1 &&

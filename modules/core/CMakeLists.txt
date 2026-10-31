@@ -1,4 +1,5 @@
 add_library(sotn-core STATIC
+  healing_number.c
   death_image.c
   include/sotn/death_image.h
   water_death.c

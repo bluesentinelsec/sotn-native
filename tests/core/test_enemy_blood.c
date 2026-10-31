@@ -195,12 +195,14 @@ static bool Healing(void)
     CHECK(SotnPlayer_QueueBloodHealing(p, 8, 1) && SotnPlayer_QueueBloodHealing(p, 16, 2) &&
           p->hp == 50 && p->healing.pending == 8 && p->healing.contacts == 3);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 58 && !p->healing.pending && p->healing.applied &&
-          p->healing.effects && p->healing.source.x == 128 * 65536);
+          p->healing.effects && p->healing.applied_amount == 8 &&
+          p->healing.source.x == 128 * 65536);
     const SotnPlayerHealing h = p->healing;
     CHECK(SotnPlayer_ChangeRoom(p, map, 16, 0) && p->healing.source.x == h.source.x + 16 * 65536 &&
           p->healing.contacts == h.contacts);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 58 && !p->healing.applied && !p->healing.effects);
-    CHECK(SotnPlayer_QueueBloodHealing(p, 16, 1) && SotnPlayer_Tick(p, 0) && p->hp == 70);
+    CHECK(SotnPlayer_QueueBloodHealing(p, 16, 1) && SotnPlayer_Tick(p, 0) && p->hp == 70 &&
+          p->healing.applied_amount == 16);
     CHECK(SotnPlayer_QueueBloodHealing(p, 8, 1));
     const SotnPlayer before = *p;
     Put32(dra + 0x101b8 + p->animation.id * 4U, 0x800b1000);

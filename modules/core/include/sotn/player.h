@@ -227,7 +227,7 @@ typedef struct SotnPlayerHealing
 {
     SotnPlayerFactorySource source;
     Uint32 contacts;
-    Uint16 pending;
+    Uint16 pending, applied_amount; /**< Requested heal before the HP cap; number visual uses it. */
     Uint8 pending_kind, applied_kind; /**< Original heal kinds1 (blood/orbs) and2 (HUD mail). */
     bool applied, effects;
 } SotnPlayerHealing;

@@ -74,6 +74,10 @@ static bool TrigAndRoot(void)
     CHECK(SotnMath_Sqrt12(image, 1, &root) && root == 64);
     CHECK(SotnMath_Sqrt12(image, 4, &root) && root == 128);
     CHECK(SotnMath_Sqrt12(image, 4096, &root) && root == 4096);
+    CHECK(SotnMath_Sqrt0(image, 4096, &root) && root == 64);
+    CHECK(SotnMath_Sqrt0(image, 0, &root) && root == 0);
+    CHECK(!SotnMath_Sqrt0(image, 0x80000000U, &root) && root == 0);
+    CHECK(!SotnMath_Sqrt0(image, 0, NULL));
     Put16(bytes + 0x1e3e0 + 128 * 2, 6000);
     CHECK(SotnMath_Sqrt12(image, 3, &root) && root == 93);
     CHECK(!SotnMath_Sqrt12(image, 0x80000000U, &root) && root == 93);

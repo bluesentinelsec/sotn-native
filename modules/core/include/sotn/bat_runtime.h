@@ -4,6 +4,7 @@
 #include <sotn/bat_echo.h>
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
+#include <sotn/healing_number.h>
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
 #include <sotn/hellfire_fireball.h>
@@ -68,6 +69,7 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerSmoke smoke;
         SotnPlayerOutline outline;
         SotnRisingHeart heart;
+        SotnHealingNumber healing_number;
         SotnSpiritPortal portal;
         struct
         {
@@ -87,7 +89,8 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_PLAYER_PARTICLE_LIMIT + 1]; /**< Includes particle sentinel rows. */
+    Uint16 primitives[SOTN_HEALING_NUMBER_ROWS]; /**< Actual row indices, including particle
+                                                    sentinels. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
 

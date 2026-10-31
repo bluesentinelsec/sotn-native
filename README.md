@@ -180,7 +180,9 @@ equipment, effects and water/route parity remain unfinished.
 Owned [Fury Plate](docs/stat-buff-ownership.md) now supplies its original defense
 buff through actual HUD timers. Owned [Healing Mail](docs/hud-healing-resources.md)
 now heals while walking, with original deferred effects and gameplay-clock MP
-recovery. Other equipment, floating HP numbers and buff producers remain incomplete.
+recovery. [Deferred healing numbers](docs/player-healing-numbers.md) now use actual
+shared slots and twenty-row leases for Mail, blood and orb healing. Other equipment,
+number producers and buff producers remain incomplete.
 Owned [Blood Cloak](docs/player-blood-cloak.md) now refunds surviving selected contact
 damage as hearts and uses the original shared rising-heart child and pickup sound.
 

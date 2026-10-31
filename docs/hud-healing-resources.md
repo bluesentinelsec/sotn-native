@@ -23,8 +23,9 @@ kind2 is silent and requests only the actual shared Blink48 owner; kind1 retains
 its pickup sound and both Blink48/Blink44 owners. Full HP still requests effects;
 stone suppresses flashes. Frozen and dead players retain pending healing without
 revival. Failed player updates retain pending state and do not replay committed
-one-shot effects. Floating HP-number presentation remains unintegrated for both
-healing kinds; this batch introduces no substitute number or effect pool.
+one-shot effects. Selected [healing-number ownership](player-healing-numbers.md)
+now supplies both healing kinds' original type1 presentation through shared slots
+and twenty actual rows; it introduces no substitute effect pool.
 
 Public authored tests cover MP phases, status/cap/repeated-clock/wrap boundaries,
 all128 walking counts, reset conditions, invalid-state rollback, request priority,
