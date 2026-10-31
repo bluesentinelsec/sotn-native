@@ -183,6 +183,9 @@ now heals while walking, with original deferred effects and gameplay-clock MP
 recovery. [Deferred healing numbers](docs/player-healing-numbers.md) now use actual
 shared slots and twenty-row leases for Mail, blood and orb healing. Other equipment,
 number producers and buff producers remain incomplete.
+Owned [absorption circlets](docs/player-contact-absorption.md) now use original
+immediate contact healing, silent flashes/numbers and protection; Cat-eye retains
+its separate kind7 conversion. Full original damage reactions remain unfinished.
 Owned [Blood Cloak](docs/player-blood-cloak.md) now refunds surviving selected contact
 damage as hearts and uses the original shared rising-heart child and pickup sound.
 

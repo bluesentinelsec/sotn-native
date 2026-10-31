@@ -232,6 +232,15 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief This successful contact's immediate original response5, separate from deferred healing.
+ */
+typedef struct SotnPlayerAbsorption
+{
+    SotnPlayerFactorySource source; /**< Captured before controller/collision movement. */
+    Uint16 amount; /**< Original uncapped amount; the number retains its low sixteen bits. */
+    bool applied;
+} SotnPlayerAbsorption;
+
 /** @brief Selected owned Dark Metamorphosis timer and one-update cast request. */
 typedef struct SotnPlayerDark
 {
@@ -287,6 +296,7 @@ typedef struct SotnPlayerState
     Uint8 water_pain_timer;
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
     SotnPlayerHeartGain heart_gain;
+    SotnPlayerAbsorption absorption;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */

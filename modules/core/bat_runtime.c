@@ -314,7 +314,7 @@ bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 inde
         return true;
     const SotnHealingNumber *n = &c->state.healing_number;
     return index >= 40 && index < 48 && c->generation && !c->group && !c->draw_count &&
-           !n->removed && n->number && n->number <= 9999 && n->extra_digits <= 3 &&
+           !n->removed && n->number && n->extra_digits <= 3 &&
            (c->initialized ? n->phase && n->phase <= 11 && c->primitive_count == 20
                            : !n->phase && !c->primitive_count);
 }
@@ -366,6 +366,21 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         r->echo = (SotnBatEcho){.facing_left = child.source.facing_left};
     }
     r->children[child.slot - 16U] = c;
+    return true;
+}
+static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFactorySource source,
+                          Uint16 amount)
+{
+    const Uint64 occupied = SotnBatRuntime_Occupied(r) | other_occupied;
+    for (Uint16 slot = 56; slot < 64; ++slot)
+        if (!(occupied & ((Uint64)1 << slot)))
+        {
+            if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
+                       0))
+                return false;
+            r->children[slot - 16U].state.healing_number.number = amount;
+            break;
+        }
     return true;
 }
 static bool Duplicate(const SotnBatRuntime *r, Uint16 index)
@@ -848,18 +863,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (in.freeze || !p.healing.applied_amount || p.healing.applied_amount > 9999)
             return SDL_SetError(
                 "Healing number requires this ordinary player's actual applied amount");
-        const Uint64 occupied = SotnBatRuntime_Occupied(&r) | in.other_occupied;
-        for (Uint16 slot = 56; slot < 64; ++slot)
-            if (!(occupied & ((Uint64)1 << slot)))
-            {
-                if (!Spawn(&r,
-                           (SotnPlayerFactoryChild){
-                               .slot = slot, .entity_id = 19, .source = p.healing.source},
-                           0))
-                    return false;
-                r.children[slot - 16U].state.healing_number.number = p.healing.applied_amount;
-                break;
-            }
+        if (!RequestNumber(&r, in.other_occupied, p.healing.source, p.healing.applied_amount))
+            return false;
     }
     if (p.healing.applied && p.healing.applied_kind == 1 && !Sound(&r, 0x68e))
         return false;
@@ -867,6 +872,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
          (p.healing.applied_kind == 1 && !RequestSource(&r, p.healing.source, 0x44002c, 0))))
         return false;
+    if (p.absorption.applied)
+    {
+        if (in.freeze || !p.hp || p.hp > p.hp_max || !p.absorption.amount ||
+            p.absorption.amount > 39996)
+            return SDL_SetError("Contact absorption requires its actual living ordinary result");
+        // Original response5 is silent and emits both flashes even while stone/full HP.
+        if (!RequestSource(&r, p.absorption.source, 0x44002c, 0) ||
+            !RequestSource(&r, p.absorption.source, 0x48002c, 0) ||
+            !RequestNumber(&r, in.other_occupied, p.absorption.source, p.absorption.amount))
+            return false;
+    }
     if (p.movement_effects.water_bubble &&
         !RequestSource(&r, p.movement_effects.bubble_source, 0xd0004U, 0))
         return false;

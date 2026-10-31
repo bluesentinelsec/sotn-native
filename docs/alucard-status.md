@@ -20,7 +20,7 @@ fixtures and command recognizers do not establish playable availability by thems
 | Normal spells | Dark Metamorphosis, Summon Spirit, Tetra Spirit, Hellfire and Soul Steal | [Dark](player-dark-metamorphosis.md), [spirits](player-spirit-spells.md), [Hellfire](player-hellfire.md), [Soul Steal](player-soul-steal.md) |
 | Water | Actual Entrance volumes/currents/effects, player drag/gravity/form gates, Wolf swimming, bubbles, ordinary HP loss and native water death | [Stage actors](native-water-actors.md), [player feedback](player-water.md), [bubbles](normal-water-bubbles.md), [damage/contact ordering](player-water-contact.md), [water death](player-water-death.md) |
 | Recovery and presentation | Afterimages, selected status masks, poison/curse/stone behavior, blood/orb healing and numbers, original HUD MP recovery, Fury Plate, Healing Mail and Blood Cloak | [Afterimages](player-afterimages.md), [status](player-status.md), [poison](player-poison.md), [curse](character-status.md), [stone](player-petrification.md), [blood](enemy-blood.md), [orbs](soul-steal-orbs.md), [healing numbers](player-healing-numbers.md), [Fury](stat-buff-ownership.md), [HUD/Mail](hud-healing-resources.md), [Blood Cloak](player-blood-cloak.md) |
-| Combat and equipment | Selected empty-hand, Basilard, Gladius, Mace, Short sword and ordinary Alucard sword/shield paths; selected equipment attributes/passives | [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [inventory](character-inventory.md) |
+| Combat and equipment | Selected empty-hand, Basilard, Gladius, Mace, Short sword and ordinary Alucard sword/shield paths; selected equipment attributes/passives and absorption circlets | [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md) |
 
 Owned relics and equipment gate these paths. Development starts retain their
 existing resources and grants. A granted item/relic or positioned encounter test
@@ -43,7 +43,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   branches and dependent effects. Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),
-  [stone](player-petrification.md) and [death](laboratory-game-over.md).
+  [stone](player-petrification.md), [death](laboratory-game-over.md), and the
+  [source-backed damage inventory/selected absorption](player-contact-absorption.md).
 - [ ] **Weapons, subweapons, consumables and equipment:** inventory original families
   and special behaviors, distinguish metadata support from live attacks/effects,
   and implement remaining hand/shield specials, consumable use, item passives and

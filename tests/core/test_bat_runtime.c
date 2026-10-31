@@ -1333,17 +1333,88 @@ static bool OutlineOwnership(Fixture *f)
     return true;
 }
 
+static bool ContactAbsorptionOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    for (Uint16 id = 4; id <= 8; id += 4)
+    {
+        Uint8 *profile = f->dra + 0xd670 + id * 20U;
+        Put16(profile + 6, 0x123);
+        Put16(profile + 8, 256);
+        Put16(profile + 10, 256);
+        Put16(profile + 12, 256);
+        Put16(profile + 14, 16);
+        Put16(profile + 16, 0x31);
+        Put16(profile + 18, 512);
+    }
+    const SotnPlayerFactorySource source = {
+        .x = 120 * 65536 + 123, .y = 135 * 65536 + 456, .priority = 148};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .image = {40, 64, -20, -48}};
+    in.player.hp = in.player.hp_max = 70;
+    in.player.healing = (SotnPlayerHealing){
+        .source = source, .applied = true, .effects = true, .applied_kind = 2, .applied_amount = 1};
+    in.player.absorption =
+        (SotnPlayerAbsorption){.source = source, .applied = true, .amount = 39996};
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.sound_count);
+    CHECK(f->runtime.children[40].kind == 19 && f->runtime.children[41].kind == 19 &&
+          f->runtime.children[40].state.healing_number.number == 1 &&
+          f->runtime.children[41].state.healing_number.number == 39996 &&
+          f->runtime.children[40].primitive_count == 20 &&
+          f->runtime.children[41].primitive_count == 20);
+    CHECK(f->runtime.children[47].kind == 11 && f->runtime.children[47].parameter == 0x4800 &&
+          f->runtime.children[46].kind == 11 && f->runtime.children[46].parameter == 0x4400 &&
+          f->runtime.children[47].primitive_count == 8 &&
+          f->runtime.children[46].primitive_count == 8);
+    const SotnBatRuntime before = f->runtime;
+    in.freeze = 3;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&before, &f->runtime, sizeof(before)));
+    in.freeze = 0;
+    SDL_zero(f->runtime);
+    in.player.healing.applied_kind = 1;
+    in.player.healing.applied_amount = 8;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && f->runtime.sound_count == 1 &&
+          f->runtime.sounds[0] == 0x68e &&
+          f->runtime.children[40].state.healing_number.number == 8 &&
+          f->runtime.children[41].state.healing_number.number == 39996);
+    SDL_zero(f->runtime);
+    in.player.healing = (SotnPlayerHealing){0};
+    in.other_occupied = 0xff00000000000000ULL;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.sound_count);
+    for (Uint16 i = 0; i < 48; ++i)
+        CHECK(f->runtime.children[i].kind != 19);
+    SDL_zero(f->runtime);
+    in.other_occupied = 0;
+    SDL_memset(&in.primitive_slots, 255, sizeof(in.primitive_slots));
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && !f->runtime.sound_count);
+    Uint16 pending = 0;
+    for (Uint16 i = 0; i < 48; ++i)
+    {
+        CHECK(f->runtime.children[i].kind != 19);
+        if (f->runtime.children[i].kind == 11)
+        {
+            CHECK(!f->runtime.children[i].initialized && !f->runtime.children[i].primitive_count);
+            ++pending;
+        }
+    }
+    CHECK(pending == 2);
+    Close(f);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
-                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
-                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) &&
-                    NormalWaterRequests(f) && WaterBlinkOwnership(f) &&
-                    DeathParticlesOwnership(f) && OutlineOwnership(f);
+    const bool ok =
+        Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+        PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
+        WolfEffectOwnership(f) && GravityImpactOwnership(f) && CommonPlayerLifetime(f) &&
+        OrdinarySmokeOwnership(f) && NormalWaterRequests(f) && WaterBlinkOwnership(f) &&
+        DeathParticlesOwnership(f) && OutlineOwnership(f) && ContactAbsorptionOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

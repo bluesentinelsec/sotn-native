@@ -7,6 +7,10 @@ amount before the HP cap, including full HP and stone; stone still suppresses
 the separate flashes. Dead and spell-frozen players retain pending healing
 without applying it or creating another number. Sound and Blink ownership retains
 the existing distinction between blood/orbs and silent Mail.
+Selected [immediate contact absorption](player-contact-absorption.md) now shares
+this type1 owner with separate silent requests, including the original unsigned
+word/four-low-digit interpretation for amounts above9999. Simultaneous deferred
+healing and absorption create independent ordered numbers.
 
 `CreateHPNumMove` uses direct entity19 allocation in the first available original
 slot56..63, rather than a blueprint factory. This owner shares the actual child

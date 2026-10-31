@@ -1476,6 +1476,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.heart_gain = (SotnPlayerHeartGain){0};
+    next.absorption = (SotnPlayerAbsorption){0};
     if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
     if (alive && next.dark.ticks)
@@ -1910,6 +1911,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->healing.applied && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
                                     heal_y < SDL_MIN_SINT32 || heal_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured blood-healing source");
+    const Sint64 absorb_x = (Sint64)player->absorption.source.x + (Sint64)offset_x * FIX_ONE,
+                 absorb_y = (Sint64)player->absorption.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->absorption.applied && (absorb_x < SDL_MIN_SINT32 || absorb_x > SDL_MAX_SINT32 ||
+                                       absorb_y < SDL_MIN_SINT32 || absorb_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured contact-absorption source");
     const Sint64 heart_x = (Sint64)player->heart_gain.source.x + (Sint64)offset_x * FIX_ONE,
                  heart_y = (Sint64)player->heart_gain.source.y + (Sint64)offset_y * FIX_ONE;
     if (player->heart_gain.requested && (heart_x < SDL_MIN_SINT32 || heart_x > SDL_MAX_SINT32 ||
@@ -1959,6 +1965,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     {
         player->healing.source.x = (Sint32)heal_x;
         player->healing.source.y = (Sint32)heal_y;
+    }
+    if (player->absorption.applied)
+    {
+        player->absorption.source.x = (Sint32)absorb_x;
+        player->absorption.source.y = (Sint32)absorb_y;
     }
     if (player->heart_gain.requested)
     {
@@ -2109,6 +2120,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .water_pain_timer = player->water_damage.pain_timer,
         .defense_buff_minimum = player->defense_buff_minimum,
         .heart_gain = player->heart_gain,
+        .absorption = player->absorption,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
@@ -2277,6 +2289,7 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
     player->hp_max = state->hp_max;
     player->mp = state->mp;
     player->attributes = stats;
+    player->head = state->equipment[2];
     player->armor = state->equipment[3];
     player->cape = state->equipment[4];
     player->hearts = state->hearts;
@@ -2539,6 +2552,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.heart_gain = (SotnPlayerHeartGain){0};
+    next.absorption = (SotnPlayerAbsorption){0};
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;

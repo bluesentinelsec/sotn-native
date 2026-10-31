@@ -27,6 +27,9 @@ Owned [Fury Plate](stat-buff-ownership.md), [Healing Mail/Mystic Pendant](hud-he
 and [Blood Cloak](player-blood-cloak.md) now have their selected actual gameplay
 owners. Their availability does not establish all equipment effects; see the
 [current Alucard checklist](alucard-status.md).
+Owned Gold/Ruby/Opal/Topaz/Beryl and Cat-eye circlets now connect their actual
+[contact-absorption owner](player-contact-absorption.md), with unchanged ordinary
+ownership and save fields. This does not establish ordinary acquisition routes.
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,

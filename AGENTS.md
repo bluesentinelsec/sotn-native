@@ -1,3 +1,18 @@
+Selected [contact absorption](docs/player-contact-absorption.md) now owns original
+immediate response5, silent Blink44 then48, green number and timer14 protection12.
+Owned circlets38..42 use actual private attributes; Cat-eye43 converts kind7 only
+after ordinary absorption/immunity. Preserve weakness/resistance and US stone
+immunity order, minimum-one, fullHP/stone effects, existing ailment timers,
+pre-controller fractions and request commit after player success. Deferred healing
+still runs first and retains its independent number/sound; absorption gives no
+Blood Cloak/Fury work. Keep full unsigned-word/four-low-digit numbers and optional
+exhaustion. Freeze holds HP/protection while flag10000 effects advance; release-only/
+menu/map/draws hold effects. Preserve no-tick rebases. No new pool,
+grants or savesv9 change. Equipment/HP/arrival/seed-position/protection/kind7 fixtures
+are not acquisition/route/console evidence. The linked source-backed damage
+inventory retains incomplete immunity/guard/Talisman/hurt/elemental death/stone
+branches; full equipment/familiars/sharing/Alucard/castle remain unfinished.
+
 Selected [deferred healing numbers](docs/player-healing-numbers.md) now own direct
 entity19/first-free slots56..63, twenty real shared rows, private digit GT4s and
 sixteen trail tiles for both healing kinds. Preserve uncapped requested amounts,
