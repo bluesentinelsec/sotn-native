@@ -383,7 +383,7 @@ static bool Manager(SotnActors *s, Actor *a)
         a->death.timer = 512;
     }
     --a->death.timer;
-    s->control = (SotnActorControl){.timer = 2};
+    s->control = (SotnActorControl){.timer = 1};
     s->motion.protect = true;
     SotnDialogueState *d = &s->death_event.display;
     switch (a->state.step)
@@ -423,6 +423,8 @@ static bool Manager(SotnActors *s, Actor *a)
                 }
             }
             a->timer = 16;
+            s->control.mode = 1;
+            s->control.block_stopwatch = true;
             ++a->state.step;
         }
         break;

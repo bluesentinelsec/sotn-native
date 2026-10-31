@@ -27,6 +27,7 @@ enum
 typedef struct SotnActorControl
 {
     Uint16 buttons, timer;
+    Uint16 mode;          /**< Original padSim high word; zero buttons, one reaction, two hold. */
     bool hold;            /**< Original simulated-pad mode 2: freeze normal-form player control. */
     bool block_stopwatch; /**< Original pauseEnemies gate, not a generic actor freeze. */
     bool pause_disabled;  /**< Original cutscene pause gate, also used by the native map menu. */

@@ -1114,6 +1114,72 @@ static bool NormalWaterRequests(Fixture *f)
     return true;
 }
 
+static bool ScriptReactionOwnership(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *profile = f->dra + 0xd670 + 0x18 * 20;
+    for (Uint16 i = 0; i < 3; ++i)
+        Put16(profile + 8 + i * 2U, 256);
+    Put16(profile + 6, 0x123);
+    Put16(profile + 14, 0x7007);
+    Put16(profile + 16, 0x31);
+    Put16(profile + 18, 512);
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .image = {20, 32, -10, -20}};
+    in.player.step = SOTN_PLAYER_SCRIPT_REACTION;
+    in.player.substep = 1;
+    in.player.animation.id = 0x33;
+    in.player.script_reaction = (SotnPlayerScriptReaction){.started = true, .source = source};
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        in.primitive_slots.occupied[i] = SDL_MAX_UINT64;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    SotnBatRuntimeChild *child = NULL;
+    for (Uint16 i = 0; i < 48; ++i)
+        if (f->runtime.children[i].kind == 11)
+            child = &f->runtime.children[i];
+    CHECK(child && child->parameter == 0x5800 && !child->initialized && !child->primitive_count);
+    const Uint32 generation = child->generation;
+    in.player.script_reaction.started = false;
+    in.primitive_slots = (SotnPrimitiveSlots){0};
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && child->initialized &&
+          child->primitive_count == 8 && child->draw_count == 8 && child->state.blink.phase == 1 &&
+          f->runtime.afterimage_reset);
+    const Uint16 angle = child->state.blink.angle;
+    const Sint16 x = child->state.blink.quads[0].x[0];
+    in.entering = true;
+    in.screen_shift_x = -16;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && child->state.blink.angle == angle &&
+          child->state.blink.quads[0].x[0] == x - 16);
+    in.entering = false;
+    in.screen_shift_x = 0;
+    in.player.script_reaction.started = true;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) && child->generation == generation);
+    Uint16 flashes = 0;
+    for (Uint16 i = 0; i < 48; ++i)
+        flashes += f->runtime.children[i].kind == 11;
+    CHECK(flashes == 1);
+    in.player.script_reaction.started = false;
+    in.player.step = SOTN_PLAYER_HIT;
+    for (Uint16 i = 0; i < 50; ++i)
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(child->state.blink.phase == 2 && child->state.blink.hold == 7);
+    in.player.step = SOTN_PLAYER_STAND;
+    for (Uint16 i = 0; i < 40; ++i)
+        CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    CHECK(!child->kind);
+    const SotnBatRuntime before = f->runtime;
+    in.player.script_reaction.started = true;
+    in.freeze = true;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&before, &f->runtime, sizeof(before)));
+    Close(f);
+    return true;
+}
+
 static bool WaterBlinkOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1409,12 +1475,13 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok =
-        Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-        PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
-        WolfEffectOwnership(f) && GravityImpactOwnership(f) && CommonPlayerLifetime(f) &&
-        OrdinarySmokeOwnership(f) && NormalWaterRequests(f) && WaterBlinkOwnership(f) &&
-        DeathParticlesOwnership(f) && OutlineOwnership(f) && ContactAbsorptionOwnership(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
+                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) &&
+                    NormalWaterRequests(f) && ScriptReactionOwnership(f) &&
+                    WaterBlinkOwnership(f) && DeathParticlesOwnership(f) && OutlineOwnership(f) &&
+                    ContactAbsorptionOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

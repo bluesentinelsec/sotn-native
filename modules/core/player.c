@@ -103,8 +103,7 @@ void SotnPlayer_FormDirection(SotnPlayer *player)
 
 static void Land(SotnPlayer *player, Sint32 speed)
 {
-    const bool raised = player->shield_cursor.phase != 0 && player->shield_cursor.phase < 3 &&
-                        (player->buttons & player->shield_button);
+    const bool raised = player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2;
     const bool ledge = !raised && (player->contact & 0x20) != 0;
     player->vx = speed;
     player->vy = 0;
@@ -121,6 +120,11 @@ static void Land(SotnPlayer *player, Sint32 speed)
         }
         animation = player->animation.id == 7 ? (ledge ? 5 : 4) : (ledge ? 15 : 14);
     }
+    else if (player->previous_step == SOTN_PLAYER_UNMORPH_BAT ||
+             ((player->previous_step == SOTN_PLAYER_JUMP ||
+               player->previous_step == SOTN_PLAYER_FALL) &&
+              (speed > 163840 || speed < -163840)))
+        animation = ledge ? 15 : 14;
     else if (player->previous_step == SOTN_PLAYER_JUMP || player->previous_step == SOTN_PLAYER_FALL)
         animation = ledge ? 30 : 29;
     Animate(player, animation);
@@ -332,7 +336,7 @@ static void Backdash(SotnPlayer *player)
 static bool StartAttack(SotnPlayer *player)
 {
     Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
-    if (player->curse_ticks && player->attack_mode == 0)
+    if (player->shield_cursor.phase != 1 && player->shield_cursor.phase != 2)
     {
         if (player->equipment[0] == 16 && (player->buttons & SOTN_BUTTON_LEFT_HAND))
             pressed |= SOTN_BUTTON_LEFT_HAND;
@@ -341,7 +345,9 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (pressed == 0)
         return false;
-    if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) && player->timers[0] == 0)
+    if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) &&
+        (player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND)) &&
+        player->timers[0] == 0)
     {
         bool used = false;
         Uint16 animation = 0;
@@ -467,9 +473,10 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_UNMORPH_MIST || player->step == SOTN_PLAYER_WOLF ||
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
-        player->step == SOTN_PLAYER_BOSS_GRAB || player->step == SOTN_PLAYER_DARK ||
-        player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA ||
-        player->step == SOTN_PLAYER_HELLFIRE || player->step == SOTN_PLAYER_SOUL;
+        player->step == SOTN_PLAYER_SCRIPT_REACTION || player->step == SOTN_PLAYER_BOSS_GRAB ||
+        player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_SUMMON ||
+        player->step == SOTN_PLAYER_TETRA || player->step == SOTN_PLAYER_HELLFIRE ||
+        player->step == SOTN_PLAYER_SOUL;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -490,18 +497,6 @@ static bool TickShield(SotnPlayer *player)
                                         .hit_effect = 1,
                                         .invincibility_frames = 6,
                                         .power = player->shield_power};
-    if (player->step == SOTN_PLAYER_CROUCH && player->attack_mode == 0)
-    {
-        const bool raised = player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2;
-        if (raised && player->animation.id == 17)
-        {
-            player->animation.id = 0x65;
-            player->animation.remaining = 2;
-            player->animation.pose = 3;
-        }
-        else if (!raised && player->animation.id == 0x65)
-            Animate(player, 17);
-    }
     return true;
 }
 
@@ -595,15 +590,17 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     player->vy = SDL_min(7 * FIX_ONE, player->vy + gravity);
     if (player->vy >= 0 && (flags & 1) && (player->contact & 1))
     {
-        const bool diving = player->step == SOTN_PLAYER_JUMP && player->substep == 0x70;
+        const bool attacking = player->attack_mode != 0;
+        const bool sliding =
+            !attacking && (player->substep == 0x70 || player->step == SOTN_PLAYER_JUMP);
         const bool hard =
             player->vy > 450560 || (!player->attack_mode && !(player->movement_flags & 0x10) &&
                                     (player->vx > 2 * FIX_ONE || player->vx < -2 * FIX_ONE));
         if (player->vy > 450560)
-            Crouch(player, diving ? 3U : 1U, diving ? player->vx / 2 : 0);
+            Crouch(player, sliding ? 3U : 1U, sliding ? player->vx / 2 : 0);
         else if (player->movement_flags & 0x10)
             Walk(player, true);
-        else if (diving && (player->vx > 2 * FIX_ONE || player->vx < -2 * FIX_ONE))
+        else if (!attacking && (player->vx > 2 * FIX_ONE || player->vx < -2 * FIX_ONE))
             Land(player, player->vx);
         else
             Land(player, 0);
@@ -616,7 +613,6 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     if ((flags & 4) && !(player->contact & 1))
     {
         Fall(player);
-        ClearAttack(player);
         return true;
     }
     if ((flags & 0x1000) && StartAttack(player))
@@ -624,7 +620,6 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     if ((flags & 0x10) && !(player->attack_mode & 0x8000) && (player->tapped & SOTN_BUTTON_JUMP))
     {
         Jump(player);
-        ClearAttack(player);
         return true;
     }
     if ((flags & 0x20) && !(player->attack_mode & 0x8000) &&
@@ -641,7 +636,6 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     if ((flags & 0x2000) && !(player->attack_mode & 0x8000) && (player->buttons & SOTN_BUTTON_DOWN))
     {
         Crouch(player, 2, 0);
-        ClearAttack(player);
         return true;
     }
     if ((flags & 0x40000) && !(player->attack_mode & 0x8000) && player->animation.id != 0xdb &&
@@ -662,36 +656,62 @@ static void StandTick(SotnPlayer *player)
     Decelerate(player, 8192);
     SotnPlayer_WaterBreath(player, false,
                            player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2);
-    if (player->curse_failure)
+    Uint32 flags = 3;
+    if (player->substep == 1)
     {
-        if (player->animation.remaining < 0)
+        flags = 1;
+        if (player->chair_kind)
         {
-            Land(player, 0);
-            ClearAttack(player);
+            Animate(player, player->chair_kind <= 2 ? 0xf2 : 0xf3);
+            player->facing_left = (player->chair_kind & 1U) == 0;
+            player->substep = 4;
+            player->chair_sleep = 0x1800;
         }
-        return;
+        else if (!(player->buttons & SOTN_BUTTON_UP))
+            flags = 5;
     }
-    if (player->substep == 3)
+    else if (player->substep == 2)
     {
+        flags = 3;
+        if (player->animation.id != 10 && player->animation.id != 11 &&
+            player->animation.id != 14 && player->animation.id != 15)
+        {
+            if (player->animation.id != 0x63)
+                Animate(player, 0x63);
+            if (player->shield_cursor.phase != 1 && player->shield_cursor.phase != 2)
+                flags = 5;
+        }
+    }
+    else if (player->substep == 3)
+    {
+        flags = 0;
+        if (player->animation.pose >= 4 || player->animation.id == 14)
+            flags = 1;
         if (player->animation.pose >= 7 || player->animation.remaining < 0)
-        {
-            Land(player, 0);
-            if (player->buttons & SOTN_BUTTON_UP)
-            {
-                Animate(player, (player->contact & 0x20) ? 1 : 0);
-                player->substep = 1;
-            }
-            if (Direction(player))
-                Walk(player, false);
-        }
-        else if ((player->animation.pose >= 4 || player->animation.id == 14) && Direction(player))
-            Walk(player, false);
-        return;
+            flags = 7;
     }
-    if (player->attack_mode != 0 && player->substep >= 0x40)
+    else if (player->substep == 4)
+    {
+        if (player->animation.id == 0xf2 && player->chair_sleep && --player->chair_sleep == 0)
+        {
+            player->sleep_event = true;
+            player->chair_sleep = 0x200;
+        }
+        flags = 1;
+    }
+    else if (player->attack_mode != 0 && player->substep >= 0x40)
     {
         SotnPlayer_AfterimageReset(player);
-        if (player->animation.pose < player->attack_lock)
+        flags = 0;
+        if ((player->substep == 0x47 || player->substep == 0x49) && player->animation.pose == 6 &&
+            (player->buttons & player->attack_button))
+            player->animation.remaining = 2;
+        if (player->curse_failure)
+        {
+            if (player->animation.remaining < 0)
+                flags = 0xf;
+        }
+        else if (player->animation.pose < player->attack_lock)
         {
             if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
             {
@@ -702,60 +722,34 @@ static void StandTick(SotnPlayer *player)
                     player->animation.id = (Uint16)(player->attack_equipment.animation + 2);
                 }
             }
-            return;
         }
-        player->attack_mode &= 0x7fff;
-        if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+        else
         {
-            Land(player, 0);
-            ClearAttack(player);
-            return;
-        }
-        if (player->attack_equipment.id == 0 && player->animation.pose == 7)
-        {
-            if (player->buttons & player->attack_button)
-                player->animation.remaining = 2;
-            else
+            player->attack_mode &= 0x7fff;
+            flags = player->attack_equipment.id == 0 ? 0xb : 0x1b;
+            if (player->attack_equipment.id == 0 && player->animation.pose == 7)
             {
-                Land(player, 0);
-                ClearAttack(player);
+                if (player->buttons & player->attack_button)
+                    player->animation.remaining = 2;
+                else
+                    flags = 0xf;
             }
+            else if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+                flags = 0xf;
         }
-        if (Direction(player))
-        {
-            Walk(player, false);
-            ClearAttack(player);
-        }
-        return;
     }
-    if (player->substep == 2)
+    bool changed = false;
+    if (flags & 4)
     {
-        if (!(player->buttons & player->shield_button))
-            Land(player, 0);
-        else if (player->animation.id != 10 && player->animation.id != 11 &&
-                 player->animation.id != 14 && player->animation.id != 15 &&
-                 player->animation.id != 0x63)
-            Animate(player, 0x63);
-    }
-    if (player->substep == 4 && player->animation.id == 0xf2 && player->chair_sleep &&
-        --player->chair_sleep == 0)
-    {
-        player->sleep_event = true;
-        player->chair_sleep = 0x200;
-    }
-    if (player->substep == 1 && player->chair_kind)
-    {
-        Animate(player, player->chair_kind <= 2 ? 0xf2 : 0xf3);
-        player->facing_left = (player->chair_kind & 1U) == 0;
-        player->substep = 4;
-        player->chair_sleep = 0x1800;
-    }
-    if (player->substep == 1 && !(player->buttons & SOTN_BUTTON_UP))
         Land(player, 0);
-    if ((player->buttons & SOTN_BUTTON_UP) && player->substep == 0)
+        changed = true;
+    }
+    if ((flags & 2) && (player->buttons & SOTN_BUTTON_UP) && player->shield_cursor.phase != 1 &&
+        player->shield_cursor.phase != 2)
     {
         Animate(player, (player->contact & 0x20) ? 1 : 0);
         player->substep = 1;
+        changed = true;
         if (player->chair_kind)
         {
             Animate(player, player->chair_kind <= 2 ? 0xf2 : 0xf3);
@@ -764,8 +758,13 @@ static void StandTick(SotnPlayer *player)
             player->chair_sleep = 0x1800;
         }
     }
-    if (Direction(player))
+    if ((flags & 1) && Direction(player))
+    {
         Walk(player, false);
+        changed = true;
+    }
+    if (changed && (flags & 8))
+        ClearAttack(player);
 }
 
 static void JumpTick(SotnPlayer *player)
@@ -792,7 +791,8 @@ static void JumpTick(SotnPlayer *player)
                 player->vy = -278528;
             player->movement_flags |= 0x40;
         }
-        if (player->movement_flags & 0x100)
+        if ((player->substep > 1 || (player->movement_flags & 1)) &&
+            (player->movement_flags & 0x100))
             player->vx = 0;
         return;
     }
@@ -809,6 +809,9 @@ static void JumpTick(SotnPlayer *player)
             Animate(player, player->vy > FIX_ONE ? 31 : 27);
             ClearAttack(player);
         }
+        if ((player->substep > 1 || (player->movement_flags & 1)) &&
+            (player->movement_flags & 0x100))
+            player->vx = 0;
         return;
     }
     const int direction = Direction(player);
@@ -828,8 +831,10 @@ static void JumpTick(SotnPlayer *player)
             Animate(player, 27);
         player->substep = 1;
     }
-    if (player->substep <= 1 && (player->movement_flags & 1) &&
-        (player->buttons & SOTN_BUTTON_DOWN) && (player->tapped & SOTN_BUTTON_JUMP))
+    if (player->substep <= 1 && !(player->movement_flags & 1))
+        return;
+    if (player->substep <= 1 && (player->buttons & SOTN_BUTTON_DOWN) &&
+        (player->tapped & SOTN_BUTTON_JUMP))
     {
         Animate(player, 34);
         player->substep = 0x70;
@@ -859,64 +864,21 @@ static void CrouchTick(SotnPlayer *player)
         if (!player->tight_space)
         {
             Jump(player);
-            ClearAttack(player);
             return;
         }
     }
     if (Transitions(player, 0x100c))
         return;
     Decelerate(player, 8192);
-    if (player->curse_failure)
+    const bool raised = player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2;
+    if (raised && player->animation.id == 17)
     {
-        if (player->animation.remaining < 0)
-        {
-            Crouch(player, 0, 0);
-            ClearAttack(player);
-        }
-        return;
+        player->animation.id = 0x65;
+        player->animation.remaining = 2;
+        player->animation.pose = 3;
     }
-    if (player->attack_mode != 0 && player->substep >= 0x40)
-    {
-        SotnPlayer_AfterimageReset(player);
-        if (player->animation.pose < player->attack_lock)
-        {
-            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
-            {
-                (void)Direction(player);
-                if (!(player->buttons & SOTN_BUTTON_DOWN) && player->tight_space == 0)
-                {
-                    player->step = SOTN_PLAYER_STAND;
-                    player->animation.id = (Uint16)(player->attack_equipment.animation +
-                                                    ((player->contact & 0x20) ? 1 : 0));
-                }
-            }
-            return;
-        }
-        player->attack_mode &= 0x7fff;
-        if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
-        {
-            Crouch(player, 0, 0);
-            ClearAttack(player);
-            return;
-        }
-        if (player->attack_equipment.id == 0 && player->animation.pose == 7)
-        {
-            if (player->buttons & player->attack_button)
-                player->animation.remaining = 2;
-            else
-            {
-                Crouch(player, 0, 0);
-                ClearAttack(player);
-            }
-        }
-        if (!(player->buttons & SOTN_BUTTON_DOWN))
-        {
-            Animate(player, 19);
-            player->substep = 2;
-            ClearAttack(player);
-        }
-        return;
-    }
+    else if (!raised && player->animation.id == 0x65)
+        Animate(player, 17);
     Uint32 flags = 0;
     switch (player->substep)
     {
@@ -929,7 +891,7 @@ static void CrouchTick(SotnPlayer *player)
         if (!(player->buttons & SOTN_BUTTON_DOWN))
         {
             flags = 1;
-            if (player->animation.pose >= 4)
+            if (player->animation.pose >= 4 || player->animation.id == 0x65)
             {
                 Animate(player, 19);
                 player->substep = 2;
@@ -939,6 +901,8 @@ static void CrouchTick(SotnPlayer *player)
                 return;
             }
         }
+        else if (player->animation.id == 0x65)
+            player->substep = 0;
         else if (player->animation.remaining < 0)
             flags = 0x20;
         break;
@@ -974,33 +938,88 @@ static void CrouchTick(SotnPlayer *player)
             Land(player, 0);
         break;
     default:
-        player->failed = true;
-        SDL_SetError("Unsupported Alucard crouch substate");
-        return;
+        if (player->attack_mode == 0 || player->substep < 0x40)
+        {
+            player->failed = true;
+            SDL_SetError("Unsupported Alucard crouch substate");
+            return;
+        }
+        SotnPlayer_AfterimageReset(player);
+        if ((player->substep == 0x47 || player->substep == 0x49) && player->animation.pose == 6 &&
+            (player->buttons & player->attack_button))
+            player->animation.remaining = 2;
+        if (player->curse_failure)
+        {
+            if (player->animation.remaining < 0)
+                flags = 0x2e;
+        }
+        else if (player->animation.pose < player->attack_lock)
+        {
+            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
+            {
+                (void)Direction(player);
+                if (!(player->buttons & SOTN_BUTTON_DOWN) && player->tight_space == 0)
+                {
+                    player->step = SOTN_PLAYER_STAND;
+                    player->animation.id =
+                        (Uint16)(player->attack_equipment.animation +
+                                 (player->attack_equipment.id != 0 && (player->contact & 0x20)
+                                      ? 1
+                                      : 0));
+                }
+            }
+        }
+        else
+        {
+            player->attack_mode &= 0x7fff;
+            flags = 0xe;
+            if (player->attack_equipment.id == 0 && player->animation.pose == 7)
+            {
+                if (player->buttons & player->attack_button)
+                    player->animation.remaining = 2;
+                else
+                    flags = 0x2e;
+            }
+            else if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+                flags = 0x2e;
+        }
+        break;
     }
+    bool changed = false;
     if (flags & 0x20)
+    {
         Crouch(player, 0, 0);
+        changed = true;
+    }
     if ((flags & 2) && player->turned)
     {
         Animate(player, 20);
         player->substep = 0;
+        changed = true;
     }
     if ((flags & 4) && !(player->buttons & SOTN_BUTTON_DOWN))
     {
         Animate(player, 19);
         player->substep = 2;
+        changed = true;
     }
     if ((flags & 1) && Direction(player))
     {
         if (player->tight_space == 0 || player->tight_space >= 3)
+        {
             Walk(player, false);
+            changed = true;
+        }
         else if (player->tapped & (SOTN_BUTTON_RIGHT | SOTN_BUTTON_LEFT))
         {
             player->substep = 5;
             Animate(player, 246);
             SetSpeed(player, 49152);
+            changed = true;
         }
     }
+    if (changed && (flags & 8))
+        ClearAttack(player);
 }
 
 static void PhysicalDeath(SotnPlayer *player, bool right)
@@ -1015,6 +1034,39 @@ static void PhysicalDeath(SotnPlayer *player, bool right)
     Animate(player, 0xc0);
 }
 
+static void ScriptReactionTick(SotnPlayer *p)
+{
+    if (p->substep == 0)
+    {
+        ClearAttack(p);
+        p->movement_flags = 0;
+        p->stone = (SotnPlayerStone){0};
+        p->gravity.upside_down = false;
+        p->animation_bank = 1;
+        p->form_rotated = false;
+        p->damage_palette = 0x8166;
+        p->timers[2] = 6;
+        p->vx = p->vy = 0;
+        Animate(p, 0x33);
+        MovementSmoke(p, 0);
+        p->script_reaction = (SotnPlayerScriptReaction){
+            .started = true,
+            .source = {
+                .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left}};
+        if (p->mist.active)
+        {
+            p->mist.active = p->mist.restoring = false;
+            p->mist.interrupted = true;
+        }
+        ++p->substep;
+    }
+    else if (p->substep == 1 && p->animation.remaining < 0)
+    {
+        p->sound = 0x6f2;
+        Land(p, 0);
+    }
+}
+
 // dra/71830.c:PlayerStepBossGrab. BO5 clears GRAB_NONE rather than using the thrown release.
 static void BossGrabTick(SotnPlayer *player)
 {
@@ -1025,6 +1077,7 @@ static void BossGrabTick(SotnPlayer *player)
         player->stone = (SotnPlayerStone){0};
         Animate(player, 0x37);
         player->timers[2] = 8;
+        player->damage_palette = 0x8166;
         player->sound = 0x6eb;
         player->vx = player->vy = 0;
         player->substep = 1;
@@ -1054,6 +1107,7 @@ static void BossGrabTick(SotnPlayer *player)
             return;
         }
         player->timers[2] = 4;
+        player->damage_palette = 0x8166;
         player->sound = 0x6e7;
         player->grab.state = SOTN_GRAB_HELD;
     }
@@ -1462,6 +1516,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
+    bool force_reaction = false, force_hold = false;
     next.failed = false;
     next.turned = false;
     next.sound = 0;
@@ -1477,6 +1532,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.defense_buff_minimum = 0;
     next.heart_gain = (SotnPlayerHeartGain){0};
     next.absorption = (SotnPlayerAbsorption){0};
+    next.script_reaction.started = false;
+    next.mist.interrupted = false;
     if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
     if (alive && next.dark.ticks)
@@ -1512,24 +1569,43 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         --next.poison_ticks;
     if (alive)
     {
-        if (next.script_hold)
-            buttons = 0;
-        if (next.bat_input_hold)
+        if (next.legacy_script_hold)
+            next.simulated_pad.remaining = 1;
+        const bool simulated = next.simulated_pad.remaining != 0;
+        if (simulated)
         {
-            --next.bat_input_hold;
-            buttons = 0;
+            --next.simulated_pad.remaining;
+            buttons = next.simulated_pad.buttons;
+            force_reaction =
+                next.simulated_pad.mode == 1 && next.step != SOTN_PLAYER_SCRIPT_REACTION;
+            force_hold = next.simulated_pad.mode == 2;
         }
+        if (buttons & (Uint16)~supported)
+            return SDL_SetError("Simulated input references an unavailable player control");
         if (next.bell_inside)
             buttons &= (Uint16) ~(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
         next.bell_inside = false;
+        if (!simulated && next.simulated_input)
+            next.previous_buttons = buttons;
+        next.simulated_input = simulated;
         next.buttons = buttons;
         next.held = next.previous_buttons;
         next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
         next.previous_buttons = buttons;
     }
+    if (alive && !SotnPlayer_ScriptTimers(&next))
+        return false;
     for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
         if (alive && next.timers[i] != 0)
+        {
             --next.timers[i];
+            if (i == 6 && next.timers[i] == 0 && next.step == SOTN_PLAYER_FALL &&
+                next.animation.id != 28)
+            {
+                Animate(&next, 28);
+                next.movement_flags &= ~0x10U;
+            }
+        }
     // Original poison expiry requests timer15 before that later timer's own decrement.
     if (poison_recovery && next.afterimage_generation)
         next.afterimage_timer15 = 12;
@@ -1544,15 +1620,17 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.previous_step = next.step;
     if (alive && next.invincibility)
         --next.invincibility;
-    if (alive && next.script_hold)
+    if (alive && (force_hold || force_reaction))
     {
-        SotnPlayer_GravityCancel(&next);
+        if (force_hold)
+            SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
         SotnPlayer_WolfCancel(&next);
         // PAD_SIM mode 2 changes step without selecting a new animation (692E8.c/alu_anim.c).
-        SetStep(&next, SOTN_PLAYER_SCRIPT);
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
-        ClearAttack(&next);
+        SetStep(&next, force_reaction ? SOTN_PLAYER_SCRIPT_REACTION : SOTN_PLAYER_SCRIPT);
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
+        if (force_hold && next.legacy_script_hold)
+            ClearAttack(&next);
     }
     if (alive && next.grab.state == SOTN_GRAB_START)
     {
@@ -1635,6 +1713,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             if (!next.script_hold)
                 Land(&next, 0);
             break;
+        case SOTN_PLAYER_SCRIPT_REACTION:
+            ScriptReactionTick(&next);
+            break;
         case SOTN_PLAYER_STAND:
             StandTick(&next);
             break;
@@ -1659,7 +1740,6 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             if (next.timers[5] && (next.tapped & SOTN_BUTTON_JUMP))
             {
                 Jump(&next);
-                ClearAttack(&next);
             }
             else if (!Transitions(&next, 0x9029))
             {
@@ -1727,13 +1807,15 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE ||
         next.step == SOTN_PLAYER_SOUL)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 16);
-    if (SotnPlayerStep_IsDead(next.step))
+    if (SotnPlayerStep_IsDead(next.step) || next.step == SOTN_PLAYER_SCRIPT_REACTION ||
+        next.step == SOTN_PLAYER_SCRIPT)
         next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
         (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
         (next.step == SOTN_PLAYER_BAT && next.substep == 3))
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
+    SotnPlayer_ScriptRecovery(&next);
     if (next.failed)
         return false;
     const bool animated =
@@ -1807,6 +1889,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     player->mp = 20;
     player->mist_lockout = 16;
     player->animation_bank = 1;
+    player->palette = 0x8100;
     player->attributes =
         (SotnCharacterStats){.total = {6, 6, 6, 6}, .attack = {6, 6}, .unarmed_attack = 6};
     player->map = map;
@@ -1863,6 +1946,12 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     const Sint64 y = player->y.value + (Sint64)offset_y * FIX_ONE;
     if (!PositionValid(map, x, y))
         return SDL_SetError("Player room rebase is outside the new bounded room");
+    const Sint64 script_x = (Sint64)player->script_reaction.source.x + (Sint64)offset_x * FIX_ONE,
+                 script_y = (Sint64)player->script_reaction.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->script_reaction.started &&
+        (script_x < SDL_MIN_SINT32 || script_x > SDL_MAX_SINT32 || script_y < SDL_MIN_SINT32 ||
+         script_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured scripted-reaction source");
     SotnPlayerAfterimage afterimage = player->afterimage;
     if (player->afterimage_generation &&
         !SotnPlayerAfterimage_Rebase(&afterimage, offset_x, offset_y))
@@ -2007,6 +2096,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     }
     player->x.value = (Sint32)x;
     player->y.value = (Sint32)y;
+    if (player->script_reaction.started)
+    {
+        player->script_reaction.source.x = (Sint32)script_x;
+        player->script_reaction.source.y = (Sint32)script_y;
+    }
     player->sleep = (SotnPlayerSleep){0};
     return true;
 }
@@ -2034,7 +2128,7 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x10000000U | (player->substep != 2 ? 0x20U : 0U);
     if (player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP)
         status |= 0x10002000U;
-    if (player->step == SOTN_PLAYER_HIT)
+    if (player->step == SOTN_PLAYER_HIT || player->step == SOTN_PLAYER_SCRIPT_REACTION)
         status |= 0x38110000U;
     if (SotnPlayerStep_IsDead(player->step))
         status |=
@@ -2099,6 +2193,12 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .contacts = (Uint32)player->contact,
         .status = status,
         .animation = player->animation,
+        .simulated_pad = player->simulated_pad,
+        .script_reaction = player->script_reaction,
+        .palette = player->palette,
+        .body_grey = {player->body_grey[0], player->body_grey[1], player->body_grey[2],
+                      player->body_grey[3]},
+        .body_color_blend = player->body_color_blend,
         .step = player->step,
         .substep = player->substep,
         .sleep_event = player->sleep_event,
@@ -2125,6 +2225,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
                      player->step != SOTN_PLAYER_SCRIPT && player->grab.state == SOTN_GRAB_NONE &&
+                     player->step != SOTN_PLAYER_SCRIPT_REACTION &&
                      player->step != SOTN_PLAYER_BOSS_GRAB,
         .random = player->damage_random,
         .solid_width = (Uint16)SDL_max(0, player->wall_sensors[0].x),
@@ -2411,7 +2512,10 @@ bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold)
         (hold && (SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
                   player->grab.state != SOTN_GRAB_NONE)))
         return SDL_SetError("Script hold requires a living normal-form player owner");
-    player->script_hold = hold;
+    if (!SotnPlayer_SetSimulatedPad(
+            player, (SotnPlayerSimulatedPad){.mode = hold ? 2 : 0, .remaining = hold ? 1 : 0}))
+        return false;
+    player->legacy_script_hold = hold;
     return true;
 }
 
@@ -2553,6 +2657,8 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.defense_buff_minimum = 0;
     next.heart_gain = (SotnPlayerHeartGain){0};
     next.absorption = (SotnPlayerAbsorption){0};
+    next.script_reaction.started = false;
+    next.mist.interrupted = false;
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;

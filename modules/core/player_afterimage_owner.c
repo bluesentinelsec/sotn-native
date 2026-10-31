@@ -53,26 +53,28 @@ bool SotnPlayer_AfterimageCapture(SotnPlayer *p)
     // Status is rebuilt before animation/collision, as in the original player update.
     if (SotnPlayer_Status(p) & 0x8000000U)
         SotnPlayer_AfterimageReset(p);
-    const bool recovering = p->previous_step == SOTN_PLAYER_HIT ||
-                            p->previous_step == SOTN_PLAYER_STONE ||
-                            p->previous_step == SOTN_PLAYER_BOSS_GRAB;
+    const bool recovering =
+        p->previous_step == SOTN_PLAYER_HIT || p->previous_step == SOTN_PLAYER_STONE ||
+        p->previous_step == SOTN_PLAYER_BOSS_GRAB ||
+        p->previous_step == SOTN_PLAYER_SCRIPT_REACTION || p->previous_step == SOTN_PLAYER_SCRIPT;
     if (recovering && NormalStep(p->step) && !p->poison_ticks && !p->curse_ticks)
         p->afterimage_timer15 = 4;
     if (p->failed)
         return false;
     if (p->step == SOTN_PLAYER_BOSS_GRAB || p->step == SOTN_PLAYER_STUCK)
         return true; // Original status40/10 bypasses both capture and display updates.
-    return SotnPlayerAfterimage_Capture(&p->afterimage, p->dra,
-                                        (SotnAfterimageInput){.x = p->x.value,
-                                                              .y = p->y.value,
-                                                              .velocity_y = p->vy,
-                                                              .pressed = p->buttons,
-                                                              .held = p->held,
-                                                              .tapped = p->tapped,
-                                                              .animation = p->animation.id,
-                                                              .sprite = p->animation.sprite,
-                                                              .palette = 0x8100,
-                                                              .facing_left = p->facing_left});
+    return SotnPlayerAfterimage_Capture(
+        &p->afterimage, p->dra,
+        (SotnAfterimageInput){.x = p->x.value,
+                              .y = p->y.value,
+                              .velocity_y = p->vy,
+                              .pressed = p->buttons,
+                              .held = p->held,
+                              .tapped = p->tapped,
+                              .animation = p->animation.id,
+                              .sprite = p->animation.sprite,
+                              .palette = p->palette ? p->palette : 0x8100,
+                              .facing_left = p->facing_left});
 }
 bool SotnPlayer_AfterimagePresent(SotnPlayer *p)
 {

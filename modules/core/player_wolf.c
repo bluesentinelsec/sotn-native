@@ -376,7 +376,8 @@ void SotnPlayer_WolfTick(SotnPlayer *p)
         Apply(p, f);
         p->wolf.commands = e;
         p->mp_spent = (Uint16)(p->mp_spent + e.mp_spent);
-        p->bat_input_hold = (Uint8)e.input_hold;
+        if (e.input_hold)
+            SotnPlayer_HoldInput(p, e.input_hold);
         if (e.return_requested)
         {
             p->tapped = SOTN_BUTTON_WOLF;

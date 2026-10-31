@@ -199,7 +199,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
         {
             p->tapped = SOTN_BUTTON_BAT;
             (void)Finished(p);
-            p->bat_input_hold = 32;
+            SotnPlayer_HoldInput(p, 32);
             if (p->bat_commands.wall_impact)
                 p->sound = 0x644;
         }

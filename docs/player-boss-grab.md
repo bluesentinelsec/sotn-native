@@ -18,6 +18,9 @@ enters hit substep 1; normal hit recovery then resumes gravity and landing. This
 is different from the thrown-release command used by other bosses, which remains
 unsupported. Stone-reaction grabs, equipment-triggered damage effects, the original
 flash/HP-number effects, and complete death presentation/parity remain incomplete.
+Normal grab births and damage pulses now supply their original red CLUT to the
+[owned timer2/palette presentation](player-script-control.md). This does not add
+stone-grab or damage-number ownership.
 No transient grab state is added to ordinary saves. This is a dependency for the
 boss integration, not evidence that Hippogryph or connected Chapel travel works.
 
