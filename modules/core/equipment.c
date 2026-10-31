@@ -68,18 +68,50 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
 {
     if (out == NULL ||
         (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 86 &&
-         equipment.id != 123 && equipment.id != 128) ||
-        equipment.family != (equipment.id == 86    ? 0
-                             : equipment.id == 18  ? 31
-                             : equipment.id == 19  ? 37
-                             : equipment.id == 123 ? 43
-                             : equipment.id == 16  ? 52
-                                                   : 2))
+         equipment.id != 123 && equipment.id != 197 && equipment.id != 128) ||
+        equipment.family != (equipment.id == 86                           ? 0
+                             : equipment.id == 18                         ? 31
+                             : equipment.id == 19                         ? 37
+                             : equipment.id == 123 || equipment.id == 197 ? 43
+                             : equipment.id == 16                         ? 52
+                                                                          : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;
     if (weapons.bytes == NULL || offset > weapons.size || 0x3000 > weapons.size - offset)
         return SDL_SetError("WEAPON0.BIN is truncated before the selected weapon overlay");
     *out = (SotnDataView){weapons.bytes + offset, 0x3000};
+    return true;
+}
+
+bool SotnEquipment_ReadSwordSpecial(SotnDataView dra, Uint16 equipped, SotnEquipment *out,
+                                    Uint16 *mp)
+{
+    if (equipped != 123 || !out || !mp)
+        return SDL_SetError("Sword special requires its actual equipped Alucard sword");
+    SotnEquipment normal = {0};
+    const Uint8 *pointer = NULL, *record = NULL, *base = NULL;
+    if (!SotnEquipment_Read(dra, equipped, &normal) ||
+        !Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + 123U * 52U, 50, &base) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + 197U * 52U, 50, &record))
+        return false;
+    if (base[24] != 197 || record[15] != 43 || record[16] || record[17] != 135 ||
+        record[18] != 0xd9 || record[19] != 54 || record[20] || record[22] != 128 || record[25] ||
+        Read16(record + 36) > 999)
+        return SDL_SetError("Sword special definition does not match its original owned path");
+    const Uint16 attack = Read16(record + 8);
+    *out = (SotnEquipment){.id = 197,
+                           .family = 43,
+                           .kind = 135,
+                           .animation = record[18],
+                           .attack = (Sint16)(attack < 32768 ? attack : (Sint32)attack - 65536),
+                           .element = Read16(record + 12),
+                           .stun = Read16(record + 38),
+                           .hit_type = Read16(record + 40),
+                           .hit_effect = Read16(record + 42),
+                           .critical_rate = Read16(record + 48),
+                           .invincibility = record[26]};
+    *mp = Read16(record + 36);
     return true;
 }
 

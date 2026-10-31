@@ -9,6 +9,8 @@ add_library(sotn-core STATIC
   player_water.c
   player_contact.c
   player_script.c
+  sword_warp.c
+  include/sotn/sword_warp.h
   stat_buffs.c
   hud_resources.c
   rising_heart.c

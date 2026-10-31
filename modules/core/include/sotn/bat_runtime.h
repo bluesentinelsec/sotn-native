@@ -16,6 +16,7 @@
 #include <sotn/rising_heart.h>
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
+#include <sotn/sword_warp.h>
 
 enum
 {
@@ -68,6 +69,13 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerParticles particles;
         SotnPlayerSmoke smoke;
         SotnPlayerOutline outline;
+        struct
+        {
+            SotnSwordWarp image;
+            SotnSwordStrike strike;
+            SotnPlayerAttack attack;
+            Uint32 parent_generation;
+        } sword;
         SotnRisingHeart heart;
         SotnHealingNumber healing_number;
         SotnSpiritPortal portal;
@@ -102,7 +110,7 @@ typedef struct SotnBatRuntime
     struct
     {
         SotnPlayerFactory cursor;
-        Uint32 bat_generation;
+        Uint32 bat_generation, sword_parent;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
@@ -123,7 +131,7 @@ typedef struct SotnBatRuntime
     Uint32 echo_generation;
     Uint32 serial;
     Uint16 wing_mask;
-    Uint64 fire_mask, spirit_mask, hellfire_mask;
+    Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -145,7 +153,7 @@ typedef struct SotnBatRuntime
 /** @brief Actual owned context and room/camera translation at this update point. */
 typedef struct SotnBatRuntimeInput
 {
-    SotnDataView dra, executable;
+    SotnDataView dra, executable, weapons;
     SotnPlayerState player;
     SotnPlayerImage image;
     SotnWolfCaptureBounds wolf_bounds; /**< External bounds only when Wolf is not bound here. */
@@ -237,4 +245,14 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *runtime, Uint16 index, Uint32 generation
  * Call once at the original player boundary; this does not enable native Hellfire controls. */
 bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                     Uint32 packed, bool *allocated);
+/** @brief Reserve a real sword123 root or optional outline factory before player commit.
+ * @param runtime Actual shared owner. @param source Captured player/root origin.
+ * @param packed Original left/right root54 or outline61 profile20/21 request.
+ * @param argument Actual virtual equipment197 for root, zero for outline.
+ * @param allocated Actual reservation outcome. @return Success or SDL error, atomically.
+ * Exhaustion never invents children. The native player caller must undo reservations on failure. */
+bool SotnBatRuntime_RequestSword(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                 Uint32 packed, Sint16 argument, bool *allocated);
+/** @brief Validate actual weapon43 root/strike role and lifecycle before row or stage commit. */
+bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *child, Uint16 index);
 #endif

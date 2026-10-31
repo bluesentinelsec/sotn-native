@@ -13,6 +13,14 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed Alucard sword command and recovery**, AGPL-3.0-or-later.
+  `modules/core/sword_warp.c` adapts `dra/704D0.c` and `weapon/w_043.c`
+  callbacks04/08. The selected player/shared/native owners adapt
+  `dra/6E42C.c`, `71830.c:PlayerStepSwordWarp`, `7879C.c`,
+  `5D5BC.c:GetEquipProperties` and `menu.c:CalcAttack` at the pinned revision
+  below. Runtime metadata, animations, artwork and audio remain private. See
+  [scope and evidence](docs/player-sword-warp.md).
+
 - **Reconstructed BO0 monster head and attacks**, AGPL-3.0-or-later.
   `modules/core/olrox_monster_head.c` reconstructs selected BO0 `313A8.c` head
   behavior; `olrox_monster_attacks.c` adapts `e_laser_attack.c`,

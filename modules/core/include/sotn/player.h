@@ -57,6 +57,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_BOSS_GRAB = 12,
     SOTN_PLAYER_KILL_WATER = 13,
     SOTN_PLAYER_UNMORPH_MIST = 14,
+    SOTN_PLAYER_SWORD_WARP = 15,
     SOTN_PLAYER_KILL = 16,
     SOTN_PLAYER_DEATH_HOLD = 17,
     SOTN_PLAYER_WOLF = 24,
@@ -357,6 +358,17 @@ typedef struct SotnPlayerState
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
+/** @brief Reserve an actual sword-special/outline factory during the working player tick.
+ * Return true with allocated=false for original optional exhaustion. The native caller must
+ * roll back real reservations if a later player update fails; callbacks never grant readiness. */
+typedef bool (*SotnPlayerSwordFactory)(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                                       Sint16 argument, bool *allocated);
+/** @brief Bind the actual shared factory and preceding slot16 occupancy for sword123.
+ * @param player Actual player. @param factory Actual reservation callback.
+ * @param context Retained native owner. @param weapon_present Actual shared slot16 identity.
+ * @return Success or SDL error. Controls remain unavailable until this owner is bound. */
+bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory factory, void *context,
+                                bool weapon_present);
 
 /** @brief Bind real capture/decay owners for selected ordinary unfaded water death.
  * @param player Actual simulation. @param capture Actual StoreImage owner.
@@ -444,7 +456,8 @@ bool SotnPlayer_CommitWolfBody(SotnPlayer *player, const SotnWolfRuntime *body,
  * @note Supports standing, walking, crouching, falling, jumping and an active Leap
  * Stone's double jump after SotnPlayer_SetRelics supplies its persistent ownership.
  * The selected normal-Jump dive kick has its own attack and delayed rebound.
- * Empty-hand, Basilard/Gladius/Mace/Short sword, and ordinary Alucard sword/shield paths run.
+ * Empty-hand, Basilard/Gladius/Mace/Short sword, ordinary Alucard sword/shield and
+ * the factory-bound Alucard sword command path run.
  * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
  * transformations, and stage scripts are not implemented here.
  */

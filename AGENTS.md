@@ -1,3 +1,18 @@
+Selected [Alucard sword command/recovery](docs/player-sword-warp.md) now owns actual
+QCF/virtual197/five-MP, state15, shared root54/slot16 and next-pass strike62,
+private weapon43 images/animation/combat, outlines20/21 and sixteen-update recovery.
+Preserve pre-collision requests, real reservation outcomes, single strike RNG,
+allocation-before-RNG, least-used counter increment before parent enemyId0 copy,
+retained group0 cooldown, whole fixed/word wrap, hidden810D and normal8100 palettes,
+pose5/14/19 gates and no birth motion. Retain virtual equipment/artwork through
+supported owned hand changes; restore the selected native overlay after drawing.
+Menu/map/freeze/draw holds and no-tick rebases remain; failed player updates undo
+actual reservations, failed shared ticks retain runtime/character RNG. No new pool,
+grants or savesv9 changes. Spawned/positioned targets, owned-equipment selections
+and malformed-image fixtures are not acquisition/route/console evidence. Osafune,
+ordinary slash sparkles, other weapon specials/full overlay contention and the
+remaining eight unhandled states/control branches keep milestone1 incomplete.
+
 Selected [contact absorption](docs/player-contact-absorption.md) now owns original
 immediate response5, silent Blink44 then48, green number and timer14 protection12.
 Owned circlets38..42 use actual private attributes; Cat-eye43 converts kind7 only
@@ -40,7 +55,7 @@ ordered standing/crouch hand cancels, Basilard holds, prior-child shield state,
 Jump's early return and low-speed Bat/return eight-pass collision. Preserve the US
 first-physical-frame tap rebase after selected simulated input, failure rollback,
 no-tick room rebases and menu/map/draw holds. Held shield startup is not a subweapon
-tap. The source-backed inventory has 34 original handled states versus 25 native
+tap. The source-backed inventory has 34 original handled states versus 26 native
 dispatches; all remaining equipment/familiar/script/damage/death dependencies must
 close before milestone 1 is complete. Explicit equipment/pose/protection fixtures
 are not acquisition/route/console evidence. No default grants or savesv9 changes.

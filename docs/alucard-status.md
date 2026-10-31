@@ -20,7 +20,7 @@ fixtures and command recognizers do not establish playable availability by thems
 | Normal spells | Dark Metamorphosis, Summon Spirit, Tetra Spirit, Hellfire and Soul Steal | [Dark](player-dark-metamorphosis.md), [spirits](player-spirit-spells.md), [Hellfire](player-hellfire.md), [Soul Steal](player-soul-steal.md) |
 | Water | Actual Entrance volumes/currents/effects, player drag/gravity/form gates, Wolf swimming, bubbles, ordinary HP loss and native water death | [Stage actors](native-water-actors.md), [player feedback](player-water.md), [bubbles](normal-water-bubbles.md), [damage/contact ordering](player-water-contact.md), [water death](player-water-death.md) |
 | Recovery and presentation | Afterimages, selected status masks, poison/curse/stone behavior, blood/orb healing and numbers, original HUD MP recovery, Fury Plate, Healing Mail and Blood Cloak | [Afterimages](player-afterimages.md), [status](player-status.md), [poison](player-poison.md), [curse](character-status.md), [stone](player-petrification.md), [blood](enemy-blood.md), [orbs](soul-steal-orbs.md), [healing numbers](player-healing-numbers.md), [Fury](stat-buff-ownership.md), [HUD/Mail](hud-healing-resources.md), [Blood Cloak](player-blood-cloak.md) |
-| Combat and equipment | Selected empty-hand, Basilard, Gladius, Mace, Short sword and ordinary Alucard sword/shield paths; selected equipment attributes/passives and absorption circlets | [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md) |
+| Combat and equipment | Selected empty-hand, Basilard, Gladius, Mace, Short sword and Alucard sword ordinary/command attacks and shield paths; selected equipment attributes/passives and absorption circlets | [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [sword command](player-sword-warp.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md) |
 
 Owned relics and equipment gate these paths. Development starts retain their
 existing resources and grants. A granted item/relic or positioned encounter test
@@ -41,7 +41,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [control inventory](player-control-audit.md) lists all 34 original dispatch states,
   normal substates and cross-workstream dependencies. The selected
   [scripted input/theft reaction](player-script-control.md) adds state48 and its
-  actual input/palette/factory/render/recovery owners; 25 states now dispatch.
+  actual input/palette/factory/render/recovery owners. The selected
+  [Alucard sword command/recovery](player-sword-warp.md) adds state15; 26 states now dispatch.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. Verify contact/healing priority and failure

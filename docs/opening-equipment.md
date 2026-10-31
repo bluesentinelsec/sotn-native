@@ -23,9 +23,10 @@ precedence over inventory stock; unrelated gear and duplicate stock survive.
 Earlier checks granted items only to inventory and missed reversed head/armor
 IDs. Public regression coverage now checks equipped theft as well.
 
-Alucard sword's command attack/sparkles, shield-rod spells, knocked-away shield
-presentation, full elemental/status behavior, and exact GPU blending remain
-incomplete. No substitute special attacks are exposed. Opening relics and the
+The selected [Alucard sword command attack](player-sword-warp.md) now runs its
+actual image/strike factories, outlines, MP and state15 recovery. Ordinary slash
+sparkles, shield-rod spells, knocked-away shield presentation, full elemental/status
+behavior and exact GPU blending remain incomplete. Opening relics and the
 original character's prologue-derived resources remain separate progression work.
 
 Public synthetic tests cover shield cursor transitions, held movement frames,

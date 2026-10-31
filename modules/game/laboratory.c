@@ -746,6 +746,12 @@ static bool HellfireFactory(void *context, SotnPlayerFactorySource source, Uint3
     SotnLaboratory *s = context;
     return SotnBatRuntime_RequestHellfire(&s->bat_runtime, source, packed, allocated);
 }
+static bool SwordFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                         Sint16 argument, bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestSword(&s->bat_runtime, source, packed, argument, allocated);
+}
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->blink_rebase_x + s->blink_camera_x - s->camera.x,
@@ -767,6 +773,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
             &s->bat_runtime, s->character,
             (SotnBatRuntimeInput){.dra = s->dra,
                                   .executable = s->executable,
+                                  .weapons = SotnResource_View(s->weapons),
                                   .player = player,
                                   .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
                                             (Sint16)sprite.pivot_y},
@@ -1833,6 +1840,9 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetHellfireContext(session->player, HellfireFactory, session, session->camera.x,
                                        session->bat_runtime.hellfire_signal,
                                        session->bat_runtime.hellfire_palette) ||
+        !SotnPlayer_SetSwordContext(session->player, SwordFactory, session,
+                                    session->bat_runtime.children[0].kind != 0 ||
+                                        session->mist_present) ||
         !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
@@ -2178,7 +2188,7 @@ static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32
     return true;
 }
 static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
-                              const SotnAlucardSprite *sprite)
+                              const SotnAlucardSprite *sprite, Uint16 blend)
 {
     if (!sprite->width)
         return true;
@@ -2187,7 +2197,9 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
     const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
                  left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
                                            : x + sprite->pivot_x;
-    SotnPlayerEffectQuad q = {.page = 0x18, .palette = (Uint16)(player.palette & 0x7fffU)};
+    SotnPlayerEffectQuad q = {.page = 0x18,
+                              .palette = (Uint16)(player.palette & 0x7fffU),
+                              .draw_mode = (Uint16)((blend & 0x60U) | (blend & 0x10U ? 1U : 0U))};
     for (Uint16 v = 0; v < 4; ++v)
     {
         q.x[v] = BlinkWord(left + ((v & 1U) ? sprite->width : 0));
@@ -2410,6 +2422,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->initialized &&
+                (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
+                 child->kind == 0xf2) &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_SWORD}))
+                return false;
             if (child->kind == 19 && child->initialized)
             {
                 if (owner < 40 || !child->generation || child->primitive_count != 20 ||
@@ -2605,7 +2626,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 (player.water_death.active || player.animation_bank == 13 || player.rotated ||
                          (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                           (player.palette != 0x8100 || player.body_color_blend))
-                     ? DrawRotatedPlayer(session, player, &alucard)
+                     ? DrawRotatedPlayer(session, player, &alucard, 0)
                  : player.stone.active
                      ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - view_x,
                                                  Pixel(player.y) - view_y, player.facing_left,
@@ -2853,6 +2874,64 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
                                                    session->draw_target.surface))
                     return false;
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_SWORD)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            const bool image = c->kind == 0xe1 || c->kind == 0xf1;
+            if (!c->generation || !c->initialized || (!image && c->kind != 0xe2 && c->kind != 0xf2))
+                return SDL_SetError("Sword draw lost its actual initialized child");
+            if (image)
+            {
+                SotnPlayerState copy = player;
+                copy.x = c->source.x;
+                copy.y = c->source.y;
+                copy.facing_left = c->source.facing_left;
+                copy.palette = 0x8100;
+                copy.body_color_blend = false;
+                copy.water_death.active = false;
+                if (!DrawRotatedPlayer(session, copy, &alucard, c->state.sword.image.blend))
+                    return false;
+            }
+            else
+            {
+                const Uint16 hand = c->kind == 0xe2 ? 0 : 1;
+                const bool rebind = session->hands[hand] != 123;
+                const SotnDataView weapons = SotnResource_View(session->weapons);
+                SotnEquipment sword = {0}, current = {0};
+                if (rebind &&
+                    (!SotnEquipment_Read(session->dra, 123, &sword) ||
+                     !SotnEquipment_Read(session->dra, session->hands[hand], &current) ||
+                     !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, sword)))
+                    return false;
+                const bool drawn = SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = c->kind == 0xe2 ? 16 : 18,
+                                      .frame = c->state.sword.strike.frame,
+                                      .palette = c->kind == 0xe2 ? 0x110 : 0x128,
+                                      .texture_offset = c->kind == 0xe2 ? 0x64 : 0x66,
+                                      .blend_mode = 0x30,
+                                      .facing_left = c->source.facing_left},
+                    Pixel(c->source.x) - view_x + session->draw_target.offset_x,
+                    Pixel(c->source.y) - view_y + session->draw_target.offset_y,
+                    (SotnSpriteTransform){.rotation = player.gravity.upside_down ? 0x800 : 0,
+                                          .scale_x = 256,
+                                          .scale_y = 256,
+                                          .opacity = 128},
+                    session->draw_target.surface);
+                char detail[512] = {0};
+                if (!drawn)
+                    SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+                if (rebind &&
+                    !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, current))
+                    return false;
+                if (!drawn)
+                    return SDL_SetError("%s", detail);
             }
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))

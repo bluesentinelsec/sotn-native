@@ -106,6 +106,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         r->children[i] = (SotnBatRuntimeChild){0};
         r->spirit_mask &= ~((Uint64)1 << i);
         r->hellfire_mask &= ~((Uint64)1 << i);
+        r->sword_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
@@ -126,6 +127,7 @@ static bool RequestSource(SotnBatRuntime *r, SotnPlayerFactorySource source, Uin
             if (!SotnPlayerFactory_Begin(&r->factories[i].cursor, source, packed, 0))
                 return false;
             r->factories[i].bat_generation = generation;
+            r->factories[i].sword_parent = 0;
             return true;
         }
     // Original CreateEntFactoryFromEntity returns NULL; optional commands never invent a child.
@@ -147,6 +149,7 @@ bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *r, SotnPlayerFactorySource s
                 return false;
             r->factories[i].cursor = f;
             r->factories[i].bat_generation = 0;
+            r->factories[i].sword_parent = 0;
             *allocated = true;
             return true;
         }
@@ -160,6 +163,28 @@ static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 
         (SotnPlayerFactorySource){
             .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
         packed, generation);
+}
+bool SotnBatRuntime_RequestSword(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                                 Sint16 argument, bool *allocated)
+{
+    if (!r || !allocated ||
+        !(((packed == 0x1036 || packed == 0x802036) && argument == 197) ||
+          ((packed == 0x14003d || packed == 0x15003d) && !argument)))
+        return SDL_SetError("Sword special requires its original root/outline factory boundary");
+    for (Uint16 i = 0; i < 8; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, argument))
+                return false;
+            r->factories[i].cursor = f;
+            r->factories[i].bat_generation = 0;
+            r->factories[i].sword_parent = 0;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
 }
 static bool Sound(SotnBatRuntime *r, Uint16 sound)
 {
@@ -204,7 +229,8 @@ static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
            kind == 36 || kind == 45 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
-           kind == 63 || (kind >= 24 && kind <= 29);
+           kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
+           (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -245,6 +271,12 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->state.spirit.motion.flags;
     case 63:
         return c->state.portal.flags;
+    case 0xe1:
+    case 0xf1:
+        return 0x04020000U;
+    case 0xe2:
+    case 0xf2:
+        return 0x04160000U;
     default:
         return 0;
     }
@@ -318,6 +350,23 @@ bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 inde
            (c->initialized ? n->phase && n->phase <= 11 && c->primitive_count == 20
                            : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (c->kind == 0xe1 || c->kind == 0xf1)
+        return index == 0 && !c->primitive_count && !c->draw_count && !c->group &&
+               c->parameter == (c->kind == 0xf1 ? 0x8000 : 0) && !c->state.sword.image.removed &&
+               (c->initialized ? c->state.sword.image.phase >= 1 && c->state.sword.image.phase <= 3
+                               : !c->state.sword.image.phase);
+    if (c->kind == 0xe2 || c->kind == 0xf2)
+        return index >= 1 && index <= 15 && !c->primitive_count && !c->draw_count && !c->group &&
+               !c->parameter && c->state.sword.parent_generation && !c->bat_generation &&
+               !c->state.sword.strike.removed &&
+               (c->initialized
+                    ? c->state.sword.strike.phase == 1 && c->state.sword.attack.equipment == 197 &&
+                          c->state.sword.strike.pose < 20
+                    : !c->state.sword.strike.phase);
+    return true;
+}
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
@@ -331,6 +380,14 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                              .parameter = child.parameter};
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
+    if (c.kind == 0xe2 || c.kind == 0xf2)
+    {
+        if (child.slot < 17 || child.slot > 31 || !generation || child.parameter ||
+            child.argument_low || child.argument_high)
+            return SDL_SetError("Sword strike lost its actual range, parameter or parent");
+        c.bat_generation = 0;
+        c.state.sword.parent_generation = generation;
+    }
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
             (SotnHellfireTrail){.x = child.source.x,
@@ -351,6 +408,14 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
+    if (c.kind == 0xe1 || c.kind == 0xf1)
+    {
+        if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
+            child.parameter != (c.kind == 0xf1 ? 0x8000 : 0))
+            return SDL_SetError("Sword image lost its actual slot16 and virtual equipment");
+        c.state.sword.image = (SotnSwordWarp){
+            .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
+    }
     if (c.kind == 35)
         c.state.trail = (SotnBatTrail){.x = child.source.x, .y = child.source.y};
     if (c.kind == 45)
@@ -645,6 +710,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
             return SDL_SetError("Healing number lost its actual child/lifetime/row ownership");
+        if (!SotnBatRuntime_SwordChildValid(c, i))
+            return SDL_SetError("Sword special lost its actual slot/role/lifetime ownership");
         if (c->kind == 51 &&
             (c->primitive_count || c->draw_count || c->state.heart.removed ||
              c->initialized != c->state.heart.initialized ||
@@ -705,6 +772,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         {
             c->state.trail.x = FixedShift(c->state.trail.x, in.room_shift_x);
             c->state.trail.y = FixedShift(c->state.trail.y, in.room_shift_y);
+        }
+        if (c->kind == 0xe1 || c->kind == 0xf1)
+        {
+            c->state.sword.image.x = FixedShift(c->state.sword.image.x, in.room_shift_x);
+            c->state.sword.image.y = FixedShift(c->state.sword.image.y, in.room_shift_y);
         }
         if (c->kind == 24)
         {
@@ -957,6 +1029,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     for (Uint16 i = 0; i < 8; ++i)
     {
+        if (r.factories[i].cursor.entity_id && r.factories[i].sword_parent &&
+            (r.factories[i].bat_generation || r.factories[i].cursor.blueprint != 62 ||
+             (r.factories[i].cursor.entity_modifier != 0xe0 &&
+              r.factories[i].cursor.entity_modifier != 0xf0)))
+            return SDL_SetError("Sword factory lost its separate actual parent lineage");
         if (!r.factories[i].cursor.entity_id ||
             (in.freeze && !(r.factories[i].cursor.source.flags & 0x10000U)))
             continue;
@@ -970,11 +1047,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                         .player_substep = p.substep},
                                     &events))
             return false;
-        if (events.clear_weapon_state)
-            return SDL_SetError("Bat runtime received an unintegrated weapon replacement");
         for (Uint16 j = 0; j < events.count; ++j)
-            if (!Spawn(&r, events.children[j], r.factories[i].bat_generation))
+        {
+            SotnPlayerFactoryChild child = events.children[j];
+            if (child.replace)
+            {
+                if (child.slot != 16 || (child.entity_id != 0xe1 && child.entity_id != 0xf1) ||
+                    (in.other_occupied & ((Uint64)1 << 16)))
+                    return SDL_SetError("Shared runtime received an unowned weapon replacement");
+                SotnBatRuntimeChild *old = &r.children[0];
+                if (old->primitive_count &&
+                    !SotnPrimitiveSlots_Release(&in.primitive_slots, old->primitive_count,
+                                                old->primitives))
+                    return false;
+                *old = (SotnBatRuntimeChild){0};
+                child.replace = false;
+            }
+            if (!Spawn(&r, child,
+                       r.factories[i].sword_parent ? r.factories[i].sword_parent
+                                                   : r.factories[i].bat_generation))
                 return false;
+        }
     }
     SotnCharacterState progress = {0};
     SotnCharacterStats stats = {0};
@@ -983,7 +1076,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
-    r.fire_mask = r.spirit_mask = r.hellfire_mask = 0;
+    r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.echo_attack = false;
@@ -999,6 +1092,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             continue;
         if (in.freeze && !(ChildFlags(c) & 0x10000U))
         {
+            if (c->initialized && (c->kind == 0xe2 || c->kind == 0xf2))
+                r.sword_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 36)
                 r.wing_mask |= (Uint16)(1U << (i - 1U));
             if (c->initialized && c->kind == 45)
@@ -1153,7 +1248,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                  p.gravity.upside_down ? 0x800 : p.bat.rotation,
                                              .bank = p.animation_bank,
                                              .frame = p.animation.sprite,
-                                             .palette = 0x8100,
+                                             .palette = p.palette ? p.palette : 0x8100,
                                              .step = (Uint16)p.step,
                                              .priority = p.priority,
                                              .status = p.status,
@@ -1165,6 +1260,85 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             removed = c->state.outline.removed;
             c->initialized = allocated && !removed;
             c->draw_count = c->initialized ? 1 : 0;
+        }
+        else if (c->kind == 0xe1 || c->kind == 0xf1)
+        {
+            SotnSwordWarpEvents events = {0};
+            if (!c->initialized)
+            {
+                c->state.sword.image.facing_left = p.facing_left;
+                c->source.priority = p.priority;
+            }
+            if (!SotnSwordWarp_Tick(&c->state.sword.image, p.animation.pose, p.animation.remaining,
+                                    p.animation.sprite, &events))
+                return false;
+            c->source.x = c->state.sword.image.x;
+            c->source.y = c->state.sword.image.y;
+            c->source.facing_left = c->state.sword.image.facing_left;
+            c->initialized = true;
+            removed = c->state.sword.image.removed;
+            if (events.strike)
+                for (Uint16 f = 0; f < 8; ++f)
+                    if (!r.factories[f].cursor.entity_id)
+                    {
+                        if (!SotnPlayerFactory_Begin(&r.factories[f].cursor, c->source,
+                                                     c->kind == 0xe1 ? 0x103e : 0x203e, 0))
+                            return false;
+                        r.factories[f].bat_generation = 0;
+                        r.factories[f].sword_parent = c->generation;
+                        break;
+                    }
+        }
+        else if (c->kind == 0xe2 || c->kind == 0xf2)
+        {
+            if (!c->initialized)
+            {
+                const SotnBatRuntimeChild *parent = &r.children[0];
+                if (!c->state.sword.parent_generation ||
+                    parent->generation != c->state.sword.parent_generation ||
+                    parent->kind != (c->kind == 0xe2 ? 0xe1 : 0xf1))
+                    return SDL_SetError("Sword strike lost its actual parent generation");
+                SotnEquipment e = {0};
+                if (!SotnCharacter_SwordProperties(character, p.poison_ticks != 0, &progress.random,
+                                                   &e))
+                    return false;
+                // SetWeaponProperties increments a least-used counter before copying enemyId0
+                // from this original parent. End-of-pass recount removes that transient count.
+                Uint16 group = i < 16 ? 3 : 7;
+                for (Uint16 g = group + 1; g < (i < 16 ? 7 : 11); ++g)
+                    if (r.groups[g] < r.groups[group])
+                        group = g;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Sword strike shared group count overflow");
+                ++r.groups[group];
+                c->group = 0;
+                c->source.priority = (Uint16)(p.priority - 2U);
+                c->state.sword.attack = (SotnPlayerAttack){.offset_x = 27,
+                                                           .offset_y = -19,
+                                                           .width = 35,
+                                                           .power = (Uint16)e.attack,
+                                                           .element = e.element,
+                                                           .hit_type = e.hit_type,
+                                                           .hit_effect = e.hit_effect,
+                                                           .stun_frames = e.stun,
+                                                           .invincibility_frames = e.invincibility,
+                                                           .critical_rate = (Uint8)e.critical_rate,
+                                                           .equipment = 197,
+                                                           .right_hand = c->kind == 0xf2};
+                c->initialized = true;
+            }
+            SotnEquipment e = {.id = 197, .family = 43};
+            SotnDataView overlay = {0};
+            Uint16 sound = 0;
+            if (!SotnWeapon_Overlay(in.weapons, e, &overlay) ||
+                !SotnSwordStrike_Tick(&c->state.sword.strike, overlay, &sound) ||
+                (sound && !Sound(&r, sound)))
+                return false;
+            removed = c->state.sword.strike.removed;
+            c->state.sword.attack.height = c->state.sword.strike.height;
+            c->state.sword.attack.active = c->state.sword.strike.height != 0;
+            if (!removed)
+                r.sword_mask |= (Uint64)1 << i;
         }
         else if (c->kind == 35)
         {

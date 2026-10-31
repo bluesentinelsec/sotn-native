@@ -1,5 +1,6 @@
 #ifndef SOTN_CHARACTER_H
 #define SOTN_CHARACTER_H
+#include <sotn/equipment.h>
 #include <sotn/game_data.h>
 #include <sotn/stat_buffs.h>
 
@@ -52,6 +53,16 @@ typedef struct SotnCharacterStats
 } SotnCharacterStats;
 /** @brief Owned character borrowing immutable DRA bytes until Destroy. */
 typedef struct SotnCharacter SotnCharacter;
+/** @brief Resolve actual virtual197 strike properties using live original stats and RNG.
+ * @param character Borrowed character at the actual retained strike birth.
+ * @param poison Actual player status.
+ * @param random Owned copied libc RNG, committed by the shared runtime after success.
+ * @param out Receives virtual equipment with final attack/critical values.
+ * @return Success or SDL error preserving RNG/output. The caller validates the actual parent
+ * generation and its retained virtual197; changing hands does not replace that identity.
+ * Applies signed-word body/buff bonuses before caps, then poison, without granting an item. */
+bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, Uint32 *random,
+                                   SotnEquipment *out);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.

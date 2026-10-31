@@ -7,6 +7,7 @@
 #include <sotn/player.h>
 #include <sotn/shield.h>
 #include <sotn/spell_commands.h>
+#include <sotn/sword_warp.h>
 
 typedef union PlayerFixed {
     Sint32 value;
@@ -54,6 +55,11 @@ struct SotnPlayer
     SotnPlayerHealing healing;
     SotnPlayerDark dark;
     SotnSpellCommands spell_commands;
+    SotnWeaponCommand sword_command;
+    SotnPlayerSwordFactory sword_factory;
+    void *sword_context;
+    Sint32 sword_recovery;
+    bool sword_weapon_present;
     bool dark_context, spirit_context, soul_context;
     SotnPlayerSoul soul;
     SotnPlayerSpirit spirit;

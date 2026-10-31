@@ -186,6 +186,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
             return SDL_SetError("Hellfire primitive commit lost its actual child lifecycle");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
             return SDL_SetError("Healing number commit lost its actual child/lifetime/rows");
+        if (!SotnBatRuntime_SwordChildValid(c, i))
+            return SDL_SetError("Sword commit lost its actual child/lifetime/slot ownership");
         if ((c->kind == 61 &&
              (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
               c->state.spirit.motion.removed ||

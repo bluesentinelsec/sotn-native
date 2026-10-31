@@ -25,6 +25,12 @@ typedef struct SotnWeaponFrame
  * @return Success, or false with SDL_GetError() for invalid or unsupported definitions.
  * @note Other items and their special effects require separate integration. */
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out);
+/** @brief Read virtual197 for an actual equipped Alucard sword123 special.
+ * @param dra Borrowed private US definitions. @param equipped Actual owned hand item.
+ * @param out Copied metadata. @param mp Actual original special cost.
+ * @return Success or SDL error without output mutation. Virtual197 is never equippable. */
+bool SotnEquipment_ReadSwordSpecial(SotnDataView dra, Uint16 equipped, SotnEquipment *out,
+                                    Uint16 *mp);
 /** @brief Borrow the selected weapon overlay from private WEAPON0.BIN.
  * @param weapons Borrowed immutable container. @param equipment Supported nonempty item.
  * @param out Receives an overlay view, expiring with weapons, unchanged on failure.

@@ -413,6 +413,43 @@ static bool StartAttack(SotnPlayer *player)
             Animate(player, 0x65);
         return true;
     }
+    if (equipment.id == 123 && player->sword_factory && player->sword_command.phase == 255 &&
+        (player->contact & 1) && !player->tight_space)
+    {
+        SotnEquipment special = {0};
+        Uint16 cost = 0;
+        if (!SotnEquipment_ReadSwordSpecial(player->dra, equipment.id, &special, &cost))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (player->mp >= cost)
+        {
+            const SotnPlayerFactorySource source = {.x = player->x.value,
+                                                    .y = player->y.value,
+                                                    .priority = 148,
+                                                    .facing_left = player->facing_left};
+            bool allocated = false;
+            if (!player->sword_factory(player->sword_context, source, hand ? 0x802036U : 0x1036U,
+                                       197, &allocated))
+            {
+                player->failed = true;
+                return true;
+            }
+            if (!allocated)
+                return false;
+            player->mp = (Uint16)(player->mp - cost);
+            player->mp_spent = cost;
+            player->weapon_startup = 4;
+            player->vx = player->vy = 0;
+            SetStep(player, SOTN_PLAYER_SWORD_WARP);
+            Animate(player, special.animation);
+            player->sound = 0x6f0;
+            if (!player->sword_factory(player->sword_context, source, 0x14003dU, 0, &allocated))
+                player->failed = true;
+            return true;
+        }
+    }
     player->subweapon_cast = false;
     player->attack_equipment = equipment;
     Sint32 critical = equipment.critical_rate;
@@ -474,9 +511,9 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
         player->step == SOTN_PLAYER_SCRIPT_REACTION || player->step == SOTN_PLAYER_BOSS_GRAB ||
-        player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_SUMMON ||
-        player->step == SOTN_PLAYER_TETRA || player->step == SOTN_PLAYER_HELLFIRE ||
-        player->step == SOTN_PLAYER_SOUL;
+        player->step == SOTN_PLAYER_SWORD_WARP || player->step == SOTN_PLAYER_DARK ||
+        player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA ||
+        player->step == SOTN_PLAYER_HELLFIRE || player->step == SOTN_PLAYER_SOUL;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -1032,6 +1069,37 @@ static void PhysicalDeath(SotnPlayer *player, bool right)
     player->vy = -212992;
     player->sound = 0x6f6;
     Animate(player, 0xc0);
+}
+
+static void SwordWarpTick(SotnPlayer *p)
+{
+    if (!p->substep)
+    {
+        if (!p->sword_weapon_present)
+        {
+            p->sword_recovery = 16;
+            bool allocated = false;
+            if (!p->sword_factory ||
+                !p->sword_factory(p->sword_context,
+                                  (SotnPlayerFactorySource){.x = p->x.value,
+                                                            .y = p->y.value,
+                                                            .priority = 148,
+                                                            .facing_left = p->facing_left},
+                                  0x15003dU, 0, &allocated))
+                p->failed = true;
+            ++p->substep;
+        }
+    }
+    else
+    {
+        const Uint32 bits = (Uint32)p->sword_recovery - 1U;
+        SDL_memcpy(&p->sword_recovery, &bits, sizeof(bits));
+        if (!p->sword_recovery)
+        {
+            p->palette = 0x8100;
+            Land(p, 0);
+        }
+    }
 }
 
 static void ScriptReactionTick(SotnPlayer *p)
@@ -1645,6 +1713,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (!SotnPlayerStep_IsDead(next.step))
     {
         SotnPlayer_GravityInput(&next);
+        if (next.sword_factory)
+            SotnWeaponCommand_Tick(&next.sword_command, next.buttons, next.facing_left,
+                                   next.tight_space != 0);
         NormalSpellInput(&next);
         SotnPlayer_MistInput(&next);
         SotnPlayer_BatInput(&next);
@@ -1659,6 +1730,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (!reaction_born)
         switch (next.step)
         {
+        case SOTN_PLAYER_SWORD_WARP:
+            SwordWarpTick(&next);
+            break;
         case SOTN_PLAYER_WOLF:
             SotnPlayer_WolfTick(&next);
             break;
@@ -1816,6 +1890,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         (next.step == SOTN_PLAYER_BAT && next.substep == 3))
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
     SotnPlayer_ScriptRecovery(&next);
+    if (next.step == SOTN_PLAYER_SWORD_WARP)
+    {
+        next.palette = 0x810d;
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
+    }
     if (next.failed)
         return false;
     const bool animated =
@@ -1904,6 +1983,17 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     }
     player->animation.remaining = 0;
     *out = player;
+    return true;
+}
+
+bool SotnPlayer_SetSwordContext(SotnPlayer *p, SotnPlayerSwordFactory factory, void *context,
+                                bool weapon_present)
+{
+    if (!p || !factory || !context)
+        return SDL_SetError("Sword control requires its actual shared factory and slot owner");
+    p->sword_factory = factory;
+    p->sword_context = context;
+    p->sword_weapon_present = weapon_present;
     return true;
 }
 
@@ -2151,6 +2241,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x38110000U;
     if (player->step == SOTN_PLAYER_HIGH_JUMP)
         status |= 0x38000000U;
+    if (player->step == SOTN_PLAYER_SWORD_WARP)
+        status |= 0x18100000U;
     if (player->step == SOTN_PLAYER_BAT)
         status |= 0x28100001U;
     if (player->step == SOTN_PLAYER_UNMORPH_BAT)

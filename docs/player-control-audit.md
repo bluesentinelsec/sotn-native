@@ -1,7 +1,7 @@
 # Alucard control completion inventory
 
 Milestone 1 remains open. Its original control dispatch has 34 handled states;
-the native player currently dispatches 25. An enum member, command recognizer,
+the native player currently dispatches 26. An enum member, command recognizer,
 animation or component request does not implement a missing state. This inventory
 records the dependencies needed to close the complete milestone, including those
 also covered by the other [Alucard workstreams](alucard-status.md).
@@ -23,7 +23,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 11: stone | [Selected stone](player-petrification.md) | Rare statue, repeated-hit and dependent effect branches |
 | 12: boss grab | [Selected grab](player-boss-grab.md) | Thrown release, stone reaction, damage palette/number effects and remaining boss producers |
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
-| 15: sword warp | No native dispatch | Actual Alucard sword/Osafune special, weapon-slot retirement, outlines 20/21, palette and sixteen-update recovery |
+| 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
 | 16: kill | Selected physical and water death | Remaining elemental deaths, helpers and fade branches |
 | 17: global-fade hold | Classified dead, no native dispatch | Real fade handshake, retained pose/draw attributes, ground/fall recovery and Blink 4A; classification alone is insufficient |
 | 18: teleport | No native dispatch | All six substates, actual teleport factory/retry, warp acknowledgement and TOP/RTOP position adjustment |

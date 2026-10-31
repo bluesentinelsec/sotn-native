@@ -283,6 +283,38 @@ static bool Calculate(SotnCharacter *c)
     c->stats = result;
     return true;
 }
+bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                   SotnEquipment *out)
+{
+    if (!c || !random || !out)
+        return SDL_SetError("Sword strike requires its actual character and copied RNG");
+    SotnEquipment e = {0};
+    Uint16 mp = 0;
+    if (!SotnEquipment_ReadSwordSpecial(c->dra, 123, &e, &mp))
+        return false;
+    Uint32 next_random = *random;
+    const Sint32 critical =
+        e.critical_rate +
+        Root((Uint16)(c->stats.total[3] * 2U + (SotnCombat_Random(&next_random) & 15U))) - 5;
+    Sint16 bonus = 0;
+    for (Uint16 i = 2; i < 7; ++i)
+    {
+        SotnItem item = {0};
+        if (!SotnItem_Read(c->dra, true, c->state.equipment[i], &item))
+            return false;
+        bonus = Word(bonus + item.attack);
+    }
+    Sint16 attack = Word(
+        e.attack + (e.attack <= c->stats.total[0] ? c->stats.total[0] : c->stats.total[0] / 2));
+    attack = Word(attack + bonus);
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
+        attack = Word(attack + 20);
+    e.attack = (Sint16)(SDL_clamp(attack, 0, 999) >> (poison ? 1 : 0));
+    e.critical_rate = (Uint16)SDL_clamp(critical, 0, 255);
+    *random = next_random;
+    *out = e;
+    return true;
+}
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
 {
     if (!c)

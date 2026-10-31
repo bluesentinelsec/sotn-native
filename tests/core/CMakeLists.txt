@@ -1051,3 +1051,10 @@ target_include_directories(sotn-player-script-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-player-script-tests PRIVATE sotn-core)
 add_test(NAME player-script-input-reaction COMMAND sotn-player-script-tests)
 set_tests_properties(player-script-input-reaction PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-sword-warp-tests test_sword_warp.c)
+sotn_configure_c_target(sotn-sword-warp-tests)
+target_include_directories(sotn-sword-warp-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-sword-warp-tests PRIVATE sotn-core)
+add_test(NAME player-sword-warp COMMAND sotn-sword-warp-tests)
+set_tests_properties(player-sword-warp PROPERTIES TIMEOUT 20)
