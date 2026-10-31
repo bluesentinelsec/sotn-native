@@ -359,7 +359,7 @@ bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 inde
         return true;
     const SotnHealingNumber *n = &c->state.healing_number;
     return index >= 40 && index < 48 && c->generation && !c->group && !c->draw_count &&
-           !n->removed && (n->zero_damage ? !n->number : n->number != 0) && n->extra_digits <= 3 &&
+           !n->removed && (n->damage || n->number != 0) && n->extra_digits <= 3 &&
            (c->initialized ? n->phase && n->phase <= 11 && c->primitive_count == 20
                            : !n->phase && !c->primitive_count);
 }
@@ -450,7 +450,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     return true;
 }
 static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFactorySource source,
-                          Uint16 amount, bool zero_damage)
+                          Uint16 amount, bool damage)
 {
     const Uint64 occupied = SotnBatRuntime_Occupied(r) | other_occupied;
     for (Uint16 slot = 56; slot < 64; ++slot)
@@ -460,7 +460,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
                        0))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
-            r->children[slot - 16U].state.healing_number.zero_damage = zero_damage;
+            r->children[slot - 16U].state.healing_number.damage = damage;
             break;
         }
     return true;
@@ -968,6 +968,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
          (p.healing.applied_kind == 1 && !RequestSource(&r, p.healing.source, 0x44002c, 0))))
         return false;
+    if (p.guard.applied)
+    {
+        if (in.freeze || !p.hp || p.hp > p.hp_max || p.immunity.applied || p.absorption.applied)
+            return SDL_SetError("Guard number requires its actual surviving ordinary result");
+        if (!RequestNumber(&r, in.other_occupied, p.guard.source, 1, true))
+            return false;
+    }
     if (p.immunity.applied)
     {
         if (in.freeze || !p.hp || p.hp > p.hp_max || p.absorption.applied)

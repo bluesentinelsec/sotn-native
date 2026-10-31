@@ -1,3 +1,18 @@
+Selected [high-defense guard](docs/player-contact-guard.md) now owns surviving
+response1: signed nonpositive damage/DEF100, one HP/no recoil, separate voice6E7 before later control sounds, red
+number1, protection12 and timer3six. Preserve immunity/absorption/stone/water
+priority, poison/curse-bearing exclusion, existing ailments, prior deferred healing,
+Blood Cloak/Fury and pre-controller fractional origins. Use actual high_jump_timer
+alias in gravity.timer, prior status before ailment decrement, timer2/3/4 order,
+expiry normal8100 and same-pass 12-to11 protection/afterimage/color timing.
+Owned God'sGarb24/Nauglamir87 additive stats support actual selections; retained
+real Fury buff supplies the native controlled DEF102 path. Type0 red/blue numbers
+share real entity19/twenty rows with green healing. Keep optional exhaustion,
+freeze/release/menu/map/draw/no-tick and rollback boundaries. No pool/grants/savev9
+changes. CON/equipment/protection fixtures are not acquisition/routes/console
+proof. Talisman/hurt/elemental and interrupted death/stone/remaining equipment,
+sharing and milestone1/Alucard remain incomplete at26/34 states.
+
 Selected [contact immunity](docs/player-contact-immunity.md) now owns actual response0,
 factory47/entity37 parameter0 text, Blink43 then51, type0 zero number and protection12.
 Owned Coral44 uses private curse immunity; preserve US stone-element removal order,

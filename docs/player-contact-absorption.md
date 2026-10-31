@@ -44,7 +44,7 @@ owner retains its own evidence boundary.
 | Original response | Current native boundary | Remaining work |
 | --- | --- | --- |
 | 0, immunity | [Actual response0, text37/Blink43+51/zero number/protection12](player-contact-immunity.md) | Remaining immunity encounter/equipment/shared-contention breadth |
-| 1, high-defense guard | Ordinary minimum-one damage remains selected | Distinct guard outcome, palette/timers, voice and number |
+| 1, high-defense guard | [Surviving one-HP guard, palette/timers, voice and red number](player-contact-guard.md) | Remaining guard encounter/equipment/interrupt contention breadth |
 | 2, Talisman dodge | No live Talisman producer | Actual count/LCK/RNG selection, effects and recovery |
 | 3, hurt | [Queued contact owner](player-water-contact.md) delegates to selected physical/ailment helpers | Original kind promotion0/1→2/3/4, distinct kinds2/3/4/5/16..18, collision/recovery and all dependent effects |
 | 4, lethal | [Selected physical death](laboratory-game-over.md) | Full original elemental deaths, capture/effect/fade branches and numbers |
@@ -55,7 +55,7 @@ owner retains its own evidence boundary.
 
 Ballroom Mask's conditional reduction and remaining special equipment also need
 actual owners. This batch does not replace the selected physical-damage adapter
-or implement ordinary damage/guard number types. Full damage/ailments/death,
+or implement the remaining ordinary hurt/death number producers. Full damage/ailments/death,
 equipment/familiars/sharing, Alucard, castle and console parity remain unfinished.
 
 ## Validation and evidence

@@ -839,3 +839,9 @@ response0 in `dra/692E8.c`, its early `5D5BC.c:HandleDamage` boundary, timer14
 helper in `6DF70.c` and parameter0 `7879C.c:EntityGuardText`, Blink43/51 and the
 zero/type0 `EntityNumberMovesToHpMeter`, at the same pinned AGPL-3.0-or-later
 revision. Text profiles/artwork, SDK lookup data and comparisons remain private.
+
+The [selected high-defense guard owner](docs/player-contact-guard.md) adapts
+`dra/5D5BC.c:HandleDamage` response1, `692E8.c` dispatch/timer3 ordering and
+`7879C.c:EntityNumberMovesToHpMeter` type0 through the existing shared services,
+at the same pinned AGPL-3.0-or-later revision. Definitions, SDK data and artwork
+remain private.

@@ -174,7 +174,7 @@ static bool Shared(SotnDataView exe)
     CHECK(!r->sound_count && r->children[47].kind == 37 &&
           r->children[47].state.immunity_text.phase == 1 && !r->children[47].primitive_count &&
           r->children[46].parameter == 0x4300 && r->children[45].parameter == 0x5100 &&
-          r->children[40].kind == 19 && r->children[40].state.healing_number.zero_damage &&
+          r->children[40].kind == 19 && r->children[40].state.healing_number.damage &&
           r->children[40].state.healing_number.digits[0].palette == 0x1b4);
     CHECK(SotnActors_CommitBatPrimitives(actors, r));
     in.player.immunity.applied = false;

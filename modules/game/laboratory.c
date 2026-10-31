@@ -239,7 +239,7 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
 }
 
 static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
-                       Uint16 player_extra_sound)
+                       Uint16 player_extra_sound, Uint16 guard_sound)
 {
     if (session->sound == NULL)
         return true;
@@ -366,6 +366,8 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         !SotnSound_QueueAmbienceVolume(session->sound, combat->ambience_volume,
                                        combat->ambience_pan))
         return false;
+    if (guard_sound != 0 && !SotnSound_Queue(session->sound, guard_sound))
+        return false;
     if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
         return false;
     if (player_extra_sound != 0 && !SotnSound_Queue(session->sound, player_extra_sound))
@@ -384,9 +386,9 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
 }
 
 static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
-                      Uint16 player_extra_sound)
+                      Uint16 player_extra_sound, Uint16 guard_sound)
 {
-    if (!QueueAudio(session, combat, player_sound, player_extra_sound))
+    if (!QueueAudio(session, combat, player_sound, player_extra_sound, guard_sound))
         return false;
     if (session->spell_pause_pending)
     {
@@ -1310,7 +1312,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 static bool PrimeAudio(SotnLaboratory *session)
 {
     SotnActorCombat combat = {0};
-    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0, 0);
+    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0, 0, 0);
 }
 
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
@@ -1682,7 +1684,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
         // Mist/Gas and the selected subweapons have no initialized flag10000 update.
         // Their controllers and pending contacts remain held, not reset or consumed.
     }
-    if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0))
+    if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0, 0))
         return false;
     s->dirty = s->targets_pending = true;
     return true;
@@ -1724,13 +1726,13 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             return false;
         session->dirty = true;
         const SotnActorCombat silent = {0};
-        return TickAudio(session, &silent, 0, 0);
+        return TickAudio(session, &silent, 0, 0, 0);
     }
 
     if (session->game_over != NULL)
     {
         const SotnActorCombat combat = {0};
-        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0, 0))
+        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0, 0, 0))
             return false;
         session->dirty = true;
         return true;
@@ -1768,7 +1770,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         ++session->map_ticks;
         const SotnActorCombat silent = {0};
         session->dirty = true;
-        return TickAudio(session, &silent, 0, 0);
+        return TickAudio(session, &silent, 0, 0, 0);
     }
     if (session->map_opacity)
         session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
@@ -1784,7 +1786,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
         const SotnActorCombat silent = {0};
-        if (!TickAudio(session, &silent, 0, 0))
+        if (!TickAudio(session, &silent, 0, 0, 0))
             return false;
         session->input.menu_open = session->menu.phase != SOTN_MENU_CLOSED;
         if (!session->input.menu_open)
@@ -1894,7 +1896,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnActorCombat combat = {0};
     if (!SotnPlayer_GetState(session->player, &state) ||
         !SotnActors_GetCombat(session->actors, &combat) || !TickHudFrame(session) ||
-        !TickAudio(session, &combat, state.sound, state.extra_sound))
+        !TickAudio(session, &combat, state.sound, state.extra_sound,
+                   state.guard.applied ? state.guard.sound : 0))
         return false;
     if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))
     {
@@ -1908,7 +1911,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         {
             SotnActorCombat entered = {0};
             if (!UpdateActors(session, true) || !SotnActors_GetCombat(session->actors, &entered) ||
-                !QueueAudio(session, &entered, 0, 0))
+                !QueueAudio(session, &entered, 0, 0, 0))
                 return false;
         }
     }
@@ -2739,9 +2742,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 const SotnTextureQuad q = {.x = {x, x + 1, x, x + 1},
                                            .y = {y, y, y + 1, y + 1},
                                            .untextured = true,
-                                           .red = 64,
-                                           .green = n->zero_damage ? 64 : 255,
-                                           .blue = n->zero_damage ? 255 : 64};
+                                           .red = n->damage && n->number ? 255 : 64,
+                                           .green = n->damage ? 64 : 255,
+                                           .blue = n->damage && !n->number ? 255 : 64};
                 if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
                                                    session->draw_target.surface))
                     return false;

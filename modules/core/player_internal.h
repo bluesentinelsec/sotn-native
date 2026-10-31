@@ -43,13 +43,14 @@ struct SotnPlayer
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;
+    SotnPlayerGuard guard;
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;
     Uint16 defense_buff_minimum;
     Uint16 water_breath_timer;
     Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
-    Uint32 frame_contacts;
+    Uint32 frame_contacts, timer_status;
     Sint16 draw_pivot_x, draw_pivot_y;
     Uint32 status, frame_number, movement_flags;
     SotnPlayerAfterimage afterimage;
@@ -148,7 +149,7 @@ struct SotnPlayer
 
 /** @brief Rebuild supported original status bits from current state/timers, without mutation. */
 Uint32 SotnPlayer_Status(const SotnPlayer *player);
-/** @brief Apply original timer2/timer4 palette and draw-color work before decrements. */
+/** @brief Apply original timer2/3/4 work with prior status and shared high-jump palette word. */
 bool SotnPlayer_ScriptTimers(SotnPlayer *player);
 /** @brief Replace the shared simulated-input interval from an actual Bat/Wolf controller. */
 void SotnPlayer_HoldInput(SotnPlayer *player, Uint32 ticks);

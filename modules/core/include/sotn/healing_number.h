@@ -6,7 +6,7 @@ enum
 {
     SOTN_HEALING_NUMBER_ROWS = 20
 };
-/** @brief Original entity19 healing number and its sixteen one-pixel trail tiles.
+/** @brief Original entity19 damage/healing number and its sixteen one-pixel trail tiles.
  * Storage belongs to an actual shared child; this component allocates no entity or rows. */
 typedef struct SotnHealingNumber
 {
@@ -21,15 +21,15 @@ typedef struct SotnHealingNumber
     Sint16 half_width, half_height, timer, lower_x, angle, distance, swirl;
     Uint16 number;
     Uint8 phase, extra_digits;
-    bool zero_damage; /**< Original type0/number0 immunity visual and blue trails. */
+    bool damage; /**< Original type0: red damage or blue zero; false selects green type1. */
     bool removed;
 } SotnHealingNumber;
-/** @brief Advance the original healing or selected immunity-zero number, including birth.
+/** @brief Advance original type0 damage/zero or type1 healing numbers, including birth.
  * @param number Zeroed actual child or retained live state. Set number before first update.
  * @param executable Borrowed private SDK tables. @param source Captured screen-space player
  * position, used only at birth. @param allocated Actual twenty-row reservation outcome.
  * @return Success or SDL error preserving state. Exhaustion retires only this optional visual.
- * Explicit zero_damage selects original type0/number0; other nonhealing types stay unavailable.
+ * Explicit damage selects original type0; native guard/immunity are selected producers.
  * Deferred healing and contact absorption use type1, including full HP and
  * stone. Original unsigned-word amounts above9999 display their four least significant digits. */
 bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView executable,

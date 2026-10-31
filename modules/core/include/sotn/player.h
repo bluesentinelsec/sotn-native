@@ -251,6 +251,14 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Successful original response1; its red number is separate from deferred healing. */
+typedef struct SotnPlayerGuard
+{
+    SotnPlayerFactorySource source;
+    Uint16 effects, sound; /**< Guard voice precedes later ordinary control sounds. */
+    bool applied;
+} SotnPlayerGuard;
+
 /** @brief This successful contact's original response0 immunity feedback, separate from healing. */
 typedef struct SotnPlayerImmunity
 {
@@ -330,6 +338,7 @@ typedef struct SotnPlayerState
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;
+    SotnPlayerGuard guard;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
@@ -479,7 +488,7 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
  * The next simulation tick retains animation, refreshes original protection and handles release.
  * No advancement occurs in this setter. Call false when the script interval expires. */
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
-/** @brief Bind actual private SDK tables for scripted hit/recovery presentation.
+/** @brief Bind actual private SDK tables for scripted/guard timer presentation.
  * @param player Borrowed owner. @param executable Borrowed verified US boot image, outliving
  * player.
  * @return Success or SDL error without mutation. Does not advance clocks or grant controls. */

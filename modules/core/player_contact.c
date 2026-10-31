@@ -158,11 +158,27 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                   : SotnCombat_NormalContact(power, attributes.defense, p->poison_ticks != 0,
                                              &amount)))
             return false;
-        ok = (power.effects & 0x100U)
-                 ? SotnPlayer_CurseDamage(p, amount, contact.source_x, contact.source_velocity)
-             : (power.effects & 0x80U)
-                 ? SotnPlayer_PoisonDamage(p, amount, contact.source_x, contact.source_velocity)
-                 : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
+        const bool guard =
+            attributes.defense >= 100 && !(power.effects & 0x180U) &&
+            ((water.hit_params & 31U) >= 16 ? p->hp_max < 8 : power.attack <= attributes.defense);
+        if (guard && p->hp > 1)
+        {
+            if (!p->script_executable.bytes)
+                return SDL_SetError("Guard recovery requires its actual SDK/palette timer owner");
+            --p->hp;
+            p->guard = (SotnPlayerGuard){
+                .source = source, .effects = power.effects, .sound = 0x6e7, .applied = true};
+            p->gravity.timer = 0x8166; // Original high_jump_timer is also timer3's palette word.
+            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+            p->timers[3] = 6;
+            ok = true;
+        }
+        else
+            ok = (power.effects & 0x100U)
+                     ? SotnPlayer_CurseDamage(p, amount, contact.source_x, contact.source_velocity)
+                 : (power.effects & 0x80U)
+                     ? SotnPlayer_PoisonDamage(p, amount, contact.source_x, contact.source_velocity)
+                     : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
     }
     p->contact_dispatch = false;
     if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
@@ -170,7 +186,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
         p->heart_gain = (SotnPlayerHeartGain){
             .source = source, .amount = (Uint16)(previous_hp - p->hp), .requested = true};
-    if (ok && p->hp && previous != SOTN_PLAYER_HIT && p->armor == 22 && p->stat_buffs)
+    if (ok && p->hp && (previous != SOTN_PLAYER_HIT || p->guard.applied) && p->armor == 22 &&
+        p->stat_buffs)
         p->defense_buff_minimum = 512;
     *born = ok && p->step != previous;
     return ok;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Original simulated input and timer2/4/exit helpers in dra/692E8.c, 6DF70.c and
+// Original simulated input and timer2/3/4/exit helpers in dra/692E8.c, 6DF70.c and
 // PlayerStepUnk48/49 in 71830.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 #include "player_internal.h"
 
@@ -38,6 +38,16 @@ bool SotnPlayer_ScriptTimers(SotnPlayer *p)
         return true;
     if (p->timers[2] && p->damage_palette)
         p->palette = p->timers[2] == 1 ? 0x8100 : p->damage_palette;
+    if (p->timers[3])
+    {
+        p->palette = p->timers[3] == 1 ? 0x8100 : p->gravity.timer;
+        p->afterimage_timer15 = 12;
+        if (p->timers[3] == 1 && !(p->timer_status & (0x80U | 0x4000U | 0x8000U)))
+        {
+            p->timers[4] = 12;
+            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+        }
+    }
     if (p->timers[4])
     {
         const Uint16 offsets[4] = {0, 512, 1536, 1024};
