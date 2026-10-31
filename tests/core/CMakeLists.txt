@@ -1072,3 +1072,10 @@ target_include_directories(sotn-player-guard-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-player-guard-tests PRIVATE sotn-core)
 add_test(NAME player-contact-guard COMMAND sotn-player-guard-tests)
 set_tests_properties(player-contact-guard PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-talisman-tests test_player_talisman.c)
+sotn_configure_c_target(sotn-player-talisman-tests)
+target_include_directories(sotn-player-talisman-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-talisman-tests PRIVATE sotn-core)
+add_test(NAME player-contact-talisman COMMAND sotn-player-talisman-tests)
+set_tests_properties(player-contact-talisman PROPERTIES TIMEOUT 20)

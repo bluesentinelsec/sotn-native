@@ -90,8 +90,9 @@ equipment grants/selections and post-hit protection fixtures are not ordinary
 acquisition, uninterrupted routes or console evidence. No HP/MP, queued contacts,
 stat masks, clocks or user saves are granted/written by this check.
 
-Final native/app/platform results are recorded in the feature PR. Talisman dodge,
-remaining hurt/kind promotion, elemental/interrupt deaths, stone variants and
+Final native/app/platform results are recorded in the feature PR.
+[Selected Talisman dodge](player-contact-talisman.md) now shares the actual recovery
+timer owner. Remaining hurt/kind promotion, elemental/interrupt deaths, stone variants and
 other effects retain the [damage inventory](player-contact-absorption.md).
 Milestone1 remains open at26/34 states; full damage/equipment/sharing and Alucard
 remain incomplete.

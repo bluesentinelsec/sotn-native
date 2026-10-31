@@ -1,3 +1,18 @@
+Selected [Talisman dodge](docs/player-contact-talisman.md) now owns response2:
+actual accessory83 count, derived LCK, one inclusive roll before guard/hurt and
+actual shared factory115/entity46 pair/Blink58. Preserve earlier immunity/absorb/
+Cat-eye/stone/water priority, silent no-HP/recoil/ailment/number/cloak/Fury result,
+pre-controller fractional request and successful-player commit. Reuse actual
+high_jump_timer/timer3 recovery, not a second timer. Preserve live birth high words/
+facing, retained fractions, no birth movement, odd gameplay-clock signed motion,
+red/gray fade and Blink26 phase18 retirement, private9F/SDK/slot12 resident upload,
+real eight-row leases, optional visual exhaustion and shared afterimage resets.
+Frozen effects use held gameplay-clock parity; release/menu/map/draw holds and
+no-tick rebases remain. No pool/default grants/resources/savev9 changes. Owned
+selection/later protection fixtures are not acquisition/route/console evidence.
+Remaining hurt/elemental/interrupt death/stone/equipment/sharing and milestone1/
+Alucard remain incomplete at26/34 states.
+
 Selected [high-defense guard](docs/player-contact-guard.md) now owns surviving
 response1: signed nonpositive damage/DEF100, one HP/no recoil, separate voice6E7 before later control sounds, red
 number1, protection12 and timer3six. Preserve immunity/absorption/stone/water
@@ -10,7 +25,7 @@ real Fury buff supplies the native controlled DEF102 path. Type0 red/blue number
 share real entity19/twenty rows with green healing. Keep optional exhaustion,
 freeze/release/menu/map/draw/no-tick and rollback boundaries. No pool/grants/savev9
 changes. CON/equipment/protection fixtures are not acquisition/routes/console
-proof. Talisman/hurt/elemental and interrupted death/stone/remaining equipment,
+proof. Remaining hurt/elemental and interrupted death/stone/equipment,
 sharing and milestone1/Alucard remain incomplete at26/34 states.
 
 Selected [contact immunity](docs/player-contact-immunity.md) now owns actual response0,

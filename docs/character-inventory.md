@@ -33,6 +33,9 @@ ownership and save fields. This does not establish ordinary acquisition routes.
 Owned God's Garb and Nauglamir now use their actual additive attributes through
 selection; the [selected guard owner](player-contact-guard.md) consumes real high
 DEF without granting stats or items in ordinary starts.
+Owned [Talisman](player-contact-talisman.md) now uses the actual accessory count,
+derived LCK and one libc roll for contact dodge, with shared visuals and original
+recovery. This establishes no acquisition or remaining injury parity.
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,

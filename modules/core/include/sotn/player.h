@@ -259,6 +259,14 @@ typedef struct SotnPlayerGuard
     bool applied;
 } SotnPlayerGuard;
 
+/** @brief Successful response2, captured before control; silent and without HP/ailment work. */
+typedef struct SotnPlayerDodge
+{
+    SotnPlayerFactorySource source;
+    Uint16 effects;
+    bool applied;
+} SotnPlayerDodge;
+
 /** @brief This successful contact's original response0 immunity feedback, separate from healing. */
 typedef struct SotnPlayerImmunity
 {
@@ -339,6 +347,7 @@ typedef struct SotnPlayerState
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;
     SotnPlayerGuard guard;
+    SotnPlayerDodge dodge;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */

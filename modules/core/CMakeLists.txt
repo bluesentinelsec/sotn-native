@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  talisman_effect.c
+  include/sotn/talisman_effect.h
   immunity_text.c
   include/sotn/immunity_text.h
   healing_number.c

@@ -18,6 +18,7 @@
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
 #include <sotn/sword_warp.h>
+#include <sotn/talisman_effect.h>
 
 enum
 {
@@ -65,6 +66,7 @@ typedef struct SotnBatRuntimeChild
             Uint8 hit_flags;
         } hellfire_fire;
         SotnPlayerBlink blink;
+        SotnTalismanEffect talisman;
         SotnBatTrail trail;
         SotnPlayerAttack attack;
         SotnPlayerParticles particles;
@@ -158,6 +160,7 @@ typedef struct SotnBatRuntimeInput
     SotnDataView dra, executable, weapons;
     SotnPlayerState player;
     SotnPlayerImage image;
+    SotnPlayerImage talisman_image;    /**< Actual private normal frame9F. */
     SotnWolfCaptureBounds wolf_bounds; /**< External bounds only when Wolf is not bound here. */
     SotnWolfCollisionQuery wolf_query;
     void *wolf_context;

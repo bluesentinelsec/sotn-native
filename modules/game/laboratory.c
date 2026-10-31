@@ -763,6 +763,13 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->blink_rebase_y < SDL_MIN_SINT16 || s->blink_rebase_y > SDL_MAX_SINT16)
         return SDL_SetError("Bat room/camera translation exceeds its original word");
     SotnAlucardSprite sprite = {0};
+    SotnAlucardSprite talisman = {0};
+    bool need_talisman = player.dodge.applied;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        need_talisman = need_talisman || s->bat_runtime.children[i].kind == 46;
+    if (need_talisman &&
+        !SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), 0x9f, &talisman))
+        return false;
     Uint64 other = 0;
     SotnPrimitiveSlots primitive_slots = {0};
     SotnSpiritTargetSnapshot targets = {0};
@@ -773,33 +780,42 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
          !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
             &s->bat_runtime, s->character,
-            (SotnBatRuntimeInput){.dra = s->dra,
-                                  .executable = s->executable,
-                                  .weapons = SotnResource_View(s->weapons),
-                                  .player = player,
-                                  .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
-                                            (Sint16)sprite.pivot_y},
-                                  .other_occupied = other | (s->mist_present ? (Uint64)1 << 16 : 0),
-                                  .wolf_owned = true,
-                                  .wolf_query = WolfCollision,
-                                  .wolf_context = s,
-                                  .primitive_slots = primitive_slots,
-                                  .freeze = s->spell_freeze.request,
-                                  .game_timer = s->game_timer,
-                                  .hellfire_up = (player.buttons & SOTN_BUTTON_UP) != 0,
-                                  .spirit_targets = &targets,
-                                  .force_echo_enabled =
-                                      (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
-                                  .holy_symbol_enabled = (s->world.relics[14] & 3U) == 3,
-                                  .camera_x = s->camera.x,
-                                  .camera_y = s->camera.y,
-                                  .room_shift_x = (Sint16)s->blink_rebase_x,
-                                  .room_shift_y = (Sint16)s->blink_rebase_y,
-                                  .screen_shift_x = (Sint16)dx,
-                                  .screen_shift_y = (Sint16)dy,
-                                  .entering = entering}) ||
+            (SotnBatRuntimeInput){
+                .dra = s->dra,
+                .executable = s->executable,
+                .weapons = SotnResource_View(s->weapons),
+                .player = player,
+                .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
+                          (Sint16)sprite.pivot_y},
+                .talisman_image = {talisman.width, talisman.height, (Sint16)talisman.pivot_x,
+                                   (Sint16)talisman.pivot_y},
+                .other_occupied = other | (s->mist_present ? (Uint64)1 << 16 : 0),
+                .wolf_owned = true,
+                .wolf_query = WolfCollision,
+                .wolf_context = s,
+                .primitive_slots = primitive_slots,
+                .freeze = s->spell_freeze.request,
+                .game_timer = s->game_timer,
+                .hellfire_up = (player.buttons & SOTN_BUTTON_UP) != 0,
+                .spirit_targets = &targets,
+                .force_echo_enabled = (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
+                .holy_symbol_enabled = (s->world.relics[14] & 3U) == 3,
+                .camera_x = s->camera.x,
+                .camera_y = s->camera.y,
+                .room_shift_x = (Sint16)s->blink_rebase_x,
+                .room_shift_y = (Sint16)s->blink_rebase_y,
+                .screen_shift_x = (Sint16)dx,
+                .screen_shift_y = (Sint16)dy,
+                .entering = entering}) ||
         !SotnActors_CommitBatPrimitives(s->actors, &s->bat_runtime))
         return false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (s->bat_runtime.children[i].kind == 46 && s->bat_runtime.children[i].initialized)
+        {
+            if (!SotnActorGraphics_UploadTalisman(s->actor_graphics, &talisman))
+                return false;
+            break;
+        }
     // Marks are one-update writes; later row commits must not replay stale target identities.
     s->bat_runtime.target_marks[0] = s->bat_runtime.target_marks[1] = 0;
     if (!entering)

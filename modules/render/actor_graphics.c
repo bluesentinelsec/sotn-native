@@ -1374,6 +1374,18 @@ bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprit
     UploadPlayerSlot(g, sprite, slot_x, slot_y);
     return true;
 }
+bool SotnActorGraphics_UploadTalisman(SotnActorGraphics *g, const SotnAlucardSprite *sprite)
+{
+    Uint32 sx = 0, sy = 0;
+    if (!PlayerSlot(g, sprite, &sx, &sy) || g->dra.size < 0x21ecU)
+        return SDL_SetError("Talisman upload requires its actual packed player display metadata");
+    const Uint16 tx = Read16(g->dra.bytes + 0x21e8U), ty = Read16(g->dra.bytes + 0x21eaU) & 511U;
+    if (tx != sx + 32U || ty != sy + 128U || sprite->width > 124 || sprite->height > 122 ||
+        tx + sprite->width / 4U >= 1024U || ty + sprite->height + 4U > 512U)
+        return SDL_SetError("Talisman display slot escapes its original UV128 artwork bounds");
+    UploadPlayerSlot(g, sprite, tx, ty);
+    return true;
+}
 static bool DeathRectangle(const SotnActorGraphics *g, Uint16 *x, Uint16 *y)
 {
     if (!g || !g->dra.bytes || g->dra.size < 0xe138)

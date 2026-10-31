@@ -158,6 +158,22 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                   : SotnCombat_NormalContact(power, attributes.defense, p->poison_ticks != 0,
                                              &amount)))
             return false;
+        // Exactly one libc roll for one or two actual accessories; equality succeeds,
+        // including luck zero. Earlier immunity/absorption/stone/water never roll.
+        if (p->talismans && (Uint32)attributes.total[3] * p->talismans >=
+                                (SotnCombat_Random(&p->damage_random) & 511U))
+        {
+            if (!p->script_executable.bytes)
+                return SDL_SetError(
+                    "Talisman recovery requires its actual SDK/palette timer owner");
+            p->dodge =
+                (SotnPlayerDodge){.source = source, .effects = power.effects, .applied = true};
+            p->gravity.timer = 0x8166;
+            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+            p->timers[3] = 6;
+            p->contact_dispatch = false;
+            return true;
+        }
         const bool guard =
             attributes.defense >= 100 && !(power.effects & 0x180U) &&
             ((water.hit_params & 31U) >= 16 ? p->hp_max < 8 : power.attack <= attributes.defense);

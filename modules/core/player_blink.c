@@ -24,7 +24,7 @@ static bool Selected(Uint16 parameter)
            parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25 ||
            parameter == 0x44 || parameter == 0x48 || parameter == 0x67 || parameter == 0x16 ||
            parameter == 0x17 || parameter == 0x4e || parameter == 0x59 || parameter == 0x58 ||
-           parameter == 0x43 || parameter == 0x51;
+           parameter == 0x43 || parameter == 0x51 || parameter == 0x26;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -104,7 +104,7 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
         SotnPlayerEffectQuad *q = &e->quads[i];
         q->page = capture ? 0x118 : 0x18;
         Sint32 upper = 0, lower = 0;
-        const bool morph = Morph(parameter);
+        const bool morph = Morph(parameter) || parameter == 0x26;
         if (morph)
         {
             SotnMathTrig trig = {0};
@@ -210,6 +210,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
           next.parameter == 0x59 || next.parameter == 0x58 || next.parameter == 0x43 ||
           next.parameter == 0x51) &&
          next.phase > 3) ||
+        (next.parameter == 0x26 && next.phase != 0 && (next.phase < 16 || next.phase > 18)) ||
         (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");
     const Uint16 parameter = next.parameter;
@@ -256,7 +257,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         next.speed = (Uint16)profile[9];
         next.brightness = next.amplitude = 0;
-        next.phase = parameter == 0x20   ? 8
+        next.phase = parameter == 0x26   ? 16
+                     : parameter == 0x20 ? 8
                      : parameter == 0x21 ? 10
                      : parameter == 0x23 ? 12
                      : parameter == 0x24 ? 14
@@ -324,6 +326,16 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
             next.removed = true;
             goto done;
         }
+        break;
+    case 16:
+        break;
+    case 17:
+        next.amplitude = (Sint16)(next.amplitude + 4);
+        next.wave = (Uint16)(next.wave + 256U);
+        if (next.amplitude > 96)
+            ++next.phase;
+        break;
+    case 18:
         break;
     case 4:
         // The original switch has no phase-four action; retained fan geometry still advances.

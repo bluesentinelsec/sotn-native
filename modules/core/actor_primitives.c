@@ -98,7 +98,8 @@ static bool EchoValid(const SotnBatEcho *echo)
 static bool BatPrimitiveKind(Uint16 kind)
 {
     return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
-           kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 || kind == 29;
+           kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
+           kind == 29;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -184,6 +185,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         const SotnBatRuntimeChild *c = &r->children[i];
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError("Hellfire primitive commit lost its actual child lifecycle");
+        if (!SotnBatRuntime_TalismanValid(c, i))
+            return SDL_SetError("Talisman commit lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
@@ -208,24 +211,25 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
             (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
              !c->state.outline.phase || c->state.outline.phase > 3))
             return SDL_SetError("Player outline commit lost its actual child/profile lifecycle");
-        if (((c->kind == 5 || c->kind == 11 || c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-              c->kind == 31 || c->kind == 35) &&
+        if (((c->kind == 5 || c->kind == 11 || c->kind == 46 || c->kind == 25 || c->kind == 28 ||
+              c->kind == 29 || c->kind == 31 || c->kind == 35) &&
              c->initialized && !c->primitive_count) ||
             (c->kind == 52 && c->initialized && r->echo_generation != c->generation))
             return SDL_SetError("Bat primitive commit lost a retained child reservation");
-        if (c->primitive_count && (!c->generation || !c->initialized ||
-                                   !((c->kind == 5 && c->state.particles.phase == 1 &&
-                                      !c->state.particles.removed && c->state.particles.count &&
-                                      c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
-                                      c->primitive_count == c->state.particles.count + 1U) ||
-                                     (c->kind == 11 && c->primitive_count == 8) ||
-                                     ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-                                       c->kind == 31 || c->kind == 35) &&
-                                      c->primitive_count == 1) ||
-                                     (c->kind == 61 && c->primitive_count == 16) ||
-                                     (c->kind == 19 && c->primitive_count == 20) ||
-                                     (c->kind == 37 && c->primitive_count == 18) ||
-                                     (c->kind == 63 && c->primitive_count == 9))))
+        if (c->primitive_count &&
+            (!c->generation || !c->initialized ||
+             !((c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
+                c->state.particles.count &&
+                c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
+                c->primitive_count == c->state.particles.count + 1U) ||
+               ((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
+               ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 ||
+                 c->kind == 35) &&
+                c->primitive_count == 1) ||
+               (c->kind == 61 && c->primitive_count == 16) ||
+               (c->kind == 19 && c->primitive_count == 20) ||
+               (c->kind == 37 && c->primitive_count == 18) ||
+               (c->kind == 63 && c->primitive_count == 9))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))

@@ -125,3 +125,8 @@ and map/repeated-draw holds. The actual CMake-built app also passes Gladius Up
 cancel, selected empty-hand crouch recovery and ordinary walk/jump/landing, then
 quits through SDL normally. Equipment/pose/protection fixtures remain distinct
 from ordinary acquisition, uninterrupted routes and console comparisons.
+
+Selected [Talisman response2](player-contact-talisman.md) now uses actual equipped
+count/LCK/RNG, shared entity46/Blink58 and the existing guard timer3 recovery. It
+adds no dispatched state; remaining hurt/death/stone and equipment dependencies
+keep milestone1 at26/34 handlers and incomplete.

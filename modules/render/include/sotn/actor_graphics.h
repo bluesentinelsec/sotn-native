@@ -44,6 +44,12 @@ bool SotnActorGraphics_GetPlayerGlow(const SotnActorGraphics *graphics, SotnPlay
  * belong to their respective callers; this operation changes no animation or readiness. */
 bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
 
+/** @brief Upload actual immutable frame9F pixels into original PlayerDraw slot12.
+ * @param graphics Actual resident texture owner. @param sprite Decoded private normal9F.
+ * @return Success or SDL error before texture changes on invalid geometry/slot metadata.
+ * This shares resident VRAM and creates no alternate texture or simulation clock. */
+bool SotnActorGraphics_UploadTalisman(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
+
 /** @brief Copy the original private death rectangle from committed owned display texture memory.
  * @param graphics Actual texture owner. @param out Receives packed pixels and fresh decay cursor.
  * @return Success or SDL error preserving output for malformed bounds or missing uploaded words.

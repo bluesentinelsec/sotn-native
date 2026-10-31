@@ -228,8 +228,8 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
-           kind == 36 || kind == 37 || kind == 45 || kind == 51 || kind == 52 || kind == 53 ||
-           kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
+           kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 51 || kind == 52 ||
+           kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
            kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
@@ -245,6 +245,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
     case 11:
     case 31:
         return 0x04870000U;
+    case 46:
+        return 0x04830000U;
     case 19:
         return 0x04810000U;
     case 37:
@@ -422,6 +424,12 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             (SotnHellfireEffect){.x = child.source.x, .y = child.source.y, .kind = c.kind};
     if (c.kind == 11)
         c.state.blink.parameter = (child.parameter >> 8) & 0x7fU;
+    if (c.kind == 46 && (child.slot < 32 || generation || child.parameter > 1 ||
+                         child.argument_low || child.argument_high))
+        return SDL_SetError("Talisman lost its actual range/parameter and independent factory");
+    if (c.kind == 46)
+        c.state.talisman = (SotnTalismanEffect){
+            .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
     if (c.kind == 0xe1 || c.kind == 0xf1)
@@ -727,6 +735,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_TalismanValid(c, i))
+            return SDL_SetError("Talisman lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
             return SDL_SetError("Healing number lost its actual child/lifetime/row ownership");
         if (!SotnBatRuntime_SwordChildValid(c, i))
@@ -748,7 +758,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Player outline lost its actual child/profile lifecycle");
         if (c->primitive_count > SDL_arraysize(c->primitives) ||
             (c->primitive_count &&
-             (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
+             (!c->initialized || !(((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
                                    ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
                                      c->kind == 31 || c->kind == 35) &&
                                     c->primitive_count == 1) ||
@@ -760,8 +770,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
                                     c->primitive_count == c->state.particles.count + 1U)))) ||
-            ((c->kind == 5 || c->kind == 11 || c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-              c->kind == 31 || c->kind == 35) &&
+            ((c->kind == 5 || c->kind == 11 || c->kind == 46 || c->kind == 25 || c->kind == 28 ||
+              c->kind == 29 || c->kind == 31 || c->kind == 35) &&
              c->initialized && !c->primitive_count) ||
             !RetainRows(&in.primitive_slots, &retained, c->primitives, c->primitive_count))
             return SDL_SetError("Bat visual lost its actual primitive reservation");
@@ -837,6 +847,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 51 &&
             !SotnRisingHeart_Rebase(&c->state.heart, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 46 &&
+            !SotnTalismanEffect_Rebase(&c->state.talisman, in.screen_shift_x, in.screen_shift_y))
             return false;
         if (c->kind == 37 &&
             !SotnImmunityText_Rebase(&c->state.immunity_text, in.screen_shift_x, in.screen_shift_y))
@@ -968,6 +981,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (!RequestSource(&r, p.healing.source, 0x48002c, 0) ||
          (p.healing.applied_kind == 1 && !RequestSource(&r, p.healing.source, 0x44002c, 0))))
         return false;
+    if (p.dodge.applied)
+    {
+        if (in.freeze || !p.hp || p.hp > p.hp_max || p.guard.applied || p.immunity.applied ||
+            p.absorption.applied)
+            return SDL_SetError("Talisman requires its actual living ordinary response2");
+        if (!RequestSource(&r, p.dodge.source, 115, 0) ||
+            !RequestSource(&r, p.dodge.source, 0x58002c, 0))
+            return false;
+    }
     if (p.guard.applied)
     {
         if (in.freeze || !p.hp || p.hp > p.hp_max || p.immunity.applied || p.absorption.applied)
@@ -1280,6 +1302,42 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     c->parameter = (Uint16)(c->state.blink.parameter << 8);
                 c->draw_count = removed || !allocated ? 0 : 8;
             }
+        }
+        else if (c->kind == 46)
+        {
+            const bool birth = !c->state.talisman.blink.phase;
+            if (birth)
+            {
+                if (!SotnTalismanEffect_Rebase(&c->state.talisman, Word(-in.camera_x),
+                                               Word(-in.camera_y)))
+                    return false;
+                bool allocated = false;
+                if (!SotnPrimitiveSlots_Reserve(&in.primitive_slots, 8, c->primitives, &allocated))
+                    return false;
+                c->primitive_count = allocated ? 8 : 0;
+            }
+            SotnPlayerBlinkEvents events = {0};
+            if (!SotnTalismanEffect_Tick(
+                    &c->state.talisman, &r.shared,
+                    (SotnPlayerBlinkInput){
+                        .dra = in.dra,
+                        .executable = in.executable,
+                        .image = in.talisman_image,
+                        .x = Word(Pixel(p.x) - in.camera_x),
+                        .y = Word(Pixel(p.y) - in.camera_y),
+                        .priority = p.priority,
+                        .rotation = p.gravity.upside_down ? 0x800 : p.bat.rotation,
+                        .rotated = p.rotated || p.gravity.upside_down,
+                        .status = p.status,
+                        .facing_left = p.facing_left,
+                        .image_present = !(p.step == SOTN_PLAYER_HELLFIRE && p.palette == 0x810d),
+                        .allocation_failed = !c->primitive_count},
+                    c->parameter, in.game_timer, &events))
+                return false;
+            r.afterimage_reset = r.afterimage_reset || events.reset_afterimages;
+            removed = c->state.talisman.blink.removed;
+            c->initialized = !removed;
+            c->draw_count = removed ? 0 : 8;
         }
         else if (c->kind == 31)
         {
@@ -1912,15 +1970,17 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
         return SDL_SetError("Bat visual requires its actual bounded slot");
     const SotnBatRuntimeChild *c = &r->children[index];
     if (c->draw_count > 8 ||
-        (c->draw_count && (!c->initialized || !((c->kind == 11 && c->primitive_count == 8) ||
-                                                ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-                                                  c->kind == 31 || c->kind == 35) &&
-                                                 c->primitive_count == 1) ||
-                                                (c->kind == 61 && c->primitive_count == 16) ||
-                                                (c->kind == 63 && c->primitive_count == 9)))))
+        (c->draw_count &&
+         (!c->initialized ||
+          !(((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
+            ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 || c->kind == 35) &&
+             c->primitive_count == 1) ||
+            (c->kind == 61 && c->primitive_count == 16) ||
+            (c->kind == 63 && c->primitive_count == 9)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
     *quads = !c->draw_count                     ? NULL
+             : c->kind == 46                    ? c->state.talisman.blink.quads
              : c->kind == 11                    ? c->state.blink.quads
              : c->kind == 25                    ? &c->state.hellfire_beam.quad
              : (c->kind == 28 || c->kind == 29) ? &c->state.hellfire_effect.quad
@@ -1942,4 +2002,17 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 fl
     else
         r->children[i].state.hellfire_fire.hit_flags = flags;
     return true;
+}
+
+bool SotnBatRuntime_TalismanValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (c->kind != 46)
+        return true;
+    return index >= 16 && index < 48 && c->generation && !c->bat_generation && c->parameter <= 1 &&
+           !c->state.talisman.blink.removed &&
+           (c->initialized
+                ? c->primitive_count == 8 && c->draw_count == 8 &&
+                      c->state.talisman.blink.parameter == 0x26 &&
+                      (c->state.talisman.blink.phase == 16 || c->state.talisman.blink.phase == 17)
+                : !c->primitive_count && !c->draw_count && !c->state.talisman.blink.phase);
 }

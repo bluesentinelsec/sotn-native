@@ -45,7 +45,7 @@ owner retains its own evidence boundary.
 | --- | --- | --- |
 | 0, immunity | [Actual response0, text37/Blink43+51/zero number/protection12](player-contact-immunity.md) | Remaining immunity encounter/equipment/shared-contention breadth |
 | 1, high-defense guard | [Surviving one-HP guard, palette/timers, voice and red number](player-contact-guard.md) | Remaining guard encounter/equipment/interrupt contention breadth |
-| 2, Talisman dodge | No live Talisman producer | Actual count/LCK/RNG selection, effects and recovery |
+| 2, Talisman dodge | [Actual equipped count/LCK/one roll, shared entity46/Blink58 and timer recovery](player-contact-talisman.md) | Remaining equipment/encounter/interrupt and shared-contention breadth |
 | 3, hurt | [Queued contact owner](player-water-contact.md) delegates to selected physical/ailment helpers | Original kind promotion0/1→2/3/4, distinct kinds2/3/4/5/16..18, collision/recovery and all dependent effects |
 | 4, lethal | [Selected physical death](laboratory-game-over.md) | Full original elemental deaths, capture/effect/fade branches and numbers |
 | 5, absorption | This selected owner, actual circlet attributes and Cat-eye kind 7 | Ordinary acquisition/encounter breadth and all-ability contention acceptance |
