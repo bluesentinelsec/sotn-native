@@ -256,6 +256,13 @@ typedef struct SotnPlayerSoul
     bool started, attack;
 } SotnPlayerSoul;
 
+/** @brief One surviving Blood Cloak contact's original AddHearts request, before resource cap. */
+typedef struct SotnPlayerHeartGain
+{
+    SotnPlayerFactorySource source; /**< Captured before reaction/collision movement. */
+    Uint16 amount;
+    bool requested; /**< Zero-damage stone contacts still call AddHearts(0). */
+} SotnPlayerHeartGain;
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -279,6 +286,7 @@ typedef struct SotnPlayerState
     SotnPlayerWaterPain water_pain;
     Uint8 water_pain_timer;
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
+    SotnPlayerHeartGain heart_gain;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */

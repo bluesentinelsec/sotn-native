@@ -2,6 +2,8 @@
 
 A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
+The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
+behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy
 Laboratory: Alucard movement, adjacent room transitions, animated candles,
 red-eye busts, globe tables, selected empty-hand/Basilard/Gladius/Mace combat, candle pickups,
@@ -140,7 +142,7 @@ Down-forward, Forward, then either hand attack. Hold Up during casting for large
 fireballs; Down cancels at the reappearance/attack boundary.
 [Soul Steal](docs/player-soul-steal.md) costs 50 MP: Back, Forward, Down-forward,
 Down, Down-back, Back, Forward, then either hand attack. Its healing orbs return HP
-on contact. Ordinary starts retain their existing MP maximum. Other normal spells
+on contact. Ordinary starts retain their existing MP maximum. Sword Brothers
 and complete Alucard remain unfinished.
 
 **Enter/Xbox Start** opens the supported pause/equipment menu when idle; X/Space
@@ -158,8 +160,8 @@ a wave; owned Force of Echo adds its original attack. **R/Xbox RT** toggles owne
 [Wolf](docs/player-wolf.md); Z/Xbox X bites. Owned Power of Wolf enables faster
 double-forward sprinting; Skill of Wolf enables Down, Down-forward, Forward then
 bite to charge. [Direct form conversions](docs/player-wolf-cross-forms.md) retain
-original gates and snapshots. Wolf water paths, other spells and full ability parity
-remain incomplete.
+original gates and snapshots. Selected Wolf swimming and form water gates now run;
+complete ability and ordinary acquisition/route parity remain incomplete.
 At a crash, enter `thread backtrace all` in LLDB and share its output.
 
 [Entrance water actors](docs/native-water-actors.md) now supply original splashes,
@@ -179,6 +181,8 @@ Owned [Fury Plate](docs/stat-buff-ownership.md) now supplies its original defens
 buff through actual HUD timers. Owned [Healing Mail](docs/hud-healing-resources.md)
 now heals while walking, with original deferred effects and gameplay-clock MP
 recovery. Other equipment, floating HP numbers and buff producers remain incomplete.
+Owned [Blood Cloak](docs/player-blood-cloak.md) now refunds surviving selected contact
+damage as hearts and uses the original shared rising-heart child and pickup sound.
 
 The command starts directly in development room 3, with zombies and candles.
 Use `--laboratory-loadout dual` for Gladius/Mace, `mace` for Mace/empty,

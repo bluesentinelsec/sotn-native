@@ -117,6 +117,9 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     if (power.immune)
         return true;
     const SotnPlayerStep previous = p->step;
+    const Uint16 previous_hp = p->hp;
+    const SotnPlayerFactorySource source = {
+        .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left};
     const bool stone = (power.effects & 0x200U) || previous == SOTN_PLAYER_STONE;
     // Existing selected reaction helpers normally advance their birth animation for external
     // callers. Inside the player dispatcher, its common animation tail owns that update once.
@@ -145,6 +148,11 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                  : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
     }
     p->contact_dispatch = false;
+    if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
+        (p->hp < previous_hp ||
+         (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
+        p->heart_gain = (SotnPlayerHeartGain){
+            .source = source, .amount = (Uint16)(previous_hp - p->hp), .requested = true};
     if (ok && p->hp && previous != SOTN_PLAYER_HIT && p->armor == 22 && p->stat_buffs)
         p->defense_buff_minimum = 512;
     *born = ok && p->step != previous;

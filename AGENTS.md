@@ -1,3 +1,17 @@
+Selected [Blood Cloak](docs/player-blood-cloak.md) now owns surviving selected queued
+contact refunds, actual shared factory99/child51, private sprite rendering and pickup
+sound. Preserve pre-add full-heart suppression, zero-loss stone AddHearts(0), lethal/
+immune/absorb/ordinary-water exclusion, pre-reaction fractional origins and commit
+after player success before session handoff. Optional exhaustion omits only the
+visual. Preserve128 motion updates, private SDK cosine, signed wrap, clock-modulo4
+sway, slot/engine-clock Blink, freeze/menu/draw holds, no-tick rebases and real
+offscreen retirement. No new pool/grants/savesv9 change. Explicit cape/pose/clock/
+protection fixtures are not acquisition/route/console evidence. Remaining damage/
+equipment/familiars/shared contention and Alucard/castle parity remain unfinished.
+The [Alucard milestone checklist](docs/alucard-status.md) consolidates current
+availability and completion gates; individual ownership documents retain their
+evidence boundaries. Older batch notes can contain superseded availability lists.
+
 Selected [HUD resources/Healing Mail](docs/hud-healing-resources.md) now owns actual
 walking128/counter reset, kind2 deferred healing and actual gameplay-clock MP.
 Preserve status-based walking, Mail overwrite versus blood first-pending priority,
@@ -917,6 +931,11 @@ The selected route is a **decompilation-based native port**; read the current
   the original title/prologue flow remains incomplete.
 - Pin dependencies and avoid competing utility stacks where SDL3 suffices.
   Build and release packaging must not require private game inputs.
+- Keep local validation artifacts temporary. After recording results, remove standalone
+  probe binaries/debug symbols, large raw captures/traces, obsolete platform builds and
+  unused downloaded toolchains. Preserve source/probe scripts, concise result logs,
+  private game inputs and user saves. Retain only build trees needed for active work;
+  do not accumulate a permanent build or binary for every probe or feature batch.
 
 ## Source and release policy
 

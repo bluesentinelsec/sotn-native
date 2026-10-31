@@ -203,7 +203,7 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 31 || kind == 35 || kind == 36 ||
-           kind == 45 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
+           kind == 45 || kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
            (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
@@ -220,6 +220,7 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
     case 31:
         return 0x04870000U;
     case 35:
+    case 51:
         return 0x08000000U;
     case 36:
     case 53:
@@ -615,6 +616,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError(
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
+        if (c->kind == 51 &&
+            (c->primitive_count || c->draw_count || c->state.heart.removed ||
+             c->initialized != c->state.heart.initialized ||
+             (c->initialized && (!c->state.heart.timer || c->state.heart.timer > 128 ||
+                                 c->state.heart.priority > 509))))
+            return SDL_SetError("Rising heart lost its actual child/lifetime ownership");
         if (!SpiritRows(c) ||
             (c->kind == 61 &&
              (i < 1 || i > 31 || (c->initialized && (i < 16 ? c->group > 6 : c->group < 7)))))
@@ -706,6 +713,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 2 &&
             !SotnPlayerSmoke_Rebase(&c->state.smoke, in.screen_shift_x, in.screen_shift_y))
             return false;
+        if (c->kind == 51 &&
+            !SotnRisingHeart_Rebase(&c->state.heart, in.screen_shift_x, in.screen_shift_y))
+            return false;
         if (c->kind == 5 &&
             !SotnPlayerParticles_Rebase(&c->state.particles, in.screen_shift_x, in.screen_shift_y))
             return false;
@@ -783,6 +793,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.capture_count = 0;
     r.freeze_changed = false;
     r.freeze = in.freeze;
+    if (p.heart_gain.requested)
+    {
+        if (in.freeze || p.heart_gain.amount > 9999)
+            return SDL_SetError("Blood Cloak requires a committed ordinary player contact");
+        if (!RequestSource(&r, p.heart_gain.source, 99, 0) || !Sound(&r, 0x67a))
+            return false;
+    }
     if ((p.water_pain.events.blink && !RequestSource(&r, p.water_pain.source, 0x4e002c, 0)) ||
         (p.water_pain.events.voice && !Sound(&r, 0x6eb)) ||
         (p.water_pain.events.scrape && !Sound(&r, 0x6a3)))
@@ -936,7 +953,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->kind == 2)
+        if (c->kind == 51)
+        {
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, (Sint16)-in.camera_x);
+            source.y = FixedShift(source.y, (Sint16)-in.camera_y);
+            if (!SotnRisingHeart_Tick(&c->state.heart, in.executable, source, p.priority,
+                                      in.game_timer))
+                return false;
+            c->initialized = true;
+            const Sint32 x = Pixel(c->state.heart.x), y = Pixel(c->state.heart.y);
+            removed = c->state.heart.removed || x < -32 || x > 288 || y < -16 || y > 256;
+        }
+        else if (c->kind == 2)
         {
             SotnPlayerFactorySource source = c->source;
             source.x = FixedShift(source.x, (Sint16)-in.camera_x);

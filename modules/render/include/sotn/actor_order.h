@@ -18,7 +18,8 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_PLAYER_PARTICLE, /**< Actual owned child/tile, index0..767. */
     SOTN_DRAW_SPIRIT,          /**< Actual initialized spirit child index0..47. */
     SOTN_DRAW_SPIRIT_PORTAL,   /**< Actual initialized portal child index0..47, black row. */
-    SOTN_DRAW_HELLFIRE_SPRITE  /**< Actual initialized projectile/trail child index0..47. */
+    SOTN_DRAW_HELLFIRE_SPRITE, /**< Actual initialized projectile/trail child index0..47. */
+    SOTN_DRAW_RISING_HEART     /**< Actual child51 index0..47; no primitive lease. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

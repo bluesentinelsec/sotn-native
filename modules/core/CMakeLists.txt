@@ -9,6 +9,8 @@ add_library(sotn-core STATIC
   player_contact.c
   stat_buffs.c
   hud_resources.c
+  rising_heart.c
+  include/sotn/rising_heart.h
   actor_water.c
   water_drops.c
   include/sotn/water_drops.h

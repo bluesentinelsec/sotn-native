@@ -198,12 +198,91 @@ static bool DeathAndRollback(Fixture *f)
     SotnPlayer_Close(p);
     return true;
 }
+static bool BloodCloak(Fixture *f)
+{
+    SotnPlayer *p = NULL;
+    CHECK(Create(f, &p));
+    p->cape = 54;
+    p->hearts = 10;
+    p->hearts_max = 50;
+    p->hp = 50;
+    p->attributes.defense = 1;
+    SotnCharacterState bound = {.hp = 50, .hp_max = 70};
+    bound.equipment[4] = 54;
+    const SotnPlayer unbound = *p;
+    CHECK(!SotnPlayer_SetCharacter(p, &bound, p->attributes) &&
+          !SDL_memcmp(&unbound, p, sizeof(*p)));
+    bound.hearts = 10;
+    bound.hearts_max = 50;
+    CHECK(SotnPlayer_SetCharacter(p, &bound, p->attributes) && p->cape == 54 && p->hearts == 10 &&
+          p->hearts_max == 50);
+    const Sint32 x = p->x.value, y = p->y.value;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 1}) &&
+          Tick(p, 1) && p->hp == 47 && p->heart_gain.requested && p->heart_gain.amount == 3 &&
+          p->heart_gain.source.x == x && p->heart_gain.source.y == y);
+    const SotnCollisionMap map = p->map;
+    CHECK(SotnPlayer_ChangeRoom(p, map, 1, 2) && p->heart_gain.source.x == x + 65536 &&
+          p->heart_gain.source.y == y + 2 * 65536 && p->heart_gain.amount == 3 && p->hearts == 10);
+    CHECK(Tick(p, 2) && !p->heart_gain.requested && p->hp == 47);
+    p->step = SOTN_PLAYER_STAND;
+    p->invincibility = 0;
+    p->poison_ticks = 10;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 1}) &&
+          Tick(p, 3) && p->hp == 41 && p->heart_gain.amount == 6);
+    CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && !p->heart_gain.requested);
+    p->step = SOTN_PLAYER_STAND;
+    p->invincibility = 0;
+    p->attributes.immunity = 0x8000;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
+          Tick(p, 4) && !p->heart_gain.requested && p->hp == 41);
+    p->attributes.immunity = 0;
+    p->attributes.absorption = 0x8000;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
+          Tick(p, 5) && !p->heart_gain.requested && p->hp == 45);
+    p->attributes.absorption = 0;
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){41, 25, 0}) && Tick(p, 10) &&
+          p->hp == 44 && !p->heart_gain.requested);
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){0}));
+    p->poison_ticks = 0;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 1, .parameters = 0x202}) &&
+          Tick(p, 11) && p->step == SOTN_PLAYER_STONE && p->hp == 44 && p->heart_gain.requested &&
+          !p->heart_gain.amount);
+    p->invincibility = 0;
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){41, 25, 0}) && Tick(p, 20) &&
+          p->hp == 36 && p->heart_gain.requested && p->heart_gain.amount == 8);
+    CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){0}));
+    p->step = SOTN_PLAYER_STAND;
+    p->invincibility = 0;
+    for (Uint16 id = 0x31; id <= 0x34; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x801bffff);
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
+          SotnPlayer_SetDamageContext(p, 21));
+    const SotnPlayer before = *p;
+    CHECK(!SotnPlayer_Tick(p, 0) && !SDL_memcmp(&before, p, sizeof(*p)));
+    for (Uint16 id = 0x31; id <= 0x34; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x800a0100);
+    CHECK(SotnPlayer_Tick(p, 0) && p->hp == 35 && p->heart_gain.requested &&
+          p->heart_gain.amount == 1);
+    p->step = SOTN_PLAYER_STAND;
+    p->invincibility = 0;
+    p->hearts = p->hearts_max;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
+          Tick(p, 22) && p->hp == 34 && !p->heart_gain.requested);
+    p->step = SOTN_PLAYER_STAND;
+    p->invincibility = 0;
+    p->hp = 1;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
+          Tick(p, 23) && !p->hp && !p->heart_gain.requested);
+    SotnPlayer_Close(p);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    bool ok = Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f);
+    bool ok =
+        Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) && BloodCloak(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

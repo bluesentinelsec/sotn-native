@@ -1475,6 +1475,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
+    next.heart_gain = (SotnPlayerHeartGain){0};
     if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
     if (alive && next.dark.ticks)
@@ -1907,6 +1908,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->healing.effects && (heal_x < SDL_MIN_SINT32 || heal_x > SDL_MAX_SINT32 ||
                                     heal_y < SDL_MIN_SINT32 || heal_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured blood-healing source");
+    const Sint64 heart_x = (Sint64)player->heart_gain.source.x + (Sint64)offset_x * FIX_ONE,
+                 heart_y = (Sint64)player->heart_gain.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->heart_gain.requested && (heart_x < SDL_MIN_SINT32 || heart_x > SDL_MAX_SINT32 ||
+                                         heart_y < SDL_MIN_SINT32 || heart_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured Blood Cloak source");
     for (Uint16 i = 0; i < player->wolf.commands.count; ++i)
     {
         const Sint64 source_x = (Sint64)player->wolf.commands.requests[i].source.x +
@@ -1951,6 +1957,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     {
         player->healing.source.x = (Sint32)heal_x;
         player->healing.source.y = (Sint32)heal_y;
+    }
+    if (player->heart_gain.requested)
+    {
+        player->heart_gain.source.x = (Sint32)heart_x;
+        player->heart_gain.source.y = (Sint32)heart_y;
     }
     if (player->movement_effects.smoke)
     {
@@ -2095,6 +2106,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .water_pain = player->water_pain,
         .water_pain_timer = player->water_damage.pain_timer,
         .defense_buff_minimum = player->defense_buff_minimum,
+        .heart_gain = player->heart_gain,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
@@ -2254,8 +2266,9 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
 {
     if (player == NULL || state == NULL || state->hp_max == 0 || state->hp_max > 9999 ||
         state->hp > state->hp_max || state->mp > state->mp_max || state->mp_max > 9999 ||
-        stats.attack[0] > 999 || stats.attack[1] > 999 || stats.unarmed_attack > 999 ||
-        SotnPlayerStep_IsDead(player->step))
+        state->hearts_max > 9999 || state->hearts > state->hearts_max ||
+        (state->equipment[4] == 54 && !state->hearts_max) || stats.attack[0] > 999 ||
+        stats.attack[1] > 999 || stats.unarmed_attack > 999 || SotnPlayerStep_IsDead(player->step))
         return SDL_SetError(
             "Player character update requires bounded living progress and attributes");
     player->hp = state->hp;
@@ -2263,6 +2276,9 @@ bool SotnPlayer_SetCharacter(SotnPlayer *player, const SotnCharacterState *state
     player->mp = state->mp;
     player->attributes = stats;
     player->armor = state->equipment[3];
+    player->cape = state->equipment[4];
+    player->hearts = state->hearts;
+    player->hearts_max = state->hearts_max;
     return true;
 }
 
@@ -2520,6 +2536,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.water_death.started = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
+    next.heart_gain = (SotnPlayerHeartGain){0};
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.gravity.ceiling_impact = false;

@@ -1017,3 +1017,9 @@ target_include_directories(sotn-hud-resource-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-hud-resource-tests PRIVATE sotn-core)
 add_test(NAME hud-resource-ownership COMMAND sotn-hud-resource-tests)
 set_tests_properties(hud-resource-ownership PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-rising-heart-tests test_rising_heart.c)
+sotn_configure_c_target(sotn-rising-heart-tests)
+target_link_libraries(sotn-rising-heart-tests PRIVATE sotn-core)
+add_test(NAME blood-cloak-rising-heart COMMAND sotn-rising-heart-tests)
+set_tests_properties(blood-cloak-rising-heart PROPERTIES TIMEOUT 20)

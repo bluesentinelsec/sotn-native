@@ -6,8 +6,11 @@ Brothers. This is an input/resource component. It enables no live spell controls
 allocates no player/effect/combat children, grants no spells or relics, and writes
 no saves. [Selected playable Dark Metamorphosis](player-dark-metamorphosis.md) now owns
 its command; [selected playable Summon/Tetra](player-spirit-spells.md) now bind
-their actual freeze/capture/factory/target/combat owners. Other native spell paths
-remain to be integrated.
+their actual freeze/capture/factory/target/combat owners.
+[Playable Hellfire](player-hellfire.md) and [Soul Steal](player-soul-steal.md) also
+now bind their real owners. Sword Brothers still requires its actual familiar
+owner; the recognizer alone enables no casting. See the
+[current Alucard checklist](alucard-status.md).
 
 Call it once at the original special-command point, after earlier Gravity Boots/
 weapon commands have had their priority. It preserves the six spells' original

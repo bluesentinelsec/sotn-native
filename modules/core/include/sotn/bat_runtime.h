@@ -12,6 +12,7 @@
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
 #include <sotn/primitive_slots.h>
+#include <sotn/rising_heart.h>
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
 
@@ -66,6 +67,7 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerParticles particles;
         SotnPlayerSmoke smoke;
         SotnPlayerOutline outline;
+        SotnRisingHeart heart;
         SotnSpiritPortal portal;
         struct
         {
