@@ -174,7 +174,7 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
         }
         else if (hider == i)
         {
-            n.tiles[i].draw_mode &= (Uint16)~8U;
+            n.tiles[i].draw_mode = (Uint16)(n.tiles[i].draw_mode & 0xfff7U);
             n.tiles[i].x = px;
             n.tiles[i].y = py;
             n.tiles[i].active = true;
