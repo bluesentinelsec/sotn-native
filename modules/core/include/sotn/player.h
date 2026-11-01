@@ -175,7 +175,7 @@ typedef struct SotnPlayerHurt
     {
         SotnPlayerFactorySource source;
         Uint32 blueprint;
-    } factories[8];
+    } factories[9];
     Uint16 damage_taken; /**< Retained kind-five impact power, never an ordinary save field. */
     Uint8 count, shake;  /**< This update's ordered intents and original shared shake identity. */
     bool knock_right;    /**< Retained original entityRoomIndex direction, independent of facing. */

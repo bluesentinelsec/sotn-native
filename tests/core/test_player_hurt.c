@@ -96,7 +96,7 @@ static bool Palettes(Uint8 *dra)
               p.hurt.factories[kind == 1 ? 4 : 3].blueprint == ((Uint32)kind << 16 | 47U));
     }
     SotnPlayer p = Player(dra);
-    p.hurt.count = 7;
+    p.hurt.count = 8;
     const SotnPlayer before = p;
     CHECK(!SotnPlayer_ContactDamage(&p, 10, 80, 0, 2, 0x100) &&
           !SDL_memcmp(&p, &before, sizeof(p)));
@@ -118,6 +118,12 @@ static bool Palettes(Uint8 *dra)
           p.hurt.factories[3].blueprint == 119 && p.hurt.factories[4].blueprint == 0x68002cU &&
           p.hurt.factories[5].blueprint == 0x42002cU && p.hurt.factories[6].blueprint == 0x50014U &&
           p.damage_palette == 0x8166);
+    p = Player(dra);
+    p.poison_ticks = p.curse_ticks = 100;
+    CHECK(SotnPlayer_ContactDamage(&p, 10, 80, 0, 2, 0x1840) && p.hurt.count == 9 &&
+          p.hurt.factories[3].blueprint == 119 && p.hurt.factories[4].blueprint == 0x68002cU &&
+          p.hurt.factories[5].blueprint == 113 && p.hurt.factories[6].blueprint == 0x62002cU &&
+          p.hurt.factories[7].blueprint == 0x42002cU && p.hurt.factories[8].blueprint == 0x50014U);
     return true;
 }
 static bool Recovery(Uint8 *dra)

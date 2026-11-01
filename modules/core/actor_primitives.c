@@ -189,6 +189,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
             return SDL_SetError("Talisman commit lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_DarkHitValid(c))
+            return SDL_SetError("Dark hit lost its actual rowless child ownership");
         if (!SotnBatRuntime_HolyHitValid(c))
             return SDL_SetError("Holy hit lost its actual child/global/row ownership");
         if (!SotnBatRuntime_HealingNumberValid(c, i))

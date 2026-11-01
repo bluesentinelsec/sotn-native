@@ -1,3 +1,18 @@
+Selected [surviving dark-hit effects](docs/player-dark-hit.md) now owns actual
+113/child54/rowless private bank14 sprites and Blink62/eight rows. Preserve actual
+origin7/state10 factory cancellation,96 upper bound/four-update schedule, captured
+fractions/facing, allocation-before3 RNG and one whole-word shared blend phase.
+Retain that actual DRA global after session bootstrap without savev9 fields.
+Preserve no birth motion, callback/cull before private animation, terminal next-
+callback retirement, SDK scale/original mirrored UVs and raw texture flags33:
+decreasing opacity does not enable a fade. Preserve frozen/menu/draw/release holds,
+no-tick rebases, post-camera translation and late sibling/global/RNG rollback.
+Nine bounded hurt intents do not expand the actual eight-root pool. Raw-kind/
+protection/wall/checkpoint/image fixtures are not ordinary dark producers,
+acquisition/routes/console evidence; active frozen children are authored evidence,
+separate from native Spirit-after-retirement. No pool/grants/savev9 change; fire/
+thunder/ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
 Selected [surviving holy-hit effects](docs/player-holy-hit.md) now owns actual
 119/child47/sixteen GT4 rows, one shared DRA point array and Blink68/eight rows.
 Preserve raw hitbox offsets, allocation-before64 RNG calls, sibling overwrite/slot

@@ -4,6 +4,8 @@ add_library(sotn-core STATIC
   talisman_effect.c
   include/sotn/talisman_effect.h
   immunity_text.c
+  dark_hit.c
+  include/sotn/dark_hit.h
   holy_hit.c
   include/sotn/holy_hit.h
   include/sotn/immunity_text.h

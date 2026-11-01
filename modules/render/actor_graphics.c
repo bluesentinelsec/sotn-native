@@ -1762,3 +1762,16 @@ bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *g, SotnActorSprite sp
         .scale_x = (Sint16)scale_x, .scale_y = (Sint16)scale_y, .opacity = 128};
     return Draw(g, sprite, x, y, surface, &t, true);
 }
+
+bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *g, SotnActorSprite sprite,
+                                          Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
+                                          SotnActorSurface surface)
+{
+    if (!scale_x || scale_x > 1024 || !scale_y || scale_y > 1024)
+        return SDL_SetError("Original scaled sprite requires bounded SDK scales");
+    const SotnSpriteTransform t = {.scale_x = (Sint16)scale_x,
+                                   .scale_y = (Sint16)scale_y,
+                                   .opacity = 128,
+                                   .original_uv = true};
+    return Draw(g, sprite, x, y, surface, &t, true);
+}

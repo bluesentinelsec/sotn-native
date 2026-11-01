@@ -4,6 +4,7 @@
 #include <sotn/bat_echo.h>
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
+#include <sotn/dark_hit.h>
 #include <sotn/healing_number.h>
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
@@ -89,6 +90,7 @@ typedef struct SotnBatRuntimeChild
         SotnHealingNumber healing_number;
         SotnImmunityText immunity_text;
         SotnHolyHit holy;
+        SotnDarkHit dark;
         SotnSpiritPortal portal;
         struct
         {
@@ -125,7 +127,8 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
-    SotnHolyHitShared holy; /**< Actual shared entity47 points, not one copy per child. */
+    Uint32 dark_blend_phase; /**< Actual DRA global, retained through session replacement. */
+    SotnHolyHitShared holy;  /**< Actual shared entity47 points, not one copy per child. */
     SotnPlayerParticleVectors particle_vectors; /**< Actual full-player-init velocity tables. */
     Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
     bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */

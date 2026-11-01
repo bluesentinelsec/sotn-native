@@ -10,7 +10,8 @@ The [selected poison/curse presentation](docs/player-ailment-effects.md) now use
 shared text/Blink actors, original trail tiles and camera/room rules.
 [Selected cut-hit feedback](docs/player-cut-effects.md) adds its actual shared
 particles, flash and sound. [Surviving holy hits](docs/player-holy-hit.md) now
-use their actual shared GT4/Blink owners.
+use their actual shared GT4/Blink owners. [Surviving dark hits](docs/player-dark-hit.md)
+add their actual timed sprite factory, shared blend phase and Blink62.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy

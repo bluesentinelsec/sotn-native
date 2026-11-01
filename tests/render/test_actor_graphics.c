@@ -473,6 +473,13 @@ static bool TestSdkScale(Fixture *f)
     CHECK(!SotnActorGraphics_DrawScaled(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
                                         0, 64, dst));
     CHECK(f->frame[19 * 256 + 19] == 31);
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_DrawScaledOriginal(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false},
+                                               20, 20, 64, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31 && f->frame[20 * 256 + 20] == 7);
+    CHECK(!SotnActorGraphics_DrawScaledOriginal(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false},
+                                                20, 20, 1025, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31);
     SotnActorGraphics_Destroy(g);
     return true;
 }
@@ -1000,11 +1007,12 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
-    const Uint8 player_kinds[] = {
-        SOTN_DRAW_WOLF_PACKET,   SOTN_DRAW_WOLF_IMAGE,      SOTN_DRAW_WOLF_TARGET,
-        SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
-        SOTN_DRAW_SPIRIT_PORTAL, SOTN_DRAW_HELLFIRE_SPRITE, SOTN_DRAW_HOLY_HIT};
-    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48, 768};
+    const Uint8 player_kinds[] = {SOTN_DRAW_WOLF_PACKET,     SOTN_DRAW_WOLF_IMAGE,
+                                  SOTN_DRAW_WOLF_TARGET,     SOTN_DRAW_PLAYER_SMOKE,
+                                  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
+                                  SOTN_DRAW_SPIRIT_PORTAL,   SOTN_DRAW_HELLFIRE_SPRITE,
+                                  SOTN_DRAW_HOLY_HIT,        SOTN_DRAW_DARK_HIT};
+    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48, 768, 48};
     for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
     {
         count = 0;

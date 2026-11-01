@@ -52,7 +52,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   palette counters; [poison/curse presentation](player-ailment-effects.md) now owns
   their actual new text/Blink producers, and [cut feedback](player-cut-effects.md)
   owns its selected particles/Blink. [Surviving holy hits](player-holy-hit.md)
-  now own actual shared GT4s/Blink; other elemental children stay open.
+  now own actual shared GT4s/Blink, and [surviving dark hits](player-dark-hit.md)
+  own their actual timed sprites/shared blend phase/Blink. Fire/thunder/ice children stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

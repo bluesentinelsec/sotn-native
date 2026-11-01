@@ -67,7 +67,8 @@ SDL. Sanitizer/platform results are recorded in the PR. Raw contact/kind, protec
 and wall fixtures do not establish an ordinary holy enemy producer, acquisition,
 uninterrupted routes or console parity.
 
-Fire, thunder, ice/dark children, remaining stone/grab/death/fade, equipment/familiars,
+[Surviving dark-hit sprites/Blink](player-dark-hit.md) now have their actual owner.
+Fire, thunder, ice children, remaining stone/grab/death/fade, equipment/familiars,
 full shared contention and integrated acceptance remain unfinished. This adds no
 player dispatch state and does not complete [Alucard milestone1](alucard-status.md).
 

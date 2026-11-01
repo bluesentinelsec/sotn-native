@@ -379,4 +379,10 @@ bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *graphics, SotnPaletteRed
 bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                   Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
                                   SotnActorSurface surface);
+/** @brief SDK scale-only packets retaining original mirrored UV endpoint bytes.
+ * Same bounds and ownership as DrawScaled. Uses neutral color; callers whose actual
+ * entity flags omit OPACITY must not synthesize a tint from a retained opacity field. */
+bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                          Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
+                                          SotnActorSurface surface);
 #endif

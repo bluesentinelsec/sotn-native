@@ -2609,6 +2609,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .kind = SOTN_DRAW_PLAYER_PARTICLE}))
                         return false;
             }
+            if (child->kind == 54 && child->initialized && child->state.dark.frame &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->state.dark.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_DARK_HIT}))
+                return false;
             if (child->kind == 45 && child->initialized && child->state.fire.frame &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
                                     &draw_count,
@@ -3134,6 +3141,31 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return SDL_SetError("%s", detail);
             }
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_DARK_HIT)
+        {
+            if (command.primitive >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Dark sprite exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            const SotnDarkHit *dark = &child->state.dark;
+            if (child->kind != 54 || !child->initialized || dark->removed || !dark->phase)
+                return SDL_SetError("Dark sprite lost its actual rowless child owner");
+            // Original flags33 omit OPACITY8: its decreasing opacity is not a color fade.
+            if (!SotnActorGraphics_DrawScaledOriginal(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = 14,
+                                      .frame = dark->frame,
+                                      .palette = 0x819f,
+                                      .texture_offset = 0x79,
+                                      .blend_mode = dark->blend_mode,
+                                      .facing_left = child->source.facing_left},
+                    Pixel(dark->x) + session->draw_target.offset_x + session->shake.x,
+                    Pixel(dark->y) + session->draw_target.offset_y + session->shake.y,
+                    dark->scale_x, dark->scale_y, session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;
@@ -3797,6 +3829,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .water_pain_timer = previous_player.water_pain_timer},
                           &next);
     }
+    if (ready)
+        next->bat_runtime.dark_blend_phase = old->bat_runtime.dark_blend_phase;
     if (ready && travel)
     {
         // Engine_Init destroys entities and AluInit restores normal form. Mist's global ring

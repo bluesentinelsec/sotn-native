@@ -229,8 +229,8 @@ static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
            kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
-           kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
-           kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
+           kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
+           kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
            (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
@@ -255,6 +255,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 54:
+        return 0x08120000U;
     case 47:
         return 0x00860000U;
     case 35:
@@ -361,6 +363,21 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_DarkHitValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 54)
+        return true;
+    const SotnDarkHit *d = &c->state.dark;
+    return c->generation && !c->bat_generation && !c->group && !c->draw_count &&
+           !c->primitive_count && !d->removed && d->pose < 13 && d->remaining >= -1 &&
+           (c->initialized
+                ? d->phase == 1 && d->priority <= 511 && d->remaining != 0 && d->frame &&
+                      d->frame <= 511 && d->scale_x >= 64 && d->scale_x <= 272 &&
+                      d->scale_y == d->scale_x && !((d->scale_x - 64U) & 7U) &&
+                      d->opacity == 319U - d->scale_x && d->velocity_y >= -40959 &&
+                      d->velocity_y <= -24576 && (d->blend_mode == 0x10 || d->blend_mode == 0x70)
+                : !d->phase);
+}
 bool SotnBatRuntime_HolyHitValid(const SotnBatRuntimeChild *c)
 {
     if (c->kind != 47)
@@ -434,6 +451,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     if (c.kind == 37 && (child.parameter > 0x200 || (child.parameter & 255U) || generation))
         return SDL_SetError(
             "Text requires actual immunity/poison/curse parameter and no transformation parent");
+    if (c.kind == 54 && generation)
+        return SDL_SetError("Dark hit requires its independent actual factory parent");
     if (c.kind == 47 && generation)
         return SDL_SetError("Holy hit requires its independent actual factory parent");
     if (c.kind == 24)
@@ -769,6 +788,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_DarkHitValid(c))
+            return SDL_SetError("Dark hit lost its actual rowless/global/animation ownership");
         if (!SotnBatRuntime_HolyHitValid(c))
             return SDL_SetError("Holy hit lost its actual child/global/row ownership");
         if (!SotnBatRuntime_TalismanValid(c, i))
@@ -898,6 +919,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!shifted)
                 return false;
         }
+        if (c->kind == 54 && in.entering &&
+            !SotnDarkHit_Rebase(&c->state.dark, in.screen_shift_x, in.screen_shift_y))
+            return false;
         if (c->kind == 47 && in.entering &&
             !SotnHolyHit_Rebase(&c->state.holy, in.screen_shift_x, in.screen_shift_y, true))
             return false;
@@ -1336,6 +1360,24 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 54)
+        {
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y);
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, Word(-(Sint32)in.camera_x - dx));
+            source.y = FixedShift(source.y, Word(-(Sint32)in.camera_y - dy));
+            if (!SotnDarkHit_Tick(&c->state.dark, source, p.priority, &r.dark_blend_phase,
+                                  &progress.random))
+                return false;
+            const Sint32 x = Pixel(c->state.dark.x), y = Pixel(c->state.dark.y);
+            removed = c->state.dark.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            // Original flag100000 animation follows callback and offscreen culling.
+            if (!removed && (!SotnDarkHit_Animate(&c->state.dark, in.dra) ||
+                             !SotnDarkHit_Rebase(&c->state.dark, dx, dy)))
+                return false;
+            c->initialized = !removed;
         }
         else if (c->kind == 51)
         {
