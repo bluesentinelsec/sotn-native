@@ -48,6 +48,15 @@ bool SotnPlayerSmoke_TickOwned(SotnPlayerSmoke *smoke, SotnDataView dra,
                                SotnPlayerFactorySource source, Uint16 parameter, Uint16 priority,
                                Uint32 contacts, Uint32 status,
                                const SotnPlayerSmokeEnvironment *environment);
+/** @brief Advance the same actual smoke owner, including scattered stone profiles3/7.
+ * @param random Actual shared libc RNG cursor; required only for scattered births, charged
+ * three calls after a real child exists. All state/RNG remain unchanged on failure.
+ * Other arguments have the TickOwned meanings. Low byte remains the retained factory index;
+ * scattered birth replaces its velocity/scale index with the original random2..5 value. */
+bool SotnPlayerSmoke_TickShared(SotnPlayerSmoke *smoke, SotnDataView dra,
+                                SotnPlayerFactorySource source, Uint16 parameter, Uint16 priority,
+                                Uint32 contacts, Uint32 status,
+                                const SotnPlayerSmokeEnvironment *environment, Uint32 *random);
 /** @brief Rebase retained screen-space fractions without advancing the animation.
  * @param smoke Actual child. @param x Horizontal pixels. @param y Vertical pixels.
  * @return Success or SDL error without mutation on invalid child metadata. */

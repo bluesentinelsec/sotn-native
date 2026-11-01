@@ -118,7 +118,7 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_ICE_HIT_ROWS]; /**< Actual row indices, including particle
+    Uint16 primitives[SOTN_PLAYER_PARTICLE_LIMIT + 1]; /**< Actual row indices, including particle
                                                     sentinels. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;

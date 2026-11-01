@@ -17,6 +17,8 @@ Blink45 and real parent-bound particle descendants.
 [Surviving thunder hits](docs/player-thunder-hit.md) add four actual six-row
 history effects, ordered sounds and Blink46. [Surviving ice hits](docs/player-ice-hit.md)
 add the actual24 G4 shards, SDK geometry and room-entry row cleanup.
+[Shared stone effects](docs/stone-effect-support.md) now have selected original
+text/smoke/tile/sprite owners; the stone controller/dissolve capture is still open.
 [HUD HP-display timing](docs/player-hud-hp-hold.md) now connects original64-if-zero
 delays, actual save-room16 overwrite and signed secondary-impact results.
 [Held-grab damage feedback](docs/player-grab-damage.md) now connects original

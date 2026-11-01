@@ -2650,9 +2650,11 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     if (!(child->state.particles.tiles[tile - 1U].draw_mode & 8U) &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
-                            (SotnActorDraw){.priority = child->state.particles.priority,
-                                            .primitive = (Uint16)(owner * 16U + tile - 1U),
-                                            .kind = SOTN_DRAW_PLAYER_PARTICLE}))
+                            (SotnActorDraw){
+                                .priority = child->state.particles.priority,
+                                .primitive =
+                                    (Uint16)(owner * SOTN_PLAYER_PARTICLE_LIMIT + tile - 1U),
+                                .kind = SOTN_DRAW_PLAYER_PARTICLE}))
                         return false;
             }
             if (child->kind == 16 && child->initialized && child->state.fire_hit.frame &&
@@ -3044,8 +3046,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (command.kind == SOTN_DRAW_PLAYER_SMOKE || command.kind == SOTN_DRAW_PLAYER_PARTICLE)
         {
-            const Uint16 index = command.kind == SOTN_DRAW_PLAYER_SMOKE ? command.primitive
-                                                                        : command.primitive / 16U;
+            const Uint16 index = command.kind == SOTN_DRAW_PLAYER_SMOKE
+                                     ? command.primitive
+                                     : command.primitive / SOTN_PLAYER_PARTICLE_LIMIT;
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[index];
             if (!child->generation || !child->initialized ||
                 child->kind != (command.kind == SOTN_DRAW_PLAYER_SMOKE ? 2 : 5))
@@ -3067,7 +3070,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             else
             {
-                const Uint16 tile = command.primitive % 16U;
+                const Uint16 tile = command.primitive % SOTN_PLAYER_PARTICLE_LIMIT;
                 if (tile >= child->state.particles.count)
                     return SDL_SetError("Particle draw exceeds its actual owned tile list");
                 const SotnPlayerParticle t = child->state.particles.tiles[tile];
@@ -3301,10 +3304,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                       .facing_left = child->source.facing_left},
                     Pixel(child->source.x) - view_x + session->draw_target.offset_x,
                     Pixel(child->source.y) - view_y + session->draw_target.offset_y,
-                    (SotnSpriteTransform){.rotation = trail ? 0 : fire.rotation,
-                                          .scale_x = trail ? (Sint16)retained.scale_x : 256,
-                                          .scale_y = trail ? (Sint16)retained.scale_y : 256,
-                                          .opacity = 128},
+                    (SotnSpriteTransform){
+                        .rotation = trail ? 0 : fire.rotation,
+                        .scale_x =
+                            trail && (retained.draw_flags & 1U) ? (Sint16)retained.scale_x : 256,
+                        .scale_y =
+                            trail && (retained.draw_flags & 2U) ? (Sint16)retained.scale_y : 256,
+                        .opacity = 128},
                     session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))

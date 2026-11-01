@@ -726,7 +726,7 @@ static bool GravityImpactOwnership(Fixture *f)
         .x = 10 * 65536 + 123, .y = 20 * 65536 + 456, .priority = 148, .facing_left = true};
     SotnCharacterState before = {0}, after = {0};
     CHECK(SotnCharacter_Get(f->character, &before, NULL));
-    profile[0] = 17;
+    profile[0] = 31;
     const SotnBatRuntime unchanged = f->runtime;
     CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
           !SDL_memcmp(&unchanged, &f->runtime, sizeof(unchanged)));

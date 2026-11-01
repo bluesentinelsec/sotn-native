@@ -1,3 +1,15 @@
+The [shared stone-effect support](docs/stone-effect-support.md) now accepts actual
+text3, smoke3/7, particles3/8 and entity24high0 through the existing shared runtime.
+Preserve three-call smoke births, random2..5 index versus retained full parameters,
+private normal-size high0/two RNG versus Hellfire high1/one RNG, particle3 behavior2
+(NOT vectors),8/30 actual tiles plus sentinel,47/63 double lifetimes, hidden delay
+wrap, whole-word origins and live facing. Existing row-index capacity31/draw stride30
+are not new pools. Keep allocation-before-RNG and actual rendering/lease retirement.
+US status20000 smoke remains unsupported. These controlled factory owners do not
+connect the missing stone controller/dissolve32/capture or establish dying-player,
+acquisition/routes/console evidence. No grants/savev9 change; all six Alucard gates
+remain open.
+
 Selected [HUD HP hold/secondary impacts](docs/player-hud-hp-hold.md) now owns actual
 DRA64-if-zero displayed-HP delay and actual save-room16 overwrite. Preserve
 same-frame63/15,65th/17th interpolation, original producer exclusions/full-HP

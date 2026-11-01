@@ -18,7 +18,7 @@ static void Put16(Uint8 *p, Uint16 value)
 static void Profiles(Uint8 *dra)
 {
     TestCharacter_Fill(dra);
-    for (Uint16 i = 0; i < 3; ++i)
+    for (Uint16 i = 0; i < 4; ++i)
     {
         Uint8 *p = dra + 0xcfec + i * 8U;
         p[0] = 1;
@@ -47,7 +47,7 @@ static void Profiles(Uint8 *dra)
 }
 static bool Controller(SotnDataView dra, SotnDataView exe)
 {
-    for (Uint16 kind = 0; kind < 3; ++kind)
+    for (Uint16 kind = 0; kind < 4; ++kind)
     {
         SotnImmunityText n = {0};
         const Uint16 parameter = (Uint16)(kind << 8);
@@ -67,7 +67,7 @@ static bool Controller(SotnDataView dra, SotnDataView exe)
         CHECK(!SotnImmunityText_TickParameter(&n, (SotnDataView){0}, exe, 0, 0, true, true,
                                               parameter) &&
               !SDL_memcmp(&n, &before, sizeof(n)));
-        CHECK(!SotnImmunityText_TickParameter(&n, dra, exe, 0, 0, true, true, 0x300) &&
+        CHECK(!SotnImmunityText_TickParameter(&n, dra, exe, 0, 0, true, true, 0x400) &&
               !SDL_memcmp(&n, &before, sizeof(n)));
         Uint16 sounds = 0, hold = 0, tiles = 0;
         for (Uint16 t = 0; t < 300 && !n.removed; ++t)
@@ -105,7 +105,7 @@ static bool Shared(Uint8 *dra, SotnDataView exe)
     SotnActors *actors = SDL_calloc(1, sizeof(*actors));
     SotnCharacter *character = NULL;
     CHECK(r && saved && actors && SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
-    for (Uint16 kind = 1; kind <= 2; ++kind)
+    for (Uint16 kind = 1; kind <= 3; ++kind)
     {
         SDL_zero(*r);
         SotnBatRuntimeInput in = {.dra = {dra, 0x11000},

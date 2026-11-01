@@ -15,6 +15,12 @@ stoned uses one eighth maximum HP. The selected lethal flow reaches the existing
 game-over service, with the new-hit landing/wait and selected stone-death clocks.
 Ordinary saves do not serialize an active transient stone state.
 
+[Shared stone-effect support](stone-effect-support.md) now supplies original
+text3, smoke3/7, particle3/8 and entity24/high0 child/factory/render owners in
+controlled contexts. The stone controller does not yet produce these missing
+effects or its actual captured-image dissolve32; component support is separate
+from a completed native petrification sequence.
+
 Common private palettes provide the selected stone tint; CPU sprite rotation
 uses the original pivot and checked private wiggle table. No rotation/palette data
 is embedded. This remains a selected integration: original statue/dissolve child

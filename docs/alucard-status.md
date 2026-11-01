@@ -61,7 +61,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [Normal held-grab damage feedback](player-grab-damage.md) now owns actual numbers
   and selected Talisman/Cloak/Fury work. [HUD HP hold/secondary impacts](player-hud-hp-hold.md) now own actual64-if-zero
   health-display delay, save-room16 overwrite and signed secondary results.
-  Other damage and general shared cleanup gates stay open.
+  [Shared stone-effect support](stone-effect-support.md) now supplies its actual
+  selected text/smoke/tile/entity24 owners; the stone controller/dissolve capture
+  connection remains open. Other damage and general shared cleanup gates stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

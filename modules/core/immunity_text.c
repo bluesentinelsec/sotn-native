@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7879C.c:EntityGuardText parameters0..2, sotn-decomp
+// Selected dra/7879C.c:EntityGuardText parameters0..3, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Text metadata/artwork remain private.
 #include <SDL3/SDL.h>
 #include <sotn/immunity_text.h>
@@ -29,9 +29,9 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
                                     Sint32 x, Sint32 y, bool grounded, bool allocated,
                                     Uint16 parameter)
 {
-    if (!text || text->removed || parameter > 0x200 || (parameter & 255U) ||
+    if (!text || text->removed || parameter > 0x300 || (parameter & 255U) ||
         text->phase > (parameter ? 7 : 5))
-        return SDL_SetError("Text requires its actual live immunity/poison/curse child");
+        return SDL_SetError("Text requires its actual live immunity/poison/curse/stone child");
     SotnImmunityText n = *text;
     n.sound = 0;
     if (n.phase < 2)

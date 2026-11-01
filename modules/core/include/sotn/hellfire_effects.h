@@ -35,7 +35,8 @@ typedef struct SotnHellfireEffectEvents
  * G4 versus GT4 rendering and actual player finishing. This enables no native spell controls. */
 bool SotnHellfireEffect_Tick(SotnHellfireEffect *effect, SotnHellfireEffectInput input,
                              SotnHellfireEffectEvents *out);
-/** @brief Selected original factory36/parameter-high-one trailing sprite, owning no pool. */
+/** @brief Original entity24 sprite, with selected Hellfire high1 and stone high0 births, owning no
+ * pool. */
 typedef struct SotnHellfireTrail
 {
     Sint32 x, y, velocity_x, velocity_y;
@@ -47,16 +48,16 @@ typedef struct SotnHellfireTrail
 /** @brief Actual birth RNG/player priority and preceding private animation duration. */
 typedef struct SotnHellfireTrailInput
 {
-    Uint16 player_priority, random;
+    Uint16 player_priority, random, random_y;
     Sint16 remaining;
-    bool random_ready;
+    bool random_ready, random_y_ready;
 } SotnHellfireTrailInput;
 typedef struct SotnHellfireTrailEvents
 {
     Uint32 animation_offset;
     bool initialize, random_used;
 } SotnHellfireTrailEvents;
-/** @brief Initialize/move the actual selected trailing sprite with original single-RNG birth.
+/** @brief Initialize/move the actual selected trailing sprite with original one/two-RNG birth.
  * @param trail Zero except full parameter/source/actual factory-facing and velocity metadata.
  * @param input Actual owner context. @param out Receives animation/initialization intents.
  * @return Success or SDL error preserving state/output. Allocation belongs to the real factory;

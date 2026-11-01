@@ -114,6 +114,22 @@ static bool Trails(void)
         in.remaining = -1;
         CHECK(SotnHellfireTrail_Tick(&t, in, &out) && t.removed && t.x == last_x && t.y == last_y);
     }
+    for (Uint16 facing = 0; facing < 2; ++facing)
+    {
+        SotnHellfireTrail t = {.parameter = 23,
+                               .x = 100 * 65536 + 123,
+                               .y = 140 * 65536 + 456,
+                               .facing_left = facing != 0};
+        SotnHellfireTrailEvents out = {0};
+        SotnHellfireTrailInput in = {
+            .player_priority = 148, .random = 63, .random_y = 0, .random_ready = true};
+        const SotnHellfireTrail before = t;
+        CHECK(!SotnHellfireTrail_Tick(&t, in, &out) && !SDL_memcmp(&t, &before, sizeof(t)));
+        in.random_y_ready = true;
+        CHECK(SotnHellfireTrail_Tick(&t, in, &out) && t.x == 131 * 65536 + 123 &&
+              t.y == 92 * 65536 + 456 && t.palette == 0x8195 && t.blend_mode == 16 &&
+              !t.draw_flags && !t.scale_x && !t.scale_y && out.initialize);
+    }
     SotnHellfireTrail t = {.parameter = 0x100};
     const SotnHellfireTrail held = t;
     SotnHellfireTrailEvents out = {.animation_offset = 42}, saved = out;

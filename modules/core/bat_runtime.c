@@ -337,7 +337,7 @@ bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *c, Uint16 inde
 {
     if (c->kind == 24)
         return c->parameter == c->state.hellfire_trail.motion.parameter &&
-               (c->parameter >> 8) == 1 && !c->state.hellfire_trail.motion.removed &&
+               (c->parameter >> 8) <= 1 && !c->state.hellfire_trail.motion.removed &&
                !c->primitive_count &&
                (c->initialized ? c->state.hellfire_trail.motion.phase == 1
                                : !c->state.hellfire_trail.motion.phase);
@@ -367,7 +367,7 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
     if (c->kind != 37)
         return true;
     const SotnImmunityText *n = &c->state.immunity_text;
-    return c->generation && c->parameter <= 0x200 && !(c->parameter & 255U) && !c->bat_generation &&
+    return c->generation && c->parameter <= 0x300 && !(c->parameter & 255U) && !c->bat_generation &&
            !c->group && !c->draw_count && !n->removed && n->phase <= (c->parameter ? 7 : 5) &&
            (c->initialized
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
@@ -549,9 +549,9 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.bat_generation = 0;
         c.state.sword.parent_generation = generation;
     }
-    if (c.kind == 37 && (child.parameter > 0x200 || (child.parameter & 255U) || generation))
-        return SDL_SetError(
-            "Text requires actual immunity/poison/curse parameter and no transformation parent");
+    if (c.kind == 37 && (child.parameter > 0x300 || (child.parameter & 255U) || generation))
+        return SDL_SetError("Text requires actual immunity/poison/curse/stone parameter and no "
+                            "transformation parent");
     if (c.kind == 54 && generation)
         return SDL_SetError("Dark hit requires its independent actual factory parent");
     if (c.kind == 47 && generation)
@@ -1656,8 +1656,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnPlayerSmokeEnvironment environment = p.smoke_environment;
             environment.x = FixedShift(environment.x, (Sint16)-in.camera_x);
             environment.y = FixedShift(environment.y, (Sint16)-in.camera_y);
-            if (!SotnPlayerSmoke_TickOwned(&c->state.smoke, in.dra, source, c->parameter,
-                                           p.priority, p.contacts, p.status, &environment))
+            if (!SotnPlayerSmoke_TickShared(&c->state.smoke, in.dra, source, c->parameter,
+                                            p.priority, p.contacts, p.status, &environment,
+                                            &progress.random))
                 return false;
             const Sint32 x = Pixel(c->state.smoke.x), y = Pixel(c->state.smoke.y);
             removed = c->state.smoke.removed || x < -32 || x > 288 || y < -16 || y > 256;
@@ -1699,6 +1700,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .player_y = Word(Pixel(p.y) - in.camera_y),
                                                .player_step = (Uint16)p.step,
                                                .water_level = p.water.feet,
+                                               .facing_left = p.facing_left,
                                                .vectors = &r.particle_vectors,
                                                .allocated = allocated},
                     &progress.random))
@@ -1953,11 +1955,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnHellfireTrailEvents events = {0};
             const bool birth = !c->state.hellfire_trail.motion.phase;
             const Uint16 random = birth ? (Uint16)SotnCombat_Random(&progress.random) : 0;
+            const bool stone = birth && !(c->parameter >> 8);
+            const Uint16 random_y = stone ? (Uint16)SotnCombat_Random(&progress.random) : 0;
             if (!SotnHellfireTrail_Tick(
                     &c->state.hellfire_trail.motion,
                     (SotnHellfireTrailInput){.player_priority = p.priority,
                                              .random = random,
+                                             .random_y = random_y,
                                              .random_ready = birth,
+                                             .random_y_ready = stone,
                                              .remaining = c->state.hellfire_trail.remaining},
                     &events))
                 return false;

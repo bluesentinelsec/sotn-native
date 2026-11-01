@@ -95,7 +95,7 @@ static bool Run(void)
         }
     }
     Uint16 unchanged = 90;
-    dra[0x100] = 17;
+    dra[0x100] = 31;
     CHECK(!SotnPlayerParticles_Rows(view, 0x100, &unchanged) && unchanged == 90);
     Put32(dra + 0xdb98 + 4, 0x800adbd0);
     CHECK(!SotnPlayerParticles_Rows(view, 0x100, &unchanged) && unchanged == 90);
@@ -167,6 +167,47 @@ static bool VectorParticles(Uint16 kind)
     CHECK(!p.lifetime && rng == expected);
     return true;
 }
+static bool StoneParticles(void)
+{
+    Uint8 dra[0xdbd4] = {0};
+    const SotnDataView view = {dra, sizeof(dra)};
+    for (Uint16 kind = 3; kind <= 8; kind += 5)
+    {
+        Put32(dra + 0xdb98 + kind * 4U, 0x800a0100);
+        Uint8 *profile = dra + 0x100;
+        profile[0] = 1;
+        profile[1] = profile[2] = profile[3] = 63;
+        profile[4] = profile[5] = 3;
+        Put16(profile + 6, 2);
+        Put16(profile + 8, 49);
+        Put16(profile + 10, kind == 3 ? 2 : 8);
+        SotnPlayerParticles p = {0};
+        SotnPlayerParticlesInput in = {.parameter = (Uint16)(kind << 8),
+                                       .source = {.x = 100 * 65536 + 123, .y = 140 * 65536 + 456},
+                                       .player_priority = 148};
+        Uint32 rng = 17, expected = 17;
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && p.removed && rng == 17);
+        p = (SotnPlayerParticles){0};
+        in.allocated = true;
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng));
+        for (Uint16 i = 0; i < 4; ++i)
+            SotnCombat_Random(&expected);
+        CHECK(rng == expected && p.lifetime == (kind == 3 ? 47 : 63) &&
+              p.tiles[0].x == (kind == 3 ? 6700337 : 6848388) &&
+              p.tiles[0].y == (kind == 3 ? 142 : 111) * 65536 && p.tiles[0].velocity_x == 7723 &&
+              p.tiles[0].velocity_y == -168 && p.tiles[0].timer == (kind == 3 ? 19 : 35));
+        p.tiles[0].timer = 1;
+        CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && p.lifetime == (kind == 3 ? 45 : 61) &&
+              !p.tiles[0].timer && (p.tiles[0].draw_mode & 8U) && p.tiles[0].velocity_y == 4952);
+        const Uint16 updates = kind == 3 ? 23 : 31;
+        for (Uint16 i = 1; i < updates; ++i)
+            CHECK(SotnPlayerParticles_Tick(&p, view, in, &rng) && !p.removed);
+        CHECK(p.lifetime == 1 && p.tiles[0].timer == 65537U - updates && p.tiles[0].red == 63 &&
+              SotnPlayerParticles_Tick(&p, view, in, &rng) && p.removed && !p.lifetime &&
+              rng == expected);
+    }
+    return true;
+}
 static bool Vectors(void)
 {
     Uint8 *exe = SDL_calloc(1, 0x24000);
@@ -236,6 +277,50 @@ static bool Smoke(void)
     CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0x503, 148, 0, 0) && !puff.phase);
     Put16(dra + 0xd57c, 0);
     CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0, 148, 0, 0) && !puff.phase);
+    return true;
+}
+static bool ScatteredSmoke(void)
+{
+    Uint8 dra[0xd5e0] = {0};
+    for (Uint16 i = 0; i < 6; ++i)
+    {
+        Put32(dra + 0xd558 + i * 4U, (Uint32)(0U - (i + 1U) * 4096U));
+        Put16(dra + 0xd570 + i * 2U, (Uint16)(80 + i * 16U));
+    }
+    Put16(dra + 0xd57c, 2);
+    Put16(dra + 0xd57e, 1);
+    const SotnDataView view = {dra, sizeof(dra)};
+    for (Uint16 high = 3; high <= 7; high += 4)
+        for (Uint16 face = 0; face < 2; ++face)
+        {
+            const SotnPlayerFactorySource source = {
+                .x = 64 * 65536 + 123, .y = 100 * 65536 + 456, .facing_left = face != 0};
+            const Uint16 parameter = (Uint16)(high << 8 | 23U);
+            SotnPlayerSmoke puff = {0};
+            Uint32 rng = 17, expected = 17;
+            CHECK(!SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, NULL));
+            CHECK(!SotnPlayerSmoke_TickShared(&puff, view, source, parameter, 148, 0, 0x20000, NULL,
+                                              &rng) &&
+                  rng == 17 && !puff.phase);
+            CHECK(
+                SotnPlayerSmoke_TickShared(&puff, view, source, parameter, 148, 0, 0, NULL, &rng));
+            const Sint32 offset = high == 3 ? 3 : 17;
+            for (Uint16 i = 0; i < 3; ++i)
+                SotnCombat_Random(&expected);
+            CHECK(rng == expected && puff.x == (64 + (face ? -offset : offset)) * 65536 + 123 &&
+                  puff.y == 123 * 65536 + 456 && puff.velocity_y == -12288 && puff.scale == 176 &&
+                  puff.parameter == parameter && puff.remaining == 2);
+            CHECK(
+                SotnPlayerSmoke_TickShared(&puff, view, source, parameter, 148, 0, 0, NULL, &rng) &&
+                rng == expected && puff.remaining == 1);
+            puff = (SotnPlayerSmoke){0};
+            Put16(dra + 0xd57c, 0);
+            rng = 17;
+            CHECK(!SotnPlayerSmoke_TickShared(&puff, view, source, parameter, 148, 0, 0, NULL,
+                                              &rng) &&
+                  rng == 17 && !puff.phase);
+            Put16(dra + 0xd57c, 2);
+        }
     return true;
 }
 static bool HurtSmoke(void)
@@ -310,7 +395,8 @@ static bool HurtSmoke(void)
 }
 int main(void)
 {
-    return Run() && VectorParticles(5) && VectorParticles(6) && Vectors() && Smoke() && HurtSmoke()
+    return Run() && VectorParticles(5) && VectorParticles(6) && StoneParticles() && Vectors() &&
+                   Smoke() && ScatteredSmoke() && HurtSmoke()
                ? 0
                : 1;
 }
