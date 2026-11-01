@@ -1876,6 +1876,7 @@ static bool ClearPlayerRuntime(Fixture *f)
         SDL_free(before);
         SDL_free(rows_before);
         SDL_free(actors);
+        Close(f);
     }
     return true;
 }
