@@ -1657,13 +1657,8 @@ static void BossGrabTick(SotnPlayer *player)
         KindTwoDamage(player, player->grab.damage, true);
         if (!player->hp)
         {
-            const Sint32 center =
-                player->x.parts.high +
-                (player->facing_left ? -player->animation.hitbox_x : player->animation.hitbox_x);
-            const Sint32 delta = center - player->grab.source_x;
-            const bool right = SDL_abs(delta) < 16 && player->grab.source_velocity != 0
-                                   ? player->grab.source_velocity > 0
-                                   : delta >= 0;
+            const bool right =
+                SotnPlayer_KnockRight(player, player->grab.source_x, player->grab.source_velocity);
             PhysicalDeath(player, right, 0);
             return;
         }
@@ -2982,6 +2977,16 @@ bool SotnPlayer_SetArrivalFacing(SotnPlayer *player, bool facing_left)
     return true;
 }
 
+bool SotnPlayer_KnockRight(const SotnPlayer *player, Sint32 source_x, Sint32 source_velocity)
+{
+    // func_80113F7C narrows the center difference to s16 before abs/sign tests.
+    const Sint32 offset =
+        player->facing_left ? -player->animation.hitbox_x : player->animation.hitbox_x;
+    const Uint16 bits = (Uint16)((Uint32)player->x.parts.high + (Uint32)offset - (Uint32)source_x);
+    const Sint32 delta = bits < 32768 ? bits : (Sint32)bits - 65536;
+    return SDL_abs(delta) < 16 && source_velocity ? source_velocity > 0 : delta >= 0;
+}
+
 static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity,
                    bool zero_stone, Uint16 kind, Uint16 effects)
 {
@@ -3000,19 +3005,14 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
     SotnPlayer_BatCancel(&next);
     SotnPlayer_WolfCancel(&next);
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
-    const Sint32 center_x =
-        next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
-    const Sint32 delta = center_x - source_x;
-    const bool right = kind == 17                                    ? true
-                       : kind == 18                                  ? false
-                       : SDL_abs(delta) < 16 && source_velocity != 0 ? source_velocity > 0
-                                                                     : delta >= 0;
+    const bool direction = SotnPlayer_KnockRight(&next, source_x, source_velocity);
+    const bool right = kind == 17 ? true : kind == 18 ? false : direction;
     ClearAttack(&next);
     next.movement_flags = 0;
     next.invincibility = 12;
     if (next.hp == 0)
     {
-        PhysicalDeath(&next, right, effects);
+        PhysicalDeath(&next, direction, effects);
         if (next.failed ||
             (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
             return false;

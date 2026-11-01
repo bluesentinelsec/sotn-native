@@ -17,8 +17,21 @@ Standing minor hits create original skid6 smoke; crouched/cramped hits use their
 ground-puff recovery. Strong airborne hits retain their original pain/helper RNG
 order and rare animation40. Heavy kinds4/5 move Y by one fixed-point fraction,
 launch at eight horizontal pixels, retain the source-facing rule and enter2/15.
-Kinds17/18 force their original direction. Hurt clears upside-down Gravity Boots
+Surviving kinds17/18 force their original direction. Lethal17/18 use the ordinary
+source direction, as the original physical-death handler does. Hurt clears upside-down Gravity Boots
 rotation without the transformation helper's extra facing flip.
+
+Hurt, stone and lethal held-grab direction share the original `func_80113F7C`
+rule: narrow the facing-dependent hitbox-center difference to a signed16 word
+before testing its absolute value/sign. A nonzero source velocity chooses the
+side only within the strict16-pixel range. Defined wrapping preserves the source
+behavior at signed-word edges; it grants no new contact producer or position range.
+Authored regressions cover signed edges, strict15/16 range and surviving/lethal
+direction differences. A private instruction comparison matches20,000 actual
+F7C/E3B8 helper contexts without service adapters, plus6,000 complete hurt16/17/18,
+lethal17/18 and stone births with explicit RNG/audio/factory/flash adapters.
+Debug and ASan traces match. Full-word position/hitbox inputs are controlled
+component evidence, not native acquisition, route or console evidence.
 
 The common transition helper owns hurt gravity, strict apex thresholds, water
 division, ceiling clamp and full-horizontal-speed crouch-three landing with its

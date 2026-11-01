@@ -25,7 +25,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
 | 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
 | 16: kill | [Selected native normal/fire/thunder/ice C0 effects, resident capture and common64 uploads](player-physical-death.md), water common death and stone death | Interrupted/grab/fade contexts, general cleanup and whole-stage failure/shared timing boundaries |
-| 17: global-fade hold | Classified dead, no native dispatch | Real fade handshake, retained pose/draw attributes, ground/fall recovery and Blink 4A; classification alone is insufficient |
+| 17: Fairy Life Apple rescue hold | Classified dead, no native dispatch | Actual Fairy inventory/use, movement/animation/effects, scene-wordFFF handshake, HP/MP restoration and shared slots8..63 cleanup; retained pose/draw attributes, ground/fall recovery and Blink4A. A supplied scene word or replacement timer does not implement the familiar |
 | 18: teleport | No native dispatch | All six substates, actual teleport factory/retry, warp acknowledgement and TOP/RTOP position adjustment |
 | 24/25: Wolf/return | [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) | All entry/return contexts, interrupted handshakes and shared contention |
 | 32: Dark Metamorphosis | [Dark](player-dark-metamorphosis.md) | Full transition/helper/palette contention evidence |
@@ -74,6 +74,15 @@ repeatable actual-app sequences crossing normal movement, hands, forms, scripts,
 grabs, damage and death. Supplied poses, equipment, protection, clocks or arrivals
 are controlled evidence, not ordinary acquisition, traversal or console parity.
 No default grants or ordinary-save format changes are part of this inventory.
+
+The earlier "global-fade" label for17 referred to its shared graphics word.
+The US producer is `servant/tt_002/faerie.c:UpdateServantUseLifeApple`; the alternate
+Sprite familiar has its own corresponding producer. Fairy waits beyond24, checks
+and consumes an owned Life Apple, then sets that word toFFF. Its actual flight,
+animation and event children precede HP/MP restoration and slots8..63 cleanup;
+a later phase clears the word. `dra/5087C.c`'s FFF engine branch runs the actual
+player rather than Spirit's animation-only path. Closing17 therefore depends on
+the familiar, consumable and common scene/effect owners, not a generic fade timer.
 
 ## Selected normal-control corrections
 

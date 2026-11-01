@@ -15,6 +15,14 @@ nibble uploads to the actual primary rectangle. Frame bit8000 skips artwork
 upload; it does not hide the body. Rendering uses the resident texture and original
 stone palette, SDK rotation and pivots.
 
+Entity32's capture preserves the separate common-death cursor and remaining count.
+Original `StoreImage` replaces pixels only; physical/water death explicitly resets
+those counters after its own capture. A capture adapter that initializes a decay
+cannot restart an existing common death through entity32. Its later pattern/shard
+updates also leave those counters alone. Primary and secondary rectangles can
+legitimately differ from the shared scratch after another owner modifies it:
+validate each rectangle against its last committed upload.
+
 Leaving the statue animations copies that same image to the adjacent secondary
 rectangle. Original engine-clock modulo3, or modulo2 during state16, gates48
 committed decay updates. Six groups of forty nibbles, cursor+35 wrapping, signed
@@ -58,6 +66,18 @@ active dissolve through actual Summon Spirit's33 frozen updates plus release,
 then resume, retire and quit normally through SDL. The menu/spell checks occur
 after escape. Petrification, factory, protection and lethal-result fixtures remain
 separate from ordinary producers, acquisition, routes and console evidence.
+
+A later common-owner regression repeats all192 source contexts with independent
+common-death cursor/count inputs: all15,360 callbacks retain those globals while
+matching the complete image and538,272 GT4s. Debug/ASan traces and image captures
+match byte for byte. Two native protocols and both actual CMake apps additionally
+supply real factory39 during an actual physical common death. The second real
+capture owns36 rows without resetting decay; all64 primary uploads,32 secondary
+uploads, resident pixels against each owner's last committed write, repeated-draw
+holds and actual game over complete with normal exits. The apps also render23
+death-particle and1,021 Blink pixels. Raw lethal contact, protection and the factory
+overlap are explicit fixtures; HP/MP, clocks, RNG, images and counters are not
+granted. This does not close natural cross-producer, route or console acceptance.
 
 All209 tests pass in Debug, Release and macOS ASan/UBSan. Python tests, repository
 policy, formatting, static SDL linkage and ZIP packaging accompany the batch;

@@ -79,7 +79,8 @@ static bool Lifecycle(void)
           n.quads[35].u[3] == 156 && n.quads[0].v[0] == 1 && n.quads[35].v[3] == 61 &&
           n.quads[0].palette == 0x19e && n.quads[0].draw_mode == 0x308);
     CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && n.phase == 2 && e.frame_load &&
-          e.reset_afterimages && f.copies == 1 && image.captured);
+          e.reset_afterimages && f.copies == 1 && image.captured && !image.cursor &&
+          !image.remaining);
     const SotnStoneDissolve before = n;
     CHECK(SotnStoneDissolve_Rebase(&n, -17, 5, false) && n.x == before.x - 17 * 65536 &&
           n.quads[0].x[0] == before.quads[0].x[0]);
@@ -150,6 +151,35 @@ static bool Failure(void)
           rng == previous_rng);
     return true;
 }
+static bool SharedDeathCursor(void)
+{
+    Fixture f = {0};
+    SotnStoneDissolveInput in = Input(&f);
+    in.allocated = true;
+    // A common death is already decaying when entity32 copies resident pixels.
+    SotnDeathImage image = {.captured = true, .cursor = 255, .remaining = 17};
+    SotnStoneDissolve n = {0};
+    SotnStoneDissolveEvents e = {0};
+    Uint32 rng = 17;
+    CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && n.phase == 1);
+    CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && n.phase == 2 && image.cursor == 255 &&
+          image.remaining == 17 && f.copies == 1 &&
+          !SDL_memcmp(image.pixels, f.resident.pixels, sizeof(image.pixels)));
+    // The actual common owner resumes its retained cursor, without restarting64 updates.
+    CHECK(SotnDeathImage_Tick(&image) && image.cursor == 139 && image.remaining == 16);
+    in.tapped = 0x1000;
+    CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && n.phase == 3);
+    in.tapped = 0;
+    CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && image.cursor == 139 &&
+          image.remaining == 16 && f.uploads[0] == 1);
+    // Entity32's separate shard cursor/count also leave the common owner untouched.
+    in.player_animation = 0x3b;
+    in.engine_timer = 1;
+    while (!n.removed)
+        CHECK(SotnStoneDissolve_Tick(&n, &image, in, &rng, &e) && image.cursor == 139 &&
+              image.remaining == 16);
+    return true;
+}
 static bool SharedRows(void)
 {
     Uint8 *dra = SDL_calloc(1, 0x11000);
@@ -202,7 +232,7 @@ static bool SharedRows(void)
 }
 int main(void)
 {
-    if (!Lifecycle() || !Failure() || !SharedRows())
+    if (!Lifecycle() || !Failure() || !SharedDeathCursor() || !SharedRows())
         return 1;
     SDL_Log("SOTN_STONE_DISSOLVE_TEST: PASS");
     return 0;

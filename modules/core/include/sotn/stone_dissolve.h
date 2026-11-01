@@ -42,7 +42,9 @@ typedef struct SotnStoneDissolveEvents
 } SotnStoneDissolveEvents;
 /** @brief Advance actual entity32 once, sharing the original single5120-byte DRA image.
  * A failed initial allocation retries without RNG. Actual image services are mandatory when
- * reached; requests alone confer no capture/upload readiness. State, shared image, RNG and
+ * reached; requests alone confer no capture/upload readiness. Capture replaces shared pixels
+ * while retaining the separate common-death cursor/count, even if the adapter initializes them.
+ * State, shared image, RNG and
  * output commit only after success; the native owner separately rolls back service writes.
  * Repeated draws, menus/freeze and room rebases must not invoke this callback. */
 bool SotnStoneDissolve_Tick(SotnStoneDissolve *effect, SotnDeathImage *image,

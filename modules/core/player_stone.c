@@ -21,13 +21,6 @@ static void Palette(SotnPlayer *p, Uint16 palette)
     p->stone.palette = palette;
     p->palette = (Uint16)(0x8000U | palette);
 }
-static bool KnockRight(const SotnPlayer *p, Sint32 source_x, Sint32 source_velocity)
-{
-    const Sint32 center =
-        p->x.parts.high + (p->facing_left ? -p->animation.hitbox_x : p->animation.hitbox_x);
-    const Sint32 delta = center - source_x;
-    return SDL_abs(delta) < 16 && source_velocity ? source_velocity > 0 : delta >= 0;
-}
 static void Wiggle(SotnPlayer *p)
 {
     if (p->animation.remaining < 0)
@@ -240,7 +233,8 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
             }
             else
             {
-                SotnPlayer_StonePhysicalDeath(&next, KnockRight(&next, source_x, source_velocity));
+                SotnPlayer_StonePhysicalDeath(
+                    &next, SotnPlayer_KnockRight(&next, source_x, source_velocity));
                 if (next.failed ||
                     (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
                     return false;
@@ -259,7 +253,7 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
         next.form_rotated = false;
         next.bat.rotation = 0;
         next.vy = next.contact & 1 ? -4 * 65536 : -2 * 65536;
-        const bool right = KnockRight(&next, source_x, source_velocity);
+        const bool right = SotnPlayer_KnockRight(&next, source_x, source_velocity);
         next.vx = right ? 81920 : -81920;
         next.hurt.knock_right = right;
         next.step = SOTN_PLAYER_STONE;

@@ -65,6 +65,44 @@ static bool Births(Uint8 *dra)
           !p.gravity.upside_down && p.hurt.factories[0].source.facing_left);
     return true;
 }
+static bool Direction(Uint8 *dra)
+{
+    const struct
+    {
+        Sint16 x, offset;
+        Sint32 source, velocity;
+        bool left, right;
+    } cases[] = {{32767, 8, 0, 0, false, false},
+                 {-32768, 8, 0, 0, true, true},
+                 {-32768, 8, -32768, -65536, false, false},
+                 {32767, 8, -32768, 65536, false, true},
+                 {0, 15, 0, -65536, false, false},
+                 {0, 16, 0, -65536, false, true},
+                 {0, 16, 0, 65536, true, false},
+                 {0, 0, 0, 0, false, true}};
+    for (Uint16 i = 0; i < SDL_arraysize(cases); ++i)
+    {
+        SotnPlayer p = Player(dra);
+        p.x.parts.high = cases[i].x;
+        p.animation.hitbox_x = cases[i].offset;
+        p.facing_left = cases[i].left;
+        CHECK(SotnPlayer_KnockRight(&p, cases[i].source, cases[i].velocity) == cases[i].right);
+    }
+    for (Uint16 kind = 16; kind <= 18; ++kind)
+    {
+        SotnPlayer p = Player(dra);
+        p.x.parts.high = 32767;
+        p.animation.hitbox_x = 8;
+        CHECK(SotnPlayer_ContactDamage(&p, 10, 0, 0, kind, 0) &&
+              p.hurt.knock_right == (kind == 17));
+        p = Player(dra);
+        p.x.parts.high = 32767;
+        p.animation.hitbox_x = 8;
+        CHECK(SotnPlayer_ContactDamage(&p, p.hp, 0, 0, kind, 0) && p.step == SOTN_PLAYER_KILL &&
+              p.vx < 0);
+    }
+    return true;
+}
 static bool Palettes(Uint8 *dra)
 {
     const struct
@@ -349,8 +387,8 @@ int main(void)
         dra[0xcf84 + i * 2U] = (Uint8)(0xe0U + i);
         dra[0xcf85 + i * 2U] = 6;
     }
-    const bool ok = Births(dra) && Palettes(dra) && Recovery(dra) && Walls(dra) && Secondary(dra) &&
-                    HoldsAndRebase(dra);
+    const bool ok = Births(dra) && Direction(dra) && Palettes(dra) && Recovery(dra) && Walls(dra) &&
+                    Secondary(dra) && HoldsAndRebase(dra);
     SDL_free(dra);
     return ok ? 0 : 1;
 }

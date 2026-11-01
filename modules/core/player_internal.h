@@ -192,6 +192,9 @@ bool SotnPlayer_TimersTick(SotnPlayer *player);
 void SotnPlayer_Protect(SotnPlayer *player, Sint16 duration);
 /** @brief Original bitwise protection gate for timers13 and14. */
 bool SotnPlayer_Protected(const SotnPlayer *player);
+/** @brief Original signed-word hitbox-center delta, then close-source velocity preference.
+ * The source position already includes its facing-dependent hitbox offset. */
+bool SotnPlayer_KnockRight(const SotnPlayer *player, Sint32 source_x, Sint32 source_velocity);
 /** @brief Consume a resolved original ordinary damage kind with actual contact power/effects. */
 bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
                               Sint32 source_velocity, Uint16 kind, Uint16 effects);

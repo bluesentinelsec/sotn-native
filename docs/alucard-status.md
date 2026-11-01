@@ -44,7 +44,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   actual input/palette/factory/render/recovery owners. The selected
   [Alucard sword command/recovery](player-sword-warp.md) adds state15, and
   [owned Axe Armor](player-axe-armor.md) adds40/41/42/43/50;31 states now dispatch.
-  Global-fade17, teleport18, Sword Brothers39 and the common/cross-owner gates remain open.
+  Fairy Life Apple rescue17 (previously labeled global-fade), teleport18,
+  Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
+  producer, item consumption, scene handshake and cleanup are required for17.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. The [selected hurt owner](player-hurt-motion.md)

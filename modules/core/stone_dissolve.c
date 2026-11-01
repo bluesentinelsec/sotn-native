@@ -128,6 +128,10 @@ bool SotnStoneDissolve_Tick(SotnStoneDissolve *effect, SotnDeathImage *image,
             return false;
         if (!pixels.captured)
             return SDL_SetError("Stone dissolve requires a completed resident StoreImage copy");
+        // StoreImage replaces the shared pixels, not the separate common-death globals.
+        // Capture adapters may also initialize decay; entity32 never owns that reset.
+        pixels.cursor = image->cursor;
+        pixels.remaining = image->remaining;
         Position(&n, in);
         n.phase = 2;
         SDL_FALLTHROUGH;

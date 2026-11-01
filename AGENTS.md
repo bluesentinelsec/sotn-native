@@ -1,3 +1,12 @@
+The [stone image owner](docs/stone-dissolve.md) preserves the separate common-death
+cursor/count across actual entity32 StoreImage, patterns and shards. Capture copies
+pixels only; actual physical/water capture alone resets common decay. Primary and
+secondary rectangles follow their own last committed upload, not later scratch
+mutations. [Common knockback](docs/player-hurt-motion.md) narrows center delta to
+signed16 before strict16/velocity/sign tests; surviving17/18 force sides, lethal
+17/18 recompute ordinary source direction. Preserve default grants/savev9 and all
+open gates. State17's real producer is Fairy Life Apple rescue, not a generic fade.
+
 Selected [physical/elemental death](docs/player-physical-death.md) now owns actual
 normal/fire/thunder/ice C0 births, shared flash/Blink/children, resident5120 capture
 and64 committed real uploads. Preserve element priority, original recoil/deceleration,
