@@ -1168,3 +1168,10 @@ target_include_directories(sotn-stone-dissolve-tests PRIVATE "${PROJECT_SOURCE_D
 target_link_libraries(sotn-stone-dissolve-tests PRIVATE sotn-core)
 add_test(NAME stone-dissolve-controller COMMAND sotn-stone-dissolve-tests)
 set_tests_properties(stone-dissolve-controller PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stone-control-tests test_player_stone_control.c)
+sotn_configure_c_target(sotn-stone-control-tests)
+target_include_directories(sotn-stone-control-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-stone-control-tests PRIVATE sotn-core)
+add_test(NAME player-stone-control COMMAND sotn-stone-control-tests)
+set_tests_properties(player-stone-control PROPERTIES TIMEOUT 20)

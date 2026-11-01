@@ -63,8 +63,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   health-display delay, save-room16 overwrite and signed secondary results.
   [Shared stone-effect support](stone-effect-support.md) now supplies its actual
   selected text/smoke/tile/entity24 owners. The [shared dissolve owner](stone-dissolve.md)
-  supplies actual36-row entity32, resident capture and uploads; its stone-controller
-  producer connection remains open. Other damage and general shared cleanup gates stay open.
+  supplies actual36-row entity32, resident capture and uploads. [Selected stone control](player-petrification.md)
+  now connects queued entry/landing/wiggle/escape and selected stone deaths to actual
+  factories, sounds, shake, palettes and rendering. Remaining stone/grab/Hammer,
+  damage/death/fade and general shared cleanup gates stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

@@ -4,8 +4,8 @@ The existing shared native runtime now accepts the original stone text3, scatter
 smoke3/7, tile-particle3/8 and entity24/high0 factories. They use actual original
 roots, child slots, stage primitive leases, private animation/artwork and rendering.
 These are supporting owners. The [shared dissolve owner](stone-dissolve.md) now
-supplies actual entity32/capture/uploads; the petrification controller's connection
-and complete effect production remain unfinished. Supplied factory
+supplies actual entity32/capture/uploads, and [selected stone control](player-petrification.md)
+now produces its actual queued entry/landing/wiggle/escape/death requests. Supplied factory
 requests do not establish a completed petrification or stone-death sequence.
 
 Smoke3 and7 consume three shared character RNG calls only on an actual birth.
@@ -69,8 +69,8 @@ policy, formatting, static SDL linkage and ZIP packaging accompany the batch.
 Exact-head platform results are recorded with the PR. Source comparisons and
 native/app protocols retain their explicit fixture boundaries.
 
-The actual petrification/dissolve producer, rare statue transitions, remaining
-stone deaths, common captured-image contention and all six
+The later selected controller connection has separate source/native evidence.
+Remaining stone/grab/Hammer/death contexts, common captured-image contention and all six
 [Alucard milestone gates](alucard-status.md) remain open at31/34 dispatched states.
 No ordinary savev9 fields, default grants or acquisition/route/console claims change.
 

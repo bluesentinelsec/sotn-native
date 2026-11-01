@@ -2,8 +2,8 @@
 
 The shared native runtime now accepts original factory39/entity32 with thirty-six
 actual GT4 rows, resident texture capture and private stone-pattern uploads. This
-is the effect owner; the stone controller does not yet produce its factory or all
-supporting effects. Supplied factory requests establish neither complete
+is the effect owner. The later [selected stone controller](player-petrification.md)
+now produces its actual factory and selected supporting effects. Supplied factory requests establish neither complete
 petrification nor stone death.
 
 Birth retries a failed real row allocation before RNG. A successful birth consumes
@@ -61,11 +61,11 @@ separate from ordinary producers, acquisition, routes and console evidence.
 
 All209 tests pass in Debug, Release and macOS ASan/UBSan. Python tests, repository
 policy, formatting, static SDL linkage and ZIP packaging accompany the batch;
-exact-head platform checks are recorded with the PR. The stone controller,
-remaining death/fade and captured-image contention, and all six
+exact-head platform checks are recorded with the PR. The selected controller has
+separate evidence; remaining stone/grab/death/fade and captured-image contention, and all six
 [Alucard milestone gates](alucard-status.md) remain open at31/34 dispatched states.
 Default grants and ordinary savev9 remain unchanged.
 
-Provenance: `dra/7879C.c:EntityPlayerDissolves`, original image descriptors,
+Provenance: `dra/7E4BC.c:EntityPlayerDissolves`, original image descriptors,
 factory scheduling and afterimage services, pinned sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).

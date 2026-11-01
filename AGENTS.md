@@ -1,3 +1,18 @@
+Selected [stone control](docs/player-petrification.md) now supplies actual queued
+entry text3, ordered landing0/39/smoke3-or7, shake1, ordinary/rare wiggle factories,
+forced directional taps and actual palette/SDK flags. Preserve the heavy helper's
+647 before644, third coincident644/608/6E7 call, source fractions, airborne
+protection4 without a ceiling clamp and unconditional rare protection4. Escape
+selects3B before the live comparison, including rare smoke3. Lethal already-stone
+checks actual child32 slots16..63/phase0, never pending factories; absent children
+delegate selected physical C0. Preserve new-lethal32 wait, death80/five forcedUp,
+hidden810D/3E/smoke3 and numeric entity flag4 rotation. Actual zero break sprite
+copies secondary then retires32/36 rows before motion; never fabricate shards or
+48 uploads on this branch. Raw-contact/protection/RNG/cleanup fixtures are not
+ordinary Medusa/acquisition/routes/console/room transfers. Stone grabs/Hammer,
+remaining death/fade/full sharing and all six Alucard gates remain open. No pool,
+default grants or savev9 change; no whole native HP/motion/audio rollback claim.
+
 The [shared stone dissolve owner](docs/stone-dissolve.md) now accepts actual
 factory39/child32 with36 real GT4 rows, previous-resident capture and private
 primary/secondary uploads. Preserve allocation retry before37 birth RNG, the one
@@ -9,7 +24,8 @@ validity rollback after late upload failure. New water capture generations may
 reuse the scratch. Effect rollback is not whole-player HP/motion/audio atomicity.
 Supplied zero-petrification/factory/protection/HP1/lethal-result fixtures are not
 actual stone producers/death/acquisition/routes/console evidence. No new pool,
-grants/savev9 change; the stone controller and all six Alucard gates remain open.
+grants/savev9 change; selected stone control now supplies the producer, while
+remaining stone contexts and all six Alucard gates remain open.
 
 The [shared stone-effect support](docs/stone-effect-support.md) now accepts actual
 text3, smoke3/7, particles3/8 and entity24high0 through the existing shared runtime.
@@ -19,7 +35,7 @@ private normal-size high0/two RNG versus Hellfire high1/one RNG, particle3 behav
 wrap, whole-word origins and live facing. Existing row-index capacity31/draw stride30
 are not new pools. Keep allocation-before-RNG and actual rendering/lease retirement.
 US status20000 smoke remains unsupported. These controlled factory owners do not
-connect the missing stone controller to dissolve32/capture or establish dying-player,
+by themselves establish dying-player,
 acquisition/routes/console evidence. No grants/savev9 change; all six Alucard gates
 remain open.
 

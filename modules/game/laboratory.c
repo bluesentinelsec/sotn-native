@@ -239,7 +239,7 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
 }
 
 static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
-                       Uint16 player_extra_sound, Uint16 guard_sound)
+                       Uint16 player_extra_sound, Uint16 player_third_sound, Uint16 guard_sound)
 {
     if (session->sound == NULL)
         return true;
@@ -372,6 +372,8 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         return false;
     if (player_extra_sound != 0 && !SotnSound_Queue(session->sound, player_extra_sound))
         return false;
+    if (player_third_sound != 0 && !SotnSound_Queue(session->sound, player_third_sound))
+        return false;
     Uint16 sounds[64] = {0}, sound_count = 0;
     if (session->subweapons != NULL)
     {
@@ -386,9 +388,10 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
 }
 
 static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
-                      Uint16 player_extra_sound, Uint16 guard_sound)
+                      Uint16 player_extra_sound, Uint16 player_third_sound, Uint16 guard_sound)
 {
-    if (!QueueAudio(session, combat, player_sound, player_extra_sound, guard_sound))
+    if (!QueueAudio(session, combat, player_sound, player_extra_sound, player_third_sound,
+                    guard_sound))
         return false;
     if (session->spell_pause_pending)
     {
@@ -780,6 +783,23 @@ static bool CaptureDissolveImage(void *context, SotnDeathImage *image)
     SotnLaboratory *s = context;
     return s && SotnActorGraphics_StoreDeathImage(s->actor_graphics, image);
 }
+static bool DissolvePresent(void *context, bool *present)
+{
+    SotnLaboratory *s = context;
+    if (!s || !present)
+        return SDL_SetError("Stone death lost its actual shared runtime query");
+    bool found = false;
+    // Original PlayerStepKill searches actual entity slots16..63, including step zero.
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *child = &s->bat_runtime.children[i];
+        if (!SotnBatRuntime_DissolveValid(child))
+            return SDL_SetError("Stone death found an invalid actual dissolve generation");
+        found |= child->kind == 32;
+    }
+    *present = found;
+    return true;
+}
 static bool UploadDissolveImage(void *context, const SotnDeathImage *image, bool secondary)
 {
     SotnLaboratory *s = context;
@@ -805,8 +825,6 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         s->blink_rebase_x < SDL_MIN_SINT16 || s->blink_rebase_x > SDL_MAX_SINT16 ||
         s->blink_rebase_y < SDL_MIN_SINT16 || s->blink_rebase_y > SDL_MAX_SINT16)
         return SDL_SetError("Bat room/camera translation exceeds its original word");
-    if (player.stone.active)
-        player.palette = (Uint16)(0x8000U | player.stone.palette);
     SotnAlucardSprite sprite = {0};
     SotnAlucardSprite talisman = {0};
     bool need_talisman = player.dodge.applied;
@@ -1434,7 +1452,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 static bool PrimeAudio(SotnLaboratory *session)
 {
     SotnActorCombat combat = {0};
-    return SotnActors_GetCombat(session->actors, &combat) && TickAudio(session, &combat, 0, 0, 0);
+    return SotnActors_GetCombat(session->actors, &combat) &&
+           TickAudio(session, &combat, 0, 0, 0, 0);
 }
 
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
@@ -1809,7 +1828,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
         // Mist/Gas and the selected subweapons have no initialized flag10000 update.
         // Their controllers and pending contacts remain held, not reset or consumed.
     }
-    if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0, 0))
+    if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0, 0, 0))
         return false;
     s->dirty = s->targets_pending = true;
     return true;
@@ -1851,13 +1870,14 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             return false;
         session->dirty = true;
         const SotnActorCombat silent = {0};
-        return TickAudio(session, &silent, 0, 0, 0);
+        return TickAudio(session, &silent, 0, 0, 0, 0);
     }
 
     if (session->game_over != NULL)
     {
         const SotnActorCombat combat = {0};
-        if (!SotnGameOver_Tick(session->game_over, start) || !TickAudio(session, &combat, 0, 0, 0))
+        if (!SotnGameOver_Tick(session->game_over, start) ||
+            !TickAudio(session, &combat, 0, 0, 0, 0))
             return false;
         session->dirty = true;
         return true;
@@ -1895,7 +1915,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         ++session->map_ticks;
         const SotnActorCombat silent = {0};
         session->dirty = true;
-        return TickAudio(session, &silent, 0, 0, 0);
+        return TickAudio(session, &silent, 0, 0, 0, 0);
     }
     if (session->map_opacity)
         session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
@@ -1911,7 +1931,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
         const SotnActorCombat silent = {0};
-        if (!TickAudio(session, &silent, 0, 0, 0))
+        if (!TickAudio(session, &silent, 0, 0, 0, 0))
             return false;
         session->input.menu_open = session->menu.phase != SOTN_MENU_CLOSED;
         if (!session->input.menu_open)
@@ -1970,6 +1990,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetSwordContext(session->player, SwordFactory, session,
                                     session->bat_runtime.children[0].kind != 0 ||
                                         session->mist_present) ||
+        !SotnPlayer_SetStoneContext(session->player, DissolvePresent, session) ||
         !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
@@ -2022,7 +2043,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnActorCombat combat = {0};
     if (!SotnPlayer_GetState(session->player, &state) ||
         !SotnActors_GetCombat(session->actors, &combat) || !TickHudFrame(session) ||
-        !TickAudio(session, &combat, state.sound, state.extra_sound,
+        !TickAudio(session, &combat, state.sound, state.extra_sound, state.third_sound,
                    state.guard.applied ? state.guard.sound : 0))
         return false;
     if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))
@@ -2037,7 +2058,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         {
             SotnActorCombat entered = {0};
             if (!UpdateActors(session, true) || !SotnActors_GetCombat(session->actors, &entered) ||
-                !QueueAudio(session, &entered, 0, 0, 0))
+                !QueueAudio(session, &entered, 0, 0, 0, 0))
                 return false;
         }
     }
@@ -2389,8 +2410,7 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
                  left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
                                            : x + sprite->pivot_x;
     SotnPlayerEffectQuad q = {.page = 0x18,
-                              .palette = player.stone.active ? player.stone.palette
-                                                             : (Uint16)(player.palette & 0x7fffU),
+                              .palette = (Uint16)(player.palette & 0x7fffU),
                               .draw_mode = (Uint16)((blend & 0x60U) | (blend & 0x10U ? 1U : 0U))};
     for (Uint16 v = 0; v < 4; ++v)
     {
@@ -2430,7 +2450,7 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
         for (Uint16 v = 0; v < 4; ++v)
             q.red[v] = q.green[v] = q.blue[v] = player.body_grey[v];
     }
-    if (!player.water_death.active && (player.rotated || player.stone.rotation) &&
+    if (!player.water_death.active && player.rotated &&
         !SotnPlayerEffect_Rotate(
             s->executable,
             BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
@@ -2909,8 +2929,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 player.animation_bank == 15 ||
                 (player.axe_armor.active
                      ? DrawAxeArmorPlayer(session, player)
-                     : ((player.animation.sprite & 0x8000U) || player.water_death.active ||
-                                player.animation_bank == 13 || player.rotated ||
+                     : ((player.animation.sprite & 0x8000U) || player.stone.active ||
+                                player.water_death.active || player.animation_bank == 13 ||
+                                player.rotated ||
                                 (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                                  (player.palette != 0x8100 || player.body_color_blend))
                             ? DrawRotatedPlayer(session, player, &alucard, 0)

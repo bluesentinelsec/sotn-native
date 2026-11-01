@@ -1267,6 +1267,49 @@ static void HurtShake(SotnPlayer *p, Uint8 kind)
     p->hurt.shake = kind;
     p->hurt.shake_requested = true;
 }
+bool SotnPlayer_StoneLanding(SotnPlayer *p)
+{
+    if (!Transitions(p, 0x20280U))
+        return false;
+    if (!p->movement_effects.smoke || p->hurt.count >= SDL_arraysize(p->hurt.factories))
+    {
+        p->failed = true;
+        SDL_SetError("Stone landing lost its original preceding smoke factory");
+        return false;
+    }
+    p->hurt.factories[p->hurt.count].source = p->movement_effects.smoke_source;
+    p->hurt.factories[p->hurt.count++].blueprint = p->movement_effects.smoke_blueprint;
+    p->movement_effects.smoke = false;
+    return true;
+}
+void SotnPlayer_ReactionFactory(SotnPlayer *p, Uint32 blueprint)
+{
+    HurtFactory(p, blueprint, 0, 0);
+}
+void SotnPlayer_ReactionShake(SotnPlayer *p, Uint8 kind)
+{
+    HurtShake(p, kind);
+}
+void SotnPlayer_ReactionSound(SotnPlayer *p, Uint16 sound)
+{
+    if (!p->sound)
+        p->sound = sound;
+    else if (!p->extra_sound)
+        p->extra_sound = sound;
+    else if (!p->third_sound)
+        p->third_sound = sound;
+    else
+    {
+        p->failed = true;
+        SDL_SetError("Reaction exceeded its actual three ordered sound calls");
+    }
+}
+void SotnPlayer_StonePhysicalDeath(SotnPlayer *p, bool right)
+{
+    p->stone = (SotnPlayerStone){0};
+    p->palette = 0x8100;
+    PhysicalDeath(p, right);
+}
 static void HurtCeiling(SotnPlayer *p, bool sound)
 {
     HurtFactory(p, 0x10004U, p->facing_left ? -3 : 3, -22);
@@ -1668,6 +1711,14 @@ bool SotnPlayer_SetDeathCapture(SotnPlayer *p, SotnPlayerDeathCapture capture,
     p->death_context = context;
     return true;
 }
+bool SotnPlayer_SetStoneContext(SotnPlayer *p, SotnPlayerDissolvePresent present, void *context)
+{
+    if (!p || !present || !context)
+        return SDL_SetError("Stone death requires its actual shared child query and context");
+    p->dissolve_present = present;
+    p->dissolve_context = context;
+    return true;
+}
 bool SotnPlayer_StartWaterDeath(SotnPlayer *p, SotnWaterDamageEvents damage)
 {
     if (!p || damage.response != 6 || damage.hp || damage.damage != 1 || p->hp != 1 ||
@@ -2018,6 +2069,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.turned = false;
     next.sound = 0;
     next.extra_sound = 0;
+    next.third_sound = 0;
     next.mp_spent = 0;
     next.dark.started = false;
     next.spirit.started = false;
@@ -2823,6 +2875,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .curse_ticks = player->curse_ticks,
         .poison_ticks = player->poison_ticks,
         .extra_sound = player->extra_sound,
+        .third_sound = player->third_sound,
         .grab = player->grab,
         .priority = player->wolf.active ? player->wolf.priority : 148,
         .kick = player->kick,
@@ -3400,7 +3453,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
         return SDL_SetError("Frozen player animation requires its owner and supported US buttons");
     SotnPlayer next = *p;
     next.previous_buttons = buttons;
-    next.sound = next.extra_sound = next.mp_spent = 0;
+    next.sound = next.extra_sound = next.third_sound = next.mp_spent = 0;
     next.dark.started = next.spirit.started = false;
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;

@@ -214,11 +214,14 @@ typedef struct SotnPlayerWaterPain
 typedef bool (*SotnPlayerDeathCapture)(void *context, Uint32 generation);
 /** @brief Decay and upload the actual retained image once, reporting real committed completion. */
 typedef bool (*SotnPlayerDeathDecay)(void *context, Uint32 generation, bool *finished);
+/** @brief Query actual entity32 slots16..63, including uninitialized children, not factories. */
+typedef bool (*SotnPlayerDissolvePresent)(void *context, bool *present);
 
 /** @brief Selected petrification presentation and directional escape cursor. */
 typedef struct SotnPlayerStone
 {
-    Uint16 palette, shakes, death_wait;
+    Uint16 palette, shakes;
+    Sint32 death_wait;
     Sint16 rotation, pivot;
     bool active, hidden, impact;
 } SotnPlayerStone;
@@ -410,6 +413,7 @@ typedef struct SotnPlayerState
     Uint16 poison_ticks; /**< Transient original poison duration, 0..4095 simulation ticks. */
     Uint16 curse_ticks;  /**< Transient original curse duration; independent of ordinary saves. */
     Uint16 extra_sound;  /**< Second original sound request, after sound; zero selects none. */
+    Uint16 third_sound;  /**< Third original call for landing plus the final stone wiggle. */
     SotnPlayerGrab grab;
     Uint16 priority; /**< Current normal-form ordering-table priority. */
     SotnPlayerKick kick;
@@ -467,6 +471,11 @@ bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool boo
  * outside this selected ordinary context; no replacement fade timer is supplied. */
 bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context);
+/** @brief Bind the actual shared child query used by a lethal already-stone contact.
+ * Factories and pending requests do not satisfy this query. A standalone player with no
+ * bound effect owner has no dissolve child and delegates to selected physical death. */
+bool SotnPlayer_SetStoneContext(SotnPlayer *player, SotnPlayerDissolvePresent present,
+                                void *context);
 /** @brief Apply an actual selected lethal-water result, leaving birth work to the player tick.
  * @param player Living unprotected owner at1HP, outside grabs/scripts/stone/Mist.
  * @param damage Actual kind6 lethal result after pending healing/contact/protection gates.

@@ -1278,7 +1278,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if ((in.freeze && (p.hurt.count || p.hurt.started || p.hurt.shake_requested)) ||
         (p.hurt.started && (!p.hp || p.step != SOTN_PLAYER_HIT)) ||
         ((p.hurt.count || p.hurt.shake_requested) && p.step != SOTN_PLAYER_HIT &&
-         p.step != SOTN_PLAYER_KILL))
+         p.step != SOTN_PLAYER_KILL && p.step != SOTN_PLAYER_STONE))
         return SDL_SetError("Hurt feedback lost its actual ordinary reaction/death owner");
     for (Uint16 i = 0; i < p.hurt.count; ++i)
         if (!RequestSource(&r, p.hurt.factories[i].source, p.hurt.factories[i].blueprint, 0))

@@ -145,9 +145,11 @@ struct SotnPlayer
     SotnPlayerDeathCapture death_capture;
     SotnPlayerDeathDecay death_decay;
     void *death_context;
+    SotnPlayerDissolvePresent dissolve_present;
+    void *dissolve_context;
     SotnPlayerStone stone;
     SotnPlayerGrab grab;
-    Uint16 hp, hp_max, sound, extra_sound;
+    Uint16 hp, hp_max, sound, extra_sound, third_sound;
     bool curse_failure, script_hold, bell_inside;
     bool simulated_input;    /**< US first physical frame rebases taps after simulated controls. */
     bool legacy_script_hold; /**< Boolean stage adapter renews its one-frame mode2 request. */
@@ -237,6 +239,14 @@ void SotnPlayer_FormDirection(SotnPlayer *player);
 bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
                                  Sint32 source_velocity, Uint16 kind, bool zero_stone);
 void SotnPlayer_StoneTick(SotnPlayer *player);
+/** @brief Original heavy landing helper, transferring its smoke before later stone factories. */
+bool SotnPlayer_StoneLanding(SotnPlayer *player);
+/** @brief Append actual reaction calls without allocating a replacement effect or sound owner. */
+void SotnPlayer_ReactionFactory(SotnPlayer *player, Uint32 blueprint);
+void SotnPlayer_ReactionShake(SotnPlayer *player, Uint8 kind);
+void SotnPlayer_ReactionSound(SotnPlayer *player, Uint16 sound);
+/** @brief Delegate stone's no-dissolve lethal branch to the selected physical death owner. */
+void SotnPlayer_StonePhysicalDeath(SotnPlayer *player, bool right);
 /** @brief Select eligible original Mist entry after timers/input, before player dispatch. */
 void SotnPlayer_MistInput(SotnPlayer *player);
 /** @brief Advance selected original Mist steering/duration/MP and owned restoration requests. */
