@@ -13,13 +13,13 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
-- **Reconstructed Fairy control components and native player inputs**, AGPL-3.0-or-later.
-  `modules/core/fairy.c`, `familiar_events.c` and selected player/contact snapshot bindings adapt
+- **Reconstructed Fairy control/effect components and native player inputs**, AGPL-3.0-or-later.
+  `modules/core/fairy.c`, `fairy_effects.c`, `familiar_events.c` and selected player/contact snapshot bindings adapt
   `servant/tt_002/faerie.c`, common servant movement helpers and
   `servant/{play_sfx,process_event,shared_globals,create_event_entity}.h` and
   `dra/692E8.c:EntityAlucard` at the pinned revision below. Private ability, sound,
   item, animation and wing mappings remain runtime data. See
-  [scope and evidence](docs/fairy-controller.md).
+  [control scope](docs/fairy-controller.md) and [item effects/speech evidence](docs/fairy-effects.md).
 
 - **Reconstructed shared familiar animation and resource bindings**, AGPL-3.0-or-later.
   `modules/core/familiar_animation.c` adapts `servant/servant_update_anim.h` and

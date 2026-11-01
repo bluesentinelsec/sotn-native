@@ -110,9 +110,12 @@ static SDL linkage and Release packaging pass. Private component traces match
 between Debug and ASan. These checks do not establish full familiar availability.
 
 Remaining owners include actual room-event slots/CD/XA dialogue,
-native slots/generations/rendering/shared leases, item/event primitives,
+native slots/generations/rendering/shared leases, completed item/event effects,
 FFF/player17/recovery/cleanup, selection and mutual exclusion, and saved familiar
 progression. No new entity/primitive pool or default grants are introduced.
+The subsequent [item-effect/speech batch](fairy-effects.md) supplies DF/DD
+components and eight real XA decoder paths; it does not complete these native
+owners or their acknowledgement and resource boundaries.
 
 Provenance: `servant/tt_002/faerie.c`, common servant movement helpers and
 `dra/692E8.c:EntityAlucard`, pinned sotn-decomp

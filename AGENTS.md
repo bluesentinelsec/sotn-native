@@ -1,3 +1,14 @@
+The [Fairy item effects/speech](docs/fairy-effects.md) now reconstruct DF's actual
+eleven profiles and DD's ten-G4 light, plus existing-decoder playback of eight
+original US XA clips. Preserve129/33 real-row requirements, sentinel ownership,
+allocation before RNG, whole-word particle versus fractional entity origins,
+128 one-per-update activation, raster high-word rebinding, signed wrap and exact
+birth/lifetime/retirement boundaries. DD's435 packets omit camera2: do not shift
+its birth fan twice. No new pool, completed leases/healing/rescue or CD ACK is
+implied. Actual native4..7/lifecycle/rows/FFF/player17/cleanup/progression remain
+required. Private origins/allocation/decoder checks are not activation/acquisition/
+route/console evidence. No grants/savev9 change; all six milestone gates stay open.
+
 The [Fairy control components](docs/fairy-controller.md) now reconstruct selected
 all US root/wings callbacks plus shared sound-state/49-record room-event components.
 Preserve screen/camera ownership, hint omission of ability selection, original intro/

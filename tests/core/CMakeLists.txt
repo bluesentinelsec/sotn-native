@@ -1,3 +1,7 @@
+add_executable(sotn-fairy-effect-tests test_fairy_effects.c)
+sotn_configure_c_target(sotn-fairy-effect-tests)
+target_link_libraries(sotn-fairy-effect-tests PRIVATE sotn-core)
+add_test(NAME fairy-item-effects COMMAND sotn-fairy-effect-tests)
 add_executable(sotn-familiar-event-tests test_familiar_events.c)
 sotn_configure_c_target(sotn-familiar-event-tests)
 target_link_libraries(sotn-familiar-event-tests PRIVATE sotn-core)

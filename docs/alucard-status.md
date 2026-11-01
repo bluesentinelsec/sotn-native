@@ -109,6 +109,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [room-event queue](familiar-room-events.md) components. Requests still require
   the lifecycle, actual event/audio, primitive and FFF/player17
   owners before Fairy selection or completed rescue can be enabled.
+  The [item-effect components and speech decoder](fairy-effects.md) now supply
+  original DF/DD particles/light and eight actual XA clips; native shared leases
+  and CD-command acknowledgements remain required.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected
