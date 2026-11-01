@@ -15,6 +15,7 @@ add_library(sotn-core STATIC
   player_water.c
   player_contact.c
   player_script.c
+  include/sotn/player_timers.h
   sword_warp.c
   include/sotn/sword_warp.h
   stat_buffs.c

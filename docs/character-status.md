@@ -15,7 +15,8 @@ the original path. Empty hands and selected subweapons remain usable; blocking
 all attacks would change the original game. Supported equipment still determines
 what can be used outside this status. Consumable cures and full item families
 remain unintegrated. Petrification cancels the failed weapon state without
-leaving the player locked after escape.
+leaving the player locked after escape. Its original0/1/2 clear now reaches the
+actual poison/curse/hit-palette words through the [unified timer owner](player-timers.md).
 
 The timer advances once per player simulation tick and freezes in the native
 inventory/map pause. Adjacent room rebases preserve it. Connected stage arrivals

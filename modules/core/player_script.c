@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Original simulated input and timer2/3/4/exit helpers in dra/692E8.c, 6DF70.c and
+// Original simulated input and sixteen-word player timers/exit helpers in dra/692E8.c, 6DF70.c and
 // PlayerStepUnk48/49 in 71830.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 #include "player_internal.h"
 
@@ -32,34 +32,88 @@ void SotnPlayer_HoldInput(SotnPlayer *p, Uint32 ticks)
     p->legacy_script_hold = false;
 }
 
-bool SotnPlayer_ScriptTimers(SotnPlayer *p)
+static Sint32 SignedTimer(Uint16 bits)
 {
-    if (!p->script_executable.bytes)
-        return true;
-    if (p->timers[2] && p->damage_palette)
-        p->palette = p->timers[2] == 1 ? 0x8100 : p->damage_palette;
-    if (p->timers[3])
+    return bits < 32768 ? bits : (Sint32)bits - 65536;
+}
+void SotnPlayer_Protect(SotnPlayer *p, Sint16 duration)
+{
+    if (SignedTimer(p->invincibility) <= duration)
+        p->invincibility = (Uint16)duration;
+}
+bool SotnPlayer_Protected(const SotnPlayer *p)
+{
+    return (p->invincibility_flash_ticks | p->invincibility) != 0;
+}
+static void RecoveryTimers(SotnPlayer *p)
+{
+    p->timers[SOTN_PLAYER_TIMER_COLOR] = 12;
+    p->afterimage_timer15 = 12;
+    SotnPlayer_Protect(p, 12);
+}
+bool SotnPlayer_TimersTick(SotnPlayer *p)
+{
+    // EntityAlucard processes each word's action, decrement and expiry before the next word.
+    // The existing afterimage owner processes word15 after this loop, including unbound callers.
+    for (Uint16 i = 0; i < SOTN_PLAYER_TIMER_AFTERIMAGE; ++i)
     {
-        p->palette = p->timers[3] == 1 ? 0x8100 : p->gravity.timer;
-        p->afterimage_timer15 = 12;
-        if (p->timers[3] == 1 && !(p->timer_status & (0x80U | 0x4000U | 0x8000U)))
+        if (!p->timers[i])
+            continue;
+        if (i == SOTN_PLAYER_TIMER_HIT_EFFECT)
+            p->palette = p->damage_palette;
+        else if (i == SOTN_PLAYER_TIMER_PALETTE)
         {
-            p->timers[4] = 12;
-            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+            p->palette = p->gravity.timer;
+            p->afterimage_timer15 = 12;
         }
-    }
-    if (p->timers[4])
-    {
-        const Uint16 offsets[4] = {0, 512, 1536, 1024};
-        for (Uint16 i = 0; i < 4; ++i)
+        else if (i == SOTN_PLAYER_TIMER_COLOR && p->script_executable.bytes)
         {
-            SotnMathTrig trig = {0};
-            if (!SotnMath_Trig(p->script_executable,
-                               (Sint32)((p->damage_clock & 15U) * 256U) + offsets[i], &trig))
-                return false;
-            p->body_grey[i] = (Uint8)((trig.sine + 4096) / 64 + 96);
+            const Uint16 offsets[4] = {0, 512, 1536, 1024};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                SotnMathTrig trig = {0};
+                if (!SotnMath_Trig(p->script_executable,
+                                   (Sint32)((p->damage_clock & 15U) * 256U) + offsets[v], &trig))
+                    return false;
+                p->body_grey[v] = (Uint8)((trig.sine + 4096) / 64 + 96);
+            }
+            p->body_color_blend = true;
         }
-        p->body_color_blend = p->timers[4] != 1;
+        --p->timers[i]; // Raw unsigned bits give the original signed-word wrap without C overflow.
+        if (p->timers[i])
+            continue;
+        switch (i)
+        {
+        case SOTN_PLAYER_TIMER_POISON:
+        case SOTN_PLAYER_TIMER_CURSE:
+            if (!(p->timer_status & (0x80U | 0x8000U)))
+                RecoveryTimers(p);
+            break;
+        case SOTN_PLAYER_TIMER_HIT_EFFECT:
+            p->palette = 0x8100;
+            break;
+        case SOTN_PLAYER_TIMER_PALETTE:
+            p->palette = 0x8100;
+            if (!(p->timer_status & (0x80U | 0x4000U | 0x8000U)))
+                RecoveryTimers(p);
+            break;
+        case SOTN_PLAYER_TIMER_COLOR:
+            p->body_color_blend = false;
+            break;
+        case SOTN_PLAYER_TIMER_FALL:
+            if (p->step == SOTN_PLAYER_FALL && p->animation.id != 28)
+            {
+                if (!SotnAnimation_Set(&p->animation, 28))
+                    return false;
+                p->movement_flags &= ~0x10U;
+            }
+            break;
+        case SOTN_PLAYER_TIMER_INVINCIBLE:
+            SotnPlayer_Protect(p, 16);
+            break;
+        default:
+            break; // Including actual impact8, weapon9, subweapon10 and Dark11/spell12 words.
+        }
     }
     return true;
 }
@@ -70,7 +124,7 @@ void SotnPlayer_ReactionRecovery(SotnPlayer *p)
          p->previous_step != SOTN_PLAYER_SCRIPT) ||
         (SotnPlayer_Status(p) & (0x10000U | 0x40000U)))
         return;
-    p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+    SotnPlayer_Protect(p, 12);
     if (p->script_executable.bytes && !p->poison_ticks && !p->curse_ticks)
     {
         p->timers[4] = 12;

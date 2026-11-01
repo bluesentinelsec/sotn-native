@@ -1,3 +1,18 @@
+Selected [player timer ownership](docs/player-timers.md) now unifies the actual16
+word counters, separate from HUD stat buffs. Preserve raw signed-word wrap/signed
+minimum, per-index actions/decrement/expiry, poison4/14/15 twelve-to-eleven birth,
+prior ailment masks,13-to14 sixteen-to-fifteen, timer6 fall gate and actual SDK colors.
+Named counters alias one bank; Dark snapshot copies11, weapon9/status400 and use10/
+status800 retain actual producers. Preserve both13/14 protection gates and longer
+hurt/landing protection. Normal stone clears actual0/1/2; Axe conversion retains
+ailments. Timer15 counts even unbound, but only its real leased owner enables
+presentation. Freeze/release/menu/map/draw/dead hold the pass; actual shared producers
+may still write their words. Preserve failure rollback, no-tick rebases, post-bootstrap
+ailment stage carry, actual native Dark palette-job clock and v9 Continue transients.
+No pool/grants/save change or new impact8/Blink15/consumable availability. Seed/
+protection/arrival/save-room fixtures are not acquisition/routes/console evidence.
+Milestone1 remains31/34 plus common/cross-owner gates; Alucard/castle are incomplete.
+
 Selected [Axe Lord Armor](docs/player-axe-armor.md) now owns actual body25/virtual216/
 weapon45, states40/41/42/43/50, shared slot16 child50/Spell11/group1/native combat,
 rowless shadow49 and private SDK multipart rendering. Preserve owned selection,

@@ -185,14 +185,14 @@ static bool DeathAndRollback(Fixture *f)
           p->water_death.started && p->sound == 0x6f6 && !p->water_pain.events.response);
     p->curse_ticks = 10;
     p->poison_ticks = 10;
-    p->dark.ticks = 10;
+    p->dark_ticks = 10;
     p->spell_use_ticks = 10;
-    p->timers[0] = 10;
+    p->subweapon_ticks = 10;
     CHECK(SotnPlayer_QueueBloodHealing(p, 8, 1));
     const Uint16 pressed = p->previous_buttons;
     CHECK(Tick(p, 11) && p->healing.pending == 8 && !p->hp && p->curse_ticks == 10 &&
-          p->poison_ticks == 10 && p->dark.ticks == 10 && p->spell_use_ticks == 10 &&
-          p->timers[0] == 10 && p->previous_buttons == pressed);
+          p->poison_ticks == 10 && p->dark_ticks == 10 && p->spell_use_ticks == 10 &&
+          p->subweapon_ticks == 10 && p->previous_buttons == pressed);
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, true) && !p->water_death.started &&
           !p->water_pain.events.response);
     for (Uint32 clock = 12; clock < 220 && p->death.phase != 128; ++clock)

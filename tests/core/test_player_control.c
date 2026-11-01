@@ -312,11 +312,12 @@ static bool HeldShieldSubweapon(Fixture *f)
     CHECK(SotnPlayer_SetSubweapons(f->p, subweapons));
     f->p->previous_buttons = SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND;
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
-    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 20 && !f->p->timers[0] &&
-          f->p->shield_cursor.phase == 1);
+    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 20 &&
+          !f->p->subweapon_ticks && f->p->shield_cursor.phase == 1);
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP));
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT_HAND));
-    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 17 && f->p->timers[0] == 4);
+    CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts == 17 &&
+          f->p->subweapon_ticks == 4);
     CHECK(SotnPlayer_SetSubweapons(f->p, NULL));
     SotnSubweapons_Destroy(subweapons);
     SotnCharacter_Destroy(character);

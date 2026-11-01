@@ -10,6 +10,7 @@
 #include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
+#include <sotn/player_timers.h>
 #include <sotn/water_damage.h>
 #include <sotn/water_death.h>
 #include <sotn/wolf_runtime.h>
@@ -346,7 +347,8 @@ typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
-    Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
+    Uint16 player_timers[SOTN_PLAYER_TIMERS]; /**< Immutable copy of the actual player word bank. */
+    Sint32 x, y, velocity_x, velocity_y;      /**< Signed 16.16 room-local pixels. */
     Uint32 status;            /**< Original status bits for stage scripts and enemy observations. */
     Uint32 contacts;          /**< Original floor/ceiling/wall and slope flags. */
     Uint32 previous_contacts; /**< Actual pre-collision contact word retained by the player. */

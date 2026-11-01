@@ -101,7 +101,7 @@ static bool Ownership(Fixture *f, SotnDataView exe)
               p->damage_random == random);
     CHECK(SotnPlayer_SetDamageContext(p, 7) && SotnPlayer_Tick(p, 0) && !p->timers[3] &&
           p->timers[4] == 11 && p->palette == 0x8100 && p->body_color_blend &&
-          p->invincibility == 11 && p->afterimage_timer15 == 12);
+          p->invincibility == 11 && p->afterimage_timer15 == 11);
     for (Uint32 t = 8; t <= 18; ++t)
         CHECK(SotnPlayer_SetDamageContext(p, t) && SotnPlayer_Tick(p, 0));
     CHECK(!p->timers[4] && !p->body_color_blend && !p->invincibility);
@@ -184,8 +184,9 @@ static bool Timers(SotnDataView exe)
                         .gravity = {.timer = 0x8166},
                         .timer_status = (ailments & 1 ? 0x80U : 0) | (ailments & 2 ? 0x4000U : 0) |
                                         (ailments & 4 ? 0x8000U : 0)};
-        CHECK(SotnPlayer_ScriptTimers(&p) && p.palette == 0x8100 && p.afterimage_timer15 == 12);
-        CHECK(p.timers[4] == (ailments ? 0 : 12) && p.invincibility == (ailments ? 0 : 12) &&
+        CHECK(SotnPlayer_TimersTick(&p) && SotnPlayer_AfterimageBegin(&p) && p.palette == 0x8100 &&
+              p.afterimage_timer15 == 11);
+        CHECK(p.timers[4] == (ailments ? 0 : 11) && p.invincibility == (ailments ? 0 : 11) &&
               p.body_color_blend == !ailments);
     }
     return true;

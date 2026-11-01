@@ -64,7 +64,9 @@ grab/contact/special/form priority; previous-state snapshots; status and recover
 helper updates; animation; pre-collision afterimages; original one/eight-pass
 collision and restoration; water scaling; post-collision presentation. The
 sixteen HUD stat-buff counters have a different owner and cannot replace player
-timers. Frozen/release/menu/map/draw paths and failed native updates must preserve
+timers. The selected [unified word-bank owner](player-timers.md) now supplies all16
+countdowns, signed protection and original expiry/helper order; remaining producers
+and broader frame/collision/transition contexts still require their actual owners. Frozen/release/menu/map/draw paths and failed native updates must preserve
 their existing ownership and rollback boundaries.
 
 Full acceptance needs original comparisons for each implemented branch and

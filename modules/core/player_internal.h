@@ -8,6 +8,7 @@
 #include <sotn/shield.h>
 #include <sotn/spell_commands.h>
 #include <sotn/sword_warp.h>
+#include <stddef.h>
 
 typedef union PlayerFixed {
     Sint32 value;
@@ -27,6 +28,12 @@ typedef struct PlayerSensor
 {
     Sint16 x, y;
 } PlayerSensor;
+
+typedef struct PlayerDarkControl
+{
+    SotnPlayerFactorySource source;
+    bool started;
+} PlayerDarkControl;
 
 struct SotnPlayer
 {
@@ -60,7 +67,7 @@ struct SotnPlayer
     SotnPlayerAfterimage afterimage;
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
-    SotnPlayerDark dark;
+    PlayerDarkControl dark;
     SotnSpellCommands spell_commands;
     SotnWeaponCommand sword_command;
     SotnPlayerSwordFactory sword_factory;
@@ -75,9 +82,7 @@ struct SotnPlayer
     Sint32 hellfire_camera_x;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_started;
-    Uint8 spell_use_ticks;
     Uint32 afterimage_generation, afterimage_clock, afterimage_last_clock;
-    Uint16 afterimage_timer15;
     bool afterimage_pending, afterimage_ticked;
     SotnAnimation animation;
     SotnPlayerSimulatedPad simulated_pad;
@@ -92,7 +97,7 @@ struct SotnPlayer
     bool sleep_event;
     SotnPlayerSleep sleep;
     Uint16 attack_mode, attack_button;
-    Uint8 attack_lock, weapon_startup;
+    Uint8 attack_lock;
     SotnSubweapons *subweapons;
     bool subweapon_cast;
     Uint16 subweapon_animation;
@@ -139,22 +144,47 @@ struct SotnPlayer
     void *death_context;
     SotnPlayerStone stone;
     SotnPlayerGrab grab;
-    Uint16 hp, hp_max, invincibility, sound, extra_sound, curse_ticks, poison_ticks;
+    Uint16 hp, hp_max, sound, extra_sound;
     bool curse_failure, script_hold, bell_inside;
     bool simulated_input;    /**< US first physical frame rebases taps after simulated controls. */
     bool legacy_script_hold; /**< Boolean stage adapter renews its one-frame mode2 request. */
     SotnCharacterStats attributes;
     Uint32 damage_random;
-    Uint8 timers[8], tight_space;
+    // One original word bank. Existing owner names alias their actual indices.
+    union {
+        Uint16 timers[SOTN_PLAYER_TIMERS];
+        struct
+        {
+            Uint16 poison_ticks, curse_ticks, hit_effect_ticks, palette_ticks, color_ticks;
+            Uint16 coyote_ticks, fall_ticks, drop_ticks, impact_ticks, weapon_startup;
+            Uint16 subweapon_ticks, dark_ticks, spell_use_ticks, invincibility_flash_ticks;
+            Uint16 invincibility, afterimage_timer15;
+        };
+    };
+    Uint8 tight_space;
     bool facing_left, turned, fixed_stage, collision_disabled, failed;
     SotnCollider floor[4], ceiling[4], wall[14];
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
 };
 
+_Static_assert(offsetof(SotnPlayer, poison_ticks) == offsetof(SotnPlayer, timers),
+               "Poison must alias original player timer0");
+_Static_assert(offsetof(SotnPlayer, dark_ticks) == offsetof(SotnPlayer, timers) + 11U * 2U,
+               "Dark duration must alias original player timer11");
+_Static_assert(offsetof(SotnPlayer, invincibility) == offsetof(SotnPlayer, timers) + 14U * 2U,
+               "Ordinary protection must alias original player timer14");
+_Static_assert(offsetof(SotnPlayer, afterimage_timer15) == offsetof(SotnPlayer, timers) + 15U * 2U,
+               "Afterimage duration must alias original player timer15");
+
 /** @brief Rebuild supported original status bits from current state/timers, without mutation. */
 Uint32 SotnPlayer_Status(const SotnPlayer *player);
-/** @brief Apply original timer2/3/4 work with prior status and shared high-jump palette word. */
-bool SotnPlayer_ScriptTimers(SotnPlayer *player);
+/** @brief Advance original word timers0..14 in order; timer15 belongs to AfterimageBegin.
+ * All changes occur on the caller's transactional player copy; HUD buffs are separate. */
+bool SotnPlayer_TimersTick(SotnPlayer *player);
+/** @brief Original signed minimum on timer14, without granting a visual or item. */
+void SotnPlayer_Protect(SotnPlayer *player, Sint16 duration);
+/** @brief Original bitwise protection gate for timers13 and14. */
+bool SotnPlayer_Protected(const SotnPlayer *player);
 /** @brief Replace the shared simulated-input interval from an actual Bat/Wolf controller. */
 void SotnPlayer_HoldInput(SotnPlayer *player, Uint32 ticks);
 /** @brief Apply the selected original hurt/script exit helper after state dispatch. */

@@ -54,7 +54,7 @@ void SotnPlayer_StoneTick(SotnPlayer *p)
     p->stone.impact = false;
     if (p->substep == 1)
     {
-        p->invincibility = (Uint16)SDL_max(p->invincibility, 4);
+        SotnPlayer_Protect(p, 4);
         Gravity(p, true);
         if (p->vy >= 0 && (p->contact & 1))
         {
@@ -117,7 +117,7 @@ void SotnPlayer_StoneTick(SotnPlayer *p)
                 p->sound = 0x6e7;
                 return;
             }
-            p->invincibility = (Uint16)SDL_max(p->invincibility, 28);
+            SotnPlayer_Protect(p, 28);
             p->substep = 3;
         }
         p->stone.palette = (Uint16)(0x19e + ((p->animation.id - 0x38U) & 1U));
@@ -164,7 +164,7 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
     if (p == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * 65536 || source_velocity > 16 * 65536)
         return SDL_SetError("Petrification requires bounded damage and contact coordinates");
-    if (!p->hp || p->invincibility || p->step == SOTN_PLAYER_HIT ||
+    if (!p->hp || SotnPlayer_Protected(p) || p->step == SOTN_PLAYER_HIT ||
         SotnPlayerStep_IsDead(p->step) || p->step == SOTN_PLAYER_BOSS_GRAB ||
         p->grab.state != SOTN_GRAB_NONE)
         return true;

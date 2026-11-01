@@ -304,7 +304,9 @@ static bool Curse(Fixture *f)
     for (Uint16 i = 0; i < 400; ++i)
         CHECK(SotnPlayer_Tick(player, i % 24 == 0 ? SOTN_BUTTON_LEFT : 0));
     CHECK(SotnPlayer_GetState(player, &state) && state.step == SOTN_PLAYER_STAND &&
-          !state.stone.active && state.can_pause && state.curse_ticks != 0);
+          !state.stone.active && state.can_pause && state.curse_ticks == 0);
+    // Original stone entry clears poison/curse words; reapply this separate curse fixture.
+    CHECK(SotnPlayer_RestoreCurse(player, 1024));
     CHECK(SotnPlayer_Tick(player, 0));
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
     CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb5 &&
@@ -395,6 +397,9 @@ static bool Poison(Fixture *f)
     CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 0 && state.hp == 69);
     stats.total[1] = 0;
     CHECK(SotnPlayer_SetCharacter(p, &profile, stats));
+    // Let the original poison-expiry protection finish before testing a new failed hit.
+    for (Uint16 i = 0; i < 12; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
     for (Uint16 i = 0x2e; i <= 0x34; ++i)
         Put32(f->dra + 0x101b8 + i * 4U, 0xfffffffc);
     CHECK(!SotnPlayer_PoisonDamage(p, 1, 96, 0));

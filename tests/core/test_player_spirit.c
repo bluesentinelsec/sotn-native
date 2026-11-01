@@ -178,14 +178,14 @@ static bool FrozenPlayer(Fixture *f)
         CHECK(SotnAnimation_Set(&f->p->animation, ids[i]));
         f->p->vx = 12345;
         f->p->vy = -67890;
-        f->p->dark.ticks = 99;
+        f->p->dark_ticks = 99;
         f->p->healing.pending = 8;
         f->p->healing.pending_kind = 1;
         f->p->poison_ticks = 40;
         f->p->spell_use_ticks = 4;
         f->p->invincibility = 16;
         f->p->afterimage_timer15 = 4;
-        f->p->timers[0] = 10;
+        f->p->subweapon_ticks = 10;
         // Exercise legal nonzero tail padding without changing any request field.
         const size_t tail = offsetof(SotnAxeArmorEvents, factory_count) + sizeof(Uint8);
         SDL_memset((Uint8 *)&f->p->axe_armor.events + tail, 0xa5,

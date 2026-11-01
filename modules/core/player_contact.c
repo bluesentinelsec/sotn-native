@@ -61,7 +61,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     }
     if (!p->hp)
     {
-        if (p->step != SOTN_PLAYER_STONE || !p->invincibility)
+        if (p->step != SOTN_PLAYER_STONE || !SotnPlayer_Protected(p))
             return SDL_SetError("Zero-health damage dispatch lost its protected stone owner");
         if (p->water_damage.pain_timer)
             --p->water_damage.pain_timer;
@@ -79,7 +79,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                    .waist = p->water.waist,
                                    .hit_params = contact.parameters,
                                    .holy_symbol = (p->relics[SOTN_RELIC_HOLY_SYMBOL] & 3U) == 3,
-                                   .invincible = p->invincibility != 0,
+                                   .invincible = SotnPlayer_Protected(p),
                                    .grabbed = p->grab.state != SOTN_GRAB_NONE || p->script_hold ||
                                               p->step == SOTN_PLAYER_SCRIPT,
                                    .fury_plate = p->armor == 22 && p->stat_buffs != NULL},
@@ -120,7 +120,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                                           .facing_left = p->facing_left},
                                                .amount = amount,
                                                .applied = true};
-        p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+        SotnPlayer_Protect(p, 12);
         return true;
     }
     if (power.immune)
@@ -130,7 +130,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                                       .priority = 148,
                                                       .facing_left = p->facing_left},
                                            .applied = true};
-        p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+        SotnPlayer_Protect(p, 12);
         return true;
     }
     // HandleDamage's head-slot check follows absorption/immunity and precedes
@@ -183,7 +183,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             p->dodge =
                 (SotnPlayerDodge){.source = source, .effects = power.effects, .applied = true};
             p->gravity.timer = 0x8166;
-            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+            SotnPlayer_Protect(p, 12);
             p->timers[3] = 6;
             p->contact_dispatch = false;
             return true;
@@ -199,7 +199,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             p->guard = (SotnPlayerGuard){
                 .source = source, .effects = power.effects, .sound = 0x6e7, .applied = true};
             p->gravity.timer = 0x8166; // Original high_jump_timer is also timer3's palette word.
-            p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+            SotnPlayer_Protect(p, 12);
             p->timers[3] = 6;
             ok = true;
         }

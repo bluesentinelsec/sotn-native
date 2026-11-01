@@ -150,6 +150,12 @@ static bool Player(Fixture *f)
               p->invincibility == 20 && p->sound == 0x6ed);
     }
     *p = base;
+    p->poison_ticks = 20;
+    p->curse_ticks = 30;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 1, .parameters = 0x201}) &&
+          Tick(f, 0) && p->step == SOTN_PLAYER_AXE_HIT && p->poison_ticks == 19 &&
+          p->curse_ticks == 29);
+    *p = base;
     p->attributes.defense = 100;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 1, .parameters = 1}) &&
           Tick(f, 0) && p->step == SOTN_PLAYER_AXE_HIT && !p->guard.applied &&

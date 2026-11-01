@@ -394,7 +394,7 @@ static bool AxePrepare(SotnPlayer *p, bool bootstrap)
             p->mist.active = p->mist.restoring = false;
             p->mist.interrupted = true;
         }
-        p->dark.ticks = 0;
+        p->dark_ticks = 0;
         p->axe_armor.active = p->axe_armor.entered = true;
         SotnAxeArmorFrame f = AxeFrame(p);
         if (!SotnAxeArmor_Enter(&f, (Uint32)p->contact))
@@ -500,7 +500,7 @@ static bool StartAttack(SotnPlayer *player)
         return false;
     if (player->subweapons != NULL && (player->buttons & SOTN_BUTTON_UP) &&
         (player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND)) &&
-        player->timers[0] == 0)
+        player->subweapon_ticks == 0)
     {
         bool used = false;
         Uint16 animation = 0;
@@ -513,7 +513,7 @@ static bool StartAttack(SotnPlayer *player)
         }
         if (used)
         {
-            player->timers[0] = 4;
+            player->subweapon_ticks = 4;
             if (player->step == SOTN_PLAYER_STAND && player->attack_mode == 0)
             {
                 Animate(player, (Uint16)(animation + ((player->contact & 0x20) ? 1 : 0)));
@@ -1359,7 +1359,7 @@ static void BossGrabTick(SotnPlayer *player)
         player->step = SOTN_PLAYER_HIT;
         player->substep = 1;
     }
-    player->invincibility = (Uint16)SDL_max(player->invincibility, 12);
+    SotnPlayer_Protect(player, 12);
 }
 
 // Selected physical death; the selected stone completion uses its own clocks.
@@ -1608,7 +1608,7 @@ static void NormalSpellInput(SotnPlayer *p)
     if (events.spell == 2)
     {
         p->hellfire_started = true;
-        p->invincibility = (Uint16)SDL_max(p->invincibility, 16);
+        SotnPlayer_Protect(p, 16);
         return;
     }
     if (events.spell == 1 || events.spell == 3)
@@ -1628,8 +1628,8 @@ static void NormalSpellInput(SotnPlayer *p)
     Animate(p, 0xba);
     p->sound = 0x6f3;
     p->extra_sound = 0x67d;
-    p->dark = (SotnPlayerDark){
-        .ticks = (Uint16)(1024U + p->attributes.total[2] * 4U),
+    p->dark_ticks = (Uint16)(1024U + p->attributes.total[2] * 4U);
+    p->dark = (PlayerDarkControl){
         .started = true,
         .source = {
             .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left}};
@@ -1797,10 +1797,6 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.mist.interrupted = false;
     if (!AxePrepare(&next, false))
         return false;
-    if (alive && next.spell_use_ticks)
-        --next.spell_use_ticks;
-    if (alive && next.dark.ticks)
-        --next.dark.ticks;
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;
@@ -1824,12 +1820,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.form_rotated = false;
     next.sleep_event = false;
     next.movement_effects = (SotnPlayerMovementEffects){0};
-    const bool poison_recovery =
-        alive && next.poison_ticks == 1 && next.step != SOTN_PLAYER_STONE && !next.curse_ticks;
-    if (alive && next.curse_ticks)
-        --next.curse_ticks;
-    if (alive && next.poison_ticks)
-        --next.poison_ticks;
+    if (alive && !SotnPlayer_TimersTick(&next))
+        return false;
+    if (!SotnPlayer_AfterimageBegin(&next))
+        return false;
     if (alive)
     {
         if (next.legacy_script_hold)
@@ -1856,33 +1850,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.tapped = (Uint16)(buttons & (Uint16)~next.previous_buttons);
         next.previous_buttons = buttons;
     }
-    if (alive && !SotnPlayer_ScriptTimers(&next))
-        return false;
-    for (size_t i = 0; i < SDL_arraysize(next.timers); ++i)
-        if (alive && next.timers[i] != 0)
-        {
-            --next.timers[i];
-            if (i == 6 && next.timers[i] == 0 && next.step == SOTN_PLAYER_FALL &&
-                next.animation.id != 28)
-            {
-                Animate(&next, 28);
-                next.movement_flags &= ~0x10U;
-            }
-        }
-    // Original poison expiry requests timer15 before that later timer's own decrement.
-    if (poison_recovery && next.afterimage_generation)
-        next.afterimage_timer15 = 12;
-    if (!SotnPlayer_AfterimageBegin(&next))
-        return false;
-    if (alive && next.weapon_startup)
-        --next.weapon_startup;
     if (!SotnPlayerStep_IsDead(next.step))
         next.tight_space = SotnPlayer_TightSpace(&next);
     if (next.failed)
         return false;
     next.previous_step = next.step;
-    if (alive && next.invincibility)
-        --next.invincibility;
     if (alive && (force_hold || force_reaction))
     {
         if (force_hold)
@@ -1893,7 +1865,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SetStep(&next, force_reaction          ? SOTN_PLAYER_SCRIPT_REACTION
                        : next.axe_armor.active ? SOTN_PLAYER_AXE_SCRIPT
                                                : SOTN_PLAYER_SCRIPT);
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
+        SotnPlayer_Protect(&next, 4);
         if (force_hold && next.legacy_script_hold)
             ClearAttack(&next);
     }
@@ -2039,7 +2011,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             WaterDeathTick(&next);
             break;
         case SOTN_PLAYER_HIT:
-            next.invincibility = 12;
+            SotnPlayer_Protect(&next, 12);
             if (next.substep == 1)
             {
                 Sint32 gravity = next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY;
@@ -2051,7 +2023,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
                 if (next.vy >= 0 && (next.contact & 1))
                 {
                     Crouch(&next, 3, next.vx);
-                    next.invincibility = 12;
+                    SotnPlayer_Protect(&next, 12);
                 }
                 else if (next.animation.remaining < 0)
                 {
@@ -2082,26 +2054,26 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U) |
         (next.step == SOTN_PLAYER_WOLF ? 4U : 0U);
     if (next.step == SOTN_PLAYER_AXE_HIT)
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 20);
+        SotnPlayer_Protect(&next, 20);
     if (next.axe_armor.active)
         next.animation_bank = 16;
     if (next.step == SOTN_PLAYER_DARK || next.step == SOTN_PLAYER_SUMMON ||
         next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE ||
         next.step == SOTN_PLAYER_SOUL)
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 16);
+        SotnPlayer_Protect(&next, 16);
     if (SotnPlayerStep_IsDead(next.step) || next.step == SOTN_PLAYER_SCRIPT_REACTION ||
         next.step == SOTN_PLAYER_SCRIPT)
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
+        SotnPlayer_Protect(&next, 12);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
         (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
         (next.step == SOTN_PLAYER_BAT && next.substep == 3))
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
+        SotnPlayer_Protect(&next, 4);
     SotnPlayer_ReactionRecovery(&next);
     if (next.step == SOTN_PLAYER_SWORD_WARP)
     {
         next.palette = 0x810d;
-        next.invincibility = (Uint16)SDL_max(next.invincibility, 12);
+        SotnPlayer_Protect(&next, 12);
     }
     if (next.failed)
         return false;
@@ -2515,7 +2487,7 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x38000220U;
     if (player->spell_use_ticks)
         status |= 0x1000U;
-    if (player->dark.ticks)
+    if (player->dark_ticks)
         status |= 0x2000000U;
     if (player->step == SOTN_PLAYER_SCRIPT)
         status |= 0x38110000U;
@@ -2545,9 +2517,11 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x68100000U;
     if (player->step == SOTN_PLAYER_STUCK)
         status |= 0x18100030U;
-    if (player->invincibility)
+    if (SotnPlayer_Protected(player))
         status |= 0x100U;
-    if (player->timers[0])
+    if (player->weapon_startup)
+        status |= 0x400U;
+    if (player->subweapon_ticks)
         status |= 0x800U;
     return status;
 }
@@ -2585,7 +2559,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .attack = player->attack,
         .hp = player->hp,
         .hp_max = player->hp_max,
-        .invulnerable = player->invincibility != 0 || player->step == SOTN_PLAYER_HIT ||
+        .invulnerable = SotnPlayer_Protected(player) || player->step == SOTN_PLAYER_HIT ||
                         SotnPlayerStep_IsDead(player->step) || player->grab.state != SOTN_GRAB_NONE,
         .sound = player->sound,
         .death = player->death,
@@ -2612,7 +2586,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .solid_width = (Uint16)SDL_max(0, player->wall_sensors[0].x),
         .solid_height = (Uint16)SDL_max(0, player->floor_sensors[1].y - 1),
         .shield = player->shield,
-        .subweapon_starting = player->timers[0] != 0,
+        .subweapon_starting = player->subweapon_ticks != 0,
         .weapon_starting = player->weapon_startup != 0,
         .stone = player->stone,
         .curse_ticks = player->curse_ticks,
@@ -2631,7 +2605,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .afterimage_generation = player->afterimage_generation,
         .movement_effects = player->movement_effects,
         .healing = player->healing,
-        .dark = player->dark,
+        .dark = {.source = player->dark.source,
+                 .started = player->dark.started,
+                 .ticks = player->dark_ticks},
         .spirit = player->spirit,
         .soul = player->soul,
         .spell_use_ticks = player->spell_use_ticks,
@@ -2640,6 +2616,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .rotated = player->form_rotated,
         .draw_pivot_x = player->draw_pivot_x,
         .draw_pivot_y = player->draw_pivot_y};
+    SDL_memcpy(out->player_timers, player->timers, sizeof(out->player_timers));
     if (player->wolf.active)
     {
         out->wolf.controller.x =
@@ -2672,7 +2649,7 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Player damage requires a bounded physical attack and source");
-    if ((!amount && !zero_stone) || player->hp == 0 || player->invincibility != 0 ||
+    if ((!amount && !zero_stone) || player->hp == 0 || SotnPlayer_Protected(player) ||
         player->step == SOTN_PLAYER_HIT || player->grab.state != SOTN_GRAB_NONE ||
         player->step == SOTN_PLAYER_BOSS_GRAB)
         return true;
@@ -2878,7 +2855,7 @@ bool SotnPlayer_StageGuard(SotnPlayer *p, bool halt_vertical)
         return true;
     if (halt_vertical)
         p->vy = 0;
-    p->invincibility = (Uint16)SDL_max(p->invincibility, 32);
+    SotnPlayer_Protect(p, 32);
     return true;
 }
 
@@ -2905,7 +2882,7 @@ bool SotnPlayer_CurseDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Curse contact requires bounded damage and source motion");
-    if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
+    if (!amount || !player->hp || SotnPlayer_Protected(player) || player->step == SOTN_PLAYER_HIT ||
         SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
         player->grab.state != SOTN_GRAB_NONE)
         return true;
@@ -3002,7 +2979,7 @@ bool SotnPlayer_PoisonDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
     if (!player || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Poison contact requires bounded damage and source motion");
-    if (!amount || !player->hp || player->invincibility || player->step == SOTN_PLAYER_HIT ||
+    if (!amount || !player->hp || SotnPlayer_Protected(player) || player->step == SOTN_PLAYER_HIT ||
         SotnPlayerStep_IsDead(player->step) || player->step == SOTN_PLAYER_BOSS_GRAB ||
         player->grab.state != SOTN_GRAB_NONE)
         return true;
@@ -3024,7 +3001,7 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *p, Uint8 ticks)
 {
     if (!p || ticks > 32)
         return SDL_SetError("Player use timer requires its owner and bounded ticks");
-    p->timers[0] = ticks;
+    p->subweapon_ticks = ticks;
     return true;
 }
 
@@ -3101,6 +3078,6 @@ bool SotnPlayer_EndSpellFreeze(SotnPlayer *p)
 {
     if (!p)
         return SDL_InvalidParamError("player");
-    p->invincibility = (Uint16)SDL_max(p->invincibility, 48);
+    SotnPlayer_Protect(p, 48);
     return true;
 }

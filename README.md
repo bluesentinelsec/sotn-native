@@ -2,6 +2,8 @@
 
 A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
+The [original player timer owner](docs/player-timers.md) preserves the sixteen word
+counters and their existing resource/effect boundaries.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy

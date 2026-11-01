@@ -44,3 +44,8 @@ The implementation adapts `dra/5D5BC.c:{GetStatusAilmentTimer,GetEquipProperties
 HandleDamage}`, `dra/71830.c` and `dra/692E8.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later). Original
 weapon, enemy, animation and sound data remain private runtime inputs.
+
+The [unified player timer owner](player-timers.md) now supplies original word0 and
+its expiry helper: prior-status eligibility creates color4/protection14/afterimage15
+at12, each11 after the same update's later passes. Actual stone entry clears the
+poison word; Axe-converted stone retains it. Other effect/item/route limits above remain.

@@ -6,6 +6,8 @@ count. Holding a direction does not repeat escape inputs. Individual taps or a
 selected contact impact advance escape; the original private rotation cursor
 animates each wiggle. The selected escape animation returns to ordinary control.
 Attacks, shields, pause and save-room activation remain unavailable while stoned.
+Original entry clears actual poison/curse/hit-palette words0/1/2 through the
+[unified timer bank](player-timers.md); Axe-converted stone remains a separate hurt path.
 
 Contact first applies the equipment element prepass. A new stone hit subtracts
 twice physical defense and may petrify with zero HP loss. Contact while already
