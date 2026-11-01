@@ -2828,9 +2828,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 for (Uint16 row = 0; row < c->lease.count; ++row)
                     if (!SotnActors_FairyEffectRow(session->actors, &c->lease, row))
                         return false;
-                const Uint16 count =
+                const Uint16 fairy_rows =
                     c->identity == 0xdd ? SOTN_FAIRY_APPLE_ROWS : c->cursor.item.count;
-                for (Uint16 row = 0; row < count; ++row)
+                for (Uint16 row = 0; row < fairy_rows; ++row)
                 {
                     const Uint16 mode = c->identity == 0xdd ? c->cursor.apple.quads[row].draw_mode
                                                             : c->cursor.item.tiles[row].draw_mode;
