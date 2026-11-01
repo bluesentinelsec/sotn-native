@@ -145,6 +145,7 @@ struct SotnPlayer
     SotnPlayerDeathCapture death_capture;
     SotnPlayerDeathDecay death_decay;
     void *death_context;
+    Uint32 death_serial;
     SotnPlayerDissolvePresent dissolve_present;
     void *dissolve_context;
     SotnPlayerStone stone;
@@ -237,7 +238,8 @@ void SotnPlayer_FormDirection(SotnPlayer *player);
 
 /** @brief Actual Axe contact kind/direction; converted stone may retain zero damage. */
 bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
-                                 Sint32 source_velocity, Uint16 kind, bool zero_stone);
+                                 Sint32 source_velocity, Uint16 kind, bool zero_stone,
+                                 Uint16 effects);
 void SotnPlayer_StoneTick(SotnPlayer *player);
 /** @brief Original heavy landing helper, transferring its smoke before later stone factories. */
 bool SotnPlayer_StoneLanding(SotnPlayer *player);
@@ -272,6 +274,8 @@ void SotnPlayer_GravityBeams(SotnPlayer *player);
 /** @brief Restore original facing when another player state interrupts an inverted high jump. */
 void SotnPlayer_GravityCancel(SotnPlayer *player);
 void SotnPlayer_StoneDeathTick(SotnPlayer *player);
+/** @brief Actual state16 phase1/common capture work, requiring bound resident image services. */
+void SotnPlayer_PhysicalDeathTick(SotnPlayer *player);
 void SotnPlayer_Collide(SotnPlayer *player);
 /** @brief Original wrapping/truncating pre/post-collision water speed scaling. */
 Sint32 SotnPlayer_WaterScale(Sint32 velocity, bool restore);

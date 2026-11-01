@@ -66,7 +66,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   supplies actual36-row entity32, resident capture and uploads. [Selected stone control](player-petrification.md)
   now connects queued entry/landing/wiggle/escape and selected stone deaths to actual
   factories, sounds, shake, palettes and rendering. Remaining stone/grab/Hammer,
-  damage/death/fade and general shared cleanup gates stay open.
+  damage/death/fade and general shared cleanup gates stay open. [Selected native
+  physical/elemental death](player-physical-death.md) now supplies actual normal/fire/
+  thunder/ice C0 effects, resident capture and64 real decay uploads; remaining
+  interrupted/fade/grab contexts and whole-stage atomicity remain open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

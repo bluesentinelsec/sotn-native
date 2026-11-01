@@ -182,12 +182,18 @@ typedef struct SotnPlayerHurt
     bool shake_requested, started; /**< One-update actual calls/birth; cleared during freeze. */
 } SotnPlayerHurt;
 
-/** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
+/** @brief Physical death controller/presentation and actual bound capture generation.
+ * Native drawing consumes resident texture pixels. The retained mask is only the existing
+ * unbound standalone presentation, not a substitute image or capture acknowledgement. */
 typedef struct SotnPlayerDeath
 {
     Uint8 phase, red, blue, mask[32];
     Uint16 timer, cursor;
     Sint16 rotation;
+    SotnPlayerFactorySource source;
+    Uint32 generation;
+    Uint16 variant, blend;
+    bool native, started, captured, color_blend;
 } SotnPlayerDeath;
 
 /** @brief Selected owned water-death controller and actual native capture acknowledgement. */
@@ -462,12 +468,13 @@ bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory facto
  * and load weapon45 graphics; normal updates detect actual equipment changes before contacts. */
 bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool bootstrap);
 
-/** @brief Bind real capture/decay owners for selected ordinary unfaded water death.
+/** @brief Bind real capture/decay owners for selected unfaded physical and water death.
  * @param player Actual simulation. @param capture Actual StoreImage owner.
  * @param decay Actual decay/LoadImage owner. @param context Retained owner context.
  * @return Success or SDL error. Both callbacks and context are required. Callbacks run inside
  * working player updates; the native caller must roll back its image/texture on late failure.
- * This binding grants no HP/relics or water damage availability. Scene-fade recovery remains
+ * A physical lethal result must be born with this binding to select native image ownership.
+ * This binding grants no HP/relics or damage availability. Scene-fade recovery remains
  * outside this selected ordinary context; no replacement fade timer is supplied. */
 bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context);

@@ -1225,7 +1225,7 @@ static void CrouchTick(SotnPlayer *player)
         ClearAttack(player);
 }
 
-static void PhysicalDeath(SotnPlayer *player, bool right)
+static void PhysicalDeath(SotnPlayer *player, bool right, Uint16 effects)
 {
     if (player->axe_armor.active)
     {
@@ -1244,6 +1244,37 @@ static void PhysicalDeath(SotnPlayer *player, bool right)
     player->vy = -212992;
     player->sound = 0x6f6;
     Animate(player, 0xc0);
+    if (player->death_capture && player->death_decay && player->death_context)
+    {
+        if (player->death_serial == SDL_MAX_UINT32)
+        {
+            player->failed = true;
+            SDL_SetError("Physical death exhausted its actual capture generation");
+            return;
+        }
+        player->animation_bank = 1;
+        player->form_rotated = false;
+        player->bat.rotation = 0;
+        player->death.native = player->death.started = player->death.color_blend = true;
+        player->death.generation = ++player->death_serial;
+        player->death.source = (SotnPlayerFactorySource){.x = player->x.value,
+                                                         .y = player->y.value,
+                                                         .priority = 148,
+                                                         .facing_left = player->facing_left};
+        player->death.variant = effects & 0x8000U   ? 1
+                                : effects & 0x4000U ? 2
+                                : effects & 0x2000U ? 3
+                                                    : 0;
+        player->death.blend = player->death.variant == 3 ? 0x30 : 0;
+        if (player->tight_space)
+            player->vy = 0;
+        Decelerate(player, 1024);
+        if (player->mist.active)
+        {
+            player->mist.active = player->mist.restoring = false;
+            player->mist.interrupted = true;
+        }
+    }
 }
 
 static void HurtFactory(SotnPlayer *p, Uint32 blueprint, Sint16 x, Sint16 y)
@@ -1307,8 +1338,9 @@ void SotnPlayer_ReactionSound(SotnPlayer *p, Uint16 sound)
 void SotnPlayer_StonePhysicalDeath(SotnPlayer *p, bool right)
 {
     p->stone = (SotnPlayerStone){0};
-    p->palette = 0x8100;
-    PhysicalDeath(p, right);
+    if (!p->death_capture)
+        p->palette = 0x8100;
+    PhysicalDeath(p, right, 0);
 }
 static void HurtCeiling(SotnPlayer *p, bool sound)
 {
@@ -1367,7 +1399,7 @@ static bool HurtSecondary(SotnPlayer *p)
     if (!p->hp)
     {
         const Uint16 impact_sound = p->sound;
-        PhysicalDeath(p, p->hurt.knock_right);
+        PhysicalDeath(p, p->hurt.knock_right, 0);
         p->extra_sound = p->sound;
         p->sound = impact_sound;
         return true;
@@ -1632,7 +1664,7 @@ static void BossGrabTick(SotnPlayer *player)
             const bool right = SDL_abs(delta) < 16 && player->grab.source_velocity != 0
                                    ? player->grab.source_velocity > 0
                                    : delta >= 0;
-            PhysicalDeath(player, right);
+            PhysicalDeath(player, right, 0);
             return;
         }
         player->timers[2] = 4;
@@ -1654,6 +1686,11 @@ static void DeathTick(SotnPlayer *player)
     if (player->stone.active)
     {
         SotnPlayer_StoneDeathTick(player);
+        return;
+    }
+    if (player->death.native)
+    {
+        SotnPlayer_PhysicalDeathTick(player);
         return;
     }
     if (player->death.phase == 1)
@@ -1703,9 +1740,9 @@ bool SotnPlayer_SetDeathCapture(SotnPlayer *p, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context)
 {
     if (!p || !capture || !decay || !context ||
-        (p->water_death.active &&
+        ((p->water_death.active || p->death.native) &&
          (p->death_capture != capture || p->death_decay != decay || p->death_context != context)))
-        return SDL_SetError("Water death requires real capture, decay/upload and context owners");
+        return SDL_SetError("Player death requires real capture, decay/upload and context owners");
     p->death_capture = capture;
     p->death_decay = decay;
     p->death_context = context;
@@ -1726,9 +1763,10 @@ bool SotnPlayer_StartWaterDeath(SotnPlayer *p, SotnWaterDamageEvents damage)
         p->script_hold || p->step == SOTN_PLAYER_SCRIPT || p->step == SOTN_PLAYER_STONE ||
         p->step == SOTN_PLAYER_BOSS_GRAB || p->mist.active || SotnPlayerStep_IsDead(p->step) ||
         !p->death_capture || !p->death_decay || !p->death_context ||
-        p->water_death.generation == SDL_MAX_UINT32)
+        p->water_death.generation == SDL_MAX_UINT32 || p->death_serial == SDL_MAX_UINT32)
         return SDL_SetError("Water death requires an actual unprotected lethal result and owners");
-    const Uint32 generation = p->water_death.generation + 1U;
+    const Uint32 generation = SDL_max(p->water_death.generation, p->death_serial) + 1U;
+    p->death_serial = generation;
     p->water_death =
         (SotnPlayerWaterDeath){.generation = generation, .active = true, .motion = {.step = 13}};
     p->death = (SotnPlayerDeath){0};
@@ -2076,6 +2114,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
+    next.death.started = false;
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
@@ -2354,6 +2393,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             : SotnAnimation_Tick(next.dra, &next.animation);
     if (!animated || !ReadAttack(&next) || !TickShield(&next) || !SotnPlayer_KickTick(&next))
         return false;
+    if (next.death.native && next.animation.remaining < 0)
+        next.animation.sprite |= 0x8000U;
     if (!SotnPlayer_AfterimageCapture(&next))
         return false;
     const bool water_drag = SotnPlayer_WaterDrag(&next);
@@ -2364,8 +2405,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     }
     if (SotnPlayerStep_IsDead(next.step))
     {
-        next.x.value += next.vx;
-        next.y.value += next.vy;
+        const Uint32 x = (Uint32)next.x.value + (Uint32)next.vx,
+                     y = (Uint32)next.y.value + (Uint32)next.vy;
+        SDL_memcpy(&next.x.value, &x, sizeof(x));
+        SDL_memcpy(&next.y.value, &y, sizeof(y));
     }
     else if (next.step != SOTN_PLAYER_BOSS_GRAB)
         SotnPlayer_Collide(&next);
@@ -2940,7 +2983,7 @@ bool SotnPlayer_SetArrivalFacing(SotnPlayer *player, bool facing_left)
 }
 
 static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity,
-                   bool zero_stone, Uint16 kind)
+                   bool zero_stone, Uint16 kind, Uint16 effects)
 {
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
@@ -2969,7 +3012,7 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
     next.invincibility = 12;
     if (next.hp == 0)
     {
-        PhysicalDeath(&next, right);
+        PhysicalDeath(&next, right, effects);
         if (next.failed ||
             (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
             return false;
@@ -3076,7 +3119,7 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
 
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
 {
-    return Damage(player, amount, source_x, source_velocity, false, 1);
+    return Damage(player, amount, source_x, source_velocity, false, 1, 0);
 }
 bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
                               Sint32 source_velocity, Uint16 kind, Uint16 effects)
@@ -3085,7 +3128,7 @@ bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x
         return SDL_SetError("Contact damage requires its actual resolved kind and player");
     const Uint16 before = player->hp;
     SotnPlayer next = *player;
-    if (!Damage(&next, amount, source_x, source_velocity, false, kind))
+    if (!Damage(&next, amount, source_x, source_velocity, false, kind, effects))
         return false;
     if (next.hp && next.hp < before && !next.axe_armor.active)
     {
@@ -3162,11 +3205,12 @@ bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x
     return true;
 }
 bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
-                                 Sint32 source_velocity, Uint16 kind, bool zero_stone)
+                                 Sint32 source_velocity, Uint16 kind, bool zero_stone,
+                                 Uint16 effects)
 {
     if (!player || !player->axe_armor.active || kind > 31)
         return SDL_SetError("Axe contact requires its actual equipped player and damage kind");
-    return Damage(player, amount, source_x, source_velocity, zero_stone, kind);
+    return Damage(player, amount, source_x, source_velocity, zero_stone, kind, effects);
 }
 
 bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random)
@@ -3458,6 +3502,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
+    next.death.started = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;

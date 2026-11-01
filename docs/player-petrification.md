@@ -36,8 +36,9 @@ Already-stone contact uses one eighth maximum HP. A lethal new stone hit lands,
 waits32 grounded updates and enters death16. An already-stone lethal contact queries
 actual generation-owned entity32 slots16..63, including phase0 children; pending
 factories do not qualify. With a child it enters stone death; without one it
-delegates to the selected physical C0 owner. That delegation does not complete the
-remaining physical capture, elemental deaths or global-fade branches.
+delegates to the physical C0 owner. The later [native physical/elemental owner](player-physical-death.md)
+now supplies actual C0 capture/effects/uploads; the earlier no-child delegation
+comparison itself does not establish those owners or remaining global-fade branches.
 
 Stone death waits80 updates, writes five actual Up taps and restores the original
 five-wiggle word. At the break transition it selects hidden palette810D, animation3E

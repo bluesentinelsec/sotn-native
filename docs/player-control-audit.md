@@ -24,7 +24,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 12: boss grab | [Selected grab](player-boss-grab.md) and [normal held-grab damage/number/equipment feedback](player-grab-damage.md) | Thrown release, stone reaction, remaining dependent effects and boss producers |
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
 | 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
-| 16: kill | Selected physical and water death | Remaining elemental deaths, helpers and fade branches |
+| 16: kill | [Selected native normal/fire/thunder/ice C0 effects, resident capture and common64 uploads](player-physical-death.md), water common death and stone death | Interrupted/grab/fade contexts, general cleanup and whole-stage failure/shared timing boundaries |
 | 17: global-fade hold | Classified dead, no native dispatch | Real fade handshake, retained pose/draw attributes, ground/fall recovery and Blink 4A; classification alone is insufficient |
 | 18: teleport | No native dispatch | All six substates, actual teleport factory/retry, warp acknowledgement and TOP/RTOP position adjustment |
 | 24/25: Wolf/return | [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) | All entry/return contexts, interrupted handshakes and shared contention |

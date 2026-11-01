@@ -725,7 +725,7 @@ static bool CaptureDeathImage(void *context, Uint32 generation)
 {
     SotnLaboratory *s = context;
     if (!s || !generation || (s->death_image.captured && s->death_image_generation == generation))
-        return SDL_SetError("Water-death capture requires its fresh actual texture owner");
+        return SDL_SetError("Player-death capture requires its fresh actual texture owner");
     SotnDeathImage image = {0};
     if (!SotnActorGraphics_StoreDeathImage(s->actor_graphics, &image))
         return false;
@@ -737,7 +737,7 @@ static bool DecayDeathImage(void *context, Uint32 generation, bool *finished)
 {
     SotnLaboratory *s = context;
     if (!s || !generation || generation != s->death_image_generation || !finished)
-        return SDL_SetError("Water-death upload lost its actual captured image generation");
+        return SDL_SetError("Player-death upload lost its actual captured image generation");
     SotnDeathImage image = s->death_image;
     if (!SotnDeathImage_Tick(&image) ||
         !SotnActorGraphics_LoadDeathImage(s->actor_graphics, &image))
@@ -753,15 +753,34 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
     Uint8 factories[sizeof(s->bat_runtime.factories)] = {0};
     const SotnDeathImage death_image = s->death_image;
     const Uint32 death_generation = s->death_image_generation;
+    SotnDissolveTextures *textures = NULL;
+    SotnPlayerState before = {0};
+    if (!SotnPlayer_GetState(s->player, &before))
+        return false;
+    if (before.death.native || before.water_death.active)
+    {
+        textures = SDL_malloc(sizeof(*textures));
+        if (!textures || !SotnActorGraphics_SaveDissolve(s->actor_graphics, textures))
+        {
+            SDL_free(textures);
+            return false;
+        }
+    }
     SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
     if (SotnPlayer_Tick(s->player, buttons))
+    {
+        SDL_free(textures);
         return true;
+    }
     SDL_memcpy(s->bat_runtime.factories, factories, sizeof(factories));
     char detail[512] = {0};
     SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
     s->death_image = death_image;
     s->death_image_generation = death_generation;
-    if (death_image.captured && !SotnActorGraphics_LoadDeathImage(s->actor_graphics, &death_image))
+    const bool restored =
+        !textures || SotnActorGraphics_RestoreDissolve(s->actor_graphics, textures);
+    SDL_free(textures);
+    if (!restored)
         return false;
     SDL_SetError("%s", detail);
     return false;
@@ -839,8 +858,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
     if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
         !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
-        (sprite.width && !player.water_death.captured && !(player.animation.sprite & 0x8000U) &&
-         !HoldDissolveUpload(&s->bat_runtime, player) &&
+        (sprite.width && !player.water_death.captured && !player.death.captured &&
+         !(player.animation.sprite & 0x8000U) && !HoldDissolveUpload(&s->bat_runtime, player) &&
          !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
             &s->bat_runtime, s->character,
@@ -1991,6 +2010,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                     session->bat_runtime.children[0].kind != 0 ||
                                         session->mist_present) ||
         !SotnPlayer_SetStoneContext(session->player, DissolvePresent, session) ||
+        !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
         !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
@@ -2403,7 +2423,8 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
 {
     if (!sprite->width)
         return true;
-    if (!player.water_death.captured && !(player.animation.sprite & 0x8000U) &&
+    if (!player.water_death.captured && !player.death.captured &&
+        !(player.animation.sprite & 0x8000U) &&
         !SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
         return false;
     const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
@@ -2444,6 +2465,18 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
                 BlinkWord(y + player.draw_pivot_y), BlinkWord(d.rotation), player.facing_left, &q))
             return false;
     }
+    else if (player.death.native)
+    {
+        const SotnPlayerDeath d = player.death;
+        q.draw_mode =
+            (Uint16)((d.blend & 0x60U) | (d.blend & 0x10U ? 1U : 0U) | (d.color_blend ? 4U : 0U));
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.red[v] = d.red;
+            q.green[v] = d.variant == 3 ? d.red : d.blue;
+            q.blue[v] = d.blue;
+        }
+    }
     else if (player.body_color_blend)
     {
         q.draw_mode = 4;
@@ -2455,8 +2488,10 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
             s->executable,
             BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
             BlinkWord(y + player.draw_pivot_y),
-            player.stone.active ? player.stone.rotation : player.bat.rotation, player.facing_left,
-            &q))
+            player.death.native   ? player.death.rotation
+            : player.stone.active ? player.stone.rotation
+                                  : player.bat.rotation,
+            player.facing_left, &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
 }
@@ -2930,8 +2965,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 (player.axe_armor.active
                      ? DrawAxeArmorPlayer(session, player)
                      : ((player.animation.sprite & 0x8000U) || player.stone.active ||
-                                player.water_death.active || player.animation_bank == 13 ||
-                                player.rotated ||
+                                player.death.native || player.water_death.active ||
+                                player.animation_bank == 13 || player.rotated ||
                                 (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                                  (player.palette != 0x8100 || player.body_color_blend))
                             ? DrawRotatedPlayer(session, player, &alucard, 0)

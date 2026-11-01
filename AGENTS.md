@@ -1,3 +1,18 @@
+Selected [physical/elemental death](docs/player-physical-death.md) now owns actual
+normal/fire/thunder/ice C0 births, shared flash/Blink/children, resident5120 capture
+and64 committed real uploads. Preserve element priority, original recoil/deceleration,
+birth flags/pivots, deferred BP51, high-parameter thunder/death ice delay, byte-color
+underflow, signed velocity/rotation and actual animation22 turn. Native capture
+uses the existing scratch/shared generation, never the unbound legacy CPU mask.
+Preserve frame8000 upload-skip, SDK body/Blink angles and pivots, no artwork reupload,
+pending dead healing and actual game over. Failed player updates restore real
+texture words/validity, scratch/generation and factory reservations; no whole-stage
+HP/clock/audio atomicity claim. Preserve optional allocation before RNG, frozen/
+draw holds and separate water/stone entries. Raw-contact/protection/prospective-clock
+fixtures are not ordinary lethal encounter/acquisition/routes/console evidence.
+Remaining damage/grab/Hammer/fade/full sharing and all six Alucard gates stay open.
+No pool/default grants/ordinary savev9 change.
+
 Selected [stone control](docs/player-petrification.md) now supplies actual queued
 entry text3, ordered landing0/39/smoke3-or7, shake1, ordinary/rare wiggle factories,
 forced directional taps and actual palette/SDK flags. Preserve the heavy helper's

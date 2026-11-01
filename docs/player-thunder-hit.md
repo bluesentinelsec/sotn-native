@@ -75,6 +75,10 @@ in Debug/Release/ASan-UBSan;34 Python tests, policy901, formatting, static SDL
 linkage and ZIP packaging pass. Four Debug/sanitizer controller/Blink/producer/
 factory trace pairs are byte-identical. Platform results are recorded with the PR.
 
+The later [native death owner](player-physical-death.md) now supplies actual
+factory45/high1 and Blink59 for thunder C0; supplied high-parameter comparisons
+above do not themselves establish that producer.
+
 Ice, remaining stone/grab/death/fade, equipment/familiars, full shared contention
 and integrated acceptance remain unfinished. Default grants/resources, user save
 slots and savev9 remain unchanged. [Alucard milestone1](alucard-status.md) stays open.

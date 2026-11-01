@@ -1175,3 +1175,10 @@ target_include_directories(sotn-stone-control-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-stone-control-tests PRIVATE sotn-core)
 add_test(NAME player-stone-control COMMAND sotn-stone-control-tests)
 set_tests_properties(player-stone-control PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-physical-death-tests test_player_physical_death.c)
+sotn_configure_c_target(sotn-physical-death-tests)
+target_include_directories(sotn-physical-death-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-physical-death-tests PRIVATE sotn-core)
+add_test(NAME player-physical-death COMMAND sotn-physical-death-tests)
+set_tests_properties(player-physical-death PROPERTIES TIMEOUT 20)

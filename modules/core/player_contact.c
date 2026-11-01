@@ -164,7 +164,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                 ? (Uint16)(p->hp_max / 8U)
                 : (Uint16)SDL_max(0, (Sint32)power.attack - (Sint32)attributes.defense * 2);
         ok = axe ? SotnPlayer_AxeContactDamage(p, (Uint16)SDL_min(number_amount, 9999),
-                                               contact.source_x, contact.source_velocity, 1, true)
+                                               contact.source_x, contact.source_velocity, 1, true,
+                                               power.effects)
                  : SotnPlayer_Petrify(p, (Uint16)SDL_min(number_amount, 9999), contact.source_x,
                                       contact.source_velocity);
     }
@@ -225,7 +226,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                        : (Uint32)power.attack * 50U >= p->hp_max ? 3
                                                                  : 2;
             ok = axe ? SotnPlayer_AxeContactDamage(p, amount, contact.source_x,
-                                                   contact.source_velocity, guard ? 1 : kind, false)
+                                                   contact.source_velocity, guard ? 1 : kind, false,
+                                                   power.effects)
                      : SotnPlayer_ContactDamage(p, amount, contact.source_x,
                                                 contact.source_velocity, kind, power.effects);
         }

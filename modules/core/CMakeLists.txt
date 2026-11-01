@@ -339,6 +339,7 @@ add_library(sotn-core STATIC
   player_kick.c
   player_gravity.c
   player_stone.c
+  player_physical_death.c
   player_sensors.c
   player_internal.h
   include/sotn/collision.h

@@ -5,7 +5,10 @@ path instead of returning an application error. The player stops accepting
 movement/attack actions, launches away from the hit, runs animation 0xC0,
 changes tint/rotation, and dissolves over the original 64-tick mask sequence.
 Recovery immunity prevents repeated damage; dying players cannot collect prizes.
-Elemental deaths and all related primitives remain incomplete.
+The later [native physical/elemental owner](player-physical-death.md) replaces the
+actual app's CPU mask with original normal/fire/thunder/ice effects, resident
+capture and64 actual uploads. The older selected standalone mask and evidence
+below do not establish those owners; remaining interrupted/fade contexts stay open.
 
 The scene then replaces stage music with the original US game-over track and
 shows the original game-over artwork. The captured scene falls away in columns,

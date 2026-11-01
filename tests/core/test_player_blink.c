@@ -217,15 +217,16 @@ int main(void)
             CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
         CHECK(effect.removed);
     }
-    for (Uint16 kind = 0; kind < 2; ++kind)
+    const Uint16 death_blinks[] = {0x4e, 0x59, 0x53, 0x4f, 0x5a};
+    for (Uint16 kind = 0; kind < SDL_arraysize(death_blinks); ++kind)
     {
-        const Uint16 parameter = kind ? 0x59 : 0x4e;
+        const Uint16 parameter = death_blinks[kind];
         Uint8 *p = dra + 0xd670 + (parameter & 0x3fU) * 20U;
         Put16(p + 6, 0x123);
         Put16(p + 8, 256);
         Put16(p + 10, 256);
         Put16(p + 12, 256);
-        Put16(p + 14, kind ? 0x7005 : 0x7004);
+        Put16(p + 14, !kind ? 0x7004 : parameter == 0x4f ? 0x7006 : 0x7005);
         Put16(p + 16, 0x31);
         Put16(p + 18, 512);
         effect = (SotnPlayerBlink){.parameter = parameter};

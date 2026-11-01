@@ -78,6 +78,10 @@ ordinary savev9 and user save slots retain their existing behavior. Remaining
 stone/grab/death/fade, gear/familiars, general shared cleanup/contention and
 integrated acceptance keep [Alucard milestone1](alucard-status.md) open.
 
+The later [native death owner](player-physical-death.md) supplies actual ice C0,
+factory46 and Blink5A, including the original dying-player delay. Earlier supplied
+death-state fixtures remain distinct from that native integration.
+
 Provenance: `dra/71830.c:AlucardHandleDamage`, `7E4BC.c:EntityHitByIce`,
 `7879C.c:EntityFactory`/`UpdatePlayerEntities`/`func_8011A9D8`, actual engine
 camera/primitive passes and room-loading callers in `5087C.c`, sotn-decomp commit

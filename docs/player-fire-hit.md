@@ -85,6 +85,9 @@ and ZIP packaging pass. Five Debug/sanitizer controller/particle/Blink/producer/
 factory trace pairs are byte-identical. Platform results are recorded with the PR.
 
 [Surviving thunder-hit history/Blink effects](player-thunder-hit.md) now have their actual owner.
+The later [native physical/elemental death owner](player-physical-death.md) supplies
+actual death factory51/high2 and Blink4F through their original deferred schedule;
+the earlier supplied-high2 comparisons remain separate evidence.
 Ice, remaining stone/grab/death/fade, equipment/familiars, full shared
 contention and integrated acceptance remain unfinished. No player dispatch state,
 resource grant, ordinary-savev9 field or user save slot changes. The

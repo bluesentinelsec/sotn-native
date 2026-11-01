@@ -1199,6 +1199,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         (!Flash(&r, in.dra, 1) || !RequestSource(&r, p.water_death.source, 0x59002c, 0) ||
          !RequestSource(&r, p.water_death.source, 0x60031, 0)))
         return false;
+    if (p.death.started)
+    {
+        if (in.freeze || !p.death.native || !p.death.generation || p.death.variant > 3 || p.hp ||
+            p.step != SOTN_PLAYER_KILL)
+            return SDL_SetError("Physical death effects require their actual committed birth");
+        const Uint16 flash = p.death.variant == 1   ? 3
+                             : p.death.variant == 2 ? 9
+                             : p.death.variant == 3 ? 10
+                                                    : 1;
+        const Uint32 blink = p.death.variant == 1   ? 0x4f002cU
+                             : p.death.variant == 2 ? 0x59002cU
+                             : p.death.variant == 3 ? 0x5a002cU
+                                                    : 0x53002cU;
+        const Uint32 child = p.death.variant == 1   ? 0x20033U
+                             : p.death.variant == 2 ? 0x1002dU
+                             : p.death.variant == 3 ? 46U
+                                                    : 0x50031U;
+        if (!Flash(&r, in.dra, flash) || !RequestSource(&r, p.death.source, blink, 0) ||
+            !RequestSource(&r, p.death.source, child, 0))
+            return false;
+    }
     if (r.target_cursor >= SOTN_SPELL_TARGETS)
         return SDL_SetError("Spirit selector lost its original circular target cursor");
     if (p.dark.started &&
@@ -1828,7 +1849,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                             .wolf_form = p.animation_bank == 15,
                             .x = Word(Pixel(p.x) - in.camera_x),
                             .y = Word(Pixel(p.y) - in.camera_y),
-                            .rotation = p.bat.rotation,
+                            .rotation = p.death.native ? p.death.rotation
+                                        : p.water_death.active
+                                            ? (Sint16)p.water_death.motion.rotation
+                                        : p.stone.active ? p.stone.rotation
+                                                         : p.bat.rotation,
+                            .pivot_x = p.draw_pivot_x,
+                            .pivot_y = p.draw_pivot_y,
                             .priority = p.priority,
                             .status = p.status,
                             .poison_ticks = p.poison_ticks,
