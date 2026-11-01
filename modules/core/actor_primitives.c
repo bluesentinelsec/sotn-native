@@ -234,7 +234,7 @@ bool SotnActors_CommitBatEcho(SotnActors *s, Uint32 generation, const Uint16 *in
         WriteEcho(s, generation, indices, echo);
     return true;
 }
-bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
+static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool apply)
 {
     if (!s || !r)
         return SDL_SetError("Bat primitive commit requires its actual session and runtime owner");
@@ -365,6 +365,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         (w->root_reserved && !PlanRows(s, &used, w->root_rows, 6, 0, true)) ||
         (w->environment_reserved && !PlanRows(s, &used, w->environment_rows, 2, 0, true)))
         return SDL_SetError("Shared primitive commit has an invalid actual Wolf reservation");
+    if (!apply)
+        return true;
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
         if (BatPrimitiveKind(s->primitives[i].ability_kind) ||
             (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind)))
@@ -394,6 +396,84 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
             s->slots[i].state.flags |= 0x80000U;
     return true;
+}
+bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
+{
+    return CommitBatPrimitives(s, r, true);
+}
+static bool MatchPlayerRows(const SotnActors *s, SotnPrimitiveSlots *claimed, const Uint16 *rows,
+                            Uint16 count, Uint16 kind, Uint32 generation)
+{
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const Uint16 row = rows[i];
+        if (!generation || row >= SOTN_PRIMITIVE_SLOTS ||
+            (claimed->occupied[row / 64U] & ((Uint64)1 << (row % 64U))) ||
+            s->primitives[row].owner != generation || s->primitives[row].ability_kind != kind)
+            return SDL_SetError("Player cleanup lost an actual row's identity/generation");
+        claimed->occupied[row / 64U] |= (Uint64)1 << (row % 64U);
+    }
+    return true;
+}
+bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
+{
+    if (!CommitBatPrimitives(s, r, false))
+        return false;
+    if (r->target_marks[0] || r->target_marks[1])
+        return SDL_SetError("Player cleanup requires acknowledgement of actual stage target marks");
+    SotnPrimitiveSlots claimed = {0};
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!MatchPlayerRows(s, &claimed, r->children[i].primitives, r->children[i].primitive_count,
+                             r->children[i].kind, r->children[i].generation))
+            return false;
+    const SotnWolfRuntime *w = &r->wolf;
+    if ((r->echo_generation &&
+         !MatchPlayerRows(s, &claimed, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 52,
+                          r->echo_generation)) ||
+        (w->root_reserved &&
+         !MatchPlayerRows(s, &claimed, w->root_rows, 6, 56, w->children[0].generation)) ||
+        (w->environment_reserved &&
+         !MatchPlayerRows(s, &claimed, w->environment_rows, 2, SOTN_WOLF_ENVIRONMENT_TAG,
+                          w->environment_generation)) ||
+        (r->common_generation &&
+         !MatchPlayerRows(s, &claimed, r->afterimage_rows, 6, SOTN_PLAYER_AFTERIMAGE_TAG,
+                          r->common_generation)))
+        return false;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if ((BatPrimitiveKind(s->primitives[i].ability_kind) ||
+             (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind))) &&
+            !(claimed.occupied[i / 64U] & ((Uint64)1 << (i % 64U))))
+            return SDL_SetError("Player cleanup found an actual row missing from its owner");
+    SotnBatRuntime *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return SDL_OutOfMemory();
+    *next = *r;
+    SDL_zero(next->factories);
+    SDL_zero(next->children);
+    SDL_zero(next->wolf.children);
+    SDL_zero(next->wolf.body.parts);
+    next->wolf.generation = 0;
+    next->wolf.root_reserved = false;
+    SDL_zero(next->wolf.root_rows);
+    next->echo_generation = 0;
+    SDL_zero(next->echo);
+    SDL_zero(next->echo_primitives);
+    next->wing_mask = next->wolf_mask = 0;
+    next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
+        0;
+    // These are consumed callback notifications, not original retained global counters.
+    SDL_zero(next->medicine);
+    SDL_zero(next->wolf_events);
+    SDL_zero(next->wolf_attacks);
+    SDL_zero(next->captures);
+    next->capture_count = next->sound_count = next->wolf_shake_count = 0;
+    next->soul_attack = next->echo_attack = next->hellfire_upload = false;
+    next->dissolve_frame_load = next->afterimage_reset = next->freeze_changed = false;
+    const bool ok = CommitBatPrimitives(s, next, true);
+    if (ok)
+        *r = *next;
+    SDL_free(next);
+    return ok;
 }
 bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
 {

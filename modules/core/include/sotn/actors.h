@@ -205,6 +205,18 @@ bool SotnActors_FairyEffectRow(const SotnActors *actors, const SotnFairyEffectLe
  * Retires previous selected Bat rows only; stage-owned rows and ordinary progress survive.
  * Full shared Mist/other-ability allocation remains incomplete. */
 bool SotnActors_CommitBatPrimitives(SotnActors *actors, const SotnBatRuntime *runtime);
+/** @brief Retire the shared runtime's actual player entities8..63 and their real rows.
+ * @param actors Actual stage pool. @param runtime Actual committed shared runtime.
+ * Validates the complete previous identities/generations, including particle sentinels,
+ * before mutation; unacknowledged target marks must be committed/acknowledged first.
+ * Caller consumes pending captures/audio/native notifications before this operation.
+ * Preserves stage/Fairy rows, common player eight rows, global vectors/phases/cursors,
+ * serials, attack-group counters and Wolf's retained capture/environment ownership.
+ * Clears entity-local records and consumed callback views without ticking any controller.
+ * @return Success or SDL error preserving runtime and pool on invalid ownership/allocation.
+ * Other native owners (Mist, subweapons, player/capture/engine/audio) remain caller-owned.
+ * This performs no healing, scene transition, revival or familiar activation. */
+bool SotnActors_ClearPlayerRuntime(SotnActors *actors, SotnBatRuntime *runtime);
 /** @brief Commit the actual Wolf root/common-environment row plan to the stage pool.
  * @param actors Actual stage primitive owner. @param runtime Borrowed current body owner.
  * @return Success or SDL error, without pool mutation on invalid/overlapping/stale reservations.

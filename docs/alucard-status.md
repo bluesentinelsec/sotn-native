@@ -123,6 +123,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   now supply actual bag-byte consumption, no-tick camera/player/room operations
   and finite Blink4A. Native gameplay/lifecycle inputs, whole-pass transactions,
   saved progression and FFF/player17 recovery remain required.
+  The [rescue-cleanup services](familiar-rescue-cleanup.md) retire actual shared
+  factories/children/Wolf rows and native projectiles while retaining common/global
+  ownership. Actual Fairy/FFF/player17, other owners and resource restoration still
+  require their bindings; this does not complete rescue or full shared contention.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

@@ -183,6 +183,27 @@ int main(void)
     CHECK(SotnCharacter_Get(character, &state, NULL) && state.hearts <= 47);
     CHECK(SotnPlayer_Tick(alucard, SOTN_BUTTON_RIGHT));
     CHECK(SotnPlayer_GetState(alucard, &player) && player.step == SOTN_PLAYER_WALK);
+    // Rescue cleanup is distinct from room entry: retain pause, sounds and generation serial.
+    CHECK(SotnSubweapons_Enter(s, map) && Select(character, 6, 100) &&
+          SotnSubweapons_Use(s, player, &used, &animation) && used && SotnSubweapons_Frozen(s) &&
+          Select(character, 1, 100) && SotnSubweapons_Use(s, player, &used, &animation) && used &&
+          SotnSubweapons_Get(s, 1, &p));
+    const Uint32 retired_generation = p.generation;
+    SotnCharacterState before_cleanup = {0};
+    CHECK(SotnCharacter_Get(character, &before_cleanup, NULL) &&
+          SotnSubweapons_SetPaused(s, true) && SotnSubweapons_ClearPlayerEntities(s) &&
+          !SotnSubweapons_Frozen(s) && SotnCharacter_Get(character, &state, NULL) &&
+          !SDL_memcmp(&before_cleanup, &state, sizeof(state)));
+    for (Uint16 i = 0; i < SOTN_SUBWEAPON_SLOTS; ++i)
+        CHECK(SotnSubweapons_Get(s, i, &p) && !p.generation);
+    Uint16 retained_sounds[64] = {0}, retained_count = 0;
+    CHECK(SotnSubweapons_Sounds(s, retained_sounds, SDL_arraysize(retained_sounds),
+                                &retained_count) &&
+          retained_count == 2 && retained_sounds[0] == 0x6ad && retained_sounds[1] == 0x60c);
+    CHECK(Select(character, 6, 100) && SotnSubweapons_Use(s, player, &used, &animation) && !used &&
+          SotnSubweapons_SetPaused(s, false) && SotnSubweapons_Use(s, player, &used, &animation) &&
+          used && SotnSubweapons_Get(s, 0, &p) && p.generation > retired_generation &&
+          SotnSubweapons_ClearPlayerEntities(s) && !SotnSubweapons_Frozen(s));
     SotnPlayer_Close(alucard);
     SotnSubweapons_Destroy(s);
     SotnCharacter_Destroy(character);

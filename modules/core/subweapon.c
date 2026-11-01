@@ -111,6 +111,20 @@ bool SotnSubweapons_Enter(SotnSubweapons *s, SotnCollisionMap map)
     s->sound_count = 0;
     return true;
 }
+bool SotnSubweapons_ClearPlayerEntities(SotnSubweapons *s)
+{
+    if (!s)
+        return SDL_InvalidParamError("subweapons");
+    // Fairy searches actual entity0x29 (stopwatch), not decimal29 (Hellfire flash).
+    for (Uint16 i = 0; i < SOTN_SUBWEAPON_SLOTS; ++i)
+        if (s->slots[i].state.generation && s->slots[i].state.id == 6)
+        {
+            s->frozen = false;
+            break;
+        }
+    SDL_zero(s->slots);
+    return true;
+}
 bool SotnSubweapons_Use(SotnSubweapons *s, SotnPlayerState player, bool *used, Uint16 *animation)
 {
     if (s == NULL || used == NULL || animation == NULL)

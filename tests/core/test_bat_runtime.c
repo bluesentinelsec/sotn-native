@@ -1767,6 +1767,118 @@ static bool FairyEffectLeases(Fixture *f)
     SDL_free(actors);
     return true;
 }
+static bool ClearPlayerRuntime(Fixture *f)
+{
+    for (Uint16 wolf = 0; wolf < 2; ++wolf)
+    {
+        CHECK(Create(f));
+        SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+        ActorPrimitive *rows_before = SDL_malloc(sizeof(actors->primitives));
+        SotnBatRuntime *before = SDL_malloc(sizeof(*before));
+        CHECK(actors && rows_before && before);
+        actors->primitives[0].owner = 77;
+        SotnPrimitiveSlots available = {0};
+        bool allocated = false;
+        CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+              SotnBatRuntime_InitCommon(&f->runtime, available) &&
+              SotnActors_CommitBatPrimitives(actors, &f->runtime) &&
+              SotnActors_PrimitiveSlots(actors, &available));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[i].cursor,
+                                          (SotnPlayerFactorySource){0}, 44, 0));
+        for (Uint16 i = 0; i < 48; ++i)
+            f->runtime.children[i] =
+                (SotnBatRuntimeChild){.kind = 11, .generation = (Uint32)(i + 100)};
+        SotnBatRuntimeChild *blink = &f->runtime.children[0], *particles = &f->runtime.children[47];
+        blink->initialized = true;
+        blink->primitive_count = 8;
+        CHECK(SotnPrimitiveSlots_Reserve(&available, 8, blink->primitives, &allocated) &&
+              allocated);
+        *particles = (SotnBatRuntimeChild){.kind = 5,
+                                           .generation = 200,
+                                           .initialized = true,
+                                           .primitive_count = 3,
+                                           .state.particles = {.phase = 1, .count = 2}};
+        CHECK(SotnPrimitiveSlots_Reserve(&available, 3, particles->primitives, &allocated) &&
+              allocated);
+        if (wolf)
+        {
+            for (Uint16 i = 1; i <= 14; ++i)
+                SDL_zero(f->runtime.children[i]);
+            CHECK(
+                SotnWolfRuntime_Begin(&f->runtime.wolf, 500, 0) &&
+                SotnPrimitiveSlots_Reserve(&available, 6, f->runtime.wolf.root_rows, &allocated) &&
+                allocated);
+            f->runtime.wolf.root_reserved = true;
+            f->runtime.wolf.body.parts[0].step = 1;
+        }
+        CHECK(SotnActors_CommitBatPrimitives(actors, &f->runtime));
+        SotnFairyEffectLease fairy = {.generation = 300, .slot = 6, .identity = 0xdf, .count = 33};
+        CHECK(SotnPrimitiveSlots_Reserve(&available, fairy.count, fairy.rows, &allocated) &&
+              allocated && SotnActors_CommitFairyEffect(actors, NULL, &fairy));
+        f->runtime.particle_vectors.initialized = true;
+        f->runtime.particle_vectors.x[31] = SDL_MIN_SINT32;
+        f->runtime.shared.angles[7] = SDL_MAX_UINT32;
+        f->runtime.shared.bat_lock = true;
+        f->runtime.groups[3] = 4;
+        f->runtime.target_cursor = 127;
+        f->runtime.dark_blend_phase = 99;
+        f->runtime.holy.points[3].x = -311;
+        f->runtime.teleport.points[31].y = 241;
+        f->runtime.screen_flash_ticks = 12;
+        f->runtime.serial = 999;
+        *before = f->runtime;
+        // A stale hidden particle sentinel must prevent all factory/child/row retirement.
+        const Uint16 sentinel = particles->primitives[2];
+        ++actors->primitives[sentinel].owner;
+        SDL_memcpy(rows_before, actors->primitives, sizeof(actors->primitives));
+        CHECK(!SotnActors_ClearPlayerRuntime(actors, &f->runtime) &&
+              !SDL_memcmp(before, &f->runtime, sizeof(*before)) &&
+              !SDL_memcmp(rows_before, actors->primitives, sizeof(actors->primitives)));
+        --actors->primitives[sentinel].owner;
+        Uint16 orphan = 0;
+        for (; orphan < SOTN_PRIMITIVE_SLOTS && actors->primitives[orphan].owner; ++orphan)
+        {
+        }
+        CHECK(orphan < SOTN_PRIMITIVE_SLOTS);
+        actors->primitives[orphan] = (ActorPrimitive){.owner = 888, .ability_kind = 11};
+        SDL_memcpy(rows_before, actors->primitives, sizeof(actors->primitives));
+        CHECK(!SotnActors_ClearPlayerRuntime(actors, &f->runtime) &&
+              !SDL_memcmp(before, &f->runtime, sizeof(*before)) &&
+              !SDL_memcmp(rows_before, actors->primitives, sizeof(actors->primitives)));
+        SDL_zero(actors->primitives[orphan]);
+        SotnCharacterState character = {0}, after = {0};
+        CHECK(SotnCharacter_Get(f->character, &character, NULL) &&
+              SotnActors_ClearPlayerRuntime(actors, &f->runtime) &&
+              !SotnBatRuntime_Occupied(&f->runtime) &&
+              SotnCharacter_Get(f->character, &after, NULL) &&
+              !SDL_memcmp(&character, &after, sizeof(after)));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(!f->runtime.factories[i].cursor.entity_id);
+        CHECK(f->runtime.common_generation == before->common_generation &&
+              f->runtime.wolf.environment_generation == before->wolf.environment_generation &&
+              !f->runtime.wolf.root_reserved && !f->runtime.wolf.generation &&
+              f->runtime.wolf.serial == before->wolf.serial &&
+              !SDL_memcmp(&f->runtime.particle_vectors, &before->particle_vectors,
+                          sizeof(before->particle_vectors)) &&
+              !SDL_memcmp(&f->runtime.shared, &before->shared, sizeof(before->shared)) &&
+              !SDL_memcmp(f->runtime.groups, before->groups, sizeof(before->groups)) &&
+              f->runtime.target_cursor == 127 && f->runtime.dark_blend_phase == 99 &&
+              f->runtime.holy.points[3].x == -311 && f->runtime.teleport.points[31].y == 241 &&
+              f->runtime.screen_flash_ticks == 12 && f->runtime.serial == 999);
+        Uint16 occupied = 0;
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            occupied += actors->primitives[i].owner != 0;
+        CHECK(occupied == 42 && actors->primitives[0].owner == 77);
+        for (Uint16 i = 0; i < fairy.count; ++i)
+            CHECK(SotnActors_FairyEffectRow(actors, &fairy, i));
+        CHECK(SotnActors_ClearPlayerRuntime(actors, &f->runtime));
+        SDL_free(before);
+        SDL_free(rows_before);
+        SDL_free(actors);
+    }
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -1780,7 +1892,7 @@ int main(void)
                     NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
                     ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) &&
                     DeathParticlesOwnership(f) && CutOwnership(f) && OutlineOwnership(f) &&
-                    ContactAbsorptionOwnership(f) && FairyEffectLeases(f);
+                    ContactAbsorptionOwnership(f) && FairyEffectLeases(f) && ClearPlayerRuntime(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

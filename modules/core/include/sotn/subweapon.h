@@ -60,6 +60,14 @@ bool SotnSubweapons_Sounds(SotnSubweapons *service, Uint16 *sounds, size_t capac
  * @param service Borrowed simulation. @param map New immutable borrowed collision map.
  * @return Success or SDL error. Ordinary saves deliberately omit projectiles. */
 bool SotnSubweapons_Enter(SotnSubweapons *service, SotnCollisionMap map);
+/** @brief Retire this native service's actual projectiles for player-entity cleanup.
+ * @param service Actual projectile/stopwatch owner. Clears freeze only when an actual
+ * stopwatch record exists, corresponding to Fairy's source entity0x29 search.
+ * Retains collision map, serial/clock, stage pause gate, queued sounds and character/RNG.
+ * @return Success or SDL error for NULL; no callbacks, costs or clocks advance.
+ * Shared namespace/primitive integration and other player entities remain separate owners.
+ * This operation does not restore resources, activate Fairy or complete rescue. */
+bool SotnSubweapons_ClearPlayerEntities(SotnSubweapons *service);
 /** @brief Release service, retaining borrowed resources. @param service Owned or NULL. */
 void SotnSubweapons_Destroy(SotnSubweapons *service);
 #endif

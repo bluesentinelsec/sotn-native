@@ -1,3 +1,17 @@
+The [Fairy rescue-cleanup services](docs/familiar-rescue-cleanup.md) now retire actual
+shared factories8..15/children16..63/Wolf rows and native projectiles. Validate the
+whole committed runtime and every real row/generation/sentinel, reject stale/orphan
+ownership before mutation, require stage-mark acknowledgement and consume native
+capture/audio/notifications first. Preserve common8/environment rows, AluInit
+vectors/RNG, shared Blink locks/phases, global points/cursors/serials and attack-group
+counts until ordinary recount. No callbacks/clocks/healing. Source0x29 is decimal41
+STOPWATCH, never decimal29 Hellfire flash; clear freeze only with an actual clock.
+Retain projectile map/pause/serial/clocks/queued sounds. Native Fairy/FFF/player17,
+resource restore, Mist/other owners/full namespace/whole-session rollback remain
+required. Supplied directcleanup/effect/gear/protection/rawcontact/capturedphysical
+death contexts are not actual rescue/acquisition/routes/console evidence. No pool,
+grants/savev9 change;32/34 states and all six gates remain open.
+
 The [familiar inventory/translation services](docs/familiar-inventory-translation.md)
 now own actual unchecked bag-byte consumption, no-tick camera/player/room slot
 operations and finite Blink4A. Preserve Duplicator/equipped-copy independence,
