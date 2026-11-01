@@ -61,7 +61,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   six-row effects/sounds/Blink. [Surviving ice hits](player-ice-hit.md) now own
   actual24-row G4 shards, SDK geometry and selected room-entry cleanup.
   [Normal held-grab damage feedback](player-grab-damage.md) now owns actual numbers
-  and selected Talisman/Cloak/Fury work. [HUD HP hold/secondary impacts](player-hud-hp-hold.md) now own actual64-if-zero
+  and selected Talisman/Cloak/Fury work. The [grab controller](player-boss-grab.md)
+  also consumes supplied actual boss release velocities and stone reaction2;
+  throwing-boss/stone producers and dead-release contexts remain open.
+  [HUD HP hold/secondary impacts](player-hud-hp-hold.md) now own actual64-if-zero
   health-display delay, save-room16 overwrite and signed secondary results.
   [Shared stone-effect support](stone-effect-support.md) now supplies its actual
   selected text/smoke/tile/entity24 owners. The [shared dissolve owner](stone-dissolve.md)

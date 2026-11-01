@@ -109,15 +109,20 @@ typedef struct SotnPlayerScriptReaction
 /** @brief Classify original selected dead-body states independently of physical/water cause. */
 bool SotnPlayerStep_IsDead(SotnPlayerStep step);
 
-/** @brief Original grab handshake used by Hippogryph; its release clears the state to NONE.
- * Other bosses' thrown-release state 4 and stone reactions are not integrated here. */
+/** @brief Original boss-owned grab commands and player-owned HELD acknowledgement. */
 typedef enum SotnPlayerGrabState
 {
     SOTN_GRAB_NONE = 0,
     SOTN_GRAB_START = 1,
     SOTN_GRAB_HELD = 2,
-    SOTN_GRAB_DAMAGE = 3
+    SOTN_GRAB_DAMAGE = 3,
+    SOTN_GRAB_RELEASE = 4
 } SotnPlayerGrabState;
+typedef enum SotnPlayerGrabReaction
+{
+    SOTN_GRAB_REACTION_NORMAL = 0,
+    SOTN_GRAB_REACTION_STONE = 2
+} SotnPlayerGrabReaction;
 
 /** @brief Transient boss-owned request and player-owned acknowledgement, never ordinary save data.
  */
@@ -126,6 +131,8 @@ typedef struct SotnPlayerGrab
     SotnPlayerGrabState state;
     Uint16 damage; /**< Original raw damage before physical defense and poison. */
     Sint32 source_x, source_velocity; /**< Whole-pixel source and signed 16.16 velocity. */
+    SotnPlayerGrabReaction reaction;  /**< START captures this separate retained reaction word. */
+    Sint32 release_velocity_x, release_velocity_y; /**< RELEASE only: actual boss-written16.16. */
 } SotnPlayerGrab;
 
 /** @brief Runtime supported hand-attack hitbox, in whole pixels relative to Alucard's origin. */
@@ -176,7 +183,7 @@ typedef struct SotnPlayerHurt
         SotnPlayerFactorySource source;
         Uint32 blueprint;
     } factories[9];
-    Uint16 damage_taken; /**< Retained kind-five impact power, never an ordinary save field. */
+    Uint16 damage_taken; /**< Retained kind-five/thrown-grab impact power, never saved. */
     Uint8 count, shake;  /**< This update's ordered intents and original shared shake identity. */
     bool knock_right;    /**< Retained original entityRoomIndex direction, independent of facing. */
     bool shake_requested, started; /**< One-update actual calls/birth; cleared during freeze. */
@@ -610,16 +617,19 @@ bool SotnPlayer_StageAlignX(SotnPlayer *player, Sint32 x);
  * @return Success or SDL error without mutation; does not advance movement or animation. */
 bool SotnPlayer_StageAlignY(SotnPlayer *player, Sint32 y);
 
-/** @brief Request Hippogryph's original normal-form grab, damage pulse or drop.
- * @param player Borrowed simulation. @param request START, DAMAGE or NONE; HELD is an
+/** @brief Request original grab entry, held damage, thrown release or clear-to-drop.
+ * @param player Borrowed simulation. @param request START, DAMAGE, RELEASE or NONE; HELD is an
  * acknowledgement produced by the player tick, not a caller command.
  * Raw attack power is 0..9999; defense/poison apply on the next player tick. Source coordinates
  * and velocity use the same bounds as ordinary physical contact and select lethal recoil.
  * @return Success or SDL error without mutation for an invalid request/transition.
  * START supersedes ordinary hit protection as in the US game. DAMAGE requires HELD and may
- * kill despite protection. NONE cancels a pending start or drops a held player into hit recovery.
- * This setter advances no time and borrows no boss pointer. Other grab reactions/releases remain
- * unsupported; the owning boss must clear the handshake when it stops holding the player. */
+ * kill despite protection. START captures NORMAL/STONE reaction; later commands retain it.
+ * RELEASE requires HELD, writes the supplied boss velocities (each bounded to16pixels/update)
+ * and retains power for the subsequent hurt15 impact, without immediate HP loss. Other commands
+ * require zero release velocities. NONE cancels a pending start or drops a held player.
+ * This setter advances no time and borrows no boss pointer. The actual boss producer must own
+ * its release motion and clear the handshake when it stops holding the player. */
 bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
 
 /** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.

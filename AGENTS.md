@@ -1,3 +1,13 @@
+Selected [grab control](docs/player-boss-grab.md) now accepts retained reaction0/2
+and actual boss-supplied release4 velocities. Preserve normal reset with retained
+stone animation/no entry8/voice, pulse4/8161/no normal voice, default DAMAGE's
+retained reaction, release2E/hurt15/6ED/raw impact word and no immediate HP loss.
+Release motion belongs to the boss, never inferred from facing. Preserve actual
+secondary wall damage and failed-animation pending requests. Current Hippogryph
+still clears to drop; throwing-boss/stone producers, dead release and broader
+contexts remain unfinished. Explicit grab/reaction/velocity/protection fixtures
+are not ordinary encounters, acquisition/routes/console evidence. No grants/v9 change.
+
 The [stone image owner](docs/stone-dissolve.md) preserves the separate common-death
 cursor/count across actual entity32 StoreImage, patterns and shards. Capture copies
 pixels only; actual physical/water capture alone resets common decay. Primary and

@@ -605,6 +605,61 @@ static bool TestBossGrab(Fixture *f)
     return true;
 }
 
+static bool TestGrabVariants(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    AttackFixture(f);
+    for (Uint16 variant = 0; variant < 2; ++variant)
+    {
+        SotnPlayer *p = NULL;
+        SotnPlayerState before = {0}, state = {0};
+        CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p) &&
+              SotnPlayer_Tick(p, 0) && State(p, &before));
+        CHECK(SotnPlayer_RequestGrab(
+            p, (SotnPlayerGrab){.state = SOTN_GRAB_START,
+                                .reaction = variant ? SOTN_GRAB_REACTION_STONE
+                                                    : SOTN_GRAB_REACTION_NORMAL}));
+        CHECK(SotnPlayer_Tick(p, 0) && State(p, &state) && state.grab.state == SOTN_GRAB_HELD &&
+              state.hp == 70);
+        if (variant)
+        {
+            CHECK(state.animation.id == before.animation.id && !state.sound &&
+                  !state.player_timers[2]);
+            // DAMAGE retains the separately captured reaction even with a default request.
+            CHECK(Grab(p, SOTN_GRAB_DAMAGE, 16) && SotnPlayer_Tick(p, 0) && State(p, &state) &&
+                  state.grab.reaction == SOTN_GRAB_REACTION_STONE && state.hp == 54 &&
+                  state.player_timers[2] == 4 && !state.sound);
+            CHECK(SotnPlayer_Tick(p, 0) && State(p, &state) && state.palette == 0x8161 &&
+                  state.player_timers[2] == 3);
+        }
+        before = state;
+        const SotnPlayerGrab release = {.state = SOTN_GRAB_RELEASE,
+                                        .damage = 30,
+                                        .release_velocity_x = variant ? -6 * 65536 : 6 * 65536,
+                                        .release_velocity_y = -2 * 65536};
+        CHECK(SotnPlayer_RequestGrab(p, release) && State(p, &state) &&
+              state.grab.state == SOTN_GRAB_RELEASE && state.hp == before.hp &&
+              state.velocity_x == release.release_velocity_x && state.velocity_y == -2 * 65536);
+        CHECK(!SotnPlayer_RequestGrab(p, release));
+        if (!variant)
+        {
+            Uint8 saved[4] = {0};
+            SDL_memcpy(saved, f->dra + 0x101b8 + 0x2e * 4, sizeof(saved));
+            Put32(f->dra, 0x101b8 + 0x2e * 4, 0);
+            CHECK(!SotnPlayer_Tick(p, 0) && State(p, &state) &&
+                  state.grab.state == SOTN_GRAB_RELEASE && state.hp == before.hp &&
+                  state.velocity_x == release.release_velocity_x &&
+                  state.velocity_y == release.release_velocity_y);
+            SDL_memcpy(f->dra + 0x101b8 + 0x2e * 4, saved, sizeof(saved));
+        }
+        CHECK(SotnPlayer_Tick(p, 0) && State(p, &state) && state.step == SOTN_PLAYER_HIT &&
+              state.substep == 15 && state.grab.state == SOTN_GRAB_NONE &&
+              state.animation.id == 0x2e && state.sound == 0x6ed && state.hp == before.hp &&
+              state.hurt.damage_taken == 30 && state.velocity_x == release.release_velocity_x);
+        SotnPlayer_Close(p);
+    }
+    return true;
+}
 static bool TestBossGrabFailures(Fixture *f)
 {
     const SotnCollisionMap map = MakeFixture(f);
@@ -612,8 +667,13 @@ static bool TestBossGrabFailures(Fixture *f)
     SotnPlayerState before = {0}, after = {0};
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p));
     CHECK(!SotnPlayer_RequestGrab(NULL, (SotnPlayerGrab){0}));
-    CHECK(!Grab(p, SOTN_GRAB_HELD, 16) && !Grab(p, (SotnPlayerGrabState)4, 16) &&
-          !Grab(p, SOTN_GRAB_DAMAGE, 16) && !Grab(p, SOTN_GRAB_START, 10000));
+    CHECK(!Grab(p, SOTN_GRAB_HELD, 16) && !Grab(p, (SotnPlayerGrabState)5, 16) &&
+          !Grab(p, SOTN_GRAB_DAMAGE, 16) && !Grab(p, SOTN_GRAB_RELEASE, 16) &&
+          !Grab(p, SOTN_GRAB_START, 10000));
+    CHECK(!SotnPlayer_RequestGrab(
+        p, (SotnPlayerGrab){.state = SOTN_GRAB_START, .reaction = (SotnPlayerGrabReaction)1}));
+    CHECK(!SotnPlayer_RequestGrab(
+        p, (SotnPlayerGrab){.state = SOTN_GRAB_START, .release_velocity_x = 1}));
     CHECK(!SotnPlayer_RequestGrab(
         p, (SotnPlayerGrab){.state = SOTN_GRAB_START, .source_velocity = SDL_MIN_SINT32}));
     CHECK(!SotnPlayer_RequestGrab(
@@ -781,13 +841,13 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = TestMovement(fixture) && TestWallsAndReplay(fixture) &&
-                        TestAttacks(fixture) && TestDamage(fixture) && TestStageStop(fixture) &&
-                        TestStone(fixture) && TestScriptHold(fixture) && TestBellInside(fixture) &&
-                        TestChairs(fixture) && TestScriptAlignment(fixture) &&
-                        TestBossGrab(fixture) && TestBossGrabFailures(fixture) &&
-                        TestFailures(fixture) && TestLeapStone(fixture) &&
-                        TestLeapFallAndFailure(fixture) && TestLeapAttackPriority(fixture);
+    const bool passed =
+        TestMovement(fixture) && TestWallsAndReplay(fixture) && TestAttacks(fixture) &&
+        TestDamage(fixture) && TestStageStop(fixture) && TestStone(fixture) &&
+        TestScriptHold(fixture) && TestBellInside(fixture) && TestChairs(fixture) &&
+        TestScriptAlignment(fixture) && TestBossGrab(fixture) && TestGrabVariants(fixture) &&
+        TestBossGrabFailures(fixture) && TestFailures(fixture) && TestLeapStone(fixture) &&
+        TestLeapFallAndFailure(fixture) && TestLeapAttackPriority(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

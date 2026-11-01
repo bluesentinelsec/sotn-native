@@ -1643,10 +1643,17 @@ static void BossGrabTick(SotnPlayer *player)
             player->axe_armor.draw_flags = 0;
         }
         player->animation_bank = 1;
-        Animate(player, 0x37);
-        player->timers[2] = 8;
-        player->damage_palette = 0x8166;
-        player->sound = 0x6eb;
+        player->animation.pose = 0;
+        player->animation.remaining = 0;
+        player->bat.rotation = 0;
+        player->form_rotated = false;
+        if (player->grab.reaction == SOTN_GRAB_REACTION_NORMAL)
+        {
+            Animate(player, 0x37);
+            player->timers[2] = 8;
+            player->damage_palette = 0x8166;
+            player->sound = 0x6eb;
+        }
         player->vx = player->vy = 0;
         player->substep = 1;
         player->grab.state = SOTN_GRAB_HELD;
@@ -1663,9 +1670,20 @@ static void BossGrabTick(SotnPlayer *player)
             return;
         }
         player->timers[2] = 4;
-        player->damage_palette = 0x8166;
-        player->sound = 0x6e7;
+        player->damage_palette =
+            player->grab.reaction == SOTN_GRAB_REACTION_STONE ? 0x8161 : 0x8166;
+        if (player->grab.reaction == SOTN_GRAB_REACTION_NORMAL)
+            player->sound = 0x6e7;
         player->grab.state = SOTN_GRAB_HELD;
+    }
+    else if (player->grab.state == SOTN_GRAB_RELEASE)
+    {
+        player->step = SOTN_PLAYER_HIT;
+        player->substep = 15;
+        player->grab.state = SOTN_GRAB_NONE;
+        Animate(player, 0x2e);
+        player->hurt.damage_taken = player->grab.damage;
+        player->sound = 0x6ed;
     }
     else if (player->grab.state == SOTN_GRAB_NONE)
     {
@@ -3394,7 +3412,13 @@ bool SotnPlayer_RequestGrab(SotnPlayer *p, SotnPlayerGrab request)
     if (!p || request.damage > 9999 || request.source_x < -512 || request.source_x > 16896 ||
         request.source_velocity < -16 * FIX_ONE || request.source_velocity > 16 * FIX_ONE ||
         (request.state != SOTN_GRAB_NONE && request.state != SOTN_GRAB_START &&
-         request.state != SOTN_GRAB_DAMAGE))
+         request.state != SOTN_GRAB_DAMAGE && request.state != SOTN_GRAB_RELEASE) ||
+        (request.reaction != SOTN_GRAB_REACTION_NORMAL &&
+         request.reaction != SOTN_GRAB_REACTION_STONE) ||
+        request.release_velocity_x < -16 * FIX_ONE || request.release_velocity_x > 16 * FIX_ONE ||
+        request.release_velocity_y < -16 * FIX_ONE || request.release_velocity_y > 16 * FIX_ONE ||
+        (request.state != SOTN_GRAB_RELEASE &&
+         (request.release_velocity_x || request.release_velocity_y)))
         return SDL_SetError("Boss grab requires a supported request and bounded damage/source");
     if (request.state == SOTN_GRAB_NONE)
     {
@@ -3406,9 +3430,16 @@ bool SotnPlayer_RequestGrab(SotnPlayer *p, SotnPlayerGrab request)
         return SDL_SetError("Boss grab requires a living normal-form player outside a script");
     if ((request.state == SOTN_GRAB_START &&
          (p->grab.state != SOTN_GRAB_NONE || p->step == SOTN_PLAYER_BOSS_GRAB)) ||
-        (request.state == SOTN_GRAB_DAMAGE &&
+        ((request.state == SOTN_GRAB_DAMAGE || request.state == SOTN_GRAB_RELEASE) &&
          (p->step != SOTN_PLAYER_BOSS_GRAB || p->grab.state != SOTN_GRAB_HELD)))
         return SDL_SetError("Boss grab request does not match the player's acknowledgement");
+    if (request.state != SOTN_GRAB_START)
+        request.reaction = p->grab.reaction;
+    if (request.state == SOTN_GRAB_RELEASE)
+    {
+        p->vx = request.release_velocity_x;
+        p->vy = request.release_velocity_y;
+    }
     p->grab = request;
     return true;
 }
