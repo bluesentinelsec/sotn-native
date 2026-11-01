@@ -3078,6 +3078,9 @@ bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x
             {
                 next.damage_palette = 0x8166;
                 next.hit_effect_ticks = 16;
+                next.extra_sound = 0x62e;
+                HurtFactory(&next, 0x42002cU, 0, 0);
+                HurtFactory(&next, 0x50014U, 0, 0);
             }
         }
     }

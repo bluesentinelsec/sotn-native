@@ -25,7 +25,8 @@ typedef struct SotnPlayerParticleVectors
  * never at particle birth, room rebasing, menus or drawing. No rows/factories are allocated. */
 bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnDataView executable,
                                     Uint32 *random);
-/** @brief Selected entity-five profiles1/6/9/10/13, with no primitive pool or factory ownership. */
+/** @brief Selected entity-five profiles1/5/6/9/10/13, with no primitive pool or factory ownership.
+ */
 typedef struct SotnPlayerParticles
 {
     SotnPlayerParticle tiles[SOTN_PLAYER_PARTICLE_LIMIT];

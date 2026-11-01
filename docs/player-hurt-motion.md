@@ -56,8 +56,9 @@ The actual palette/timer2 producer now follows original curse/poison, fire,
 thunder, ice, holy, dark and cut priority for the incoming sixteen-bit effect word.
 Ice retains its direct animation2E selection. Birth leaves the live palette for
 the existing ordered timer pass; subsequent draws use actual resident CLUT data.
-These palette/counter updates do not manufacture the still-missing elemental
-children. The subsequent [poison/curse owner](player-ailment-effects.md) now supplies
+These palette/counter updates alone do not manufacture elemental children.
+The subsequent [cut owner](player-cut-effects.md) now supplies its actual selected
+Blink/particles/sound; other elemental children remain unfinished. The subsequent [poison/curse owner](player-ailment-effects.md) now supplies
 new ailment text/Blink producers. Existing ailment durations/voice and old-ailment flash restoration remain distinct owners.
 
 Player failure preserves queued contact, HP/RNG, requests and counters. Real

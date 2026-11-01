@@ -100,6 +100,16 @@ static bool Palettes(Uint8 *dra)
     const SotnPlayer before = p;
     CHECK(!SotnPlayer_ContactDamage(&p, 10, 80, 0, 2, 0x100) &&
           !SDL_memcmp(&p, &before, sizeof(p)));
+    p = Player(dra);
+    CHECK(SotnPlayer_ContactDamage(&p, 10, 80, 0, 2, 0x40) && p.hurt.count == 3 &&
+          p.hurt.factories[0].blueprint == 0x60000U && p.hurt.factories[1].blueprint == 0x42002cU &&
+          p.hurt.factories[2].blueprint == 0x50014U && p.extra_sound == 0x62e &&
+          p.hit_effect_ticks == 16);
+    p = Player(dra);
+    const Sint32 y = p.y.value;
+    CHECK(SotnPlayer_ContactDamage(&p, 10, 80, 0, 5, 0x40) && p.hurt.count == 2 &&
+          p.hurt.factories[0].source.y == y - 1 && p.hurt.factories[1].source.y == y - 1 &&
+          p.hurt.factories[0].source.facing_left == p.facing_left);
     return true;
 }
 static bool Recovery(Uint8 *dra)

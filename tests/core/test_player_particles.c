@@ -101,10 +101,10 @@ static bool Run(void)
     CHECK(!SotnPlayerParticles_Rows(view, 0x100, &unchanged) && unchanged == 90);
     return true;
 }
-static bool Death(void)
+static bool VectorParticles(Uint16 kind)
 {
     Uint8 dra[0xdbd4] = {0};
-    Put32(dra + 0xdb98 + 6U * 4U, 0x800a0100);
+    Put32(dra + 0xdb98 + kind * 4U, 0x800a0100);
     Uint8 *profile = dra + 0x100;
     profile[0] = 2;
     profile[1] = 63;
@@ -122,7 +122,7 @@ static bool Death(void)
         vectors.y[i] = -33;
     }
     const SotnDataView view = {dra, sizeof(dra)};
-    SotnPlayerParticlesInput in = {.parameter = 0x637,
+    SotnPlayerParticlesInput in = {.parameter = (Uint16)(kind << 8 | 0x37U),
                                    .source = {.x = -65536 + 123, .y = 100 * 65536 + 456},
                                    .player_priority = 148};
     Uint32 rng = 17;
@@ -310,5 +310,7 @@ static bool HurtSmoke(void)
 }
 int main(void)
 {
-    return Run() && Death() && Vectors() && Smoke() && HurtSmoke() ? 0 : 1;
+    return Run() && VectorParticles(5) && VectorParticles(6) && Vectors() && Smoke() && HurtSmoke()
+               ? 0
+               : 1;
 }

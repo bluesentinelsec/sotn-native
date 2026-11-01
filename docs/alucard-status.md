@@ -50,7 +50,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   branches and dependent effects. The [selected hurt owner](player-hurt-motion.md)
   now supplies kind promotion, physical motion/recovery, actual shared impacts and
   palette counters; [poison/curse presentation](player-ailment-effects.md) now owns
-  their actual new text/Blink producers. Remaining elemental children stay open.
+  their actual new text/Blink producers, and [cut feedback](player-cut-effects.md)
+  owns its selected particles/Blink. Other elemental children stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

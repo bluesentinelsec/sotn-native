@@ -726,6 +726,7 @@ set_tests_properties(player-ability-factory PROPERTIES TIMEOUT 20)
 
 add_executable(sotn-bat-runtime-tests test_bat_runtime.c)
 sotn_configure_c_target(sotn-bat-runtime-tests)
+target_include_directories(sotn-bat-runtime-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
 target_link_libraries(sotn-bat-runtime-tests PRIVATE sotn-core)
 add_test(NAME player-wing-smash COMMAND sotn-bat-runtime-tests)
 set_tests_properties(player-wing-smash PROPERTIES TIMEOUT 20)

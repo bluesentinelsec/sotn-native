@@ -61,7 +61,8 @@ and normal SDL quit in Debug and ASan/UBSan. Explicit Library arrivals, seed spa
 protection fixtures are separate from acquisition, uninterrupted traversal and
 console comparisons. Actual-app/sanitizer/platform results are recorded in the PR.
 
-Remaining elemental children, rare stone/grab/death/fade branches, other text
+Selected [cut feedback](player-cut-effects.md) now owns its actual children.
+Other elemental children, rare stone/grab/death/fade branches, other text
 parameters, equipment/familiars, full shared contention and integrated acceptance
 remain open. This batch adds no dispatched player state and does not complete
 [Alucard milestone1](alucard-status.md), castle progression or console parity.

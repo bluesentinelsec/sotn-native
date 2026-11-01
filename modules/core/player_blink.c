@@ -24,7 +24,7 @@ static bool Selected(Uint16 parameter)
            parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25 ||
            parameter == 0x44 || parameter == 0x48 || parameter == 0x67 || parameter == 0x16 ||
            parameter == 0x17 || parameter == 0x4e || parameter == 0x59 || parameter == 0x58 ||
-           parameter == 0x43 || parameter == 0x51 || parameter == 0x26;
+           parameter == 0x43 || parameter == 0x51 || parameter == 0x26 || parameter == 0x42;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -208,7 +208,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
           next.parameter == 0x44 || next.parameter == 0x48 || next.parameter == 0x67 ||
           next.parameter == 0x16 || next.parameter == 0x17 || next.parameter == 0x4e ||
           next.parameter == 0x59 || next.parameter == 0x58 || next.parameter == 0x43 ||
-          next.parameter == 0x51) &&
+          next.parameter == 0x51 || next.parameter == 0x42) &&
          next.phase > 3) ||
         (next.parameter == 0x26 && next.phase != 0 && (next.phase < 16 || next.phase > 18)) ||
         (next.parameter == 0x5c && next.phase > 4))

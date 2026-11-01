@@ -269,6 +269,29 @@ int main(void)
           !SDL_memcmp(&effect, &invalid_depth, sizeof(effect)) &&
           !SDL_memcmp(&shared, &invalid_shared, sizeof(shared)) &&
           !SDL_memcmp(&events, &invalid_events, sizeof(events)));
+    Uint8 *cut = dra + 0xd670 + 2U * 20U;
+    Put16(cut + 6, 0x123);
+    Put16(cut + 8, 256);
+    Put16(cut + 10, 256);
+    Put16(cut + 12, 256);
+    Put16(cut + 14, 16);
+    Put16(cut + 16, 0x31);
+    Put16(cut + 18, 512);
+    effect = (SotnPlayerBlink){.parameter = 0x42};
+    input.water_waist = 0;
+    input.allocation_failed = false;
+    input.rotated = false;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 1 &&
+          events.reset_afterimages);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 16 && effect.brightness == 256);
+    for (Uint16 i = 0; i < 16; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

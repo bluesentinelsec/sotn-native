@@ -8,6 +8,8 @@ The [selected hurt owner](docs/player-hurt-motion.md) connects original damage-k
 promotion, physical recovery, shared impact effects and palette counters.
 The [selected poison/curse presentation](docs/player-ailment-effects.md) now uses actual
 shared text/Blink actors, original trail tiles and camera/room rules.
+[Selected cut-hit feedback](docs/player-cut-effects.md) adds its actual shared
+particles, flash and sound.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy

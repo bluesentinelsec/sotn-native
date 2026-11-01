@@ -1,3 +1,16 @@
+Selected [cut-hit effects](docs/player-cut-effects.md) now owns actual cut Blink42,
+factory20/profile5, shared13/eight-row leases and ordered sound62E. Preserve earlier
+ailment/elemental priority, captured heavy-hit fractions/facing, original vector
+birth3calls per particle after allocation, retained actual AluInit vectors/64-call
+initialization, lifetime47/sentinel/damping/halving/thickness and death6 behavior.
+Preserve Blink's real allocation retry, skid-first root exhaustion, no unrelated
+replacement/RNG on skipped particles, frozen particle holds versus Blink updates,
+menu/draw/release holds, no-tick rebases and late rollback. Explicit Library arrival,
+Dhuron positioning/later protection and image/rotation fixtures are not acquisition,
+uninterrupted route or console evidence. Alternate10000 cut and other elemental/
+stone/death/fade/equipment/familiar/shared gates remain open. No pool/grants/savev9
+change; Alucard/castle remain incomplete.
+
 Selected [poison/curse effects](docs/player-ailment-effects.md) now owns actual
 new ailment Blink16/17 and shared text37 parameters1/2. Preserve curse text-before-
 Blink versus poison Blink-before-text, earlier old-ailment/motion roots, actual
