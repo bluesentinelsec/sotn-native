@@ -1140,3 +1140,10 @@ target_include_directories(sotn-dark-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/mo
 target_link_libraries(sotn-dark-hit-tests PRIVATE sotn-core)
 add_test(NAME player-dark-hit COMMAND sotn-dark-hit-tests)
 set_tests_properties(player-dark-hit PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-fire-hit-tests test_fire_hit.c)
+sotn_configure_c_target(sotn-fire-hit-tests)
+target_include_directories(sotn-fire-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-fire-hit-tests PRIVATE sotn-core)
+add_test(NAME player-fire-hit COMMAND sotn-fire-hit-tests)
+set_tests_properties(player-fire-hit PROPERTIES TIMEOUT 20)

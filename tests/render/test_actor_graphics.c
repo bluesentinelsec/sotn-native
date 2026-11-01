@@ -1007,12 +1007,12 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
-    const Uint8 player_kinds[] = {SOTN_DRAW_WOLF_PACKET,     SOTN_DRAW_WOLF_IMAGE,
-                                  SOTN_DRAW_WOLF_TARGET,     SOTN_DRAW_PLAYER_SMOKE,
-                                  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
-                                  SOTN_DRAW_SPIRIT_PORTAL,   SOTN_DRAW_HELLFIRE_SPRITE,
-                                  SOTN_DRAW_HOLY_HIT,        SOTN_DRAW_DARK_HIT};
-    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48, 768, 48};
+    const Uint8 player_kinds[] = {
+        SOTN_DRAW_WOLF_PACKET,   SOTN_DRAW_WOLF_IMAGE,      SOTN_DRAW_WOLF_TARGET,
+        SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
+        SOTN_DRAW_SPIRIT_PORTAL, SOTN_DRAW_HELLFIRE_SPRITE, SOTN_DRAW_HOLY_HIT,
+        SOTN_DRAW_DARK_HIT,      SOTN_DRAW_FIRE_HIT};
+    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48, 768, 48, 48};
     for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
     {
         count = 0;

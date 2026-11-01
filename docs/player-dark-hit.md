@@ -72,7 +72,8 @@ tests, policy, formatting, static SDL linkage and ZIP packaging pass. Debug and
 sanitizer controller/Blink/producer/factory traces are byte-identical. Platform
 results are recorded with the PR.
 
-Fire, thunder, ice, remaining stone/grab/death/fade, equipment/familiars, full shared
+[Surviving fire-hit sprites/Blink/particles](player-fire-hit.md) now have their actual owner.
+Thunder, ice, remaining stone/grab/death/fade, equipment/familiars, full shared
 contention and integrated acceptance remain unfinished. This adds no dispatch
 state and does not close [Alucard milestone1](alucard-status.md). Default grants,
 resources, user save slots and savev9 remain unchanged.

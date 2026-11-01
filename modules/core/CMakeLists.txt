@@ -6,6 +6,8 @@ add_library(sotn-core STATIC
   immunity_text.c
   dark_hit.c
   include/sotn/dark_hit.h
+  fire_hit.c
+  include/sotn/fire_hit.h
   holy_hit.c
   include/sotn/holy_hit.h
   include/sotn/immunity_text.h

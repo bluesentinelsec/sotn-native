@@ -1,3 +1,20 @@
+Selected [surviving fire-hit effects](docs/player-fire-hit.md) now owns actual
+sound690/Blink45/eight rows, BP17/high1 and delayed BP18/low child16 streams, plus
+real BP4/profile4 parent-bound eleven-row descendants. Preserve actual state10
+factory cancellation, captured fractions/facing versus live pre-camera high words/
+hitbox/VX,3 birth RNG/no birth motion, private finite animation after callback/cull
+and terminal next-callback motion/retirement. Scale-disabled bank5 words still
+wrap; use actual bank2/5/SDK/original UV/raw blending, no invented fade. Preserve
+real parent slot/generation and VX read after row allocation, not live player VX.
+Profile4 retains VX but moves Y only, has3 RNG calls per tile, signed delays,
+lifetime31 double decrement/no RGB fade and actual sentinel retirement. Preserve
+frozen/menu/draw/release holds, no-tick rebases, post-camera work, exhaustion before
+RNG and late particle/parent/runtime rollback. Native Spirit checks occur after
+fire retirement; active frozen holds are authored. Raw-kind/protection/wall/image/
+parent/high2 fixtures are not ordinary fire producers/acquisition/routes/console;
+alternate10000 and high2 have no selected native producer. No pool/grants/savev9
+change; thunder/ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
 Selected [surviving dark-hit effects](docs/player-dark-hit.md) now owns actual
 113/child54/rowless private bank14 sprites and Blink62/eight rows. Preserve actual
 origin7/state10 factory cancellation,96 upper bound/four-update schedule, captured

@@ -25,7 +25,8 @@ typedef struct SotnPlayerParticleVectors
  * never at particle birth, room rebasing, menus or drawing. No rows/factories are allocated. */
 bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnDataView executable,
                                     Uint32 *random);
-/** @brief Selected entity-five profiles1/5/6/9/10/13, with no primitive pool or factory ownership.
+/** @brief Selected entity-five profiles1/4/5/6/9/10/13, with no primitive pool or factory
+ * ownership.
  */
 typedef struct SotnPlayerParticles
 {
@@ -41,6 +42,8 @@ typedef struct SotnPlayerParticlesInput
     SotnPlayerFactorySource
         source; /**< Owner projects the actual factory source into screen space. */
     Sint16 player_x, player_y;
+    Sint32
+        parent_velocity_x; /**< Actual parent entity velocity at profile4 birth, zero if absent. */
     Sint32 water_level;
     Uint16 parameter, player_priority, player_step;
     bool allocated;

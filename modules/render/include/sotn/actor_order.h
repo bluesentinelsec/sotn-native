@@ -24,6 +24,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_IMMUNITY_TEXT,   /**< Actual entity37 child*18+row; row1 remains hidden. */
     SOTN_DRAW_HEALING_NUMBER,  /**< Actual child19 index times20 plus digit/tile index. */
     SOTN_DRAW_AXE_SHADOW,      /**< Actual rowless entity49 child index0..47. */
+    SOTN_DRAW_FIRE_HIT,        /**< Actual rowless entity16 child index0..47. */
     SOTN_DRAW_DARK_HIT,        /**< Actual rowless entity54 child index0..47. */
     SOTN_DRAW_HOLY_HIT         /**< Actual entity47 child*16+GT4 index0..15. */
 } SotnActorDrawKind;

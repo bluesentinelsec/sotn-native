@@ -124,8 +124,11 @@ static bool RequestSource(SotnBatRuntime *r, SotnPlayerFactorySource source, Uin
     for (Uint16 i = 0; i < 8; ++i)
         if (!r->factories[i].cursor.entity_id)
         {
-            if (!SotnPlayerFactory_Begin(&r->factories[i].cursor, source, packed, 0))
+            SotnPlayerFactory cursor = {0};
+            if (!SotnPlayerFactory_Begin(&cursor, source, packed, 0))
                 return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = cursor;
             r->factories[i].bat_generation = generation;
             r->factories[i].sword_parent = 0;
             return true;
@@ -147,6 +150,7 @@ bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *r, SotnPlayerFactorySource s
             SotnPlayerFactory f = {0};
             if (!SotnPlayerFactory_Begin(&f, source, packed, 0))
                 return false;
+            SDL_zero(r->factories[i]);
             r->factories[i].cursor = f;
             r->factories[i].bat_generation = 0;
             r->factories[i].sword_parent = 0;
@@ -177,6 +181,7 @@ bool SotnBatRuntime_RequestSword(SotnBatRuntime *r, SotnPlayerFactorySource sour
             SotnPlayerFactory f = {0};
             if (!SotnPlayerFactory_Begin(&f, source, packed, argument))
                 return false;
+            SDL_zero(r->factories[i]);
             r->factories[i].cursor = f;
             r->factories[i].bat_generation = 0;
             r->factories[i].sword_parent = 0;
@@ -227,11 +232,11 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 }
 static bool ChildKind(Uint16 kind)
 {
-    return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
-           kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
-           kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
-           kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
-           (kind >= 24 && kind <= 29);
+    return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 31 ||
+           kind == 35 || kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 ||
+           kind == 50 || kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 ||
+           kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
+           kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -255,6 +260,7 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 16:
     case 54:
         return 0x08120000U;
     case 47:
@@ -363,6 +369,26 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_FireHitValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind == 5 && (c->parameter >> 8) == 4)
+        return c->generation && !c->bat_generation && !c->group && !c->draw_count &&
+               c->particle_parent && c->particle_parent_slot < SOTN_BAT_RUNTIME_SLOTS;
+    if (c->kind != 16)
+        return !c->particle_parent;
+    const SotnFireHit *f = &c->state.fire_hit;
+    const bool scaled = (c->parameter >> 8) == 1 || (c->parameter & 3U);
+    return c->generation && !c->bat_generation && !c->group && !c->draw_count &&
+           !c->primitive_count && !c->particle_parent && c->parameter <= 0x2ff && !f->removed &&
+           f->pose < 24 && f->remaining >= -1 &&
+           (c->initialized
+                ? f->phase == 1 && f->parameter == c->parameter && f->remaining != 0 &&
+                      f->priority <= 511 && f->bank == (scaled ? 2 : 5) &&
+                      f->draw_flags == (scaled ? 3 : 0) && f->velocity_y == -32768 &&
+                      (f->blend_mode == 0 || f->blend_mode == 0x10) && f->scale_x == f->scale_y &&
+                      (!scaled || (f->scale_x && f->scale_x <= 288))
+                : !f->phase);
+}
 bool SotnBatRuntime_DarkHitValid(const SotnBatRuntimeChild *c)
 {
     if (c->kind != 54)
@@ -427,7 +453,8 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
                     : !c->state.sword.strike.phase);
     return true;
 }
-static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation)
+static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation,
+                  Uint32 fire_parent, Uint16 fire_parent_slot)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -438,6 +465,17 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                              .bat_generation = generation,
                              .kind = child.entity_id,
                              .parameter = child.parameter};
+    if (c.kind == 5 && (c.parameter >> 8) == 4)
+    {
+        if (!fire_parent || fire_parent_slot >= SOTN_BAT_RUNTIME_SLOTS || generation)
+            return SDL_SetError("Fire particles require their actual parent entity identity");
+        c.particle_parent = fire_parent;
+        c.particle_parent_slot = fire_parent_slot;
+    }
+    else if (fire_parent)
+        return SDL_SetError("Fire descendant factory produced an unrelated child");
+    if (c.kind == 16 && generation)
+        return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
     if (c.kind == 0xe2 || c.kind == 0xf2)
@@ -514,7 +552,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         if (!(occupied & ((Uint64)1 << slot)))
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
-                       0))
+                       0, 0, 0))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -788,6 +826,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_FireHitValid(c))
+            return SDL_SetError("Fire hit/particles lost their actual child/parent ownership");
         if (!SotnBatRuntime_DarkHitValid(c))
             return SDL_SetError("Dark hit lost its actual rowless/global/animation ownership");
         if (!SotnBatRuntime_HolyHitValid(c))
@@ -928,7 +968,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
             return false;
-        if (c->kind == 5 &&
+        if (c->kind == 16 && in.entering &&
+            !SotnFireHit_Rebase(&c->state.fire_hit, in.screen_shift_x, in.screen_shift_y))
+            return false;
+        if (c->kind == 5 && ((c->parameter >> 8) != 4 || in.entering) &&
             !SotnPlayerParticles_Rebase(&c->state.particles, in.screen_shift_x, in.screen_shift_y))
             return false;
         if (c->kind == 31 &&
@@ -1220,6 +1263,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              (r.factories[i].cursor.entity_modifier != 0xe0 &&
               r.factories[i].cursor.entity_modifier != 0xf0)))
             return SDL_SetError("Sword factory lost its separate actual parent lineage");
+        if (r.factories[i].cursor.entity_id && r.factories[i].fire_parent &&
+            (r.factories[i].cursor.blueprint != 4 || r.factories[i].cursor.parameter != 0x400 ||
+             r.factories[i].fire_parent_slot >= SOTN_BAT_RUNTIME_SLOTS ||
+             r.factories[i].bat_generation || r.factories[i].sword_parent))
+            return SDL_SetError("Fire particle factory lost its actual source identity");
         if (!r.factories[i].cursor.entity_id ||
             (in.freeze && !(r.factories[i].cursor.source.flags & 0x10000U)))
             continue;
@@ -1252,7 +1300,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             if (!Spawn(&r, child,
                        r.factories[i].sword_parent ? r.factories[i].sword_parent
-                                                   : r.factories[i].bat_generation))
+                                                   : r.factories[i].bat_generation,
+                       r.factories[i].fire_parent, r.factories[i].fire_parent_slot))
                 return false;
         }
     }
@@ -1361,6 +1410,49 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             c->initialized = !removed && allocated;
         }
+        else if (c->kind == 16)
+        {
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y);
+            const Sint16 camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, Word(-camera_x));
+            source.y = FixedShift(source.y, Word(-camera_y));
+            if (!SotnFireHit_Tick(&c->state.fire_hit,
+                                  (SotnFireHitInput){.source = source,
+                                                     .player_x = FixedShift(p.x, Word(-camera_x)),
+                                                     .player_y = FixedShift(p.y, Word(-camera_y)),
+                                                     .player_velocity_x = p.velocity_x,
+                                                     .hitbox_y = p.animation.hitbox_y,
+                                                     .priority = p.priority,
+                                                     .parameter = c->parameter},
+                                  &progress.random))
+                return false;
+            if (c->state.fire_hit.particle)
+                for (Uint16 f = 0; f < SOTN_BAT_RUNTIME_FACTORIES; ++f)
+                    if (!r.factories[f].cursor.entity_id)
+                    {
+                        SotnPlayerFactory cursor = {0};
+                        source.x = FixedShift(c->state.fire_hit.x, camera_x);
+                        source.y = FixedShift(c->state.fire_hit.y, camera_y);
+                        source.priority = c->state.fire_hit.priority;
+                        source.flags = 0;
+                        if (!SotnPlayerFactory_Begin(&cursor, source, 0x40004, 0))
+                            return false;
+                        SDL_zero(r.factories[f]);
+                        r.factories[f].cursor = cursor;
+                        r.factories[f].fire_parent = c->generation;
+                        r.factories[f].fire_parent_slot = i;
+                        break;
+                    }
+            const Sint32 x = Pixel(c->state.fire_hit.x), y = Pixel(c->state.fire_hit.y);
+            removed = c->state.fire_hit.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!removed && (!SotnFireHit_Animate(&c->state.fire_hit, in.dra) ||
+                             !SotnFireHit_Rebase(&c->state.fire_hit, dx, dy)))
+                return false;
+            c->initialized = !removed;
+        }
         else if (c->kind == 54)
         {
             const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
@@ -1416,11 +1508,26 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             c->primitive_count = allocated ? (Uint8)count : 0;
             SotnPlayerFactorySource source = c->source;
-            source.x = FixedShift(source.x, (Sint16)-in.camera_x);
-            source.y = FixedShift(source.y, (Sint16)-in.camera_y);
+            const bool fire = (c->parameter >> 8) == 4;
+            const Sint16 dx = fire ? Word(in.screen_shift_x - in.room_shift_x) : 0,
+                         dy = fire ? Word(in.screen_shift_y - in.room_shift_y) : 0;
+            const Sint16 camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            source.x = FixedShift(source.x, Word(-camera_x));
+            source.y = FixedShift(source.y, Word(-camera_y));
+            Sint32 parent_velocity = 0;
+            if (fire && !c->initialized && allocated)
+            {
+                const SotnBatRuntimeChild *parent = &r.children[c->particle_parent_slot];
+                if (parent->kind != 16 || parent->generation != c->particle_parent ||
+                    !parent->initialized)
+                    return SDL_SetError("Fire particle birth lost its actual retained parent");
+                parent_velocity = parent->state.fire_hit.velocity_x;
+            }
             if (!SotnPlayerParticles_Tick(
                     &c->state.particles, in.dra,
                     (SotnPlayerParticlesInput){.source = source,
+                                               .parent_velocity_x = parent_velocity,
                                                .parameter = c->parameter,
                                                .player_priority = p.priority,
                                                .player_x = Word(Pixel(p.x) - in.camera_x),
@@ -1431,9 +1538,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .allocated = allocated},
                     &progress.random))
                 return false;
-            const Sint32 x = Pixel(c->source.x) - in.camera_x, y = Pixel(c->source.y) - in.camera_y;
+            const Sint32 x = Pixel(c->source.x) - camera_x, y = Pixel(c->source.y) - camera_y;
             removed = c->state.particles.removed || (!(c->state.particles.flags & 0x04000000U) &&
                                                      (x < -32 || x > 288 || y < -16 || y > 256));
+            if (!removed && fire && !SotnPlayerParticles_Rebase(&c->state.particles, dx, dy))
+                return false;
             c->initialized = !removed && allocated;
         }
         else if (c->kind == 11)
@@ -1576,9 +1685,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 for (Uint16 f = 0; f < 8; ++f)
                     if (!r.factories[f].cursor.entity_id)
                     {
-                        if (!SotnPlayerFactory_Begin(&r.factories[f].cursor, c->source,
+                        SotnPlayerFactory cursor = {0};
+                        if (!SotnPlayerFactory_Begin(&cursor, c->source,
                                                      c->kind == 0xe1 ? 0x103e : 0x203e, 0))
                             return false;
+                        SDL_zero(r.factories[f]);
+                        r.factories[f].cursor = cursor;
                         r.factories[f].bat_generation = 0;
                         r.factories[f].sword_parent = c->generation;
                         break;

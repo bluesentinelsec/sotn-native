@@ -12,6 +12,8 @@ shared text/Blink actors, original trail tiles and camera/room rules.
 particles, flash and sound. [Surviving holy hits](docs/player-holy-hit.md) now
 use their actual shared GT4/Blink owners. [Surviving dark hits](docs/player-dark-hit.md)
 add their actual timed sprite factory, shared blend phase and Blink62.
+[Surviving fire hits](docs/player-fire-hit.md) add both original sprite streams,
+Blink45 and real parent-bound particle descendants.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy

@@ -5,6 +5,7 @@
 #include <sotn/bat_fireball.h>
 #include <sotn/bat_trail.h>
 #include <sotn/dark_hit.h>
+#include <sotn/fire_hit.h>
 #include <sotn/healing_number.h>
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
@@ -47,6 +48,8 @@ typedef struct SotnBatRuntimeChild
 {
     SotnPlayerFactorySource source;
     Uint32 generation, bat_generation;
+    Uint32 particle_parent; /**< Actual fire entity generation for profile4 birth. */
+    Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
     bool initialized;
@@ -91,6 +94,7 @@ typedef struct SotnBatRuntimeChild
         SotnImmunityText immunity_text;
         SotnHolyHit holy;
         SotnDarkHit dark;
+        SotnFireHit fire_hit;
         SotnSpiritPortal portal;
         struct
         {
@@ -124,6 +128,8 @@ typedef struct SotnBatRuntime
     {
         SotnPlayerFactory cursor;
         Uint32 bat_generation, sword_parent;
+        Uint32 fire_parent;
+        Uint16 fire_parent_slot;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
