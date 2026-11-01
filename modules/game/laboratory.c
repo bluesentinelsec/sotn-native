@@ -38,6 +38,9 @@ struct SotnLaboratory
     SotnStageAssets *stage_assets;
     Uint16 stage_id;
     SotnStageRoute arrival;
+    Uint8 teleport_mode;
+    Uint16 engine_flash_frames;
+    bool engine_flash;
     bool stage_pending, borrowed_music;
     SotnLaunchMenu launcher;
     SotnLaunchSlot launch_slots[15];
@@ -135,6 +138,7 @@ typedef struct SessionStart
     Uint16 spirit_target_cursor;
     Uint16 water_breath_timer;
     Uint8 water_pain_timer;
+    Uint8 teleport_mode;
     const SotnStatBuffs *stat_buffs;
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
@@ -797,6 +801,17 @@ static bool SwordFactory(void *context, SotnPlayerFactorySource source, Uint32 p
     SotnLaboratory *s = context;
     return SotnBatRuntime_RequestSword(&s->bat_runtime, source, packed, argument, allocated);
 }
+static bool TeleportFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                            bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestTeleport(&s->bat_runtime, source, packed, allocated);
+}
+static bool UseLibraryCard(void *context, Uint16 hand, Uint16 *equipped)
+{
+    SotnLaboratory *s = context;
+    return SotnCharacter_UseLibraryCard(s->character, hand, equipped);
+}
 static bool CaptureDissolveImage(void *context, SotnDeathImage *image)
 {
     SotnLaboratory *s = context;
@@ -908,7 +923,9 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
     s->bat_runtime.target_marks[0] = s->bat_runtime.target_marks[1] = 0;
     if (!entering)
     {
-        if (!SotnPlayer_CommitHellfire(s->player, s->bat_runtime.hellfire_signal,
+        if (!SotnPlayer_CommitTeleport(s->player, s->bat_runtime.teleport_palette,
+                                       s->bat_runtime.teleport_acknowledged) ||
+            !SotnPlayer_CommitHellfire(s->player, s->bat_runtime.hellfire_signal,
                                        s->bat_runtime.hellfire_palette) ||
             (s->bat_runtime.hellfire_upload &&
              !SotnHellfireGraphics_Upload(s->actor_graphics, s->dra)))
@@ -1552,6 +1569,31 @@ static bool InitializeParticleVectors(SotnLaboratory *session)
     session->bat_runtime.particle_vectors = vectors;
     return true;
 }
+static bool InitializeTeleportArrival(SotnLaboratory *s, Uint8 mode)
+{
+    if (!mode)
+        return true;
+    if (mode < 4 || mode > 6)
+        return SDL_SetError("Native teleport arrival lost its original engine mode");
+    const Uint16 substep = mode == 6 ? 1 : mode == 4 ? 3 : 5;
+    // RunMainEngine requests two white global GPU tiles on actual mode4/5/6 arrival.
+    // Prepare the first committed output now; repeated draws never spend another tile.
+    s->engine_flash = true;
+    s->engine_flash_frames = 1;
+    SotnPlayerState p = {0};
+    bool allocated = false;
+    // AluInit creates the factory after the64 death-vector RNG calls. No child tick here.
+    return SotnPlayer_SetTeleportContext(s->player, TeleportFactory, UseLibraryCard, s,
+                                         s->room.left * 256) &&
+           (mode != 6 || SotnPlayer_SetArrivalFacing(s->player, true)) &&
+           SotnPlayer_BeginTeleportArrival(s->player, substep) &&
+           SotnPlayer_GetState(s->player, &p) &&
+           SotnBatRuntime_RequestTeleport(
+               &s->bat_runtime,
+               (SotnPlayerFactorySource){
+                   .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
+               121U | (Uint32)substep << 16, &allocated);
+}
 static bool CreateSession(const SotnGameData *data, const char *directory, SessionStart start,
                           SotnLaboratory **out)
 {
@@ -1664,6 +1706,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
         !SotnPlayer_SetWaterPainTimer(session->player, start.water_pain_timer) ||
         !InitializeParticleVectors(session) ||
+        !InitializeTeleportArrival(session, start.teleport_mode) ||
         !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
         !RestoreStatBuffs(session, start.stat_buffs) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
@@ -1880,6 +1923,10 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return SDL_InvalidParamError("laboratory");
     if (session->stage_pending)
         return true; // The application commits an arrival once, after its catch-up ticks.
+    // 4DA70.c consumes the global tile once per prepared engine frame, including pause.
+    session->engine_flash = session->engine_flash_frames != 0;
+    if (session->engine_flash_frames)
+        --session->engine_flash_frames;
     // Original render-target writes are simulation-frame side effects. Preserve a skipped
     // presentation's captures before the next actor update can replace their one-tick commands.
     if (session->targets_pending &&
@@ -2030,6 +2077,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetSwordContext(session->player, SwordFactory, session,
                                     session->bat_runtime.children[0].kind != 0 ||
                                         session->mist_present) ||
+        !SotnPlayer_SetTeleportContext(session->player, TeleportFactory, UseLibraryCard, session,
+                                       session->room.left * 256) ||
         !SotnPlayer_SetStoneContext(session->player, DissolvePresent, session) ||
         !SotnPlayer_SetDeathCapture(session->player, CaptureDeathImage, DecayDeathImage, session) ||
         !BindStatBuffs(session) ||
@@ -2105,6 +2154,18 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     }
     if (!SotnCameraShake_Tick(&session->shake, session->dra))
         return false;
+    if (session->bat_runtime.teleport_warp_mode)
+    {
+        SotnStageRoute route = {0};
+        if (!SotnStageRoute_Teleport(session->dra, session->bat_runtime.teleport_warp_mode,
+                                     &route) ||
+            !QueueStageArrival(session, route))
+            return false;
+        session->teleport_mode = session->bat_runtime.teleport_warp_mode;
+        // The departing engine requests FFFF white frames before resource preparation.
+        session->engine_flash = true;
+        session->engine_flash_frames = 65534;
+    }
     if (state.death.phase == 128)
     {
         session->dirty = true;
@@ -3744,6 +3805,12 @@ static bool DrawDialogue(SotnLaboratory *session)
 
 static bool DrawGameplay(SotnLaboratory *session)
 {
+    if (session->engine_flash)
+    {
+        for (size_t i = 0; i < SOTN_FRAME_PIXELS; ++i)
+            session->frame[i] = 0x7fff;
+        return true;
+    }
     if (session->bat_runtime.screen_flash)
     {
         const SotnBatRuntime *r = &session->bat_runtime;
@@ -4135,6 +4202,7 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .room = saved.room,
                                          .saved = &saved,
                                          .arrival = &old->arrival,
+                                         .teleport_mode = old->teleport_mode,
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
@@ -4177,7 +4245,12 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                           &next);
     }
     if (ready)
+    {
         next->bat_runtime.dark_blend_phase = old->bat_runtime.dark_blend_phase;
+        // DRA's one shared teleport point array outlives full entity initialization.
+        // Incoming birth overwrites it in actual slot order after the handoff.
+        next->bat_runtime.teleport = old->bat_runtime.teleport;
+    }
     if (ready && travel)
     {
         // Engine_Init destroys entities and AluInit restores normal form. Mist's global ring

@@ -63,6 +63,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_SWORD_WARP = 15,
     SOTN_PLAYER_KILL = 16,
     SOTN_PLAYER_DEATH_HOLD = 17,
+    SOTN_PLAYER_TELEPORT = 18,
     SOTN_PLAYER_WOLF = 24,
     SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_DARK = 32,
@@ -300,6 +301,13 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Actual one-update Library Card use and retained original arrival acknowledgement. */
+typedef struct SotnPlayerTeleport
+{
+    Uint16 hand;
+    bool used, acknowledged;
+} SotnPlayerTeleport;
+
 /** @brief Actual contact, secondary-impact or boss-grab number at its original helper call. */
 typedef struct SotnPlayerDamageNumber
 {
@@ -444,6 +452,7 @@ typedef struct SotnPlayerState
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
+    SotnPlayerTeleport teleport;
     SotnPlayerDark dark;
     SotnPlayerSpirit spirit;
     SotnPlayerSoul soul;
@@ -467,6 +476,18 @@ typedef bool (*SotnPlayerSwordFactory)(void *context, SotnPlayerFactorySource so
  * @return Success or SDL error. Controls remain unavailable until this owner is bound. */
 bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory factory, void *context,
                                 bool weapon_present);
+typedef bool (*SotnPlayerTeleportFactory)(void *context, SotnPlayerFactorySource source,
+                                          Uint32 packed, bool *allocated);
+typedef bool (*SotnPlayerLibraryCardUse)(void *context, Uint16 hand, Uint16 *equipped);
+/** @brief Bind actual factory121, atomic equipped-item consumption and room world X.
+ * Callbacks are borrowed and must be rebound after native session replacement.
+ * They confer no other-castle stage/trigger availability. */
+bool SotnPlayer_SetTeleportContext(SotnPlayer *player, SotnPlayerTeleportFactory factory,
+                                   SotnPlayerLibraryCardUse use, void *context, Sint32 origin_x);
+/** @brief Select original incoming18/F5 after real native arrival initialization. */
+bool SotnPlayer_BeginTeleportArrival(SotnPlayer *player, Uint16 substep);
+/** @brief Commit actual child65 palette/terminal ACK after its shared stage-row commit. */
+bool SotnPlayer_CommitTeleport(SotnPlayer *player, Uint16 palette, bool acknowledged);
 
 /** @brief Bind actual weapon45 metadata/artwork container; enter owned armor on bootstrap.
  * @param player Actual player. @param weapons Actual immutable WEAPON0.BIN runtime owner.

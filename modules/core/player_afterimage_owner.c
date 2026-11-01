@@ -54,13 +54,14 @@ bool SotnPlayer_AfterimageBegin(SotnPlayer *p)
     if (!p->afterimage_generation)
     {
         // The player still owns timer15 when no scene/lease is bound; no display is enabled.
-        if (!SotnPlayerStep_IsDead(p->step) && p->afterimage_timer15)
+        if (!SotnPlayerStep_IsDead(p->step) && p->step != SOTN_PLAYER_TELEPORT &&
+            p->afterimage_timer15)
             --p->afterimage_timer15;
         return true;
     }
     if (!p->afterimage_pending)
         return SDL_SetError("Afterimage player tick requires its next engine-clock context");
-    if (!SotnPlayerStep_IsDead(p->step) && p->afterimage_timer15)
+    if (!SotnPlayerStep_IsDead(p->step) && p->step != SOTN_PLAYER_TELEPORT && p->afterimage_timer15)
     {
         if (!SotnPlayerAfterimage_Reset(&p->afterimage, false, 0, &p->afterimage_timer15))
             return false;

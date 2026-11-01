@@ -521,6 +521,11 @@ bool SotnSubweapons_Tick(SotnSubweapons *s, SotnPlayerState player, Sint32 camer
         if (s->slots[i].state.generation != 0 && s->slots[i].state.generation <= generation &&
             !TickOne(s, &s->slots[i], player, camera_x, camera_y))
             return false;
+    // UpdatePlayerEntities' final original atari_nuki clears actual retained hitboxes.
+    if (SotnPlayerStep_IsDead(player.step) ||
+        (player.step == SOTN_PLAYER_TELEPORT && !player.substep))
+        for (Uint32 i = 0; i < SOTN_SUBWEAPON_SLOTS; ++i)
+            s->slots[i].state.attack.active = false;
     return true;
 }
 bool SotnSubweapons_Get(const SotnSubweapons *s, Uint32 slot, SotnSubweaponState *out)

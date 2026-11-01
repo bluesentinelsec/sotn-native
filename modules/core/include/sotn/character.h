@@ -130,6 +130,10 @@ bool SotnCharacter_DeathTheft(SotnCharacter *character);
  * @param out Decoded metadata, unchanged on failure. @return Success or false with SDL_GetError().
  */
 bool SotnCharacter_Item(const SotnCharacter *character, bool body, Uint16 id, SotnItem *out);
+/** @brief Consume actual equipped166 once; spare counts exclude equipped copies.
+ * Original Duplicator84 in either accessory preserves it. A last copy becomes empty and
+ * recalculates actual stats. Both character and output remain unchanged on failure. */
+bool SotnCharacter_UseLibraryCard(SotnCharacter *character, Uint16 hand, Uint16 *equipped);
 /** @brief Award original level-adjusted enemy EXP and process all resulting level gains.
  * @param character Borrowed writable character. @param experience Enemy's original EXP reward.
  * @param enemy_level Original enemy level, 0..99. @param levels Receives levels gained.

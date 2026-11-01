@@ -18,6 +18,7 @@ fixtures and command recognizers do not establish playable availability by thems
 | Normal movement | Walking, jumping/crouching, backdash, double jump, dive kick and Gravity Boots | [Movement](laboratory-movement.md), [backdash](player-backdash.md), [Leap Stone](player-leap-stone.md), [dive kick](player-dive-kick.md), [Gravity Boots](player-gravity-boots.md) |
 | Forms | Mist/Gas Cloud, Bat flight/Wing Smash/Fire/Echo, Wolf movement/bite/sprint/charge, direct form conversions | [Mist](player-mist.md), [Gas Cloud](player-gas-cloud.md), [Bat](player-bat.md), [Wing Smash](player-wing-smash.md), [Fire](player-fire-of-bat.md), [Echo](player-echo-of-bat.md), [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) |
 | Normal spells | Dark Metamorphosis, Summon Spirit, Tetra Spirit, Hellfire and Soul Steal | [Dark](player-dark-metamorphosis.md), [spirits](player-spirit-spells.md), [Hellfire](player-hellfire.md), [Soul Steal](player-soul-steal.md) |
+| Selected consumable travel | Owned Library Card use, Duplicator preservation and actual Library arrival | [Library Card](player-library-card.md), [shared teleport effects](teleport-effects.md); other-castle triggers/stages remain unavailable |
 | Water | Actual Entrance volumes/currents/effects, player drag/gravity/form gates, Wolf swimming, bubbles, ordinary HP loss and native water death | [Stage actors](native-water-actors.md), [player feedback](player-water.md), [bubbles](normal-water-bubbles.md), [damage/contact ordering](player-water-contact.md), [water death](player-water-death.md) |
 | Recovery and presentation | Afterimages, original16 player timer words, selected status masks, poison/curse/stone behavior, blood/orb healing and numbers, original HUD MP recovery, Fury Plate, Healing Mail and Blood Cloak | [Afterimages](player-afterimages.md), [player timers](player-timers.md), [status](player-status.md), [poison](player-poison.md), [curse](character-status.md), [stone](player-petrification.md), [blood](enemy-blood.md), [orbs](soul-steal-orbs.md), [healing numbers](player-healing-numbers.md), [contact numbers](player-contact-numbers.md), [neutral hurt feedback](player-neutral-hurt.md), [Fury](stat-buff-ownership.md), [HUD/Mail](hud-healing-resources.md), [Blood Cloak](player-blood-cloak.md) |
 | Combat and equipment | Owned Axe Armor movement/hurt/attack, selected empty-hand, Basilard, Gladius, Mace, Short sword and Alucard sword ordinary/command attacks and shield paths; selected equipment attributes/passives and absorption/immunity circlets, high-defense guard, Talisman dodge and Ballroom Mask reduction | [Axe Armor](player-axe-armor.md), [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [sword command](player-sword-warp.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md), [immunity](player-contact-immunity.md), [guard](player-contact-guard.md), [Talisman](player-contact-talisman.md), [Ballroom Mask](player-ballroom-mask.md) |
@@ -43,12 +44,13 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [scripted input/theft reaction](player-script-control.md) adds state48 and its
   actual input/palette/factory/render/recovery owners. The selected
   [Alucard sword command/recovery](player-sword-warp.md) adds state15, and
-  [owned Axe Armor](player-axe-armor.md) adds40/41/42/43/50;31 states now dispatch.
-  Fairy Life Apple rescue17 (previously labeled global-fade), teleport18,
+  [owned Axe Armor](player-axe-armor.md) adds40/41/42/43/50; selected
+  [Library Card](player-library-card.md) adds18 with actual item/effect/travel owners;
+  32 states now dispatch. Fairy Life Apple rescue17 (previously labeled global-fade),
   Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
   producer, item consumption, scene handshake and cleanup are required for17.
-  The [shared teleport effect owner](teleport-effects.md) supplies actual child65
-  rows/rendering and output intents; player18 and actual travel are not enabled.
+  Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate
+  component comparisons do not establish those routes.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. The [selected hurt owner](player-hurt-motion.md)

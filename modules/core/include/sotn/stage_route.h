@@ -14,6 +14,10 @@ typedef struct SotnStageRoute
  * validated by the session before installing an arrival. No host/code pointers are returned.
  */
 bool SotnStageRoute_Read(SotnDataView dra, Uint16 source, Uint16 index, SotnStageRoute *out);
+/** @brief Decode actual warp-mode4/5/6 arrivals from their private RoomTeleport records.
+ * The record's source/reload marker is retained and is not the caller's departing stage.
+ * This does not establish native destination availability. Output holds on failure. */
+bool SotnStageRoute_Teleport(SotnDataView dra, Uint8 mode, SotnStageRoute *out);
 
 /** @brief Select an original boss override before ordinary room lookup.
  * @param dra Borrowed verified US DRA with its sentinel-terminated boss table.

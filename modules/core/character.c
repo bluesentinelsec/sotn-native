@@ -72,7 +72,8 @@ static bool BodySupported(Uint16 id)
            id == 21 || id == 22 || (id >= 38 && id <= 44) || id == 45 || id == 56 || id == 78 ||
            id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
            id == 48 || id == 49 || id == 51 || id == 54 || id == 57 || id == 60 ||
-           (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 85;
+           (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 84 ||
+           id == 85;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -93,7 +94,7 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .palette = Read16(p + (body ? 26 : 46)),
                      .supported = body ? BodySupported(id)
                                        : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
-                                          id == 123 || id == 128)};
+                                          id == 123 || id == 128 || id == 166)};
     if (body)
     {
         if (item.type > 3)
@@ -550,6 +551,30 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
     if (c == NULL)
         return SDL_InvalidParamError("character");
     return SotnItem_Read(c->dra, body, id, out);
+}
+
+bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+{
+    if (!c || hand > 1 || !equipped || c->state.equipment[hand] != 166)
+        return SDL_SetError("Library Card consumption requires its actual equipped hand");
+    SotnEquipment card = {0};
+    if (!SotnEquipment_Read(c->dra, 166, &card))
+        return false;
+    SotnCharacter next = *c;
+    if (next.state.equipment[5] != 84 && next.state.equipment[6] != 84)
+    {
+        if (next.state.hand_count[166])
+            --next.state.hand_count[166];
+        else
+        {
+            next.state.equipment[hand] = 0;
+            if (!Calculate(&next))
+                return false;
+        }
+    }
+    *equipped = next.state.equipment[hand];
+    *c = next;
+    return true;
 }
 
 static bool Progression(const SotnCharacter *c, SotnDataView *thresholds, SotnDataView *health)

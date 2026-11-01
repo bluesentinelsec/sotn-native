@@ -144,7 +144,7 @@ SOTN_FORMAT_SOURCES += modules/core/boss_projection.c \
 	  modules/core/world.c modules/core/include/sotn/world.h
 
 SOTN_FORMAT_SOURCES += modules/core/teleport_effect.c modules/core/include/sotn/teleport_effect.h \
-	  tests/core/test_teleport_effect.c
+	  tests/core/test_teleport_effect.c tests/core/test_library_card.c
 
 .PHONY: dev debug debug-build release release-build configure build run test sanitizer package web android ios fmt clean
 configure:

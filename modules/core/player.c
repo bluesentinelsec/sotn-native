@@ -533,6 +533,18 @@ static bool StartAttack(SotnPlayer *player)
         player->failed = true;
         return true;
     }
+    if (equipment.id == 166)
+    {
+        if (!player->teleport_factory || !player->library_card_use ||
+            (player->step != SOTN_PLAYER_STAND && player->step != SOTN_PLAYER_WALK &&
+             player->step != SOTN_PLAYER_CROUCH))
+            return false;
+        SetStep(player, SOTN_PLAYER_TELEPORT);
+        Animate(player, 0xf4);
+        player->teleport.used = true;
+        player->teleport.hand = (Uint16)hand;
+        return true;
+    }
     if (player->curse_ticks && equipment.id != 0)
     {
         ClearAttack(player);
@@ -664,9 +676,10 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_UNMORPH_WOLF || player->step == SOTN_PLAYER_BAT ||
         player->step == SOTN_PLAYER_UNMORPH_BAT || player->step == SOTN_PLAYER_STUCK ||
         player->step == SOTN_PLAYER_SCRIPT_REACTION || player->step == SOTN_PLAYER_BOSS_GRAB ||
-        player->step == SOTN_PLAYER_SWORD_WARP || player->step == SOTN_PLAYER_DARK ||
-        player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA ||
-        player->step == SOTN_PLAYER_HELLFIRE || player->step == SOTN_PLAYER_SOUL;
+        player->step == SOTN_PLAYER_SWORD_WARP || player->step == SOTN_PLAYER_TELEPORT ||
+        player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_SUMMON ||
+        player->step == SOTN_PLAYER_TETRA || player->step == SOTN_PLAYER_HELLFIRE ||
+        player->step == SOTN_PLAYER_SOUL;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -1589,6 +1602,49 @@ static void SwordWarpTick(SotnPlayer *p)
     }
 }
 
+static void TeleportTick(SotnPlayer *p)
+{
+    p->vx = p->vy = 0;
+    p->simulated_pad.buttons = 0;
+    p->simulated_pad.remaining = 4;
+    if (p->substep > 5 || !p->teleport_factory)
+    {
+        p->failed = true;
+        SDL_SetError("Teleport requires its actual original controller/factory owner");
+        return;
+    }
+    if (p->substep & 1U)
+    {
+        if (p->animation.remaining < 0)
+            Land(p, 0);
+        if (p->teleport.acknowledged)
+            Land(p, 0);
+        return;
+    }
+    if (p->substep && (p->stage_id == 11 || p->stage_id == 43))
+    {
+        const Sint32 world_x = p->teleport_origin_x + p->x.parts.high;
+        const Sint32 delta = SDL_abs(world_x) - (p->stage_id == 11 ? 8000 : 8384);
+        // Two original tests use the same pre-update global X, not abs(x - target).
+        p->x.parts.high = (Sint16)((Uint16)p->x.parts.high + (delta > 0 ? -1 : delta < 0));
+    }
+    if (p->animation.pose == 8 && p->animation.remaining == 1)
+    {
+        bool allocated = false;
+        if (!p->teleport_factory(p->teleport_context,
+                                 (SotnPlayerFactorySource){.x = p->x.value,
+                                                           .y = p->y.value,
+                                                           .priority = 148,
+                                                           .facing_left = p->facing_left},
+                                 121U | (Uint32)p->substep << 16, &allocated))
+            p->failed = true;
+        if (!allocated)
+            p->animation.remaining = 2;
+    }
+    if (p->animation.remaining < 0)
+        Land(p, 0);
+}
+
 static void ScriptReactionTick(SotnPlayer *p)
 {
     if (p->substep == 0)
@@ -2129,6 +2185,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.water_death.started = false;
     next.death.started = false;
     const bool alive = !SotnPlayerStep_IsDead(next.step);
+    const bool teleporting = next.step == SOTN_PLAYER_TELEPORT;
+    next.teleport.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;
@@ -2148,7 +2206,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;
-    if (next.healing.pending && !SotnPlayerStep_IsDead(next.step))
+    if (next.healing.pending && alive && !teleporting)
     {
         if (next.healing.pending_kind != 1 && next.healing.pending_kind != 2)
             return SDL_SetError("Deferred healing lost its actual original kind");
@@ -2172,11 +2230,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.form_rotated = false;
     next.sleep_event = false;
     next.movement_effects = (SotnPlayerMovementEffects){0};
-    if (alive && !SotnPlayer_TimersTick(&next))
+    if (alive && !teleporting && !SotnPlayer_TimersTick(&next))
         return false;
     if (!SotnPlayer_AfterimageBegin(&next))
         return false;
-    if (alive)
+    if (alive && !teleporting)
     {
         if (next.legacy_script_hold)
             next.simulated_pad.remaining = 1;
@@ -2207,7 +2265,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (next.failed)
         return false;
     next.previous_step = next.step;
-    if (alive && (force_hold || force_reaction))
+    if (alive && !teleporting && (force_hold || force_reaction))
     {
         if (force_hold)
             SotnPlayer_GravityCancel(&next);
@@ -2221,7 +2279,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         if (force_hold && next.legacy_script_hold)
             ClearAttack(&next);
     }
-    if (alive && next.grab.state == SOTN_GRAB_START)
+    if (alive && !teleporting && next.grab.state == SOTN_GRAB_START)
     {
         SotnPlayer_GravityCancel(&next);
         SotnPlayer_BatCancel(&next);
@@ -2229,9 +2287,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SetStep(&next, SOTN_PLAYER_BOSS_GRAB);
     }
     bool reaction_born = false;
-    if (!SotnPlayer_ContactTick(&next, &reaction_born))
+    if (!teleporting && !SotnPlayer_ContactTick(&next, &reaction_born))
         return false;
-    if (!SotnPlayerStep_IsDead(next.step))
+    if (teleporting)
+        next.queued_contact = (SotnPlayerContact){0}; // Original post-animation hitParams clear.
+    if (!SotnPlayerStep_IsDead(next.step) && !teleporting)
     {
         SotnPlayer_GravityInput(&next);
         if (next.sword_factory)
@@ -2260,6 +2320,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             break;
         case SOTN_PLAYER_SWORD_WARP:
             SwordWarpTick(&next);
+            break;
+        case SOTN_PLAYER_TELEPORT:
+            TeleportTick(&next);
             break;
         case SOTN_PLAYER_WOLF:
             SotnPlayer_WolfTick(&next);
@@ -2382,7 +2445,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.step == SOTN_PLAYER_SOUL)
         SotnPlayer_Protect(&next, 16);
     if (SotnPlayerStep_IsDead(next.step) || next.step == SOTN_PLAYER_SCRIPT_REACTION ||
-        next.step == SOTN_PLAYER_SCRIPT)
+        next.step == SOTN_PLAYER_SCRIPT || next.step == SOTN_PLAYER_TELEPORT)
         SotnPlayer_Protect(&next, 12);
     if ((next.status & 2U) || next.step == SOTN_PLAYER_UNMORPH_BAT ||
         next.step == SOTN_PLAYER_UNMORPH_WOLF ||
@@ -2449,6 +2512,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.damage_ticked = true;
     }
     next.damage_pending = false;
+    if (next.teleport.used && !next.library_card_use(next.teleport_context, next.teleport.hand,
+                                                     &next.equipment[next.teleport.hand]))
+        return false;
     *player = next;
     return true;
 }
@@ -2521,6 +2587,41 @@ bool SotnPlayer_SetSwordContext(SotnPlayer *p, SotnPlayerSwordFactory factory, v
     return true;
 }
 
+bool SotnPlayer_SetTeleportContext(SotnPlayer *p, SotnPlayerTeleportFactory factory,
+                                   SotnPlayerLibraryCardUse use, void *context, Sint32 origin_x)
+{
+    if (!p || !factory || !use || !context || origin_x < 0 || origin_x > 16384)
+        return SDL_SetError("Teleport requires real factory, equipped-card and room owners");
+    p->teleport_factory = factory;
+    p->library_card_use = use;
+    p->teleport_context = context;
+    p->teleport_origin_x = origin_x;
+    return true;
+}
+bool SotnPlayer_BeginTeleportArrival(SotnPlayer *p, Uint16 substep)
+{
+    if (!p || !p->teleport_factory || (substep != 1 && substep != 3 && substep != 5))
+        return SDL_SetError("Teleport arrival requires its actual incoming native owner");
+    SotnPlayer next = *p;
+    SetStep(&next, SOTN_PLAYER_TELEPORT);
+    next.substep = substep;
+    next.teleport = (SotnPlayerTeleport){0};
+    Animate(&next, 0xf5);
+    if (next.failed)
+        return false;
+    *p = next;
+    return true;
+}
+bool SotnPlayer_CommitTeleport(SotnPlayer *p, Uint16 palette, bool acknowledged)
+{
+    if (!p || (palette && palette != 0x810d))
+        return SDL_SetError("Teleport commit requires its actual child65 palette/ACK");
+    if (palette)
+        p->palette = palette;
+    p->teleport.acknowledged |= acknowledged;
+    return true;
+}
+
 bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 left, Uint16 right)
 {
     if (player == NULL || player->attack_mode != 0)
@@ -2532,7 +2633,7 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
         SotnEquipment equipment = {0};
         SotnDataView overlay = {0};
         if (!SotnEquipment_Read(player->dra, ids[i], &equipment) ||
-            (ids[i] != 0 && !SotnWeapon_Overlay(weapons, equipment, &overlay)))
+            (ids[i] != 0 && ids[i] != 166 && !SotnWeapon_Overlay(weapons, equipment, &overlay)))
             return false;
         const Uint16 strength = player->attributes.total[0];
         power[i] = (Uint16)SDL_clamp(
@@ -2832,7 +2933,7 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x29100000U;
     if (player->step == SOTN_PLAYER_HIGH_JUMP)
         status |= 0x38000000U;
-    if (player->step == SOTN_PLAYER_SWORD_WARP)
+    if (player->step == SOTN_PLAYER_SWORD_WARP || player->step == SOTN_PLAYER_TELEPORT)
         status |= 0x18100000U;
     if (player->step == SOTN_PLAYER_BAT)
         status |= 0x28100001U;
@@ -2879,6 +2980,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .status = status,
         .animation = player->animation,
         .simulated_pad = player->simulated_pad,
+        .teleport = player->teleport,
         .script_reaction = player->script_reaction,
         .palette = player->palette,
         .body_grey = {player->body_grey[0], player->body_grey[1], player->body_grey[2],
@@ -3534,6 +3636,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
     next.death.started = false;
+    next.teleport.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;

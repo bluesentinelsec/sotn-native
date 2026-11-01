@@ -68,6 +68,11 @@ struct SotnPlayer
     SotnPlayerAfterimage afterimage;
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
+    SotnPlayerTeleport teleport;
+    SotnPlayerTeleportFactory teleport_factory;
+    SotnPlayerLibraryCardUse library_card_use;
+    void *teleport_context;
+    Sint32 teleport_origin_x;
     PlayerDarkControl dark;
     SotnSpellCommands spell_commands;
     SotnWeaponCommand sword_command;

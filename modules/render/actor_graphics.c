@@ -352,7 +352,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
 {
     if (graphics == NULL || hand > 1)
         return SDL_SetError("Weapon graphics require a hand index of zero or one");
-    if (equipment.id == 0)
+    if (equipment.id == 0 || equipment.id == 166)
     {
         graphics->weapon[hand] = (SotnDataView){0};
         return true;

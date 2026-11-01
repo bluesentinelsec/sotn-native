@@ -196,6 +196,10 @@ bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *child);
 /** @brief Original room-entry retirement of entity65 and its nonretained factory121 records.
  * Commit the resulting row plan to the actual stage pool before any new allocation. */
 bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *runtime);
+/** @brief Reserve an actual factory8..15 for original teleport121/high0..5.
+ * Exhaustion returns allocated=false without replacing unrelated owners. */
+bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                    Uint32 packed, bool *allocated);
 /** @brief Commit actual post-stage shoves to player-locked holy/ice entities only.
  * Packets, shared points, rows, RNG and controllers hold. Room entry has its own rebase. */
 bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);

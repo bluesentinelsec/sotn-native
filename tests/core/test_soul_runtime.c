@@ -73,6 +73,18 @@ static bool Runtime(Fixture *f)
     f->in.player.step = SOTN_PLAYER_STAND;
     CHECK(SotnBatRuntime_Tick(&f->r, f->c, f->in) && !f->r.soul_attack && !f->r.children[31].kind &&
           !f->r.groups[7]);
+    // Original final hitbox clear also applies to retained non10000 children in freeze.
+    // Repeated frozen updates must accept their real disabled attack field, not revive it.
+    CHECK(Create(f) && SotnBatRuntime_Tick(&f->r, f->c, f->in));
+    f->in.freeze = 3;
+    f->in.player.step = SOTN_PLAYER_TELEPORT;
+    for (Uint16 i = 0; i < 2; ++i)
+        CHECK(SotnBatRuntime_Tick(&f->r, f->c, f->in) && !f->r.soul_attack &&
+              f->r.children[31].kind == 53 && !f->r.children[31].state.attack.active &&
+              f->r.groups[7] == 1);
+    f->in.freeze = 0;
+    f->in.player.step = SOTN_PLAYER_STAND;
+    CHECK(SotnBatRuntime_Tick(&f->r, f->c, f->in) && !f->r.children[31].kind && !f->r.groups[7]);
     CHECK(Create(f));
     f->in.other_occupied = (Uint64)1 << 47;
     CHECK(SotnCharacter_Get(f->c, &before, NULL) && SotnBatRuntime_Tick(&f->r, f->c, f->in) &&

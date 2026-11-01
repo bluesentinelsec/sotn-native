@@ -1,3 +1,17 @@
+Selected [Library Card](docs/player-library-card.md) now owns ordinary166 hand use,
+one actual consume, Duplicator84, player18/F4-F5 and actual Library travel/arrival.
+Preserve Card-before-curse ordering, grounded normal states, birth velocity, held
+healing/player words/input, padSim0/demo4, real eight-root pose8 retry and36-row
+retry-before-RNG. Consume only after player success; native failure restores actual
+reservations. Preserve marker31 versus actual departing stage,64-vector RNG before
+incoming121/high1, left arrival, global point retention and terminal ACK recovery.
+Actual FFFF/2 white engine tiles advance once per prepared engine frame, never on
+repeated draw. Retained DRA attack fields clear after callbacks on outgoing0/death;
+do not substitute temporary combat masks. Menus hold actual player/effect/game
+clocks. TOP/RTOP triggers/stages, wider sharing and all six milestone gates stay open.
+Owned gear/protection/failure/root fixtures are not acquisition/routes/console.
+No new pool/default grants/savev9 change or whole-stage atomicity claim.
+
 Selected [shared teleport effects](docs/teleport-effects.md) now own actual
 factory121/child65/36 rows, one32-point global and original96-call births. Preserve
 allocation retry before RNG, private gradient/UV words, raw packet delay/animation
@@ -8,7 +22,8 @@ and nonretained pending121 roots before new actor allocations, without ACK/RNG.
 Other shared room cleanup and whole-stage atomicity remain unfinished.
 Terminal ACK/sound636/row retirement
 precedes later work; palette/warp outputs are intents until their real owners commit.
-No player18/Library Card/travel readiness, pool/grants/savev9 change is established.
+Selected Library Card now supplies its player18/Library travel consumer. No other-
+castle route, pool/grants/savev9 change is established.
 All six Alucard gates stay open. Factory/protection/freeze contexts are not ordinary
 acquisition/routes/console evidence.
 
@@ -243,7 +258,7 @@ ailment stage carry, actual native Dark palette-job clock and v9 Continue transi
 No pool/grants/save change; timer storage alone supplies no impact/Blink/consumable
 producer. Selected hurt now owns its actual impact8 producer. Seed/
 protection/arrival/save-room fixtures are not acquisition/routes/console evidence.
-Milestone1 remains31/34 plus common/cross-owner gates; Alucard/castle are incomplete.
+Milestone1 remains32/34 plus common/cross-owner gates; Alucard/castle are incomplete.
 
 Selected [Axe Lord Armor](docs/player-axe-armor.md) now owns actual body25/virtual216/
 weapon45, states40/41/42/43/50, shared slot16 child50/Spell11/group1/native combat,
@@ -256,7 +271,7 @@ before RNG, captured facing/child fractions, slot/group cooldown and row retirem
 Rendering restores actual hand banks; original Blink/outline Axe exclusions remain.
 Freeze/menu/map/draw holds and no-tick rebases remain; no pool/grants/savev9 change.
 Owned-item/position/protection/mode/arrival/save-room fixtures are not acquisition/
-route/console evidence. Current dispatch is31/34;17/18/39 and common/cross-owner gates
+route/console evidence. Current dispatch is32/34;17/39 and common/cross-owner gates
 keep milestone1 open. Earlier batch counts are historical; the checklist is current.
 
 Selected [neutral hurt feedback](docs/player-neutral-hurt.md) now owns accepted

@@ -160,6 +160,25 @@ bool SotnBatRuntime_RequestHellfire(SotnBatRuntime *r, SotnPlayerFactorySource s
     *allocated = false;
     return true;
 }
+bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *r, SotnPlayerFactorySource source,
+                                    Uint32 packed, bool *allocated)
+{
+    if (!r || !allocated || (packed & 65535U) != 121 || (packed >> 16) > 5)
+        return SDL_SetError("Teleport requires actual factory121/high0..5");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 0))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
 static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
 {
     return RequestSource(
@@ -959,7 +978,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 53 &&
             (i != 31 || c->primitive_count ||
              (c->initialized ? (c->group < 7 || c->group > 10 || c->state.attack.hit_type != 0x82 ||
-                                c->state.attack.hit_effect != 2 || !c->state.attack.active)
+                                c->state.attack.hit_effect != 2)
                              : c->group != 0)))
             return SDL_SetError(
                 "Soul Steal attack lost its actual slot47/group/metadata ownership");
@@ -1538,7 +1557,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (c->initialized && c->kind == 52)
                 r.echo_attack = previous_echo_attack;
             if (c->initialized && c->kind == 53)
-                r.soul_attack = true;
+                r.soul_attack = c->state.attack.active;
             if (c->initialized && c->kind == 50 && c->state.attack.active)
                 r.axe_mask |= (Uint64)1 << i;
             continue;
@@ -2596,7 +2615,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     c->group = group;
                     c->initialized = true;
                 }
-                r.soul_attack = true;
+                r.soul_attack = c->state.attack.active;
             }
         }
         else if (c->kind == 52)
@@ -2686,6 +2705,32 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
         ++r.groups[1];
+    // Original UpdatePlayerEntities clears actual DRA hitboxState after all callbacks.
+    // Retained attack owners stay disabled until their own callback writes a new hitbox.
+    if (SotnPlayerStep_IsDead(p.step) || (p.step == SOTN_PLAYER_TELEPORT && !p.substep))
+    {
+        r.wing_mask = r.wolf_mask = 0;
+        r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = 0;
+        r.soul_attack = r.echo_attack = false;
+        for (Uint16 i = 0; i < 14; ++i)
+            r.wolf.body.parts[i].hitbox_state = 0;
+        for (Uint16 i = 0; i < 2; ++i)
+            r.wolf_attacks[i].active = false;
+        for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            SotnBatRuntimeChild *c = &r.children[i];
+            if (c->kind == 36 || c->kind == 50 || c->kind == 52 || c->kind == 53)
+                c->state.attack.active = false;
+            else if (c->kind == 45)
+                c->state.fire.attack.active = false;
+            else if (c->kind == 26 || c->kind == 27)
+                c->state.hellfire_fire.attack.active = false;
+            else if (c->kind == 61)
+                c->state.spirit.attack.active = false;
+            else if (c->kind == 0xe2 || c->kind == 0xf2)
+                c->state.sword.attack.active = false;
+        }
+    }
     if ((progress.random != previous_random || progress.mp != previous_mp) &&
         !SotnCharacter_Restore(character, &progress))
         return false;

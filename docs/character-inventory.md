@@ -27,6 +27,9 @@ Owned [Fury Plate](stat-buff-ownership.md), [Healing Mail/Mystic Pendant](hud-he
 and [Blood Cloak](player-blood-cloak.md) now have their selected actual gameplay
 owners. Their availability does not establish all equipment effects; see the
 [current Alucard checklist](alucard-status.md).
+Owned [Library Card166](player-library-card.md) now selects and consumes through
+ordinary hand input and actual Library travel. Duplicator84 preserves this selected
+consumable in either accessory; other consumable/equipment effects remain incomplete.
 Owned Gold/Ruby/Opal/Topaz/Beryl and Cat-eye circlets now connect their actual
 [contact-absorption owner](player-contact-absorption.md), with unchanged ordinary
 ownership and save fields. This does not establish ordinary acquisition routes.

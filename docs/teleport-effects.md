@@ -2,8 +2,9 @@
 
 The selected shared runtime now accepts original factory121/child65 and owns its
 36 actual stage rows: two TILEs, two G4 gradients and32 GT4 particles. This is the
-effect owner. It does not enable player state18, Library Card selection/use,
-other-castle triggers or travel. Those consumers remain unfinished.
+effect owner. Selected [Library Card](player-library-card.md) now supplies actual
+player18, owned selection/consumption and Library travel/arrival consumers.
+Other-castle triggers/native stages remain unavailable.
 
 Failed row allocation retries before RNG. Actual birth uses96 character RNG calls
 and overwrites the original single32-point DRA array; siblings share it in slot
@@ -58,10 +59,10 @@ checks explicitly supply a neighboring-edge position and encounter an unsupporte
 destination actor08; they establish scoped cleanup, not a completed route.
 
 Default grants and ordinary savev9 remain unchanged. The
-[Alucard checklist](alucard-status.md) stays open at31/34 dispatch states and all
+[Alucard checklist](alucard-status.md) stays open at32/34 dispatch states and all
 six workstreams. This effect's factory, allocation and render evidence does not
-establish ordinary Library Card acquisition, native teleport travel, routes or
-console parity.
+establish ordinary Library Card acquisition, full teleport routes or console
+parity. Native Library travel has its separate selected ownership evidence above.
 
 Provenance: `dra/7E4BC.c:EntityTeleport/func_80124164`,
 `dra/7879C.c:func_80119E78` and the original factory/function table, pinned
