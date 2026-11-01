@@ -37,7 +37,8 @@ static bool Bank(SotnSound *sound, Uint32 id, SotnDataView header, SotnDataView 
         U16(record.bytes + 22) > 255 || record.bytes[24] > 127 || record.bytes[25] > 127 ||
         !View(sound->dra, 0x1d1c8 + id * 4, 4, &record))
         return SDL_SetError("Sound bank has an invalid VAB header or SPU address table");
-    SoundBank *bank = &sound->banks[id];
+    SoundBank candidate = {0};
+    SoundBank *bank = &candidate;
     bank->address = U32(record.bytes);
     const Uint16 program_count = U16(header.bytes + 18), sample_count = U16(header.bytes + 22);
     const size_t size_table = 2080 + (size_t)program_count * 512;
@@ -70,7 +71,15 @@ static bool Bank(SotnSound *sound, Uint32 id, SotnDataView header, SotnDataView 
     bank->header = header;
     bank->sample_count = sample_count;
     bank->loaded = true;
+    sound->banks[id] = candidate;
     return true;
+}
+
+bool SotnSound_SetFamiliarBank(SotnSound *sound, SotnDataView header, SotnDataView body)
+{
+    if (!sound)
+        return SDL_InvalidParamError("sound");
+    return Bank(sound, 2, header, body);
 }
 
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint8 tone, Uint8 note,

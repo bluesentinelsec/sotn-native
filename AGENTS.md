@@ -1,3 +1,15 @@
+The [familiar foundation](docs/familiar-foundation.md) now supplies verified US
+TT/FT/VAB resources, original shared animation, stage-bank20/resident FT+CLUT and
+existing bank2 sound binding. Preserve zero-load/single-jump/transfer/end-hold,
+signed timer wrap, retained16-bit offsets without properties and no-tick drawing.
+Preserve full256-word Fairy palette copy within the private overlay, unused null
+sprite indices as unavailable, validation before uploads, unchanged unrelated VRAM,
+clear-binding/resident retention and bank2 voices/scripts/queues/other-bank state.
+No native familiar lifecycle/slots/activation/combat/progression, Fairy item producer,
+Life Apple17 or Sword Brothers39 is established. Voice/sprite/facing/property checks
+are fixtures, not acquisition/routes/console evidence. No pool/default grants/
+savev9 change; all six milestone gates remain open.
+
 Selected [owned medicines](docs/player-medicines.md) now connects the17 equippable
 items144..162 excluding146/147 to ordinary input, actual55/rowless39, private
 schedules, real circle53/38/32 rows, outlines/Blinks/two-GT4 labels and resources.

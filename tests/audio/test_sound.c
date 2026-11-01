@@ -382,6 +382,43 @@ static bool ScriptPauseQueue(Fixture *f)
     SotnSound_Destroy(s);
     return true;
 }
+static bool FamiliarBank(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    Put32(f->dra, 0x1d1d0, 0x4000);
+    SotnSound *sound = NULL, *before = SDL_malloc(sizeof(*before));
+    CHECK(before && SotnSound_Create(sources, &sound) && SotnSound_Queue(sound, 0x601));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    *before = *sound;
+    CHECK(SotnSound_SetFamiliarBank(sound, sources.player_header, sources.player_body) &&
+          sound->banks[2].loaded && sound->banks[2].address == 0x4000 &&
+          sound->banks[2].samples[1] == 0x4000 &&
+          !SDL_memcmp(sound->ram + 0x4000, f->body, sizeof(f->body)) &&
+          !SDL_memcmp(sound->ram, before->ram, 0x4000) &&
+          !SDL_memcmp(sound->ram + 0x4020, before->ram + 0x4020, sizeof(sound->ram) - 0x4020) &&
+          !SDL_memcmp(sound->voices, before->voices, sizeof(sound->voices)) &&
+          !SDL_memcmp(sound->registers, before->registers, sizeof(sound->registers)) &&
+          !SDL_memcmp(sound->scripts, before->scripts, sizeof(sound->scripts)) &&
+          !SDL_memcmp(sound->queue, before->queue, sizeof(sound->queue)));
+    for (Uint16 id = 0; id < 4; ++id)
+        if (id != 2)
+            CHECK(!SDL_memcmp(&sound->banks[id], &before->banks[id], sizeof(SoundBank)));
+    Uint8 malformed[sizeof(f->header)] = {0};
+    SDL_memcpy(malformed, f->header, sizeof(malformed));
+    Put16(malformed, 2594, 6);
+    *before = *sound;
+    CHECK(!SotnSound_SetFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
+                                     sources.player_body) &&
+          !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_SetFamiliarBank(sound, sources.player_header, (SotnDataView){0}) &&
+          !SDL_memcmp(sound, before, sizeof(*sound)));
+    CHECK(SoundKey(sound, 14, 2, 0, 0, 60, 127, 64) &&
+          sound->registers[14].start_addr == 0x4000 / 8 && sound->voices[14].active);
+    SotnSound_Destroy(sound);
+    SDL_free(before);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -389,7 +426,7 @@ int main(void)
         return 1;
     const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
                         MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
-                        ScriptPauseQueue(f);
+                        ScriptPauseQueue(f) && FamiliarBank(f);
     SDL_free(f);
     if (!passed)
         return 1;

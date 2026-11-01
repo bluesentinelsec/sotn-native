@@ -176,6 +176,19 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
  * @note Handles bounded raw and dictionary/RLE uploads; validates all transfers before applying.
  */
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
+/** @brief Bind actual familiar stage bank20 and upload its original shared resident rectangles.
+ * @param graphics Owned texture service. @param overlay Verified immutable familiar overlay.
+ * @param textures Verified FT image, exactly24576 bytes; read only during this call.
+ * @param parts Original sprite pointer-table address. @param palette Original CLUT address.
+ * @return Success, or SDL error without VRAM/binding mutation after any validation failure.
+ * Copies all256 original palette words, including private adjacent bytes; never reads beyond
+ * the bounded overlay. Caller retains overlay until replacement/clear/destruction.
+ * No entity, row pool, alternate texture memory or familiar availability is created. */
+bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,
+                                    SotnDataView textures, Uint32 parts, Uint32 palette);
+/** @brief Release the borrowed familiar sprite binding, retaining original resident VRAM.
+ * @param graphics Owned service or NULL. Call before releasing its borrowed overlay. */
+void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics);
 /** @brief Upload one original 48x72 eight-bit dialogue portrait from the borrowed overlay.
  * @param graphics Owned texture memory. @param offset Checked stage-relative pixel offset.
  * @param slot Original portrait slot 0 or 1. @return Success or SDL error; unchanged on error.

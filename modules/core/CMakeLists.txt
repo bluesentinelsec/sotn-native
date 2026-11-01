@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  familiar_animation.c
+  include/sotn/familiar_animation.h
   player_medicine.c
   medicine_effect.c
   include/sotn/medicine_effect.h

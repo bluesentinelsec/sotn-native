@@ -151,6 +151,9 @@ SOTN_FORMAT_SOURCES += modules/core/player_medicine.c modules/core/medicine_effe
 	  modules/core/include/sotn/player_circle.h tests/core/test_player_medicine.c \
 	  tests/core/test_player_circle.c
 
+SOTN_FORMAT_SOURCES += modules/core/familiar_animation.c \
+	  modules/core/include/sotn/familiar_animation.h tests/core/test_familiar_animation.c
+
 .PHONY: dev debug debug-build release release-build configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)

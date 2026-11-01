@@ -1408,6 +1408,65 @@ static bool TestWolfCapture(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestFamiliar(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    Uint8 overlay[0x400] = {0}, with_hole[0x400] = {0}, malformed[0x400] = {0},
+          textures[0x6000] = {0};
+    Put32(overlay + 0x24, 0x80170028);
+    Put16(overlay + 0x28, 1);
+    Uint8 *part = overlay + 0x2a;
+    Put16(part + 6, 4);
+    Put16(part + 8, 1);
+    Put16(part + 18, 4);
+    Put16(part + 20, 1);
+    for (Uint16 i = 1; i < 5; ++i)
+        Put16(overlay + 0x100 + i * 2U, i == 1 ? 31 : i == 2 ? 0x3e0 : i == 3 ? 0x7c00 : 0x7fff);
+    textures[0] = 0x21;
+    textures[1] = 0x43;
+    const SotnDataView image = {overlay, sizeof(overlay)}, art = {textures, sizeof(textures)};
+    const SotnActorSprite sprite = {
+        .animation_set = 0x8014, .frame = 1, .palette = 0x140, .texture_offset = 0x6c};
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170100) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[10 * 256 + 10] == 31 && f->frame[10 * 256 + 11] == 0x3e0 &&
+          f->frame[10 * 256 + 12] == 0x7c00 && f->frame[10 * 256 + 13] == 0x7fff);
+    Uint16 *expected = SDL_malloc(sizeof(f->frame));
+    CHECK(expected);
+    SDL_memcpy(expected, f->frame, sizeof(f->frame));
+    SDL_memcpy(with_hole, overlay, sizeof(with_hole));
+    SDL_memmove(with_hole + 0x2c, with_hole + 0x28, 24);
+    Put32(with_hole + 0x24, 0x8017002c);
+    Put32(with_hole + 0x28, 0);
+    CHECK(SotnActorGraphics_LoadFamiliar(g, (SotnDataView){with_hole, sizeof(with_hole)}, art,
+                                         0x80170020, 0x80170100) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SotnActorSprite unavailable = sprite;
+    unavailable.frame = 2;
+    CHECK(!SotnActorGraphics_Draw(g, unavailable, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SDL_memcpy(malformed, with_hole, sizeof(malformed));
+    Put32(malformed + 0x28, 0x8017ffff);
+    textures[0] = 0x55;
+    CHECK(!SotnActorGraphics_LoadFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
+                                          0x80170020, 0x80170100) &&
+          !SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170300) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SotnActorGraphics_ClearFamiliar(g);
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    const SotnTextureQuad sample = {
+        .x = {0, 1, 0, 1}, .y = {0, 0, 1, 1}, .page = 0x1b, .palette = 0x140};
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    SDL_free(expected);
+    return true;
+}
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -1421,7 +1480,8 @@ int main(void)
         TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
         PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
         TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
-        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture);
+        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) &&
+        TestFamiliar(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

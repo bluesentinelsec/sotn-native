@@ -1,3 +1,7 @@
+add_executable(sotn-familiar-animation-tests test_familiar_animation.c)
+sotn_configure_c_target(sotn-familiar-animation-tests)
+target_link_libraries(sotn-familiar-animation-tests PRIVATE sotn-core)
+add_test(NAME familiar-animation COMMAND sotn-familiar-animation-tests)
 add_executable(sotn-player-medicine-tests test_player_medicine.c)
 sotn_configure_c_target(sotn-player-medicine-tests)
 target_include_directories(sotn-player-medicine-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

@@ -20,6 +20,8 @@ struct SotnActorGraphics
     SotnDataView dra, nz0;
     Uint16 sprite_banks, stage_id;
     SotnDataView weapon[2];
+    SotnDataView familiar;
+    Uint32 familiar_parts;
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
     bool dopple_cached, dopple_death_cached;
@@ -387,17 +389,42 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     return true;
 }
 
+static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint16 frame,
+                           SotnDataView *out)
+{
+    SotnDataView table = {0}, first = {0};
+    if (!Resolve(image, base, address, 8, 4, &table))
+        return false;
+    const Uint32 first_address = Read32(table.bytes + 4);
+    if (first_address <= address || first_address % 4 != 0 ||
+        (first_address - address) / 4 > 1024 || frame >= (first_address - address) / 4)
+        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
+    if (!Resolve(image, base, address, first_address - address, 4, &table) ||
+        !Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2, 2, &first))
+        return false;
+    const Uint16 parts = Read16(first.bytes);
+    if (parts & 0x8000)
+        return Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 6, 2, out);
+    if (parts > 128)
+        return SDL_SetError("Actor sprite does not use a bounded multipart definition");
+    return Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2 + (size_t)parts * 22, 2,
+                   out);
+}
+
 static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out)
 {
     sprite.frame = (Uint16)(sprite.frame & 0x7fffU);
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
+    if (stage && bank == 20)
+        return MultipartFrame(graphics->familiar, 0x80170000U, graphics->familiar_parts,
+                              sprite.frame, out);
     const bool weapon = !stage && (bank == 16 || bank == 18);
     const SotnDataView image = weapon  ? graphics->weapon[bank == 18 ? 1 : 0]
                                : stage ? graphics->nz0
                                        : graphics->dra;
     const Uint32 base = weapon ? 0x8017a000U : stage ? 0x80180000U : 0x800a0000U;
-    SotnDataView table = {0}, first = {0};
+    SotnDataView table = {0};
     if (bank == 0 || (!weapon && bank >= (stage ? graphics->sprite_banks : 18U)) ||
         (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
@@ -408,22 +435,41 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
         !Resolve(image, base, table_address, (stage ? graphics->sprite_banks : 18U) * 4, 4, &table))
         return false;
     const Uint32 address = weapon ? table_address : Read32(table.bytes + bank * 4);
-    if (!Resolve(image, base, address, 8, 4, &table))
+    return MultipartFrame(image, base, address, sprite.frame, out);
+}
+
+bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,
+                                    SotnDataView textures, Uint32 parts, Uint32 palette)
+{
+    SotnDataView table = {0}, definition = {0}, colors = {0};
+    if (!graphics || !textures.bytes || textures.size != 0x6000 ||
+        !Resolve(overlay, 0x80170000U, parts, 8, 4, &table) ||
+        !Resolve(overlay, 0x80170000U, palette, 512, 2, &colors) ||
+        !MultipartFrame(overlay, 0x80170000U, parts, 1, &definition))
+        return SDL_SetError(
+            "Familiar graphics require actual private bank20, FT textures and CLUT");
+    const Uint32 count = (Read32(table.bytes + 4) - parts) / 4U;
+    if (!Resolve(overlay, 0x80170000U, parts, count * 4U, 4, &table))
         return false;
-    const Uint32 first_address = Read32(table.bytes + 4);
-    if (first_address <= address || first_address % 4 != 0 ||
-        (first_address - address) / 4 > 1024 || sprite.frame >= (first_address - address) / 4)
-        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
-    if (!Resolve(image, base, address, first_address - address, 4, &table) ||
-        !Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 2, 2, &first))
-        return false;
-    const Uint16 parts = Read16(first.bytes);
-    if (parts & 0x8000)
-        return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 6, 2, out);
-    if (parts > 128)
-        return SDL_SetError("Actor sprite does not use a bounded multipart definition");
-    return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4),
-                   2 + (size_t)parts * 22, 2, out);
+    for (Uint16 frame = 2; frame < count; ++frame)
+        if (Read32(table.bytes + frame * 4U) &&
+            !MultipartFrame(overlay, 0x80170000U, parts, frame, &definition))
+            return false;
+    Upload(graphics, 0x2c0, 0x100, 64, 128, textures.bytes);
+    Upload(graphics, 0x2c0, 0x180, 32, 128, textures.bytes + 0x4000);
+    Upload(graphics, 0, 0xf4, 256, 1, colors.bytes);
+    graphics->familiar = overlay;
+    graphics->familiar_parts = parts;
+    return true;
+}
+
+void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics)
+{
+    if (graphics)
+    {
+        graphics->familiar = (SotnDataView){0};
+        graphics->familiar_parts = 0;
+    }
 }
 
 static Uint16 Blend(Uint16 back, Uint16 front, Uint32 mode)

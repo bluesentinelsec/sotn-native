@@ -13,6 +13,14 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed shared familiar animation and resource bindings**, AGPL-3.0-or-later.
+  `modules/core/familiar_animation.c` adapts `servant/servant_update_anim.h` and
+  `servant/tt_002/faerie.c:SetAnimationFrame`. Selected render/audio bindings follow
+  `ServantInit`, `dra/cd.c` familiar uploads, `dra/4B758.c` and the existing
+  `dra/sound.c` VAB service at the pinned revision below. All runtime timelines,
+  sprite parts, textures, palettes and samples remain private. See
+  [scope and evidence](docs/familiar-foundation.md).
+
 - **Reconstructed selected owned medicines and shared circles**, AGPL-3.0-or-later.
   `modules/core/{player_medicine,medicine_effect,player_circle}.c` and selected
   player/character/shared/native/render bindings adapt `dra/6E42C.c`,

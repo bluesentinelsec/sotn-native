@@ -25,6 +25,14 @@ enum
  * @note Supports selected direct/scripted sound effects. CD music, reverb, and full
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
+/** @brief Bind an actual familiar VAB to existing bank2 and its original SPU RAM address.
+ * @param sound Owned initialized sound simulation. @param header Verified private VAB header.
+ * @param body Verified private sample body; copied to resident RAM only after full validation.
+ * @return Success, or SDL error without changing sound state on malformed metadata/samples.
+ * The caller retains header bytes until replacement/destruction. Existing voices, scripts,
+ * queues and other banks remain live; this operation adds no voices or bank capacity.
+ * This binding alone enables no familiar or scene/audio handshake. */
+bool SotnSound_SetFamiliarBank(SotnSound *sound, SotnDataView header, SotnDataView body);
 /** @brief Attach verified immutable Librarian SEQ and original SDK pitch tables; no playback yet.
  * @param sound Borrowed initialized sound owner. @param executable Borrowed private boot image.
  * @param data Borrowed version-one Library SEQ. Both views must outlive sound destruction.

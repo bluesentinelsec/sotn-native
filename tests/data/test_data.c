@@ -206,6 +206,12 @@ static bool TestSnapshot(const char *directory)
 
 static bool TestResource(const char *directory)
 {
+    for (Uint16 id = SOTN_RESOURCE_BAT_CODE; id < SOTN_RESOURCE_COUNT; ++id)
+    {
+        const SotnDataSpec *original = SotnData_ResourceSpec((SotnResourceId)id);
+        CHECK(original && SDL_strncmp(original->path, "SERVANT/", 8) == 0 && original->size &&
+              original->size < 65536 && SDL_strlen(original->sha1) == 40);
+    }
     char *path = NULL;
     CHECK(SDL_asprintf(&path, "%s/resource.txt", directory) >= 0);
     CHECK(WriteFixture(path, "abc"));

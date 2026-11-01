@@ -101,6 +101,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   controls, behavior/combat/progression and Sword Brothers' familiar-dependent
   execution. Its existing recognizer is not an available spell. See
   [command boundaries](normal-spell-commands.md) and [relic controls](relic-menu.md).
+  The [shared familiar foundation](familiar-foundation.md) supplies verified private
+  resources, original animation and real bank20/VRAM/bank2 services. These APIs
+  do not supply activation, slots4..7, behavior, item use or progression.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected
