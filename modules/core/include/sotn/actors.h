@@ -5,6 +5,7 @@
 #include <sotn/bat_runtime.h>
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
+#include <sotn/fairy_effects.h>
 #include <sotn/gas_cloud.h>
 #include <sotn/palette.h>
 #include <sotn/player.h>
@@ -185,6 +186,19 @@ bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index
  * @param actors Borrowed pool owner. @param out Receives all 1024 occupied bits.
  * @return Success or SDL error, leaving output unchanged on failure. */
 bool SotnActors_PrimitiveSlots(const SotnActors *actors, SotnPrimitiveSlots *out);
+/** @brief Atomically replace one actual Fairy event's shared row lease.
+ * @param actors Real stage pool. @param before Actual previous lease, NULL for birth.
+ * @param after Real next lease, NULL for retirement. At least one must be non-NULL.
+ * Both leases refer to the same original slot5..7. DD requires ten rows; DF includes its
+ * sentinel. Every previous row/generation must match the actual pool before replacement.
+ * @return Success or SDL error preserving the whole pool on stale/colliding/malformed plans.
+ * Reserves no extra pool and supplies no event creation, clocks, effect callback or rendering. */
+bool SotnActors_CommitFairyEffect(SotnActors *actors, const SotnFairyEffectLease *before,
+                                  const SotnFairyEffectLease *after);
+/** @brief Check one real leased event row before drawing its actual retained component packet.
+ * @return Success or SDL error for stale generation, invalid index or a mismatching real row. */
+bool SotnActors_FairyEffectRow(const SotnActors *actors, const SotnFairyEffectLease *lease,
+                               Uint16 index);
 /** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
  * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
  * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.

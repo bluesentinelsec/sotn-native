@@ -1,5 +1,7 @@
+#include "actors_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/fairy.h>
+#include <sotn/fairy_runtime.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
     {                                                                                              \
@@ -390,7 +392,110 @@ static bool Run(void)
           history.restore_priority);
     return true;
 }
+static bool Runtime(void)
+{
+    Uint8 data[0x4000] = {0};
+    Uint8 *boot = SDL_calloc(1, 0x1e400);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    CHECK(boot && actors);
+    Data(data);
+    Put16(boot + 0x1dbcc + 1024 * 2, 4096);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        Uint8 *record = data + 0x3400 + i * 48U;
+        Put32(record + 8, 3);
+        Put32(record + 12, !i || i == 3 ? SDL_MAX_UINT32 : 5);
+        Put32(record + 16, 7);
+        Put32(record + 20, 10);
+        Put32(record + 24, 20);
+        Put32(record + 28, SDL_MAX_UINT32);
+        Put32(record + 36, i == 1 ? 0xdc : 0xde);
+        Put32(record + 40, i == 1 ? 15 : 0x472);
+        Put32(record + 44, 1);
+    }
+    SotnWorldState world = {0};
+    SotnFairyRuntimeInput in = {
+        .fairy = {.overlay = {data, sizeof(data)},
+                  .executable = {boot, 0x1e400},
+                  .hp = 70,
+                  .hp_max = 70,
+                  .level = 1,
+                  .player = {.x = 128 * 65536 + 123, .y = 150 * 65536 + 456, .priority = 148}},
+        .event_source = {{data, sizeof(data)}, 0x80173400, 4},
+        .room = {.world = &world,
+                 .room_x = 5,
+                 .room_y = 7,
+                 .camera_x = 10,
+                 .camera_y = 20,
+                 .servant = 3},
+        .sound = {.cd_queue_empty = true}};
+    SotnFairyRuntime r = {0};
+    CHECK(SotnFairyRuntime_Init(&r, actors, in, 0) &&
+          SotnFairyRuntime_Occupied(&r) == ((Uint64)3 << 4) && r.sound_step == 99);
+    const SotnFairyRuntime held = r;
+    Uint32 rng = 3;
+    SotnFairyRuntimeEvents e = {0};
+    in.gate_scene = 3;
+    for (Uint16 slot = 4; slot < 8; ++slot)
+        CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, slot, in, &rng, &e) && !e.updated);
+    CHECK(rng == 3 && !SDL_memcmp(&r, &held, sizeof(r)));
+    in.gate_scene = 0;
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 4, in, &rng, &e) && e.updated &&
+          r.slots[2].identity == 0xdc && r.slots[3].identity == 0xde &&
+          r.slots[2].source.x == r.slots[0].source.x &&
+          r.slots[3].source.y == r.slots[0].source.y && !e.root.process_room_events);
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 5, in, &rng, &e) && e.updated &&
+          r.slots[1].cursor.fairy.x == r.slots[0].cursor.fairy.x);
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 6, in, &rng, &e) && e.updated &&
+          !r.slots[2].identity && r.history.restore_priority);
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 7, in, &rng, &e) && e.cd_command == 0x10 &&
+          r.sound_step == 1 && r.slots[3].cursor.sound.phase == 1);
+    in.gate_scene = 3;
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 7, in, &rng, &e) && !e.updated);
+    in.gate_scene = 0xfff;
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 7, in, &rng, &e) && e.updated && !e.cd_command &&
+          r.sound_step == 1); // No invented acknowledgement while FFF forces the real callback.
+    const Uint32 generation = r.slots[0].generation;
+    CHECK(SotnFairyRuntime_Init(&r, actors, in, 3) && r.slots[0].generation == generation &&
+          r.slots[3].identity == 0xde && r.sound_step == 1 && !r.events.servant);
+    Uint8 *profile = data + 0x24cc;
+    Put16(profile, 2);
+    Put16(profile + 2, 1);
+    Put16(profile + 4, 1);
+    Put16(profile + 8, 1);
+    Put16(profile + 10, 1);
+    Put16(profile + 12, 97);
+    Put16(profile + 14, 53);
+    Put16(profile + 16, 7);
+    Put16(profile + 20, 0x33);
+    Put32(profile + 24, 0x0c800000);
+    r.generation = 100;
+    r.slots[2] = (SotnFairyRuntimeSlot){
+        .generation = 100,
+        .identity = 0xdf,
+        .source = {
+            .x = 100 * 65536 + 123, .y = 150 * 65536 + 456, .priority = 148, .flags = 0x04000000}};
+    const SotnFairyRuntime before = r;
+    const Uint32 saved_rng = rng;
+    in.fairy.overlay.size = 1;
+    CHECK(!SotnFairyRuntime_UpdateSlot(&r, actors, 6, in, &rng, &e) &&
+          !SDL_memcmp(&r, &before, sizeof(r)) && rng == saved_rng);
+    in.fairy.overlay.size = sizeof(data);
+    CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 6, in, &rng, &e) && e.updated &&
+          r.slots[2].lease.count == 3 && SotnActors_FairyEffectRow(actors, &r.slots[2].lease, 2));
+    const Uint32 particle_rng = rng;
+    for (Uint16 i = 0; i < 100 && r.slots[2].identity; ++i)
+        CHECK(SotnFairyRuntime_UpdateSlot(&r, actors, 6, in, &rng, &e));
+    CHECK(!r.slots[2].identity && rng == particle_rng);
+    SotnPrimitiveSlots rows = {0};
+    CHECK(SotnActors_PrimitiveSlots(actors, &rows));
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        CHECK(!rows.occupied[i]);
+    SDL_free(actors);
+    SDL_free(boot);
+    return true;
+}
 int main(void)
 {
-    return Run() ? 0 : 1;
+    return Run() && Runtime() ? 0 : 1;
 }

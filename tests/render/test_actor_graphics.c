@@ -391,6 +391,42 @@ static bool TestColorQuad(Fixture *f)
     CHECK(!SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS));
     return true;
 }
+static bool TestColorDither(Fixture *f)
+{
+    ClearFrame(f);
+    const SotnActorSurface surface = {f->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH,
+                                      SOTN_FRAME_HEIGHT};
+    SotnPlayerEffectQuad q = {.x = {0, 4, 0, 4},
+                              .y = {0, 0, 4, 4},
+                              .red = {63, 63, 63, 63},
+                              .green = {255, 255, 255, 255},
+                              .blue = {0, 0, 0, 0},
+                              .draw_mode = 0x404};
+    const Uint8 red[4][4] = {{7, 7, 7, 8}, {8, 7, 8, 7}, {7, 8, 7, 7}, {8, 7, 8, 7}};
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(red[y][x] | 31U << 5));
+    // DTD follows the raster, including translated geometry; it is not tied to the quad origin.
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 3, 1, surface));
+    for (Uint16 y = 1; y < 5; ++y)
+        for (Uint16 x = 3; x < 7; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(red[y & 3U][x & 3U] | 31U << 5));
+    q.draw_mode = 4;
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(7U | 31U << 5));
+    q.draw_mode = 8;
+    q.x[0] = 32767;
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    q.draw_mode = 0x404;
+    CHECK(!SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    q.x[0] = 0;
+    q.draw_mode = 0;
+    CHECK(!SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    return true;
+}
 
 static bool TestRopeCache(Fixture *fixture)
 {
@@ -1475,13 +1511,13 @@ int main(void)
     const bool passed =
         TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
         TestTransformFlags(fixture) && TestSdkScale(fixture) && TestSdkRotationFailure(fixture) &&
-        TestRotation(fixture) && TestColorQuad(fixture) && TestQuad(fixture) &&
-        TestSprites(fixture) && TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
-        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
-        PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
-        TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
-        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) &&
-        TestFamiliar(fixture);
+        TestRotation(fixture) && TestColorQuad(fixture) && TestColorDither(fixture) &&
+        TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
+        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
+        DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
+        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture) &&
+        TestTargets(fixture) && TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) &&
+        TestWolfCapture(fixture) && TestFamiliar(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

@@ -115,6 +115,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   The subsequent [CD audio service](familiar-cd-audio.md) supplies actual native
   decoder-backed queues/acknowledgement/pause/restore, still requiring the actual
   Fairy event, engine clock and session owners to bind it.
+  The [slot/effect/render runtime](fairy-slot-runtime.md) now connects selected
+  four-slot dispatch, event callbacks, real shared leases and native scene drawing.
+  Native gameplay/card/resource lifecycle, inventory, progression and FFF/player17
+  still require their actual bindings before Fairy selection can be enabled.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

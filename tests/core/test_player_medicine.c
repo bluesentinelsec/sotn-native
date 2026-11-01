@@ -168,6 +168,56 @@ static bool Boundaries(Fixture *f)
     CHECK(!SotnPlayer_Tick(f->p, SOTN_BUTTON_LEFT_HAND) && !f->uses && f->requests == 1);
     return true;
 }
+static bool FamiliarFactory(Fixture *f)
+{
+    CHECK(Create(f, 159, 0, 1, 5));
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    for (Uint16 profile = 0; profile < 20; ++profile)
+    {
+        SDL_zero(f->runtime);
+        const SotnPlayerFactorySource source = {.x = SDL_MIN_SINT32 + 0xabcd,
+                                                .y = SDL_MAX_SINT32 - 0x1234,
+                                                .flags = 0x0c030000,
+                                                .priority = 511,
+                                                .facing_left = (profile & 1U) != 0};
+        const Uint32 packed = 55U | (Uint32)profile << 16;
+        bool allocated = false;
+        for (Uint16 slot = 0; slot < 8; ++slot)
+        {
+            CHECK(SotnBatRuntime_RequestFamiliarMedicine(&f->runtime, source, packed, &allocated) &&
+                  allocated);
+            const SotnPlayerFactory root = f->runtime.factories[slot].cursor;
+            CHECK(root.blueprint == 55 && root.entity_id == 1 && !root.argument &&
+                  root.parameter == profile * 256 && root.source.x == source.x &&
+                  root.source.y == source.y && root.source.priority == 511 &&
+                  root.source.flags == 0x10000 && root.source.facing_left == source.facing_left &&
+                  !root.initialized);
+        }
+        SotnPlayerFactory held[8] = {0};
+        for (Uint16 i = 0; i < 8; ++i)
+            held[i] = f->runtime.factories[i].cursor;
+        CHECK(SotnBatRuntime_RequestFamiliarMedicine(&f->runtime, source, packed, &allocated) &&
+              !allocated);
+        const Uint32 invalid[] = {54, 55U | 20U << 16, 55U | 128U << 16, 0x1000037};
+        for (Uint16 i = 0; i < SDL_arraysize(invalid); ++i)
+        {
+            allocated = true;
+            CHECK(!SotnBatRuntime_RequestFamiliarMedicine(&f->runtime, source, invalid[i],
+                                                          &allocated) &&
+                  allocated);
+        }
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(!SDL_memcmp(&held[i], &f->runtime.factories[i].cursor, sizeof(held[i])));
+    }
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) &&
+          !SDL_memcmp(&before, &after, sizeof(before)));
+    bool allocated = true;
+    CHECK(!SotnBatRuntime_RequestMedicine(&f->runtime, (SotnPlayerFactorySource){0}, 55U | 3U << 16,
+                                          147, &allocated) &&
+          allocated);
+    return true;
+}
 static bool Resources(Fixture *f)
 {
     CHECK(Create(f, 159, 0, 0, 0));
@@ -239,7 +289,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Commands(f) && Boundaries(f) && Resources(f) && Cursor(f);
+    const bool ok = Commands(f) && Boundaries(f) && FamiliarFactory(f) && Resources(f) && Cursor(f);
     SotnPlayer_Close(f->p);
     SotnCharacter_Destroy(f->character);
     SDL_free(f);

@@ -282,6 +282,7 @@ typedef struct SotnTextureQuad
     bool gouraud;     /**< Interpolate per-vertex multipliers instead of the uniform tint. */
     bool framebuffer; /**< Sample an owned captured 256x240 frame through direct-color pages. */
     bool untextured;  /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
+    bool dither;      /**< Original DTD conversion for selected untextured Gouraud polygons. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
 } SotnTextureQuad;
 /** @brief Draw a bounded textured or untextured quad as two triangles.
@@ -306,6 +307,14 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextur
 bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *graphics,
                                     const SotnPlayerEffectQuad *packet, Sint32 offset_x,
                                     Sint32 offset_y, SotnActorSurface surface);
+/** @brief Draw a selected original untextured G4 with DRAW_COLORS and optional DTD dithering.
+ * @param packet Borrowed original colors/coordinates/draw mode. @param offset_x Target X shift.
+ * @param offset_y Target Y shift. @param surface Borrowed normal RGB555 raster surface.
+ * @return Success or SDL error; hidden packets hold the raster. Owns no leases or update clock.
+ * Dither uses raster coordinates before RGB555 quantization and original semi-transparency.
+ * Textured/flat DTD and arbitrary offscreen VRAM origins remain outside this selected service. */
+bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *packet, Sint32 offset_x,
+                                         Sint32 offset_y, SotnActorSurface surface);
 /** @brief Open one owned offscreen VRAM target for ordered drawing.
  * @param graphics Borrowed texture owner; no other target may be active.
  * @param target Rectangle in 1024x512 owned texture memory, width/height 1..256.

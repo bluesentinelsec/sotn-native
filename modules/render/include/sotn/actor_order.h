@@ -32,7 +32,10 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_STONE_DISSOLVE, /**< Actual entity32 child*36+textured slice0..35. */
     SOTN_DRAW_HOLY_HIT,       /**< Actual entity47 child*16+GT4 index0..15. */
     SOTN_DRAW_PLAYER_CIRCLE,  /**< Actual entity38 child*32+GT4 index0..31. */
-    SOTN_DRAW_TELEPORT        /**< Actual entity65 child*36+TILE/G4/GT4 index0..35. */
+    SOTN_DRAW_TELEPORT,       /**< Actual entity65 child*36+TILE/G4/GT4 index0..35. */
+    SOTN_DRAW_FAIRY_SPRITE,   /**< Actual familiar owner index0..3, original slots4..7. */
+    SOTN_DRAW_FAIRY_TILE,     /**< Actual DF owner index0..3 and leased tile index. */
+    SOTN_DRAW_FAIRY_LIGHT     /**< Actual DD owner index0..3 and leased ten-row G4 index. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

@@ -9,6 +9,16 @@ enum
     SOTN_FAIRY_ITEM_ROWS = 129,
     SOTN_FAIRY_APPLE_ROWS = 10
 };
+/** @brief Real shared-stage row lease of one original Fairy event slot5..7.
+ * This is ownership metadata, not an entity/primitive pool. The actual event owns its
+ * generation and DD/DF cursor; reserve rows from SotnActors_PrimitiveSlots before commit.
+ * DF includes its real sentinel in count. No slots, effects or readiness are invented. */
+typedef struct SotnFairyEffectLease
+{
+    Uint32 generation;
+    Uint16 slot, identity, count;
+    Uint16 rows[SOTN_FAIRY_ITEM_ROWS];
+} SotnFairyEffectLease;
 /** @brief Original DF item cursor and per-row scratch, not an alternate primitive pool.
  * Caller reserves actual count+one rows before birth, retains the sentinel and retires all rows
  * with the real entity. Coordinates are original screen-space16.16; drawing never ticks. */

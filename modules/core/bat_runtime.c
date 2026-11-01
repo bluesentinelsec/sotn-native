@@ -219,6 +219,25 @@ static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 
             .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
         packed, generation);
 }
+bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactorySource source,
+                                            Uint32 packed, bool *allocated)
+{
+    if (!r || !allocated || (packed & 65535U) != 55 || (packed >> 16) >= 20)
+        return SDL_SetError("Familiar medicine requires actual55/profile0..19 with no hand bit");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory cursor = {0};
+            if (!SotnPlayerFactory_Begin(&cursor, source, packed, 0))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = cursor;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
 bool SotnBatRuntime_RequestSword(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                  Sint16 argument, bool *allocated)
 {

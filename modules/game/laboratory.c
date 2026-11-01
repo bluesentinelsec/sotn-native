@@ -7,6 +7,7 @@
 #include <sotn/castle_map.h>
 #include <sotn/combat.h>
 #include <sotn/dialogue_renderer.h>
+#include <sotn/fairy_runtime.h>
 #include <sotn/frame_clip.h>
 #include <sotn/game_over.h>
 #include <sotn/hellfire_graphics.h>
@@ -65,6 +66,7 @@ struct SotnLaboratory
     SotnMistEffect mist_effect;
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
+    SotnFairyRuntime fairy_runtime;
     SotnDeathImage death_image;
     Uint32 death_image_generation;
     SotnStatBuffs stat_buffs;
@@ -2792,6 +2794,61 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                 .kind = split ? SOTN_DRAW_SPRITE : SOTN_DRAW_ACTOR}))
             return false;
     }
+    if (!background && session->fairy_runtime.initialized)
+        for (Uint16 index = 0; index < 4; ++index)
+        {
+            const SotnFairyRuntimeSlot *c = &session->fairy_runtime.slots[index];
+            if (!c->identity)
+                continue;
+            if (!c->generation)
+                return SDL_SetError("Fairy draw lost its actual slot generation");
+            if (c->identity >= SOTN_FAIRY_FOLLOW && c->identity <= SOTN_FAIRY_HINT)
+            {
+                if (c->cursor.fairy.animation.sprite &&
+                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                        &draw_count,
+                                        (SotnActorDraw){.priority = c->source.priority,
+                                                        .actor = index,
+                                                        .kind = SOTN_DRAW_FAIRY_SPRITE}))
+                    return false;
+            }
+            else if (c->lease.count)
+            {
+                if (c->lease.generation != c->generation || c->lease.identity != c->identity ||
+                    c->lease.slot != index + 4U || (c->identity != 0xdd && c->identity != 0xdf))
+                    return SDL_SetError("Fairy draw lost its actual DD/DF lease identity");
+                if (c->identity == 0xdd
+                        ? (!c->cursor.apple.phase || c->cursor.apple.phase > 5 ||
+                           c->cursor.apple.removed || c->lease.count != SOTN_FAIRY_APPLE_ROWS)
+                        : (!c->cursor.item.phase || c->cursor.item.phase > 2 ||
+                           c->cursor.item.removed || !c->cursor.item.count ||
+                           c->cursor.item.count >= SOTN_FAIRY_ITEM_ROWS ||
+                           c->lease.count != c->cursor.item.count + 1U))
+                    return SDL_SetError("Fairy draw lost its actual live effect cursor");
+                for (Uint16 row = 0; row < c->lease.count; ++row)
+                    if (!SotnActors_FairyEffectRow(session->actors, &c->lease, row))
+                        return false;
+                const Uint16 count =
+                    c->identity == 0xdd ? SOTN_FAIRY_APPLE_ROWS : c->cursor.item.count;
+                for (Uint16 row = 0; row < count; ++row)
+                {
+                    const Uint16 mode = c->identity == 0xdd ? c->cursor.apple.quads[row].draw_mode
+                                                            : c->cursor.item.tiles[row].draw_mode;
+                    const Uint16 priority = c->identity == 0xdd
+                                                ? c->cursor.apple.quads[row].priority
+                                                : c->cursor.item.priority;
+                    if (!(mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = priority,
+                                            .actor = index,
+                                            .primitive = row,
+                                            .kind = c->identity == 0xdd ? SOTN_DRAW_FAIRY_LIGHT
+                                                                        : SOTN_DRAW_FAIRY_TILE}))
+                        return false;
+                }
+            }
+        }
     if (!background && session->mist_present)
         for (Uint16 i = 0; i < 80; ++i)
             if (!session->mist_effect.quads[i].hidden &&
@@ -3177,6 +3234,70 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             break;
         }
         const SotnActorDraw command = session->draw_items[i];
+        if (command.kind == SOTN_DRAW_FAIRY_SPRITE || command.kind == SOTN_DRAW_FAIRY_TILE ||
+            command.kind == SOTN_DRAW_FAIRY_LIGHT)
+        {
+            if (!session->fairy_runtime.initialized || command.actor >= 4)
+                return SDL_SetError("Fairy draw requires its actual four-slot owner");
+            const SotnFairyRuntimeSlot *c = &session->fairy_runtime.slots[command.actor];
+            if (!c->generation)
+                return SDL_SetError("Fairy draw has a retired slot generation");
+            const Sint32 offset_x = session->draw_target.offset_x + session->shake.x,
+                         offset_y = session->draw_target.offset_y + session->shake.y;
+            if (command.kind == SOTN_DRAW_FAIRY_SPRITE)
+            {
+                if (c->identity < SOTN_FAIRY_FOLLOW || c->identity > SOTN_FAIRY_HINT ||
+                    c->cursor.fairy.mode != c->identity ||
+                    !SotnActorGraphics_DrawSurface(
+                        session->actor_graphics,
+                        (SotnActorSprite){.animation_set = 0x8014,
+                                          .frame = c->cursor.fairy.animation.sprite,
+                                          .palette = 0x140,
+                                          .texture_offset = 0x6c,
+                                          .facing_left = c->source.facing_left},
+                        Pixel(c->source.x) + offset_x, Pixel(c->source.y) + offset_y,
+                        (SotnSpriteTransform){.scale_x = 256, .scale_y = 256, .opacity = 128},
+                        session->draw_target.surface))
+                    return false;
+            }
+            else if (!SotnActors_FairyEffectRow(session->actors, &c->lease, command.primitive))
+                return false;
+            else if (command.kind == SOTN_DRAW_FAIRY_LIGHT)
+            {
+                if (c->identity != 0xdd || command.primitive >= SOTN_FAIRY_APPLE_ROWS ||
+                    session->draw_target.surface.width != SOTN_FRAME_WIDTH ||
+                    session->draw_target.surface.height != SOTN_FRAME_HEIGHT ||
+                    !SotnActorGraphics_PlayerColorEffect(&c->cursor.apple.quads[command.primitive],
+                                                         offset_x, offset_y,
+                                                         session->draw_target.surface))
+                    return SDL_SetError(
+                        "Fairy light requires its actual row and normal raster target");
+            }
+            else
+            {
+                if (c->identity != 0xdf || command.primitive >= c->cursor.item.count)
+                    return SDL_SetError("Fairy item draw exceeds its actual particle chain");
+                const SotnPlayerParticle *t = &c->cursor.item.tiles[command.primitive];
+                const Sint32 x = t->screen_x + offset_x, y = t->screen_y + offset_y;
+                if (!(t->draw_mode & 8U) && t->width && t->height &&
+                    !SotnActorGraphics_QuadSurface(
+                        session->actor_graphics,
+                        (SotnTextureQuad){.x = {x, x + t->width, x, x + t->width},
+                                          .y = {y, y, y + t->height, y + t->height},
+                                          .untextured = true,
+                                          .red = t->red,
+                                          .green = t->green,
+                                          .blue = t->blue,
+                                          .blend = (t->draw_mode & 1U) != 0,
+                                          .page = (Uint16)(t->draw_mode & 0x60U)},
+                        session->draw_target.surface))
+                    return false;
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_WOLF_TARGET)
         {
             if (!session->bat_runtime.wolf.environment_reserved ||

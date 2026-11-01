@@ -91,6 +91,73 @@ bool SotnActors_PrimitiveSlots(const SotnActors *s, SotnPrimitiveSlots *out)
     *out = slots;
     return true;
 }
+static bool FairyLease(const SotnFairyEffectLease *lease, SotnPrimitiveSlots *rows)
+{
+    if (!lease || !rows || !lease->generation || lease->slot < 5 || lease->slot > 7 ||
+        (lease->identity != 0xdd && lease->identity != 0xdf) ||
+        (lease->identity == 0xdd ? lease->count != SOTN_FAIRY_APPLE_ROWS
+                                 : lease->count < 2 || lease->count > SOTN_FAIRY_ITEM_ROWS))
+        return SDL_SetError("Fairy effect lease requires its actual DD/DF slot/generation/rows");
+    SotnPrimitiveSlots used = {0};
+    for (Uint16 i = 0; i < lease->count; ++i)
+    {
+        const Uint16 id = lease->rows[i];
+        if (id >= SOTN_PRIMITIVE_SLOTS || (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))))
+            return SDL_SetError("Fairy effect lease contains a duplicate or out-of-range row");
+        used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
+    *rows = used;
+    return true;
+}
+static Uint16 FairyTag(const SotnFairyEffectLease *lease)
+{
+    return (Uint16)(0x8000U | (Uint16)(lease->slot << 8) | lease->identity);
+}
+bool SotnActors_CommitFairyEffect(SotnActors *s, const SotnFairyEffectLease *before,
+                                  const SotnFairyEffectLease *after)
+{
+    if (!s || (!before && !after) || (before && after && before->slot != after->slot))
+        return SDL_SetError("Fairy effect commit requires one actual event slot and stage pool");
+    SotnPrimitiveSlots old_rows = {0}, next_rows = {0};
+    if ((before && !FairyLease(before, &old_rows)) || (after && !FairyLease(after, &next_rows)))
+        return false;
+    const Uint16 slot = before ? before->slot : after->slot;
+    if (before && after && before->generation == after->generation &&
+        (before->identity != after->identity || before->count != after->count ||
+         SDL_memcmp(before->rows, after->rows, before->count * sizeof(*before->rows))))
+        return SDL_SetError("A live Fairy generation cannot resize or replace its actual lease");
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+    {
+        const ActorPrimitive *p = &s->primitives[id];
+        const bool old = (old_rows.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) != 0;
+        const bool next = (next_rows.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) != 0;
+        const bool own = (p->ability_kind & 0xff00U) == (0x8000U | slot << 8) &&
+                         ((p->ability_kind & 255U) == 0xdd || (p->ability_kind & 255U) == 0xdf);
+        if ((old &&
+             (!before || p->owner != before->generation || p->ability_kind != FairyTag(before))) ||
+            (own && !old) || (next && p->owner && !old))
+            return SDL_SetError(
+                "Fairy effect lease is stale, incomplete or collides with a real row");
+    }
+    if (before)
+        for (Uint16 i = 0; i < before->count; ++i)
+            s->primitives[before->rows[i]] = (ActorPrimitive){0};
+    if (after)
+        for (Uint16 i = 0; i < after->count; ++i)
+            s->primitives[after->rows[i]] =
+                (ActorPrimitive){.owner = after->generation, .ability_kind = FairyTag(after)};
+    return true;
+}
+bool SotnActors_FairyEffectRow(const SotnActors *s, const SotnFairyEffectLease *lease, Uint16 index)
+{
+    SotnPrimitiveSlots used = {0};
+    if (!s || !FairyLease(lease, &used) || index >= lease->count)
+        return SDL_SetError("Fairy row read requires its actual event lease and bounded index");
+    const ActorPrimitive *p = &s->primitives[lease->rows[index]];
+    if (p->owner != lease->generation || p->ability_kind != FairyTag(lease))
+        return SDL_SetError("Fairy row read lost its actual event generation");
+    return true;
+}
 static bool EchoValid(const SotnBatEcho *echo)
 {
     return echo && echo->phase && echo->phase <= 3 && !echo->removed && echo->priority <= 509;

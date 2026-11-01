@@ -217,6 +217,13 @@ bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *runtime, SotnPlayerFactorySo
  * Actual eight-root exhaustion returns allocated=false. Pending roots are not live39 actors. */
 bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                     Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Reserve the original familiar's actual55/profile0..19 with signed arg2 zero.
+ * Source must be the actual familiar's captured room-space origin/facing, not the player.
+ * Uses the same8..15 roots and later32..63 medicine actors as ordinary hand use. Exhaustion
+ * returns allocated=false; item spending still belongs to the successful familiar callback.
+ * Does not permit hand input for Hammer/Life Apple or enable any familiar by itself. */
+bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                            Uint32 packed, bool *allocated);
 /** @brief Inspect actual entity39 slots32..63 only, without treating roots as actors. */
 bool SotnBatRuntime_MedicinePresent(const SotnBatRuntime *runtime);
 /** @brief Commit actual post-stage shoves to player-locked holy/ice/circle/medicine entities only.

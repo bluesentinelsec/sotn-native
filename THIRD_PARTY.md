@@ -13,6 +13,14 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed Fairy slot, primitive and scene owners**, AGPL-3.0-or-later.
+  `modules/core/fairy_runtime.c` and selected primitive/factory/game/render bindings
+  adapt `servant/tt_002/faerie.c`, common servant helpers,
+  `dra/7879C.c:UpdatePlayerEntities/func_8011A870` and original primitive flags at
+  the pinned revision below. The selected G4 renderer implements the PS1 DTD
+  hardware conversion; game artwork, profiles and audio remain private. See
+  [scope and evidence](docs/fairy-slot-runtime.md).
+
 - **Reconstructed selected familiar CD-command audio service**, AGPL-3.0-or-later.
   `modules/audio/cd_audio.c` adapts selected sound-ring/CD-queue, pause/restore,
   start/expiry/stop and acknowledgement paths in `dra/sound.c` at the pinned

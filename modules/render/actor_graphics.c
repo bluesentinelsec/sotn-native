@@ -984,7 +984,8 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
 {
     Uint16 *frame = surface.pixels;
     if ((!q.untextured && graphics == NULL) || !ValidSurface(surface) || q.page > 0x1ff ||
-        (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
+        (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)) ||
+        (q.dither && (!q.untextured || !q.gouraud)))
         return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
     if (q.framebuffer && (q.untextured || !graphics || !graphics->framebuffer_valid ||
                           (q.page != 0x100 && q.page != 0x104)))
@@ -1049,7 +1050,16 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
                     continue;
                 Uint16 color = 0;
                 if (q.untextured)
-                    color = (Uint16)((shade[0] / 8) | (shade[1] / 8) << 5 | (shade[2] / 8) << 10);
+                {
+                    // PS1 DTD's hardware4x4 pattern, applied to interpolated8-bit G4 colors
+                    // before5-bit conversion. This is independent of game artwork or palettes.
+                    static const Sint8 offsets[4][4] = {
+                        {-4, 0, -3, 1}, {2, -2, 3, -1}, {-3, 1, -4, 0}, {3, -1, 2, -2}};
+                    const Sint32 offset = q.dither ? offsets[y & 3][x & 3] : 0;
+                    for (Uint16 channel = 0; channel < 3; ++channel)
+                        color |= (Uint16)(SDL_clamp(((Sint32)shade[channel] + offset) / 8, 0, 31)
+                                          << (channel * 5U));
+                }
                 else
                 {
                     if (u < 0 || u >= 256 || v < 0 || v >= (q.framebuffer ? 240 : 256))
@@ -1216,6 +1226,32 @@ bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayer
         q.vertex_blue[v] = p->blue[v];
     }
     return SotnActorGraphics_QuadSurface(g, q, surface);
+}
+
+bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *p, Sint32 offset_x,
+                                         Sint32 offset_y, SotnActorSurface surface)
+{
+    if (!p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 || offset_y < -2048 ||
+        offset_y > 2048)
+        return SDL_SetError("Color G4 requires its actual packet and bounded normal raster");
+    if (p->draw_mode & 8U)
+        return true;
+    if (!(p->draw_mode & 4U))
+        return SDL_SetError("Selected color G4 requires its original DRAW_COLORS context");
+    SotnTextureQuad q = {.page = (Uint16)(p->draw_mode & 0x60U),
+                         .untextured = true,
+                         .gouraud = true,
+                         .dither = (p->draw_mode & 0x400U) != 0,
+                         .blend = (p->draw_mode & 1U) != 0};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = p->x[v] + offset_x;
+        q.y[v] = p->y[v] + offset_y;
+        q.vertex_red[v] = p->red[v];
+        q.vertex_green[v] = p->green[v];
+        q.vertex_blue[v] = p->blue[v];
+    }
+    return QuadDraw(NULL, q, surface, true);
 }
 
 bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,

@@ -1705,19 +1705,82 @@ static bool ContactAbsorptionOwnership(Fixture *f)
     Close(f);
     return true;
 }
+static bool FairyEffectLeases(Fixture *f)
+{
+    SDL_zero(f->runtime);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    ActorPrimitive *saved = SDL_malloc(sizeof(actors->primitives));
+    CHECK(actors && saved);
+    actors->primitives[0].owner = 77;
+    SotnPrimitiveSlots available = {0};
+    SotnFairyEffectLease item = {.generation = 100, .slot = 6, .identity = 0xdf, .count = 129};
+    SotnFairyEffectLease apple = {.generation = 101, .slot = 7, .identity = 0xdd, .count = 10};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+          SotnPrimitiveSlots_Reserve(&available, item.count, item.rows, &allocated) && allocated &&
+          SotnActors_CommitFairyEffect(actors, NULL, &item));
+    CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+          SotnPrimitiveSlots_Reserve(&available, apple.count, apple.rows, &allocated) &&
+          allocated && SotnActors_CommitFairyEffect(actors, NULL, &apple));
+    CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+          SotnBatRuntime_InitCommon(&f->runtime, available) &&
+          SotnActors_CommitBatPrimitives(actors, &f->runtime));
+    for (Uint16 i = 0; i < item.count; ++i)
+        CHECK(SotnActors_FairyEffectRow(actors, &item, i));
+    for (Uint16 i = 0; i < apple.count; ++i)
+        CHECK(SotnActors_FairyEffectRow(actors, &apple, i));
+    CHECK(!SotnActors_FairyEffectRow(actors, &item, item.count));
+    SDL_memcpy(saved, actors->primitives, sizeof(actors->primitives));
+    SotnFairyEffectLease next = item;
+    next.generation = 102;
+    next.rows[next.count - 1] = apple.rows[0];
+    CHECK(!SotnActors_CommitFairyEffect(actors, &item, &next));
+    next = item;
+    --next.count; // Omitting even the hidden sentinel is an incomplete actual lease.
+    CHECK(!SotnActors_CommitFairyEffect(actors, &next, NULL));
+    next = item;
+    --next.generation;
+    CHECK(!SotnActors_CommitFairyEffect(actors, &next, &item));
+    next = item;
+    next.generation = 102;
+    next.rows[1] = next.rows[0];
+    CHECK(!SotnActors_CommitFairyEffect(actors, &item, &next));
+    CHECK(!SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    next = (SotnFairyEffectLease){.generation = 103, .slot = 6, .identity = 0xdd, .count = 10};
+    SDL_memcpy(next.rows, item.rows, next.count * sizeof(*next.rows));
+    CHECK(SotnActors_CommitFairyEffect(actors, &item, &next) &&
+          !SotnActors_FairyEffectRow(actors, &item, 0) && actors->primitives[0].owner == 77);
+    for (Uint16 i = 0; i < next.count; ++i)
+        CHECK(SotnActors_FairyEffectRow(actors, &next, i));
+    for (Uint16 i = next.count; i < item.count; ++i)
+        CHECK(!actors->primitives[item.rows[i]].owner);
+    for (Uint16 i = 0; i < apple.count; ++i)
+        CHECK(SotnActors_FairyEffectRow(actors, &apple, i));
+    CHECK(SotnActors_CommitFairyEffect(actors, &apple, NULL) &&
+          !SotnActors_FairyEffectRow(actors, &apple, 0));
+    CHECK(SotnActors_CommitFairyEffect(actors, &next, NULL));
+    for (Uint16 i = 0; i < 6; ++i)
+        CHECK(actors->primitives[f->runtime.afterimage_rows[i]].owner ==
+              f->runtime.common_generation);
+    CHECK(actors->primitives[0].owner == 77);
+    SDL_free(saved);
+    SDL_free(actors);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok =
-        Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-        PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
-        WolfEffectOwnership(f) && GravityImpactOwnership(f) && CommonPlayerLifetime(f) &&
-        OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) && HurtFactoryOrder(f, false) &&
-        HurtFactoryOrder(f, true) && NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
-        ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) && DeathParticlesOwnership(f) &&
-        CutOwnership(f) && OutlineOwnership(f) && ContactAbsorptionOwnership(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
+                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) &&
+                    HurtFactoryOrder(f, false) && HurtFactoryOrder(f, true) &&
+                    NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
+                    ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) &&
+                    DeathParticlesOwnership(f) && CutOwnership(f) && OutlineOwnership(f) &&
+                    ContactAbsorptionOwnership(f) && FairyEffectLeases(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

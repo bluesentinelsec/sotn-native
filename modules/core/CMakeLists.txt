@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  fairy_runtime.c
+  include/sotn/fairy_runtime.h
   fairy_effects.c
   include/sotn/fairy_effects.h
   familiar_events.c

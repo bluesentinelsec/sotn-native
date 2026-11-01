@@ -1,3 +1,18 @@
+The [Fairy slot/effect/render runtime](docs/fairy-slot-runtime.md) now owns actual
+4..7 identities/generations, root/wings initialization, local-before-room event
+births, live DE/DC callbacks and real DD/DF stage leases. Preserve fresh original
+sound-step99, same3 retention/cache reset, actual parent generation and stable
+pass gates0/3/FFF; the latter is not full native FFF/player17. Preserve full
+fractional origins, first-empty5..7, optional failure and actual55/arg2ZERO roots.
+Manual hand restrictions/arguments remain separate. Validate all previous lease
+rows/generations, including the hidden sentinel, before any replacement; preserve
+unrelated stage/common/Bat/Wolf rows. Scene drawing uses real bank20, sorted
+priorities/clipping/shake once and selected untextured G4 DTD. No draw ticks.
+Inventory, whole-pass native commit/rollback, gameplay/card/resource lifecycle,
+camera/room, saved progression and rescue remain required. Supplied snapshots,
+level/load-count/init/gate/origin fixtures are not ordinary activation/acquisition/
+route/console evidence. No pool/grants/savev9 change; all six gates stay open.
+
 The [familiar CD audio service](docs/familiar-cd-audio.md) now owns original
 sound-ring/CD-queue256, immediate10/11 ACK-busy, actual decoder-backed start/read,
 pause/two-position restore and finite mode2's20-tick tail/strict expiry/stop phases.
