@@ -55,7 +55,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   now own actual shared GT4s/Blink, and [surviving dark hits](player-dark-hit.md)
   own their actual timed sprites/shared blend phase/Blink. [Surviving fire hits](player-fire-hit.md)
   now own both timed sprite streams/Blink and actual parent-bound particles.
-  Thunder/ice children stay open.
+  [Surviving thunder hits](player-thunder-hit.md) now own their actual four-child
+  six-row effects/sounds/Blink. Ice and the other damage gates stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

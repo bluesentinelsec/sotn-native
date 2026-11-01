@@ -33,7 +33,8 @@ typedef struct SotnPlayerBlinkShared
  * Parameters 0x4E/0x59 support original water-pain/death flashes; requests remain with the owner.
  * Parameters 0x44/0x48 support original blood-healing flashes; 0x67 is the spirit fan.
  * Parameters 0x43/0x51 are the original immunity fan pair.
- * Parameters 0x42/0x68 are the original cut/holy hit fans.
+ * Parameters 0x42/0x68/0x62 are the original cut/holy/dark hit fans.
+ * Parameters 0x45/0x46 are the original fire/thunder fans; thunder holds on state10.
  * Parameter 0x26 supplies entity46 stripes; its actual owner controls motion/retirement.
  * Parameter 0x58 is the neutral hurt/scripted reaction fan; its 0x7007 hold tests original Hit
  * state10. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */

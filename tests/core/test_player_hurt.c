@@ -130,6 +130,11 @@ static bool Palettes(Uint8 *dra)
           p.hurt.factories[3].blueprint == 0x45002cU && p.hurt.factories[4].blueprint == 0x10011U &&
           p.hurt.factories[5].blueprint == 18 && p.damage_palette == 0x8160 &&
           p.hit_effect_ticks == 16 && p.extra_sound == 0x690);
+    p = Player(dra);
+    p.poison_ticks = p.curse_ticks = 100;
+    CHECK(SotnPlayer_ContactDamage(&p, 10, 80, 0, 2, 0x7840) && p.hurt.count == 5 &&
+          p.hurt.factories[3].blueprint == 45 && p.hurt.factories[4].blueprint == 0x46002cU &&
+          p.damage_palette == 0x8102 && p.hit_effect_ticks == 24 && !p.extra_sound);
     return true;
 }
 static bool Recovery(Uint8 *dra)

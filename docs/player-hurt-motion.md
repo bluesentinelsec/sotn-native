@@ -61,7 +61,8 @@ The subsequent [cut owner](player-cut-effects.md) now supplies its actual select
 Blink/particles/sound. [Surviving holy hits](player-holy-hit.md) now own their
 actual shared GT4s/Blink, and [surviving dark hits](player-dark-hit.md) own their
 actual timed sprites/shared blend phase/Blink. [Surviving fire hits](player-fire-hit.md) now own both original streams/Blink and
-actual parent-bound particles. Other elemental children remain unfinished. The subsequent [poison/curse owner](player-ailment-effects.md) now supplies
+actual parent-bound particles. [Surviving thunder hits](player-thunder-hit.md) now
+own the actual four-child six-row effects/sounds/Blink. Ice and other damage gates remain unfinished. The subsequent [poison/curse owner](player-ailment-effects.md) now supplies
 new ailment text/Blink producers. Existing ailment durations/voice and old-ailment flash restoration remain distinct owners.
 
 Player failure preserves queued contact, HP/RNG, requests and counters. Real

@@ -232,10 +232,10 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 }
 static bool ChildKind(Uint16 kind)
 {
-    return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 31 ||
-           kind == 35 || kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 ||
-           kind == 50 || kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 ||
-           kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
+    return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 30 ||
+           kind == 31 || kind == 35 || kind == 36 || kind == 37 || kind == 45 || kind == 46 ||
+           kind == 49 || kind == 50 || kind == 54 || kind == 47 || kind == 51 || kind == 52 ||
+           kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
            kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
@@ -260,6 +260,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 30:
+        return 0x08820000U;
     case 16:
     case 54:
         return 0x08120000U;
@@ -369,6 +371,20 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_ThunderHitValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 30)
+        return true;
+    const SotnThunderHit *t = &c->state.thunder;
+    return c->generation && !c->bat_generation && !c->particle_parent && !c->group &&
+           !c->draw_count && !t->removed && t->thickness >= 0 && t->thickness <= 16 &&
+           t->sound_count <= 2 &&
+           (c->initialized ? t->phase >= 1 && t->phase <= 2 && c->primitive_count == 6 &&
+                                 t->parameter == c->parameter && t->speed >= 256 &&
+                                 t->speed <= 767 && (t->airborne == 0 || t->airborne == 1) &&
+                                 (t->phase == 1 ? t->fade == 0 : t->fade > 0 && t->fade <= 31)
+                           : !t->phase && !c->primitive_count);
+}
 bool SotnBatRuntime_FireHitValid(const SotnBatRuntimeChild *c)
 {
     if (c->kind == 5 && (c->parameter >> 8) == 4)
@@ -474,6 +490,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     }
     else if (fire_parent)
         return SDL_SetError("Fire descendant factory produced an unrelated child");
+    if (c.kind == 30 && generation)
+        return SDL_SetError("Thunder hit requires its independent actual player factory parent");
     if (c.kind == 16 && generation)
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
@@ -826,6 +844,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_ThunderHitValid(c))
+            return SDL_SetError("Thunder hit lost its actual six-row child ownership");
         if (!SotnBatRuntime_FireHitValid(c))
             return SDL_SetError("Fire hit/particles lost their actual child/parent ownership");
         if (!SotnBatRuntime_DarkHitValid(c))
@@ -864,6 +884,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                    (c->kind == 19 && c->primitive_count == 20) ||
                                    (c->kind == 37 && c->primitive_count == 18) ||
                                    (c->kind == 47 && c->primitive_count == 16) ||
+                                   (c->kind == 30 && c->primitive_count == 6) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -967,6 +988,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
+            return false;
+        if (c->kind == 30 && in.entering &&
+            !SotnThunderHit_Rebase(&c->state.thunder, in.screen_shift_x, in.screen_shift_y, true))
             return false;
         if (c->kind == 16 && in.entering &&
             !SotnFireHit_Rebase(&c->state.fire_hit, in.screen_shift_x, in.screen_shift_y))
@@ -1407,6 +1431,44 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             const Sint32 x = Pixel(c->state.holy.x), y = Pixel(c->state.holy.y);
             removed = c->state.holy.removed || x < -32 || x > 288 || y < -16 || y > 256;
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
+                return false;
+            c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 30)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 6, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 6 : 0;
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y),
+                         camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, Word(-camera_x));
+            source.y = FixedShift(source.y, Word(-camera_y));
+            if (!SotnThunderHit_Tick(
+                    &c->state.thunder,
+                    (SotnThunderHitInput){.dra = in.dra,
+                                          .executable = in.executable,
+                                          .source = source,
+                                          .player_x = FixedShift(p.x, Word(-camera_x)),
+                                          .player_y = FixedShift(p.y, Word(-camera_y)),
+                                          .player_velocity_y = p.velocity_y,
+                                          .contacts = p.contacts,
+                                          .priority = p.priority,
+                                          .player_step = (Uint16)p.step,
+                                          .parameter = c->parameter,
+                                          .allocated = allocated},
+                    &progress.random))
+                return false;
+            for (Uint16 sound = 0; sound < c->state.thunder.sound_count; ++sound)
+                if (!Sound(&r, c->state.thunder.sounds[sound]))
+                    return false;
+            const Sint32 x = Pixel(c->state.thunder.x), y = Pixel(c->state.thunder.y);
+            removed = c->state.thunder.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!removed && !SotnThunderHit_Rebase(&c->state.thunder, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
         }

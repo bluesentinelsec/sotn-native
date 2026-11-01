@@ -22,6 +22,7 @@
 #include <sotn/spirit_spell.h>
 #include <sotn/sword_warp.h>
 #include <sotn/talisman_effect.h>
+#include <sotn/thunder_hit.h>
 
 enum
 {
@@ -95,6 +96,7 @@ typedef struct SotnBatRuntimeChild
         SotnHolyHit holy;
         SotnDarkHit dark;
         SotnFireHit fire_hit;
+        SotnThunderHit thunder;
         SotnSpiritPortal portal;
         struct
         {

@@ -1,3 +1,19 @@
+Selected [surviving thunder-hit effects](docs/player-thunder-hit.md) now owns actual
+factory45/four parameter0..3 children30, six GT4 rows each, sound69D/665 and
+Blink46/eight rows. Preserve actual slot order, allocation-before11 birth RNG,
+44-call full birth/eight sounds, six-row copy history/UV/CLUT/phase priority and
+captured fractions versus live pre-camera player motion. Preserve private SDK
+sine/cosine, signed wrap/shifts, airborne/stone/wall gates, phase/fade RNG order,
+terminal decrement before work and no invented RGB fade. Blink7001 holds on state10;
+its profile's7000 color divisor is not a geometry marker. Preserve optional US
+Blink retry, actual leases/retirement, callback/cull before camera, flag2 versus
+room100, frozen/menu/draw/release holds, no-tick rebases and late sibling/RNG/row/
+sound rollback. Native wall arcs retire during hurt, so native menus and Spirit
+are after arc retirement; active frozen holds are authored evidence. Supplied
+raw-kind/protection/wall/high-parameter/transform/clock/state fixtures are not
+ordinary thunder producers/acquisition/routes/console. No pool/grants/savev9 change;
+ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
 Selected [surviving fire-hit effects](docs/player-fire-hit.md) now owns actual
 sound690/Blink45/eight rows, BP17/high1 and delayed BP18/low child16 streams, plus
 real BP4/profile4 parent-bound eleven-row descendants. Preserve actual state10

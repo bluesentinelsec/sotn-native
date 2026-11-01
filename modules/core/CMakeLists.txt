@@ -8,6 +8,8 @@ add_library(sotn-core STATIC
   include/sotn/dark_hit.h
   fire_hit.c
   include/sotn/fire_hit.h
+  thunder_hit.c
+  include/sotn/thunder_hit.h
   holy_hit.c
   include/sotn/holy_hit.h
   include/sotn/immunity_text.h

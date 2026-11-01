@@ -84,7 +84,8 @@ Debug/Release/ASan-UBSan;34 Python tests, policy897, formatting, static SDL link
 and ZIP packaging pass. Five Debug/sanitizer controller/particle/Blink/producer/
 factory trace pairs are byte-identical. Platform results are recorded with the PR.
 
-Thunder, ice, remaining stone/grab/death/fade, equipment/familiars, full shared
+[Surviving thunder-hit history/Blink effects](player-thunder-hit.md) now have their actual owner.
+Ice, remaining stone/grab/death/fade, equipment/familiars, full shared
 contention and integrated acceptance remain unfinished. No player dispatch state,
 resource grant, ordinary-savev9 field or user save slot changes. The
 [Alucard milestone1 gates](alucard-status.md) remain open.

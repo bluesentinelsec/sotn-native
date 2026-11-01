@@ -1147,3 +1147,10 @@ target_include_directories(sotn-fire-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/mo
 target_link_libraries(sotn-fire-hit-tests PRIVATE sotn-core)
 add_test(NAME player-fire-hit COMMAND sotn-fire-hit-tests)
 set_tests_properties(player-fire-hit PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-thunder-hit-tests test_thunder_hit.c)
+sotn_configure_c_target(sotn-thunder-hit-tests)
+target_include_directories(sotn-thunder-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-thunder-hit-tests PRIVATE sotn-core)
+add_test(NAME player-thunder-hit COMMAND sotn-thunder-hit-tests)
+set_tests_properties(player-thunder-hit PROPERTIES TIMEOUT 20)

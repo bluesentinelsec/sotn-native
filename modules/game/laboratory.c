@@ -2513,6 +2513,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 30 && child->initialized)
+                for (Uint16 row = 6; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q = &child->state.thunder.quads[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = q->priority,
+                                            .primitive = (Uint16)(owner * 6U + row - 1U),
+                                            .kind = SOTN_DRAW_THUNDER_HIT}))
+                        return false;
+                }
             if (child->kind == 47 && child->initialized && child->primitive_count == 16)
                 for (Uint16 row = 16; row > 0; --row)
                 {
@@ -2839,6 +2851,21 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_THUNDER_HIT)
+        {
+            const Uint16 owner = command.primitive / 6U, row = command.primitive % 6U;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Thunder packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 30 || !child->generation || !child->initialized ||
+                child->primitive_count != 6 || child->state.thunder.removed ||
+                child->state.thunder.phase < 1 || child->state.thunder.phase > 2 ||
+                !DrawPlayerEffectQuad(session, &child->state.thunder.quads[row]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Thunder draw lost its actual six-row child/packet owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_HOLY_HIT)
