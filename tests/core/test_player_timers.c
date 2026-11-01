@@ -27,14 +27,16 @@ static bool Words(void)
     p.poison_ticks = 4095;
     p.subweapon_ticks = 4;
     p.dark_ticks = 1234;
+    p.spell_use_ticks = 65535;
     p.invincibility_flash_ticks = 10;
     p.afterimage_timer15 = 300;
     CHECK(p.timers[0] == 4095 && p.timers[10] == 4 && p.timers[11] == 1234 && p.timers[13] == 10 &&
           !p.timers[14] && p.timers[15] == 300);
     const SotnPlayer before = p;
     SotnPlayerState copied = {0};
-    CHECK(SotnPlayer_GetState(&p, &copied) && copied.dark.ticks == 1234 && copied.invulnerable &&
-          (copied.status & 0x100U) && (copied.status & 0x800U) &&
+    CHECK(SotnPlayer_GetState(&p, &copied) && copied.dark.ticks == 1234 &&
+          copied.spell_use_ticks == 65535 && copied.invulnerable && (copied.status & 0x100U) &&
+          (copied.status & 0x800U) &&
           !SDL_memcmp(copied.player_timers, p.timers, sizeof(p.timers)) &&
           !SDL_memcmp(before.timers, p.timers, sizeof(p.timers)));
     CHECK(SotnPlayer_SetUseTimer(&p, 7) && p.subweapon_ticks == 7 && p.poison_ticks == 4095);

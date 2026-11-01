@@ -1738,7 +1738,7 @@ static void HellfireTick(SotnPlayer *p)
         else if (action.kind == SOTN_HELLFIRE_ANIMATION)
             Animate(p, action.value);
         else if (action.kind == SOTN_HELLFIRE_USE_TIMER)
-            p->spell_use_ticks = (Uint8)action.value;
+            p->spell_use_ticks = action.value;
         else if (action.kind == SOTN_HELLFIRE_RESTORE_FLASHES)
         {
             const Uint32 factories[2] = {p->curse_ticks ? 0x17002cU : 0U,

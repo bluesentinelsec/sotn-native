@@ -411,7 +411,7 @@ typedef struct SotnPlayerState
     bool hellfire_started,
         hellfire_hidden;             /**< Accepted cast intent and actual palette visibility. */
     Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
-    Uint8 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
+    Uint16 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
