@@ -1,3 +1,18 @@
+The [Fairy control components](docs/fairy-controller.md) now reconstruct selected
+init/follow/selection/medicine/Life Apple/wings callbacks. Preserve original private
+tables/libc RNG, death-first selection, late potion urgency overwrite, pointer-based
+animation, source movement/SDK math, Hammer's omitted39 gate and item consumption
+despite optional failure. Preserve carried25/91-frame Life Apple counters and
+separate resource/FFF/release requests. Requests do not enable Fairy or rescue17.
+Native player snapshots now own actual transient damage effects and pre-control
+step/substep: clear on full successful player updates; write responses1/2/3/7/8,
+including zero-HP stone7; immune/absorb/water/death4/6 leave zero. Hold freeze/menu/
+draw/rebase, preserve failures. Intro/shoulder/hints/events/CD-XA/native4..7/effect
+rows/FFF/player17/cleanup/progression remain required. FFF runs full player and
+only familiar4..7, never shared8..63; Spirit freeze3 is not a substitute. Private
+callback/attribute/raw-contact/HP1 fixtures are not native familiar, acquisition,
+route or console evidence. No pool/grants/savev9 change; all six gates stay open.
+
 The [familiar foundation](docs/familiar-foundation.md) now supplies verified US
 TT/FT/VAB resources, original shared animation, stage-bank20/resident FT+CLUT and
 existing bank2 sound binding. Preserve zero-load/single-jump/transfer/end-hold,

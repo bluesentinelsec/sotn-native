@@ -1,3 +1,7 @@
+add_executable(sotn-fairy-tests test_fairy.c)
+sotn_configure_c_target(sotn-fairy-tests)
+target_link_libraries(sotn-fairy-tests PRIVATE sotn-core)
+add_test(NAME fairy-controller COMMAND sotn-fairy-tests)
 add_executable(sotn-familiar-animation-tests test_familiar_animation.c)
 sotn_configure_c_target(sotn-familiar-animation-tests)
 target_link_libraries(sotn-familiar-animation-tests PRIVATE sotn-core)

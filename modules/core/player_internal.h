@@ -45,6 +45,9 @@ struct SotnPlayer
     SotnWaterDamage water_damage;
     SotnPlayerWaterPain water_pain;
     Uint32 damage_clock, damage_last_clock;
+    Uint32 received_damage_effects;
+    SotnPlayerStep control_step;
+    Uint16 control_substep;
     Uint16 head, armor, cape, talismans;
     Uint16 hearts, hearts_max; /**< Borrowed resource snapshot, refreshed before player control. */
     SotnPlayerHeartGain heart_gain;

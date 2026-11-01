@@ -104,6 +104,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   The [shared familiar foundation](familiar-foundation.md) supplies verified private
   resources, original animation and real bank20/VRAM/bank2 services. These APIs
   do not supply activation, slots4..7, behavior, item use or progression.
+  The [Fairy control components](fairy-controller.md) add selected original
+  following/item/rescue callbacks and actual native damage/control-state inputs.
+  Requests still require the lifecycle, events/audio, primitive and FFF/player17
+  owners before Fairy selection or completed rescue can be enabled.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

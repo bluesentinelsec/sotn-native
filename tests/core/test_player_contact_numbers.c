@@ -90,13 +90,15 @@ static bool Producers(Fixture *f, SotnDataView exe)
           p->damage_number.applied && p->damage_number.amount == 7 &&
           p->damage_number.response == 3 && p->damage_number.source.x == x &&
           p->damage_number.source.y == y && p->healing.applied_amount == 1);
+    CHECK(p->received_damage_effects == 0 && p->control_step == SOTN_PLAYER_HIT);
     CHECK(SotnPlayer_ChangeRoom(p, p->map, 1, -1) && p->damage_number.source.x == x + 65536 &&
           p->damage_number.source.y == y - 65536);
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && !p->damage_number.applied && p->hp == 34);
     *p = base;
     p->hp = 1;
     CHECK(Contact(p, 1, 100, 1) && !p->hp && p->damage_number.applied &&
-          p->damage_number.response == 4 && p->damage_number.amount == 100);
+          p->damage_number.response == 4 && p->damage_number.amount == 100 &&
+          !p->received_damage_effects);
     *p = base;
     p->attributes.weakness = 0x20;
     p->poison_ticks = 100;
@@ -106,10 +108,19 @@ static bool Producers(Fixture *f, SotnDataView exe)
     p->attributes.defense = 10;
     CHECK(Contact(p, 1, 5, 0x201) && p->hp == 40 && p->damage_number.applied &&
           !p->damage_number.amount && p->damage_number.response == 7 &&
-          p->step == SOTN_PLAYER_STONE);
+          p->step == SOTN_PLAYER_STONE && p->received_damage_effects == 0x200);
+    SotnPlayerState observed = {0};
+    CHECK(SotnPlayer_GetState(p, &observed) && observed.received_damage_effects == 0x200 &&
+          observed.control_step == SOTN_PLAYER_STONE &&
+          observed.control_substep == p->control_substep);
+    CHECK(SotnPlayer_ChangeRoom(p, p->map, 1, -1) && p->received_damage_effects == 0x200 &&
+          SotnPlayer_TickSpellFreeze(p, 0, false) && p->received_damage_effects == 0x200 &&
+          SotnPlayer_SetDamageContext(p, 2) && SotnPlayer_Tick(p, 0) &&
+          !p->received_damage_effects);
     *p = base;
     CHECK(Contact(p, 1, 100, 0x201) && !p->hp && p->damage_number.response == 7 &&
-          p->damage_number.amount == 100 && p->step == SOTN_PLAYER_STONE);
+          p->damage_number.amount == 100 && p->step == SOTN_PLAYER_STONE &&
+          p->received_damage_effects == 0x200);
     *p = base;
     p->step = SOTN_PLAYER_STONE;
     p->stone.active = true;
@@ -210,7 +221,8 @@ static bool HurtFeedback(Fixture *f, SotnDataView exe)
     for (Uint16 i = 0; i < SDL_arraysize(excluded); ++i)
     {
         *p = base;
-        CHECK(Contact(p, 1, 1, excluded[i] | 1) && !p->damage_number.neutral_hurt);
+        CHECK(Contact(p, 1, 1, excluded[i] | 1) && !p->damage_number.neutral_hurt &&
+              p->received_damage_effects == excluded[i]);
     }
     *p = base;
     p->hp = 1;
@@ -236,21 +248,25 @@ static bool Exclusions(Fixture *f, SotnDataView exe)
     SotnPlayer *p = f->player;
     const SotnPlayer base = *p;
     p->attributes.immunity = 0x8000;
-    CHECK(Contact(p, 1, 7, 0x8001) && p->immunity.applied && !p->damage_number.applied);
+    CHECK(Contact(p, 1, 7, 0x8001) && p->immunity.applied && !p->damage_number.applied &&
+          !p->received_damage_effects);
     *p = base;
     p->attributes.absorption = 0x8000;
-    CHECK(Contact(p, 1, 7, 0x8001) && p->absorption.applied && !p->damage_number.applied);
+    CHECK(Contact(p, 1, 7, 0x8001) && p->absorption.applied && !p->damage_number.applied &&
+          !p->received_damage_effects);
     *p = base;
     p->attributes.defense = 100;
-    CHECK(Contact(p, 1, 7, 1) && p->guard.applied && !p->damage_number.applied);
+    CHECK(Contact(p, 1, 7, 0x8001) && p->guard.applied && !p->damage_number.applied &&
+          p->received_damage_effects == 0x8000);
     *p = base;
     p->talismans = 1;
     p->damage_random = 0;
-    CHECK(Contact(p, 1, 100, 1) && p->dodge.applied && !p->damage_number.applied);
+    CHECK(Contact(p, 1, 100, 0x8001) && p->dodge.applied && !p->damage_number.applied &&
+          p->received_damage_effects == 0x8000);
     *p = base;
     CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){41, 25, 0}) &&
           Contact(p, 10, 100, 0x8000) && p->water_pain.events.response == 9 &&
-          !p->damage_number.applied);
+          !p->damage_number.applied && !p->received_damage_effects);
     *p = base;
     p->hp = 1;
     CHECK(SotnPlayer_SetWaterContext(p, (SotnPlayerWater){41, 25, 0}) &&

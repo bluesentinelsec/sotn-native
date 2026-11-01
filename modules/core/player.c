@@ -2207,6 +2207,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SDL_memcpy(&next.hammer_timer, &bits, sizeof(bits));
     }
     next.frame_contacts = (Uint32)next.contact;
+    next.received_damage_effects = 0;
     next.timer_status = SotnPlayer_Status(player);
     bool force_reaction = false, force_hold = false;
     next.failed = false;
@@ -2346,6 +2347,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.wolf.started = next.wolf.body_started = next.wolf.finish_flash =
             next.wolf.return_started = false;
     }
+    next.control_step = next.step;
+    next.control_substep = next.substep;
     if (!reaction_born)
         switch (next.step)
         {
@@ -3023,6 +3026,9 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .velocity_y = player->vy,
         .contacts = (Uint32)player->contact,
         .status = status,
+        .received_damage_effects = player->received_damage_effects,
+        .control_step = player->control_step,
+        .control_substep = player->control_substep,
         .animation = player->animation,
         .simulated_pad = player->simulated_pad,
         .teleport = player->teleport,

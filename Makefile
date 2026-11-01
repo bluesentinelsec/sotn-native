@@ -151,6 +151,7 @@ SOTN_FORMAT_SOURCES += modules/core/player_medicine.c modules/core/medicine_effe
 	  modules/core/include/sotn/player_circle.h tests/core/test_player_medicine.c \
 	  tests/core/test_player_circle.c
 
+SOTN_FORMAT_SOURCES += modules/core/fairy.c modules/core/include/sotn/fairy.h tests/core/test_fairy.c
 SOTN_FORMAT_SOURCES += modules/core/familiar_animation.c \
 	  modules/core/include/sotn/familiar_animation.h tests/core/test_familiar_animation.c
 

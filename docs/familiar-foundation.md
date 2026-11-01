@@ -69,6 +69,8 @@ entities, ordinary acquisition, uninterrupted routes or console/GPU comparisons.
 Actual initialization/selection, slots, movement, room events, item effects,
 rescue scene ownership, combat/progression and shared contention still require
 native owners. All six [Alucard gates](alucard-status.md) remain open.
+The subsequent [Fairy control components](fairy-controller.md) reconstruct selected
+callbacks and supply actual native player inputs; they do not close those gates.
 
 Provenance: `servant/servant_update_anim.h`,
 `servant/tt_002/faerie.c:SetAnimationFrame/ServantInit`, `dra/cd.c` familiar uploads,

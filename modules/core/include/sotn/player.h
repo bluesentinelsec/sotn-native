@@ -401,8 +401,14 @@ typedef struct SotnPlayerState
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
     Uint16 player_timers[SOTN_PLAYER_TIMERS]; /**< Immutable copy of the actual player word bank. */
     Sint32 x, y, velocity_x, velocity_y;      /**< Signed 16.16 room-local pixels. */
-    Uint32 status;            /**< Original status bits for stage scripts and enemy observations. */
-    Uint32 contacts;          /**< Original floor/ceiling/wall and slope flags. */
+    Uint32 status; /**< Original status bits for stage scripts and enemy observations. */
+    Uint32 received_damage_effects; /**< Actual g_Player.unk18; cleared by each full player prefix.
+                                     * Responses1/2/3/7/8 write effects; water/death/immune/absorb
+                                     * do not. */
+    SotnPlayerStep
+        control_step;       /**< Original prev_step captured immediately before state control. */
+    Uint16 control_substep; /**< Original prev_step_s, separate from final post-control substep. */
+    Uint32 contacts;        /**< Original floor/ceiling/wall and slope flags. */
     Uint32 previous_contacts; /**< Actual pre-collision contact word retained by the player. */
     SotnPlayerSmokeEnvironment smoke_environment; /**< Actual live wall/skid feedback. */
     SotnAnimation animation;

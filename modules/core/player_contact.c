@@ -200,6 +200,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                     "Talisman recovery requires its actual SDK/palette timer owner");
             p->dodge =
                 (SotnPlayerDodge){.source = source, .effects = power.effects, .applied = true};
+            p->received_damage_effects = power.effects;
             p->gravity.timer = 0x8166;
             SotnPlayer_Protect(p, 12);
             p->timers[3] = 6;
@@ -216,6 +217,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             --p->hp;
             p->guard = (SotnPlayerGuard){
                 .source = source, .effects = power.effects, .sound = 0x6e7, .applied = true};
+            p->received_damage_effects = power.effects;
             p->gravity.timer = 0x8166; // Original high_jump_timer is also timer3's palette word.
             SotnPlayer_Protect(p, 12);
             p->timers[3] = 6;
@@ -251,6 +253,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             response = previous == SOTN_PLAYER_STONE ? 8 : 7;
         if (!p->hp && response != 7)
             response = 4;
+        if (response == 3 || response == 7 || response == 8)
+            p->received_damage_effects = power.effects;
         const bool neutral = response == 3 && !axe && !(power.effects & 0xfbc0U);
         p->damage_number = (SotnPlayerDamageNumber){.source = source,
                                                     .amount = number_amount,
