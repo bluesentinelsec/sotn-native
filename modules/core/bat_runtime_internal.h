@@ -5,6 +5,7 @@
 bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Validate the direct entity19/slots56..63 twenty-row healing visual owner. */
 bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *child);
+bool SotnBatRuntime_HolyHitValid(const SotnBatRuntimeChild *child);
 bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Validate actual entity46 parameter, eight-row lease and retained lifecycle. */
 bool SotnBatRuntime_TalismanValid(const SotnBatRuntimeChild *child, Uint16 index);

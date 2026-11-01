@@ -56,7 +56,8 @@ console parity. No health/MP/equipment/relic/pose/RNG/clock grants or user-save
 writes establish these checks.
 
 The original alternate10000 cut branch has no selected ordinary sixteen-bit
-contact producer and remains unfinished. Fire, thunder, ice, holy/dark children,
+contact producer and remains unfinished. Selected [surviving holy hits](player-holy-hit.md) now have their actual owners.
+Fire, thunder, ice/dark children,
 remaining stone/grab/death/fade branches, equipment/familiars, full shared contention
 and integrated acceptance remain open. This adds no dispatched state and does
 not complete [Alucard milestone1](alucard-status.md), castle or console parity.

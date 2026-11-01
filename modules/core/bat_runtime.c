@@ -229,8 +229,9 @@ static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
            kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
-           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 ||
-           kind == 0xf1 || kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 ||
+           kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
+           (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -254,6 +255,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 47:
+        return 0x00860000U;
     case 35:
     case 51:
         return 0x08000000U;
@@ -358,6 +361,28 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_HolyHitValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 47)
+        return true;
+    return c->generation && !c->bat_generation && !c->group && !c->draw_count &&
+           !c->state.holy.removed &&
+           (c->initialized ? c->state.holy.phase == 1 && c->primitive_count == 16
+                           : !c->state.holy.phase && !c->primitive_count);
+}
+bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_HolyHitValid(&r->children[i]))
+            return SDL_SetError("Player shove lost its actual holy child owner");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 47 && r->children[i].initialized &&
+            !SotnHolyHit_Displace(&r->children[i].state.holy, x, y))
+            return false;
+    return true;
+}
 bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (c->kind != 19)
@@ -409,6 +434,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     if (c.kind == 37 && (child.parameter > 0x200 || (child.parameter & 255U) || generation))
         return SDL_SetError(
             "Text requires actual immunity/poison/curse parameter and no transformation parent");
+    if (c.kind == 47 && generation)
+        return SDL_SetError("Holy hit requires its independent actual factory parent");
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
             (SotnHellfireTrail){.x = child.source.x,
@@ -742,6 +769,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_HolyHitValid(c))
+            return SDL_SetError("Holy hit lost its actual child/global/row ownership");
         if (!SotnBatRuntime_TalismanValid(c, i))
             return SDL_SetError("Talisman lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
@@ -773,6 +802,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                    (c->kind == 63 && c->primitive_count == 9) ||
                                    (c->kind == 19 && c->primitive_count == 20) ||
                                    (c->kind == 37 && c->primitive_count == 18) ||
+                                   (c->kind == 47 && c->primitive_count == 16) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -868,6 +898,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!shifted)
                 return false;
         }
+        if (c->kind == 47 && in.entering &&
+            !SotnHolyHit_Rebase(&c->state.holy, in.screen_shift_x, in.screen_shift_y, true))
+            return false;
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
             return false;
@@ -1270,6 +1303,39 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             removed = c->state.immunity_text.removed;
             c->initialized = !removed;
+        }
+        else if (c->kind == 47)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 16, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 16 : 0;
+            // Original holy callbacks precede the engine's camera/primitive pass.
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y);
+            const Sint16 camera_x = Word(-(Sint32)in.camera_x - dx),
+                         camera_y = Word(-(Sint32)in.camera_y - dy);
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, camera_x);
+            source.y = FixedShift(source.y, camera_y);
+            if (!SotnHolyHit_Tick(&c->state.holy, &r.holy,
+                                  (SotnHolyHitInput){.dra = in.dra,
+                                                     .source = source,
+                                                     .player_x = FixedShift(p.x, camera_x),
+                                                     .player_y = FixedShift(p.y, camera_y),
+                                                     .hitbox_x = p.animation.hitbox_x,
+                                                     .hitbox_y = p.animation.hitbox_y,
+                                                     .priority = p.priority,
+                                                     .status = p.status,
+                                                     .allocated = allocated},
+                                  &progress.random))
+                return false;
+            const Sint32 x = Pixel(c->state.holy.x), y = Pixel(c->state.holy.y);
+            removed = c->state.holy.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
+                return false;
+            c->initialized = !removed && allocated;
         }
         else if (c->kind == 51)
         {

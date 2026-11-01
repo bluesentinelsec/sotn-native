@@ -1085,6 +1085,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         (motion.align_vertical && !SotnPlayer_StageAlignY(session->player, motion.alignment_y)) ||
         (motion.grab_changed && !SotnPlayer_RequestGrab(session->player, motion.grab)) ||
         !SotnPlayer_Displace(session->player, motion.x, motion.y, motion.contacts) ||
+        (!entering && !SotnBatRuntime_PlayerShove(&session->bat_runtime, motion.x, motion.y)) ||
         (motion.stop_velocity && !SotnPlayer_StageStop(session->player)) ||
         (motion.stop_horizontal && !SotnPlayer_StageStopHorizontal(session->player)) ||
         (motion.protect && !SotnPlayer_StageGuard(session->player, motion.halt_vertical)) ||
@@ -2512,6 +2513,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 47 && child->initialized && child->primitive_count == 16)
+                for (Uint16 row = 16; row > 0; --row)
+                {
+                    const Uint16 id = row - 1;
+                    const SotnPlayerEffectQuad *q = &child->state.holy.quads[id];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                            &draw_count,
+                                            (SotnActorDraw){.priority = q->priority,
+                                                            .primitive = (Uint16)(owner * 16U + id),
+                                                            .kind = SOTN_DRAW_HOLY_HIT}))
+                        return false;
+                }
             if (child->initialized &&
                 (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
                  child->kind == 0xf2) &&
@@ -2811,6 +2825,21 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_HOLY_HIT)
+        {
+            const Uint16 owner = command.primitive / 16U, row = command.primitive % 16U;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Holy packet lost its actual child index");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 47 || !child->initialized || !child->generation ||
+                child->primitive_count != 16 || child->state.holy.phase != 1 ||
+                child->state.holy.removed ||
+                !DrawPlayerEffectQuad(session, &child->state.holy.quads[row]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Holy draw lost its actual sixteen-row child/packet owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_IMMUNITY_TEXT)

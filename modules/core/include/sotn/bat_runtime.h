@@ -8,6 +8,7 @@
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
 #include <sotn/hellfire_fireball.h>
+#include <sotn/holy_hit.h>
 #include <sotn/immunity_text.h>
 #include <sotn/player.h>
 #include <sotn/player_outline.h>
@@ -87,6 +88,7 @@ typedef struct SotnBatRuntimeChild
         SotnRisingHeart heart;
         SotnHealingNumber healing_number;
         SotnImmunityText immunity_text;
+        SotnHolyHit holy;
         SotnSpiritPortal portal;
         struct
         {
@@ -123,6 +125,7 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    SotnHolyHitShared holy; /**< Actual shared entity47 points, not one copy per child. */
     SotnPlayerParticleVectors particle_vectors; /**< Actual full-player-init velocity tables. */
     Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
     bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */
@@ -158,6 +161,10 @@ typedef struct SotnBatRuntime
     bool echo_attack;
     bool afterimage_reset; /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
+
+/** @brief Commit actual post-stage object shoves to initialized player-locked holy entities.
+ * Packets, shared points, rows, RNG and controllers hold. Room entry uses its separate rebase. */
+bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
 
 /** @brief Actual owned context and room/camera translation at this update point. */
 typedef struct SotnBatRuntimeInput

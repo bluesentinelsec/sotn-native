@@ -292,6 +292,20 @@ int main(void)
     for (Uint16 i = 0; i < 26; ++i)
         CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     CHECK(effect.removed);
+    Uint8 *holy = dra + 0xd670 + 0x28U * 20U;
+    SDL_memcpy(holy, cut, 20);
+    Put16(holy + 14, 0x7007);
+    effect = (SotnPlayerBlink){.parameter = 0x68};
+    input.player_step = 10;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 7 && !effect.removed);
+    input.player_step = 2;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

@@ -1,3 +1,16 @@
+Selected [surviving holy-hit effects](docs/player-holy-hit.md) now owns actual
+119/child47/sixteen GT4 rows, one shared DRA point array and Blink68/eight rows.
+Preserve raw hitbox offsets, allocation-before64 RNG calls, sibling overwrite/slot
+order, delay/UV/final-Y semantics and status10000 retirement after tiles finish.
+Use pre-camera feedback, callback/cull before the camera pass, flag2 versus room
+flag100 packets, entity-only actual stage shoves and no ordinary movement following.
+Shared points never acquire camera translation. Preserve frozen flags, no-tick
+rebases, late rollback and offscreen retirement after real birth RNG. Native menus
+are checked after hit retirement; do not fake the host's pause gate or an active
+holy/Spirit combination. Raw/kind/protection/wall/image fixtures are not ordinary
+holy producers/acquisition/routes/console evidence. No pool/grants/savev9 change;
+remaining elemental/death/fade/equipment/familiars/sharing and Alucard stay incomplete.
+
 Selected [cut-hit effects](docs/player-cut-effects.md) now owns actual cut Blink42,
 factory20/profile5, shared13/eight-row leases and ordered sound62E. Preserve earlier
 ailment/elemental priority, captured heavy-hit fractions/facing, original vector

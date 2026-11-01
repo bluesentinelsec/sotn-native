@@ -1126,3 +1126,10 @@ target_include_directories(sotn-ailment-text-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-ailment-text-tests PRIVATE sotn-core)
 add_test(NAME player-ailment-text COMMAND sotn-ailment-text-tests)
 set_tests_properties(player-ailment-text PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-holy-hit-tests test_holy_hit.c)
+sotn_configure_c_target(sotn-holy-hit-tests)
+target_include_directories(sotn-holy-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-holy-hit-tests PRIVATE sotn-core)
+add_test(NAME player-holy-hit COMMAND sotn-holy-hit-tests)
+set_tests_properties(player-holy-hit PROPERTIES TIMEOUT 20)

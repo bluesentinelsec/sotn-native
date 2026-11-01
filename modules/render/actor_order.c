@@ -5,7 +5,8 @@
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
-        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_AXE_SHADOW ||
+        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_HOLY_HIT ||
+        (item.kind == SOTN_DRAW_HOLY_HIT && item.primitive >= 48 * 16) ||
         (item.kind == SOTN_DRAW_HEALING_NUMBER &&
          (item.primitive < 800 || item.primitive >= 960)) ||
         (item.kind == SOTN_DRAW_IMMUNITY_TEXT &&
