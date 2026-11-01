@@ -392,6 +392,16 @@ typedef struct SotnPlayerHeartGain
     Uint16 amount;
     bool requested; /**< Zero-damage stone contacts still call AddHearts(0). */
 } SotnPlayerHeartGain;
+/** @brief Transient native Fairy scene binding, retained draw words and recovery notification.
+ * Resource restoration remains distinct from leaving dead state17. Not ordinary save data. */
+typedef struct SotnPlayerFairyRescue
+{
+    SotnPlayerFactorySource source; /**< Captured before recovery collision, for actual Blink4A. */
+    Uint16 scene;
+    Sint16 rotation;
+    Uint8 blend; /**< Retained original entity blend; recovery clears color modulation only. */
+    bool bound, restored, recovered;
+} SotnPlayerFairyRescue;
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
@@ -428,6 +438,7 @@ typedef struct SotnPlayerState
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
     SotnPlayerWaterDeath water_death;
+    SotnPlayerFairyRescue fairy_rescue;
     SotnPlayerWaterPain water_pain;
     Uint8 water_pain_timer;
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
@@ -546,6 +557,20 @@ bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool boo
  * outside this selected ordinary context; no replacement fade timer is supplied. */
 bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context);
+/** @brief Bind the actual native Fairy scene0/FFF before a full player update.
+ * @param player Actual player/capture owner. @param scene Committed native scene request.
+ * FFF requires an actual dead state and capture/decay/context binding. Returning to0 while
+ * in17 requires completed actual resource restoration. Does not tick, heal or change state.
+ * @return Success or SDL error before mutation. Native Fairy producer/lifecycle remains required.
+ */
+bool SotnPlayer_SetFairyScene(SotnPlayer *player, Uint16 scene);
+/** @brief Commit Fairy's actual full HP/MP write while retaining dead state17.
+ * @param player Actual bound FFF/state17 owner. @param hp_max Actual character maximum,
+ * matching the player. @param mp_max Actual character maximum,0..9999.
+ * Caller first commits actual player-entity cleanup and character resources atomically.
+ * Preserves pending healing, status/control, captures, timers and RNG. Once per rescue.
+ * @return Success or SDL error before mutation. This alone supplies no revival/availability. */
+bool SotnPlayer_CommitFairyResources(SotnPlayer *player, Uint16 hp_max, Uint16 mp_max);
 /** @brief Bind the actual shared child query used by a lethal already-stone contact.
  * Factories and pending requests do not satisfy this query. A standalone player with no
  * bound effect owner has no dissolve child and delegates to selected physical death. */
@@ -567,7 +592,9 @@ bool SotnPlayer_QueueContact(SotnPlayer *player, SotnPlayerContact contact);
  * @param player Owner with actual water-death capture/upload callbacks already bound.
  * @param timer Current original gameplay clock, distinct from saved play time.
  * @return Success or SDL error without mutation. Supply once per ordinary player update;
- * menus/frozen updates must not consume this boundary. Fury requires its actual buff owner. */
+ * menus and animation-only freeze must not consume this boundary. Bound dead FFF updates
+ * use the held actual gameplay clock with full player callbacks; the native engine frame
+ * remains distinct. Ordinary duplicate clocks still fail. Fury requires its actual buff owner. */
 bool SotnPlayer_SetDamageContext(SotnPlayer *player, Uint32 timer);
 /** @brief Bind the actual original stage ID for hurt-controller stage-specific collision branches.
  * @param player Actual player owner. @param stage Original stage identifier,0..255.

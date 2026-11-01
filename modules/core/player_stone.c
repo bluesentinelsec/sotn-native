@@ -211,6 +211,7 @@ bool SotnPlayer_Petrify(SotnPlayer *p, Uint16 amount, Sint32 source_x, Sint32 so
         p->grab.state != SOTN_GRAB_NONE)
         return true;
     SotnPlayer next = *p;
+    next.fairy_rescue.blend = 0;
     next.gravity.upside_down = false;
     SotnPlayer_BatCancel(&next);
     SotnPlayer_WolfCancel(&next);

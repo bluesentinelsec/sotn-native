@@ -1,3 +1,18 @@
+The [bound Fairy rescue response](docs/player-fairy-rescue.md) now supplies gated
+17 interruption/hold/resource/recovery and a dedicated real Blink4A producer.
+Preserve numeric drawflag4 for BOTH physical/water interruption, resident captures/
+pivots/serials, full dead callbacks at the held actual gameplay clock, all16 word/
+pending-heal/dead-status holds even after HPMP restoration, distinct release-only
+frame and pre-collision factory origins. Keep hurt-owner guards separate. Clear
+active death presentation only on actual normal recovery; retain first-frame
+rotation and persistent entity blend until actual normal-reset/form owners clear
+it. No invented palette reset, generic revival or optional substitute effect.
+Production nativeFFF/Fairy selection/progression/item/lifecycle/whole-pass bindings,
+remaining stone/grab/Axe contexts and all six gates remain open.32 states have
+selected native producers plus gated17; supplied scene/resource/clock/contact/HP1
+and composed native loops are not ordinary activation/rescue/acquisition/routes/
+console evidence. No default grants/savev9/pool change.
+
 The [Fairy rescue-cleanup services](docs/familiar-rescue-cleanup.md) now retire actual
 shared factories8..15/children16..63/Wolf rows and native projectiles. Validate the
 whole committed runtime and every real row/generation/sentinel, reject stale/orphan

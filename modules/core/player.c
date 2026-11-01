@@ -1681,6 +1681,7 @@ static void ScriptReactionTick(SotnPlayer *p)
 {
     if (p->substep == 0)
     {
+        p->fairy_rescue.blend = 0;
         ClearAttack(p);
         p->movement_flags = 0;
         p->stone = (SotnPlayerStone){0};
@@ -1721,6 +1722,7 @@ static void BossGrabTick(SotnPlayer *player)
 {
     if (player->substep == 0)
     {
+        player->fairy_rescue.blend = 0;
         ClearAttack(player);
         player->movement_flags = 0;
         player->stone = (SotnPlayerStone){0};
@@ -1782,8 +1784,35 @@ static void BossGrabTick(SotnPlayer *player)
 }
 
 // Selected physical death; the selected stone completion uses its own clocks.
+static bool FairyInterrupt(SotnPlayer *p)
+{
+    if (!p->fairy_rescue.bound || p->fairy_rescue.scene != 0xfff || !p->substep)
+        return false;
+    p->fairy_rescue.rotation = p->water_death.active
+                                   ? (Sint16)(p->water_death.motion.rotation < 32768U
+                                                  ? p->water_death.motion.rotation
+                                                  : (Sint32)p->water_death.motion.rotation - 65536)
+                                   : p->death.rotation;
+    p->fairy_rescue.restored = false;
+    p->fairy_rescue.blend =
+        (Uint8)(p->water_death.active ? p->water_death.motion.blend : p->death.blend);
+    SetStep(p, SOTN_PLAYER_DEATH_HOLD);
+    p->death.phase = 0;
+    p->vx = p->vy = 0;
+    // Both original entry assignments (DRAW_COLORS and ENTITY_ROTATE) are numeric4.
+    p->form_rotated = true;
+    if (p->water_death.active)
+    {
+        p->water_death.motion.step = SOTN_PLAYER_DEATH_HOLD;
+        p->water_death.motion.phase = 0;
+        p->water_death.motion.velocity_x = p->water_death.motion.velocity_y = 0;
+    }
+    return true;
+}
 static void DeathTick(SotnPlayer *player)
 {
+    if (FairyInterrupt(player))
+        return;
     if (player->stone.active)
     {
         SotnPlayer_StoneDeathTick(player);
@@ -1837,6 +1866,62 @@ bool SotnPlayerStep_IsDead(SotnPlayerStep step)
     return step == SOTN_PLAYER_KILL || step == SOTN_PLAYER_KILL_WATER ||
            step == SOTN_PLAYER_DEATH_HOLD;
 }
+bool SotnPlayer_SetFairyScene(SotnPlayer *p, Uint16 scene)
+{
+    if (!p || (scene != 0 && scene != 0xfff) ||
+        (scene == 0xfff && (!SotnPlayerStep_IsDead(p->step) || !p->death_capture ||
+                            !p->death_decay || !p->death_context)) ||
+        (scene == 0 && p->step == SOTN_PLAYER_DEATH_HOLD && !p->fairy_rescue.restored))
+        return SDL_SetError("Fairy scene requires its actual dead/capture/resource owners");
+    p->fairy_rescue.bound = true;
+    p->fairy_rescue.scene = scene;
+    return true;
+}
+bool SotnPlayer_CommitFairyResources(SotnPlayer *p, Uint16 hp_max, Uint16 mp_max)
+{
+    if (!p || !p->fairy_rescue.bound || p->fairy_rescue.scene != 0xfff ||
+        p->step != SOTN_PLAYER_DEATH_HOLD || p->fairy_rescue.restored || !hp_max ||
+        hp_max != p->hp_max || mp_max > 9999)
+        return SDL_SetError("Fairy resource commit requires its actual FFF/state17 episode");
+    p->hp = hp_max;
+    p->mp = mp_max;
+    p->fairy_rescue.restored = true;
+    return true;
+}
+static void FairyHoldTick(SotnPlayer *p)
+{
+    if (!p->fairy_rescue.bound || (p->fairy_rescue.scene != 0 && p->fairy_rescue.scene != 0xfff))
+    {
+        p->failed = true;
+        SDL_SetError("Player17 lost its actual Fairy scene owner");
+        return;
+    }
+    p->form_rotated = true;
+    p->vx = p->vy = 0;
+    p->animation.remaining = 4;
+    if (!p->fairy_rescue.scene)
+    {
+        if (!p->fairy_rescue.restored || !p->hp)
+        {
+            p->failed = true;
+            SDL_SetError("Fairy recovery requires committed actual resource restoration");
+            return;
+        }
+        if (p->contact & 1)
+            Land(p, 0);
+        else
+            Fall(p);
+        p->fairy_rescue.source = (SotnPlayerFactorySource){
+            .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left};
+        p->fairy_rescue.recovered = true;
+        // Retire native death presentation only at actual normal recovery. The separate
+        // capture serial/scratch survive; this frame retains the original entity rotation.
+        SDL_zero(p->death);
+        SDL_zero(p->water_death);
+        p->stone.active = false;
+        p->body_color_blend = false;
+    }
+}
 bool SotnPlayer_SetDeathCapture(SotnPlayer *p, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context)
 {
@@ -1884,6 +1969,8 @@ static void WaterDeathTick(SotnPlayer *p)
         p->failed = true;
         return;
     }
+    if (FairyInterrupt(p))
+        return;
     SotnWaterDeath motion = p->water_death.motion;
     motion.velocity_x = p->vx;
     motion.velocity_y = p->vy;
@@ -1907,6 +1994,7 @@ static void WaterDeathTick(SotnPlayer *p)
                 p->sound = (Uint16)a.value;
             else if (a.kind == SOTN_WATER_DEATH_RESET_NORMAL)
             {
+                p->fairy_rescue.blend = 0;
                 if (p->axe_armor.active)
                 {
                     p->axe_armor.active = false;
@@ -2222,6 +2310,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.soul.started = next.soul.attack = false;
     next.water_death.started = false;
     next.death.started = false;
+    next.fairy_rescue.recovered = false;
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     const bool teleporting = next.step == SOTN_PLAYER_TELEPORT;
     next.teleport.used = false;
@@ -2466,12 +2555,18 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         case SOTN_PLAYER_KILL_WATER:
             WaterDeathTick(&next);
             break;
+        case SOTN_PLAYER_DEATH_HOLD:
+            FairyHoldTick(&next);
+            break;
         case SOTN_PLAYER_HIT:
             SotnPlayer_HurtTick(&next);
             break;
         default:
             return SDL_SetError("Unsupported Alucard movement state");
         }
+    if (next.bat.active || next.mist.active || next.wolf.active || next.axe_armor.active ||
+        next.axe_armor.exited)
+        next.fairy_rescue.blend = 0; // Actual form reset/initialization owns BLEND_NO.
     next.status =
         (next.status & ~7U) |
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
@@ -3055,6 +3150,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .sound = player->sound,
         .death = player->death,
         .water_death = player->water_death,
+        .fairy_rescue = player->fairy_rescue,
         .water_pain = player->water_pain,
         .water_pain_timer = player->water_damage.pain_timer,
         .defense_buff_minimum = player->defense_buff_minimum,
@@ -3172,6 +3268,7 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
         return SotnPlayer_Petrify(player, amount, source_x, source_velocity);
     SotnPlayer next = *player;
     // Hurt's original normal reset clears rotation without the transformation helper's flip.
+    next.fairy_rescue.blend = 0;
     next.gravity.upside_down = false;
     SotnPlayer_BatCancel(&next);
     SotnPlayer_WolfCancel(&next);

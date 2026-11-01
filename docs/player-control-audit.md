@@ -1,7 +1,8 @@
 # Alucard control completion inventory
 
 Milestone 1 remains open. Its original control dispatch has 34 handled states;
-the native player currently dispatches 32. An enum member, command recognizer,
+32 states have selected native producers. State17 has an additional gated response
+whose Fairy/engine availability remains unfinished. An enum member, command recognizer,
 animation or component request does not implement a missing state. This inventory
 records the dependencies needed to close the complete milestone, including those
 also covered by the other [Alucard workstreams](alucard-status.md).
@@ -25,7 +26,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
 | 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
 | 16: kill | [Selected native normal/fire/thunder/ice C0 effects, resident capture and common64 uploads](player-physical-death.md), water common death and stone death | Interrupted/grab/fade contexts, general cleanup and whole-stage failure/shared timing boundaries |
-| 17: Fairy Life Apple rescue hold | Classified dead, no native dispatch | Actual Fairy inventory/use, movement/animation/effects, scene-wordFFF handshake, HP/MP restoration and shared slots8..63 cleanup; retained pose/draw attributes, ground/fall recovery and Blink4A. A supplied scene word or replacement timer does not implement the familiar |
+| 17: Fairy Life Apple rescue hold | [Bound interruption/hold/resource/recovery and shared Blink4A](player-fairy-rescue.md); no ordinary Fairy producer/FFF engine availability | Actual Fairy selection, saved progress, item-use/lifecycle and native FFF/cleanup/resource transactions; remaining death contexts. Supplied scene/resource/clock fixtures do not implement the familiar |
 | 18: teleport | [Owned Library Card](player-library-card.md), actual shared121/65 effects, Library travel/arrival ACK; six controller substates and integer alignment helper | Other-castle triggers/native TOP/RTOP, broader sharing/GPU/audio and route/console evidence |
 | 24/25: Wolf/return | [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) | All entry/return contexts, interrupted handshakes and shared contention |
 | 32: Dark Metamorphosis | [Dark](player-dark-metamorphosis.md) | Full transition/helper/palette contention evidence |

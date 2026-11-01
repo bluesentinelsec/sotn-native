@@ -156,6 +156,7 @@ struct SotnPlayer
     SotnPlayerHurt hurt;
     Uint16 stage_id;
     SotnPlayerWaterDeath water_death;
+    SotnPlayerFairyRescue fairy_rescue;
     SotnPlayerDeathCapture death_capture;
     SotnPlayerDeathDecay death_decay;
     void *death_context;

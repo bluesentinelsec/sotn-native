@@ -46,7 +46,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [Alucard sword command/recovery](player-sword-warp.md) adds state15, and
   [owned Axe Armor](player-axe-armor.md) adds40/41/42/43/50; selected
   [Library Card](player-library-card.md) adds18 with actual item/effect/travel owners;
-  32 states now dispatch. Fairy Life Apple rescue17 (previously labeled global-fade),
+  32 states now have selected native producers. The additional
+  [bound state17 response](player-fairy-rescue.md) supplies interruption/hold,
+  resource/recovery and shared Blink4A while actual Fairy/FFF availability remains
+  gated. Fairy Life Apple rescue17 (previously labeled global-fade),
   Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
   producer, item consumption, scene handshake and cleanup are required for17.
   Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate

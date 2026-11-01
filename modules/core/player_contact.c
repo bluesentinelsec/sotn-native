@@ -27,7 +27,9 @@ bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
             "Fury Plate damage requires its unintegrated original defense-buff owner");
     if (!p || !p->death_capture || !p->death_decay || !p->death_context ||
         (p->damage_pending && p->damage_clock != timer) ||
-        (!p->damage_pending && p->damage_ticked && p->damage_last_clock == timer))
+        (!p->damage_pending && p->damage_ticked && p->damage_last_clock == timer &&
+         !(p->fairy_rescue.bound && p->fairy_rescue.scene == 0xfff &&
+           SotnPlayerStep_IsDead(p->step))))
         return SDL_SetError(
             "Damage context requires actual capture owners and a new gameplay clock");
     p->timer_status = SotnPlayer_Status(p);

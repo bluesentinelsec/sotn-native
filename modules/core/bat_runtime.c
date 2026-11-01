@@ -1510,6 +1510,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              !RequestSource(&r, p.damage_number.source, 0x58002c, 0)))
             return false;
     }
+    if (p.fairy_rescue.recovered)
+    {
+        if (in.freeze || !p.fairy_rescue.bound || p.fairy_rescue.scene ||
+            !p.fairy_rescue.restored || !p.hp || p.death.native || p.water_death.active ||
+            (p.step != SOTN_PLAYER_STAND && p.step != SOTN_PLAYER_FALL))
+            return SDL_SetError("Fairy recovery flash lost its actual restored player owner");
+        if (!RequestSource(&r, p.fairy_rescue.source, 0x4a002cU, 0))
+            return false;
+    }
     if (p.hurt.count > SDL_arraysize(p.hurt.factories))
         return SDL_SetError("Hurt feedback exceeded its actual bounded factory list");
     if ((in.freeze && (p.hurt.count || p.hurt.started || p.hurt.shake_requested)) ||

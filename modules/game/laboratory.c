@@ -2627,7 +2627,7 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
     }
     else if (player.body_color_blend)
     {
-        q.draw_mode = 4;
+        q.draw_mode |= 4;
         for (Uint16 v = 0; v < 4; ++v)
             q.red[v] = q.green[v] = q.blue[v] = player.body_grey[v];
     }
@@ -2636,9 +2636,10 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
             s->executable,
             BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
             BlinkWord(y + player.draw_pivot_y),
-            player.death.native   ? player.death.rotation
-            : player.stone.active ? player.stone.rotation
-                                  : player.bat.rotation,
+            player.fairy_rescue.recovered ? player.fairy_rescue.rotation
+            : player.death.native         ? player.death.rotation
+            : player.stone.active         ? player.stone.rotation
+                                          : player.bat.rotation,
             player.facing_left, &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
@@ -3196,10 +3197,12 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      ? DrawAxeArmorPlayer(session, player)
                      : ((player.animation.sprite & 0x8000U) || player.stone.active ||
                                 player.death.native || player.water_death.active ||
-                                player.animation_bank == 13 || player.rotated ||
+                                player.fairy_rescue.blend || player.animation_bank == 13 ||
+                                player.rotated ||
                                 (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                                  (player.palette != 0x8100 || player.body_color_blend))
-                            ? DrawRotatedPlayer(session, player, &alucard, 0)
+                            ? DrawRotatedPlayer(session, player, &alucard,
+                                                player.fairy_rescue.blend)
                         : player.stone.active ? SotnAlucard_DrawPetrified(
                                                     &alucard, common, Pixel(player.x) - view_x,
                                                     Pixel(player.y) - view_y, player.facing_left,

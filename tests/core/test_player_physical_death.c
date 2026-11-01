@@ -119,7 +119,105 @@ static bool Run(void)
     SDL_free(dra);
     return true;
 }
+static bool FairyRescue(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    CHECK(dra);
+    Uint8 tiles[32 * 16 * 2] = {0}, types[1] = {0};
+    for (Uint16 i = 0; i < 247; ++i)
+        P32(dra + 0x101b8 + i * 4U, 0x800a0100);
+    P32(dra + 0x100, 1U | 1U << 16);
+    P32(dra + 0x101b8 + 0xc0U * 4U, 0x800a0200);
+    P32(dra + 0x101b8 + 0xc1U * 4U, 0x800a0200);
+    for (Uint16 i = 0; i < 24; ++i)
+        P32(dra + 0x200 + i * 4U, 1U | ((Uint32)i + 1U) << 16);
+    P32(dra + 0x260, 65535);
+    const SotnCollisionMap map = {{tiles, sizeof(tiles)}, {types, sizeof(types)}, 32, 16};
+    for (Uint16 water = 0; water < 2; ++water)
+        for (Uint16 captured = 0; captured < 3; ++captured)
+            for (Uint16 ground = 0; ground < 2; ++ground)
+            {
+                SotnPlayer *p = NULL;
+                Owner owner = {0};
+                CHECK(SotnPlayer_Create((SotnDataView){dra, 0x11000}, map, 100, 135, &p));
+                p->fixed_stage = true;
+                CHECK(SotnPlayer_SetDeathCapture(p, Capture, Decay, &owner) &&
+                      !SotnPlayer_SetFairyScene(p, 0xfff));
+                if (water)
+                {
+                    p->hp = 1;
+                    CHECK(SotnPlayer_StartWaterDeath(
+                              p, (SotnWaterDamageEvents){.response = 6, .damage = 1}) &&
+                          SotnPlayer_Tick(p, 0));
+                }
+                else
+                {
+                    p->contact_dispatch = true;
+                    CHECK(SotnPlayer_ContactDamage(p, 70, 80, 0, 1, 0));
+                }
+                if (captured)
+                {
+                    for (Uint16 i = 0; i < 80 && !(p->death.captured || p->water_death.captured);
+                         ++i)
+                        CHECK(SotnPlayer_Tick(p, 0));
+                    CHECK(p->death.captured || p->water_death.captured);
+                    if (captured == 2)
+                        for (Uint16 i = 0; i < 3; ++i)
+                            CHECK(SotnPlayer_Tick(p, 0));
+                }
+                CHECK(SotnPlayer_QueueMailHealing(p));
+                p->timers[0] = 900;
+                p->timers[9] = 17;
+                const Uint32 serial = p->death_serial;
+                const Sint16 rotation =
+                    water ? (Sint16)p->water_death.motion.rotation : p->death.rotation;
+                const Owner held = owner;
+                CHECK(!SotnPlayer_CommitFairyResources(p, 70, 20) &&
+                      SotnPlayer_SetFairyScene(p, 0xfff) && SotnPlayer_SetDamageContext(p, 42) &&
+                      SotnPlayer_Tick(p, SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT) &&
+                      p->step == SOTN_PLAYER_DEATH_HOLD && !p->substep && !p->vx && !p->vy &&
+                      p->form_rotated && !p->hp && p->healing.pending == 1 &&
+                      !SDL_memcmp(&owner, &held, sizeof(held)) && !SotnPlayer_SetFairyScene(p, 0));
+                for (Uint16 i = 0; i < 4; ++i)
+                    CHECK(SotnPlayer_SetDamageContext(p, 42) && SotnPlayer_Tick(p, 0) &&
+                          p->step == SOTN_PLAYER_DEATH_HOLD && p->animation.remaining == 3 &&
+                          p->form_rotated && p->timers[0] == 900 && p->timers[9] == 17 && !p->hp &&
+                          p->healing.pending == 1);
+                const SotnPlayer before = *p;
+                CHECK(!SotnPlayer_CommitFairyResources(p, 69, 20) &&
+                      !SotnPlayer_CommitFairyResources(p, 70, 10000) &&
+                      !SDL_memcmp(&before, p, sizeof(before)) &&
+                      SotnPlayer_CommitFairyResources(p, 70, 20) &&
+                      !SotnPlayer_CommitFairyResources(p, 70, 20));
+                for (Uint16 i = 0; i < 4; ++i)
+                    CHECK(SotnPlayer_SetDamageContext(p, 42) && SotnPlayer_Tick(p, 0) &&
+                          p->step == SOTN_PLAYER_DEATH_HOLD && p->hp == 70 && p->mp == 20 &&
+                          p->healing.pending == 1 && (SotnPlayer_Status(p) & 0x40000U));
+                CHECK(!SDL_memcmp(&owner, &held, sizeof(held)) && SotnPlayer_SetFairyScene(p, 0) &&
+                      p->step == SOTN_PLAYER_DEATH_HOLD);
+                p->contact = ground ? 1 : 0;
+                CHECK(!SotnPlayer_SetDamageContext(p, 42) && SotnPlayer_SetDamageContext(p, 43) &&
+                      SotnPlayer_Tick(p, 0) &&
+                      p->step == (ground ? SOTN_PLAYER_STAND : SOTN_PLAYER_FALL) &&
+                      p->fairy_rescue.recovered && p->fairy_rescue.rotation == rotation &&
+                      p->form_rotated && !p->death.native && !p->death.captured &&
+                      !p->water_death.active && !p->water_death.captured && !p->body_color_blend &&
+                      !p->death.phase && p->death_serial == serial && !p->hurt.count &&
+                      p->fairy_rescue.blend == (water ? 0x30 : 0) &&
+                      p->fairy_rescue.source.priority == 148 && p->healing.pending == 1 &&
+                      !SDL_memcmp(&owner, &held, sizeof(held)));
+                CHECK(SotnPlayer_SetDamageContext(p, 44) && SotnPlayer_Tick(p, 0) &&
+                      !p->fairy_rescue.recovered && !p->form_rotated && !p->healing.pending &&
+                      !p->hurt.count && p->hp == 70 && p->fairy_rescue.blend == (water ? 0x30 : 0));
+                p->invincibility = p->timers[13] = 0;
+                CHECK(SotnPlayer_ContactDamage(p, 70, 80, 0, 1, 0) &&
+                      p->death.generation == serial + 1U && !p->fairy_rescue.blend);
+                SotnPlayer_Close(p);
+            }
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
-    return Run() ? 0 : 1;
+    return Run() && FairyRescue() ? 0 : 1;
 }
