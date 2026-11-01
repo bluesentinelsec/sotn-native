@@ -36,6 +36,7 @@ typedef struct SotnPlayerBlinkShared
  * Parameters 0x42/0x68/0x62 are the original cut/holy/dark hit fans.
  * Parameters 0x45/0x46 are the original fire/thunder fans; thunder holds on state10.
  * Parameters 0x53/0x4F/0x5A supply physical/fire/ice death fans and hold on animationC0.
+ * Parameter 0x4A supplies the finite Life Apple recovery fan; its producer owns actual recovery.
  * Parameter 0x26 supplies entity46 stripes; its actual owner controls motion/retirement.
  * Parameter 0x58 is the neutral hurt/scripted reaction fan; its 0x7007 hold tests original Hit
  * state10. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */

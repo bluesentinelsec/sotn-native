@@ -176,9 +176,8 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
     for (Uint32 i = 0; i < 7; ++i)
         if (s->equipment[i] >= (i < 2 ? SOTN_HAND_ITEMS : SOTN_BODY_ITEMS))
             return SDL_SetError("Equipped item exceeds its table");
-    for (Uint32 i = 0; i < SOTN_HAND_ITEMS; ++i)
-        if (s->hand_count[i] > 99)
-            return SDL_SetError("Hand inventory exceeds 99");
+    // Original hand stock is a byte. Ordinary pickups cap at99, but a Fairy's later
+    // unchecked decrement can wrap after another producer consumes the last spare.
     for (Uint32 i = 0; i < SOTN_BODY_ITEMS; ++i)
         if (s->body_count[i] > 99)
             return SDL_SetError("Body inventory exceeds 99");
@@ -583,6 +582,15 @@ bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint1
 bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
 {
     return SotnCharacter_UseMedicine(c, hand, 166, equipped);
+}
+bool SotnCharacter_UseFamiliarItem(SotnCharacter *c, Uint16 item)
+{
+    if (!c || item < 144 || item > 162)
+        return SDL_SetError("Familiar consumption requires its actual mapped medicine-family item");
+    // faerie.c decrements the bag byte at the committed pose, not at its earlier stock check.
+    // Duplicator and the equipped copies are deliberately not involved in this operation.
+    --c->state.hand_count[item];
+    return true;
 }
 
 static bool Progression(const SotnCharacter *c, SotnDataView *thresholds, SotnDataView *health)

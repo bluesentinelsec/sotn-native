@@ -72,4 +72,18 @@ bool SotnFairyRuntime_UpdateSlot(SotnFairyRuntime *runtime, SotnActors *actors, 
                                  SotnFairyRuntimeEvents *out);
 /** @brief Actual low64 namespace occupancy; no slots are predicted or allocated by this read. */
 Uint64 SotnFairyRuntime_Occupied(const SotnFairyRuntime *runtime);
+/** @brief Apply original post-callback camera/player or connected-room translation.
+ * @param runtime Actual four-slot owner. @param actors Actual shared primitive pool.
+ * @param camera_x Old minus new camera X, in whole pixels; ignored for room entry.
+ * @param camera_y Old minus new camera Y, in whole pixels; ignored for room entry.
+ * @param player_x Original old minus new player X minus ordinary shove, in16.16.
+ * @param player_y Original old minus new player Y minus ordinary shove, in16.16.
+ * @param room Retire non20000 slots before translating retained entities and flag100 rows.
+ * Ordinary camera/player entity flags apply independently; packet2 precedes packet200.
+ * Packet player shifts subtract the floored original displacement, preserving fractions.
+ * @return Success or SDL error before mutation on invalid slots/cursors/stale real leases.
+ * No callbacks, clocks, events, RNG or audio advance. Uninitialized ownership is a no-op.
+ * Room lifecycle still must bind destination resources and initialize the actual root/wings. */
+bool SotnFairyRuntime_Translate(SotnFairyRuntime *runtime, SotnActors *actors, Sint16 camera_x,
+                                Sint16 camera_y, Sint32 player_x, Sint32 player_y, bool room);
 #endif

@@ -218,6 +218,41 @@ static bool FamiliarFactory(Fixture *f)
           allocated);
     return true;
 }
+static bool FamiliarInventory(Fixture *f)
+{
+    for (Uint16 duplicator = 0; duplicator < 3; ++duplicator)
+    {
+        CHECK(Create(f, 159, 0, 1, duplicator ? 5 : 0));
+        if (duplicator == 2)
+            CHECK(SotnCharacter_Collect(f->character, true, 84) &&
+                  SotnCharacter_Equip(f->character, 6, 84));
+        SotnCharacterState expected = {0}, actual = {0};
+        CHECK(SotnCharacter_Get(f->character, &expected, NULL));
+        expected.hand_count[159] = 0;
+        CHECK(SotnCharacter_UseFamiliarItem(f->character, 159) &&
+              SotnCharacter_Get(f->character, &actual, NULL) &&
+              !SDL_memcmp(&expected, &actual, sizeof(actual)));
+    }
+    // A manual cast can consume the last spare after the Fairy's earlier ownership check.
+    CHECK(Create(f, 159, 0, 1, 0));
+    SotnCharacterState checked = {0}, actual = {0};
+    CHECK(SotnCharacter_Get(f->character, &checked, NULL) && checked.hand_count[159] == 1);
+    Uint16 equipped = 0;
+    CHECK(SotnCharacter_UseMedicine(f->character, 0, 159, &equipped) && equipped == 159 &&
+          SotnCharacter_Get(f->character, &actual, NULL) && !actual.hand_count[159]);
+    checked.hand_count[159] = 255;
+    CHECK(SotnCharacter_UseFamiliarItem(f->character, 159) &&
+          SotnCharacter_Get(f->character, &actual, NULL) &&
+          !SDL_memcmp(&checked, &actual, sizeof(actual)) && SotnCharacter_Validate(&actual) &&
+          SotnCharacter_Restore(f->character, &actual));
+    CHECK(SotnCharacter_Collect(f->character, false, 159) &&
+          SotnCharacter_Get(f->character, &actual, NULL) && actual.hand_count[159] == 255);
+    CHECK(!SotnCharacter_UseFamiliarItem(f->character, 143) &&
+          !SotnCharacter_UseFamiliarItem(f->character, 163) &&
+          SotnCharacter_Get(f->character, &actual, NULL) &&
+          !SDL_memcmp(&checked, &actual, sizeof(actual)));
+    return true;
+}
 static bool Resources(Fixture *f)
 {
     CHECK(Create(f, 159, 0, 0, 0));
@@ -289,7 +324,8 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Commands(f) && Boundaries(f) && FamiliarFactory(f) && Resources(f) && Cursor(f);
+    const bool ok = Commands(f) && Boundaries(f) && FamiliarFactory(f) && FamiliarInventory(f) &&
+                    Resources(f) && Cursor(f);
     SotnPlayer_Close(f->p);
     SotnCharacter_Destroy(f->character);
     SDL_free(f);

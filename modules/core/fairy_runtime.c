@@ -292,3 +292,121 @@ bool SotnFairyRuntime_UpdateSlot(SotnFairyRuntime *r, SotnActors *actors, Uint16
     *out = events;
     return true;
 }
+static Sint32 Fixed(Uint32 value)
+{
+    return value <= SDL_MAX_SINT32 ? (Sint32)value : (Sint32)((Sint64)value - 0x100000000LL);
+}
+static Sint16 Word(Sint32 value)
+{
+    const Uint16 bits = (Uint16)(Uint32)value;
+    return bits <= SDL_MAX_SINT16 ? (Sint16)bits : (Sint16)((Sint32)bits - 65536);
+}
+static void PacketShift(Uint16 mode, Sint16 camera_x, Sint16 camera_y, Sint32 player_x,
+                        Sint32 player_y, bool room, Sint32 *x, Sint32 *y)
+{
+    *x = *y = 0;
+    if (!room && (mode & 2U))
+    {
+        *x = camera_x;
+        *y = camera_y;
+    }
+    else if (mode & (room ? 0x100U : 0x200U))
+    {
+        *x = -Pixel(player_x);
+        *y = -Pixel(player_y);
+    }
+}
+bool SotnFairyRuntime_Translate(SotnFairyRuntime *r, SotnActors *actors, Sint16 camera_x,
+                                Sint16 camera_y, Sint32 player_x, Sint32 player_y, bool room)
+{
+    if (!r || !actors)
+        return SDL_SetError("Fairy translation requires its actual namespace and stage pool");
+    if (!r->initialized)
+        return true;
+    SotnFairyRuntime next = *r;
+    // Validate every live lease, including sentinel, before retiring any sibling's rows.
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const SotnFairyRuntimeSlot *c = &r->slots[i];
+        if ((!c->identity && c->lease.count) ||
+            (c->identity && (!c->generation || !(Fairy(c->identity) ||
+                                                 (c->identity >= 0xdc && c->identity <= 0xdf)))))
+            return SDL_SetError("Fairy translation lost its actual slot identity/generation");
+        if (c->lease.count && (c->lease.slot != i + 4U || c->lease.identity != c->identity ||
+                               c->lease.generation != c->generation ||
+                               !SotnActors_FairyEffectRow(actors, &c->lease, 0)))
+            return SDL_SetError("Fairy translation lost its complete actual row lease");
+        if ((c->identity == 0xdf &&
+             (c->cursor.item.removed || c->cursor.item.phase > 2 ||
+              c->cursor.item.count > SOTN_FAIRY_ITEM_PARTICLES ||
+              (c->cursor.item.phase && c->lease.count != c->cursor.item.count + 1U))) ||
+            (c->identity == 0xdd &&
+             (c->cursor.apple.removed || c->cursor.apple.phase > 5 ||
+              (c->cursor.apple.phase && c->lease.count != SOTN_FAIRY_APPLE_ROWS))))
+            return SDL_SetError("Fairy translation lost its initialized particle/light cursor");
+    }
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        SotnFairyRuntimeSlot *c = &next.slots[i];
+        if (!c->identity)
+            continue;
+        if (room && !(c->source.flags & 0x20000U))
+        {
+            SDL_zero(*c);
+            continue;
+        }
+        Sint32 x = c->source.x, y = c->source.y;
+        if (!room && (c->source.flags & 0x08000000U))
+        {
+            x = Fixed((Uint32)x + (Uint32)(Sint32)camera_x * 65536U);
+            y = Fixed((Uint32)y + (Uint32)(Sint32)camera_y * 65536U);
+        }
+        if (room || (c->source.flags & 0x40000U))
+        {
+            x = Fixed((Uint32)x - (Uint32)player_x);
+            y = Fixed((Uint32)y - (Uint32)player_y);
+        }
+        c->source.x = x;
+        c->source.y = y;
+        if (Fairy(c->identity))
+        {
+            c->cursor.fairy.x = x;
+            c->cursor.fairy.y = y;
+        }
+        else if (c->identity == 0xdf && c->cursor.item.phase)
+        {
+            c->cursor.item.x = x;
+            c->cursor.item.y = y;
+            for (Uint16 row = 0; row <= c->cursor.item.count; ++row)
+            {
+                SotnPlayerParticle *p = &c->cursor.item.tiles[row];
+                Sint32 dx = 0, dy = 0;
+                PacketShift(p->draw_mode, camera_x, camera_y, player_x, player_y, room, &dx, &dy);
+                p->screen_x = Word(p->screen_x + dx);
+                p->screen_y = Word(p->screen_y + dy);
+            }
+        }
+        else if (c->identity == 0xdd && c->cursor.apple.phase)
+        {
+            c->cursor.apple.x = x;
+            c->cursor.apple.y = y;
+            for (Uint16 row = 0; row < SOTN_FAIRY_APPLE_ROWS; ++row)
+            {
+                SotnPlayerEffectQuad *p = &c->cursor.apple.quads[row];
+                Sint32 dx = 0, dy = 0;
+                PacketShift(p->draw_mode, camera_x, camera_y, player_x, player_y, room, &dx, &dy);
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    p->x[v] = Word(p->x[v] + dx);
+                    p->y[v] = Word(p->y[v] + dy);
+                }
+            }
+        }
+    }
+    for (Uint16 i = 0; i < 4; ++i)
+        if (r->slots[i].lease.count && !next.slots[i].identity &&
+            !SotnActors_CommitFairyEffect(actors, &r->slots[i].lease, NULL))
+            return false; // All real leases were validated before any retirement above.
+    *r = next;
+    return true;
+}

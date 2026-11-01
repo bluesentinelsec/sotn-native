@@ -78,6 +78,11 @@ player-lock/room translations and cleanup, inventory and saved familiar stats,
 whole-pass rollback, actual8..63 rescue cleanup/resource restoration, full FFF
 player updates and player17 recovery/Blink4A. No substitute pool is introduced.
 
+The subsequent [inventory/translation/recovery-flash services](familiar-inventory-translation.md)
+supply actual bag-byte consumption, no-tick camera/player/room operations and
+finite Blink4A. Their native gameplay/lifecycle callers and player17 recovery
+remain unfinished; the earlier availability boundary above is historical.
+
 Provenance: selected `servant/tt_002/faerie.c`, common servant helpers,
 `dra/7879C.c:UpdatePlayerEntities/func_8011A870` and original primitive flags at
 sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).

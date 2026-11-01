@@ -119,6 +119,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   four-slot dispatch, event callbacks, real shared leases and native scene drawing.
   Native gameplay/card/resource lifecycle, inventory, progression and FFF/player17
   still require their actual bindings before Fairy selection can be enabled.
+  The [inventory/translation/recovery services](familiar-inventory-translation.md)
+  now supply actual bag-byte consumption, no-tick camera/player/room operations
+  and finite Blink4A. Native gameplay/lifecycle inputs, whole-pass transactions,
+  saved progression and FFF/player17 recovery remain required.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

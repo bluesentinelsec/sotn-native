@@ -140,6 +140,13 @@ bool SotnCharacter_UseLibraryCard(SotnCharacter *character, Uint16 hand, Uint16 
  * atomically. */
 bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 item,
                                Uint16 *equipped);
+/** @brief Commit one original Fairy bag-byte decrement for actual mapped medicine144..162.
+ * Call after the real callback/player/native operations succeed, even if optional effects
+ * cannot allocate. Leaves equipment, acquisition order, stats, resources and RNG unchanged;
+ * Duplicator does not suppress this write. Preserves original0-to255 byte wrap when stock
+ * changes between the earlier ability check and actual use. Enables no familiar by itself.
+ * @return Success or SDL error without mutation for an invalid owner/item. */
+bool SotnCharacter_UseFamiliarItem(SotnCharacter *character, Uint16 item);
 /** @brief Award original level-adjusted enemy EXP and process all resulting level gains.
  * @param character Borrowed writable character. @param experience Enemy's original EXP reward.
  * @param enemy_level Original enemy level, 0..99. @param levels Receives levels gained.

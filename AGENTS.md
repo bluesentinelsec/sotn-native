@@ -1,3 +1,16 @@
+The [familiar inventory/translation services](docs/familiar-inventory-translation.md)
+now own actual unchecked bag-byte consumption, no-tick camera/player/room slot
+operations and finite Blink4A. Preserve Duplicator/equipped-copy independence,
+delayed0-to255 wrap and ordinary pickup cap; raw hand bytes already fit unchanged
+savev9. Body cap/order/reserved/version checks remain. Preserve independent entity
+camera/player flags, packet2-before200, subtraction of floored original player
+displacement, sentinel translation and real room20000 retirement after validating
+all sibling leases. No callback/RNG/audio/timer ticks. Blink4A is no revival owner.
+Actual gameplay/lifecycle inputs, transactions, progression and FFF/player17 remain
+required. Supplied flag/origin/inventory/image fixtures and bounded original engine
+fragments are not ordinary activation/acquisition/routes/console evidence. No
+pool/grants/save layout change;32/34 states and all six gates remain open.
+
 The [Fairy slot/effect/render runtime](docs/fairy-slot-runtime.md) now owns actual
 4..7 identities/generations, root/wings initialization, local-before-room event
 births, live DE/DC callbacks and real DD/DF stage leases. Preserve fresh original

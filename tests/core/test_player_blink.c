@@ -307,6 +307,26 @@ int main(void)
     for (Uint16 i = 0; i < 26; ++i)
         CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     CHECK(effect.removed);
+    Uint8 *apple = dra + 0xd670 + 10U * 20U;
+    SDL_memcpy(apple, cut, 20);
+    Put16(apple + 14, 96);
+    effect = (SotnPlayerBlink){.parameter = 0x4a};
+    SDL_zero(shared);
+    input.allocation_failed = true;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !effect.phase &&
+          !events.reset_afterimages);
+    input.allocation_failed = false;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 1 &&
+          events.reset_afterimages);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 96);
+    for (Uint16 i = 0; i < 95; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2);
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

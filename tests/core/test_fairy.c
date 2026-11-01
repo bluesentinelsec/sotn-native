@@ -495,7 +495,86 @@ static bool Runtime(void)
     SDL_free(boot);
     return true;
 }
+static bool Translation(void)
+{
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    CHECK(actors);
+    SotnFairyRuntime r = {.initialized = true, .sound_step = 7, .generation = 4};
+    for (Uint16 i = 0; i < 4; ++i)
+        r.slots[i] = (SotnFairyRuntimeSlot){.generation = i + 1U,
+                                            .identity = i < 2 ? (Uint16)(SOTN_FAIRY_FOLLOW + i)
+                                                              : (i == 2 ? 0xdf : 0xdd),
+                                            .source = {.x = 100 * 65536 + 123,
+                                                       .y = 150 * 65536 + 456,
+                                                       .flags = i < 2 ? 0x0c060000 : 0x0c800000}};
+    for (Uint16 i = 0; i < 2; ++i)
+        r.slots[i].cursor.fairy = (SotnFairy){.mode = r.slots[i].identity,
+                                              .phase = 1,
+                                              .x = r.slots[i].source.x,
+                                              .y = r.slots[i].source.y,
+                                              .flags = r.slots[i].source.flags,
+                                              .frames = 29};
+    for (Uint16 i = 2; i < 4; ++i)
+    {
+        SotnFairyRuntimeSlot *c = &r.slots[i];
+        c->lease = (SotnFairyEffectLease){.generation = c->generation,
+                                          .slot = (Uint16)(i + 4U),
+                                          .identity = c->identity,
+                                          .count = i == 2 ? 3 : 10};
+        for (Uint16 j = 0; j < c->lease.count; ++j)
+            c->lease.rows[j] = (Uint16)(i * 10U + j);
+        CHECK(SotnActors_CommitFairyEffect(actors, NULL, &c->lease));
+    }
+    r.slots[2].cursor.item = (SotnFairyItemEffect){.phase = 1, .count = 2, .alive = 91};
+    for (Uint16 j = 0; j < 3; ++j)
+        r.slots[2].cursor.item.tiles[j] =
+            (SotnPlayerParticle){.screen_x = 32767,
+                                 .screen_y = -32768,
+                                 .draw_mode = j == 0 ? 2 : (j == 1 ? 0x200 : 0x202)};
+    r.slots[3].cursor.apple = (SotnFairyAppleEffect){.phase = 1, .timer = 13};
+    for (Uint16 j = 0; j < 10; ++j)
+        r.slots[3].cursor.apple.quads[j].draw_mode = 0x435;
+    const SotnFairyRuntime original = r;
+    // Both entity flags apply; packets2 take priority over200. The hidden sentinel moves too.
+    CHECK(SotnFairyRuntime_Translate(&r, actors, 3, -4, 65537, -1, false));
+    CHECK(r.slots[0].source.x == 102 * 65536 + 122 && r.slots[0].source.y == 146 * 65536 + 457 &&
+          r.slots[0].cursor.fairy.x == r.slots[0].source.x &&
+          r.slots[0].cursor.fairy.frames == 29 && r.sound_step == 7);
+    CHECK(r.slots[2].source.x == 103 * 65536 + 123 &&
+          r.slots[2].cursor.item.x == r.slots[2].source.x && r.slots[2].cursor.item.alive == 91 &&
+          r.slots[2].cursor.item.tiles[0].screen_x == -32766 &&
+          r.slots[2].cursor.item.tiles[0].screen_y == 32764 &&
+          r.slots[2].cursor.item.tiles[1].screen_x == 32766 &&
+          r.slots[2].cursor.item.tiles[1].screen_y == -32767 &&
+          r.slots[2].cursor.item.tiles[2].screen_x == -32766);
+    CHECK(r.slots[3].cursor.apple.timer == 13 && !r.slots[3].cursor.apple.quads[0].x[0] &&
+          !r.slots[3].cursor.apple.quads[0].y[0]); // Actual435 birth fan omits camera2.
+    // A stale later lease must preserve earlier slots and all actual rows on room retirement.
+    ++r.slots[3].lease.generation;
+    const SotnFairyRuntime stale = r;
+    SotnPrimitiveSlots occupancy = {0}, after = {0};
+    CHECK(SotnActors_PrimitiveSlots(actors, &occupancy) &&
+          !SotnFairyRuntime_Translate(&r, actors, 0, 0, 65537, -1, true) &&
+          !SDL_memcmp(&r, &stale, sizeof(r)) && SotnActors_PrimitiveSlots(actors, &after) &&
+          !SDL_memcmp(&occupancy, &after, sizeof(after)));
+    r = original;
+    CHECK(SotnFairyRuntime_Translate(&r, actors, 0, 0, 65537, -1, true) &&
+          r.slots[0].source.x == 99 * 65536 + 122 && r.slots[0].source.y == 150 * 65536 + 457 &&
+          r.slots[0].cursor.fairy.frames == 29 && !r.slots[2].identity && !r.slots[3].identity &&
+          r.generation == original.generation && r.sound_step == 7);
+    CHECK(SotnActors_PrimitiveSlots(actors, &after));
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_WORDS; ++i)
+        CHECK(!after.occupied[i]);
+    // Cold event positions move without binding a cursor or advancing the callback.
+    r.slots[2] = (SotnFairyRuntimeSlot){
+        .generation = 9, .identity = 0xdf, .source = {.x = SDL_MAX_SINT32, .flags = 0x08000000}};
+    CHECK(SotnFairyRuntime_Translate(&r, actors, 1, 0, 0, 0, false) &&
+          r.slots[2].source.x == SDL_MIN_SINT32 + 65535 && !r.slots[2].cursor.item.phase &&
+          !r.slots[2].cursor.item.x);
+    SDL_free(actors);
+    return true;
+}
 int main(void)
 {
-    return Run() && Runtime() ? 0 : 1;
+    return Run() && Runtime() && Translation() ? 0 : 1;
 }

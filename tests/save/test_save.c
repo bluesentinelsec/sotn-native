@@ -230,7 +230,7 @@ static bool Codec(void)
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
     record[8] = 9;
-    record[104] = 100;
+    record[273] = 100;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
@@ -616,10 +616,26 @@ static bool OlroxSecretProgress(void)
     CHECK(!SotnSave_Encode(state, record, sizeof(record)));
     return true;
 }
+static bool RawHandStock(void)
+{
+    SotnSaveState state = Profile(), decoded = {0};
+    Uint8 record[SOTN_SAVE_BYTES] = {0};
+    state.character.hand_count[159] = 255;
+    CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 9 && record[12] == 0 &&
+          record[13] == 16 && record[104 + 159] == 255 &&
+          SotnSave_Decode(record, sizeof(record), &decoded));
+    CHECK(decoded.character.hand_count[159] == 255 &&
+          SDL_memcmp(decoded.character.hand_count, state.character.hand_count,
+                     sizeof(state.character.hand_count)) == 0 &&
+          SDL_memcmp(decoded.character.equipment, state.character.equipment,
+                     sizeof(state.character.equipment)) == 0 &&
+          decoded.character.random == state.character.random);
+    return true;
+}
 int main(int argc, char **argv)
 {
     if (argc != 2 || !Codec() || !ShopProgress() || !Stages() || !ChapelMariaProgress() ||
-        !OlroxSecretProgress() || !Storage(argv[1]))
+        !OlroxSecretProgress() || !RawHandStock() || !Storage(argv[1]))
         return 1;
     SDL_Log("SOTN_SAVE_TEST: PASS");
     return 0;

@@ -28,8 +28,8 @@ static bool Selected(Uint16 parameter)
            parameter == 0x68 || parameter == 0x62 || parameter == 0x45 || parameter == 0x46 ||
            parameter == 0x53 || parameter == 0x4f || parameter == 0x5a ||
            (parameter >= 1 && parameter <= 4) || parameter == 0x14 || parameter == 0x49 ||
-           parameter == 0x4b || parameter == 0x4c || parameter == 0x4d || parameter == 0x50 ||
-           parameter == 0x5e || parameter == 0x5f;
+           parameter == 0x4a || parameter == 0x4b || parameter == 0x4c || parameter == 0x4d ||
+           parameter == 0x50 || parameter == 0x5e || parameter == 0x5f;
 }
 static bool Morph(Uint16 parameter)
 {
