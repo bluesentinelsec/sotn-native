@@ -6,7 +6,7 @@
  * The sixteen tiles use rows2..17 of the same eighteen-row lease. */
 typedef struct SotnImmunityText
 {
-    SotnPlayerEffectQuad quad;
+    SotnPlayerEffectQuad quad, suffix;
     struct
     {
         Sint16 x, y;
@@ -30,9 +30,10 @@ typedef struct SotnImmunityText
 bool SotnImmunityText_Tick(SotnImmunityText *text, SotnDataView dra, SotnDataView executable,
                            Sint32 x, Sint32 y, bool grounded, bool allocated);
 /** @brief Advance actual text parameter0/1/2, with its original packed target and sound.
- * @param parameter Full child parameter: upper byte selects immunity0/poison1/curse2;
- * lower byte must be zero. Other arguments have the same ownership as Tick.
- * Sound is a one-update request for the real shared audio service. */
+ * @param parameter Full child parameter: upper byte selects immunity0/poison1/curse2/stone3 or
+ * medicine labels8..19; lower byte must be zero. Labels own the actual second GT4 from the same
+ * lease. Other arguments have the same ownership as Tick. Sound is a one-update request for the
+ * real shared audio service. */
 bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra,
                                     SotnDataView executable, Sint32 x, Sint32 y, bool grounded,
                                     bool allocated, Uint16 parameter);

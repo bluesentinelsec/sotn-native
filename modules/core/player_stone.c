@@ -117,7 +117,7 @@ void SotnPlayer_StoneTick(SotnPlayer *p)
         }
         const Uint16 directions =
             SOTN_BUTTON_UP | SOTN_BUTTON_RIGHT | SOTN_BUTTON_DOWN | SOTN_BUTTON_LEFT;
-        if ((p->tapped & directions) || impact)
+        if ((p->tapped & directions) || impact || p->hammer_timer)
         {
             p->tapped |= directions;
             p->stone.shakes = (Uint16)(p->stone.shakes - 1U);

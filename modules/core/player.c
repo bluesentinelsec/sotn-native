@@ -545,6 +545,38 @@ static bool StartAttack(SotnPlayer *player)
         player->teleport.hand = (Uint16)hand;
         return true;
     }
+    if (equipment.id >= 144 && equipment.id <= 162)
+    {
+        if (equipment.id == 146 || equipment.id == 147)
+            return false;
+        if (!player->medicine_factory || !player->medicine_consume || player->medicine_present)
+            return false;
+        bool allocated = false;
+        SotnPlayerState captured = {0};
+        if (!SotnPlayer_GetState(player, &captured))
+        {
+            player->failed = true;
+            return true;
+        }
+        const SotnPlayerFactorySource source = {.x = player->x.value,
+                                                .y = player->y.value,
+                                                .priority = captured.priority,
+                                                .facing_left = player->facing_left};
+        const Uint32 packed = 55U | ((Uint32)(equipment.variant + hand * 128U) << 16);
+        if (!player->medicine_factory(player->medicine_context, source, packed, equipment.id,
+                                      &allocated))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (!allocated)
+            return false;
+        player->medicine =
+            (SotnPlayerMedicineUse){.hand = (Uint16)hand, .item = equipment.id, .used = true};
+        if (player->substep < 0x40 && player->step == SOTN_PLAYER_STAND)
+            Animate(player, (Uint16)(equipment.animation + ((player->contact & 0x20) != 0)));
+        return true;
+    }
     if (player->curse_ticks && equipment.id != 0)
     {
         ClearAttack(player);
@@ -2169,6 +2201,11 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (player == NULL || (buttons & (Uint16)~supported) != 0)
         return SDL_SetError("Player input contains unsupported normal-form button bits");
     SotnPlayer next = *player;
+    if (next.hammer_timer)
+    {
+        const Uint32 bits = (Uint32)next.hammer_timer - 1U;
+        SDL_memcpy(&next.hammer_timer, &bits, sizeof(bits));
+    }
     next.frame_contacts = (Uint32)next.contact;
     next.timer_status = SotnPlayer_Status(player);
     bool force_reaction = false, force_hold = false;
@@ -2187,6 +2224,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     const bool teleporting = next.step == SOTN_PLAYER_TELEPORT;
     next.teleport.used = false;
+    next.medicine.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;
@@ -2515,6 +2553,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (next.teleport.used && !next.library_card_use(next.teleport_context, next.teleport.hand,
                                                      &next.equipment[next.teleport.hand]))
         return false;
+    if (next.medicine.used &&
+        !next.medicine_consume(next.medicine_context, next.medicine.hand, next.medicine.item,
+                               &next.equipment[next.medicine.hand]))
+        return false;
     *player = next;
     return true;
 }
@@ -2633,7 +2675,8 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
         SotnEquipment equipment = {0};
         SotnDataView overlay = {0};
         if (!SotnEquipment_Read(player->dra, ids[i], &equipment) ||
-            (ids[i] != 0 && ids[i] != 166 && !SotnWeapon_Overlay(weapons, equipment, &overlay)))
+            (ids[i] != 0 && !(equipment.kind == 131 && equipment.family == 255) &&
+             !SotnWeapon_Overlay(weapons, equipment, &overlay)))
             return false;
         const Uint16 strength = player->attributes.total[0];
         power[i] = (Uint16)SDL_clamp(
@@ -2971,6 +3014,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     const Uint32 status = SotnPlayer_Status(player);
     *out = (SotnPlayerState){
         .water = player->water,
+        .medicine = player->medicine,
+        .hammer_timer = player->hammer_timer,
         .water_breath_timer = player->water_breath_timer,
         .x = player->x.value,
         .y = player->y.value,
@@ -3637,6 +3682,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.water_death.started = false;
     next.death.started = false;
     next.teleport.used = false;
+    next.medicine.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;

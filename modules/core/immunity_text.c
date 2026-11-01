@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7879C.c:EntityGuardText parameters0..3, sotn-decomp
+// Selected dra/7879C.c:EntityGuardText parameters0..3 and medicine8..19, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Text metadata/artwork remain private.
 #include <SDL3/SDL.h>
 #include <sotn/immunity_text.h>
@@ -29,9 +29,10 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
                                     Sint32 x, Sint32 y, bool grounded, bool allocated,
                                     Uint16 parameter)
 {
-    if (!text || text->removed || parameter > 0x300 || (parameter & 255U) ||
+    if (!text || text->removed ||
+        (parameter > 0x300 && (parameter < 0x800 || parameter > 0x1300)) || (parameter & 255U) ||
         text->phase > (parameter ? 7 : 5))
-        return SDL_SetError("Text requires its actual live immunity/poison/curse/stone child");
+        return SDL_SetError("Text requires its actual live immunity/ailment/medicine child");
     SotnImmunityText n = *text;
     n.sound = 0;
     if (n.phase < 2)
@@ -53,8 +54,9 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
     const Uint8 *profile = dra.bytes + offset;
     const Uint16 palette = (Uint16)(profile[4] | (Uint16)profile[5] << 8),
                  mode = (Uint16)(profile[6] | (Uint16)profile[7] << 8);
-    if (mode != 1 || profile[2] <= profile[0] || profile[3] <= profile[1])
-        return SDL_SetError("Immunity text lost its original selected mode1 metadata");
+    const Uint16 expected_mode = parameter < 0x800 ? 1 : parameter <= 0xc00 ? 2 : 3;
+    if (mode != expected_mode || profile[2] <= profile[0] || profile[3] <= profile[1])
+        return SDL_SetError("Immunity text lost its original selected label metadata");
     Sint16 hider = -1;
     switch (n.phase)
     {
@@ -65,7 +67,12 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
             n.y = 216 * 65536;
         n.timer = 56;
         n.half_width = (Sint16)((profile[2] - profile[0]) / 2);
-        n.target = 120 * 65536 + n.half_width;
+        if (mode == 2)
+            n.x = Add(n.x, -6 * 65536);
+        else if (mode == 3)
+            n.x = Add(n.x, 32 * 65536);
+        n.target = (mode == 3 ? 176 : 120) * 65536 + n.half_width;
+        n.suffix.draw_mode = 10;
         n.half_height = n.angle = 0;
         for (Uint16 i = 0; i < 16; ++i)
             n.tiles[i].draw_mode = 10;
@@ -162,6 +169,28 @@ bool SotnImmunityText_TickParameter(SotnImmunityText *text, SotnDataView dra, So
                                     .palette = palette,
                                     .priority = 0x1b8,
                                     .draw_mode = 0x100};
+    if (mode == 2 || mode == 3)
+    {
+        const Uint8 *fixed = dra.bytes + 0xcfecU + (mode == 2 ? 5U : 6U) * 8U;
+        if (fixed[2] <= fixed[0] || fixed[3] <= fixed[1])
+            return SDL_SetError("Medicine label lost its actual private suffix geometry");
+        n.suffix = n.quad;
+        n.suffix.u[0] = n.suffix.u[2] = fixed[0];
+        n.suffix.u[1] = n.suffix.u[3] = fixed[2];
+        n.suffix.v[0] = n.suffix.v[1] = fixed[1];
+        n.suffix.v[2] = n.suffix.v[3] = fixed[3];
+        const Sint32 extra = (n.half_width - Word(n.target)) * 2;
+        if (mode == 2)
+        {
+            n.suffix.x[0] = n.suffix.x[2] = n.quad.x[1];
+            n.suffix.x[1] = n.suffix.x[3] = Word(n.suffix.x[0] + fixed[2] - fixed[0] + extra);
+        }
+        else
+        {
+            n.suffix.x[1] = n.suffix.x[3] = Word(n.quad.x[0] - 3);
+            n.suffix.x[0] = n.suffix.x[2] = Word(n.suffix.x[1] - (fixed[2] - fixed[0]) - extra);
+        }
+    }
     for (Uint16 i = 0; i < 16; ++i)
         if (n.tiles[i].active)
         {
@@ -189,6 +218,12 @@ bool SotnImmunityText_Rebase(SotnImmunityText *n, Sint16 x, Sint16 y)
         return SDL_SetError("Immunity text rebase requires its actual live cursor");
     if (n->phase >= 3)
     {
+        if (n->suffix.draw_mode & 2U)
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                n->suffix.x[v] = Word(n->suffix.x[v] + x);
+                n->suffix.y[v] = Word(n->suffix.y[v] + y);
+            }
         for (Uint16 i = 0; i < 16; ++i)
             if (n->tiles[i].draw_mode & 2U)
             {
@@ -207,6 +242,11 @@ bool SotnImmunityText_ChangeRoom(SotnImmunityText *n, Sint16 x, Sint16 y)
         {
             n->quad.x[v] = Word(n->quad.x[v] + x);
             n->quad.y[v] = Word(n->quad.y[v] + y);
+            if (n->suffix.draw_mode & 0x100U)
+            {
+                n->suffix.x[v] = Word(n->suffix.x[v] + x);
+                n->suffix.y[v] = Word(n->suffix.y[v] + y);
+            }
         }
     return true;
 }

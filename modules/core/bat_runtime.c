@@ -179,6 +179,38 @@ bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *r, SotnPlayerFactorySource s
     *allocated = false;
     return true;
 }
+bool SotnBatRuntime_MedicinePresent(const SotnBatRuntime *r)
+{
+    if (!r)
+        return false;
+    for (Uint16 i = 16; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 39)
+            return true;
+    return false;
+}
+bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *r, SotnPlayerFactorySource source,
+                                    Uint32 packed, Uint16 item, bool *allocated)
+{
+    const Uint32 profile = (packed >> 16) & 127U;
+    const Uint32 expected = item >= 157 ? item - 143U : item >= 144 ? item - 144U : 0;
+    if (!r || !allocated || item < 144 || item > 162 || item == 146 || item == 147 ||
+        (packed & 65535U) != 55 || (packed >> 24) || profile != expected)
+        return SDL_SetError(
+            "Medicine reservation requires actual55, hand/profile and item144..162");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, (Sint16)item))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
 static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 generation)
 {
     return RequestSource(
@@ -253,10 +285,10 @@ static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 30 ||
            kind == 33 || kind == 32 || kind == 31 || kind == 35 || kind == 36 || kind == 37 ||
-           kind == 45 || kind == 46 || kind == 49 || kind == 50 || kind == 54 || kind == 47 ||
-           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 65 ||
-           kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
-           (kind >= 24 && kind <= 29);
+           kind == 38 || kind == 39 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
+           kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
+           kind == 63 || kind == 65 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
+           kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -270,7 +302,10 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->state.particles.flags;
     case 11:
     case 31:
+    case 38:
         return 0x04870000U;
+    case 39:
+        return 0x04070000U;
     case 46:
         return 0x04830000U;
     case 49:
@@ -391,8 +426,10 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
     if (c->kind != 37)
         return true;
     const SotnImmunityText *n = &c->state.immunity_text;
-    return c->generation && c->parameter <= 0x300 && !(c->parameter & 255U) && !c->bat_generation &&
-           !c->group && !c->draw_count && !n->removed && n->phase <= (c->parameter ? 7 : 5) &&
+    return c->generation &&
+           (c->parameter <= 0x300 || (c->parameter >= 0x800 && c->parameter <= 0x1300)) &&
+           !(c->parameter & 255U) && !c->bat_generation && !c->group && !c->draw_count &&
+           !n->removed && n->phase <= (c->parameter ? 7 : 5) &&
            (c->initialized
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
@@ -442,6 +479,53 @@ bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *c)
            (c->initialized ? (n->phase >= 1 && n->phase <= 6) || (n->phase >= 20 && n->phase <= 23)
                            : n->phase == 0) &&
            c->primitive_count == (c->initialized ? SOTN_TELEPORT_ROWS : 0);
+}
+bool SotnBatRuntime_CircleValid(const SotnBatRuntimeChild *c)
+{
+    if (!c)
+        return false;
+    if (c->kind != 38)
+        return true;
+    const SotnPlayerCircle *n = &c->state.circle;
+    return c->generation && !c->bat_generation && !c->group && !c->draw_count && !n->removed &&
+           ((c->parameter >> 8) & 63U) < 22 && n->parameter == c->parameter &&
+           (c->initialized ? n->phase >= 1 && n->phase <= 3 : !n->phase) &&
+           c->primitive_count == (c->initialized ? SOTN_PLAYER_CIRCLE_ROWS : 0);
+}
+bool SotnBatRuntime_MedicineValid(const SotnBatRuntimeChild *c)
+{
+    if (!c)
+        return false;
+    if (c->kind != 39)
+        return true;
+    const SotnMedicineEffect *n = &c->state.medicine;
+    return c->generation && !c->bat_generation && !c->group && !c->draw_count &&
+           !c->primitive_count && !n->removed && ((c->parameter >> 8) & 127U) < 20 &&
+           n->parameter == c->parameter && n->index >= 0 && n->index <= 7 &&
+           (c->initialized ? n->phase >= 1 && n->phase <= 2 : !n->phase);
+}
+bool SotnBatRuntime_PruneMedicines(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_CircleValid(&r->children[i]) ||
+            !SotnBatRuntime_MedicineValid(&r->children[i]))
+            return SDL_SetError("Medicine room cleanup lost its actual child/row lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if ((r->children[i].kind == 38 || r->children[i].kind == 39) &&
+            !(ChildFlags(&r->children[i]) & 0x20000U))
+            r->children[i] = (SotnBatRuntimeChild){0};
+    return true;
+}
+bool SotnBatRuntime_PruneRoomFactories(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (r->factories[i].cursor.entity_id && !(r->factories[i].cursor.source.flags & 0x20000U))
+            SDL_zero(r->factories[i]);
+    return true;
 }
 bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *r)
 {
@@ -562,7 +646,9 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
         return SDL_InvalidParamError("runtime");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (!SotnBatRuntime_HolyHitValid(&r->children[i]) ||
-            !SotnBatRuntime_IceHitValid(&r->children[i]))
+            !SotnBatRuntime_IceHitValid(&r->children[i]) ||
+            !SotnBatRuntime_CircleValid(&r->children[i]) ||
+            !SotnBatRuntime_MedicineValid(&r->children[i]))
             return SDL_SetError("Player shove lost its actual holy child owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 47 && r->children[i].initialized &&
@@ -572,6 +658,18 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
         if (r->children[i].kind == 33 && r->children[i].initialized &&
             !SotnIceHit_Displace(&r->children[i].state.ice, x, y))
             return false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 38 && r->children[i].initialized &&
+            !SotnPlayerCircle_Displace(&r->children[i].state.circle, x, y))
+            return false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 39 && r->children[i].initialized)
+        {
+            const Uint32 bx = (Uint32)r->children[i].source.x + (Uint32)x,
+                         by = (Uint32)r->children[i].source.y + (Uint32)y;
+            SDL_memcpy(&r->children[i].source.x, &bx, sizeof(bx));
+            SDL_memcpy(&r->children[i].source.y, &by, sizeof(by));
+        }
     return true;
 }
 bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -636,7 +734,9 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.bat_generation = 0;
         c.state.sword.parent_generation = generation;
     }
-    if (c.kind == 37 && (child.parameter > 0x300 || (child.parameter & 255U) || generation))
+    if (c.kind == 37 &&
+        ((child.parameter > 0x300 && (child.parameter < 0x800 || child.parameter > 0x1300)) ||
+         (child.parameter & 255U) || generation))
         return SDL_SetError("Text requires actual immunity/poison/curse/stone parameter and no "
                             "transformation parent");
     if (c.kind == 54 && generation)
@@ -649,6 +749,19 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             return SDL_SetError("Dissolve requires its actual independent zero-parameter factory");
         c.state.dissolve.x = child.source.x;
         c.state.dissolve.y = child.source.y;
+    }
+    if (c.kind == 39)
+    {
+        if (generation || ((child.parameter >> 8) & 127U) >= 20)
+            return SDL_SetError("Medicine child lost its actual independent private profile");
+        c.state.medicine.parameter = child.parameter;
+    }
+    if (c.kind == 38)
+    {
+        if (generation || ((child.parameter >> 8) & 63U) >= 22)
+            return SDL_SetError("Player circle requires its independent actual private profile");
+        c.state.circle = (SotnPlayerCircle){
+            .x = child.source.x, .y = child.source.y, .parameter = child.parameter};
     }
     if (c.kind == 65)
     {
@@ -952,7 +1065,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
     if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r) ||
-                        !SotnBatRuntime_PruneTeleport(&r)))
+                        !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -995,6 +1108,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
         if (!SotnBatRuntime_DissolveValid(c))
             return SDL_SetError("Dissolve lost its actual thirty-six-row child ownership");
+        if (!SotnBatRuntime_MedicineValid(c))
+            return SDL_SetError("Medicine lost its actual rowless child/cursor ownership");
+        if (!SotnBatRuntime_CircleValid(c))
+            return SDL_SetError("Player circle lost its actual thirty-two-row child ownership");
         if (!SotnBatRuntime_TeleportValid(c))
             return SDL_SetError("Teleport lost its actual thirty-six-row child ownership");
         if (!SotnBatRuntime_IceHitValid(c))
@@ -1043,6 +1160,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (c->kind == 30 && c->primitive_count == 6) ||
                 (c->kind == 32 && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS) ||
                 (c->kind == 65 && c->primitive_count == SOTN_TELEPORT_ROWS) ||
+                (c->kind == 38 && c->primitive_count == SOTN_PLAYER_CIRCLE_ROWS) ||
                 (c->kind == 33 && c->primitive_count == 24) ||
                 (c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
                  c->state.particles.count &&
@@ -1148,6 +1266,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
             return false;
+        if (c->kind == 38 && in.entering &&
+            !SotnPlayerCircle_Rebase(&c->state.circle, in.screen_shift_x, in.screen_shift_y, true))
+            return false;
         if (c->kind == 33 && in.entering &&
             !SotnIceHit_Rebase(&c->state.ice, in.screen_shift_x, in.screen_shift_y, true))
             return false;
@@ -1214,6 +1335,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.wolf_frame.x = FixedShift(r.wolf_frame.x, in.screen_shift_x);
         r.wolf_frame.y = FixedShift(r.wolf_frame.y, in.screen_shift_y);
     }
+    r.medicine = (SotnMedicineEffectEvents){0};
     r.teleport_palette = 0;
     r.teleport_warp_mode = 0;
     r.teleport_acknowledged = false;
@@ -1633,6 +1755,77 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 39)
+        {
+            SotnMedicineEffectEvents events = {0};
+            if (!SotnMedicineEffect_Tick(
+                    &c->state.medicine,
+                    (SotnMedicineEffectInput){.dra = in.dra,
+                                              .player_step = (Uint16)p.step,
+                                              .hp_max = p.hp_max,
+                                              .enhanced_potion = progress.equipment[5] == 80 ||
+                                                                 progress.equipment[6] == 80},
+                    &events))
+                return false;
+            for (Uint16 j = 0; j < events.factory_count; ++j)
+                if (!RequestSource(&r, c->source, events.factories[j], 0))
+                    return false;
+            for (Uint16 j = 0; j < events.sound_count; ++j)
+                if (!Sound(&r, events.sounds[j]))
+                    return false;
+            r.medicine.buff_mask |= events.buff_mask;
+            r.medicine.protection = SDL_max(r.medicine.protection, events.protection);
+            r.medicine.cure_mask |= events.cure_mask;
+            r.medicine.mp_full |= events.mp_full;
+            r.medicine.hammer |= events.hammer;
+            if (events.heal)
+            {
+                r.medicine.heal = true;
+                r.medicine.heal_amount = events.heal_amount;
+            }
+            if (events.protection && p.player_timers[14] < events.protection)
+                p.player_timers[14] = events.protection;
+            if (events.cure_mask & 1U)
+                p.poison_ticks = p.player_timers[0] = 2;
+            if (events.cure_mask & 2U)
+                p.curse_ticks = p.player_timers[1] = 2;
+            removed = c->state.medicine.removed;
+            c->initialized = !removed;
+        }
+        else if (c->kind == 38)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_PLAYER_CIRCLE_ROWS,
+                                            c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? SOTN_PLAYER_CIRCLE_ROWS : 0;
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y),
+                         camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            if (!c->state.circle.phase)
+            {
+                c->state.circle.x = FixedShift(c->source.x, Word(-camera_x));
+                c->state.circle.y = FixedShift(c->source.y, Word(-camera_y));
+            }
+            SotnPlayerCircleEvents events = {0};
+            if (!SotnPlayerCircle_Tick(
+                    &c->state.circle,
+                    (SotnPlayerCircleInput){.dra = in.dra,
+                                            .executable = in.executable,
+                                            .player_x = FixedShift(p.x, Word(-camera_x)),
+                                            .player_y = FixedShift(p.y, Word(-camera_y)),
+                                            .priority = p.priority,
+                                            .allocated = allocated},
+                    &events))
+                return false;
+            r.afterimage_reset |= events.reset_afterimages;
+            removed = c->state.circle.removed;
+            if (!removed && !SotnPlayerCircle_Rebase(&c->state.circle, dx, dy, false))
+                return false;
+            c->initialized = !removed;
         }
         else if (c->kind == 65)
         {

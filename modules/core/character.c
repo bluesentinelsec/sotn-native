@@ -73,7 +73,7 @@ static bool BodySupported(Uint16 id)
            id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
            id == 48 || id == 49 || id == 51 || id == 54 || id == 57 || id == 60 ||
            (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 84 ||
-           id == 85;
+           id == 85 || id == 80;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -94,7 +94,8 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .palette = Read16(p + (body ? 26 : 46)),
                      .supported = body ? BodySupported(id)
                                        : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
-                                          id == 123 || id == 128 || id == 166)};
+                                          id == 123 || id == 128 || id == 166 ||
+                                          (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -521,6 +522,8 @@ bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
     if (c == NULL || slot >= 7)
         return SDL_SetError("Equipment slot must be 0..6");
     const bool body = slot >= 2;
+    if (!body && (id == 146 || id == 147))
+        return SDL_SetError("This item cannot be equipped");
     SotnItem item = {0};
     if (!SotnItem_Read(c->dra, body, id, &item))
         return false;
@@ -553,18 +556,19 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
     return SotnItem_Read(c->dra, body, id, out);
 }
 
-bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
-    if (!c || hand > 1 || !equipped || c->state.equipment[hand] != 166)
-        return SDL_SetError("Library Card consumption requires its actual equipped hand");
-    SotnEquipment card = {0};
-    if (!SotnEquipment_Read(c->dra, 166, &card))
+    if (!c || hand > 1 || !equipped || c->state.equipment[hand] != item ||
+        (item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
+        return SDL_SetError("Medicine consumption requires its actual equipped hand item");
+    SotnEquipment medicine = {0};
+    if (!SotnEquipment_Read(c->dra, item, &medicine))
         return false;
     SotnCharacter next = *c;
     if (next.state.equipment[5] != 84 && next.state.equipment[6] != 84)
     {
-        if (next.state.hand_count[166])
-            --next.state.hand_count[166];
+        if (next.state.hand_count[item])
+            --next.state.hand_count[item];
         else
         {
             next.state.equipment[hand] = 0;
@@ -575,6 +579,10 @@ bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equippe
     *equipped = next.state.equipment[hand];
     *c = next;
     return true;
+}
+bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+{
+    return SotnCharacter_UseMedicine(c, hand, 166, equipped);
 }
 
 static bool Progression(const SotnCharacter *c, SotnDataView *thresholds, SotnDataView *health)

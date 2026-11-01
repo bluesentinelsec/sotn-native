@@ -134,6 +134,12 @@ bool SotnCharacter_Item(const SotnCharacter *character, bool body, Uint16 id, So
  * Original Duplicator84 in either accessory preserves it. A last copy becomes empty and
  * recalculates actual stats. Both character and output remain unchanged on failure. */
 bool SotnCharacter_UseLibraryCard(SotnCharacter *character, Uint16 hand, Uint16 *equipped);
+/** @brief Consume one actual equipped medicine144..162 (excluding146/147) or Card166 after player
+ * success. Spare counts exclude the equipped copy. Either actual Duplicator84 suppresses
+ * consumption. No default grants or inventory/hand selection are performed. Output commits
+ * atomically. */
+bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 item,
+                               Uint16 *equipped);
 /** @brief Award original level-adjusted enemy EXP and process all resulting level gains.
  * @param character Borrowed writable character. @param experience Enemy's original EXP reward.
  * @param enemy_level Original enemy level, 0..99. @param levels Receives levels gained.

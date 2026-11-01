@@ -18,7 +18,7 @@ fixtures and command recognizers do not establish playable availability by thems
 | Normal movement | Walking, jumping/crouching, backdash, double jump, dive kick and Gravity Boots | [Movement](laboratory-movement.md), [backdash](player-backdash.md), [Leap Stone](player-leap-stone.md), [dive kick](player-dive-kick.md), [Gravity Boots](player-gravity-boots.md) |
 | Forms | Mist/Gas Cloud, Bat flight/Wing Smash/Fire/Echo, Wolf movement/bite/sprint/charge, direct form conversions | [Mist](player-mist.md), [Gas Cloud](player-gas-cloud.md), [Bat](player-bat.md), [Wing Smash](player-wing-smash.md), [Fire](player-fire-of-bat.md), [Echo](player-echo-of-bat.md), [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) |
 | Normal spells | Dark Metamorphosis, Summon Spirit, Tetra Spirit, Hellfire and Soul Steal | [Dark](player-dark-metamorphosis.md), [spirits](player-spirit-spells.md), [Hellfire](player-hellfire.md), [Soul Steal](player-soul-steal.md) |
-| Selected consumable travel | Owned Library Card use, Duplicator preservation and actual Library arrival | [Library Card](player-library-card.md), [shared teleport effects](teleport-effects.md); other-castle triggers/stages remain unavailable |
+| Selected consumables | Owned Library Card travel;17 equippable medicines, actual cures/buffs/healing/MP and shared effects; Duplicator/Ankh | [Medicines](player-medicines.md), [Library Card](player-library-card.md), [shared teleport effects](teleport-effects.md); other-castle triggers/stages remain unavailable |
 | Water | Actual Entrance volumes/currents/effects, player drag/gravity/form gates, Wolf swimming, bubbles, ordinary HP loss and native water death | [Stage actors](native-water-actors.md), [player feedback](player-water.md), [bubbles](normal-water-bubbles.md), [damage/contact ordering](player-water-contact.md), [water death](player-water-death.md) |
 | Recovery and presentation | Afterimages, original16 player timer words, selected status masks, poison/curse/stone behavior, blood/orb healing and numbers, original HUD MP recovery, Fury Plate, Healing Mail and Blood Cloak | [Afterimages](player-afterimages.md), [player timers](player-timers.md), [status](player-status.md), [poison](player-poison.md), [curse](character-status.md), [stone](player-petrification.md), [blood](enemy-blood.md), [orbs](soul-steal-orbs.md), [healing numbers](player-healing-numbers.md), [contact numbers](player-contact-numbers.md), [neutral hurt feedback](player-neutral-hurt.md), [Fury](stat-buff-ownership.md), [HUD/Mail](hud-healing-resources.md), [Blood Cloak](player-blood-cloak.md) |
 | Combat and equipment | Owned Axe Armor movement/hurt/attack, selected empty-hand, Basilard, Gladius, Mace, Short sword and Alucard sword ordinary/command attacks and shield paths; selected equipment attributes/passives and absorption/immunity circlets, high-defense guard, Talisman dodge and Ballroom Mask reduction | [Axe Armor](player-axe-armor.md), [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [sword command](player-sword-warp.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md), [immunity](player-contact-immunity.md), [guard](player-contact-guard.md), [Talisman](player-contact-talisman.md), [Ballroom Mask](player-ballroom-mask.md) |
@@ -75,7 +75,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   supplies actual36-row entity32, resident capture and uploads. [Selected stone control](player-petrification.md)
   now connects queued entry/landing/wiggle/escape and selected stone deaths to actual
   factories, sounds, shake, palettes and rendering. Remaining stone/grab/Hammer,
-  damage/death/fade and general shared cleanup gates stay open. [Selected native
+  damage/death/fade and general shared cleanup gates stay open. The subsequent
+  [medicine owner](player-medicines.md) supplies the actual Hammer word/stone escape
+  protocol; the Fairy producer and Life Apple rescue remain unavailable. [Selected native
   physical/elemental death](player-physical-death.md) now supplies actual normal/fire/
   thunder/ice C0 effects, resident capture and64 real decay uploads; remaining
   interrupted/fade/grab contexts and whole-stage atomicity remain open.
@@ -91,6 +93,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   selection/use, costs, caps, expiry and save/Continue behavior. See
   [inventory](character-inventory.md), [combat](laboratory-combat.md),
   [subweapons](laboratory-subweapons.md) and [buff ownership](stat-buff-ownership.md).
+  [Selected owned medicines](player-medicines.md) now supply17 equippable items,
+  actual inventory/cures/4096 buffs/deferred healing/full MP and shared presentation;
+  Life Apple/Hammer hand use is forbidden by the original menu. Familiar use, food,
+  remaining consumables and weapon/equipment families still require real owners.
 - [ ] **Familiars and remaining spells:** implement actual familiar lifecycle,
   controls, behavior/combat/progression and Sword Brothers' familiar-dependent
   execution. Its existing recognizer is not an available spell. See
@@ -99,7 +105,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
-  callbacks before lookup and prunes32/33/65 before destination allocations; other
+  callbacks before lookup and prunes32/33/65 before destination allocations. The
+  medicine batch extends actual root cleanup to every eight-slot record by flags,
+  retaining initialized20000 circle/Pink children and retiring cold38/39; other
   cleanup and full room loading/fade/engine timing remain open. Exercise
   simultaneous producers and optional exhaustion without substitute pools or
   replacing unrelated actors. See [factories](player-ability-factories.md),

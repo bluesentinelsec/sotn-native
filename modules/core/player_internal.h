@@ -69,6 +69,12 @@ struct SotnPlayer
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
     SotnPlayerTeleport teleport;
+    SotnPlayerMedicineUse medicine;
+    SotnPlayerMedicineFactory medicine_factory;
+    SotnPlayerMedicineConsume medicine_consume;
+    void *medicine_context;
+    Sint32 hammer_timer;
+    bool medicine_present;
     SotnPlayerTeleportFactory teleport_factory;
     SotnPlayerLibraryCardUse library_card_use;
     void *teleport_context;

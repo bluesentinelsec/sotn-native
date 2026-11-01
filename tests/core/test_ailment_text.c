@@ -45,6 +45,57 @@ static void Profiles(Uint8 *dra)
     dra[0xd4b8] = 32;
     dra[0xd4b9] = 63;
 }
+static bool MedicineLabels(Uint8 *dra, SotnDataView exe)
+{
+    const Uint16 selectors[] = {5, 6, 8, 13};
+    for (Uint16 i = 0; i < SDL_arraysize(selectors); ++i)
+    {
+        Uint8 *row = dra + 0xcfec + selectors[i] * 8U;
+        row[0] = 2;
+        row[1] = 3;
+        row[2] = (Uint8)(18 + i * 8);
+        row[3] = 11;
+        Put16(row + 4, i < 2 ? 0x157 : 0x1b4);
+        Put16(row + 6, i == 2 ? 2 : i == 3 ? 3 : 0);
+    }
+    for (Uint16 mode = 0; mode < 2; ++mode)
+    {
+        SotnImmunityText n = {0};
+        const Uint16 parameter = (Uint16)((mode ? 13 : 8) << 8);
+        const SotnDataView view = {dra, 0x11000};
+        for (Uint16 i = 0; i < 3; ++i)
+            CHECK(SotnImmunityText_TickParameter(&n, view, exe, 100 * 65536 + 123,
+                                                 140 * 65536 + 456, true, true, parameter));
+        CHECK(n.phase == 3 && n.x == (mode ? 132 : 94) * 65536 + 123 &&
+              n.target == (mode ? 176 : 120) * 65536 + n.half_width &&
+              n.suffix.palette == n.quad.palette && n.suffix.palette == 0x1b4 &&
+              n.suffix.draw_mode == 0x100 &&
+              (mode ? n.suffix.x[1] == n.quad.x[0] - 3 : n.suffix.x[0] == n.quad.x[1]));
+        const SotnPlayerEffectQuad suffix = n.suffix;
+        const Sint32 x = n.x, y = n.y;
+        CHECK(SotnImmunityText_Rebase(&n, -17, 5) &&
+              !SDL_memcmp(&suffix, &n.suffix, sizeof(suffix)) && n.x == x && n.y == y &&
+              SotnImmunityText_ChangeRoom(&n, 23, -7) && n.x == x && n.y == y);
+        for (Uint16 i = 0; i < 4; ++i)
+            CHECK(n.suffix.x[i] == suffix.x[i] + 23 && n.suffix.y[i] == suffix.y[i] - 7);
+        Uint8 *fixed = dra + 0xcfec + (mode ? 6 : 5) * 8U;
+        const Uint8 right = fixed[2];
+        fixed[2] = fixed[0];
+        const SotnImmunityText held = n;
+        CHECK(!SotnImmunityText_TickParameter(&n, view, exe, 0, 0, true, true, parameter) &&
+              !SDL_memcmp(&held, &n, sizeof(n)));
+        fixed[2] = right;
+        Uint16 sounds = 0, hold = 0;
+        for (Uint16 tick = 0; tick < 300 && !n.removed; ++tick)
+        {
+            hold += n.phase == 6;
+            CHECK(SotnImmunityText_TickParameter(&n, view, exe, 0, 0, true, true, parameter));
+            sounds += n.sound == 0x6af;
+        }
+        CHECK(n.removed && sounds == 1 && hold == 96);
+    }
+    return true;
+}
 static bool Controller(SotnDataView dra, SotnDataView exe)
 {
     for (Uint16 kind = 0; kind < 4; ++kind)
@@ -205,7 +256,8 @@ int main(void)
         Put16(exe + 0x22a10 + i * 2U, i / 2U);
     }
     const bool ok = Controller((SotnDataView){dra, 0x11000}, (SotnDataView){exe, 0x24000}) &&
-                    Shared(dra, (SotnDataView){exe, 0x24000});
+                    Shared(dra, (SotnDataView){exe, 0x24000}) &&
+                    MedicineLabels(dra, (SotnDataView){exe, 0x24000});
     SDL_free(dra);
     SDL_free(exe);
     return ok ? 0 : 1;

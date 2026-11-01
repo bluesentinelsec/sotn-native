@@ -20,10 +20,12 @@ typedef struct SotnWeaponFrame
 
 /** @brief Read a supported hand-item definition, without importing runtime tables.
  * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Basilard (18), Gladius (86),
- * Short sword (19), Mace (128), Alucard sword (123), Alucard shield (16), or Library Card (166).
+ * Short sword (19), Mace (128), Alucard sword (123), Alucard shield (16), medicines144..162, or
+ * Library Card (166).
  * @param out Receives copied metadata, unchanged on failure.
  * @return Success, or false with SDL_GetError() for invalid or unsupported definitions.
- * @note Other items and their special effects require separate integration. */
+ * @note Life Apple146/Hammer147 metadata does not enable equipping or hand use.
+ * Other items and their special effects require separate integration. */
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out);
 /** @brief Read virtual197 for an actual equipped Alucard sword123 special.
  * @param dra Borrowed private US definitions. @param equipped Actual owned hand item.

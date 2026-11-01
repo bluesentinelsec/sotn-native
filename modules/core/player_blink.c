@@ -26,7 +26,10 @@ static bool Selected(Uint16 parameter)
            parameter == 0x17 || parameter == 0x4e || parameter == 0x59 || parameter == 0x58 ||
            parameter == 0x43 || parameter == 0x51 || parameter == 0x26 || parameter == 0x42 ||
            parameter == 0x68 || parameter == 0x62 || parameter == 0x45 || parameter == 0x46 ||
-           parameter == 0x53 || parameter == 0x4f || parameter == 0x5a;
+           parameter == 0x53 || parameter == 0x4f || parameter == 0x5a ||
+           (parameter >= 1 && parameter <= 4) || parameter == 0x14 || parameter == 0x49 ||
+           parameter == 0x4b || parameter == 0x4c || parameter == 0x4d || parameter == 0x50 ||
+           parameter == 0x5e || parameter == 0x5f;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -208,13 +211,7 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         (next.parameter == 0x21 && next.phase != 0 && next.phase != 10 && next.phase != 11) ||
         (next.parameter == 0x23 && next.phase != 0 && next.phase != 12 && next.phase != 13) ||
         (next.parameter == 0x24 && next.phase != 0 && next.phase != 14 && next.phase != 15) ||
-        ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5 ||
-          next.parameter == 0x44 || next.parameter == 0x48 || next.parameter == 0x67 ||
-          next.parameter == 0x16 || next.parameter == 0x17 || next.parameter == 0x4e ||
-          next.parameter == 0x59 || next.parameter == 0x58 || next.parameter == 0x43 ||
-          next.parameter == 0x51 || next.parameter == 0x42 || next.parameter == 0x68 ||
-          next.parameter == 0x62 || next.parameter == 0x45 || next.parameter == 0x46 ||
-          next.parameter == 0x53 || next.parameter == 0x4f || next.parameter == 0x5a) &&
+        (!Morph(next.parameter) && next.parameter != 0x26 && next.parameter != 0x5c &&
          next.phase > 3) ||
         (next.parameter == 0x26 && next.phase != 0 && (next.phase < 16 || next.phase > 18)) ||
         (next.parameter == 0x5c && next.phase > 4))

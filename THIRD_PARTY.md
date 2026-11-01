@@ -13,6 +13,16 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed selected owned medicines and shared circles**, AGPL-3.0-or-later.
+  `modules/core/{player_medicine,medicine_effect,player_circle}.c` and selected
+  player/character/shared/native/render bindings adapt `dra/6E42C.c`,
+  `dra/menu.c:func_800FB23C`, `dra/5D5BC.c:ReduceWeapon/GetStatusAilmentTimer`,
+  `dra/7E4BC.c:EntityPlayerPinkEffect/EntityTransparentWhiteCircle`,
+  `dra/7879C.c:EntityGuardText/EntityPlayerBlinkWhite`, `dra/71830.c:PlayerStepStone`
+  and `dra/692E8.c:EntityAlucard` at the pinned revision below. Profiles, item
+  definitions, labels, artwork and SDK inputs remain private. See
+  [scope and evidence](docs/player-medicines.md).
+
 - **Reconstructed selected room callback and cleanup ordering**, AGPL-3.0-or-later.
   `modules/game/laboratory.c`, `modules/core/bat_runtime.c` and the native contact
   bridge adapt `dra/5087C.c:RunMainEngine`, `dra/7879C.c:func_8011A9D8` and

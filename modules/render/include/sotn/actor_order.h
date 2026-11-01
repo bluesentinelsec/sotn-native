@@ -21,16 +21,18 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_HELLFIRE_SPRITE, /**< Actual initialized projectile/trail child index0..47. */
     SOTN_DRAW_RISING_HEART,    /**< Actual child51 index0..47; no primitive lease. */
     SOTN_DRAW_SWORD,           /**< Actual weapon43 callback image/strike child index0..47. */
-    SOTN_DRAW_IMMUNITY_TEXT,   /**< Actual entity37 child*18+row; row1 remains hidden. */
-    SOTN_DRAW_HEALING_NUMBER,  /**< Actual child19 index times20 plus digit/tile index. */
-    SOTN_DRAW_AXE_SHADOW,      /**< Actual rowless entity49 child index0..47. */
-    SOTN_DRAW_FIRE_HIT,        /**< Actual rowless entity16 child index0..47. */
-    SOTN_DRAW_DARK_HIT,        /**< Actual rowless entity54 child index0..47. */
-    SOTN_DRAW_THUNDER_HIT,     /**< Actual entity30 child*6+GT4 row0..5. */
-    SOTN_DRAW_ICE_HIT,         /**< Actual entity33 child*24+G4 shard0..23. */
-    SOTN_DRAW_STONE_DISSOLVE,  /**< Actual entity32 child*36+textured slice0..35. */
-    SOTN_DRAW_HOLY_HIT,        /**< Actual entity47 child*16+GT4 index0..15. */
-    SOTN_DRAW_TELEPORT         /**< Actual entity65 child*36+TILE/G4/GT4 index0..35. */
+    SOTN_DRAW_IMMUNITY_TEXT,  /**< Actual entity37 child*18+row; row1 is the actual medicine suffix.
+                               */
+    SOTN_DRAW_HEALING_NUMBER, /**< Actual child19 index times20 plus digit/tile index. */
+    SOTN_DRAW_AXE_SHADOW,     /**< Actual rowless entity49 child index0..47. */
+    SOTN_DRAW_FIRE_HIT,       /**< Actual rowless entity16 child index0..47. */
+    SOTN_DRAW_DARK_HIT,       /**< Actual rowless entity54 child index0..47. */
+    SOTN_DRAW_THUNDER_HIT,    /**< Actual entity30 child*6+GT4 row0..5. */
+    SOTN_DRAW_ICE_HIT,        /**< Actual entity33 child*24+G4 shard0..23. */
+    SOTN_DRAW_STONE_DISSOLVE, /**< Actual entity32 child*36+textured slice0..35. */
+    SOTN_DRAW_HOLY_HIT,       /**< Actual entity47 child*16+GT4 index0..15. */
+    SOTN_DRAW_PLAYER_CIRCLE,  /**< Actual entity38 child*32+GT4 index0..31. */
+    SOTN_DRAW_TELEPORT        /**< Actual entity65 child*36+TILE/G4/GT4 index0..35. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

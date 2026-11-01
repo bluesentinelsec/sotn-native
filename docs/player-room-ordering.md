@@ -9,8 +9,9 @@ audio synthesis update; its sound requests wait for the next audio frame.
 After choosing a real neighboring room, the native owner prunes selected dissolve32,
 ice33 and teleport65 children before destination actor allocations. Dissolve and
 teleport have no20000 retention flag. Attached ice retains its real24 row indices;
-detached ice retires its actual rows. Selected pending factories39/46/121 follow
-original cold-root and initialized-origin retention tests. Cleanup validates a
+detached ice retires its actual rows. The subsequent [medicine batch](player-medicines.md) applies original20000
+retention to all eight actual factory records, before new destination allocation.
+Initialized20000 circle38/Pink39 retain their owners and rows; cold38/39 retire. Cleanup validates a
 copied runtime and commits the existing stage-pool row plan before replacing the
 live runtime. The copy is a transaction, not another entity or primitive pool.
 
@@ -49,11 +50,11 @@ through resident capture/64 uploads/game over also pass. The connector check use
 explicit development entries and retained flag/relic fixtures; it is not an
 uninterrupted acquisition route.
 
-Other shared child/root cleanup, full room loading/fade/engine timing and whole
+Other shared child cleanup, full room loading/fade/engine timing and whole
 native HP/map/clock/audio rollback remain unfinished. Default grants and savev9
 are unchanged. All six [Alucard milestone gates](alucard-status.md) remain open;
-this ordering is a dependency for further ordinary consumables, not evidence that
-they are available.
+this ordering alone does not establish consumable availability. The subsequent
+medicine owner supplies its selected actual input/resources/effects separately.
 
 Provenance: `dra/5087C.c:RunMainEngine`, `dra/7879C.c:func_8011A9D8`,
 `dra/5087C.c:func_800F0CD8`, pinned sotn-decomp

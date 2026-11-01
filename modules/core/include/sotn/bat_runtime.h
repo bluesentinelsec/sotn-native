@@ -14,6 +14,7 @@
 #include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
 #include <sotn/player.h>
+#include <sotn/player_circle.h>
 #include <sotn/player_outline.h>
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
@@ -103,6 +104,8 @@ typedef struct SotnBatRuntimeChild
         SotnIceHit ice;
         SotnStoneDissolve dissolve;
         SotnTeleportEffect teleport;
+        SotnPlayerCircle circle;
+        SotnMedicineEffect medicine;
         SotnSpiritPortal portal;
         struct
         {
@@ -147,6 +150,7 @@ typedef struct SotnBatRuntime
     Uint16 teleport_palette;
     Uint8 teleport_warp_mode;
     bool teleport_acknowledged;
+    SotnMedicineEffectEvents medicine; /**< This callback's resources, committed after real rows. */
     SotnPlayerParticleVectors particle_vectors; /**< Actual full-player-init velocity tables. */
     Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
     bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */
@@ -193,6 +197,15 @@ bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *runtime);
 bool SotnBatRuntime_DissolveValid(const SotnBatRuntimeChild *child);
 /** @brief Validate actual teleport child generation, parameter and36-row lifecycle. */
 bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *child);
+/** @brief Validate actual entity38 profile, lifecycle and thirty-two row ownership. */
+bool SotnBatRuntime_CircleValid(const SotnBatRuntimeChild *child);
+/** @brief Validate actual rowless entity39, profile and signed cursor. */
+bool SotnBatRuntime_MedicineValid(const SotnBatRuntimeChild *child);
+/** @brief Prune actual cold38/39 children; initialized20000 medicine/circle owners retain rows. */
+bool SotnBatRuntime_PruneMedicines(SotnBatRuntime *runtime);
+/** @brief Original actual factory-slot cleanup by retained20000 flags, before new room allocation.
+ * This owns every shared factory record, independently of the remaining child cleanup gates. */
+bool SotnBatRuntime_PruneRoomFactories(SotnBatRuntime *runtime);
 /** @brief Original room-entry retirement of entity65 and its nonretained factory121 records.
  * Commit the resulting row plan to the actual stage pool before any new allocation. */
 bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *runtime);
@@ -200,7 +213,13 @@ bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *runtime);
  * Exhaustion returns allocated=false without replacing unrelated owners. */
 bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                     Uint32 packed, bool *allocated);
-/** @brief Commit actual post-stage shoves to player-locked holy/ice entities only.
+/** @brief Reserve actual55/high profile/hand for a successful ordinary medicine request.
+ * Actual eight-root exhaustion returns allocated=false. Pending roots are not live39 actors. */
+bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                    Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Inspect actual entity39 slots32..63 only, without treating roots as actors. */
+bool SotnBatRuntime_MedicinePresent(const SotnBatRuntime *runtime);
+/** @brief Commit actual post-stage shoves to player-locked holy/ice/circle/medicine entities only.
  * Packets, shared points, rows, RNG and controllers hold. Room entry has its own rebase. */
 bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
 

@@ -20,7 +20,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 7/14: Mist/return | [Mist](player-mist.md) | All transition contexts, helpers and shared palette/capture contention |
 | 8: high jump | [Gravity Boots](player-gravity-boots.md) | Collision/ceiling recovery and interruptions across remaining damage/equipment states |
 | 10: hit | [Selected kind promotion, physical births/recovery, shared wall/ceiling/slope/skid owners and palette counters](player-hurt-motion.md) | Selected [poison/curse text/Blink](player-ailment-effects.md); [cut feedback](player-cut-effects.md), [holy hits](player-holy-hit.md), [dark hits](player-dark-hit.md), [fire hits](player-fire-hit.md), [thunder hits](player-thunder-hit.md) and [ice hits](player-ice-hit.md) and [HUD/secondary impacts](player-hud-hp-hold.md); remaining elemental/death variants, rare/contact/death contexts and full contention; [damage inventory](player-contact-absorption.md) |
-| 11: stone | [Selected queued entry, ordinary/rare statue, actual shared effects/capture, wiggle/escape and stone-death choice](player-petrification.md) | Stone grab/thrown contexts, familiar Hammer, complete death/fade and shared frame/contention boundaries |
+| 11: stone | [Selected queued entry, ordinary/rare statue, actual shared effects/capture, wiggle/escape and stone-death choice](player-petrification.md) | [Hammer word/actual stone escape protocol](player-medicines.md) now runs; Fairy Hammer producer, stone grab/thrown contexts, complete death/fade and shared frame/contention boundaries |
 | 12: boss grab | [Selected normal/stone-reaction control, supplied boss-velocity release4 and Hippogryph drop](player-boss-grab.md), [normal held-grab damage/number/equipment feedback](player-grab-damage.md) | Actual throwing-boss and stone-reaction producers, dead release, broader interruptions and remaining dependent effects |
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
 | 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
@@ -149,3 +149,12 @@ kind0/1 promotion, physical births/recovery, original wall/ceiling/slope/skid ca
 secondary impact and timer8, preserving actual shared owners and SDK pivots. Its
 palette/counter coverage is distinct from remaining elemental child/text/Blink
 availability. It adds no handler; all common/cross-owner milestone gates remain open.
+
+The subsequent [owned medicine owner](player-medicines.md) connects the17
+original equippable medicines to the existing normal-state hand path, without a
+new dispatched state. Life Apple146/Hammer147 are forbidden hand selections in
+the actual original menu. Their component profiles and the real stone Hammer
+word/escape protocol do not supply the Fairy producer or state17 rescue. Actual
+4096 buffs/cures/healing/MP, circle/outline/Blink/label effects and all-root room
+cleanup retain their documented evidence and failure boundaries. Milestone1
+remains32/34 with all six common/cross-owner gates open.

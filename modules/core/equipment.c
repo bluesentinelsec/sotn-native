@@ -28,8 +28,10 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
     if (out == NULL || (id != 0 && id != 16 && id != 18 && id != 19 && id != 86 && id != 123 &&
-                        id != 128 && id != 166))
+                        id != 128 && id != 166 && (id < 144 || id > 162)))
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
+    const bool medicine = id == 166 || (id >= 144 && id <= 162);
+    const Uint16 variant = id == 166 ? 20 : id >= 157 ? id - 143 : id >= 144 ? id - 144 : 0;
     const Uint8 *pointer = NULL, *record = NULL;
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
         !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)id * 52, 50, &record))
@@ -41,10 +43,10 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (id == 16 && (record[15] != 52 || record[17] != 128 || record[18] != 0x63)) ||
         (id == 128 && (record[15] != 2 || record[17] != 2 || record[18] != 0x48)) ||
-        (id == 166 &&
+        (medicine &&
          (record[15] != 255 || record[17] != 131 || record[18] != 0xbe || record[19] != 55)) ||
-        record[20] != (id == 166 ? 20 : 0) || record[16] != 0 || record[21] > 31 ||
-        record[25] != (id == 166 ? 1 : 0) || Read16(record + 36) != 0)
+        record[20] != (medicine ? variant : 0) || record[16] != 0 || record[21] > 31 ||
+        record[25] != (medicine ? 1 : 0) || Read16(record + 36) != 0)
         return SDL_SetError("Selected hand-item definition does not match its supported US path");
     const Uint16 attack = Read16(record + 8);
     const SotnEquipment result = {.id = id,

@@ -812,6 +812,41 @@ static bool UseLibraryCard(void *context, Uint16 hand, Uint16 *equipped)
     SotnLaboratory *s = context;
     return SotnCharacter_UseLibraryCard(s->character, hand, equipped);
 }
+static bool MedicineFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                            Uint16 item, bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestMedicine(&s->bat_runtime, source, packed, item, allocated);
+}
+static bool UseMedicine(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    SotnLaboratory *s = context;
+    return SotnCharacter_UseMedicine(s->character, hand, item, equipped);
+}
+static bool CommitMedicine(SotnLaboratory *s)
+{
+    const SotnMedicineEffectEvents *e = &s->bat_runtime.medicine;
+    if (!e->buff_mask && !e->protection && !e->cure_mask && !e->heal && !e->mp_full && !e->hammer)
+        return true;
+    SotnStatBuffs buffs = s->stat_buffs;
+    SotnCharacterState character = {0};
+    if (!SotnStatBuffs_Mask(&buffs, NULL) || !SotnCharacter_Get(s->character, &character, NULL))
+        return false;
+    for (Uint16 i = 0; i < SOTN_STAT_BUFFS; ++i)
+        if ((e->buff_mask & (1U << i)) && !SotnStatBuffs_Give(&buffs, i))
+            return false;
+    if (e->mp_full)
+    {
+        character.mp = character.mp_max;
+        if (!SotnCharacter_Restore(s->character, &character))
+            return false;
+    }
+    if (!SotnPlayer_CommitMedicine(s->player, e, character.mp_max))
+        return false;
+    // The actual counters change now; derived attributes bind before the next player update.
+    s->stat_buffs = buffs;
+    return true;
+}
 static bool CaptureDissolveImage(void *context, SotnDeathImage *image)
 {
     SotnLaboratory *s = context;
@@ -969,6 +1004,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 return false;
         if (s->bat_runtime.dissolve_frame_load && !SotnPlayer_CommitDissolveFrame(s->player, true))
             return false;
+        if (!CommitMedicine(s))
+            return false;
     }
     s->blink_rebase_x = s->blink_rebase_y = 0;
     s->blink_camera_x = s->camera.x;
@@ -978,12 +1015,16 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
 
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
-    bool transaction = false;
+    bool transaction = player.medicine.used;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        transaction |= s->bat_runtime.children[i].kind == 32;
+        transaction |= s->bat_runtime.children[i].kind == 32 ||
+                       s->bat_runtime.children[i].kind == 38 ||
+                       s->bat_runtime.children[i].kind == 39;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
-                       s->bat_runtime.factories[i].cursor.blueprint == 39;
+                       (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 53 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 55);
     for (Uint16 i = 0; i < player.hurt.count; ++i)
         transaction |= (player.hurt.factories[i].blueprint & 0xfffU) == 39;
     if (!transaction)
@@ -1414,21 +1455,20 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     bool present = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         present |= s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 33 ||
-                   s->bat_runtime.children[i].kind == 65;
+                   s->bat_runtime.children[i].kind == 65 || s->bat_runtime.children[i].kind == 38 ||
+                   s->bat_runtime.children[i].kind == 39;
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
-        present |= s->bat_runtime.factories[i].cursor.entity_id &&
-                   (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
-                    s->bat_runtime.factories[i].cursor.blueprint == 46 ||
-                    s->bat_runtime.factories[i].cursor.blueprint == 121);
+        present |= s->bat_runtime.factories[i].cursor.entity_id != 0;
     if (!present)
         return true;
     SotnBatRuntime *next = SDL_malloc(sizeof(*next));
     if (!next)
         return SDL_OutOfMemory();
     *next = s->bat_runtime;
-    const bool committed = SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
-                           SotnBatRuntime_PruneTeleport(next) &&
-                           SotnActors_CommitBatPrimitives(s->actors, next);
+    const bool committed =
+        SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
+        SotnBatRuntime_PruneTeleport(next) && SotnBatRuntime_PruneMedicines(next) &&
+        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -2082,6 +2122,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetSwordContext(session->player, SwordFactory, session,
                                     session->bat_runtime.children[0].kind != 0 ||
                                         session->mist_present) ||
+        !SotnPlayer_SetMedicineContext(session->player, MedicineFactory, UseMedicine, session,
+                                       SotnBatRuntime_MedicinePresent(&session->bat_runtime)) ||
         !SotnPlayer_SetTeleportContext(session->player, TeleportFactory, UseLibraryCard, session,
                                        session->room.left * 256) ||
         !SotnPlayer_SetStoneContext(session->player, DissolvePresent, session) ||
@@ -2777,6 +2819,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 38 && child->initialized)
+                for (Uint16 row = SOTN_PLAYER_CIRCLE_ROWS; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q = &child->state.circle.quads[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){
+                                .priority = q->priority,
+                                .primitive = (Uint16)(owner * SOTN_PLAYER_CIRCLE_ROWS + row - 1U),
+                                .kind = SOTN_DRAW_PLAYER_CIRCLE}))
+                        return false;
+                }
             if (child->kind == 65 && child->initialized)
                 for (Uint16 row = SOTN_TELEPORT_ROWS; row > 0; --row)
                 {
@@ -2855,7 +2910,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 {
                     const Uint16 id = row - 1;
                     const SotnImmunityText *n = &child->state.immunity_text;
-                    const bool hidden = id == 1 || (id >= 2 && (n->tiles[id - 2U].draw_mode & 8U));
+                    const bool hidden = (id == 1 && (n->suffix.draw_mode & 8U)) ||
+                                        (id >= 2 && (n->tiles[id - 2U].draw_mode & 8U));
                     if (!hidden &&
                         !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
                                             &draw_count,
@@ -3159,6 +3215,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_PLAYER_CIRCLE)
+        {
+            const Uint16 owner = command.primitive / SOTN_PLAYER_CIRCLE_ROWS,
+                         row = command.primitive % SOTN_PLAYER_CIRCLE_ROWS;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Player circle packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 38 || !SotnBatRuntime_CircleValid(child) || !child->initialized ||
+                !DrawPlayerEffectQuad(session, &child->state.circle.quads[row]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Player circle draw lost its actual thirty-two-row owner");
+            continue;
+        }
         if (command.kind == SOTN_DRAW_TELEPORT)
         {
             const Uint16 owner = command.primitive / SOTN_TELEPORT_ROWS,
@@ -3236,7 +3306,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (command.kind == SOTN_DRAW_IMMUNITY_TEXT)
         {
             const Uint16 owner = command.primitive / 18U, row = command.primitive % 18U;
-            if (owner >= SOTN_BAT_RUNTIME_SLOTS || row == 1)
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
                 return SDL_SetError("Text draw lost its actual packet index");
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
             if (child->kind != 37 || !child->initialized || !child->generation ||
@@ -3244,9 +3314,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 child->state.immunity_text.removed)
                 return SDL_SetError("Immunity text draw lost its actual child and eighteen rows");
             const SotnImmunityText *n = &child->state.immunity_text;
-            if (!row)
+            if (row < 2)
             {
-                if (!DrawPlayerEffectQuad(session, &n->quad))
+                if (!DrawPlayerEffectQuad(session, row ? &n->suffix : &n->quad))
                     return false;
             }
             else
@@ -4247,6 +4317,11 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .water_breath_timer = previous_player.water_breath_timer,
                                          .water_pain_timer = previous_player.water_pain_timer},
                           &next);
+    }
+    if (ready && !SotnPlayer_RestoreHammer(next->player, previous_player.hammer_timer))
+    {
+        SotnLaboratory_Destroy(next);
+        return false;
     }
     if (ready)
     {

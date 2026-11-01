@@ -32,10 +32,12 @@ than generic integer square root. Its normalized table value is computed with
 integer arithmetic; no private table is embedded. This preserves the original
 high-CON rounding, including841, and the original signed-word defense wrap.
 
-These APIs reconstruct selected stat calculations and counter operations. Only
-Fury supplies a new live item producer in this batch. Consumables, other equipment,
-all weapon-specific stat rules and other buff producers remain incomplete. A
-mask or Give operation is not an implemented item, control, acquisition or effect.
+These APIs reconstruct selected stat calculations and counter operations. Fury
+supplied this batch's live producer; the subsequent [owned medicine owner](player-medicines.md)
+now supplies actual4096 counter writes and scheduled shared effects. Remaining
+consumables/equipment, weapon-specific stat rules and familiar producers remain
+incomplete. A mask or Give operation alone is not an implemented item, control,
+acquisition or effect.
 
 Public authored tests cover all sixteen counter boundaries, minimum versus4096,
 invalid-state rollback, pre-clamp negative defense, signed wrap, high-CON SDK

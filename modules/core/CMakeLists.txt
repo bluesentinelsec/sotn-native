@@ -1,4 +1,9 @@
 add_library(sotn-core STATIC
+  player_medicine.c
+  medicine_effect.c
+  include/sotn/medicine_effect.h
+  player_circle.c
+  include/sotn/player_circle.h
   teleport_effect.c
   include/sotn/teleport_effect.h
   axe_armor.c

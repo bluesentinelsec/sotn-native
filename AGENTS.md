@@ -1,3 +1,21 @@
+Selected [owned medicines](docs/player-medicines.md) now connects the17 equippable
+items144..162 excluding146/147 to ordinary input, actual55/rowless39, private
+schedules, real circle53/38/32 rows, outlines/Blinks/two-GT4 labels and resources.
+Preserve before-curse input, actual39 slots32..63 gate, root exhaustion without
+cost/replacement, successful-player consumption, Duplicator84 and spare semantics.
+Commit resources after real rows:4096to4095, cure words2, kind1 pending overwrite,
+Mail later overwrite and Ankh80 one50% bonus even with two. Bind full MP to both
+actual character/player, including dead; pending healing never revives death.
+Original menu forbids Life Apple146/Hammer147 hand equip/use; Fairy/state17 remain
+unfinished. Hammer's separate signed DRA word/protocol owns64, actual stone11
+shake1/forced taps, full-player decrement, freeze/menu/draw holds and post-bootstrap
+session retention, never saves. Preserve circle flags/SDK/angles/optional exhaustion,
+hidden suffix camera2 and no-tick room/shove boundaries. Prune all actual root
+records by20000 before destination allocation; retain initialized20000 circle/Pink,
+retire cold38/39. Other child cleanup/whole-native rollback and all six gates stay
+open. Owned gear/HP/MP/ailment/clock/factory/position fixtures are not acquisition,
+uninterrupted routes or console evidence. No pool/default grants/savev9 change.
+
 Selected [room callback/cleanup ownership](docs/player-room-ordering.md) now runs
 ordinary departing player/DRA/stage/HUD/audio before room lookup. Actual spell
 freeze/teleport warp preempt lookup; destination initialization adds no second
@@ -466,8 +484,9 @@ Fury refreshes. Preserve all16 HUD decrements (including the switch default),
 new/Continue reset versus connected-stage retention after bootstrap and request
 commit only after player success. No second pool or ordinary-save fields. Preserve
 pre-cap bonuses, signed-word attack/DEF, computed original SDK root normalization,
-US stone immunity and no stale defense after expiry. Only Fury is a new live
-producer; masks/Give are not consumable/other-equipment availability. Explicit
+US stone immunity and no stale defense after expiry. Fury and selected owned
+medicines now supply live producers; masks/Give alone are not remaining consumable/
+other-equipment availability. Explicit
 equipment/pose/protection/clock/arrival fixtures and authored metadata copies are
 not acquisition/route/console evidence. Default grants/savesv9 and Alucard/castle
 incompleteness remain unchanged.

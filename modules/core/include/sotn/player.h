@@ -1,5 +1,6 @@
 #ifndef SOTN_PLAYER_H
 #define SOTN_PLAYER_H
+#include <sotn/medicine_effect.h>
 
 #include <sotn/animation.h>
 #include <sotn/axe_armor.h>
@@ -301,6 +302,12 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Successful ordinary medicine request, consumed only after the player update succeeds. */
+typedef struct SotnPlayerMedicineUse
+{
+    Uint16 hand, item;
+    bool used;
+} SotnPlayerMedicineUse;
 /** @brief Actual one-update Library Card use and retained original arrival acknowledgement. */
 typedef struct SotnPlayerTeleport
 {
@@ -389,6 +396,8 @@ typedef struct SotnPlayerHeartGain
 typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
+    SotnPlayerMedicineUse medicine;
+    Sint32 hammer_timer; /**< Separate DRA global, never one of the sixteen words or save data. */
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
     Uint16 player_timers[SOTN_PLAYER_TIMERS]; /**< Immutable copy of the actual player word bank. */
     Sint32 x, y, velocity_x, velocity_y;      /**< Signed 16.16 room-local pixels. */
@@ -476,6 +485,31 @@ typedef bool (*SotnPlayerSwordFactory)(void *context, SotnPlayerFactorySource so
  * @return Success or SDL error. Controls remain unavailable until this owner is bound. */
 bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory factory, void *context,
                                 bool weapon_present);
+typedef bool (*SotnPlayerMedicineFactory)(void *context, SotnPlayerFactorySource source,
+                                          Uint32 packed, Uint16 item, bool *allocated);
+typedef bool (*SotnPlayerMedicineConsume)(void *context, Uint16 hand, Uint16 item,
+                                          Uint16 *equipped);
+/** @brief Bind actual medicine55 reservation/consumption and current entity39 slots32..63.
+ * Pending factory roots are not live entity39 occupancy. Callbacks must rebind after handoff.
+ * @param player Owned player. @param factory Actual shared-root reservation callback.
+ * @param consume Actual atomic equipped-item consumption callback, paired with factory.
+ * @param context Borrowed callback owner, retained until unbound or replaced.
+ * @param present Actual current child39 occupancy, independent of pending roots.
+ * @return Success, or SDL error without mutation; two NULL callbacks disable availability. */
+bool SotnPlayer_SetMedicineContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                   SotnPlayerMedicineConsume consume, void *context, bool present);
+/** @brief Commit actual entity39 resource requests after successful shared row work.
+ * Healing overwrites pending kind/amount even when dead; no HP write or revival occurs.
+ * Buff counters, actual character MP, audio and factories retain their separate native owners.
+ * @param player Owned player. @param events Borrowed committed rowless-child requests.
+ * @param mp_max Actual character owner's current maximum, including when dead.
+ * @return Success atomically, or SDL error without mutation for invalid resource requests. */
+bool SotnPlayer_CommitMedicine(SotnPlayer *player, const SotnMedicineEffectEvents *events,
+                               Uint16 mp_max);
+/** @brief Restore the actual separate DRA Hammer word after bootstrap, without ticking/saving.
+ * @param player Owned player. @param timer Actual retained0..64 global word.
+ * @return Success, or SDL error without mutation for invalid arguments. */
+bool SotnPlayer_RestoreHammer(SotnPlayer *player, Sint32 timer);
 typedef bool (*SotnPlayerTeleportFactory)(void *context, SotnPlayerFactorySource source,
                                           Uint32 packed, bool *allocated);
 typedef bool (*SotnPlayerLibraryCardUse)(void *context, Uint16 hand, Uint16 *equipped);

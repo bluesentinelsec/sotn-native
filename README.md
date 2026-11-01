@@ -18,7 +18,8 @@ Blink45 and real parent-bound particle descendants.
 history effects, ordered sounds and Blink46. [Surviving ice hits](docs/player-ice-hit.md)
 add the actual24 G4 shards, SDK geometry and room-entry row cleanup.
 [Shared stone effects](docs/stone-effect-support.md) now have selected original
-text/smoke/tile/sprite owners; the stone controller/dissolve capture is still open.
+text/smoke/tile/sprite owners. [Selected stone control/capture](docs/player-petrification.md)
+now runs; remaining stone/familiar/death contexts stay open.
 [HUD HP-display timing](docs/player-hud-hp-hold.md) now connects original64-if-zero
 delays, actual save-room16 overwrite and signed secondary-impact results.
 [Held-grab damage feedback](docs/player-grab-damage.md) now connects original
@@ -38,6 +39,9 @@ Ordinary saves retain explored cells and permanent Laboratory events; this remai
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.
+[Owned medicines](docs/player-medicines.md) now connects the17 equippable cures,
+stat/resistance potions and HP/MP medicines to actual shared effects and resources.
+Life Apple/Hammer still require the unfinished Fairy owner; no items are granted.
 [Owned Axe Lord Armor](docs/player-axe-armor.md) adds its original movement, attack,
 hurt recovery and private body/shadow rendering; ordinary starts grant no armor.
 [Exploration map](docs/castle-map.md): Tab/M or Xbox Back shows saved exploration.
