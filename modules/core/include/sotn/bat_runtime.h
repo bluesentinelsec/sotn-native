@@ -11,6 +11,7 @@
 #include <sotn/hellfire_effects.h>
 #include <sotn/hellfire_fireball.h>
 #include <sotn/holy_hit.h>
+#include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
 #include <sotn/player.h>
 #include <sotn/player_outline.h>
@@ -97,6 +98,7 @@ typedef struct SotnBatRuntimeChild
         SotnDarkHit dark;
         SotnFireHit fire_hit;
         SotnThunderHit thunder;
+        SotnIceHit ice;
         SotnSpiritPortal portal;
         struct
         {
@@ -116,7 +118,7 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_HEALING_NUMBER_ROWS]; /**< Actual row indices, including particle
+    Uint16 primitives[SOTN_ICE_HIT_ROWS]; /**< Actual row indices, including particle
                                                     sentinels. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
@@ -173,8 +175,11 @@ typedef struct SotnBatRuntime
     bool afterimage_reset; /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
 
-/** @brief Commit actual post-stage object shoves to initialized player-locked holy entities.
- * Packets, shared points, rows, RNG and controllers hold. Room entry uses its separate rebase. */
+/** @brief Run the selected entity33 subset of original room-entry cleanup.
+ * Other shared children retain their existing owners; no callbacks or RNG advance. */
+bool SotnBatRuntime_PruneIce(SotnBatRuntime *runtime);
+/** @brief Commit actual post-stage shoves to player-locked holy/ice entities only.
+ * Packets, shared points, rows, RNG and controllers hold. Room entry has its own rebase. */
 bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
 
 /** @brief Actual owned context and room/camera translation at this update point. */

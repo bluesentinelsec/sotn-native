@@ -27,6 +27,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_FIRE_HIT,        /**< Actual rowless entity16 child index0..47. */
     SOTN_DRAW_DARK_HIT,        /**< Actual rowless entity54 child index0..47. */
     SOTN_DRAW_THUNDER_HIT,     /**< Actual entity30 child*6+GT4 row0..5. */
+    SOTN_DRAW_ICE_HIT,         /**< Actual entity33 child*24+G4 shard0..23. */
     SOTN_DRAW_HOLY_HIT         /**< Actual entity47 child*16+GT4 index0..15. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */

@@ -5,6 +5,7 @@
 bool SotnBatRuntime_HellfireChildValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Validate the direct entity19/slots56..63 twenty-row healing visual owner. */
 bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *child);
+bool SotnBatRuntime_IceHitValid(const SotnBatRuntimeChild *child);
 bool SotnBatRuntime_ThunderHitValid(const SotnBatRuntimeChild *child);
 bool SotnBatRuntime_FireHitValid(const SotnBatRuntimeChild *child);
 bool SotnBatRuntime_DarkHitValid(const SotnBatRuntimeChild *child);

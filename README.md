@@ -15,7 +15,8 @@ add their actual timed sprite factory, shared blend phase and Blink62.
 [Surviving fire hits](docs/player-fire-hit.md) add both original sprite streams,
 Blink45 and real parent-bound particle descendants.
 [Surviving thunder hits](docs/player-thunder-hit.md) add four actual six-row
-history effects, ordered sounds and Blink46.
+history effects, ordered sounds and Blink46. [Surviving ice hits](docs/player-ice-hit.md)
+add the actual24 G4 shards, SDK geometry and room-entry row cleanup.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy

@@ -1,3 +1,18 @@
+Selected [surviving ice-hit effects](docs/player-ice-hit.md) now owns actual
+factory46/child33/twenty-four G4 rows,96 birth RNG and sound69D/61A. Preserve private
+point pointers/SDK sqrt-atan2-trig, live player high-word overwrite/captured fractions,
+status10000 versus step, airborne wall/substep5 and supplied physical-death16 delay.
+Preserve same-update random shard delays, signed byte motion/wrap, inverted color
+underflow, hidden-row updates and64-update retirement. No invented fade/artwork/pool.
+Preserve player-lock entity-only shoves, callback/cull before camera, per-shard
+flag2 versus room100 and no-tick holds. Selected original room-entry cleanup
+retains20000 shells and releases detached child33/actual rows; other cleanup owners
+remain unfinished. Freeze/menu/draw/release holds, allocation before RNG and late
+sibling/runtime/row/sound/RNG rollback remain required. Supplied raw-kind/protection/
+wall/status/death fixtures are not ordinary ice producers/acquisition/routes/console.
+No grants/savev9 change; remaining damage/death/fade/gear/familiars/full sharing and
+Alucard/castle remain incomplete.
+
 Selected [surviving thunder-hit effects](docs/player-thunder-hit.md) now owns actual
 factory45/four parameter0..3 children30, six GT4 rows each, sound69D/665 and
 Blink46/eight rows. Preserve actual slot order, allocation-before11 birth RNG,

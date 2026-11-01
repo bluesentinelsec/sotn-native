@@ -2161,6 +2161,25 @@ static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *
         s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
         s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
 }
+static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
+{
+    const bool fixed = (p->draw_mode & 0x2080U) != 0;
+    const Sint32 x = s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
+                 y = s->draw_target.offset_y + (fixed ? 0 : s->shake.y);
+    SotnTextureQuad q = {.page = (Uint16)(p->draw_mode & 0x60U),
+                         .blend = (p->draw_mode & 1U) != 0,
+                         .gouraud = true,
+                         .untextured = true};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = p->x[v] + x;
+        q.y[v] = p->y[v] + y;
+        q.vertex_red[v] = p->red[v];
+        q.vertex_green[v] = p->green[v];
+        q.vertex_blue[v] = p->blue[v];
+    }
+    return (p->draw_mode & 8U) || SotnActorGraphics_QuadSurface(NULL, q, s->draw_target.surface);
+}
 static bool DrawAxeArmorSprite(SotnLaboratory *s, SotnActorSprite sprite, Sint32 x, Sint32 y,
                                Sint16 rotation, Sint16 pivot_y, Uint8 opacity, bool rotated)
 {
@@ -2513,6 +2532,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 33 && child->initialized)
+                for (Uint16 row = SOTN_ICE_HIT_ROWS; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q = &child->state.ice.quads[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = q->priority,
+                                            .primitive =
+                                                (Uint16)(owner * SOTN_ICE_HIT_ROWS + row - 1U),
+                                            .kind = SOTN_DRAW_ICE_HIT}))
+                        return false;
+                }
             if (child->kind == 30 && child->initialized)
                 for (Uint16 row = 6; row > 0; --row)
                 {
@@ -2851,6 +2883,22 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_ICE_HIT)
+        {
+            const Uint16 owner = command.primitive / SOTN_ICE_HIT_ROWS,
+                         row = command.primitive % SOTN_ICE_HIT_ROWS;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Ice packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 33 || !child->generation || !child->initialized ||
+                child->primitive_count != SOTN_ICE_HIT_ROWS || child->state.ice.removed ||
+                child->state.ice.phase < 1 || child->state.ice.phase > 2 ||
+                !DrawIceQuad(session, &child->state.ice.quads[row]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Ice draw lost its actual twenty-four-row child owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_THUNDER_HIT)

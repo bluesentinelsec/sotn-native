@@ -233,10 +233,10 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 30 ||
-           kind == 31 || kind == 35 || kind == 36 || kind == 37 || kind == 45 || kind == 46 ||
-           kind == 49 || kind == 50 || kind == 54 || kind == 47 || kind == 51 || kind == 52 ||
-           kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
-           kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 33 || kind == 31 || kind == 35 || kind == 36 || kind == 37 || kind == 45 ||
+           kind == 46 || kind == 49 || kind == 50 || kind == 54 || kind == 47 || kind == 51 ||
+           kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 ||
+           kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -260,6 +260,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 33:
+        return c->state.ice.flags;
     case 30:
         return 0x08820000U;
     case 16:
@@ -371,6 +373,44 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
 }
+bool SotnBatRuntime_IceHitValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 33)
+        return true;
+    const SotnIceHit *n = &c->state.ice;
+    if (!c->generation || c->bat_generation || c->parameter || c->group || c->draw_count ||
+        c->particle_parent || n->removed || n->phase > 2)
+        return false;
+    if (!c->initialized)
+        return !n->phase && !c->primitive_count;
+    bool detached = false;
+    for (Uint16 row = 0; row < SOTN_ICE_HIT_ROWS; ++row)
+    {
+        const SotnPlayerEffectQuad *q = &n->quads[row];
+        if (q->priority > 511 || q->u[0] > 2 || q->page || q->palette ||
+            (q->u[0] == 1 && (!q->v[0] || q->v[0] > 15)) ||
+            (q->u[0] < 2 ? (q->draw_mode != 0x315 && q->draw_mode != 0x335)
+                         : (q->draw_mode != 0x17 && q->draw_mode != 0x37 && q->draw_mode != 0x1f &&
+                            q->draw_mode != 0x3f)))
+            return false;
+        detached |= q->u[0] == 2;
+    }
+    return n->phase && c->primitive_count == SOTN_ICE_HIT_ROWS &&
+           n->flags == (detached ? 0x08800000U : 0x00860000U) &&
+           (n->phase != 2 || (n->timer > 0 && n->timer <= 64));
+}
+bool SotnBatRuntime_PruneIce(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_IceHitValid(&r->children[i]))
+            return SDL_SetError("Ice cleanup lost its actual child/row lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 33 && !(ChildFlags(&r->children[i]) & 0x20000U))
+            r->children[i] = (SotnBatRuntimeChild){0};
+    return true;
+}
 bool SotnBatRuntime_ThunderHitValid(const SotnBatRuntimeChild *c)
 {
     if (c->kind != 30)
@@ -434,11 +474,16 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
     if (!r)
         return SDL_InvalidParamError("runtime");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if (!SotnBatRuntime_HolyHitValid(&r->children[i]))
+        if (!SotnBatRuntime_HolyHitValid(&r->children[i]) ||
+            !SotnBatRuntime_IceHitValid(&r->children[i]))
             return SDL_SetError("Player shove lost its actual holy child owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 47 && r->children[i].initialized &&
             !SotnHolyHit_Displace(&r->children[i].state.holy, x, y))
+            return false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 33 && r->children[i].initialized &&
+            !SotnIceHit_Displace(&r->children[i].state.ice, x, y))
             return false;
     return true;
 }
@@ -490,8 +535,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     }
     else if (fire_parent)
         return SDL_SetError("Fire descendant factory produced an unrelated child");
-    if (c.kind == 30 && generation)
-        return SDL_SetError("Thunder hit requires its independent actual player factory parent");
+    if ((c.kind == 30 || c.kind == 33) && generation)
+        return SDL_SetError("Elemental hit requires its independent actual player factory parent");
     if (c.kind == 16 && generation)
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
@@ -805,6 +850,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (r.wolf_bound && !in.wolf_owned)
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
+    if (in.entering && !SotnBatRuntime_PruneIce(&r))
+        return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
         return SDL_SetError("Common player update lost its retained eight-row lease");
@@ -844,6 +891,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_IceHitValid(c))
+            return SDL_SetError("Ice hit lost its actual twenty-four-row child ownership");
         if (!SotnBatRuntime_ThunderHitValid(c))
             return SDL_SetError("Thunder hit lost its actual six-row child ownership");
         if (!SotnBatRuntime_FireHitValid(c))
@@ -885,6 +934,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                    (c->kind == 37 && c->primitive_count == 18) ||
                                    (c->kind == 47 && c->primitive_count == 16) ||
                                    (c->kind == 30 && c->primitive_count == 6) ||
+                                   (c->kind == 33 && c->primitive_count == 24) ||
                                    (c->kind == 5 && c->state.particles.phase == 1 &&
                                     !c->state.particles.removed && c->state.particles.count &&
                                     c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
@@ -988,6 +1038,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
+            return false;
+        if (c->kind == 33 && in.entering &&
+            !SotnIceHit_Rebase(&c->state.ice, in.screen_shift_x, in.screen_shift_y, true))
             return false;
         if (c->kind == 30 && in.entering &&
             !SotnThunderHit_Rebase(&c->state.thunder, in.screen_shift_x, in.screen_shift_y, true))
@@ -1431,6 +1484,44 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             const Sint32 x = Pixel(c->state.holy.x), y = Pixel(c->state.holy.y);
             removed = c->state.holy.removed || x < -32 || x > 288 || y < -16 || y > 256;
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
+                return false;
+            c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 33)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated && !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_ICE_HIT_ROWS,
+                                                          c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? SOTN_ICE_HIT_ROWS : 0;
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y),
+                         camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            SotnPlayerFactorySource source = c->source;
+            source.x = FixedShift(source.x, Word(-camera_x));
+            source.y = FixedShift(source.y, Word(-camera_y));
+            if (!SotnIceHit_Tick(&c->state.ice,
+                                 (SotnIceHitInput){.dra = in.dra,
+                                                   .executable = in.executable,
+                                                   .source = source,
+                                                   .player_x = FixedShift(p.x, Word(-camera_x)),
+                                                   .player_y = FixedShift(p.y, Word(-camera_y)),
+                                                   .velocity_x = p.velocity_x,
+                                                   .velocity_y = p.velocity_y,
+                                                   .status = p.status,
+                                                   .contacts = p.contacts,
+                                                   .priority = p.priority,
+                                                   .player_step = (Uint16)p.step,
+                                                   .player_substep = p.substep,
+                                                   .facing_left = p.facing_left,
+                                                   .allocated = allocated},
+                                 &progress.random) ||
+                (c->state.ice.sound && !Sound(&r, c->state.ice.sound)))
+                return false;
+            const Sint32 x = Pixel(c->state.ice.x), y = Pixel(c->state.ice.y);
+            removed = c->state.ice.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!removed && !SotnIceHit_Rebase(&c->state.ice, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
         }
