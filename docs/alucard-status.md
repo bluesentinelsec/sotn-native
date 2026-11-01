@@ -59,7 +59,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   six-row effects/sounds/Blink. [Surviving ice hits](player-ice-hit.md) now own
   actual24-row G4 shards, SDK geometry and selected room-entry cleanup.
   [Normal held-grab damage feedback](player-grab-damage.md) now owns actual numbers
-  and selected Talisman/Cloak/Fury work. Other damage and general shared cleanup gates stay open.
+  and selected Talisman/Cloak/Fury work. [HUD HP hold/secondary impacts](player-hud-hp-hold.md) now own actual64-if-zero
+  health-display delay, save-room16 overwrite and signed secondary results.
+  Other damage and general shared cleanup gates stay open.
   Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),

@@ -135,6 +135,48 @@ static bool CountersAndGauge(Fixture *f)
     return true;
 }
 
+static bool HpHold(Fixture *f)
+{
+    MakeFixture(f);
+    SotnHud *hud = NULL;
+    SotnHudStatus status = {70, 70, 20, 20, 10, 0};
+    CHECK(SotnHud_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                         (SotnDataView){f->common, sizeof(f->common)}, status, &hud));
+    CHECK(SotnHud_HpHold(hud) == 0 && SotnHud_NotifyHp(hud) && SotnHud_HpHold(hud) == 64);
+    status.hp = 40;
+    for (Sint32 i = 0; i < 64; ++i)
+    {
+        CHECK(SotnHud_Draw(hud, f->frame, SOTN_FRAME_PIXELS) && SotnHud_HpHold(hud) == 64 - i &&
+              SotnHud_DisplayedHp(hud) == 70);
+        if (i == 7)
+            CHECK(SotnHud_NotifyHp(hud) && SotnHud_HpHold(hud) == 57);
+        CHECK(SotnHud_Tick(hud, status) && SotnHud_HpHold(hud) == 63 - i &&
+              SotnHud_DisplayedHp(hud) == 70);
+    }
+    CHECK(SotnHud_Tick(hud, status) && SotnHud_DisplayedHp(hud) == 67);
+    CHECK(SotnHud_NotifyHp(hud) && SotnHud_Tick(hud, status) && SotnHud_HpHold(hud) == 63 &&
+          SotnHud_SaveHp(hud) && SotnHud_HpHold(hud) == 16);
+    SotnHudStatus invalid = status;
+    invalid.mp_max = 0;
+    CHECK(!SotnHud_Tick(hud, invalid) && SotnHud_HpHold(hud) == 16 &&
+          SotnHud_DisplayedHp(hud) == 67);
+    status.hp = 70;
+    for (Sint32 i = 0; i < 16; ++i)
+        CHECK(SotnHud_NotifyHp(hud) && SotnHud_HpHold(hud) == 16 - i && SotnHud_Tick(hud, status) &&
+              SotnHud_DisplayedHp(hud) == 67);
+    CHECK(SotnHud_HpHold(hud) == 0 && SotnHud_Tick(hud, status) && SotnHud_DisplayedHp(hud) == 68);
+    CHECK(SotnHud_SaveHp(hud) && SotnHud_Tick(hud, status) && SotnHud_HpHold(hud) == 15 &&
+          SotnHud_SaveHp(hud) && SotnHud_HpHold(hud) == 16);
+    SotnHud_Destroy(hud);
+    status.hp = 40;
+    CHECK(SotnHud_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                         (SotnDataView){f->common, sizeof(f->common)}, status, &hud) &&
+          SotnHud_HpHold(hud) == 0 && SotnHud_DisplayedHp(hud) == 40);
+    CHECK(!SotnHud_NotifyHp(NULL) && !SotnHud_SaveHp(NULL) && SotnHud_HpHold(NULL) == 0);
+    SotnHud_Destroy(hud);
+    return true;
+}
+
 static bool Failures(Fixture *f)
 {
     MakeFixture(f);
@@ -158,7 +200,7 @@ int main(void)
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed = CountersAndGauge(fixture) && Failures(fixture);
+    const bool passed = CountersAndGauge(fixture) && HpHold(fixture) && Failures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

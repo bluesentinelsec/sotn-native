@@ -19,6 +19,7 @@ struct SotnHud
     HudSprite sprites[14];
     SotnHudStatus status;
     Uint16 display_hp, glint_timer, heart_cost[10];
+    Sint32 hp_hold; /**< Actual D_8013B5E8, reset by original DrawHud initialization. */
     Uint8 glint_phase, glint_repeats;
     Uint32 ticks, random, palette_period;
 };
@@ -168,14 +169,19 @@ failed:
 
 bool SotnHud_Tick(SotnHud *hud, SotnHudStatus status)
 {
-    if (hud == NULL || !StatusValid(status))
+    if (hud == NULL || !StatusValid(status) || hud->hp_hold < 0 || hud->hp_hold > 64)
         return SDL_SetError("HUD tick requires bounded HP, MP, hearts, and subweapon status");
-    const Sint32 difference = (Sint32)status.hp - hud->display_hp;
-    const Sint32 step = SDL_abs(difference) > 10 ? difference / 10
-                        : difference > 0         ? 1
-                        : difference < 0         ? -1
-                                                 : 0;
-    hud->display_hp = (Uint16)((Sint32)hud->display_hp + step);
+    if (hud->hp_hold)
+        --hud->hp_hold;
+    else
+    {
+        const Sint32 difference = (Sint32)status.hp - hud->display_hp;
+        const Sint32 step = SDL_abs(difference) > 10 ? difference / 10
+                            : difference > 0         ? 1
+                            : difference < 0         ? -1
+                                                     : 0;
+        hud->display_hp = (Uint16)((Sint32)hud->display_hp + step);
+    }
     hud->status = status;
     ++hud->ticks;
     if (status.subweapon != 0 && --hud->glint_timer == 0)
@@ -197,6 +203,26 @@ bool SotnHud_Tick(SotnHud *hud, SotnHudStatus status)
             hud->glint_timer = 1;
     }
     return true;
+}
+
+bool SotnHud_NotifyHp(SotnHud *hud)
+{
+    if (!hud)
+        return SDL_InvalidParamError("hud");
+    if (!hud->hp_hold)
+        hud->hp_hold = 64;
+    return true;
+}
+bool SotnHud_SaveHp(SotnHud *hud)
+{
+    if (!hud)
+        return SDL_InvalidParamError("hud");
+    hud->hp_hold = 16;
+    return true;
+}
+Sint32 SotnHud_HpHold(const SotnHud *hud)
+{
+    return hud ? hud->hp_hold : 0;
 }
 
 static Uint16 Color(const SotnHud *hud, Uint16 palette, Uint8 index)

@@ -44,6 +44,9 @@ the existing private SDK path. Deep/rebound shake is original type2; ceiling
 shake is3. Repeated draws do not update these owners. Wall sound644 precedes the
 secondary-impact voice in the real sound queue.
 
+The subsequent [secondary-impact/HUD owner](player-hud-hp-hold.md) preserves
+signed16 division, prior-poison expiry status, pre-minimum Talisman number words,
+actual guard/dodge responses and unconditional secondary HUD notification.
 Kind5 secondary impact consumes retained damage/2 through the original defense,
 poison, minimum-one and Talisman ordering. It creates a real shared damage number
 even when the second HP loss is dodged. Surviving losses request the existing

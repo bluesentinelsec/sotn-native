@@ -245,6 +245,7 @@ static bool Secondary(Uint8 *dra)
     p.hurt.damage_taken = 30;
     p.attributes.defense = 6;
     p.poison_ticks = 100;
+    p.timer_status = 0x4000; // Actual prior status supplied to this direct controller fixture.
     p.cape = 54;
     p.hearts_max = 50;
     SotnPlayer_HurtTick(&p);
@@ -280,6 +281,32 @@ static bool Secondary(Uint8 *dra)
     p.hurt.damage_taken = 65535;
     SotnPlayer_HurtTick(&p);
     CHECK(p.hp == 199 && p.damage_number.amount == 1);
+    p = Player(dra);
+    p.step = SOTN_PLAYER_HIT;
+    p.substep = 15;
+    p.contact = 2;
+    p.hurt.damage_taken = 30;
+    p.timer_status = 0x4000;
+    // The common timer pass already expired poison; the prior status still doubles this hit.
+    p.poison_ticks = 0;
+    SotnPlayer_HurtTick(&p);
+    CHECK(p.hp == 170 && p.damage_number.amount == 30 && p.damage_number.secondary_impact &&
+          !p.damage_number.boss_grab && p.hud_hp_hold);
+    for (Uint16 zero = 0; zero < 2; ++zero)
+    {
+        p = Player(dra);
+        p.step = SOTN_PLAYER_HIT;
+        p.substep = 15;
+        p.contact = 2;
+        p.hurt.damage_taken = 30;
+        p.attributes.defense = zero ? 15 : 100;
+        p.talismans = 1;
+        p.attributes.total[3] = 511;
+        SotnPlayer_HurtTick(&p);
+        CHECK(p.hp == 200 && p.damage_number.response == 2 &&
+              p.damage_number.amount == (zero ? 0 : 65451) && p.damage_number.secondary_impact &&
+              p.hud_hp_hold && !p.guard.applied && !p.dodge.applied);
+    }
     return true;
 }
 static bool HoldsAndRebase(Uint8 *dra)

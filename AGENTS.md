@@ -1,3 +1,16 @@
+Selected [HUD HP hold/secondary impacts](docs/player-hud-hp-hold.md) now owns actual
+DRA64-if-zero displayed-HP delay and actual save-room16 overwrite. Preserve
+same-frame63/15,65th/17th interpolation, original producer exclusions/full-HP
+healing, ordinary/frozen/release updates, menu/map/draw/GameOver holds and no-tick
+room retention/fresh-HUD reset. Commit notifications after player success, never
+replay them in freeze. Kind2 grab/secondary share prior-poison status and inclusive
+Talisman work; secondary sign-extends its retained16 before division and always
+notifies/displays guard/dodge/lethal results without contact guard/dodge effects.
+Preserve exclusive provenance, pre-minimum zero/negative words, wall644 before
+voice, actual Cloak/Fury and expiry-protection gates. No pool/grants/savev9 change.
+Supplied contact/status/gear/protection/arrival/heal fixtures are not producers,
+acquisition/routes/console evidence. All six Alucard gates remain open.
+
 Selected [held-grab damage feedback](docs/player-grab-damage.md) now owns actual
 normal held kind2 defense/prior-poison/Talisman/HP work, unconditional type0 numbers
 and surviving Blood Cloak/Fury requests. Preserve poison-expiry status, one inclusive

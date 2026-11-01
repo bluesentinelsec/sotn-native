@@ -27,6 +27,10 @@ one-shot effects. Selected [healing-number ownership](player-healing-numbers.md)
 now supplies both healing kinds' original type1 presentation through shared slots
 and twenty actual rows; it introduces no substitute effect pool.
 
+The subsequent [HUD HP-display hold owner](player-hud-hp-hold.md) now consumes
+actual applied healing and selected damage notifications, original64-if-zero
+delay and actual save-room16 overwrite through the same native HUD.
+
 Public authored tests cover MP phases, status/cap/repeated-clock/wrap boundaries,
 all128 walking counts, reset conditions, invalid-state rollback, request priority,
 freeze/death holds, full-HP effects, stone suppression and late player failure.

@@ -1205,21 +1205,24 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (p.damage_number.applied)
     {
         const Uint8 response = p.damage_number.response;
-        const bool grab = p.damage_number.boss_grab;
-        const bool grab_result =
-            grab && p.grab.damage <= 9999 && !p.axe_armor.active && !p.damage_number.neutral_hurt &&
-            (response != 1 || p.damage_number.amount == 1) &&
+        const bool grab = p.damage_number.boss_grab, secondary = p.damage_number.secondary_impact,
+                   internal = grab || secondary;
+        const bool internal_result =
+            internal && !(grab && secondary) && !p.axe_armor.active &&
+            !p.damage_number.neutral_hurt && (response != 1 || p.damage_number.amount == 1) &&
             (((response == 1 || response == 2 || response == 3) && p.hp &&
-              p.step == SOTN_PLAYER_BOSS_GRAB && p.grab.state == SOTN_GRAB_HELD) ||
+              (grab ? p.grab.damage <= 9999 && p.step == SOTN_PLAYER_BOSS_GRAB &&
+                          p.grab.state == SOTN_GRAB_HELD
+                    : p.step == SOTN_PLAYER_HIT && !p.hurt.started)) ||
              (response == 4 && !p.hp && p.step == SOTN_PLAYER_KILL));
-        if (in.freeze || p.hp > p.hp_max || (!grab && p.damage_number.amount > 39996) ||
+        if (in.freeze || p.hp > p.hp_max || (!internal && p.damage_number.amount > 39996) ||
             p.guard.applied || p.dodge.applied || p.immunity.applied || p.absorption.applied ||
-            (grab ? !grab_result
-                  : (response != 3 && response != 4 && response != 7 && response != 8)) ||
+            (internal ? !internal_result
+                      : (response != 3 && response != 4 && response != 7 && response != 8)) ||
             (p.damage_number.neutral_hurt && response != 3) ||
             ((response == 4 || (response == 3 && !p.axe_armor.active)) &&
              !p.damage_number.amount) ||
-            (!grab && response == 3 &&
+            (!internal && response == 3 &&
              (!p.hp || p.step != (p.axe_armor.active ? SOTN_PLAYER_AXE_HIT : SOTN_PLAYER_HIT))) ||
             (response == 4 && (p.hp || p.step != SOTN_PLAYER_KILL)) ||
             (response == 7 && p.step != SOTN_PLAYER_STONE) ||

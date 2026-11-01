@@ -1235,7 +1235,8 @@ static bool TickSaveRoom(SotnLaboratory *session, Uint16 buttons)
             return false;
         profile.hp = profile.hp_max;
         profile.mp = profile.mp_max;
-        if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session))
+        if (!SotnCharacter_Restore(session->character, &profile) || !ApplyCharacter(session) ||
+            !SotnHud_SaveHp(session->hud))
             return false;
     }
     if (action.sound != 0 && !SotnSound_Queue(session->sound, action.sound))
@@ -1892,6 +1893,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !BindStatBuffs(session) ||
         !SotnPlayer_SetDamageContext(session->player, session->game_timer) ||
         !TickPlayer(session, player_buttons) || !SotnPlayer_GetState(session->player, &state) ||
+        (state.hud_hp_hold && !SotnHud_NotifyHp(session->hud)) ||
         (state.heart_gain.requested &&
          !SotnCharacter_AddHearts(session->character, state.heart_gain.amount)) ||
         (state.defense_buff_minimum &&

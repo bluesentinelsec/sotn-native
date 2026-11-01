@@ -23,6 +23,10 @@ their original boundaries. Dodges and lethal pulses request neither resource.
 Earlier deferred healing still runs first and retains its independent number.
 No pool, equipment/default grant, clock or ordinary-savev9 field is added.
 
+The subsequent [HUD/secondary-impact owner](player-hud-hp-hold.md) connects
+surviving non-dodged grab notifications to the actual64-if-zero displayed-HP
+hold and shares kind-two calculations with secondary impacts.
+
 An explicit captured boss-grab provenance bit distinguishes these number contexts
 from contact or secondary-impact results. Shared validation requires the real held
 state for surviving guard/dodge/hurt results, or the actual lethal dispatch. A

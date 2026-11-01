@@ -23,6 +23,7 @@ bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
         (!p->damage_pending && p->damage_ticked && p->damage_last_clock == timer))
         return SDL_SetError(
             "Damage context requires actual capture owners and a new gameplay clock");
+    p->timer_status = SotnPlayer_Status(p);
     p->damage_clock = timer;
     p->damage_context = p->damage_pending = true;
     return true;
@@ -120,6 +121,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     {
         // Elemental absorption wins before Cat-eye; its minimum-one prepass must not double.
         const Uint16 amount = power.absorb ? power.attack : (Uint16)SDL_max(1, power.attack * 2U);
+        p->hud_hp_hold |= p->hp != p->hp_max;
         p->hp = (Uint16)SDL_min(p->hp_max, (Uint32)p->hp + amount);
         p->absorption = (SotnPlayerAbsorption){.source = {.x = p->x.value,
                                                           .y = p->y.value,
@@ -170,14 +172,15 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     {
         Uint16 amount = 0;
         if (!((water.hit_params & 31U) >= 16
-                  ? SotnCombat_EnvironmentalContact(power, p->hp_max, p->poison_ticks != 0, &amount)
-                  : SotnCombat_NormalContact(power, attributes.defense, p->poison_ticks != 0,
-                                             &amount)))
+                  ? SotnCombat_EnvironmentalContact(power, p->hp_max,
+                                                    (p->timer_status & 0x4000U) != 0, &amount)
+                  : SotnCombat_NormalContact(power, attributes.defense,
+                                             (p->timer_status & 0x4000U) != 0, &amount)))
             return false;
         // The selected reaction helpers cap HP loss at9999. The original number
         // receives the full requested points, including poison/weakness overkill.
         const Sint32 requested =
-            ((Sint32)power.attack - attributes.defense) * (p->poison_ticks ? 2 : 1);
+            ((Sint32)power.attack - attributes.defense) * ((p->timer_status & 0x4000U) ? 2 : 1);
         number_amount = (water.hit_params & 31U) >= 16 ? amount : (Uint16)SDL_max(1, requested);
         // Exactly one libc roll for one or two actual accessories; equality succeeds,
         // including luck zero. Earlier immunity/absorption/stone/water never roll.
@@ -214,7 +217,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         {
             Uint16 kind = (Uint16)(water.hit_params & 31U);
             const Sint32 taken =
-                kind >= 16 ? (p->hp_max / 8) * (p->poison_ticks ? 2 : 1) : requested;
+                kind >= 16 ? (p->hp_max / 8) * ((p->timer_status & 0x4000U) ? 2 : 1) : requested;
             if (taken <= 0)
                 kind = 2;
             else if (kind < 2)
@@ -228,6 +231,8 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         }
     }
     p->contact_dispatch = false;
+    if (ok && p->hp)
+        p->hud_hp_hold = true;
     if (ok && !p->guard.applied &&
         (p->hp < previous_hp || (axe && stone) ||
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))

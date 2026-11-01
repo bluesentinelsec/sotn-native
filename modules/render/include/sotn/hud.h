@@ -24,6 +24,13 @@ bool SotnHud_Create(SotnDataView dra, SotnDataView common, SotnHudStatus status,
  * @return Success, or false with SDL_GetError() and unchanged state on invalid status.
  * @note Rendering never advances the cursor. Gameplay regeneration remains in the game core. */
 bool SotnHud_Tick(SotnHud *hud, SotnHudStatus status);
+/** @brief Original func_800FE8F0: hold displayed HP for64 HUD updates only when idle.
+ * Actual HP producers call after successful player work. No interpolation/RNG/tick occurs. */
+bool SotnHud_NotifyHp(SotnHud *hud);
+/** @brief Actual save-room healing overwrites the same DRA hold word with16, without a tick. */
+bool SotnHud_SaveHp(SotnHud *hud);
+/** @brief Inspect the actual remaining displayed-HP hold without advancing it; NULL returns0. */
+Sint32 SotnHud_HpHold(const SotnHud *hud);
 /** @brief Compose original HUD artwork, counters, and MP gauge over the RGB555 frame.
  * @param hud Borrowed presentation. @param frame Full writable framebuffer, not aliasing inputs.
  * @param count Available pixels, at least SOTN_FRAME_PIXELS.

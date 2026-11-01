@@ -295,6 +295,7 @@ typedef struct SotnPlayerDamageNumber
     bool applied;
     bool neutral_hurt; /**< Accepted response3 also requests its original neutral Blink58. */
     bool boss_grab; /**< Actual held-grab HandleDamage call; even guard/dodge displays a number. */
+    bool secondary_impact; /**< Actual func_80113D7C call; mutually exclusive with boss_grab. */
 } SotnPlayerDamageNumber;
 
 /** @brief Successful original response1; its red number is separate from deferred healing. */
@@ -391,6 +392,7 @@ typedef struct SotnPlayerState
     SotnPlayerWaterPain water_pain;
     Uint8 water_pain_timer;
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
+    bool hud_hp_hold; /**< Actual func_800FE8F0 request, committed by the native HUD owner. */
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;

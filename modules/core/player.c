@@ -1282,25 +1282,45 @@ static Uint16 HurtAnimation(SotnPlayer *p)
     Animate(p, (Uint16)(0x2eU + value % 3U));
     return (Uint16)(value % 16U);
 }
-static bool HurtSecondary(SotnPlayer *p)
+static void KindTwoDamage(SotnPlayer *p, Sint32 power, bool grab)
 {
-    // 71830.c:func_80113D7C calls the actual kind-two HandleDamage again.
-    const Sint32 retained =
-        p->hurt.damage_taken < 32768 ? p->hurt.damage_taken : (Sint32)p->hurt.damage_taken - 65536;
-    const Sint32 requested = (retained / 2 - p->attributes.defense) * (p->poison_ticks ? 2 : 1);
-    const Uint16 amount = (Uint16)SDL_max(1, requested);
+    const Sint32 requested =
+        (power - p->attributes.defense) * ((p->timer_status & 0x4000U) ? 2 : 1);
     const bool dodged = p->talismans && (Uint32)p->attributes.total[3] * p->talismans >=
                                             (SotnCombat_Random(&p->damage_random) & 511U);
-    const Uint16 before = p->hp;
+    const Uint16 amount = (Uint16)(dodged ? requested : SDL_max(1, requested));
+    Uint8 response = dodged ? 2 : requested <= 0 && p->attributes.defense >= 100 ? 1 : 3;
     if (!dodged)
         p->hp = amount >= p->hp ? 0 : (Uint16)(p->hp - amount);
+    if (!p->hp)
+        response = 4;
     p->damage_number = (SotnPlayerDamageNumber){.source = {.x = p->x.value,
                                                            .y = p->y.value,
                                                            .priority = 148,
                                                            .facing_left = p->facing_left},
                                                 .amount = amount,
-                                                .response = p->hp ? 3 : 4,
-                                                .applied = true};
+                                                .response = response,
+                                                .applied = true,
+                                                .boss_grab = grab,
+                                                .secondary_impact = !grab};
+    if (!dodged && p->hp)
+    {
+        p->hud_hp_hold = true;
+        if (p->cape == 54 && p->hearts < p->hearts_max)
+            p->heart_gain = (SotnPlayerHeartGain){
+                .source = p->damage_number.source, .amount = amount, .requested = true};
+        if (p->armor == 22 && p->stat_buffs)
+            p->defense_buff_minimum = 512;
+    }
+}
+static bool HurtSecondary(SotnPlayer *p)
+{
+    // The original helper accepts s16 before dividing, even though the retained word is u16.
+    const Sint32 retained =
+        p->hurt.damage_taken < 32768 ? p->hurt.damage_taken : (Sint32)p->hurt.damage_taken - 65536;
+    KindTwoDamage(p, retained / 2, false);
+    // This caller explicitly requests the HUD hold even for a dodge or lethal result.
+    p->hud_hp_hold = true;
     if (!p->hp)
     {
         const Uint16 impact_sound = p->sound;
@@ -1308,15 +1328,6 @@ static bool HurtSecondary(SotnPlayer *p)
         p->extra_sound = p->sound;
         p->sound = impact_sound;
         return true;
-    }
-    if (!dodged)
-    {
-        if (p->cape == 54 && p->hearts < p->hearts_max)
-            p->heart_gain = (SotnPlayerHeartGain){.source = p->damage_number.source,
-                                                  .amount = (Uint16)(before - p->hp),
-                                                  .requested = true};
-        if (p->armor == 22 && p->stat_buffs)
-            p->defense_buff_minimum = 512;
     }
     p->hit_effect_ticks = 4;
     p->damage_palette = 0x8166;
@@ -1567,29 +1578,8 @@ static void BossGrabTick(SotnPlayer *player)
     }
     else if (player->grab.state == SOTN_GRAB_DAMAGE)
     {
-        // The original calls kind-two HandleDamage, then ALWAYS creates its number,
-        // including the pre-minimum signed result on a Talisman dodge. It does not
-        // dispatch ordinary contact guard/dodge effects or interrupt the held state.
-        const Sint32 requested = ((Sint32)player->grab.damage - player->attributes.defense) *
-                                 ((player->timer_status & 0x4000U) ? 2 : 1);
-        const bool dodged =
-            player->talismans && (Uint32)player->attributes.total[3] * player->talismans >=
-                                     (SotnCombat_Random(&player->damage_random) & 511U);
-        const Uint16 damage = (Uint16)(dodged ? requested : SDL_max(1, requested));
-        Uint8 response = dodged ? 2 : requested <= 0 && player->attributes.defense >= 100 ? 1 : 3;
-        if (!dodged)
-            player->hp = damage >= player->hp ? 0 : (Uint16)(player->hp - damage);
-        if (!player->hp)
-            response = 4;
-        player->damage_number =
-            (SotnPlayerDamageNumber){.source = {.x = player->x.value,
-                                                .y = player->y.value,
-                                                .priority = 148,
-                                                .facing_left = player->facing_left},
-                                     .amount = damage,
-                                     .response = response,
-                                     .applied = true,
-                                     .boss_grab = true};
+        // This caller always displays the original result, without contact guard/dodge effects.
+        KindTwoDamage(player, player->grab.damage, true);
         if (!player->hp)
         {
             const Sint32 center =
@@ -1601,14 +1591,6 @@ static void BossGrabTick(SotnPlayer *player)
                                    : delta >= 0;
             PhysicalDeath(player, right);
             return;
-        }
-        if (!dodged)
-        {
-            if (player->cape == 54 && player->hearts < player->hearts_max)
-                player->heart_gain = (SotnPlayerHeartGain){
-                    .source = player->damage_number.source, .amount = damage, .requested = true};
-            if (player->armor == 22 && player->stat_buffs)
-                player->defense_buff_minimum = 512;
         }
         player->timers[2] = 4;
         player->damage_palette = 0x8166;
@@ -2045,6 +2027,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     const bool alive = !SotnPlayerStep_IsDead(next.step);
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
+    next.hud_hp_hold = false;
     next.heart_gain = (SotnPlayerHeartGain){0};
     next.absorption = (SotnPlayerAbsorption){0};
     next.immunity = (SotnPlayerImmunity){0};
@@ -2071,6 +2054,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.healing.pending_kind = 0;
         next.healing.pending = 0;
         next.healing.applied = true;
+        next.hud_hp_hold = true;
         next.healing.effects = next.step != SOTN_PLAYER_STONE;
         next.healing.source = (SotnPlayerFactorySource){
             .x = next.x.value, .y = next.y.value, .priority = 148, .facing_left = next.facing_left};
@@ -2812,6 +2796,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .water_pain = player->water_pain,
         .water_pain_timer = player->water_damage.pain_timer,
         .defense_buff_minimum = player->defense_buff_minimum,
+        .hud_hp_hold = player->hud_hp_hold,
         .heart_gain = player->heart_gain,
         .previous_contacts = player->frame_contacts,
         .absorption = player->absorption,
@@ -3421,6 +3406,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.water_death.started = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
+    next.hud_hp_hold = false;
     next.heart_gain = (SotnPlayerHeartGain){0};
     next.absorption = (SotnPlayerAbsorption){0};
     next.immunity = (SotnPlayerImmunity){0};

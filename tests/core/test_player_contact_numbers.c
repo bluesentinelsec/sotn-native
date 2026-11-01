@@ -154,6 +154,18 @@ static bool Producers(Fixture *f, SotnDataView exe)
     SDL_memcpy(f->dra + 0x101b8, animations, sizeof(animations));
     CHECK(SotnPlayer_Tick(p, 0) && p->damage_number.applied && p->damage_number.amount == 7 &&
           p->hp == 34 && !p->healing.pending);
+    *p = base;
+    p->poison_ticks = 1;
+    p->curse_ticks = 100; // Original expiry protection is suppressed by the prior curse status.
+    CHECK(Contact(p, 1, 7, 2) && p->hp == 26 && !p->poison_ticks && p->damage_number.amount == 14 &&
+          p->hud_hp_hold);
+    *p = base;
+    p->hp = p->hp_max;
+    p->attributes.absorption = 0x20;
+    CHECK(Contact(p, 1, 7, 0x22) && p->absorption.applied && !p->hud_hp_hold);
+    *p = base;
+    p->hp = p->hp_max;
+    CHECK(SotnPlayer_QueueMailHealing(p) && SotnPlayer_Tick(p, 0) && p->hud_hp_hold);
     Close(f);
     return true;
 }
@@ -282,7 +294,7 @@ static bool Grabs(Fixture *f, SotnDataView exe)
     CHECK(SotnPlayer_RequestGrab(p, (SotnPlayerGrab){.state = SOTN_GRAB_DAMAGE, .damage = 16}) &&
           SotnPlayer_Tick(p, 0) && p->hp == 27 && p->grab.state == SOTN_GRAB_HELD &&
           p->damage_number.applied && p->damage_number.boss_grab &&
-          p->damage_number.response == 3 && p->damage_number.amount == 13 &&
+          p->damage_number.response == 3 && p->damage_number.amount == 13 && p->hud_hp_hold &&
           p->damage_number.source.x == base.x.value && p->damage_number.source.y == base.y.value &&
           !p->damage_number.neutral_hurt && !p->guard.applied && !p->dodge.applied &&
           p->heart_gain.requested && p->heart_gain.amount == 13 &&
@@ -300,7 +312,8 @@ static bool Grabs(Fixture *f, SotnDataView exe)
     CHECK(SotnPlayer_RequestGrab(p, (SotnPlayerGrab){.state = SOTN_GRAB_DAMAGE, .damage = 9999}) &&
           SotnPlayer_Tick(p, 0) && !p->hp && p->step == SOTN_PLAYER_KILL &&
           p->damage_number.boss_grab && p->damage_number.response == 4 &&
-          p->damage_number.amount == 19998 && !p->heart_gain.requested && !p->defense_buff_minimum);
+          p->damage_number.amount == 19998 && !p->hud_hp_hold && !p->heart_gain.requested &&
+          !p->defense_buff_minimum);
     *p = base;
     CHECK(SotnPlayer_QueueMailHealing(p) &&
           SotnPlayer_RequestGrab(p, (SotnPlayerGrab){.state = SOTN_GRAB_DAMAGE, .damage = 20}) &&
@@ -322,9 +335,9 @@ static bool Grabs(Fixture *f, SotnDataView exe)
         CHECK(SotnPlayer_RequestGrab(p, (SotnPlayerGrab){.state = SOTN_GRAB_DAMAGE}) &&
               SotnPlayer_Tick(p, 0) && p->hp == 40 && p->damage_random == expected &&
               p->damage_number.boss_grab && p->damage_number.response == 2 &&
-              p->damage_number.amount == (negative ? 65436 : 0) && !p->guard.applied &&
-              !p->dodge.applied && !p->heart_gain.requested && !p->defense_buff_minimum &&
-              p->timers[2] == 4 && p->sound == 0x6e7);
+              p->damage_number.amount == (negative ? 65436 : 0) && !p->hud_hp_hold &&
+              !p->guard.applied && !p->dodge.applied && !p->heart_gain.requested &&
+              !p->defense_buff_minimum && p->timers[2] == 4 && p->sound == 0x6e7);
     }
     *p = base;
     p->attributes.defense = 100;
@@ -332,7 +345,7 @@ static bool Grabs(Fixture *f, SotnDataView exe)
     p->damage_random = GrabSeed(511);
     CHECK(SotnPlayer_RequestGrab(p, (SotnPlayerGrab){.state = SOTN_GRAB_DAMAGE}) &&
           SotnPlayer_Tick(p, 0) && p->hp == 39 && p->damage_number.response == 1 &&
-          p->damage_number.amount == 1 && !p->guard.applied && !p->dodge.applied);
+          p->damage_number.amount == 1 && p->hud_hp_hold && !p->guard.applied && !p->dodge.applied);
     *p = base;
     p->talismans = 1;
     p->damage_random = GrabSeed(511);
@@ -452,6 +465,22 @@ static bool Shared(Fixture *f, SotnDataView exe)
     in.player.damage_number.amount = 0;
     CHECK(SotnBatRuntime_Tick(r, f->character, in) &&
           r->children[40].state.healing_number.digits[0].palette == 0x1b4);
+    *r = (SotnBatRuntime){0};
+    in.player.step = SOTN_PLAYER_HIT;
+    in.player.grab.state = SOTN_GRAB_NONE;
+    in.player.damage_number = (SotnPlayerDamageNumber){
+        .applied = true, .secondary_impact = true, .response = 2, .amount = 65451};
+    CHECK(SotnBatRuntime_Tick(r, f->character, in) &&
+          r->children[40].state.healing_number.number == 65451);
+    *saved = *r;
+    in.player.damage_number.boss_grab = true;
+    CHECK(!SotnBatRuntime_Tick(r, f->character, in) && !SDL_memcmp(saved, r, sizeof(*r)));
+    in.player.damage_number.boss_grab = false;
+    in.player.hurt.started = true;
+    CHECK(!SotnBatRuntime_Tick(r, f->character, in) && !SDL_memcmp(saved, r, sizeof(*r)));
+    in.player.hurt.started = false;
+    in.player.damage_number.secondary_impact = false;
+    CHECK(!SotnBatRuntime_Tick(r, f->character, in) && !SDL_memcmp(saved, r, sizeof(*r)));
     SDL_free(actors);
     SDL_free(saved);
     SDL_free(r);

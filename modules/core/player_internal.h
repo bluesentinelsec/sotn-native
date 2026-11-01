@@ -58,6 +58,7 @@ struct SotnPlayer
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;
     Uint16 defense_buff_minimum;
+    bool hud_hp_hold;
     Uint16 water_breath_timer;
     Uint8 collision_invincibility; /**< Original entity byte0x49, not the player damage timer. */
     Sint32 vx, vy, contact, previous_contact;
