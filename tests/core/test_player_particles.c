@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <sotn/collision.h>
 #include <sotn/combat.h>
 #include <sotn/player_particles.h>
 #include <sotn/player_smoke.h>
@@ -237,7 +238,77 @@ static bool Smoke(void)
     CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0, 148, 0, 0) && !puff.phase);
     return true;
 }
+static bool HurtSmoke(void)
+{
+    Uint8 dra[0xd5fa] = {0};
+    for (Uint16 i = 0; i < 6; ++i)
+    {
+        Put16(dra + 0xd54c + i * 2U, (Uint16)(i * 3U));
+        Put32(dra + 0xd558 + i * 4U, (Uint32)(0U - (i + 1U) * 4096U));
+        Put16(dra + 0xd570 + i * 2U, (Uint16)(80 + i * 16U));
+    }
+    Put16(dra + 0xd57c, 2);
+    Put16(dra + 0xd57e, 1);
+    for (Uint16 i = 0; i < 14; ++i)
+        dra[0xd5e0 + i] = (Uint8)(13U - i);
+    for (Uint16 i = 0; i < 10; ++i)
+        dra[0xd5f0 + i] = (Uint8)i;
+    const SotnDataView view = {dra, sizeof(dra)};
+    const SotnPlayerFactorySource source = {
+        .x = 64 * 65536 + 123, .y = 100 * 65536 + 456, .facing_left = true};
+    SotnPlayerSmokeEnvironment live = {
+        .x = 32767 * 65536 + 999, .y = -32768 * 65536 + 888, .wall_owned = true};
+    for (Sint32 speed = -1; speed <= 1; ++speed)
+    {
+        live.velocity_x = speed;
+        SotnPlayerSmoke puff = {0};
+        CHECK(SotnPlayerSmoke_TickOwned(&puff, view, source, 0x602, 148, 0, 0, &live));
+        CHECK(puff.x == (speed > 0 ? 88 : 40) * 65536 + 123 && puff.y == 124 * 65536 + 456 &&
+              puff.velocity_y == -12288 && puff.scale == 176 && !puff.velocity_x);
+    }
+    SotnPlayerSmoke puff = {0};
+    CHECK(!SotnPlayerSmoke_Tick(&puff, view, source, 0x600, 148, 0, 0) && !puff.phase);
+    CHECK(SotnPlayerSmoke_Tick(&puff, view, source, 0xa02, 148, 0, 0) &&
+          puff.x == 60 * 65536 + 123 && puff.y == 118 * 65536 + 456);
+    for (Uint16 profile = 4; profile <= 8; profile += 4)
+    {
+        const Uint16 parameter = (Uint16)(profile * 256U + 1U);
+        live.wall[9].effects = SOTN_EFFECT_SIDE;
+        live.wall[9].x = 7;
+        live.wall[9].y = -13;
+        live.wall[0].effects = SOTN_EFFECT_SOLID; // Profile8 starts scanning at index2.
+        puff = (SotnPlayerSmoke){0};
+        live.wall_owned = false;
+        CHECK(!SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, &live) &&
+              !puff.phase);
+        live.wall_owned = true;
+        CHECK(SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, &live) &&
+              puff.x == -32762 * 65536 + 123 && puff.y == 32755 * 65536 + 456 &&
+              puff.velocity_y == (profile == 4 ? -16384 : -8192) &&
+              puff.scale == (profile == 4 ? 160 : 128) && puff.remaining == 2);
+        const SotnPlayerSmoke before = puff;
+        CHECK(SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, NULL) &&
+              puff.x == before.x && puff.y == before.y + before.velocity_y && puff.remaining == 1);
+        live.wall[9].effects = 0;
+        puff = (SotnPlayerSmoke){0};
+        if (profile == 4)
+            live.wall[0].effects = 0;
+        CHECK(SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, &live) &&
+              puff.removed && !puff.sprite);
+        puff = (SotnPlayerSmoke){0};
+        const Uint32 table = profile == 4 ? 0xd5e0U : 0xd5f0U;
+        const Uint8 saved = dra[table];
+        dra[table] = 14;
+        CHECK(!SotnPlayerSmoke_TickOwned(&puff, view, source, parameter, 148, 0, 0, &live) &&
+              !puff.phase && !puff.removed);
+        dra[table] = saved;
+        CHECK(!SotnPlayerSmoke_TickOwned(&puff, (SotnDataView){dra, table}, source, parameter, 148,
+                                         0, 0, &live) &&
+              !puff.phase);
+    }
+    return true;
+}
 int main(void)
 {
-    return Run() && Death() && Vectors() && Smoke() ? 0 : 1;
+    return Run() && Death() && Vectors() && Smoke() && HurtSmoke() ? 0 : 1;
 }

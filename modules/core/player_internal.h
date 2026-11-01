@@ -165,6 +165,7 @@ struct SotnPlayer
     bool facing_left, turned, fixed_stage, collision_disabled, failed;
     SotnCollider floor[4], ceiling[4], wall[14];
     PlayerSensor floor_sensors[4], ceiling_sensors[4], wall_sensors[14];
+    bool wall_snapshot_owned;
 };
 
 _Static_assert(offsetof(SotnPlayer, poison_ticks) == offsetof(SotnPlayer, timers),

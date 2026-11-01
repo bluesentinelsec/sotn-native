@@ -59,8 +59,13 @@ static bool TestMovement(Fixture *fixture)
     SotnPlayer *player = NULL;
     CHECK(SotnPlayer_Create(dra, map, 64, 135, &player));
     SotnPlayerState state = {0};
+    CHECK(State(player, &state) && !state.smoke_environment.wall_owned);
     CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
-    CHECK(state.y == 135 * 65536 && (state.contacts & 1) != 0);
+    CHECK(state.y == 135 * 65536 && (state.contacts & 1) != 0 &&
+          state.smoke_environment.wall_owned && state.smoke_environment.x == state.x &&
+          state.smoke_environment.y == state.y &&
+          state.smoke_environment.velocity_x == state.velocity_x &&
+          state.smoke_environment.wall[0].x == 7 && state.smoke_environment.wall[7].x == -7);
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_RIGHT) && State(player, &state));
     CHECK(state.x == 64 * 65536 + 98304 && state.velocity_x == 98304);
     CHECK(state.step == SOTN_PLAYER_WALK && !state.facing_left);

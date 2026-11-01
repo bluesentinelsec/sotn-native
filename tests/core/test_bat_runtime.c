@@ -991,6 +991,60 @@ static bool CommonPlayerLifetime(Fixture *f)
     return true;
 }
 
+static bool WallSmokeOwnership(Fixture *f)
+{
+    CHECK(Create(f) && f->state.smoke_environment.wall_owned);
+    const Uint16 blueprints[] = {12, 31};
+    for (Uint16 n = 0; n < 2; ++n)
+    {
+        Uint8 *bp = f->dra + 0xd1d4 + blueprints[n] * 6U;
+        bp[0] = 2;
+        bp[1] = bp[2] = n ? 4 : 6;
+    }
+    for (Uint16 i = 0; i < 14; ++i)
+        f->dra[0xd5e0 + i] = (Uint8)i;
+    for (Uint16 i = 0; i < 10; ++i)
+        f->dra[0xd5f0 + i] = (Uint8)i;
+    Put16(f->dra + 0xd57c, 2);
+    Put16(f->dra + 0xd57e, 1);
+    const SotnPlayerFactorySource source = {.x = 100 * 65536 + 123, .y = 120 * 65536 + 456};
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .camera_x = 20,
+                              .camera_y = 10};
+    in.player.smoke_environment.x = 140 * 65536 + 111;
+    in.player.smoke_environment.y = 110 * 65536 + 222;
+    in.player.smoke_environment.wall[13].effects = SOTN_EFFECT_SIDE;
+    in.player.smoke_environment.wall[13].x = -7;
+    in.player.smoke_environment.wall[13].y = -21;
+    in.player.movement_effects = (SotnPlayerMovementEffects){
+        .smoke = true, .smoke_source = source, .smoke_blueprint = 0x4000c};
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL));
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    for (Uint16 i = 0; i < 6; ++i)
+        CHECK(f->runtime.children[47U - i].kind == 2 &&
+              f->runtime.children[47U - i].parameter == 0x400U + i &&
+              f->runtime.children[47U - i].state.smoke.x == 113 * 65536 + 123 &&
+              f->runtime.children[47U - i].state.smoke.y == 79 * 65536 + 456 &&
+              !f->runtime.children[47U - i].primitive_count);
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && before.random == after.random);
+    f->runtime = (SotnBatRuntime){0};
+    in.player.movement_effects.smoke_blueprint = 0x8001f;
+    in.player.smoke_environment.wall[13].effects = 0;
+    CHECK(SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SotnBatRuntime_Occupied(&f->runtime));
+    in.player.smoke_environment.wall[9].effects = SOTN_EFFECT_SOLID;
+    in.player.smoke_environment.wall_owned = false;
+    const SotnBatRuntime held = f->runtime;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&held, &f->runtime, sizeof(held)));
+    CHECK(SotnCharacter_Get(f->character, &after, NULL) && before.random == after.random);
+    Close(f);
+    return true;
+}
+
 static bool OrdinarySmokeOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1486,13 +1540,14 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok =
-        Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-        PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
-        WolfEffectOwnership(f) && GravityImpactOwnership(f) && CommonPlayerLifetime(f) &&
-        OrdinarySmokeOwnership(f) && NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
-        ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) && DeathParticlesOwnership(f) &&
-        OutlineOwnership(f) && ContactAbsorptionOwnership(f);
+    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
+                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
+                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) &&
+                    NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
+                    ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) &&
+                    DeathParticlesOwnership(f) && OutlineOwnership(f) &&
+                    ContactAbsorptionOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

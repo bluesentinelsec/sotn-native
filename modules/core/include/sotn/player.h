@@ -10,6 +10,7 @@
 #include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
+#include <sotn/player_smoke.h>
 #include <sotn/player_timers.h>
 #include <sotn/water_damage.h>
 #include <sotn/water_death.h>
@@ -352,6 +353,7 @@ typedef struct SotnPlayerState
     Uint32 status;            /**< Original status bits for stage scripts and enemy observations. */
     Uint32 contacts;          /**< Original floor/ceiling/wall and slope flags. */
     Uint32 previous_contacts; /**< Actual pre-collision contact word retained by the player. */
+    SotnPlayerSmokeEnvironment smoke_environment; /**< Actual live wall/skid feedback. */
     SotnAnimation animation;
     SotnPlayerSimulatedPad simulated_pad;
     SotnPlayerScriptReaction script_reaction;

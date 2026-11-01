@@ -715,6 +715,8 @@ static void CollideStep(SotnPlayer *player)
     }
     CheckWallRight(player);
     CheckWallLeft(player);
+    if (!player->failed)
+        player->wall_snapshot_owned = true;
     if (((player->contact & 4) && player->vx > 0) || ((player->contact & 8) && player->vx < 0))
         player->x.parts.low = 0;
     if ((player->contact & 0x8000) || !(player->floor[1].effects & SOTN_EFFECT_SOLID) ||

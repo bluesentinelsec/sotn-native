@@ -64,6 +64,30 @@ Normal status/palette/shake producers, water, spells, full equipment/familiar
 behavior, all-ability/GPU contention and complete Alucard/game parity remain
 incomplete. Ordinary starts and version-nine saves remain unchanged.
 
+The same entity-two owner now reconstructs the original skid6, wall-crunch4,
+wall-bounce8 and slope10 profiles as dependencies for the remaining hurt controller.
+The player exports its actual live position/speed and fourteen wall effects/sensors
+only after successful wall queries. Shared children translate that live position
+once, use the private sensor-order bytes and retain their captured origin fractions.
+Skid direction follows live horizontal speed rather than facing. A missing wall
+retires the actual child; missing ownership or malformed private sensor indices
+fails atomically. These profiles consume no RNG and share existing factories,
+children and drawing. They introduce no hurt producer, resource grant or save field.
+
+Authored checks cover side-only contacts, signed wrapping, scan starts, live speed,
+camera placement, six-child blueprint12/four-child blueprint31 ownership and late
+failure rollback. Private comparisons match2,280 supplied contexts and38,880 complete
+original behavior/animation frames across the existing and added profiles; Debug
+and sanitizer traces match. A native supplied-factory sequence walks to an actual
+Laboratory wall, creates the added profiles through shared children, draws220
+contributed pixels and retires them. Its protection/factory fixtures establish no
+live hurt producer. Existing ordinary backdash/walking checks still draw561 pixels
+in the native owner and190 in the actual app, with Debug/sanitizer success and
+ordinary SDL exit. All201 local tests pass in each configuration. Supplied
+collision/factory fixtures are dependency evidence, not live hurt, acquisition,
+route or console evidence. Full hurt reactions remain in the open
+[milestone checklist](alucard-status.md).
+
 Provenance: selected `dra/6E42C.c:{func_8010FD88,func_8010E6AC}`,
 `6FDF8.c:func_8010FDF8`, `71830.c:PlayerStepStand`, and
 `7879C.c:{EntityFactory,EntitySmokePuff}`, pinned sotn-decomp

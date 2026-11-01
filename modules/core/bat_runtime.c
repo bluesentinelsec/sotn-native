@@ -1270,8 +1270,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnPlayerFactorySource source = c->source;
             source.x = FixedShift(source.x, (Sint16)-in.camera_x);
             source.y = FixedShift(source.y, (Sint16)-in.camera_y);
-            if (!SotnPlayerSmoke_Tick(&c->state.smoke, in.dra, source, c->parameter, p.priority,
-                                      p.contacts, p.status))
+            SotnPlayerSmokeEnvironment environment = p.smoke_environment;
+            environment.x = FixedShift(environment.x, (Sint16)-in.camera_x);
+            environment.y = FixedShift(environment.y, (Sint16)-in.camera_y);
+            if (!SotnPlayerSmoke_TickOwned(&c->state.smoke, in.dra, source, c->parameter,
+                                           p.priority, p.contacts, p.status, &environment))
                 return false;
             const Sint32 x = Pixel(c->state.smoke.x), y = Pixel(c->state.smoke.y);
             removed = c->state.smoke.removed || x < -32 || x > 288 || y < -16 || y > 256;

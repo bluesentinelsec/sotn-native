@@ -2617,6 +2617,17 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .draw_pivot_x = player->draw_pivot_x,
         .draw_pivot_y = player->draw_pivot_y};
     SDL_memcpy(out->player_timers, player->timers, sizeof(out->player_timers));
+    out->smoke_environment =
+        (SotnPlayerSmokeEnvironment){.x = player->x.value,
+                                     .y = player->y.value,
+                                     .velocity_x = player->vx,
+                                     .wall_owned = player->wall_snapshot_owned};
+    for (Uint16 i = 0; i < SDL_arraysize(player->wall); ++i)
+    {
+        out->smoke_environment.wall[i].effects = player->wall[i].effects;
+        out->smoke_environment.wall[i].x = player->wall_sensors[i].x;
+        out->smoke_environment.wall[i].y = player->wall_sensors[i].y;
+    }
     if (player->wolf.active)
     {
         out->wolf.controller.x =
