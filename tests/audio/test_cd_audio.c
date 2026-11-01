@@ -15,6 +15,20 @@ static void Put32(Uint8 *p, Uint32 v)
     for (Uint16 i = 0; i < 4; ++i)
         p[i] = (Uint8)(v >> (8 * i));
 }
+static bool SameState(SotnCdAudioState a, SotnCdAudioState b)
+{
+    return a.started == b.started && a.duration == b.duration && a.playing == b.playing &&
+           a.queued == b.queued && a.command == b.command && a.commands == b.commands &&
+           a.phase == b.phase && a.saved == b.saved && a.volume == b.volume &&
+           a.target_volume == b.target_volume && a.acknowledged == b.acknowledged &&
+           a.queue_empty == b.queue_empty && a.playing_xa == b.playing_xa && a.busy == b.busy &&
+           a.serial == b.serial && a.decoder_present == b.decoder_present &&
+           a.decoder.sector == b.decoder.sector && a.decoder.remaining == b.decoder.remaining &&
+           a.decoder.duration == b.decoder.duration && a.decoder.start == b.decoder.start &&
+           a.decoder.id == b.decoder.id && a.decoder.volume == b.decoder.volume &&
+           a.decoder.mode == b.decoder.mode && a.decoder.looping == b.decoder.looping &&
+           a.decoder.once == b.decoder.once;
+}
 static bool Tick(SotnCdAudio *a, Uint32 *clock, SotnCdAudioState *state)
 {
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
@@ -113,8 +127,7 @@ static bool Exercise(SotnDataView dra, SotnStream *stream)
     CHECK(Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     CHECK(SotnCdAudio_Queue(a, 0x11) && Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     const SotnCdAudioState before = s;
-    CHECK(!SotnCdAudio_Queue(a, 0x474) && SotnCdAudio_Get(a, &s) &&
-          !SDL_memcmp(&s, &before, sizeof(s)));
+    CHECK(!SotnCdAudio_Queue(a, 0x474) && SotnCdAudio_Get(a, &s) && SameState(s, before));
     CHECK(StartVoice(a, &clock, 0x472, &s));
     const Uint32 started = s.started;
     CHECK(s.duration == 36 && s.decoder.duration == 16);
