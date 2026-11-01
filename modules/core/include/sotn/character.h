@@ -1,6 +1,7 @@
 #ifndef SOTN_CHARACTER_H
 #define SOTN_CHARACTER_H
 #include <sotn/equipment.h>
+#include <sotn/familiar_stats.h>
 #include <sotn/game_data.h>
 #include <sotn/stat_buffs.h>
 
@@ -53,6 +54,19 @@ typedef struct SotnCharacterStats
 } SotnCharacterStats;
 /** @brief Owned character borrowing immutable DRA bytes until Destroy. */
 typedef struct SotnCharacter SotnCharacter;
+/** @brief Copy the actual seven familiar records and selected identity; either output may be NULL.
+ * Selection0 means none. This read never grants a card or advances progression. */
+bool SotnCharacter_GetFamiliars(const SotnCharacter *character, SotnFamiliarProgress *progress,
+                                Uint16 *selected);
+/** @brief Restore all seven validated records, retaining current selection and ordinary character.
+ * This is a separate progression boundary; existing v9 save records remain unchanged. */
+bool SotnCharacter_RestoreFamiliars(SotnCharacter *character, const SotnFamiliarProgress *progress);
+/** @brief Commit an actual successful native menu selection/load, after resource binding.
+ * @param character Actual owner. @param selected Original identity0..7.
+ * @param reloaded True only when actual overlay loading completed, including a reload of the
+ * same identity. Changed nonzero selections and reloads increment original load count once.
+ * Ordinary rooms and unchanged menu selection do not increment. Grants no card/resources. */
+bool SotnCharacter_SelectFamiliar(SotnCharacter *character, Uint16 selected, bool reloaded);
 /** @brief Resolve actual virtual197 strike properties using live original stats and RNG.
  * @param character Borrowed character at the actual retained strike birth.
  * @param poison Actual player status.

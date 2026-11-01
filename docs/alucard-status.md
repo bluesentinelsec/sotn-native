@@ -52,6 +52,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   gated. Fairy Life Apple rescue17 (previously labeled global-fade),
   Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
   producer, item consumption, scene handshake and cleanup are required for17.
+  The subsequent [bound native Fairy dispatch](fairy-native-dispatch.md) now supplies
+  actual Fairy/Life Apple requests and the production Step FFF/release/recovery
+  path with explicit card/root initialization. Ordinary card selection, lifecycle,
+  persistence and whole-pass rollback remain open;17 is still gated in ordinary play.
   Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate
   component comparisons do not establish those routes.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
@@ -130,6 +134,13 @@ needs a source-backed inventory of its remaining branches and an evidence record
   factories/children/Wolf rows and native projectiles while retaining common/global
   ownership. Actual Fairy/FFF/player17, other owners and resource restoration still
   require their bindings; this does not complete rescue or full shared contention.
+  The [native dispatch/progression binding](fairy-native-dispatch.md) now connects
+  live inputs, real item/audio/scene/cleanup/resource requests and distinct FFF
+  scheduling. Seven signed-word character records receive actual raw enemy rewards
+  and changed/reloaded selection counts. The v9 snapshot remains unchanged and
+  does not yet persist familiar progress. Card selection/resource initialization,
+  room/stage/session lifecycle, general audio/cutscene and whole-pass rollback remain
+  required before ordinary Fairy activation.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

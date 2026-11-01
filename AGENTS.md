@@ -1,3 +1,18 @@
+The [bound native Fairy dispatch](docs/fairy-native-dispatch.md) now runs actual
+4..7 callbacks and a distinct full-player FFF engine branch: Life Apple spending,
+real effects/cleanup/resources, release-only frame and Blink4A. Preserve stable
+birth gates, held gameclock/playtime/shared8..63/recount/shake, continuing engine/
+audio time, captured death texture/generation and separate dead resource writes.
+Seven actual signed-word familiar records now belong to the character. Raw enemy
+rewards update the selected record transactionally, with player99/zero/no-selection
+holds, bit-length minimum1 and EXP9899 cap. Loads increment only on changed/reloaded
+selection, cap9999; ordinary character restore retains records. Existing v9 layout
+is unchanged and does not persist them. Ordinary card/resource initialization,
+room/stage/session lifecycle, persistence, full audio/cutscene bindings and whole-
+pass rollback remain required before enabling the Fairy menu. Supplied card/Apple/
+root-init/protection/lethal fixtures are not acquisition/selection/persistence/
+route/console evidence. All six Alucard gates remain open; no new grants or pool.
+
 The [bound Fairy rescue response](docs/player-fairy-rescue.md) now supplies gated
 17 interruption/hold/resource/recovery and a dedicated real Blink4A producer.
 Preserve numeric drawflag4 for BOTH physical/water interruption, resident captures/

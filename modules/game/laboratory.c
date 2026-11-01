@@ -5,6 +5,7 @@
 #include <sotn/alucard_sprite.h>
 #include <sotn/camera_shake.h>
 #include <sotn/castle_map.h>
+#include <sotn/cd_audio.h>
 #include <sotn/combat.h>
 #include <sotn/dialogue_renderer.h>
 #include <sotn/fairy_runtime.h>
@@ -67,6 +68,10 @@ struct SotnLaboratory
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
     SotnFairyRuntime fairy_runtime;
+    SotnResource *fairy_resources[4];
+    SotnCdAudio *fairy_cd;
+    Uint16 fairy_scene;
+    bool fairy_pause_disabled;
     SotnDeathImage death_image;
     Uint32 death_image_generation;
     SotnStatBuffs stat_buffs;
@@ -450,6 +455,15 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
             pcm[i] = (Sint16)SDL_clamp(
                 (Sint32)pcm[i] + (Sint32)music[i] * session->music_gain / 127, -32768, 32767);
+    }
+    if (session->fairy_cd)
+    {
+        Sint16 music[SOTN_SOUND_FRAMES * 2] = {0};
+        if (!SotnCdAudio_Tick(session->fairy_cd, session->system_timer, music,
+                              SDL_arraysize(music)))
+            return false;
+        for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
+            pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + music[i], -32768, 32767);
     }
     if (SotnMusic_Playing(session->speech))
     {
@@ -1211,6 +1225,159 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
            SotnActorGraphics_TickMistPalette(s->actor_graphics);
 }
 
+static Sint32 FairyFixed(Uint32 value)
+{
+    return value <= SDL_MAX_SINT32 ? (Sint32)value : (Sint32)((Sint64)value - 4294967296LL);
+}
+static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y,
+                       SotnFairyRuntimeInput *out)
+{
+    SotnPlayerState p = {0};
+    SotnCharacterState c = {0};
+    SotnFamiliarProgress progress = {0};
+    SotnCdAudioState cd = {0};
+    SotnActorControl control = {0};
+    Uint16 selected = 0;
+    if (!SotnPlayer_GetState(s->player, &p) || !SotnCharacter_Get(s->character, &c, NULL) ||
+        !SotnCharacter_GetFamiliars(s->character, &progress, &selected) || selected != 3 ||
+        (s->world.relics[20] & 3U) != 3 || !SotnCdAudio_Get(s->fairy_cd, &cd) ||
+        !SotnActors_GetControl(s->actors, &control))
+        return SDL_SetError("Fairy input lost actual owned card, progression, player or audio");
+    bool enemies = false;
+    for (Uint16 i = 0; i < 128; ++i)
+    {
+        SotnActorState actor = {0};
+        if (!SotnActors_Get(s->actors, i, &actor))
+            return false;
+        const Sint32 x = Pixel(actor.x) - camera_x, y = Pixel(actor.y) - camera_y;
+        if (actor.id && actor.hitbox_state && !(actor.flags & 0x200000U) && x >= -16 && x <= 272 &&
+            y >= 0 && y <= 240 && actor.hit_points < 0x7000)
+            enemies = true;
+    }
+    const SotnDataView overlay = SotnResource_View(s->fairy_resources[0]);
+    // Original 4CE2C.c clears FgLayer flags unless the layer's20/40 special bits apply.
+    const Uint16 flags =
+        (s->room.foreground.parameters & 0x60U) ? s->room.foreground.parameters : 0;
+    SotnFairyRuntimeInput in = {
+        .gate_scene = gate,
+        .fairy = {.overlay = overlay,
+                  .executable = s->executable,
+                  .player = {.x = FairyFixed((Uint32)p.x - (Uint32)camera_x * 65536U),
+                             .y = FairyFixed((Uint32)p.y - (Uint32)camera_y * 65536U),
+                             .velocity_x = p.velocity_x,
+                             .velocity_y = p.velocity_y,
+                             .status = p.status,
+                             .damage_effects = p.received_damage_effects,
+                             .step = p.step,
+                             .substep = p.substep,
+                             .previous_step = p.control_step,
+                             .previous_substep = p.control_substep,
+                             .collision = (Uint16)p.contacts,
+                             .priority = p.priority,
+                             .facing_left = p.facing_left},
+                  .hp = p.hp,
+                  .hp_max = p.hp_max,
+                  .level = (Uint16)progress.records[2].level,
+                  .load_count = progress.records[2].loads,
+                  .room_flags = flags,
+                  .scene = s->fairy_scene,
+                  .tilemap_x = s->room.foreground.left * 256 + camera_x,
+                  .tilemap_y = s->room.foreground.top * 256 + camera_y,
+                  .cutscene = control.pause_disabled,
+                  .enemies = enemies,
+                  .inverted = s->stage_id >= 32,
+                  .global_flash = SotnSubweapons_Frozen(s->subweapons),
+                  .medicine_active = SotnBatRuntime_MedicinePresent(&s->bat_runtime)},
+        .event_source = {overlay, 0x80172d2c, 49},
+        .room = {.world = &s->world,
+                 .room_x = s->room.foreground.left,
+                 .room_y = s->room.foreground.top,
+                 .camera_x = (Sint16)camera_x,
+                 .camera_y = (Sint16)camera_y,
+                 .stage = s->stage_id,
+                 .servant = selected},
+        .sound = {.room_flags = flags,
+                  .cutscene = control.pause_disabled,
+                  .cd_queue_empty = cd.queue_empty,
+                  .command_acknowledged = cd.acknowledged,
+                  .xa_playing = cd.playing_xa}};
+    SDL_memcpy(in.fairy.hand_count, c.hand_count, sizeof(in.fairy.hand_count));
+    SDL_memcpy(in.fairy.buffs, s->stat_buffs.timers, sizeof(in.fairy.buffs));
+    *out = in;
+    return true;
+}
+static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y)
+{
+    if (!s->fairy_runtime.initialized)
+        return true;
+    for (Uint16 slot = 4; slot < 8; ++slot)
+    {
+        SotnFairyRuntimeInput in = {0};
+        SotnFairyRuntimeEvents events = {0};
+        SotnCharacterState c = {0};
+        if (!FairyInput(s, gate, camera_x, camera_y, &in) ||
+            !SotnCharacter_Get(s->character, &c, NULL))
+            return false;
+        Uint32 random = c.random;
+        if (!SotnFairyRuntime_UpdateSlot(&s->fairy_runtime, s->actors, slot, in, &random, &events))
+            return false;
+        c.random = random;
+        if (!SotnCharacter_Restore(s->character, &c))
+            return false;
+        const SotnFairyEvents *e = &events.root;
+        if (e->factory)
+        {
+            SotnPlayerFactorySource source = s->fairy_runtime.slots[slot - 4U].source;
+            source.x = FairyFixed((Uint32)source.x + (Uint32)camera_x * 65536U);
+            source.y = FairyFixed((Uint32)source.y + (Uint32)camera_y * 65536U);
+            bool allocated = false;
+            if (!SotnBatRuntime_RequestFamiliarMedicine(&s->bat_runtime, source, e->factory,
+                                                        &allocated))
+                return false;
+        }
+        if (e->consume && !SotnCharacter_UseFamiliarItem(s->character, e->consume))
+            return false;
+        if (e->clear_shared)
+        {
+            if (!SotnActors_ClearPlayerRuntime(s->actors, &s->bat_runtime) ||
+                !SotnSubweapons_ClearPlayerEntities(s->subweapons))
+                return false;
+            s->mist_present = false;
+            s->mist_generation = 0;
+            SDL_zero(s->gas_cloud);
+        }
+        if (e->restore_resources)
+        {
+            if (!e->clear_shared || !SotnCharacter_Get(s->character, &c, NULL))
+                return SDL_SetError("Fairy resource restoration lost its actual cleanup boundary");
+            c.hp = c.hp_max;
+            c.mp = c.mp_max;
+            if (!SotnCharacter_Restore(s->character, &c) ||
+                !SotnPlayer_CommitFairyResources(s->player, c.hp_max, c.mp_max))
+                return false;
+            s->mp = c.mp;
+        }
+        if (e->scene_write)
+        {
+            if (!SotnPlayer_SetFairyScene(s->player, e->scene))
+                return false;
+            s->fairy_scene = e->scene;
+        }
+        if (e->pause_write)
+            s->fairy_pause_disabled = !e->pause_allowed;
+        if (e->release_song)
+            return SDL_SetError("US Fairy emitted an unsupported alternate-familiar song release");
+        if (e->shake && !SotnCameraShake_Request(&s->shake, s->dra, 4))
+            return false;
+        for (Uint16 i = 0; i < e->sound_count; ++i)
+            if (!SotnSound_Queue(s->sound, e->sounds[i]))
+                return false;
+        if (events.cd_command && !SotnCdAudio_Queue(s->fairy_cd, events.cd_command))
+            return false;
+    }
+    return true;
+}
+
 static bool UpdateActors(SotnLaboratory *session, bool entering)
 {
     SotnPlayerState player = {0};
@@ -1221,8 +1388,20 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         return false;
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
-    if (!TickMist(session, player, entering) || !TickBlinks(session, player, entering) ||
+    const Uint16 fairy_scene = session->fairy_scene;
+    const Sint32 fairy_camera_x = session->blink_camera_x, fairy_camera_y = session->blink_camera_y;
+    if ((!entering &&
+         !TickFairy(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y)) ||
+        !TickMist(session, player, entering) || !TickBlinks(session, player, entering) ||
         !SotnPlayer_GetState(session->player, &player))
+        return false;
+    // Snapshot the original pass gate before slot4 can request FFF. The remaining8..63
+    // callbacks and ordinary stage still finish this birth frame before engine-five entry.
+    if ((!entering && fairy_scene != session->fairy_scene &&
+         !SotnSceneFreeze_Request(&session->spell_freeze, session->fairy_scene)) ||
+        !SotnFairyRuntime_Translate(&session->fairy_runtime, session->actors,
+                                    (Sint16)(fairy_camera_x - camera_x),
+                                    (Sint16)(fairy_camera_y - camera_y), 0, 0, false))
         return false;
     SotnCharacterState profile = {0};
     if (!SotnCharacter_Get(session->character, &profile, NULL))
@@ -1937,7 +2116,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
     else
     {
         ++s->player_effect_frame;
-        if (!TickBlinks(s, player, false) ||
+        if (!TickFairy(s, 3, s->camera.x, s->camera.y) || !TickBlinks(s, player, false) ||
             !SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks,
                                     s->music != NULL) ||
             !SotnActors_SetButtons(s->actors, buttons) ||
@@ -1960,6 +2139,34 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
     }
     if (!TickHudFrame(s) || !TickAudio(s, &combat, 0, 0, 0, 0))
         return false;
+    s->dirty = s->targets_pending = true;
+    return true;
+}
+
+static bool TickFairyFreeze(SotnLaboratory *s, Uint16 buttons)
+{
+    SotnFairyRuntimeInput input = {0};
+    SotnPlayerState player = {0};
+    SotnActorCombat combat = {0};
+    if (!s->fairy_runtime.initialized || s->fairy_scene != 0xfff ||
+        !FairyInput(s, 0xfff, s->camera.x, s->camera.y, &input))
+        return SDL_SetError("FFF engine requires actual Fairy/card/resource ownership");
+    if (!SotnPlayer_SetAfterimageContext(s->player, s->bat_runtime.common_generation,
+                                         s->system_timer) ||
+        !BindStatBuffs(s) || !SotnPlayer_SetDamageContext(s->player, s->game_timer) ||
+        !TickPlayer(s, buttons) || !SotnPlayer_GetState(s->player, &player) ||
+        !TickFairy(s, 0xfff, s->camera.x, s->camera.y) ||
+        !SotnPlayer_GetState(s->player, &player) ||
+        (s->fairy_scene != 0xfff && !SotnSceneFreeze_Request(&s->spell_freeze, s->fairy_scene)) ||
+        !SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks, s->music != NULL) ||
+        !SotnActors_SetButtons(s->actors, buttons) ||
+        !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
+        !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
+        !SotnActors_GetCombat(s->actors, &combat) || !TickHudFrame(s) ||
+        !TickAudio(s, &combat, player.sound, player.extra_sound, player.third_sound, 0))
+        return false;
+    // Original FFF deliberately omits shared8..63, group recount, camera/shake and playtime.
+    // A callback clearing FFF still finishes this full frozen frame; release is next frame.
     s->dirty = s->targets_pending = true;
     return true;
 }
@@ -2022,6 +2229,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     SotnSceneFreezeFrame spell_frame = SOTN_SCENE_NORMAL;
     if (!SotnSceneFreeze_BeginFrame(&session->spell_freeze, &spell_frame))
         return false;
+    if (spell_frame == SOTN_SCENE_FAIRY)
+        return TickFairyFreeze(session, buttons);
     if (spell_frame != SOTN_SCENE_NORMAL)
         return TickSpellFreeze(session, buttons, spell_frame);
     SotnActorControl control = {0};
@@ -2029,7 +2238,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return false;
     const bool owns_save = session->save_room && session->save_point.phase != SOTN_SAVE_POINT_IDLE;
     if (session->map_open || (select && state.can_pause && !owns_save && !control.pause_disabled &&
-                              control.timer == 0 && session->menu.phase == SOTN_MENU_CLOSED))
+                              !session->fairy_pause_disabled && control.timer == 0 &&
+                              session->menu.phase == SOTN_MENU_CLOSED))
     {
         if (!session->map_open)
         {
@@ -2055,7 +2265,8 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         session->map_opacity = (Uint8)SDL_max(0, session->map_opacity - 8);
 
     if (session->menu.phase != SOTN_MENU_CLOSED ||
-        (start && state.can_pause && !owns_save && !control.pause_disabled && control.timer == 0))
+        (start && state.can_pause && !owns_save && !control.pause_disabled &&
+         !session->fairy_pause_disabled && control.timer == 0))
     {
         Uint16 sound = 0;
         bool changed = false;
@@ -4220,6 +4431,7 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnHud_Destroy(session->hud);
         SotnMusic_Destroy(session->speech);
         SotnMusic_Destroy(session->music);
+        SotnCdAudio_Destroy(session->fairy_cd);
         SotnPlayback_Destroy(session->audio);
         if (!session->borrowed_music)
             SotnStream_Close(session->music_stream);
@@ -4234,6 +4446,8 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnCharacter_Destroy(session->character);
         SotnActorLayout_Close(session->actor_layout);
         SotnActorGraphics_Destroy(session->actor_graphics);
+        for (Uint16 i = 0; i < 4; ++i)
+            SotnResource_Close(session->fairy_resources[i]);
         SotnPlayer_Close(session->player);
         SotnResource_Close(session->weapons);
         SotnResource_Close(session->arc);

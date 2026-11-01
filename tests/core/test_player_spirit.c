@@ -239,6 +239,17 @@ static bool FreezeEdges(void)
     CHECK(SotnSceneFreeze_EndFrame(&f, &enter) && !enter);
     CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_RELEASE && !f.active);
     CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_NORMAL);
+    CHECK(SotnSceneFreeze_Request(&f, 0xfff) && !f.active && frame == SOTN_SCENE_NORMAL);
+    CHECK(SotnSceneFreeze_EndFrame(&f, &enter) && enter && f.active);
+    for (Uint16 i = 0; i < 20; ++i)
+    {
+        CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_FAIRY);
+        CHECK(SotnSceneFreeze_EndFrame(&f, &enter) && !enter);
+    }
+    CHECK(SotnSceneFreeze_Request(&f, 0) && frame == SOTN_SCENE_FAIRY);
+    CHECK(SotnSceneFreeze_EndFrame(&f, &enter) && !enter);
+    CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_RELEASE && !f.active);
+    CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_NORMAL);
     const SotnSceneFreeze before = f;
     CHECK(!SotnSceneFreeze_Request(&f, 0) && !SDL_memcmp(&f, &before, sizeof(f)));
     CHECK(!SotnSceneFreeze_Request(&f, 1) && !SDL_memcmp(&f, &before, sizeof(f)));

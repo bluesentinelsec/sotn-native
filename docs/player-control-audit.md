@@ -159,3 +159,9 @@ word/escape protocol do not supply the Fairy producer or state17 rescue. Actual
 4096 buffs/cures/healing/MP, circle/outline/Blink/label effects and all-root room
 cleanup retain their documented evidence and failure boundaries. Milestone1
 remains32/34 with all six common/cross-owner gates open.
+
+The subsequent [bound native Fairy dispatch](fairy-native-dispatch.md) now provides
+the actual Life Apple producer and production Step FFF/release/recovery path in
+explicitly bound card/resource contexts. Ordinary selection, lifecycle, saved
+progression and whole-pass rollback remain open; state17 remains gated in ordinary
+play. The milestone is not reduced to these selected contexts.

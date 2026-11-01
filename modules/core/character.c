@@ -11,6 +11,8 @@ struct SotnCharacter
     SotnDataView dra;
     SotnCharacterState state;
     SotnCharacterStats stats;
+    SotnFamiliarProgress familiars;
+    Uint16 familiar;
     Uint16 stat_buff_mask;
 };
 static Uint16 Read16(const Uint8 *p)
@@ -338,6 +340,11 @@ bool SotnCharacter_Create(SotnDataView dra, SotnCharacter **out)
     if (c == NULL)
         return false;
     c->dra = dra;
+    if (!SotnFamiliarProgress_Init(&c->familiars))
+    {
+        SDL_free(c);
+        return false;
+    }
     c->state.hp = c->state.hp_max = 70;
     c->state.mp = c->state.mp_max = 20;
     c->state.hearts = 10;
@@ -369,6 +376,36 @@ bool SotnCharacter_OpeningGear(SotnCharacter *c)
     if (!Calculate(&next))
         return false;
     *c = next;
+    return true;
+}
+
+bool SotnCharacter_GetFamiliars(const SotnCharacter *c, SotnFamiliarProgress *p, Uint16 *selected)
+{
+    if (!c || (!p && !selected))
+        return SDL_SetError("Familiar query requires its actual character and an output");
+    if (p)
+        *p = c->familiars;
+    if (selected)
+        *selected = c->familiar;
+    return true;
+}
+bool SotnCharacter_RestoreFamiliars(SotnCharacter *c, const SotnFamiliarProgress *p)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    if (!SotnFamiliarProgress_Validate(p))
+        return false;
+    c->familiars = *p;
+    return true;
+}
+bool SotnCharacter_SelectFamiliar(SotnCharacter *c, Uint16 selected, bool reloaded)
+{
+    if (!c || selected > SOTN_FAMILIAR_COUNT || (!selected && reloaded))
+        return SDL_SetError("Familiar selection requires actual identity0..7 and load ownership");
+    if (selected && (selected != c->familiar || reloaded) &&
+        !SotnFamiliarProgress_Load(&c->familiars, selected))
+        return false;
+    c->familiar = selected;
     return true;
 }
 
@@ -639,6 +676,8 @@ bool SotnCharacter_GainExperience(SotnCharacter *c, Uint16 experience, Uint16 en
         return false;
     SotnCharacter next = *c;
     Uint32 reward = experience;
+    if (!SotnFamiliarProgress_Reward(&next.familiars, next.familiar, experience, next.state.level))
+        return false;
     if (next.state.level > enemy_level)
     {
         for (Uint32 i = enemy_level; i < next.state.level; ++i)
