@@ -1,6 +1,7 @@
 #include "player_internal.h"
 #include <sotn/bat_runtime.h>
 #include <sotn/scene_freeze.h>
+#include <stddef.h>
 _Static_assert(SOTN_PLAYER_SOUL == 37, "Soul Steal retains original state37");
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -153,6 +154,20 @@ static bool Casting(Fixture *f)
     CHECK(!SotnPlayer_SetSpiritContext(NULL, true));
     return true;
 }
+static bool FrozenPlayerMatches(const SotnPlayer *actual, const SotnPlayer *expected)
+{
+    const SotnAxeArmorEvents *a = &actual->axe_armor.events, *e = &expected->axe_armor.events;
+    if (a->sound_count != e->sound_count || a->factory_count != e->factory_count ||
+        SDL_memcmp(a->sounds, e->sounds, sizeof(a->sounds)) ||
+        SDL_memcmp(a->factories, e->factories, sizeof(a->factories)))
+        return false;
+    // Clearing a request may change C padding. Check every request field, then compare
+    // the complete held state with only that request's padding normalized.
+    SotnPlayer normalized;
+    SDL_memcpy(&normalized, actual, sizeof(normalized));
+    SDL_memcpy(&normalized.axe_armor.events, e, sizeof(*e));
+    return !SDL_memcmp(&normalized, expected, sizeof(normalized));
+}
 static bool FrozenPlayer(Fixture *f)
 {
     const Uint16 ids[] = {0xba, 0xbb, 0xbe, 0xf0, 0xf1, 17, 1, 0xda};
@@ -171,16 +186,20 @@ static bool FrozenPlayer(Fixture *f)
         f->p->invincibility = 16;
         f->p->afterimage_timer15 = 4;
         f->p->timers[0] = 10;
+        // Exercise legal nonzero tail padding without changing any request field.
+        const size_t tail = offsetof(SotnAxeArmorEvents, factory_count) + sizeof(Uint8);
+        SDL_memset((Uint8 *)&f->p->axe_armor.events + tail, 0xa5,
+                   sizeof(f->p->axe_armor.events) - tail);
         SotnPlayer expected = *f->p;
         const Uint16 buttons = SOTN_BUTTON_RIGHT | SOTN_BUTTON_JUMP;
         expected.previous_buttons = buttons;
         if (i < 5)
             CHECK(SotnAnimation_Tick(expected.dra, &expected.animation));
         CHECK(SotnPlayer_TickSpellFreeze(f->p, buttons, true) &&
-              !SDL_memcmp(f->p, &expected, sizeof(expected)));
+              FrozenPlayerMatches(f->p, &expected));
         expected.previous_buttons = SOTN_BUTTON_START;
         CHECK(SotnPlayer_TickSpellFreeze(f->p, SOTN_BUTTON_START, false) &&
-              !SDL_memcmp(f->p, &expected, sizeof(expected)));
+              FrozenPlayerMatches(f->p, &expected));
         CHECK(SotnPlayer_EndSpellFreeze(f->p) && f->p->invincibility == 48);
         f->p->invincibility = 100;
         CHECK(SotnPlayer_EndSpellFreeze(f->p) && f->p->invincibility == 100);
