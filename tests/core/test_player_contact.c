@@ -260,12 +260,18 @@ static bool BloodCloak(Fixture *f)
     p->invincibility = 0;
     for (Uint16 id = 0x31; id <= 0x34; ++id)
         P32(f->dra + 0x101b8 + id * 4U, 0x801bffff);
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x801bffff);
+    P32(f->dra + 0x101b8 + 0x40U * 4U, 0x801bffff);
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
           SotnPlayer_SetDamageContext(p, 21));
     const SotnPlayer before = *p;
     CHECK(!SotnPlayer_Tick(p, 0) && !SDL_memcmp(&before, p, sizeof(*p)));
     for (Uint16 id = 0x31; id <= 0x34; ++id)
         P32(f->dra + 0x101b8 + id * 4U, 0x800a0100);
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x800a0100);
+    P32(f->dra + 0x101b8 + 0x40U * 4U, 0x800a0100);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 35 && p->heart_gain.requested &&
           p->heart_gain.amount == 1);
     p->step = SOTN_PLAYER_STAND;
@@ -281,13 +287,37 @@ static bool BloodCloak(Fixture *f)
     SotnPlayer_Close(p);
     return true;
 }
+static bool ReactionKinds(Fixture *f)
+{
+    const struct
+    {
+        Uint16 attack, defense, parameters, loss, substep;
+    } cases[] = {{3, 0, 1, 3, 6},     {4, 3, 1, 1, 1},   {100, 1, 0x20, 99, 1},
+                 {100, 0, 1, 100, 2}, {10, 99, 3, 1, 6}, {1, 0, 17, 25, 1}};
+    for (Uint16 i = 0; i < SDL_arraysize(cases); ++i)
+    {
+        SotnPlayer *p = NULL;
+        CHECK(Create(f, &p));
+        p->hp = p->hp_max = 200;
+        p->attributes.defense = cases[i].defense;
+        CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = cases[i].attack,
+                                                             .parameters = cases[i].parameters,
+                                                             .source_x = 120}) &&
+              Tick(p, 1) && p->hp == 200 - cases[i].loss && p->step == SOTN_PLAYER_HIT &&
+              p->substep == cases[i].substep);
+        if (cases[i].parameters == 17)
+            CHECK(p->vx > 0); // Kind17 overrides the actual source on the right.
+        SotnPlayer_Close(p);
+    }
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    bool ok =
-        Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) && BloodCloak(f);
+    bool ok = Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) &&
+              BloodCloak(f) && ReactionKinds(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

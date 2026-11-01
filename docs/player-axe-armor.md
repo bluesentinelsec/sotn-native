@@ -30,8 +30,12 @@ its CF recovery preserves palette changes made by the common timers. Only the fo
 overlay callbacks rebind weapon45's palette on each update.
 
 Surviving queued damage selects43/D1, original side selection (including kinds17/18),
-voice6ED, shadow85 and protection20. Guard, new curse/poison and stone convert to
-original kind1 hurt; zero-damage stone still reacts and produces its blue zero
+voice6ED, shadow85 and protection20. Guard and stone convert to original kind1
+hurt; positive environmental kinds retain17/18 direction even with incoming
+curse/poison bits. Axe's early return omits new ailments without changing that
+resolved kind. This caller correction is verified separately in72 original
+damage/reaction contexts; earlier overlay comparisons retain their own scope.
+Zero-damage stone still reacts and produces its blue zero
 number. Earlier immunity, absorption and Talisman retain their owners. Actual
 fractional origins, Blood Cloak, prior ailments/healing and lethal/water exclusions
 retain their established order. The hit controller preserves angle-word wrap,

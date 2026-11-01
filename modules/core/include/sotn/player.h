@@ -168,6 +168,20 @@ typedef struct SotnPlayerGravity
     SotnPlayerGravityBeam beams[SOTN_PLAYER_GRAVITY_BEAMS];
 } SotnPlayerGravity;
 
+/** @brief Original hurt-controller factory intents, fulfilled through the shared native runtime. */
+typedef struct SotnPlayerHurt
+{
+    struct
+    {
+        SotnPlayerFactorySource source;
+        Uint32 blueprint;
+    } factories[8];
+    Uint16 damage_taken; /**< Retained kind-five impact power, never an ordinary save field. */
+    Uint8 count, shake;  /**< This update's ordered intents and original shared shake identity. */
+    bool knock_right;    /**< Retained original entityRoomIndex direction, independent of facing. */
+    bool shake_requested, started; /**< One-update actual calls/birth; cleared during freeze. */
+} SotnPlayerHurt;
+
 /** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
 typedef struct SotnPlayerDeath
 {
@@ -270,12 +284,13 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
-/** @brief Successful queued response3/4/7/8 number, captured before reaction movement. */
+/** @brief Actual contact or secondary-impact number, captured at its original helper call. */
 typedef struct SotnPlayerDamageNumber
 {
     SotnPlayerFactorySource source;
-    Uint16 amount;  /**< Original requested points, before the HP cap; zero is valid for stone. */
-    Uint8 response; /**< Original hurt3/lethal4/new-stone7/existing-stone8 result. */
+    Uint16 amount; /**< Original requested points, before the HP cap; zero is valid for stone. */
+    Uint8
+        response; /**< Hurt3/lethal4/stone7/8 display context; secondary dodge still shows hurt. */
     bool applied;
     bool neutral_hurt; /**< Accepted response3 also requests its original neutral Blink58. */
 } SotnPlayerDamageNumber;
@@ -395,6 +410,7 @@ typedef struct SotnPlayerState
     Uint16 priority; /**< Current normal-form ordering-table priority. */
     SotnPlayerKick kick;
     SotnPlayerGravity gravity;
+    SotnPlayerHurt hurt;
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
     SotnPlayerMist mist;
     SotnPlayerBat bat;
@@ -464,6 +480,10 @@ bool SotnPlayer_QueueContact(SotnPlayer *player, SotnPlayerContact contact);
  * @return Success or SDL error without mutation. Supply once per ordinary player update;
  * menus/frozen updates must not consume this boundary. Fury requires its actual buff owner. */
 bool SotnPlayer_SetDamageContext(SotnPlayer *player, Uint32 timer);
+/** @brief Bind the actual original stage ID for hurt-controller stage-specific collision branches.
+ * @param player Actual player owner. @param stage Original stage identifier,0..255.
+ * @return Success or SDL error. Advances no clock and grants no state, equipment or protection. */
+bool SotnPlayer_SetStageContext(SotnPlayer *player, Uint16 stage);
 /** @brief Restore the runtime-only DRA water voice timer after candidate bootstrap.
  * @param player Actual owner. @param timer Retained0..32 counter; never ordinary save data.
  * @return Success or SDL error without mutation or an extra simulation tick. */

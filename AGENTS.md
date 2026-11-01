@@ -1,3 +1,17 @@
+Selected [hurt motion/palettes](docs/player-hurt-motion.md) now owns actual kind0/1
+promotion, selected2/3/4/5/7/16..18 births/recovery, timer8 and shared wall/ceiling/
+slope/skid effects. Preserve pre-DEF power50 versus actual loss2 promotion, heavy
+one-fraction Y shift, retained facing on upside-down interruption, direct2F cursor,
+signed wall48 expiry, ceiling24/rebound8, stage18/24/56 exceptions, original root
+order/fractions and optional exhaustion. Preserve real SDK pivots, shake2/3, wall644
+before secondary/death voice, secondary Talisman/HP/number/Cloak/Fury priority and
+no-tick rebases/holds. Actual effect-word palette/timer priority is separate from
+unowned elemental children/new ailment text/Blinks. Raw-kind/poison/protection
+fixtures are not ordinary producer/acquisition/route/console evidence. No pool,
+default-grant or savev9 change. Remaining damage/stone/grab/death/fade/equipment/
+familiars/sharing and Alucard/castle remain incomplete. Preserve the explicit
+unsupported US status20000 smoke birth; never guess or bypass its parameter.
+
 Selected [player timer ownership](docs/player-timers.md) now unifies the actual16
 word counters, separate from HUD stat buffs. Preserve raw signed-word wrap/signed
 minimum, per-index actions/decrement/expiry, poison4/14/15 twelve-to-eleven birth,
@@ -9,7 +23,8 @@ ailments. Timer15 counts even unbound, but only its real leased owner enables
 presentation. Freeze/release/menu/map/draw/dead hold the pass; actual shared producers
 may still write their words. Preserve failure rollback, no-tick rebases, post-bootstrap
 ailment stage carry, actual native Dark palette-job clock and v9 Continue transients.
-No pool/grants/save change or new impact8/Blink15/consumable availability. Seed/
+No pool/grants/save change; timer storage alone supplies no impact/Blink/consumable
+producer. Selected hurt now owns its actual impact8 producer. Seed/
 protection/arrival/save-room fixtures are not acquisition/routes/console evidence.
 Milestone1 remains31/34 plus common/cross-owner gates; Alucard/castle are incomplete.
 

@@ -775,9 +775,15 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
                           (player->buttons & SOTN_BUTTON_JUMP)
                       ? 2252
                       : GRAVITY;
+    if (flags & 0x200)
+        gravity = player->vy < 24576 && player->vy > -8192 ? 5632 : GRAVITY;
     if (player->water.feet > 40)
         gravity /= 4;
-    player->vy = SDL_min(7 * FIX_ONE, player->vy + gravity);
+    const Uint32 velocity = (Uint32)player->vy + (Uint32)gravity;
+    SDL_memcpy(&player->vy, &velocity, sizeof(velocity));
+    player->vy = SDL_min(7 * FIX_ONE, player->vy);
+    if ((flags & 0x80) && (player->contact & 2) && player->vy < -FIX_ONE)
+        player->vy = -FIX_ONE;
     if (player->vy >= 0 && (flags & 1) && (player->contact & 1))
     {
         const bool attacking = player->attack_mode != 0;
@@ -798,6 +804,13 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
         player->sound = hard ? 0x647 : 0x64c;
         if (hard)
             MovementSmoke(player, 0);
+        return true;
+    }
+    if (player->vy >= 0 && (flags & 0x20000) && (player->contact & 1))
+    {
+        Crouch(player, 3, player->vx);
+        player->sound = 0x647;
+        MovementSmoke(player, 0);
         return true;
     }
     if ((flags & 4) && !(player->contact & 1))
@@ -1231,6 +1244,232 @@ static void PhysicalDeath(SotnPlayer *player, bool right)
     player->vy = -212992;
     player->sound = 0x6f6;
     Animate(player, 0xc0);
+}
+
+static void HurtFactory(SotnPlayer *p, Uint32 blueprint, Sint16 x, Sint16 y)
+{
+    if (p->hurt.count >= SDL_arraysize(p->hurt.factories))
+    {
+        p->failed = true;
+        SDL_SetError("Hurt controller exceeded its original per-update factory calls");
+        return;
+    }
+    SotnPlayerFactorySource source = {.priority = 148, .facing_left = p->facing_left};
+    const Uint32 bx = (Uint32)p->x.value + (Uint32)(Sint32)x * 65536U;
+    const Uint32 by = (Uint32)p->y.value + (Uint32)(Sint32)y * 65536U;
+    SDL_memcpy(&source.x, &bx, sizeof(bx));
+    SDL_memcpy(&source.y, &by, sizeof(by));
+    p->hurt.factories[p->hurt.count].source = source;
+    p->hurt.factories[p->hurt.count++].blueprint = blueprint;
+}
+static void HurtShake(SotnPlayer *p, Uint8 kind)
+{
+    p->hurt.shake = kind;
+    p->hurt.shake_requested = true;
+}
+static void HurtCeiling(SotnPlayer *p, bool sound)
+{
+    HurtFactory(p, 0x10004U, p->facing_left ? -3 : 3, -22);
+    if (sound)
+    {
+        HurtShake(p, 3);
+        p->sound = 0x644;
+    }
+}
+static Uint16 HurtAnimation(SotnPlayer *p)
+{
+    const Uint16 value = SotnCombat_Random(&p->damage_random);
+    Animate(p, (Uint16)(0x2eU + value % 3U));
+    return (Uint16)(value % 16U);
+}
+static bool HurtSecondary(SotnPlayer *p)
+{
+    // 71830.c:func_80113D7C calls the actual kind-two HandleDamage again.
+    const Sint32 retained =
+        p->hurt.damage_taken < 32768 ? p->hurt.damage_taken : (Sint32)p->hurt.damage_taken - 65536;
+    const Sint32 requested = (retained / 2 - p->attributes.defense) * (p->poison_ticks ? 2 : 1);
+    const Uint16 amount = (Uint16)SDL_max(1, requested);
+    const bool dodged = p->talismans && (Uint32)p->attributes.total[3] * p->talismans >=
+                                            (SotnCombat_Random(&p->damage_random) & 511U);
+    const Uint16 before = p->hp;
+    if (!dodged)
+        p->hp = amount >= p->hp ? 0 : (Uint16)(p->hp - amount);
+    p->damage_number = (SotnPlayerDamageNumber){.source = {.x = p->x.value,
+                                                           .y = p->y.value,
+                                                           .priority = 148,
+                                                           .facing_left = p->facing_left},
+                                                .amount = amount,
+                                                .response = p->hp ? 3 : 4,
+                                                .applied = true};
+    if (!p->hp)
+    {
+        const Uint16 impact_sound = p->sound;
+        PhysicalDeath(p, p->hurt.knock_right);
+        p->extra_sound = p->sound;
+        p->sound = impact_sound;
+        return true;
+    }
+    if (!dodged)
+    {
+        if (p->cape == 54 && p->hearts < p->hearts_max)
+            p->heart_gain = (SotnPlayerHeartGain){.source = p->damage_number.source,
+                                                  .amount = (Uint16)(before - p->hp),
+                                                  .requested = true};
+        if (p->armor == 22 && p->stat_buffs)
+            p->defense_buff_minimum = 512;
+    }
+    p->hit_effect_ticks = 4;
+    p->damage_palette = 0x8166;
+    const Uint16 index = (Uint16)((SotnCombat_Random(&p->damage_random) & 1U) + 3U);
+    const Uint8 *sound = NULL;
+    if (!AttackView(p, 0x800acf84U + index * 2U, 2, &sound))
+        p->failed = true;
+    else
+        p->extra_sound = Attack16(sound);
+    return false;
+}
+void SotnPlayer_HurtTick(SotnPlayer *p)
+{
+    SotnPlayer_Protect(p, 12);
+    const Uint16 previous = p->substep;
+    switch (p->substep)
+    {
+    case 1:
+        if (Transitions(p, 0x20280))
+            return;
+        if (p->animation.remaining < 0)
+        {
+            Animate(p, 0x1c);
+            p->facing_left = !p->facing_left;
+        }
+        break;
+    case 2:
+    case 15: {
+        const bool slope_exit = (p->previous_contact & 0x8000) && !(p->contact & 0x8000);
+        if (!slope_exit)
+        {
+            if ((p->contact & 0x8000) && !(p->damage_clock & 1U))
+                HurtFactory(p, 0xa0045U, 0, 0);
+            if (!(p->contact & 14))
+                break;
+            if (p->contact & 2)
+            {
+                HurtCeiling(p, true);
+                p->vx /= 2;
+                p->vy = 0;
+                p->impact_ticks = 24;
+                p->substep = 5;
+                if (previous == 15)
+                    (void)HurtSecondary(p);
+                break;
+            }
+        }
+        bool side = false;
+        for (Uint16 i = 2; i < 14; ++i)
+            if (i != 7 && i != 8 && (p->wall[i].effects & SOTN_EFFECT_SIDE))
+                side = true;
+        if (slope_exit || (!side && p->stage_id != 24 && p->stage_id != 56 && p->stage_id != 18))
+        {
+            p->vy = -4 * FIX_ONE;
+            p->vx = p->hurt.knock_right ? 81920 : -81920;
+            p->animation.id = 0x2f; // Original direct assignment retains pose and duration here.
+            // The original tests nonzero speed after assigning it, not its sign.
+            HurtFactory(p, 0x90004U, p->vx ? 3 : -3, 21);
+            p->sound = 0x644;
+            HurtShake(p, 2);
+            p->substep = 1;
+            if (previous == 15)
+                (void)HurtSecondary(p);
+            break;
+        }
+        if (previous == 15)
+        {
+            p->impact_ticks = 8;
+            Animate(p, 0x3f);
+            p->sound = 0x644;
+            p->vy = -163840;
+            HurtShake(p, 2);
+            p->substep = 3;
+            HurtFactory(p, 0x8001fU, 0, 0);
+            (void)HurtSecondary(p);
+            break;
+        }
+        p->vx /= 2;
+        p->vy = 0;
+        p->impact_ticks = 48;
+        p->sound = 0x647;
+        p->form_rotated = true;
+        p->bat.rotation = 0x400;
+        p->draw_pivot_x = 16;
+        p->draw_pivot_y = 4;
+        Animate(p, 0x2c);
+        p->substep = 14;
+        HurtFactory(p, 0x8001fU, 0, 0);
+        break;
+    }
+    case 3:
+        if (!p->impact_ticks)
+        {
+            SetSpeed(p, 49152);
+            (void)Transitions(p, 0x20280);
+        }
+        break;
+    case 4:
+        break;
+    case 5:
+        Decelerate(p, 8192);
+        if (p->impact_ticks)
+        {
+            if ((p->contact & 2) && !(p->damage_clock & 3U))
+                HurtCeiling(p, false);
+            break;
+        }
+        if ((p->contact & 12) && !(p->contact & 0xff03))
+        {
+            const Uint32 bits = (Uint32)p->vy + 6144U;
+            SDL_memcpy(&p->vy, &bits, sizeof(bits));
+            p->vy = SDL_min(7 * FIX_ONE, p->vy);
+            if (!(p->damage_clock & 3U))
+                HurtFactory(p, 0x4000cU, 0, 0);
+            break;
+        }
+        p->substep = 1;
+        (void)HurtAnimation(p);
+        p->animation.remaining = 0;
+        p->animation.pose = 0;
+        break;
+    case 14:
+        p->form_rotated = true;
+        if (!p->impact_ticks || p->impact_ticks >= 32768)
+        {
+            p->form_rotated = false;
+            p->bat.rotation = 0x800;
+            p->vx = -(p->vx / 2);
+            p->vy = 0;
+            Animate(p, 0x1c);
+            p->substep = 1;
+            p->step = SOTN_PLAYER_JUMP;
+            p->movement_flags = 0;
+        }
+        break;
+    case 6:
+    case 7:
+        Decelerate(p, 8192);
+        if (!(p->contact & 1))
+            Fall(p);
+        if (p->animation.remaining < 0)
+        {
+            if (p->substep == 6)
+                Land(p, 0);
+            else
+                Crouch(p, 0, p->vx);
+        }
+        break;
+    default:
+        p->failed = true;
+        SDL_SetError("Hurt controller lost its original supported substate");
+        break;
+    }
 }
 
 static void SwordWarpTick(SotnPlayer *p)
@@ -1815,6 +2054,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             .x = next.x.value, .y = next.y.value, .priority = 148, .facing_left = next.facing_left};
     }
     next.gravity.ceiling_impact = false;
+    next.hurt.count = 0;
+    next.hurt.shake_requested = false;
+    next.hurt.started = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.form_rotated = false;
@@ -2011,39 +2253,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             WaterDeathTick(&next);
             break;
         case SOTN_PLAYER_HIT:
-            SotnPlayer_Protect(&next, 12);
-            if (next.substep == 1)
-            {
-                Sint32 gravity = next.vy < 24576 && next.vy > -8192 ? 5632 : GRAVITY;
-                if (next.water.feet > 40)
-                    gravity /= 4;
-                next.vy = SDL_min(7 * FIX_ONE, next.vy + gravity);
-                if ((next.contact & 2) && next.vy < -FIX_ONE)
-                    next.vy = -FIX_ONE;
-                if (next.vy >= 0 && (next.contact & 1))
-                {
-                    Crouch(&next, 3, next.vx);
-                    SotnPlayer_Protect(&next, 12);
-                }
-                else if (next.animation.remaining < 0)
-                {
-                    Animate(&next, 28);
-                    next.facing_left = !next.facing_left;
-                }
-            }
-            else
-            {
-                Decelerate(&next, 8192);
-                if (!(next.contact & 1))
-                    Fall(&next);
-                else if (next.animation.remaining < 0)
-                {
-                    if (next.substep == 6)
-                        Land(&next, 0);
-                    else
-                        Crouch(&next, 0, next.vx);
-                }
-            }
+            SotnPlayer_HurtTick(&next);
             break;
         default:
             return SDL_SetError("Unsupported Alucard movement state");
@@ -2232,6 +2442,18 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         return SDL_InvalidParamError("player");
     if (!ValidateMap(map))
         return false;
+    if (player->hurt.count > SDL_arraysize(player->hurt.factories))
+        return SDL_SetError("Room rebase lost its bounded hurt factory list");
+    SotnPlayerHurt hurt = player->hurt;
+    for (Uint16 i = 0; i < hurt.count; ++i)
+    {
+        const Sint64 x = (Sint64)hurt.factories[i].source.x + (Sint64)offset_x * FIX_ONE;
+        const Sint64 y = (Sint64)hurt.factories[i].source.y + (Sint64)offset_y * FIX_ONE;
+        if (x < SDL_MIN_SINT32 || x > SDL_MAX_SINT32 || y < SDL_MIN_SINT32 || y > SDL_MAX_SINT32)
+            return SDL_SetError("Room rebase exceeds a captured hurt factory origin");
+        hurt.factories[i].source.x = (Sint32)x;
+        hurt.factories[i].source.y = (Sint32)y;
+    }
     const Sint64 x = player->x.value + (Sint64)offset_x * FIX_ONE;
     const Sint64 y = player->y.value + (Sint64)offset_y * FIX_ONE;
     if (!PositionValid(map, x, y))
@@ -2436,6 +2658,7 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
         player->spirit.source.x = (Sint32)spirit_x;
         player->spirit.source.y = (Sint32)spirit_y;
     }
+    player->hurt = hurt;
     player->x.value = (Sint32)x;
     player->y.value = (Sint32)y;
     if (player->script_reaction.started)
@@ -2596,6 +2819,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .priority = player->wolf.active ? player->wolf.priority : 148,
         .kick = player->kick,
         .gravity = player->gravity,
+        .hurt = player->hurt,
         .mp = player->mp,
         .mp_spent = player->mp_spent,
         .mist = player->mist,
@@ -2667,15 +2891,16 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
     if (player->step == SOTN_PLAYER_STONE)
         return SotnPlayer_Petrify(player, amount, source_x, source_velocity);
     SotnPlayer next = *player;
-    SotnPlayer_GravityCancel(&next);
+    // Hurt's original normal reset clears rotation without the transformation helper's flip.
+    next.gravity.upside_down = false;
     SotnPlayer_BatCancel(&next);
     SotnPlayer_WolfCancel(&next);
     next.hp = (Uint16)(amount >= next.hp ? 0 : next.hp - amount);
     const Sint32 center_x =
         next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
     const Sint32 delta = center_x - source_x;
-    const bool right = next.axe_armor.active && kind == 17           ? true
-                       : next.axe_armor.active && kind == 18         ? false
+    const bool right = kind == 17                                    ? true
+                       : kind == 18                                  ? false
                        : SDL_abs(delta) < 16 && source_velocity != 0 ? source_velocity > 0
                                                                      : delta >= 0;
     ClearAttack(&next);
@@ -2710,47 +2935,78 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
         *player = next;
         return true;
     }
-    const bool strong = (Uint32)amount * 20 > next.hp_max;
-    const Uint16 pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1) + (strong ? 3 : 5));
+    if (kind < 2)
+        kind = (Uint32)amount * 2U >= next.hp_max ? 4 : (Uint32)amount * 50U >= next.hp_max ? 3 : 2;
+    if (kind != 2 && kind != 3 && kind != 4 && kind != 5 && kind != 7 && kind != 16 && kind != 17 &&
+        kind != 18)
+        return SDL_SetError("Player hurt requires a supported original resolved damage kind");
+    next.hurt.knock_right = right;
+    next.hurt.started = true;
+    if (next.curse_ticks)
+        HurtFactory(&next, 0x17002cU, 0, 0);
+    if (next.poison_ticks)
+        HurtFactory(&next, 0x16002cU, 0, 0);
+    Uint16 pain = 0;
+    const SotnPlayerStep previous = next.step;
+    if (kind == 4 || kind == 5)
+    {
+        const Uint32 y = (Uint32)next.y.value - 1U;
+        SDL_memcpy(&next.y.value, &y, sizeof(y));
+        next.vy = -32768;
+        next.vx = right ? 8 * FIX_ONE : -8 * FIX_ONE;
+        next.substep = kind == 5 ? 15 : 2;
+        Animate(&next, 0x2e);
+        next.facing_left = right;
+        if (kind == 5)
+            next.hurt.damage_taken = amount;
+        else
+            pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1U) + 1U);
+    }
+    else
+    {
+        const bool strong = kind != 2;
+        pain = (Uint16)((SotnCombat_Random(&next.damage_random) & 1U) + (strong ? 3U : 5U));
+        if ((kind == 2 && (previous == SOTN_PLAYER_STAND || previous == SOTN_PLAYER_WALK)) ||
+            (kind < 16 && (previous == SOTN_PLAYER_CROUCH || previous == SOTN_PLAYER_STUCK)))
+        {
+            next.vx = right ? 163840 : -163840;
+            next.vy = 0;
+            if (previous == SOTN_PLAYER_CROUCH || previous == SOTN_PLAYER_STUCK)
+            {
+                next.substep = 7;
+                Animate(&next, 0x23);
+                HurtFactory(&next, 0, 0, 0);
+            }
+            else
+            {
+                next.substep = 6;
+                Animate(&next, (Uint16)(0x31U + (SotnCombat_Random(&next.damage_random) & 1U) +
+                                        (right != next.facing_left ? 2U : 0U)));
+                HurtFactory(&next, 0x60000U, 0, 0);
+            }
+        }
+        else
+        {
+            next.vx = right ? (strong ? 109226 : 81920) : -(strong ? 109226 : 81920);
+            next.vy = strong ? ((previous == SOTN_PLAYER_JUMP || previous == SOTN_PLAYER_FALL)
+                                    ? -3 * FIX_ONE
+                                    : -4 * FIX_ONE)
+                             : -2 * FIX_ONE;
+            next.substep = 1;
+            const Uint16 choice = HurtAnimation(&next);
+            if (strong && !choice)
+                Animate(&next, 0x40);
+        }
+    }
     const Uint8 *sound = NULL;
     if (!AttackView(&next, 0x800acf84 + pain * 2U, 2, &sound))
         return false;
     next.sound = Attack16(sound);
-    Uint16 animation = 0;
-    if (strong || next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL ||
-        next.step == SOTN_PLAYER_HIGH_JUMP || next.step == SOTN_PLAYER_BAT)
-    {
-        next.vx = strong ? 109226 : 81920;
-        next.vy = strong ? ((next.step == SOTN_PLAYER_JUMP || next.step == SOTN_PLAYER_FALL)
-                                ? -3 * FIX_ONE
-                                : -4 * FIX_ONE)
-                         : -2 * FIX_ONE;
-        const Uint16 value = SotnCombat_Random(&next.damage_random);
-        animation = (Uint16)(0x2e + value % 3);
-        if (strong && value % 16 == 0)
-            animation = 0x40;
-        next.substep = 1;
-    }
-    else
-    {
-        next.vx = 163840;
+    if (next.tight_space)
         next.vy = 0;
-        if (next.step == SOTN_PLAYER_CROUCH)
-        {
-            animation = 35;
-            next.substep = 7;
-        }
-        else
-        {
-            animation = (Uint16)(0x31 + (SotnCombat_Random(&next.damage_random) & 1) +
-                                 (right != next.facing_left ? 2 : 0));
-            next.substep = 6;
-        }
-    }
-    if (!right)
-        next.vx = -next.vx;
     next.step = SOTN_PLAYER_HIT;
-    Animate(&next, animation);
+    next.hit_effect_ticks = 6;
+    next.damage_palette = 0x8166;
     if (next.failed || (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
         return false;
     *player = next;
@@ -2760,6 +3016,69 @@ static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 so
 bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
 {
     return Damage(player, amount, source_x, source_velocity, false, 1);
+}
+bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                              Sint32 source_velocity, Uint16 kind, Uint16 effects)
+{
+    if (!player || kind > 31)
+        return SDL_SetError("Contact damage requires its actual resolved kind and player");
+    const Uint16 before = player->hp;
+    SotnPlayer next = *player;
+    if (!Damage(&next, amount, source_x, source_velocity, false, kind))
+        return false;
+    if (next.hp && next.hp < before && !next.axe_armor.active)
+    {
+        if (!(effects & 0xfbc0U))
+            HurtFactory(&next, 0x58002cU, 0, 0);
+        if (effects & 0x100U)
+        {
+            next.curse_ticks = (Uint16)SDL_max(64, 1024 - (Sint32)next.attributes.total[1] * 4);
+            next.damage_palette = 0x8165;
+            next.extra_sound = 0x6f2;
+        }
+        else if (effects & 0x80U)
+        {
+            next.poison_ticks = (Uint16)SDL_max(256, 4095 - (Sint32)next.attributes.total[1] * 16);
+            next.damage_palette = 0x8164;
+            next.extra_sound = 0x6f2;
+        }
+        else if (effects & 0x8000U)
+        {
+            next.damage_palette = 0x8160;
+            next.hit_effect_ticks = 16;
+        }
+        else if (effects & 0x4000U)
+        {
+            next.damage_palette = 0x8102;
+            next.hit_effect_ticks = 24;
+        }
+        else if (effects & 0x2000U)
+        {
+            next.damage_palette = 0x8169;
+            next.hit_effect_ticks = 12;
+            next.animation.id = 0x2e;
+        }
+        else
+        {
+            if (effects & 0x1000U)
+            {
+                next.damage_palette = 0x8168;
+                next.hit_effect_ticks = 8;
+            }
+            if (effects & 0x800U)
+            {
+                next.damage_palette = 0x8164;
+                next.hit_effect_ticks = 16;
+            }
+            if (effects & 0x40U)
+            {
+                next.damage_palette = 0x8166;
+                next.hit_effect_ticks = 16;
+            }
+        }
+    }
+    *player = next;
+    return true;
 }
 bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
                                  Sint32 source_velocity, Uint16 kind, bool zero_stone)
@@ -3074,6 +3393,9 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;
     next.gravity.ceiling_impact = false;
+    next.hurt.count = 0;
+    next.hurt.shake_requested = false;
+    next.hurt.started = false;
     next.bat_commands = (SotnBatCommandEvents){0};
     next.wolf.commands = (SotnWolfControllerEvents){0};
     next.sleep_event = false;

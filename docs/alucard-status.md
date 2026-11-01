@@ -1,7 +1,7 @@
 # Alucard milestone status
 
 This is the consolidated status and completion checklist for the Alucard milestone,
-reviewed on 2026-10-31. The goal remains original Alucard behavior. Selected playable
+reviewed on 2026-11-01. The goal remains original Alucard behavior. Selected playable
 paths are implemented; complete Alucard, castle progression and console parity are
 unfinished. There is no measured completion percentage or reliable finish estimate.
 
@@ -47,7 +47,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   Global-fade17, teleport18, Sword Brothers39 and the common/cross-owner gates remain open.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
-  branches and dependent effects. Verify contact/healing priority and failure
+  branches and dependent effects. The [selected hurt owner](player-hurt-motion.md)
+  now supplies kind promotion, physical motion/recovery, actual shared impacts and
+  palette counters; remaining elemental child/text/Blink owners stay open.
+  Verify contact/healing priority and failure
   rollback with the real owners. Selected ordinary physical and water deaths do
   not establish the remaining branches. See [contact ownership](player-water-contact.md),
   [stone](player-petrification.md), [death](laboratory-game-over.md), and the

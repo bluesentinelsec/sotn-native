@@ -1035,10 +1035,20 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Contact number requires its actual hurt/lethal/stone result");
         if (!RequestNumber(&r, in.other_occupied, p.damage_number.source, p.damage_number.amount,
                            true) ||
-            (p.damage_number.neutral_hurt &&
+            (p.damage_number.neutral_hurt && !p.hurt.started &&
              !RequestSource(&r, p.damage_number.source, 0x58002c, 0)))
             return false;
     }
+    if (p.hurt.count > SDL_arraysize(p.hurt.factories))
+        return SDL_SetError("Hurt feedback exceeded its actual bounded factory list");
+    if ((in.freeze && (p.hurt.count || p.hurt.started || p.hurt.shake_requested)) ||
+        (p.hurt.started && (!p.hp || p.step != SOTN_PLAYER_HIT)) ||
+        ((p.hurt.count || p.hurt.shake_requested) && p.step != SOTN_PLAYER_HIT &&
+         p.step != SOTN_PLAYER_KILL))
+        return SDL_SetError("Hurt feedback lost its actual ordinary reaction/death owner");
+    for (Uint16 i = 0; i < p.hurt.count; ++i)
+        if (!RequestSource(&r, p.hurt.factories[i].source, p.hurt.factories[i].blueprint, 0))
+            return false;
     if (p.guard.applied)
     {
         if (in.freeze || !p.hp || p.hp > p.hp_max || p.immunity.applied || p.absorption.applied)

@@ -1045,6 +1045,64 @@ static bool WallSmokeOwnership(Fixture *f)
     return true;
 }
 
+static bool HurtFactoryOrder(Fixture *f)
+{
+    CHECK(Create(f));
+    Uint8 *bp = f->dra + 0xd1d4;
+    bp[0] = 2;
+    bp[1] = bp[2] = 1;
+    Put16(f->dra + 0xd57c, 2);
+    Put16(f->dra + 0xd57e, 1);
+    const SotnPlayerFactorySource source = {
+        .x = 100 * 65536 + 123, .y = 120 * 65536 + 456, .priority = 148};
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        CHECK(SotnPlayerFactory_Begin(&f->runtime.factories[i].cursor, source, 0, 0));
+        SotnPlayerFactory *factory = &f->runtime.factories[i].cursor;
+        factory->initialized = true;
+        factory->child = 2;
+        factory->amount = factory->per_cycle = 1;
+        factory->delay = 100;
+    }
+    SotnBatRuntimeInput in = {.dra = {f->dra, sizeof(f->dra)},
+                              .executable = {f->exe, sizeof(f->exe)},
+                              .player = f->state,
+                              .image = {20, 32, -10, -20}};
+    in.player.step = SOTN_PLAYER_HIT;
+    in.player.hurt.started = true;
+    in.player.hurt.count = 2;
+    in.player.hurt.factories[0].source = source;
+    in.player.hurt.factories[0].blueprint = 0x60000U;
+    in.player.hurt.factories[1].source = source;
+    in.player.hurt.factories[1].blueprint = 0x58002cU;
+    in.player.damage_number = (SotnPlayerDamageNumber){
+        .source = source, .amount = 1, .response = 3, .applied = true, .neutral_hurt = true};
+    SotnCharacterState before = {0}, after = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL) &&
+          SotnBatRuntime_Tick(&f->runtime, f->character, in));
+    Uint16 smoke = 0, numbers = 0;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *child = &f->runtime.children[i];
+        CHECK(child->kind != 11); // The final root belongs to the earlier skid, not Blink58.
+        if (child->kind == 2)
+        {
+            CHECK(child->initialized && child->parameter == 0x600 &&
+                  child->state.smoke.x == 76 * 65536 + 123);
+            ++smoke;
+        }
+        numbers += child->kind == 19;
+    }
+    CHECK(smoke == 1 && numbers == 1 && SotnCharacter_Get(f->character, &after, NULL) &&
+          before.random == after.random && before.mp == after.mp);
+    const SotnBatRuntime held = f->runtime;
+    in.freeze = true;
+    CHECK(!SotnBatRuntime_Tick(&f->runtime, f->character, in) &&
+          !SDL_memcmp(&held, &f->runtime, sizeof(held)));
+    Close(f);
+    return true;
+}
+
 static bool OrdinarySmokeOwnership(Fixture *f)
 {
     CHECK(Create(f));
@@ -1544,9 +1602,9 @@ int main(void)
                     PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
                     WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
                     CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) &&
-                    NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
-                    ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) &&
-                    DeathParticlesOwnership(f) && OutlineOwnership(f) &&
+                    HurtFactoryOrder(f) && NormalWaterRequests(f) &&
+                    ReactionBlinkOwnership(f, false) && ReactionBlinkOwnership(f, true) &&
+                    WaterBlinkOwnership(f) && DeathParticlesOwnership(f) && OutlineOwnership(f) &&
                     ContactAbsorptionOwnership(f);
     SDL_free(f);
     return ok ? 0 : 1;

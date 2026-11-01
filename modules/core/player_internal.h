@@ -138,6 +138,8 @@ struct SotnPlayer
     Uint8 attack_critical;
     Uint16 attack_power, shield_power;
     SotnPlayerDeath death;
+    SotnPlayerHurt hurt;
+    Uint16 stage_id;
     SotnPlayerWaterDeath water_death;
     SotnPlayerDeathCapture death_capture;
     SotnPlayerDeathDecay death_decay;
@@ -186,6 +188,11 @@ bool SotnPlayer_TimersTick(SotnPlayer *player);
 void SotnPlayer_Protect(SotnPlayer *player, Sint16 duration);
 /** @brief Original bitwise protection gate for timers13 and14. */
 bool SotnPlayer_Protected(const SotnPlayer *player);
+/** @brief Consume a resolved original ordinary damage kind with actual contact power/effects. */
+bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                              Sint32 source_velocity, Uint16 kind, Uint16 effects);
+/** @brief Advance the actual original hurt controller after the common timer/contact pass. */
+void SotnPlayer_HurtTick(SotnPlayer *player);
 /** @brief Replace the shared simulated-input interval from an actual Bat/Wolf controller. */
 void SotnPlayer_HoldInput(SotnPlayer *player, Uint32 ticks);
 /** @brief Apply the selected original hurt/script exit helper after state dispatch. */

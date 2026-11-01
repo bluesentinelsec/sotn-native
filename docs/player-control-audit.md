@@ -19,7 +19,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 6: stuck | [Mist restoration](player-mist.md) | Restoration and cramped-space combinations across every entering state |
 | 7/14: Mist/return | [Mist](player-mist.md) | All transition contexts, helpers and shared palette/capture contention |
 | 8: high jump | [Gravity Boots](player-gravity-boots.md) | Collision/ceiling recovery and interruptions across remaining damage/equipment states |
-| 10: hit | Selected physical reaction | Remaining damage kinds, promoted reactions, wall/ceiling/sloped recovery, helpers and effects; [damage inventory](player-contact-absorption.md) |
+| 10: hit | [Selected kind promotion, physical births/recovery, shared wall/ceiling/slope/skid owners and palette counters](player-hurt-motion.md) | Remaining elemental effect/text/Blink, rare/contact/death contexts and full contention; [damage inventory](player-contact-absorption.md) |
 | 11: stone | [Selected stone](player-petrification.md) | Rare statue, repeated-hit and dependent effect branches |
 | 12: boss grab | [Selected grab](player-boss-grab.md) | Thrown release, stone reaction, damage palette/number effects and remaining boss producers |
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
@@ -134,3 +134,9 @@ adds no dispatched state; remaining hurt/death/stone and equipment dependencies
 keep milestone1 at26/34 handlers and incomplete.
 
 [Selected neutral hurt feedback](player-neutral-hurt.md) adds original timer2/red/Blink58 and hurt-exit protection/color/afterimage work to the existing physical adapter. It adds no dispatch state or kind promotion; the remaining damage/motion/elemental gates stay open.
+
+The subsequent [selected hurt motion/palette owner](player-hurt-motion.md) supplies
+kind0/1 promotion, physical births/recovery, original wall/ceiling/slope/skid calls,
+secondary impact and timer8, preserving actual shared owners and SDK pivots. Its
+palette/counter coverage is distinct from remaining elemental child/text/Blink
+availability. It adds no handler; all common/cross-owner milestone gates remain open.

@@ -87,6 +87,8 @@ ordinary SDL exit. All201 local tests pass in each configuration. Supplied
 collision/factory fixtures are dependency evidence, not live hurt, acquisition,
 route or console evidence. Full hurt reactions remain in the open
 [milestone checklist](alucard-status.md).
+The later [selected hurt owner](player-hurt-motion.md) now supplies its physical
+producers; these earlier supplied smoke fixtures retain their narrower evidence.
 
 Provenance: selected `dra/6E42C.c:{func_8010FD88,func_8010E6AC}`,
 `6FDF8.c:func_8010FDF8`, `71830.c:PlayerStepStand`, and

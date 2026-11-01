@@ -168,11 +168,17 @@ static bool Player(Fixture *f)
                                                              .source_x = p->x.parts.high + 100}) &&
               Tick(f, 0) && p->step == SOTN_PLAYER_AXE_HIT &&
               p->axe_armor.knock_right == (kind == 17) && p->vx == (kind == 17 ? 81920 : -81920));
-        *p = base;
-        CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 1,
-                                                             .parameters = kind | 0x100U,
-                                                             .source_x = p->x.parts.high + 100}) &&
-              Tick(f, 0) && !p->axe_armor.knock_right && !p->curse_ticks);
+        const Uint16 ailments[] = {0x80, 0x100, 0x180};
+        for (Uint16 i = 0; i < SDL_arraysize(ailments); ++i)
+        {
+            *p = base;
+            CHECK(SotnPlayer_QueueContact(p,
+                                          (SotnPlayerContact){.attack = 1,
+                                                              .parameters = kind | ailments[i],
+                                                              .source_x = p->x.parts.high + 100}) &&
+                  Tick(f, 0) && p->axe_armor.knock_right == (kind == 17) && !p->curse_ticks &&
+                  !p->poison_ticks);
+        }
     }
     *p = base;
     p->hp = 1;

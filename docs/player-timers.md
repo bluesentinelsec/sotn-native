@@ -92,6 +92,8 @@ native/app results are recorded in the feature PR.
 
 This closes the selected word-bank/expiry owner, not the remaining hurt kinds,
 impact effects, consumables, familiar lifecycle or cross-owner acceptance.
+The subsequent [hurt owner](player-hurt-motion.md) supplies selected actual impact8
+producers; storage/comparison evidence alone still establishes no producer.
 [Milestone1](alucard-status.md) remains open at31/34 dispatched states;17/18/39 and
 its other completion gates remain unfinished. Alucard and castle are incomplete.
 

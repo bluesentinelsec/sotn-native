@@ -27,6 +27,13 @@ bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
     p->damage_context = p->damage_pending = true;
     return true;
 }
+bool SotnPlayer_SetStageContext(SotnPlayer *p, Uint16 stage)
+{
+    if (!p || stage > 255)
+        return SDL_SetError("Player stage context requires its actual original stage ID");
+    p->stage_id = stage;
+    return true;
+}
 bool SotnPlayer_SetStatBuffContext(SotnPlayer *p, const SotnStatBuffs *buffs,
                                    SotnCharacterStats attributes)
 {
@@ -204,14 +211,21 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             ok = true;
         }
         else
-            ok = axe ? SotnPlayer_AxeContactDamage(
-                           p, amount, contact.source_x, contact.source_velocity,
-                           guard || (power.effects & 0x180U) ? 1 : water.hit_params & 31U, false)
-                 : (power.effects & 0x100U)
-                     ? SotnPlayer_CurseDamage(p, amount, contact.source_x, contact.source_velocity)
-                 : (power.effects & 0x80U)
-                     ? SotnPlayer_PoisonDamage(p, amount, contact.source_x, contact.source_velocity)
-                     : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
+        {
+            Uint16 kind = (Uint16)(water.hit_params & 31U);
+            const Sint32 taken =
+                kind >= 16 ? (p->hp_max / 8) * (p->poison_ticks ? 2 : 1) : requested;
+            if (taken <= 0)
+                kind = 2;
+            else if (kind < 2)
+                kind = (Uint32)taken * 2U >= p->hp_max           ? 4
+                       : (Uint32)power.attack * 50U >= p->hp_max ? 3
+                                                                 : 2;
+            ok = axe ? SotnPlayer_AxeContactDamage(p, amount, contact.source_x,
+                                                   contact.source_velocity, guard ? 1 : kind, false)
+                     : SotnPlayer_ContactDamage(p, amount, contact.source_x,
+                                                contact.source_velocity, kind, power.effects);
+        }
     }
     p->contact_dispatch = false;
     if (ok && !p->guard.applied &&

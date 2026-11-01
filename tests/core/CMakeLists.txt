@@ -1111,3 +1111,10 @@ target_include_directories(sotn-player-timer-tests PRIVATE "${PROJECT_SOURCE_DIR
 target_link_libraries(sotn-player-timer-tests PRIVATE sotn-core)
 add_test(NAME player-word-timers COMMAND sotn-player-timer-tests)
 set_tests_properties(player-word-timers PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-hurt-tests test_player_hurt.c)
+sotn_configure_c_target(sotn-player-hurt-tests)
+target_include_directories(sotn-player-hurt-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-hurt-tests PRIVATE sotn-core)
+add_test(NAME player-hurt-controller COMMAND sotn-player-hurt-tests)
+set_tests_properties(player-hurt-controller PROPERTIES TIMEOUT 20)

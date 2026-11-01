@@ -215,6 +215,8 @@ static bool TestAttacks(Fixture *fixture)
 static bool TestDamage(Fixture *fixture)
 {
     const SotnCollisionMap map = MakeFixture(fixture);
+    for (Uint16 y = 0; y < 10; ++y)
+        fixture->tiles[y * 32U * 2U] = 1; // Keep the stronger original knockback inside this room.
     for (Uint32 id = 0x31; id <= 0x34; ++id)
         Put32(fixture->dra, 0x101b8 + id * 4, 0x800a0200);
     Put32(fixture->dra, 0x101b8 + 0xc0 * 4, 0x800a0200);
@@ -240,11 +242,15 @@ static bool TestDamage(Fixture *fixture)
     CHECK(State(player, &state) && !state.invulnerable);
     CHECK(SotnPlayer_Damage(player, 3, 80, 0));
     CHECK(State(player, &state) && state.hp == 67 && state.invulnerable);
-    CHECK(state.step == SOTN_PLAYER_HIT && state.velocity_x == -163840);
+    CHECK(state.step == SOTN_PLAYER_HIT && state.velocity_x == -109226);
     CHECK(SotnPlayer_Damage(player, 3, 80, 0));
     CHECK(State(player, &state) && state.hp == 67);
-    for (Uint32 i = 0; i < 30; ++i)
-        CHECK(SotnPlayer_Tick(player, 0));
+    for (Uint32 i = 0; i < 120; ++i)
+    {
+        CHECK(SotnPlayer_Tick(player, 0) && State(player, &state));
+        if (state.step == SOTN_PLAYER_STAND && !state.invulnerable)
+            break;
+    }
     CHECK(State(player, &state) && state.step == SOTN_PLAYER_STAND && !state.invulnerable);
     CHECK(!SotnPlayer_Damage(player, 10, SDL_MIN_SINT32, 0));
     CHECK(State(player, &state) && state.hp == 67);

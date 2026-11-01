@@ -877,6 +877,9 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                 return false;
         if (player.gravity.ceiling_impact && !SotnCameraShake_Request(&s->shake, s->dra, 3))
             return false;
+        if (player.hurt.shake_requested &&
+            !SotnCameraShake_Request(&s->shake, s->dra, player.hurt.shake))
+            return false;
         for (Uint16 i = 0; i < s->bat_runtime.wolf_shake_count; ++i)
             if (!SotnCameraShake_Request(&s->shake, s->dra, s->bat_runtime.wolf_shakes[i]))
                 return false;
@@ -1479,6 +1482,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                                                  : 135,
             &session->player) ||
         !SotnPlayer_SetScriptContext(session->player, session->executable) ||
+        !SotnPlayer_SetStageContext(session->player, stage_id) ||
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
                                &session->subweapons) ||
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
@@ -2323,8 +2327,10 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
             q.red[v] = q.green[v] = q.blue[v] = player.body_grey[v];
     }
     if (!player.water_death.active && player.rotated &&
-        !SotnPlayerEffect_Rotate(s->executable, BlinkWord(x), BlinkWord(y), player.bat.rotation,
-                                 player.facing_left, &q))
+        !SotnPlayerEffect_Rotate(
+            s->executable,
+            BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
+            BlinkWord(y + player.draw_pivot_y), player.bat.rotation, player.facing_left, &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
 }
