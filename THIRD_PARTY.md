@@ -13,6 +13,12 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed selected room callback and cleanup ordering**, AGPL-3.0-or-later.
+  `modules/game/laboratory.c`, `modules/core/bat_runtime.c` and the native contact
+  bridge adapt `dra/5087C.c:RunMainEngine`, `dra/7879C.c:func_8011A9D8` and
+  `dra/5087C.c:func_800F0CD8` at the pinned revision below. Private stage resources
+  remain private. See [scope and evidence](docs/player-room-ordering.md).
+
 - **Reconstructed Alucard sword command and recovery**, AGPL-3.0-or-later.
   `modules/core/sword_warp.c` adapts `dra/704D0.c` and `weapon/w_043.c`
   callbacks04/08. The selected player/shared/native owners adapt

@@ -97,7 +97,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [command boundaries](normal-spell-commands.md) and [relic controls](relic-menu.md).
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
-  number/particle/shake/capture/audio paths and original ordering/timing. Exercise
+  number/particle/shake/capture/audio paths and original ordering/timing. Selected
+  [room callback/cleanup ownership](player-room-ordering.md) now runs departing
+  callbacks before lookup and prunes32/33/65 before destination allocations; other
+  cleanup and full room loading/fade/engine timing remain open. Exercise
   simultaneous producers and optional exhaustion without substitute pools or
   replacing unrelated actors. See [factories](player-ability-factories.md),
   [shared runtime](wolf-shared-runtime.md) and each producer's ownership document.

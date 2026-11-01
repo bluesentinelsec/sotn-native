@@ -29,7 +29,8 @@ rebases advance no controller, RNG, sound, palette or warp work. Room entry
 retires actual child65 and its rows through the original absence of20000 retention;
 it does not translate a surviving teleport child or emit an arrival acknowledgement.
 Actual native room transitions commit this cleanup before new room actors allocate
-rows, including a pending factory121 that has not produced its child. Cleanup
+rows. The [ordinary departing callback](player-room-ordering.md) runs before lookup;
+a pending121 may therefore birth its child and consume its96 RNG calls first. Cleanup
 validates the copied runtime and commits its real row plan before replacing the
 live runtime. This does not establish whole-stage HP, clock, map or audio rollback.
 

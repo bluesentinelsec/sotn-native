@@ -1,3 +1,15 @@
+Selected [room callback/cleanup ownership](docs/player-room-ordering.md) now runs
+ordinary departing player/DRA/stage/HUD/audio before room lookup. Actual spell
+freeze/teleport warp preempt lookup; destination initialization adds no second
+player/shared effect/game-clock/audio frame. Prune actual32/33/65 and selected
+39/46/121 roots before new actor allocation; retain attached20000 Ice24 row indices,
+retire detached ice/dissolve/teleport and commit real row plans before runtime.
+Clear departed raw contacts only after successful entry; hold healing/all16 words/
+HP/RNG/frame. Preserve callback/cull-before-camera and ordinary offscreen retirement.
+Other cleanup/fade/engine timing/whole-native rollback and all six gates remain open.
+Explicit contact/effect/protection/edge/camera-history fixtures are not acquisition,
+uninterrupted routes or console evidence. No pool/default grants/savev9 change.
+
 Selected [Library Card](docs/player-library-card.md) now owns ordinary166 hand use,
 one actual consume, Duplicator84, player18/F4-F5 and actual Library travel/arrival.
 Preserve Card-before-curse ordering, grounded normal states, birth velocity, held

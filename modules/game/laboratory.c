@@ -1409,22 +1409,26 @@ static bool QueueStageArrival(SotnLaboratory *session, SotnStageRoute route)
     return true;
 }
 
-static bool RetireTeleportRoom(SotnLaboratory *s)
+static bool RetireSharedRoom(SotnLaboratory *s)
 {
     bool present = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        present |= s->bat_runtime.children[i].kind == 65;
+        present |= s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 33 ||
+                   s->bat_runtime.children[i].kind == 65;
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
         present |= s->bat_runtime.factories[i].cursor.entity_id &&
-                   s->bat_runtime.factories[i].cursor.blueprint == 121;
+                   (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
+                    s->bat_runtime.factories[i].cursor.blueprint == 46 ||
+                    s->bat_runtime.factories[i].cursor.blueprint == 121);
     if (!present)
         return true;
     SotnBatRuntime *next = SDL_malloc(sizeof(*next));
     if (!next)
         return SDL_OutOfMemory();
     *next = s->bat_runtime;
-    const bool committed =
-        SotnBatRuntime_PruneTeleport(next) && SotnActors_CommitBatPrimitives(s->actors, next);
+    const bool committed = SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
+                           SotnBatRuntime_PruneTeleport(next) &&
+                           SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -1492,7 +1496,8 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         session->blink_rebase_y += offset_y;
         session->room = room;
         session->room_index = i;
-        if (!RetireTeleportRoom(session) || !EnterActors(session) || !EnterSaveRoom(session))
+        if (!RetireSharedRoom(session) || !EnterActors(session) || !EnterSaveRoom(session) ||
+            !SotnPlayer_ClearRoomContact(session->player))
             return false;
         SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
@@ -2091,9 +2096,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
          (!SotnStatBuffs_Minimum(&session->stat_buffs, SOTN_BUFF_DEFENSE,
                                  state.defense_buff_minimum) ||
           !SyncStatBuffs(session))) ||
-        (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
-        (session->stage_id != 6 && !SotnPlayerStep_IsDead(state.step) &&
-         !Transition(session, &state)))
+        (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)))
         return false;
     if (state.dark.started || state.spirit.started || state.hellfire_started || state.soul.started)
     {
@@ -2136,11 +2139,12 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !TickAudio(session, &combat, state.sound, state.extra_sound, state.third_sound,
                    state.guard.applied ? state.guard.sound : 0))
         return false;
-    if (session->stage_id == 6 && !SotnPlayerStep_IsDead(state.step))
+    if (!SotnPlayerStep_IsDead(state.step) && !session->spell_freeze.active &&
+        !session->bat_runtime.teleport_warp_mode)
     {
-        // Original DAI exit actors change limits after player motion and before
-        // the same frame's room lookup. Preserve departing sounds and synthesize
-        // only one audio frame; entry initialization queues its sounds for the next.
+        // RunMainEngine performs player/DRA/stage callbacks before room lookup.
+        // Freeze and actual teleport requests preempt it. Preserve departing audio;
+        // entering initializes the destination without a second shared/player update.
         const Uint32 previous_room = session->room_index;
         if (!Transition(session, &state))
             return false;

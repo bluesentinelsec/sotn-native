@@ -753,6 +753,10 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
  */
 bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offset_x,
                            Sint32 offset_y);
+/** @brief Discard native contacts sampled in the departed room after player control.
+ * The original next HitDetection runs against the destination. Call only after actual room
+ * entry succeeds, before accepting destination contacts. Healing, timers, HP and RNG hold. */
+bool SotnPlayer_ClearRoomContact(SotnPlayer *player);
 /** @brief Restore an original transient curse timer across a connected stage arrival.
  * @param player Borrowed living simulation. @param ticks Remaining simulation ticks, 0..1024.
  * @return Success or SDL error without mutation on invalid input. Does not reset motion/attacks.

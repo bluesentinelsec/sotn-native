@@ -4,6 +4,13 @@
 #include "player_internal.h"
 #include <sotn/combat.h>
 
+bool SotnPlayer_ClearRoomContact(SotnPlayer *p)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    p->queued_contact = (SotnPlayerContact){0};
+    return true;
+}
 bool SotnPlayer_QueueContact(SotnPlayer *p, SotnPlayerContact contact)
 {
     if (!p || contact.attack > 9999 || contact.source_x < -512 || contact.source_x > 16896 ||

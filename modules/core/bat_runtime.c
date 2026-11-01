@@ -409,6 +409,14 @@ bool SotnBatRuntime_DissolveValid(const SotnBatRuntimeChild *c)
                                  n->flags == 0x08800000U
                            : !n->phase && !c->primitive_count);
 }
+static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint)
+{
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (r->factories[i].cursor.entity_id && r->factories[i].cursor.blueprint == blueprint &&
+            (!r->factories[i].cursor.initialized ||
+             (r->factories[i].cursor.origin != 4 && r->factories[i].cursor.origin != 5)))
+            SDL_zero(r->factories[i]);
+}
 bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *r)
 {
     if (!r)
@@ -419,6 +427,7 @@ bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 32)
             r->children[i] = (SotnBatRuntimeChild){0};
+    PruneRoomFactory(r, 39);
     return true;
 }
 bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *c)
@@ -444,11 +453,7 @@ bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 65)
             r->children[i] = (SotnBatRuntimeChild){0};
-    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
-        if (r->factories[i].cursor.entity_id && r->factories[i].cursor.blueprint == 121 &&
-            (!r->factories[i].cursor.initialized ||
-             (r->factories[i].cursor.origin != 4 && r->factories[i].cursor.origin != 5)))
-            SDL_zero(r->factories[i]);
+    PruneRoomFactory(r, 121);
     r->teleport_palette = 0;
     r->teleport_warp_mode = 0;
     r->teleport_acknowledged = false;
@@ -490,6 +495,7 @@ bool SotnBatRuntime_PruneIce(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 33 && !(ChildFlags(&r->children[i]) & 0x20000U))
             r->children[i] = (SotnBatRuntimeChild){0};
+    PruneRoomFactory(r, 46);
     return true;
 }
 bool SotnBatRuntime_ThunderHitValid(const SotnBatRuntimeChild *c)

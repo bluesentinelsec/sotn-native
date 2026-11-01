@@ -311,13 +311,33 @@ static bool ReactionKinds(Fixture *f)
     }
     return true;
 }
+static bool RoomContact(Fixture *f)
+{
+    SotnPlayer *p = NULL;
+    CHECK(Create(f, &p));
+    p->damage_random = 17;
+    p->timers[12] = 7;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 99, .parameters = 1}) &&
+          SotnPlayer_QueueBloodHealing(p, 8, 1));
+    const SotnPlayer before = *p;
+    CHECK(SotnPlayer_ClearRoomContact(p) && !p->queued_contact.attack &&
+          !p->queued_contact.parameters && p->hp == before.hp &&
+          p->damage_random == before.damage_random && p->frame_number == before.frame_number &&
+          !SDL_memcmp(p->timers, before.timers, sizeof(p->timers)) &&
+          !SDL_memcmp(&p->healing, &before.healing, sizeof(p->healing)));
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
+          Tick(p, 10) && p->hp == 16 && p->healing.applied && p->healing.applied_amount == 8 &&
+          !p->healing.pending);
+    SotnPlayer_Close(p);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
     bool ok = Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) &&
-              BloodCloak(f) && ReactionKinds(f);
+              BloodCloak(f) && ReactionKinds(f) && RoomContact(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }
