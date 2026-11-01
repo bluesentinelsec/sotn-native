@@ -2,7 +2,9 @@
 
 The original US Fairy now has bounded component callbacks for root/wings
 initialization, normal following, ability selection, Hammer, Uncurse, Antivenom,
-elemental resists, potions and Life Apple. Native player snapshots also supply the
+elemental resists, potions, Life Apple, intros, shoulder idling and hints. Shared
+sound-state and [room-event queue](familiar-room-events.md) components also run.
+Native player snapshots supply the
 actual transient damage-effects word and pre-control step/substep. These are
 dependencies for the familiar owner. Fairy activation, real slots4..7, item use,
 rescue state17 and progression remain unavailable; ordinary starts and savev9 are
@@ -21,8 +23,27 @@ quarter-distance catch-up, facing and animation thresholds. The original movemen
 gate uses actual velocity, collision and pre-control state history. Wings copy the
 real parent's position/facing and resolve their private animation/priority map;
 their parent union is never treated as root ability words or an emulated pointer.
+Coordinates retain the original entity screen-space representation; native room/
+camera owners must translate their snapshots without advancing these callbacks.
 Callers own clocks, slot generations and no-tick rebases. Extreme square-root
 inputs outside the existing SDK service's nonnegative signed domain fail explicitly.
+
+Introduction and hint callbacks preserve movement before initialization, private
+first-load/repeat voice selection, original dialogue flags, actual sound-step
+waits, pause requests and camera-relative hint targets. Hints deliberately omit
+the default ability selector. Shoulder callbacks retain player-lock versus camera-
+lock flags, the original idle/blink counters, random calls, detachment grunt and
+previous animation-result gate. The US Fairy does not enter the alternate
+Yousei's song phases2..4; unsupported alternate phases fail explicitly.
+
+`ProcessSfxState` consumes actual CD-queue-empty, command acknowledgement and XA
+playback snapshots. It emits original10/11/stop/voice commands and retains its
+separate wait-for-start, wait-for-finish and restoration phases. Room/cutscene
+retirement and room-event sound aborts keep their original ordering. Commands are
+requests for the real CD/XA owner; no cooldown or VAB voice substitutes for an
+acknowledgement. Parameter0 in the voice phase fails explicitly because original
+SoundWait is outside this zero-sentinel request interface. Actual Fairy narrative
+clips use their private US47x/48x/49x IDs, distinct from short bank2 VAB voices.
 
 Selection preserves death before even a negative medicine timer, the exact libc
 RNG calls, private level bands, Hammer/curse/poison/resist/potion priority, elemental
@@ -69,19 +90,27 @@ registers, room events, factory/audio/shake requests and initialization uploads.
 Wing comparisons cover its actual pose/flags/priority, excluding the original
 parent-pointer union from root-extension comparisons.
 
+The expanded instruction comparisons cover12,000 selection calls and87,171 root
+callbacks, including introduction, shoulder and hint sequences. They include the
+earlier28,707 selected callbacks. Another5,184 sound-state and
+324 room-special callbacks compare queue/acknowledgement/playback gates and commands.
+Their explicit service adapters remain separate from actual native ownership.
+Authored extreme-coordinate tests retain original word wrapping without host
+signed overflow; they do not supply ordinary-route evidence.
+
 Actual native checks separately exercise the player input providers with private
 US resources. Explicit raw contacts, attributes and HP1 are controlled fixtures,
 not familiar activation, item acquisition, ordinary encounters, routes or console
 evidence. Eleven native contexts pass in both Debug and ASan/UBSan, including
 menu/draw holds and a real standing-to-walk control snapshot. Both actual
 CMake-built apps also pass the owned-medicine regression through ordinary use,
-real shared presentation/resources, holds and retirement. All217 authored tests
+real shared presentation/resources, holds and retirement. All218 authored tests
 pass in Debug, Release and ASan/UBSan; Python tests, repository policy, formatting,
 static SDL linkage and Release packaging pass. Private component traces match
 between Debug and ASan. These checks do not establish full familiar availability.
 
-Remaining owners include intro/shoulder/hint behavior and real room events/CD/XA
-dialogue, native slots/generations/rendering/shared leases, item/event primitives,
+Remaining owners include actual room-event slots/CD/XA dialogue,
+native slots/generations/rendering/shared leases, item/event primitives,
 FFF/player17/recovery/cleanup, selection and mutual exclusion, and saved familiar
 progression. No new entity/primitive pool or default grants are introduced.
 

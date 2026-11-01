@@ -185,6 +185,131 @@ static bool AppleAndWings(SotnFairyInput in)
           !SDL_memcmp(&held, &wings, sizeof(wings)));
     return true;
 }
+static bool Narrative(void)
+{
+    Uint8 overlay[0x4000] = {0};
+    Data(overlay);
+    Uint8 *boot = SDL_calloc(1, 0x24000);
+    CHECK(boot);
+    for (Uint16 i = 0; i < 192; ++i)
+        Put16(boot + 0x1e3e0 + i * 2U, 4096);
+    // Authored valid table ranges isolate controller branches; these are not SDK parity data.
+    for (Uint16 i = 0; i < 46; ++i)
+    {
+        Put32(overlay + 0x2b14 + i * 4U, 0x80173000 + i * 8U);
+        Put16(overlay + 0x3000 + i * 8U, 2);
+        Put16(overlay + 0x3002 + i * 8U, (Uint16)(i + 1));
+        Put16(overlay + 0x3004 + i * 8U, 0xffff);
+    }
+    Put32(overlay + 0x2c3c, 255);
+    Put32(overlay + 0x2c40, 0x80172ce0);
+    Put32(overlay + 0x2c64, 255);
+    Put32(overlay + 0x2c68, 0x80172ce0);
+    Put16(overlay + 0x2ce2, 14);
+    Put16(overlay + 0x2ce4, 0x480);
+    Put16(overlay + 0x2ce6, 0xffff);
+    Put16(overlay + 0x2ce8, 14);
+    Put32(overlay + 0x2c04, 255);
+    Put32(overlay + 0x2c08, 0x811);
+    Put32(overlay + 0x2cb0, SDL_MAX_UINT32);
+    Put32(overlay + 0x2cb4, SDL_MAX_UINT32);
+    Put32(overlay + 0x2cb8, 0x80172ce0);
+    SotnFairyInput in = {.overlay = {overlay, sizeof(overlay)},
+                         .executable = {boot, 0x24000},
+                         .hp = 70,
+                         .hp_max = 70,
+                         .level = 1,
+                         .load_count = 1,
+                         .sound_step = 99,
+                         .player = {.x = 128 * 65536, .y = 132 * 65536},
+                         .tilemap_x = 268,
+                         .tilemap_y = 546};
+    SotnFairy f = {.mode = SOTN_FAIRY_INTRO,
+                   .phase = 2,
+                   .timer = -1,
+                   .x = 128 * 65536,
+                   .y = 100 * 65536,
+                   .animation = {.address = 0x80173070}};
+    SotnFairyHistory h = {.cached_hp = 70};
+    SotnFairyEvents e = {0};
+    Uint32 rng = 7;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 3 && f.sound_event == 0x80172ce0 &&
+          !f.sound_flag && e.pause_write && !e.pause_allowed && rng != 7);
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 3 && f.sound_event == 0x80172ce6 &&
+          f.sound_flag == -1 && e.event_mode == 0xde && e.event_parameter == 0x480);
+    in.sound_step = 4;
+    in.sound_present = true;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 3 && !e.event_mode);
+    in.sound_step = 5;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 4 && !e.pause_write);
+    in.sound_step = 99;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 5 && !e.pause_write &&
+          SotnFairy_Tick(&f, &h, in, &rng, &e) && f.mode == SOTN_FAIRY_FOLLOW && !f.phase &&
+          e.pause_write && e.pause_allowed);
+    f.mode = SOTN_FAIRY_HINT;
+    f.phase = 0;
+    f.ability = SOTN_FAIRY_FOLLOW;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 1 && h.hint_x == 267 &&
+          h.hint_y == 545 && f.tilemap_x == 268 && f.tilemap_y == 546);
+    f.phase = 2;
+    in.hp = 0;
+    in.player.status = 0x40000;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.mode == SOTN_FAIRY_HINT && f.phase == 3 &&
+          e.pause_write && !e.pause_allowed && !e.process_room_events);
+    f.sound_event = 0x80173fff;
+    const SotnFairy before = f;
+    const SotnFairyHistory history = h;
+    const SotnFairyEvents output = {.consume = 123};
+    e = output;
+    const Uint32 saved_rng = rng;
+    CHECK(!SotnFairy_Tick(&f, &h, in, &rng, &e) && !SDL_memcmp(&before, &f, sizeof(f)) &&
+          !SDL_memcmp(&history, &h, sizeof(h)) && !SDL_memcmp(&output, &e, sizeof(e)) &&
+          rng == saved_rng);
+    in.hp = 70;
+    in.player.status = 0;
+    f.mode = SOTN_FAIRY_SHOULDER;
+    f.phase = 6;
+    f.timer = -1;
+    f.sound_event = 0;
+    f.flags = 0x04060000;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 7 && f.frames >= 1023 &&
+          f.frames <= 3070 && rng != saved_rng);
+    in.player.velocity_x = 65536;
+    f.facing_left = true;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.phase == 10 && f.velocity_x == -16384 &&
+          f.velocity_y == 65536 && e.sound_count == 1 && e.sounds[0] == 0x811 &&
+          f.flags == 0x0c020000);
+    const Sint32 x = f.x, y = f.y;
+    h.shoulder_status = -1;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.mode == SOTN_FAIRY_FOLLOW && !f.phase &&
+          f.x == x - 16384 && f.y == y + 65536 && f.velocity_y == 63488);
+    // Wrapped target deltas must narrow after original word subtraction, without host overflow.
+    in.tilemap_x = 8;
+    in.tilemap_y = 0;
+    in.player.velocity_x = 0;
+    h.hint_x = SDL_MAX_SINT32;
+    h.hint_y = 0;
+    f = (SotnFairy){.mode = SOTN_FAIRY_HINT,
+                    .phase = 3,
+                    .parameter = 1,
+                    .x = SDL_MIN_SINT32,
+                    .sound_event = 0x80172ce0,
+                    .animation = {.address = 0x80173070}};
+    in.sound_step = 0;
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.x == SDL_MIN_SINT32 && f.phase == 3);
+    // Wave addition also wraps before steering; authored quarter-turn cosine gives an8px offset.
+    Put16(boot + 0x1dbcc + 1024 * 2, 4096);
+    in.tilemap_x = 0;
+    f = (SotnFairy){.mode = SOTN_FAIRY_HINT,
+                    .phase = 3,
+                    .parameter = 1,
+                    .distance = 8,
+                    .sound_event = 0x80172ce0,
+                    .animation = {.address = 0x80173070}};
+    CHECK(SotnFairy_Tick(&f, &h, in, &rng, &e) && f.x == 32768 && f.phase == 3);
+    SDL_free(boot);
+    return true;
+}
 static bool Run(void)
 {
     Uint8 data[0x3000] = {0};
@@ -219,7 +344,50 @@ static bool Run(void)
           !SotnFairy_MovementAllowed((SotnFairyPlayer){.substep = 4, .previous_substep = 4}, true));
     CHECK(SotnFairy_StepAngle(16, 4090, 32) == 26 && SotnFairy_StepAngle(0, 2048, 32) == 2080 &&
           SotnFairy_StepAngle(2048, 0, 32) == 4064);
-    CHECK(Selectors(in) && Items(in) && AppleAndWings(in));
+    CHECK(Selectors(in) && Items(in) && AppleAndWings(in) && Narrative());
+    SotnFamiliarSfx sound = {.parameter = 0x472};
+    SotnFamiliarSfxInput si = {0};
+    Uint16 command = 123;
+    Sint32 step = 123;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && !command && !step &&
+          sound.flags == 0x04020000);
+    si.cd_queue_empty = true;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && command == 0x10 && step == 1);
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && !command && step == 1);
+    si.command_acknowledged = true;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && !command && step == 2 &&
+          SotnFamiliarSfx_Tick(&sound, si, &command, &step) && command == 0x472 && step == 3);
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 3);
+    si.xa_playing = true;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 4 &&
+          SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 4);
+    si.xa_playing = false;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 5);
+    si.cd_queue_empty = false;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 5 && !command);
+    si.cd_queue_empty = true;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 6 && command == 0x11 &&
+          SotnFamiliarSfx_Tick(&sound, si, &command, &step) && step == 99 && sound.removed);
+    sound = (SotnFamiliarSfx){.phase = 5};
+    si.room_flags = 32;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && !command && sound.removed &&
+          step == 99);
+    sound = (SotnFamiliarSfx){0};
+    si.cutscene = true;
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && !command && sound.removed &&
+          step == 99);
+    sound = (SotnFamiliarSfx){.phase = 7};
+    CHECK(SotnFamiliarSfx_Tick(&sound, si, &command, &step) && command == 0xa && step == 4);
+    sound = (SotnFamiliarSfx){.phase = 2};
+    command = 123;
+    step = 123;
+    CHECK(!SotnFamiliarSfx_Tick(&sound, si, &command, &step) && sound.phase == 2 &&
+          command == 123 && step == 123);
+    Uint16 sound_phase = 4;
+    CHECK(SotnFairy_RoomEvent(&history, 0, true, &sound_phase) && history.room_special == 1 &&
+          sound_phase == 8 && SotnFairy_RoomEvent(&history, 10, false, NULL) &&
+          history.room_special == 11 && SotnFairy_RoomEvent(&history, 15, false, NULL) &&
+          history.restore_priority);
     return true;
 }
 int main(void)

@@ -385,8 +385,8 @@ static bool Wave(SotnFairy *f, SotnDataView executable, Sint32 *x, Sint32 *y)
     f->wave_angle = (Sint16)((Uint16)(angle + 16) & 4095U);
     if (!SotnMath_Trig(executable, angle / 2, &half) || !SotnMath_Trig(executable, angle, &full))
         return false;
-    *x += Shift(half.cosine * f->distance, 12);
-    *y -= Shift(full.sine * (f->distance / 2), 12);
+    *x = Fixed((Uint32)*x + (Uint32)Shift(half.cosine * f->distance, 12));
+    *y = Fixed((Uint32)*y - (Uint32)Shift(full.sine * (f->distance / 2), 12));
     return true;
 }
 static bool Steer(SotnFairy *f, SotnFairyInput in, Sint32 x, Sint32 y, Sint16 angle_step,
@@ -394,7 +394,8 @@ static bool Steer(SotnFairy *f, SotnFairyInput in, Sint32 x, Sint32 y, Sint16 an
 {
     Sint16 angle = 0;
     SotnMathTrig trig = {0};
-    if (!SotnMath_Atan2Vector(in.executable, -Word(y - Pixel(f->y)), Word(x - Pixel(f->x)), &angle))
+    if (!SotnMath_Atan2Vector(in.executable, -Word(Fixed((Uint32)y - (Uint32)(Sint32)Pixel(f->y))),
+                              Word(Fixed((Uint32)x - (Uint32)(Sint32)Pixel(f->x))), &angle))
         return false;
     f->target_angle =
         SotnFairy_StepAngle((Sint16)((Uint16)angle & 4095U), f->target_angle, angle_step);
@@ -499,6 +500,391 @@ static bool RandomSound(SotnFairyEvents *e, SotnDataView overlay, Uint32 *rng)
         }
     }
     return SDL_SetError("Fairy randomized sound table has no bounded matching threshold");
+}
+bool SotnFamiliarSfx_Tick(SotnFamiliarSfx *sfx, SotnFamiliarSfxInput in, Uint16 *command,
+                          Sint32 *step)
+{
+    if (!sfx || !command || !step || sfx->removed || sfx->phase > 8 ||
+        (sfx->phase == 2 && !sfx->parameter))
+        return SDL_SetError(
+            "Familiar narrative sound requires its actual live event and CD inputs");
+    SotnFamiliarSfx next = *sfx;
+    Uint16 request = 0;
+    switch (next.phase)
+    {
+    case 0:
+        next.flags = 0x04020000;
+        if (in.cutscene)
+            next.removed = true;
+        else if (in.cd_queue_empty)
+        {
+            request = 0x10;
+            ++next.phase;
+        }
+        break;
+    case 1:
+        if (in.command_acknowledged)
+            ++next.phase;
+        break;
+    case 2:
+        request = next.parameter;
+        ++next.phase;
+        break;
+    case 3:
+        if (in.xa_playing)
+            ++next.phase;
+        break;
+    case 4:
+        if (!in.xa_playing)
+            ++next.phase;
+        break;
+    case 5:
+        if (in.room_flags & 0x60U)
+            next.removed = true;
+        else if (in.cd_queue_empty)
+        {
+            request = 0x11;
+            ++next.phase;
+        }
+        break;
+    case 6:
+        next.removed = in.command_acknowledged;
+        break;
+    case 7:
+        request = 0xa;
+        next.phase = 4;
+        break;
+    case 8:
+        next.removed = true;
+        break;
+    }
+    *sfx = next;
+    *command = request;
+    *step = next.removed ? 99 : next.phase;
+    return true;
+}
+bool SotnFairy_RoomEvent(SotnFairyHistory *history, Uint16 parameter, bool sound_present,
+                         Uint16 *sound_phase)
+{
+    if (!history || (sound_present && !sound_phase))
+        return SDL_SetError("Fairy room event requires actual history and occupied sound cursor");
+    if (parameter <= 10)
+        history->room_special = (Sint32)parameter + 1;
+    else if (parameter == 15)
+        history->restore_priority = true;
+    if (!parameter && sound_present && *sound_phase < 5)
+        *sound_phase = 8;
+    return true;
+}
+static bool PrivateEvent(SotnDataView overlay, Uint32 address, const Uint8 **event)
+{
+    if (address < 0x80170000U)
+        return SDL_SetError("Fairy dialogue lost its original private event address");
+    return View(overlay, address - 0x80170000U, 6, event);
+}
+static bool Dialogue(SotnFairy *f, SotnFairyInput in, SotnFairyEvents *e)
+{
+    f->facing_left = Pixel(in.player.x) >= Pixel(f->x);
+    const Uint8 *event = NULL;
+    if (!PrivateEvent(in.overlay, f->sound_event, &event))
+        return false;
+    if (f->sound_flag < 0)
+    {
+        if (in.sound_step > 4)
+        {
+            if (!Set(f, in.overlay, Read16(event + 2)))
+                return false;
+            ++f->phase;
+        }
+    }
+    else
+    {
+        if (in.sound_step == 4 || in.sound_step >= 99)
+            f->sound_flag = Word(f->sound_flag - 1);
+        if (f->sound_flag < 0)
+        {
+            if (!Set(f, in.overlay, Read16(event + 2)))
+                return false;
+            if (Read16(event + 4) && !in.sound_present)
+            {
+                e->event_mode = 0xde;
+                e->event_parameter = Read16(event + 4);
+            }
+            const Uint32 next = f->sound_event + 6U;
+            if (next < f->sound_event || !PrivateEvent(in.overlay, next, &event))
+                return false;
+            f->sound_event = next;
+            f->sound_flag = Word(Read16(event));
+        }
+    }
+    return true;
+}
+static bool GentleFollow(SotnFairy *f, SotnFairyInput in, Sint32 x, Sint32 y, Uint32 *distance)
+{
+    if (!Wave(f, in.executable, &x, &y) || !Distance(*f, in.executable, x, y, distance) ||
+        !Steer(f, in, x, y, f->max_angle,
+               *distance < 60    ? 8
+               : *distance < 100 ? 16
+                                 : 32))
+        return false;
+    f->max_angle = *distance < 60 ? 64 : *distance < 100 ? 96 : 128;
+    Move(f);
+    // Callers that test arrival do so after movement, against this same wavy target.
+    return Distance(*f, in.executable, x, y, distance);
+}
+static bool Intro(SotnFairy *f, SotnFairyHistory *h, SotnFairyInput in, Uint32 *rng,
+                  SotnFairyEvents *e, bool *early)
+{
+    if (h->restore_priority)
+        h->priority = f->priority = (Uint16)(in.player.priority - 2U);
+    Uint32 distance = 0;
+    if (!GentleFollow(f, in, Pixel(in.player.x) + (in.player.facing_left ? -24 : 24),
+                      Pixel(in.player.y) - 32, &distance))
+        return false;
+    switch (f->phase)
+    {
+    case 0:
+        if (!Initialize(f, h, in, rng))
+            return false;
+        f->timer = -1;
+        break;
+    case 1:
+        if (!SelectAnimation(f, in.overlay))
+            return false;
+        if (SotnFairy_MovementAllowed(in.player, true) || in.enemies || h->room_special == 1 ||
+            in.cutscene || in.global_flash)
+        {
+            if (!Set(f, in.overlay, 14))
+                return false;
+            Mode(f, SOTN_FAIRY_FOLLOW);
+            *early = true;
+            return true;
+        }
+        if (distance < 32)
+        {
+            f->facing_left = in.player.facing_left;
+            ++f->phase;
+        }
+        break;
+    case 2: {
+        const Uint16 roll = SotnCombat_Random(rng) % 256U;
+        const size_t table = in.load_count == 1 ? 0x2c3c : 0x2c64;
+        const Uint8 *record = NULL, *event = NULL;
+        Uint16 index = 0;
+        for (; index < 2; ++index)
+        {
+            if (!View(in.overlay, table + index * 8U, 8, &record))
+                return false;
+            if (roll <= Read32(record))
+                break;
+        }
+        if (index == 2 || !PrivateEvent(in.overlay, Read32(record + 4), &event))
+            return SDL_SetError("Fairy introduction lost its bounded private random event");
+        f->sound_event = Read32(record + 4);
+        f->sound_flag = Word(Read16(event));
+        e->pause_write = true;
+        ++f->phase;
+        break;
+    }
+    case 3:
+        if (!Dialogue(f, in, e))
+            return false;
+        break;
+    case 4:
+        if (in.sound_step == 99)
+            ++f->phase;
+        break;
+    case 5:
+        if (!Set(f, in.overlay, 14))
+            return false;
+        e->pause_write = e->pause_allowed = true;
+        Mode(f, SOTN_FAIRY_FOLLOW);
+        break;
+    default:
+        return SDL_SetError("Fairy introduction has an unsupported original phase");
+    }
+    e->process_room_events = true;
+    return Select(f, h, in, rng);
+}
+static bool Hint(SotnFairy *f, SotnFairyHistory *h, SotnFairyInput in, Uint32 *rng,
+                 SotnFairyEvents *e)
+{
+    const Uint8 *record = NULL;
+    if (f->parameter >= 10 || !View(in.overlay, 0x2cb0 + f->parameter * 12U, 12, &record))
+        return SDL_SetError("Fairy hint lost its bounded private room mapping");
+    f->tilemap_x = (Uint32)in.tilemap_x;
+    f->tilemap_y = (Uint32)in.tilemap_y;
+    if (h->restore_priority)
+        h->priority = f->priority = (Uint16)(in.player.priority - 2U);
+    Sint32 x = Pixel(in.player.x) + (in.player.facing_left ? -24 : 24);
+    Sint32 y = Pixel(in.player.y) - 32;
+    if (Read32(record) != SDL_MAX_UINT32 && f->phase)
+    {
+        x = Fixed((Uint32)h->hint_x - f->tilemap_x);
+        y = Fixed((Uint32)h->hint_y - f->tilemap_y);
+    }
+    Uint32 distance = 0;
+    if (!GentleFollow(f, in, x, y, &distance))
+        return false;
+    switch (f->phase)
+    {
+    case 0:
+        if (!Initialize(f, h, in, rng))
+            return false;
+        h->hint_x = Fixed(Read32(record) + f->tilemap_x);
+        h->hint_y = Fixed(Read32(record + 4) + f->tilemap_y);
+        f->timer = -1;
+        break;
+    case 1:
+        if (!SelectAnimation(f, in.overlay))
+            return false;
+        if (distance < 32)
+        {
+            f->facing_left = in.player.facing_left;
+            ++f->phase;
+        }
+        break;
+    case 2: {
+        const Uint8 *event = NULL;
+        f->sound_event = Read32(record + 8);
+        if (!PrivateEvent(in.overlay, f->sound_event, &event))
+            return false;
+        f->sound_flag = Word(Read16(event));
+        e->pause_write = true;
+        ++f->phase;
+        break;
+    }
+    case 3:
+        if (!Dialogue(f, in, e))
+            return false;
+        break;
+    case 4:
+        if (!Set(f, in.overlay, 14))
+            return false;
+        e->pause_write = e->pause_allowed = true;
+        Mode(f, SOTN_FAIRY_FOLLOW);
+        break;
+    default:
+        return SDL_SetError("Fairy hint has an unsupported original phase");
+    }
+    return true;
+}
+static bool Shoulder(SotnFairy *f, SotnFairyHistory *h, SotnFairyInput in, Uint32 *rng,
+                     SotnFairyEvents *e, bool *early)
+{
+    if (h->restore_priority)
+        h->priority = f->priority = (Uint16)(in.player.priority - 2U);
+    if (SotnFairy_MovementAllowed(in.player, true))
+    {
+        if (f->phase < 2)
+        {
+            Mode(f, SOTN_FAIRY_FOLLOW);
+            *early = true;
+            return true;
+        }
+        if (f->phase < 9)
+            f->phase = 9;
+    }
+    const Sint32 offset =
+        !in.player.substep ? (in.player.facing_left ? 6 : -6) : (in.player.facing_left ? -16 : 16);
+    const Sint32 x = Pixel(in.player.x) + offset;
+    const Sint32 y = Pixel(in.player.y) - (in.player.substep ? 8 : 12);
+    switch (f->phase)
+    {
+    case 0:
+        if (!Initialize(f, h, in, rng) || !Set(f, in.overlay, 14))
+            return false;
+        break;
+    case 1: {
+        Uint32 distance = 0;
+        if (!Steer(f, in, x, y, 384, 8) || !SelectAnimation(f, in.overlay))
+            return false;
+        Move(f);
+        if (!Distance(*f, in.executable, x, y, &distance))
+            return false;
+        if (distance < 2)
+        {
+            f->facing_left = in.player.substep ? !in.player.facing_left : in.player.facing_left;
+            if (!Set(f, in.overlay, 24))
+                return false;
+            f->frames = 0;
+            f->flags = (f->flags | 0x40000U) & ~0x08000000U;
+            // The US Fairy is not the alternate Yousei, so it never enters song phases2..4.
+            f->phase = 5;
+        }
+        break;
+    }
+    case 5:
+        f->frames = Word(f->frames + 1);
+        if (f->frames > 1280)
+        {
+            if (!Set(f, in.overlay, 24))
+                return false;
+            f->frames = f->song = 0;
+            ++f->phase;
+        }
+        break;
+    case 6:
+        f->frames = (Sint16)((SotnCombat_Random(rng) % 2048U) + 1024U);
+        ++f->phase;
+        SDL_FALLTHROUGH;
+    case 7:
+        f->frames = Word(f->frames - 1);
+        if (f->frames < 0)
+        {
+            f->frames = (Sint16)((SotnCombat_Random(rng) % 128U) + 128U);
+            if (!Set(f, in.overlay, 25))
+                return false;
+            ++f->phase;
+        }
+        break;
+    case 8:
+        f->frames = Word(f->frames - 1);
+        if (f->frames < 0)
+        {
+            if (!Set(f, in.overlay, 24))
+                return false;
+            f->phase = 6;
+        }
+        break;
+    case 9: {
+        e->release_song = f->song != 0;
+        f->flags = (f->flags & ~0x40000U) | 0x08000000U;
+        if (!Set(f, in.overlay, 27))
+            return false;
+        f->velocity_x = f->facing_left ? -16384 : 16384;
+        f->velocity_y = 65536;
+        const Uint16 roll = SotnCombat_Random(rng) % 256U;
+        const Uint8 *record = NULL;
+        Uint16 index = 0;
+        for (; index < 4; ++index)
+        {
+            if (!View(in.overlay, 0x2c04 + index * 8U, 8, &record))
+                return false;
+            if (roll <= Read32(record))
+                break;
+        }
+        if (index == 4 || Read32(record + 4) > SDL_MAX_UINT16)
+            return SDL_SetError("Fairy shoulder lost its bounded private grunt mapping");
+        e->sounds[e->sound_count++] = (Uint16)Read32(record + 4);
+        ++f->phase;
+        break;
+    }
+    case 10:
+        Move(f);
+        f->velocity_y = Fixed((Uint32)f->velocity_y - 2048U);
+        if (h->shoulder_status == -1)
+        {
+            Mode(f, SOTN_FAIRY_FOLLOW);
+            *early = true;
+            return true;
+        }
+        break;
+    default:
+        return SDL_SetError("US Fairy shoulder has an unsupported alternate-familiar phase");
+    }
+    e->process_room_events = true;
+    return Select(f, h, in, rng);
 }
 static bool Approach(SotnFairy *f, SotnFairyInput in, Sint32 x, Sint32 y)
 {
@@ -758,9 +1144,26 @@ bool SotnFairy_Tick(SotnFairy *f, SotnFairyHistory *h, SotnFairyInput in, Uint32
         if (!Item(&next, &history, in, &rng, &events, &early))
             return false;
     }
+    else if (next.mode == SOTN_FAIRY_INTRO)
+    {
+        if (!Intro(&next, &history, in, &rng, &events, &early))
+            return false;
+    }
+    else if (next.mode == SOTN_FAIRY_SHOULDER)
+    {
+        if (!Shoulder(&next, &history, in, &rng, &events, &early))
+            return false;
+    }
+    else if (next.mode == SOTN_FAIRY_HINT)
+    {
+        if (!Hint(&next, &history, in, &rng, &events))
+            return false;
+    }
     else
-        return SDL_SetError("Fairy callback still requires its actual intro/shoulder/hint owner");
-    if (!early && !SotnFamiliarAnimation_Tick(&next.animation, Animation(in.overlay), NULL))
+        return SDL_SetError("Fairy callback requires a supported actual root mode");
+    if (!early && !SotnFamiliarAnimation_Tick(
+                      &next.animation, Animation(in.overlay),
+                      f->mode == SOTN_FAIRY_SHOULDER ? &history.shoulder_status : NULL))
         return false;
     *f = next;
     *h = history;
