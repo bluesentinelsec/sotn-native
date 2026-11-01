@@ -47,6 +47,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   Fairy Life Apple rescue17 (previously labeled global-fade), teleport18,
   Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
   producer, item consumption, scene handshake and cleanup are required for17.
+  The [shared teleport effect owner](teleport-effects.md) supplies actual child65
+  rows/rendering and output intents; player18 and actual travel are not enabled.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
   elemental reactions, invincibility/helper timing, stone variants, death/fade
   branches and dependent effects. The [selected hurt owner](player-hurt-motion.md)

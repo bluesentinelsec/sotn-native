@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  teleport_effect.c
+  include/sotn/teleport_effect.h
   axe_armor.c
   include/sotn/axe_armor.h
   talisman_effect.c

@@ -1392,6 +1392,27 @@ static bool QueueStageArrival(SotnLaboratory *session, SotnStageRoute route)
     return true;
 }
 
+static bool RetireTeleportRoom(SotnLaboratory *s)
+{
+    bool present = false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        present |= s->bat_runtime.children[i].kind == 65;
+    for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
+        present |= s->bat_runtime.factories[i].cursor.entity_id &&
+                   s->bat_runtime.factories[i].cursor.blueprint == 121;
+    if (!present)
+        return true;
+    SotnBatRuntime *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return SDL_OutOfMemory();
+    *next = s->bat_runtime;
+    const bool committed =
+        SotnBatRuntime_PruneTeleport(next) && SotnActors_CommitBatPrimitives(s->actors, next);
+    if (committed)
+        s->bat_runtime = *next;
+    SDL_free(next);
+    return committed;
+}
 static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
 {
     const Sint32 local_x = Pixel(state->x), local_y = Pixel(state->y);
@@ -1454,7 +1475,7 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         session->blink_rebase_y += offset_y;
         session->room = room;
         session->room_index = i;
-        if (!EnterActors(session) || !EnterSaveRoom(session))
+        if (!RetireTeleportRoom(session) || !EnterActors(session) || !EnterSaveRoom(session))
             return false;
         SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
@@ -2303,6 +2324,24 @@ static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
     }
     return (p->draw_mode & 8U) || SotnActorGraphics_QuadSurface(NULL, q, s->draw_target.surface);
 }
+static bool DrawTeleportRow(SotnLaboratory *s, const SotnTeleportEffect *effect, Uint16 row)
+{
+    const SotnPlayerEffectQuad *q = &effect->quads[row];
+    if (row >= 4)
+        return DrawPlayerEffectQuad(s, q);
+    if (row >= 2)
+        return DrawIceQuad(s, q);
+    SotnPlayerEffectQuad tile = *q;
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        tile.x[v] = BlinkWord(q->x[0] + (v & 1U ? q->u[0] : 0));
+        tile.y[v] = BlinkWord(q->y[0] + (v & 2U ? q->v[0] : 0));
+        tile.red[v] = q->red[0];
+        tile.green[v] = q->green[0];
+        tile.blue[v] = q->blue[0];
+    }
+    return DrawIceQuad(s, &tile);
+}
 static bool DrawAxeArmorSprite(SotnLaboratory *s, SotnActorSprite sprite, Sint32 x, Sint32 y,
                                Sint16 rotation, Sint16 pivot_y, Uint8 opacity, bool rotated)
 {
@@ -2673,6 +2712,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 65 && child->initialized)
+                for (Uint16 row = SOTN_TELEPORT_ROWS; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q = &child->state.teleport.quads[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = q->priority,
+                                            .primitive =
+                                                (Uint16)(owner * SOTN_TELEPORT_ROWS + row - 1U),
+                                            .kind = SOTN_DRAW_TELEPORT}))
+                        return false;
+                }
             if (child->kind == 32 && child->initialized)
                 for (Uint16 row = SOTN_STONE_DISSOLVE_ROWS; row > 0; --row)
                 {
@@ -3040,6 +3092,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_TELEPORT)
+        {
+            const Uint16 owner = command.primitive / SOTN_TELEPORT_ROWS,
+                         row = command.primitive % SOTN_TELEPORT_ROWS;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Teleport packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 65 || !SotnBatRuntime_TeleportValid(child) || !child->initialized ||
+                !DrawTeleportRow(session, &child->state.teleport, row) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Teleport draw lost its actual36-row owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_STONE_DISSOLVE)

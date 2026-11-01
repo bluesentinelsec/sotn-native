@@ -6,7 +6,8 @@
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
-        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_HOLY_HIT ||
+        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_TELEPORT ||
+        (item.kind == SOTN_DRAW_TELEPORT && item.primitive >= 48 * 36) ||
         (item.kind == SOTN_DRAW_HOLY_HIT && item.primitive >= 48 * 16) ||
         (item.kind == SOTN_DRAW_STONE_DISSOLVE && item.primitive >= 48 * 36) ||
         (item.kind == SOTN_DRAW_ICE_HIT && item.primitive >= 48 * 24) ||

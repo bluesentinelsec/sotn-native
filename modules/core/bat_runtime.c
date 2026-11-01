@@ -235,8 +235,9 @@ static bool ChildKind(Uint16 kind)
     return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 30 ||
            kind == 33 || kind == 32 || kind == 31 || kind == 35 || kind == 36 || kind == 37 ||
            kind == 45 || kind == 46 || kind == 49 || kind == 50 || kind == 54 || kind == 47 ||
-           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 ||
-           kind == 0xf1 || kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 65 ||
+           kind == 0xe1 || kind == 0xf1 || kind == 0xe2 || kind == 0xf2 ||
+           (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -262,6 +263,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->primitive_count ? 0x04830000U : 0x04030000U;
     case 32:
         return c->state.dissolve.flags;
+    case 65:
+        return 0x0c810000U;
     case 33:
         return c->state.ice.flags;
     case 30:
@@ -397,6 +400,39 @@ bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 32)
             r->children[i] = (SotnBatRuntimeChild){0};
+    return true;
+}
+bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *c)
+{
+    if (!c)
+        return false;
+    if (c->kind != 65)
+        return true;
+    const SotnTeleportEffect *n = &c->state.teleport;
+    return c->generation && !c->bat_generation && !(c->parameter & 255U) &&
+           n->parameter == c->parameter && !n->removed && !c->draw_count &&
+           (c->initialized ? (n->phase >= 1 && n->phase <= 6) || (n->phase >= 20 && n->phase <= 23)
+                           : n->phase == 0) &&
+           c->primitive_count == (c->initialized ? SOTN_TELEPORT_ROWS : 0);
+}
+bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_TeleportValid(&r->children[i]))
+            return SDL_SetError("Teleport cleanup lost its actual child/row lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 65)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (r->factories[i].cursor.entity_id && r->factories[i].cursor.blueprint == 121 &&
+            (!r->factories[i].cursor.initialized ||
+             (r->factories[i].cursor.origin != 4 && r->factories[i].cursor.origin != 5)))
+            SDL_zero(r->factories[i]);
+    r->teleport_palette = 0;
+    r->teleport_warp_mode = 0;
+    r->teleport_acknowledged = false;
     return true;
 }
 bool SotnBatRuntime_IceHitValid(const SotnBatRuntimeChild *c)
@@ -588,6 +624,13 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             return SDL_SetError("Dissolve requires its actual independent zero-parameter factory");
         c.state.dissolve.x = child.source.x;
         c.state.dissolve.y = child.source.y;
+    }
+    if (c.kind == 65)
+    {
+        if (generation || (child.parameter & 255U))
+            return SDL_SetError("Teleport requires its actual independent high-parameter factory");
+        c.state.teleport = (SotnTeleportEffect){
+            .parameter = child.parameter, .x = child.source.x, .y = child.source.y};
     }
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
@@ -883,7 +926,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (r.wolf_bound && !in.wolf_owned)
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
-    if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r)))
+    if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r) ||
+                        !SotnBatRuntime_PruneTeleport(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -926,6 +970,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
         if (!SotnBatRuntime_DissolveValid(c))
             return SDL_SetError("Dissolve lost its actual thirty-six-row child ownership");
+        if (!SotnBatRuntime_TeleportValid(c))
+            return SDL_SetError("Teleport lost its actual thirty-six-row child ownership");
         if (!SotnBatRuntime_IceHitValid(c))
             return SDL_SetError("Ice hit lost its actual twenty-four-row child ownership");
         if (!SotnBatRuntime_ThunderHitValid(c))
@@ -971,6 +1017,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (c->kind == 47 && c->primitive_count == 16) ||
                 (c->kind == 30 && c->primitive_count == 6) ||
                 (c->kind == 32 && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS) ||
+                (c->kind == 65 && c->primitive_count == SOTN_TELEPORT_ROWS) ||
                 (c->kind == 33 && c->primitive_count == 24) ||
                 (c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
                  c->state.particles.count &&
@@ -1142,6 +1189,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.wolf_frame.x = FixedShift(r.wolf_frame.x, in.screen_shift_x);
         r.wolf_frame.y = FixedShift(r.wolf_frame.y, in.screen_shift_y);
     }
+    r.teleport_palette = 0;
+    r.teleport_warp_mode = 0;
+    r.teleport_acknowledged = false;
     if (in.entering)
     {
         r.wolf_events = (SotnWolfRuntimeEvents){0};
@@ -1558,6 +1608,44 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 65)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated && !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_TELEPORT_ROWS,
+                                                          c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? SOTN_TELEPORT_ROWS : 0;
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y),
+                         camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            if (!c->state.teleport.phase)
+            {
+                c->state.teleport.x = FixedShift(c->source.x, Word(-camera_x));
+                c->state.teleport.y = FixedShift(c->source.y, Word(-camera_y));
+            }
+            SotnTeleportEffectEvents events = {0};
+            if (!SotnTeleportEffect_Tick(
+                    &c->state.teleport, &r.teleport,
+                    (SotnTeleportEffectInput){.dra = in.dra,
+                                              .player_x = FixedShift(p.x, Word(-camera_x)),
+                                              .player_y = FixedShift(p.y, Word(-camera_y)),
+                                              .allocated = allocated},
+                    &progress.random, &events))
+                return false;
+            for (Uint16 sound = 0; sound < events.sound_count; ++sound)
+                if (!Sound(&r, events.sounds[sound]))
+                    return false;
+            if (events.palette)
+                r.teleport_palette = events.palette;
+            if (events.warp_mode)
+                r.teleport_warp_mode = events.warp_mode;
+            r.teleport_acknowledged |= events.warp_acknowledged;
+            removed = c->state.teleport.removed;
+            if (!removed && !SotnTeleportEffect_Rebase(&c->state.teleport, dx, dy, false))
+                return false;
+            c->initialized = !removed && c->state.teleport.phase;
         }
         else if (c->kind == 32)
         {

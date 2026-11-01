@@ -1,3 +1,17 @@
+Selected [shared teleport effects](docs/teleport-effects.md) now own actual
+factory121/child65/36 rows, one32-point global and original96-call births. Preserve
+allocation retry before RNG, private gradient/UV words, raw packet delay/animation
+bytes, opaque particles, top-Y clamp and first-GT4-only hide bugs. Preserve actual
+TILE/G4/GT4 ordering, flags10000 frozen advances, release/menu/draw holds and no-tick
+rebases without translating shared points. Actual room transitions retire child65
+and nonretained pending121 roots before new actor allocations, without ACK/RNG.
+Other shared room cleanup and whole-stage atomicity remain unfinished.
+Terminal ACK/sound636/row retirement
+precedes later work; palette/warp outputs are intents until their real owners commit.
+No player18/Library Card/travel readiness, pool/grants/savev9 change is established.
+All six Alucard gates stay open. Factory/protection/freeze contexts are not ordinary
+acquisition/routes/console evidence.
+
 Selected [grab control](docs/player-boss-grab.md) now accepts retained reaction0/2
 and actual boss-supplied release4 velocities. Preserve normal reset with retained
 stone animation/no entry8/voice, pulse4/8161/no normal voice, default DAMAGE's

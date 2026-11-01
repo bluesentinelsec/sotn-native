@@ -24,6 +24,7 @@
 #include <sotn/stone_dissolve.h>
 #include <sotn/sword_warp.h>
 #include <sotn/talisman_effect.h>
+#include <sotn/teleport_effect.h>
 #include <sotn/thunder_hit.h>
 
 enum
@@ -101,6 +102,7 @@ typedef struct SotnBatRuntimeChild
         SotnThunderHit thunder;
         SotnIceHit ice;
         SotnStoneDissolve dissolve;
+        SotnTeleportEffect teleport;
         SotnSpiritPortal portal;
         struct
         {
@@ -139,8 +141,12 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
-    Uint32 dark_blend_phase; /**< Actual DRA global, retained through session replacement. */
-    SotnHolyHitShared holy;  /**< Actual shared entity47 points, not one copy per child. */
+    Uint32 dark_blend_phase;     /**< Actual DRA global, retained through session replacement. */
+    SotnHolyHitShared holy;      /**< Actual shared entity47 points, not one copy per child. */
+    SotnTeleportShared teleport; /**< Actual shared entity65 points, never a new particle pool. */
+    Uint16 teleport_palette;
+    Uint8 teleport_warp_mode;
+    bool teleport_acknowledged;
     SotnPlayerParticleVectors particle_vectors; /**< Actual full-player-init velocity tables. */
     Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
     bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */
@@ -185,6 +191,11 @@ bool SotnBatRuntime_PruneIce(SotnBatRuntime *runtime);
 bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *runtime);
 /** @brief Validate the actual entity32 lifecycle and thirty-six-row ownership. */
 bool SotnBatRuntime_DissolveValid(const SotnBatRuntimeChild *child);
+/** @brief Validate actual teleport child generation, parameter and36-row lifecycle. */
+bool SotnBatRuntime_TeleportValid(const SotnBatRuntimeChild *child);
+/** @brief Original room-entry retirement of entity65 and its nonretained factory121 records.
+ * Commit the resulting row plan to the actual stage pool before any new allocation. */
+bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *runtime);
 /** @brief Commit actual post-stage shoves to player-locked holy/ice entities only.
  * Packets, shared points, rows, RNG and controllers hold. Room entry has its own rebase. */
 bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);

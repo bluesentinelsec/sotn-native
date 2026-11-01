@@ -143,6 +143,9 @@ SOTN_FORMAT_SOURCES += modules/core/boss_projection.c \
 	  modules/core/actor_camera.c \
 	  modules/core/world.c modules/core/include/sotn/world.h
 
+SOTN_FORMAT_SOURCES += modules/core/teleport_effect.c modules/core/include/sotn/teleport_effect.h \
+	  tests/core/test_teleport_effect.c
+
 .PHONY: dev debug debug-build release release-build configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)
