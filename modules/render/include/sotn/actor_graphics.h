@@ -204,6 +204,10 @@ typedef struct SotnSpriteTransform
     Uint16 opacity;
     bool tint; /**< When true, RGB multipliers replace opacity. */
     Uint8 red, green, blue;
+    SotnDataView executable; /**< Actual private SDK table when sdk_rotation is enabled. */
+    Sint16 pivot_x, pivot_y; /**< Original entity rotation pivots, before facing adjustment. */
+    bool sdk_rotation; /**< Use original SquareRoot12/ratan2/trig for all four part vertices. */
+    bool original_uv;  /**< Preserve original mirrored packet UV bytes even without rotation. */
 } SotnSpriteTransform;
 /** @brief Resolve a copied actor's explicit transform flags or its legacy value selectors.
  * @param actor Copied presentation state; no ownership transfers.

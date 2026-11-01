@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  axe_armor.c
+  include/sotn/axe_armor.h
   talisman_effect.c
   include/sotn/talisman_effect.h
   immunity_text.c

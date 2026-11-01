@@ -320,6 +320,159 @@ static void ClearAttack(SotnPlayer *player)
     player->attack = (SotnPlayerAttack){0};
 }
 
+static SotnAxeArmorFrame AxeFrame(const SotnPlayer *p)
+{
+    return (SotnAxeArmorFrame){.animation = p->animation,
+                               .velocity_x = p->vx,
+                               .velocity_y = p->vy,
+                               .movement_flags = p->movement_flags,
+                               .step = (Uint16)p->step,
+                               .substep = p->substep,
+                               .draw_flags = p->axe_armor.draw_flags,
+                               .rotation = p->axe_armor.rotation,
+                               .pivot_y = p->draw_pivot_y,
+                               .opacity = p->axe_armor.opacity,
+                               .facing_left = p->facing_left,
+                               .knock_right = p->axe_armor.knock_right,
+                               .turned = p->turned};
+}
+static void ApplyAxeFrame(SotnPlayer *p, const SotnAxeArmorFrame *f)
+{
+    p->animation = f->animation;
+    p->vx = f->velocity_x;
+    p->vy = f->velocity_y;
+    p->step = (SotnPlayerStep)f->step;
+    p->substep = f->substep;
+    p->axe_armor.draw_flags = (Uint8)f->draw_flags;
+    p->axe_armor.rotation = f->rotation;
+    p->axe_armor.opacity = f->opacity;
+    p->draw_pivot_y = f->pivot_y;
+    p->facing_left = f->facing_left;
+    p->turned = f->turned;
+}
+static bool AxePrepare(SotnPlayer *p, bool bootstrap)
+{
+    if (!p->axe_context || SotnPlayerStep_IsDead(p->step))
+        return true;
+    if (p->armor != 25)
+        p->axe_overlay_owned = false;
+    else if (!p->axe_overlay_owned)
+    {
+        // menu.c:LoadWeaponPrg reloads only on a family change. Preserve words through
+        // same-family hand changes and scripted reentry; a new overlay uses actual file words.
+        SotnEquipment equipment = {0};
+        SotnDataView overlay = {0};
+        if (!SotnEquipment_ReadAxeArmor(p->dra, &equipment) ||
+            !SotnWeapon_Overlay(p->weapons, equipment, &overlay))
+            return false;
+        const Uint32 recovery = Attack32(overlay.bytes + 0x13b8);
+        SDL_memcpy(&p->axe_armor.cursor.recovery, &recovery, sizeof(recovery));
+        p->axe_armor.cursor.angle = Attack32(overlay.bytes + 0x13bc);
+        p->axe_overlay_owned = true;
+    }
+    if (p->axe_armor.active == (p->armor == 25))
+        return true;
+    ClearAttack(p);
+    p->shield = (SotnPlayerAttack){0};
+    p->shield_cursor = (SotnShield){0};
+    p->movement_flags = 0;
+    p->axe_armor.source = (SotnPlayerFactorySource){
+        .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left};
+    if (p->armor == 25)
+    {
+        // The overlay enters40/42 before09328 tests HighJump. Retain its upside-down
+        // pose attributes and facing; ordinary form cancellation would flip a second time.
+        if (p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down)
+        {
+            p->axe_armor.rotation = 2048;
+        }
+        p->gravity.upside_down = false;
+        SotnPlayer_BatCancel(p);
+        SotnPlayer_WolfCancel(p);
+        if (p->mist.active)
+        {
+            p->mist.active = p->mist.restoring = false;
+            p->mist.interrupted = true;
+        }
+        p->dark.ticks = 0;
+        p->axe_armor.active = p->axe_armor.entered = true;
+        SotnAxeArmorFrame f = AxeFrame(p);
+        if (!SotnAxeArmor_Enter(&f, (Uint32)p->contact))
+            return false;
+        ApplyAxeFrame(p, &f);
+        p->animation_bank = 16;
+        p->palette = 0x110;
+        if (!SotnPlayerAfterimage_Reset(&p->afterimage, true, 10, &p->afterimage_timer15))
+            return false;
+        if (!bootstrap)
+        {
+            p->sound = 0x6f2;
+            SotnPlayer_HoldInput(p, 32);
+        }
+    }
+    else
+    {
+        p->axe_armor.active = false;
+        p->axe_armor.exited = true;
+        p->axe_armor.draw_flags = 0;
+        p->axe_armor.rotation = 0;
+        p->draw_pivot_x = p->draw_pivot_y = 0;
+        p->animation_bank = 1;
+        p->palette = 0x8100;
+        if (p->contact & 1)
+            Land(p, 0);
+        else
+            Fall(p);
+    }
+    return !p->failed;
+}
+static void AxeTick(SotnPlayer *p)
+{
+    const bool overlay_callback = p->step != SOTN_PLAYER_AXE_SCRIPT;
+    SotnAxeArmorFrame f = AxeFrame(p);
+    SotnAxeArmorEvents events = {0};
+    if (!p->axe_armor.active ||
+        !SotnAxeArmor_Tick(&p->axe_armor.cursor, &f,
+                           (SotnAxeArmorInput){.executable = p->script_executable,
+                                               .contacts = (Uint32)p->contact,
+                                               .clock = p->damage_clock,
+                                               .pressed = p->buttons,
+                                               .tapped = p->tapped,
+                                               .simulated_mode = p->simulated_pad.mode,
+                                               .tight_space = p->tight_space != 0},
+                           &events))
+    {
+        p->failed = true;
+        return;
+    }
+    ApplyAxeFrame(p, &f);
+    if (overlay_callback)
+    {
+        p->animation_bank = 16;
+        p->palette = 0x110;
+    }
+    p->axe_armor.source = (SotnPlayerFactorySource){
+        .x = p->x.value, .y = p->y.value, .priority = 148, .facing_left = p->facing_left};
+    for (Uint16 i = 0; i < events.factory_count; ++i)
+    {
+        if (p->axe_armor.events.factory_count >= SDL_arraysize(p->axe_armor.events.factories))
+        {
+            SDL_SetError("Axe Armor exceeded its actual per-update factory requests");
+            p->failed = true;
+            return;
+        }
+        p->axe_armor.events.factories[p->axe_armor.events.factory_count++] = events.factories[i];
+    }
+    // The ordinary player audio owner consumes sounds; shared events retain factories only.
+    for (Uint16 i = 0; i < events.sound_count; ++i)
+    {
+        if (!p->sound)
+            p->sound = events.sounds[i];
+        else
+            p->extra_sound = events.sounds[i];
+    }
+}
+
 static void Backdash(SotnPlayer *player)
 {
     SetStep(player, SOTN_PLAYER_STAND);
@@ -1061,6 +1214,15 @@ static void CrouchTick(SotnPlayer *player)
 
 static void PhysicalDeath(SotnPlayer *player, bool right)
 {
+    if (player->axe_armor.active)
+    {
+        player->axe_armor.active = false;
+        player->axe_armor.exited = true;
+        player->axe_armor.draw_flags = 0;
+        player->axe_armor.rotation = 0;
+        player->animation_bank = 1;
+        player->palette = 0x8100;
+    }
     player->step = SOTN_PLAYER_KILL;
     player->substep = 1;
     player->death = (SotnPlayerDeath){.phase = 1, .red = 128, .blue = 128};
@@ -1111,6 +1273,12 @@ static void ScriptReactionTick(SotnPlayer *p)
         p->stone = (SotnPlayerStone){0};
         p->gravity.upside_down = false;
         p->animation_bank = 1;
+        if (p->axe_armor.active)
+        {
+            p->axe_armor.active = false;
+            p->axe_armor.exited = true;
+            p->axe_armor.draw_flags = 0;
+        }
         p->form_rotated = false;
         p->damage_palette = 0x8166;
         p->timers[2] = 6;
@@ -1143,6 +1311,13 @@ static void BossGrabTick(SotnPlayer *player)
         ClearAttack(player);
         player->movement_flags = 0;
         player->stone = (SotnPlayerStone){0};
+        if (player->axe_armor.active)
+        {
+            player->axe_armor.active = false;
+            player->axe_armor.exited = true;
+            player->axe_armor.draw_flags = 0;
+        }
+        player->animation_bank = 1;
         Animate(player, 0x37);
         player->timers[2] = 8;
         player->damage_palette = 0x8166;
@@ -1299,6 +1474,15 @@ static void WaterDeathTick(SotnPlayer *p)
                 p->sound = (Uint16)a.value;
             else if (a.kind == SOTN_WATER_DEATH_RESET_NORMAL)
             {
+                if (p->axe_armor.active)
+                {
+                    p->axe_armor.active = false;
+                    p->axe_armor.exited = true;
+                    p->axe_armor.draw_flags = 0;
+                    p->axe_armor.rotation = 0;
+                    p->animation_bank = 1;
+                    p->palette = 0x8100;
+                }
                 SotnPlayer_GravityCancel(p);
                 SotnPlayer_BatCancel(p);
                 SotnPlayer_WolfCancel(p);
@@ -1607,7 +1791,12 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.damage_number = (SotnPlayerDamageNumber){0};
     next.dodge = (SotnPlayerDodge){0};
     next.script_reaction.started = false;
+    next.axe_armor.events = (SotnAxeArmorEvents){0};
+    next.axe_armor.draw_flags = 0; // EntityAlucard resets the live entity flags before dispatch.
+    next.axe_armor.entered = next.axe_armor.exited = false;
     next.mist.interrupted = false;
+    if (!AxePrepare(&next, false))
+        return false;
     if (alive && next.spell_use_ticks)
         --next.spell_use_ticks;
     if (alive && next.dark.ticks)
@@ -1701,7 +1890,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         SotnPlayer_BatCancel(&next);
         SotnPlayer_WolfCancel(&next);
         // PAD_SIM mode 2 changes step without selecting a new animation (692E8.c/alu_anim.c).
-        SetStep(&next, force_reaction ? SOTN_PLAYER_SCRIPT_REACTION : SOTN_PLAYER_SCRIPT);
+        SetStep(&next, force_reaction          ? SOTN_PLAYER_SCRIPT_REACTION
+                       : next.axe_armor.active ? SOTN_PLAYER_AXE_SCRIPT
+                                               : SOTN_PLAYER_SCRIPT);
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
         if (force_hold && next.legacy_script_hold)
             ClearAttack(&next);
@@ -1736,6 +1927,13 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (!reaction_born)
         switch (next.step)
         {
+        case SOTN_PLAYER_AXE_STAND:
+        case SOTN_PLAYER_AXE_WALK:
+        case SOTN_PLAYER_AXE_JUMP:
+        case SOTN_PLAYER_AXE_HIT:
+        case SOTN_PLAYER_AXE_SCRIPT:
+            AxeTick(&next);
+            break;
         case SOTN_PLAYER_SWORD_WARP:
             SwordWarpTick(&next);
             break;
@@ -1883,6 +2081,10 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         ((next.step == SOTN_PLAYER_MIST || next.step == SOTN_PLAYER_UNMORPH_MIST) ? 2U : 0U) |
         ((next.step == SOTN_PLAYER_BAT || next.step == SOTN_PLAYER_UNMORPH_BAT) ? 1U : 0U) |
         (next.step == SOTN_PLAYER_WOLF ? 4U : 0U);
+    if (next.step == SOTN_PLAYER_AXE_HIT)
+        next.invincibility = (Uint16)SDL_max(next.invincibility, 20);
+    if (next.axe_armor.active)
+        next.animation_bank = 16;
     if (next.step == SOTN_PLAYER_DARK || next.step == SOTN_PLAYER_SUMMON ||
         next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE ||
         next.step == SOTN_PLAYER_SOUL)
@@ -1989,6 +2191,26 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
     }
     player->animation.remaining = 0;
     *out = player;
+    return true;
+}
+
+bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool bootstrap)
+{
+    SotnEquipment equipment = {0};
+    SotnDataView overlay = {0};
+    if (!player || !player->script_executable.bytes ||
+        !SotnEquipment_ReadAxeArmor(player->dra, &equipment) ||
+        !SotnWeapon_Overlay(weapons, equipment, &overlay))
+        return SDL_SetError(
+            "Axe Armor context requires actual weapon45 metadata/artwork/SDK owners");
+    SotnPlayer next = *player;
+    next.axe_context = true;
+    next.weapons = weapons;
+    const bool was_active = next.axe_armor.active;
+    if (bootstrap && (!AxePrepare(&next, true) || (!was_active && next.axe_armor.active &&
+                                                   !SotnAnimation_Tick(next.dra, &next.animation))))
+        return false;
+    *player = next;
     return true;
 }
 
@@ -2106,6 +2328,13 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->dodge.applied && (dodge_x < SDL_MIN_SINT32 || dodge_x > SDL_MAX_SINT32 ||
                                   dodge_y < SDL_MIN_SINT32 || dodge_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured dodge source");
+    const Sint64 axe_x = (Sint64)player->axe_armor.source.x + (Sint64)offset_x * FIX_ONE,
+                 axe_y = (Sint64)player->axe_armor.source.y + (Sint64)offset_y * FIX_ONE;
+    const bool axe_request = player->axe_armor.events.factory_count || player->axe_armor.entered ||
+                             player->axe_armor.exited;
+    if (axe_request && (axe_x < SDL_MIN_SINT32 || axe_x > SDL_MAX_SINT32 ||
+                        axe_y < SDL_MIN_SINT32 || axe_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the actual Axe Armor factory source");
     const Sint64 number_x = (Sint64)player->damage_number.source.x + (Sint64)offset_x * FIX_ONE,
                  number_y = (Sint64)player->damage_number.source.y + (Sint64)offset_y * FIX_ONE;
     if (player->damage_number.applied && (number_x < SDL_MIN_SINT32 || number_x > SDL_MAX_SINT32 ||
@@ -2175,6 +2404,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     {
         player->dodge.source.x = (Sint32)dodge_x;
         player->dodge.source.y = (Sint32)dodge_y;
+    }
+    if (axe_request)
+    {
+        player->axe_armor.source.x = (Sint32)axe_x;
+        player->axe_armor.source.y = (Sint32)axe_y;
     }
     if (player->damage_number.applied)
     {
@@ -2285,6 +2519,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
         status |= 0x2000000U;
     if (player->step == SOTN_PLAYER_SCRIPT)
         status |= 0x38110000U;
+    if (player->axe_armor.active)
+        status |= 0x29100000U;
     if (player->step == SOTN_PLAYER_HIGH_JUMP)
         status |= 0x38000000U;
     if (player->step == SOTN_PLAYER_SWORD_WARP)
@@ -2364,10 +2600,12 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .guard = player->guard,
         .damage_number = player->damage_number,
         .dodge = player->dodge,
+        .axe_armor = player->axe_armor,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
                      player->step != SOTN_PLAYER_HIT && player->step != SOTN_PLAYER_STONE &&
-                     player->step != SOTN_PLAYER_SCRIPT && player->grab.state == SOTN_GRAB_NONE &&
+                     player->step != SOTN_PLAYER_SCRIPT && player->step != SOTN_PLAYER_AXE_SCRIPT &&
+                     player->grab.state == SOTN_GRAB_NONE &&
                      player->step != SOTN_PLAYER_SCRIPT_REACTION &&
                      player->step != SOTN_PLAYER_BOSS_GRAB,
         .random = player->damage_random,
@@ -2428,12 +2666,13 @@ bool SotnPlayer_SetArrivalFacing(SotnPlayer *player, bool facing_left)
     return true;
 }
 
-bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
+static bool Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity,
+                   bool zero_stone, Uint16 kind)
 {
     if (player == NULL || amount > 9999 || source_x < -512 || source_x > 16896 ||
         source_velocity < -16 * FIX_ONE || source_velocity > 16 * FIX_ONE)
         return SDL_SetError("Player damage requires a bounded physical attack and source");
-    if (amount == 0 || player->hp == 0 || player->invincibility != 0 ||
+    if ((!amount && !zero_stone) || player->hp == 0 || player->invincibility != 0 ||
         player->step == SOTN_PLAYER_HIT || player->grab.state != SOTN_GRAB_NONE ||
         player->step == SOTN_PLAYER_BOSS_GRAB)
         return true;
@@ -2447,14 +2686,36 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
     const Sint32 center_x =
         next.x.parts.high + (next.facing_left ? -next.animation.hitbox_x : next.animation.hitbox_x);
     const Sint32 delta = center_x - source_x;
-    const bool right =
-        SDL_abs(delta) < 16 && source_velocity != 0 ? source_velocity > 0 : delta >= 0;
+    const bool right = next.axe_armor.active && kind == 17           ? true
+                       : next.axe_armor.active && kind == 18         ? false
+                       : SDL_abs(delta) < 16 && source_velocity != 0 ? source_velocity > 0
+                                                                     : delta >= 0;
     ClearAttack(&next);
     next.movement_flags = 0;
     next.invincibility = 12;
     if (next.hp == 0)
     {
         PhysicalDeath(&next, right);
+        if (next.failed ||
+            (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
+            return false;
+        *player = next;
+        return true;
+    }
+    if (next.axe_armor.active)
+    {
+        next.axe_armor.knock_right = right;
+        next.axe_armor.events.factories[0] = 85;
+        next.axe_armor.events.factory_count = 1;
+        next.vx = right ? 81920 : -81920;
+        next.vy = -3 * FIX_ONE;
+        SetStep(&next, SOTN_PLAYER_AXE_HIT);
+        Animate(&next, 0xd1);
+        next.sound = 0x6ed;
+        next.invincibility = 20;
+        AxeTick(&next);
+        if (next.tight_space)
+            next.vy = 0;
         if (next.failed ||
             (!next.contact_dispatch && !SotnAnimation_Tick(next.dra, &next.animation)))
             return false;
@@ -2506,6 +2767,18 @@ bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint3
         return false;
     *player = next;
     return true;
+}
+
+bool SotnPlayer_Damage(SotnPlayer *player, Uint16 amount, Sint32 source_x, Sint32 source_velocity)
+{
+    return Damage(player, amount, source_x, source_velocity, false, 1);
+}
+bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                                 Sint32 source_velocity, Uint16 kind, bool zero_stone)
+{
+    if (!player || !player->axe_armor.active || kind > 31)
+        return SDL_SetError("Axe contact requires its actual equipped player and damage kind");
+    return Damage(player, amount, source_x, source_velocity, zero_stone, kind);
 }
 
 bool SotnPlayer_Restore(SotnPlayer *player, Uint16 hp, Uint32 random)
@@ -2805,6 +3078,8 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.guard = (SotnPlayerGuard){0};
     next.damage_number = (SotnPlayerDamageNumber){0};
     next.dodge = (SotnPlayerDodge){0};
+    next.axe_armor.events = (SotnAxeArmorEvents){0};
+    next.axe_armor.entered = next.axe_armor.exited = false;
     next.script_reaction.started = false;
     next.mist.interrupted = false;
     next.healing.applied = next.healing.effects = false;

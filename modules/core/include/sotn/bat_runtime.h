@@ -69,6 +69,11 @@ typedef struct SotnBatRuntimeChild
         SotnTalismanEffect talisman;
         SotnBatTrail trail;
         SotnPlayerAttack attack;
+        struct
+        {
+            Uint16 bank, palette, texture, frame;
+            Uint8 opacity, draw_flags;
+        } axe_shadow;
         SotnPlayerParticles particles;
         SotnPlayerSmoke smoke;
         SotnPlayerOutline outline;
@@ -135,7 +140,7 @@ typedef struct SotnBatRuntime
     Uint32 echo_generation;
     Uint32 serial;
     Uint16 wing_mask;
-    Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask;
+    Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64

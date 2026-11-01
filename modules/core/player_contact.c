@@ -137,6 +137,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     // defense, poison and reaction selection. There is one actual head slot.
     if (p->head == 28 && (power.effects & 0xf980U))
         power.attack = (Uint16)(power.attack - power.attack / 5U);
+    const bool axe = p->axe_armor.active;
     const SotnPlayerStep previous = p->step;
     const Uint16 previous_hp = p->hp;
     const SotnPlayerFactorySource source = {
@@ -153,8 +154,10 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             previous == SOTN_PLAYER_STONE
                 ? (Uint16)(p->hp_max / 8U)
                 : (Uint16)SDL_max(0, (Sint32)power.attack - (Sint32)attributes.defense * 2);
-        ok = SotnPlayer_Petrify(p, (Uint16)SDL_min(number_amount, 9999), contact.source_x,
-                                contact.source_velocity);
+        ok = axe ? SotnPlayer_AxeContactDamage(p, (Uint16)SDL_min(number_amount, 9999),
+                                               contact.source_x, contact.source_velocity, 1, true)
+                 : SotnPlayer_Petrify(p, (Uint16)SDL_min(number_amount, 9999), contact.source_x,
+                                      contact.source_velocity);
     }
     else
     {
@@ -188,7 +191,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         const bool guard =
             attributes.defense >= 100 && !(power.effects & 0x180U) &&
             ((water.hit_params & 31U) >= 16 ? p->hp_max < 8 : power.attack <= attributes.defense);
-        if (guard && p->hp > 1)
+        if (guard && p->hp > 1 && !axe)
         {
             if (!p->script_executable.bytes)
                 return SDL_SetError("Guard recovery requires its actual SDK/palette timer owner");
@@ -201,7 +204,10 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             ok = true;
         }
         else
-            ok = (power.effects & 0x100U)
+            ok = axe ? SotnPlayer_AxeContactDamage(
+                           p, amount, contact.source_x, contact.source_velocity,
+                           guard || (power.effects & 0x180U) ? 1 : water.hit_params & 31U, false)
+                 : (power.effects & 0x100U)
                      ? SotnPlayer_CurseDamage(p, amount, contact.source_x, contact.source_velocity)
                  : (power.effects & 0x80U)
                      ? SotnPlayer_PoisonDamage(p, amount, contact.source_x, contact.source_velocity)
@@ -209,15 +215,15 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     }
     p->contact_dispatch = false;
     if (ok && !p->guard.applied &&
-        (p->hp < previous_hp ||
+        (p->hp < previous_hp || (axe && stone) ||
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
     {
         Uint8 response = 3;
-        if (stone)
+        if (stone && !axe)
             response = previous == SOTN_PLAYER_STONE ? 8 : 7;
         if (!p->hp && response != 7)
             response = 4;
-        const bool neutral = response == 3 && !(power.effects & 0xfbc0U);
+        const bool neutral = response == 3 && !axe && !(power.effects & 0xfbc0U);
         p->damage_number = (SotnPlayerDamageNumber){.source = source,
                                                     .amount = number_amount,
                                                     .response = response,
@@ -232,7 +238,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
         }
     }
     if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
-        (p->hp < previous_hp ||
+        (p->hp < previous_hp || (axe && stone) ||
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
         p->heart_gain = (SotnPlayerHeartGain){
             .source = source, .amount = (Uint16)(previous_hp - p->hp), .requested = true};

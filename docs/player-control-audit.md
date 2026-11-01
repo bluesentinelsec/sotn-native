@@ -1,7 +1,7 @@
 # Alucard control completion inventory
 
 Milestone 1 remains open. Its original control dispatch has 34 handled states;
-the native player currently dispatches 26. An enum member, command recognizer,
+the native player currently dispatches 31. An enum member, command recognizer,
 animation or component request does not implement a missing state. This inventory
 records the dependencies needed to close the complete milestone, including those
 also covered by the other [Alucard workstreams](alucard-status.md).
@@ -33,10 +33,10 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 34: Hellfire | [Hellfire](player-hellfire.md) | Full hidden collision/steering/recovery contexts and shared effects |
 | 37: Soul Steal | [Soul Steal](player-soul-steal.md) | Full contact/group/factory contention and interruption contexts |
 | 39: Sword Brothers | No native dispatch | Actual Sword familiar lifecycle/command/attack and shared outline producer; recognizer alone is unavailable |
-| 40/41/42/43: Axe Armor stand/walk/jump/hit | No native dispatch | Actual equipment/form owner, four private overlay callbacks, artwork, weapon/combat/collision and damage transitions |
+| 40/41/42/43: Axe Armor stand/walk/jump/hit | [Owned armor25/weapon45, actual controllers, slot16 Spell11 combat, shadow49 and private SDK rendering](player-axe-armor.md) | All interruption/transition/shared-overlay contexts; common remaining damage/death branches |
 | 48: scripted reaction | [Death theft producer, state/reset/palette, actual smoke/Blink58 and recovery](player-script-control.md) | Remaining form/script contexts and integrated transition evidence |
 | 49: scripted hold | [Raw modes0/1/2, shared input timer and US release baseline](player-script-control.md) | Remaining script producers/contexts and Axe Armor's separate state50 |
-| 50: Axe Armor scripted hold | No native dispatch | Actual Axe Armor owner, simulated-input mode and animation CF restoration |
+| 50: Axe Armor scripted hold | [Actual equipped Axe owner, raw-mode hold, CF/palette restoration](player-axe-armor.md) | Remaining script producer/transition contexts |
 
 ## Substates and common frame ordering
 
@@ -95,7 +95,7 @@ Held shield startup does not synthesize a subweapon tap or charge hearts.
 After the existing script or Bat/Wolf input hold ends, the US first physical frame
 rebases held/tapped input to the current buttons. A later release/new press works
 normally. This corrects the selected hold adapters; it does not implement the
-missing original script producers or Axe Armor states. The subsequent
+missing original script producers; the later [Axe Armor owner](player-axe-armor.md) supplies its separate states. The subsequent
 [scripted input/reaction owner](player-script-control.md) adds actual modes0/1/2,
 the shared remaining interval, Death's mode1 producer and its presentation. The
 input flag is transient player state, held on draws and failed updates and retained

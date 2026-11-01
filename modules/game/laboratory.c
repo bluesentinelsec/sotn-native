@@ -516,6 +516,21 @@ static bool ApplyCharacter(SotnLaboratory *session)
     SotnCharacterStats stats = {0};
     if (!SotnCharacter_Get(session->character, &state, &stats))
         return false;
+    SotnPlayerState current = {0};
+    if (!SotnPlayer_GetState(session->player, &current))
+        return false;
+    if (state.equipment[SOTN_EQUIP_ARMOR] == 25 && !current.axe_armor.active)
+    {
+        // Validate/load actual weapon45 before binding the equipment-owned controller.
+        // Restore the selected hand bank for the ordinary weapon and shared draw owners.
+        SotnEquipment armor = {0}, hand = {0};
+        const SotnDataView weapons = SotnResource_View(session->weapons);
+        if (!SotnEquipment_ReadAxeArmor(session->dra, &armor) ||
+            !SotnEquipment_Read(session->dra, state.equipment[0], &hand) ||
+            !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, 0, armor) ||
+            !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, 0, hand))
+            return false;
+    }
     if (session->hands[0] != state.equipment[0] || session->hands[1] != state.equipment[1])
     {
         const SotnDataView weapons = SotnResource_View(session->weapons);
@@ -673,6 +688,12 @@ static bool DecodePlayerSprite(SotnLaboratory *s, SotnPlayerState player, SotnAl
         }
         player.animation_bank = player.wolf.capture_bank;
         player.animation.sprite = player.wolf.capture_sprite;
+    }
+    if (player.axe_armor.active && player.animation_bank == 16)
+    {
+        // Weapon45 owns its multipart body directly; original Blink/outline reject Axe status.
+        *out = (SotnAlucardSprite){0};
+        return true;
     }
     if (player.animation_bank == 13)
     {
@@ -1488,7 +1509,9 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
                         (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
-        (saved != NULL && !RestoreCharacter(session, *saved)) || !EnterActors(session) ||
+        (saved != NULL && !RestoreCharacter(session, *saved)) ||
+        !SotnPlayer_SetAxeContext(session->player, SotnResource_View(session->weapons), true) ||
+        !EnterActors(session) ||
         // Teleports may begin inside a closed red-door column. Its actor must open
         // the owned tiles before the first player collision, as in original room entry.
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
@@ -2133,6 +2156,48 @@ static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *
         s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
         s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
 }
+static bool DrawAxeArmorSprite(SotnLaboratory *s, SotnActorSprite sprite, Sint32 x, Sint32 y,
+                               Sint16 rotation, Sint16 pivot_y, Uint8 opacity, bool rotated)
+{
+    const SotnDataView weapons = SotnResource_View(s->weapons);
+    SotnEquipment armor = {0}, hand = {0};
+    if (!SotnEquipment_ReadAxeArmor(s->dra, &armor) ||
+        !SotnEquipment_Read(s->dra, s->hands[0], &hand) ||
+        !SotnActorGraphics_LoadWeapon(s->actor_graphics, weapons, 0, armor))
+        return false;
+    const bool drawn = SotnActorGraphics_DrawSurface(
+        s->actor_graphics, sprite, x + s->draw_target.offset_x + s->shake.x,
+        y + s->draw_target.offset_y + s->shake.y,
+        (SotnSpriteTransform){.rotation = rotation,
+                              .scale_x = 256,
+                              .scale_y = 256,
+                              .opacity = opacity,
+                              .executable = s->executable,
+                              .pivot_y = pivot_y,
+                              .sdk_rotation = rotated,
+                              .original_uv = true},
+        s->draw_target.surface);
+    if (!drawn)
+        return false;
+    return SotnActorGraphics_LoadWeapon(s->actor_graphics, weapons, 0, hand);
+}
+static bool DrawAxeArmorPlayer(SotnLaboratory *s, SotnPlayerState p)
+{
+    if (!p.axe_armor.active || p.animation_bank != 16)
+        return SDL_SetError("Axe Armor body lost its actual equipped artwork owner");
+    return DrawAxeArmorSprite(s,
+                              (SotnActorSprite){.animation_set = 16,
+                                                .frame = p.animation.sprite,
+                                                .palette = p.palette,
+                                                .texture_offset = 0x64,
+                                                .facing_left = p.facing_left},
+                              Pixel(p.x) - s->camera.x, Pixel(p.y) - s->camera.y,
+                              (p.axe_armor.draw_flags & 4U) ? p.axe_armor.rotation : 0,
+                              p.draw_pivot_y,
+                              (p.axe_armor.draw_flags & 8U) ? p.axe_armor.opacity : 128,
+                              (p.axe_armor.draw_flags & 4U) != 0);
+}
+
 static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32 camera_x,
                                     Sint32 camera_y)
 {
@@ -2476,6 +2541,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                         return false;
                 }
             }
+            if (child->kind == 49 && child->initialized &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_AXE_SHADOW}))
+                return false;
             if (child->kind == 51 && child->initialized &&
                 !(child->state.heart.blink && (((owner + 16U) ^ session->system_timer) & 1U)) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -2648,21 +2720,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool drawn =
                 player.mist.active || player.bat.hidden || player.hellfire_hidden ||
                 player.animation_bank == 15 ||
-                (player.water_death.active || player.animation_bank == 13 || player.rotated ||
-                         (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
-                          (player.palette != 0x8100 || player.body_color_blend))
-                     ? DrawRotatedPlayer(session, player, &alucard, 0)
-                 : player.stone.active
-                     ? SotnAlucard_DrawPetrified(&alucard, common, Pixel(player.x) - view_x,
-                                                 Pixel(player.y) - view_y, player.facing_left,
-                                                 player.stone, session->frame, SOTN_FRAME_PIXELS)
-                 : player.gravity.upside_down
-                     ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - view_x,
-                                               Pixel(player.y) - view_y, player.facing_left,
-                                               session->frame, SOTN_FRAME_PIXELS)
-                     : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - view_x,
-                                             Pixel(player.y) - view_y, player.facing_left,
-                                             player.death, session->frame, SOTN_FRAME_PIXELS));
+                (player.axe_armor.active
+                     ? DrawAxeArmorPlayer(session, player)
+                     : (player.water_death.active || player.animation_bank == 13 ||
+                                player.rotated ||
+                                (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
+                                 (player.palette != 0x8100 || player.body_color_blend))
+                            ? DrawRotatedPlayer(session, player, &alucard, 0)
+                        : player.stone.active ? SotnAlucard_DrawPetrified(
+                                                    &alucard, common, Pixel(player.x) - view_x,
+                                                    Pixel(player.y) - view_y, player.facing_left,
+                                                    player.stone, session->frame, SOTN_FRAME_PIXELS)
+                        : player.gravity.upside_down
+                            ? SotnAlucard_DrawGravity(&alucard, common, Pixel(player.x) - view_x,
+                                                      Pixel(player.y) - view_y, player.facing_left,
+                                                      session->frame, SOTN_FRAME_PIXELS)
+                            : SotnAlucard_DrawDeath(&alucard, common, Pixel(player.x) - view_x,
+                                                    Pixel(player.y) - view_y, player.facing_left,
+                                                    player.death, session->frame,
+                                                    SOTN_FRAME_PIXELS)));
             if (!drawn)
                 return false;
             if (player.sleep.active && player.sleep.frame &&
@@ -2766,6 +2842,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
             }
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_AXE_SHADOW)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            if (c->kind != 49 || !c->generation || !c->initialized || c->primitive_count ||
+                !DrawAxeArmorSprite(
+                    session,
+                    (SotnActorSprite){.animation_set = c->state.axe_shadow.bank,
+                                      .frame = c->state.axe_shadow.frame,
+                                      .palette = c->state.axe_shadow.palette,
+                                      .texture_offset = c->state.axe_shadow.texture,
+                                      .facing_left = c->source.facing_left},
+                    Pixel(c->source.x) - camera_x, Pixel(c->source.y) - camera_y, 0, 0,
+                    (c->state.axe_shadow.draw_flags & 8U) ? c->state.axe_shadow.opacity : 128,
+                    false) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;

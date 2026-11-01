@@ -46,6 +46,8 @@ struct SotnPlayer
     SotnPlayerGuard guard;
     SotnPlayerDamageNumber damage_number;
     SotnPlayerDodge dodge;
+    SotnPlayerAxeArmor axe_armor;
+    bool axe_context, axe_overlay_owned;
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;
     Uint16 defense_buff_minimum;
@@ -192,6 +194,9 @@ void SotnPlayer_BatCancel(SotnPlayer *player);
 /** @brief Apply source facing selection for transformation completion. */
 void SotnPlayer_FormDirection(SotnPlayer *player);
 
+/** @brief Actual Axe contact kind/direction; converted stone may retain zero damage. */
+bool SotnPlayer_AxeContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x,
+                                 Sint32 source_velocity, Uint16 kind, bool zero_stone);
 void SotnPlayer_StoneTick(SotnPlayer *player);
 /** @brief Select eligible original Mist entry after timers/input, before player dispatch. */
 void SotnPlayer_MistInput(SotnPlayer *player);

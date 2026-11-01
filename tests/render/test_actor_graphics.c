@@ -477,6 +477,31 @@ static bool TestSdkScale(Fixture *f)
     return true;
 }
 
+static bool TestSdkRotationFailure(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, true};
+    Uint16 before[SOTN_FRAME_PIXELS];
+    SDL_memset(f->frame, 0x21, sizeof(f->frame));
+    SDL_memcpy(before, f->frame, sizeof(before));
+    Uint8 truncated_sdk[1] = {0};
+    SotnSpriteTransform t = {
+        .scale_x = 256, .scale_y = 256, .opacity = 128, .pivot_y = 20, .sdk_rotation = true};
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.executable = (SotnDataView){truncated_sdk, sizeof(truncated_sdk)};
+    // Even an identity transform must validate the real SDK before writing pixels.
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.pivot_y = 513;
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.pivot_y = 20;
+    t.scale_x = 512;
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SDL_memcmp(before, f->frame, sizeof(before)));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 static bool TestRotation(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -1372,13 +1397,13 @@ int main(void)
         return 1;
     const bool passed =
         TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-        TestTransformFlags(fixture) && TestSdkScale(fixture) && TestRotation(fixture) &&
-        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
-        TestFailures(fixture) && TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
-        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-        TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
-        TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
-        ClearedBo0Atlas(fixture) && TestWolfCapture(fixture);
+        TestTransformFlags(fixture) && TestSdkScale(fixture) && TestSdkRotationFailure(fixture) &&
+        TestRotation(fixture) && TestColorQuad(fixture) && TestQuad(fixture) &&
+        TestSprites(fixture) && TestFailures(fixture) && TestDepthsAndOrdering(fixture) &&
+        TestWeapons(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+        PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
+        TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
+        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

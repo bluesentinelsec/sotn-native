@@ -31,6 +31,11 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out);
  * @return Success or SDL error without output mutation. Virtual197 is never equippable. */
 bool SotnEquipment_ReadSwordSpecial(SotnDataView dra, Uint16 equipped, SotnEquipment *out,
                                     Uint16 *mp);
+/** @brief Read internal virtual216 for an actual owned Axe Lord Armor controller.
+ * @param dra Private US DRA. @param out Receives weapon45 metadata, unchanged on failure.
+ * @return Success or SDL error. This neither equips/grants a hand item nor enables a form. */
+bool SotnEquipment_ReadAxeArmor(SotnDataView dra, SotnEquipment *out);
+
 /** @brief Borrow the selected weapon overlay from private WEAPON0.BIN.
  * @param weapons Borrowed immutable container. @param equipment Supported nonempty item.
  * @param out Receives an overlay view, expiring with weapons, unchanged on failure.

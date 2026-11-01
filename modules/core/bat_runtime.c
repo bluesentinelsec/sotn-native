@@ -228,9 +228,9 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 ||
-           kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 51 || kind == 52 ||
-           kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
-           kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 36 || kind == 37 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
+           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 ||
+           kind == 0xf1 || kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -247,6 +247,9 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04870000U;
     case 46:
         return 0x04830000U;
+    case 49:
+    case 50:
+        return 0x04060000U;
     case 19:
         return 0x04810000U;
     case 37:
@@ -723,6 +726,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             (c->kind == 36 &&
              (i < 1 || i > 15 || (c->initialized && (c->group < 3 || c->group > 6)))))
             return SDL_SetError("Bat runtime has invalid actual child ownership or attack group");
+        if ((c->kind == 50 && (i != 0 || c->parameter || c->primitive_count || c->draw_count ||
+                               (c->initialized ? c->group != 1 : c->group != 0))) ||
+            (c->kind == 49 && (c->parameter || c->primitive_count || c->draw_count || c->group)))
+            return SDL_SetError("Axe Armor lost its actual slot16 attack or rowless shadow");
         if (c->kind == 53 &&
             (i != 31 || c->primitive_count ||
              (c->initialized ? (c->group < 7 || c->group > 10 || c->state.attack.hit_type != 0x82 ||
@@ -934,6 +941,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.capture_count = 0;
     r.freeze_changed = false;
     r.freeze = in.freeze;
+    if (p.axe_armor.events.factory_count > SDL_arraysize(p.axe_armor.events.factories) ||
+        (in.freeze &&
+         (p.axe_armor.entered || p.axe_armor.exited || p.axe_armor.events.factory_count)))
+        return SDL_SetError("Axe Armor requires this ordinary player's committed requests");
+    if (p.axe_armor.entered || p.axe_armor.exited)
+    {
+        SotnBatRuntimeChild *old = &r.children[0];
+        if (old->primitive_count &&
+            !SotnPrimitiveSlots_Release(&in.primitive_slots, old->primitive_count, old->primitives))
+            return false;
+        *old = (SotnBatRuntimeChild){0};
+    }
+    for (Uint16 i = 0; i < p.axe_armor.events.factory_count; ++i)
+    {
+        const Uint32 packed = p.axe_armor.events.factories[i];
+        if (!p.axe_armor.active ||
+            (packed != 0 && packed != 85 && packed != 87 && packed != 0x10045))
+            return SDL_SetError("Axe Armor requested a factory without its actual equipped owner");
+        if (!RequestSource(&r, p.axe_armor.source, packed, 0))
+            return false;
+    }
     if (p.heart_gain.requested)
     {
         if (in.freeze || p.heart_gain.amount > 9999)
@@ -997,8 +1025,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             p.dodge.applied || p.immunity.applied || p.absorption.applied ||
             (response != 3 && response != 4 && response != 7 && response != 8) ||
             (p.damage_number.neutral_hurt && response != 3) ||
-            ((response == 3 || response == 4) && !p.damage_number.amount) ||
-            (response == 3 && (!p.hp || p.step != SOTN_PLAYER_HIT)) ||
+            ((response == 4 || (response == 3 && !p.axe_armor.active)) &&
+             !p.damage_number.amount) ||
+            (response == 3 &&
+             (!p.hp || p.step != (p.axe_armor.active ? SOTN_PLAYER_AXE_HIT : SOTN_PLAYER_HIT))) ||
             (response == 4 && (p.hp || p.step != SOTN_PLAYER_KILL)) ||
             (response == 7 && p.step != SOTN_PLAYER_STONE) ||
             (response == 8 && (!p.hp || SotnPlayerStep_IsDead(p.step))))
@@ -1134,7 +1164,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnPlayerFactoryChild child = events.children[j];
             if (child.replace)
             {
-                if (child.slot != 16 || (child.entity_id != 0xe1 && child.entity_id != 0xf1) ||
+                if (child.slot != 16 ||
+                    (child.entity_id != 0xe1 && child.entity_id != 0xf1 && child.entity_id != 50) ||
                     (in.other_occupied & ((Uint64)1 << 16)))
                     return SDL_SetError("Shared runtime received an unowned weapon replacement");
                 SotnBatRuntimeChild *old = &r.children[0];
@@ -1158,7 +1189,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
-    r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = 0;
+    r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.echo_attack = false;
@@ -1186,6 +1217,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.echo_attack = previous_echo_attack;
             if (c->initialized && c->kind == 53)
                 r.soul_attack = true;
+            if (c->initialized && c->kind == 50 && c->state.attack.active)
+                r.axe_mask |= (Uint64)1 << i;
             continue;
         }
         bool removed = false;
@@ -1867,6 +1900,62 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     }
             }
         }
+        else if (c->kind == 49)
+        {
+            removed = !p.axe_armor.active || p.step != SOTN_PLAYER_AXE_HIT;
+            if (!removed)
+            {
+                if (!c->initialized)
+                {
+                    c->state.axe_shadow.bank = p.animation_bank;
+                    c->state.axe_shadow.palette = p.palette;
+                    c->state.axe_shadow.texture = 0x64;
+                    c->state.axe_shadow.frame = 7;
+                    c->source.facing_left = p.facing_left;
+                    c->source.priority = p.priority;
+                    c->initialized = true;
+                }
+                const bool early = p.axe_armor.rotation == 512 || p.axe_armor.rotation == -512;
+                Sint16 dx = early ? -16 : -24;
+                if (p.axe_armor.knock_right)
+                    dx = (Sint16)-dx;
+                c->source.x =
+                    (Sint32)((Sint64)Word(Pixel(p.x) + dx) * 65536 + (Uint16)(Uint32)c->source.x);
+                c->source.y = (Sint32)((Sint64)Word(Pixel(p.y) + (early ? 9 : 16) +
+                                                    ((in.game_timer >> 1) & 1U)) *
+                                           65536 +
+                                       (Uint16)(Uint32)c->source.y);
+                c->state.axe_shadow.draw_flags = p.axe_armor.draw_flags & 8U;
+                c->state.axe_shadow.opacity = p.axe_armor.opacity;
+            }
+        }
+        else if (c->kind == 50)
+        {
+            removed = !p.axe_armor.active;
+            if (!removed)
+            {
+                if (!c->initialized)
+                {
+                    if (!Spell(in.dra, &progress, stats, 11, &c->state.attack))
+                        return false;
+                    c->group = 1; // Original func_80118894's actual left-hand slot16 case.
+                    c->initialized = true;
+                }
+                c->source.x = (Sint32)((Sint64)Pixel(p.x) * 65536 + (Uint16)(Uint32)c->source.x);
+                c->source.y = (Sint32)((Sint64)Pixel(p.y) * 65536 + (Uint16)(Uint32)c->source.y);
+                const Uint16 sprite = p.animation.sprite;
+                if (sprite == 5 || sprite == 6)
+                {
+                    c->state.attack.offset_x = 28;
+                    c->state.attack.offset_y = sprite == 5 ? -12 : 16;
+                    c->state.attack.width = sprite == 5 ? 12 : 10;
+                    c->state.attack.height = sprite == 5 ? 32 : 10;
+                    r.axe_mask |= (Uint64)1 << i;
+                }
+                else
+                    removed = true;
+            }
+        }
         else if (c->kind == 53)
         {
             if (p.step != SOTN_PLAYER_SOUL)
@@ -1976,6 +2065,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              r.children[i].kind == 53) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
+    if (r.children[0].kind == 50 && r.children[0].initialized)
+        ++r.groups[1];
     if ((progress.random != previous_random || progress.mp != previous_mp) &&
         !SotnCharacter_Restore(character, &progress))
         return false;

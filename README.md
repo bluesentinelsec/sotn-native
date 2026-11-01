@@ -17,6 +17,8 @@ Ordinary saves retain explored cells and permanent Laboratory events; this remai
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.
+[Owned Axe Lord Armor](docs/player-axe-armor.md) adds its original movement, attack,
+hurt recovery and private body/shadow rendering; ordinary starts grant no armor.
 [Exploration map](docs/castle-map.md): Tab/M or Xbox Back shows saved exploration.
 Other equipped weapons, complete damage/item/audio behavior, castle scripts, actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an

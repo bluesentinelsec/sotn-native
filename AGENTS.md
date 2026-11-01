@@ -1,3 +1,17 @@
+Selected [Axe Lord Armor](docs/player-axe-armor.md) now owns actual body25/virtual216/
+weapon45, states40/41/42/43/50, shared slot16 child50/Spell11/group1/native combat,
+rowless shadow49 and private SDK multipart rendering. Preserve owned selection,
+32-input hold versus silent bootstrap, overlay-word lifetime, priorities/signed
+motion, kind17/18 sides versus converted kind1, zero-stone hurt/number, retained
+ailments/healing/Cloak and real normal-body death. Preserve angle/byte wrap,
+pivot20/512/896/48-recovery, raw-mode2/script palette holds, actual root exhaustion
+before RNG, captured facing/child fractions, slot/group cooldown and row retirement.
+Rendering restores actual hand banks; original Blink/outline Axe exclusions remain.
+Freeze/menu/map/draw holds and no-tick rebases remain; no pool/grants/savev9 change.
+Owned-item/position/protection/mode/arrival/save-room fixtures are not acquisition/
+route/console evidence. Current dispatch is31/34;17/18/39 and common/cross-owner gates
+keep milestone1 open. Earlier batch counts are historical; the checklist is current.
+
 Selected [neutral hurt feedback](docs/player-neutral-hurt.md) now owns accepted
 queued response3's neutral Blink58 and original red timer2six, plus selected
 hurt-exit protection12/timer4twelve/afterimage4. Preserve pre-reaction fractional

@@ -360,13 +360,17 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     SotnDataView overlay = {0}, pointer = {0}, colors = {0};
     if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
         return false;
-    const Uint32 address = equipment.family == 43   ? 0x8017b044U
+    const Uint32 address = equipment.family == 45   ? 0x8017a370U
+                           : equipment.family == 43 ? 0x8017b044U
                            : equipment.family == 37 ? 0x8017a7b8U
                            : equipment.family == 52 ? 0x8017ac1cU
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                                                     : 0x8017abd4U;
-    const Uint32 color_count = (equipment.family == 37 ? 5U : 7U) * 16;
+    const Uint32 color_count = (equipment.family == 45   ? 2U
+                                : equipment.family == 37 ? 5U
+                                                         : 7U) *
+                               16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
@@ -585,6 +589,11 @@ static bool QuadEdgeInclusive(SotnTextureQuad q, Uint32 a, Uint32 b, Sint32 sign
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
                      bool write);
 static Sint64 FloorDivide(Sint64 value, Sint64 divisor);
+static Sint16 GeometryWord(Sint32 value)
+{
+    const Uint16 bits = (Uint16)(Uint32)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
+}
 static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, const Uint8 *part,
                  Sint32 x, Sint32 y, SotnActorSurface surface, bool write,
                  const SotnSpriteTransform *transform, bool sdk_scale)
@@ -676,10 +685,10 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
                              .blue = transform->blue,
                              .palette = (Uint16)palette,
                              .blend = sprite.blend_mode != 0};
-        if (u1 < u0)
+        if (u1 < u0 && !transform->sdk_rotation && !transform->original_uv)
             for (Uint32 i = 0; i < 4; ++i)
                 ++q.u[i];
-        if (v1 < v0)
+        if (v1 < v0 && !transform->sdk_rotation && !transform->original_uv)
             for (Uint32 i = 0; i < 4; ++i)
                 ++q.v[i];
         const Sint32 xs[3] = {left_local, right_local, left_local};
@@ -699,6 +708,29 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
         }
         q.x[3] = q.x[1] + q.x[2] - q.x[0];
         q.y[3] = q.y[1] + q.y[2] - q.y[0];
+        if (transform->sdk_rotation)
+        {
+            SotnPlayerEffectQuad packet = {0};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                const Sint32 local_x = (v & 1U) ? right_local : left_local,
+                             local_y = (v & 2U) ? bottom_local : pivot_y;
+                packet.x[v] = GeometryWord(x + local_x);
+                packet.y[v] = GeometryWord(y + local_y);
+            }
+            const Sint32 px = x + (sprite.facing_left ? -transform->pivot_x : transform->pivot_x),
+                         py = y + transform->pivot_y;
+            if (px < SDL_MIN_SINT16 || px > SDL_MAX_SINT16 || py < SDL_MIN_SINT16 ||
+                py > SDL_MAX_SINT16 || transform->scale_x != 256 || transform->scale_y != 256 ||
+                !SotnPlayerEffect_Rotate(transform->executable, (Sint16)px, (Sint16)py,
+                                         transform->rotation, sprite.facing_left, &packet))
+                return SDL_SetError("Player weapon rotation requires actual bounded SDK pivots");
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = packet.x[v];
+                q.y[v] = packet.y[v];
+            }
+        }
         Sint32 qleft = q.x[0], qright = q.x[0], qtop = q.y[0], qbottom = q.y[0];
         for (Uint32 i = 1; i < 4; ++i)
         {
@@ -1146,10 +1178,15 @@ bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite s
 {
     if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x < -1024 ||
         transform.scale_x > 1024 || transform.scale_y < -1024 || transform.scale_y > 1024 ||
-        transform.opacity > 255)
-        return SDL_SetError("Actor transform exceeds the bounded original scales or color");
+        transform.opacity > 255 ||
+        (transform.sdk_rotation &&
+         (!transform.executable.bytes || transform.scale_x != 256 || transform.scale_y != 256 ||
+          transform.pivot_x < -512 || transform.pivot_x > 512 || transform.pivot_y < -512 ||
+          transform.pivot_y > 512)))
+        return SDL_SetError("Actor transform exceeds the bounded original scales or SDK pivots");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
-        transform.opacity == 128 && !transform.tint)
+        transform.opacity == 128 && !transform.tint && !transform.sdk_rotation &&
+        !transform.original_uv)
         return Draw(g, sprite, x, y, surface, NULL, false);
     return Draw(g, sprite, x, y, surface, &transform, false);
 }

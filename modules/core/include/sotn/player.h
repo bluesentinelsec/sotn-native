@@ -2,6 +2,7 @@
 #define SOTN_PLAYER_H
 
 #include <sotn/animation.h>
+#include <sotn/axe_armor.h>
 #include <sotn/bat_command.h>
 #include <sotn/character.h>
 #include <sotn/collision.h>
@@ -67,9 +68,25 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SOUL = 37,
+    SOTN_PLAYER_AXE_STAND = 40,
+    SOTN_PLAYER_AXE_WALK = 41,
+    SOTN_PLAYER_AXE_JUMP = 42,
+    SOTN_PLAYER_AXE_HIT = 43,
     SOTN_PLAYER_SCRIPT_REACTION = 48,
-    SOTN_PLAYER_SCRIPT = 49
+    SOTN_PLAYER_SCRIPT = 49,
+    SOTN_PLAYER_AXE_SCRIPT = 50
 } SotnPlayerStep;
+
+/** @brief Actual equipment-owned weapon45 cursor and this update's copied requests. */
+typedef struct SotnPlayerAxeArmor
+{
+    SotnAxeArmor cursor;
+    SotnAxeArmorEvents events;
+    SotnPlayerFactorySource source;
+    Sint16 rotation;
+    Uint8 opacity, draw_flags;
+    bool active, knock_right, entered, exited;
+} SotnPlayerAxeArmor;
 
 /** @brief Original simulated pad word and shared demo_timer, retained outside ordinary saves.
  * Mode zero supplies buttons, one enters the scripted reaction, two holds the player.
@@ -359,6 +376,7 @@ typedef struct SotnPlayerState
     SotnPlayerGuard guard;
     SotnPlayerDamageNumber damage_number;
     SotnPlayerDodge dodge;
+    SotnPlayerAxeArmor axe_armor;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
@@ -407,6 +425,13 @@ typedef bool (*SotnPlayerSwordFactory)(void *context, SotnPlayerFactorySource so
  * @return Success or SDL error. Controls remain unavailable until this owner is bound. */
 bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory factory, void *context,
                                 bool weapon_present);
+
+/** @brief Bind actual weapon45 metadata/artwork container; enter owned armor on bootstrap.
+ * @param player Actual player. @param weapons Actual immutable WEAPON0.BIN runtime owner.
+ * @param bootstrap True only after full character restoration; suppresses equip WHAT/input hold.
+ * @return Success atomically, without grants or save changes. The native caller must validate
+ * and load weapon45 graphics; normal updates detect actual equipment changes before contacts. */
+bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool bootstrap);
 
 /** @brief Bind real capture/decay owners for selected ordinary unfaded water death.
  * @param player Actual simulation. @param capture Actual StoreImage owner.

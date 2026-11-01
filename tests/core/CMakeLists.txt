@@ -1093,3 +1093,14 @@ target_include_directories(sotn-player-contact-number-tests PRIVATE "${PROJECT_S
 target_link_libraries(sotn-player-contact-number-tests PRIVATE sotn-core)
 add_test(NAME player-contact-numbers COMMAND sotn-player-contact-number-tests)
 set_tests_properties(player-contact-numbers PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-axe-armor-tests test_axe_armor.c)
+sotn_configure_c_target(sotn-axe-armor-tests)
+target_link_libraries(sotn-axe-armor-tests PRIVATE sotn-core)
+add_test(NAME axe-armor-controller COMMAND sotn-axe-armor-tests)
+
+add_executable(sotn-player-axe-armor-tests test_player_axe_armor.c)
+sotn_configure_c_target(sotn-player-axe-armor-tests)
+target_include_directories(sotn-player-axe-armor-tests PRIVATE ${PROJECT_SOURCE_DIR}/modules/core)
+target_link_libraries(sotn-player-axe-armor-tests PRIVATE sotn-core)
+add_test(NAME player-axe-armor COMMAND sotn-player-axe-armor-tests)

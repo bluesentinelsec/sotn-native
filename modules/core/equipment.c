@@ -64,16 +64,33 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
     return true;
 }
 
+bool SotnEquipment_ReadAxeArmor(SotnDataView dra, SotnEquipment *out)
+{
+    const Uint8 *pointer = NULL, *record = NULL;
+    if (!out)
+        return SDL_InvalidParamError("out");
+    if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + 216U * 52U, 50, &record))
+        return false;
+    if (record[15] != 45 || record[16] || record[17] != 131 || record[18] != 0xbe ||
+        record[19] != 55 || record[20] != 14 || Read16(record + 36))
+        return SDL_SetError("Axe Armor requires its actual virtual216 weapon45 definition");
+    *out = (SotnEquipment){.id = 216, .family = 45, .kind = 131, .animation = record[18]};
+    return true;
+}
+
 bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataView *out)
 {
     if (out == NULL ||
         (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 86 &&
-         equipment.id != 123 && equipment.id != 197 && equipment.id != 128) ||
+         equipment.id != 123 && equipment.id != 197 && equipment.id != 216 &&
+         equipment.id != 128) ||
         equipment.family != (equipment.id == 86                           ? 0
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
                              : equipment.id == 123 || equipment.id == 197 ? 43
                              : equipment.id == 16                         ? 52
+                             : equipment.id == 216                        ? 45
                                                                           : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;
