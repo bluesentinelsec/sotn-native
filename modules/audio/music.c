@@ -8,7 +8,8 @@
 typedef struct MusicTrack
 {
     Uint32 start, ticks;
-    Uint8 file, channel, volume;
+    Uint16 id;
+    Uint8 file, channel, volume, mode;
 } MusicTrack;
 
 struct SotnMusic
@@ -38,8 +39,13 @@ static bool Track(SotnDataView dra, Uint32 id, Uint32 sectors, MusicTrack *out)
     if (start >= sectors || record[9] >= sectors - start || duration == 0 || duration > 432000 ||
         record[10] > 127 || Read32(record + 12) > 2)
         return SDL_SetError("Laboratory music start/duration/filter is invalid");
-    *out =
-        (MusicTrack){start + record[9], duration, record[8], (Uint8)(record[9] % 16), record[10]};
+    *out = (MusicTrack){.start = start + record[9],
+                        .ticks = duration,
+                        .id = (Uint16)id,
+                        .file = record[8],
+                        .channel = (Uint8)(record[9] % 16),
+                        .volume = record[10],
+                        .mode = (Uint8)Read32(record + 12)};
     return true;
 }
 
@@ -229,6 +235,30 @@ bool SotnMusic_CreateSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, Sot
 bool SotnMusic_Playing(const SotnMusic *music)
 {
     return music != NULL && (!music->once || music->remaining != 0);
+}
+
+bool SotnMusic_Get(const SotnMusic *music, SotnMusicState *out)
+{
+    if (!music || !out)
+        return SDL_SetError("XA cursor read requires actual playback and an output");
+    const MusicTrack track = music->looping ? music->loop : music->intro;
+    *out = (SotnMusicState){.sector = music->sector,
+                            .remaining = music->remaining,
+                            .duration = track.ticks,
+                            .start = track.start,
+                            .id = track.id,
+                            .volume = track.volume,
+                            .mode = track.mode,
+                            .looping = music->looping,
+                            .once = music->once};
+    return true;
+}
+
+bool SotnMusic_Prepare(SotnMusic *music)
+{
+    if (!music)
+        return SDL_SetError("XA read requires actual native playback");
+    return music->source_frames || Feed(music);
 }
 
 bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMusic **out)

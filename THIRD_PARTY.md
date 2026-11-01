@@ -13,6 +13,13 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed selected familiar CD-command audio service**, AGPL-3.0-or-later.
+  `modules/audio/cd_audio.c` adapts selected sound-ring/CD-queue, pause/restore,
+  start/expiry/stop and acknowledgement paths in `dra/sound.c` at the pinned
+  revision below. Native decoder/stream services replace original CD hardware
+  operations; all metadata and audio remain private. See
+  [scope and evidence](docs/familiar-cd-audio.md).
+
 - **Reconstructed Fairy control/effect components and native player inputs**, AGPL-3.0-or-later.
   `modules/core/fairy.c`, `fairy_effects.c`, `familiar_events.c` and selected player/contact snapshot bindings adapt
   `servant/tt_002/faerie.c`, common servant movement helpers and

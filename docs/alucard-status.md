@@ -112,6 +112,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   The [item-effect components and speech decoder](fairy-effects.md) now supply
   original DF/DD particles/light and eight actual XA clips; native shared leases
   and CD-command acknowledgements remain required.
+  The subsequent [CD audio service](familiar-cd-audio.md) supplies actual native
+  decoder-backed queues/acknowledgement/pause/restore, still requiring the actual
+  Fairy event, engine clock and session owners to bind it.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

@@ -9,6 +9,8 @@ add_library(sotn-audio STATIC
   sound.c
   sound_pause.c
   music.c
+  cd_audio.c
+  include/sotn/cd_audio.h
   voice.h
   gauss.h
   include/sotn/sound.h

@@ -1,3 +1,15 @@
+The [familiar CD audio service](docs/familiar-cd-audio.md) now owns original
+sound-ring/CD-queue256, immediate10/11 ACK-busy, actual decoder-backed start/read,
+pause/two-position restore and finite mode2's20-tick tail/strict expiry/stop phases.
+Preserve both queue overflow/clear rules, duplicate early return, gain changes12,
+third-save wrap, actual retained decoder/history/converter samples and actual
+engine clock. Decoder completion is not XA-playing or ACK. Native stage intro/
+loop retains its existing service; original CD mode0/1/hardware locations/latency/
+interpolation are not established. Read failure must never supply fake readiness.
+This does not yet bind the native Fairy event/4..7/selection/engine-session owners
+or complete rescue. Supplied DE/room/cutscene and decoder tests are not ordinary
+activation/acquisition/routes/console evidence. No grants/savev9/pool change.
+
 The [Fairy item effects/speech](docs/fairy-effects.md) now reconstruct DF's actual
 eleven profiles and DD's ten-G4 light, plus existing-decoder playback of eight
 original US XA clips. Preserve129/33 real-row requirements, sentinel ownership,

@@ -151,6 +151,7 @@ SOTN_FORMAT_SOURCES += modules/core/player_medicine.c modules/core/medicine_effe
 	  modules/core/include/sotn/player_circle.h tests/core/test_player_medicine.c \
 	  tests/core/test_player_circle.c
 
+SOTN_FORMAT_SOURCES += modules/audio/cd_audio.c modules/audio/include/sotn/cd_audio.h tests/audio/test_cd_audio.c
 SOTN_FORMAT_SOURCES += modules/core/fairy_effects.c modules/core/include/sotn/fairy_effects.h \
 	  tests/core/test_fairy_effects.c
 SOTN_FORMAT_SOURCES += modules/core/familiar_events.c modules/core/include/sotn/familiar_events.h \

@@ -38,6 +38,8 @@ XA decoder and finite playback cursor. Completion holds silence without reading
 another clip. Short bank2 VAB voices remain separate. Decoder completion does not
 supply an original CD-command queue or acknowledgement; those owners remain
 required by [Fairy sound-state waits](fairy-controller.md).
+The subsequent [CD audio service](familiar-cd-audio.md) supplies selected native
+queues and decoder-backed operations; actual Fairy/engine binding remains open.
 
 Public authored tests cover allocation-before-RNG,129-row capacity/sentinel,
 birth motion and lifetimes, raster/fraction translations, invalid-cursor rollback,

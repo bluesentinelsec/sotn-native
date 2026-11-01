@@ -6,6 +6,20 @@
 
 /** @brief Owned streaming Laboratory music decoder and rate-conversion state. */
 typedef struct SotnMusic SotnMusic;
+/** @brief Actual current private XA record and decoder cursor; reading never advances playback. */
+typedef struct SotnMusicState
+{
+    Uint32 sector, remaining, duration, start;
+    Uint16 id;
+    Uint8 volume, mode;
+    bool looping, once;
+} SotnMusicState;
+/** @brief Copy the actual decoder/record snapshot, preserving output on invalid input. */
+bool SotnMusic_Get(const SotnMusic *music, SotnMusicState *out);
+/** @brief Configure a native XA read by decoding its first real matching sector if necessary.
+ * Does not consume a playback tick. A false result requires stopping after the data/I/O error.
+ * This native service is separate from original hardware CD-command timing. */
+bool SotnMusic_Prepare(SotnMusic *music);
 
 /** @brief Start the original Laboratory track using private DRA music metadata.
  * @param dra Borrowed immutable US DRA image, alive until destruction.
