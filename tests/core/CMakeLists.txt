@@ -1118,3 +1118,10 @@ target_include_directories(sotn-player-hurt-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-player-hurt-tests PRIVATE sotn-core)
 add_test(NAME player-hurt-controller COMMAND sotn-player-hurt-tests)
 set_tests_properties(player-hurt-controller PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-ailment-text-tests test_ailment_text.c)
+sotn_configure_c_target(sotn-ailment-text-tests)
+target_include_directories(sotn-ailment-text-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-ailment-text-tests PRIVATE sotn-core)
+add_test(NAME player-ailment-text COMMAND sotn-ailment-text-tests)
+set_tests_properties(player-ailment-text PROPERTIES TIMEOUT 20)

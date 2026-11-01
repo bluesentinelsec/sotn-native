@@ -8,10 +8,11 @@ bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, So
         item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_AXE_SHADOW ||
         (item.kind == SOTN_DRAW_HEALING_NUMBER &&
          (item.primitive < 800 || item.primitive >= 960)) ||
+        (item.kind == SOTN_DRAW_IMMUNITY_TEXT &&
+         (item.primitive >= 48 * 18 || item.primitive % 18U == 1)) ||
         ((item.kind == SOTN_DRAW_SPIRIT || item.kind == SOTN_DRAW_SPIRIT_PORTAL ||
           item.kind == SOTN_DRAW_HELLFIRE_SPRITE || item.kind == SOTN_DRAW_RISING_HEART ||
-          item.kind == SOTN_DRAW_SWORD || item.kind == SOTN_DRAW_IMMUNITY_TEXT ||
-          item.kind == SOTN_DRAW_AXE_SHADOW) &&
+          item.kind == SOTN_DRAW_SWORD || item.kind == SOTN_DRAW_AXE_SHADOW) &&
          item.primitive >= 48) ||
         (item.kind == SOTN_DRAW_WOLF_PACKET && item.primitive >= 60) ||
         (item.kind == SOTN_DRAW_WOLF_IMAGE && item.primitive >= 6) ||

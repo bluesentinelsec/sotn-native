@@ -57,8 +57,8 @@ thunder, ice, holy, dark and cut priority for the incoming sixteen-bit effect wo
 Ice retains its direct animation2E selection. Birth leaves the live palette for
 the existing ordered timer pass; subsequent draws use actual resident CLUT data.
 These palette/counter updates do not manufacture the still-missing elemental
-children, new ailment text or new ailment Blink producers. Existing ailment
-durations/voice and old-ailment flash restoration remain distinct owners.
+children. The subsequent [poison/curse owner](player-ailment-effects.md) now supplies
+new ailment text/Blink producers. Existing ailment durations/voice and old-ailment flash restoration remain distinct owners.
 
 Player failure preserves queued contact, HP/RNG, requests and counters. Real
 runtime failure preserves its children/leases. Freeze clears one-shot intents
@@ -108,7 +108,7 @@ protection fixtures remain separate from ordinary producers, acquisition,
 uninterrupted traversal and console evidence. Final sanitizer/platform results
 are recorded in the feature PR.
 
-Remaining elemental particles/children, new ailment text/Blinks, rare stone/grab
+Remaining elemental particles/children, rare stone/grab
 and death/fade branches, remaining equipment/familiars, full shared contention and
 cross-owner acceptance remain unfinished. The component and selected native
 evidence do not close those gates or establish complete Alucard/castle parity.

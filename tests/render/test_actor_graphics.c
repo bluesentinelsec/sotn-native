@@ -1026,6 +1026,15 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 960}));
     count = 0;
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 846}));
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 863}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 847}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 864}));
+    count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));
     CHECK(!SotnActorOrder_Add(NULL, 4, &count, (SotnActorDraw){0}));

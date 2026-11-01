@@ -2521,12 +2521,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_SWORD}))
                 return false;
-            if (child->kind == 37 && child->initialized && child->primitive_count &&
-                !SotnActorOrder_Add(
-                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
-                    (SotnActorDraw){
-                        .priority = 0x1b8, .primitive = owner, .kind = SOTN_DRAW_IMMUNITY_TEXT}))
-                return false;
+            if (child->kind == 37 && child->initialized && child->primitive_count)
+                for (Uint16 row = 18; row > 0; --row)
+                {
+                    const Uint16 id = row - 1;
+                    const SotnImmunityText *n = &child->state.immunity_text;
+                    const bool hidden = id == 1 || (id >= 2 && (n->tiles[id - 2U].draw_mode & 8U));
+                    if (!hidden &&
+                        !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                            &draw_count,
+                                            (SotnActorDraw){.priority = 0x1b8,
+                                                            .primitive = (Uint16)(owner * 18U + id),
+                                                            .kind = SOTN_DRAW_IMMUNITY_TEXT}))
+                        return false;
+                }
             if (child->kind == 19 && child->initialized)
             {
                 if (owner < 40 || !child->generation || child->primitive_count != 20 ||
@@ -2807,13 +2815,37 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (command.kind == SOTN_DRAW_IMMUNITY_TEXT)
         {
-            const SotnBatRuntimeChild *child = &session->bat_runtime.children[command.primitive];
+            const Uint16 owner = command.primitive / 18U, row = command.primitive % 18U;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS || row == 1)
+                return SDL_SetError("Text draw lost its actual packet index");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
             if (child->kind != 37 || !child->initialized || !child->generation ||
                 child->primitive_count != 18 || child->state.immunity_text.phase < 3 ||
                 child->state.immunity_text.removed)
                 return SDL_SetError("Immunity text draw lost its actual child and eighteen rows");
-            if (!DrawPlayerEffectQuad(session, &child->state.immunity_text.quad) ||
-                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+            const SotnImmunityText *n = &child->state.immunity_text;
+            if (!row)
+            {
+                if (!DrawPlayerEffectQuad(session, &n->quad))
+                    return false;
+            }
+            else
+            {
+                const Sint32 x = n->tiles[row - 2U].x + session->draw_target.offset_x +
+                                 session->shake.x,
+                             y = n->tiles[row - 2U].y + session->draw_target.offset_y +
+                                 session->shake.y;
+                const SotnTextureQuad q = {.x = {x, x + 1, x, x + 1},
+                                           .y = {y, y, y + 1, y + 1},
+                                           .untextured = true,
+                                           .red = 128,
+                                           .green = 128,
+                                           .blue = 128};
+                if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                                   session->draw_target.surface))
+                    return false;
+            }
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;

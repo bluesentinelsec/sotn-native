@@ -198,7 +198,8 @@ static bool Shared(SotnDataView exe)
     in.entering = true;
     in.screen_shift_x = -2;
     CHECK(SotnBatRuntime_Tick(r, character, in) &&
-          r->children[47].state.immunity_text.x == prior.x - 2 * 65536 &&
+          r->children[47].state.immunity_text.x == prior.x &&
+          r->children[47].state.immunity_text.quad.x[0] == prior.quad.x[0] - 2 &&
           r->children[47].state.immunity_text.timer == prior.timer);
     in.entering = false;
     in.screen_shift_x = 0;

@@ -3034,12 +3034,16 @@ bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x
         {
             next.curse_ticks = (Uint16)SDL_max(64, 1024 - (Sint32)next.attributes.total[1] * 4);
             next.damage_palette = 0x8165;
+            HurtFactory(&next, 0x2002fU, 0, 0);
+            HurtFactory(&next, 0x17002cU, 0, 0);
             next.extra_sound = 0x6f2;
         }
         else if (effects & 0x80U)
         {
             next.poison_ticks = (Uint16)SDL_max(256, 4095 - (Sint32)next.attributes.total[1] * 16);
             next.damage_palette = 0x8164;
+            HurtFactory(&next, 0x16002cU, 0, 0);
+            HurtFactory(&next, 0x1002fU, 0, 0);
             next.extra_sound = 0x6f2;
         }
         else if (effects & 0x8000U)
@@ -3077,6 +3081,8 @@ bool SotnPlayer_ContactDamage(SotnPlayer *player, Uint16 amount, Sint32 source_x
             }
         }
     }
+    if (next.failed)
+        return false;
     *player = next;
     return true;
 }

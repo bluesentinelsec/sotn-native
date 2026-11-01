@@ -1,3 +1,16 @@
+Selected [poison/curse effects](docs/player-ailment-effects.md) now owns actual
+new ailment Blink16/17 and shared text37 parameters1/2. Preserve curse text-before-
+Blink versus poison Blink-before-text, earlier old-ailment/motion roots, actual
+18-row wait/lease, private GT4 and sixteen grey TILEs. Preserve packed target120
+with original half-width fraction, sine cap order,96 hold, tink6AF once, final
+retirement Y increment, tile camera-flag loss and real offscreen retirement.
+Ordinary camera shifts only tile flag2; room entry shifts the flag100 GT4 once,
+never text extension coordinates/target. Preserve menu/draw holds, actual frozen
+effect advances/release hold, late rollback and optional exhaustion. Library
+arrival/seed spawn/actor positioning/later protection fixtures are not acquisition,
+uninterrupted route or console evidence. No pool/grants/savev9 change; remaining
+elemental/stone/death/fade/equipment/familiars/sharing and Alucard stay incomplete.
+
 Selected [hurt motion/palettes](docs/player-hurt-motion.md) now owns actual kind0/1
 promotion, selected2/3/4/5/7/16..18 births/recovery, timer8 and shared wall/ceiling/
 slope/skid effects. Preserve pre-DEF power50 versus actual loss2 promotion, heavy
@@ -6,7 +19,7 @@ signed wall48 expiry, ceiling24/rebound8, stage18/24/56 exceptions, original roo
 order/fractions and optional exhaustion. Preserve real SDK pivots, shake2/3, wall644
 before secondary/death voice, secondary Talisman/HP/number/Cloak/Fury priority and
 no-tick rebases/holds. Actual effect-word palette/timer priority is separate from
-unowned elemental children/new ailment text/Blinks. Raw-kind/poison/protection
+unowned elemental children; selected poison/curse text/Blinks now have actual owners. Raw-kind/poison/protection
 fixtures are not ordinary producer/acquisition/route/console evidence. No pool,
 default-grant or savev9 change. Remaining damage/stone/grab/death/fade/equipment/
 familiars/sharing and Alucard/castle remain incomplete. Preserve the explicit

@@ -352,8 +352,8 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
     if (c->kind != 37)
         return true;
     const SotnImmunityText *n = &c->state.immunity_text;
-    return c->generation && !c->parameter && !c->bat_generation && !c->group && !c->draw_count &&
-           !n->removed && n->phase <= 5 &&
+    return c->generation && c->parameter <= 0x200 && !(c->parameter & 255U) && !c->bat_generation &&
+           !c->group && !c->draw_count && !n->removed && n->phase <= (c->parameter ? 7 : 5) &&
            (c->initialized
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
@@ -406,9 +406,9 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.bat_generation = 0;
         c.state.sword.parent_generation = generation;
     }
-    if (c.kind == 37 && (child.parameter || generation))
+    if (c.kind == 37 && (child.parameter > 0x200 || (child.parameter & 255U) || generation))
         return SDL_SetError(
-            "Immunity text requires actual parameter0 and no transformation parent");
+            "Text requires actual immunity/poison/curse parameter and no transformation parent");
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
             (SotnHellfireTrail){.x = child.source.x,
@@ -858,9 +858,16 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (c->kind == 46 &&
             !SotnTalismanEffect_Rebase(&c->state.talisman, in.screen_shift_x, in.screen_shift_y))
             return false;
-        if (c->kind == 37 &&
-            !SotnImmunityText_Rebase(&c->state.immunity_text, in.screen_shift_x, in.screen_shift_y))
-            return false;
+        if (c->kind == 37)
+        {
+            const bool shifted =
+                in.entering ? SotnImmunityText_ChangeRoom(&c->state.immunity_text,
+                                                          in.screen_shift_x, in.screen_shift_y)
+                            : SotnImmunityText_Rebase(&c->state.immunity_text, in.screen_shift_x,
+                                                      in.screen_shift_y);
+            if (!shifted)
+                return false;
+        }
         if (c->kind == 19 && !SotnHealingNumber_Rebase(&c->state.healing_number, in.screen_shift_x,
                                                        in.screen_shift_y))
             return false;
@@ -1255,10 +1262,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 18, c->primitives, &allocated))
                 return false;
             c->primitive_count = allocated ? 18 : 0;
-            if (!SotnImmunityText_Tick(&c->state.immunity_text, in.dra, in.executable,
-                                       FixedShift(p.x, (Sint16)-in.camera_x),
-                                       FixedShift(p.y, (Sint16)-in.camera_y),
-                                       ((p.contacts | p.previous_contacts) & 1U) != 0, allocated))
+            if (!SotnImmunityText_TickParameter(
+                    &c->state.immunity_text, in.dra, in.executable,
+                    FixedShift(p.x, (Sint16)-in.camera_x), FixedShift(p.y, (Sint16)-in.camera_y),
+                    ((p.contacts | p.previous_contacts) & 1U) != 0, allocated, c->parameter) ||
+                (c->state.immunity_text.sound && !Sound(&r, c->state.immunity_text.sound)))
                 return false;
             removed = c->state.immunity_text.removed;
             c->initialized = !removed;
