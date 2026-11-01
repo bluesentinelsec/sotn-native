@@ -284,15 +284,17 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
-/** @brief Actual contact or secondary-impact number, captured at its original helper call. */
+/** @brief Actual contact, secondary-impact or boss-grab number at its original helper call. */
 typedef struct SotnPlayerDamageNumber
 {
     SotnPlayerFactorySource source;
-    Uint16 amount; /**< Original requested points, before the HP cap; zero is valid for stone. */
+    Uint16
+        amount; /**< Original number word before HP capping; stone/grab dodge can display zero. */
     Uint8
         response; /**< Hurt3/lethal4/stone7/8 display context; secondary dodge still shows hurt. */
     bool applied;
     bool neutral_hurt; /**< Accepted response3 also requests its original neutral Blink58. */
+    bool boss_grab; /**< Actual held-grab HandleDamage call; even guard/dodge displays a number. */
 } SotnPlayerDamageNumber;
 
 /** @brief Successful original response1; its red number is separate from deferred healing. */

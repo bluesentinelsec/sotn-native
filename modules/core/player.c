@@ -1567,15 +1567,29 @@ static void BossGrabTick(SotnPlayer *player)
     }
     else if (player->grab.state == SOTN_GRAB_DAMAGE)
     {
-        Uint16 damage = 0;
-        const SotnContactPower power = {.attack = player->grab.damage};
-        if (!SotnCombat_NormalContact(power, player->attributes.defense, player->poison_ticks != 0,
-                                      &damage))
-        {
-            player->failed = true;
-            return;
-        }
-        player->hp = damage >= player->hp ? 0 : (Uint16)(player->hp - damage);
+        // The original calls kind-two HandleDamage, then ALWAYS creates its number,
+        // including the pre-minimum signed result on a Talisman dodge. It does not
+        // dispatch ordinary contact guard/dodge effects or interrupt the held state.
+        const Sint32 requested = ((Sint32)player->grab.damage - player->attributes.defense) *
+                                 ((player->timer_status & 0x4000U) ? 2 : 1);
+        const bool dodged =
+            player->talismans && (Uint32)player->attributes.total[3] * player->talismans >=
+                                     (SotnCombat_Random(&player->damage_random) & 511U);
+        const Uint16 damage = (Uint16)(dodged ? requested : SDL_max(1, requested));
+        Uint8 response = dodged ? 2 : requested <= 0 && player->attributes.defense >= 100 ? 1 : 3;
+        if (!dodged)
+            player->hp = damage >= player->hp ? 0 : (Uint16)(player->hp - damage);
+        if (!player->hp)
+            response = 4;
+        player->damage_number =
+            (SotnPlayerDamageNumber){.source = {.x = player->x.value,
+                                                .y = player->y.value,
+                                                .priority = 148,
+                                                .facing_left = player->facing_left},
+                                     .amount = damage,
+                                     .response = response,
+                                     .applied = true,
+                                     .boss_grab = true};
         if (!player->hp)
         {
             const Sint32 center =
@@ -1587,6 +1601,14 @@ static void BossGrabTick(SotnPlayer *player)
                                    : delta >= 0;
             PhysicalDeath(player, right);
             return;
+        }
+        if (!dodged)
+        {
+            if (player->cape == 54 && player->hearts < player->hearts_max)
+                player->heart_gain = (SotnPlayerHeartGain){
+                    .source = player->damage_number.source, .amount = damage, .requested = true};
+            if (player->armor == 22 && player->stat_buffs)
+                player->defense_buff_minimum = 512;
         }
         player->timers[2] = 4;
         player->damage_palette = 0x8166;

@@ -7,20 +7,21 @@ both velocity axes. The boss can align whole-pixel position without losing eithe
 fraction. While held, player input cannot move or attack; collision does not move
 the player out of the boss's hold. Pause remains unavailable.
 
-Each explicit damage pulse applies physical defense, then poison, with the original
-minimum of one HP. Ordinary hit protection does not block the pulse. Surviving
-damage acknowledges the held state and requests the original pain sound. Lethal
-damage enters the existing selected physical death/game-over sequence. Ordinary
-contact and stone/curse/poison contact cannot interrupt a pending or active hold.
+Each damage pulse now uses the selected original [held-grab damage feedback](player-grab-damage.md):
+actual defense/prior poison, inclusive Talisman roll, unconditional type0 number,
+surviving Blood Cloak/Fury requests and the existing lethal dispatch. Ordinary hit
+protection does not block a pulse. Guard/dodge results retain the held state and
+grab palette/sound without ordinary contact visuals. Ordinary contact and new
+stone/curse/poison cannot interrupt a pending or active hold.
 
 Hippogryph clears the handshake at the top of its flight. The next player tick
 enters hit substep 1; normal hit recovery then resumes gravity and landing. This
 is different from the thrown-release command used by other bosses, which remains
-unsupported. Stone-reaction grabs, equipment-triggered damage effects, the original
-flash/HP-number effects, and complete death presentation/parity remain incomplete.
+unsupported. Stone-reaction grabs, remaining dependent effects and complete death
+presentation/parity remain incomplete.
 Normal grab births and damage pulses now supply their original red CLUT to the
-[owned timer2/palette presentation](player-script-control.md). This does not add
-stone-grab or damage-number ownership.
+[owned timer2/palette presentation](player-script-control.md). The subsequent feedback owner adds actual normal-grab damage numbers and selected
+equipment requests; stone-grab remains unwired.
 No transient grab state is added to ordinary saves. This is a dependency for the
 boss integration, not evidence that Hippogryph or connected Chapel travel works.
 

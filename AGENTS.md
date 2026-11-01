@@ -1,3 +1,16 @@
+Selected [held-grab damage feedback](docs/player-grab-damage.md) now owns actual
+normal held kind2 defense/prior-poison/Talisman/HP work, unconditional type0 numbers
+and surviving Blood Cloak/Fury requests. Preserve poison-expiry status, one inclusive
+roll for one/two accessories, pre-minimum signed-word dodge numbers and full lethal
+overkill. Grab guard/dodge keep held/palette4/sound6E7 without contact guard/dodge
+visuals. Preserve captured pre-pin fractions, old deferred healing priority, actual
+entity19/twenty rows, zero/full-word provenance, optional exhaustion and failed-player
+rollback. Cloak full suppression, longer Fury/512to511 and no-tick/hold boundaries
+remain. No pool/grants/savev9 change. Explicit gear/protection/position/attack/phase/
+timer/velocity/grab fixtures are not acquisition/ordinary encounter/routes/console.
+Thrown release/stone grabs/other producers/death/fade/full sharing and Alucard remain
+incomplete.
+
 Selected [surviving ice-hit effects](docs/player-ice-hit.md) now owns actual
 factory46/child33/twenty-four G4 rows,96 birth RNG and sound69D/61A. Preserve private
 point pointers/SDK sqrt-atan2-trig, live player high-word overwrite/captured fractions,

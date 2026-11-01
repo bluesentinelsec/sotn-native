@@ -1205,18 +1205,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (p.damage_number.applied)
     {
         const Uint8 response = p.damage_number.response;
-        if (in.freeze || p.hp > p.hp_max || p.damage_number.amount > 39996 || p.guard.applied ||
-            p.dodge.applied || p.immunity.applied || p.absorption.applied ||
-            (response != 3 && response != 4 && response != 7 && response != 8) ||
+        const bool grab = p.damage_number.boss_grab;
+        const bool grab_result =
+            grab && p.grab.damage <= 9999 && !p.axe_armor.active && !p.damage_number.neutral_hurt &&
+            (response != 1 || p.damage_number.amount == 1) &&
+            (((response == 1 || response == 2 || response == 3) && p.hp &&
+              p.step == SOTN_PLAYER_BOSS_GRAB && p.grab.state == SOTN_GRAB_HELD) ||
+             (response == 4 && !p.hp && p.step == SOTN_PLAYER_KILL));
+        if (in.freeze || p.hp > p.hp_max || (!grab && p.damage_number.amount > 39996) ||
+            p.guard.applied || p.dodge.applied || p.immunity.applied || p.absorption.applied ||
+            (grab ? !grab_result
+                  : (response != 3 && response != 4 && response != 7 && response != 8)) ||
             (p.damage_number.neutral_hurt && response != 3) ||
             ((response == 4 || (response == 3 && !p.axe_armor.active)) &&
              !p.damage_number.amount) ||
-            (response == 3 &&
+            (!grab && response == 3 &&
              (!p.hp || p.step != (p.axe_armor.active ? SOTN_PLAYER_AXE_HIT : SOTN_PLAYER_HIT))) ||
             (response == 4 && (p.hp || p.step != SOTN_PLAYER_KILL)) ||
             (response == 7 && p.step != SOTN_PLAYER_STONE) ||
             (response == 8 && (!p.hp || SotnPlayerStep_IsDead(p.step))))
-            return SDL_SetError("Contact number requires its actual hurt/lethal/stone result");
+            return SDL_SetError(
+                "Damage number requires its actual contact/impact/held-grab result");
         if (!RequestNumber(&r, in.other_occupied, p.damage_number.source, p.damage_number.amount,
                            true) ||
             (p.damage_number.neutral_hurt && !p.hurt.started &&

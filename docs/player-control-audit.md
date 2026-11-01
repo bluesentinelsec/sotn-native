@@ -21,7 +21,7 @@ Numbers named only in the shared enum, including Richter states and unused spell
 | 8: high jump | [Gravity Boots](player-gravity-boots.md) | Collision/ceiling recovery and interruptions across remaining damage/equipment states |
 | 10: hit | [Selected kind promotion, physical births/recovery, shared wall/ceiling/slope/skid owners and palette counters](player-hurt-motion.md) | Selected [poison/curse text/Blink](player-ailment-effects.md); [cut feedback](player-cut-effects.md), [holy hits](player-holy-hit.md), [dark hits](player-dark-hit.md), [fire hits](player-fire-hit.md), [thunder hits](player-thunder-hit.md) and [ice hits](player-ice-hit.md); remaining elemental/death variants, rare/contact/death contexts and full contention; [damage inventory](player-contact-absorption.md) |
 | 11: stone | [Selected stone](player-petrification.md) | Rare statue, repeated-hit and dependent effect branches |
-| 12: boss grab | [Selected grab](player-boss-grab.md) | Thrown release, stone reaction, damage palette/number effects and remaining boss producers |
+| 12: boss grab | [Selected grab](player-boss-grab.md) and [normal held-grab damage/number/equipment feedback](player-grab-damage.md) | Thrown release, stone reaction, remaining dependent effects and boss producers |
 | 13: water kill | [Water death](player-water-death.md) | Global-fade preemption and remaining death contexts |
 | 15: sword warp | [Alucard sword command, actual slot16 retirement, outlines20/21 and sixteen-update recovery](player-sword-warp.md) | Osafune and other weapon-specific contexts, all interruption/shared-overlay combinations |
 | 16: kill | Selected physical and water death | Remaining elemental deaths, helpers and fade branches |
