@@ -11,6 +11,8 @@ Selected [immediate contact absorption](player-contact-absorption.md) now shares
 this type1 owner with separate silent requests, including the original unsigned
 word/four-low-digit interpretation for amounts above9999. Simultaneous deferred
 healing and absorption create independent ordered numbers.
+[Queued hurt/lethal/stone contacts](player-contact-numbers.md) now add their actual
+red/blue type0 producers to the same child/primitive/render owner.
 
 `CreateHPNumMove` uses direct entity19 allocation in the first available original
 slot56..63, rather than a blueprint factory. This owner shares the actual child

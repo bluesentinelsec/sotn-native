@@ -29,8 +29,8 @@ typedef struct SotnHealingNumber
  * @param executable Borrowed private SDK tables. @param source Captured screen-space player
  * position, used only at birth. @param allocated Actual twenty-row reservation outcome.
  * @return Success or SDL error preserving state. Exhaustion retires only this optional visual.
- * Explicit damage selects original type0; native guard/immunity are selected producers.
- * Deferred healing and contact absorption use type1, including full HP and
+ * Explicit damage selects original type0; native queued hurt/lethal/stone, guard and immunity are
+ * selected producers. Deferred healing and contact absorption use type1, including full HP and
  * stone. Original unsigned-word amounts above9999 display their four least significant digits. */
 bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView executable,
                             SotnPlayerFactorySource source, bool allocated);

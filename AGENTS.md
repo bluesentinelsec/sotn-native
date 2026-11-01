@@ -1,3 +1,17 @@
+Selected [queued contact numbers](docs/player-contact-numbers.md) now own actual
+response3/4/7/8 type0 producers through shared entity19/slots56..63/twenty rows.
+Preserve original uncapped requested points (through39996), unsigned-word/four-low-digit
+display, pre-reaction fractions, zero-stone blue and lethal overkill red.
+Same-hit stone escape retains its accepted response8 number. Prior green healing
+stays first; immune/guard keep existing producers, Talisman/water add no number.
+Preserve successful-player commit, failure rollback, no-tick rebases, real row
+leases/retirement, freeze effect updates and release/menu/map/draw holds. Full
+stage/Continue clears transients; game over holds the scene. No pool/RNG/grants/
+ordinary-savev9 changes. Controlled item/raw-contact/protection fixtures are not
+acquisition/Medusa/ordinary lethal route/console evidence. Remaining hurt/kinds/
+elemental/interrupt death/stone/grab/impact/MP producers/sharing and milestone1/
+Alucard remain incomplete at26/34 states.
+
 Selected [Ballroom Mask](docs/player-ballroom-mask.md) now applies actual head28's
 conditional raw-contact reduction after weakness/resistance/US stone immunity/
 immunity/absorption and before defense/poison/new stone/guard/hurt selection.

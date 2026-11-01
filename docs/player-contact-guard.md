@@ -42,8 +42,9 @@ resources. The captured number/heart origins retain pre-controller fractions.
 
 The existing entity19 owner now represents original type0 as well as green type1.
 Nonzero damage numbers use red palette/trails; zero immunity numbers remain blue.
-Only guard and immunity are selected live type0 producers here. Ordinary hurt,
-death and MP-number producers remain unfinished. First-free slots56..63, twenty
+[Queued hurt/lethal/stone numbers](player-contact-numbers.md) now join guard and
+immunity as selected live type0 producers. Secondary impact/grab and MP-number
+producers remain unfinished. First-free slots56..63, twenty
 real shared rows, original digit/motion/SDK math, trail ordering and retirement
 remain shared. Factory/child/row exhaustion omits only the optional visual.
 

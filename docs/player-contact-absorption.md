@@ -56,8 +56,8 @@ owner retains its own evidence boundary.
 [Selected Ballroom Mask](player-ballroom-mask.md) now applies its original
 conditional reduction after absorption and before defense/poison/stone/reaction
 selection. Remaining special equipment still needs actual owners. This batch does
-not replace the selected physical-damage adapter or implement the remaining
-ordinary hurt/death number producers. Full damage/ailments/death,
+not replace the selected physical-damage adapter or close the remaining injury reactions. [Queued contact numbers](player-contact-numbers.md)
+now serve selected hurt/lethal/stone results through their actual shared owner. Full damage/ailments/death,
 equipment/familiars/sharing, Alucard, castle and console parity remain unfinished.
 
 ## Validation and evidence

@@ -35,8 +35,8 @@ duplicate suppression, private fan/profile/color math and afterimage resets.
 Original US allocation failures retain their existing retries. The zero number
 uses real entity19, first-free slots56..63 and twenty shared rows. It retains the
 original zero palette and blue trails, full animation/motion and retirement.
-Deferred healing and absorption retain their distinct green type1 visual. Other
-damage/MP number producers remain incomplete.
+Deferred healing and absorption retain their distinct green type1 visual. [Selected queued hurt/lethal/stone numbers](player-contact-numbers.md) now share
+type0. Secondary impact/grab and MP number producers remain incomplete.
 
 All these effects use existing shared ownership, without another pool. Optional
 factory/child/row exhaustion omits only its visual. Initialized flag10000 effects

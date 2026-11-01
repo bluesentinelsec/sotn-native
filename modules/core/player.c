@@ -1604,6 +1604,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.absorption = (SotnPlayerAbsorption){0};
     next.immunity = (SotnPlayerImmunity){0};
     next.guard = (SotnPlayerGuard){0};
+    next.damage_number = (SotnPlayerDamageNumber){0};
     next.dodge = (SotnPlayerDodge){0};
     next.script_reaction.started = false;
     next.mist.interrupted = false;
@@ -2105,6 +2106,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     if (player->dodge.applied && (dodge_x < SDL_MIN_SINT32 || dodge_x > SDL_MAX_SINT32 ||
                                   dodge_y < SDL_MIN_SINT32 || dodge_y > SDL_MAX_SINT32))
         return SDL_SetError("Room rebase exceeds the captured dodge source");
+    const Sint64 number_x = (Sint64)player->damage_number.source.x + (Sint64)offset_x * FIX_ONE,
+                 number_y = (Sint64)player->damage_number.source.y + (Sint64)offset_y * FIX_ONE;
+    if (player->damage_number.applied && (number_x < SDL_MIN_SINT32 || number_x > SDL_MAX_SINT32 ||
+                                          number_y < SDL_MIN_SINT32 || number_y > SDL_MAX_SINT32))
+        return SDL_SetError("Room rebase exceeds the captured contact-number source");
     const Sint64 guard_x = (Sint64)player->guard.source.x + (Sint64)offset_x * FIX_ONE,
                  guard_y = (Sint64)player->guard.source.y + (Sint64)offset_y * FIX_ONE;
     if (player->guard.applied && (guard_x < SDL_MIN_SINT32 || guard_x > SDL_MAX_SINT32 ||
@@ -2169,6 +2175,11 @@ bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offs
     {
         player->dodge.source.x = (Sint32)dodge_x;
         player->dodge.source.y = (Sint32)dodge_y;
+    }
+    if (player->damage_number.applied)
+    {
+        player->damage_number.source.x = (Sint32)number_x;
+        player->damage_number.source.y = (Sint32)number_y;
     }
     if (player->guard.applied)
     {
@@ -2351,6 +2362,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .absorption = player->absorption,
         .immunity = player->immunity,
         .guard = player->guard,
+        .damage_number = player->damage_number,
         .dodge = player->dodge,
         .looking_up = player->step == SOTN_PLAYER_STAND && player->substep == 1,
         .can_pause = player->attack_mode == 0 && !SotnPlayerStep_IsDead(player->step) &&
@@ -2791,6 +2803,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.absorption = (SotnPlayerAbsorption){0};
     next.immunity = (SotnPlayerImmunity){0};
     next.guard = (SotnPlayerGuard){0};
+    next.damage_number = (SotnPlayerDamageNumber){0};
     next.dodge = (SotnPlayerDodge){0};
     next.script_reaction.started = false;
     next.mist.interrupted = false;

@@ -44,6 +44,7 @@ struct SotnPlayer
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;
     SotnPlayerGuard guard;
+    SotnPlayerDamageNumber damage_number;
     SotnPlayerDodge dodge;
     bool damage_context, damage_pending, damage_ticked, contact_dispatch;
     const SotnStatBuffs *stat_buffs;

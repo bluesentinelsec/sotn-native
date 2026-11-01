@@ -990,6 +990,22 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             !RequestSource(&r, p.dodge.source, 0x58002c, 0))
             return false;
     }
+    if (p.damage_number.applied)
+    {
+        const Uint8 response = p.damage_number.response;
+        if (in.freeze || p.hp > p.hp_max || p.damage_number.amount > 39996 || p.guard.applied ||
+            p.dodge.applied || p.immunity.applied || p.absorption.applied ||
+            (response != 3 && response != 4 && response != 7 && response != 8) ||
+            ((response == 3 || response == 4) && !p.damage_number.amount) ||
+            (response == 3 && (!p.hp || p.step != SOTN_PLAYER_HIT)) ||
+            (response == 4 && (p.hp || p.step != SOTN_PLAYER_KILL)) ||
+            (response == 7 && p.step != SOTN_PLAYER_STONE) ||
+            (response == 8 && (!p.hp || SotnPlayerStep_IsDead(p.step))))
+            return SDL_SetError("Contact number requires its actual hurt/lethal/stone result");
+        if (!RequestNumber(&r, in.other_occupied, p.damage_number.source, p.damage_number.amount,
+                           true))
+            return false;
+    }
     if (p.guard.applied)
     {
         if (in.freeze || !p.hp || p.hp > p.hp_max || p.immunity.applied || p.absorption.applied)

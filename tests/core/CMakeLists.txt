@@ -1086,3 +1086,10 @@ target_include_directories(sotn-player-ballroom-tests PRIVATE "${PROJECT_SOURCE_
 target_link_libraries(sotn-player-ballroom-tests PRIVATE sotn-core)
 add_test(NAME player-ballroom-mask COMMAND sotn-player-ballroom-tests)
 set_tests_properties(player-ballroom-mask PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-player-contact-number-tests test_player_contact_numbers.c)
+sotn_configure_c_target(sotn-player-contact-number-tests)
+target_include_directories(sotn-player-contact-number-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-player-contact-number-tests PRIVATE sotn-core)
+add_test(NAME player-contact-numbers COMMAND sotn-player-contact-number-tests)
+set_tests_properties(player-contact-numbers PROPERTIES TIMEOUT 20)

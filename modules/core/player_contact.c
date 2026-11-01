@@ -146,13 +146,15 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     // callers. Inside the player dispatcher, its common animation tail owns that update once.
     p->contact_dispatch = true;
     bool ok = false;
+    Uint16 number_amount = 0;
     if (stone)
     {
-        const Uint16 amount =
+        number_amount =
             previous == SOTN_PLAYER_STONE
                 ? (Uint16)(p->hp_max / 8U)
-                : (Uint16)SDL_clamp((Sint32)power.attack - (Sint32)attributes.defense * 2, 0, 9999);
-        ok = SotnPlayer_Petrify(p, amount, contact.source_x, contact.source_velocity);
+                : (Uint16)SDL_max(0, (Sint32)power.attack - (Sint32)attributes.defense * 2);
+        ok = SotnPlayer_Petrify(p, (Uint16)SDL_min(number_amount, 9999), contact.source_x,
+                                contact.source_velocity);
     }
     else
     {
@@ -162,6 +164,11 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                   : SotnCombat_NormalContact(power, attributes.defense, p->poison_ticks != 0,
                                              &amount)))
             return false;
+        // The selected reaction helpers cap HP loss at9999. The original number
+        // receives the full requested points, including poison/weakness overkill.
+        const Sint32 requested =
+            ((Sint32)power.attack - attributes.defense) * (p->poison_ticks ? 2 : 1);
+        number_amount = (water.hit_params & 31U) >= 16 ? amount : (Uint16)SDL_max(1, requested);
         // Exactly one libc roll for one or two actual accessories; equality succeeds,
         // including luck zero. Earlier immunity/absorption/stone/water never roll.
         if (p->talismans && (Uint32)attributes.total[3] * p->talismans >=
@@ -201,6 +208,18 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                      : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
     }
     p->contact_dispatch = false;
+    if (ok && !p->guard.applied &&
+        (p->hp < previous_hp ||
+         (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
+    {
+        Uint8 response = 3;
+        if (stone)
+            response = previous == SOTN_PLAYER_STONE ? 8 : 7;
+        if (!p->hp && response != 7)
+            response = 4;
+        p->damage_number = (SotnPlayerDamageNumber){
+            .source = source, .amount = number_amount, .response = response, .applied = true};
+    }
     if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
         (p->hp < previous_hp ||
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))

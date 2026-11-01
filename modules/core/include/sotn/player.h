@@ -251,6 +251,15 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Successful queued response3/4/7/8 number, captured before reaction movement. */
+typedef struct SotnPlayerDamageNumber
+{
+    SotnPlayerFactorySource source;
+    Uint16 amount;  /**< Original requested points, before the HP cap; zero is valid for stone. */
+    Uint8 response; /**< Original hurt3/lethal4/new-stone7/existing-stone8 result. */
+    bool applied;
+} SotnPlayerDamageNumber;
+
 /** @brief Successful original response1; its red number is separate from deferred healing. */
 typedef struct SotnPlayerGuard
 {
@@ -347,6 +356,7 @@ typedef struct SotnPlayerState
     SotnPlayerAbsorption absorption;
     SotnPlayerImmunity immunity;
     SotnPlayerGuard guard;
+    SotnPlayerDamageNumber damage_number;
     SotnPlayerDodge dodge;
     bool looking_up, can_pause;
     Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
