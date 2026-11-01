@@ -99,7 +99,7 @@ static bool BatPrimitiveKind(Uint16 kind)
 {
     return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
-           kind == 29 || kind == 47 || kind == 30 || kind == 33;
+           kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -189,6 +189,8 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
             return SDL_SetError("Talisman commit lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_DissolveValid(c))
+            return SDL_SetError("Dissolve commit lost its actual thirty-six-row ownership");
         if (!SotnBatRuntime_IceHitValid(c))
             return SDL_SetError("Ice hit lost its actual twenty-four-row child ownership");
         if (!SotnBatRuntime_ThunderHitValid(c))
@@ -241,6 +243,7 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
                (c->kind == 37 && c->primitive_count == 18) ||
                (c->kind == 47 && c->primitive_count == 16) ||
                (c->kind == 30 && c->primitive_count == 6) ||
+               (c->kind == 32 && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS) ||
                (c->kind == 33 && c->primitive_count == 24) ||
                (c->kind == 63 && c->primitive_count == 9))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");

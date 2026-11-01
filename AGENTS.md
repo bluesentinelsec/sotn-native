@@ -1,3 +1,16 @@
+The [shared stone dissolve owner](docs/stone-dissolve.md) now accepts actual
+factory39/child32 with36 real GT4 rows, previous-resident capture and private
+primary/secondary uploads. Preserve allocation retry before37 birth RNG, the one
+shared5120-byte scratch, eight-update patterns/forty calls, frame8000 upload-skip
+without body hiding, engine-clock modulo3/living or2/state16,48 committed decays,
+signed delay/motion and terminal retirement before resets. Preserve actual SDK
+geometry, no-tick holds/rebases, scoped room cleanup and real two-rectangle words/
+validity rollback after late upload failure. New water capture generations may
+reuse the scratch. Effect rollback is not whole-player HP/motion/audio atomicity.
+Supplied zero-petrification/factory/protection/HP1/lethal-result fixtures are not
+actual stone producers/death/acquisition/routes/console evidence. No new pool,
+grants/savev9 change; the stone controller and all six Alucard gates remain open.
+
 The [shared stone-effect support](docs/stone-effect-support.md) now accepts actual
 text3, smoke3/7, particles3/8 and entity24high0 through the existing shared runtime.
 Preserve three-call smoke births, random2..5 index versus retained full parameters,
@@ -6,7 +19,7 @@ private normal-size high0/two RNG versus Hellfire high1/one RNG, particle3 behav
 wrap, whole-word origins and live facing. Existing row-index capacity31/draw stride30
 are not new pools. Keep allocation-before-RNG and actual rendering/lease retirement.
 US status20000 smoke remains unsupported. These controlled factory owners do not
-connect the missing stone controller/dissolve32/capture or establish dying-player,
+connect the missing stone controller to dissolve32/capture or establish dying-player,
 acquisition/routes/console evidence. No grants/savev9 change; all six Alucard gates
 remain open.
 

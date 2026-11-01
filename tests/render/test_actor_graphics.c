@@ -1012,8 +1012,8 @@ static bool TestActorOrder(void)
         SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
         SOTN_DRAW_SPIRIT_PORTAL, SOTN_DRAW_HELLFIRE_SPRITE, SOTN_DRAW_HOLY_HIT,
         SOTN_DRAW_DARK_HIT,      SOTN_DRAW_FIRE_HIT,        SOTN_DRAW_THUNDER_HIT,
-        SOTN_DRAW_ICE_HIT};
-    const Uint16 limits[] = {60, 6, 2, 48, 1440, 48, 48, 48, 768, 48, 48, 288, 1152};
+        SOTN_DRAW_ICE_HIT,       SOTN_DRAW_STONE_DISSOLVE};
+    const Uint16 limits[] = {60, 6, 2, 48, 1440, 48, 48, 48, 768, 48, 48, 288, 1152, 1728};
     for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
     {
         count = 0;

@@ -2785,6 +2785,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .hellfire_hidden = player->hellfire_palette == 0x810d,
         .hellfire_signal = player->hellfire_signal,
         .buttons = player->buttons,
+        .tapped = player->tapped,
         .attack = player->attack,
         .hp = player->hp,
         .hp_max = player->hp_max,

@@ -21,6 +21,7 @@
 #include <sotn/rising_heart.h>
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
+#include <sotn/stone_dissolve.h>
 #include <sotn/sword_warp.h>
 #include <sotn/talisman_effect.h>
 #include <sotn/thunder_hit.h>
@@ -99,6 +100,7 @@ typedef struct SotnBatRuntimeChild
         SotnFireHit fire_hit;
         SotnThunderHit thunder;
         SotnIceHit ice;
+        SotnStoneDissolve dissolve;
         SotnSpiritPortal portal;
         struct
         {
@@ -118,7 +120,7 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_PLAYER_PARTICLE_LIMIT + 1]; /**< Actual row indices, including particle
+    Uint16 primitives[SOTN_STONE_DISSOLVE_ROWS]; /**< Actual row indices, including particle
                                                     sentinels. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
@@ -172,12 +174,17 @@ typedef struct SotnBatRuntime
     Uint8 groups[11];
     bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
     bool echo_attack;
-    bool afterimage_reset; /**< Actual BlinkWhite reset emitted after player presentation. */
+    bool dissolve_frame_load; /**< Actual entity32 ANIM_FRAME_LOAD request, never body hiding. */
+    bool afterimage_reset;    /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
 
 /** @brief Run the selected entity33 subset of original room-entry cleanup.
  * Other shared children retain their existing owners; no callbacks or RNG advance. */
 bool SotnBatRuntime_PruneIce(SotnBatRuntime *runtime);
+/** @brief Run the entity32 subset of actual room-entry cleanup without callbacks or RNG. */
+bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *runtime);
+/** @brief Validate the actual entity32 lifecycle and thirty-six-row ownership. */
+bool SotnBatRuntime_DissolveValid(const SotnBatRuntimeChild *child);
 /** @brief Commit actual post-stage shoves to player-locked holy/ice entities only.
  * Packets, shared points, rows, RNG and controllers hold. Room entry has its own rebase. */
 bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
@@ -204,8 +211,13 @@ typedef struct SotnBatRuntimeInput
     bool hellfire_up;  /**< Actual current Up input, sampled when the beam requests projectiles. */
     Uint16 freeze;     /**< Original request snapshotted before ALL actual factory/child updates. */
     const SotnSpiritTargetSnapshot
-        *spirit_targets;      /**< Actual preceding stage view; required by spirits. */
-    bool force_echo_enabled;  /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
+        *spirit_targets;     /**< Actual preceding stage view; required by spirits. */
+    bool force_echo_enabled; /**< Found-and-enabled world snapshot, sampled on real Echo birth. */
+    SotnDeathImage *dissolve_image; /**< Actual shared DRA5120-byte scratch, not a child pool. */
+    SotnStoneDissolveCapture dissolve_capture;
+    SotnStoneDissolveUpload dissolve_upload;
+    void *dissolve_context;
+    Uint32 engine_timer;      /**< Actual g_Timer for entity32, distinct from gameplay clock. */
     bool holy_symbol_enabled; /**< Actual relic snapshot for selected water-pain Blink holding. */
 } SotnBatRuntimeInput;
 

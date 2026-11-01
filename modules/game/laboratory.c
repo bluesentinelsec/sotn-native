@@ -704,8 +704,8 @@ static bool DecodePlayerSprite(SotnLaboratory *s, SotnPlayerState player, SotnAl
     }
     if (player.animation_bank != 1)
         return SDL_SetError("Player references an unintegrated private artwork bank");
-    return SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc), player.animation.sprite,
-                                    out);
+    return SotnAlucard_DecodeSprite(s->dra, SotnResource_View(s->arc),
+                                    (Uint16)(player.animation.sprite & 0x7fffU), out);
 }
 static Sint16 BlinkWord(Sint64 value)
 {
@@ -721,7 +721,7 @@ static bool WolfCollision(void *context, Sint32 x, Sint32 y, SotnCollider *out)
 static bool CaptureDeathImage(void *context, Uint32 generation)
 {
     SotnLaboratory *s = context;
-    if (!s || !generation || s->death_image.captured)
+    if (!s || !generation || (s->death_image.captured && s->death_image_generation == generation))
         return SDL_SetError("Water-death capture requires its fresh actual texture owner");
     SotnDeathImage image = {0};
     if (!SotnActorGraphics_StoreDeathImage(s->actor_graphics, &image))
@@ -775,7 +775,29 @@ static bool SwordFactory(void *context, SotnPlayerFactorySource source, Uint32 p
     SotnLaboratory *s = context;
     return SotnBatRuntime_RequestSword(&s->bat_runtime, source, packed, argument, allocated);
 }
-static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
+static bool CaptureDissolveImage(void *context, SotnDeathImage *image)
+{
+    SotnLaboratory *s = context;
+    return s && SotnActorGraphics_StoreDeathImage(s->actor_graphics, image);
+}
+static bool UploadDissolveImage(void *context, const SotnDeathImage *image, bool secondary)
+{
+    SotnLaboratory *s = context;
+    return s && SotnActorGraphics_LoadDissolve(s->actor_graphics, image, secondary);
+}
+static bool HoldDissolveUpload(const SotnBatRuntime *r, SotnPlayerState p)
+{
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 32)
+        {
+            const Uint16 phase = r->children[i].state.dissolve.phase;
+            if (phase == 1 ||
+                ((phase == 2 || phase == 3) && p.animation.id >= 0x38 && p.animation.id <= 0x3a))
+                return true;
+        }
+    return false;
+}
+static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     const Sint64 dx = (Sint64)s->blink_rebase_x + s->blink_camera_x - s->camera.x,
                  dy = (Sint64)s->blink_rebase_y + s->blink_camera_y - s->camera.y;
@@ -783,6 +805,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->blink_rebase_x < SDL_MIN_SINT16 || s->blink_rebase_x > SDL_MAX_SINT16 ||
         s->blink_rebase_y < SDL_MIN_SINT16 || s->blink_rebase_y > SDL_MAX_SINT16)
         return SDL_SetError("Bat room/camera translation exceeds its original word");
+    if (player.stone.active)
+        player.palette = (Uint16)(0x8000U | player.stone.palette);
     SotnAlucardSprite sprite = {0};
     SotnAlucardSprite talisman = {0};
     bool need_talisman = player.dodge.applied;
@@ -797,7 +821,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
         !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
-        (sprite.width && !player.water_death.captured &&
+        (sprite.width && !player.water_death.captured && !(player.animation.sprite & 0x8000U) &&
+         !HoldDissolveUpload(&s->bat_runtime, player) &&
          !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
         !SotnBatRuntime_Tick(
             &s->bat_runtime, s->character,
@@ -817,6 +842,11 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                 .primitive_slots = primitive_slots,
                 .freeze = s->spell_freeze.request,
                 .game_timer = s->game_timer,
+                .engine_timer = s->system_timer,
+                .dissolve_image = &s->death_image,
+                .dissolve_capture = CaptureDissolveImage,
+                .dissolve_upload = UploadDissolveImage,
+                .dissolve_context = s,
                 .hellfire_up = (player.buttons & SOTN_BUTTON_UP) != 0,
                 .spirit_targets = &targets,
                 .force_echo_enabled = (s->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3,
@@ -883,10 +913,60 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         for (Uint16 i = 0; i < s->bat_runtime.wolf_shake_count; ++i)
             if (!SotnCameraShake_Request(&s->shake, s->dra, s->bat_runtime.wolf_shakes[i]))
                 return false;
+        if (s->bat_runtime.dissolve_frame_load && !SotnPlayer_CommitDissolveFrame(s->player, true))
+            return false;
     }
     s->blink_rebase_x = s->blink_rebase_y = 0;
     s->blink_camera_x = s->camera.x;
     s->blink_camera_y = s->camera.y;
+    return true;
+}
+
+static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
+{
+    bool transaction = false;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        transaction |= s->bat_runtime.children[i].kind == 32;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
+                       s->bat_runtime.factories[i].cursor.blueprint == 39;
+    for (Uint16 i = 0; i < player.hurt.count; ++i)
+        transaction |= (player.hurt.factories[i].blueprint & 0xfffU) == 39;
+    if (!transaction)
+        return TickBlinksWork(s, player, entering);
+    SotnDissolveTextures *textures = SDL_malloc(sizeof(*textures));
+    SotnBatRuntime *runtime = SDL_malloc(sizeof(*runtime));
+    SotnCharacterState character = {0};
+    const SotnDeathImage image = s->death_image;
+    const Uint32 generation = s->death_image_generation;
+    if (!textures || !runtime || !SotnActorGraphics_SaveDissolve(s->actor_graphics, textures) ||
+        !SotnCharacter_Get(s->character, &character, NULL))
+    {
+        SDL_free(textures);
+        SDL_free(runtime);
+        return false;
+    }
+    *runtime = s->bat_runtime;
+    const bool ok = TickBlinksWork(s, player, entering);
+    if (!ok)
+    {
+        char detail[512] = {0};
+        SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+        s->bat_runtime = *runtime;
+        s->death_image = image;
+        s->death_image_generation = generation;
+        const bool restored = SotnActorGraphics_RestoreDissolve(s->actor_graphics, textures) &&
+                              SotnCharacter_Restore(s->character, &character) &&
+                              SotnActors_CommitBatPrimitives(s->actors, runtime) &&
+                              SotnPlayer_RollbackDissolve(s->player, &player);
+        SDL_free(textures);
+        SDL_free(runtime);
+        if (!restored)
+            return false;
+        return SDL_SetError("%s", detail);
+    }
+    SDL_free(textures);
+    SDL_free(runtime);
     return true;
 }
 
@@ -2302,13 +2382,15 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
 {
     if (!sprite->width)
         return true;
-    if (!player.water_death.captured && !SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
+    if (!player.water_death.captured && !(player.animation.sprite & 0x8000U) &&
+        !SotnActorGraphics_UploadPlayer(s->actor_graphics, sprite))
         return false;
     const Sint32 x = Pixel(player.x) - s->camera.x, y = Pixel(player.y) - s->camera.y,
                  left = player.facing_left ? x - sprite->pivot_x - sprite->width + 1
                                            : x + sprite->pivot_x;
     SotnPlayerEffectQuad q = {.page = 0x18,
-                              .palette = (Uint16)(player.palette & 0x7fffU),
+                              .palette = player.stone.active ? player.stone.palette
+                                                             : (Uint16)(player.palette & 0x7fffU),
                               .draw_mode = (Uint16)((blend & 0x60U) | (blend & 0x10U ? 1U : 0U))};
     for (Uint16 v = 0; v < 4; ++v)
     {
@@ -2348,11 +2430,13 @@ static bool DrawRotatedPlayer(SotnLaboratory *s, SotnPlayerState player,
         for (Uint16 v = 0; v < 4; ++v)
             q.red[v] = q.green[v] = q.blue[v] = player.body_grey[v];
     }
-    if (!player.water_death.active && player.rotated &&
+    if (!player.water_death.active && (player.rotated || player.stone.rotation) &&
         !SotnPlayerEffect_Rotate(
             s->executable,
             BlinkWord(x + (player.facing_left ? -player.draw_pivot_x : player.draw_pivot_x)),
-            BlinkWord(y + player.draw_pivot_y), player.bat.rotation, player.facing_left, &q))
+            BlinkWord(y + player.draw_pivot_y),
+            player.stone.active ? player.stone.rotation : player.bat.rotation, player.facing_left,
+            &q))
         return false;
     return DrawPlayerEffectQuad(s, &q);
 }
@@ -2534,6 +2618,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         for (Uint16 owner = 0; owner < SOTN_BAT_RUNTIME_SLOTS; ++owner)
         {
             const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind == 32 && child->initialized)
+                for (Uint16 row = SOTN_STONE_DISSOLVE_ROWS; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q = &child->state.dissolve.quads[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){
+                                .priority = q->priority,
+                                .primitive = (Uint16)(owner * SOTN_STONE_DISSOLVE_ROWS + row - 1U),
+                                .kind = SOTN_DRAW_STONE_DISSOLVE}))
+                        return false;
+                }
             if (child->kind == 33 && child->initialized)
                 for (Uint16 row = SOTN_ICE_HIT_ROWS; row > 0; --row)
                 {
@@ -2812,8 +2909,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 player.animation_bank == 15 ||
                 (player.axe_armor.active
                      ? DrawAxeArmorPlayer(session, player)
-                     : (player.water_death.active || player.animation_bank == 13 ||
-                                player.rotated ||
+                     : ((player.animation.sprite & 0x8000U) || player.water_death.active ||
+                                player.animation_bank == 13 || player.rotated ||
                                 (!SotnPlayerStep_IsDead(player.step) && !player.stone.active &&
                                  (player.palette != 0x8100 || player.body_color_blend))
                             ? DrawRotatedPlayer(session, player, &alucard, 0)
@@ -2887,6 +2984,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             if (!drawn || !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                      SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_STONE_DISSOLVE)
+        {
+            const Uint16 owner = command.primitive / SOTN_STONE_DISSOLVE_ROWS,
+                         row = command.primitive % SOTN_STONE_DISSOLVE_ROWS;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Dissolve packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *child = &session->bat_runtime.children[owner];
+            if (child->kind != 32 || !SotnBatRuntime_DissolveValid(child) || !child->initialized ||
+                !DrawPlayerEffectQuad(session, &child->state.dissolve.quads[row]) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Dissolve draw lost its actual thirty-six-row child owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_ICE_HIT)

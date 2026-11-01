@@ -1161,3 +1161,10 @@ target_include_directories(sotn-ice-hit-tests PRIVATE "${PROJECT_SOURCE_DIR}/mod
 target_link_libraries(sotn-ice-hit-tests PRIVATE sotn-core)
 add_test(NAME player-ice-hit COMMAND sotn-ice-hit-tests)
 set_tests_properties(player-ice-hit PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-stone-dissolve-tests test_stone_dissolve.c)
+sotn_configure_c_target(sotn-stone-dissolve-tests)
+target_include_directories(sotn-stone-dissolve-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-stone-dissolve-tests PRIVATE sotn-core)
+add_test(NAME stone-dissolve-controller COMMAND sotn-stone-dissolve-tests)
+set_tests_properties(stone-dissolve-controller PROPERTIES TIMEOUT 20)

@@ -1465,6 +1465,63 @@ bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *g, const SotnDeathImage
     Upload(g, x, y, 32, 80, image->pixels);
     return true;
 }
+static bool DissolveRectangles(const SotnActorGraphics *g, Uint16 x[2], Uint16 y[2])
+{
+    if (!DeathRectangle(g, &x[0], &y[0]) || g->dra.size < 0xe140)
+        return SDL_SetError("Dissolve requires both actual private display rectangles");
+    x[1] = Read16(g->dra.bytes + 0xe138);
+    y[1] = Read16(g->dra.bytes + 0xe13a);
+    if (Read16(g->dra.bytes + 0xe13c) != 32 || Read16(g->dra.bytes + 0xe13e) != 80 ||
+        x[1] != x[0] + 32U || y[1] != y[0] || x[1] > 1024 - 32 || y[1] > 512 - 80)
+        return SDL_SetError("Dissolve rectangles lost their original adjacent32x80 bounds");
+    return true;
+}
+bool SotnActorGraphics_SaveDissolve(const SotnActorGraphics *g, SotnDissolveTextures *out)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!out || !DissolveRectangles(g, x, y))
+        return SDL_SetError("Dissolve rollback requires actual texture memory and an output");
+    for (Uint16 rect = 0; rect < 2; ++rect)
+    {
+        out->x[rect] = x[rect];
+        out->y[rect] = y[rect];
+        for (Uint16 row = 0; row < 80; ++row)
+            for (Uint16 column = 0; column < 32; ++column)
+            {
+                const size_t source = (size_t)(y[rect] + row) * 1024U + x[rect] + column,
+                             at = (size_t)row * 32U + column;
+                out->words[rect][at] = g->words[source];
+                out->valid[rect][at] = g->valid[source];
+            }
+    }
+    return true;
+}
+bool SotnActorGraphics_RestoreDissolve(SotnActorGraphics *g, const SotnDissolveTextures *snapshot)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!snapshot || !DissolveRectangles(g, x, y) || SDL_memcmp(x, snapshot->x, sizeof(x)) ||
+        SDL_memcmp(y, snapshot->y, sizeof(y)))
+        return SDL_SetError("Dissolve rollback lost its actual original rectangle ownership");
+    for (Uint16 rect = 0; rect < 2; ++rect)
+        for (Uint16 row = 0; row < 80; ++row)
+            for (Uint16 column = 0; column < 32; ++column)
+            {
+                const size_t target = (size_t)(y[rect] + row) * 1024U + x[rect] + column,
+                             at = (size_t)row * 32U + column;
+                g->words[target] = snapshot->words[rect][at];
+                g->valid[target] = snapshot->valid[rect][at];
+            }
+    return true;
+}
+bool SotnActorGraphics_LoadDissolve(SotnActorGraphics *g, const SotnDeathImage *image,
+                                    bool secondary)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!image || !image->captured || image->remaining > 64 || !DissolveRectangles(g, x, y))
+        return SDL_SetError("Dissolve upload requires its actual captured image/rectangle owner");
+    Upload(g, x[secondary], y[secondary], 32, 80, image->pixels);
+    return true;
+}
 // dra/4B758.c packed sprite branch; PlayerDraw slots retain private UVs/flip and palette identity.
 bool SotnActorGraphics_Afterimage(SotnActorGraphics *g, const SotnAlucardSprite *sprite,
                                   SotnAfterimageDisplay d, Sint32 x, Sint32 y,

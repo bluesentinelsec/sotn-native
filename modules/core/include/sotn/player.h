@@ -431,7 +431,8 @@ typedef struct SotnPlayerState
     SotnPlayerSpirit spirit;
     SotnPlayerSoul soul;
     bool hellfire_started,
-        hellfire_hidden;             /**< Accepted cast intent and actual palette visibility. */
+        hellfire_hidden; /**< Accepted cast intent and actual palette visibility. */
+    Uint16 tapped; /**< Actual padTapped, including original stone/death forced direction taps. */
     Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
     Uint16 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
 } SotnPlayerState;
@@ -512,6 +513,13 @@ bool SotnPlayer_SetAfterimageContext(SotnPlayer *player, Uint32 generation, Uint
  * request.
  * @return Success or SDL error without mutation. Advances no clock/cursor or effect readiness. */
 bool SotnPlayer_ResetAfterimages(SotnPlayer *player, Sint32 duration);
+/** @brief Commit actual entity32's ANIM_FRAME_LOAD flag after successful effect work.
+ * This skips artwork upload, retaining normal body drawing from actual resident pixels. */
+bool SotnPlayer_CommitDissolveFrame(SotnPlayer *player, bool frame_load);
+/** @brief Roll back this same common owner's dissolve presentation after native failure.
+ * Restores the captured frame word, afterimage displays/cursors and actual timer15 only;
+ * this is a no-tick transaction operation, never ordinary save/Continue restoration. */
+bool SotnPlayer_RollbackDissolve(SotnPlayer *player, const SotnPlayerState *before);
 
 typedef struct SotnSubweapons SotnSubweapons;
 

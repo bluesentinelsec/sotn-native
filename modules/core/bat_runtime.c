@@ -233,10 +233,10 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
 static bool ChildKind(Uint16 kind)
 {
     return kind == 2 || kind == 5 || kind == 11 || kind == 16 || kind == 19 || kind == 30 ||
-           kind == 33 || kind == 31 || kind == 35 || kind == 36 || kind == 37 || kind == 45 ||
-           kind == 46 || kind == 49 || kind == 50 || kind == 54 || kind == 47 || kind == 51 ||
-           kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 || kind == 0xf1 ||
-           kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 33 || kind == 32 || kind == 31 || kind == 35 || kind == 36 || kind == 37 ||
+           kind == 45 || kind == 46 || kind == 49 || kind == 50 || kind == 54 || kind == 47 ||
+           kind == 51 || kind == 52 || kind == 53 || kind == 61 || kind == 63 || kind == 0xe1 ||
+           kind == 0xf1 || kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -260,6 +260,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return 0x04810000U;
     case 37:
         return c->primitive_count ? 0x04830000U : 0x04030000U;
+    case 32:
+        return c->state.dissolve.flags;
     case 33:
         return c->state.ice.flags;
     case 30:
@@ -372,6 +374,30 @@ bool SotnBatRuntime_ImmunityTextValid(const SotnBatRuntimeChild *c)
            (c->initialized
                 ? n->phase && (n->phase >= 3 ? c->primitive_count == 18 : !c->primitive_count)
                 : !n->phase && !c->primitive_count);
+}
+bool SotnBatRuntime_DissolveValid(const SotnBatRuntimeChild *c)
+{
+    if (c->kind != 32)
+        return true;
+    const SotnStoneDissolve *n = &c->state.dissolve;
+    return c->generation && !c->bat_generation && !c->parameter && !c->group && !c->draw_count &&
+           !n->removed && n->phase <= 4 && n->pattern < 8 && n->index < 8 &&
+           (n->phase != 4 || (n->timer && n->timer <= 48)) &&
+           (c->initialized ? n->phase && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS &&
+                                 n->flags == 0x08800000U
+                           : !n->phase && !c->primitive_count);
+}
+bool SotnBatRuntime_PruneDissolve(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_DissolveValid(&r->children[i]))
+            return SDL_SetError("Dissolve cleanup lost its actual child/row lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].kind == 32)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    return true;
 }
 bool SotnBatRuntime_IceHitValid(const SotnBatRuntimeChild *c)
 {
@@ -556,6 +582,13 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Dark hit requires its independent actual factory parent");
     if (c.kind == 47 && generation)
         return SDL_SetError("Holy hit requires its independent actual factory parent");
+    if (c.kind == 32)
+    {
+        if (generation || child.parameter)
+            return SDL_SetError("Dissolve requires its actual independent zero-parameter factory");
+        c.state.dissolve.x = child.source.x;
+        c.state.dissolve.y = child.source.y;
+    }
     if (c.kind == 24)
         c.state.hellfire_trail.motion =
             (SotnHellfireTrail){.x = child.source.x,
@@ -850,7 +883,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (r.wolf_bound && !in.wolf_owned)
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
-    if (in.entering && !SotnBatRuntime_PruneIce(&r))
+    if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -891,6 +924,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 "Hellfire child lost its actual generation/role/row/group lifecycle");
         if (!SotnBatRuntime_ImmunityTextValid(c))
             return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_DissolveValid(c))
+            return SDL_SetError("Dissolve lost its actual thirty-six-row child ownership");
         if (!SotnBatRuntime_IceHitValid(c))
             return SDL_SetError("Ice hit lost its actual twenty-four-row child ownership");
         if (!SotnBatRuntime_ThunderHitValid(c))
@@ -924,21 +959,23 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Player outline lost its actual child/profile lifecycle");
         if (c->primitive_count > SDL_arraysize(c->primitives) ||
             (c->primitive_count &&
-             (!c->initialized || !(((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
-                                   ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-                                     c->kind == 31 || c->kind == 35) &&
-                                    c->primitive_count == 1) ||
-                                   (c->kind == 61 && c->primitive_count == 16) ||
-                                   (c->kind == 63 && c->primitive_count == 9) ||
-                                   (c->kind == 19 && c->primitive_count == 20) ||
-                                   (c->kind == 37 && c->primitive_count == 18) ||
-                                   (c->kind == 47 && c->primitive_count == 16) ||
-                                   (c->kind == 30 && c->primitive_count == 6) ||
-                                   (c->kind == 33 && c->primitive_count == 24) ||
-                                   (c->kind == 5 && c->state.particles.phase == 1 &&
-                                    !c->state.particles.removed && c->state.particles.count &&
-                                    c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
-                                    c->primitive_count == c->state.particles.count + 1U)))) ||
+             (!c->initialized ||
+              !(((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
+                ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 ||
+                  c->kind == 35) &&
+                 c->primitive_count == 1) ||
+                (c->kind == 61 && c->primitive_count == 16) ||
+                (c->kind == 63 && c->primitive_count == 9) ||
+                (c->kind == 19 && c->primitive_count == 20) ||
+                (c->kind == 37 && c->primitive_count == 18) ||
+                (c->kind == 47 && c->primitive_count == 16) ||
+                (c->kind == 30 && c->primitive_count == 6) ||
+                (c->kind == 32 && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS) ||
+                (c->kind == 33 && c->primitive_count == 24) ||
+                (c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
+                 c->state.particles.count &&
+                 c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
+                 c->primitive_count == c->state.particles.count + 1U)))) ||
             ((c->kind == 5 || c->kind == 11 || c->kind == 46 || c->kind == 25 || c->kind == 28 ||
               c->kind == 29 || c->kind == 31 || c->kind == 35) &&
              c->initialized && !c->primitive_count) ||
@@ -1120,6 +1157,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wolf_shake_count = 0;
     r.use_ticks = 0;
     r.afterimage_reset = false;
+    r.dissolve_frame_load = false;
     SotnPlayerState p = in.player;
     r.target_marks[0] = r.target_marks[1] = 0;
     r.capture_count = 0;
@@ -1398,6 +1436,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     SotnCharacterStats stats = {0};
     if (!SotnCharacter_Get(character, &progress, &stats))
         return false;
+    SotnDeathImage dissolve_image = in.dissolve_image ? *in.dissolve_image : (SotnDeathImage){0};
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
     r.wing_mask = 0;
@@ -1498,6 +1537,59 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!removed && !SotnHolyHit_Rebase(&c->state.holy, dx, dy, false))
                 return false;
             c->initialized = !removed && allocated;
+        }
+        else if (c->kind == 32)
+        {
+            if (!in.dissolve_image)
+                return SDL_SetError("Dissolve requires the actual shared DRA image owner");
+            bool allocated = c->primitive_count != 0;
+            if (!allocated && (p.animation.sprite & 0x7fffU) &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_STONE_DISSOLVE_ROWS,
+                                            c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? SOTN_STONE_DISSOLVE_ROWS : 0;
+            const Sint16 dx = Word(in.screen_shift_x - in.room_shift_x),
+                         dy = Word(in.screen_shift_y - in.room_shift_y),
+                         camera_x = Word((Sint32)in.camera_x + dx),
+                         camera_y = Word((Sint32)in.camera_y + dy);
+            if (!c->state.dissolve.phase)
+            {
+                c->state.dissolve.x = FixedShift(c->source.x, Word(-camera_x));
+                c->state.dissolve.y = FixedShift(c->source.y, Word(-camera_y));
+            }
+            SotnStoneDissolveEvents events = {0};
+            if (!SotnStoneDissolve_Tick(
+                    &c->state.dissolve, &dissolve_image,
+                    (SotnStoneDissolveInput){.dra = in.dra,
+                                             .image = in.image,
+                                             .player_x = FixedShift(p.x, Word(-camera_x)),
+                                             .player_y = FixedShift(p.y, Word(-camera_y)),
+                                             .engine_timer = in.engine_timer,
+                                             .player_animation = p.animation.id,
+                                             .player_sprite = p.animation.sprite,
+                                             .player_step = (Uint16)p.step,
+                                             .palette = p.palette,
+                                             .priority = p.priority,
+                                             .tapped = p.tapped,
+                                             .facing_left = p.facing_left,
+                                             .allocated = allocated,
+                                             .capture = in.dissolve_capture,
+                                             .upload = in.dissolve_upload,
+                                             .context = in.dissolve_context},
+                    &progress.random, &events))
+                return false;
+            if (events.frame_load)
+            {
+                p.animation.sprite |= 0x8000U;
+                r.dissolve_frame_load = true;
+            }
+            r.afterimage_reset |= events.reset_afterimages;
+            const Sint32 x = Pixel(c->state.dissolve.x), y = Pixel(c->state.dissolve.y);
+            removed = c->state.dissolve.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!removed && c->state.dissolve.phase &&
+                !SotnStoneDissolve_Rebase(&c->state.dissolve, dx, dy, false))
+                return false;
+            c->initialized = !removed && c->state.dissolve.phase;
         }
         else if (c->kind == 33)
         {
@@ -2483,6 +2575,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         !SotnCharacter_Restore(character, &progress))
         return false;
     *runtime = r;
+    if (in.dissolve_image)
+        *in.dissolve_image = dissolve_image;
     return true;
 }
 bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,

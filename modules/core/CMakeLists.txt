@@ -9,6 +9,8 @@ add_library(sotn-core STATIC
   fire_hit.c
   include/sotn/fire_hit.h
   ice_hit.c
+  stone_dissolve.c
+  include/sotn/stone_dissolve.h
   include/sotn/ice_hit.h
   thunder_hit.c
   include/sotn/thunder_hit.h

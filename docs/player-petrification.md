@@ -18,7 +18,8 @@ Ordinary saves do not serialize an active transient stone state.
 [Shared stone-effect support](stone-effect-support.md) now supplies original
 text3, smoke3/7, particle3/8 and entity24/high0 child/factory/render owners in
 controlled contexts. The stone controller does not yet produce these missing
-effects or its actual captured-image dissolve32; component support is separate
+effects. The [shared dissolve owner](stone-dissolve.md) now supplies actual
+entity32/resident capture/uploads through supplied factories; support is separate
 from a completed native petrification sequence.
 
 Common private palettes provide the selected stone tint; CPU sprite rotation

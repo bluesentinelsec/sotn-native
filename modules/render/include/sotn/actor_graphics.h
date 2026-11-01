@@ -64,6 +64,25 @@ bool SotnActorGraphics_StoreDeathImage(const SotnActorGraphics *graphics, SotnDe
  */
 bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *graphics, const SotnDeathImage *image);
 
+/** @brief Transaction snapshot of the two original dissolve rectangles, including unloaded
+ * word validity. This is rollback storage, not a texture/effect pool or capture readiness. */
+typedef struct SotnDissolveTextures
+{
+    Uint16 words[2][2560], x[2], y[2];
+    Uint8 valid[2][2560];
+} SotnDissolveTextures;
+/** @brief Snapshot both bounded private32x80 rectangles without requiring resident pixels.
+ * Output holds only owned VRAM words/validity; no art upload, image capture or tick occurs. */
+bool SotnActorGraphics_SaveDissolve(const SotnActorGraphics *graphics, SotnDissolveTextures *out);
+/** @brief Restore both actual rectangle words and validity after failed native work.
+ * Requires the same private rectangle descriptors; unrelated VRAM remains untouched. */
+bool SotnActorGraphics_RestoreDissolve(SotnActorGraphics *graphics,
+                                       const SotnDissolveTextures *snapshot);
+/** @brief Actual original dissolve LoadImage into the primary or adjacent secondary rectangle.
+ * Requires a completed5120-byte capture; validates both descriptors before any texture writes. */
+bool SotnActorGraphics_LoadDissolve(SotnActorGraphics *graphics, const SotnDeathImage *image,
+                                    bool secondary);
+
 /** @brief Prepare an original normal-ARC afterimage packet and its actual private display upload.
  * @param graphics Owned texture memory. @param sprite Borrowed immutable decoded ARC pose.
  * @param display Actual global display slot1..3, with a flagged original palette identity.

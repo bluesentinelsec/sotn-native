@@ -21,6 +21,29 @@ bool SotnPlayer_ResetAfterimages(SotnPlayer *p, Sint32 duration)
         return SDL_SetError("Afterimage reset requires its actual common player owner");
     return SotnPlayerAfterimage_Reset(&p->afterimage, true, duration, &p->afterimage_timer15);
 }
+bool SotnPlayer_CommitDissolveFrame(SotnPlayer *p, bool frame_load)
+{
+    if (!p || !p->afterimage_generation)
+        return SDL_SetError("Dissolve frame commit requires its actual common player owner");
+    if (frame_load)
+    {
+        if (!(p->animation.sprite & 0x7fffU) || (p->animation.sprite & 0x7fffU) >= 265)
+            return SDL_SetError("Dissolve frame commit lost its actual normal private sprite");
+        p->animation.sprite |= 0x8000U;
+    }
+    return true;
+}
+bool SotnPlayer_RollbackDissolve(SotnPlayer *p, const SotnPlayerState *before)
+{
+    if (!p || !before || !p->afterimage_generation ||
+        p->afterimage_generation != before->afterimage_generation ||
+        p->animation.id != before->animation.id)
+        return SDL_SetError("Dissolve rollback lost its actual unchanged common owner");
+    p->animation.sprite = before->animation.sprite;
+    p->afterimage = before->afterimage;
+    p->afterimage_timer15 = before->player_timers[15];
+    return true;
+}
 void SotnPlayer_AfterimageReset(SotnPlayer *p)
 {
     if (p->afterimage_generation && !SotnPlayer_ResetAfterimages(p, 1))
