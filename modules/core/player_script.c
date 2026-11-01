@@ -64,9 +64,9 @@ bool SotnPlayer_ScriptTimers(SotnPlayer *p)
     return true;
 }
 
-void SotnPlayer_ScriptRecovery(SotnPlayer *p)
+void SotnPlayer_ReactionRecovery(SotnPlayer *p)
 {
-    if ((p->previous_step != SOTN_PLAYER_SCRIPT_REACTION &&
+    if ((p->previous_step != SOTN_PLAYER_HIT && p->previous_step != SOTN_PLAYER_SCRIPT_REACTION &&
          p->previous_step != SOTN_PLAYER_SCRIPT) ||
         (SotnPlayer_Status(p) & (0x10000U | 0x40000U)))
         return;

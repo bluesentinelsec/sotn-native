@@ -155,8 +155,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player);
 bool SotnPlayer_ScriptTimers(SotnPlayer *player);
 /** @brief Replace the shared simulated-input interval from an actual Bat/Wolf controller. */
 void SotnPlayer_HoldInput(SotnPlayer *player, Uint32 ticks);
-/** @brief Apply the selected original scripted-state exit helper after state dispatch. */
-void SotnPlayer_ScriptRecovery(SotnPlayer *player);
+/** @brief Apply the selected original hurt/script exit helper after state dispatch. */
+void SotnPlayer_ReactionRecovery(SotnPlayer *player);
 
 /** @brief Apply selected original reset intents only when the common owner is bound. */
 void SotnPlayer_AfterimageReset(SotnPlayer *player);

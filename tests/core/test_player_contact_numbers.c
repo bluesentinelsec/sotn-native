@@ -156,6 +156,67 @@ static bool Producers(Fixture *f, SotnDataView exe)
     Close(f);
     return true;
 }
+static bool HurtFeedback(Fixture *f, SotnDataView exe)
+{
+    CHECK(Create(f) && SotnPlayer_SetScriptContext(f->player, exe));
+    SotnPlayer *p = f->player;
+    const SotnPlayer base = *p;
+    // A neutral accepted contact starts timer2 after its common pass, retaining birth palette.
+    CHECK(Contact(p, 1, 1, 0x21) && p->damage_number.neutral_hurt && p->timers[2] == 6 &&
+          p->damage_palette == 0x8166 && p->palette == 0x8100 && p->hp == 39);
+    const SotnPlayer birth = *p;
+    CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && !p->damage_number.applied &&
+          !p->damage_number.neutral_hurt && p->timers[2] == 6 && p->palette == 0x8100);
+    CHECK(SotnPlayer_TickSpellFreeze(p, 0, true) && p->timers[2] == 6 && p->palette == 0x8100);
+    *p = birth;
+    for (Uint16 i = 1; i <= 6; ++i)
+        CHECK(Contact(p, i + 1, 0, 0) && !p->damage_number.applied &&
+              p->palette == (i < 6 ? 0x8166 : 0x8100) && p->timers[2] == 6 - i);
+    Uint16 updates = 0;
+    while (p->step == SOTN_PLAYER_HIT && updates < 150)
+        CHECK(Contact(p, 8 + updates++, 0, 0));
+    CHECK(updates < 150 && p->step == SOTN_PLAYER_STAND && p->timers[4] == 12 &&
+          p->afterimage_timer15 == 4 && p->invincibility == 12 && !p->body_color_blend &&
+          p->palette == 0x8100 && p->hp == 39 && p->damage_random == birth.damage_random);
+    for (Uint16 i = 1; i <= 12; ++i)
+        CHECK(Contact(p, 200 + i, 0, 0) && p->timers[4] == 12 - i &&
+              p->body_color_blend == (i < 12) && p->invincibility == 12 - i);
+    // Retained ailments suppress exit color/timer15 restoration, while protection still applies.
+    for (Uint16 ailment = 1; ailment <= 2; ++ailment)
+    {
+        *p = base;
+        p->poison_ticks = ailment == 1 ? 100 : 0;
+        p->curse_ticks = ailment == 2 ? 100 : 0;
+        CHECK(Contact(p, 1, 1, 0x21) && p->damage_number.neutral_hurt);
+        p->animation.remaining = -1;
+        CHECK(Contact(p, 2, 0, 0) && p->step == SOTN_PLAYER_STAND && !p->timers[4] &&
+              !p->afterimage_timer15 && p->invincibility == 12);
+    }
+    // Elemental/ailment producers retain their separate, incomplete presentation owners.
+    const Uint16 excluded[] = {0x40, 0x80, 0x100, 0x200, 0x800, 0x1000, 0x2000, 0x4000, 0x8000};
+    for (Uint16 i = 0; i < SDL_arraysize(excluded); ++i)
+    {
+        *p = base;
+        CHECK(Contact(p, 1, 1, excluded[i] | 1) && !p->damage_number.neutral_hurt);
+    }
+    *p = base;
+    p->hp = 1;
+    CHECK(Contact(p, 1, 1, 0x21) && !p->hp && !p->damage_number.neutral_hurt);
+    // Failed animation cannot publish Blink or palette/timer state; retry commits once.
+    *p = base;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 1, .parameters = 0x21}) &&
+          SotnPlayer_SetDamageContext(p, 1));
+    const SotnPlayer before = *p;
+    Uint8 saved[247 * 4];
+    SDL_memcpy(saved, f->dra + 0x101b8, sizeof(saved));
+    for (Uint16 i = 0; i < 247; ++i)
+        TestCharacter_Put32(f->dra + 0x101b8 + i * 4U, 0x801bffff);
+    CHECK(!SotnPlayer_Tick(p, 0) && !SDL_memcmp(&before, p, sizeof(*p)));
+    SDL_memcpy(f->dra + 0x101b8, saved, sizeof(saved));
+    CHECK(SotnPlayer_Tick(p, 0) && p->damage_number.neutral_hurt && p->timers[2] == 6);
+    Close(f);
+    return true;
+}
 static bool Exclusions(Fixture *f, SotnDataView exe)
 {
     CHECK(Create(f) && SotnPlayer_SetScriptContext(f->player, exe));
@@ -252,6 +313,9 @@ static bool Shared(Fixture *f, SotnDataView exe)
           r->children[40].state.healing_number.number == 39996 &&
           r->children[40].state.healing_number.digits[0].palette == 0x1b2);
     *saved = *r;
+    in.player.damage_number.neutral_hurt = true;
+    CHECK(!SotnBatRuntime_Tick(r, f->character, in) && !SDL_memcmp(saved, r, sizeof(*r)));
+    in.player.damage_number.neutral_hurt = false;
     in.player.damage_number.amount = 0;
     CHECK(!SotnBatRuntime_Tick(r, f->character, in) && !SDL_memcmp(saved, r, sizeof(*r)));
     *r = (SotnBatRuntime){0};
@@ -291,7 +355,8 @@ int main(void)
     for (Uint16 i = 0; i < 192; ++i)
         exe[0x1e3e1 + i * 2U] = 16;
     const SotnDataView data = {exe, 0x24000};
-    const bool ok = Producers(f, data) && Exclusions(f, data) && Shared(f, data);
+    const bool ok =
+        Producers(f, data) && HurtFeedback(f, data) && Exclusions(f, data) && Shared(f, data);
     SDL_free(exe);
     SDL_free(f);
     return ok ? 0 : 1;

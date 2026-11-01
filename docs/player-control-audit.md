@@ -130,3 +130,5 @@ Selected [Talisman response2](player-contact-talisman.md) now uses actual equipp
 count/LCK/RNG, shared entity46/Blink58 and the existing guard timer3 recovery. It
 adds no dispatched state; remaining hurt/death/stone and equipment dependencies
 keep milestone1 at26/34 handlers and incomplete.
+
+[Selected neutral hurt feedback](player-neutral-hurt.md) adds original timer2/red/Blink58 and hurt-exit protection/color/afterimage work to the existing physical adapter. It adds no dispatch state or kind promotion; the remaining damage/motion/elemental gates stay open.

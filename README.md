@@ -183,8 +183,10 @@ now heals while walking, with original deferred effects and gameplay-clock MP
 recovery. [Deferred healing numbers](docs/player-healing-numbers.md) now use actual
 shared slots and twenty-row leases for Mail, blood and orb healing.
 [Queued hurt/lethal/stone contacts](docs/player-contact-numbers.md) now share those
-leases and original red/blue numbers, including overkill and zero-damage stone. Other equipment,
-number producers and buff producers remain incomplete.
+leases and original red/blue numbers, including overkill and zero-damage stone.
+[Selected neutral hurt feedback](docs/player-neutral-hurt.md) now uses original
+red palette timing, shared Blink58 and protection/color recovery. Other damage
+reactions, equipment, number producers and buff producers remain incomplete.
 Owned [absorption circlets](docs/player-contact-absorption.md) now use original
 immediate contact healing, silent flashes/numbers and protection; Cat-eye retains
 its separate kind7 conversion. Owned [Talisman](docs/player-contact-talisman.md) now

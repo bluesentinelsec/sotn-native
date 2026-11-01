@@ -34,8 +34,8 @@ typedef struct SotnPlayerBlinkShared
  * Parameters 0x44/0x48 support original blood-healing flashes; 0x67 is the spirit fan.
  * Parameters 0x43/0x51 are the original immunity fan pair.
  * Parameter 0x26 supplies entity46 stripes; its actual owner controls motion/retirement.
- * Parameter 0x58 is the scripted reaction fan; its 0x7007 hold tests original Hit state10.
- * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
+ * Parameter 0x58 is the neutral hurt/scripted reaction fan; its 0x7007 hold tests original Hit
+ * state10. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
 {
     SotnPlayerEffectQuad quads[8];

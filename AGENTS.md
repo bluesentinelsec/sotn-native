@@ -1,3 +1,17 @@
+Selected [neutral hurt feedback](docs/player-neutral-hurt.md) now owns accepted
+queued response3's neutral Blink58 and original red timer2six, plus selected
+hurt-exit protection12/timer4twelve/afterimage4. Preserve pre-reaction fractional
+origins, prior birth palette/redfive/normal expiry, full-parameter duplicate rules,
+real factory44/entity11/eight-row US retry/retirement and afterimage resets.
+Existing poison/curse allow neutral birth but suppress exit color/palette/timer15
+restoration; death/stone/grab/ongoing hurt/scripts hold that exit helper. Preserve
+longer protection, actual private SDK colors, successful-player commit/rollback,
+frozen effect updates, release/menu/map/draw holds and no-tick rebases. Number and
+Blink exhaustion stay independent; no pool/RNG/sound/grants/savesv9 change.
+This does not implement damage-kind promotion/motion or elemental reactions;
+milestone1/Alucard remain incomplete at26/34 states. Explicit protection/contact/
+pose/item/arrival fixtures are not acquisition/route/console evidence.
+
 Selected [queued contact numbers](docs/player-contact-numbers.md) now own actual
 response3/4/7/8 type0 producers through shared entity19/slots56..63/twenty rows.
 Preserve original uncapped requested points (through39996), unsigned-word/four-low-digit

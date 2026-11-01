@@ -217,8 +217,19 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
             response = previous == SOTN_PLAYER_STONE ? 8 : 7;
         if (!p->hp && response != 7)
             response = 4;
-        p->damage_number = (SotnPlayerDamageNumber){
-            .source = source, .amount = number_amount, .response = response, .applied = true};
+        const bool neutral = response == 3 && !(power.effects & 0xfbc0U);
+        p->damage_number = (SotnPlayerDamageNumber){.source = source,
+                                                    .amount = number_amount,
+                                                    .response = response,
+                                                    .applied = true,
+                                                    .neutral_hurt = neutral};
+        if (neutral)
+        {
+            // AlucardHandleDamage runs after the common timer pass: retain this
+            // frame's palette; the following six timer2 passes own its red/normal work.
+            p->damage_palette = 0x8166;
+            p->timers[2] = 6;
+        }
     }
     if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
         (p->hp < previous_hp ||

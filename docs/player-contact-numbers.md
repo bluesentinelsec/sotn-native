@@ -6,6 +6,8 @@ request red numbers. New and existing stone also request a number, including a
 blue zero when stone causes no HP loss. Immunity and guard retain their separate
 existing type0 producers; absorption and deferred healing retain green type1.
 Talisman and ordinary water pain/death create no additional contact number.
+[Selected neutral hurt](player-neutral-hurt.md) now also consumes response3
+feedback for its actual palette timer/Blink58; number exhaustion does not suppress it.
 
 The request retains original damage points before the HP cap and pre-reaction
 fractional origin. It does not substitute HP actually lost: a 1,000-point lethal

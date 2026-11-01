@@ -1895,7 +1895,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         (next.step == SOTN_PLAYER_WOLF && SDL_abs(next.vx) > 3 * FIX_ONE) ||
         (next.step == SOTN_PLAYER_BAT && next.substep == 3))
         next.invincibility = (Uint16)SDL_max(next.invincibility, 4);
-    SotnPlayer_ScriptRecovery(&next);
+    SotnPlayer_ReactionRecovery(&next);
     if (next.step == SOTN_PLAYER_SWORD_WARP)
     {
         next.palette = 0x810d;

@@ -90,3 +90,5 @@ Adapted AGPL-3.0-or-later algorithms: `dra/692E8.c`, `6DF70.c`,
 `71830.c:PlayerStepUnk48/49`, `7879C.c:EntityPlayerBlinkWhite` and
 `st/no3/e_death.c` at revision `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.
 Runtime definitions and SDK lookup values remain private inputs.
+
+The same common timer2/4 and exit owners now also serve [selected neutral hurt](player-neutral-hurt.md). Hurt has its independent accepted-contact Blink58 producer; remaining original motion/kind/elemental branches stay incomplete.

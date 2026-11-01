@@ -258,6 +258,7 @@ typedef struct SotnPlayerDamageNumber
     Uint16 amount;  /**< Original requested points, before the HP cap; zero is valid for stone. */
     Uint8 response; /**< Original hurt3/lethal4/new-stone7/existing-stone8 result. */
     bool applied;
+    bool neutral_hurt; /**< Accepted response3 also requests its original neutral Blink58. */
 } SotnPlayerDamageNumber;
 
 /** @brief Successful original response1; its red number is separate from deferred healing. */
