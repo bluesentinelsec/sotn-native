@@ -12,9 +12,18 @@
 #include <sotn/player_blink.h>
 #include <sotn/player_glow.h>
 #include <sotn/tilemap.h>
+#include <sotn/title_screen.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
 typedef struct SotnActorGraphics SotnActorGraphics;
+
+/** @brief Create original title texture residency before any stage/player owner exists.
+ * @param dra Borrowed verified resident data. @param first Actual F_TITLE0 planes.
+ * @param second Actual F_TITLE1 planes. @param out Owned memory, NULL on failure.
+ * @return Success or SDL error. Loads original32+32 transfers and private SIM_13 palette;
+ * no stage metadata, player, animation, primitive reservation or boot readiness is created. */
+bool SotnActorGraphics_CreateTitle(SotnDataView dra, SotnDataView first, SotnDataView second,
+                                   SotnActorGraphics **out);
 
 /** @brief Initialize original Alucard/effect palette rows from private character-start job 22.
  * @param graphics Borrowed texture owner, before current equipment colors are applied.
@@ -128,7 +137,7 @@ bool SotnActorGraphics_SetPlayerPalette(SotnActorGraphics *graphics, const Uint1
  * @return Success or SDL error for missing owner, output or resident palette colors. */
 bool SotnActorGraphics_GetMistPalette(const SotnActorGraphics *graphics, Uint16 out[16]);
 
-/** @brief Borrowed tightly packed RGB555 raster surface; each dimension is 1..256. */
+/** @brief Borrowed tightly packed RGB555 surface; actor dimensions are1..256, title512x240. */
 typedef struct SotnActorSurface
 {
     Uint16 *pixels;
@@ -311,6 +320,14 @@ typedef struct SotnTextureQuad
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief Draw one original title SPRT through the actual resident palette/texture owner.
+ * @param graphics Actual title graphics. @param sprite Copied original SPRT fields.
+ * @param surface Complete512x240 display. @return Success or SDL error before pixel writes
+ * for invalid reads. Uses r0/g0/b0 only, original byte UV wrap and STP-gated blend.
+ * This performs no resource load, animation, engine clock or menu transition. */
+bool SotnActorGraphics_TitleSprite(const SotnActorGraphics *graphics, const SotnTitleSprite *sprite,
+                                   SotnActorSurface surface);
+
 /** @brief Draw a bounded quad to a borrowed 1..256 by 1..256 RGB555 surface.
  * @param graphics Borrowed texture owner, optional for untextured quads.
  * @param quad Surface-space geometry. @param surface Writable tightly packed pixels/view.

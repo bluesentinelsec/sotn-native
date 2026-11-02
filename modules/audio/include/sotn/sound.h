@@ -40,6 +40,25 @@ enum
  * @note Supports selected direct/scripted sound effects. CD music, reverb, and full
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
+/** @brief Load the four actual startup banks embedded in the verified US resident overlay.
+ * @param dra Borrowed immutable DRA, retained until sound destruction. @param out Owned sound,
+ * NULL on failure. @return Success or SDL error after validating/copying all four real banks.
+ * Matches LoadVabData's bank/header order without a player or gameplay stage. This does not
+ * attach resident SEQs, run CD/SDK control, open playback or enable startup by itself. */
+bool SotnSound_CreateResident(SotnDataView dra, SotnSound **out);
+
+/** @brief Prepare actual player/stage VAB replacements in the existing resident SPU snapshot.
+ * @param source Actual initialized owner, retained on failure and until candidate publication.
+ * @param player_header Borrowed verified player VAB. @param player_body Its actual samples.
+ * @param stage_header Borrowed verified stage VAB. @param stage_body Its actual samples.
+ * @param out Owned candidate, NULL on failure. @return Success or SDL error.
+ * Preserves bank0/2, voices, DSP/reverb RAM, ring cursors, scripts and controls without a tick.
+ * No additional playing voices or capacity is created; the caller commits before retiring source.
+ */
+bool SotnSound_PrepareStageBanks(const SotnSound *source, SotnDataView player_header,
+                                 SotnDataView player_body, SotnDataView stage_header,
+                                 SotnDataView stage_body, SotnSound **out);
+
 /** @brief Initialize original Studio B voice reverb from the actual private US SDK profile.
  * @param sound Actual owner, configured once before playback. @param executable Verified MAIN.
  * @return Success or SDL error without mutation. Clears only the real work area in the existing

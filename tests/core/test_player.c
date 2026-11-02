@@ -836,18 +836,40 @@ static bool TestLeapFallAndFailure(Fixture *f)
     return true;
 }
 
+static bool TestInputHandoff(Fixture *f)
+{
+    const SotnCollisionMap map = MakeFixture(f);
+    SotnPlayer *p = NULL;
+    SotnPlayerState before = {0}, after = {0};
+    CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, map, 64, 135, &p) &&
+          SotnPlayer_Tick(p, 0) && State(p, &before));
+    const Uint16 held = SOTN_BUTTON_START | SOTN_BUTTON_JUMP | SOTN_BUTTON_RIGHT_HAND;
+    CHECK(SotnPlayer_SeedInput(p, held) && State(p, &after) && after.x == before.x &&
+          after.y == before.y && after.animation.pose == before.animation.pose &&
+          after.animation.id == before.animation.id && after.step == before.step);
+    CHECK(!SotnPlayer_SeedInput(p, 1) && !SotnPlayer_SeedInput(NULL, held) &&
+          SotnPlayer_Tick(p, held & (Uint16)~SOTN_BUTTON_START) && State(p, &after) &&
+          after.step == SOTN_PLAYER_STAND && !after.attack.active);
+    // A later physical release and tap still create a real edge and ordinary jump.
+    CHECK(SotnPlayer_Tick(p, 0) && SotnPlayer_Tick(p, SOTN_BUTTON_JUMP) && State(p, &after) &&
+          after.step == SOTN_PLAYER_JUMP && after.velocity_y < 0);
+    SotnPlayer_Close(p);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
-    const bool passed =
-        TestMovement(fixture) && TestWallsAndReplay(fixture) && TestAttacks(fixture) &&
-        TestDamage(fixture) && TestStageStop(fixture) && TestStone(fixture) &&
-        TestScriptHold(fixture) && TestBellInside(fixture) && TestChairs(fixture) &&
-        TestScriptAlignment(fixture) && TestBossGrab(fixture) && TestGrabVariants(fixture) &&
-        TestBossGrabFailures(fixture) && TestFailures(fixture) && TestLeapStone(fixture) &&
-        TestLeapFallAndFailure(fixture) && TestLeapAttackPriority(fixture);
+    const bool passed = TestInputHandoff(fixture) && TestMovement(fixture) &&
+                        TestWallsAndReplay(fixture) && TestAttacks(fixture) &&
+                        TestDamage(fixture) && TestStageStop(fixture) && TestStone(fixture) &&
+                        TestScriptHold(fixture) && TestBellInside(fixture) && TestChairs(fixture) &&
+                        TestScriptAlignment(fixture) && TestBossGrab(fixture) &&
+                        TestGrabVariants(fixture) && TestBossGrabFailures(fixture) &&
+                        TestFailures(fixture) && TestLeapStone(fixture) &&
+                        TestLeapFallAndFailure(fixture) && TestLeapAttackPriority(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

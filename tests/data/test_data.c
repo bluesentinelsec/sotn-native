@@ -206,7 +206,7 @@ static bool TestSnapshot(const char *directory)
 
 static bool TestResource(const char *directory)
 {
-    for (Uint16 id = SOTN_RESOURCE_BAT_CODE; id < SOTN_RESOURCE_COUNT; ++id)
+    for (Uint16 id = SOTN_RESOURCE_BAT_CODE; id <= SOTN_RESOURCE_SWORD_AUDIO_BODY; ++id)
     {
         const SotnDataSpec *original = SotnData_ResourceSpec((SotnResourceId)id);
         CHECK(original && SDL_strncmp(original->path, "SERVANT/", 8) == 0 && original->size &&

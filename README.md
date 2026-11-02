@@ -76,8 +76,10 @@ boss-specific sensors and simulated control choices. Selected bat/return control
 now feed the selected stage combat path; full encounter and console parity remain unproven.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
-game over returns there without restarting the process. Original title/new-game
-flow and full castle progression remain incomplete.
+game over returns there without restarting the process. Selected
+[`--cold-start --game-data DIR`](docs/cold-start.md) opens the original title before
+any gameplay session, then offers native saved-game Continue. New Game/prologue,
+original SEL menus and full castle progression remain incomplete.
 
 [Early castle progression](docs/early-castle-stages.md) connects selected Entrance,
 Laboratory, Marble Gallery and Outer Wall paths, with original opening equipment,

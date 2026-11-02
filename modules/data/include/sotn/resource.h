@@ -56,9 +56,17 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_DEVIL_AUDIO_HEADER, /**< US familiar devil instrument metadata. */
     SOTN_RESOURCE_DEVIL_AUDIO_BODY,   /**< US familiar devil sample data. */
     SOTN_RESOURCE_SWORD_CODE, /**< US familiar sword private overlay bytes; never host-executed. */
-    SOTN_RESOURCE_SWORD_GRAPHICS,     /**< US familiar sword FT texture data. */
-    SOTN_RESOURCE_SWORD_AUDIO_HEADER, /**< US familiar sword instrument metadata. */
-    SOTN_RESOURCE_SWORD_AUDIO_BODY,   /**< US familiar sword sample data. */
+    SOTN_RESOURCE_SWORD_GRAPHICS,      /**< US familiar sword FT texture data. */
+    SOTN_RESOURCE_SWORD_AUDIO_HEADER,  /**< US familiar sword instrument metadata. */
+    SOTN_RESOURCE_SWORD_AUDIO_BODY,    /**< US familiar sword sample data. */
+    SOTN_RESOURCE_TITLE_GRAPHICS_0,    /**< US BIN/F_TITLE0.BIN first title texture planes. */
+    SOTN_RESOURCE_TITLE_GRAPHICS_1,    /**< US BIN/F_TITLE1.BIN second title texture planes. */
+    SOTN_RESOURCE_PROLOGUE_GRAPHICS_0, /**< US BIN/F_PROLO0.BIN first prologue planes. */
+    SOTN_RESOURCE_PROLOGUE_GRAPHICS_1, /**< US BIN/F_PROLO1.BIN second prologue planes. */
+    SOTN_RESOURCE_SEL_CODE,            /**< US menu/title overlay bytes; never host-executed. */
+    SOTN_RESOURCE_SEL_GRAPHICS,        /**< US ST/SEL/F_SEL.BIN menu texture planes. */
+    SOTN_RESOURCE_SEL_AUDIO_HEADER,    /**< US resident menu/title instrument metadata. */
+    SOTN_RESOURCE_SEL_AUDIO_BODY,      /**< US resident menu/title samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

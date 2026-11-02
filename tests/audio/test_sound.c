@@ -759,15 +759,102 @@ static bool FramePhases(Fixture *f)
     SDL_free(image);
     return true;
 }
+static bool ResidentBanks(Fixture *fixture)
+{
+    (void)MakeFixture(fixture);
+    Uint8 *image = SDL_calloc(1, 0x119870), *before = SDL_malloc(0x119870);
+    CHECK(image && before);
+    SDL_memcpy(image, fixture->dra, sizeof(fixture->dra));
+    const Uint32 headers[4] = {0x1107c, 0x1407c, 0x1807c, 0x1607c},
+                 bodies[4] = {0x9b6a0, 0xdd350, 0x109c80, 0xeb4e0};
+    const Uint32 addresses[4] = {0x1000, 0x43000, 0x52000, 0x62000};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        SDL_memcpy(image + headers[i], fixture->header, sizeof(fixture->header));
+        SDL_memcpy(image + bodies[i], fixture->body, sizeof(fixture->body));
+        image[bodies[i] + 2] = (Uint8)(i + 1);
+        Put32(image, 0x1d1c8 + i * 4U, addresses[i]);
+    }
+    SDL_memcpy(before, image, 0x119870);
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_CreateResident((SotnDataView){image, 0x119870}, &sound) && sound &&
+          !SDL_memcmp(image, before, 0x119870));
+    for (Uint16 i = 0; i < 4; ++i)
+        CHECK(sound->banks[i].loaded && sound->banks[i].header.bytes == image + headers[i] &&
+              sound->banks[i].sample_count == 1 && sound->banks[i].samples[1] == addresses[i] &&
+              sound->ram[addresses[i] + 2] == i + 1);
+    SotnSound_Destroy(sound);
+    sound = NULL;
+    // Bank3 is the fourth real upload, despite its earlier header location.
+    Put32(image, headers[3], 0);
+    CHECK(!SotnSound_CreateResident((SotnDataView){image, 0x119870}, &sound) && !sound);
+    Put32(image, headers[3], 0x56414270);
+    CHECK(!SotnSound_CreateResident((SotnDataView){image, 0x11986f}, &sound) && !sound &&
+          !SotnSound_CreateResident((SotnDataView){image, 0x119870}, NULL));
+    SDL_free(before);
+    SDL_free(image);
+    return true;
+}
+
+static bool StagePreparation(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    SotnSound *source = NULL, *next = NULL, *before = SDL_malloc(sizeof(*before)),
+              *masked = SDL_malloc(sizeof(*masked));
+    CHECK(before && masked && SotnSound_Create(sources, &source));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    CHECK(SotnSound_Queue(source, 0x601) && SotnSound_Tick(source, pcm, SDL_arraysize(pcm)) &&
+          SotnSound_Queue(source, 0xe));
+    // Retained DSP and reverb work must survive preparation without one sample or command tick.
+    source->reverb.configured = true;
+    source->reverb.base = 0x70000;
+    source->reverb.cursor = 0x70102;
+    source->reverb.previous[0] = 1234;
+    source->ram[0x70102] = 71;
+    SDL_memcpy(before, source, sizeof(*before));
+    Uint8 player[32], stage[32], invalid[3104] = {0};
+    SDL_memset(player, 0x25, sizeof(player));
+    SDL_memset(stage, 0x37, sizeof(stage));
+    CHECK(!SotnSound_PrepareStageBanks(
+              source, sources.player_header, (SotnDataView){player, sizeof(player)},
+              (SotnDataView){invalid, sizeof(invalid)}, sources.stage_body, &next) &&
+          !next && !SDL_memcmp(before, source, sizeof(*before)));
+    CHECK(SotnSound_PrepareStageBanks(source, sources.player_header,
+                                      (SotnDataView){player, sizeof(player)}, sources.stage_header,
+                                      (SotnDataView){stage, sizeof(stage)}, &next) &&
+          next && next != source && !SDL_memcmp(before, source, sizeof(*before)) &&
+          !SDL_memcmp(next->ram + 0x2000, player, sizeof(player)) &&
+          !SDL_memcmp(next->ram + 0x3000, stage, sizeof(stage)) &&
+          next->banks[1].header.bytes == sources.player_header.bytes &&
+          next->banks[3].header.bytes == sources.stage_header.bytes);
+    SDL_memcpy(masked, next, sizeof(*masked));
+    SDL_memcpy(masked->ram + 0x2000, before->ram + 0x2000, sizeof(player));
+    SDL_memcpy(masked->ram + 0x3000, before->ram + 0x3000, sizeof(stage));
+    SDL_memcpy(&masked->banks[1], &before->banks[1], sizeof(masked->banks[1]));
+    SDL_memcpy(&masked->banks[3], &before->banks[3], sizeof(masked->banks[3]));
+    CHECK(!SDL_memcmp(masked, before, sizeof(*before)));
+    SDL_free(masked);
+    masked = NULL;
+    CHECK(!SotnSound_PrepareStageBanks(NULL, sources.player_header, sources.player_body,
+                                       sources.stage_header, sources.stage_body, &masked) &&
+          !masked);
+    // The invalid call clears only its out parameter, never the prepared candidate.
+    SotnSound_Destroy(next);
+    SotnSound_Destroy(source);
+    SDL_free(before);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && EffectRing(f) && DirectSharing(f) &&
-                        ScriptVoiceRange(f) && Ambience(f) && VolumePan(f) && MovingAmbience(f) &&
-                        Failures(f) && ScriptPauseState() && ScriptPauseQueue(f) &&
-                        FamiliarBank(f) && ReverbProcessor() && ReverbOwner(f) && FramePhases(f);
+    const bool passed = ResidentBanks(f) && StagePreparation(f) && Decode() && Simulation(f) &&
+                        EffectRing(f) && DirectSharing(f) && ScriptVoiceRange(f) && Ambience(f) &&
+                        VolumePan(f) && MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
+                        ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
+                        ReverbOwner(f) && FramePhases(f);
     SDL_free(f);
     if (!passed)
         return 1;

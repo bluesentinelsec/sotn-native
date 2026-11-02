@@ -3859,6 +3859,15 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
     return true;
 }
 
+bool SotnPlayer_SeedInput(SotnPlayer *p, Uint16 buttons)
+{
+    if (!p || (buttons & (Uint16)~0xf9feU))
+        return SDL_SetError("Player input handoff requires actual supported physical button words");
+    p->buttons = p->previous_buttons = p->held = buttons;
+    p->tapped = 0;
+    return true;
+}
+
 bool SotnPlayer_ClearShield(SotnPlayer *p)
 {
     if (!p || p->shield_cursor.phase > 3)

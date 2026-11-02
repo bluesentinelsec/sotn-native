@@ -75,6 +75,9 @@ SOTN_FORMAT_SOURCES += modules/core/collision.c \
   tests/core/test_stage.c
 SOTN_FORMAT_SOURCES += modules/game/laboratory.c modules/game/input.c modules/game/input.h \
   modules/game/include/sotn/laboratory.h
+SOTN_FORMAT_SOURCES += modules/core/title_screen.c modules/core/include/sotn/title_screen.h \
+  tests/core/test_title_screen.c modules/game/startup.c modules/game/startup_internal.h \
+  modules/game/include/sotn/startup.h
 
 SOTN_FORMAT_SOURCES += modules/data/stream.c modules/data/include/sotn/stream.h \
   modules/audio/music.c modules/audio/include/sotn/music.h tests/audio/test_music.c tests/data/test_stream.c

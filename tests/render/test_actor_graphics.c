@@ -1558,21 +1558,67 @@ static bool TestFamiliar(Fixture *f)
     SDL_free(expected);
     return true;
 }
+static bool TestTitleTextures(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0xca00), *planes = SDL_malloc(0x80000);
+    Uint16 *pixels = SDL_calloc(512U * 240U, 2), *before = SDL_malloc(512U * 240U * 2U);
+    SotnActorGraphics *g = NULL;
+    CHECK(dra && planes && pixels && before);
+    for (Uint16 i = 0; i < 32; ++i)
+        Put16(dra + 0xc958 + i * 2U, (Uint16)(512U + (i / 4U) * 64U + (i & 1U) * 32U));
+    SDL_memset(planes, 0x11, 0x80000);
+    const SotnDataView resident = {dra, 0xca00}, first = {planes, 0x40000},
+                       second = {planes + 0x40000, 0x40000};
+    CHECK(SotnActorGraphics_CreateTitle(resident, first, second, &g));
+    SotnTitleSprite p = {
+        .x = 508, .y = 238, .page = 8, .clut = 0, .width = 8, .height = 8, .u = 255, .v = 255};
+    const SotnActorSurface target = {pixels, 512U * 240U, 512, 240};
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target));
+    Uint32 written = 0;
+    for (Uint32 i = 0; i < 512U * 240U; ++i)
+        written += (Uint32)(pixels[i] != 0);
+    CHECK(written == 8 && pixels[239U * 512U + 511U] == 0x1111 && !pixels[238U * 512U + 507U]);
+    p.draw_mode = 4;
+    p.red[0] = 255;
+    p.green[0] = 128;
+    p.blue[0] = 0;
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target) && pixels[239U * 512U + 511U] == 0x11f);
+    SDL_memcpy(before, pixels, 512U * 240U * 2U);
+    p.clut = 0x100;
+    CHECK(!SotnActorGraphics_TitleSprite(g, &p, target) &&
+          !SDL_memcmp(before, pixels, 512U * 240U * 2U));
+    p.clut = 0;
+    p.draw_mode = 8;
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target) &&
+          !SDL_memcmp(before, pixels, 512U * 240U * 2U));
+    SotnActorGraphics_Destroy(g);
+    g = NULL;
+    Put16(dra + 0xc958, 0);
+    CHECK(!SotnActorGraphics_CreateTitle(resident, first, second, &g) && !g);
+    CHECK(!SotnActorGraphics_CreateTitle(resident, (SotnDataView){planes, 0x3ffff}, second, &g) &&
+          !g);
+    SDL_free(before);
+    SDL_free(pixels);
+    SDL_free(planes);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
     const bool passed =
-        TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-        TestTransformFlags(fixture) && TestSdkScale(fixture) && TestSdkRotationFailure(fixture) &&
-        TestRotation(fixture) && TestColorQuad(fixture) && TestColorDither(fixture) &&
-        TestQuad(fixture) && TestSprites(fixture) && TestFailures(fixture) &&
-        TestDepthsAndOrdering(fixture) && TestWeapons(fixture) && TestDialogue(fixture) &&
-        DefaultBo4Bank(fixture) && PackedSheets(fixture) && TestColorLine(fixture) &&
-        TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) && TestFramebuffer(fixture) &&
-        TestTargets(fixture) && TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) &&
-        TestWolfCapture(fixture) && TestFamiliar(fixture);
+        TestTitleTextures() && TestActorOrder() && StageBankBounds(fixture) &&
+        TestRopeCache(fixture) && TestTransformFlags(fixture) && TestSdkScale(fixture) &&
+        TestSdkRotationFailure(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
+        TestColorDither(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+        TestFailures(fixture) && TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
+        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
+        TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
+        TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
+        ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) && TestFamiliar(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

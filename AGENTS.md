@@ -1,3 +1,19 @@
+Selected [cold title/Continue](docs/cold-start.md) now owns actual resident/SEL/title
+startup before any character,17 real SEL SPRTs, private512x240/4:3 rendering,
+four resident SPU banks/reverb and the explicit native filesystem Continue adapter.
+Preserve original callback/input/engine-clock/fade/lightning/libc order, real row
+retirement, draw holds and actual verified uploads. Native logo omission follows
+the PC branch; it is not MDEC completion. Valid existing v9 saves alone create
+gameplay; empty/corrupt/failed loads never fall back to a checkpoint. Prepare
+candidate banks1/3 from the retained SPU without an audio render, carry engine
+clock/held input, borrow then transfer the real save store once and ignore stale
+departing-window focus. Failure retains published startup/SPU/store/save bytes.
+No grants/savev9 change. Native filesystem labels are not original SEL UI; name
+entry/New Game/Richter prologue/forest/return-to-title and the cold-start gate
+remain open. Supplied save/focus/resource-failure fixtures and component adapters
+are not acquisition/routes/whole-pass/full audio/console evidence. All six Alucard
+gates remain open; ordinary Fairy UI stays disabled.
+
 Selected [Magic Missile25](docs/player-magic-missile.md) now owns actual menu/hand
 use, stock/Duplicator consumption, resident weapon22, shared50/56 roots/17..31
 bow/arrows, private animation/rendering and native physical2 combat. Preserve

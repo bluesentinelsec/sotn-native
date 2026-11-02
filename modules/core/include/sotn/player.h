@@ -966,6 +966,12 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * @return Success or SDL error without mutation. Timer10 and damage-invincibility
  * words retain their own producers; this operation does not advance any timer. */
 bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Carry actual physical input from a startup/menu owner before first player control.
+ * @param player Actual initialized player. @param buttons Current full supported button word.
+ * @return Success or SDL error without mutation. Seeds pressed/previous/held and clears only
+ * the edge word, so a held confirmation cannot become a new jump/attack after loading.
+ * Advances no animation, afterimage, timer, resource or collision owner. */
+bool SotnPlayer_SeedInput(SotnPlayer *player, Uint16 buttons);
 /** @brief Commit original conditional DestroyEntityWeapon(true) for the owned ordinary shield.
  * @param player Borrowed player. @return Success or SDL error without mutation.
  * A live shield is retired without changing input, motion or timers. An absent shield leaves

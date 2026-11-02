@@ -210,10 +210,13 @@ needs a source-backed inventory of its remaining branches and an evidence record
   alone do not close this gate.
 
 The requested [original cold-start flow](cold-start.md) now has its own source-backed
-implementation slices and acceptance gate. It remains open: the development
-Continue/checkpoint shell and inside-castle start do not establish New Game startup.
+implementation slices and acceptance gate. Selected `--cold-start` now creates the
+original title before any gameplay session, then offers an explicit native
+filesystem Continue adapter with actual saved-session ownership and recoverable
+load failures. New Game/name entry/prologue/original SEL menus and return-to-title
+remain unavailable; the original cold-start gate stays open.
 
-Castle actors, routes, original prologue/title initialization, inverted castle and
+Castle actors, routes, remaining original startup/prologue initialization, inverted castle and
 endings retain their separate [project acceptance gates](native-port-plan.md).
 An unavailable route can block acquisition evidence even when a selected ability
 works in a controlled context. Report that limitation explicitly; do not change

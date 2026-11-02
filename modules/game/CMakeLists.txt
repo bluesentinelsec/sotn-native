@@ -1,4 +1,7 @@
 add_library(sotn-game STATIC
+  startup.c
+  startup_internal.h
+  include/sotn/startup.h
   laboratory.c
   input.c
   input.h

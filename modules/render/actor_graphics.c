@@ -1990,3 +1990,72 @@ bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *g, SotnActorS
                                    .original_uv = true};
     return Draw(g, sprite, x, y, surface, &t, true);
 }
+
+bool SotnActorGraphics_CreateTitle(SotnDataView dra, SotnDataView first, SotnDataView second,
+                                   SotnActorGraphics **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    SotnDataView columns = {0}, colors = {0};
+    if (!first.bytes || first.size != 0x40000 || !second.bytes || second.size != 0x40000 ||
+        !Resolve(dra, 0x800a0000U, 0x800ac958U, 64, 2, &columns) ||
+        !Resolve(dra, 0x800a0000U, 0x800a04ccU, 32, 2, &colors))
+        return SDL_SetError("Title graphics require actual bounded title planes and resident data");
+    for (Uint16 i = 0; i < 32; ++i)
+        if (Read16(columns.bytes + i * 2U) != 512U + (i / 4U) * 64U + (i & 1U) * 32U)
+            return SDL_SetError("Title texture columns disagree with original loader geometry");
+    SotnActorGraphics *g = SDL_calloc(1, sizeof(*g));
+    if (!g)
+        return false;
+    g->dra = dra;
+    g->stage_id = 69;
+    // Original LoadStageTileset's two32-transfer planes, followed by SIM_13's palette.
+    RawTiles(g, first, 0);
+    RawTiles(g, second, 256);
+    Upload(g, 896, 384, 16, 1, colors.bytes);
+    *out = g;
+    return true;
+}
+
+bool SotnActorGraphics_TitleSprite(const SotnActorGraphics *g, const SotnTitleSprite *p,
+                                   SotnActorSurface surface)
+{
+    if (!g || g->stage_id != 69 || !p || !surface.pixels || surface.width != 512 ||
+        surface.height != 240 || surface.count < (size_t)512 * 240 || p->clut >= 768 ||
+        p->priority > 511 || (p->draw_mode & ~0x1dU) || ((p->page >> 7) & 3U) == 3)
+        return SDL_SetError("Title SPRT requires its actual texture owner and512x240 display");
+    if ((p->draw_mode & 8U) || !p->width || !p->height)
+        return true;
+    const Sint32 left = SDL_max(0, p->x), top = SDL_max(0, p->y),
+                 right = SDL_min(512, (Sint32)p->x + p->width),
+                 bottom = SDL_min(240, (Sint32)p->y + p->height);
+    // Validate every visible texture/palette read before writing any display pixel.
+    for (Uint16 pass = 0; pass < 2; ++pass)
+        for (Sint32 y = top; y < bottom; ++y)
+            for (Sint32 x = left; x < right; ++x)
+            {
+                Uint16 color = 0;
+                if (!Texel(g, p->page, p->clut, (Uint8)(p->u + x - p->x), (Uint8)(p->v + y - p->y),
+                           &color))
+                    return false;
+                if (!pass || !color)
+                    continue;
+                if (p->draw_mode & 4U)
+                {
+                    Uint16 modulated = color & 0x8000U;
+                    const Uint8 tint[3] = {p->red[0], p->green[0], p->blue[0]};
+                    for (Uint16 channel = 0; channel < 3; ++channel)
+                        modulated |= (Uint16)(SDL_min(31U, ((color >> (channel * 5U)) & 31U) *
+                                                               tint[channel] / 128U)
+                                              << (channel * 5U));
+                    color = modulated;
+                }
+                const size_t index = (size_t)y * 512U + (size_t)x;
+                surface.pixels[index] =
+                    (p->draw_mode & 1U) && (color & 0x8000U)
+                        ? Blend(surface.pixels[index], color, (p->page >> 5) & 3U)
+                        : color;
+            }
+    return true;
+}

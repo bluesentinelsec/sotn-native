@@ -227,6 +227,38 @@
     "SERVANT/SD_SWORD.VB": {
       "size": 64496,
       "sha1": "55c25f2ea42f9626561b168e7d53e71e566c5a6b"
+    },
+    "BIN/F_TITLE0.BIN": {
+      "size": 262144,
+      "sha1": "b786f2c5db5fd3b7840ae7bcc35335d3130c217b"
+    },
+    "BIN/F_TITLE1.BIN": {
+      "size": 262144,
+      "sha1": "8b8d838c7300aa9881394680ad194d9e08614608"
+    },
+    "BIN/F_PROLO0.BIN": {
+      "size": 262144,
+      "sha1": "2f189f975fe66730fd59d6d0752cb5e045f5c963"
+    },
+    "BIN/F_PROLO1.BIN": {
+      "size": 262144,
+      "sha1": "c8490e80a2b9fab586e6c56a5679019be605092f"
+    },
+    "ST/SEL/SEL.BIN": {
+      "size": 355112,
+      "sha1": "a919a53a760107972049bfdeadde33376428eace"
+    },
+    "ST/SEL/F_SEL.BIN": {
+      "size": 196608,
+      "sha1": "6c591512a01bb97a7f16ca5de920993a72121e98"
+    },
+    "ST/SEL/SD_ZKSEL.VH": {
+      "size": 6688,
+      "sha1": "eb397615f670eba7c4af1240b088867092cb6937"
+    },
+    "ST/SEL/SD_ZKSEL.VB": {
+      "size": 107424,
+      "sha1": "7ee5b1acad671141e1d03e4457e8be22ac21042c"
     }
   },
   "sizes": {

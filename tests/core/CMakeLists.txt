@@ -1,3 +1,8 @@
+add_executable(sotn-title-screen-tests test_title_screen.c)
+sotn_configure_c_target(sotn-title-screen-tests)
+target_link_libraries(sotn-title-screen-tests PRIVATE sotn-core)
+add_test(NAME title-screen-controller COMMAND sotn-title-screen-tests)
+
 add_executable(sotn-magic-missile-tests test_magic_missile.c)
 sotn_configure_c_target(sotn-magic-missile-tests)
 target_include_directories(sotn-magic-missile-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

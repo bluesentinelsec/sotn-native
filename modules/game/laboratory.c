@@ -1,4 +1,5 @@
 #include "input.h"
+#include "startup_internal.h"
 #include <sotn/actor_graphics.h>
 #include <sotn/actor_order.h>
 #include <sotn/actors.h>
@@ -111,6 +112,7 @@ struct SotnLaboratory
     Uint64 simulation_ticks;
     Uint32 system_timer, game_timer;
     SotnSaveStore *saves;
+    bool borrowed_saves;
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room, room_music_stopped;
@@ -151,6 +153,9 @@ typedef struct SessionStart
     const SotnStatBuffs *stat_buffs;
     const SotnLaboratory *familiars; /**< Actual connected-stage source, borrowed until commit. */
     const SotnSaveState *saved;
+    const SotnSound *startup_sound;
+    SotnSaveStore *startup_store;
+    Uint16 startup_buttons;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
 } SessionStart;
@@ -203,7 +208,7 @@ static bool StageOverlay(SotnLaboratory *session, const SotnGameData *data, cons
     return true;
 }
 
-static bool OpenAudio(SotnLaboratory *session, const char *directory)
+static bool OpenAudio(SotnLaboratory *session, const char *directory, const SotnSound *startup)
 {
     static const struct
     {
@@ -242,8 +247,14 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[2]),
                                       SotnResource_View(session->sound_resources[3]),
                                       SotnResource_View(session->sound_resources[4])};
-    if (!SotnSound_Create(sources, &session->sound) ||
-        !SotnSound_ConfigureReverb(session->sound, session->executable))
+    if (startup)
+    {
+        if (!SotnSound_PrepareStageBanks(startup, sources.player_header, sources.player_body,
+                                         sources.stage_header, sources.stage_body, &session->sound))
+            return false;
+    }
+    else if (!SotnSound_Create(sources, &session->sound) ||
+             !SotnSound_ConfigureReverb(session->sound, session->executable))
         return false;
     if ((session->stage_id == 2 || session->stage_id == 6) &&
         (!SotnResource_Open(directory,
@@ -2291,11 +2302,12 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
                         session->stage_id, session->room_index);
 }
 
-static bool PrimeAudio(SotnLaboratory *session)
+static bool PrimeAudio(SotnLaboratory *session, bool render)
 {
     SotnActorCombat combat = {0};
     return SotnActors_GetCombat(session->actors, &combat) &&
-           TickAudio(session, &combat, 0, 0, 0, 0);
+           (render ? TickAudio(session, &combat, 0, 0, 0, 0)
+                   : QueueAudio(session, &combat, 0, 0, 0, 0));
 }
 
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
@@ -2401,6 +2413,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
+    session->saves = start.startup_store;
+    session->borrowed_saves = start.startup_store != NULL;
     session->system_timer = start.system_timer;
     session->game_timer = start.game_timer;
     if (start.spirit_target_cursor >= SOTN_SPELL_TARGETS)
@@ -2496,14 +2510,24 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !RestoreStatBuffs(session, start.stat_buffs) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
-        !OpenAudio(session, directory) || !EnterSaveRoom(session) ||
-        !InitializeFamiliar(session, start.familiars) || !PrimeAudio(session))
+        !OpenAudio(session, directory, start.startup_sound) || !EnterSaveRoom(session) ||
+        !InitializeFamiliar(session, start.familiars) ||
+        !PrimeAudio(session, start.startup_sound == NULL))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
         SotnLaboratory_Destroy(session);
         return SDL_SetError("Cannot initialize native stage %u room %u: %s", stage_id, start_room,
                             detail);
+    }
+    if (start.startup_sound)
+    {
+        if (!SotnPlayer_SeedInput(session->player, start.startup_buttons))
+        {
+            SotnLaboratory_Destroy(session);
+            return false;
+        }
+        session->scene_buttons = start.startup_buttons;
     }
     session->last_time = SDL_GetTicksNS();
     session->dirty = true;
@@ -5168,6 +5192,9 @@ bool SotnLaboratory_Event(SotnLaboratory *session, const SDL_Event *event)
         return SDL_SetError("Laboratory event arguments are invalid");
     if (!LaboratoryInput_Event(&session->input, event))
         return false;
+    if (event->type >= SDL_EVENT_WINDOW_FIRST && event->type <= SDL_EVENT_WINDOW_LAST &&
+        event->window.windowID != SotnPresenter_WindowID(session->presenter))
+        return true;
     switch (event->type)
     {
     case SDL_EVENT_WINDOW_FOCUS_LOST:
@@ -5226,7 +5253,8 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
         SotnGameOver_Destroy(session->game_over);
         SotnResource_Close(session->game_over_art);
         SotnInventoryRenderer_Destroy(session->inventory_renderer);
-        SotnSaveStore_Destroy(session->saves);
+        if (!session->borrowed_saves)
+            SotnSaveStore_Destroy(session->saves);
         SotnSavePointRenderer_Destroy(session->save_renderer);
         SotnHud_Destroy(session->hud);
         SotnMusic_Destroy(session->speech);
@@ -5316,6 +5344,35 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
     session->saves = store;
     SDL_Log("Loaded native slot %u in stage %u room %u", slot, state.stage, state.room);
     *out = session;
+    return true;
+}
+
+bool Laboratory_ContinueStartup(const SotnGameData *data, const char *directory,
+                                SotnSaveStore *store, Uint32 slot, Uint32 engine_clock,
+                                Uint16 buttons, const SotnSound *sound, SotnLaboratory **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!store || !sound)
+        return SDL_SetError("Cold Continue requires actual save and resident sound owners");
+    SotnSaveState saved = {0};
+    if (!SotnSaveStore_Read(store, slot, &saved))
+        return false;
+    SotnLaboratory *candidate = NULL;
+    if (!CreateSession(data, directory,
+                       (SessionStart){.stage = saved.stage,
+                                      .room = saved.room,
+                                      .slot = slot,
+                                      .saved = &saved,
+                                      .system_timer = engine_clock,
+                                      .startup_buttons = buttons,
+                                      .startup_sound = sound,
+                                      .startup_store = store},
+                       &candidate))
+        return false;
+    candidate->borrowed_saves = false;
+    *out = candidate;
     return true;
 }
 

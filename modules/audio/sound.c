@@ -548,6 +548,57 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
     return true;
 }
 
+bool SotnSound_CreateResident(SotnDataView dra, SotnSound **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    // Original resident LoadVabData order and private DRA segment boundaries.
+    // Bank2/3 header order differs from their placement in the file.
+    static const Uint32 headers[4] = {0x1107c, 0x1407c, 0x1807c, 0x1607c};
+    static const Uint32 header_sizes[4] = {0x3000, 0x2000, 0x2000, 0x2000};
+    static const Uint32 bodies[4] = {0x9b6a0, 0xdd350, 0x109c80, 0xeb4e0};
+    static const Uint32 body_sizes[4] = {0x41cb0, 0xe190, 0xfbf0, 0x1a610};
+    SotnSound *sound = SDL_calloc(1, sizeof(*sound));
+    if (!sound)
+        return false;
+    sound->dra = dra;
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        SotnDataView header = {0}, body = {0};
+        if (!View(dra, headers[i], header_sizes[i], &header) ||
+            !View(dra, bodies[i], body_sizes[i], &body) || !Bank(sound, i, header, body))
+        {
+            SotnSound_Destroy(sound);
+            return false;
+        }
+    }
+    *out = sound;
+    return true;
+}
+
+bool SotnSound_PrepareStageBanks(const SotnSound *source, SotnDataView player_header,
+                                 SotnDataView player_body, SotnDataView stage_header,
+                                 SotnDataView stage_body, SotnSound **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!source || !source->banks[0].loaded)
+        return SDL_SetError("Stage audio requires the actual resident SPU owner");
+    SotnSound *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return false;
+    SDL_memcpy(next, source, sizeof(*next));
+    if (!Bank(next, 1, player_header, player_body) || !Bank(next, 3, stage_header, stage_body))
+    {
+        SotnSound_Destroy(next);
+        return false;
+    }
+    *out = next;
+    return true;
+}
+
 bool SotnSound_Queue(SotnSound *sound, Uint16 id)
 {
     if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1 && id != 0xe && id != 0xf))

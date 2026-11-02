@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  title_screen.c
+  include/sotn/title_screen.h
   magic_missile.c
   include/sotn/magic_missile.h
   pentagram.c
