@@ -2,7 +2,7 @@
 
 The native lifecycle now owns verified US Fairy loading, cached reselection,
 deselection and atomic four-slot retirement through an owned load-boundary API.
-Ordinary relic-menu activation remains disabled until room/stage/session lifecycle,
+Ordinary relic-menu activation remains disabled until remaining stage/session lifecycle,
 saved progression, general audio/cutscene handling, whole-pass transactions and
 integrated acceptance are complete. Existing grants, pools and v9 saves are unchanged.
 
@@ -28,6 +28,25 @@ renderer, SPU and CD owner. Deselecting clears only real familiar entities/rows,
 retaining loaded artwork/audio, overlay history and queued/playing audio. It does
 not heal, grant a card, tick a clock or release FFF. Player initialization and normal
 callbacks now share the same full actual player/status/contact/velocity snapshot.
+
+Ordinary connected-room entry now binds actual retirement and displacement. It validates
+the complete familiar namespace before changing player/stage ownership, then retires
+non20000 familiar entities and their real rows before the destination stage pass.
+Retained root/wings use the actual old-minus-new player screen position, including
+fractions. Destination initialization applies only subsequent camera movement, avoiding
+a duplicate camera shift. No familiar callback, initializer, load count, event timer,
+history or RNG advances during entry. Original Engine_3 does not call ServantInit;
+engine mode2 belongs to its separate special-return context.
+
+Both native builds exercise actual adjacent Laboratory rooms with an owned-initialized
+Fairy and real Potion producer:33 temporary rows retire, initialized medicine survives
+and completes deferred HP5-to55, and retained Fairy rendering contributes29 pixels.
+A second crossing through full Step invokes each4..7 callback once, advances one
+player/game frame, and preserves familiar progression. Orphan rejection precedes player/
+stage mutation; real menu and draw checks retain their holds. The prior-head native
+regression fails this early rejection check. Supplied card/item/health/protection and
+edge/camera/fraction fixtures are separate from ordinary acquisition or uninterrupted
+route evidence; destination actors and whole-pass rollback retain their existing limits.
 
 `SotnFairyRuntime_Clear` validates the actual4..7 identities/generations and all
 three possible5..7 DD/DF leases before clearing any entity or row. Complete

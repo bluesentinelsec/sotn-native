@@ -1,3 +1,13 @@
+Selected [connected-room familiar ownership](docs/familiar-lifecycle.md) now binds
+actual flag20000 retention, temporary-row retirement and old/new player screen
+displacement before the destination stage pass. Preserve fractions, root/wings
+generations/cursors, history/events/audio/progress, no extra callback or load count,
+and no duplicate destination camera shift. Ordinary Engine_3 does not call
+ServantInit; mode2 belongs to its separate special return. Initialized medicines
+retain their original handoff while cold children retire. Supplied edge/camera/card/
+item/health/protection fixtures are not uninterrupted-route/acquisition/console
+evidence. Remaining stage/session/persistence/general audio and whole-pass gates stay open.
+
 The [selected familiar load owner](docs/familiar-lifecycle.md) now binds owned
 0/3 through the native menu/load-boundary API: all four verified resources,
 detached resident graphics/SPU candidates, root4/wings5 and empty-CD preparation

@@ -51,7 +51,7 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [native Fairy/FFF dispatch](fairy-native-dispatch.md) and
   [owned load-boundary API](familiar-lifecycle.md) now provide real resource/root,
   item, cleanup, restoration and release/recovery producers for17. Ordinary card
-  menu activation, room/stage/session lifecycle, persistence and whole-pass gates
+  menu activation, remaining stage/session lifecycle, persistence and whole-pass gates
   still prevent ordinary17 availability. Sword Brothers39 and the common/cross-owner
   gates remain open; Life Apple rescue17 was previously labeled global-fade.
   Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate
@@ -118,8 +118,11 @@ needs a source-backed inventory of its remaining branches and an evidence record
   resource initialization, root/wings, cached reselection, actual item/rescue producers
   and deselection through a native load-boundary API. Detached graphics/SPU/CD
   preparation preserves live owners on failure. Complete namespace validation also
-  fixes late-sibling partial retirement in room translation.
-  **Ordinary relic-menu activation remains disabled.** Room/stage/session lifecycle,
+  fixes late-sibling partial retirement in room translation. Actual connected-room entry
+  now retains initialized root/wings and history/progress by the original player screen
+  displacement, retires temporary rows before destination callbacks and avoids a second
+  familiar update, initializer or camera shift.
+  **Ordinary relic-menu activation remains disabled.** Remaining stage/session lifecycle,
   saved familiar records, general audio/cutscene ownership, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character
   records already receive actual raw enemy rewards and menu load counts; the existing

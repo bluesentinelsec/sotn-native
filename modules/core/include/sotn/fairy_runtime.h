@@ -96,7 +96,8 @@ bool SotnFairyRuntime_Validate(const SotnFairyRuntime *runtime, const SotnActors
  * Packet player shifts subtract the floored original displacement, preserving fractions.
  * @return Success or SDL error before mutation on invalid slots/cursors/stale real leases.
  * No callbacks, clocks, events, RNG or audio advance. Uninitialized ownership is a no-op.
- * Room lifecycle still must bind destination resources and initialize the actual root/wings. */
+ * Ordinary connected rooms retain initialized root/wings without ServantInit;
+ * full engine initialization and other overlay/resource lifecycles remain caller-owned. */
 bool SotnFairyRuntime_Translate(SotnFairyRuntime *runtime, SotnActors *actors, Sint16 camera_x,
                                 Sint16 camera_y, Sint32 player_x, Sint32 player_y, bool room);
 #endif

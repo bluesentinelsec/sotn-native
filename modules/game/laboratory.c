@@ -1519,6 +1519,10 @@ static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
 
 static bool UpdateActors(SotnLaboratory *session, bool entering)
 {
+    // Connected-room translation already used the actual old/new player screen positions.
+    // Only subsequent camera movement belongs to this destination initialization pass.
+    const Sint32 fairy_camera_x = entering ? session->camera.x : session->blink_camera_x;
+    const Sint32 fairy_camera_y = entering ? session->camera.y : session->blink_camera_y;
     SotnPlayerState player = {0};
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
@@ -1528,7 +1532,6 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     Sint32 camera_x = 0, camera_y = 0;
     Camera(session, player, &camera_x, &camera_y);
     const Uint16 fairy_scene = session->fairy_scene;
-    const Sint32 fairy_camera_x = session->blink_camera_x, fairy_camera_y = session->blink_camera_y;
     if ((!entering &&
          !TickFairy(session, session->spell_freeze.request, fairy_camera_x, fairy_camera_y)) ||
         !TickMist(session, player, entering) || !TickBlinks(session, player, entering) ||
@@ -1846,6 +1849,9 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         }
         const Sint32 offset_x = ((Sint32)session->room.left - room.left) * 256;
         const Sint32 offset_y = ((Sint32)session->room.top - room.top) * 256 + crossing.arrival_y;
+        const SotnFairyPlayer departing = FairyPlayer(*state, session->camera.x, session->camera.y);
+        if (!SotnFairyRuntime_Validate(&session->fairy_runtime, session->actors))
+            return false;
         if (!SotnPlayer_ChangeRoom(session->player, room.foreground.collision, offset_x, offset_y))
             return false;
         if (!SotnSubweapons_Enter(session->subweapons, room.foreground.collision))
@@ -1856,8 +1862,19 @@ static bool Transition(SotnLaboratory *session, const SotnPlayerState *state)
         session->blink_rebase_y += offset_y;
         session->room = room;
         session->room_index = i;
-        if (!RetireSharedRoom(session) || !EnterActors(session) || !EnterSaveRoom(session) ||
-            !SotnPlayer_ClearRoomContact(session->player))
+        SotnPlayerState arrived = {0};
+        if (!RetireSharedRoom(session) || !EnterActors(session) ||
+            !SotnPlayer_GetState(session->player, &arrived))
+            return false;
+        const SotnFairyPlayer destination =
+            FairyPlayer(arrived, session->camera.x, session->camera.y);
+        // Original Engine_3 retains flag20000 entities and flag100 packets by the actual
+        // player displacement. It does not call ServantInit or advance familiar callbacks.
+        if (!SotnFairyRuntime_Translate(&session->fairy_runtime, session->actors, 0, 0,
+                                        FairyFixed((Uint32)departing.x - (Uint32)destination.x),
+                                        FairyFixed((Uint32)departing.y - (Uint32)destination.y),
+                                        true) ||
+            !EnterSaveRoom(session) || !SotnPlayer_ClearRoomContact(session->player))
             return false;
         SDL_Log("Native checkpoint: stage %u room %u", session->stage_id, (unsigned int)i);
         return true;
