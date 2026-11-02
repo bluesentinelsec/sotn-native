@@ -54,6 +54,10 @@ struct SotnSound
     } queue[256];
     Uint16 queued, ambience_id;
     Uint8 queue_read, queue_write;
+    Uint16 effect_ids[4], ambience_id20, ambience_volume20, ambience_volume22;
+    Sint16 ambience_pan20, ambience_pan22;
+    Uint8 key_status[24];
+    Uint16 script_voice_cursor; /**< Original KeyOnRange fallback, retained through mute. */
     Uint8 priority[4];
 };
 
@@ -70,6 +74,8 @@ void SoundResumeScripts(SotnSound *sound);
 void SoundReleaseAll(SotnSound *sound);
 /** @brief Actual SDK RR-only write/key-off for the selected hardware mask. */
 void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate);
+/** @brief Original A1: RR14/key-off20/21 and clear current ID, retaining gain/distance. */
+void SoundReleaseAmbience20(SotnSound *sound);
 /** @brief Original InitSoundVars1 metadata after actual StopSeq/CD shutdown.
  * Retains live envelopes, DSP/RAM and copied scripts; clears pending effects/SEQ attachment. */
 void SoundResetStopped(SotnSound *sound);

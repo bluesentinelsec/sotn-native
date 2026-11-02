@@ -147,3 +147,81 @@ remaining positional/movement/ambient producers and NTSC scheduling remain open.
 This batch does not close any of the six [Alucard milestone gates](alucard-status.md).
 Provenance remains the pinned AGPL source noted above; all private inputs and traces
 remain outside public source and packages.
+
+
+## Selected direct-voice allocation and status
+
+The existing24-voice owner now retains the original four direct-effect identities
+and priorities for12..19. Outside SEQ access, allocation checks the same ID,
+then a free identity, then strictly lower priorities across all four groups,
+then equal priorities across groups0..2 only. The equal pass intentionally
+excludes group3. With retained open SEQ access, direct effects use only18/19:
+a free identity wins, otherwise the request requires equal-or-higher priority.
+A decoder-active flag no longer invents a free allocation.
+
+Actual rendering now mirrors the computed envelope into each voice's ENV register
+word. Before effect dispatch, native audio samples these words and reclaims the
+selected direct identities and ended script leases in original order. It retains
+ordinary groups while SEQ access selects group3 and preserves the distinct fourth
+script key-off12..15 versus playback14..17 ranges. Rendering itself does not retire
+allocation metadata. Script playback uses that held status snapshot, checks only
+each pair's first/even voice and keeps one shared KeyOnRange fallback cursor. A
+busy range can use a cursor retained from another range. Free selection advances
+or wraps the cursor; fallback retains it. Both cursor and status cache survive
+all-voice release and full mute, without another sample. The selected SDK software
+key mask starts at zero and is only
+cleared by this owner; SDK note-on flushes write hardware registers directly.
+Consequently a nonzero actual ENV word reports selected status2, and zero reports0.
+Other SDK software key-on producers and full SDK/NTSC flush timing remain unowned.
+
+Channels20/21 and22/23 now retain their own current IDs, gain and signed distance.
+Release mode2 applies real22/23 RR8 writes and clears that identity. Bound and
+standalone A1 share actual20/21 RR14/key-off and identity clear, retaining gain/pan. All-voice
+InitSoundVars2 clears current identities/priorities while preserving gain/distance,
+copied scripts and pending effects; full MuteSound/InitSoundVars1 also clears the
+gain/distance words. No second voice pool or new effect availability is introduced.
+
+Authored tests cover repeated identities, strict-before-equal selection, the
+ordinary group3 equal-pass exclusion, open-SEQ restriction, real ENV-word sampling
+before allocation, ambience metadata and release-versus-mute resets. Existing
+lease fixtures now supply the actual status words rather than decoder flags.
+
+Private Debug/ASan traces are identical across all736 private definitions and
+8,832 seeded contexts:17,664 allocation calls,17,664 status-reclamation calls,
+8,832 A1 releases,8,832 all-voice releases,4,416 full resets and14,112 pair requests match original
+instructions. Complete original allocation/KeyOn12_19/script constructors,
+reclamation and reset functions run; actual SDK key-status and RR functions execute
+against supplied ENV words and MMIO. Tone-pair playback and gain-only SDK callees
+are explicit adapters. Seeded identities/cursors/status/register vectors remain
+component evidence, separate from native playback or console fidelity. A separate
+512-case Debug/ASan comparison executes the complete virtual30..33 dispatcher and
+KeyOnRange: all range-status patterns, all eight retained global cursors, even-only
+free selection, wrap, cross-range fallback and immutable status cache match.
+Its two SDK tone-on calls are explicit adapters; traces are identical.
+
+Actual Debug/ASan native checks separately pass1,806 reclamations,24 allocations
+and one bound A1 release, including18 direct and six script/release calls, with
+byte-identical traces.
+Original whole calls match those real native states and rendered ENV snapshots.
+Reclamation and script/release compare145 state fields; direct births compare97
+metadata fields before native tone/DSP changes. The pair/gain adapters do not stand
+in for completed audio rendering.
+
+The native session also queues12 real stereo-effect requests from six verified
+loaded pairs, exercises closed and actual private Library-SEQ pressure, preserves
+the other three identities during open access and closes through queued7. A
+separate real20/21 pair verifies bound A1 clears its ID, preserves gain64/pan-3
+and applies RR14.
+Its1,075 measured final-mix frames retain five master fades, two measured SEQ closes,
+menu8, ordinary five-MP Summon Spirit with33 frozen updates plus release, and
+25 repeated-draw holds. Source/allocation matches and actual native PCM/mixer checks
+retain their different scopes. Arrival/card/load/protection/audio/tone fixtures
+do not establish ordinary effect acquisition/producers, traversal, full SDK flush
+timing or console parity.
+
+All220 tests pass in Debug, Release and macOS ASan/UBSan alongside Python, policy,
+formatting, static linkage and Release ZIP CRC/private-input checks. All eight final
+Debug/ASan CD, rescue, game-over and actual medicine-app regressions pass with normal
+exits and no sanitizer errors. Exact-head platform results accompany the PR.
+Full SDK voice pressure/key timing, remaining global sound controls, CD wet sends,
+cross-session CD/SEQ/SPU continuity and all six Alucard milestone gates remain open.

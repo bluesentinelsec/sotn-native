@@ -173,6 +173,119 @@ static bool EffectRing(Fixture *f)
     return true;
 }
 
+static bool DirectSharing(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    // Authored direct events with distinct original IDs and priorities.
+    const Uint16 ids[] = {0x601, 0x603, 0x604, 0x605, 0x606, 0x607, 0x608, 0x609};
+    for (Uint32 i = 1; i < SDL_arraysize(ids); ++i)
+        SDL_memcpy(f->dra + 0x1f554 + (ids[i] - 0x600U) * 7U, f->dra + 0x1f55b, 7);
+    const Uint8 priorities[] = {5, 1, 5, 5, 5};
+    for (Uint32 i = 0; i < SDL_arraysize(priorities); ++i)
+        f->dra[0x1f554 + (ids[i] - 0x600U) * 7U + 6] = priorities[i];
+    SotnSound *sound = NULL;
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnSound_Queue(sound, ids[i]));
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(sound->effect_ids[i] == ids[i] && sound->registers[12 + i * 2].volumex &&
+              sound->registers[12 + i * 2].volumex == sound->voices[12 + i * 2].env_vol);
+    CHECK(SotnSound_Queue(sound, 0x606) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x606 &&
+          sound->effect_ids[2] == 0x604 && sound->effect_ids[3] == 0x605);
+    CHECK(SotnSound_Queue(sound, 0x604) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x606 &&
+          sound->effect_ids[2] == 0x604);
+    SotnSound_Destroy(sound);
+    for (Uint32 i = 0; i < 4; ++i)
+        f->dra[0x1f554 + (ids[i] - 0x600U) * 7U + 6] = i == 3 ? 5 : 10;
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnSound_Queue(sound, ids[i]));
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && SotnSound_Queue(sound, 0x606) &&
+          SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->effect_ids[3] == 0x605);
+    // Open-access fixture: same-ID lookup in groups0..2 does not bypass group3 priority.
+    sound->sequence_open = true;
+    CHECK(SotnSound_Queue(sound, 0x603) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x603 &&
+          sound->effect_ids[2] == 0x604 && sound->effect_ids[3] == 0x603);
+    sound->voices[18].active = sound->voices[19].active = 0;
+    CHECK(sound->registers[18].volumex && SotnSound_Queue(sound, 0x606) &&
+          SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->effect_ids[3] == 0x603);
+    // Conversely, zero actual envelope words free the lease before this effect pass,
+    // even when the supplied decoder-active flag is still set.
+    sound->registers[18].volumex = sound->registers[19].volumex = 0;
+    sound->voices[18].active = 1;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_Queue(sound, 0x606) && SotnSound_UpdateCommands(sound, &frame) &&
+          sound->effect_ids[3] == 0x606 && sound->effect_ids[0] == 0x601);
+    f->dra[0x1f554 + 7U * 7U + 4] = 3;
+    f->dra[0x1f554 + 8U * 7U + 4] = 1;
+    f->dra[0x1f554 + 9U * 7U + 4] = 2;
+    CHECK(SotnSound_QueueVolumePan(sound, 0x607, 64, -3) && SotnSound_Queue(sound, 0x608) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->ambience_id20 == 0x607 &&
+          sound->ambience_volume20 == 64 && sound->ambience_pan20 == -3 &&
+          sound->ambience_id == 0x608 && sound->ambience_volume22 == 127 && !sound->ambience_pan22);
+    sound->registers[22].adsr[1] |= 63;
+    CHECK(SotnSound_Queue(sound, 0x609) && SotnSound_UpdateCommands(sound, &frame) &&
+          !sound->ambience_id && (sound->registers[22].adsr[1] & 63U) == 8 &&
+          (sound->registers[23].adsr[1] & 63U) == 8);
+    CHECK(SotnSound_Queue(sound, 0xa1) && SotnSound_UpdateCommands(sound, &frame) &&
+          !sound->ambience_id20 && (sound->registers[20].adsr[1] & 63U) == 14 &&
+          sound->ambience_volume20 == 64 && sound->ambience_pan20 == -3);
+    SoundReleaseAll(sound);
+    CHECK(!sound->ambience_id20 && !sound->effect_ids[0] && !sound->effect_ids[1] &&
+          !sound->effect_ids[2] && !sound->effect_ids[3] && sound->ambience_volume20 == 64 &&
+          sound->ambience_pan20 == -3 && sound->ambience_volume22 == 127);
+    SoundResetStopped(sound);
+    CHECK(!sound->ambience_volume20 && !sound->ambience_pan20 && !sound->ambience_volume22 &&
+          !sound->ambience_pan22);
+    SotnSound_Destroy(sound);
+    return true;
+}
+
+static bool ScriptVoiceRange(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_Create(sources, &sound));
+    sound->scripts[0] = (SoundScript){.id = 0x602, .address = 0x800a1000, .volume = 127};
+    sound->scripts[1] = (SoundScript){.id = 0x603, .address = 0x800a1000, .volume = 127};
+    sound->registers[0].volumex = sound->registers[3].volumex = 123;
+    sound->registers[4].volumex = sound->registers[6].volumex = 123;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[2].active &&
+          sound->voices[0].active && !sound->voices[4].active && sound->key_status[0] == 2 &&
+          !sound->key_status[2] && sound->key_status[3] == 2 && !sound->registers[0].volumex &&
+          !sound->script_voice_cursor);
+    // Group0 chose its second pair, wrapping the shared cursor to0. Busy group1
+    // then used that same global cursor outside its own range.
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    sound->scripts[2] = (SoundScript){.id = 0x604, .address = 0x800a1000, .volume = 127};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[8].active &&
+          sound->script_voice_cursor == 10);
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    sound->scripts[0] = (SoundScript){.id = 0x605, .address = 0x800a1000, .volume = 127};
+    sound->registers[0].volumex = sound->registers[2].volumex = 123;
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[10].active &&
+          sound->script_voice_cursor == 10);
+    SoundReleaseAll(sound);
+    SoundResetStopped(sound);
+    CHECK(sound->script_voice_cursor == 10 && sound->key_status[0] == 2);
+    // The fourth range also retains that cursor when both of its own pairs are busy.
+    sound->sequence_open = true;
+    sound->scripts[3] = (SoundScript){.id = 0x606, .address = 0x800a1000, .volume = 127};
+    sound->registers[14].volumex = sound->registers[16].volumex = 123;
+    sound->registers[10].pitch = 777;
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && frame.first_script == 3 &&
+          sound->registers[10].pitch != 777 && sound->script_voice_cursor == 10 &&
+          sound->key_status[14] == 2 && sound->key_status[16] == 2);
+    SotnSound_Destroy(sound);
+    return true;
+}
+
 static bool Ambience(Fixture *f)
 {
     const SotnSoundSources sources = MakeFixture(f);
@@ -405,6 +518,7 @@ static bool ScriptPauseQueue(Fixture *f)
     {
         s->voices[i].env_state = ADSR_OFF;
         s->voices[i].env_vol = 0;
+        s->registers[i].volumex = 0;
     }
     CHECK(SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) && !s->scripts[0].allocation_id);
     SotnSound_Destroy(s);
@@ -414,6 +528,8 @@ static bool ScriptPauseQueue(Fixture *f)
     s->scripts[0] = (SoundScript){.allocation_id = 1, .priority = 2};
     s->scripts[1] = (SoundScript){.allocation_id = 2, .priority = 1};
     s->scripts[2] = (SoundScript){.allocation_id = 3, .priority = 2};
+    // Actual SDK key-status words retain these ended cursor leases before allocation.
+    s->registers[0].volumex = s->registers[4].volumex = s->registers[8].volumex = 1;
     CHECK(SotnSound_Queue(s, 0x602) && SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) &&
           s->scripts[1].id == 0x602 && !s->scripts[0].id && !s->scripts[2].id);
     SotnSound_Destroy(s);
@@ -648,10 +764,10 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && EffectRing(f) && Ambience(f) && VolumePan(f) &&
-                        MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
-                        ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
-                        ReverbOwner(f) && FramePhases(f);
+    const bool passed = Decode() && Simulation(f) && EffectRing(f) && DirectSharing(f) &&
+                        ScriptVoiceRange(f) && Ambience(f) && VolumePan(f) && MovingAmbience(f) &&
+                        Failures(f) && ScriptPauseState() && ScriptPauseQueue(f) &&
+                        FamiliarBank(f) && ReverbProcessor() && ReverbOwner(f) && FramePhases(f);
     SDL_free(f);
     if (!passed)
         return 1;

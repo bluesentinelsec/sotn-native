@@ -456,8 +456,12 @@ static bool BoundControls(SotnSoundSources inputs, SotnDataView image, SotnDataV
         sound->registers[i].adsr[1] |= 32;
         sound->voices[i].adsr_hi = sound->registers[i].adsr[1];
     }
+    sound->ambience_id20 = 0x601; // Authored retained20/21 identity and gain fixture.
+    sound->ambience_volume20 = 66;
+    sound->ambience_pan20 = -2;
     CHECK(SotnCdAudio_Queue(a, 0xa1) && SotnSound_UpdateCommands(sound, &frame) &&
-          Tick(a, &clock, &state));
+          Tick(a, &clock, &state) && !sound->ambience_id20 && sound->ambience_volume20 == 66 &&
+          sound->ambience_pan20 == -2);
     for (Uint16 i = 0; i < 24; ++i)
         CHECK(sound->voices[i].key_off == (i == 20 || i == 21) &&
               (sound->registers[i].adsr[1] & 63U) == ((i == 20 || i == 21) ? 14U : 32U) &&

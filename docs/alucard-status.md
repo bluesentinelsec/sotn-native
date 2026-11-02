@@ -167,7 +167,12 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [effect ring](laboratory-audio.md) now retains original256 read/write slots,
   last-duplicate order/volume/pan and wrap-to-empty behavior without a capacity
   failure. Standalone control/ambience compatibility APIs remain separately scoped.
-  Full voice allocation/key timing, CD sends,
+  Selected direct-effect identities now use original same/free/strict-higher/equal
+  priority and open-SEQ18/19 restrictions; actual ENV words reclaim direct/script
+  leases before effects. Group3 remains excluded from ordinary equal replacement.
+  Script notes retain the actual cached-status/even-voice/global-cursor fallback
+  across ranges and mute. A1 clears20/21 identity while retaining gain/distance.
+  Full SDK voice pressure/key timing, remaining global controls, CD sends,
   original full-engine/room-fade timing, other presets, remaining mixing
   and cross-session audio remain unfinished. Native sessions now initialize the
   common CD owner before familiar loading; no-card deaths use its actual game-over

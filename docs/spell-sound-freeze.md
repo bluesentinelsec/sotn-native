@@ -25,8 +25,9 @@ still playing. It checks a matching allocation, then a free slot, then strictly
 lower priorities before equal priorities. An active stage sequence uses the fourth
 script channel. Original startup for that channel keys off12..15, while virtual
 voice33 plays in14..17; those ranges intentionally remain distinct. Script cursor
-termination releases its allocation only when the selected native envelopes are
-off. Full SDK voice pressure, SEQ transitions, envelope/command timing, reverb and
+termination releases its allocation only when the selected actual envelope words
+are zero at the following pre-effect status sample. Decoder-active/ADSR-state
+flags do not substitute for this SDK status boundary. Full SDK voice pressure, SEQ transitions, envelope/command timing, reverb and
 SPU/audio parity remain incomplete; this does not establish whole-audio fidelity.
 
 Public authored PCM/state tests cover command ordering, non-pausing scripts,
@@ -69,3 +70,11 @@ with its own volume/pan and original256-write wrap. Effects retain physical read
 write cursors across updates; valid overflow no longer stops the native session.
 Standalone controls remain compatibility commands; bound E/F still use their
 separate actual CD ring after script updates. Full global ordering remains open.
+
+
+Script playback now consumes the same held SDK status snapshot as allocation.
+Original KeyOnRange checks only the first/even voice of each pair and retains one
+fallback cursor shared across all four ranges; a busy range can therefore use a
+cursor left by another range. Mute and all-voice release retain that cursor/cache.
+The selected owner now preserves these rules; full SDK flush timing and unrelated
+software key-status producers remain outside its scope.

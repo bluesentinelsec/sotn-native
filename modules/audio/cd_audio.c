@@ -126,7 +126,7 @@ static bool SoundCommands(SotnCdAudio *a)
                 SoundResumeScripts(a->sound);
                 break;
             case 0xa1:
-                SoundReleaseVoices(a->sound, 0x300000, 14);
+                SoundReleaseAmbience20(a->sound);
                 break;
             default:
                 if (!SotnSound_PlaySequence(a->sound, id))

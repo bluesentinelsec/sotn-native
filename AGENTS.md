@@ -1,3 +1,20 @@
+Selected [direct-voice ownership](docs/laboratory-audio.md) now retains actual four
+12..19 effect identities/priorities, same-ID/free/strict-higher/equal arbitration and
+open-SEQ18/19 restriction. Equal replacement intentionally excludes group3 outside
+SEQ. Mirror actual rendered ENV words and reclaim direct/script leases BEFORE
+effects; decoder-active/ADSR-state flags are not SDK key-status substitutes.
+Preserve copied scripts and distinct group3 key-off12..15/playback14..17. Script
+notes use the held pre-effect status cache, first-even free test and one shared
+KeyOnRange fallback cursor, even across ranges; retain cursor/cache through mute.
+Retain20/21 and22/23 IDs/gain/pan, A1 ID-clear/RR14, mode2 RR8 and Init2 versus Init1
+reset boundaries.
+The selected SDK software key mask initializes zero; its note-on flush writes
+hardware directly and this owner only clears the mask. Other SDK key producers,
+full flush/NTSC timing, voice pressure/global controls/session sharing and all six
+milestone gates remain open. Pair/gain adapters, ENV/cursor fixtures and supplied
+native audio/card/protection/arrival/tone pressure are not ordinary acquisition/
+route/console evidence. No new voice/entity pool, grants, savesv9 or Fairy UI.
+
 Selected [common CD bootstrap](docs/familiar-cd-audio.md) now owns actual CD/SPU
 binding before any familiar load, private stage-profile requests, flag20 silence,
 real command4/read acknowledgements and no-card game-over audio. First bank2 load

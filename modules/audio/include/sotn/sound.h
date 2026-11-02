@@ -122,7 +122,8 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out);
  * @param sound Same actual owner. @param frame Corresponding command snapshot, consumed once.
  * @param pcm Output sample buffer. @param count At least SOTN_SOUND_FRAMES*2.
  * @return Success or SDL error before mutation for invalid owner/span/buffer.
- * Advances actual voices/DSP and retires only the captured script lease span. */
+ * Advances actual voices/DSP and mirrors their envelope registers. Allocation retirement
+ * samples those registers before effects on the following command update. */
 bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, size_t count);
 /** @brief Release sound state without freeing borrowed image/header bytes.
  * @param sound Owned sound simulation, or NULL. */

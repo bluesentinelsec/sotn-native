@@ -132,12 +132,19 @@ void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate)
     }
 }
 
+void SoundReleaseAmbience20(SotnSound *sound)
+{
+    SoundReleaseVoices(sound, 0x300000, 14);
+    sound->ambience_id20 = 0;
+}
+
 void SoundReleaseAll(SotnSound *sound)
 {
     SoundReleaseVoices(sound, 0xffffff, 8);
     SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
     SDL_memset(sound->priority, 0, sizeof(sound->priority));
-    sound->ambience_id = 0;
+    SDL_memset(sound->effect_ids, 0, sizeof(sound->effect_ids));
+    sound->ambience_id = sound->ambience_id20 = 0;
     sound->scripts_paused = false;
 }
 
@@ -145,8 +152,11 @@ void SoundResetStopped(SotnSound *sound)
 {
     SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
     SDL_memset(sound->priority, 0, sizeof(sound->priority));
+    SDL_memset(sound->effect_ids, 0, sizeof(sound->effect_ids));
     SDL_memset(sound->queue, 0, sizeof(sound->queue));
-    sound->queued = sound->ambience_id = 0;
+    sound->queued = sound->ambience_id = sound->ambience_id20 = 0;
+    sound->ambience_volume20 = sound->ambience_volume22 = 0;
+    sound->ambience_pan20 = sound->ambience_pan22 = 0;
     sound->queue_read = sound->queue_write = 0;
     sound->scripts_paused = false;
     sound->sequence = (SotnSequence){0};
@@ -267,6 +277,8 @@ static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
     const Uint16 right = U16(coefficients.bytes), left = U16(coefficients.bytes + 2);
     if (right > 127 || left > 127 || definition.bytes[3] > 127)
         return SDL_SetError("Ambience volume references invalid original coefficients");
+    sound->ambience_volume22 = multiplier;
+    sound->ambience_pan22 = pan;
     const Uint32 volume = (((127U * definition.bytes[3]) >> 7) * multiplier) >> 7;
     for (Uint32 voice = 22; voice <= 23; ++voice)
     {
@@ -275,6 +287,21 @@ static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
         sound->registers[voice].right = (Sint32)(((volume * right) >> 8) * 129U);
     }
     return true;
+}
+
+static bool ScriptPair(SotnSound *sound, Uint32 first, Uint8 bank, Uint8 program, Uint8 tone,
+                       Uint8 note, Uint8 volume, Sint8 pan)
+{
+    Uint32 voice = sound->script_voice_cursor;
+    for (Uint32 i = first; i < first + 4; i += 2)
+        if (!sound->key_status[i])
+        {
+            voice = i;
+            sound->script_voice_cursor = (Uint16)(i == first + 2 ? first : i + 2);
+            break;
+        }
+    // KeyOnRange deliberately retains one shared fallback across all four ranges.
+    return Pair(sound, voice, bank, program, tone, note, volume, pan);
 }
 
 static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
@@ -352,33 +379,63 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
     }
     Uint32 voice = 22;
     if (data[4] == 3)
+    {
         voice = 20;
+        sound->ambience_id20 = id;
+        sound->ambience_volume20 = multiplier == SDL_MAX_UINT16 ? 127 : multiplier;
+        sound->ambience_pan20 = pan;
+    }
     else if (data[4] == 2)
     {
-        sound->voices[22].key_off = sound->voices[23].key_off = 1;
+        SoundReleaseVoices(sound, 0xc00000, 8);
         sound->ambience_id = 0;
         return true;
     }
     else if (data[4] == 0)
     {
         Uint32 slot = 4;
-        for (Uint32 i = 0; i < 4; ++i)
-            if (!sound->voices[12 + i * 2].active && !sound->voices[13 + i * 2].active)
+        bool replace = false;
+        if (sound->sequence_open)
+        {
+            if (!sound->effect_ids[3] || data[6] >= sound->priority[3])
             {
-                slot = i;
-                break;
+                slot = 3;
+                replace = sound->effect_ids[3] != 0;
             }
-        if (slot == 4)
+        }
+        else
+        {
             for (Uint32 i = 0; i < 4; ++i)
-                if (data[6] >= sound->priority[i])
+                if (sound->effect_ids[i] == id)
                 {
                     slot = i;
+                    replace = true;
                     break;
                 }
+            if (slot == 4)
+                for (Uint32 i = 0; i < 4; ++i)
+                    if (!sound->effect_ids[i])
+                    {
+                        slot = i;
+                        break;
+                    }
+            // Original equal-priority replacement intentionally excludes group3.
+            for (Uint16 pass = 0; slot == 4 && pass < 2; ++pass)
+                for (Uint32 i = 0; i < (pass ? 3U : 4U); ++i)
+                    if (pass ? data[6] == sound->priority[i] : data[6] > sound->priority[i])
+                    {
+                        slot = i;
+                        replace = true;
+                        break;
+                    }
+        }
         if (slot == 4)
             return true;
+        sound->effect_ids[slot] = id;
         sound->priority[slot] = data[6];
         voice = 12 + slot * 2;
+        if (replace)
+            sound->voices[voice].key_off = sound->voices[voice + 1].key_off = 1;
     }
     else if (data[4] != 1)
         return SDL_SetError("Sound event requests an unintegrated channel mode");
@@ -390,6 +447,38 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
         return AmbienceVolume(sound, multiplier == SDL_MAX_UINT16 ? 127 : multiplier, pan);
     }
     return true;
+}
+
+static void Reclaim(SotnSound *sound)
+{
+    // Original SpuGetAllKeysStatus: the selected SDK software key mask starts
+    // at zero and this owner only clears it. SDK note-on flushes write hardware
+    // directly; a nonzero actual envelope word therefore reports status2.
+    for (Uint32 i = 0; i < 24; ++i)
+        sound->key_status[i] = sound->registers[i].volumex ? 2 : 0;
+    const Uint32 first_effect = sound->sequence_open ? 3 : 0;
+    for (Uint32 i = first_effect; i < 4; ++i)
+        if (!sound->registers[12 + i * 2].volumex && !sound->registers[13 + i * 2].volumex)
+        {
+            sound->effect_ids[i] = 0;
+            sound->priority[i] = 0;
+        }
+    const Uint32 first_script = sound->sequence_open ? 3 : 0,
+                 end_script = sound->sequence_open ? 4 : 3;
+    for (Uint32 i = first_script; i < end_script; ++i)
+    {
+        if (sound->scripts[i].id)
+            continue;
+        const Uint32 first = i == 3 ? 14 : i * 4;
+        bool silent = true;
+        for (Uint32 voice = first; voice < first + 4; ++voice)
+            silent = silent && !sound->registers[voice].volumex;
+        if (silent)
+        {
+            sound->scripts[i].allocation_id = 0;
+            sound->scripts[i].priority = 0;
+        }
+    }
 }
 
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
@@ -456,6 +545,7 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
 {
     if (!sound || !out)
         return SDL_SetError("Sound command update requires its actual owner and frame output");
+    Reclaim(sound);
     while (sound->queue_read != sound->queue_write)
     {
         const Uint8 i = sound->queue_read;
@@ -487,7 +577,7 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
         else if (id == 0xf)
             SoundResumeScripts(sound);
         else if (id == 0xa1)
-            SoundReleaseVoices(sound, 0x300000, 14);
+            SoundReleaseAmbience20(sound);
         else if (!Event(sound, id, sound->queue[i].volume, sound->queue[i].pan))
             return false;
         ++sound->queue_read;
@@ -513,12 +603,9 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
             {
                 if (!Dra(sound, script->address, 6, &entry))
                     return false;
-                Uint32 voice = i == 3 ? 14 : i * 4;
-                if (sound->voices[voice].active)
-                    voice += 2;
-                if (!Pair(sound, voice, entry.bytes[0], entry.bytes[1], entry.bytes[3],
-                          entry.bytes[2], (Uint8)((script->volume * entry.bytes[4]) >> 7),
-                          script->pan))
+                if (!ScriptPair(sound, i == 3 ? 14 : i * 4, entry.bytes[0], entry.bytes[1],
+                                entry.bytes[3], entry.bytes[2],
+                                (Uint8)((script->volume * entry.bytes[4]) >> 7), script->pan))
                     return false;
                 script->timer = entry.bytes[5];
                 script->address += 6;
@@ -549,6 +636,7 @@ bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, 
             spu_voice_envelope_step(voice);
             if (voice->env_state == ADSR_OFF)
                 sample = 0;
+            sound->registers[v].volumex = (Uint16)voice->env_vol;
             sample = (sample * voice->env_vol) >> 15;
             const Sint32 voice_left = (sample * (sound->registers[v].left * 2)) >> 15;
             const Sint32 voice_right = (sample * (sound->registers[v].right * 2)) >> 15;
@@ -571,21 +659,6 @@ bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, 
         pcm[sample_frame * 2] = clamp16(left);
         pcm[sample_frame * 2 + 1] = clamp16(right);
     }
-    for (Uint32 i = frame.first_script; i < frame.end_script; ++i)
-    {
-        if (sound->scripts[i].id)
-            continue;
-        const Uint32 first = i == 3 ? 14 : i * 4;
-        bool silent = true;
-        for (Uint32 voice = first; voice < first + 4; ++voice)
-            silent = silent && sound->voices[voice].env_state == ADSR_OFF;
-        if (silent)
-        {
-            sound->scripts[i].allocation_id = 0;
-            sound->scripts[i].priority = 0;
-        }
-    }
-
     return true;
 }
 
