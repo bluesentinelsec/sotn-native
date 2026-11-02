@@ -199,6 +199,17 @@ bool SotnActors_CommitFairyEffect(SotnActors *actors, const SotnFairyEffectLease
  * @return Success or SDL error for stale generation, invalid index or a mismatching real row. */
 bool SotnActors_FairyEffectRow(const SotnActors *actors, const SotnFairyEffectLease *lease,
                                Uint16 index);
+/** @brief Validate the complete original Fairy5..7 row namespace, including absent leases.
+ * @param actors Actual shared pool. @param leases Three entries indexed by slot minus5.
+ * Zero count means no owned rows. Rejects stale sentinels, overlaps and unclaimed DD/DF rows.
+ * @return Success or SDL error; no pool or runtime mutation, allocation or clock advance. */
+bool SotnActors_ValidateFairyEffects(const SotnActors *actors,
+                                     const SotnFairyEffectLease leases[3]);
+/** @brief Retire all actual Fairy5..7 rows only after complete namespace validation.
+ * @param actors Actual shared pool. @param leases Three actual entries indexed by slot minus5.
+ * @return Success or SDL error preserving the whole pool on failure. Other owners retain rows.
+ * Caller separately clears actual entities; this performs no audio or overlay-history reset. */
+bool SotnActors_ReleaseFairyEffects(SotnActors *actors, const SotnFairyEffectLease leases[3]);
 /** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
  * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
  * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.

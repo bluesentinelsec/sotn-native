@@ -151,6 +151,29 @@ bool SotnFairyRuntime_Init(SotnFairyRuntime *r, SotnActors *actors, SotnFairyRun
     *r = next;
     return true;
 }
+bool SotnFairyRuntime_Clear(SotnFairyRuntime *r, SotnActors *actors)
+{
+    if (!r || !actors)
+        return SDL_SetError("Fairy clearing requires its actual overlay and shared stage pool");
+    SotnFairyEffectLease leases[3] = {0};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const SotnFairyRuntimeSlot *c = &r->slots[i];
+        if ((!c->identity && c->lease.count) ||
+            (c->identity &&
+             (!r->initialized || !c->generation || c->identity < 0xd0 || c->identity >= 0xe0)) ||
+            (c->lease.count && (!i || c->lease.slot != i + 4U || c->lease.identity != c->identity ||
+                                c->lease.generation != c->generation)))
+            return SDL_SetError(
+                "Fairy clearing lost an actual entity/lease identity or generation");
+        if (i)
+            leases[i - 1U] = c->lease;
+    }
+    if (!SotnActors_ReleaseFairyEffects(actors, leases))
+        return false;
+    SDL_zero(r->slots);
+    return true;
+}
 static Sint32 Pixel(Sint32 value)
 {
     return value >= 0 ? value / 65536 : (Sint32)(-((-(Sint64)value + 65535) / 65536));
@@ -345,6 +368,10 @@ bool SotnFairyRuntime_Translate(SotnFairyRuntime *r, SotnActors *actors, Sint16 
               (c->cursor.apple.phase && c->lease.count != SOTN_FAIRY_APPLE_ROWS))))
             return SDL_SetError("Fairy translation lost its initialized particle/light cursor");
     }
+    const SotnFairyEffectLease leases[3] = {r->slots[1].lease, r->slots[2].lease,
+                                            r->slots[3].lease};
+    if (r->slots[0].lease.count || !SotnActors_ValidateFairyEffects(actors, leases))
+        return SDL_SetError("Fairy translation lost its complete actual5..7 row namespace");
     for (Uint16 i = 0; i < 4; ++i)
     {
         SotnFairyRuntimeSlot *c = &next.slots[i];

@@ -64,3 +64,8 @@ Provenance: selected `servant/tt_002/faerie.c`, `dra/5D5BC.c`,
 `dra/5087C.c:RunMainEngine` and `dra/7879C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
 Private tables, assets and source traces remain outside published source.
+
+The later [retirement/whole-namespace validation](familiar-lifecycle.md) closes a
+late-sibling failure gap in the original translation precheck: all real rows and
+absent-lease orphans are now validated before any sibling retires. Earlier row0-only
+prechecks did not establish that complete failure boundary.

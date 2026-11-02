@@ -158,6 +158,43 @@ bool SotnActors_FairyEffectRow(const SotnActors *s, const SotnFairyEffectLease *
         return SDL_SetError("Fairy row read lost its actual event generation");
     return true;
 }
+bool SotnActors_ValidateFairyEffects(const SotnActors *s, const SotnFairyEffectLease leases[3])
+{
+    if (!s || !leases)
+        return SDL_SetError("Fairy namespace validation requires its actual pool and three leases");
+    SotnPrimitiveSlots rows[3] = {0};
+    for (Uint16 i = 0; i < 3; ++i)
+        if (leases[i].count && (leases[i].slot != i + 5U || !FairyLease(&leases[i], &rows[i])))
+            return SDL_SetError("Fairy namespace lease lost its actual5..7 slot or bounded rows");
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+    {
+        const ActorPrimitive *p = &s->primitives[id];
+        const Uint16 slot = (Uint16)(p->ability_kind >> 8);
+        const Uint16 identity = p->ability_kind & 255U;
+        const bool own = slot >= 0x85 && slot <= 0x87 && (identity == 0xdd || identity == 0xdf);
+        Uint16 matches = 0;
+        for (Uint16 i = 0; i < 3; ++i)
+            if (rows[i].occupied[id / 64U] & ((Uint64)1 << (id % 64U)))
+            {
+                if (++matches > 1 || p->owner != leases[i].generation ||
+                    p->ability_kind != FairyTag(&leases[i]))
+                    return SDL_SetError(
+                        "Fairy namespace contains overlapping or stale actual rows");
+            }
+        if (own && !matches)
+            return SDL_SetError("Fairy namespace contains an unclaimed actual DD/DF row");
+    }
+    return true;
+}
+bool SotnActors_ReleaseFairyEffects(SotnActors *s, const SotnFairyEffectLease leases[3])
+{
+    if (!SotnActors_ValidateFairyEffects(s, leases))
+        return false;
+    for (Uint16 i = 0; i < 3; ++i)
+        for (Uint16 row = 0; row < leases[i].count; ++row)
+            s->primitives[leases[i].rows[row]] = (ActorPrimitive){0};
+    return true;
+}
 static bool EchoValid(const SotnBatEcho *echo)
 {
     return echo && echo->phase && echo->phase <= 3 && !echo->removed && echo->priority <= 509;

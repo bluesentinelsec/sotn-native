@@ -1308,7 +1308,7 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
 }
 static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y)
 {
-    if (!s->fairy_runtime.initialized)
+    if (!s->fairy_runtime.initialized || !SotnFairyRuntime_Occupied(&s->fairy_runtime))
         return true;
     for (Uint16 slot = 4; slot < 8; ++slot)
     {

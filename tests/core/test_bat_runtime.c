@@ -3,6 +3,7 @@
 #include <SDL3/SDL.h>
 #include <sotn/bat_runtime.h>
 #include <sotn/combat.h>
+#include <sotn/fairy_runtime.h>
 
 _Static_assert(SOTN_PLAYER_BAT == 5 && SOTN_PLAYER_UNMORPH_BAT == 9 && SOTN_BUTTON_BAT == 8 &&
                    SOTN_BUTTON_START == 0x800,
@@ -1880,20 +1881,114 @@ static bool ClearPlayerRuntime(Fixture *f)
     }
     return true;
 }
+static bool ClearFairyNamespace(Fixture *f)
+{
+    SDL_zero(f->runtime);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    ActorPrimitive *saved = SDL_malloc(sizeof(actors->primitives));
+    SotnFairyRuntime *r = SDL_calloc(1, sizeof(*r)), *before = SDL_malloc(sizeof(*before));
+    CHECK(actors && saved && r && before);
+    actors->primitives[0].owner = 77;
+    SotnPrimitiveSlots available = {0};
+    CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+          SotnBatRuntime_InitCommon(&f->runtime, available) &&
+          SotnActors_CommitBatPrimitives(actors, &f->runtime));
+    r->initialized = true;
+    r->generation = 555;
+    r->sound_step = 5;
+    r->history.elements = 0x2000;
+    r->history.cached_hp = 70;
+    r->events.timer[3] = 321;
+    r->events.next[0] = 3;
+    r->slots[0] = (SotnFairyRuntimeSlot){.identity = SOTN_FAIRY_FOLLOW, .generation = 99};
+    const Uint16 counts[3] = {129, 10, 33};
+    for (Uint16 i = 1; i < 4; ++i)
+    {
+        SotnFairyRuntimeSlot *c = &r->slots[i];
+        c->identity = i == 2 ? 0xdd : 0xdf;
+        c->generation = 99U + i;
+        c->parent_generation = 99;
+        c->lease = (SotnFairyEffectLease){.generation = c->generation,
+                                          .slot = (Uint16)(i + 4U),
+                                          .identity = c->identity,
+                                          .count = counts[i - 1U]};
+        if (c->identity == 0xdf)
+            c->cursor.item =
+                (SotnFairyItemEffect){.phase = 1, .count = (Uint16)(c->lease.count - 1U)};
+        else
+            c->cursor.apple.phase = 1;
+        bool allocated = false;
+        CHECK(SotnActors_PrimitiveSlots(actors, &available) &&
+              SotnPrimitiveSlots_Reserve(&available, c->lease.count, c->lease.rows, &allocated) &&
+              allocated && SotnActors_CommitFairyEffect(actors, NULL, &c->lease));
+    }
+    const Uint16 sentinel = r->slots[3].lease.rows[32];
+    ++actors->primitives[sentinel].owner;
+    *before = *r;
+    SDL_memcpy(saved, actors->primitives, sizeof(actors->primitives));
+    for (Uint16 room = 0; room < 2; ++room)
+        CHECK(!SotnFairyRuntime_Translate(r, actors, 7, -3, 65537, -65534, room != 0) &&
+              !SDL_memcmp(before, r, sizeof(*r)) &&
+              !SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    CHECK(!SotnFairyRuntime_Clear(r, actors) && !SDL_memcmp(before, r, sizeof(*r)) &&
+          !SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    --actors->primitives[sentinel].owner;
+    // Removing the last lease word must not silently discard its real sentinel owner.
+    --r->slots[3].lease.count;
+    SDL_memcpy(saved, actors->primitives, sizeof(actors->primitives));
+    *before = *r;
+    CHECK(!SotnFairyRuntime_Clear(r, actors) && !SDL_memcmp(before, r, sizeof(*r)) &&
+          !SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    ++r->slots[3].lease.count;
+    Uint16 orphan = 0;
+    for (; orphan < SOTN_PRIMITIVE_SLOTS && actors->primitives[orphan].owner; ++orphan)
+    {
+    }
+    CHECK(orphan < SOTN_PRIMITIVE_SLOTS);
+    actors->primitives[orphan] = (ActorPrimitive){.owner = 888, .ability_kind = 0x85df};
+    SDL_memcpy(saved, actors->primitives, sizeof(actors->primitives));
+    *before = *r;
+    CHECK(!SotnFairyRuntime_Clear(r, actors) && !SDL_memcmp(before, r, sizeof(*r)) &&
+          !SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    SDL_zero(actors->primitives[orphan]);
+    *before = *r;
+    CHECK(SotnFairyRuntime_Clear(r, actors) && !SotnFairyRuntime_Occupied(r) && r->initialized &&
+          r->generation == before->generation && r->sound_step == before->sound_step &&
+          !SDL_memcmp(&r->history, &before->history, sizeof(r->history)) &&
+          !SDL_memcmp(&r->events, &before->events, sizeof(r->events)) &&
+          actors->primitives[0].owner == 77);
+    for (Uint16 i = 0; i < SDL_arraysize(f->runtime.afterimage_rows); ++i)
+        CHECK(actors->primitives[f->runtime.afterimage_rows[i]].owner ==
+              f->runtime.common_generation);
+    for (Uint16 i = 0; i < SDL_arraysize(f->runtime.wolf.environment_rows); ++i)
+        CHECK(actors->primitives[f->runtime.wolf.environment_rows[i]].owner ==
+              f->runtime.wolf.environment_generation);
+    CHECK(SotnFairyRuntime_Clear(r, actors));
+    actors->primitives[orphan] = (ActorPrimitive){.owner = 888, .ability_kind = 0x87dd};
+    SDL_memcpy(saved, actors->primitives, sizeof(actors->primitives));
+    *before = *r;
+    CHECK(!SotnFairyRuntime_Clear(r, actors) && !SDL_memcmp(before, r, sizeof(*r)) &&
+          !SDL_memcmp(saved, actors->primitives, sizeof(actors->primitives)));
+    SDL_free(before);
+    SDL_free(r);
+    SDL_free(saved);
+    SDL_free(actors);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
-                    PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) &&
-                    WolfSpellOwnership(f) && WolfEffectOwnership(f) && GravityImpactOwnership(f) &&
-                    CommonPlayerLifetime(f) && OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) &&
-                    HurtFactoryOrder(f, false) && HurtFactoryOrder(f, true) &&
-                    NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
-                    ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) &&
-                    DeathParticlesOwnership(f) && CutOwnership(f) && OutlineOwnership(f) &&
-                    ContactAbsorptionOwnership(f) && FairyEffectLeases(f) && ClearPlayerRuntime(f);
+    const bool ok =
+        Wing(f) && Fire(f) && Capacity(f) && Wall(f) && AtomicAndRebase(f) && Echo(f) &&
+        PrimitivePressure(f) && WolfPressure(f) && WolfOrder(f) && WolfSpellOwnership(f) &&
+        WolfEffectOwnership(f) && GravityImpactOwnership(f) && CommonPlayerLifetime(f) &&
+        OrdinarySmokeOwnership(f) && WallSmokeOwnership(f) && HurtFactoryOrder(f, false) &&
+        HurtFactoryOrder(f, true) && NormalWaterRequests(f) && ReactionBlinkOwnership(f, false) &&
+        ReactionBlinkOwnership(f, true) && WaterBlinkOwnership(f) && DeathParticlesOwnership(f) &&
+        CutOwnership(f) && OutlineOwnership(f) && ContactAbsorptionOwnership(f) &&
+        FairyEffectLeases(f) && ClearPlayerRuntime(f) && ClearFairyNamespace(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

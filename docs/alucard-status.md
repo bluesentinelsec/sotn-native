@@ -141,6 +141,11 @@ needs a source-backed inventory of its remaining branches and an evidence record
   does not yet persist familiar progress. Card selection/resource initialization,
   room/stage/session lifecycle, general audio/cutscene and whole-pass rollback remain
   required before ordinary Fairy activation.
+  The [selected retirement owner](familiar-lifecycle.md) now validates every5..7
+  lease/sentinel and absent-lease orphan before clearing actual4..7, retaining
+  overlay history/events/sound cursor and unrelated rows. It also fixes late-sibling
+  partial retirement in room translation. Ordinary selection/resource initialization,
+  lifecycle/persistence and whole-pass transactions remain open.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

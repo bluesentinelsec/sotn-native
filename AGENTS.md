@@ -1,3 +1,15 @@
+The [selected familiar retirement](docs/familiar-lifecycle.md) now validates the
+complete actual5..7 DD/DF namespace before clearing4..7 or translating rooms.
+Preserve every real row/sentinel/generation and reject absent-lease orphans before
+any sibling retires. Earlier row0-only translation prechecks allowed partial late-
+sibling retirement; the full validation fixes that failure. Clear retains overlay
+history/events/sound cursor/serial/binding and unrelated stage/common/shared rows;
+empty retained namespaces skip native provider queries. No clocks/RNG/audio/scene/
+resources/progression change. Actual card/resource initialization, deselection,
+room/stage/session lifecycle, persistence and whole-pass rollback remain required.
+Explicit leases/effects/owned-item/protection/lethal fixtures are not ordinary
+selection, acquisition, route or console evidence. All six Alucard gates stay open.
+
 The [bound native Fairy dispatch](docs/fairy-native-dispatch.md) now runs actual
 4..7 callbacks and a distinct full-player FFF engine branch: Life Apple spending,
 real effects/cleanup/resources, release-only frame and Blink4A. Preserve stable

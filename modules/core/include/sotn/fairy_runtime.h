@@ -72,6 +72,14 @@ bool SotnFairyRuntime_UpdateSlot(SotnFairyRuntime *runtime, SotnActors *actors, 
                                  SotnFairyRuntimeEvents *out);
 /** @brief Actual low64 namespace occupancy; no slots are predicted or allocated by this read. */
 Uint64 SotnFairyRuntime_Occupied(const SotnFairyRuntime *runtime);
+/** @brief Original selected ServantWorkClear: retire actual Fairy4..7 entities and their rows.
+ * @param runtime Actual overlay owner. @param actors Actual shared stage pool.
+ * Validates every real lease, including late sibling sentinels and absent-lease orphans,
+ * before retiring any entity or row. Preserves generation serial, overlay history/event
+ * links/sound cursor and initialized binding for a later same-overlay initialization.
+ * @return Success or SDL error preserving runtime/pool on failure. No callbacks, RNG,
+ * audio, scene, resources or progression change; deselection lifecycle remains caller-owned. */
+bool SotnFairyRuntime_Clear(SotnFairyRuntime *runtime, SotnActors *actors);
 /** @brief Apply original post-callback camera/player or connected-room translation.
  * @param runtime Actual four-slot owner. @param actors Actual shared primitive pool.
  * @param camera_x Old minus new camera X, in whole pixels; ignored for room entry.
