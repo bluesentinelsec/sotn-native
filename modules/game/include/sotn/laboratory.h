@@ -51,6 +51,17 @@ bool SotnLaboratory_CreateStage(const SotnGameData *data, const char *directory,
  * @param laboratory Borrowed session. @param left Left-hand item ID. @param right Right-hand ID.
  * @return Success, or false with SDL_GetError(); stop after resource failure. */
 bool SotnLaboratory_SetEquipment(SotnLaboratory *laboratory, Uint16 left, Uint16 right);
+/** @brief Commit an owned native familiar selection at its actual menu/load boundary.
+ * @param laboratory Actual idle normal session, after the menu closes.
+ * @param familiar Original identity0 (none) or3 (US Fairy); other owners remain unavailable.
+ * @return Success or SDL error preserving actual resource/entity/progression owners on failure.
+ * Requires a found card. Prepares verified resources, resident graphics/SPU candidates,
+ * root/wings and an empty CD owner before actual row retirement and pointer publication.
+ * Reuses cached overlay resources, retains history/audio on deselection, and increments
+ * loads only on an actual changed/reloaded menu selection. No grants, clocks or saves change.
+ * Ordinary relic-menu activation remains disabled until persistence and all lifecycle,
+ * general audio/session and whole-pass owners are complete. This API alone is not that gate. */
+bool SotnLaboratory_SelectFamiliar(SotnLaboratory *laboratory, Uint16 familiar);
 
 /**
  * @brief Advance one game tick using explicitly supplied original button bits.

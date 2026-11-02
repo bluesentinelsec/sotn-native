@@ -46,16 +46,14 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [Alucard sword command/recovery](player-sword-warp.md) adds state15, and
   [owned Axe Armor](player-axe-armor.md) adds40/41/42/43/50; selected
   [Library Card](player-library-card.md) adds18 with actual item/effect/travel owners;
-  32 states now have selected native producers. The additional
-  [bound state17 response](player-fairy-rescue.md) supplies interruption/hold,
-  resource/recovery and shared Blink4A while actual Fairy/FFF availability remains
-  gated. Fairy Life Apple rescue17 (previously labeled global-fade),
-  Sword Brothers39 and the common/cross-owner gates remain open. The actual Fairy
-  producer, item consumption, scene handshake and cleanup are required for17.
-  The subsequent [bound native Fairy dispatch](fairy-native-dispatch.md) now supplies
-  actual Fairy/Life Apple requests and the production Step FFF/release/recovery
-  path with explicit card/root initialization. Ordinary card selection, lifecycle,
-  persistence and whole-pass rollback remain open;17 is still gated in ordinary play.
+  32 states now have selected ordinary native producers. The
+  [bound state17 response](player-fairy-rescue.md),
+  [native Fairy/FFF dispatch](fairy-native-dispatch.md) and
+  [owned load-boundary API](familiar-lifecycle.md) now provide real resource/root,
+  item, cleanup, restoration and release/recovery producers for17. Ordinary card
+  menu activation, room/stage/session lifecycle, persistence and whole-pass gates
+  still prevent ordinary17 availability. Sword Brothers39 and the common/cross-owner
+  gates remain open; Life Apple rescue17 was previously labeled global-fade.
   Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate
   component comparisons do not establish those routes.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
@@ -104,48 +102,30 @@ needs a source-backed inventory of its remaining branches and an evidence record
   actual inventory/cures/4096 buffs/deferred healing/full MP and shared presentation;
   Life Apple/Hammer hand use is forbidden by the original menu. Familiar use, food,
   remaining consumables and weapon/equipment families still require real owners.
-- [ ] **Familiars and remaining spells:** implement actual familiar lifecycle,
-  controls, behavior/combat/progression and Sword Brothers' familiar-dependent
+- [ ] **Familiars and remaining spells:** finish actual familiar lifecycle,
+  ordinary controls, behavior/combat/progression and Sword Brothers' familiar-dependent
   execution. Its existing recognizer is not an available spell. See
   [command boundaries](normal-spell-commands.md) and [relic controls](relic-menu.md).
-  The [shared familiar foundation](familiar-foundation.md) supplies verified private
-  resources, original animation and real bank20/VRAM/bank2 services. These APIs
-  do not supply activation, slots4..7, behavior, item use or progression.
-  The [Fairy control components](fairy-controller.md) add original US root callbacks,
-  actual native damage/control-state inputs, sound-state and
-  [room-event queue](familiar-room-events.md) components. Requests still require
-  the lifecycle, actual event/audio, primitive and FFF/player17
-  owners before Fairy selection or completed rescue can be enabled.
-  The [item-effect components and speech decoder](fairy-effects.md) now supply
-  original DF/DD particles/light and eight actual XA clips; native shared leases
-  and CD-command acknowledgements remain required.
-  The subsequent [CD audio service](familiar-cd-audio.md) supplies actual native
-  decoder-backed queues/acknowledgement/pause/restore, still requiring the actual
-  Fairy event, engine clock and session owners to bind it.
-  The [slot/effect/render runtime](fairy-slot-runtime.md) now connects selected
-  four-slot dispatch, event callbacks, real shared leases and native scene drawing.
-  Native gameplay/card/resource lifecycle, inventory, progression and FFF/player17
-  still require their actual bindings before Fairy selection can be enabled.
-  The [inventory/translation/recovery services](familiar-inventory-translation.md)
-  now supply actual bag-byte consumption, no-tick camera/player/room operations
-  and finite Blink4A. Native gameplay/lifecycle inputs, whole-pass transactions,
-  saved progression and FFF/player17 recovery remain required.
-  The [rescue-cleanup services](familiar-rescue-cleanup.md) retire actual shared
-  factories/children/Wolf rows and native projectiles while retaining common/global
-  ownership. Actual Fairy/FFF/player17, other owners and resource restoration still
-  require their bindings; this does not complete rescue or full shared contention.
-  The [native dispatch/progression binding](fairy-native-dispatch.md) now connects
-  live inputs, real item/audio/scene/cleanup/resource requests and distinct FFF
-  scheduling. Seven signed-word character records receive actual raw enemy rewards
-  and changed/reloaded selection counts. The v9 snapshot remains unchanged and
-  does not yet persist familiar progress. Card selection/resource initialization,
-  room/stage/session lifecycle, general audio/cutscene and whole-pass rollback remain
-  required before ordinary Fairy activation.
-  The [selected retirement owner](familiar-lifecycle.md) now validates every5..7
-  lease/sentinel and absent-lease orphan before clearing actual4..7, retaining
-  overlay history/events/sound cursor and unrelated rows. It also fixes late-sibling
-  partial retirement in room translation. Ordinary selection/resource initialization,
-  lifecycle/persistence and whole-pass transactions remain open.
+  The [foundation](familiar-foundation.md) supplies verified private resources,
+  original animation and actual bank20/VRAM/bank2 services. Selected Fairy
+  [controllers](fairy-controller.md), [room events](familiar-room-events.md),
+  [effects](fairy-effects.md), [CD audio](familiar-cd-audio.md),
+  [four-slot rendering](fairy-slot-runtime.md),
+  [inventory/translation](familiar-inventory-translation.md),
+  [shared cleanup](familiar-rescue-cleanup.md) and
+  [FFF/player17 dispatch](fairy-native-dispatch.md) now connect their bound native owners.
+  The [selected load/retirement owner](familiar-lifecycle.md) now provides owned0/3
+  resource initialization, root/wings, cached reselection, actual item/rescue producers
+  and deselection through a native load-boundary API. Detached graphics/SPU/CD
+  preparation preserves live owners on failure. Complete namespace validation also
+  fixes late-sibling partial retirement in room translation.
+  **Ordinary relic-menu activation remains disabled.** Room/stage/session lifecycle,
+  saved familiar records, general audio/cutscene ownership, whole-pass rollback and
+  integrated acceptance must finish before enabling it. Seven signed-word character
+  records already receive actual raw enemy rewards and menu load counts; the existing
+  v9 snapshot remains unchanged and does not persist them. Other familiar owners
+  and Sword Brothers39 remain unavailable. Supplied resource/card/item/health/clock
+  fixtures remain separate from ordinary selection, acquisition, routes and console proof.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected

@@ -463,6 +463,29 @@ bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView ov
     return true;
 }
 
+bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDataView overlay,
+                                       SotnDataView textures, Uint32 parts, Uint32 palette,
+                                       SotnActorGraphics **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!graphics || graphics->target_active)
+        return SDL_SetError(
+            "Familiar preparation requires its actual owner outside a render target");
+    SotnActorGraphics *candidate = SDL_malloc(sizeof(*candidate));
+    if (!candidate)
+        return false;
+    *candidate = *graphics;
+    if (!SotnActorGraphics_LoadFamiliar(candidate, overlay, textures, parts, palette))
+    {
+        SDL_free(candidate);
+        return false;
+    }
+    *out = candidate;
+    return true;
+}
+
 void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics)
 {
     if (graphics)

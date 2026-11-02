@@ -24,6 +24,14 @@ typedef struct SotnCdAudioState
  * The existing native stage intro/loop decoder retains its own loop service. */
 bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music, Uint32 clock,
                         SotnCdAudio **out);
+/** @brief Adopt an existing decoder into an empty prepared CD owner, without allocating/ticking.
+ * @param audio Actual owner with no decoder, bookmark or pending command.
+ * @param music Owned decoder pointer, set NULL only on success; *music may be NULL.
+ * @param clock Actual engine clock. Both owners borrow the same live verified stream.
+ * @return Success or SDL error preserving both owners on failure. Retains the decoder's
+ * real resampler/sector/ADPCM position. This lets a resource transaction allocate first
+ * and transfer ownership only at commit; it supplies no playback acknowledgement. */
+bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock);
 /** @brief Queue original10/11/A or one of the eight selected US Fairy narrative IDs.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.

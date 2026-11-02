@@ -123,7 +123,11 @@ static bool Exercise(SotnDataView dra, SotnStream *stream)
     Uint32 clock = 0xfffffff8;
     CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && !music && SotnCdAudio_Get(a, &s));
     CHECK(s.queue_empty && s.acknowledged && !s.playing_xa);
+    CHECK(SotnCdAudio_AdoptMusic(a, &music, clock) && !music);
     CHECK(SotnCdAudio_Queue(a, 0x10) && SotnCdAudio_Get(a, &s) && !s.acknowledged && s.queue_empty);
+    const SotnCdAudioState pending_adoption = s;
+    CHECK(!SotnCdAudio_AdoptMusic(a, &music, clock) && !music && SotnCdAudio_Get(a, &s) &&
+          SameState(s, pending_adoption));
     CHECK(Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     CHECK(SotnCdAudio_Queue(a, 0x11) && Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     const SotnCdAudioState before = s;
@@ -142,7 +146,14 @@ static bool Exercise(SotnDataView dra, SotnStream *stream)
 
     // Real stage PCM continues through the existing native loop service while fading down.
     CHECK(SotnMusic_Create(dra, stream, &music));
-    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && !music && SotnCdAudio_Get(a, &s));
+    SotnMusic *empty = NULL;
+    CHECK(SotnCdAudio_Create(dra, stream, &empty, clock, &a) && !empty && music &&
+          SotnCdAudio_Get(a, &s) && !s.decoder_present &&
+          SotnCdAudio_AdoptMusic(a, &music, clock) && !music && SotnCdAudio_Get(a, &s) &&
+          s.decoder_present);
+    const SotnCdAudioState adopted = s;
+    CHECK(!SotnCdAudio_AdoptMusic(a, &empty, clock) && SotnCdAudio_Get(a, &s) &&
+          SameState(s, adopted));
     for (Uint16 i = 0; i < 3; ++i)
         CHECK(Tick(a, &clock, &s));
     SotnMusicState stage = {0}, voice = {0};

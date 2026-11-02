@@ -1,10 +1,33 @@
-# Selected familiar retirement and row validation
+# Selected familiar loading and retirement
 
-The selected Fairy lifecycle now has an atomic four-slot retirement service.
-Ordinary card selection, resource initialization, room/stage/session lifecycle,
-persistence and whole-pass rollback remain unfinished. This service does not
-activate or deselect a card, reset audio or release FFF; those actual owners must
-complete their own transactions. Existing grants, pools and v9 saves are unchanged.
+The native lifecycle now owns verified US Fairy loading, cached reselection,
+deselection and atomic four-slot retirement through an owned load-boundary API.
+Ordinary relic-menu activation remains disabled until room/stage/session lifecycle,
+saved progression, general audio/cutscene handling, whole-pass transactions and
+integrated acceptance are complete. Existing grants, pools and v9 saves are unchanged.
+
+`SotnLaboratory_SelectFamiliar` accepts original0/3 in an actual idle menu/load
+context and requires the found private Fairy card. It validates actual player,
+control, card/progression and full row ownership before loading. First selection
+opens all four verified resources and prepares detached graphics/SPU candidates,
+root/wings and an empty CD owner. Allocations, file reads and metadata validation
+finish before actual retirement and ownership publication. Native adoption retains
+the existing decoder/resampler/ADPCM position without advancing it. No detached
+candidate supplies gameplay readiness before the actual transaction commits.
+
+Graphics preparation retains resident pixels, validity, capture/cache and palette
+jobs, then uploads familiar data only in the candidate. Sound preparation retains
+RAM, voices, predictors, scripts, SEQ and queued commands before loading bank2 in
+its candidate. Failure preserves live owners; unused candidates are destroyed.
+An active render target cannot be replaced. The single committed renderer/SPU/CD
+owners continue through the actual native callbacks after pointer replacement.
+
+Same-selection initialization preserves root generation and load count. Changed
+selection increments loads once; cached reselection reuses the actual resources,
+renderer, SPU and CD owner. Deselecting clears only real familiar entities/rows,
+retaining loaded artwork/audio, overlay history and queued/playing audio. It does
+not heal, grant a card, tick a clock or release FFF. Player initialization and normal
+callbacks now share the same full actual player/status/contact/velocity snapshot.
 
 `SotnFairyRuntime_Clear` validates the actual4..7 identities/generations and all
 three possible5..7 DD/DF leases before clearing any entity or row. Complete
@@ -36,14 +59,32 @@ medicine/captured-death contexts:344 retired Fairy rows, six ordered draws and
 resident textures, stage actors, character resources/RNG and clocks survive the
 retirement/draw boundary. The next ordinary Step advances normally.
 
+Resource-preparation checks in both native builds cover normal and captured-death
+contexts, both resource-failure orders,32 reference-identical queued/ringing PCM
+ticks,22596 nonzero samples,65418 sprite pixels, actual bank2 voices, retained scene
+pixels/death textures and the next player callback after old owners are destroyed.
+Owned-load checks cover unowned/missing-file/orphan-row failures, first load,
+same/cached selection counts, real Fairy Potion159 use through55/39 and deferred
+HP5-to55, and deselection retaining the shared medicine. Separate owned-init rescue
+checks use actual resource/root/scene producers without manual binding: two
+physical/water contexts,742 full FFF callbacks, two release frames and1836 real
+recovery-flash pixels in each build. Their explicit owned-init-before-death
+contexts are separate from the earlier controlled post-capture interruption checks.
+
+On the first uncaptured death interruption, an expiring animation timer still
+finishes its ordinary animation tick before state17 holds subsequent callbacks.
+Do not force prior uncaptured artwork to remain unchanged across that boundary.
+Already captured resident images and subsequent state17 artwork retain their holds.
+
 These authored slot/effect/source/protection/owned-item/lethal fixtures establish
 selected retirement and rollback. They are separate from ordinary card deselection,
-resource initialization, saved progression, acquisition, uninterrupted routes and
+ordinary menu activation, saved progression, acquisition, uninterrupted routes and
 console evidence. Original `ServantWorkClear` scans4..63 for D0..DF identities;
 this service owns the selected native Fairy4..7 namespace, not unimplemented other
 familiar entities or complete shared contention. All six Alucard gates remain open.
 
-Provenance: selected `dra/menu.c:ServantWorkClear`, `dra/7879C.c`, and private
+Provenance: selected `dra/menu.c` initialization/ServantWorkClear, `dra/7879C.c`,
+`dra/4CE2C.c` layer bindings, original resource upload/sound services and private
 Fairy namespace/effect ownership from `servant/tt_002/faerie.c`, sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
 Private inputs and probe traces remain outside published source.

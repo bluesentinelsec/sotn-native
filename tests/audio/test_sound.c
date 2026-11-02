@@ -391,6 +391,20 @@ static bool FamiliarBank(Fixture *f)
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
     *before = *sound;
+    SotnSound *candidate = NULL;
+    CHECK(SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                        &candidate) &&
+          candidate && !SDL_memcmp(sound, before, sizeof(*sound)) && candidate->banks[2].loaded &&
+          !sound->banks[2].loaded);
+    Sint16 candidate_pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    for (Uint16 tick = 0; tick < 8; ++tick)
+        CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+              SotnSound_Tick(candidate, candidate_pcm, SDL_arraysize(candidate_pcm)) &&
+              !SDL_memcmp(pcm, candidate_pcm, sizeof(pcm)));
+    SotnSound_Destroy(sound);
+    sound = candidate;
+    candidate = NULL;
+    *before = *sound;
     CHECK(SotnSound_SetFamiliarBank(sound, sources.player_header, sources.player_body) &&
           sound->banks[2].loaded && sound->banks[2].address == 0x4000 &&
           sound->banks[2].samples[1] == 0x4000 &&
@@ -408,7 +422,13 @@ static bool FamiliarBank(Fixture *f)
     SDL_memcpy(malformed, f->header, sizeof(malformed));
     Put16(malformed, 2594, 6);
     *before = *sound;
-    CHECK(!SotnSound_SetFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
+    CHECK(!SotnSound_PrepareFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
+                                         sources.player_body, &candidate) &&
+          !candidate && !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_PrepareFamiliarBank(sound, sources.player_header, (SotnDataView){0},
+                                         &candidate) &&
+          !candidate && !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_SetFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
                                      sources.player_body) &&
           !SDL_memcmp(sound, before, sizeof(*sound)) &&
           !SotnSound_SetFamiliarBank(sound, sources.player_header, (SotnDataView){0}) &&

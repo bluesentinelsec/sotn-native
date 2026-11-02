@@ -186,6 +186,18 @@ bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
  * No entity, row pool, alternate texture memory or familiar availability is created. */
 bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,
                                     SotnDataView textures, Uint32 parts, Uint32 palette);
+/** @brief Prepare a detached familiar graphics candidate without changing live VRAM or binding.
+ * @param graphics Actual texture/palette/capture owner, outside an active render target.
+ * @param overlay Borrowed verified overlay. @param textures Borrowed verified FT input.
+ * @param parts Actual sprite-table address. @param palette Actual original CLUT address.
+ * @param out Receives an owned candidate, NULL on failure; destroy normally if not committed.
+ * @return Success or SDL error. Copies current resident pixels, validity, palette jobs and
+ * capture state, then validates/uploads familiar data only in the candidate. Caller commits
+ * all native resource/entity owners before replacing the live pointer. No clocks advance;
+ * borrowed sources must outlive whichever owner retains them. This enables no familiar. */
+bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDataView overlay,
+                                       SotnDataView textures, Uint32 parts, Uint32 palette,
+                                       SotnActorGraphics **out);
 /** @brief Release the borrowed familiar sprite binding, retaining original resident VRAM.
  * @param graphics Owned service or NULL. Call before releasing its borrowed overlay. */
 void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics);

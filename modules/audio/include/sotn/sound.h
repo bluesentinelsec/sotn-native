@@ -11,6 +11,15 @@ typedef struct SotnSoundSources
 
 /** @brief Owned sound simulation with bounded SPU memory, voices, and scripts. */
 typedef struct SotnSound SotnSound;
+/** @brief Prepare a detached familiar-bank candidate, retaining actual voices/scripts/SEQ state.
+ * @param sound Actual main-thread SPU owner. @param header Borrowed verified familiar VAB header.
+ * @param body Borrowed verified body. @param out Owned candidate or NULL on failure.
+ * @return Success or SDL error without live mutation. Copies actual RAM/voice/script/queue
+ * cursors, then validates/loads bank2 only in the candidate. Caller commits all native owners
+ * before pointer replacement; destroy unused candidates normally. No voices, clocks or input
+ * streams advance, and borrowed sources must remain live. This alone enables no familiar. */
+bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
+                                   SotnSound **out);
 
 /** @brief Stereo 44.1 kHz sample frames per development simulation tick. */
 enum

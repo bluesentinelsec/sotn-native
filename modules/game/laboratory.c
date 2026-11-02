@@ -1229,6 +1229,22 @@ static Sint32 FairyFixed(Uint32 value)
 {
     return value <= SDL_MAX_SINT32 ? (Sint32)value : (Sint32)((Sint64)value - 4294967296LL);
 }
+static SotnFairyPlayer FairyPlayer(SotnPlayerState p, Sint32 camera_x, Sint32 camera_y)
+{
+    return (SotnFairyPlayer){.x = FairyFixed((Uint32)p.x - (Uint32)camera_x * 65536U),
+                             .y = FairyFixed((Uint32)p.y - (Uint32)camera_y * 65536U),
+                             .velocity_x = p.velocity_x,
+                             .velocity_y = p.velocity_y,
+                             .status = p.status,
+                             .damage_effects = p.received_damage_effects,
+                             .step = p.step,
+                             .substep = p.substep,
+                             .previous_step = p.control_step,
+                             .previous_substep = p.control_substep,
+                             .collision = (Uint16)p.contacts,
+                             .priority = p.priority,
+                             .facing_left = p.facing_left};
+}
 static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y,
                        SotnFairyRuntimeInput *out)
 {
@@ -1262,19 +1278,7 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
         .gate_scene = gate,
         .fairy = {.overlay = overlay,
                   .executable = s->executable,
-                  .player = {.x = FairyFixed((Uint32)p.x - (Uint32)camera_x * 65536U),
-                             .y = FairyFixed((Uint32)p.y - (Uint32)camera_y * 65536U),
-                             .velocity_x = p.velocity_x,
-                             .velocity_y = p.velocity_y,
-                             .status = p.status,
-                             .damage_effects = p.received_damage_effects,
-                             .step = p.step,
-                             .substep = p.substep,
-                             .previous_step = p.control_step,
-                             .previous_substep = p.control_substep,
-                             .collision = (Uint16)p.contacts,
-                             .priority = p.priority,
-                             .facing_left = p.facing_left},
+                  .player = FairyPlayer(p, camera_x, camera_y),
                   .hp = p.hp,
                   .hp_max = p.hp_max,
                   .level = (Uint16)progress.records[2].level,
@@ -1306,6 +1310,141 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
     *out = in;
     return true;
 }
+bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
+{
+    SotnPlayerState player = {0};
+    SotnActorControl control = {0};
+    SotnFamiliarProgress progress = {0};
+    Uint16 previous = 0;
+    if (!s || (selected != 0 && selected != 3) || s->game_over || s->launch_active ||
+        s->stage_pending || s->map_open || s->menu.phase != SOTN_MENU_CLOSED ||
+        s->spell_freeze.active || s->spell_freeze.request || s->fairy_scene ||
+        s->fairy_pause_disabled || !SotnPlayer_GetState(s->player, &player) || !player.can_pause ||
+        !SotnActors_GetControl(s->actors, &control) || control.pause_disabled || control.timer ||
+        control.hold || !SotnCharacter_GetFamiliars(s->character, &progress, &previous) ||
+        !SotnFamiliarProgress_Validate(&progress) || (previous != 0 && previous != 3) ||
+        !SotnFairyRuntime_Validate(&s->fairy_runtime, s->actors))
+        return SDL_SetError("Familiar selection requires actual idle player/menu/lifecycle owners");
+    SotnWorldState world = s->world;
+    Uint16 selected_cards = 0;
+    for (Uint16 id = 0; id < SOTN_RELICS; ++id)
+    {
+        SotnItem relic = {0};
+        if (!SotnRelic_Read(s->dra, id, &relic))
+            return false;
+        if (relic.type)
+        {
+            if (world.relics[id] > 3 || world.relics[id] == 2)
+                return SDL_SetError("Familiar selection lost its actual found/active card bits");
+            world.relics[id] &= (Uint8)~2U;
+            if (selected && relic.type == selected)
+            {
+                if (id != 20 || ++selected_cards != 1 || !(world.relics[id] & 1U))
+                    return SDL_SetError("Familiar selection requires its actually owned card");
+                world.relics[id] |= 2;
+            }
+        }
+    }
+    if (selected && selected_cards != 1)
+        return SDL_SetError("Familiar selection lost the actual US Fairy card definition");
+    bool cached = s->fairy_resources[0] != NULL;
+    for (Uint16 i = 0; i < 4; ++i)
+        if ((s->fairy_resources[i] != NULL) != cached)
+            return SDL_SetError("Familiar cache contains incomplete actual resources");
+    if ((previous == 3 && (!cached || !s->fairy_cd || !s->fairy_runtime.initialized)) ||
+        (cached && (!s->fairy_cd || !s->fairy_runtime.initialized || s->music)) ||
+        (!cached && s->fairy_cd))
+        return SDL_SetError("Familiar selection lost its actual cached binding or CD owner");
+    if (!selected)
+    {
+        if (!SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors) ||
+            !SotnCharacter_SelectFamiliar(s->character, 0, false))
+            return false;
+        s->world = world;
+        s->dirty = true;
+        return true;
+    }
+    SotnResource *opened[4] = {0};
+    SotnActorGraphics *graphics = NULL;
+    SotnSound *sound = NULL;
+    SotnCdAudio *cd = NULL;
+    SotnFairyRuntime *runtime = SDL_malloc(sizeof(*runtime));
+    if (!runtime)
+        return false;
+    if (!cached)
+    {
+        for (Uint16 i = 0; i < 4; ++i)
+            if (!SotnResource_Open(s->directory, (SotnResourceId)(SOTN_RESOURCE_FAIRY_CODE + i),
+                                   &opened[i]))
+                goto fail;
+        SotnMusic *empty = NULL;
+        if (!SotnActorGraphics_PrepareFamiliar(s->actor_graphics, SotnResource_View(opened[0]),
+                                               SotnResource_View(opened[1]), 0x80170040, 0x801722e8,
+                                               &graphics) ||
+            !SotnSound_PrepareFamiliarBank(s->sound, SotnResource_View(opened[2]),
+                                           SotnResource_View(opened[3]), &sound) ||
+            !SotnCdAudio_Create(s->dra, s->music_stream, &empty, s->system_timer, &cd))
+            goto fail;
+        SotnMusicState music = {0};
+        if (s->music && !SotnMusic_Get(s->music, &music))
+            goto fail;
+    }
+    const SotnDataView overlay = SotnResource_View(cached ? s->fairy_resources[0] : opened[0]);
+    const Uint16 flags =
+        (s->room.foreground.parameters & 0x60U) ? s->room.foreground.parameters : 0;
+    const SotnFairyRuntimeInput input = {
+        .fairy = {.overlay = overlay,
+                  .executable = s->executable,
+                  .player = FairyPlayer(player, s->camera.x, s->camera.y),
+                  .hp = player.hp,
+                  .hp_max = player.hp_max,
+                  .level = (Uint16)progress.records[2].level,
+                  .load_count = progress.records[2].loads,
+                  .room_flags = flags,
+                  .inverted = s->stage_id >= 32},
+        .event_source = {overlay, 0x80172d2c, 49}};
+    *runtime = s->fairy_runtime;
+    if (previous != selected)
+        SDL_zero(runtime->slots);
+    if (!SotnFairyRuntime_Init(runtime, s->actors, input, previous == selected ? 3 : 1))
+        goto fail;
+    // Everything that can allocate, read private files or validate metadata finishes first.
+    // These final operations touch only the already validated live owners on this main thread.
+    if ((previous != selected && !SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors)) ||
+        (cd && !SotnCdAudio_AdoptMusic(cd, &s->music, s->system_timer)) ||
+        !SotnCharacter_SelectFamiliar(s->character, selected, !cached))
+        goto fail;
+    if (graphics)
+    {
+        SotnActorGraphics_Destroy(s->actor_graphics);
+        s->actor_graphics = graphics;
+        graphics = NULL;
+        SotnSound_Destroy(s->sound);
+        s->sound = sound;
+        sound = NULL;
+        s->fairy_cd = cd;
+        cd = NULL;
+        for (Uint16 i = 0; i < 4; ++i)
+        {
+            s->fairy_resources[i] = opened[i];
+            opened[i] = NULL;
+        }
+    }
+    s->fairy_runtime = *runtime;
+    s->world = world;
+    s->dirty = true;
+    SDL_free(runtime);
+    return true;
+fail:
+    SotnActorGraphics_Destroy(graphics);
+    SotnSound_Destroy(sound);
+    SotnCdAudio_Destroy(cd);
+    for (Uint16 i = 0; i < 4; ++i)
+        SotnResource_Close(opened[i]);
+    SDL_free(runtime);
+    return false;
+}
+
 static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y)
 {
     if (!s->fairy_runtime.initialized || !SotnFairyRuntime_Occupied(&s->fairy_runtime))

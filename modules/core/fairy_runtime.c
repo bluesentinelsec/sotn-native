@@ -151,11 +151,10 @@ bool SotnFairyRuntime_Init(SotnFairyRuntime *r, SotnActors *actors, SotnFairyRun
     *r = next;
     return true;
 }
-bool SotnFairyRuntime_Clear(SotnFairyRuntime *r, SotnActors *actors)
+static bool FairyLeases(const SotnFairyRuntime *r, SotnFairyEffectLease leases[3])
 {
-    if (!r || !actors)
-        return SDL_SetError("Fairy clearing requires its actual overlay and shared stage pool");
-    SotnFairyEffectLease leases[3] = {0};
+    if (!r)
+        return SDL_InvalidParamError("Fairy runtime");
     for (Uint16 i = 0; i < 4; ++i)
     {
         const SotnFairyRuntimeSlot *c = &r->slots[i];
@@ -169,7 +168,17 @@ bool SotnFairyRuntime_Clear(SotnFairyRuntime *r, SotnActors *actors)
         if (i)
             leases[i - 1U] = c->lease;
     }
-    if (!SotnActors_ReleaseFairyEffects(actors, leases))
+    return true;
+}
+bool SotnFairyRuntime_Validate(const SotnFairyRuntime *r, const SotnActors *actors)
+{
+    SotnFairyEffectLease leases[3] = {0};
+    return FairyLeases(r, leases) && SotnActors_ValidateFairyEffects(actors, leases);
+}
+bool SotnFairyRuntime_Clear(SotnFairyRuntime *r, SotnActors *actors)
+{
+    SotnFairyEffectLease leases[3] = {0};
+    if (!FairyLeases(r, leases) || !SotnActors_ReleaseFairyEffects(actors, leases))
         return false;
     SDL_zero(r->slots);
     return true;

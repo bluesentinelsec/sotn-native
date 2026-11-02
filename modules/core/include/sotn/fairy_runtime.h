@@ -80,6 +80,11 @@ Uint64 SotnFairyRuntime_Occupied(const SotnFairyRuntime *runtime);
  * @return Success or SDL error preserving runtime/pool on failure. No callbacks, RNG,
  * audio, scene, resources or progression change; deselection lifecycle remains caller-owned. */
 bool SotnFairyRuntime_Clear(SotnFairyRuntime *runtime, SotnActors *actors);
+/** @brief Validate actual retirement ownership without clearing entities, rows or overlay globals.
+ * @param runtime Actual four-slot owner. @param actors Actual shared pool.
+ * @return Success or SDL error. Includes all real leases and absent-lease orphans;
+ * a valid empty namespace is not familiar activation or completed resource loading. */
+bool SotnFairyRuntime_Validate(const SotnFairyRuntime *runtime, const SotnActors *actors);
 /** @brief Apply original post-callback camera/player or connected-room translation.
  * @param runtime Actual four-slot owner. @param actors Actual shared primitive pool.
  * @param camera_x Old minus new camera X, in whole pixels; ignored for room entry.

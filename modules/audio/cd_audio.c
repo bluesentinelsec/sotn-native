@@ -302,14 +302,29 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
     *out = NULL;
     if (!music || !dra.bytes || !SotnStream_Sectors(stream))
         return SDL_SetError("Native CD owner requires actual private data/stream and music owner");
-    SotnMusicState state = {0};
-    if (*music && !SotnMusic_Get(*music, &state))
-        return false;
     SotnCdAudio *a = SDL_calloc(1, sizeof(*a));
     if (!a)
         return false;
     a->dra = dra;
     a->stream = stream;
+    if (!SotnCdAudio_AdoptMusic(a, music, clock))
+    {
+        SDL_free(a);
+        return false;
+    }
+    *out = a;
+    return true;
+}
+bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
+{
+    if (!a || !music || a->current || a->saved || a->bookmarks[0].music || a->bookmarks[1].music ||
+        a->count || a->read != a->write || a->phase || a->playing || a->queued || a->config ||
+        a->acknowledge_busy || a->busy || a->serial)
+        return SDL_SetError(
+            "Music adoption requires an actual empty CD owner without pending work");
+    SotnMusicState state = {0};
+    if (*music && !SotnMusic_Get(*music, &state))
+        return false;
     a->current = *music;
     if (*music)
     {
@@ -321,7 +336,6 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
         a->finite = state.once;
     }
     *music = NULL;
-    *out = a;
     return true;
 }
 bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)

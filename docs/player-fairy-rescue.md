@@ -65,3 +65,9 @@ Provenance: selected `dra/71830.c:PlayerStepKill/PlayerStepKillWater/PlayerStepU
 `dra/4B758.c` draw attributes, sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).
 Private inputs and comparison traces remain outside published source.
+
+The later [native load owner](familiar-lifecycle.md) supplies actual owned resource/
+root initialization and cached selection through a load-boundary API. Its natural
+entry timing also verifies the first uncaptured interruption's animation-expiration
+boundary: that frame may advance artwork once; captured images and subsequent17
+callbacks retain their holds. Ordinary menu/session/persistence gates remain open.

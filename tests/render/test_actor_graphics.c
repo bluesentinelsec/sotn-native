@@ -1465,8 +1465,21 @@ static bool TestFamiliar(Fixture *f)
     const SotnDataView image = {overlay, sizeof(overlay)}, art = {textures, sizeof(textures)};
     const SotnActorSprite sprite = {
         .animation_set = 0x8014, .frame = 1, .palette = 0x140, .texture_offset = 0x6c};
-    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
-          SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170100) &&
+    SotnActorGraphics *candidate = NULL;
+    CHECK(SotnActorGraphics_PrepareFamiliar(g, image, art, 0x80170020, 0x80170100, &candidate) &&
+          candidate && !SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          SotnActorGraphics_Draw(candidate, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          f->frame[10 * 256 + 10] == 31);
+    SotnActorGraphics_Destroy(g);
+    g = candidate;
+    candidate = NULL;
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorSurface target = {0};
+    CHECK(SotnActorGraphics_BeginTarget(
+              g, (SotnActorTarget){.width = 1, .height = 1, .clear = true}, &target) &&
+          !SotnActorGraphics_PrepareFamiliar(g, image, art, 0x80170020, 0x80170100, &candidate) &&
+          !candidate && SotnActorGraphics_EndTarget(g, false));
+    CHECK(SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170100) &&
           SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
     CHECK(f->frame[10 * 256 + 10] == 31 && f->frame[10 * 256 + 11] == 0x3e0 &&
           f->frame[10 * 256 + 12] == 0x7c00 && f->frame[10 * 256 + 13] == 0x7fff);
@@ -1488,7 +1501,14 @@ static bool TestFamiliar(Fixture *f)
     SDL_memcpy(malformed, with_hole, sizeof(malformed));
     Put32(malformed + 0x28, 0x8017ffff);
     textures[0] = 0x55;
-    CHECK(!SotnActorGraphics_LoadFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
+    CHECK(!SotnActorGraphics_PrepareFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
+                                             0x80170020, 0x80170100, &candidate) &&
+          !candidate &&
+          !SotnActorGraphics_PrepareFamiliar(g, image,
+                                             (SotnDataView){textures, sizeof(textures) - 1U},
+                                             0x80170020, 0x80170100, &candidate) &&
+          !candidate &&
+          !SotnActorGraphics_LoadFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
                                           0x80170020, 0x80170100) &&
           !SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170300) &&
           SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&

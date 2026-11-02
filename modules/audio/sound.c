@@ -82,6 +82,27 @@ bool SotnSound_SetFamiliarBank(SotnSound *sound, SotnDataView header, SotnDataVi
     return Bank(sound, 2, header, body);
 }
 
+bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
+                                   SotnSound **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!sound)
+        return SDL_InvalidParamError("sound");
+    SotnSound *candidate = SDL_malloc(sizeof(*candidate));
+    if (!candidate)
+        return false;
+    *candidate = *sound;
+    if (!SotnSound_SetFamiliarBank(candidate, header, body))
+    {
+        SDL_free(candidate);
+        return false;
+    }
+    *out = candidate;
+    return true;
+}
+
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint8 tone, Uint8 note,
               Uint8 volume, Uint8 pan)
 {

@@ -1,3 +1,18 @@
+The [selected familiar load owner](docs/familiar-lifecycle.md) now binds owned
+0/3 through the native menu/load-boundary API: all four verified resources,
+detached resident graphics/SPU candidates, root4/wings5 and empty-CD preparation
+precede real retirement/publication. Preserve old owners on failure, complete
+namespace validation, actual player snapshots, decoder/resampler position and
+all live voices/scripts/queues. Same selection does not reload/increment; cached
+reselection increments once without replacing resources; deselection retains
+loaded cache/audio/history and unrelated shared effects. No grants, frame ticks,
+RNG or v9 change. Ordinary menu activation, room/stage/session binding, persistence,
+general audio/cutscene handling and whole-pass acceptance remain unfinished.
+The first UNCAPTURED death interruption can finish an expiring animation tick;
+retain actual captured textures and subsequent17 holds, without forcing prior
+uncaptured artwork equality. Supplied card/item/HP/protection/load-boundary fixtures
+are not ordinary selection, acquisition, route or console evidence. All six gates stay open.
+
 The [selected familiar retirement](docs/familiar-lifecycle.md) now validates the
 complete actual5..7 DD/DF namespace before clearing4..7 or translating rooms.
 Preserve every real row/sentinel/generation and reject absent-lease orphans before
