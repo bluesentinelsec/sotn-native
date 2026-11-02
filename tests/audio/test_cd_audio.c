@@ -648,7 +648,10 @@ static bool BoundReverb(Uint8 *dra, SotnStream *stream)
         CHECK(SotnSound_Create(inputs, &sound) && SotnSound_Create(inputs, &wrong) &&
               SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
               SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) &&
-              SotnCdAudio_Get(a, &held) && SotnCdAudio_BindSound(a, sound) &&
+              SotnCdAudio_Get(a, &held) && SotnCdAudio_CheckSoundBinding(a, sound) &&
+              !SotnCdAudio_CheckSoundBinding(a, wrong) &&
+              !SotnCdAudio_CheckSoundBinding(NULL, sound) &&
+              !SotnCdAudio_CheckSoundBinding(a, NULL) && SotnCdAudio_BindSound(a, sound) &&
               !SotnCdAudio_BindSound(a, wrong) && SotnCdAudio_Get(a, &state) &&
               SameState(held, state));
         SotnSound_Destroy(wrong);

@@ -10,10 +10,13 @@ integrated acceptance are complete. Existing grants, pools and v9 saves are unch
 context and requires the found private Fairy card. It validates actual player,
 control, card/progression and full row ownership before loading. First selection
 opens all four verified resources and prepares detached graphics/SPU candidates,
-root/wings and an empty CD owner. Allocations, file reads and metadata validation
-finish before actual retirement and ownership publication. Native adoption retains
-the existing decoder/resampler/ADPCM position without advancing it. No detached
-candidate supplies gameplay readiness before the actual transaction commits.
+and root/wings. The common CD owner is already initialized by native bootstrap.
+Its prepared sound dependency is checked without changing the live binding, then
+rebound before the old SPU is retired. Current/saved/in-flight decoders, resampler/
+ADPCM positions and both CD queues retain the same actual owner without a tick.
+Allocations, file reads and metadata validation finish before actual retirement
+and ownership publication. No detached candidate supplies gameplay readiness
+before the actual transaction commits.
 
 Graphics preparation retains resident pixels, validity, capture/cache and palette
 jobs, then uploads familiar data only in the candidate. Sound preparation retains
@@ -50,7 +53,7 @@ route evidence; destination actors and whole-pass rollback retain their existing
 
 Full native engine initialization now derives selection from the actual active private
 card definition and binds original mode0 after player/stage bootstrap and AluInit's64
-RNG calls. It prepares the actual four resources, renderer/SPU and CD owner before the
+RNG calls. It prepares the actual four resources and renderer/SPU, retaining the existing CD before the
 first familiar callback. Engine entry never increments the menu load count. A flag20
 room omits the new stage XA request, as in original Engine_Init.
 

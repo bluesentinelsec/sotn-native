@@ -1,3 +1,16 @@
+Selected [common CD bootstrap](docs/familiar-cd-audio.md) now owns actual CD/SPU
+binding before any familiar load, private stage-profile requests, flag20 silence,
+real command4/read acknowledgements and no-card game-over audio. First bank2 load
+validates then rebinds the same CD to the prepared SPU before old-owner retirement,
+retaining current/saved decoders, queues, voices/DSP and physical effect-ring cursors
+without a tick. Save-room entry queues actual stopA; exit repeats stop until actual
+XA activity clears before the stage request. Never recreate a legacy decoder.
+Clock-room stop is not inferred from save-room evidence. Stage/card/resource/audio/
+edge fixtures and bounded instruction blocks are not ordinary acquisition/routes/
+full engine-room-fade/console evidence. Full cross-session audio/SPU continuity,
+remaining global controls/voice sharing and all six milestone gates stay open;
+no grants/pools/savesv9 change or ordinary Fairy UI.
+
 Selected [effect-ring ownership](docs/laboratory-audio.md) now preserves the original
 256 read/write slots, last matching effect, retained volume/pan and wrap-to-empty.
 Consume IDs before lookahead; preserve physical cursors and stale volume/pan words

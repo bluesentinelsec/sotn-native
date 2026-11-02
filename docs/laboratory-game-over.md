@@ -63,7 +63,8 @@ not advance audio or presentation. Mute runs after actual SEQ closure, retains l
 voice/envelope/register/DSP/RAM state, copied scripts and the original reverb restore
 byte, and clears the original command/effect queues, current script/SEQ metadata and
 abandoned bookmarks. It resets master127/multiplier32 without a sample tick. The
-existing unbound game-over path retains its separate legacy behavior.
+ordinary native starts now bind the common CD owner before any Fairy load.
+The retained unbound compatibility branch is not the ordinary bootstrap path.
 
 Authored tests cover closed-SEQ validation, failed preconditions without mutation,
 actual81/11/B/12/16 work, retained SPU/copy owners, pending-effect/attachment reset,
@@ -88,6 +89,7 @@ protection, lethal contact, HP1/water-result and stage-audio fixtures remain sep
 from ordinary acquisition, water routes and console evidence. All six final CD/rescue/actual-app regressions pass with normal exits and no
 sanitizer errors; exact-head platform results accompany the PR.
 
-This owns selected bound audio transitions. Unbound bootstrap/game-over, original
+This owns selected audio transitions, now also reached by common native bootstrap
+without a Fairy card or bank2 load. Original
 whole-scene/entity/GPU cleanup, original shared RNG/raster/SDK timing, session/title
 continuity and the remaining [milestone gates](alucard-status.md) remain unfinished.

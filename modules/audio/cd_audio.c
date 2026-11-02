@@ -577,11 +577,17 @@ bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
     a->write = (Uint16)((a->write + 1U) & 255U);
     return true;
 }
-bool SotnCdAudio_BindSound(SotnCdAudio *a, SotnSound *sound)
+bool SotnCdAudio_CheckSoundBinding(const SotnCdAudio *a, const SotnSound *sound)
 {
     if (!a || !sound || !sound->reverb.configured || a->dra.bytes != sound->dra.bytes ||
         a->dra.size != sound->dra.size)
         return SDL_SetError("CD reverb requires its actual configured SPU owner and shared DRA");
+    return true;
+}
+bool SotnCdAudio_BindSound(SotnCdAudio *a, SotnSound *sound)
+{
+    if (!SotnCdAudio_CheckSoundBinding(a, sound))
+        return false;
     a->sound = sound;
     return true;
 }

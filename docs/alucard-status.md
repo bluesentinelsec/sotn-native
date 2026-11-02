@@ -129,14 +129,18 @@ needs a source-backed inventory of its remaining branches and an evidence record
   commands with actual transports. Selected native stage90..94 volume requests now
   bind actual command8, separate fade acknowledgement and original activity snapshots
   through ordinary/frozen/FFF scheduling. Remaining general stage music/dialogue,
-  unbound master routing, retargeted queues, CD reverb and general sharing remain open;
+  remaining master controls, retargeted queues, CD reverb and general sharing remain open;
   this does not enable ordinary familiar selection.
   An already bound native CD owner also receives selected stage music/speech,
   stop, pause/restore and real-profile restart requests without overlapping legacy
   decoders. Laboratory/Library boss fades and shared dialogue92 retain their actual
   identities; the Laboratory music-transition victory preserves its original state
-  increment. Initial bootstrap, unbound game-over routing, full sound ordering and session
-  continuity still require their remaining owners. Selected
+  increment. Selected common CD bootstrap now supplies actual initial stage requests,
+  flag20 silence and no-card game-over routing. First familiar bank loading rebinds
+  the same CD to a prepared SPU while retaining live/saved decoders and queues.
+  Save-room stop/restart uses actual XA activity; it creates no legacy overlap.
+  Full sound ordering and cross-session CD/SPU continuity still require their
+  remaining owners. Selected
   [bound game-over audio](laboratory-game-over.md) now uses separate81/11 frames,
   original acknowledgement/XA gates,12/B cleanup, actual mute and33e. SPU updates
   continue without legacy overlap; original entity/GPU cleanup remains open.
@@ -164,8 +168,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   last-duplicate order/volume/pan and wrap-to-empty behavior without a capacity
   failure. Standalone control/ambience compatibility APIs remain separately scoped.
   Full voice allocation/key timing, CD sends,
-  unbound bootstrap/game-over routing, other presets, remaining mixing
-  and cross-session audio remain unfinished. Selected
+  original full-engine/room-fade timing, other presets, remaining mixing
+  and cross-session audio remain unfinished. Native sessions now initialize the
+  common CD owner before familiar loading; no-card deaths use its actual game-over
+  lifecycle. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
   callbacks before lookup and prunes32/33/65 before destination allocations. The
   medicine batch extends actual root cleanup to every eight-slot record by flags,

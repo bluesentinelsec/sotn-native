@@ -43,6 +43,11 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock)
  * The sound owner must remain live until replacement or CD destruction. Native callers rebind
  * prepared sound replacement before retiring the departing owner. This does not enable CD sends. */
 bool SotnCdAudio_BindSound(SotnCdAudio *audio, SotnSound *sound);
+/** @brief Validate a prepared SPU dependency without changing the live binding or clocks.
+ * @param audio Actual CD owner. @param sound Prepared configured owner sharing its DRA.
+ * @return Success or SDL error without mutation. A successful main-thread check permits
+ * BindSound after other preparation, before retiring the previous SPU owner. */
+bool SotnCdAudio_CheckSoundBinding(const SotnCdAudio *audio, const SotnSound *sound);
 /** @brief Original MuteSound/InitSoundVars1 after StopSeq, without a sample tick.
  * @param audio Actual bound owner with closed SEQ. Retires its current/saved transports and serial
  * mix.

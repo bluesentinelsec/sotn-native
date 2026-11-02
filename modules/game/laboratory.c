@@ -112,7 +112,7 @@ struct SotnLaboratory
     SotnSaveStore *saves;
     SotnSavePoint save_point;
     SotnSavePointRenderer *save_renderer;
-    bool save_room, clock_room;
+    bool save_room, clock_room, room_music_stopped;
     LaboratoryInput input;
     SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1508];
     Uint16 frame[SOTN_FRAME_PIXELS];
@@ -171,6 +171,18 @@ static bool CreateStageMusic(SotnLaboratory *s, SotnMusic **out)
                                     s->stage_id == 7 || s->world.flags[SOTN_ENTRANCE_ON] ||
                                         s->world.flags[SOTN_ENTRANCE_DEATH],
                                     out);
+}
+
+static bool StageMusicCommand(SotnLaboratory *s, Uint16 *command)
+{
+    SotnMusic *profile = NULL;
+    SotnMusicState state = {0};
+    if (!CreateStageMusic(s, &profile))
+        return false;
+    const bool read = !profile || SotnMusic_Get(profile, &state);
+    *command = profile ? (Uint16)(state.id + 0x300U) : 0x2ff;
+    SotnMusic_Destroy(profile);
+    return read;
 }
 
 static SotnDataView StageGraphics(const SotnLaboratory *session)
@@ -247,7 +259,14 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
         if (!SotnStream_OpenMusic(directory, &session->music_stream))
             return false;
     }
-    if (!CreateStageMusic(session, &session->music))
+    SotnMusic *empty = NULL;
+    Uint16 command = 0;
+    if (!SotnCdAudio_Create(session->dra, session->music_stream, &empty, session->system_timer,
+                            &session->fairy_cd) ||
+        !SotnCdAudio_BindSound(session->fairy_cd, session->sound) ||
+        !StageMusicCommand(session, &command) ||
+        (!(session->room.foreground.parameters & 0x20U) && command != 0x2ff &&
+         !SotnCdAudio_Queue(session->fairy_cd, command)))
         return false;
     return SotnPlayback_Create(&session->audio);
 }
@@ -275,14 +294,9 @@ static bool QueueOwnedStageCd(SotnLaboratory *s, const SotnActorCombat *combat)
 {
     if (combat->restart_stage_music)
     {
-        SotnMusic *profile = NULL;
-        SotnMusicState state = {0};
-        if (!CreateStageMusic(s, &profile))
-            return false;
-        const bool read = !profile || SotnMusic_Get(profile, &state);
-        const Uint16 command = profile ? (Uint16)(state.id + 0x300U) : 0xa;
-        SotnMusic_Destroy(profile);
-        if (!read || !SotnCdAudio_Queue(s->fairy_cd, command))
+        Uint16 command = 0;
+        if (!StageMusicCommand(s, &command) ||
+            !SotnCdAudio_Queue(s->fairy_cd, command == 0x2ff ? 0xa : command))
             return false;
     }
     if (combat->music_change &&
@@ -478,6 +492,21 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     if (!QueueAudio(session, combat, player_sound, player_extra_sound, player_third_sound,
                     guard_sound))
         return false;
+    if (session->fairy_cd && session->room_music_stopped && !session->save_room &&
+        !session->clock_room && !session->game_over)
+    {
+        SotnCdAudioState cd = {0};
+        // Engine_3 repeats StopMusic until actual XA activity clears before
+        // requesting the retained stage profile; a cooldown is not readiness.
+        if (!SotnCdAudio_Queue(session->fairy_cd, 0xa) || !SotnCdAudio_Get(session->fairy_cd, &cd))
+            return false;
+        if (!cd.xa_active)
+        {
+            if (!QueueOwnedStageCd(session, &(SotnActorCombat){.restart_stage_music = true}))
+                return false;
+            session->room_music_stopped = false;
+        }
+    }
     if (session->spell_pause_pending)
     {
         if (session->sound && !QueueNativeSound(session, 0x0e))
@@ -1484,7 +1513,7 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool r
             return SDL_SetError("Familiar cache contains incomplete actual resources");
     if ((!engine && previous == 3 && (!cached || !s->fairy_cd || !s->fairy_runtime.initialized)) ||
         (cached && (!s->fairy_cd || !s->fairy_runtime.initialized || s->music)) ||
-        (!cached && s->fairy_cd))
+        (s->fairy_cd && s->music))
         return SDL_SetError("Familiar selection lost its actual cached binding or CD owner");
     if (!selected && !retain_cache)
     {
@@ -1513,9 +1542,12 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool r
                                                SotnResource_View(opened[1]), 0x80170040, 0x801722e8,
                                                &graphics) ||
             !SotnSound_PrepareFamiliarBank(s->sound, SotnResource_View(opened[2]),
-                                           SotnResource_View(opened[3]), &sound) ||
-            !SotnCdAudio_Create(s->dra, s->music_stream, &empty, s->system_timer, &cd) ||
-            !SotnCdAudio_BindSound(cd, sound))
+                                           SotnResource_View(opened[3]), &sound))
+            goto fail;
+        if (s->fairy_cd
+                ? !SotnCdAudio_CheckSoundBinding(s->fairy_cd, sound)
+                : (!SotnCdAudio_Create(s->dra, s->music_stream, &empty, s->system_timer, &cd) ||
+                   !SotnCdAudio_BindSound(cd, sound)))
             goto fail;
         SotnMusicState music = {0};
         if (s->music && !SotnMusic_Get(s->music, &music))
@@ -1551,14 +1583,21 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool r
         goto fail;
     if (graphics)
     {
+        // The compatibility check above and all fallible preparation finished
+        // before committing this dependency. Keep the actual CD transport/rings.
+        if (s->fairy_cd && !SotnCdAudio_BindSound(s->fairy_cd, sound))
+            goto fail;
         SotnActorGraphics_Destroy(s->actor_graphics);
         s->actor_graphics = graphics;
         graphics = NULL;
         SotnSound_Destroy(s->sound);
         s->sound = sound;
         sound = NULL;
-        s->fairy_cd = cd;
-        cd = NULL;
+        if (cd)
+        {
+            s->fairy_cd = cd;
+            cd = NULL;
+        }
         for (Uint16 i = 0; i < 4; ++i)
         {
             s->fairy_resources[i] = opened[i];
@@ -1624,7 +1663,8 @@ static bool InitializeFamiliar(SotnLaboratory *s, const SotnLaboratory *source)
                 return SDL_SetError("Connected familiar handoff lost its complete resource cache");
         if ((cached &&
              (!source->fairy_cd || !source->fairy_runtime.initialized || source->music)) ||
-            (!cached && (selected || source->fairy_cd || source->fairy_runtime.initialized)))
+            (!cached && (selected || source->fairy_runtime.initialized)) ||
+            (source->fairy_cd && source->music))
             return SDL_SetError(
                 "Connected familiar handoff lost actual loaded overlay/audio ownership");
         if (cached)
@@ -1884,7 +1924,16 @@ static bool EnterSaveRoom(SotnLaboratory *session)
     {
         if (!SotnPlayback_Reset(session->audio))
             return false;
-        if (!session->save_room && !session->clock_room)
+        if (session->fairy_cd)
+        {
+            if (session->save_room)
+            {
+                if (!SotnCdAudio_Queue(session->fairy_cd, 0xa))
+                    return false;
+                session->room_music_stopped = true;
+            }
+        }
+        else if (!session->save_room && !session->clock_room)
         {
             SotnMusic_Destroy(session->music);
             session->music = NULL;

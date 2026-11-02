@@ -298,3 +298,63 @@ restore byte and original retained XA words. Actual bound game-over audio no lon
 overlaps a legacy decoder or skips its live SPU owner. Source comparisons and actual
 dying-player checks preserve their separate scopes in the linked document. Unbound
 bootstrap/game-over and complete cleanup/global/session ownership remain open.
+
+
+## Common native bootstrap and bank loading
+
+Native sessions now initialize and bind this common CD owner after the actual
+SPU/stream resources, before any familiar selection. Initial requests use the
+existing verified private stage-profile identity; source MU_NO_AUDIO creates no
+transport, and actual flag20 rooms omit the initial stage request. Command4 performs
+the real configuration and ReadN before publishing playback. A present CD owner
+does not imply an initialized familiar overlay, root, found card or bank2.
+
+First familiar bank loading now prepares graphics/SPU resources, checks the sound
+dependency without mutation and rebinds the same CD immediately before retiring
+the previous SPU. Current/saved decoders, pending incoming/CD queues and actual
+playback position survive. Voices, script cursors, effect read/write slots, DSP
+phase and RAM outside the loaded bank retain their existing ownership. Failed
+resource preparation preserves the live CD and complete SPU state. Cached and
+connected familiar validation distinguishes global CD existence from actual
+loaded overlay/root readiness.
+
+Actual save-room entry queues stopA and retains the source music-stopped word.
+After leaving, native audio repeats stopA and waits for actual XA activity
+(playing identity or fade) to clear before requesting the stage profile. This fixes
+a legacy decoder being recreated beside an already bound CD on room exit.
+No cooldown substitutes for activity. This batch does not infer a clock-room stop
+from save-room source or complete the engine's room-fade/player-hold phases.
+
+The same bootstrap owner now handles native game-over without any Fairy card,
+resource load or bank2 fixture, using the selected
+[game-over lifecycle](laboratory-game-over.md). No native start grants a familiar
+or changes HP/MP, relics, equipment or version-nine saves.
+
+Private comparisons execute264 bounded original instruction blocks for
+Engine_Init music selection/requests and Engine_3 stop/readiness/restart, using
+the actual private stage table and actual xa_play_ck query. They cover stage65
+wind/mode, room20/40 flags, fades and playing identities. PlaySfx is an explicit
+request adapter; these are selected instruction blocks, not whole-engine calls.
+
+Actual Debug/ASan native checks cover all11 stage profiles, real command4/read
+acknowledgements or source silence, and a first bank2 load with actual Library
+bookmark/speech and pending E/90 controls. The same CD and decoder/queue state
+survive with voice/register/script/effect-ring/DSP and outside-bank RAM retention.
+A failed resource-root fixture retains the complete live SPU. Actual save23/room11
+edge fixtures cover60 silent updates and two restarts; the active case holds six
+updates before XA readiness, without a legacy decoder or save input/write.
+Separate actual no-card physical/water/silent-music deaths exercise capture,64
+decay uploads, source game-over requests, retained SPU and real presentation/PCM.
+
+All220 public tests pass in Debug, Release and macOS ASan/UBSan, alongside34
+Python tests, repository policy, formatting, static SDL linkage and Release ZIP
+CRC/private-input checks. All eight final Debug/ASan CD, rescue, card-context
+game-over and actual medicine-app regressions pass with normal exits and no
+sanitizer errors. The no-card death checks are separate additional native evidence.
+
+All such stage/card/resource/protection/audio/edge/lethal/HP1-water-result fixtures
+remain separate from ordinary acquisition, traversal, full scene/room-fade
+initialization, hardware timing and console evidence. Cross-session CD/SEQ/SPU
+RAM/DSP continuity, changed-base retargeting, remaining global controls/cutscenes,
+voice arbitration/key timing, CD wet sends and whole-pass acceptance remain open.
+Ordinary Fairy menu activation and all six Alucard milestone gates remain open.
