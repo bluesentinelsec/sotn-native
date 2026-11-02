@@ -1,4 +1,5 @@
 #include "data_internal.h"
+#include "sound_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/cd_audio.h>
 #define CHECK(v)                                                                                   \
@@ -390,6 +391,119 @@ static bool FadeRetargetAndLoop(SotnDataView dra, SotnStream *stream)
     SotnCdAudio_Destroy(a);
     return true;
 }
+static void Sound16(Uint8 *p, Uint16 value)
+{
+    p[0] = (Uint8)value;
+    p[1] = (Uint8)(value >> 8);
+}
+static bool BoundReverb(Uint8 *dra, SotnStream *stream)
+{
+    Uint8 header[3104] = {0}, body[32] = {0};
+    Uint8 *image = SDL_calloc(1, 0x24000);
+    SotnSound *reference = SDL_malloc(sizeof(*reference));
+    CHECK(image && reference);
+    Put32(header, 0x56414270);
+    Put32(header + 4, 7);
+    Sound16(header + 18, 1);
+    Sound16(header + 22, 1);
+    header[24] = header[33] = header[2082] = 127;
+    header[25] = header[36] = header[2083] = 64;
+    header[32] = 1;
+    header[2081] = 4;
+    header[2084] = 60;
+    Sound16(header + 2096, 15);
+    Sound16(header + 2098, 0x1fc0);
+    Sound16(header + 2102, 1);
+    Sound16(header + 2594, 4);
+    body[0] = body[16] = 4;
+    body[1] = 6;
+    body[17] = 3;
+    for (Uint16 i = 2; i < 16; ++i)
+        body[i] = body[i + 16] = 0x11;
+    SDL_memcpy(dra + 0x1107c, header, sizeof(header));
+    for (Uint32 i = 0; i < 4; ++i)
+        Put32(dra + 0x1d1c8 + i * 4, (i + 1) * 0x1000);
+    const Uint16 coefficients[32] = {1, 1, 16384, 32767, 0, 0, 0,  8192, 16384, 16384, 2,
+                                     3, 2, 3,     2,     3, 2, 3,  4,    5,     2,     3,
+                                     2, 3, 4,     5,     8, 9, 12, 13,   32767, 32767};
+    Put32(image + 0x23d68 + 12, (SOTN_SPU_RAM_SIZE - 4096) / 8);
+    for (Uint32 i = 0; i < 32; ++i)
+        Sound16(image + 0x23db8 + 204 + 4 + i * 2, coefficients[i]);
+    const SotnSoundSources inputs = {{dra, 0x20000},           {body, sizeof(body)},
+                                     {header, sizeof(header)}, {body, sizeof(body)},
+                                     {header, sizeof(header)}, {body, sizeof(body)}};
+    Uint8 seq[19] = {'p', 'Q', 'E', 'S', 0, 0, 0, 1, 0, 60, 7, 0xa1, 0x20, 4, 2, 0, 0xff, 0x2f, 0};
+    for (Uint16 profile = 0; profile < 2; ++profile)
+    {
+        SotnSound *sound = NULL, *wrong = NULL;
+        SotnCdAudio *a = NULL;
+        SotnMusic *music = NULL;
+        SotnCdAudioState state = {0}, held = {0};
+        Uint32 clock = profile ? SDL_MAX_UINT32 - 20U : 0;
+        CHECK(SotnSound_Create(inputs, &sound) && SotnSound_Create(inputs, &wrong) &&
+              SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
+              SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) &&
+              SotnCdAudio_Get(a, &held) && SotnCdAudio_BindSound(a, sound) &&
+              !SotnCdAudio_BindSound(a, wrong) && SotnCdAudio_Get(a, &state) &&
+              SameState(held, state));
+        SotnSound_Destroy(wrong);
+        if (profile)
+        {
+            dra[0x1d1e0 + 6] = 127;
+            dra[0x1d1e0 + 7] = 64;
+            dra[0x1d1e0 + 8] = 0;
+            CHECK(SotnSound_SetStageSequence(sound, (SotnDataView){image, 0x24000},
+                                             (SotnDataView){seq, sizeof(seq)}, 0x202) &&
+                  SotnSound_PlaySequence(sound, 0x202));
+        }
+        CHECK(sound->reverb_restore_depth == (profile ? 64 : 0) &&
+              SoundKey(sound, 14, 1, 0, 0, 60, 127, 64) && StartVoice(a, &clock, 0x32e, &state));
+        bool temporary = false, restored = false, replaced = false;
+        for (Uint16 i = 0; i < 120 && !restored; ++i)
+        {
+            const bool restoring = state.command == 6 && state.phase == 4;
+            SotnSoundFrame frame = {0};
+            Sint16 pcm[SOTN_SOUND_FRAMES * 2], expected[SOTN_SOUND_FRAMES * 2];
+            CHECK(SotnSound_UpdateCommands(sound, &frame));
+            const SotnReverb before = sound->reverb;
+            *reference = *sound;
+            CHECK(Tick(a, &clock, &state) && before.cursor == sound->reverb.cursor &&
+                  before.phase == sound->reverb.phase);
+            const bool starting = !temporary && state.command == 6 && state.phase == 2;
+            if (starting || restoring)
+            {
+                const Sint16 depth = restoring ? (profile ? 64 : 0) : 127;
+                CHECK(sound->reverb.depth[0] == (restoring ? (profile ? 16512 : 0) : 32767));
+                CHECK(SotnSound_SetReverbDepth(reference, depth, depth));
+                SotnSoundFrame ref_frame = frame;
+                ref_frame.owner = reference;
+                CHECK(
+                    SotnSound_RenderFrame(reference, ref_frame, expected, SDL_arraysize(expected)));
+            }
+            CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+            if (starting || restoring)
+                CHECK(!SDL_memcmp(pcm, expected, sizeof(pcm)));
+            if (starting)
+            {
+                temporary = true;
+                SotnSound *next = NULL;
+                CHECK(SotnSound_PrepareFamiliarBank(sound, inputs.player_header, inputs.player_body,
+                                                    &next) &&
+                      SotnCdAudio_BindSound(a, next));
+                SotnSound_Destroy(sound);
+                sound = next;
+                replaced = true;
+            }
+            restored = restoring;
+        }
+        CHECK(temporary && restored && replaced && state.queue_empty && state.playing == 46);
+        SotnCdAudio_Destroy(a);
+        SotnSound_Destroy(sound);
+    }
+    SDL_free(reference);
+    SDL_free(image);
+    return true;
+}
 static bool Run(const char *directory)
 {
     Uint8 *dra = SDL_calloc(1, 0x20000), *raw = SDL_calloc(32, SOTN_CD_SECTOR_BYTES);
@@ -435,7 +549,7 @@ static bool Run(const char *directory)
           CommandMusic((SotnDataView){dra, 0x20000}, stream) &&
           LoopPauseOrder((SotnDataView){dra, 0x20000}, stream) &&
           VolumeFades((SotnDataView){dra, 0x20000}, stream) &&
-          FadeRetargetAndLoop((SotnDataView){dra, 0x20000}, stream));
+          FadeRetargetAndLoop((SotnDataView){dra, 0x20000}, stream) && BoundReverb(dra, stream));
     dra[0x1d224 + 47 * 16 + 10] = 127;
     CHECK(Exercise((SotnDataView){dra, 0x20000}, stream));
     SotnStream_Close(stream);

@@ -1,3 +1,14 @@
+Selected [CD/SPU depth ownership](docs/familiar-cd-audio.md) now binds the actual
+configured sound owner, applies mode0 depth127 before6 and restores the original
+current byte at6 completion. BSS restore0 is separate from SoundInit SDK depth10;
+actual SEQ changes the byte. Rebind prepared sound before retiring the old owner.
+Preserve command-update/CD/render order and pre-SEQ script lease span, including
+fourth-channel retirement when SEQ ends. Binding/depth requests never tick DSP.
+Explicit clock/tone/owner fixtures are not normal traversal or console evidence;
+normal unskipped service cadence remains separate. CD wet/master/remaining global
+mix/order/session/persistence/whole-pass and all six gates remain open. No new
+pool/grants/v9 changes or ordinary Fairy UI.
+
 Selected [native SPU voice reverb](docs/spu-reverb.md) now owns private SDK Studio B
 coefficients, actual tone mask0x4 sends and the existing SPU RAM work area. Preserve
 half-rate/44.1kHz phase, signed-word depths, stereo IIR/comb/APF work, cursor wrap,
@@ -6,7 +17,7 @@ clearing/uploading; familiar preparation retains the live DSP and work RAM. Nati
 SoundInit depth10 and selected private SEQ depths now apply. Audio updates continue
 through menu/spell freeze; draws/load preparation never tick it. Explicit tone/card/
 protection/reference fixtures are not ordinary effect/acquisition/route/console
-evidence. CD sends/depth producers, other presets/master/mixer/session continuity
+evidence. Remaining CD sends, other presets/master/mixer/session continuity
 and all six milestone gates remain open. No new pool/grants/v9 changes or Fairy UI.
 
 Selected [bound stage CD routing](docs/familiar-cd-audio.md) now shares actual

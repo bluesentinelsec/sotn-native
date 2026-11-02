@@ -41,6 +41,8 @@ struct SotnSound
     SotnVoiceRegisters registers[24];
     SotnReverb reverb;
     Uint32 reverb_voices;
+    Uint8
+        reverb_restore_depth; /**< Original BSS g_ReverbDepth; distinct from temporary SDK gain. */
     SoundScript scripts[4], script_backup[4];
     bool scripts_paused;
     struct

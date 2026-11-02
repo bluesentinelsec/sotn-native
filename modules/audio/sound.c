@@ -414,10 +414,10 @@ bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan)
     return true;
 }
 
-bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
+bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
 {
-    if (sound == NULL || pcm == NULL || count < SOTN_SOUND_FRAMES * 2)
-        return SDL_SetError("Sound tick requires state and a full stereo PCM buffer");
+    if (!sound || !out)
+        return SDL_SetError("Sound command update requires its actual owner and frame output");
     for (Uint32 i = 0; i < sound->queued; ++i)
         if (sound->queue[i].ambience_volume)
         {
@@ -474,7 +474,17 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
     }
     if (!SoundSequenceTick(sound))
         return false;
-    for (Uint32 frame = 0; frame < SOTN_SOUND_FRAMES; ++frame)
+    *out = (SotnSoundFrame){sound, (Uint8)first_script, (Uint8)end_script};
+    return true;
+}
+
+bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, size_t count)
+{
+    if (!sound || frame.owner != sound || !pcm || count < SOTN_SOUND_FRAMES * 2 ||
+        !((frame.first_script == 0 && frame.end_script == 3) ||
+          (frame.first_script == 3 && frame.end_script == 4)))
+        return SDL_SetError("Sound render requires its actual command frame and full PCM output");
+    for (Uint32 sample_frame = 0; sample_frame < SOTN_SOUND_FRAMES; ++sample_frame)
     {
         Sint32 left = 0, right = 0, wet_left = 0, wet_right = 0;
         for (Uint32 v = 0; v < 24; ++v)
@@ -505,10 +515,10 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
             left += wet[0];
             right += wet[1];
         }
-        pcm[frame * 2] = clamp16(left);
-        pcm[frame * 2 + 1] = clamp16(right);
+        pcm[sample_frame * 2] = clamp16(left);
+        pcm[sample_frame * 2 + 1] = clamp16(right);
     }
-    for (Uint32 i = first_script; i < end_script; ++i)
+    for (Uint32 i = frame.first_script; i < frame.end_script; ++i)
     {
         if (sound->scripts[i].id)
             continue;
@@ -524,6 +534,15 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
     }
 
     return true;
+}
+
+bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
+{
+    if (!sound || !pcm || count < SOTN_SOUND_FRAMES * 2)
+        return SDL_SetError("Sound tick requires state and a full stereo PCM buffer");
+    SotnSoundFrame frame = {0};
+    return SotnSound_UpdateCommands(sound, &frame) &&
+           SotnSound_RenderFrame(sound, frame, pcm, count);
 }
 
 void SotnSound_Destroy(SotnSound *sound)

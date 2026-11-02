@@ -54,8 +54,26 @@ a real five-MP Summon cast and34 frozen/release audio updates, and five repeated
 draw holds. Default70HP/20MP precede the actual cast to15MP. Card/load/protection/tone
 fixtures do not establish ordinary familiar selection, acquisition or traversal.
 
-CD reverb sends and temporary/restore depth producers, other presets, master-volume
-commands, full mixer/SDK scheduling and cross-session DSP continuity remain open.
+Selected bound CD mode0 expiry now applies actual depth127 before command6, whose
+completion restores the current original `g_ReverbDepth` byte. The byte starts at
+BSS zero independently of SoundInit's current SDK depth10; real SEQ playback updates
+it. Prepared sound replacement rebinds the CD dependency before retiring the old
+owner. Neither binding nor these gain operations advance DSP samples.
+
+Native audio now updates commands/scripts/SEQ, executes CD work, then renders the
+actual voice/DSP samples. The retained command-frame snapshot preserves the script
+lease span selected before SEQ completion, including the fourth-channel boundary.
+Existing `SotnSound_Tick` callers retain the combined update/render service.
+
+Original-instruction comparisons now also match both actual signed SPU depth words
+and the restore byte through95,400 updates and both full command rings. Separate
+normal playback passes14,470 unskipped command/CD/render updates with BSS-zero and
+actual Library SEQ restore depths. Supplied engine-expiry and sound-replacement
+fixtures additionally verify same-frame native PCM and binding lifetime; they do
+not establish an uninterrupted gameplay route.
+
+CD reverb sends, other presets, master-volume commands, remaining mixer/SDK
+scheduling and cross-session DSP continuity remain open.
 This voice processor does not complete [shared CD audio](familiar-cd-audio.md),
 ordinary familiar activation, Alucard, castle or console parity. All six
 [milestone gates](alucard-status.md) remain open.

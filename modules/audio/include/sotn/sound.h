@@ -11,6 +11,12 @@ typedef struct SotnSoundSources
 
 /** @brief Owned sound simulation with bounded SPU memory, voices, and scripts. */
 typedef struct SotnSound SotnSound;
+/** @brief Actual command-update snapshot retained until the corresponding sample render. */
+typedef struct SotnSoundFrame
+{
+    const SotnSound *owner;
+    Uint8 first_script, end_script;
+} SotnSoundFrame;
 /** @brief Prepare a detached familiar-bank candidate, retaining actual voices/scripts/SEQ state.
  * @param sound Actual main-thread SPU owner. @param header Borrowed verified familiar VAB header.
  * @param body Borrowed verified body. @param out Owned candidate or NULL on failure.
@@ -103,6 +109,17 @@ bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
  * @return Success, or false with SDL_GetError(); stop the session after a data failure.
  * @note No device access, allocations, or filesystem reads occur in this method. */
 bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count);
+/** @brief Update actual commands/scripts/SEQ once, retaining the pre-SEQ script lease span.
+ * @param sound Actual sound owner. @param out Frame for exactly one subsequent RenderFrame.
+ * @return Success or SDL error, preserving output on failure. No PCM/sample clock advances.
+ * Native callers run CD commands between this phase and rendering; this supplies no controls. */
+bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out);
+/** @brief Render one actual stereo frame after its successful command update.
+ * @param sound Same actual owner. @param frame Corresponding command snapshot, consumed once.
+ * @param pcm Output sample buffer. @param count At least SOTN_SOUND_FRAMES*2.
+ * @return Success or SDL error before mutation for invalid owner/span/buffer.
+ * Advances actual voices/DSP and retires only the captured script lease span. */
+bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, size_t count);
 /** @brief Release sound state without freeing borrowed image/header bytes.
  * @param sound Owned sound simulation, or NULL. */
 void SotnSound_Destroy(SotnSound *sound);

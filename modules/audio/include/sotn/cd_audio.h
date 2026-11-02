@@ -35,6 +35,12 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
  * real resampler/sector/ADPCM position. This lets a resource transaction allocate first
  * and transfer ownership only at commit; it supplies no playback acknowledgement. */
 bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock);
+/** @brief Bind the actual configured SPU owner for CD-produced reverb depth work.
+ * @param audio Actual CD owner. @param sound Borrowed live sound owner sharing the same DRA.
+ * @return Success or SDL error without mutation. No queues, decoders or DSP clocks advance.
+ * The sound owner must remain live until replacement or CD destruction. Native callers rebind
+ * prepared sound replacement before retiring the departing owner. This does not enable CD sends. */
+bool SotnCdAudio_BindSound(SotnCdAudio *audio, SotnSound *sound);
 /** @brief Queue original10/11/A/90..94 or an original US XA sound ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.

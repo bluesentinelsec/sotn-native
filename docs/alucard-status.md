@@ -149,7 +149,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   number/particle/shake/capture/audio paths and original ordering/timing. Selected
   [native SPU voice reverb](spu-reverb.md) now binds actual private SDK Studio B,
   per-tone sends, selected SEQ depths and shared work RAM with menu/freeze/draw/load
-  boundaries. CD sends/depth producers, master commands, other presets, full mixing
+  boundaries. Bound CD expiry/loop depth work now reaches that actual owner between
+  command updates and sample rendering, with prepared sound rebinding and retained
+  pre-SEQ lease spans. CD sends, master commands, other presets, remaining mixing
   and cross-session audio remain unfinished. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
   callbacks before lookup and prunes32/33/65 before destination allocations. The

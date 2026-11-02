@@ -248,6 +248,7 @@ bool SotnSound_PlaySequence(SotnSound *s, Uint16 id)
         return false;
     SotnSound_StopSequence(s);
     s->sequence_volume = config[0];
+    s->reverb_restore_depth = config[1];
     s->sequence = next;
     return true;
 }

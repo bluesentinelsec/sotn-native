@@ -2,6 +2,7 @@
 // Selected dra/sound.c PlaySfx/ExecSoundCommands/AddCdSoundCommand/func_80133FCC,
 // CdSoundCommand4/12/CdSoundStartXaPlayback/CdFadeOut2, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Native XA services replace CD hardware calls.
+#include "sound_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/cd_audio.h>
 
@@ -18,6 +19,7 @@ struct SotnCdAudio
     SotnDataView dra;
     SotnStream *stream;
     SotnMusic *current;
+    SotnSound *sound;
     SavedMusic bookmarks[2];
     Uint16 incoming[256], commands[256];
     Uint16 read, write, count, playing, queued, config;
@@ -227,6 +229,9 @@ static bool Loop(SotnCdAudio *a, Uint32 clock)
         break;
     case 4:
         if (!Current(a, &state))
+            return false;
+        if (a->sound && !SotnSound_SetReverbDepth(a->sound, a->sound->reverb_restore_depth,
+                                                  a->sound->reverb_restore_depth))
             return false;
         a->started = clock;
         a->duration = state.duration;
@@ -482,6 +487,14 @@ bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
     a->write = (Uint16)((a->write + 1U) & 255U);
     return true;
 }
+bool SotnCdAudio_BindSound(SotnCdAudio *a, SotnSound *sound)
+{
+    if (!a || !sound || !sound->reverb.configured || a->dra.bytes != sound->dra.bytes ||
+        a->dra.size != sound->dra.size)
+        return SDL_SetError("CD reverb requires its actual configured SPU owner and shared DRA");
+    a->sound = sound;
+    return true;
+}
 bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
 {
     if (!a || !pcm || count < SOTN_SOUND_FRAMES * 2)
@@ -509,6 +522,8 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
         }
         else
         {
+            if (a->sound && !SotnSound_SetReverbDepth(a->sound, 127, 127))
+                return false;
             a->queued = a->playing;
             Add(a, 6);
         }

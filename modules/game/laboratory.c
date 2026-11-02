@@ -504,7 +504,15 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         }
     }
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
-    if (session->game_over == NULL && !SotnSound_Tick(session->sound, pcm, SDL_arraysize(pcm)))
+    Sint16 cd_pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    SotnSoundFrame sound_frame = {0};
+    if (session->game_over == NULL && !SotnSound_UpdateCommands(session->sound, &sound_frame))
+        return false;
+    if (session->fairy_cd &&
+        !SotnCdAudio_Tick(session->fairy_cd, session->system_timer, cd_pcm, SDL_arraysize(cd_pcm)))
+        return false;
+    if (session->game_over == NULL &&
+        !SotnSound_RenderFrame(session->sound, sound_frame, pcm, SDL_arraysize(pcm)))
         return false;
     if (session->music != NULL && !session->music_paused &&
         (!session->save_room || session->game_over != NULL))
@@ -518,12 +526,8 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     }
     if (session->fairy_cd)
     {
-        Sint16 music[SOTN_SOUND_FRAMES * 2] = {0};
-        if (!SotnCdAudio_Tick(session->fairy_cd, session->system_timer, music,
-                              SDL_arraysize(music)))
-            return false;
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
-            pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + music[i], -32768, 32767);
+            pcm[i] = (Sint16)SDL_clamp((Sint32)pcm[i] + cd_pcm[i], -32768, 32767);
     }
     if (SotnMusic_Playing(session->speech))
     {
@@ -1440,7 +1444,8 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool r
                                                &graphics) ||
             !SotnSound_PrepareFamiliarBank(s->sound, SotnResource_View(opened[2]),
                                            SotnResource_View(opened[3]), &sound) ||
-            !SotnCdAudio_Create(s->dra, s->music_stream, &empty, s->system_timer, &cd))
+            !SotnCdAudio_Create(s->dra, s->music_stream, &empty, s->system_timer, &cd) ||
+            !SotnCdAudio_BindSound(cd, sound))
             goto fail;
         SotnMusicState music = {0};
         if (s->music && !SotnMusic_Get(s->music, &music))
@@ -1497,8 +1502,8 @@ static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool r
     return true;
 fail:
     SotnActorGraphics_Destroy(graphics);
-    SotnSound_Destroy(sound);
     SotnCdAudio_Destroy(cd);
+    SotnSound_Destroy(sound);
     for (Uint16 i = 0; i < 4; ++i)
         SotnResource_Close(opened[i]);
     SDL_free(runtime);

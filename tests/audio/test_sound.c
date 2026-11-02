@@ -553,6 +553,38 @@ static bool ReverbOwner(Fixture *f)
     SDL_free(image);
     return true;
 }
+static bool FramePhases(Fixture *f)
+{
+    SotnSoundSources sources = MakeFixture(f);
+    SotnSound *sound = NULL, *held = SDL_malloc(sizeof(*held));
+    CHECK(held && SotnSound_Create(sources, &sound));
+    Uint8 seq[19] = {'p', 'Q', 'E', 'S', 0, 0, 0, 1, 0, 60, 7, 0xa1, 0x20, 4, 2, 0, 0xff, 0x2f, 0};
+    CHECK(SotnSequence_Open((SotnDataView){seq, sizeof(seq)}, 0, 1, &sound->sequence));
+    for (Uint32 i = 0; i < 24; ++i)
+        sound->voices[i].env_state = ADSR_OFF; // Previously played voices have finished.
+    sound->scripts[0].allocation_id = 0x601;
+    sound->scripts[0].priority = 7;
+    sound->scripts[3].allocation_id = 0x602;
+    sound->scripts[3].priority = 8;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && frame.owner == sound &&
+          frame.first_script == 3 && frame.end_script == 4 && !sound->sequence.playing);
+    // End-of-SEQ changes the live gate; this frame still retires its original fourth span.
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    *held = *sound;
+    SotnSoundFrame wrong = frame;
+    wrong.owner = held;
+    CHECK(!SotnSound_RenderFrame(sound, wrong, pcm, SDL_arraysize(pcm)) &&
+          !SDL_memcmp(sound, held, sizeof(*held)) && !SotnSound_RenderFrame(sound, frame, pcm, 1) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)) &&
+          sound->scripts[0].allocation_id == 0x601 && sound->scripts[0].priority == 7 &&
+          !sound->scripts[3].allocation_id && !sound->scripts[3].priority);
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && !sound->scripts[0].allocation_id);
+    SotnSound_Destroy(sound);
+    SDL_free(held);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -561,7 +593,7 @@ int main(void)
     const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
                         MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
                         ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
-                        ReverbOwner(f);
+                        ReverbOwner(f) && FramePhases(f);
     SDL_free(f);
     if (!passed)
         return 1;

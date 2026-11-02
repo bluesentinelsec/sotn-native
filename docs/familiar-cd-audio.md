@@ -102,8 +102,17 @@ remains unfinished. Remaining general native routing and CD reverb are also
 unfinished. Do not use these component services as ordinary familiar activation readiness.
 
 The selected [native SPU voice-reverb owner](spu-reverb.md) now supplies actual SDK
-Studio B processing and selected SEQ depths. CD sends, temporary/restore depth
-requests and master commands still need their actual producer/mixer integration.
+Studio B processing and selected SEQ depths. Bound mode0 expiry now commits actual
+temporary depth127 before queueing6; command6 restores the current original depth
+byte before playback completion. The restore byte starts at BSS zero independently
+of the current SDK gain. Prepared SPU replacement rebinds the actual dependency;
+failed binding preserves the previous owner and advances no clock.
+
+Actual native sound command updates precede CD commands and voice/DSP rendering,
+so these depth changes reach the same audio frame. Rendering retains the script
+lease span captured before SEQ updates, including an ending sequence's fourth
+channel. CD sends, master commands, global sound-ring ordering and remaining mixer
+integration still need their actual owners.
 
 Public authored checks cover nested saves/restores, third-save wrap, exact cursor
 retention, finite tail/stop timing, wrapped clocks, both queue overflows, differing
