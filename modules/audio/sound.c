@@ -141,6 +141,19 @@ void SoundReleaseAll(SotnSound *sound)
     sound->scripts_paused = false;
 }
 
+void SoundResetStopped(SotnSound *sound)
+{
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    SDL_memset(sound->priority, 0, sizeof(sound->priority));
+    SDL_memset(sound->queue, 0, sizeof(sound->queue));
+    sound->queued = sound->ambience_id = 0;
+    sound->scripts_paused = false;
+    sound->sequence = (SotnSequence){0};
+    sound->sequence_data = (SotnDataView){0};
+    sound->sequence_id = 0;
+    sound->sequence_volume = 0x70;
+}
+
 bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
                                    SotnSound **out)
 {

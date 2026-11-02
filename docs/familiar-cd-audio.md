@@ -286,3 +286,15 @@ fixtures include a stopped playback cursor with retained SEQ access; they compar
 allocation/cursor/priority metadata and key-off masks, rather than actual playback.
 All six final Debug/ASan CD, rescue and actual-app regressions pass on the corrected
 binaries with normal inferior exits.
+
+
+Bound [native game-over audio](laboratory-game-over.md) now supplies the selected
+Engine81/Init11 producer frames, actual acknowledgement/XA wait,12/B cleanup,
+MuteSound and33e source/resource phases. B executes stop2, StopSeq and real all24
+RR8;12 owns CD16's abandoned-position reset. Mute validates actual closed SEQ and
+retires current/saved/in-flight native decoders while resetting original queue and
+current metadata. It advances no samples and retains SPU/DSP/RAM, copied scripts,
+restore byte and original retained XA words. Actual bound game-over audio no longer
+overlaps a legacy decoder or skips its live SPU owner. Source comparisons and actual
+dying-player checks preserve their separate scopes in the linked document. Unbound
+bootstrap/game-over and complete cleanup/global/session ownership remain open.

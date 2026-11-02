@@ -105,6 +105,7 @@ struct SotnLaboratory
     SotnInventoryRenderer *inventory_renderer;
     Uint8 menu_rgba[SOTN_MENU_RGBA_BYTES];
     SotnGameOver *game_over;
+    Uint8 game_over_audio_phase;
     Uint16 scene_buttons, mp, hands[2];
     Uint64 simulation_ticks;
     Uint32 system_timer, game_timer;
@@ -519,7 +520,8 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
     Sint16 cd_pcm[SOTN_SOUND_FRAMES * 2] = {0};
     SotnSoundFrame sound_frame = {0};
-    if (session->game_over == NULL && !SotnSound_UpdateCommands(session->sound, &sound_frame))
+    const bool run_sound = session->game_over == NULL || session->fairy_cd != NULL;
+    if (run_sound && !SotnSound_UpdateCommands(session->sound, &sound_frame))
         return false;
     if (session->fairy_cd &&
         !SotnCdAudio_Tick(session->fairy_cd, session->system_timer, cd_pcm, SDL_arraysize(cd_pcm)))
@@ -531,8 +533,7 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
             return false;
         session->master_gain = (Uint8)state.master_volume;
     }
-    if (session->game_over == NULL &&
-        !SotnSound_RenderFrame(session->sound, sound_frame, pcm, SDL_arraysize(pcm)))
+    if (run_sound && !SotnSound_RenderFrame(session->sound, sound_frame, pcm, SDL_arraysize(pcm)))
         return false;
     if (session->music != NULL && !session->music_paused &&
         (!session->save_room || session->game_over != NULL))
@@ -561,6 +562,55 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         for (Uint32 i = 0; i < SDL_arraysize(pcm); ++i)
             pcm[i] = (Sint16)((Sint32)pcm[i] * session->master_gain / 127);
     return SotnPlayback_Queue(session->audio, pcm, SDL_arraysize(pcm));
+}
+
+static bool TickGameOver(SotnLaboratory *s, bool start)
+{
+    if (!s->fairy_cd)
+        return SotnGameOver_Tick(s->game_over, start);
+    // Selected original Engine_10/Gameover_Init/2/3/4 audio boundaries. Readiness
+    // belongs to the real queue/activity/transport, never the presentation timer.
+    switch (s->game_over_audio_phase)
+    {
+    case 0:
+        if (!SotnCdAudio_Queue(s->fairy_cd, 0x81))
+            return false;
+        s->game_over_audio_phase = 1;
+        break;
+    case 1:
+        if (!SotnCdAudio_Queue(s->fairy_cd, 0x11))
+            return false;
+        s->game_over_audio_phase = 2;
+        break;
+    case 2: {
+        SotnCdAudioState cd = {0};
+        if (!SotnCdAudio_Get(s->fairy_cd, &cd))
+            return false;
+        if (cd.acknowledged && !cd.xa_active)
+        {
+            if (!SotnCdAudio_Queue(s->fairy_cd, 0x12) || !SotnCdAudio_Queue(s->fairy_cd, 0xb))
+                return false;
+            s->game_over_audio_phase = 3;
+        }
+        break;
+    }
+    case 3:
+        if (!SotnCdAudio_Mute(s->fairy_cd))
+            return false;
+        s->game_over_audio_phase = 4;
+        break;
+    case 4:
+        // F_GO is already verified/resident in the actual presentation owner.
+        if (!SotnCdAudio_Queue(s->fairy_cd, 0x33e))
+            return false;
+        s->game_over_audio_phase = 5;
+        break;
+    case 5:
+        return SotnGameOver_Tick(s->game_over, start);
+    default:
+        return SDL_SetError("Bound game-over audio lost its original lifecycle phase");
+    }
+    return true;
 }
 
 static Sint32 Pixel(Sint32 fixed)
@@ -2519,8 +2569,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (session->game_over != NULL)
     {
         const SotnActorCombat combat = {0};
-        if (!SotnGameOver_Tick(session->game_over, start) ||
-            !TickAudio(session, &combat, 0, 0, 0, 0))
+        if (!TickGameOver(session, start) || !TickAudio(session, &combat, 0, 0, 0, 0))
             return false;
         session->dirty = true;
         return true;
@@ -2734,10 +2783,20 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
             !SotnGameOver_Create(SotnResource_View(session->game_over_art), session->frame,
                                  SOTN_FRAME_PIXELS, &session->game_over))
             return false;
-        SotnMusic_Destroy(session->music);
-        session->music = NULL;
-        if (!SotnMusic_CreateGameOver(session->dra, session->music_stream, &session->music) ||
-            !SotnPlayback_Reset(session->audio))
+        if (session->fairy_cd)
+        {
+            if (session->music || session->speech)
+                return SDL_SetError("Bound game-over audio lost its single CD decoder owner");
+            session->game_over_audio_phase = 0;
+        }
+        else
+        {
+            SotnMusic_Destroy(session->music);
+            session->music = NULL;
+            if (!SotnMusic_CreateGameOver(session->dra, session->music_stream, &session->music))
+                return false;
+        }
+        if (!SotnPlayback_Reset(session->audio))
             return false;
         SDL_Log("Alucard died: original game-over presentation. Enter/gamepad Start advances after "
                 "the reveal; Continue returns through the native menu. Original title/card menus "

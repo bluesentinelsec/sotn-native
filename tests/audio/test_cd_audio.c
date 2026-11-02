@@ -539,6 +539,68 @@ static bool MasterFades(SotnSoundSources inputs, SotnDataView image, SotnDataVie
         }
     return true;
 }
+static bool StoppedReset(SotnSoundSources inputs, SotnDataView image, SotnDataView seq,
+                         SotnStream *stream)
+{
+    SotnSound *sound = NULL, *held = SDL_malloc(sizeof(*held));
+    SotnCdAudio *a = NULL;
+    SotnMusic *music = NULL;
+    SotnCdAudioState s = {0}, before = {0};
+    Uint32 clock = SDL_MAX_UINT32 - 20U;
+    CHECK(held && SotnSound_Create(inputs, &sound) && SotnSound_ConfigureReverb(sound, image) &&
+          SotnSound_SetStageSequence(sound, image, seq, 0x202) &&
+          SotnSound_PlaySequence(sound, 0x202) &&
+          SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) &&
+          SotnCdAudio_BindSound(a, sound) && StartVoice(a, &clock, 0x32e, &s));
+    *held = *sound;
+    before = s;
+    CHECK(!SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && SameState(before, s) &&
+          !SDL_memcmp(sound, held, sizeof(*held)) && SotnCdAudio_Queue(a, 0x81) &&
+          SotnCdAudio_Queue(a, 0x11));
+    Uint16 updates = 0;
+    do
+        CHECK(Tick(a, &clock, &s));
+    while ((!s.queue_empty || s.xa_active) && ++updates < 120);
+    CHECK(updates < 120 && !sound->sequence_open && !s.serial && !s.decoder_present &&
+          s.master_volume == 127 && SotnCdAudio_Queue(a, 0x12) && SotnCdAudio_Queue(a, 0xb) &&
+          Tick(a, &clock, &s) && s.command == 2 && s.commands == 1);
+    // 0B retains copied cursors/pending effects. InitSoundVars1 clears current metadata
+    //  without advancing or replacing the actual voice/envelope/DSP/RAM owners.
+    const SoundScript paused = {.id = 0x602, .address = 0x800a1000, .timer = 9};
+    sound->script_backup[0] = paused;
+    CHECK(SotnSound_Queue(sound, 0x604));
+    *held = *sound;
+    const Uint16 configured = s.queued;
+    CHECK(SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && s.queue_empty && !s.playing_xa &&
+          !s.xa_active && !s.serial && !s.saved && s.acknowledged && s.fade_acknowledged &&
+          s.master_volume == 127 && s.master_target == 127 && s.fade_multiplier == 32 &&
+          s.queued == configured && !sound->queued && !sound->sequence_data.size &&
+          !sound->sequence_id && sound->sequence_volume == 0x70 &&
+          !SDL_memcmp(sound->script_backup, held->script_backup, sizeof(sound->script_backup)) &&
+          !SDL_memcmp(sound->voices, held->voices, sizeof(sound->voices)) &&
+          !SDL_memcmp(sound->registers, held->registers, sizeof(sound->registers)) &&
+          !SDL_memcmp(&sound->reverb, &held->reverb, sizeof(sound->reverb)) &&
+          !SDL_memcmp(sound->ram, held->ram, SOTN_SPU_RAM_SIZE) &&
+          sound->reverb_restore_depth == held->reverb_restore_depth &&
+          StartVoice(a, &clock, 0x33e, &s) && s.mode == 2 && s.playing == 62);
+    *held = *sound;
+    CHECK(SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && !s.decoder_present && !s.serial &&
+          !s.playing && s.queue_empty &&
+          !SDL_memcmp(sound->voices, held->voices, sizeof(sound->voices)) &&
+          !SDL_memcmp(&sound->reverb, &held->reverb, sizeof(sound->reverb)) &&
+          !SDL_memcmp(sound->ram, held->ram, SOTN_SPU_RAM_SIZE) && SotnCdAudio_Queue(a, 0x33e) &&
+          Tick(a, &clock, &s) && s.phase == 2 && s.decoder_present && !s.serial && !s.playing);
+    *held = *sound;
+    CHECK(SotnCdAudio_Mute(a) && SotnCdAudio_Get(a, &s) && !s.decoder_present && s.queue_empty &&
+          !s.playing && !s.serial &&
+          !SDL_memcmp(sound->voices, held->voices, sizeof(sound->voices)) &&
+          !SDL_memcmp(&sound->reverb, &held->reverb, sizeof(sound->reverb)) &&
+          !SDL_memcmp(sound->ram, held->ram, SOTN_SPU_RAM_SIZE));
+    SotnCdAudio_Destroy(a);
+    SotnSound_Destroy(sound);
+    SDL_free(held);
+    return true;
+}
 static bool BoundReverb(Uint8 *dra, SotnStream *stream)
 {
     Uint8 header[3104] = {0}, body[32] = {0};
@@ -647,6 +709,8 @@ static bool BoundReverb(Uint8 *dra, SotnStream *stream)
                       stream));
     CHECK(BoundControls(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
                         dra, stream));
+    CHECK(StoppedReset(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
+                       stream));
     SDL_free(reference);
     SDL_free(image);
     return true;
@@ -655,7 +719,8 @@ static bool Run(const char *directory)
 {
     Uint8 *dra = SDL_calloc(1, 0x20000), *raw = SDL_calloc(32, SOTN_CD_SECTOR_BYTES);
     CHECK(dra && raw);
-    const Uint16 ids[] = {46, 47, 29, 30, 0x172, 0x173, 0x176, 0x179, 0x17a, 0x18a, 0x18e, 0x192};
+    const Uint16 ids[] = {46,    47,    29,    30,    0x172, 0x173, 0x176,
+                          0x179, 0x17a, 0x18a, 0x18e, 0x192, 62};
     for (Uint16 i = 0; i < SDL_arraysize(ids); ++i)
     {
         Uint8 *p = dra + 0x1d224 + ids[i] * 16;

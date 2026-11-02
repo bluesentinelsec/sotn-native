@@ -69,6 +69,9 @@ void SoundResumeScripts(SotnSound *sound);
 void SoundReleaseAll(SotnSound *sound);
 /** @brief Actual SDK RR-only write/key-off for the selected hardware mask. */
 void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate);
+/** @brief Original InitSoundVars1 metadata after actual StopSeq/CD shutdown.
+ * Retains live envelopes, DSP/RAM and copied scripts; clears pending effects/SEQ attachment. */
+void SoundResetStopped(SotnSound *sound);
 
 /** @brief Start one validated voice, invalidating any previous sequence owner. */
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,

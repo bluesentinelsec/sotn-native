@@ -41,7 +41,8 @@ static bool XaCommand(Uint16 id)
 }
 static bool SpuCommand(Uint16 id)
 {
-    return id == 7 || id == 0xe || id == 0xf || id == 0xa1 || id == 0x202 || id == 0x204;
+    return id == 7 || id == 0xb || id == 0xe || id == 0xf || id == 0xa1 || id == 0x202 ||
+           id == 0x204;
 }
 static void ForgetSaved(SotnCdAudio *a)
 {
@@ -113,6 +114,11 @@ static bool SoundCommands(SotnCdAudio *a)
             case 7:
                 SotnSound_StopSequence(a->sound);
                 break;
+            case 0xb:
+                Add(a, 2);
+                SotnSound_StopSequence(a->sound);
+                SoundReleaseAll(a->sound);
+                break;
             case 0xe:
                 SoundPauseScripts(a->sound);
                 break;
@@ -139,7 +145,7 @@ static bool SoundCommands(SotnCdAudio *a)
             Add(a, 8);
         }
         else
-            Add(a, id == 0x10 ? 12 : id == 0x11 ? 14 : 2);
+            Add(a, id == 0x10 ? 12 : id == 0x11 ? 14 : id == 0x12 ? 16 : 2);
     }
     return true;
 }
@@ -557,7 +563,7 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
 }
 bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
 {
-    if (!a || (command != 0x10 && command != 0x11 && command != 0xa &&
+    if (!a || (command != 0x10 && command != 0x11 && command != 0x12 && command != 0xa &&
                !(command >= 0x80 && command <= 0x84) && !(command >= 0x90 && command <= 0x94) &&
                !XaCommand(command) && !SpuCommand(command)))
         return SDL_SetError("Native sound ring requires selected SPU/CD commands or US XA301..532");
@@ -577,6 +583,28 @@ bool SotnCdAudio_BindSound(SotnCdAudio *a, SotnSound *sound)
         a->dra.size != sound->dra.size)
         return SDL_SetError("CD reverb requires its actual configured SPU owner and shared DRA");
     a->sound = sound;
+    return true;
+}
+bool SotnCdAudio_Mute(SotnCdAudio *a)
+{
+    if (!a || !a->sound || a->sound->sequence_open)
+        return SDL_SetError("Sound mute requires its actual owner and closed SEQ");
+    // MuteSound: serial off/volume zero then SetMaxVolume/InitSoundVars1. Retire
+    // the real software transport, including a pending read, without advancing samples.
+    a->serial = false;
+    a->playing = 0;
+    SotnMusic_Destroy(a->current);
+    a->current = NULL;
+    ForgetSaved(a);
+    SoundResetStopped(a->sound);
+    SDL_memset(a->incoming, 0, sizeof(a->incoming));
+    SDL_memset(a->commands, 0, sizeof(a->commands));
+    a->read = a->write = a->count = 0;
+    a->phase = a->mode = 0;
+    a->acknowledge_busy = a->fade_busy = a->busy = false;
+    a->managed = a->native_ready = a->finite = false;
+    a->fade_multiplier = 32;
+    a->master_volume = a->master_target = 127;
     return true;
 }
 bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
@@ -639,6 +667,10 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
             break;
         case 14:
             ok = Restore(a, clock);
+            break;
+        case 16:
+            ForgetSaved(a);
+            Advance(a);
             break;
         default:
             return SDL_SetError("Native CD queue lost its selected original command identity");

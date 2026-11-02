@@ -135,8 +135,11 @@ needs a source-backed inventory of its remaining branches and an evidence record
   stop, pause/restore and real-profile restart requests without overlapping legacy
   decoders. Laboratory/Library boss fades and shared dialogue92 retain their actual
   identities; the Laboratory music-transition victory preserves its original state
-  increment. Initial bootstrap/game-over routing, full sound ordering and session
-  continuity still require their remaining owners.
+  increment. Initial bootstrap, unbound game-over routing, full sound ordering and session
+  continuity still require their remaining owners. Selected
+  [bound game-over audio](laboratory-game-over.md) now uses separate81/11 frames,
+  original acknowledgement/XA gates,12/B cleanup, actual mute and33e. SPU updates
+  continue without legacy overlap; original entity/GPU cleanup remains open.
   **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character

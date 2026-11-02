@@ -1,3 +1,17 @@
+Selected [bound game-over audio](docs/laboratory-game-over.md) now consumes actual
+death128 through separate Engine81/Init11 frames, acknowledgement-plus-XA gating,
+12/B cleanup, actual MuteSound metadata/transport retirement and managed33e. Queue
+emptiness is a separate flag. Keep rendering clocks held until the real resident
+resource/audio phases; never invent a ready/fade timer. Bound game-over audio keeps
+actual SPU command/render updates, no overlapping legacy decoders and no revival.
+Mute requires closed SEQ, cancels actual current/saved/in-flight CD transports and
+clears original queues/attachment/current metadata while retaining voices, DSP/RAM,
+registers, copied scripts, restore byte and original retained XA words. Controls
+never add a DSP/sample tick. Explicit card/load/lethal/HP1-water-result/audio fixtures
+are not ordinary acquisition/water routes/console evidence. Unbound bootstrap,
+full entity/GPU cleanup, session/title/whole-pass and all six gates remain open;
+no new pool/grants/v9 changes or Fairy UI.
+
 Selected [bound SPU/CD sound ring](docs/familiar-cd-audio.md) now queues actual
 7/E/F/A1/202/204 with XA/master controls. Preserve original duplicate-XA early
 return holding later SPU commands, script-update-before-command copying, resume
