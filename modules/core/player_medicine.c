@@ -3,22 +3,31 @@
 // 71830.c:PlayerStepStone, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 #include "player_internal.h"
 
+bool SotnPlayer_SetThrowingContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
+                                   SotnPlayerMedicineConsume consume,
+                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
+                                   Uint8 right_count)
+{
+    if (!p || (factory != NULL) != (consume != NULL) || (factory != NULL) != (random != NULL) ||
+        left_count > 48 || right_count > 48)
+        return SDL_SetError(
+            "Throwing context requires actual paired factory/consumption/RNG owners");
+    p->throwing_factory = factory;
+    p->throwing_consume = consume;
+    p->throwing_random = random;
+    p->throwing_context = context;
+    p->throwing_count[0] = left_count;
+    p->throwing_count[1] = right_count;
+    return true;
+}
+
 bool SotnPlayer_SetNeutronContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
                                   SotnPlayerMedicineConsume consume,
                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
                                   Uint8 right_count)
 {
-    if (!p || (factory != NULL) != (consume != NULL) || (factory != NULL) != (random != NULL) ||
-        left_count > 48 || right_count > 48)
-        return SDL_SetError(
-            "Neutron context requires actual paired factory/consumption/RNG owners");
-    p->neutron_factory = factory;
-    p->neutron_consume = consume;
-    p->neutron_random = random;
-    p->neutron_context = context;
-    p->neutron_count[0] = left_count;
-    p->neutron_count[1] = right_count;
-    return true;
+    return SotnPlayer_SetThrowingContext(p, factory, consume, random, context, left_count,
+                                         right_count);
 }
 
 bool SotnPlayer_SetFoodContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,

@@ -27,8 +27,8 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
-    if (id == 71)
-        return SotnEquipment_ReadNeutron(dra, out);
+    if (id == 71 || id == 72)
+        return SotnEquipment_ReadThrowing(dra, id, out);
     if (id >= 29 && id <= 70)
         return SotnEquipment_ReadFood(dra, id, out);
     if (out == NULL || (id != 0 && id != 16 && id != 18 && id != 19 && id != 86 && id != 123 &&
@@ -99,20 +99,20 @@ bool SotnEquipment_ReadFood(SotnDataView dra, Uint16 id, SotnEquipment *out)
     return true;
 }
 
-bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out)
+bool SotnEquipment_ReadThrowing(SotnDataView dra, Uint16 item, SotnEquipment *out)
 {
     const Uint8 *pointer = NULL, *p = NULL;
-    if (!out)
-        return SDL_InvalidParamError("out");
+    if (!out || (item != 71 && item != 72))
+        return SDL_SetError("Throwing metadata requires owned item71/72");
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
-        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + 71U * 52U, 50, &p))
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)item * 52U, 50, &p))
         return false;
-    if (p[14] != 7 || p[15] != 19 || p[16] || p[17] != 130 || p[18] != 0x60 || p[19] != 50 ||
-        p[20] || p[21] || p[22] != 1 || p[23] || p[24] || p[25] != 1 || Read16(p + 36) ||
-        Read16(p + 8) > 999 || Read16(p + 40) != 0x82)
-        return SDL_SetError("Neutron definition does not match its original weapon19 path");
-    *out = (SotnEquipment){.id = 71,
-                           .family = 19,
+    if (p[14] != 7 || p[15] != (item == 71 ? 19 : 18) || p[16] || p[17] != 130 || p[18] != 0x60 ||
+        p[19] != 50 || p[20] || p[21] || p[22] != 1 || p[23] || p[24] || p[25] != 1 ||
+        Read16(p + 36) || Read16(p + 8) > 999 || Read16(p + 40) != 0x82)
+        return SDL_SetError("Throwing definition does not match its original weapon18/19 path");
+    *out = (SotnEquipment){.id = item,
+                           .family = p[15],
                            .kind = 130,
                            .animation = p[18],
                            .attack = (Sint16)Read16(p + 8),
@@ -123,6 +123,11 @@ bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out)
                            .critical_rate = Read16(p + 48),
                            .invincibility = p[26]};
     return true;
+}
+
+bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out)
+{
+    return SotnEquipment_ReadThrowing(dra, 71, out);
 }
 
 bool SotnEquipment_ReadAxeArmor(SotnDataView dra, SotnEquipment *out)
@@ -145,7 +150,7 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
     if (out == NULL ||
         (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 86 &&
          equipment.id != 123 && equipment.id != 197 && equipment.id != 216 && equipment.id != 128 &&
-         (equipment.id < 29 || equipment.id > 71)) ||
+         (equipment.id < 29 || equipment.id > 72)) ||
         equipment.family != (equipment.id == 86                           ? 0
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
@@ -154,6 +159,7 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
                              : equipment.id == 216                        ? 45
                              : equipment.id >= 29 && equipment.id <= 70   ? 21
                              : equipment.id == 71                         ? 19
+                             : equipment.id == 72                         ? 18
                                                                           : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;

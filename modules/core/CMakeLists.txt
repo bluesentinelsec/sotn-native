@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  sire.c
+  include/sotn/sire.h
   neutron.c
   include/sotn/neutron.h
   food.c

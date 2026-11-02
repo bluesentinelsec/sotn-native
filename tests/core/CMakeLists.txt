@@ -1,3 +1,9 @@
+add_executable(sotn-sire-tests test_sire.c)
+sotn_configure_c_target(sotn-sire-tests)
+target_include_directories(sotn-sire-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-sire-tests PRIVATE sotn-core)
+add_test(NAME sire-ownership COMMAND sotn-sire-tests)
+
 add_executable(sotn-neutron-tests test_neutron.c)
 sotn_configure_c_target(sotn-neutron-tests)
 target_include_directories(sotn-neutron-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

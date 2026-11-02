@@ -320,6 +320,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
             return SDL_SetError("Healing number commit lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_SwordChildValid(c, i))
             return SDL_SetError("Sword commit lost its actual child/lifetime/slot ownership");
+        if (!SotnBatRuntime_SireValid(c, i))
+            return SDL_SetError("Sire commit lost its actual child/lifecycle ownership");
         if (!SotnBatRuntime_NeutronValid(c, i))
             return SDL_SetError("Neutron commit lost its actual child/lifetime/row ownership");
         if ((c->kind == 61 &&
@@ -511,7 +513,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->wing_mask = next->wolf_mask = 0;
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
-    next->neutron_mask = 0;
+    next->neutron_mask = next->sire_mask = 0;
     // These are consumed callback notifications, not original retained global counters.
     SDL_zero(next->medicine);
     SDL_zero(next->wolf_events);

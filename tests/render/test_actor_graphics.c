@@ -516,6 +516,23 @@ static bool TestSdkScale(Fixture *f)
     CHECK(!SotnActorGraphics_DrawScaledOriginal(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false},
                                                 20, 20, 1025, 64, dst));
     CHECK(f->frame[19 * 256 + 19] == 31);
+    // Scale-only entities use integer flooring around the retained entity pivot,
+    // without an identity SDK rotation or floating-point rounding.
+    ClearFrame(f);
+    SotnSpriteTransform scale = {.scale_x = 128,
+                                 .scale_y = 256,
+                                 .pivot_x = 1,
+                                 .opacity = 128,
+                                 .sdk_scale = true,
+                                 .original_uv = true};
+    CHECK(SotnActorGraphics_DrawSurface(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                        scale, dst));
+    CHECK(f->frame[19 * 256 + 19] == 7 && f->frame[19 * 256 + 20] == 31 &&
+          f->frame[19 * 256 + 21] == 31 && f->frame[19 * 256 + 22] == 7);
+    scale.rotation = 1;
+    CHECK(!SotnActorGraphics_DrawSurface(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                         scale, dst));
+    CHECK(f->frame[19 * 256 + 20] == 31);
     SotnActorGraphics_Destroy(g);
     return true;
 }

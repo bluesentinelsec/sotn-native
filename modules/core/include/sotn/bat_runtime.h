@@ -23,6 +23,7 @@
 #include <sotn/player_smoke.h>
 #include <sotn/primitive_slots.h>
 #include <sotn/rising_heart.h>
+#include <sotn/sire.h>
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
 #include <sotn/stone_dissolve.h>
@@ -60,7 +61,7 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized, food, neutron;
+    bool initialized, food, neutron, sire, sire_child;
     union {
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
@@ -116,6 +117,16 @@ typedef struct SotnBatRuntimeChild
             SotnNeutronAnimation animation;
             SotnPlayerAttack attack;
         } neutron;
+        struct
+        {
+            union {
+                SotnSireParent parent;
+                SotnSireChild child;
+            };
+            SotnSireAnimation animation;
+            SotnPlayerAttack attack;
+            Uint16 parent_slot; /**< Original raw entity slot, deliberately no generation gate. */
+        } sire;
         SotnSpiritPortal portal;
         struct
         {
@@ -150,7 +161,8 @@ typedef struct SotnBatRuntime
         SotnPlayerFactory cursor;
         Uint32 bat_generation, sword_parent;
         Uint32 fire_parent;
-        Uint16 fire_parent_slot;
+        Uint16 fire_parent_slot, sire_parent_slot;
+        bool sire_factory;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
@@ -183,7 +195,7 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
-    Uint64 neutron_mask;
+    Uint64 neutron_mask, sire_mask;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -244,6 +256,13 @@ bool SotnBatRuntime_RequestFood(SotnBatRuntime *runtime, SotnPlayerFactorySource
 /** @brief Reserve actual50 weapon19/Neutron71, or its original57 curse outline. */
 bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                    Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Reserve actual50/item72 in the existing eight roots. Exhaustion spends nothing. */
+bool SotnBatRuntime_RequestSire(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                Uint16 item, bool *allocated);
+/** @brief Validate actual weapon18 parent/burst roles, slots and animation cursors. */
+bool SotnBatRuntime_SireValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Retire room-local weapon18 parents and bursts without ticking owners. */
+bool SotnBatRuntime_PruneSire(SotnBatRuntime *);
 /** @brief Validate a real weapon19 child and its single actual GT4 lease. */
 bool SotnBatRuntime_NeutronValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Retire room-local weapon19 children without callbacks or extra clocks. */

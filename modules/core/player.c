@@ -536,8 +536,9 @@ static bool StartAttack(SotnPlayer *player)
     if (equipment.kind == 132 &&
         (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2))
         return false;
-    if (equipment.id == 71 && (!player->neutron_factory || !player->neutron_consume ||
-                               !player->neutron_random || player->neutron_count[hand] >= 1))
+    if ((equipment.id == 71 || equipment.id == 72) &&
+        (!player->throwing_factory || !player->throwing_consume || !player->throwing_random ||
+         player->throwing_count[hand] >= 1))
         return false;
     if (equipment.id == 166)
     {
@@ -586,11 +587,13 @@ static bool StartAttack(SotnPlayer *player)
     if (player->curse_ticks && equipment.id != 0)
     {
         if ((equipment.kind == 132 && player->food_factory) ||
-            (equipment.id == 71 && player->neutron_factory))
+            ((equipment.id == 71 || equipment.id == 72) && player->throwing_factory))
         {
-            const SotnPlayerMedicineFactory factory =
-                equipment.id == 71 ? player->neutron_factory : player->food_factory;
-            void *context = equipment.id == 71 ? player->neutron_context : player->food_context;
+            const SotnPlayerMedicineFactory factory = (equipment.id == 71 || equipment.id == 72)
+                                                          ? player->throwing_factory
+                                                          : player->food_factory;
+            void *context = (equipment.id == 71 || equipment.id == 72) ? player->throwing_context
+                                                                       : player->food_context;
             bool allocated = false;
             SotnPlayerState captured = {0};
             if (!SotnPlayer_GetState(player, &captured) ||
@@ -624,12 +627,12 @@ static bool StartAttack(SotnPlayer *player)
         }
         return true;
     }
-    if (equipment.kind == 132 || equipment.id == 71)
+    if (equipment.kind == 132 || (equipment.id == 71 || equipment.id == 72))
     {
-        const bool neutron = equipment.id == 71;
+        const bool throwing = equipment.kind == 130;
         const SotnPlayerMedicineFactory factory =
-            neutron ? player->neutron_factory : player->food_factory;
-        void *context = neutron ? player->neutron_context : player->food_context;
+            throwing ? player->throwing_factory : player->food_factory;
+        void *context = throwing ? player->throwing_context : player->food_context;
         SotnPlayerState captured = {0};
         if (!SotnPlayer_GetState(player, &captured))
         {
@@ -653,10 +656,10 @@ static bool StartAttack(SotnPlayer *player)
             return false;
         const SotnPlayerMedicineUse use = {
             .hand = (Uint16)hand, .item = equipment.id, .used = true};
-        if (neutron)
+        if (throwing)
         {
             Uint16 random = 0;
-            if (!player->neutron_random(context, &random) || !player->dra.bytes ||
+            if (!player->throwing_random(context, &random) || !player->dra.bytes ||
                 player->dra.size < 0xcf68)
             {
                 player->failed = true;
@@ -666,9 +669,9 @@ static bool StartAttack(SotnPlayer *player)
             if (voice < 4)
             {
                 const Uint8 *p = player->dra.bytes + 0xcf60 + voice * 2U;
-                player->neutron_grunt = (Uint16)(p[0] | (Uint16)p[1] << 8);
+                player->throwing_grunt = (Uint16)(p[0] | (Uint16)p[1] << 8);
             }
-            player->neutron = use;
+            player->throwing = use;
         }
         else
             player->food = use;
@@ -2407,8 +2410,8 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.teleport.used = false;
     next.medicine.used = false;
     next.food.used = false;
-    next.neutron.used = false;
-    next.neutron_grunt = 0;
+    next.throwing.used = false;
+    next.throwing_grunt = 0;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;
@@ -2752,8 +2755,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (next.food.used && !next.food_consume(next.food_context, next.food.hand, next.food.item,
                                              &next.equipment[next.food.hand]))
         return false;
-    if (next.neutron.used && !next.neutron_consume(next.neutron_context, next.neutron.hand, 71,
-                                                   &next.equipment[next.neutron.hand]))
+    if (next.throwing.used &&
+        !next.throwing_consume(next.throwing_context, next.throwing.hand, next.throwing.item,
+                               &next.equipment[next.throwing.hand]))
         return false;
     *player = next;
     return true;
@@ -3218,8 +3222,8 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .water = player->water,
         .medicine = player->medicine,
         .food = player->food,
-        .neutron = player->neutron,
-        .neutron_grunt = player->neutron_grunt,
+        .throwing = player->throwing,
+        .throwing_grunt = player->throwing_grunt,
         .hammer_timer = player->hammer_timer,
         .water_breath_timer = player->water_breath_timer,
         .x = player->x.value,
@@ -3894,8 +3898,8 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.teleport.used = false;
     next.medicine.used = false;
     next.food.used = false;
-    next.neutron.used = false;
-    next.neutron_grunt = 0;
+    next.throwing.used = false;
+    next.throwing_grunt = 0;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;

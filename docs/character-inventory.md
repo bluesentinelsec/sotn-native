@@ -37,6 +37,10 @@ High Potion healing once even with two. Their cures, buffs, HP/MP and shared eff
 now run. [Owned food29..70](player-food.md) now adds actual weapon21 use, raw healing,
 Peanuts, Toadstool and Meal Ticket inventory/text pickup. Food and medicine retain
 the original zero displayed weapon attack; raw food attack remains healing power.
+[Owned Power of Sire72](player-power-of-sire.md) now selects and consumes through
+either hand, with actual shared weapon18 parents/bursts, native global attacks,
+private presentation and real shared flash/shake/particles. Its live weapon attack
+uses retained metadata even after last-copy consumption.
 [Owned Neutron Bomb71](player-neutron-bomb.md) now selects and consumes through
 either hand, with its actual shared weapon19/GT4, private animation/rendering and
 global damage pulse. Its live STR/body/buff/poison-scaled weapon attack remains

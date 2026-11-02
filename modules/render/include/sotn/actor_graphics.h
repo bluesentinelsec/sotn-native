@@ -255,6 +255,7 @@ typedef struct SotnSpriteTransform
     Sint16 pivot_x, pivot_y; /**< Original entity rotation pivots, before facing adjustment. */
     bool sdk_rotation; /**< Signed-word scaling before original SquareRoot12/ratan2/trig rotation.
                            SDK vertex-distance bounds still apply before drawing. */
+    bool sdk_scale;    /**< Original integer scale-only packet path, including entity pivots. */
     bool original_uv;  /**< Preserve original mirrored packet UV bytes even without rotation. */
 } SotnSpriteTransform;
 /** @brief Resolve a copied actor's explicit transform flags or its legacy value selectors.

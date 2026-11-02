@@ -393,10 +393,60 @@ static bool HurtSmoke(void)
     }
     return true;
 }
+static bool SireParticles(void)
+{
+    Uint8 dra[0xdbd4] = {0};
+    Put32(dra + 0xdb98 + 12U * 4U, 0x800a0100);
+    Uint8 *profile = dra + 0x100;
+    profile[0] = 22; // Authored count exercises both sides of the original index10 split.
+    profile[1] = 64;
+    profile[2] = 96;
+    profile[3] = 128;
+    profile[4] = 3;
+    profile[5] = 4;
+    Put16(profile + 6, 2);
+    Put16(profile + 10, 12);
+    Put32(profile + 12, 0x08000000);
+    const SotnDataView view = {dra, sizeof(dra)};
+    SotnPlayerParticles effect = {0};
+    SotnPlayerParticlesInput input = {.parameter = 12U << 8,
+                                      .source = {.x = -17 * 65536 + 123, .y = 40 * 65536 + 456},
+                                      .player_x = 250,
+                                      .player_y = -70,
+                                      .player_priority = 148};
+    Uint32 random = 0x12345678;
+    Uint16 rows = 0;
+    CHECK(SotnPlayerParticles_Rows(view, input.parameter, &rows) && rows == 23);
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && effect.removed &&
+          !effect.count && random == 0x12345678);
+    effect = (SotnPlayerParticles){0};
+    input.allocated = true;
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && effect.count == 22 &&
+          effect.lifetime == 63 && effect.tiles[0].x == -17 * 65536 &&
+          effect.tiles[0].y == 40 * 65536 && effect.tiles[0].velocity_y == -8192 &&
+          effect.tiles[9].velocity_y == -505856 && effect.tiles[10].velocity_y == 8192 &&
+          effect.tiles[21].velocity_y == 751616 && random == 0x12345678);
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && effect.lifetime == 61 &&
+          effect.tiles[0].timer == 62 && effect.tiles[0].y == 40 * 65536 - 8192);
+    const SotnPlayerParticles before = effect;
+    CHECK(SotnPlayerParticles_Rebase(&effect, 3, -5) && effect.lifetime == before.lifetime &&
+          random == 0x12345678 && SotnPlayerParticles_Rebase(&effect, -3, 5) &&
+          !SDL_memcmp(&effect, &before, sizeof(effect)));
+    for (Uint16 tick = 1; tick < 31; ++tick)
+        CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && !effect.removed &&
+              effect.tiles[0].red == 64 && effect.tiles[0].green == 96 &&
+              effect.tiles[0].blue == 128 && effect.tiles[0].x == -17 * 65536 &&
+              random == 0x12345678);
+    CHECK(effect.lifetime == 1 && effect.tiles[0].timer == 32);
+    const Sint32 last = effect.tiles[0].y;
+    CHECK(SotnPlayerParticles_Tick(&effect, view, input, &random) && effect.removed &&
+          !effect.lifetime && effect.tiles[0].y == last && random == 0x12345678);
+    return true;
+}
 int main(void)
 {
     return Run() && VectorParticles(5) && VectorParticles(6) && StoneParticles() && Vectors() &&
-                   Smoke() && ScatteredSmoke() && HurtSmoke()
+                   Smoke() && ScatteredSmoke() && HurtSmoke() && SireParticles()
                ? 0
                : 1;
 }

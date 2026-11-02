@@ -371,13 +371,15 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                            : equipment.family == 21 ? 0x8017a784U
+                           : equipment.family == 18 ? 0x8017a730U
                            : equipment.family == 19 ? 0x8017a548U
                                                     : 0x8017abd4U;
-    const Uint32 color_count = (equipment.family == 21 || equipment.family == 19 ? 24U
-                                : equipment.family == 45                         ? 2U
-                                : equipment.family == 37                         ? 5U
-                                                                                 : 7U) *
-                               16;
+    const Uint32 color_count =
+        (equipment.family == 21 || equipment.family == 19 || equipment.family == 18 ? 24U
+         : equipment.family == 45                                                   ? 2U
+         : equipment.family == 37                                                   ? 5U
+                                                                                    : 7U) *
+        16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
@@ -781,8 +783,12 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
         {
             if (sdk_scale)
             {
-                q.x[i] = x + (Sint32)FloorDivide((Sint64)xs[i] * transform->scale_x, 256);
-                q.y[i] = y + (Sint32)FloorDivide((Sint64)ys[i] * transform->scale_y, 256);
+                const Sint32 px = sprite.facing_left ? -transform->pivot_x : transform->pivot_x;
+                q.x[i] =
+                    x + px + (Sint32)FloorDivide((Sint64)(xs[i] - px) * transform->scale_x, 256);
+                q.y[i] = y + transform->pivot_y +
+                         (Sint32)FloorDivide(
+                             (Sint64)(ys[i] - transform->pivot_y) * transform->scale_y, 256);
                 continue;
             }
             q.x[i] = x + (Sint32)SDL_round((xs[i] * transform->scale_x / 256.0) * cosine -
@@ -1313,15 +1319,18 @@ bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite s
         (!transform.sdk_rotation && (transform.scale_x < -1024 || transform.scale_x > 1024 ||
                                      transform.scale_y < -1024 || transform.scale_y > 1024)) ||
         transform.opacity > 255 ||
+        (transform.sdk_scale &&
+         (transform.rotation || transform.sdk_rotation || transform.pivot_x < -512 ||
+          transform.pivot_x > 512 || transform.pivot_y < -512 || transform.pivot_y > 512)) ||
         (transform.sdk_rotation &&
          (!transform.executable.bytes || transform.pivot_x < -512 || transform.pivot_x > 512 ||
           transform.pivot_y < -512 || transform.pivot_y > 512)))
         return SDL_SetError("Actor transform exceeds the bounded original scales or SDK pivots");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
         transform.opacity == 128 && !transform.tint && !transform.sdk_rotation &&
-        !transform.original_uv)
+        !transform.original_uv && !transform.sdk_scale)
         return Draw(g, sprite, x, y, surface, NULL, false);
-    return Draw(g, sprite, x, y, surface, &transform, false);
+    return Draw(g, sprite, x, y, surface, &transform, transform.sdk_scale);
 }
 
 bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)

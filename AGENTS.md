@@ -1,3 +1,22 @@
+Selected [Power of Sire72](docs/player-power-of-sire.md) now owns actual menu/hand
+use, inventory/Duplicator consumption, resident weapon18, shared50/56 roots and
+17..31 parents/bursts, private animation/rendering, native global82 pulses,
+flash5/6, shake3 and real profile12 particle leases. Preserve actual item/hand
+chain1 before curse, casting grunt before birth66A, birth property roll and seven
+later pulses only after successful actual root56 reservations. Keep old group
+counts until end recount. Bursts retain raw parent slots/AE72 without generation
+checks; read actual cold/replacement palette/texture, allocate before two RNG calls,
+use private SDK trig, real post-callback culling and no animation-end retirement.
+Preserve portrait screen retention, room-space burst motion, integer scale-only
+pivots, white815F, final14 callbacks and real20+sentinel/no-RNG/double-decrement
+profile12 retirement. Particle screen positions have no primitive camera translation.
+Menus/freeze/draws hold child cursors; preserve the common flash tail through freeze.
+Room cleanup adds no tick and actual late failures restore
+factories/rows/character RNG. No new pool/grants/savev9 fields. Supplied stock,
+protection/equipment/arrival/camera/RNG/failure/save-room fixtures are not acquisition,
+routes, whole-pass/global libc/full-contention/console evidence. All six Alucard
+milestone gates remain open; ordinary Fairy UI stays disabled.
+
 Selected [Neutron Bomb71](docs/player-neutron-bomb.md) now owns actual menu/hand
 input, inventory/Duplicator consumption, shared50 roots/17..31 children, one real
 GT4, private weapon19 sprites/animation/SDK transform and one native global82

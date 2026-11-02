@@ -408,8 +408,9 @@ typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
     SotnPlayerMedicineUse medicine;
-    SotnPlayerMedicineUse neutron; /**< Actual weapon19 hand use, consumed after player success. */
-    Uint16 neutron_grunt; /**< Successful casting voice, queued before shared birth sounds. */
+    SotnPlayerMedicineUse
+        throwing; /**< Actual owned throwing-item hand use, consumed after player success. */
+    Uint16 throwing_grunt; /**< Successful casting voice, queued before shared birth sounds. */
     SotnPlayerMedicineUse
         food;            /**< Actual weapon21 hand use; consumption follows player success. */
     Sint32 hammer_timer; /**< Separate DRA global, never one of the sixteen words or save data. */
@@ -528,7 +529,12 @@ bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory fac
 /** @brief Supply one real libc rand result at the successful throwing-hand grunt call.
  * Native callers must roll back that cursor if the enclosing player update fails. */
 typedef bool (*SotnPlayerThrowingRandom)(void *context, Uint16 *value);
-/** @brief Bind actual weapon19 factories, consumption and original item/hand chain counts. */
+/** @brief Bind actual weapon18/19 factories, consumption and current equipped item/hand counts. */
+bool SotnPlayer_SetThrowingContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                   SotnPlayerMedicineConsume consume,
+                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
+                                   Uint8 right_count);
+/** @brief Compatibility entry for the selected Neutron owner. */
 bool SotnPlayer_SetNeutronContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                   SotnPlayerMedicineConsume consume,
                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,

@@ -591,8 +591,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                       (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
                        actors->bat_runtime->spirit_mask || actors->bat_runtime->hellfire_mask ||
                        actors->bat_runtime->sword_mask || actors->bat_runtime->axe_mask ||
-                       actors->bat_runtime->neutron_mask || actors->bat_runtime->echo_attack ||
-                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->neutron_mask || actors->bat_runtime->sire_mask ||
+                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
+                       actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -613,6 +614,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_spirit = (runtime->spirit_mask & ((Uint64)1 << index)) != 0;
             const bool selected_sword = (runtime->sword_mask & ((Uint64)1 << index)) != 0;
             const bool selected_neutron = (runtime->neutron_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_sire = (runtime->sire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
             const bool selected_soul = index == 31 && runtime->soul_attack;
@@ -620,7 +622,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                        (index == 4 && (runtime->wolf_mask & 2U));
             if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf &&
                 !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
-                !selected_axe && !selected_neutron)
+                !selected_axe && !selected_neutron && !selected_sire)
                 continue;
             if (selected_wolf)
             {
@@ -660,6 +662,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                        child->state.attack.hit_type != 0x82 ||
                                        child->state.attack.hit_effect != 2)) ||
                     (selected_axe && (index != 0 || child->kind != 50 || child->group != 1)) ||
+                    (selected_sire && (!child->sire || child->sire_child || index < 1 ||
+                                       index > 15 || child->group < 3 || child->group > 6 ||
+                                       child->state.sire.attack.equipment != 72 ||
+                                       child->state.sire.attack.hit_type != 0x82)) ||
                     (selected_neutron &&
                      (!child->neutron || index < 1 || index > 15 || child->group < 3 ||
                       child->group > 6 || child->state.neutron.attack.equipment != 71 ||
@@ -672,7 +678,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_neutron    ? child->state.neutron.attack
+                source.attack = selected_sire       ? child->state.sire.attack
+                                : selected_neutron  ? child->state.neutron.attack
                                 : selected_sword    ? child->state.sword.attack
                                 : selected_hellfire ? child->state.hellfire_fire.attack
                                 : selected_fire     ? child->state.fire.attack
