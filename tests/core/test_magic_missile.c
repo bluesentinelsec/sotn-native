@@ -169,16 +169,26 @@ static bool MetadataAndShield(void)
                     .attack = {.active = true, .equipment = 86, .sprite = 3}};
     p.subweapon_ticks = 7;
     p.spell_use_ticks = 9;
-    const SotnPlayer absent = p;
+    SotnPlayer absent;
+    SDL_memcpy(&absent, &p, sizeof(absent));
     CHECK(SotnPlayer_ClearShield(&p) && !SDL_memcmp(&p, &absent, sizeof(p)));
     for (Uint16 phase = 1; phase <= 3; ++phase)
     {
         p.shield_cursor = (SotnShield){.phase = phase, .remaining = 5};
         p.shield = (SotnPlayerAttack){.active = true, .equipment = 16, .sprite = 7};
-        CHECK(SotnPlayer_ClearShield(&p) && !SDL_memcmp(&p, &absent, sizeof(p)));
+        CHECK(SotnPlayer_ClearShield(&p) && !p.shield.active && !p.shield.equipment &&
+              !p.shield.sprite && !p.shield_cursor.phase && !p.shield_cursor.remaining);
+        // MSVC may leave struct-assignment padding unspecified. Check cleared values,
+        // then mask only those two owned regions to compare every unrelated byte.
+        SotnPlayer retained;
+        SDL_memcpy(&retained, &p, sizeof(retained));
+        SDL_memcpy(&retained.shield, &absent.shield, sizeof(retained.shield));
+        SDL_memcpy(&retained.shield_cursor, &absent.shield_cursor, sizeof(retained.shield_cursor));
+        CHECK(!SDL_memcmp(&retained, &absent, sizeof(retained)));
     }
     p.shield_cursor.phase = 4;
-    const SotnPlayer malformed = p;
+    SotnPlayer malformed;
+    SDL_memcpy(&malformed, &p, sizeof(malformed));
     CHECK(!SotnPlayer_ClearShield(&p) && !SDL_memcmp(&p, &malformed, sizeof(p)) &&
           !SotnPlayer_ClearShield(NULL));
     return true;
