@@ -228,7 +228,8 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
                                       SotnResource_View(session->sound_resources[2]),
                                       SotnResource_View(session->sound_resources[3]),
                                       SotnResource_View(session->sound_resources[4])};
-    if (!SotnSound_Create(sources, &session->sound))
+    if (!SotnSound_Create(sources, &session->sound) ||
+        !SotnSound_ConfigureReverb(session->sound, session->executable))
         return false;
     if ((session->stage_id == 2 || session->stage_id == 6) &&
         (!SotnResource_Open(directory,

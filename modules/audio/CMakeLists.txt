@@ -8,6 +8,8 @@ add_library(sotn-audio STATIC
   sound_internal.h
   sound.c
   sound_pause.c
+  reverb.c
+  reverb.h
   music.c
   cd_audio.c
   include/sotn/cd_audio.h

@@ -439,6 +439,120 @@ static bool FamiliarBank(Fixture *f)
     SDL_free(before);
     return true;
 }
+static void ReverbCoefficients(Uint8 bytes[64])
+{
+    // Authored impulse profile, unrelated to the game's private Studio B coefficients.
+    const Uint16 values[32] = {1, 1, 16384, 32767, 0, 0, 0,  8192, 16384, 16384, 2,
+                               3, 2, 3,     2,     3, 2, 3,  4,    5,     2,     3,
+                               2, 3, 4,     5,     8, 9, 12, 13,   32767, 32767};
+    for (Uint32 i = 0; i < 32; ++i)
+        Put16(bytes, i * 2, values[i]);
+}
+static bool ReverbProcessor(void)
+{
+    Uint8 coefficients[64];
+    ReverbCoefficients(coefficients);
+    const Uint32 base = SOTN_SPU_RAM_SIZE - 4096;
+    Uint8 *ram = SDL_malloc(SOTN_SPU_RAM_SIZE), *before = SDL_malloc(SOTN_SPU_RAM_SIZE);
+    CHECK(ram && before);
+    SDL_memset(ram, 0x5a, SOTN_SPU_RAM_SIZE);
+    SDL_memset(ram + base, 0, SOTN_SPU_RAM_SIZE - base);
+    SotnReverb r = {0};
+    CHECK(SoundReverb_Configure(&r, base, (SotnDataView){coefficients, 64}) &&
+          SoundReverb_SetDepth(&r, 127, -127) && r.depth[0] == 32767 && r.depth[1] == -32767);
+    CHECK(SoundReverb_SetDepth(&r, 128, -128) && r.depth[0] == -32511 && r.depth[1] == 32511);
+    CHECK(SoundReverb_SetDepth(&r, 127, 127));
+    const SotnReverb held = r;
+    CHECK(!SoundReverb_Configure(&r, base + 1, (SotnDataView){coefficients, 64}) &&
+          !SDL_memcmp(&r, &held, sizeof(r)));
+    Put16(coefficients, 20, 0xffff);
+    CHECK(!SoundReverb_Configure(&r, base, (SotnDataView){coefficients, 64}) &&
+          !SDL_memcmp(&r, &held, sizeof(r)));
+    ReverbCoefficients(coefficients);
+    Uint32 audible = 0;
+    for (Uint32 i = 0; i < 20000; ++i)
+    {
+        if (i == 1000)
+            CHECK(SoundReverb_SetDepth(&r, 0, 0));
+        Sint32 output[2];
+        SoundReverb_Tick(&r, ram, i ? 0 : 32767, i ? 0 : -32768, output);
+        if (i < 1000)
+            audible += output[0] != 0 || output[1] != 0;
+        else
+            CHECK(!output[0] && !output[1]);
+    }
+    CHECK(audible && !r.phase && r.cursor == base + 20000 % 4096);
+    for (Uint32 i = 0; i < base; ++i)
+        CHECK(ram[i] == 0x5a);
+    SDL_memcpy(before, ram, SOTN_SPU_RAM_SIZE);
+    const Uint32 cursor = r.cursor;
+    r.enabled = false;
+    for (Uint32 i = 0; i < 16; ++i)
+    {
+        Sint32 output[2];
+        SoundReverb_Tick(&r, ram, 32767, -32768, output);
+    }
+    CHECK(!SDL_memcmp(before, ram, SOTN_SPU_RAM_SIZE) && r.cursor == cursor + 16 && !r.phase);
+    SDL_free(before);
+    SDL_free(ram);
+    return true;
+}
+static bool ReverbOwner(Fixture *f)
+{
+    SotnSoundSources sources = MakeFixture(f);
+    f->header[2081] = 4;
+    Put32(f->dra, 0x1d1d0, 0x4000);
+    SotnSound *sound = NULL, *candidate = NULL, *held = SDL_malloc(sizeof(*held));
+    Uint8 *image = SDL_calloc(1, 0x24000);
+    CHECK(held && image && SotnSound_Create(sources, &sound));
+    const Uint32 base = SOTN_SPU_RAM_SIZE - 4096;
+    const size_t record = 0x23db8 + 3 * 68;
+    Put32(image, 0x23d68 + 3 * 4, base / 8);
+    ReverbCoefficients(image + record + 4);
+    SDL_memset(sound->ram + base, 0xa5, 4096);
+    *held = *sound;
+    CHECK(!SotnSound_ConfigureReverb(sound, (SotnDataView){image, record + 67}) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
+          sound->reverb.configured && sound->reverb.enabled && sound->reverb.cursor == base &&
+          !sound->reverb.phase && sound->reverb.depth[0] == 2580 &&
+          !SDL_memcmp(sound->ram, held->ram, base));
+    for (Uint32 i = base; i < SOTN_SPU_RAM_SIZE; ++i)
+        CHECK(!sound->ram[i]);
+    *held = *sound;
+    CHECK(!SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SoundKey(sound, 14, 1, 0, 0, 60, 127, 64) && sound->reverb_voices == (1U << 14));
+    *held = *sound;
+    held->reverb.configured = false; // Independent dry rendering of the same actual voice state.
+    Uint32 different = 0;
+    for (Uint32 i = 0; i < 16; ++i)
+    {
+        Sint16 wet[SOTN_SOUND_FRAMES * 2], dry[SOTN_SOUND_FRAMES * 2];
+        CHECK(SotnSound_Tick(sound, wet, SDL_arraysize(wet)) &&
+              SotnSound_Tick(held, dry, SDL_arraysize(dry)));
+        for (Uint32 j = 0; j < SDL_arraysize(wet); ++j)
+            different += wet[j] != dry[j];
+    }
+    CHECK(different && sound->reverb.cursor == base + (16 * SOTN_SOUND_FRAMES) % 4096 &&
+          !sound->reverb.phase &&
+          SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                        &candidate) &&
+          !SDL_memcmp(&sound->reverb, &candidate->reverb, sizeof(sound->reverb)) &&
+          !SDL_memcmp(sound->ram + base, candidate->ram + base, 4096));
+    SotnSound_Destroy(candidate);
+    candidate = NULL;
+    Put32(f->dra, 0x1d1d0, base);
+    *held = *sound;
+    CHECK(!SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                         &candidate) &&
+          !candidate && !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SoundKey(sound, 14, 0, 0, 0, 60, 127, 64) && !sound->reverb_voices);
+    SotnSound_Destroy(sound);
+    SDL_free(held);
+    SDL_free(image);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -446,7 +560,8 @@ int main(void)
         return 1;
     const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
                         MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
-                        ScriptPauseQueue(f) && FamiliarBank(f);
+                        ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
+                        ReverbOwner(f);
     SDL_free(f);
     if (!passed)
         return 1;

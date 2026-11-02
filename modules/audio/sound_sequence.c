@@ -243,6 +243,9 @@ bool SotnSound_PlaySequence(SotnSound *s, Uint16 id)
     if (!SotnSequence_Open(s->sequence_data, (Uint8)(config[2] >> 4),
                            (Uint16)((config[2] & 15U) ? 0 : 1), &next))
         return false;
+    if (s->reverb.configured &&
+        !SoundReverb_SetDepth(&s->reverb, (Sint16)config[1], (Sint16)config[1]))
+        return false;
     SotnSound_StopSequence(s);
     s->sequence_volume = config[0];
     s->sequence = next;

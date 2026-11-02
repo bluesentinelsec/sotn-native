@@ -45,7 +45,7 @@ The command
 owner applies the current absolute CD gain across native intro/loop metadata
 changes and preserves the retained decoder on restore. It neither replaces
 ordinary scene dialogue ownership by itself. Selected Fairy requests already bind the native app;
-remaining general routing, reverb and full CD/session continuity remain open.
+remaining general routing, CD reverb and full CD/session continuity remain open.
 
 When the actual CD owner is already bound, native stage music, speech, stop and
 pause/restore requests now share its command queue and decoder/bookmark ownership.
@@ -61,7 +61,7 @@ shared dialogue opcodes9/20 preserve92 separately from stopA. The Laboratory man
 also retains the original state3-to4 increment when both bosses die during active
 music; it reaches5 on the next callback. Other collapsed stage requests and global
 stage-music flags still need their own source audits. Initial unbound bootstrap,
-game-over audio, master-volume/reverb, whole sound-ring ordering and cross-session
+game-over audio, master-volume/CD reverb, whole sound-ring ordering and cross-session
 CD continuity remain unfinished. This selected binding does not enable Fairy menus.
 
 Selected native stage volume requests90..94 now reach this actual CD owner. Command8
@@ -73,7 +73,7 @@ flag clearance nor queue exhaustion substitutes for the other.
 Original `xa_play_ck` means pending fade or a playing identity, rather than decoder
 readiness. Ordinary, spell-frozen and FFF stage actor snapshots and Fairy sound input
 now bind that actual activity and separate busy flag. Remaining general stage music,
-dialogue, master-volume fades80..84 and SDK reverb still require their actual owners.
+dialogue, master-volume fades80..84 and CD reverb still require their actual owners.
 A pending loop6 can outlive stop2's decoder retirement: it reconstructs its real
 transport from retained validated configuration and reads at ReadN. Original loop6
 does not enable serial mix; a playing identity may therefore coexist with serial off.
@@ -98,8 +98,12 @@ and finite speech retain their separate transport behavior.
 
 These managed loop services currently require an unchanged configured base. Global
 queued-base retargeting fails before seeking; its actual filter/seek/restore ownership
-remains unfinished. Remaining general native routing and SDK reverb are also
+remains unfinished. Remaining general native routing and CD reverb are also
 unfinished. Do not use these component services as ordinary familiar activation readiness.
+
+The selected [native SPU voice-reverb owner](spu-reverb.md) now supplies actual SDK
+Studio B processing and selected SEQ depths. CD sends, temporary/restore depth
+requests and master commands still need their actual producer/mixer integration.
 
 Public authored checks cover nested saves/restores, third-save wrap, exact cursor
 retention, finite tail/stop timing, wrapped clocks, both queue overflows, differing

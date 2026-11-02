@@ -1,3 +1,14 @@
+Selected [native SPU voice reverb](docs/spu-reverb.md) now owns private SDK Studio B
+coefficients, actual tone mask0x4 sends and the existing SPU RAM work area. Preserve
+half-rate/44.1kHz phase, signed-word depths, stereo IIR/comb/APF work, cursor wrap,
+write-disable reads and zero-depth processing. Validate actual VAB reservation before
+clearing/uploading; familiar preparation retains the live DSP and work RAM. Native
+SoundInit depth10 and selected private SEQ depths now apply. Audio updates continue
+through menu/spell freeze; draws/load preparation never tick it. Explicit tone/card/
+protection/reference fixtures are not ordinary effect/acquisition/route/console
+evidence. CD sends/depth producers, other presets/master/mixer/session continuity
+and all six milestone gates remain open. No new pool/grants/v9 changes or Fairy UI.
+
 Selected [bound stage CD routing](docs/familiar-cd-audio.md) now shares actual
 music/speech/stop/pause/restore and private-profile restart with the existing CD
 owner. Preserve pause-before-same-event-speech, single combined stop, original XA

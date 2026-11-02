@@ -34,6 +34,16 @@ enum
  * @note Supports selected direct/scripted sound effects. CD music, reverb, and full
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
+/** @brief Initialize original Studio B voice reverb from the actual private US SDK profile.
+ * @param sound Actual owner, configured once before playback. @param executable Verified MAIN.
+ * @return Success or SDL error without mutation. Clears only the real work area in the existing
+ * SPU RAM after validating every loaded VAB; subsequent uploads retain that reservation.
+ * Enables the original per-tone send and44.1kHz/half-rate processor. CD sends, other presets,
+ * master commands and hardware/console timing remain separate owners. */
+bool SotnSound_ConfigureReverb(SotnSound *sound, SotnDataView executable);
+/** @brief Apply original signed SDK depth conversion to the configured actual voice-reverb owner.
+ * @return Success or SDL error without mutation when no configured owner exists. No clocks tick. */
+bool SotnSound_SetReverbDepth(SotnSound *sound, Sint16 left, Sint16 right);
 /** @brief Bind an actual familiar VAB to existing bank2 and its original SPU RAM address.
  * @param sound Owned initialized sound simulation. @param header Verified private VAB header.
  * @param body Verified private sample body; copied to resident RAM only after full validation.

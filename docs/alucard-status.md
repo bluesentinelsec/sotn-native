@@ -1,7 +1,7 @@
 # Alucard milestone status
 
 This is the consolidated status and completion checklist for the Alucard milestone,
-reviewed on 2026-11-01. The goal remains original Alucard behavior. Selected playable
+reviewed on 2026-11-02. The goal remains original Alucard behavior. Selected playable
 paths are implemented; complete Alucard, castle progression and console parity are
 unfinished. There is no measured completion percentage or reliable finish estimate.
 
@@ -147,6 +147,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/
   number/particle/shake/capture/audio paths and original ordering/timing. Selected
+  [native SPU voice reverb](spu-reverb.md) now binds actual private SDK Studio B,
+  per-tone sends, selected SEQ depths and shared work RAM with menu/freeze/draw/load
+  boundaries. CD sends/depth producers, master commands, other presets, full mixing
+  and cross-session audio remain unfinished. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
   callbacks before lookup and prunes32/33/65 before destination allocations. The
   medicine batch extends actual root cleanup to every eight-slot record by flags,

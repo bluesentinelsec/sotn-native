@@ -244,6 +244,13 @@ and `vm_nowon.c`; see `licenses/PSY-Z-decomp-MIT.txt`.
 for its mathematical coefficients. No SDK/platform headers, original samples,
 or game instrument/event tables are included.
 
+`modules/audio/reverb.c` adapts the voice-reverb processor in PSY-Z's
+`psyz/src/psyz/psyz_spu.c` at that same MPL-2.0 revision. Native Studio B setup,
+per-tone sends and depth conversion follow the MIT-licensed SDK paths in
+`decomp/src/libsnd/ut_rev.c`, `ut_rdep.c`, `vm_nowon.c` and
+`decomp/src/libspu/s_srmp.c`. Presets are read from the user's private executable;
+no original SDK coefficient arrays are compiled into the application.
+
 `modules/audio/music.c` additionally adapts selected XA decoding paths in
 PSY-Z's `psyz/src/psyz/libcd.c` at the same backend revision under MPL-2.0.
 The native stream loader and SDL rate-conversion boundary replace platform/SDK

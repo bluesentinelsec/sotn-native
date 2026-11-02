@@ -45,6 +45,10 @@ static bool Bank(SotnSound *sound, Uint32 id, SotnDataView header, SotnDataView 
     if (bank->address % 16 != 0 || bank->address > SOTN_SPU_RAM_SIZE || body.bytes == NULL ||
         body.size > SOTN_SPU_RAM_SIZE - bank->address || !View(header, size_table, 512, &record))
         return SDL_SetError("VAB tones/samples exceed bounded sound memory");
+    if (sound->reverb.configured && body.size &&
+        (bank->address >= sound->reverb.base || body.size > sound->reverb.base - bank->address))
+        return SDL_SetError("VAB upload would overwrite the actual SPU reverb work area");
+    bank->body_size = (Uint32)body.size;
     Uint16 used = 0;
     for (Uint32 i = 0; i < 128; ++i)
     {
@@ -80,6 +84,39 @@ bool SotnSound_SetFamiliarBank(SotnSound *sound, SotnDataView header, SotnDataVi
     if (!sound)
         return SDL_InvalidParamError("sound");
     return Bank(sound, 2, header, body);
+}
+
+bool SotnSound_ConfigureReverb(SotnSound *sound, SotnDataView executable)
+{
+    // Original US SDK _spu_rev_startaddr and _spu_rev_param, Studio B selected by SoundInit.
+    // The borrowed MAIN image includes its original0x800-byte executable header.
+    const size_t start = 0x23d68 + 3 * 4, record = 0x23db8 + 3 * 68;
+    if (!sound || sound->reverb.configured || !executable.bytes || record > executable.size ||
+        68 > executable.size - record || U32(executable.bytes + record) != 0)
+        return SDL_SetError("SPU initialization requires its bounded private US Studio B profile");
+    const Uint32 units = U32(executable.bytes + start);
+    if (units >= SOTN_SPU_RAM_SIZE / 8)
+        return SDL_SetError("Private SDK reverb work address exceeds actual SPU RAM");
+    const Uint32 base = units * 8;
+    for (Uint32 i = 0; i < SDL_arraysize(sound->banks); ++i)
+        if (sound->banks[i].loaded && sound->banks[i].body_size &&
+            (sound->banks[i].address >= base ||
+             sound->banks[i].body_size > base - sound->banks[i].address))
+            return SDL_SetError("Private SDK reverb work area overlaps an actual loaded VAB");
+    SotnReverb next = {0};
+    if (!SoundReverb_Configure(&next, base, (SotnDataView){executable.bytes + record + 4, 64}) ||
+        !SoundReverb_SetDepth(&next, 10, 10))
+        return false;
+    SDL_memset(sound->ram + base, 0, SOTN_SPU_RAM_SIZE - base);
+    sound->reverb = next;
+    return true;
+}
+
+bool SotnSound_SetReverbDepth(SotnSound *sound, Sint16 left, Sint16 right)
+{
+    if (!sound)
+        return SDL_InvalidParamError("sound");
+    return SoundReverb_SetDepth(&sound->reverb, left, right);
 }
 
 bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
@@ -147,6 +184,10 @@ bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank_id, Uint8 program, Uint
     reg->adsr[1] = U16(attributes + 18);
     reg->left = (Sint32)(left * left / 16383);
     reg->right = (Sint32)(right * right / 16383);
+    if (attributes[1] & 4)
+        sound->reverb_voices |= 1U << voice;
+    else
+        sound->reverb_voices &= ~(1U << voice);
     spu_voice_key_on(&sound->voices[voice], reg);
     if (voice < 16)
         sound->sequence_voices[voice] = (SoundSeqVoice){.claimed = true, .priority = attributes[0]};
@@ -435,7 +476,7 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
         return false;
     for (Uint32 frame = 0; frame < SOTN_SOUND_FRAMES; ++frame)
     {
-        Sint32 left = 0, right = 0;
+        Sint32 left = 0, right = 0, wet_left = 0, wet_right = 0;
         for (Uint32 v = 0; v < 24; ++v)
         {
             SotnVoice *voice = &sound->voices[v];
@@ -446,8 +487,23 @@ bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count)
             if (voice->env_state == ADSR_OFF)
                 sample = 0;
             sample = (sample * voice->env_vol) >> 15;
-            left += (sample * (sound->registers[v].left * 2)) >> 15;
-            right += (sample * (sound->registers[v].right * 2)) >> 15;
+            const Sint32 voice_left = (sample * (sound->registers[v].left * 2)) >> 15;
+            const Sint32 voice_right = (sample * (sound->registers[v].right * 2)) >> 15;
+            left += voice_left;
+            right += voice_right;
+            if (sound->reverb_voices & (1U << v))
+            {
+                wet_left += voice_left;
+                wet_right += voice_right;
+            }
+        }
+        if (sound->reverb.configured)
+        {
+            Sint32 wet[2];
+            SoundReverb_Tick(&sound->reverb, sound->ram, clamp16(wet_left), clamp16(wet_right),
+                             wet);
+            left += wet[0];
+            right += wet[1];
         }
         pcm[frame * 2] = clamp16(left);
         pcm[frame * 2 + 1] = clamp16(right);

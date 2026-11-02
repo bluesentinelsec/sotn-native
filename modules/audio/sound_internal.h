@@ -1,12 +1,13 @@
 #ifndef SOTN_SOUND_INTERNAL_H
 #define SOTN_SOUND_INTERNAL_H
+#include "reverb.h"
 #include "voice.h"
 #include <sotn/sequence.h>
 #include <sotn/sound.h>
 typedef struct SoundBank
 {
     SotnDataView header;
-    Uint32 address, samples[256], sizes[256];
+    Uint32 address, body_size, samples[256], sizes[256];
     Uint16 programs[128], sample_count;
     bool loaded;
 } SoundBank;
@@ -38,6 +39,8 @@ struct SotnSound
     SoundBank banks[4];
     SotnVoice voices[24];
     SotnVoiceRegisters registers[24];
+    SotnReverb reverb;
+    Uint32 reverb_voices;
     SoundScript scripts[4], script_backup[4];
     bool scripts_paused;
     struct
