@@ -1,3 +1,9 @@
+add_executable(sotn-magic-missile-tests test_magic_missile.c)
+sotn_configure_c_target(sotn-magic-missile-tests)
+target_include_directories(sotn-magic-missile-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-magic-missile-tests PRIVATE sotn-core)
+add_test(NAME magic-missile-ownership COMMAND sotn-magic-missile-tests)
+
 add_executable(sotn-pentagram-tests test_pentagram.c)
 sotn_configure_c_target(sotn-pentagram-tests)
 target_include_directories(sotn-pentagram-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

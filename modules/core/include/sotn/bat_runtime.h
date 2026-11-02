@@ -15,6 +15,7 @@
 #include <sotn/holy_hit.h>
 #include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
+#include <sotn/magic_missile.h>
 #include <sotn/neutron.h>
 #include <sotn/pentagram.h>
 #include <sotn/player.h>
@@ -62,7 +63,7 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized, food, neutron, sire, sire_child, pentagram;
+    bool initialized, food, neutron, sire, sire_child, pentagram, magic;
     union {
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
@@ -134,6 +135,14 @@ typedef struct SotnBatRuntimeChild
             SotnPlayerAttack attack;
             Uint16 item;
         } pentagram;
+        struct
+        {
+            SotnMagicMissile motion;
+            SotnMagicMissileAnimation animation;
+            SotnPlayerAttack attack;
+            Uint16 parent_slot; /**< Actual raw17..31 parent slot, without a generation gate. */
+            Uint8 timeline, hit_flags;
+        } magic;
         SotnSpiritPortal portal;
         struct
         {
@@ -168,8 +177,8 @@ typedef struct SotnBatRuntime
         SotnPlayerFactory cursor;
         Uint32 bat_generation, sword_parent;
         Uint32 fire_parent;
-        Uint16 fire_parent_slot, sire_parent_slot;
-        bool sire_factory;
+        Uint16 fire_parent_slot, sire_parent_slot, magic_parent_slot;
+        bool sire_factory, magic_factory;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
@@ -203,7 +212,8 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
-    Uint64 neutron_mask, sire_mask, pentagram_mask;
+    Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask;
+    bool magic_clear_shield; /**< Conditional weapon16 shield retirement, committed by its owner. */
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -269,6 +279,14 @@ bool SotnBatRuntime_RequestThrowing(SotnBatRuntime *, SotnPlayerFactorySource, U
 bool SotnBatRuntime_PentagramValid(const SotnBatRuntimeChild *, Uint16 index);
 /** @brief Retire room-local weapon17 parents/rows without callbacks or changing program BSS. */
 bool SotnBatRuntime_PrunePentagram(SotnBatRuntime *);
+/** @brief Validate actual weapon22 bow/arrow role, raw parent and callback ownership. */
+bool SotnBatRuntime_MagicMissileValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Retire actual weapon22 room-local children without callbacks, RNG or another pool. */
+bool SotnBatRuntime_PruneMagicMissile(SotnBatRuntime *);
+/** @brief Reserve actual weapon22/item25 root50 in the existing eight factory slots.
+ * Inventory and player-success commitment belong to the bound native hand owner. */
+bool SotnBatRuntime_RequestMagicMissile(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                        bool *allocated);
 /** @brief Reserve actual50 weapon19/Neutron71, or its original57 curse outline. */
 bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                    Uint32 packed, Uint16 item, bool *allocated);

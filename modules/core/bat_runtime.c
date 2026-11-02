@@ -99,7 +99,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
              r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
              r->children[i].kind == 61 || r->children[i].neutron || r->children[i].sire ||
-             r->children[i].pentagram) &&
+             r->children[i].pentagram || r->children[i].magic) &&
             r->children[i].group >= SDL_arraysize(r->groups))
             return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
     for (Uint16 i = 1; i <= 14; ++i)
@@ -111,6 +111,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         r->neutron_mask &= ~((Uint64)1 << i);
         r->sire_mask &= ~((Uint64)1 << i);
         r->pentagram_mask &= ~((Uint64)1 << i);
+        r->magic_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
@@ -118,7 +119,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
              r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
              r->children[i].kind == 61 || r->children[i].neutron || r->children[i].sire ||
-             r->children[i].pentagram) &&
+             r->children[i].pentagram || r->children[i].magic) &&
             r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
             ++r->groups[r->children[i].group];
     return true;
@@ -278,6 +279,82 @@ bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *r, SotnPlayerFactorySource so
     if (item != 71 && !(packed == 0x10039 && !item))
         return SDL_SetError("Neutron reservation lost its actual item71");
     return SotnBatRuntime_RequestThrowing(r, source, packed, item, allocated);
+}
+bool SotnBatRuntime_RequestMagicMissile(SotnBatRuntime *r, SotnPlayerFactorySource source,
+                                        Uint32 packed, bool *allocated)
+{
+    if (!r || !allocated || (packed != 0x1032 && packed != 0x802032))
+        return SDL_SetError("Magic Missile requires its actual50/hand/item25 reservation");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 25))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+static bool MagicFactory(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint16 slot,
+                         Uint16 hand, bool *allocated)
+{
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            source.flags = 0;
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, 56U | ((Uint32)hand + 1U) << 12, 0))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            r->factories[i].magic_factory = true;
+            r->factories[i].magic_parent_slot = slot;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+static bool MagicParent(const SotnBatRuntime *r, Uint16 slot, SotnMagicMissileParent *out)
+{
+    if (slot < 17 || slot > 31)
+        return SDL_SetError("Magic Missile lost its actual raw parent slot");
+    if (slot <= 30 && r->wolf.children[slot - 17U].identity)
+    {
+        const SotnWolfRuntimeChild *c = &r->wolf.children[slot - 17U];
+        const SotnWolfPart *p = &r->wolf.body.parts[slot - 17U];
+        if (!r->wolf.generation || !c->generation || c->lineage != r->wolf.generation ||
+            r->children[slot - 16U].kind)
+            return SDL_SetError("Magic Missile raw Wolf parent lost its actual slot ownership");
+        // Wolf's cleared births and body callbacks leave the weapon equipId word untouched.
+        *out = (SotnMagicMissileParent){.exists = true,
+                                        .facing_left = p->facing_left,
+                                        .palette = p->palette,
+                                        .bank = p->bank,
+                                        .texture = p->texture_offset,
+                                        .item = 0};
+        return true;
+    }
+    const SotnBatRuntimeChild *c = &r->children[slot - 16U];
+    if (!c->kind)
+    {
+        *out = (SotnMagicMissileParent){0};
+        return true;
+    }
+    if (!c->magic)
+        return SDL_SetError("Magic Missile raw parent requires its actual selected field owner");
+    const SotnMagicMissile *m = &c->state.magic.motion;
+    *out = (SotnMagicMissileParent){.exists = true,
+                                    .facing_left = m->facing_left,
+                                    .palette = m->palette,
+                                    .bank = m->bank,
+                                    .texture = m->texture,
+                                    .item = m->item};
+    return true;
 }
 bool SotnBatRuntime_RequestSire(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
@@ -439,6 +516,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->state.neutron.motion.flags;
     if (c->pentagram)
         return c->state.pentagram.motion.flags;
+    if (c->magic)
+        return c->state.magic.motion.flags;
     if (c->sire)
         return c->sire_child ? c->state.sire.child.flags : c->state.sire.parent.flags;
     switch (c->kind)
@@ -657,7 +736,8 @@ bool SotnBatRuntime_PruneMedicines(SotnBatRuntime *r)
         return SDL_InvalidParamError("runtime");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (!SotnBatRuntime_CircleValid(&r->children[i]) ||
-            !SotnBatRuntime_MedicineValid(&r->children[i]))
+            !SotnBatRuntime_MedicineValid(&r->children[i]) ||
+            !SotnBatRuntime_MagicMissileValid(&r->children[i], i))
             return SDL_SetError("Medicine room cleanup lost its actual child/row lifecycle");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 38 || r->children[i].kind == 39) &&
@@ -784,6 +864,48 @@ bool SotnBatRuntime_PrunePentagram(SotnBatRuntime *r)
     r->pentagram_mask = 0;
     return true;
 }
+bool SotnBatRuntime_MagicMissileValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->magic)
+        return true;
+    const SotnMagicMissile *m = &c->state.magic.motion;
+    const bool arrow = c->kind == 0xe1 || c->kind == 0xf1;
+    const bool role = arrow || c->kind == 0xe0 || c->kind == 0xf0;
+    return role && !c->food && !c->sire && !c->neutron && !c->pentagram && index >= 1 &&
+           index <= 15 && c->generation && !c->bat_generation && !c->primitive_count &&
+           !c->draw_count && !m->removed && m->phase <= 2 &&
+           c->parameter == (arrow             ? 0
+                            : c->kind == 0xf0 ? 0x8000U
+                                              : 0U) &&
+           (arrow ? c->state.magic.parent_slot >= 17 && c->state.magic.parent_slot <= 31
+                  : !c->state.magic.parent_slot && m->item == 25) &&
+           (c->initialized
+                ? m->phase && m->flags == (arrow ? 0x08100000U : 0x00140000U) &&
+                      c->state.magic.timeline == (arrow ? m->phase == 1 ? 2 : 3 : 1) &&
+                      c->state.magic.animation.remaining >= -1 &&
+                      c->state.magic.animation.pose < (arrow ? m->phase == 1 ? 2 : 7 : 33) &&
+                      (arrow ? c->group >= 3 && c->group <= 6 &&
+                                   c->state.magic.attack.equipment == m->item &&
+                                   c->state.magic.attack.hit_type == 2
+                             : !c->group && !c->state.magic.attack.active &&
+                                   (m->phase == 1 || (m->lifetime >= 1 && m->lifetime <= 16)))
+                : !m->phase && !c->state.magic.timeline && !c->group &&
+                      !c->state.magic.attack.active && (!arrow || !m->item));
+}
+bool SotnBatRuntime_PruneMagicMissile(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_MagicMissileValid(&r->children[i], i))
+            return SDL_SetError("Magic Missile cleanup lost its actual callback/parent ownership");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].magic)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    r->magic_mask = 0;
+    r->magic_clear_shield = false;
+    return true;
+}
 static bool ChangedWeapon(Uint16 kind, Uint8 hands)
 {
     return (kind >= 0xe0 && kind <= 0xef && (hands & 1)) ||
@@ -798,7 +920,8 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
         if (!SotnBatRuntime_SwordChildValid(&r->children[i], i) ||
             !SotnBatRuntime_NeutronValid(&r->children[i], i) ||
             !SotnBatRuntime_SireValid(&r->children[i], i) ||
-            !SotnBatRuntime_PentagramValid(&r->children[i], i))
+            !SotnBatRuntime_PentagramValid(&r->children[i], i) ||
+            !SotnBatRuntime_MagicMissileValid(&r->children[i], i))
             return SDL_SetError("Weapon retirement lost its actual child ownership");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (ChangedWeapon(r->children[i].kind, hands))
@@ -808,6 +931,7 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
             r->neutron_mask &= ~((Uint64)1 << i);
             r->sire_mask &= ~((Uint64)1 << i);
             r->pentagram_mask &= ~((Uint64)1 << i);
+            r->magic_mask &= ~((Uint64)1 << i);
         }
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
@@ -935,7 +1059,8 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
         if (!SotnBatRuntime_HolyHitValid(&r->children[i]) ||
             !SotnBatRuntime_IceHitValid(&r->children[i]) ||
             !SotnBatRuntime_CircleValid(&r->children[i]) ||
-            !SotnBatRuntime_MedicineValid(&r->children[i]))
+            !SotnBatRuntime_MedicineValid(&r->children[i]) ||
+            !SotnBatRuntime_MagicMissileValid(&r->children[i], i))
             return SDL_SetError("Player shove lost its actual holy child owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].kind == 47 && r->children[i].initialized &&
@@ -957,6 +1082,19 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
             SDL_memcpy(&r->children[i].source.x, &bx, sizeof(bx));
             SDL_memcpy(&r->children[i].source.y, &by, sizeof(by));
         }
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        SotnBatRuntimeChild *c = &r->children[i];
+        if (c->magic && c->initialized && (c->state.magic.motion.flags & 0x40000U))
+        {
+            const Uint32 bx = (Uint32)c->state.magic.motion.x + (Uint32)x,
+                         by = (Uint32)c->state.magic.motion.y + (Uint32)y;
+            SDL_memcpy(&c->state.magic.motion.x, &bx, sizeof(bx));
+            SDL_memcpy(&c->state.magic.motion.y, &by, sizeof(by));
+            c->source.x = c->state.magic.motion.x;
+            c->source.y = c->state.magic.motion.y;
+        }
+    }
     return true;
 }
 bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -973,7 +1111,7 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!SotnBatRuntime_FoodChildValid(c, index))
         return false;
-    if (c->food || c->sire || c->pentagram)
+    if (c->food || c->sire || c->pentagram || c->magic)
         return true;
     if (c->kind == 0xe1 || c->kind == 0xf1)
         return index == 0 && !c->primitive_count && !c->draw_count && !c->group &&
@@ -993,7 +1131,8 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->food)
-        return c->neutron || c->sire || c->pentagram || (c->kind != 0xe0 && c->kind != 0xf0);
+        return c->neutron || c->sire || c->pentagram || c->magic ||
+               (c->kind != 0xe0 && c->kind != 0xf0);
     const SotnFood *f = &c->state.food;
     const bool inventory = c->kind == 0xe1 || c->kind == 0xf1;
     const Uint16 value = (Uint16)((f->parameter >> 8) & 127U);
@@ -1007,7 +1146,8 @@ bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 }
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation,
                   Uint32 fire_parent, Uint16 fire_parent_slot, bool sire_factory,
-                  Uint16 sire_parent_slot, const SotnBatRuntimeInput *input)
+                  Uint16 sire_parent_slot, bool magic_factory, Uint16 magic_parent_slot,
+                  const SotnBatRuntimeInput *input)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -1038,16 +1178,20 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     c.sire = c.sire_child || ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 72);
     c.pentagram = (c.kind == 0xe0 || c.kind == 0xf0) &&
                   (child.argument_low == 73 || child.argument_low == 74);
-    c.food = ((c.kind == 0xe0 || c.kind == 0xf0) && !c.neutron && !c.sire && !c.pentagram) ||
-             ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
-              ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
-    if ((c.food || c.neutron || c.sire || c.pentagram) && input)
+    c.magic = ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 25) ||
+              (magic_factory && (c.kind == 0xe1 || c.kind == 0xf1));
+    c.food =
+        ((c.kind == 0xe0 || c.kind == 0xf0) && !c.neutron && !c.sire && !c.pentagram && !c.magic) ||
+        ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
+         ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
+    if ((c.food || c.neutron || c.sire || c.pentagram || c.magic) && input)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
-        if (input->weapon_bound[hand] && input->weapon_family[hand] != (c.pentagram ? 17
-                                                                        : c.sire    ? 18
-                                                                        : c.neutron ? 19
-                                                                                    : 21))
+        if (input->weapon_bound[hand] && input->weapon_family[hand] != (c.magic       ? 22
+                                                                        : c.pentagram ? 17
+                                                                        : c.sire      ? 18
+                                                                        : c.neutron   ? 19
+                                                                                      : 21))
             return SDL_SetError("Hand child lost its actual resident weapon program");
     }
     if (c.neutron)
@@ -1088,6 +1232,24 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                                                    .y = child.source.y,
                                                    .flags = child.source.flags,
                                                    .parameter = child.parameter};
+    }
+    if (c.magic)
+    {
+        const bool arrow = c.kind == 0xe1 || c.kind == 0xf1;
+        if (generation || child.slot < 17 || child.slot > 31 || child.argument_high ||
+            child.argument_low != (arrow ? 0 : 25) ||
+            child.parameter != (arrow            ? 0
+                                : c.kind == 0xf0 ? 0x8000U
+                                                 : 0U) ||
+            (arrow && (magic_parent_slot < 17 || magic_parent_slot > 31)))
+            return SDL_SetError("Magic Missile lost its actual slot/role/raw parent identity");
+        c.state.magic.parent_slot = arrow ? magic_parent_slot : 0;
+        c.state.magic.motion = (SotnMagicMissile){.x = child.source.x,
+                                                  .y = child.source.y,
+                                                  .flags = child.source.flags,
+                                                  .priority = child.source.priority,
+                                                  .facing_left = child.source.facing_left,
+                                                  .item = arrow ? 0 : 25};
     }
     if (c.food)
     {
@@ -1177,7 +1339,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
-    if (!c.food && !c.sire && (c.kind == 0xe1 || c.kind == 0xf1))
+    if (!c.food && !c.sire && !c.magic && (c.kind == 0xe1 || c.kind == 0xf1))
     {
         if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
             child.parameter != (c.kind == 0xf1 ? 0x8000 : 0))
@@ -1210,7 +1372,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         if (!(occupied & ((Uint64)1 << slot)))
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
-                       0, 0, 0, false, 0, NULL))
+                       0, 0, 0, false, 0, false, 0, NULL))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -1450,7 +1612,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r) ||
                         !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r) ||
                         !SotnBatRuntime_PruneFood(&r) || !SotnBatRuntime_PruneNeutron(&r) ||
-                        !SotnBatRuntime_PruneSire(&r) || !SotnBatRuntime_PrunePentagram(&r)))
+                        !SotnBatRuntime_PruneSire(&r) || !SotnBatRuntime_PrunePentagram(&r) ||
+                        !SotnBatRuntime_PruneMagicMissile(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -1517,6 +1680,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Sword special lost its actual slot/role/lifetime ownership");
         if (!SotnBatRuntime_PentagramValid(c, i))
             return SDL_SetError("Pentagram lost its actual slot/role/lifetime ownership");
+        if (!SotnBatRuntime_MagicMissileValid(c, i))
+            return SDL_SetError("Magic Missile lost its actual raw parent/callback ownership");
         if (!SotnBatRuntime_SireValid(c, i))
             return SDL_SetError("Sire lost its actual slot/role/lifetime ownership");
         if (!SotnBatRuntime_NeutronValid(c, i))
@@ -1601,6 +1766,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         {
             c->state.pentagram.motion.x = FixedShift(c->state.pentagram.motion.x, in.room_shift_x);
             c->state.pentagram.motion.y = FixedShift(c->state.pentagram.motion.y, in.room_shift_y);
+        }
+        else if (c->magic)
+        {
+            c->state.magic.motion.x = FixedShift(c->state.magic.motion.x, in.room_shift_x);
+            c->state.magic.motion.y = FixedShift(c->state.magic.motion.y, in.room_shift_y);
         }
         else if (c->sire)
         {
@@ -1782,6 +1952,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.sound_count = 0;
     r.wolf_shake_count = 0;
     r.use_ticks = r.spell_use_ticks = 0;
+    r.magic_clear_shield = false;
     r.afterimage_reset = false;
     r.dissolve_frame_load = false;
     SotnPlayerState p = in.player;
@@ -2046,6 +2217,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              (r.factories[i].cursor.entity_modifier != 0xe0 &&
               r.factories[i].cursor.entity_modifier != 0xf0)))
             return SDL_SetError("Sword factory lost its separate actual parent lineage");
+        if (r.factories[i].cursor.entity_id && r.factories[i].magic_factory &&
+            (r.factories[i].sire_factory || r.factories[i].bat_generation ||
+             r.factories[i].sword_parent || r.factories[i].fire_parent ||
+             r.factories[i].cursor.blueprint != 56 || r.factories[i].magic_parent_slot < 17 ||
+             r.factories[i].magic_parent_slot > 31))
+            return SDL_SetError("Magic Missile factory lost its actual56/raw parent owner");
         if (r.factories[i].cursor.entity_id && r.factories[i].fire_parent &&
             (r.factories[i].cursor.blueprint != 4 || r.factories[i].cursor.parameter != 0x400 ||
              r.factories[i].fire_parent_slot >= SOTN_BAT_RUNTIME_SLOTS ||
@@ -2085,7 +2262,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                        r.factories[i].sword_parent ? r.factories[i].sword_parent
                                                    : r.factories[i].bat_generation,
                        r.factories[i].fire_parent, r.factories[i].fire_parent_slot,
-                       r.factories[i].sire_factory, r.factories[i].sire_parent_slot, &in))
+                       r.factories[i].sire_factory, r.factories[i].sire_parent_slot,
+                       r.factories[i].magic_factory, r.factories[i].magic_parent_slot, &in))
                 return false;
         }
     }
@@ -2102,7 +2280,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.player_hitbox_state = SotnPlayerStep_IsDead(p.step) ? 0 : 1;
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
-        r.sire_mask = r.pentagram_mask = 0;
+        r.sire_mask = r.pentagram_mask = r.magic_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.echo_attack = false;
@@ -2136,13 +2314,111 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.pentagram_mask |= (Uint64)1 << i;
             if (c->initialized && c->sire && !c->sire_child && c->state.sire.attack.active)
                 r.sire_mask |= (Uint64)1 << i;
+            if (c->initialized && c->magic && c->state.magic.attack.active)
+                r.magic_mask |= (Uint64)1 << i;
             if (c->initialized && c->neutron && c->state.neutron.attack.active)
                 r.neutron_mask |= (Uint64)1 << i;
             continue;
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->pentagram)
+        if (c->magic)
+        {
+            const bool arrow = c->kind == 0xe1 || c->kind == 0xf1;
+            const Uint16 hand = c->kind >= 0xf0 ? 1 : 0;
+            SotnMagicMissile *m = &c->state.magic.motion;
+            SotnMagicMissileParent parent = {0};
+            if (arrow && !m->phase && !MagicParent(&r, c->state.magic.parent_slot, &parent))
+                return false;
+            SotnMagicMissileEvents events = {0};
+            if (!SotnMagicMissile_Tick(
+                    m,
+                    (SotnMagicMissileInput){.arrow = arrow,
+                                            .hand = hand,
+                                            .priority = p.priority,
+                                            .facing_left = p.facing_left,
+                                            .pose = c->state.magic.animation.pose,
+                                            .remaining = c->state.magic.animation.remaining,
+                                            .hit_flags = c->state.magic.hit_flags,
+                                            .parent = parent},
+                    &events))
+                return false;
+            if (events.properties)
+            {
+                SotnEquipment equipment = {0};
+                if (!SotnCharacter_MagicMissileProperties(character, m->item, p.poison_ticks != 0,
+                                                          &progress.random, &equipment))
+                    return false;
+                Uint16 group = 3;
+                for (Uint16 g = 4; g < 7; ++g)
+                    if (r.groups[g] < r.groups[group])
+                        group = g;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Magic Missile shared attack group overflow");
+                ++r.groups[group];
+                c->group = (Uint8)group;
+                c->state.magic.attack =
+                    (SotnPlayerAttack){.offset_x = 8,
+                                       .width = 8,
+                                       .height = 4,
+                                       .power = (Uint16)equipment.attack,
+                                       .element = equipment.element,
+                                       .hit_type = equipment.hit_type,
+                                       .hit_effect = equipment.hit_effect,
+                                       .stun_frames = equipment.stun,
+                                       .invincibility_frames = equipment.invincibility,
+                                       .critical_rate = (Uint8)equipment.critical_rate,
+                                       .equipment = m->item,
+                                       .right_hand = hand != 0,
+                                       .active = true};
+            }
+            if (events.factory)
+            {
+                bool allocated = false;
+                if (!MagicFactory(&r, c->source, (Uint16)(i + 16U), hand, &allocated) ||
+                    (allocated && !Sound(&r, 0x625)))
+                    return false;
+            }
+            if (events.sound && !Sound(&r, events.sound))
+                return false;
+            if (events.use_ticks)
+                r.use_ticks = events.use_ticks;
+            r.magic_clear_shield |= events.clear_shield;
+            if (events.animation)
+            {
+                c->state.magic.timeline = events.animation;
+                c->state.magic.animation.pose = 0;
+                c->state.magic.animation.remaining = 0;
+            }
+            removed = m->removed;
+            if (!removed)
+            {
+                const Sint16 dx = Word(in.room_shift_x - in.screen_shift_x),
+                             dy = Word(in.room_shift_y - in.screen_shift_y);
+                const Sint16 x = Word(Pixel(m->x) - in.camera_x + dx),
+                             y = Word(Pixel(m->y) - in.camera_y + dy);
+                removed = x < -32 || x > 288 || y < -16 || y > 256;
+                // UpdatePlayerEntities culls after the callback and before UpdateAnim.
+                if (!removed)
+                {
+                    SotnDataView overlay = {0};
+                    if (!SotnWeapon_Overlay(in.weapons, (SotnEquipment){.id = 25, .family = 22},
+                                            &overlay) ||
+                        !SotnMagicMissile_Animate(&c->state.magic.animation, overlay,
+                                                  c->state.magic.timeline))
+                        return false;
+                }
+            }
+            c->source.x = m->x;
+            c->source.y = m->y;
+            c->source.flags = m->flags;
+            c->source.priority = m->priority;
+            c->source.facing_left = m->facing_left;
+            c->initialized = !removed;
+            if (!removed && c->state.magic.attack.active)
+                r.magic_mask |= (Uint64)1 << i;
+        }
+        else if (c->pentagram)
         {
             const Uint16 hand = c->kind == 0xf0 ? 1 : 0;
             SotnPentagram *n = &c->state.pentagram.motion;
@@ -3721,7 +3997,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 26 ||
              r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
              r.children[i].kind == 53 || r.children[i].neutron || r.children[i].sire ||
-             r.children[i].pentagram) &&
+             r.children[i].pentagram || r.children[i].magic) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
@@ -3732,7 +4008,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     {
         r.wing_mask = r.wolf_mask = 0;
         r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
-            r.sire_mask = r.pentagram_mask = 0;
+            r.sire_mask = r.pentagram_mask = r.magic_mask = 0;
         r.soul_attack = r.echo_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
             r.wolf.body.parts[i].hitbox_state = 0;
@@ -3753,6 +4029,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.sword.attack.active = false;
             else if (c->pentagram)
                 c->state.pentagram.attack.active = false;
+            else if (c->magic)
+                c->state.magic.attack.active = false;
             else if (c->sire)
                 c->state.sire.attack.active = false;
             else if (c->neutron)
@@ -3799,11 +4077,16 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
 
 bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags)
 {
+    const bool magic = r && i < 48 && r->children[i].magic &&
+                       (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
     if (!r || i >= 48 || !flags || flags > 3 ||
-        (r->children[i].kind != 45 && r->children[i].kind != 26 && r->children[i].kind != 27) ||
+        (!magic && r->children[i].kind != 45 && r->children[i].kind != 26 &&
+         r->children[i].kind != 27) ||
         !generation || r->children[i].generation != generation || !r->children[i].initialized)
         return SDL_SetError("Bat fireball feedback requires its actual live child generation");
-    if (r->children[i].kind == 45)
+    if (magic)
+        r->children[i].state.magic.hit_flags = flags;
+    else if (r->children[i].kind == 45)
         r->children[i].state.fire.hit_flags = flags;
     else
         r->children[i].state.hellfire_fire.hit_flags = flags;

@@ -1,3 +1,20 @@
+Selected [Magic Missile25](docs/player-magic-missile.md) now owns actual menu/hand
+use, stock/Duplicator consumption, resident weapon22, shared50/56 roots/17..31
+bow/arrows, private animation/rendering and native physical2 combat. Preserve
+chain4 before curse using raw AE/params8000: rightF1 arrows retain params0 and
+count left; cold arrows retain AE0 until actual raw-parent copy. Keep next-pass
+birth, successful-root-only625, bow669/word10=4, conditional real shield removal
+only after native success, raw parent without generation equality, actual Wolf
+replacement fields/zero AE, no birth motion and only hitFlags1 impact. Impact
+retains attack until original animation retirement/dead cleanup. Preserve callback/
+real cull/animation ordering, full fractions/wrap, actual post-stage shove only
+for bow40000, independent arrow camera flag, slot/engine-clock Blink80, menu/
+freeze/draw holds, no-tick cleanup and real runtime/rows/character RNG rollback.
+No new pool/grants/savev9 fields. Supplied inventory/equipment/relic/protection/
+arrival/RNG/shove/failure/in-memory-save fixtures are not acquisition/routes/
+whole-pass/full sharing/console evidence. All six Alucard gates and cold start
+remain open; ordinary Fairy UI stays disabled.
+
 Selected [native ability timer commits](docs/player-timers.md) now retain separate
 original word10 (Bat Fire) and word12 (Neutron/Sire/Pentagram) birth requests.
 Preserve actual indices, original4 overwrite, status1000, the other timer's count,

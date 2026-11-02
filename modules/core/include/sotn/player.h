@@ -966,6 +966,11 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * @return Success or SDL error without mutation. Timer10 and damage-invincibility
  * words retain their own producers; this operation does not advance any timer. */
 bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Commit original conditional DestroyEntityWeapon(true) for the owned ordinary shield.
+ * @param player Borrowed player. @return Success or SDL error without mutation.
+ * A live shield is retired without changing input, motion or timers. An absent shield leaves
+ * the independent normal weapon intact. Call only after its actual shared request succeeds. */
+bool SotnPlayer_ClearShield(SotnPlayer *player);
 /** @brief Queue actual blood contact healing for the following player update.
  * @param player Borrowed owner. @param amount Original first-request amount0/8/16.
  * @param contacts Actual consumed contacts this stage update,1..32.

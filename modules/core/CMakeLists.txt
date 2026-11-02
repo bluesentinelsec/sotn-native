@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  magic_missile.c
+  include/sotn/magic_missile.h
   pentagram.c
   include/sotn/pentagram.h
   sire.c

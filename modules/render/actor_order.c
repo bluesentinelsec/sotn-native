@@ -6,9 +6,9 @@
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
-        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_PENTAGRAM ||
+        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_MAGIC_MISSILE ||
         ((item.kind == SOTN_DRAW_FOOD || item.kind == SOTN_DRAW_NEUTRON ||
-          item.kind == SOTN_DRAW_SIRE) &&
+          item.kind == SOTN_DRAW_SIRE || item.kind == SOTN_DRAW_MAGIC_MISSILE) &&
          (item.primitive < 1 || item.primitive > 15)) ||
         (item.kind == SOTN_DRAW_PENTAGRAM && (item.primitive < 25 || item.primitive >= 400)) ||
         (item.kind == SOTN_DRAW_FOOD_TEXT && item.primitive >= 68) ||

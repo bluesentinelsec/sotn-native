@@ -111,6 +111,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   hand input/consumption, shared25-row GT4/GT3 rendering, per-hand mutable scratch,
   original SDK/GTE breakup and24-frame native global attacks. Familiar use, remaining
   consumables and weapon/equipment families still require real owners.
+  [Selected Magic Missile25](player-magic-missile.md) now supplies actual weapon22
+  bow/arrow input/stock, raw item/hand chain4, shared50/56 factories, private sprites,
+  physical combat and conditional shield retirement.
 - [ ] **Familiars and remaining spells:** finish actual familiar lifecycle,
   ordinary controls, behavior/combat/progression and Sword Brothers' familiar-dependent
   execution. Its existing recognizer is not an available spell. See

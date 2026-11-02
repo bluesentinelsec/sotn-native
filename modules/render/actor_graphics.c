@@ -370,18 +370,20 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 52 ? 0x8017ac1cU
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
+                           : equipment.family == 22 ? 0x8017a808U
                            : equipment.family == 21 ? 0x8017a784U
                            : equipment.family == 17 ? 0x8017a3a0U
                            : equipment.family == 18 ? 0x8017a730U
                            : equipment.family == 19 ? 0x8017a548U
                                                     : 0x8017abd4U;
-    const Uint32 color_count = (equipment.family == 21 || equipment.family == 19 ||
-                                        equipment.family == 18 || equipment.family == 17
-                                    ? 24U
-                                : equipment.family == 45 ? 2U
-                                : equipment.family == 37 ? 5U
-                                                         : 7U) *
-                               16;
+    const Uint32 color_count =
+        (equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
+                 equipment.family == 18 || equipment.family == 17
+             ? 24U
+         : equipment.family == 45 ? 2U
+         : equipment.family == 37 ? 5U
+                                  : 7U) *
+        16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;

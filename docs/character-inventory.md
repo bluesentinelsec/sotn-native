@@ -68,6 +68,12 @@ for use. This does not claim every passive effect, item category, transformation
 spell, or weapon is implemented. Stage-session temporary candle/enemy flags stay
 separate from permanent item progress.
 
+[Owned Magic Missile25](player-magic-missile.md) now selects and consumes through
+either hand with original chain4, shared bow/arrow factories, private weapon22
+sprites/animation and native physical damage. Raw right-hand arrows retain
+params0 and count toward the left-hand item25 limit. Last-copy use retains the
+actual loaded hand program. No ordinary starts or v9 save fields change.
+
 ## Native equipment loop
 
 Enter/Xbox Start opens or closes the supported pause menu when normal control is

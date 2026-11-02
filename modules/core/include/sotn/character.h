@@ -89,6 +89,11 @@ bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, 
 /** @brief Retained owned71..74 properties at their actual activation callbacks. */
 bool SotnCharacter_ThrowingProperties(const SotnCharacter *, Uint16 item, bool poison,
                                       Uint32 *random, SotnEquipment *out);
+/** @brief Resolve actual retained weapon22 arrow properties from selected raw parent0/25.
+ * Uses the character's current attributes and supplied libc cursor transactionally.
+ * This sealed component service enables no equipment selection, grant or hand control. */
+bool SotnCharacter_MagicMissileProperties(const SotnCharacter *, Uint16 item, bool poison,
+                                          Uint32 *random, SotnEquipment *out);
 /** @brief Retained72 properties at birth and each successful actual burst reservation. */
 bool SotnCharacter_SireProperties(const SotnCharacter *, bool poison, Uint32 *random,
                                   SotnEquipment *out);

@@ -536,8 +536,9 @@ static bool StartAttack(SotnPlayer *player)
     if (equipment.kind == 132 &&
         (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2))
         return false;
-    if ((equipment.kind == 130) && (!player->throwing_factory || !player->throwing_consume ||
-                                    !player->throwing_random || player->throwing_count[hand] >= 1))
+    if ((equipment.kind == 130) &&
+        (!player->throwing_factory || !player->throwing_consume || !player->throwing_random ||
+         !equipment.chain_limit || player->throwing_count[hand] >= equipment.chain_limit))
         return false;
     if (equipment.id == 166)
     {
@@ -3855,6 +3856,18 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
     if (!p || ticks > 32)
         return SDL_SetError("Player spell-use timer requires its owner and bounded ticks");
     p->spell_use_ticks = ticks;
+    return true;
+}
+
+bool SotnPlayer_ClearShield(SotnPlayer *p)
+{
+    if (!p || p->shield_cursor.phase > 3)
+        return SDL_SetError("Shield retirement requires its actual ordinary weapon owner");
+    if (p->shield_cursor.phase)
+    {
+        p->shield = (SotnPlayerAttack){0};
+        p->shield_cursor = (SotnShield){0};
+    }
     return true;
 }
 
