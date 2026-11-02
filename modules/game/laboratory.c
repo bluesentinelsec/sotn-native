@@ -1431,18 +1431,20 @@ static bool TickMist(SotnLaboratory *s, SotnPlayerState player, bool entering)
             }
             input.capture = capture;
         }
-        SotnActorProgress progress = {0};
+        SotnCharacterState progress = {0};
         const bool initialize = s->mist_effect.phase == 0;
         if (initialize)
         {
-            if (!SotnActors_GetProgress(s->actors, &progress))
+            if (!SotnCharacter_Get(s->character, &progress, NULL))
                 return false;
+            // EntityMist uses libc rand(), separate from the stage's Random() cursor.
             for (Uint16 i = 0; i < 4; ++i)
                 input.random[i] = SotnCombat_Random(&progress.random);
         }
         SotnMistEffectEvents events = {0};
         if (!SotnMistEffect_Tick(&s->mist_effect, input, &events) ||
-            (initialize && (events.random_count != 4 || !SotnActors_Restore(s->actors, progress))))
+            (initialize &&
+             (events.random_count != 4 || !SotnCharacter_Restore(s->character, &progress))))
             return false;
         bool accepted = false;
         if ((events.cancel_palette && !SotnActorGraphics_CancelMistPalette(s->actor_graphics)) ||

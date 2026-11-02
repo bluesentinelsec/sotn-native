@@ -1417,6 +1417,10 @@ restoration and cramped-space recovery. Q/Xbox LB toggles owned Mist; ordinary
 starts grant no new relics. Use the absolute simulation clock, freeze original MP
 recovery in transformed states, and retain generation ownership. Never substitute
 a timer for the actual visual phase-5 signal; normal return releases the real child.
+Mist's four birth rand calls stage the existing character libc cursor and commit
+after the effect succeeds; never advance the separate stage Random cursor.
+Later updates/menu/draw/no-tick rebases consume no birth calls. Full cross-owner
+libc/Gas Cloud birth ordering remains unfinished; no new RNG/save fields.
 Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
 bottom room window. Wolf, shared effect contention,
 restoration flashes, full raster/audio/parity and ordinary acquisition remain
