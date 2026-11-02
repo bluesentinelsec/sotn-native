@@ -3861,7 +3861,8 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
 
 bool SotnPlayer_SeedInput(SotnPlayer *p, Uint16 buttons)
 {
-    if (!p || (buttons & (Uint16)~0xf9feU))
+    const Uint16 valid = 0xf9feU;
+    if (!p || (buttons & (Uint16)~valid))
         return SDL_SetError("Player input handoff requires actual supported physical button words");
     p->buttons = p->previous_buttons = p->held = buttons;
     p->tapped = 0;
