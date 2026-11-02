@@ -23,6 +23,8 @@ static bool SameState(SotnCdAudioState a, SotnCdAudioState b)
            a.target_volume == b.target_volume && a.acknowledged == b.acknowledged &&
            a.queue_empty == b.queue_empty && a.playing_xa == b.playing_xa && a.busy == b.busy &&
            a.serial == b.serial && a.mode == b.mode && a.managed == b.managed &&
+           a.fade_multiplier == b.fade_multiplier && a.fade_counter == b.fade_counter &&
+           a.fade_acknowledged == b.fade_acknowledged && a.xa_active == b.xa_active &&
            a.decoder_present == b.decoder_present && a.decoder.sector == b.decoder.sector &&
            a.decoder.remaining == b.decoder.remaining && a.decoder.duration == b.decoder.duration &&
            a.decoder.start == b.decoder.start && a.decoder.id == b.decoder.id &&
@@ -307,6 +309,87 @@ static bool LoopPauseOrder(SotnDataView dra, SotnStream *stream)
     SotnCdAudio_Destroy(a);
     return true;
 }
+static bool VolumeFades(SotnDataView dra, SotnStream *stream)
+{
+    const Sint16 multipliers[] = {128, 8, 4, 2, 1};
+    const Uint16 steps[] = {4, 64, 128, 256, 512};
+    for (Uint16 profile = 0; profile < 5; ++profile)
+    {
+        SotnMusic *music = NULL;
+        SotnCdAudio *a = NULL;
+        SotnCdAudioState s = {0};
+        Uint32 clock = SDL_MAX_UINT32 - 20U;
+        CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) &&
+              StartVoice(a, &clock, 0x32e, &s) && s.fade_acknowledged && s.xa_active &&
+              s.fade_multiplier == 32 && SotnCdAudio_Queue(a, (Uint16)(0x90 + profile)) &&
+              SotnCdAudio_Get(a, &s) && !s.fade_acknowledged && s.acknowledged && s.queue_empty);
+        CHECK(Tick(a, &clock, &s) && s.command == 8 && s.phase == 1 && s.busy &&
+              s.fade_multiplier == multipliers[profile] && !s.fade_counter && s.volume == 127);
+        for (Uint16 i = 1; i <= steps[profile]; ++i)
+            CHECK(Tick(a, &clock, &s) && s.fade_counter == i &&
+                  s.volume == 127 - 127 * multipliers[profile] * i / 512 &&
+                  s.phase == (i == steps[profile] ? 2 : 1) && s.busy && !s.fade_acknowledged &&
+                  s.playing_xa && s.xa_active);
+        CHECK(Tick(a, &clock, &s) && s.fade_acknowledged && !s.busy && s.command == 2 &&
+              s.commands == 1 && s.playing_xa && s.xa_active);
+        for (Uint16 i = 0; i < 3; ++i)
+            CHECK(Tick(a, &clock, &s));
+        CHECK(s.queue_empty && !s.playing_xa && !s.xa_active && !s.decoder_present);
+        SotnCdAudio_Destroy(a);
+    }
+    SotnMusic *music = NULL;
+    SotnCdAudio *a = NULL;
+    SotnCdAudioState s = {0};
+    Uint32 clock = 0;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && SotnCdAudio_Queue(a, 0x90) &&
+          SotnCdAudio_Get(a, &s) && !s.fade_acknowledged && s.xa_active && !s.decoder_present &&
+          s.acknowledged && !SotnCdAudio_AdoptMusic(a, &music, clock));
+    CHECK(Tick(a, &clock, &s) && s.phase == 1 && Tick(a, &clock, &s) && s.phase == 2 &&
+          s.fade_counter == 1 && Tick(a, &clock, &s) && s.fade_acknowledged && !s.xa_active &&
+          !s.playing_xa && s.command == 2 && !s.queue_empty && Tick(a, &clock, &s) &&
+          s.queue_empty);
+    SotnCdAudio_Destroy(a);
+    return true;
+}
+static bool FadeRetargetAndLoop(SotnDataView dra, SotnStream *stream)
+{
+    SotnMusic *music = NULL;
+    SotnCdAudio *a = NULL;
+    SotnCdAudioState s = {0};
+    Uint32 clock = 0;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && StartVoice(a, &clock, 0x32e, &s) &&
+          SotnCdAudio_Queue(a, 0x90) && Tick(a, &clock, &s) && Tick(a, &clock, &s) &&
+          s.volume == 96 && SotnCdAudio_Queue(a, 0x94) && Tick(a, &clock, &s) &&
+          s.fade_counter == 2 && s.fade_multiplier == 1 && s.volume == 127);
+    // The multiplier is shared. Retargeting may raise gain; the acknowledgement is one
+    // original global flag and may clear while another fade remains queued.
+    Uint16 updates = 0;
+    while (!s.fade_acknowledged && updates++ < 520)
+        CHECK(Tick(a, &clock, &s));
+    CHECK(updates < 520 && s.fade_acknowledged && s.command == 8 && s.commands == 2 &&
+          s.fade_counter == 512 && !s.busy);
+    SotnCdAudio_Destroy(a);
+    a = NULL;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && StartVoice(a, &clock, 0x32e, &s));
+    while (s.mode == 1)
+        CHECK(Tick(a, &clock, &s));
+    CHECK(SotnCdAudio_Queue(a, 0x94));
+    updates = 0;
+    bool retired = false, loop = false;
+    while (updates++ < 550)
+    {
+        CHECK(Tick(a, &clock, &s));
+        retired |= !s.playing_xa && !s.decoder_present && s.command == 6;
+        loop |= retired && s.command == 6 && s.phase == 2 && s.decoder_present &&
+                s.decoder.sector == s.decoder.start;
+        if (loop && s.queue_empty)
+            break;
+    }
+    CHECK(updates < 550 && retired && loop && s.queue_empty && s.playing == 46 && s.playing_xa &&
+          s.xa_active && !s.serial && s.fade_acknowledged && !s.volume);
+    SotnCdAudio_Destroy(a);
+    return true;
+}
 static bool Run(const char *directory)
 {
     Uint8 *dra = SDL_calloc(1, 0x20000), *raw = SDL_calloc(32, SOTN_CD_SECTOR_BYTES);
@@ -350,7 +433,9 @@ static bool Run(const char *directory)
     CHECK(LoopVolume((SotnDataView){dra, 0x20000}, stream) &&
           CommandTransport((SotnDataView){dra, 0x20000}, stream) &&
           CommandMusic((SotnDataView){dra, 0x20000}, stream) &&
-          LoopPauseOrder((SotnDataView){dra, 0x20000}, stream));
+          LoopPauseOrder((SotnDataView){dra, 0x20000}, stream) &&
+          VolumeFades((SotnDataView){dra, 0x20000}, stream) &&
+          FadeRetargetAndLoop((SotnDataView){dra, 0x20000}, stream));
     dra[0x1d224 + 47 * 16 + 10] = 127;
     CHECK(Exercise((SotnDataView){dra, 0x20000}, stream));
     SotnStream_Close(stream);

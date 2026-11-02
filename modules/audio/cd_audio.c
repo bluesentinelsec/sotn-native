@@ -22,9 +22,15 @@ struct SotnCdAudio
     Uint16 incoming[256], commands[256];
     Uint16 read, write, count, playing, queued, config;
     Uint32 started, duration;
+    Sint16 fade_multiplier, fade_counter;
     Uint8 phase, saved, volume, target_volume, mode;
-    bool acknowledge_busy, busy, serial, finite, managed, native_ready;
+    bool acknowledge_busy, fade_busy, busy, serial, finite, managed, native_ready;
 };
+static Sint16 Word(Sint32 value)
+{
+    const Uint16 bits = (Uint16)(Uint32)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
+}
 static bool XaCommand(Uint16 id)
 {
     return id > 0x300 && id < 0x533;
@@ -92,6 +98,11 @@ static void SoundCommands(SotnCdAudio *a)
             }
             a->queued = (Uint16)(id - 0x300U);
             Add(a, 4);
+        }
+        else if (id >= 0x90 && id <= 0x94)
+        {
+            a->fade_multiplier = id == 0x90 ? 128 : (Sint16)(1U << (0x94U - id));
+            Add(a, 8);
         }
         else
             Add(a, id == 0x10 ? 12 : id == 0x11 ? 14 : 2);
@@ -172,11 +183,28 @@ static bool Loop(SotnCdAudio *a, Uint32 clock)
     switch (a->phase)
     {
     case 0: {
-        SotnMusic *next = NULL;
-        if (!Current(a, &state) || a->queued != state.id - (state.looping ? 1U : 0U))
+        SotnMusic *next = NULL, *configured = NULL;
+        const SotnMusic *source = a->current;
+        if (!source)
+        {
+            // A queued command6 may outlive command2's decoder retirement. The original
+            // configured identity remains owned; reconstruct its real metadata/transport,
+            // without ticking or enabling serial mix, before the actual loop seek.
+            if (!a->config || a->queued != a->config)
+                return SDL_SetError("XA loop lost its actual retained configuration");
+            if (!SotnMusic_CreateXa(a->dra, a->stream, (Uint16)(a->config + 0x300U), &configured))
+                return false;
+            source = configured;
+        }
+        if (!SotnMusic_Get(source, &state) || a->queued != state.id - (state.looping ? 1U : 0U))
+        {
+            SotnMusic_Destroy(configured);
             return SDL_SetError(
                 "XA loop lost its actual configured base; changed-queue contention is unsupported");
-        if (!SotnMusic_PrepareXaLoop(a->current, &next))
+        }
+        const bool prepared = SotnMusic_PrepareXaLoop(source, &next);
+        SotnMusic_Destroy(configured);
+        if (!prepared)
             return false;
         SotnMusic_Destroy(a->current);
         a->current = next;
@@ -366,6 +394,34 @@ static bool Stop(SotnCdAudio *a)
     }
     return true;
 }
+static bool Fade(SotnCdAudio *a)
+{
+    switch (a->phase)
+    {
+    case 0:
+        a->busy = true;
+        a->fade_counter = 0;
+        ++a->phase;
+        break;
+    case 1:
+        a->fade_counter = Word(a->fade_counter + 1);
+        if (a->volume)
+            a->volume = (Uint8)SDL_max(
+                0, a->target_volume -
+                       ((Sint32)a->target_volume * a->fade_multiplier * a->fade_counter) / 512);
+        if (!a->volume)
+            ++a->phase;
+        break;
+    case 2:
+        Add(a, 2);
+        a->fade_busy = false;
+        Complete(a, false);
+        break;
+    default:
+        return SDL_SetError("Native XA volume fade lost its original command8 phase");
+    }
+    return true;
+}
 bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music, Uint32 clock,
                         SotnCdAudio **out)
 {
@@ -379,6 +435,7 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
         return false;
     a->dra = dra;
     a->stream = stream;
+    a->fade_multiplier = 32; // Original InitSoundVars1, before any queued multiplier change.
     if (!SotnCdAudio_AdoptMusic(a, music, clock))
     {
         SDL_free(a);
@@ -391,7 +448,7 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
 {
     if (!a || !music || a->current || a->saved || a->bookmarks[0].music || a->bookmarks[1].music ||
         a->count || a->read != a->write || a->phase || a->playing || a->queued || a->config ||
-        a->acknowledge_busy || a->busy || a->serial)
+        a->acknowledge_busy || a->fade_busy || a->busy || a->serial)
         return SDL_SetError(
             "Music adoption requires an actual empty CD owner without pending work");
     SotnMusicState state = {0};
@@ -414,10 +471,13 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
 }
 bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
 {
-    if (!a || (command != 0x10 && command != 0x11 && command != 0xa && !XaCommand(command)))
-        return SDL_SetError("Native CD owner requires original10/11/A or US XA sound301..532");
+    if (!a || (command != 0x10 && command != 0x11 && command != 0xa &&
+               !(command >= 0x90 && command <= 0x94) && !XaCommand(command)))
+        return SDL_SetError("Native CD owner requires original10/11/A/90..94 or US XA301..532");
     if (command == 0x10 || command == 0x11)
         a->acknowledge_busy = true;
+    if (command >= 0x90 && command <= 0x94)
+        a->fade_busy = true;
     a->incoming[a->write] = command;
     a->write = (Uint16)((a->write + 1U) & 255U);
     return true;
@@ -467,6 +527,9 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
         case 6:
             ok = Loop(a, clock);
             break;
+        case 8:
+            ok = Fade(a);
+            break;
         case 12:
             ok = Pause(a, clock);
             break;
@@ -500,6 +563,8 @@ bool SotnCdAudio_Get(const SotnCdAudio *a, SotnCdAudioState *out)
                               .queued = a->queued,
                               .command = a->count ? a->commands[0] : 0,
                               .commands = a->count,
+                              .fade_multiplier = a->fade_multiplier,
+                              .fade_counter = a->fade_counter,
                               .phase = a->phase,
                               .saved = a->saved,
                               .volume = a->volume,
@@ -511,6 +576,8 @@ bool SotnCdAudio_Get(const SotnCdAudio *a, SotnCdAudioState *out)
                               .busy = a->busy,
                               .serial = a->serial,
                               .managed = a->managed,
+                              .fade_acknowledged = !a->fade_busy,
+                              .xa_active = a->fade_busy || a->playing != 0,
                               .decoder_present = a->current != NULL};
     if (a->current && !SotnMusic_Get(a->current, &state.decoder))
         return false;

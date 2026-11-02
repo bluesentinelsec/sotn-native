@@ -126,8 +126,11 @@ needs a source-backed inventory of its remaining branches and an evidence record
   bootstrap, transfers all seven records/selection through connected-stage candidates
   without menu-load increments, and retains cached-none overlay history.
   The CD service also reconstructs selected managed mode1 continuation/mode0 loop
-  commands with actual transports; that component adds no ordinary stage/dialogue
-  routing or familiar availability. Retargeted queues, reverb and general sharing remain open.
+  commands with actual transports. Selected native stage90..94 volume requests now
+  bind actual command8, separate fade acknowledgement and original activity snapshots
+  through ordinary/frozen/FFF scheduling. Remaining general stage music/dialogue,
+  master-volume fades, retargeted queues, reverb and general sharing remain open;
+  this does not enable ordinary familiar selection.
   **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character

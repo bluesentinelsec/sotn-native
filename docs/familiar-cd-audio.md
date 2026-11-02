@@ -2,7 +2,7 @@
 
 `SotnCdAudio` now owns selected original sound/CD command queues, acknowledgement,
 XA start/expiry/stop, and the two saved music positions using actual native XA
-decoders. It accepts10/11/A and original US XA command identities301..532, with
+decoders. It accepts10/11/A/90..94 and original US XA command identities301..532, with
 actual private metadata/format validation before playback acknowledgement. The
 eight selected US Fairy narrative IDs have actual [native producers](fairy-native-dispatch.md);
 the wider audio service domain does not enable other controls. Ordinary Fairy
@@ -47,6 +47,20 @@ changes and preserves the retained decoder on restore. It neither replaces
 ordinary scene dialogue ownership. Selected Fairy requests already bind the native app;
 general stage/dialogue routing, reverb and full CD/session continuity remain open.
 
+Selected native stage volume requests90..94 now reach this actual CD owner. Command8
+preserves the immediate separate fade flag, signed-word counter, multipliers128/8/4/2/1,
+original target-volume curve and deferred stop2. Changing the shared multiplier may
+raise gain; one fade can clear the single flag while another remains queued. Neither
+flag clearance nor queue exhaustion substitutes for the other.
+
+Original `xa_play_ck` means pending fade or a playing identity, rather than decoder
+readiness. Ordinary, spell-frozen and FFF stage actor snapshots and Fairy sound input
+now bind that actual activity and separate busy flag. Remaining general stage music,
+dialogue, master-volume fades80..84 and SDK reverb still require their actual owners.
+A pending loop6 can outlive stop2's decoder retirement: it reconstructs its real
+transport from retained validated configuration and reads at ReadN. Original loop6
+does not enable serial mix; a playing identity may therefore coexist with serial off.
+
 Newly queued mode1 music continues into actual adjacent private metadata without
 seeking, restarting the resampler, discarding buffered PCM or clearing ADPCM history.
 The original strict wrapping-clock expiry changes mode/duration and retains the
@@ -67,7 +81,7 @@ and finite speech retain their separate transport behavior.
 
 These managed loop services currently require an unchanged configured base. Global
 queued-base retargeting fails before seeking; its actual filter/seek/restore ownership
-remains unfinished. General native stage/dialogue routing and SDK reverb are also
+remains unfinished. Remaining general native stage music/dialogue routing and SDK reverb are also
 unwired. Do not use these component services as ordinary familiar activation readiness.
 
 Public authored checks cover nested saves/restores, third-save wrap, exact cursor
@@ -79,8 +93,10 @@ VSync, serial-mix and volume services use explicit adapters. Native decoder
 positions and existing stage loops remain separate evidence.
 The earlier finite comparisons cover56 contexts,50,400 complete update sequences
 and4,368 queued PlaySfx calls, including third-save wrap. The expanded private
-comparison covers84 contexts,75,600 complete updates and4,968 queued calls,
-including managed music and simultaneous loop/pause/254-255-entry overflow cases.
+comparison covers106 contexts,95,400 complete updates and5,532 queued calls,
+including managed music, all five fades, shared-multiplier retargeting, retired-decoder
+loop reconstruction and simultaneous loop/pause/254-255-entry overflow cases. It
+also compares signed fade words, immediate flags and lost incoming-ring fade requests.
 Mode0/1 expiry-clock fixtures isolate queue behavior; SDK reverb also uses an
 explicit adapter. Those comparisons do not establish continuous playback by themselves.
 Separate actual private-data cadence checks run three stage tracks for49,997 unskipped
@@ -88,6 +104,14 @@ updates, three metadata continuations, six real loop seeks and73,404,454 nonzero
 samples. They verify actual transport allocation/ReadN and retain the original playing
 base. They are audio-service evidence, separate from native stage-actor routing,
 menus, uninterrupted routes or console comparisons.
+
+Actual native Debug and ASan checks route all five supplied stage volume events
+through real decoding and command8. Seven menu updates hold player/game clocks while
+CD fades advance. An actual five-MP Summon Spirit cast holds the game clock through
+33 frozen updates and release while CD audio advances; ordinary MP recovery resumes
+afterward. Repeated draws hold audio state. These card/load, protection, music-command
+and stage-event fixtures establish selected native scheduling, not ordinary stage-script
+routes, acquisition, full general audio, persistence or console parity.
 
 Native backend checks also connect the actual service snapshots to the original
 Fairy DE sound-state component, including natural completion, cancellation,

@@ -250,6 +250,22 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
     return SotnPlayback_Create(&session->audio);
 }
 
+static bool BindActorAudio(SotnLaboratory *s)
+{
+    bool playing = s->music != NULL;
+    bool busy = s->music_fading || s->xa_command != 0;
+    if (s->fairy_cd)
+    {
+        SotnCdAudioState cd = {0};
+        if (!SotnCdAudio_Get(s->fairy_cd, &cd))
+            return false;
+        playing = cd.xa_active;
+        busy = busy || !cd.fade_acknowledged;
+    }
+    return SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks, playing) &&
+           SotnActors_SetDialogueBusy(s->actors, busy);
+}
+
 static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
                        Uint16 player_extra_sound, Uint16 player_third_sound, Uint16 guard_sound)
 {
@@ -335,8 +351,13 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->cd_command)
     {
-        if (combat->cd_command == 0x90 || combat->cd_command == 0x91 ||
-            combat->cd_command == 0x92 || combat->cd_command == 0x80)
+        if (session->fairy_cd && combat->cd_command >= 0x90 && combat->cd_command <= 0x94)
+        {
+            if (!SotnCdAudio_Queue(session->fairy_cd, combat->cd_command))
+                return false;
+        }
+        else if (combat->cd_command == 0x90 || combat->cd_command == 0x91 ||
+                 combat->cd_command == 0x92 || combat->cd_command == 0x80)
         {
             session->xa_command = combat->cd_command == 0x80 ? 3 : 1;
             session->xa_fade_counter = 0;
@@ -1305,7 +1326,7 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
                   .cutscene = control.pause_disabled,
                   .cd_queue_empty = cd.queue_empty,
                   .command_acknowledged = cd.acknowledged,
-                  .xa_playing = cd.playing_xa}};
+                  .xa_playing = cd.xa_active}};
     SDL_memcpy(in.fairy.hand_count, c.hand_count, sizeof(in.fairy.hand_count));
     SDL_memcpy(in.fairy.buffs, s->stat_buffs.timers, sizeof(in.fairy.buffs));
     *out = in;
@@ -1627,12 +1648,9 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     // hand-attack sound already consumed by the departing room in this frame.
     if (entering)
         player.attack.sound = false;
-    if (!SotnActors_SetServices(session->actors, session->executable, session->simulation_ticks,
-                                session->music != NULL) ||
+    if (!BindActorAudio(session) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
         !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
-        !SotnActors_SetDialogueBusy(session->actors,
-                                    session->music_fading || session->xa_command != 0) ||
         (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
@@ -2345,9 +2363,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
     {
         ++s->player_effect_frame;
         if (!TickFairy(s, 3, s->camera.x, s->camera.y) || !TickBlinks(s, player, false) ||
-            !SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks,
-                                    s->music != NULL) ||
-            !SotnActors_SetButtons(s->actors, buttons) ||
+            !BindActorAudio(s) || !SotnActors_SetButtons(s->actors, buttons) ||
             !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
             !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
             !SotnActors_GetCombat(s->actors, &combat) ||
@@ -2386,8 +2402,7 @@ static bool TickFairyFreeze(SotnLaboratory *s, Uint16 buttons)
         !TickFairy(s, 0xfff, s->camera.x, s->camera.y) ||
         !SotnPlayer_GetState(s->player, &player) ||
         (s->fairy_scene != 0xfff && !SotnSceneFreeze_Request(&s->spell_freeze, s->fairy_scene)) ||
-        !SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks, s->music != NULL) ||
-        !SotnActors_SetButtons(s->actors, buttons) ||
+        !BindActorAudio(s) || !SotnActors_SetButtons(s->actors, buttons) ||
         !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
         !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
         !SotnActors_GetCombat(s->actors, &combat) || !TickHudFrame(s) ||

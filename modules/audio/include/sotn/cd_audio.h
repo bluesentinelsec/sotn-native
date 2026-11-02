@@ -11,8 +11,11 @@ typedef struct SotnCdAudioState
 {
     Uint32 started, duration;
     Uint16 playing, queued, command, commands;
+    Sint16 fade_multiplier, fade_counter; /**< Original signed CD-volume fade words. */
     Uint8 phase, saved, volume, target_volume, mode;
     bool acknowledged, queue_empty, playing_xa, busy, serial, managed;
+    bool fade_acknowledged; /**< Original single fade flag, distinct from10/11 and queue empty. */
+    bool xa_active; /**< Original xa_play_ck: pending fade or playing ID, never data readiness. */
     bool decoder_present;
     SotnMusicState decoder;
 } SotnCdAudioState;
@@ -32,9 +35,12 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
  * real resampler/sector/ADPCM position. This lets a resource transaction allocate first
  * and transfer ownership only at commit; it supplies no playback acknowledgement. */
 bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock);
-/** @brief Queue original10/11/A or an original US XA sound ID301..532.
+/** @brief Queue original10/11/A/90..94 or an original US XA sound ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.
+ * Commands90..94 immediately set the separate fade flag; command8 owns the original
+ *128/8/4/2/1 multipliers, signed counter and deferred stop2. Shared multiplier changes
+ * can raise gain; the original flag can clear while another fade remains queued.
  * Actual private metadata/format and native reads are validated before playback acknowledgement.
  * Modes0/1 use original continuation/command6; adopted legacy intro/loop decoders keep
  * their existing native loop service. Enables no additional stage/familiar controls.

@@ -1,3 +1,14 @@
+Selected [CD volume fades](docs/familiar-cd-audio.md) now bind native stage90..94
+to actual command8 and real decoding. Preserve the immediate separate fade flag,
+signed words, shared128/8/4/2/1 multiplier, possible gain increase after retarget,
+single-flag clearance and deferred stop2. Original xa_play_ck is pending fade OR
+playing identity, never decoder readiness; ordinary/frozen/FFF actor snapshots use
+that owner. Loop6 may reconstruct its retired decoder but never enables serial mix.
+Menu/spirit-freeze audio advances on actual engine clocks; draws hold. Supplied
+stage-event/card/protection/music fixtures are not ordinary script/acquisition/route
+or console evidence. Master80..84, general stage music/dialogue, reverb, persistence
+and whole sharing remain open; no grants/pools/v9 changes or ordinary Fairy UI.
+
 The [CD-command service](docs/familiar-cd-audio.md) now reconstructs selected
 managed mode1 continuation and mode0 command6 with actual private music transports.
 Preserve original playing identity, strict wrapping-clock expiry, metadata-only
