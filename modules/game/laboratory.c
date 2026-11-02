@@ -1336,7 +1336,7 @@ bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
         {
             if (world.relics[id] > 3 || world.relics[id] == 2)
                 return SDL_SetError("Familiar selection lost its actual found/active card bits");
-            world.relics[id] &= (Uint8)~2U;
+            world.relics[id] &= 1U;
             if (selected && relic.type == selected)
             {
                 if (id != 20 || ++selected_cards != 1 || !(world.relics[id] & 1U))
