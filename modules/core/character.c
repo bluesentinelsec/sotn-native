@@ -98,7 +98,7 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .supported =
                          body ? BodySupported(id)
                               : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
-                                 id == 123 || id == 128 || id == 166 || (id >= 29 && id <= 70) ||
+                                 id == 123 || id == 128 || id == 166 || (id >= 29 && id <= 71) ||
                                  (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
@@ -291,15 +291,11 @@ static bool Calculate(SotnCharacter *c)
     c->stats = result;
     return true;
 }
-bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
-                                   SotnEquipment *out)
+static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bool poison,
+                                     Uint32 *random, SotnEquipment *out)
 {
     if (!c || !random || !out)
-        return SDL_SetError("Sword strike requires its actual character and copied RNG");
-    SotnEquipment e = {0};
-    Uint16 mp = 0;
-    if (!SotnEquipment_ReadSwordSpecial(c->dra, 123, &e, &mp))
-        return false;
+        return SDL_SetError("Retained weapon properties require actual character and copied RNG");
     Uint32 next_random = *random;
     const Sint32 critical =
         e.critical_rate +
@@ -322,6 +318,25 @@ bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *
     *random = next_random;
     *out = e;
     return true;
+}
+bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                   SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    Uint16 mp = 0;
+    return SotnEquipment_ReadSwordSpecial(c->dra, 123, &e, &mp) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+bool SotnCharacter_NeutronProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                     SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    return SotnEquipment_ReadNeutron(c->dra, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
 }
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
 {
@@ -618,15 +633,15 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
 }
 
 static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped,
-                              bool food)
+                              Uint16 kind)
 {
     if (!c || hand > 1 || !equipped || c->state.equipment[hand] != item ||
-        (food ? item < 29 || item > 70
-              : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
+        (kind == 132   ? item < 29 || item > 70
+         : kind == 130 ? item != 71
+                       : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
         return SDL_SetError("Consumption requires its actual supported equipped hand item");
     SotnEquipment medicine = {0};
-    if (!(food ? SotnEquipment_ReadFood(c->dra, item, &medicine)
-               : SotnEquipment_Read(c->dra, item, &medicine)))
+    if (!SotnEquipment_Read(c->dra, item, &medicine))
         return false;
     SotnCharacter next = *c;
     if (next.state.equipment[5] != 84 && next.state.equipment[6] != 84)
@@ -646,11 +661,15 @@ static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16
 }
 bool SotnCharacter_UseFood(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
-    return UseHandConsumable(c, hand, item, equipped, true);
+    return UseHandConsumable(c, hand, item, equipped, 132);
+}
+bool SotnCharacter_UseNeutron(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, 71, equipped, 130);
 }
 bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
-    return UseHandConsumable(c, hand, item, equipped, false);
+    return UseHandConsumable(c, hand, item, equipped, 131);
 }
 bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
 {

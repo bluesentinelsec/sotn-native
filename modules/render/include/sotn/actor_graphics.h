@@ -219,6 +219,9 @@ bool SotnActorGraphics_LoadDialogue(SotnActorGraphics *graphics, SotnDialogueSta
  * @return Success, or false with SDL_GetError() and unchanged texture memory on bad references. */
 bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
                                   SotnEquipment equipment);
+/** @brief Copy the actual successfully loaded program binding, retained after last-copy use. */
+bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
+                                     bool *bound);
 /**
  * @brief Draw supported common/stage sprites into the shared RGB555 frame.
  * @param graphics Borrowed initialized texture memory and immutable source images.
@@ -250,7 +253,8 @@ typedef struct SotnSpriteTransform
     Uint8 red, green, blue;
     SotnDataView executable; /**< Actual private SDK table when sdk_rotation is enabled. */
     Sint16 pivot_x, pivot_y; /**< Original entity rotation pivots, before facing adjustment. */
-    bool sdk_rotation; /**< Use original SquareRoot12/ratan2/trig for all four part vertices. */
+    bool sdk_rotation; /**< Signed-word scaling before original SquareRoot12/ratan2/trig rotation.
+                           SDK vertex-distance bounds still apply before drawing. */
     bool original_uv;  /**< Preserve original mirrored packet UV bytes even without rotation. */
 } SotnSpriteTransform;
 /** @brief Resolve a copied actor's explicit transform flags or its legacy value selectors.
@@ -263,7 +267,8 @@ SotnSpriteTransform SotnActorGraphics_GetTransform(SotnActorState actor);
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
  * @param x Screen anchor. @param y Screen anchor. @param transform Nonzero signed scale
- * -1024..1024 (negative reflects the axis), color 0..255.
+ * -1024..1024 (negative reflects the axis), color0..255. With sdk_rotation, nonzero signed-word
+ * scales use original scale-before-rotation packets and actual SDK distance bounds instead.
  * @param frame Full writable frame. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,

@@ -15,7 +15,8 @@ attribute clamps follow selected reconstructed paths. The native Laboratory
 profile remains explicit: level 1, 70 HP, 20 MP, base stats 6, and 10/50 hearts.
 It is not the original new-game entry.
 
-The supported attack implementations are empty hands, Basilard, Gladius, Mace, and ordinary Alucard sword/shield.
+Selected ordinary weapon attacks include empty hands, Basilard, Gladius, Short sword,
+Mace, and Alucard sword/shield.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;
@@ -36,6 +37,10 @@ High Potion healing once even with two. Their cures, buffs, HP/MP and shared eff
 now run. [Owned food29..70](player-food.md) now adds actual weapon21 use, raw healing,
 Peanuts, Toadstool and Meal Ticket inventory/text pickup. Food and medicine retain
 the original zero displayed weapon attack; raw food attack remains healing power.
+[Owned Neutron Bomb71](player-neutron-bomb.md) now selects and consumes through
+either hand, with its actual shared weapon19/GT4, private animation/rendering and
+global damage pulse. Its live STR/body/buff/poison-scaled weapon attack remains
+distinct from food's raw healing value. Duplicator preserves the bomb.
 Other consumable/equipment effects and the familiar completion gates stay open.
 Owned Gold/Ruby/Opal/Topaz/Beryl and Cat-eye circlets now connect their actual
 [contact-absorption owner](player-contact-absorption.md), with unchanged ordinary

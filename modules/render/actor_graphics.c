@@ -20,6 +20,7 @@ struct SotnActorGraphics
     SotnDataView dra, nz0;
     Uint16 sprite_banks, stage_id;
     SotnDataView weapon[2];
+    Uint8 weapon_family[2];
     SotnDataView familiar;
     Uint32 familiar_parts;
     Uint16 words[VRAM_WORDS];
@@ -357,6 +358,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     if (equipment.id == 0 || (equipment.kind == 131 && equipment.family == 255))
     {
         graphics->weapon[hand] = (SotnDataView){0};
+        graphics->weapon_family[hand] = 255;
         return true;
     }
     SotnDataView overlay = {0}, pointer = {0}, colors = {0};
@@ -369,11 +371,12 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                            : equipment.family == 21 ? 0x8017a784U
+                           : equipment.family == 19 ? 0x8017a548U
                                                     : 0x8017abd4U;
-    const Uint32 color_count = (equipment.family == 21   ? 24U
-                                : equipment.family == 45 ? 2U
-                                : equipment.family == 37 ? 5U
-                                                         : 7U) *
+    const Uint32 color_count = (equipment.family == 21 || equipment.family == 19 ? 24U
+                                : equipment.family == 45                         ? 2U
+                                : equipment.family == 37                         ? 5U
+                                                                                 : 7U) *
                                16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
@@ -388,6 +391,16 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
         Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, colors.bytes + i * 2);
     }
     graphics->weapon[hand] = overlay;
+    graphics->weapon_family[hand] = equipment.family;
+    return true;
+}
+bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
+                                     bool *bound)
+{
+    if (!graphics || hand > 1 || !family || !bound)
+        return SDL_SetError("Weapon binding requires an actual resident hand program");
+    *bound = graphics->weapon[hand].bytes != NULL;
+    *family = *bound ? graphics->weapon_family[hand] : 255;
     return true;
 }
 
@@ -792,8 +805,21 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
             const Sint32 px = x + (sprite.facing_left ? -transform->pivot_x : transform->pivot_x),
                          py = y + transform->pivot_y;
             if (px < SDL_MIN_SINT16 || px > SDL_MAX_SINT16 || py < SDL_MIN_SINT16 ||
-                py > SDL_MAX_SINT16 || transform->scale_x != 256 || transform->scale_y != 256 ||
-                !SotnPlayerEffect_Rotate(transform->executable, (Sint16)px, (Sint16)py,
+                py > SDL_MAX_SINT16)
+                return SDL_SetError("Player weapon rotation requires actual bounded SDK pivots");
+            // Original entity packets scale around the retained pivot before SDK rotation.
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                packet.x[v] = GeometryWord(
+                    px +
+                    (Sint32)FloorDivide(
+                        (Sint64)GeometryWord((Sint32)packet.x[v] - px) * transform->scale_x, 256));
+                packet.y[v] = GeometryWord(
+                    py +
+                    (Sint32)FloorDivide(
+                        (Sint64)GeometryWord((Sint32)packet.y[v] - py) * transform->scale_y, 256));
+            }
+            if (!SotnPlayerEffect_Rotate(transform->executable, (Sint16)px, (Sint16)py,
                                          transform->rotation, sprite.facing_left, &packet))
                 return SDL_SetError("Player weapon rotation requires actual bounded SDK pivots");
             for (Uint16 v = 0; v < 4; ++v)
@@ -1283,13 +1309,13 @@ bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite s
                                    Sint32 y, SotnSpriteTransform transform,
                                    SotnActorSurface surface)
 {
-    if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x < -1024 ||
-        transform.scale_x > 1024 || transform.scale_y < -1024 || transform.scale_y > 1024 ||
+    if (transform.scale_x == 0 || transform.scale_y == 0 ||
+        (!transform.sdk_rotation && (transform.scale_x < -1024 || transform.scale_x > 1024 ||
+                                     transform.scale_y < -1024 || transform.scale_y > 1024)) ||
         transform.opacity > 255 ||
         (transform.sdk_rotation &&
-         (!transform.executable.bytes || transform.scale_x != 256 || transform.scale_y != 256 ||
-          transform.pivot_x < -512 || transform.pivot_x > 512 || transform.pivot_y < -512 ||
-          transform.pivot_y > 512)))
+         (!transform.executable.bytes || transform.pivot_x < -512 || transform.pivot_x > 512 ||
+          transform.pivot_y < -512 || transform.pivot_y > 512)))
         return SDL_SetError("Actor transform exceeds the bounded original scales or SDK pivots");
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
         transform.opacity == 128 && !transform.tint && !transform.sdk_rotation &&

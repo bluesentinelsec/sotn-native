@@ -98,7 +98,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
              r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
-             r->children[i].kind == 61) &&
+             r->children[i].kind == 61 || r->children[i].neutron) &&
             r->children[i].group >= SDL_arraysize(r->groups))
             return SDL_SetError("Wolf replacement found an invalid actual shared attack group");
     for (Uint16 i = 1; i <= 14; ++i)
@@ -107,13 +107,14 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         r->spirit_mask &= ~((Uint64)1 << i);
         r->hellfire_mask &= ~((Uint64)1 << i);
         r->sword_mask &= ~((Uint64)1 << i);
+        r->neutron_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if ((r->children[i].kind == 36 || r->children[i].kind == 45 || r->children[i].kind == 52 ||
              r->children[i].kind == 53 || r->children[i].kind == 26 || r->children[i].kind == 27 ||
-             r->children[i].kind == 61) &&
+             r->children[i].kind == 61 || r->children[i].neutron) &&
             r->children[i].group && r->children[i].group < SDL_arraysize(r->groups))
             ++r->groups[r->children[i].group];
     return true;
@@ -234,6 +235,29 @@ bool SotnBatRuntime_RequestFood(SotnBatRuntime *r, SotnPlayerFactorySource sourc
         {
             SotnPlayerFactory f = {0};
             if (!SotnPlayerFactory_Begin(&f, source, packed, (Sint16)item))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                                   Uint16 item, bool *allocated)
+{
+    if (packed == 0x10039 && !item)
+        return SotnBatRuntime_RequestFood(r, source, packed, item, allocated);
+    const Uint32 hand = (packed >> 12) & 15U;
+    if (!r || !allocated || item != 71 || (hand != 1 && hand != 2) ||
+        packed != (50U | hand << 12 | (hand == 2 ? 0x800000U : 0U)))
+        return SDL_SetError("Neutron reservation requires actual50/item71/owned hand");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 71))
                 return false;
             SDL_zero(r->factories[i]);
             r->factories[i].cursor = f;
@@ -370,6 +394,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->source.flags;
     if (c->food)
         return c->state.food.flags;
+    if (c->neutron)
+        return c->state.neutron.motion.flags;
     switch (c->kind)
     {
     case 2:
@@ -615,6 +641,35 @@ bool SotnBatRuntime_PruneFood(SotnBatRuntime *r)
             r->children[i] = (SotnBatRuntimeChild){0};
     return true;
 }
+bool SotnBatRuntime_NeutronValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->neutron)
+        return true;
+    const SotnNeutron *n = &c->state.neutron.motion;
+    return !c->food && (c->kind == 0xe0 || c->kind == 0xf0) && index >= 1 && index <= 15 &&
+           c->generation && !c->bat_generation && !n->removed && n->phase <= 3 &&
+           c->parameter == (c->kind == 0xf0 ? 0x8000 : 0) && c->state.neutron.animation.pose < 7 &&
+           c->state.neutron.animation.remaining >= -1 &&
+           (n->phase < 2 ||
+            (c->state.neutron.attack.equipment == 71 && c->state.neutron.attack.hit_type == 0x82 &&
+             c->group >= 3 && c->group <= 6)) &&
+           (c->initialized ? c->primitive_count == 1 && n->phase != 0
+                           : !c->primitive_count && !n->phase && !c->draw_count) &&
+           (!c->group || (c->group >= 3 && c->group <= 6));
+}
+bool SotnBatRuntime_PruneNeutron(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_NeutronValid(&r->children[i], i))
+            return SDL_SetError("Neutron room cleanup lost its actual child lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].neutron)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    r->neutron_mask = 0;
+    return true;
+}
 static bool ChangedWeapon(Uint16 kind, Uint8 hands)
 {
     return (kind >= 0xe0 && kind <= 0xef && (hands & 1)) ||
@@ -626,13 +681,15 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
     if (!r || hands > 3)
         return SDL_SetError("Weapon retirement requires actual changed hand bits");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if (!SotnBatRuntime_SwordChildValid(&r->children[i], i))
+        if (!SotnBatRuntime_SwordChildValid(&r->children[i], i) ||
+            !SotnBatRuntime_NeutronValid(&r->children[i], i))
             return SDL_SetError("Weapon retirement lost its actual child ownership");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (ChangedWeapon(r->children[i].kind, hands))
         {
             r->children[i] = (SotnBatRuntimeChild){0};
             r->sword_mask &= ~((Uint64)1 << i);
+            r->neutron_mask &= ~((Uint64)1 << i);
         }
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
@@ -818,7 +875,7 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->food)
-        return c->kind != 0xe0 && c->kind != 0xf0;
+        return c->neutron || (c->kind != 0xe0 && c->kind != 0xf0);
     const SotnFood *f = &c->state.food;
     const bool inventory = c->kind == 0xe1 || c->kind == 0xf1;
     const Uint16 value = (Uint16)((f->parameter >> 8) & 127U);
@@ -831,7 +888,7 @@ bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
            (c->initialized ? f->phase != 0 : f->phase == 0);
 }
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation,
-                  Uint32 fire_parent, Uint16 fire_parent_slot)
+                  Uint32 fire_parent, Uint16 fire_parent_slot, const SotnBatRuntimeInput *input)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -857,9 +914,24 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
-    c.food = c.kind == 0xe0 || c.kind == 0xf0 ||
+    c.neutron = (c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 71;
+    c.food = ((c.kind == 0xe0 || c.kind == 0xf0) && !c.neutron) ||
              ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
               ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
+    if ((c.food || c.neutron) && input)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (input->weapon_bound[hand] && input->weapon_family[hand] != (c.neutron ? 19 : 21))
+            return SDL_SetError("Hand child lost its actual resident weapon program");
+    }
+    if (c.neutron)
+    {
+        if (generation || child.slot < 17 || child.slot > 31 || child.argument_high ||
+            child.parameter != (c.kind == 0xf0 ? 0x8000 : 0))
+            return SDL_SetError("Neutron child lost its original slot/hand/item71 identity");
+        c.state.neutron.motion.x = child.source.x;
+        c.state.neutron.motion.y = child.source.y;
+    }
     if (c.food)
     {
         const bool inventory = c.kind == 0xe1 || c.kind == 0xf1;
@@ -981,7 +1053,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         if (!(occupied & ((Uint64)1 << slot)))
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
-                       0, 0, 0))
+                       0, 0, 0, NULL))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -1220,7 +1292,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wolf_bound = in.wolf_owned;
     if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r) ||
                         !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r) ||
-                        !SotnBatRuntime_PruneFood(&r)))
+                        !SotnBatRuntime_PruneFood(&r) || !SotnBatRuntime_PruneNeutron(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -1285,6 +1357,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Healing number lost its actual child/lifetime/row ownership");
         if (!SotnBatRuntime_SwordChildValid(c, i))
             return SDL_SetError("Sword special lost its actual slot/role/lifetime ownership");
+        if (!SotnBatRuntime_NeutronValid(c, i))
+            return SDL_SetError("Neutron lost its actual slot/role/lifetime ownership");
         if (c->kind == 51 &&
             (c->primitive_count || c->draw_count || c->state.heart.removed ||
              c->initialized != c->state.heart.initialized ||
@@ -1307,6 +1381,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 ||
                   c->kind == 35) &&
                  c->primitive_count == 1) ||
+                (c->neutron && c->primitive_count == 1) ||
                 (c->kind == 61 && c->primitive_count == 16) ||
                 (c->kind == 63 && c->primitive_count == 9) ||
                 (c->kind == 19 && c->primitive_count == 20) ||
@@ -1358,6 +1433,18 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         {
             c->state.food.x = FixedShift(c->state.food.x, in.room_shift_x);
             c->state.food.y = FixedShift(c->state.food.y, in.room_shift_y);
+        }
+        else if (c->neutron)
+        {
+            c->state.neutron.motion.x = FixedShift(c->state.neutron.motion.x, in.room_shift_x);
+            c->state.neutron.motion.y = FixedShift(c->state.neutron.motion.y, in.room_shift_y);
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                c->state.neutron.motion.halo.x[v] =
+                    Word(c->state.neutron.motion.halo.x[v] + in.screen_shift_x);
+                c->state.neutron.motion.halo.y[v] =
+                    Word(c->state.neutron.motion.halo.y[v] + in.screen_shift_y);
+            }
         }
         else if (c->kind == 0xe1 || c->kind == 0xf1)
         {
@@ -1815,7 +1902,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!Spawn(&r, child,
                        r.factories[i].sword_parent ? r.factories[i].sword_parent
                                                    : r.factories[i].bat_generation,
-                       r.factories[i].fire_parent, r.factories[i].fire_parent_slot))
+                       r.factories[i].fire_parent, r.factories[i].fire_parent_slot, &in))
                 return false;
         }
     }
@@ -1831,7 +1918,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (!in.freeze)
         r.player_hitbox_state = SotnPlayerStep_IsDead(p.step) ? 0 : 1;
     r.wing_mask = 0;
-    r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = 0;
+    r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.echo_attack = false;
@@ -1861,11 +1948,96 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.soul_attack = c->state.attack.active;
             if (c->initialized && c->kind == 50 && c->state.attack.active)
                 r.axe_mask |= (Uint64)1 << i;
+            if (c->initialized && c->neutron && c->state.neutron.attack.active)
+                r.neutron_mask |= (Uint64)1 << i;
             continue;
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->food)
+        if (c->neutron)
+        {
+            bool allocated = c->primitive_count != 0;
+            if (!allocated &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 1, c->primitives, &allocated))
+                return false;
+            c->primitive_count = allocated ? 1 : 0;
+            SotnNeutronEvents events = {0};
+            if (!SotnNeutron_Tick(
+                    &c->state.neutron.motion,
+                    (SotnNeutronInput){.player_x = p.x,
+                                       .player_y = p.y,
+                                       .priority = p.priority,
+                                       .pose = c->state.neutron.animation.pose,
+                                       .remaining = c->state.neutron.animation.remaining,
+                                       .allocated = allocated},
+                    &events))
+                return false;
+            if (events.properties)
+            {
+                SotnEquipment equipment = {0};
+                if (!SotnCharacter_NeutronProperties(character, p.poison_ticks != 0,
+                                                     &progress.random, &equipment))
+                    return false;
+                Uint16 group = 3;
+                for (Uint16 g = 4; g < 7; ++g)
+                    if (r.groups[g] < r.groups[group])
+                        group = g;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Neutron shared group count overflow");
+                ++r.groups[group];
+                c->group = (Uint8)group;
+                c->state.neutron.attack =
+                    (SotnPlayerAttack){.power = (Uint16)equipment.attack,
+                                       .element = equipment.element,
+                                       .hit_type = equipment.hit_type,
+                                       .hit_effect = equipment.hit_effect,
+                                       .stun_frames = equipment.stun,
+                                       .invincibility_frames = equipment.invincibility,
+                                       .critical_rate = (Uint8)equipment.critical_rate,
+                                       .equipment = 71,
+                                       .right_hand = c->kind == 0xf0,
+                                       .active = true};
+            }
+            if (events.disable_attack)
+                c->state.neutron.attack.active = false;
+            if (events.use_ticks)
+                r.use_ticks = events.use_ticks;
+            for (Uint16 j = 0; j < 2; ++j)
+                if (events.sounds[j] && !Sound(&r, events.sounds[j]))
+                    return false;
+            SotnNeutron *n = &c->state.neutron.motion;
+            removed = n->removed;
+            if (!removed && (n->flags & 0x100000U))
+            {
+                SotnDataView overlay = {0};
+                if (!SotnWeapon_Overlay(in.weapons, (SotnEquipment){.id = 71, .family = 19},
+                                        &overlay) ||
+                    !SotnNeutron_Animate(&c->state.neutron.animation, overlay))
+                    return false;
+            }
+            const Sint16 camera_delta_x = Word(in.room_shift_x - in.screen_shift_x),
+                         camera_delta_y = Word(in.room_shift_y - in.screen_shift_y),
+                         old_camera_x = Word(in.camera_x - camera_delta_x),
+                         old_camera_y = Word(in.camera_y - camera_delta_y);
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                n->halo.x[v] = Word(n->halo.x[v] - old_camera_x);
+                n->halo.y[v] = Word(n->halo.y[v] - old_camera_y);
+            }
+            // This original entity lacks CAMERA_LOCKED: retain screen position after camera work.
+            n->x = FixedShift(n->x, camera_delta_x);
+            n->y = FixedShift(n->y, camera_delta_y);
+            c->source.x = n->x;
+            c->source.y = n->y;
+            c->source.flags = n->flags;
+            c->source.priority = n->priority;
+            c->source.facing_left = n->facing_left;
+            c->initialized = !removed;
+            c->draw_count = removed ? 0 : 1;
+            if (!removed && c->state.neutron.attack.active)
+                r.neutron_mask |= (Uint64)1 << i;
+        }
+        else if (c->food)
         {
             SotnEquipment equipment = {0};
             if (!c->state.food.inventory && !c->state.food.phase &&
@@ -3140,7 +3312,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     for (Uint16 i = 0; i < 48; ++i)
         if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 26 ||
              r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
-             r.children[i].kind == 53) &&
+             r.children[i].kind == 53 || r.children[i].neutron) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
@@ -3150,7 +3322,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (SotnPlayerStep_IsDead(p.step) || (p.step == SOTN_PLAYER_TELEPORT && !p.substep))
     {
         r.wing_mask = r.wolf_mask = 0;
-        r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = 0;
+        r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
+            0;
         r.soul_attack = r.echo_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
             r.wolf.body.parts[i].hitbox_state = 0;
@@ -3169,6 +3342,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.spirit.attack.active = false;
             else if (c->kind == 0xe2 || c->kind == 0xf2)
                 c->state.sword.attack.active = false;
+            else if (c->neutron)
+                c->state.neutron.attack.active = false;
         }
     }
     if ((inventory_changed || progress.random != previous_random || progress.mp != previous_mp) &&
@@ -3191,11 +3366,13 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
           !(((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
             ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 || c->kind == 35) &&
              c->primitive_count == 1) ||
+            (c->neutron && c->primitive_count == 1) ||
             (c->kind == 61 && c->primitive_count == 16) ||
             (c->kind == 63 && c->primitive_count == 9)))))
         return SDL_SetError("Bat visual lost its actual packet owner");
     *count = c->draw_count;
     *quads = !c->draw_count                     ? NULL
+             : c->neutron                       ? &c->state.neutron.motion.halo
              : c->kind == 46                    ? c->state.talisman.blink.quads
              : c->kind == 11                    ? c->state.blink.quads
              : c->kind == 25                    ? &c->state.hellfire_beam.quad

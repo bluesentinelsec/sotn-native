@@ -1,3 +1,22 @@
+Selected [Neutron Bomb71](docs/player-neutron-bomb.md) now owns actual menu/hand
+input, inventory/Duplicator consumption, shared50 roots/17..31 children, one real
+GT4, private weapon19 sprites/animation/SDK transform and one native global82
+damage pulse. Preserve chain1 before curse: actual children already retain71 in
+factory AE at birth, including the early halo; pending roots are excluded.
+Preserve allocation-before-effects/properties, signed extent127..15..-1 before
+hide, delayed GetEquipProperties roll, first-least3..6 group and next-callback
+attack clear. Keep post-callback private animation, pose3/timer1 blend, pose5
+opacity/unlock, signed scale-before-SDK-rotation/fade and real animation retirement.
+Commit casting grunts before shared birth sounds, retaining earlier guard voice;
+failed player updates queue no grunt. Project current shake once on halo and sprite.
+Actual resident hand programs survive last-copy use; never infer weapon19 from an
+empty hand or confuse its E0/F0 with food21. Preserve KEEP04000000 screen retention,
+freeze/menu/draw holds, no-tick room retirement, Wolf replacement and actual late
+factory/row/character RNG rollback. No new pools/grants/savev9 fields. Explicit
+stock/equipment/protection/arrival/failure/save-room fixtures are not acquisition,
+routes, full shared contention/global libc ordering/whole-pass/console evidence.
+All six Alucard gates stay open; ordinary Fairy UI remains disabled.
+
 Selected [owned food](docs/player-food.md) now connects42 items29..70 to actual
 hand input, inventory/Duplicator consumption, shared50/56 roots/17..31 children,
 private weapon21 sprites and raw deferred healing. Preserve item/hand chain2 before

@@ -1,3 +1,8 @@
+add_executable(sotn-neutron-tests test_neutron.c)
+sotn_configure_c_target(sotn-neutron-tests)
+target_include_directories(sotn-neutron-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-neutron-tests PRIVATE sotn-core)
+add_test(NAME neutron-ownership COMMAND sotn-neutron-tests)
 add_executable(sotn-food-tests test_food.c)
 sotn_configure_c_target(sotn-food-tests)
 target_link_libraries(sotn-food-tests PRIVATE sotn-core)

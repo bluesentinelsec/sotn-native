@@ -204,7 +204,7 @@ static bool BatPrimitiveKind(Uint16 kind)
     return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
-           kind == 38;
+           kind == 38 || kind == 0xe0 || kind == 0xf0;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -320,6 +320,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
             return SDL_SetError("Healing number commit lost its actual child/lifetime/rows");
         if (!SotnBatRuntime_SwordChildValid(c, i))
             return SDL_SetError("Sword commit lost its actual child/lifetime/slot ownership");
+        if (!SotnBatRuntime_NeutronValid(c, i))
+            return SDL_SetError("Neutron commit lost its actual child/lifetime/row ownership");
         if ((c->kind == 61 &&
              (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
               c->state.spirit.motion.removed ||
@@ -362,7 +364,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->kind == 65 && c->primitive_count == SOTN_TELEPORT_ROWS) ||
                (c->kind == 38 && c->primitive_count == SOTN_PLAYER_CIRCLE_ROWS) ||
                (c->kind == 33 && c->primitive_count == 24) ||
-               (c->kind == 63 && c->primitive_count == 9))))
+               (c->kind == 63 && c->primitive_count == 9) ||
+               (c->neutron && c->primitive_count == 1))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))
@@ -508,6 +511,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->wing_mask = next->wolf_mask = 0;
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
+    next->neutron_mask = 0;
     // These are consumed callback notifications, not original retained global counters.
     SDL_zero(next->medicine);
     SDL_zero(next->wolf_events);

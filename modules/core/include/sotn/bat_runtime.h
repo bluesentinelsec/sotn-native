@@ -15,6 +15,7 @@
 #include <sotn/holy_hit.h>
 #include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
+#include <sotn/neutron.h>
 #include <sotn/player.h>
 #include <sotn/player_circle.h>
 #include <sotn/player_outline.h>
@@ -59,7 +60,7 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized, food;
+    bool initialized, food, neutron;
     union {
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
@@ -109,6 +110,12 @@ typedef struct SotnBatRuntimeChild
         SotnPlayerCircle circle;
         SotnMedicineEffect medicine;
         SotnFood food;
+        struct
+        {
+            SotnNeutron motion;
+            SotnNeutronAnimation animation;
+            SotnPlayerAttack attack;
+        } neutron;
         SotnSpiritPortal portal;
         struct
         {
@@ -176,6 +183,7 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
+    Uint64 neutron_mask;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -233,6 +241,13 @@ bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySo
  * This does not consume inventory or enable ordinary controls. */
 bool SotnBatRuntime_RequestFood(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                 Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Reserve actual50 weapon19/Neutron71, or its original57 curse outline. */
+bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                   Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Validate a real weapon19 child and its single actual GT4 lease. */
+bool SotnBatRuntime_NeutronValid(const SotnBatRuntimeChild *child, Uint16 index);
+/** @brief Retire room-local weapon19 children without callbacks or extra clocks. */
+bool SotnBatRuntime_PruneNeutron(SotnBatRuntime *runtime);
 /** @brief Validate a real weapon21 primary or inventory child, independently of weapon43. */
 bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Reserve the original familiar's actual55/profile0..19 with signed arg2 zero.
@@ -252,6 +267,9 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
 typedef struct SotnBatRuntimeInput
 {
     SotnDataView dra, executable, weapons;
+    Uint8
+        weapon_family[2]; /**< Actual resident program identity, retained after last consumption. */
+    bool weapon_bound[2]; /**< False only for component callers without a native program owner. */
     const SotnFoodTextPlan *food_text;
     SotnCollisionMap food_collision; /**< Actual current room collision for weapon21. */
     SotnPlayerState player;

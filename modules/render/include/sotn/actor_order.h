@@ -37,7 +37,8 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_FAIRY_TILE,     /**< Actual DF owner index0..3 and leased tile index. */
     SOTN_DRAW_FAIRY_LIGHT,    /**< Actual DD owner index0..3 and leased ten-row G4 index. */
     SOTN_DRAW_FOOD_TEXT,      /**< Actual global lower-left text row index0..67. */
-    SOTN_DRAW_FOOD            /**< Actual weapon21 child index1..15. */
+    SOTN_DRAW_FOOD,           /**< Actual weapon21 child index1..15. */
+    SOTN_DRAW_NEUTRON         /**< Actual weapon19 child index1..15. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

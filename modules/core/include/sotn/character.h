@@ -86,6 +86,10 @@ bool SotnCharacter_SelectFamiliar(SotnCharacter *character, Uint16 selected, boo
  * Applies signed-word body/buff bonuses before caps, then poison, without granting an item. */
 bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, Uint32 *random,
                                    SotnEquipment *out);
+/** @brief Resolve retained Neutron71 ATK/critical properties at the real activation callback.
+ * Uses live stats/body buffs and copied libc RNG, even after the last hand copy is consumed. */
+bool SotnCharacter_NeutronProperties(const SotnCharacter *character, bool poison, Uint32 *random,
+                                     SotnEquipment *out);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.
@@ -170,6 +174,8 @@ bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 ite
 /** @brief Consume actual weapon21 food29..70 after successful player control.
  * Spare stock, last-copy removal and actual Duplicator use the same original ReduceWeapon. */
 bool SotnCharacter_UseFood(SotnCharacter *character, Uint16 hand, Uint16 item, Uint16 *equipped);
+/** @brief Consume equipped Neutron Bomb71 after player success, preserving Duplicator rules. */
+bool SotnCharacter_UseNeutron(SotnCharacter *character, Uint16 hand, Uint16 *equipped);
 /** @brief Commit one original Fairy bag-byte decrement for actual mapped medicine144..162.
  * Call after the real callback/player/native operations succeed, even if optional effects
  * cannot allocate. Leaves equipment, acquisition order, stats, resources and RNG unchanged;

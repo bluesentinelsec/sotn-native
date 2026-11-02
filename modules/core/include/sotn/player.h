@@ -408,6 +408,8 @@ typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
     SotnPlayerMedicineUse medicine;
+    SotnPlayerMedicineUse neutron; /**< Actual weapon19 hand use, consumed after player success. */
+    Uint16 neutron_grunt; /**< Successful casting voice, queued before shared birth sounds. */
     SotnPlayerMedicineUse
         food;            /**< Actual weapon21 hand use; consumption follows player success. */
     Sint32 hammer_timer; /**< Separate DRA global, never one of the sixteen words or save data. */
@@ -523,6 +525,14 @@ bool SotnPlayer_SetMedicineContext(SotnPlayer *player, SotnPlayerMedicineFactory
 bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                SotnPlayerMedicineConsume consume, void *context, Uint8 left_count,
                                Uint8 right_count);
+/** @brief Supply one real libc rand result at the successful throwing-hand grunt call.
+ * Native callers must roll back that cursor if the enclosing player update fails. */
+typedef bool (*SotnPlayerThrowingRandom)(void *context, Uint16 *value);
+/** @brief Bind actual weapon19 factories, consumption and original item/hand chain counts. */
+bool SotnPlayer_SetNeutronContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                  SotnPlayerMedicineConsume consume,
+                                  SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
+                                  Uint8 right_count);
 /** @brief Commit slot-ordered food pickup/pose/simulated-pad/raw81 requests atomically. */
 bool SotnPlayer_CommitFood(SotnPlayer *player, const SotnFoodEvents *events, Uint16 count);
 /** @brief Commit actual entity39 resource requests after successful shared row work.

@@ -65,6 +65,7 @@ struct SotnLaboratory
     SotnResource *tiles, *common, *arc, *weapons, *game_over_art;
     SotnPlayer *player;
     SotnMistEffect mist_effect;
+    bool neutron_random_used;
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
     SotnFairyRuntime fairy_runtime;
@@ -941,8 +942,11 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
     const Uint32 death_generation = s->death_image_generation;
     SotnDissolveTextures *textures = NULL;
     SotnPlayerState before = {0};
-    if (!SotnPlayer_GetState(s->player, &before))
+    SotnCharacterState progress = {0};
+    if (!SotnPlayer_GetState(s->player, &before) ||
+        !SotnCharacter_Get(s->character, &progress, NULL))
         return false;
+    s->neutron_random_used = false;
     if (before.death.native || before.water_death.active)
     {
         textures = SDL_malloc(sizeof(*textures));
@@ -955,18 +959,31 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
     SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
     if (SotnPlayer_Tick(s->player, buttons))
     {
+        s->neutron_random_used = false;
         SDL_free(textures);
         return true;
     }
     SDL_memcpy(s->bat_runtime.factories, factories, sizeof(factories));
     char detail[512] = {0};
     SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
+    bool random_restored = true;
+    if (s->neutron_random_used)
+    {
+        SotnCharacterState current = {0};
+        random_restored = SotnCharacter_Get(s->character, &current, NULL);
+        if (random_restored)
+        {
+            current.random = progress.random;
+            random_restored = SotnCharacter_Restore(s->character, &current);
+        }
+        s->neutron_random_used = false;
+    }
     s->death_image = death_image;
     s->death_image_generation = death_generation;
     const bool restored =
         !textures || SotnActorGraphics_RestoreDissolve(s->actor_graphics, textures);
     SDL_free(textures);
-    if (!restored)
+    if (!restored || !random_restored)
         return false;
     SDL_SetError("%s", detail);
     return false;
@@ -1016,12 +1033,36 @@ static bool UseFood(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
     SotnLaboratory *s = context;
     return SotnCharacter_UseFood(s->character, hand, item, equipped);
 }
+static bool NeutronFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                           Uint16 item, bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestNeutron(&s->bat_runtime, source, packed, item, allocated);
+}
+static bool UseNeutron(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    SotnLaboratory *s = context;
+    return item == 71 && SotnCharacter_UseNeutron(s->character, hand, equipped);
+}
+static bool NeutronRandom(void *context, Uint16 *value)
+{
+    SotnLaboratory *s = context;
+    SotnCharacterState progress = {0};
+    if (!s || !value || !SotnCharacter_Get(s->character, &progress, NULL))
+        return false;
+    const Uint16 result = SotnCombat_Random(&progress.random);
+    if (!SotnCharacter_Restore(s->character, &progress))
+        return false;
+    s->neutron_random_used = true;
+    *value = result;
+    return true;
+}
 static bool BindFood(SotnLaboratory *s)
 {
     SotnCharacterState state = {0};
     if (!SotnCharacter_Get(s->character, &state, NULL))
         return false;
-    Uint8 count[2] = {0};
+    Uint8 count[2] = {0}, neutron_count[2] = {0};
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
     {
         const SotnBatRuntimeChild *c = &s->bat_runtime.children[i];
@@ -1030,8 +1071,14 @@ static bool BindFood(SotnLaboratory *s)
             const Uint16 hand = (c->parameter & 0x8000U) != 0;
             count[hand] += c->state.food.item == state.equipment[hand];
         }
+        // Factory birth already copies argument71 into ext.weapon.equipId (AE),
+        // before the later SetWeaponProperties/attack activation callback.
+        if (c->neutron)
+            ++neutron_count[c->kind >= 0xf0 ? 1 : 0];
     }
-    return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]);
+    return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]) &&
+           SotnPlayer_SetNeutronContext(s->player, NeutronFactory, UseNeutron, NeutronRandom, s,
+                                        neutron_count[0], neutron_count[1]);
 }
 static bool ApplyMenuCharacter(SotnLaboratory *s)
 {
@@ -1134,10 +1181,16 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
     SotnPrimitiveSlots primitive_slots = {0};
     SotnSpiritTargetSnapshot targets = {0};
     SotnFoodTextPlan food_text = {0};
+    Uint8 weapon_family[2] = {0};
+    bool weapon_bound[2] = {false};
     if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
         !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
         !SotnActors_GetFoodTextPlan(s->actors, &food_text) ||
+        !SotnActorGraphics_WeaponBinding(s->actor_graphics, 0, &weapon_family[0],
+                                         &weapon_bound[0]) ||
+        !SotnActorGraphics_WeaponBinding(s->actor_graphics, 1, &weapon_family[1],
+                                         &weapon_bound[1]) ||
         (sprite.width && !player.water_death.captured && !player.death.captured &&
          !(player.animation.sprite & 0x8000U) && !HoldDissolveUpload(&s->bat_runtime, player) &&
          !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
@@ -1149,6 +1202,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 .food_collision = s->room.foreground.collision,
                 .executable = s->executable,
                 .weapons = SotnResource_View(s->weapons),
+                .weapon_family = {weapon_family[0], weapon_family[1]},
+                .weapon_bound = {weapon_bound[0], weapon_bound[1]},
                 .player = player,
                 .image = {sprite.width, sprite.height, (Sint16)sprite.pivot_x,
                           (Sint16)sprite.pivot_y},
@@ -1249,11 +1304,12 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
 
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
-    bool transaction = player.medicine.used || player.food.used;
+    bool transaction = player.medicine.used || player.food.used || player.neutron.used;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         transaction |= s->bat_runtime.children[i].kind == 32 ||
                        s->bat_runtime.children[i].kind == 38 ||
-                       s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food;
+                       s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
+                       s->bat_runtime.children[i].neutron;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
                        (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
@@ -2098,7 +2154,8 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         present |= s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 33 ||
                    s->bat_runtime.children[i].kind == 65 || s->bat_runtime.children[i].kind == 38 ||
-                   s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food;
+                   s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
+                   s->bat_runtime.children[i].neutron;
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
         present |= s->bat_runtime.factories[i].cursor.entity_id != 0;
     if (!present)
@@ -2107,11 +2164,11 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     if (!next)
         return SDL_OutOfMemory();
     *next = s->bat_runtime;
-    const bool committed = SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
-                           SotnBatRuntime_PruneTeleport(next) &&
-                           SotnBatRuntime_PruneMedicines(next) && SotnBatRuntime_PruneFood(next) &&
-                           SotnBatRuntime_PruneRoomFactories(next) &&
-                           SotnActors_CommitBatPrimitives(s->actors, next);
+    const bool committed =
+        SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
+        SotnBatRuntime_PruneTeleport(next) && SotnBatRuntime_PruneMedicines(next) &&
+        SotnBatRuntime_PruneFood(next) && SotnBatRuntime_PruneNeutron(next) &&
+        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -2835,6 +2892,13 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
           !SyncStatBuffs(session))) ||
         (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)))
         return false;
+    // Player's casting grunt precedes the later factory/child callbacks and their sounds.
+    // Keep an actual earlier guard voice ahead of it; the final audio pass must not replay it.
+    if (state.neutron.used &&
+        ((state.guard.applied && state.guard.sound &&
+          !QueueNativeSound(session, state.guard.sound)) ||
+         (state.neutron_grunt && !QueueNativeSound(session, state.neutron_grunt))))
+        return false;
     if (state.dark.started || state.spirit.started || state.hellfire_started || state.soul.started)
     {
         SotnCharacterState learned = {0};
@@ -2874,7 +2938,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnPlayer_GetState(session->player, &state) ||
         !SotnActors_GetCombat(session->actors, &combat) || !TickHudFrame(session) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound, state.third_sound,
-                   state.guard.applied ? state.guard.sound : 0))
+                   state.guard.applied && !state.neutron.used ? state.guard.sound : 0))
         return false;
     if (!SotnPlayerStep_IsDead(state.step) && !session->spell_freeze.active &&
         !session->bat_runtime.teleport_warp_mode)
@@ -3669,6 +3733,13 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                             .kind = SOTN_DRAW_HOLY_HIT}))
                         return false;
                 }
+            if (child->neutron && child->initialized && child->state.neutron.animation.frame &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_NEUTRON}))
+                return false;
             if (child->food && child->initialized && child->state.food.frame &&
                 !((child->state.food.draw_flags & 0x80U) &&
                   (((owner + 16U) ^ session->system_timer) & 1U)) &&
@@ -4414,6 +4485,36 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
                                                session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_NEUTRON)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            const bool right = c->kind == 0xf0;
+            const SotnNeutron *n = &c->state.neutron.motion;
+            if (!c->neutron || !c->initialized ||
+                !SotnBatRuntime_NeutronValid(c, command.primitive))
+                return SDL_SetError("Neutron draw lost its actual weapon19 child");
+            if (!SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = right ? 18 : 16,
+                                      .frame = c->state.neutron.animation.frame,
+                                      .palette = right ? 0x128 : 0x110,
+                                      .texture_offset = right ? 0x66 : 0x64,
+                                      .blend_mode = (Uint8)n->blend,
+                                      .facing_left = n->facing_left},
+                    Pixel(c->source.x) - view_x + session->draw_target.offset_x + session->shake.x,
+                    Pixel(c->source.y) - view_y + session->draw_target.offset_y + session->shake.y,
+                    (SotnSpriteTransform){.rotation = n->rotation,
+                                          .scale_x = n->scale_x,
+                                          .scale_y = n->scale_y,
+                                          .executable = session->executable,
+                                          .sdk_rotation = true,
+                                          .opacity = (n->draw_flags & 8U) ? n->opacity : 128},
+                    session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;

@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  neutron.c
+  include/sotn/neutron.h
   food.c
   include/sotn/food.h
   food_popup.c

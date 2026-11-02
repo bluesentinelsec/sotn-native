@@ -73,6 +73,13 @@ struct SotnPlayer
     SotnPlayerHealing healing;
     SotnPlayerTeleport teleport;
     SotnPlayerMedicineUse medicine;
+    SotnPlayerMedicineUse neutron;
+    Uint16 neutron_grunt;
+    SotnPlayerMedicineFactory neutron_factory;
+    SotnPlayerMedicineConsume neutron_consume;
+    SotnPlayerThrowingRandom neutron_random;
+    void *neutron_context;
+    Uint8 neutron_count[2];
     SotnPlayerMedicineUse food;
     SotnPlayerMedicineFactory food_factory;
     SotnPlayerMedicineConsume food_consume;
