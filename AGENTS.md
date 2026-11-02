@@ -1,3 +1,15 @@
+Selected [engine/session familiar initialization](docs/familiar-lifecycle.md) now
+derives the actual active card, binds original mode0 after native bootstrap/64
+AluInit RNG calls, and transfers seven records/selection without a menu load.
+Retain cached overlay history/events/sound cursor/generation subject to original
+mode0 writes, replace entity generations and preserve departing owners on candidate
+failure. Cached-none creates no root; later actual menu reselection increments once.
+Flag20 engine entry omits new stage XA. Existing v9 bytes remain unchanged and do
+not persist familiar records; in-memory handoff is separate evidence. General CD
+bookmark/queue/dialogue/cutscene lifecycle, persistence, ordinary menu activation
+and whole-pass acceptance remain open. Supplied card/reward/arrival/save-room
+fixtures are not acquisition, uninterrupted-route or console evidence.
+
 Selected [connected-room familiar ownership](docs/familiar-lifecycle.md) now binds
 actual flag20000 retention, temporary-row retirement and old/new player screen
 displacement before the destination stage pass. Preserve fractions, root/wings

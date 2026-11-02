@@ -90,6 +90,30 @@ int main(void)
           familiar.records[2].experience == held.records[2].experience);
     CHECK(SotnCharacter_GetFamiliars(c, &familiar, &selected) && selected == 3 &&
           familiar.records[2].experience == 9898);
+    SotnCharacter *destination = NULL;
+    SotnCharacterState before_restore = {0}, after_restore = {0};
+    CHECK(SotnCharacter_Create((SotnDataView){bytes, 0xc910}, &destination) &&
+          SotnCharacter_Get(destination, &before_restore, NULL) &&
+          SotnCharacter_RestoreFamiliarState(destination, &familiar, 3) &&
+          SotnCharacter_GetFamiliars(destination, &held, &selected) && selected == 3 &&
+          !SDL_memcmp(&held, &familiar, sizeof(held)) &&
+          SotnCharacter_Get(destination, &after_restore, NULL) &&
+          !SDL_memcmp(&before_restore, &after_restore, sizeof(before_restore)));
+    // A restored selection is already current: its next unchanged menu exit does not load again.
+    CHECK(SotnCharacter_SelectFamiliar(destination, 3, false) &&
+          SotnCharacter_GetFamiliars(destination, &held, NULL) &&
+          !SDL_memcmp(&held, &familiar, sizeof(held)));
+    CHECK(!SotnCharacter_RestoreFamiliarState(destination, &familiar, 8));
+    familiar.records[6].loads = -1;
+    CHECK(!SotnCharacter_RestoreFamiliarState(destination, &familiar, 0) &&
+          SotnCharacter_GetFamiliars(destination, &familiar, &selected) && selected == 3 &&
+          !SDL_memcmp(&held, &familiar, sizeof(held)));
+    CHECK(SotnCharacter_RestoreFamiliarState(destination, &familiar, 0) &&
+          SotnCharacter_GetFamiliars(destination, &held, &selected) && !selected &&
+          !SDL_memcmp(&held, &familiar, sizeof(held)) &&
+          SotnCharacter_Get(destination, &after_restore, NULL) &&
+          !SDL_memcmp(&before_restore, &after_restore, sizeof(before_restore)));
+    SotnCharacter_Destroy(destination);
     CHECK(SotnCharacter_SelectFamiliar(c, 0, false) &&
           SotnCharacter_GetFamiliars(c, &familiar, &selected) && !selected);
     SotnCharacter_Destroy(c);

@@ -393,9 +393,17 @@ bool SotnCharacter_RestoreFamiliars(SotnCharacter *c, const SotnFamiliarProgress
 {
     if (!c)
         return SDL_InvalidParamError("character");
+    return SotnCharacter_RestoreFamiliarState(c, p, c->familiar);
+}
+bool SotnCharacter_RestoreFamiliarState(SotnCharacter *c, const SotnFamiliarProgress *p,
+                                        Uint16 selected)
+{
+    if (!c || selected > SOTN_FAMILIAR_COUNT)
+        return SDL_SetError("Familiar restoration requires its actual character and identity0..7");
     if (!SotnFamiliarProgress_Validate(p))
         return false;
     c->familiars = *p;
+    c->familiar = selected;
     return true;
 }
 bool SotnCharacter_SelectFamiliar(SotnCharacter *c, Uint16 selected, bool reloaded)

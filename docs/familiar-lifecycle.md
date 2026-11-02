@@ -2,8 +2,8 @@
 
 The native lifecycle now owns verified US Fairy loading, cached reselection,
 deselection and atomic four-slot retirement through an owned load-boundary API.
-Ordinary relic-menu activation remains disabled until remaining stage/session lifecycle,
-saved progression, general audio/cutscene handling, whole-pass transactions and
+Ordinary relic-menu activation remains disabled until saved progression, remaining
+audio/cutscene lifecycle, whole-pass transactions and
 integrated acceptance are complete. Existing grants, pools and v9 saves are unchanged.
 
 `SotnLaboratory_SelectFamiliar` accepts original0/3 in an actual idle menu/load
@@ -47,6 +47,30 @@ stage mutation; real menu and draw checks retain their holds. The prior-head nat
 regression fails this early rejection check. Supplied card/item/health/protection and
 edge/camera/fraction fixtures are separate from ordinary acquisition or uninterrupted
 route evidence; destination actors and whole-pass rollback retain their existing limits.
+
+Full native engine initialization now derives selection from the actual active private
+card definition and binds original mode0 after player/stage bootstrap and AluInit's64
+RNG calls. It prepares the actual four resources, renderer/SPU and CD owner before the
+first familiar callback. Engine entry never increments the menu load count. A flag20
+room omits the new stage XA request, as in original Engine_Init.
+
+Connected-stage candidate construction borrows the departing actual familiar owner.
+Seven records and selection transfer atomically; cached overlay history/events/sound
+cursor and generation serial survive, subject to original mode0 writes. Entity/row
+records start empty and root/wings get real new generations. Cached deselection keeps
+the loaded binding without creating a root; later menu reselection reuses it and
+increments once. Failed candidate construction preserves the departing owners.
+Audio is prepared for the actual destination stage; full CD bookmark/queue continuity
+and general dialogue/cutscene sharing remain unfinished.
+
+Fresh boot/Continue uses active saved card bits and default familiar records when the
+legacy format supplies none. Existing v9 bytes and reserved-zero checks remain unchanged:
+they still do not persist familiar records. In-memory stage handoff is separate from
+ordinary save/Continue progression. Native checks cover two actual session commits
+between Laboratory/Marble Gallery, all21 record words, an actual raw-reward API update,
+no extra load/callback/game-clock advance, cached-none/reselection, real rendering and
+candidate failure. Fresh in-memory v9 roundtrip checks use a supplied active-card/save-room
+context; they establish no familiar progression persistence, acquisition or route evidence.
 
 `SotnFairyRuntime_Clear` validates the actual4..7 identities/generations and all
 three possible5..7 DD/DF leases before clearing any entity or row. Complete

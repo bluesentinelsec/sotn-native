@@ -147,6 +147,7 @@ typedef struct SessionStart
     Uint8 water_pain_timer;
     Uint8 teleport_mode;
     const SotnStatBuffs *stat_buffs;
+    const SotnLaboratory *familiars; /**< Actual connected-stage source, borrowed until commit. */
     const SotnSaveState *saved;
     const SotnStageRoute *arrival;
     SotnStream *music; /**< Borrowed during candidate construction; transferred only at commit. */
@@ -1310,21 +1311,18 @@ static bool FairyInput(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 c
     *out = in;
     return true;
 }
-bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
+static bool LoadFamiliar(SotnLaboratory *s, Uint16 selected, bool engine, bool retain_cache)
 {
     SotnPlayerState player = {0};
-    SotnActorControl control = {0};
     SotnFamiliarProgress progress = {0};
     Uint16 previous = 0;
-    if (!s || (selected != 0 && selected != 3) || s->game_over || s->launch_active ||
-        s->stage_pending || s->map_open || s->menu.phase != SOTN_MENU_CLOSED ||
-        s->spell_freeze.active || s->spell_freeze.request || s->fairy_scene ||
-        s->fairy_pause_disabled || !SotnPlayer_GetState(s->player, &player) || !player.can_pause ||
-        !SotnActors_GetControl(s->actors, &control) || control.pause_disabled || control.timer ||
-        control.hold || !SotnCharacter_GetFamiliars(s->character, &progress, &previous) ||
+    if (!s || (selected != 0 && selected != 3) || (!engine && retain_cache) ||
+        !SotnPlayer_GetState(s->player, &player) ||
+        !SotnCharacter_GetFamiliars(s->character, &progress, &previous) ||
         !SotnFamiliarProgress_Validate(&progress) || (previous != 0 && previous != 3) ||
+        (engine && previous != selected) ||
         !SotnFairyRuntime_Validate(&s->fairy_runtime, s->actors))
-        return SDL_SetError("Familiar selection requires actual idle player/menu/lifecycle owners");
+        return SDL_SetError("Familiar loading requires actual player/progression/lifecycle owners");
     SotnWorldState world = s->world;
     Uint16 selected_cards = 0;
     for (Uint16 id = 0; id < SOTN_RELICS; ++id)
@@ -1351,14 +1349,14 @@ bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
     for (Uint16 i = 0; i < 4; ++i)
         if ((s->fairy_resources[i] != NULL) != cached)
             return SDL_SetError("Familiar cache contains incomplete actual resources");
-    if ((previous == 3 && (!cached || !s->fairy_cd || !s->fairy_runtime.initialized)) ||
+    if ((!engine && previous == 3 && (!cached || !s->fairy_cd || !s->fairy_runtime.initialized)) ||
         (cached && (!s->fairy_cd || !s->fairy_runtime.initialized || s->music)) ||
         (!cached && s->fairy_cd))
         return SDL_SetError("Familiar selection lost its actual cached binding or CD owner");
-    if (!selected)
+    if (!selected && !retain_cache)
     {
         if (!SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors) ||
-            !SotnCharacter_SelectFamiliar(s->character, 0, false))
+            (!engine && !SotnCharacter_SelectFamiliar(s->character, 0, false)))
             return false;
         s->world = world;
         s->dirty = true;
@@ -1406,13 +1404,16 @@ bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
     *runtime = s->fairy_runtime;
     if (previous != selected)
         SDL_zero(runtime->slots);
-    if (!SotnFairyRuntime_Init(runtime, s->actors, input, previous == selected ? 3 : 1))
+    if (selected && !SotnFairyRuntime_Init(runtime, s->actors, input,
+                                           engine                 ? 0
+                                           : previous == selected ? 3
+                                                                  : 1))
         goto fail;
     // Everything that can allocate, read private files or validate metadata finishes first.
     // These final operations touch only the already validated live owners on this main thread.
     if ((previous != selected && !SotnFairyRuntime_Clear(&s->fairy_runtime, s->actors)) ||
         (cd && !SotnCdAudio_AdoptMusic(cd, &s->music, s->system_timer)) ||
-        !SotnCharacter_SelectFamiliar(s->character, selected, !cached))
+        (!engine && !SotnCharacter_SelectFamiliar(s->character, selected, !cached)))
         goto fail;
     if (graphics)
     {
@@ -1443,6 +1444,76 @@ fail:
         SotnResource_Close(opened[i]);
     SDL_free(runtime);
     return false;
+}
+
+bool SotnLaboratory_SelectFamiliar(SotnLaboratory *s, Uint16 selected)
+{
+    SotnPlayerState player = {0};
+    SotnActorControl control = {0};
+    if (!s || s->game_over || s->launch_active || s->stage_pending || s->map_open ||
+        s->menu.phase != SOTN_MENU_CLOSED || s->spell_freeze.active || s->spell_freeze.request ||
+        s->fairy_scene || s->fairy_pause_disabled || !SotnPlayer_GetState(s->player, &player) ||
+        !player.can_pause || !SotnActors_GetControl(s->actors, &control) ||
+        control.pause_disabled || control.timer || control.hold)
+        return SDL_SetError("Familiar selection requires actual idle player/menu/lifecycle owners");
+    return LoadFamiliar(s, selected, false, false);
+}
+static bool InitializeFamiliar(SotnLaboratory *s, const SotnLaboratory *source)
+{
+    Uint16 selected = 0;
+    for (Uint16 id = 0; id < SOTN_RELICS; ++id)
+    {
+        SotnItem relic = {0};
+        if (!SotnRelic_Read(s->dra, id, &relic))
+            return false;
+        if (relic.type && (s->world.relics[id] & 2U))
+        {
+            if (id != 20 || relic.type != 3 || selected || s->world.relics[id] != 3)
+                return SDL_SetError(
+                    "Engine familiar initialization requires one actual supported card");
+            selected = relic.type;
+        }
+    }
+    SotnFamiliarProgress progress = {0};
+    bool cached = false;
+    if (source)
+    {
+        Uint16 previous = 0;
+        if (!SotnCharacter_GetFamiliars(source->character, &progress, &previous) ||
+            previous != selected ||
+            !SotnFairyRuntime_Validate(&source->fairy_runtime, source->actors))
+            return SDL_SetError(
+                "Connected familiar handoff lost actual selection or namespace ownership");
+        cached = source->fairy_resources[0] != NULL;
+        for (Uint16 i = 0; i < 4; ++i)
+            if ((source->fairy_resources[i] != NULL) != cached)
+                return SDL_SetError("Connected familiar handoff lost its complete resource cache");
+        if ((cached &&
+             (!source->fairy_cd || !source->fairy_runtime.initialized || source->music)) ||
+            (!cached && (selected || source->fairy_cd || source->fairy_runtime.initialized)))
+            return SDL_SetError(
+                "Connected familiar handoff lost actual loaded overlay/audio ownership");
+        if (cached)
+        {
+            s->fairy_runtime = source->fairy_runtime;
+            SDL_zero(
+                s->fairy_runtime.slots); // Engine_Init destroys entities/rows, not overlay data.
+        }
+    }
+    else if (!SotnCharacter_GetFamiliars(s->character, &progress, NULL))
+        return false;
+    if (!SotnCharacter_RestoreFamiliarState(s->character, &progress, selected))
+        return false;
+    if (!selected && !cached)
+        return true;
+    // Engine_Init omits the new stage XA request in an actual flag20 room.
+    // This candidate decoder has not ticked or been adopted by another owner.
+    if (s->room.foreground.parameters & 0x20U)
+    {
+        SotnMusic_Destroy(s->music);
+        s->music = NULL;
+    }
+    return LoadFamiliar(s, selected, true, cached);
 }
 
 static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 camera_y)
@@ -2093,7 +2164,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !RestoreStatBuffs(session, start.stat_buffs) || !LaboratoryInput_Init(&session->input) ||
         !SotnPresenter_Create("SOTN Native - Castle checkpoint (development)", 1024, 960,
                               &session->presenter) ||
-        !OpenAudio(session, directory) || !EnterSaveRoom(session) || !PrimeAudio(session))
+        !OpenAudio(session, directory) || !EnterSaveRoom(session) ||
+        !InitializeFamiliar(session, start.familiars) || !PrimeAudio(session))
     {
         char detail[512] = {0};
         SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
@@ -4775,6 +4847,7 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
                                          .stat_buffs = &old->stat_buffs,
+                                         .familiars = old,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
                                          .water_breath_timer = previous_player.water_breath_timer,
                                          .water_pain_timer = previous_player.water_pain_timer},

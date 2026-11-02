@@ -1,8 +1,10 @@
 # Bound native Fairy dispatch and progression
 
 The native Step path now runs bound Fairy callbacks and the distinct FFF engine
-branch. Ordinary card selection, resource initialization, room/stage/session
-lifecycle, saved familiar progression and whole-pass rollback remain unfinished.
+branch. The later [lifecycle owner](familiar-lifecycle.md) supplies owned loading,
+connected rooms and selected full-engine/session initialization. Ordinary card
+selection, saved familiar progression, remaining general audio/cutscene lifecycle
+and whole-pass rollback remain unfinished.
 Fairy stays unavailable in the ordinary relic menu. Development grants and v9
 saves are unchanged; all six Alucard completion gates remain open.
 
@@ -37,6 +39,9 @@ or selection. Ordinary character restore retains these records. Separate validat
 familiar restoration and successful selection/load commits preserve their distinct
 ownership. Changed/reloaded nonzero selections increment loads to9999; unchanged
 selection and ordinary rooms do not.
+Atomic engine/session restoration carries records and selection without adding a
+menu load or changing ordinary character/RNG state. Connected stages retain them
+through actual candidate construction; legacy v9 saves still encode no familiar records.
 
 Actual character enemy-reward transactions update the selected familiar using raw
 enemy EXP before player-level recursion. Reward is the bit length of raw EXP divided
