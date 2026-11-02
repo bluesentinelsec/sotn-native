@@ -119,18 +119,26 @@ bool SotnSound_SetReverbDepth(SotnSound *sound, Sint16 left, Sint16 right)
     return SoundReverb_SetDepth(&sound->reverb, left, right);
 }
 
-void SoundReleaseAll(SotnSound *sound)
+void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate)
 {
     for (Uint16 i = 0; i < 24; ++i)
     {
+        if (!(mask & (1U << i)))
+            continue;
         // SDK RR-only writes clear the exponential-release bit as well as the old rate.
-        sound->registers[i].adsr[1] = (Uint16)((sound->registers[i].adsr[1] & 0xffc0U) | 8U);
+        sound->registers[i].adsr[1] = (Uint16)((sound->registers[i].adsr[1] & 0xffc0U) | rate);
         sound->voices[i].adsr_hi = sound->registers[i].adsr[1];
         sound->voices[i].key_off = 1;
     }
+}
+
+void SoundReleaseAll(SotnSound *sound)
+{
+    SoundReleaseVoices(sound, 0xffffff, 8);
     SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
     SDL_memset(sound->priority, 0, sizeof(sound->priority));
     sound->ambience_id = 0;
+    sound->scripts_paused = false;
 }
 
 bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
@@ -277,7 +285,7 @@ static bool Event(SotnSound *sound, Uint16 id, Uint16 multiplier, Sint8 pan)
             return SDL_SetError("Sound script has an unsupported original mode");
         Uint32 selected = 4;
         bool replace = false;
-        if (sound->sequence.playing)
+        if (sound->sequence_open)
         {
             if (data[6] >= sound->scripts[3].priority)
             {
@@ -443,19 +451,12 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
         else if (sound->queue[i].id == 0xf)
             SoundResumeScripts(sound);
         else if (sound->queue[i].id == 0xa1)
-        {
-            for (Uint32 v = 20; v <= 21; ++v)
-            {
-                sound->registers[v].adsr[1] = (Uint16)((sound->registers[v].adsr[1] & ~31U) | 14);
-                sound->voices[v].adsr_hi = sound->registers[v].adsr[1];
-                sound->voices[v].key_off = 1;
-            }
-        }
+            SoundReleaseVoices(sound, 0x300000, 14);
         else if (!Event(sound, sound->queue[i].id, sound->queue[i].volume, sound->queue[i].pan))
             return false;
     sound->queued = 0;
-    const Uint32 first_script = sound->sequence.playing ? 3 : 0,
-                 end_script = sound->sequence.playing ? 4 : 3;
+    const Uint32 first_script = sound->sequence_open ? 3 : 0,
+                 end_script = sound->sequence_open ? 4 : 3;
     for (Uint32 i = first_script; i < end_script; ++i)
     {
         SoundScript *script = &sound->scripts[i];

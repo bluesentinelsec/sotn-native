@@ -39,6 +39,10 @@ static bool XaCommand(Uint16 id)
 {
     return id > 0x300 && id < 0x533;
 }
+static bool SpuCommand(Uint16 id)
+{
+    return id == 7 || id == 0xe || id == 0xf || id == 0xa1 || id == 0x202 || id == 0x204;
+}
 static void ForgetSaved(SotnCdAudio *a)
 {
     for (Uint16 i = 0; i < 2; ++i)
@@ -84,7 +88,7 @@ static void Complete(SotnCdAudio *a, bool acknowledge)
         a->acknowledge_busy = false;
     Advance(a);
 }
-static void SoundCommands(SotnCdAudio *a)
+static bool SoundCommands(SotnCdAudio *a)
 {
     while (a->read != a->write)
     {
@@ -96,12 +100,33 @@ static void SoundCommands(SotnCdAudio *a)
             if (a->playing)
             {
                 if (a->playing == id - 0x300U)
-                    return; // Original return holds the remaining sound-command ring until next
-                            // tick.
+                    return true; // Original return holds every later command until next tick.
                 Add(a, 2);
             }
             a->queued = (Uint16)(id - 0x300U);
             Add(a, 4);
+        }
+        else if (SpuCommand(id))
+        {
+            switch (id)
+            {
+            case 7:
+                SotnSound_StopSequence(a->sound);
+                break;
+            case 0xe:
+                SoundPauseScripts(a->sound);
+                break;
+            case 0xf:
+                SoundResumeScripts(a->sound);
+                break;
+            case 0xa1:
+                SoundReleaseVoices(a->sound, 0x300000, 14);
+                break;
+            default:
+                if (!SotnSound_PlaySequence(a->sound, id))
+                    return false;
+                break;
+            }
         }
         else if (id >= 0x80 && id <= 0x84)
         {
@@ -116,6 +141,7 @@ static void SoundCommands(SotnCdAudio *a)
         else
             Add(a, id == 0x10 ? 12 : id == 0x11 ? 14 : 2);
     }
+    return true;
 }
 static bool Current(SotnCdAudio *a, SotnMusicState *out)
 {
@@ -533,11 +559,10 @@ bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
 {
     if (!a || (command != 0x10 && command != 0x11 && command != 0xa &&
                !(command >= 0x80 && command <= 0x84) && !(command >= 0x90 && command <= 0x94) &&
-               !XaCommand(command)))
-        return SDL_SetError(
-            "Native CD owner requires original10/11/A/80..84/90..94 or US XA301..532");
-    if (command >= 0x80 && command <= 0x84 && !a->sound)
-        return SDL_SetError("Master fade requires the actual configured SPU owner");
+               !XaCommand(command) && !SpuCommand(command)))
+        return SDL_SetError("Native sound ring requires selected SPU/CD commands or US XA301..532");
+    if (((command >= 0x80 && command <= 0x84) || SpuCommand(command)) && !a->sound)
+        return SDL_SetError("SPU commands require the actual configured sound owner");
     if (command == 0x10 || command == 0x11)
         a->acknowledge_busy = true;
     if ((command >= 0x80 && command <= 0x84) || (command >= 0x90 && command <= 0x94))
@@ -558,7 +583,8 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
 {
     if (!a || !pcm || count < SOTN_SOUND_FRAMES * 2)
         return SDL_SetError("Native CD tick requires its actual owner and full stereo PCM output");
-    SoundCommands(a);
+    if (!SoundCommands(a))
+        return false;
     // Original strict comparison and private mode-two twenty-tick tail, before CD dispatch.
     if (a->playing && !a->busy && clock - a->started > a->duration)
     {

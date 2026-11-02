@@ -398,6 +398,75 @@ static void Sound16(Uint8 *p, Uint16 value)
     p[0] = (Uint8)value;
     p[1] = (Uint8)(value >> 8);
 }
+static bool BoundControls(SotnSoundSources inputs, SotnDataView image, SotnDataView seq, Uint8 *dra,
+                          SotnStream *stream)
+{
+    SotnSound *sound = NULL;
+    SotnCdAudio *a = NULL;
+    SotnMusic *music = NULL;
+    SotnCdAudioState state = {0};
+    SotnSoundFrame frame = {0};
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    Uint32 clock = SDL_MAX_UINT32 - 12U;
+    CHECK(SotnSound_Create(inputs, &sound) && SotnSound_ConfigureReverb(sound, image) &&
+          SotnSound_SetStageSequence(sound, image, seq, 0x202) &&
+          SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) && !SotnCdAudio_Queue(a, 7) &&
+          !SotnCdAudio_Queue(a, 0xe) && !SotnCdAudio_Queue(a, 0x202) &&
+          SotnCdAudio_BindSound(a, sound));
+    const Uint8 record[] = {1, 0, 60, 0, 127, 3, 255};
+    SDL_memcpy(dra + 0x1000, record, sizeof(record));
+    sound->scripts[0] = (SoundScript){
+        .id = 0x601, .allocation_id = 0x601, .address = 0x800a1000, .timer = 1, .volume = 127};
+    CHECK(SotnCdAudio_Queue(a, 0xe) && !sound->scripts_paused &&
+          SotnSound_UpdateCommands(sound, &frame) && !sound->scripts[0].timer &&
+          Tick(a, &clock, &state) && sound->scripts_paused && !sound->scripts[0].id &&
+          sound->script_backup[0].id == 0x601 && !sound->script_backup[0].timer &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    CHECK(SotnCdAudio_Queue(a, 0xf) && SotnSound_UpdateCommands(sound, &frame) &&
+          !sound->scripts[0].id && Tick(a, &clock, &state) && !sound->scripts_paused &&
+          sound->scripts[0].id == 0x601 && sound->scripts[0].address == 0x800a1000 &&
+          !sound->scripts[0].steps && SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].address == 0x800a1006 &&
+          sound->scripts[0].timer == 3 && sound->voices[0].active && Tick(a, &clock, &state) &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    CHECK(SotnCdAudio_Queue(a, 0x202) && !sound->sequence_open &&
+          SotnSound_UpdateCommands(sound, &frame) && frame.first_script == 0 &&
+          sound->scripts[0].timer == 2 && Tick(a, &clock, &state) && sound->sequence_open &&
+          sound->sequence.playing && SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    CHECK(SotnCdAudio_Queue(a, 7) && sound->sequence_open &&
+          SotnSound_UpdateCommands(sound, &frame) && frame.first_script == 3 &&
+          sound->scripts[0].timer == 2 && Tick(a, &clock, &state) && !sound->sequence_open &&
+          !sound->scripts[0].id && sound->voices[23].key_off &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    CHECK(StartVoice(a, &clock, 0x32e, &state));
+    sound->scripts[0] = (SoundScript){
+        .id = 0x601, .allocation_id = 0x601, .address = 0x800a1000, .timer = 1, .volume = 127};
+    CHECK(SotnCdAudio_Queue(a, 0x32e) && SotnCdAudio_Queue(a, 0xe) &&
+          SotnSound_UpdateCommands(sound, &frame) && Tick(a, &clock, &state) &&
+          !sound->scripts_paused && sound->scripts[0].id == 0x601 &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    // The duplicate XA return holds the following SPU command and its live cursor copy.
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].timer == 3 &&
+          Tick(a, &clock, &state) && sound->scripts_paused && !sound->scripts[0].id &&
+          sound->script_backup[0].address == 0x800a1006 && sound->script_backup[0].timer == 3 &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    for (Uint16 i = 0; i < 24; ++i)
+    {
+        CHECK(SoundKey(sound, i, 1, 0, 0, 60, 127, 64));
+        sound->registers[i].adsr[1] |= 32;
+        sound->voices[i].adsr_hi = sound->registers[i].adsr[1];
+    }
+    CHECK(SotnCdAudio_Queue(a, 0xa1) && SotnSound_UpdateCommands(sound, &frame) &&
+          Tick(a, &clock, &state));
+    for (Uint16 i = 0; i < 24; ++i)
+        CHECK(sound->voices[i].key_off == (i == 20 || i == 21) &&
+              (sound->registers[i].adsr[1] & 63U) == ((i == 20 || i == 21) ? 14 : 32) &&
+              sound->voices[i].adsr_hi == sound->registers[i].adsr[1]);
+    CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    SotnCdAudio_Destroy(a);
+    SotnSound_Destroy(sound);
+    return true;
+}
 static bool MasterFades(SotnSoundSources inputs, SotnDataView image, SotnDataView seq,
                         SotnStream *stream)
 {
@@ -459,7 +528,7 @@ static bool MasterFades(SotnSoundSources inputs, SotnDataView image, SotnDataVie
             for (Uint16 i = 0; i < 4; ++i)
                 CHECK(!SDL_memcmp(&sound->scripts[i], &empty, sizeof(empty)) &&
                       !sound->priority[i]);
-            CHECK(!sound->ambience_id && sound->queued == 1 && sound->scripts_paused &&
+            CHECK(!sound->ambience_id && sound->queued == 1 && !sound->scripts_paused &&
                   !SDL_memcmp(&sound->script_backup[0], &paused, sizeof(paused)));
             for (Uint16 i = 0; i < 6 && s.command == 3; ++i)
                 CHECK(Tick(a, &clock, &s));
@@ -576,6 +645,8 @@ static bool BoundReverb(Uint8 *dra, SotnStream *stream)
     }
     CHECK(MasterFades(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
                       stream));
+    CHECK(BoundControls(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
+                        dra, stream));
     SDL_free(reference);
     SDL_free(image);
     return true;

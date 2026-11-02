@@ -153,7 +153,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   command updates and sample rendering, with prepared sound rebinding and retained
   pre-SEQ lease spans. Bound80..84 now use actual master gain, depth0, SEQ close,
   three-update all24 RR8 cleanup and queued CdFadeOut1 (command3)/reset127.
-  Natural SEQ end retains its access; explicit close releases all24. CD sends,
+  Natural SEQ end retains its access and fourth script gate; explicit close
+  releases all24. Selected bound
+  7/E/F/A1/202/204 now share the actual CD sound ring after script updates, retaining
+  duplicate-XA holds, delayed resume and pre-command lease spans. CD sends,
   unbound bootstrap/game-over routing, other presets, remaining mixing
   and cross-session audio remain unfinished. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing

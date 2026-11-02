@@ -67,6 +67,8 @@ void SoundResumeScripts(SotnSound *sound);
 /** @brief Original SetReleaseRate2/InitSoundVars2 on all24 live hardware voices.
  * Preserves envelopes, decoder/RAM state, pending effects and paused script copies. */
 void SoundReleaseAll(SotnSound *sound);
+/** @brief Actual SDK RR-only write/key-off for the selected hardware mask. */
+void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate);
 
 /** @brief Start one validated voice, invalidating any previous sequence owner. */
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,

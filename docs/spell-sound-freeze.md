@@ -51,3 +51,14 @@ Provenance: selected `dra/sound.c:{PauseSfxScripts,UnpauseSfxScripts,
 RestoreSfxScriptData,PlaySfxScript,func_8013572C,func_80135D8C,func_80136010}`,
 pinned sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`,
 AGPL-3.0-or-later. All sound data, original images and traces remain private.
+
+
+When the actual CD owner is bound, native spell E/F now enter its shared sound-command
+ring. Pause copies the cursor after that frame's effect/script update; resume restores
+after the update and waits until the next one to execute the script. Original duplicate
+XA early return can hold either control for the next command pass. This selected bound
+ordering is checked with the actual native private script/PCM owners and original
+queue/cursor instructions; standalone callers keep their existing selected API.
+All-voice InitSoundVars2 clears the pause flag while retaining copied cursors. See
+[bound sound-ring ownership](familiar-cd-audio.md) for evidence and remaining global,
+bootstrap/game-over/session limits.

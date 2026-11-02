@@ -290,6 +290,13 @@ static bool QueueOwnedStageCd(SotnLaboratory *s, const SotnActorCombat *combat)
     return true;
 }
 
+static bool QueueNativeSound(SotnLaboratory *s, Uint16 id)
+{
+    if (s->fairy_cd && (id == 0xe || id == 0xf || id == 0xa1))
+        return SotnCdAudio_Queue(s->fairy_cd, id);
+    return SotnSound_Queue(s->sound, id);
+}
+
 static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
                        Uint16 player_extra_sound, Uint16 player_third_sound, Uint16 guard_sound)
 {
@@ -311,7 +318,12 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->sequence_change)
     {
-        if (combat->sequence == 0)
+        if (session->fairy_cd)
+        {
+            if (!SotnCdAudio_Queue(session->fairy_cd, combat->sequence ? combat->sequence : 7))
+                return false;
+        }
+        else if (combat->sequence == 0)
             SotnSound_StopSequence(session->sound);
         else if (!SotnSound_PlaySequence(session->sound, combat->sequence))
             return false;
@@ -430,7 +442,7 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     for (Uint32 i = 0; i < combat->sound_count; ++i)
         if (combat->volumes[i] == SDL_MAX_UINT16
-                ? !SotnSound_Queue(session->sound, combat->sounds[i])
+                ? !QueueNativeSound(session, combat->sounds[i])
                 : !SotnSound_QueueVolumePan(session->sound, combat->sounds[i], combat->volumes[i],
                                             combat->pans[i]))
             return false;
@@ -438,13 +450,13 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         !SotnSound_QueueAmbienceVolume(session->sound, combat->ambience_volume,
                                        combat->ambience_pan))
         return false;
-    if (guard_sound != 0 && !SotnSound_Queue(session->sound, guard_sound))
+    if (guard_sound != 0 && !QueueNativeSound(session, guard_sound))
         return false;
-    if (player_sound != 0 && !SotnSound_Queue(session->sound, player_sound))
+    if (player_sound != 0 && !QueueNativeSound(session, player_sound))
         return false;
-    if (player_extra_sound != 0 && !SotnSound_Queue(session->sound, player_extra_sound))
+    if (player_extra_sound != 0 && !QueueNativeSound(session, player_extra_sound))
         return false;
-    if (player_third_sound != 0 && !SotnSound_Queue(session->sound, player_third_sound))
+    if (player_third_sound != 0 && !QueueNativeSound(session, player_third_sound))
         return false;
     Uint16 sounds[64] = {0}, sound_count = 0;
     if (session->subweapons != NULL)
@@ -453,7 +465,7 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                                    &sound_count))
             return false;
         for (Uint16 i = 0; i < sound_count; ++i)
-            if (!SotnSound_Queue(session->sound, sounds[i]))
+            if (!QueueNativeSound(session, sounds[i]))
                 return false;
     }
     return true;
@@ -467,7 +479,7 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
         return false;
     if (session->spell_pause_pending)
     {
-        if (session->sound && !SotnSound_Queue(session->sound, 0x0e))
+        if (session->sound && !QueueNativeSound(session, 0x0e))
             return false;
         session->spell_pause_pending = false;
     }
@@ -2405,7 +2417,7 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
     if (release)
     {
         // Original engine five thaws on a separate frame, without any child/stage tick.
-        if (!SotnPlayer_EndSpellFreeze(s->player) || !SotnSound_Queue(s->sound, 0x0f))
+        if (!SotnPlayer_EndSpellFreeze(s->player) || !QueueNativeSound(s, 0x0f))
             return false;
     }
     else

@@ -372,6 +372,7 @@ static bool ScriptPauseQueue(Fixture *f)
     CHECK(SotnSound_Create(source, &s));
     /* Authored engine selection fixture; no SEQ/hardware parity is implied. */
     s->sequence.playing = true;
+    s->sequence_open = true;
     CHECK(SotnSound_Queue(s, 0x602) && SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) &&
           s->scripts[3].id == 0x602 && !s->scripts[0].id &&
           (s->voices[14].active || s->voices[16].active));
@@ -557,9 +558,12 @@ static bool FramePhases(Fixture *f)
 {
     SotnSoundSources sources = MakeFixture(f);
     SotnSound *sound = NULL, *held = SDL_malloc(sizeof(*held));
-    CHECK(held && SotnSound_Create(sources, &sound));
+    Uint8 *image = SDL_calloc(1, 0x24000);
+    CHECK(held && image && SotnSound_Create(sources, &sound));
     Uint8 seq[19] = {'p', 'Q', 'E', 'S', 0, 0, 0, 1, 0, 60, 7, 0xa1, 0x20, 4, 2, 0, 0xff, 0x2f, 0};
-    CHECK(SotnSequence_Open((SotnDataView){seq, sizeof(seq)}, 0, 1, &sound->sequence));
+    CHECK(SotnSound_SetStageSequence(sound, (SotnDataView){image, 0x24000},
+                                     (SotnDataView){seq, sizeof(seq)}, 0x202) &&
+          SotnSound_PlaySequence(sound, 0x202));
     for (Uint32 i = 0; i < 24; ++i)
         sound->voices[i].env_state = ADSR_OFF; // Previously played voices have finished.
     sound->scripts[0].allocation_id = 0x601;
@@ -569,7 +573,7 @@ static bool FramePhases(Fixture *f)
     SotnSoundFrame frame = {0};
     CHECK(SotnSound_UpdateCommands(sound, &frame) && frame.owner == sound &&
           frame.first_script == 3 && frame.end_script == 4 && !sound->sequence.playing);
-    // End-of-SEQ changes the live gate; this frame still retires its original fourth span.
+    // EOT retains the original DRA SEQ access and fourth-channel gate until StopSeq.
     Sint16 pcm[SOTN_SOUND_FRAMES * 2];
     *held = *sound;
     SotnSoundFrame wrong = frame;
@@ -580,9 +584,15 @@ static bool FramePhases(Fixture *f)
     CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)) &&
           sound->scripts[0].allocation_id == 0x601 && sound->scripts[0].priority == 7 &&
           !sound->scripts[3].allocation_id && !sound->scripts[3].priority);
-    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && !sound->scripts[0].allocation_id);
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->sequence_open &&
+          sound->scripts[0].allocation_id == 0x601 && sound->scripts[0].priority == 7);
+    SotnSound_StopSequence(sound);
+    CHECK(!sound->sequence_open && !sound->scripts[0].allocation_id &&
+          SotnSound_UpdateCommands(sound, &frame) && !frame.first_script && frame.end_script == 3 &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
     SotnSound_Destroy(sound);
     SDL_free(held);
+    SDL_free(image);
     return true;
 }
 int main(void)

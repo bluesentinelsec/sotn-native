@@ -111,9 +111,10 @@ bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
  * @return Success, or false with SDL_GetError(); stop the session after a data failure.
  * @note No device access, allocations, or filesystem reads occur in this method. */
 bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count);
-/** @brief Update actual commands/scripts/SEQ once, retaining the pre-SEQ script lease span.
+/** @brief Update actual commands/scripts/SEQ once, retaining the pre-command script lease span.
  * @param sound Actual sound owner. @param out Frame for exactly one subsequent RenderFrame.
  * @return Success or SDL error, preserving output on failure. No PCM/sample clock advances.
+ * The script gate follows open SEQ access after playback ends until explicit StopSeq.
  * Native callers run CD commands between this phase and rendering; this supplies no controls. */
 bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out);
 /** @brief Render one actual stereo frame after its successful command update.

@@ -3,7 +3,8 @@
 `SotnCdAudio` now owns selected original sound/CD command queues, acknowledgement,
 XA start/expiry/stop, and the two saved music positions using actual native XA
 decoders. It accepts10/11/A/80..84/90..94 and original US XA command identities301..532, with
-actual private metadata/format validation before playback acknowledgement. The
+actual private metadata/format validation before playback acknowledgement. A bound
+SPU also supplies selected7/E/F/A1/202/204 controls through this same ring. The
 eight selected US Fairy narrative IDs have actual [native producers](fairy-native-dispatch.md);
 the wider audio service domain does not enable other controls. Ordinary Fairy
 menu activation, saved progression and remaining general audio/cutscene lifecycle
@@ -226,7 +227,62 @@ samples differ from bypassing it. Eight menu updates hold player/game time while
 audio advances. A real five-MP Summon cast has34 frozen/release audio updates, kills
 a real enemy and earns level2 (HP71/MP24) after the initial70HP/20MP and cast-to15MP.
 Twenty-five repeated draws hold all audio clocks. Arrival/card/load/protection,
-stage-event and VAB-tone fixtures retain their separate scope. All six final Debug/ASan CD, rescue and actual-app regressions pass with normal
-inferior exits. These checks do
-not close bootstrap/game-over routing, global sound-ring ordering, CD sends,
+stage-event and VAB-tone fixtures retain their separate scope. All six final
+Debug/ASan CD, rescue and actual-app regressions pass with normal inferior exits.
+These checks do not close bootstrap/game-over routing, global sound-ring ordering, CD sends,
 session continuity, ordinary familiar activation/persistence or whole-pass gates.
+
+Selected bound native SPU controls now share the actual sound-command ring with
+XA/master commands:7 closes SEQ, E/F pause/resume scripts, A1 releases20/21 at RR14,
+and202/204 start the attached private Library/Chapel SEQ. The native owner queues
+stage sequence requests and spell pause/release rather than executing them early.
+Effects and scripts update before command execution. A duplicate XA early return
+therefore holds later SPU commands until the next command pass. A resumed cursor
+starts its next script update on the following audio frame. Captured render lease
+spans still precede SEQ commands; commands themselves add no DSP update.
+The script allocation/update gate follows the retained DRA SEQ access, including
+a natural end of playback. Only explicit close returns it to ordinary channels.
+
+These calls require the actual configured borrowed sound dependency. Unsupported
+commands or absent binding reject before enqueueing; attached SEQ validation still
+belongs to its actual owner at execution. Existing standalone and unbound native
+sound APIs retain their selected behavior. Initial bootstrap, game-over routing,
+complete command/effect-ring ordering and session continuity remain unfinished.
+The shared RR helper now also clears the exponential-release bit on A1, matching
+the actual SDK RR-only write. Original InitSoundVars2 clears the pause flag while
+retaining copied scripts and pending effects; all-voice cleanup now preserves that
+distinction as well. The DRA SEQ gate remains active after SDK end-of-track;
+allocation and updates use the retained access until explicit close. A public
+regression now starts a real authored SEQ through its actual sound API, ends it,
+checks the retained ordinary lease/fourth span and closes through StopSeq.
+
+Public authored checks use actual sound construction, VABs and rendering for
+post-update pause copies, delayed resume, SEQ start/close frame spans, duplicate-XA
+holds, wrapped clocks, rejected unbound controls and exact20/21 release bits.
+Debug/ASan command traces are identical across16 contexts,1,280 updates and2,136
+calls. Original instructions match both256-entry queues, all live and copied
+script words, pause flag, SEQ access, reverb/master words and all24 RR registers.
+Actual SDK RR/master functions execute to MMIO. SDK SEQ Open/Play/SetVol/Stop/Close,
+CD hardware, VSync, serial/CD volume and depth use explicit adapters. These
+command-only contexts do not advance script or DSP scheduling; supplied cursor,
+copy and register vectors remain component fixtures.
+
+Actual Debug/ASan native checks each use a real private sound script, two post-script
+pause/resume pairs, a duplicate XA holding E, deferred private Library SEQ births
+and full SPU work-RAM/DSP holds through control execution. Their1,075 final mixed
+frames also preserve all five master fades, actual menu/spell-freeze/draw clocks
+and an earned level-up from the ordinary Summon cast. Actual sound queue, card,
+load, protection, arrival, stage-event and tone fixtures remain separate from
+ordinary producer/acquisition/traversal and console evidence. Final native/app
+regressions and exact-head platform results accompany the batch before publication.
+A separate authored-EOT native fixture checks the deferred birth, retained fourth
+span after end, queued7 retaining that frame's span and ordinary span on the next
+update, then restores the real private Library attachment. This fixture does not
+establish an ordinary song's ending or original SDK scheduling parity.
+
+The final corrected branch also matches4,608 complete original script-allocation
+calls across all144 private script definitions without helper adapters. Those
+fixtures include a stopped playback cursor with retained SEQ access; they compare
+allocation/cursor/priority metadata and key-off masks, rather than actual playback.
+All six final Debug/ASan CD, rescue and actual-app regressions pass on the corrected
+binaries with normal inferior exits.

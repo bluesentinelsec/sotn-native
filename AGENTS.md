@@ -1,3 +1,16 @@
+Selected [bound SPU/CD sound ring](docs/familiar-cd-audio.md) now queues actual
+7/E/F/A1/202/204 with XA/master controls. Preserve original duplicate-XA early
+return holding later SPU commands, script-update-before-command copying, resume
+waiting for the next script update, attached SEQ identities and pre-command lease
+span. Script gates follow the retained SEQ access after EOT until explicit close.
+Actual A1 clears RR low6 bits including exponential release on20/21. Original
+InitSoundVars2 clears the pause flag but keeps copied scripts and pending effects.
+Native unbound/standalone paths retain their existing selected APIs; bootstrap,
+game-over/global sound ordering/session and all six gates remain open. Explicit
+cursor/copy/register/SEQ-access/actualSFXqueue/card/arrival/protection/event/tone
+fixtures are not ordinary producers/acquisition/routes/console evidence. No new
+pool/grants/v9 change or ordinary Fairy UI.
+
 Selected [bound master fades](docs/familiar-cd-audio.md) now own original80..84,
 command10, actual final native gain, depth0, StopSeq and three-update all24 RR8
 release/cleanup. Preserve shared80/90 multipliers, signed counters, immediate single

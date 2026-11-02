@@ -43,7 +43,7 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock)
  * The sound owner must remain live until replacement or CD destruction. Native callers rebind
  * prepared sound replacement before retiring the departing owner. This does not enable CD sends. */
 bool SotnCdAudio_BindSound(SotnCdAudio *audio, SotnSound *sound);
-/** @brief Queue original10/11/A/80..84/90..94 or an original US XA sound ID301..532.
+/** @brief Queue selected original SPU/CD commands or an original US XA ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.
  * Commands90..94 immediately set the separate fade flag; command8 owns the original
@@ -52,6 +52,11 @@ bool SotnCdAudio_BindSound(SotnCdAudio *audio, SotnSound *sound);
  * Commands80..84 require the bound actual SPU: command10 controls master gain, depth0,
  * StopSeq, delayed all24-voice RR8/cleanup and queued CdFadeOut1 (command3) restoring master127.
  * Apply master_volume once to the final native mix, including SPU, CD and legacy inputs.
+ * With the bound SPU,7/E/F/A1/202/204 share this actual ring: SEQ close, script pause/resume,
+ * channels20/21 RR14 release and attached Library/Chapel SEQ start. Native callers update
+ * effects/scripts before executing the ring. Duplicate XA early return holds later SPU controls;
+ * resume does not replay a script until the following script update. Unbound callers retain
+ * the selected standalone sound APIs; these commands fail before queuing without a real binding.
  * Actual private metadata/format and native reads are validated before playback acknowledgement.
  * Modes0/1 use original continuation/command6; adopted legacy intro/loop decoders keep
  * their existing native loop service. Enables no additional stage/familiar controls.
