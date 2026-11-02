@@ -86,6 +86,9 @@ bool SotnCharacter_SelectFamiliar(SotnCharacter *character, Uint16 selected, boo
  * Applies signed-word body/buff bonuses before caps, then poison, without granting an item. */
 bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, Uint32 *random,
                                    SotnEquipment *out);
+/** @brief Retained owned71..74 properties at their actual activation callbacks. */
+bool SotnCharacter_ThrowingProperties(const SotnCharacter *, Uint16 item, bool poison,
+                                      Uint32 *random, SotnEquipment *out);
 /** @brief Retained72 properties at birth and each successful actual burst reservation. */
 bool SotnCharacter_SireProperties(const SotnCharacter *, bool poison, Uint32 *random,
                                   SotnEquipment *out);
@@ -177,7 +180,7 @@ bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 ite
 /** @brief Consume actual weapon21 food29..70 after successful player control.
  * Spare stock, last-copy removal and actual Duplicator use the same original ReduceWeapon. */
 bool SotnCharacter_UseFood(SotnCharacter *character, Uint16 hand, Uint16 item, Uint16 *equipped);
-/** @brief Consume owned71/72 with actual stock/Duplicator semantics, after player success. */
+/** @brief Consume owned71..74 with actual stock/Duplicator semantics, after player success. */
 bool SotnCharacter_UseThrowing(SotnCharacter *, Uint16 hand, Uint16 item, Uint16 *equipped);
 /** @brief Consume equipped Neutron Bomb71 after player success, preserving Duplicator rules. */
 bool SotnCharacter_UseNeutron(SotnCharacter *character, Uint16 hand, Uint16 *equipped);

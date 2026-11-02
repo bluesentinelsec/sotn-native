@@ -1,3 +1,19 @@
+Selected [Pentagram73/Bat74](docs/player-pentagrams.md) now owns actual menu/hand
+use, inventory/Duplicator consumption, resident weapon17, shared50 roots/17..31
+children,25 real rows, private GT4+24GT3 drawing and native global82 attacks.
+Preserve actual item/hand chain1 before curse, player-success cost/grunt before6E4,
+allocation before properties/RNG/effects,24 active callbacks, the transition's96
+rolls/no projection and153 total callbacks. Use actual per-hand weapon17 BSS,
+private SDK XYZ/GTE/AVSZ3 factor341, winding/degenerate retention and signed wrap;
+never substitute per-child scratch, a second quad triangle or another pool.
+Retain screen128/104 fractions, current shake once, clock palettes, menu/freeze/
+draw holds, common frozen flash tail, no-tick room/weapon retirement and actual
+factory/row/character/RNG rollback on late failure. Connected sessions retain BSS;
+ordinary saves do not serialize it. No grants/savev9 change. Supplied stock,
+equipment/protection/arrival/camera/RNG/failure/save-room contexts are not
+acquisition/routes/whole-pass/global-libc/full-contention/console evidence.
+All six Alucard gates remain open; ordinary Fairy UI stays disabled.
+
 Selected [Power of Sire72](docs/player-power-of-sire.md) now owns actual menu/hand
 use, inventory/Duplicator consumption, resident weapon18, shared50/56 roots and
 17..31 parents/bursts, private animation/rendering, native global82 pulses,

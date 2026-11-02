@@ -529,7 +529,8 @@ bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory fac
 /** @brief Supply one real libc rand result at the successful throwing-hand grunt call.
  * Native callers must roll back that cursor if the enclosing player update fails. */
 typedef bool (*SotnPlayerThrowingRandom)(void *context, Uint16 *value);
-/** @brief Bind actual weapon18/19 factories, consumption and current equipped item/hand counts. */
+/** @brief Bind actual weapon17/18/19 factories, consumption and current equipped item/hand counts.
+ */
 bool SotnPlayer_SetThrowingContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                    SotnPlayerMedicineConsume consume,
                                    SotnPlayerThrowingRandom random, void *context, Uint8 left_count,

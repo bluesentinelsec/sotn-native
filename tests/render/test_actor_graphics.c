@@ -351,6 +351,24 @@ static bool TestQuad(Fixture *fixture)
     q.x[3] = 4;
     q.x[0] = SDL_MAX_SINT32;
     CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    ClearFrame(fixture);
+    q = (SotnTextureQuad){.triangle = true,
+                          .x = {0, 4, 0, SDL_MAX_SINT32},
+                          .y = {0, 0, 4, SDL_MIN_SINT32},
+                          .u = {4, 4, 4, 65535},
+                          .v = {64, 64, 64, 65535},
+                          .page = 2,
+                          .palette = 512};
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    Uint16 drawn = 0;
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            drawn += fixture->frame[y * SOTN_FRAME_WIDTH + x] == 31;
+    CHECK(drawn == 6 && fixture->frame[0] == 31 && fixture->frame[2 * SOTN_FRAME_WIDTH + 2] == 7);
+    // A real GT3 ignores the unused fourth slot, including its invalid quad attributes.
+    q.triangle = false;
+    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[0] == 31);
     SotnActorGraphics_Destroy(graphics);
     return true;
 }

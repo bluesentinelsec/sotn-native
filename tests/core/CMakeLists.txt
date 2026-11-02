@@ -1,3 +1,9 @@
+add_executable(sotn-pentagram-tests test_pentagram.c)
+sotn_configure_c_target(sotn-pentagram-tests)
+target_include_directories(sotn-pentagram-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-pentagram-tests PRIVATE sotn-core)
+add_test(NAME pentagram-ownership COMMAND sotn-pentagram-tests)
+
 add_executable(sotn-sire-tests test_sire.c)
 sotn_configure_c_target(sotn-sire-tests)
 target_include_directories(sotn-sire-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

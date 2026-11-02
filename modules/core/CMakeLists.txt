@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  pentagram.c
+  include/sotn/pentagram.h
   sire.c
   include/sotn/sire.h
   neutron.c

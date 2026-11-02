@@ -39,7 +39,8 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_FOOD_TEXT,      /**< Actual global lower-left text row index0..67. */
     SOTN_DRAW_FOOD,           /**< Actual weapon21 child index1..15. */
     SOTN_DRAW_NEUTRON,        /**< Actual weapon19 child index1..15. */
-    SOTN_DRAW_SIRE            /**< Actual weapon18 parent/burst child index1..15. */
+    SOTN_DRAW_SIRE,           /**< Actual weapon18 parent/burst child index1..15. */
+    SOTN_DRAW_PENTAGRAM       /**< Actual weapon17 child index1..15 and row0..24. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

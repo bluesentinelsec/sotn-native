@@ -1037,9 +1037,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                             Uint16 item, bool *allocated)
 {
     SotnLaboratory *s = context;
-    return item == 72
-               ? SotnBatRuntime_RequestSire(&s->bat_runtime, source, packed, item, allocated)
-               : SotnBatRuntime_RequestNeutron(&s->bat_runtime, source, packed, item, allocated);
+    return SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
 static bool UseThrowing(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
@@ -1076,7 +1074,8 @@ static bool BindFood(SotnLaboratory *s)
         // Factory birth already copies the actual item into ext.weapon.equipId (AE),
         // before the later SetWeaponProperties/attack activation callback.
         if ((c->neutron && state.equipment[c->kind >= 0xf0 ? 1 : 0] == 71) ||
-            (c->sire && !c->sire_child && state.equipment[c->kind >= 0xf0 ? 1 : 0] == 72))
+            (c->sire && !c->sire_child && state.equipment[c->kind >= 0xf0 ? 1 : 0] == 72) ||
+            (c->pentagram && state.equipment[c->kind >= 0xf0 ? 1 : 0] == c->state.pentagram.item))
             ++throwing_count[c->kind >= 0xf0 ? 1 : 0];
     }
     return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]) &&
@@ -1313,6 +1312,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                        s->bat_runtime.children[i].kind == 38 ||
                        s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
                        s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
+                       s->bat_runtime.children[i].pentagram ||
                        (s->bat_runtime.children[i].kind == 5 &&
                         (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -2161,6 +2161,7 @@ static bool RetireSharedRoom(SotnLaboratory *s)
                    s->bat_runtime.children[i].kind == 65 || s->bat_runtime.children[i].kind == 38 ||
                    s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
                    s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
+                   s->bat_runtime.children[i].pentagram ||
                    (s->bat_runtime.children[i].kind == 5 &&
                     (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
@@ -2171,12 +2172,12 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     if (!next)
         return SDL_OutOfMemory();
     *next = s->bat_runtime;
-    const bool committed = SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
-                           SotnBatRuntime_PruneTeleport(next) &&
-                           SotnBatRuntime_PruneMedicines(next) && SotnBatRuntime_PruneFood(next) &&
-                           SotnBatRuntime_PruneNeutron(next) && SotnBatRuntime_PruneSire(next) &&
-                           SotnBatRuntime_PruneRoomFactories(next) &&
-                           SotnActors_CommitBatPrimitives(s->actors, next);
+    const bool committed =
+        SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
+        SotnBatRuntime_PruneTeleport(next) && SotnBatRuntime_PruneMedicines(next) &&
+        SotnBatRuntime_PruneFood(next) && SotnBatRuntime_PruneNeutron(next) &&
+        SotnBatRuntime_PruneSire(next) && SotnBatRuntime_PrunePentagram(next) &&
+        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -3178,16 +3179,20 @@ static bool ActorDrawError(SotnActorState actor)
 
 // Selected LIB parallax precedes foreground tiles; Chapel/BO5 sky precedes both tile layers.
 // Original later-submitted primitive packets precede tile packets at the tied bucket.
-static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
+static bool DrawPlayerEffectPolygon(SotnLaboratory *s, const SotnPlayerEffectQuad *p, bool triangle)
 {
     const SotnActorSurface surface =
         s->draw_target.mode
             ? s->draw_target.surface
             : (SotnActorSurface){s->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
     const bool fixed = (p->draw_mode & 0x2080U) != 0;
-    return SotnActorGraphics_PlayerEffect(
+    return (triangle ? SotnActorGraphics_PlayerTriangle : SotnActorGraphics_PlayerEffect)(
         s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
         s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
+}
+static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
+{
+    return DrawPlayerEffectPolygon(s, p, false);
 }
 static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
 {
@@ -3739,6 +3744,20 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             (SotnActorDraw){.priority = q->priority,
                                                             .primitive = (Uint16)(owner * 16U + id),
                                                             .kind = SOTN_DRAW_HOLY_HIT}))
+                        return false;
+                }
+            if (child->pentagram && child->initialized)
+                for (Uint16 row = SOTN_PENTAGRAM_ROWS; row > 0; --row)
+                {
+                    const SotnPlayerEffectQuad *q =
+                        &child->state.pentagram.motion.polygons[row - 1U];
+                    if (!(q->draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = q->priority,
+                                            .primitive =
+                                                (Uint16)(owner * SOTN_PENTAGRAM_ROWS + row - 1U),
+                                            .kind = SOTN_DRAW_PENTAGRAM}))
                         return false;
                 }
             if (child->sire && child->initialized && child->state.sire.animation.frame &&
@@ -4503,6 +4522,21 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_PENTAGRAM)
+        {
+            const Uint16 owner = command.primitive / SOTN_PENTAGRAM_ROWS,
+                         row = command.primitive % SOTN_PENTAGRAM_ROWS;
+            if (owner >= SOTN_BAT_RUNTIME_SLOTS)
+                return SDL_SetError("Pentagram packet exceeds its actual child slots");
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
+            if (!c->pentagram || !c->initialized || !SotnBatRuntime_PentagramValid(c, owner) ||
+                !DrawPlayerEffectPolygon(session, &c->state.pentagram.motion.polygons[row],
+                                         row != 0) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return SDL_SetError("Pentagram draw lost its actual twenty-five-row owner");
             continue;
         }
         if (command.kind == SOTN_DRAW_SIRE)
@@ -5380,6 +5414,10 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
         // DRA's one shared teleport point array outlives full entity initialization.
         // Incoming birth overwrites it in actual slot order after the handoff.
         next->bat_runtime.teleport = old->bat_runtime.teleport;
+        // Weapon17 scratch outlives room-local entities; births overwrite its actual
+        // vectors/shards.
+        SDL_memcpy(next->bat_runtime.pentagram, old->bat_runtime.pentagram,
+                   sizeof(next->bat_runtime.pentagram));
     }
     if (ready && travel)
     {

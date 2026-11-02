@@ -371,15 +371,17 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
                            : equipment.family == 21 ? 0x8017a784U
+                           : equipment.family == 17 ? 0x8017a3a0U
                            : equipment.family == 18 ? 0x8017a730U
                            : equipment.family == 19 ? 0x8017a548U
                                                     : 0x8017abd4U;
-    const Uint32 color_count =
-        (equipment.family == 21 || equipment.family == 19 || equipment.family == 18 ? 24U
-         : equipment.family == 45                                                   ? 2U
-         : equipment.family == 37                                                   ? 5U
-                                                                                    : 7U) *
-        16;
+    const Uint32 color_count = (equipment.family == 21 || equipment.family == 19 ||
+                                        equipment.family == 18 || equipment.family == 17
+                                    ? 24U
+                                : equipment.family == 45 ? 2U
+                                : equipment.family == 37 ? 5U
+                                                         : 7U) *
+                               16;
     if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
@@ -1048,7 +1050,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
                           (q.page != 0x100 && q.page != 0x104)))
         return SDL_SetError("Framebuffer quad requires a captured frame and original direct page");
     Sint32 left = 2048, right = -2048, top = 2048, bottom = -2048;
-    for (Uint32 i = 0; i < 4; ++i)
+    for (Uint32 i = 0; i < (q.triangle ? 3U : 4U); ++i)
     {
         if (!q.untextured && (q.u[i] > 256 || q.v[i] > 256))
             return SDL_SetError("Projectile quad UV exceeds its texture page");
@@ -1067,7 +1069,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
                 Uint32 shade[3] = {q.red, q.green, q.blue};
                 bool inside = false;
                 // PS1 quad order is the triangles (0,1,2) and (1,3,2).
-                for (Uint32 triangle = 0; triangle < 2 && !inside; ++triangle)
+                for (Uint32 triangle = 0; triangle < (q.triangle ? 1U : 2U) && !inside; ++triangle)
                 {
                     const Uint32 ia = triangle ? 1 : 0, ib = triangle ? 3 : 1, ic = 2;
                     const Sint64 ax = q.x[ib] - q.x[ia], ay = q.y[ib] - q.y[ia];
@@ -1259,8 +1261,8 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *g, SotnTextureQuad q
     return QuadDraw(g, quad, surface, true);
 }
 
-bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
-                                    Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+static bool PlayerPolygon(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                          Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface, bool triangle)
 {
     if (!g || !p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 ||
         offset_y < -2048 || offset_y > 2048)
@@ -1269,6 +1271,7 @@ bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayer
         return true;
     SotnTextureQuad q = {.page = (Uint16)(p->page + (p->draw_mode & 0x60U)),
                          .palette = p->palette,
+                         .triangle = triangle,
                          .blend = (p->draw_mode & 1U) != 0,
                          .modulate = (p->draw_mode & 4U) != 0,
                          .gouraud = (p->draw_mode & 4U) != 0};
@@ -1283,6 +1286,17 @@ bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayer
         q.vertex_blue[v] = p->blue[v];
     }
     return SotnActorGraphics_QuadSurface(g, q, surface);
+}
+
+bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                    Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, false);
+}
+bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                      Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, true);
 }
 
 bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *p, Sint32 offset_x,

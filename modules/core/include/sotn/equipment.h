@@ -21,7 +21,7 @@ typedef struct SotnWeaponFrame
 /** @brief Read a supported hand-item definition, without importing runtime tables.
  * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Basilard (18), Gladius (86),
  * Short sword (19), Mace (128), Alucard sword (123), Alucard shield (16), medicines144..162, or
- * Library Card (166), food29..70, Neutron Bomb71 or Power of Sire72.
+ * Library Card (166), food29..70, Neutron Bomb71, Power of Sire72 and Pentagrams73/74.
  * @param out Receives copied metadata, unchanged on failure.
  * @return Success, or false with SDL_GetError() for invalid or unsupported definitions.
  * @note Life Apple146/Hammer147 metadata does not enable equipping or hand use.
@@ -30,7 +30,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out);
 /** @brief Read original weapon21 food29..70 metadata for the actual shared hand owner.
  * Raw food ATK is healing, never strength/poison-scaled weapon damage. */
 bool SotnEquipment_ReadFood(SotnDataView dra, Uint16 id, SotnEquipment *out);
-/** @brief Original owned weapon18/19 item71/72 metadata. */
+/** @brief Original owned weapon17/18/19 item71..74 metadata. */
 bool SotnEquipment_ReadThrowing(SotnDataView dra, Uint16 item, SotnEquipment *out);
 /** @brief Read original weapon19 Neutron Bomb71 metadata for its actual hand owner. */
 bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out);

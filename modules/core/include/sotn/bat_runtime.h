@@ -16,6 +16,7 @@
 #include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
 #include <sotn/neutron.h>
+#include <sotn/pentagram.h>
 #include <sotn/player.h>
 #include <sotn/player_circle.h>
 #include <sotn/player_outline.h>
@@ -61,7 +62,7 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized, food, neutron, sire, sire_child;
+    bool initialized, food, neutron, sire, sire_child, pentagram;
     union {
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
@@ -127,6 +128,12 @@ typedef struct SotnBatRuntimeChild
             SotnPlayerAttack attack;
             Uint16 parent_slot; /**< Original raw entity slot, deliberately no generation gate. */
         } sire;
+        struct
+        {
+            SotnPentagram motion;
+            SotnPlayerAttack attack;
+            Uint16 item;
+        } pentagram;
         SotnSpiritPortal portal;
         struct
         {
@@ -166,6 +173,7 @@ typedef struct SotnBatRuntime
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
+    SotnPentagramShared pentagram[2]; /**< Original weapon17 BSS, one actual program per hand. */
     Uint32 dark_blend_phase;     /**< Actual DRA global, retained through session replacement. */
     SotnHolyHitShared holy;      /**< Actual shared entity47 points, not one copy per child. */
     SotnTeleportShared teleport; /**< Actual shared entity65 points, never a new particle pool. */
@@ -195,7 +203,7 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
-    Uint64 neutron_mask, sire_mask;
+    Uint64 neutron_mask, sire_mask, pentagram_mask;
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -253,6 +261,13 @@ bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySo
  * This does not consume inventory or enable ordinary controls. */
 bool SotnBatRuntime_RequestFood(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                 Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Reserve actual50 for owned71..74, or original57/profile1 curse feedback. */
+bool SotnBatRuntime_RequestThrowing(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                    Uint16 item, bool *allocated);
+/** @brief Validate actual weapon17 parent, item and twenty-five-row lifecycle. */
+bool SotnBatRuntime_PentagramValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Retire room-local weapon17 parents/rows without callbacks or changing program BSS. */
+bool SotnBatRuntime_PrunePentagram(SotnBatRuntime *);
 /** @brief Reserve actual50 weapon19/Neutron71, or its original57 curse outline. */
 bool SotnBatRuntime_RequestNeutron(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                    Uint32 packed, Uint16 item, bool *allocated);

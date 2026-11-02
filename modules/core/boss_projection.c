@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MPL-2.0
 // Selected fixed matrix and UNR projection math adapted from PSY-Z
 // b52003e55c0d1b20719e984dd19bd4d760eeb14a, psyz/src/psyz/libgte.c.
-// Selected bounded reward, effect, intro, book, bell, cloud and glass paths; not a GTE emulator.
+// Selected bounded reward, effect, intro, book, bell, cloud, glass and weapon17 paths; not a GTE
+// emulator.
 #include "boss_projection.h"
 #include "actors_internal.h"
 static Uint32 Divide(Uint32 depth, Uint32 distance)
@@ -116,6 +117,61 @@ bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anch
     return true;
 }
 
+static bool MatrixXYZ(SotnDataView executable, Sint16 ax, Sint16 ay, Sint16 az, Sint32 m[3][3])
+{
+    SotnMathTrig x = {0}, y = {0}, z = {0};
+    if (!SotnMath_MatrixTrig(executable, ax, &x) || !SotnMath_MatrixTrig(executable, ay, &y) ||
+        !SotnMath_MatrixTrig(executable, az, &z))
+        return false;
+    const Sint32 sx = x.sine, cx = x.cosine, sy = y.sine, cy = y.cosine, sz = z.sine, cz = z.cosine;
+    const Sint32 a = ActorShift(-(Sint64)cz * sy, 12), b = ActorShift(-(Sint64)sz * sy, 12);
+    // Negation precedes the arithmetic shift in the SDK, including negative fractions.
+    const Sint32 matrix[3][3] = {
+        {ActorShift((Sint64)cz * cy, 12), ActorShift(-(Sint64)sz * cy, 12), sy},
+        {ActorShift((Sint64)sz * cx, 12) - ActorShift((Sint64)a * sx, 12),
+         ActorShift((Sint64)cz * cx, 12) + ActorShift((Sint64)b * sx, 12),
+         ActorShift(-(Sint64)cy * sx, 12)},
+        {ActorShift((Sint64)sz * sx, 12) + ActorShift((Sint64)a * cx, 12),
+         ActorShift((Sint64)cz * sx, 12) - ActorShift((Sint64)b * cx, 12),
+         ActorShift((Sint64)cy * cx, 12)}};
+    SDL_memcpy(m, matrix, sizeof(matrix));
+    return true;
+}
+bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform t,
+                          const SotnTriangleVertex vertices[3], SotnTriangleProjection *out)
+{
+    if (!vertices || !out || t.depth < 0 || t.depth > 1280 || t.anchor_x < -16384 ||
+        t.anchor_x > 16384 || t.anchor_y < -16384 || t.anchor_y > 16384)
+        return SDL_SetError("Triangle projection exceeds its selected weapon transform");
+    for (Uint16 i = 0; i < 3; ++i)
+        if (vertices[i].x < -32 || vertices[i].x > 32 || vertices[i].y < -32 ||
+            vertices[i].y > 32 || vertices[i].z < -32 || vertices[i].z > 32)
+            return SDL_SetError("Triangle vertex exceeds its bounded private model");
+    Sint32 m[3][3] = {0};
+    if (!MatrixXYZ(executable, t.x, t.y, t.z, m))
+        return false;
+    SotnTriangleProjection result = {0};
+    Uint32 sum = 0;
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        const SotnTriangleVertex v = vertices[i];
+        Sint32 transformed[3] = {0};
+        for (Uint16 row = 0; row < 3; ++row)
+            transformed[row] = ActorShift(
+                (Sint64)m[row][0] * v.x + (Sint64)m[row][1] * v.y + (Sint64)m[row][2] * v.z, 12);
+        const Uint32 depth = (Uint32)SDL_clamp(t.depth + transformed[2], 0, 65535);
+        const Uint32 ratio = Divide(depth, 512);
+        result.point[i] = (SotnProjectedPoint){Coordinate(t.anchor_x, transformed[0], ratio),
+                                               Coordinate(t.anchor_y, transformed[1], ratio)};
+        sum += depth;
+    }
+    const SotnProjectedPoint p = result.point[0], q = result.point[1], r = result.point[2];
+    result.winding = (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x);
+    // Original InitGeom sets ZSF3=341. Zero winding leaves SDK OTZ at caller's zero.
+    result.ordering_depth = result.winding ? (Uint16)(sum * 341U >> 12) : 0;
+    *out = result;
+    return true;
+}
 bool SotnBook_Project(SotnDataView executable, SotnBookTransform t, const SotnBookVertex *vertices,
                       Uint32 count, SotnBookProjection *out)
 {
@@ -126,20 +182,9 @@ bool SotnBook_Project(SotnDataView executable, SotnBookTransform t, const SotnBo
         if (vertices[i].x < -32 || vertices[i].x > 32 || vertices[i].y < -32 ||
             vertices[i].y > 32 || vertices[i].z < -32 || vertices[i].z > 32)
             return SDL_SetError("Book vertex exceeds its bounded private model");
-    SotnMathTrig x = {0}, y = {0}, z = {0};
-    if (!SotnMath_MatrixTrig(executable, t.x, &x) || !SotnMath_MatrixTrig(executable, t.y, &y) ||
-        !SotnMath_MatrixTrig(executable, t.z, &z))
+    Sint32 m[3][3] = {0};
+    if (!MatrixXYZ(executable, t.x, t.y, t.z, m))
         return false;
-    const Sint32 sx = x.sine, cx = x.cosine, sy = y.sine, cy = y.cosine, sz = z.sine, cz = z.cosine;
-    const Sint32 a = ActorShift(-(Sint64)cz * sy, 12), b = ActorShift(-(Sint64)sz * sy, 12);
-    // Negation precedes the arithmetic shift in the SDK, including negative fractions.
-    const Sint32 m[3][3] = {{ActorShift((Sint64)cz * cy, 12), ActorShift(-(Sint64)sz * cy, 12), sy},
-                            {ActorShift((Sint64)sz * cx, 12) - ActorShift((Sint64)a * sx, 12),
-                             ActorShift((Sint64)cz * cx, 12) + ActorShift((Sint64)b * sx, 12),
-                             ActorShift(-(Sint64)cy * sx, 12)},
-                            {ActorShift((Sint64)sz * sx, 12) + ActorShift((Sint64)a * cx, 12),
-                             ActorShift((Sint64)cz * sx, 12) - ActorShift((Sint64)b * cx, 12),
-                             ActorShift((Sint64)cy * cx, 12)}};
     SotnBookProjection result = {0};
     Uint32 sum = 0;
     for (Uint32 i = 0; i < count; ++i)

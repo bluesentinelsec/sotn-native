@@ -295,6 +295,7 @@ typedef struct SotnTextureQuad
     Uint16 u[4], v[4]; /**< Texture edges 0..256, including the mirrored page boundary. */
     Uint16 page, palette;
     bool blend, modulate, tint;
+    bool triangle; /**< Original GT3: use only vertices0..2 and ignore the fourth slot. */
     Uint8 red, green, blue;
     Uint8 opacity;    /**< Color multiplier, 128 neutral, used only when modulate is true. */
     bool gouraud;     /**< Interpolate per-vertex multipliers instead of the uniform tint. */
@@ -303,7 +304,7 @@ typedef struct SotnTextureQuad
     bool dither;      /**< Original DTD conversion for selected untextured Gouraud polygons. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
 } SotnTextureQuad;
-/** @brief Draw a bounded textured or untextured quad as two triangles.
+/** @brief Draw a bounded polygon as one GT3 triangle or two quad triangles.
  * @param graphics Borrowed texture service; NULL is valid for an untextured quad.
  * @param quad Copied quad, coordinates within +/-2048.
  * @param frame Full RGB555 output. @param count Available pixels.
@@ -325,6 +326,10 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextur
 bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *graphics,
                                     const SotnPlayerEffectQuad *packet, Sint32 offset_x,
                                     Sint32 offset_y, SotnActorSurface surface);
+/** @brief Draw an original textured GT3 packet using only its first three vertices.
+ * Attributes and validation follow PlayerEffect; the fourth packet slot is unused. */
+bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *, const SotnPlayerEffectQuad *,
+                                      Sint32 offset_x, Sint32 offset_y, SotnActorSurface);
 /** @brief Draw a selected original untextured G4 with DRAW_COLORS and optional DTD dithering.
  * @param packet Borrowed original colors/coordinates/draw mode. @param offset_x Target X shift.
  * @param offset_y Target Y shift. @param surface Borrowed normal RGB555 raster surface.

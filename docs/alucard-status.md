@@ -18,7 +18,7 @@ fixtures and command recognizers do not establish playable availability by thems
 | Normal movement | Walking, jumping/crouching, backdash, double jump, dive kick and Gravity Boots | [Movement](laboratory-movement.md), [backdash](player-backdash.md), [Leap Stone](player-leap-stone.md), [dive kick](player-dive-kick.md), [Gravity Boots](player-gravity-boots.md) |
 | Forms | Mist/Gas Cloud, Bat flight/Wing Smash/Fire/Echo, Wolf movement/bite/sprint/charge, direct form conversions | [Mist](player-mist.md), [Gas Cloud](player-gas-cloud.md), [Bat](player-bat.md), [Wing Smash](player-wing-smash.md), [Fire](player-fire-of-bat.md), [Echo](player-echo-of-bat.md), [Wolf](player-wolf.md), [conversions](player-wolf-cross-forms.md) |
 | Normal spells | Dark Metamorphosis, Summon Spirit, Tetra Spirit, Hellfire and Soul Steal | [Dark](player-dark-metamorphosis.md), [spirits](player-spirit-spells.md), [Hellfire](player-hellfire.md), [Soul Steal](player-soul-steal.md) |
-| Selected consumables | Owned Library Card travel; weapon19 Neutron Bomb and weapon18 Power of Sire;42 weapon21 foods/Peanut/Toadstool/Meal Ticket;17 equippable medicines, actual cures/buffs/healing/MP and shared effects; Duplicator/Ankh | [Power of Sire](player-power-of-sire.md), [Neutron Bomb](player-neutron-bomb.md), [Food](player-food.md), [medicines](player-medicines.md), [Library Card](player-library-card.md), [shared teleport effects](teleport-effects.md); other-castle triggers/stages remain unavailable |
+| Selected consumables | Owned Library Card travel; weapon17 Pentagram/Bat Pentagram, weapon19 Neutron Bomb and weapon18 Power of Sire;42 weapon21 foods/Peanut/Toadstool/Meal Ticket;17 equippable medicines, actual cures/buffs/healing/MP and shared effects; Duplicator/Ankh | [Pentagrams](player-pentagrams.md), [Power of Sire](player-power-of-sire.md), [Neutron Bomb](player-neutron-bomb.md), [Food](player-food.md), [medicines](player-medicines.md), [Library Card](player-library-card.md), [shared teleport effects](teleport-effects.md); other-castle triggers/stages remain unavailable |
 | Water | Actual Entrance volumes/currents/effects, player drag/gravity/form gates, Wolf swimming, bubbles, ordinary HP loss and native water death | [Stage actors](native-water-actors.md), [player feedback](player-water.md), [bubbles](normal-water-bubbles.md), [damage/contact ordering](player-water-contact.md), [water death](player-water-death.md) |
 | Recovery and presentation | Afterimages, original16 player timer words, selected status masks, poison/curse/stone behavior, blood/orb healing and numbers, original HUD MP recovery, Fury Plate, Healing Mail and Blood Cloak | [Afterimages](player-afterimages.md), [player timers](player-timers.md), [status](player-status.md), [poison](player-poison.md), [curse](character-status.md), [stone](player-petrification.md), [blood](enemy-blood.md), [orbs](soul-steal-orbs.md), [healing numbers](player-healing-numbers.md), [contact numbers](player-contact-numbers.md), [neutral hurt feedback](player-neutral-hurt.md), [Fury](stat-buff-ownership.md), [HUD/Mail](hud-healing-resources.md), [Blood Cloak](player-blood-cloak.md) |
 | Combat and equipment | Owned Axe Armor movement/hurt/attack, selected empty-hand, Basilard, Gladius, Mace, Short sword and Alucard sword ordinary/command attacks and shield paths; selected equipment attributes/passives and absorption/immunity circlets, high-defense guard, Talisman dodge and Ballroom Mask reduction | [Axe Armor](player-axe-armor.md), [Combat](laboratory-combat.md), [Short sword](short-sword.md), [opening equipment](opening-equipment.md), [sword command](player-sword-warp.md), [inventory](character-inventory.md), [absorption](player-contact-absorption.md), [immunity](player-contact-immunity.md), [guard](player-contact-guard.md), [Talisman](player-contact-talisman.md), [Ballroom Mask](player-ballroom-mask.md) |
@@ -106,7 +106,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   now supplies actual hand input/consumption, shared weapon19 child/row, private
   SDK presentation and one native global damage pulse. [Selected Power of Sire72](player-power-of-sire.md)
   now supplies weapon18 parents/next-pass bursts, eight gated global pulses, private
-  bat/portrait/burst rendering and actual shared flash/shake/profile12 particles. Familiar use, remaining
+  bat/portrait/burst rendering and actual shared flash/shake/profile12 particles.
+  [Selected Pentagram73/Bat74](player-pentagrams.md) now supplies actual weapon17
+  hand input/consumption, shared25-row GT4/GT3 rendering, per-hand mutable scratch,
+  original SDK/GTE breakup and24-frame native global attacks. Familiar use, remaining
   consumables and weapon/equipment families still require real owners.
 - [ ] **Familiars and remaining spells:** finish actual familiar lifecycle,
   ordinary controls, behavior/combat/progression and Sword Brothers' familiar-dependent
@@ -202,6 +205,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   checks as supported castle routes permit. Compare original behavior and record
   remaining concessions explicitly; controlled component tests and passing CI
   alone do not close this gate.
+
+The requested [original cold-start flow](cold-start.md) now has its own source-backed
+implementation slices and acceptance gate. It remains open: the development
+Continue/checkpoint shell and inside-castle start do not establish New Game startup.
 
 Castle actors, routes, original prologue/title initialization, inverted castle and
 endings retain their separate [project acceptance gates](native-port-plan.md).

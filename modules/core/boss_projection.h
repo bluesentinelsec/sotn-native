@@ -34,6 +34,31 @@ typedef struct SotnProjectedPoint
  * this is a selected non-overflowing transform, not a general GTE implementation. */
 bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anchor_y,
                            Sint16 rotation, Sint16 x, Sint16 y, SotnProjectedPoint *out);
+/** @brief Selected weapon17 XYZ rotation, raw depth0..1280 and screen anchor. */
+typedef struct SotnTriangleTransform
+{
+    Sint16 x, y, z, depth;
+    Sint32 anchor_x, anchor_y;
+} SotnTriangleTransform;
+/** @brief Three local signed model coordinates, each axis within +/-32. */
+typedef struct SotnTriangleVertex
+{
+    Sint16 x, y, z;
+} SotnTriangleVertex;
+/** @brief Copied original screen coordinates, winding and AVSZ3 ordering depth. */
+typedef struct SotnTriangleProjection
+{
+    SotnProjectedPoint point[3];
+    Sint32 winding;
+    Uint16 ordering_depth;
+} SotnTriangleProjection;
+/** @brief Project a bounded weapon triangle using actual private SDK matrix pairs.
+ * Depth is the actual raw translation, without a book-camera offset. AVSZ3 retains
+ * its original341 factor. Zero winding must leave the caller's original packet
+ * coordinates unchanged; it supplies no valid original SDK output packet.
+ * @return Success or SDL error preserving output; not a general GTE emulator. */
+bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform transform,
+                          const SotnTriangleVertex vertices[3], SotnTriangleProjection *out);
 /** @brief Original book transform; angles use 4096 units, depth is 0..768. */
 typedef struct SotnBookTransform
 {
