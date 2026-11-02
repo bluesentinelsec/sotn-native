@@ -471,6 +471,81 @@ static bool BoundControls(SotnSoundSources inputs, SotnDataView image, SotnDataV
     SotnSound_Destroy(sound);
     return true;
 }
+static bool MenuAmbience(SotnSoundSources inputs, SotnDataView image, SotnStream *stream)
+{
+    Uint8 *dra = SDL_malloc(inputs.dra.size);
+    CHECK(dra);
+    SDL_memcpy(dra, inputs.dra.bytes, inputs.dra.size);
+    inputs.dra.bytes = dra;
+    const Uint8 definitions[21] = {1, 0, 60, 91, 1, 0,  0,   1, 0, 60, 127,
+                                   3, 0, 0,  1,  0, 60, 110, 1, 0, 0};
+    SDL_memcpy(dra + 0x1f554, definitions, sizeof(definitions));
+    for (Uint16 i = 0; i < 17; ++i)
+    {
+        Sound16(dra + 0x1d17c + i * 4, 127);
+        Sound16(dra + 0x1d17e + i * 4, 127);
+    }
+    SotnSound *sound = NULL;
+    SotnCdAudio *a = NULL;
+    SotnMusic *music = NULL;
+    SotnCdAudioState state = {0};
+    SotnSoundFrame frame = {0};
+    Uint32 clock = 0;
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    CHECK(SotnSound_Create(inputs, &sound) && SotnSound_ConfigureReverb(sound, image) &&
+          SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) &&
+          !SotnCdAudio_Queue(a, 0xa3) && !SotnCdAudio_QueueAmbienceVolume(a, 80, 0) &&
+          SotnCdAudio_BindSound(a, sound));
+    CHECK(SotnCdAudio_QueueAmbienceVolume(a, 80, 0) && !sound->ambience_volume22 &&
+          SotnCdAudio_Queue(a, 0xa3) && SotnCdAudio_Queue(a, 0xa4) && SotnCdAudio_Queue(a, 0xa7) &&
+          SotnCdAudio_Queue(a, 0xa8) && Tick(a, &clock, &state) && !sound->voices[20].active &&
+          !sound->voices[22].active && !sound->voices[20].key_off);
+    CHECK(SotnSound_QueueVolumePan(sound, 0x601, 73, -3) &&
+          SotnSound_QueueVolumePan(sound, 0x602, 92, 4) &&
+          SotnSound_UpdateCommands(sound, &frame) && Tick(a, &clock, &state) &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)) &&
+          sound->ambience_id20 == 0x601 && sound->ambience_id == 0x602);
+    const Uint32 cursor = sound->reverb.cursor;
+    CHECK(SotnCdAudio_Queue(a, 0xa7) && SotnCdAudio_Queue(a, 0xa3) && SotnCdAudio_Queue(a, 0xe) &&
+          Tick(a, &clock, &state) && sound->scripts_paused && sound->ambience_id20 == 0x601 &&
+          sound->ambience_id == 0x602 && sound->ambience_volume20 == 73 &&
+          sound->ambience_pan20 == -3 && sound->ambience_volume22 == 92 &&
+          sound->ambience_pan22 == 4 && sound->voices[20].key_off && sound->voices[22].key_off &&
+          (sound->registers[20].adsr[1] & 63U) == 8 && (sound->registers[22].adsr[1] & 63U) == 8 &&
+          sound->reverb.cursor == cursor);
+    for (Uint16 i = 0; i < 20; ++i)
+        CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    CHECK(SotnCdAudio_Queue(a, 0xf) && SotnCdAudio_Queue(a, 0xa4) && SotnCdAudio_Queue(a, 0xa8) &&
+          Tick(a, &clock, &state) && !sound->scripts_paused && !sound->voices[20].key_off &&
+          !sound->voices[22].key_off && sound->voices[20].active && sound->voices[22].active &&
+          sound->registers[20].adsr[1] == 0x1fc0 && sound->registers[22].adsr[1] == 0x1fc0);
+    // SetVolumeCommand retains globals immediately; queued1 uses them after a later ID clear.
+    CHECK(!SotnCdAudio_QueueAmbienceVolume(a, 128, 0) &&
+          !SotnCdAudio_QueueAmbienceVolume(a, 64, 9) && sound->ambience_volume22 == 92 &&
+          SotnCdAudio_Queue(a, 0xa6) && SotnCdAudio_QueueAmbienceVolume(a, 64, -2) &&
+          sound->ambience_volume22 == 64 && sound->ambience_pan22 == -2 &&
+          Tick(a, &clock, &state) && !sound->ambience_id && sound->registers[22].left == 2838 &&
+          sound->registers[22].right == 2838 && sound->voices[22].key_off &&
+          (sound->registers[22].adsr[1] & 63U) == 8);
+    const Sint32 held = sound->registers[22].left;
+    CHECK(SotnCdAudio_QueueAmbienceVolume(a, 99, 1) && Tick(a, &clock, &state) &&
+          sound->ambience_volume22 == 64 && sound->registers[22].left == held);
+    CHECK(SotnCdAudio_Queue(a, 0xa2) && Tick(a, &clock, &state) && !sound->ambience_id20 &&
+          sound->ambience_volume20 == 73 && (sound->registers[20].adsr[1] & 63U) == 8);
+    CHECK(SotnSound_Queue(sound, 0x602) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          SotnCdAudio_Queue(a, 0xa5) && Tick(a, &clock, &state) && !sound->ambience_id &&
+          (sound->registers[22].adsr[1] & 63U) == 14);
+    sound->script_backup[0].id = 0x603;
+    CHECK(SotnCdAudio_Queue(a, 0xa0) && Tick(a, &clock, &state) &&
+          sound->script_backup[0].id == 0x603 && sound->ambience_volume20 == 73 &&
+          sound->ambience_volume22 == 127);
+    for (Uint16 i = 0; i < 24; ++i)
+        CHECK(sound->voices[i].key_off && (sound->registers[i].adsr[1] & 63U) == 14);
+    SotnCdAudio_Destroy(a);
+    SotnSound_Destroy(sound);
+    SDL_free(dra);
+    return true;
+}
 static bool MasterFades(SotnSoundSources inputs, SotnDataView image, SotnDataView seq,
                         SotnStream *stream)
 {
@@ -716,6 +791,7 @@ static bool BoundReverb(Uint8 *dra, SotnStream *stream)
                       stream));
     CHECK(BoundControls(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
                         dra, stream));
+    CHECK(MenuAmbience(inputs, (SotnDataView){image, 0x24000}, stream));
     CHECK(StoppedReset(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
                        stream));
     SDL_free(reference);

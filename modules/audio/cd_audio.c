@@ -41,8 +41,8 @@ static bool XaCommand(Uint16 id)
 }
 static bool SpuCommand(Uint16 id)
 {
-    return id == 7 || id == 0xb || id == 0xe || id == 0xf || id == 0xa1 || id == 0x202 ||
-           id == 0x204;
+    return id == 1 || id == 7 || id == 0xb || id == 0xe || id == 0xf ||
+           (id >= 0xa0 && id <= 0xa8) || id == 0x202 || id == 0x204;
 }
 static void ForgetSaved(SotnCdAudio *a)
 {
@@ -125,11 +125,9 @@ static bool SoundCommands(SotnCdAudio *a)
             case 0xf:
                 SoundResumeScripts(a->sound);
                 break;
-            case 0xa1:
-                SoundReleaseAmbience20(a->sound);
-                break;
             default:
-                if (!SotnSound_PlaySequence(a->sound, id))
+                if (id == 1 || (id >= 0xa0 && id <= 0xa8) ? !SoundAmbienceControl(a->sound, id)
+                                                          : !SotnSound_PlaySequence(a->sound, id))
                     return false;
                 break;
             }
@@ -576,6 +574,16 @@ bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
     a->incoming[a->write] = command;
     a->write = (Uint16)((a->write + 1U) & 255U);
     return true;
+}
+bool SotnCdAudio_QueueAmbienceVolume(SotnCdAudio *a, Uint16 volume, Sint8 pan)
+{
+    if (!a || !a->sound || volume > 127 || pan < -8 || pan > 8)
+        return SDL_SetError("Bound ambience gain requires its actual owner and original bounds");
+    if (!a->sound->ambience_id)
+        return true;
+    a->sound->ambience_volume22 = volume;
+    a->sound->ambience_pan22 = pan;
+    return SotnCdAudio_Queue(a, 1);
 }
 bool SotnCdAudio_CheckSoundBinding(const SotnCdAudio *a, const SotnSound *sound)
 {

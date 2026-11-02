@@ -225,3 +225,44 @@ Debug/ASan CD, rescue, game-over and actual medicine-app regressions pass with n
 exits and no sanitizer errors. Exact-head platform results accompany the PR.
 Full SDK voice pressure/key timing, remaining global sound controls, CD wet sends,
 cross-session CD/SEQ/SPU continuity and all six Alucard milestone gates remain open.
+
+
+## Selected inventory-menu ambience controls
+
+The bound CD/SPU sound ring now executes original commands1 andA0..A8 on the
+existing24 voices. A0 releases all24 with RR14 and applies InitSoundVars2.
+A1/A5 release20/21 or22/23 with RR14 and clear that pair's current ID; A2/A6
+use RR8 and clear it. A3/A7 use RR8 only when an ID exists and retain it.
+A4/A8 rekey the retained private definition with its current gain and distance;
+22/23 also receive the original gain-only register writes. These operations
+retain their original script-copy, parameter and no-sample-tick boundaries.
+
+Actual inventory CLOSED/open transitions now queueA7,A3,E on entry andF,A4,A8
+on exit. Both Start and main-menu Cancel close paths reach that owner. Audio
+continues while the player/game clocks hold; repeated draws advance neither.
+Map and spirit-freeze transitions retain their own source boundaries.
+
+Native stage ambience changes now update retained22/23 gain/distance immediately
+and queue command1 in the same sound ring. No current ID means no update or queue
+write. Execution uses the then-current ID, including private entry0 if an earlier
+release cleared it. Later parameter changes therefore affect earlier pending1
+commands, and duplicate-XA returns can hold them. Standalone sound API compatibility
+keeps its separately documented deferred/no-active-ID behavior.
+
+Public authored checks exercise absent IDs, retained gains, release/rekey, all24
+cleanup and queued gain after ID clearing. Private comparisons execute the complete
+original command dispatcher and SetVolumeCommand22_23, with real SDK RR writes;
+pair playback and gain SDK calls remain explicit adapters. Actual native checks
+use loaded private20/22 pairs, menu input, combat gain requests and PCM separately
+from those component fixtures. The private command comparison passes13,260 contexts,535,500 queued commands,
+27,540 dispatcher calls and13,260 immediate-gain requests, comparing405 state
+fields. All seven private20/22 definitions,17 distances, three gains, empty IDs,
+wrapped cursors,256/257-write overflow and duplicate-XA holds are covered.
+Debug/ASan traces match byte-for-byte. Actual native Debug/ASan checks pass two
+menu cycles with both loaded pairs,16 audio updates with held player/game clocks,
+six draw holds and a real stage-combat gain request. Fourteen actual native command
+snapshots match the original dispatcher, with gain requests checked separately
+from adapted pair playback. These checks preserve the fixture boundaries above.
+Full SDK flush/NTSC timing, CD wet sends, remaining controls, session continuity
+and milestone1 acceptance remain incomplete. No new
+pool, default grants, savev9 fields or ordinary Fairy menu activation is added.

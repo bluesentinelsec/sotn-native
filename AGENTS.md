@@ -1,3 +1,14 @@
+Selected [inventory-menu audio](docs/laboratory-audio.md) now queues actual
+A7/A3/E entry andF/A4/A8 exit through the common sound ring. Preserve conditional
+RR8 releases with retained20/22 IDs, private-definition rekey/gain, unconditional
+A1/A2/A5/A6 clearing andA0 RR14/Init2. Stage22 gain retains parameters immediately;
+queue1 uses the current ID at execution, including private entry0 after clearing.
+Absent IDs queue nothing. Preserve duplicate-XA holds, ring wrap, post-script
+ordering, ordinary menu player/game holds and no-tick draws. Map and spell-freeze
+are separate owners. Pair/gain adapters and explicit native audio/card/load/arrival/
+protection fixtures are not acquisition/routes/fullSDKflush/console evidence.
+All six gates remain open; no new pool/grants/savesv9 or ordinary Fairy UI.
+
 Selected [direct-voice ownership](docs/laboratory-audio.md) now retains actual four
 12..19 effect identities/priorities, same-ID/free/strict-higher/equal arbitration and
 open-SEQ18/19 restriction. Equal replacement intentionally excludes group3 outside

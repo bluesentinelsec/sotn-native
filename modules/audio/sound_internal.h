@@ -76,6 +76,8 @@ void SoundReleaseAll(SotnSound *sound);
 void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate);
 /** @brief Original A1: RR14/key-off20/21 and clear current ID, retaining gain/distance. */
 void SoundReleaseAmbience20(SotnSound *sound);
+/** @brief Bound original commands1/A0..A8 on retained20/22 identities and real voices. */
+bool SoundAmbienceControl(SotnSound *sound, Uint16 command);
 /** @brief Original InitSoundVars1 metadata after actual StopSeq/CD shutdown.
  * Retains live envelopes, DSP/RAM and copied scripts; clears pending effects/SEQ attachment. */
 void SoundResetStopped(SotnSound *sound);

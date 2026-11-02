@@ -138,14 +138,19 @@ void SoundReleaseAmbience20(SotnSound *sound)
     sound->ambience_id20 = 0;
 }
 
-void SoundReleaseAll(SotnSound *sound)
+static void ReleaseAll(SotnSound *sound, Uint8 rate)
 {
-    SoundReleaseVoices(sound, 0xffffff, 8);
+    SoundReleaseVoices(sound, 0xffffff, rate);
     SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
     SDL_memset(sound->priority, 0, sizeof(sound->priority));
     SDL_memset(sound->effect_ids, 0, sizeof(sound->effect_ids));
     sound->ambience_id = sound->ambience_id20 = 0;
     sound->scripts_paused = false;
+}
+
+void SoundReleaseAll(SotnSound *sound)
+{
+    ReleaseAll(sound, 8);
 }
 
 void SoundResetStopped(SotnSound *sound)
@@ -266,12 +271,11 @@ static bool Pair(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint
            SoundKey(sound, voice + 1, bank, program, (Uint8)(tone + 1), note, volume, key_pan);
 }
 
-static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
+static bool SetAmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
 {
-    if (!sound->ambience_id)
-        return true;
     SotnDataView definition = {0}, coefficients = {0};
-    if (!View(sound->dra, 0x1f554 + (size_t)(sound->ambience_id - 0x600) * 7, 7, &definition) ||
+    const Uint16 index = sound->ambience_id ? (Uint16)(sound->ambience_id - 0x600U) : 0;
+    if (!View(sound->dra, 0x1f554 + (size_t)index * 7, 7, &definition) ||
         !View(sound->dra, 0x1d17c + (size_t)(pan + 8) * 4, 4, &coefficients))
         return false;
     const Uint16 right = U16(coefficients.bytes), left = U16(coefficients.bytes + 2);
@@ -287,6 +291,47 @@ static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
         sound->registers[voice].right = (Sint32)(((volume * right) >> 8) * 129U);
     }
     return true;
+}
+
+static bool AmbienceVolume(SotnSound *sound, Uint16 multiplier, Sint8 pan)
+{
+    return !sound->ambience_id || SetAmbienceVolume(sound, multiplier, pan);
+}
+
+bool SoundAmbienceControl(SotnSound *sound, Uint16 command)
+{
+    if (command == 1)
+        return SetAmbienceVolume(sound, sound->ambience_volume22, (Sint8)sound->ambience_pan22);
+    if (command == 0xa0)
+    {
+        ReleaseAll(sound, 14);
+        return true;
+    }
+    const bool high = command == 0xa1 || command == 0xa5;
+    const bool second = command >= 0xa5;
+    Uint16 *id = second ? &sound->ambience_id : &sound->ambience_id20;
+    if (high || command == 0xa2 || command == 0xa6)
+    {
+        SoundReleaseVoices(sound, second ? 0xc00000 : 0x300000, high ? 14 : 8);
+        *id = 0;
+        return true;
+    }
+    if (!*id)
+        return true;
+    if (command == 0xa3 || command == 0xa7)
+    {
+        SoundReleaseVoices(sound, second ? 0xc00000 : 0x300000, 8);
+        return true;
+    }
+    SotnDataView definition = {0};
+    if (!View(sound->dra, 0x1f554 + (size_t)(*id - 0x600U) * 7, 7, &definition))
+        return false;
+    const Uint8 *data = definition.bytes;
+    const Uint16 multiplier = second ? sound->ambience_volume22 : sound->ambience_volume20;
+    const Sint8 pan = (Sint8)(second ? sound->ambience_pan22 : sound->ambience_pan20);
+    const Uint8 volume = (Uint8)((((127U * data[3]) >> 7) * multiplier) >> 7);
+    return Pair(sound, second ? 22 : 20, data[0], data[1], data[5], data[2], volume, pan) &&
+           (!second || SetAmbienceVolume(sound, multiplier, pan));
 }
 
 static bool ScriptPair(SotnSound *sound, Uint32 first, Uint8 bank, Uint8 program, Uint8 tone,

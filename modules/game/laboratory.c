@@ -307,7 +307,7 @@ static bool QueueOwnedStageCd(SotnLaboratory *s, const SotnActorCombat *combat)
 
 static bool QueueNativeSound(SotnLaboratory *s, Uint16 id)
 {
-    if (s->fairy_cd && (id == 0xe || id == 0xf || id == 0xa1))
+    if (s->fairy_cd && (id == 0xe || id == 0xf || (id >= 0xa0 && id <= 0xa8)))
         return SotnCdAudio_Queue(s->fairy_cd, id);
     return SotnSound_Queue(s->sound, id);
 }
@@ -462,8 +462,10 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
                                             combat->pans[i]))
             return false;
     if (combat->ambience_change &&
-        !SotnSound_QueueAmbienceVolume(session->sound, combat->ambience_volume,
-                                       combat->ambience_pan))
+        (session->fairy_cd ? !SotnCdAudio_QueueAmbienceVolume(
+                                 session->fairy_cd, combat->ambience_volume, combat->ambience_pan)
+                           : !SotnSound_QueueAmbienceVolume(session->sound, combat->ambience_volume,
+                                                            combat->ambience_pan)))
         return false;
     if (guard_sound != 0 && !QueueNativeSound(session, guard_sound))
         return false;
@@ -2670,11 +2672,21 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     {
         Uint16 sound = 0;
         bool changed = false;
+        const bool was_open = session->menu.phase != SOTN_MENU_CLOSED;
         if (!SotnInventoryMenu_Tick(&session->menu, session->character, buttons, &sound, &changed,
                                     &session->world, session->dra) ||
             (changed && !ApplyCharacter(session)) ||
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
+        const bool is_open = session->menu.phase != SOTN_MENU_CLOSED;
+        if (session->fairy_cd && was_open != is_open)
+        {
+            const Uint16 enter[] = {0xa7, 0xa3, 0xe}, leave[] = {0xf, 0xa4, 0xa8};
+            const Uint16 *commands = is_open ? enter : leave;
+            for (Uint16 i = 0; i < SDL_arraysize(enter); ++i)
+                if (!SotnCdAudio_Queue(session->fairy_cd, commands[i]))
+                    return false;
+        }
         const SotnActorCombat silent = {0};
         if (!TickAudio(session, &silent, 0, 0, 0, 0))
             return false;

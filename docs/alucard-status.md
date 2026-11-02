@@ -167,7 +167,12 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [effect ring](laboratory-audio.md) now retains original256 read/write slots,
   last-duplicate order/volume/pan and wrap-to-empty behavior without a capacity
   failure. Standalone control/ambience compatibility APIs remain separately scoped.
-  Selected direct-effect identities now use original same/free/strict-higher/equal
+  Actual inventory-menu entry/exit now queuesA7/A3/E andF/A4/A8 through that ring.
+  Bound1/A0..A8 retain conditional release/rekey, current private definitions and
+  gain parameters; stage22 gain updates globals before its deferred command1.
+  An earlier queued clear still permits the original private-entry0 gain work.
+  Map/spell-freeze remain separate. Full SDK flush/timing and session continuity
+  still require their actual owners. Selected direct-effect identities now use original same/free/strict-higher/equal
   priority and open-SEQ18/19 restrictions; actual ENV words reclaim direct/script
   leases before effects. Group3 remains excluded from ordinary equal replacement.
   Script notes retain the actual cached-status/even-voice/global-cursor fallback
