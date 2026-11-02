@@ -253,6 +253,7 @@ static bool OpenAudio(SotnLaboratory *session, const char *directory)
 static bool BindActorAudio(SotnLaboratory *s)
 {
     bool playing = s->music != NULL;
+    bool dialogue = SotnMusic_Playing(s->speech);
     bool busy = s->music_fading || s->xa_command != 0;
     if (s->fairy_cd)
     {
@@ -260,10 +261,32 @@ static bool BindActorAudio(SotnLaboratory *s)
         if (!SotnCdAudio_Get(s->fairy_cd, &cd))
             return false;
         playing = cd.xa_active;
-        busy = busy || !cd.fade_acknowledged;
+        dialogue = cd.xa_active;
+        busy = busy || !cd.fade_acknowledged || !cd.acknowledged;
     }
     return SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks, playing) &&
-           SotnActors_SetDialogueBusy(s->actors, busy);
+           SotnActors_SetDialogueBusy(s->actors, busy) &&
+           SotnActors_Dialogue(s->actors, dialogue, NULL);
+}
+
+static bool QueueOwnedStageCd(SotnLaboratory *s, const SotnActorCombat *combat)
+{
+    if (combat->restart_stage_music)
+    {
+        SotnMusic *profile = NULL;
+        SotnMusicState state = {0};
+        if (!CreateStageMusic(s, &profile))
+            return false;
+        const bool read = !profile || SotnMusic_Get(profile, &state);
+        const Uint16 command = profile ? (Uint16)(state.id + 0x300U) : 0xa;
+        SotnMusic_Destroy(profile);
+        if (!read || !SotnCdAudio_Queue(s->fairy_cd, command))
+            return false;
+    }
+    if (combat->music_change &&
+        !SotnCdAudio_Queue(s->fairy_cd, combat->music ? combat->music : 0xa))
+        return false;
+    return true;
 }
 
 static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, Uint16 player_sound,
@@ -271,7 +294,9 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
 {
     if (session->sound == NULL)
         return true;
-    if (combat->restart_stage_music)
+    if (session->fairy_cd && !QueueOwnedStageCd(session, combat))
+        return false;
+    if (combat->restart_stage_music && !session->fairy_cd)
     {
         SotnMusic *next = NULL;
         if (!CreateStageMusic(session, &next))
@@ -290,7 +315,7 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         else if (!SotnSound_PlaySequence(session->sound, combat->sequence))
             return false;
     }
-    if (combat->music_change)
+    if (combat->music_change && !session->fairy_cd)
     {
         SotnMusic *next = NULL;
         if (combat->music != 0)
@@ -351,7 +376,9 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     }
     if (combat->cd_command)
     {
-        if (session->fairy_cd && combat->cd_command >= 0x90 && combat->cd_command <= 0x94)
+        if (session->fairy_cd &&
+            ((combat->cd_command >= 0x90 && combat->cd_command <= 0x94) ||
+             combat->cd_command == 0x10 || combat->cd_command == 0x11 || combat->cd_command == 0xa))
         {
             if (!SotnCdAudio_Queue(session->fairy_cd, combat->cd_command))
                 return false;
@@ -368,20 +395,30 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
         }
         else if (combat->cd_command != 0x10 && combat->cd_command != 0x11)
             return SDL_SetError("Dialogue issued an unsupported XA control command");
-        if (combat->cd_command == 0x10 || combat->cd_command == 0x11)
+        if (!session->fairy_cd && (combat->cd_command == 0x10 || combat->cd_command == 0x11))
             session->music_fading = combat->cd_command == 0x10;
-        if (combat->cd_command == 0x11)
+        if (!session->fairy_cd && combat->cd_command == 0x11)
         {
             session->music_paused = false;
             session->music_gain = 127;
         }
     }
-    if (combat->voice_stop)
+    if (combat->voice_stop && session->fairy_cd)
+    {
+        if (!(combat->music_change && !combat->music) && !SotnCdAudio_Queue(session->fairy_cd, 0xa))
+            return false;
+    }
+    else if (combat->voice_stop)
     {
         SotnMusic_Destroy(session->speech);
         session->speech = NULL;
     }
-    if (combat->voice_change)
+    if (combat->voice_change && session->fairy_cd)
+    {
+        if (!SotnCdAudio_Queue(session->fairy_cd, combat->voice))
+            return false;
+    }
+    else if (combat->voice_change)
     {
         SotnMusic *next = NULL;
         if (!SotnMusic_CreateSpeech(session->dra, session->music_stream, combat->voice, &next))
@@ -1650,12 +1687,10 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
         player.attack.sound = false;
     if (!BindActorAudio(session) ||
         !SotnActors_SetButtons(session->actors, session->scene_buttons) ||
-        !SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech), NULL) ||
         (!entering && !SotnSubweapons_Tick(session->subweapons, player, camera_x, camera_y)) ||
         !SotnActors_Tick(session->actors, player, camera_x, camera_y))
         return false;
-    if (!SotnActors_Dialogue(session->actors, SotnMusic_Playing(session->speech),
-                             &session->dialogue))
+    if (!SotnActors_GetDialogue(session->actors, &session->dialogue))
         return false;
     SotnPaletteBlend palette = {0};
     SotnPaletteRedShift red_shift = {0};
@@ -2364,10 +2399,9 @@ static bool TickSpellFreeze(SotnLaboratory *s, Uint16 buttons, SotnSceneFreezeFr
         ++s->player_effect_frame;
         if (!TickFairy(s, 3, s->camera.x, s->camera.y) || !TickBlinks(s, player, false) ||
             !BindActorAudio(s) || !SotnActors_SetButtons(s->actors, buttons) ||
-            !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
             !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
             !SotnActors_GetCombat(s->actors, &combat) ||
-            !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), &s->dialogue))
+            !SotnActors_GetDialogue(s->actors, &s->dialogue))
             return false;
         SotnPaletteBlend blend = {0};
         SotnPaletteRedShift red = {0};
@@ -2403,7 +2437,6 @@ static bool TickFairyFreeze(SotnLaboratory *s, Uint16 buttons)
         !SotnPlayer_GetState(s->player, &player) ||
         (s->fairy_scene != 0xfff && !SotnSceneFreeze_Request(&s->spell_freeze, s->fairy_scene)) ||
         !BindActorAudio(s) || !SotnActors_SetButtons(s->actors, buttons) ||
-        !SotnActors_Dialogue(s->actors, SotnMusic_Playing(s->speech), NULL) ||
         !SotnActors_TickFrozen(s->actors, player, s->camera.x, s->camera.y) ||
         !SotnActors_GetCombat(s->actors, &combat) || !TickHudFrame(s) ||
         !TickAudio(s, &combat, player.sound, player.extra_sound, player.third_sound, 0))

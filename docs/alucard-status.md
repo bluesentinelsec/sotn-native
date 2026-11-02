@@ -131,6 +131,12 @@ needs a source-backed inventory of its remaining branches and an evidence record
   through ordinary/frozen/FFF scheduling. Remaining general stage music/dialogue,
   master-volume fades, retargeted queues, reverb and general sharing remain open;
   this does not enable ordinary familiar selection.
+  An already bound native CD owner also receives selected stage music/speech,
+  stop, pause/restore and real-profile restart requests without overlapping legacy
+  decoders. Laboratory/Library boss fades and shared dialogue92 retain their actual
+  identities; the Laboratory music-transition victory preserves its original state
+  increment. Initial bootstrap/game-over routing, full sound ordering and session
+  continuity still require their remaining owners.
   **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character

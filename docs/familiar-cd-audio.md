@@ -44,8 +44,25 @@ Adoption retains that native service separately from newly queued managed music.
 The command
 owner applies the current absolute CD gain across native intro/loop metadata
 changes and preserves the retained decoder on restore. It neither replaces
-ordinary scene dialogue ownership. Selected Fairy requests already bind the native app;
-general stage/dialogue routing, reverb and full CD/session continuity remain open.
+ordinary scene dialogue ownership by itself. Selected Fairy requests already bind the native app;
+remaining general routing, reverb and full CD/session continuity remain open.
+
+When the actual CD owner is already bound, native stage music, speech, stop and
+pause/restore requests now share its command queue and decoder/bookmark ownership.
+They no longer create overlapping legacy music/speech decoders. A stage restart
+reads its real private profile before queuing that original identity. Pause precedes
+a same-event speech request; a combined music/voice stop emits one original stop.
+Stage dialogue waits bind actual XA activity and both acknowledgement flags.
+Presentation reads use an immutable snapshot rather than replacing that feedback
+with an absent legacy speech pointer after the stage callback.
+
+Laboratory and Library boss managers now preserve their original90 fade requests;
+shared dialogue opcodes9/20 preserve92 separately from stopA. The Laboratory manager
+also retains the original state3-to4 increment when both bosses die during active
+music; it reaches5 on the next callback. Other collapsed stage requests and global
+stage-music flags still need their own source audits. Initial unbound bootstrap,
+game-over audio, master-volume/reverb, whole sound-ring ordering and cross-session
+CD continuity remain unfinished. This selected binding does not enable Fairy menus.
 
 Selected native stage volume requests90..94 now reach this actual CD owner. Command8
 preserves the immediate separate fade flag, signed-word counter, multipliers128/8/4/2/1,
@@ -81,8 +98,8 @@ and finite speech retain their separate transport behavior.
 
 These managed loop services currently require an unchanged configured base. Global
 queued-base retargeting fails before seeking; its actual filter/seek/restore ownership
-remains unfinished. Remaining general native stage music/dialogue routing and SDK reverb are also
-unwired. Do not use these component services as ordinary familiar activation readiness.
+remains unfinished. Remaining general native routing and SDK reverb are also
+unfinished. Do not use these component services as ordinary familiar activation readiness.
 
 Public authored checks cover nested saves/restores, third-save wrap, exact cursor
 retention, finite tail/stop timing, wrapped clocks, both queue overflows, differing
@@ -112,6 +129,23 @@ CD fades advance. An actual five-MP Summon Spirit cast holds the game clock thro
 afterward. Repeated draws hold audio state. These card/load, protection, music-command
 and stage-event fixtures establish selected native scheduling, not ordinary stage-script
 routes, acquisition, full general audio, persistence or console parity.
+
+Selected bound-stage routing checks pass767 paired native/reference-owner updates
+in each Debug/ASan build, including separate and same-event pause/speech, natural
+completion, retained stage resumes, real restart-profile selection and stop ownership.
+No overlapping legacy decoder appears. The reference produces917,540 nonzero PCM
+samples; this is service evidence, not device/console PCM equivalence. Its first new
+start establishes a common deadline/mode after the old adopted transport's separate
+prehistory. Original-instruction comparisons cover504 complete Laboratory/Library
+manager calls, exact emitted audio identities and state transitions. XA activity and
+the retained prior-phase music word are supplied fixtures; PlaySfx, TimeAttack and
+debug printing use explicit callee adapters. Those checks are separate from actual
+encounter routes or whole-pass acceptance.
+A cached native candidate and real room17-to12-to16 entry also reach the placed
+Laboratory manager, real Slogra/Gaibon roots and original90/CD8 retirement while
+an actual menu holds player/game clocks. Supplied arrival/edge/floor positions are
+not traversal evidence. The accelerated double-cross fixture reaches an unsupported
+movement boundary on ordinary resume; uninterrupted room acceptance remains open.
 
 Native backend checks also connect the actual service snapshots to the original
 Fairy DE sound-state component, including natural completion, cancellation,

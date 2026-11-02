@@ -1,3 +1,15 @@
+Selected [bound stage CD routing](docs/familiar-cd-audio.md) now shares actual
+music/speech/stop/pause/restore and private-profile restart with the existing CD
+owner. Preserve pause-before-same-event-speech, single combined stop, original XA
+activity/both acknowledgement flags and immutable post-stage dialogue snapshots.
+Never create overlapping legacy decoders for that binding. Laboratory/Library90
+and shared dialogue92 retain original identities; Laboratory victory during active
+state3 increments to4 before5. Explicit audio events/activity/retained music words
+and card/protection fixtures are not encounter-route/acquisition/console evidence.
+Unbound bootstrap/game-over, master/reverb, other collapsed stage requests, full
+sound-ring sharing/session continuity/persistence/whole-pass and Fairy UI stay open.
+No grants/pools/v9 changes; all six milestone gates remain open.
+
 Selected [CD volume fades](docs/familiar-cd-audio.md) now bind native stage90..94
 to actual command8 and real decoding. Preserve the immediate separate fade flag,
 signed words, shared128/8/4/2/1 multiplier, possible gain increase after retarget,

@@ -53,6 +53,24 @@ static bool Scripts(Fixture *f)
     SotnActors_Destroy(s);
     return true;
 }
+static bool FadeCommands(Fixture *f)
+{
+    for (Uint16 opcode = 9; opcode <= 20; opcode += 11)
+        for (Uint16 fade = 0; fade < 2; ++fade)
+        {
+            SotnActors *s = NULL;
+            CHECK(Open(f, &s));
+            const Uint8 program[] = {(Uint8)opcode, 0, (Uint8)(fade ? 0x92 : 0xa), 17, 13, 0};
+            SDL_memcpy(f->stage + 0x4ce0, program, sizeof(program));
+            Actor a = {.state = {.id = 0x57, .generation = 1}};
+            CHECK(ActorDeath(s, &a) && ActorDeath(s, &a));
+            CHECK(s->combat.cd_command == (fade ? 0x92 : 0) && s->combat.music_change == !fade &&
+                  !s->combat.music);
+            CHECK(!s->combat.voice_stop && !s->combat.voice_change && !s->combat.sound_count);
+            SotnActors_Destroy(s);
+        }
+    return true;
+}
 static bool VoiceWaits(Fixture *f)
 {
     SotnActors *s = NULL;
@@ -62,6 +80,8 @@ static bool VoiceWaits(Fixture *f)
     Actor a = {.state = {.id = 0x57, .generation = 1}};
     CHECK(ActorDeath(s, &a));
     CHECK(ActorDeath(s, &a) && !a.remove && s->combat.voice_change && s->combat.voice == 0x35f);
+    SotnDialogueState display = {0};
+    CHECK(SotnActors_GetDialogue(s, &display) && s->death_event.voice_playing);
     CHECK(ActorDeath(s, &a) && !a.remove);
     CHECK(SotnActors_Dialogue(s, false, NULL));
     CHECK(ActorDeath(s, &a) && a.remove);
@@ -143,7 +163,8 @@ static bool Failures(Fixture *f)
 int main(void)
 {
     Fixture fixture = {0};
-    if (!Scripts(&fixture) || !VoiceWaits(&fixture) || !Manager(&fixture) || !Failures(&fixture))
+    if (!Scripts(&fixture) || !FadeCommands(&fixture) || !VoiceWaits(&fixture) ||
+        !Manager(&fixture) || !Failures(&fixture))
         return 1;
     SDL_Log("SOTN_DEATH_EVENT_TEST: PASS");
     return 0;

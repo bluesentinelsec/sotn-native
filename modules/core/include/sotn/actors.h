@@ -270,7 +270,7 @@ typedef struct SotnActorCombat
     bool ambience_change; /**< Original channel 22/23 gain update without key-on. */
     Uint16 ambience_volume;
     Sint8 ambience_pan;
-    Uint16 cd_command; /**< Original XA pause/resume command, zero when unchanged. */
+    Uint16 cd_command; /**< Original XA control/fade command, zero when unchanged. */
     Uint16 voice;
     bool voice_change;
     bool voice_stop; /**< Stop XA speech independently of the sequence owner. */
@@ -286,6 +286,8 @@ typedef struct SotnActorCombat
  * @param out Optional presentation snapshot. @return Success or SDL error.
  */
 bool SotnActors_Dialogue(SotnActors *actors, bool voice_playing, SotnDialogueState *out);
+/** @brief Read committed dialogue presentation without changing actual XA feedback. */
+bool SotnActors_GetDialogue(const SotnActors *actors, SotnDialogueState *out);
 
 /** @brief Feed completion of native XA pause/resume into the shared dialogue waits.
  * @param actors Borrowed owner. @param busy A CD transition is still in progress.
