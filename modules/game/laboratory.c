@@ -1281,6 +1281,9 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         if (s->bat_runtime.use_ticks &&
             !SotnPlayer_SetUseTimer(s->player, s->bat_runtime.use_ticks))
             return false;
+        if (s->bat_runtime.spell_use_ticks &&
+            !SotnPlayer_SetSpellUseTimer(s->player, s->bat_runtime.spell_use_ticks))
+            return false;
         for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
             if (!SotnSound_Queue(s->sound, s->bat_runtime.sounds[i]))
                 return false;

@@ -3850,6 +3850,14 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *p, Uint8 ticks)
     return true;
 }
 
+bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
+{
+    if (!p || ticks > 32)
+        return SDL_SetError("Player spell-use timer requires its owner and bounded ticks");
+    p->spell_use_ticks = ticks;
+    return true;
+}
+
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *p, Uint16 amount, Uint16 contacts)
 {
     if (!p || (amount != 0 && amount != 8 && amount != 16) || !contacts || contacts > 32)

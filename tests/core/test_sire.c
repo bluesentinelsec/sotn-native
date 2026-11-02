@@ -88,8 +88,8 @@ static bool Shared(void)
     CHECK(SotnCharacter_Get(character, &after, NULL) && after.random == initial.random);
     Put16(overlay + 0x6a8, 2);
     CHECK(SotnBatRuntime_Tick(r, character, in) && r->sire_mask == 2 && r->children[1].sire &&
-          !r->children[1].sire_child && r->children[1].group == 3 &&
-          r->children[1].state.sire.attack.equipment == 72 &&
+          r->spell_use_ticks == 4 && !r->use_ticks && !r->children[1].sire_child &&
+          r->children[1].group == 3 && r->children[1].state.sire.attack.equipment == 72 &&
           r->children[1].state.sire.animation.frame == 1 &&
           SotnActors_CommitBatPrimitives(actors, r));
     Uint32 expected = initial.random;

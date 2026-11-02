@@ -8,6 +8,9 @@ and inventory fields remain unchanged; transient effects are never saved.
 
 ## Ownership and timing
 
+Successful shared birth commits original spell-use word12 to4. It preserves
+subweapon/Bat Fire word10; both use the existing sixteen-word player bank.
+
 The ordinary hand helper checks actual item/hand chain limit 1 before curse. Pending
 roots are excluded; every actual child already retains argument 71 in the original
 equipment word at factory birth, before its later attack activation. A successful factory 50 reservation

@@ -215,7 +215,8 @@ typedef struct SotnBatRuntime
     bool freeze_changed; /**< Actual child request this tick, never capture/factory readiness. */
     Uint16 sounds[48], sound_count;
     Uint8 wolf_shakes[8], wolf_shake_count;
-    Uint8 use_ticks;
+    Uint8 use_ticks;       /**< Original timer10: selected Bat Fire birth. */
+    Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births. */
     Uint8 groups[11];
     bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
     bool echo_attack;

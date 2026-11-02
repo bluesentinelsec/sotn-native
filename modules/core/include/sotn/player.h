@@ -961,6 +961,11 @@ void SotnPlayer_Close(SotnPlayer *player);
  * @param player Borrowed owner. @param ticks Original timer value, 0..32.
  * @return Success or SDL error without mutation. This grants no invincibility. */
 bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Commit original spell-use timer12 after a successful actual child update.
+ * @param player Borrowed player. @param ticks Original timer value, 0..32.
+ * @return Success or SDL error without mutation. Timer10 and damage-invincibility
+ * words retain their own producers; this operation does not advance any timer. */
+bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
 /** @brief Queue actual blood contact healing for the following player update.
  * @param player Borrowed owner. @param amount Original first-request amount0/8/16.
  * @param contacts Actual consumed contacts this stage update,1..32.

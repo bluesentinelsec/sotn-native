@@ -100,6 +100,8 @@ static bool Tick(Fixture *f, Uint16 buttons)
             .force_echo_enabled = (f->world.relics[SOTN_RELIC_FORCE_ECHO] & 3U) == 3}));
     if (f->runtime.use_ticks)
         CHECK(SotnPlayer_SetUseTimer(f->player, f->runtime.use_ticks));
+    if (f->runtime.spell_use_ticks)
+        CHECK(SotnPlayer_SetSpellUseTimer(f->player, f->runtime.spell_use_ticks));
     if (f->wolf_owned && f->state.step == SOTN_PLAYER_WOLF && f->runtime.wolf.generation)
     {
         CHECK(SotnPlayer_CommitWolfBody(f->player, &f->runtime.wolf, &f->runtime.wolf_frame, 0, 0));
@@ -309,7 +311,7 @@ static bool Fire(Fixture *f)
     CHECK(child.kind == 45 && child.initialized && child.group == 7 &&
           child.state.fire.frame == 100 && child.state.fire.attack.width == 4 &&
           child.state.fire.attack.height == 8 && child.state.fire.attack.critical_rate == 16 &&
-          f->runtime.use_ticks == 4 && f->runtime.sound_count == 1 &&
+          f->runtime.use_ticks == 4 && !f->runtime.spell_use_ticks && f->runtime.sound_count == 1 &&
           f->runtime.sounds[0] == 0x680);
     SotnCharacterState owned_before = {0};
     CHECK(SotnCharacter_Get(f->character, &owned_before, NULL));
@@ -1828,6 +1830,8 @@ static bool ClearPlayerRuntime(Fixture *f)
         f->runtime.teleport.points[31].y = 241;
         f->runtime.screen_flash_ticks = 12;
         f->runtime.serial = 999;
+        f->runtime.use_ticks = 4;
+        f->runtime.spell_use_ticks = 7;
         *before = f->runtime;
         // A stale hidden particle sentinel must prevent all factory/child/row retirement.
         const Uint16 sentinel = particles->primitives[2];
@@ -1851,8 +1855,8 @@ static bool ClearPlayerRuntime(Fixture *f)
         SotnCharacterState character = {0}, after = {0};
         CHECK(SotnCharacter_Get(f->character, &character, NULL) &&
               SotnActors_ClearPlayerRuntime(actors, &f->runtime) &&
-              !SotnBatRuntime_Occupied(&f->runtime) &&
-              SotnCharacter_Get(f->character, &after, NULL) &&
+              !SotnBatRuntime_Occupied(&f->runtime) && !f->runtime.use_ticks &&
+              !f->runtime.spell_use_ticks && SotnCharacter_Get(f->character, &after, NULL) &&
               !SDL_memcmp(&character, &after, sizeof(after)));
         for (Uint16 i = 0; i < 8; ++i)
             CHECK(!f->runtime.factories[i].cursor.entity_id);

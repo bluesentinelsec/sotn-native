@@ -229,7 +229,8 @@ static bool Shared(void)
     CHECK(SotnCharacter_Get(character, &after, NULL) && after.random == initial.random);
     Put16(overlay + 0x260, 56);
     CHECK(SotnBatRuntime_Tick(r, character, in) && r->pentagram_mask == 2 &&
-          r->children[1].pentagram && r->children[1].primitive_count == 25 &&
+          r->spell_use_ticks == 4 && !r->use_ticks && r->children[1].pentagram &&
+          r->children[1].primitive_count == 25 &&
           r->children[1].state.pentagram.attack.invincibility_frames == 30 &&
           r->children[1].state.pentagram.motion.x == 228 * 65536 &&
           r->children[1].state.pentagram.motion.y == 154 * 65536 &&

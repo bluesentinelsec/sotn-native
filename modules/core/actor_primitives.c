@@ -523,6 +523,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     SDL_zero(next->wolf_attacks);
     SDL_zero(next->captures);
     next->capture_count = next->sound_count = next->wolf_shake_count = 0;
+    next->use_ticks = next->spell_use_ticks = 0;
     next->soul_attack = next->echo_attack = next->hellfire_upload = false;
     next->dissolve_frame_load = next->afterimage_reset = next->freeze_changed = false;
     const bool ok = CommitBatPrimitives(s, next, true);

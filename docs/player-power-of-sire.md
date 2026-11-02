@@ -7,6 +7,9 @@ and native global attack82. Starts and version-nine save fields remain unchanged
 
 ## Ownership and timing
 
+Successful shared birth commits original spell-use word12 to4. It preserves
+subweapon/Bat Fire word10; both use the existing sixteen-word player bank.
+
 The hand helper counts actual item72 parents, including cold factory-born children,
 before curse; pending roots and starburst children do not count. Chain1 and real
 root exhaustion prevent use without spending stock or casting RNG. Curse requests

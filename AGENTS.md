@@ -1,3 +1,13 @@
+Selected [native ability timer commits](docs/player-timers.md) now retain separate
+original word10 (Bat Fire) and word12 (Neutron/Sire/Pentagram) birth requests.
+Preserve actual indices, original4 overwrite, status1000, the other timer's count,
+player-success/shared-owner commitment and ordinary countdown/menu/freeze/draw
+holds. Actual player-entity cleanup clears consumed requests, not live player
+words. Do not route weapon17/18/19 through the subweapon10 setter. No second timer
+bank, grants or savev9 change. Supplied stock/protection/timer/resource/arrival
+fixtures are not acquisition/routes/global timing/console evidence; all six
+Alucard gates and original cold-start gate remain open.
+
 Selected [Pentagram73/Bat74](docs/player-pentagrams.md) now owns actual menu/hand
 use, inventory/Duplicator consumption, resident weapon17, shared50 roots/17..31
 children,25 real rows, private GT4+24GT3 drawing and native global82 attacks.

@@ -1781,7 +1781,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.hellfire_upload = false;
     r.sound_count = 0;
     r.wolf_shake_count = 0;
-    r.use_ticks = 0;
+    r.use_ticks = r.spell_use_ticks = 0;
     r.afterimage_reset = false;
     r.dissolve_frame_load = false;
     SotnPlayerState p = in.player;
@@ -2197,7 +2197,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (events.clear_attack)
                 c->state.pentagram.attack.active = false;
             if (events.use_ticks)
-                r.use_ticks = events.use_ticks;
+                r.spell_use_ticks = events.use_ticks;
             if (events.flash && !Flash(&r, in.dra, events.flash))
                 return false;
             if (events.shake)
@@ -2314,7 +2314,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 if (events.reset_pose)
                     c->state.sire.animation = (SotnSireAnimation){0};
                 if (events.use_ticks)
-                    r.use_ticks = events.use_ticks;
+                    r.spell_use_ticks = events.use_ticks;
                 if (events.flash && !Flash(&r, in.dra, events.flash))
                     return false;
                 if (events.shake)
@@ -2402,7 +2402,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (events.disable_attack)
                 c->state.neutron.attack.active = false;
             if (events.use_ticks)
-                r.use_ticks = events.use_ticks;
+                r.spell_use_ticks = events.use_ticks;
             for (Uint16 j = 0; j < 2; ++j)
                 if (events.sounds[j] && !Sound(&r, events.sounds[j]))
                     return false;

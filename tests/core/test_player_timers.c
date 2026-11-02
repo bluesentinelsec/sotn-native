@@ -40,6 +40,16 @@ static bool Words(void)
           !SDL_memcmp(copied.player_timers, p.timers, sizeof(p.timers)) &&
           !SDL_memcmp(before.timers, p.timers, sizeof(p.timers)));
     CHECK(SotnPlayer_SetUseTimer(&p, 7) && p.subweapon_ticks == 7 && p.poison_ticks == 4095);
+    CHECK(SotnPlayer_SetSpellUseTimer(&p, 4) && p.timers[12] == 4 && p.timers[10] == 7 &&
+          p.poison_ticks == 4095 && p.invincibility_flash_ticks == 10 && !p.invincibility);
+    const SotnPlayer independent = p;
+    CHECK(!SotnPlayer_SetSpellUseTimer(&p, 33) && !SDL_memcmp(&p, &independent, sizeof(p)) &&
+          !SotnPlayer_SetSpellUseTimer(NULL, 4));
+    CHECK(SotnPlayer_GetState(&p, &copied) && copied.spell_use_ticks == 4 &&
+          (copied.status & 0x1000U) && copied.player_timers[10] == 7 &&
+          copied.player_timers[12] == 4);
+    CHECK(SotnPlayer_SetSpellUseTimer(&p, 0) && SotnPlayer_GetState(&p, &copied) &&
+          !(copied.status & 0x1000U) && (copied.status & 0x800U) && copied.player_timers[10] == 7);
     p.weapon_startup = 4;
     CHECK(SotnPlayer_GetState(&p, &copied) && (copied.status & 0x400U));
     p.invincibility_flash_ticks = 1;

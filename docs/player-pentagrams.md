@@ -7,6 +7,9 @@ presentation. Ordinary starts and version-nine save fields remain unchanged.
 
 ## Ownership and timing
 
+Successful shared birth commits original spell-use word12 to4. It preserves
+subweapon/Bat Fire word10; both use the existing sixteen-word player bank.
+
 The hand helper counts actual item/hand children, including cold factory births,
 before curse. Pending roots do not count. Chain1 and real root exhaustion prevent
 use without stock or casting RNG. Successful player completion consumes once and
