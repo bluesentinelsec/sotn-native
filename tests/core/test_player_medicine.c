@@ -288,6 +288,50 @@ static bool Resources(Fixture *f)
     CHECK(!SotnPlayer_CommitMedicine(f->p, &hammer, 20) && !SDL_memcmp(&held, f->p, sizeof(held)));
     return true;
 }
+static bool FoodResources(Fixture *f)
+{
+    CHECK(Create(f, 159, 0, 0, 0));
+    Uint8 *definition = f->dra + 0x500 + 29 * 52;
+    definition[8] = 50;
+    definition[14] = 6;
+    definition[15] = 21;
+    definition[17] = 132;
+    definition[18] = 0x60;
+    definition[19] = 50;
+    definition[22] = 2;
+    definition[25] = 1;
+    SotnCharacterStats stats = {0};
+    CHECK(SotnCharacter_Collect(f->character, false, 29) &&
+          SotnCharacter_Equip(f->character, 0, 29) &&
+          SotnCharacter_Get(f->character, NULL, &stats) && !stats.attack[0] &&
+          stats.unarmed_attack == 6);
+    const SotnFoodEvents events[] = {{.heal = true, .heal_amount = 100},
+                                     {.heal = true, .heal_amount = 6, .peanut_pose = true},
+                                     {.simulated_ticks = 20, .crouch = true},
+                                     {.poison = true}};
+    f->p->queued_contact = (SotnPlayerContact){
+        .attack = 40, .parameters = 0x21, .source_x = 123, .source_velocity = -65536};
+    CHECK(SotnPlayer_CommitFood(f->p, events, SDL_arraysize(events)) &&
+          f->p->healing.pending == 100 && f->p->healing.pending_kind == 1 &&
+          f->p->animation.pose == 3 && f->p->animation.remaining == 8 &&
+          f->p->simulated_pad.remaining == 20 && f->p->simulated_pad.buttons == SOTN_BUTTON_DOWN &&
+          f->p->queued_contact.parameters == 0x81 && !f->p->queued_contact.attack &&
+          f->p->queued_contact.source_x == 123 && f->p->queued_contact.source_velocity == -65536 &&
+          f->p->hp == 70);
+    f->p->healing.pending = 1;
+    f->p->healing.pending_kind = 2;
+    CHECK(SotnPlayer_CommitFood(f->p, events, 2) && f->p->healing.pending == 1 &&
+          f->p->healing.pending_kind == 2);
+    const SotnFoodEvents invalid[] = {{.heal = true, .heal_amount = 10}, {.simulated_ticks = 19}};
+    const SotnPlayer held = *f->p;
+    CHECK(!SotnPlayer_CommitFood(f->p, invalid, 2) && !SDL_memcmp(&held, f->p, sizeof(held)));
+    f->p->step = SOTN_PLAYER_KILL;
+    f->p->hp = 0;
+    f->p->healing.pending_kind = 0;
+    CHECK(SotnPlayer_CommitFood(f->p, events, 1) && f->p->healing.pending == 100 &&
+          f->p->healing.pending_kind == 1 && !f->p->hp && f->p->step == SOTN_PLAYER_KILL);
+    return true;
+}
 static bool Cursor(Fixture *f)
 {
     Uint8 *r = f->dra + 0xdef0;
@@ -325,7 +369,7 @@ int main(void)
     if (!f)
         return 1;
     const bool ok = Commands(f) && Boundaries(f) && FamiliarFactory(f) && FamiliarInventory(f) &&
-                    Resources(f) && Cursor(f);
+                    Resources(f) && FoodResources(f) && Cursor(f);
     SotnPlayer_Close(f->p);
     SotnCharacter_Destroy(f->character);
     SDL_free(f);

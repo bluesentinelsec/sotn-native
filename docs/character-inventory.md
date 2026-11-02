@@ -33,7 +33,10 @@ consumable in either accessory. The subsequent [owned medicine owner](player-med
 adds17 equippable items144..162, excluding Life Apple146/Hammer147 as required by
 the original menu. Either Duplicator preserves them; Ankh of Life80 scales Potion/
 High Potion healing once even with two. Their cures, buffs, HP/MP and shared effects
-now run; the actual Fairy and remaining consumable/equipment effects stay open.
+now run. [Owned food29..70](player-food.md) now adds actual weapon21 use, raw healing,
+Peanuts, Toadstool and Meal Ticket inventory/text pickup. Food and medicine retain
+the original zero displayed weapon attack; raw food attack remains healing power.
+Other consumable/equipment effects and the familiar completion gates stay open.
 Owned Gold/Ruby/Opal/Topaz/Beryl and Cat-eye circlets now connect their actual
 [contact-absorption owner](player-contact-absorption.md), with unchanged ordinary
 ownership and save fields. This does not establish ordinary acquisition routes.

@@ -40,6 +40,7 @@ typedef struct SotnItem
     SotnDataView name, description;
     Sint16 attack, defense, bonus[4];
     Uint16 id, type, weakness, resistance, immunity, absorption, icon, palette;
+    Uint8 category; /**< Original hand itemCategory; zero for body records. */
     bool body, supported;
     bool
         name_ascii; /**< Relic names use bounded ASCII; equipment uses the private font encoding. */
@@ -120,6 +121,10 @@ bool SotnCharacter_Restore(SotnCharacter *character, const SotnCharacterState *s
  * @param character Borrowed character. @param body Item table. @param id Bounded item ID.
  * @return Success or false with SDL_GetError(); unsupported items can be owned, never misused. */
 bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
+/** @brief Apply actual acquisition ordering to a staged progress transaction.
+ * The supplied progress and live character remain unchanged on failure. */
+bool SotnCharacter_PlanCollect(const SotnCharacter *character, SotnCharacterState *state, bool body,
+                               Uint16 id);
 /** @brief Exchange gold and unequipped equipment atomically using the shop's original limits.
  * @param character Owned progress. @param body Select item table. @param id Original item ID.
  * @param quantity Copies, 1..99. @param price Unit price, 0..999999.
@@ -162,6 +167,9 @@ bool SotnCharacter_UseLibraryCard(SotnCharacter *character, Uint16 hand, Uint16 
  * atomically. */
 bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 item,
                                Uint16 *equipped);
+/** @brief Consume actual weapon21 food29..70 after successful player control.
+ * Spare stock, last-copy removal and actual Duplicator use the same original ReduceWeapon. */
+bool SotnCharacter_UseFood(SotnCharacter *character, Uint16 hand, Uint16 item, Uint16 *equipped);
 /** @brief Commit one original Fairy bag-byte decrement for actual mapped medicine144..162.
  * Call after the real callback/player/native operations succeed, even if optional effects
  * cannot allocate. Leaves equipment, acquisition order, stats, resources and RNG unchanged;

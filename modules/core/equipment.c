@@ -27,6 +27,8 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
+    if (id >= 29 && id <= 70)
+        return SotnEquipment_ReadFood(dra, id, out);
     if (out == NULL || (id != 0 && id != 16 && id != 18 && id != 19 && id != 86 && id != 123 &&
                         id != 128 && id != 166 && (id < 144 || id > 162)))
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
@@ -68,6 +70,33 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
     return true;
 }
 
+bool SotnEquipment_ReadFood(SotnDataView dra, Uint16 id, SotnEquipment *out)
+{
+    const Uint8 *pointer = NULL, *p = NULL;
+    if (!out || id < 29 || id > 70)
+        return SDL_SetError("Food metadata requires an original weapon21 hand item29..70");
+    if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)id * 52, 50, &p))
+        return false;
+    if (p[14] != 6 || p[15] != 21 || p[16] || p[17] != 132 || p[18] != 0x60 || p[19] != 50 ||
+        p[20] != id - 29U || p[21] || p[22] != 2 || p[23] || p[24] || p[25] != 1 ||
+        Read16(p + 36) || Read16(p + 8) > 9999)
+        return SDL_SetError("Food definition does not match its actual private weapon21 path");
+    *out = (SotnEquipment){.id = id,
+                           .family = 21,
+                           .kind = 132,
+                           .animation = p[18],
+                           .variant = p[20],
+                           .attack = (Sint16)Read16(p + 8),
+                           .element = Read16(p + 12),
+                           .stun = Read16(p + 38),
+                           .hit_type = Read16(p + 40),
+                           .hit_effect = Read16(p + 42),
+                           .critical_rate = Read16(p + 48),
+                           .invincibility = p[26]};
+    return true;
+}
+
 bool SotnEquipment_ReadAxeArmor(SotnDataView dra, SotnEquipment *out)
 {
     const Uint8 *pointer = NULL, *record = NULL;
@@ -87,14 +116,15 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
 {
     if (out == NULL ||
         (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 86 &&
-         equipment.id != 123 && equipment.id != 197 && equipment.id != 216 &&
-         equipment.id != 128) ||
+         equipment.id != 123 && equipment.id != 197 && equipment.id != 216 && equipment.id != 128 &&
+         (equipment.id < 29 || equipment.id > 70)) ||
         equipment.family != (equipment.id == 86                           ? 0
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
                              : equipment.id == 123 || equipment.id == 197 ? 43
                              : equipment.id == 16                         ? 52
                              : equipment.id == 216                        ? 45
+                             : equipment.id >= 29 && equipment.id <= 70   ? 21
                                                                           : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;

@@ -92,12 +92,14 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .attack = Signed16(p + 8),
                      .defense = Signed16(p + 10),
                      .type = body ? Read16(p + 28) : 0,
+                     .category = body ? 0 : p[14],
                      .icon = Read16(p + (body ? 24 : 44)),
                      .palette = Read16(p + (body ? 26 : 46)),
-                     .supported = body ? BodySupported(id)
-                                       : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
-                                          id == 123 || id == 128 || id == 166 ||
-                                          (id >= 144 && id <= 162 && id != 146 && id != 147))};
+                     .supported =
+                         body ? BodySupported(id)
+                              : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
+                                 id == 123 || id == 128 || id == 166 || (id >= 29 && id <= 70) ||
+                                 (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -255,10 +257,13 @@ static bool Calculate(SotnCharacter *c)
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack += 20;
     for (Uint32 i = 0; i < 2; ++i)
-        result.attack[i] = (Uint16)SDL_clamp(
-            Word(items[i].attack + attack +
-                 (items[i].attack <= result.total[0] ? result.total[0] : result.total[0] / 2)),
-            0, 999);
+        result.attack[i] = items[i].category == 6 || items[i].category == 10
+                               ? 0
+                               : (Uint16)SDL_clamp(Word(items[i].attack + attack +
+                                                        (items[i].attack <= result.total[0]
+                                                             ? result.total[0]
+                                                             : result.total[0] / 2)),
+                                                   0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
         return false;
@@ -510,6 +515,18 @@ bool SotnCharacter_Collect(SotnCharacter *c, bool body, Uint16 id)
     ++counts[id];
     return true;
 }
+bool SotnCharacter_PlanCollect(const SotnCharacter *c, SotnCharacterState *state, bool body,
+                               Uint16 id)
+{
+    if (!c || !state || !SotnCharacter_Validate(state))
+        return SDL_SetError("Inventory planning requires actual character progress");
+    SotnCharacter next = *c;
+    next.state = *state;
+    if (!SotnCharacter_Collect(&next, body, id))
+        return false;
+    *state = next.state;
+    return true;
+}
 bool SotnCharacter_LearnSpell(SotnCharacterState *s, Uint16 id)
 {
     if (id >= SOTN_SPELLS || !SotnCharacter_Validate(s))
@@ -600,13 +617,16 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
     return SotnItem_Read(c->dra, body, id, out);
 }
 
-bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped,
+                              bool food)
 {
     if (!c || hand > 1 || !equipped || c->state.equipment[hand] != item ||
-        (item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
-        return SDL_SetError("Medicine consumption requires its actual equipped hand item");
+        (food ? item < 29 || item > 70
+              : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
+        return SDL_SetError("Consumption requires its actual supported equipped hand item");
     SotnEquipment medicine = {0};
-    if (!SotnEquipment_Read(c->dra, item, &medicine))
+    if (!(food ? SotnEquipment_ReadFood(c->dra, item, &medicine)
+               : SotnEquipment_Read(c->dra, item, &medicine)))
         return false;
     SotnCharacter next = *c;
     if (next.state.equipment[5] != 84 && next.state.equipment[6] != 84)
@@ -623,6 +643,14 @@ bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint1
     *equipped = next.state.equipment[hand];
     *c = next;
     return true;
+}
+bool SotnCharacter_UseFood(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, item, equipped, true);
+}
+bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, item, equipped, false);
 }
 bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
 {

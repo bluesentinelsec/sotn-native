@@ -3,6 +3,61 @@
 // 71830.c:PlayerStepStone, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 #include "player_internal.h"
 
+bool SotnPlayer_SetFoodContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
+                               SotnPlayerMedicineConsume consume, void *context, Uint8 left_count,
+                               Uint8 right_count)
+{
+    if (!p || (factory != NULL) != (consume != NULL) || left_count > 48 || right_count > 48)
+        return SDL_SetError("Food context requires paired actual factories and hand counts");
+    p->food_factory = factory;
+    p->food_consume = consume;
+    p->food_context = context;
+    p->food_count[0] = left_count;
+    p->food_count[1] = right_count;
+    return true;
+}
+bool SotnPlayer_CommitFood(SotnPlayer *p, const SotnFoodEvents *events, Uint16 count)
+{
+    if (!p || (!events && count) || count > 15)
+        return SDL_SetError("Food commit requires actual slot-ordered callbacks");
+    SotnPlayer n = *p;
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const SotnFoodEvents e = events[i];
+        if ((e.heal && e.heal_amount > 9999) || (e.simulated_ticks && e.simulated_ticks != 20) ||
+            (e.crouch && !e.simulated_ticks))
+            return SDL_SetError("Food commit lost its original healing or simulated input");
+        if (e.clear_weapon && n.shield_cursor.phase)
+        {
+            n.shield_cursor = (SotnShield){0};
+            n.shield = (SotnPlayerAttack){0};
+            n.shield_button = 0;
+        }
+        if (e.peanut_pose)
+        {
+            n.animation.pose = 3;
+            n.animation.remaining = 8;
+        }
+        if (e.heal && !n.healing.pending_kind)
+        {
+            n.healing.pending_kind = 1;
+            n.healing.pending = e.heal_amount;
+        }
+        if (e.simulated_ticks)
+        {
+            n.simulated_pad.buttons = e.crouch ? SOTN_BUTTON_DOWN : 0;
+            n.simulated_pad.remaining = e.simulated_ticks;
+        }
+        if (e.poison)
+        {
+            n.queued_contact.parameters = 0x81;
+            n.queued_contact.attack = 0;
+        }
+    }
+    *p = n;
+    return true;
+}
+
 bool SotnPlayer_SetMedicineContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
                                    SotnPlayerMedicineConsume consume, void *context, bool present)
 {

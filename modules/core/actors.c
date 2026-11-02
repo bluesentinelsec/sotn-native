@@ -984,6 +984,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnCombat_Overlap(PlayerBox(player, false), target))
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
+        (!actors->bat_runtime || (actors->bat_runtime->player_hitbox_state & 1)) &&
         (actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb ||
          actor->state.id == 0xd || actor->state.id == 7 || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
@@ -1834,6 +1835,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     if (actors == NULL || map.width == 0 || map.height == 0 || map.width > 1024 ||
         map.height > 1024)
         return SDL_SetError("Laboratory actors require a bounded room collision map");
+    if (!ActorFoodTextValid(actors))
+        return false;
     Uint32 hippogryph_scene = 0;
     if (actors->stage_id == 25)
     {
@@ -1857,6 +1860,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
         SDL_free(tiles);
         return false;
     }
+    if (!ActorFoodTextClear(actors))
+        return false;
     SDL_free(actors->background_tiles);
     actors->background_tiles = NULL;
     actors->background = (SotnCollisionMap){0};
@@ -1957,6 +1962,8 @@ static bool CommitActor(SotnActors *actors, Uint32 i, Actor next)
 
 static bool BeginActorFrame(SotnActors *actors, SotnPlayerState player, bool frozen)
 {
+    if (!ActorFoodTextTick(actors))
+        return false;
     if (actors->character != NULL)
     {
         SotnCharacterState state = {0};

@@ -6,6 +6,8 @@
 #include <sotn/bat_trail.h>
 #include <sotn/dark_hit.h>
 #include <sotn/fire_hit.h>
+#include <sotn/food.h>
+#include <sotn/food_popup.h>
 #include <sotn/healing_number.h>
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
@@ -57,7 +59,7 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized;
+    bool initialized, food;
     union {
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
@@ -106,6 +108,7 @@ typedef struct SotnBatRuntimeChild
         SotnTeleportEffect teleport;
         SotnPlayerCircle circle;
         SotnMedicineEffect medicine;
+        SotnFood food;
         SotnSpiritPortal portal;
         struct
         {
@@ -151,6 +154,10 @@ typedef struct SotnBatRuntime
     Uint8 teleport_warp_mode;
     bool teleport_acknowledged;
     SotnMedicineEffectEvents medicine; /**< This callback's resources, committed after real rows. */
+    SotnFoodEvents food_events[15];
+    Uint8 food_event_count;
+    Uint16 player_hitbox_state; /**< Actual post-player body word; Toadstool clears it. */
+    SotnFoodTextPlan food_text;
     SotnPlayerParticleVectors particle_vectors; /**< Actual full-player-init velocity tables. */
     Uint8 screen_flash_ticks, screen_red, screen_green, screen_blue;
     bool screen_flash; /**< Original one-update opaque GPU tile, separate from retained rows. */
@@ -203,6 +210,11 @@ bool SotnBatRuntime_CircleValid(const SotnBatRuntimeChild *child);
 bool SotnBatRuntime_MedicineValid(const SotnBatRuntimeChild *child);
 /** @brief Prune actual cold38/39 children; initialized20000 medicine/circle owners retain rows. */
 bool SotnBatRuntime_PruneMedicines(SotnBatRuntime *runtime);
+/** @brief Retire weapon21's actual room-local children without running callbacks. */
+bool SotnBatRuntime_PruneFood(SotnBatRuntime *runtime);
+/** @brief Original InitWeapon retirement after actual menu equipment changes.
+ * Mask bits0/1 select changed hands; both special entity rangesE8..ED/F8..FD also retire. */
+bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *runtime, Uint8 changed_hands);
 /** @brief Original actual factory-slot cleanup by retained20000 flags, before new room allocation.
  * This owns every shared factory record, independently of the remaining child cleanup gates. */
 bool SotnBatRuntime_PruneRoomFactories(SotnBatRuntime *runtime);
@@ -217,6 +229,12 @@ bool SotnBatRuntime_RequestTeleport(SotnBatRuntime *runtime, SotnPlayerFactorySo
  * Actual eight-root exhaustion returns allocated=false. Pending roots are not live39 actors. */
 bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                     Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Reserve actual50/weapon21 food in the same eight roots and17..31 children.
+ * This does not consume inventory or enable ordinary controls. */
+bool SotnBatRuntime_RequestFood(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Validate a real weapon21 primary or inventory child, independently of weapon43. */
+bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Reserve the original familiar's actual55/profile0..19 with signed arg2 zero.
  * Source must be the actual familiar's captured room-space origin/facing, not the player.
  * Uses the same8..15 roots and later32..63 medicine actors as ordinary hand use. Exhaustion
@@ -234,6 +252,8 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *runtime, Sint32 x, Sint32 y);
 typedef struct SotnBatRuntimeInput
 {
     SotnDataView dra, executable, weapons;
+    const SotnFoodTextPlan *food_text;
+    SotnCollisionMap food_collision; /**< Actual current room collision for weapon21. */
     SotnPlayerState player;
     SotnPlayerImage image;
     SotnPlayerImage talisman_image;    /**< Actual private normal frame9F. */

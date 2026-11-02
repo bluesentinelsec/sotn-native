@@ -219,6 +219,61 @@ static bool Request(SotnBatRuntime *r, SotnPlayerState p, Uint32 packed, Uint32 
             .x = p.x, .y = p.y, .priority = p.priority, .facing_left = p.facing_left},
         packed, generation);
 }
+bool SotnBatRuntime_RequestFood(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                                Uint16 item, bool *allocated)
+{
+    const Uint32 hand = (packed >> 12) & 15U;
+    const bool curse = packed == 0x10039 && !item;
+    if (!r || !allocated ||
+        (!curse &&
+         (item < 29 || item > 70 || (hand != 1 && hand != 2) ||
+          packed != (50U | hand << 12 | (Uint32)(item - 29U + (hand == 2 ? 128U : 0U)) << 16))))
+        return SDL_SetError("Food reservation requires actual50, item29..70 and its owned hand");
+    for (Uint16 i = 0; i < SDL_arraysize(r->factories); ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, (Sint16)item))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+typedef struct FoodFactoryContext
+{
+    SotnBatRuntime *runtime;
+    SotnPlayerFactorySource source;
+    Sint16 camera_delta_x, camera_delta_y;
+} FoodFactoryContext;
+static bool FoodFactory(void *context, Sint32 x, Sint32 y, Uint32 packed, bool *allocated)
+{
+    FoodFactoryContext *c = context;
+    if (!c || !allocated || (packed & 0x3fffU) != 56 || (packed >> 16) < 29 ||
+        (packed >> 16) > 69 || !(packed & 0xc000U) || (packed & 0xc000U) == 0xc000U)
+        return SDL_SetError("Meal Ticket lost its actual inventory-child factory request");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!c->runtime->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactorySource source = c->source;
+            // Born after the root pass: the original cold factory has no camera-lock flag.
+            source.x = FixedShift(x, c->camera_delta_x);
+            source.y = FixedShift(y, c->camera_delta_y);
+            source.flags = 0;
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 0))
+                return false;
+            SDL_zero(c->runtime->factories[i]);
+            c->runtime->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
 bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                             Uint32 packed, bool *allocated)
 {
@@ -306,13 +361,15 @@ static bool ChildKind(Uint16 kind)
            kind == 33 || kind == 32 || kind == 31 || kind == 35 || kind == 36 || kind == 37 ||
            kind == 38 || kind == 39 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
            kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
-           kind == 63 || kind == 65 || kind == 0xe1 || kind == 0xf1 || kind == 0xe2 ||
-           kind == 0xf2 || (kind >= 24 && kind <= 29);
+           kind == 63 || kind == 65 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 ||
+           kind == 0xf1 || kind == 0xe2 || kind == 0xf2 || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
     if (!c->initialized)
         return c->source.flags;
+    if (c->food)
+        return c->state.food.flags;
     switch (c->kind)
     {
     case 2:
@@ -546,6 +603,42 @@ bool SotnBatRuntime_PruneRoomFactories(SotnBatRuntime *r)
             SDL_zero(r->factories[i]);
     return true;
 }
+bool SotnBatRuntime_PruneFood(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_FoodChildValid(&r->children[i], i))
+            return SDL_SetError("Food room cleanup lost its actual child lifecycle");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].food)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    return true;
+}
+static bool ChangedWeapon(Uint16 kind, Uint8 hands)
+{
+    return (kind >= 0xe0 && kind <= 0xef && (hands & 1)) ||
+           (kind >= 0xf0 && kind <= 0xff && (hands & 2)) ||
+           (hands && ((kind >= 0xe8 && kind <= 0xed) || (kind >= 0xf8 && kind <= 0xfd)));
+}
+bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
+{
+    if (!r || hands > 3)
+        return SDL_SetError("Weapon retirement requires actual changed hand bits");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_SwordChildValid(&r->children[i], i))
+            return SDL_SetError("Weapon retirement lost its actual child ownership");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (ChangedWeapon(r->children[i].kind, hands))
+        {
+            r->children[i] = (SotnBatRuntimeChild){0};
+            r->sword_mask &= ~((Uint64)1 << i);
+        }
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
+            SDL_zero(r->factories[i]);
+    return true;
+}
 bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *r)
 {
     if (!r)
@@ -703,6 +796,10 @@ bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 inde
 }
 bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
+    if (!SotnBatRuntime_FoodChildValid(c, index))
+        return false;
+    if (c->food)
+        return true;
     if (c->kind == 0xe1 || c->kind == 0xf1)
         return index == 0 && !c->primitive_count && !c->draw_count && !c->group &&
                c->parameter == (c->kind == 0xf1 ? 0x8000 : 0) && !c->state.sword.image.removed &&
@@ -717,6 +814,21 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
                           c->state.sword.strike.pose < 20
                     : !c->state.sword.strike.phase);
     return true;
+}
+bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->food)
+        return c->kind != 0xe0 && c->kind != 0xf0;
+    const SotnFood *f = &c->state.food;
+    const bool inventory = c->kind == 0xe1 || c->kind == 0xf1;
+    const Uint16 value = (Uint16)((f->parameter >> 8) & 127U);
+    return index >= 1 && index <= 15 && c->generation && !c->bat_generation && !c->group &&
+           !c->primitive_count && !c->draw_count && !f->removed &&
+           (c->kind == 0xe0 || c->kind == 0xf0 || inventory) && f->inventory == inventory &&
+           f->parameter == c->parameter && f->priority <= 511 &&
+           (inventory ? value >= 29 && value <= 69 && !f->item && f->phase <= 2
+                      : value <= 41 && f->item == value + 29U && f->phase <= 6) &&
+           (c->initialized ? f->phase != 0 : f->phase == 0);
 }
 static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 generation,
                   Uint32 fire_parent, Uint16 fire_parent_slot)
@@ -745,6 +857,27 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
+    c.food = c.kind == 0xe0 || c.kind == 0xf0 ||
+             ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
+              ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
+    if (c.food)
+    {
+        const bool inventory = c.kind == 0xe1 || c.kind == 0xf1;
+        if (generation || child.slot < 17 || child.slot > 31 || child.argument_high ||
+            (inventory ? child.argument_low != 0 || (child.parameter & 0x80ffU) != 0
+                       : child.argument_low < 29 || child.argument_low > 70 ||
+                             child.parameter != (child.argument_low - 29U) * 256U +
+                                                    (c.kind == 0xf0 ? 0x8000U : 0U)))
+            return SDL_SetError("Food child lost its actual weapon21 role, slot or item argument");
+        c.state.food = (SotnFood){.x = child.source.x,
+                                  .y = child.source.y,
+                                  .flags = child.source.flags,
+                                  .parameter = child.parameter,
+                                  .item = child.argument_low,
+                                  .priority = child.source.priority,
+                                  .facing_left = child.source.facing_left,
+                                  .inventory = inventory};
+    }
     if (c.kind == 0xe2 || c.kind == 0xf2)
     {
         if (child.slot < 17 || child.slot > 31 || !generation || child.parameter ||
@@ -815,7 +948,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
-    if (c.kind == 0xe1 || c.kind == 0xf1)
+    if (!c.food && (c.kind == 0xe1 || c.kind == 0xf1))
     {
         if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
             child.parameter != (c.kind == 0xf1 ? 0x8000 : 0))
@@ -1080,11 +1213,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (SotnBatRuntime_Occupied(runtime) & in.other_occupied)
         return SDL_SetError("Bat runtime overlaps another actual ability owner");
     SotnBatRuntime r = *runtime;
+    r.food_text = in.food_text ? *in.food_text : (SotnFoodTextPlan){0};
+    r.food_event_count = 0;
     if (r.wolf_bound && !in.wolf_owned)
         return SDL_SetError("Shared ability owner cannot detach its actual Wolf stage lifetime");
     r.wolf_bound = in.wolf_owned;
     if (in.entering && (!SotnBatRuntime_PruneIce(&r) || !SotnBatRuntime_PruneDissolve(&r) ||
-                        !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r)))
+                        !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r) ||
+                        !SotnBatRuntime_PruneFood(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -1218,7 +1354,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             c->state.trail.x = FixedShift(c->state.trail.x, in.room_shift_x);
             c->state.trail.y = FixedShift(c->state.trail.y, in.room_shift_y);
         }
-        if (c->kind == 0xe1 || c->kind == 0xf1)
+        if (c->food)
+        {
+            c->state.food.x = FixedShift(c->state.food.x, in.room_shift_x);
+            c->state.food.y = FixedShift(c->state.food.y, in.room_shift_y);
+        }
+        else if (c->kind == 0xe1 || c->kind == 0xf1)
         {
             c->state.sword.image.x = FixedShift(c->state.sword.image.x, in.room_shift_x);
             c->state.sword.image.y = FixedShift(c->state.sword.image.y, in.room_shift_y);
@@ -1685,6 +1826,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     SotnDeathImage dissolve_image = in.dissolve_image ? *in.dissolve_image : (SotnDeathImage){0};
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp;
+    bool inventory_changed = false;
+    bool healing_pending = p.healing.pending_kind != 0;
+    if (!in.freeze)
+        r.player_hitbox_state = SotnPlayerStep_IsDead(p.step) ? 0 : 1;
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
@@ -1720,7 +1865,74 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->kind == 19)
+        if (c->food)
+        {
+            SotnEquipment equipment = {0};
+            if (!c->state.food.inventory && !c->state.food.phase &&
+                !SotnEquipment_ReadFood(in.dra, c->state.food.item, &equipment))
+                return false;
+            FoodFactoryContext factory = {
+                .runtime = &r,
+                .source = c->source,
+                .camera_delta_x = Word(in.room_shift_x - in.screen_shift_x),
+                .camera_delta_y = Word(in.room_shift_y - in.screen_shift_y)};
+            SotnFoodEvents events = {0};
+            if (!SotnFood_Tick(&c->state.food,
+                               (SotnFoodInput){.collision = in.food_collision,
+                                               .player = {.x = p.x,
+                                                          .y = p.y,
+                                                          .offset_x = p.animation.hitbox_x,
+                                                          .offset_y = p.animation.hitbox_y,
+                                                          .width = p.animation.hitbox_width,
+                                                          .height = p.animation.hitbox_height,
+                                                          .frame = p.animation.sprite,
+                                                          .animation = p.animation.id,
+                                                          .priority = p.priority,
+                                                          .facing_left = p.facing_left,
+                                                          .healing_pending = healing_pending},
+                                               .attack = (Uint16)equipment.attack,
+                                               .factory = FoodFactory,
+                                               .context = &factory},
+                               &progress.random, &events))
+                return false;
+            if (events.collect)
+            {
+                if (!Sound(&r, 0x67c) ||
+                    !SotnCharacter_PlanCollect(character, &progress, false, events.item) ||
+                    !SotnFoodTextPlan_Replace(&r.food_text, in.dra, events.item,
+                                              &in.primitive_slots))
+                    return false;
+                inventory_changed = true;
+            }
+            if (events.heal || events.poison || events.peanut_pose || events.simulated_ticks ||
+                events.clear_weapon)
+            {
+                if (r.food_event_count >= SDL_arraysize(r.food_events))
+                    return SDL_SetError("Food callbacks exceeded their actual fifteen slots");
+                r.food_events[r.food_event_count++] = events;
+            }
+            healing_pending |= events.heal;
+            if (events.poison)
+                r.player_hitbox_state = 0;
+            const Sint16 old_camera_x = Word(in.camera_x - factory.camera_delta_x),
+                         old_camera_y = Word(in.camera_y - factory.camera_delta_y);
+            const Sint32 x = Pixel(FixedShift(c->state.food.x, Word(-old_camera_x))),
+                         y = Pixel(FixedShift(c->state.food.y, Word(-old_camera_y)));
+            removed = c->state.food.removed || x < -32 || x > 288 || y < -16 || y > 256;
+            if (!(c->state.food.flags & 0x08000000U))
+            {
+                c->state.food.x = FixedShift(c->state.food.x, factory.camera_delta_x);
+                c->state.food.y = FixedShift(c->state.food.y, factory.camera_delta_y);
+            }
+            c->parameter = c->state.food.parameter;
+            c->source.x = c->state.food.x;
+            c->source.y = c->state.food.y;
+            c->source.flags = c->state.food.flags;
+            c->source.priority = c->state.food.priority;
+            c->source.facing_left = c->state.food.facing_left;
+            c->initialized = !removed;
+        }
+        else if (c->kind == 19)
         {
             bool allocated = c->primitive_count != 0;
             if (!allocated &&
@@ -1811,6 +2023,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 r.medicine.heal = true;
                 r.medicine.heal_amount = events.heal_amount;
+                healing_pending = true;
             }
             if (events.protection && p.player_timers[14] < events.protection)
                 p.player_timers[14] = events.protection;
@@ -2958,7 +3171,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.sword.attack.active = false;
         }
     }
-    if ((progress.random != previous_random || progress.mp != previous_mp) &&
+    if ((inventory_changed || progress.random != previous_random || progress.mp != previous_mp) &&
         !SotnCharacter_Restore(character, &progress))
         return false;
     *runtime = r;

@@ -510,6 +510,7 @@ struct SotnActors
         Uint8 group;
     } chapel_ball[ACTOR_CHAPEL_BALL_LINKS];
     ActorPrimitive primitives[ACTOR_PRIMITIVE_CAPACITY];
+    SotnFoodTextLease food_text;
     Sint32 camera_x, camera_y;
     Uint32 random, combat_random, ticks, effect_serial;
     SotnActorCombat combat;
@@ -798,6 +799,11 @@ bool ActorOwnedSpawnAt(SotnActors *actors, const Actor *source, Uint16 id, Uint1
 bool ActorSpittle(SotnActors *actors, Actor *actor, SotnPlayerState player);
 bool ActorCrawl(SotnActors *actors, Actor *actor, Uint8 state, Uint8 *out);
 bool ActorPrimitives(SotnActors *actors, Actor *actor, Uint16 count);
+bool ActorFoodTextValid(const SotnActors *actors);
+bool ActorFoodTextClear(SotnActors *actors);
+bool ActorFoodTextTick(SotnActors *actors);
+bool ActorFoodTextPlanCheck(const SotnActors *actors, const SotnFoodTextPlan *plan);
+void ActorFoodTextPlanApply(SotnActors *actors, const SotnFoodTextPlan *plan);
 /** @brief Original func_800EDB58 consecutive allocation; no partial pool ownership on failure. */
 bool ActorPrimitivesContiguous(SotnActors *actors, Actor *actor, Uint16 count);
 ActorPrimitive *ActorPrimitiveGet(SotnActors *actors, const Actor *actor, Uint16 index);

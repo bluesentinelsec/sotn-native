@@ -533,6 +533,9 @@ static bool StartAttack(SotnPlayer *player)
         player->failed = true;
         return true;
     }
+    if (equipment.kind == 132 &&
+        (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2))
+        return false;
     if (equipment.id == 166)
     {
         if (!player->teleport_factory || !player->library_card_use ||
@@ -579,6 +582,22 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (player->curse_ticks && equipment.id != 0)
     {
+        if (equipment.kind == 132 && player->food_factory)
+        {
+            bool allocated = false;
+            SotnPlayerState captured = {0};
+            if (!SotnPlayer_GetState(player, &captured) ||
+                !player->food_factory(player->food_context,
+                                      (SotnPlayerFactorySource){.x = player->x.value,
+                                                                .y = player->y.value,
+                                                                .priority = captured.priority,
+                                                                .facing_left = player->facing_left},
+                                      0x10039, 0, &allocated))
+            {
+                player->failed = true;
+                return true;
+            }
+        }
         ClearAttack(player);
         player->curse_failure = true;
         player->attack_mode = 0x8012;
@@ -595,6 +614,50 @@ static bool StartAttack(SotnPlayer *player)
         {
             player->step = SOTN_PLAYER_JUMP;
             Animate(player, 0xb7);
+        }
+        return true;
+    }
+    if (equipment.kind == 132)
+    {
+        if (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2)
+            return false;
+        SotnPlayerState captured = {0};
+        if (!SotnPlayer_GetState(player, &captured))
+        {
+            player->failed = true;
+            return true;
+        }
+        bool allocated = false;
+        const Uint32 packed =
+            50U | ((hand + 1U) << 12) | ((Uint32)(equipment.variant + hand * 128U) << 16);
+        if (!player->food_factory(player->food_context,
+                                  (SotnPlayerFactorySource){.x = player->x.value,
+                                                            .y = player->y.value,
+                                                            .priority = captured.priority,
+                                                            .facing_left = player->facing_left},
+                                  packed, equipment.id, &allocated))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (!allocated)
+            return false;
+        player->food =
+            (SotnPlayerMedicineUse){.hand = (Uint16)hand, .item = equipment.id, .used = true};
+        if (player->substep < 0x40)
+        {
+            Uint16 variant = (player->contact & 0x20) != 0;
+            if (player->step == SOTN_PLAYER_CROUCH)
+            {
+                variant = 2;
+                if (!player->tight_space && player->substep == 2)
+                {
+                    variant = (player->contact & 0x20) != 0;
+                    SetStep(player, SOTN_PLAYER_STAND);
+                }
+            }
+            if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_CROUCH)
+                Animate(player, (Uint16)(equipment.animation + variant));
         }
         return true;
     }
@@ -2315,6 +2378,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     const bool teleporting = next.step == SOTN_PLAYER_TELEPORT;
     next.teleport.used = false;
     next.medicine.used = false;
+    next.food.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;
@@ -2655,6 +2719,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         !next.medicine_consume(next.medicine_context, next.medicine.hand, next.medicine.item,
                                &next.equipment[next.medicine.hand]))
         return false;
+    if (next.food.used && !next.food_consume(next.food_context, next.food.hand, next.food.item,
+                                             &next.equipment[next.food.hand]))
+        return false;
     *player = next;
     return true;
 }
@@ -2777,8 +2844,12 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
              !SotnWeapon_Overlay(weapons, equipment, &overlay)))
             return false;
         const Uint16 strength = player->attributes.total[0];
-        power[i] = (Uint16)SDL_clamp(
-            equipment.attack + (equipment.attack <= strength ? strength : strength / 2), 0, 999);
+        power[i] =
+            equipment.kind == 131 || equipment.kind == 132
+                ? 0
+                : (Uint16)SDL_clamp(equipment.attack +
+                                        (equipment.attack <= strength ? strength : strength / 2),
+                                    0, 999);
     }
     player->attributes.attack[0] = power[0];
     player->attributes.attack[1] = power[1];
@@ -3113,6 +3184,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
     *out = (SotnPlayerState){
         .water = player->water,
         .medicine = player->medicine,
+        .food = player->food,
         .hammer_timer = player->hammer_timer,
         .water_breath_timer = player->water_breath_timer,
         .x = player->x.value,
@@ -3786,6 +3858,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.death.started = false;
     next.teleport.used = false;
     next.medicine.used = false;
+    next.food.used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;

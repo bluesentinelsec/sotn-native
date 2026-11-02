@@ -1,3 +1,18 @@
+Selected [owned food](docs/player-food.md) now connects42 items29..70 to actual
+hand input, inventory/Duplicator consumption, shared50/56 roots/17..31 children,
+private weapon21 sprites and raw deferred healing. Preserve item/hand chain2 before
+curse, successful-player cost commit, extra GetEquipProperties RNG, signed wrap,
+catch-before-motion, Peanut7B/anim0 mouth and pose3/timer8, Toad sim20 and delayed
+raw81/power0/player-hitbox0, and independent Soul attack-child hitbox82. Meal Ticket
+pickups use real inventory/sound and ordered shared-row text replacement; exhaustion
+omits only text.
+Preserve304 ordinary/frozen text clocks, menu/release/draw holds, real offscreen
+retirement, no-tick rebases, actual menu weapon cleanup, resident artwork after the
+last copy and late-failure UI/row/inventory/RNG rollback. No new pool/grants/savev9
+fields. Explicit stock/HP/protection/position/arrival/failure and component adapters
+are not acquisition/routes/whole-pass/full contention/console evidence. All six
+Alucard gates remain open; ordinary Fairy UI stays disabled.
+
 Selected [inventory-menu audio](docs/laboratory-audio.md) now queues actual
 A7/A3/E entry andF/A4/A8 exit through the common sound ring. Preserve conditional
 RR8 releases with retained20/22 IDs, private-definition rekey/gain, unconditional

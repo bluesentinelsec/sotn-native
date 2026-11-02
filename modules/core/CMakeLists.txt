@@ -1,4 +1,10 @@
 add_library(sotn-core STATIC
+  food.c
+  include/sotn/food.h
+  food_popup.c
+  include/sotn/food_popup.h
+  actor_food_text.c
+  include/sotn/actor_primitive.h
   familiar_stats.c
   include/sotn/familiar_stats.h
   fairy_runtime.c

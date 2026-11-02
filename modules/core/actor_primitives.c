@@ -221,6 +221,7 @@ static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16
         if (id >= SOTN_PRIMITIVE_SLOTS || (used->occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
             (s->primitives[id].owner &&
              ((!BatPrimitiveKind(s->primitives[id].ability_kind) &&
+               s->primitives[id].ability_kind != SOTN_FOOD_TEXT_TAG &&
                !(include_wolf && WolfPrimitiveKind(s->primitives[id].ability_kind))) ||
               (replace_kind && s->primitives[id].ability_kind != replace_kind))))
             return SDL_SetError("Player effect reservation collides with a live primitive owner");
@@ -275,6 +276,9 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
 {
     if (!s || !r)
         return SDL_SetError("Bat primitive commit requires its actual session and runtime owner");
+    SotnFoodTextPlan food = r->food_text;
+    if (food.changed ? !ActorFoodTextPlanCheck(s, &food) : !SotnActors_GetFoodTextPlan(s, &food))
+        return false;
     for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
         if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
         {
@@ -402,10 +406,14 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
         (w->root_reserved && !PlanRows(s, &used, w->root_rows, 6, 0, true)) ||
         (w->environment_reserved && !PlanRows(s, &used, w->environment_rows, 2, 0, true)))
         return SDL_SetError("Shared primitive commit has an invalid actual Wolf reservation");
+    if (food.lease.count &&
+        !PlanRows(s, &used, food.lease.rows, food.lease.count, 0, r->wolf_bound))
+        return false;
     if (!apply)
         return true;
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
         if (BatPrimitiveKind(s->primitives[i].ability_kind) ||
+            (food.changed && s->primitives[i].ability_kind == SOTN_FOOD_TEXT_TAG) ||
             (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind)))
             s->primitives[i] = (ActorPrimitive){0};
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
@@ -429,6 +437,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
         for (Uint16 i = 0; i < 6; ++i)
             s->primitives[r->afterimage_rows[i]] = (ActorPrimitive){
                 .owner = r->common_generation, .ability_kind = SOTN_PLAYER_AFTERIMAGE_TAG};
+    if (food.changed)
+        ActorFoodTextPlanApply(s, &food);
     for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
         if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
             s->slots[i].state.flags |= 0x80000U;

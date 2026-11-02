@@ -729,7 +729,8 @@ static bool ApplyCharacter(SotnLaboratory *session)
         {
             SotnEquipment equipment = {0};
             if (!SotnEquipment_Read(session->dra, state.equipment[hand], &equipment) ||
-                !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment))
+                (equipment.id && equipment.family != 255 &&
+                 !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment)))
                 return false;
             session->hands[hand] = state.equipment[hand];
         }
@@ -1004,6 +1005,52 @@ static bool UseMedicine(void *context, Uint16 hand, Uint16 item, Uint16 *equippe
     SotnLaboratory *s = context;
     return SotnCharacter_UseMedicine(s->character, hand, item, equipped);
 }
+static bool FoodFactory(void *context, SotnPlayerFactorySource source, Uint32 packed, Uint16 item,
+                        bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestFood(&s->bat_runtime, source, packed, item, allocated);
+}
+static bool UseFood(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    SotnLaboratory *s = context;
+    return SotnCharacter_UseFood(s->character, hand, item, equipped);
+}
+static bool BindFood(SotnLaboratory *s)
+{
+    SotnCharacterState state = {0};
+    if (!SotnCharacter_Get(s->character, &state, NULL))
+        return false;
+    Uint8 count[2] = {0};
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *c = &s->bat_runtime.children[i];
+        if (c->food && !c->state.food.inventory)
+        {
+            const Uint16 hand = (c->parameter & 0x8000U) != 0;
+            count[hand] += c->state.food.item == state.equipment[hand];
+        }
+    }
+    return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]);
+}
+static bool ApplyMenuCharacter(SotnLaboratory *s)
+{
+    SotnCharacterState state = {0};
+    if (!SotnCharacter_Get(s->character, &state, NULL))
+        return false;
+    const Uint8 hands =
+        (s->hands[0] != state.equipment[0]) | ((s->hands[1] != state.equipment[1]) << 1);
+    SotnBatRuntime *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return SDL_OutOfMemory();
+    *next = s->bat_runtime;
+    const bool ok =
+        SotnBatRuntime_PruneWeapons(next, hands) && SotnActors_CommitBatPrimitives(s->actors, next);
+    if (ok)
+        s->bat_runtime = *next;
+    SDL_free(next);
+    return ok && ApplyCharacter(s);
+}
 static bool CommitMedicine(SotnLaboratory *s)
 {
     const SotnMedicineEffectEvents *e = &s->bat_runtime.medicine;
@@ -1086,9 +1133,11 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
     Uint64 other = 0;
     SotnPrimitiveSlots primitive_slots = {0};
     SotnSpiritTargetSnapshot targets = {0};
+    SotnFoodTextPlan food_text = {0};
     if (!SotnActors_SpiritTargets(s->actors, &targets) || !DecodePlayerSprite(s, player, &sprite) ||
         !SotnGasCloud_Occupied(&s->gas_cloud, &other) ||
         !SotnActors_PrimitiveSlots(s->actors, &primitive_slots) ||
+        !SotnActors_GetFoodTextPlan(s->actors, &food_text) ||
         (sprite.width && !player.water_death.captured && !player.death.captured &&
          !(player.animation.sprite & 0x8000U) && !HoldDissolveUpload(&s->bat_runtime, player) &&
          !SotnActorGraphics_UploadPlayer(s->actor_graphics, &sprite)) ||
@@ -1096,6 +1145,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
             &s->bat_runtime, s->character,
             (SotnBatRuntimeInput){
                 .dra = s->dra,
+                .food_text = &food_text,
+                .food_collision = s->room.foreground.collision,
                 .executable = s->executable,
                 .weapons = SotnResource_View(s->weapons),
                 .player = player,
@@ -1136,6 +1187,7 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
             break;
         }
     // Marks are one-update writes; later row commits must not replay stale target identities.
+    s->bat_runtime.food_text.changed = false;
     s->bat_runtime.target_marks[0] = s->bat_runtime.target_marks[1] = 0;
     if (!entering)
     {
@@ -1185,7 +1237,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 return false;
         if (s->bat_runtime.dissolve_frame_load && !SotnPlayer_CommitDissolveFrame(s->player, true))
             return false;
-        if (!CommitMedicine(s))
+        if (!CommitMedicine(s) || !SotnPlayer_CommitFood(s->player, s->bat_runtime.food_events,
+                                                         s->bat_runtime.food_event_count))
             return false;
     }
     s->blink_rebase_x = s->blink_rebase_y = 0;
@@ -1196,16 +1249,18 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
 
 static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
-    bool transaction = player.medicine.used;
+    bool transaction = player.medicine.used || player.food.used;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         transaction |= s->bat_runtime.children[i].kind == 32 ||
                        s->bat_runtime.children[i].kind == 38 ||
-                       s->bat_runtime.children[i].kind == 39;
+                       s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
                        (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 53 ||
-                        s->bat_runtime.factories[i].cursor.blueprint == 55);
+                        s->bat_runtime.factories[i].cursor.blueprint == 55 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 50 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 56);
     for (Uint16 i = 0; i < player.hurt.count; ++i)
         transaction |= (player.hurt.factories[i].blueprint & 0xfffU) == 39;
     if (!transaction)
@@ -1213,10 +1268,12 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
     SotnDissolveTextures *textures = SDL_malloc(sizeof(*textures));
     SotnBatRuntime *runtime = SDL_malloc(sizeof(*runtime));
     SotnCharacterState character = {0};
+    SotnFoodTextPlan food_text = {0};
     const SotnDeathImage image = s->death_image;
     const Uint32 generation = s->death_image_generation;
     if (!textures || !runtime || !SotnActorGraphics_SaveDissolve(s->actor_graphics, textures) ||
-        !SotnCharacter_Get(s->character, &character, NULL))
+        !SotnCharacter_Get(s->character, &character, NULL) ||
+        !SotnActors_GetFoodTextPlan(s->actors, &food_text))
     {
         SDL_free(textures);
         SDL_free(runtime);
@@ -1231,10 +1288,19 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
         s->bat_runtime = *runtime;
         s->death_image = image;
         s->death_image_generation = generation;
-        const bool restored = SotnActorGraphics_RestoreDissolve(s->actor_graphics, textures) &&
+        // Restore the departing UI lease with the departing player rows in one commit.
+        SotnFoodTextPlan current = {0};
+        const bool food_snapshot = SotnActors_GetFoodTextPlan(s->actors, &current);
+        runtime->food_text = food_text;
+        runtime->food_text.previous = current.lease;
+        runtime->food_text.previous_serial = current.serial;
+        runtime->food_text.changed = true;
+        const bool restored = food_snapshot &&
+                              SotnActorGraphics_RestoreDissolve(s->actor_graphics, textures) &&
                               SotnCharacter_Restore(s->character, &character) &&
                               SotnActors_CommitBatPrimitives(s->actors, runtime) &&
                               SotnPlayer_RollbackDissolve(s->player, &player);
+        s->bat_runtime.food_text.changed = false;
         SDL_free(textures);
         SDL_free(runtime);
         if (!restored)
@@ -2030,7 +2096,7 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         present |= s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 33 ||
                    s->bat_runtime.children[i].kind == 65 || s->bat_runtime.children[i].kind == 38 ||
-                   s->bat_runtime.children[i].kind == 39;
+                   s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food;
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
         present |= s->bat_runtime.factories[i].cursor.entity_id != 0;
     if (!present)
@@ -2039,10 +2105,11 @@ static bool RetireSharedRoom(SotnLaboratory *s)
     if (!next)
         return SDL_OutOfMemory();
     *next = s->bat_runtime;
-    const bool committed =
-        SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
-        SotnBatRuntime_PruneTeleport(next) && SotnBatRuntime_PruneMedicines(next) &&
-        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
+    const bool committed = SotnBatRuntime_PruneDissolve(next) && SotnBatRuntime_PruneIce(next) &&
+                           SotnBatRuntime_PruneTeleport(next) &&
+                           SotnBatRuntime_PruneMedicines(next) && SotnBatRuntime_PruneFood(next) &&
+                           SotnBatRuntime_PruneRoomFactories(next) &&
+                           SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -2675,7 +2742,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         const bool was_open = session->menu.phase != SOTN_MENU_CLOSED;
         if (!SotnInventoryMenu_Tick(&session->menu, session->character, buttons, &sound, &changed,
                                     &session->world, session->dra) ||
-            (changed && !ApplyCharacter(session)) ||
+            (changed && !ApplyMenuCharacter(session)) ||
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
         const bool is_open = session->menu.phase != SOTN_MENU_CLOSED;
@@ -2749,6 +2816,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
                                         session->mist_present) ||
         !SotnPlayer_SetMedicineContext(session->player, MedicineFactory, UseMedicine, session,
                                        SotnBatRuntime_MedicinePresent(&session->bat_runtime)) ||
+        !BindFood(session) ||
         !SotnPlayer_SetTeleportContext(session->player, TeleportFactory, UseLibraryCard, session,
                                        session->room.left * 256) ||
         !SotnPlayer_SetStoneContext(session->player, DissolvePresent, session) ||
@@ -3428,6 +3496,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                 .kind = split ? SOTN_DRAW_SPRITE : SOTN_DRAW_ACTOR}))
             return false;
     }
+    if (!background)
+        for (Uint16 i = SotnActors_FoodTextRows(session->actors); i > 0; --i)
+        {
+            SotnActorPrimitive row = {0};
+            if (!SotnActors_GetFoodText(session->actors, (Uint16)(i - 1), &row) ||
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = row.priority,
+                                                    .primitive = (Uint16)(i - 1),
+                                                    .kind = SOTN_DRAW_FOOD_TEXT}))
+                return false;
+        }
     if (!background && session->fairy_runtime.initialized)
         for (Uint16 index = 0; index < 4; ++index)
         {
@@ -3587,7 +3667,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                             .kind = SOTN_DRAW_HOLY_HIT}))
                         return false;
                 }
-            if (child->initialized &&
+            if (child->food && child->initialized && child->state.food.frame &&
+                !((child->state.food.draw_flags & 0x80U) &&
+                  (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_FOOD}))
+                return false;
+            if (!child->food && child->initialized &&
                 (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
                  child->kind == 0xf2) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -4295,6 +4384,57 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
             }
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_FOOD_TEXT)
+        {
+            SotnActorPrimitive p = {0};
+            if (!SotnActors_GetFoodText(session->actors, command.primitive, &p))
+                return false;
+            SotnTextureQuad q = {.page = p.page,
+                                 .palette = p.palette,
+                                 .blend = p.blend,
+                                 .gouraud = p.gouraud,
+                                 .untextured = !p.textured};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = Pixel(p.x) + p.offset_x[v] + session->draw_target.offset_x +
+                         (p.camera_fixed ? 0 : session->shake.x);
+                q.y[v] = Pixel(p.y) + p.offset_y[v] + session->draw_target.offset_y +
+                         (p.camera_fixed ? 0 : session->shake.y);
+                q.u[v] = p.u[v];
+                q.v[v] = p.v[v];
+                q.vertex_red[v] = p.vertex_red[v];
+                q.vertex_green[v] = p.vertex_green[v];
+                q.vertex_blue[v] = p.vertex_blue[v];
+            }
+            if (!SotnActorGraphics_QuadSurface(session->actor_graphics, q,
+                                               session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_FOOD)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            const bool right = c->kind >= 0xf0;
+            if (!c->food || !c->initialized || !SotnBatRuntime_FoodChildValid(c, command.primitive))
+                return SDL_SetError("Food draw lost its actual weapon21 child");
+            if (!SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = right ? 18 : 16,
+                                      .frame = c->state.food.frame,
+                                      .palette = right ? 0x128 : 0x110,
+                                      .texture_offset = right ? 0x66 : 0x64,
+                                      .facing_left = c->source.facing_left},
+                    Pixel(c->source.x) - view_x + session->draw_target.offset_x,
+                    Pixel(c->source.y) - view_y + session->draw_target.offset_y,
+                    (SotnSpriteTransform){.scale_x = 256, .scale_y = 256, .opacity = 128},
+                    session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;

@@ -1,5 +1,6 @@
 #ifndef SOTN_PLAYER_H
 #define SOTN_PLAYER_H
+#include <sotn/food.h>
 #include <sotn/medicine_effect.h>
 
 #include <sotn/animation.h>
@@ -407,6 +408,8 @@ typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
     SotnPlayerMedicineUse medicine;
+    SotnPlayerMedicineUse
+        food;            /**< Actual weapon21 hand use; consumption follows player success. */
     Sint32 hammer_timer; /**< Separate DRA global, never one of the sixteen words or save data. */
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
     Uint16 player_timers[SOTN_PLAYER_TIMERS]; /**< Immutable copy of the actual player word bank. */
@@ -515,6 +518,13 @@ typedef bool (*SotnPlayerMedicineConsume)(void *context, Uint16 hand, Uint16 ite
  * @return Success, or SDL error without mutation; two NULL callbacks disable availability. */
 bool SotnPlayer_SetMedicineContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                    SotnPlayerMedicineConsume consume, void *context, bool present);
+/** @brief Bind actual weapon21 shared reservation and atomic hand consumption.
+ * Counts are original CheckChainLimit item/hand counts, excluding pending factory roots. */
+bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                               SotnPlayerMedicineConsume consume, void *context, Uint8 left_count,
+                               Uint8 right_count);
+/** @brief Commit slot-ordered food pickup/pose/simulated-pad/raw81 requests atomically. */
+bool SotnPlayer_CommitFood(SotnPlayer *player, const SotnFoodEvents *events, Uint16 count);
 /** @brief Commit actual entity39 resource requests after successful shared row work.
  * Healing overwrites pending kind/amount even when dead; no HP write or revival occurs.
  * Buff counters, actual character MP, audio and factories retain their separate native owners.
