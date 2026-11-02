@@ -125,6 +125,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   Selected full-engine/session initialization also restores active-card mode0 after
   bootstrap, transfers all seven records/selection through connected-stage candidates
   without menu-load increments, and retains cached-none overlay history.
+  The CD service also reconstructs selected managed mode1 continuation/mode0 loop
+  commands with actual transports; that component adds no ordinary stage/dialogue
+  routing or familiar availability. Retargeted queues, reverb and general sharing remain open.
   **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character

@@ -10,7 +10,8 @@ typedef struct SavedMusic
     SotnMusic *music;
     Uint32 duration;
     Uint16 playing;
-    bool finite;
+    Uint8 mode;
+    bool finite, managed, native_ready;
 } SavedMusic;
 struct SotnCdAudio
 {
@@ -21,13 +22,12 @@ struct SotnCdAudio
     Uint16 incoming[256], commands[256];
     Uint16 read, write, count, playing, queued, config;
     Uint32 started, duration;
-    Uint8 phase, saved, volume, target_volume;
-    bool acknowledge_busy, busy, serial, finite;
+    Uint8 phase, saved, volume, target_volume, mode;
+    bool acknowledge_busy, busy, serial, finite, managed, native_ready;
 };
-static bool Voice(Uint16 id)
+static bool XaCommand(Uint16 id)
 {
-    return id == 0x472 || id == 0x473 || id == 0x476 || id == 0x479 || id == 0x47a || id == 0x48a ||
-           id == 0x48e || id == 0x492;
+    return id > 0x300 && id < 0x533;
 }
 static void ForgetSaved(SotnCdAudio *a)
 {
@@ -40,6 +40,19 @@ static void ForgetSaved(SotnCdAudio *a)
 }
 static void Add(SotnCdAudio *a, Uint16 command)
 {
+    if (command == 6)
+        for (Uint16 i = 0; i < a->count; ++i)
+            if (a->commands[i] == 12)
+            {
+                a->commands[a->count++] = 14;
+                if (a->count == 256)
+                {
+                    SDL_memset(a->commands + 1, 0, 255 * sizeof(*a->commands));
+                    a->count = 1;
+                    a->commands[a->count++] = 14;
+                }
+                break;
+            }
     a->commands[a->count++] = command;
     if (a->count == 256)
     {
@@ -68,7 +81,7 @@ static void SoundCommands(SotnCdAudio *a)
         const Uint16 id = a->incoming[a->read];
         a->incoming[a->read] = 0;
         a->read = (Uint16)((a->read + 1U) & 255U);
-        if (Voice(id))
+        if (XaCommand(id))
         {
             if (a->playing)
             {
@@ -96,7 +109,7 @@ static bool Start(SotnCdAudio *a, Uint32 clock)
     case 0: {
         SotnMusic *next = NULL;
         // Configure the real decoder before committing a native Setmode acknowledgement.
-        if (!SotnMusic_CreateSpeech(a->dra, a->stream, (Uint16)(a->queued + 0x300U), &next))
+        if (!SotnMusic_CreateXa(a->dra, a->stream, (Uint16)(a->queued + 0x300U), &next))
             return false;
         if (!SotnMusic_Get(next, &state))
         {
@@ -105,7 +118,11 @@ static bool Start(SotnCdAudio *a, Uint32 clock)
         }
         SotnMusic_Destroy(a->current);
         a->current = next;
+        if (a->queued < 0x40)
+            ForgetSaved(a);
         a->busy = true;
+        a->managed = true;
+        a->native_ready = false;
         a->config = a->queued;
         a->volume = a->target_volume = state.volume;
         a->phase = 2; // Original0 falls through1: native decoder configuration committed.
@@ -123,12 +140,14 @@ static bool Start(SotnCdAudio *a, Uint32 clock)
             return SDL_SetError("Native XA start lost its actual initial stream cursor");
         a->duration = state.duration + (state.mode == 2 ? 20U : 0U);
         a->finite = state.once;
+        a->mode = state.mode;
         a->phase = 6;
         break;
     case 6:
         // ReadN acknowledgement follows actual first-sector I/O and ADPCM conversion.
         if (!SotnMusic_Prepare(a->current))
             return false;
+        a->native_ready = true;
         ++a->phase;
         break;
     case 7:
@@ -144,6 +163,50 @@ static bool Start(SotnCdAudio *a, Uint32 clock)
         break;
     default:
         return SDL_SetError("Native XA start has an unsupported original command phase");
+    }
+    return true;
+}
+static bool Loop(SotnCdAudio *a, Uint32 clock)
+{
+    SotnMusicState state = {0};
+    switch (a->phase)
+    {
+    case 0: {
+        SotnMusic *next = NULL;
+        if (!Current(a, &state) || a->queued != state.id - (state.looping ? 1U : 0U))
+            return SDL_SetError(
+                "XA loop lost its actual configured base; changed-queue contention is unsupported");
+        if (!SotnMusic_PrepareXaLoop(a->current, &next))
+            return false;
+        SotnMusic_Destroy(a->current);
+        a->current = next;
+        a->config = a->queued;
+        a->busy = true;
+        a->native_ready = false;
+        a->phase = 2; // Actual native Setloc configuration, before ReadN.
+        break;
+    }
+    case 2:
+        if (!SotnMusic_Prepare(a->current))
+            return false;
+        a->native_ready = true;
+        ++a->phase;
+        break;
+    case 3:
+        if (!Current(a, &state))
+            return false;
+        ++a->phase;
+        break;
+    case 4:
+        if (!Current(a, &state))
+            return false;
+        a->started = clock;
+        a->duration = state.duration;
+        a->playing = a->config;
+        Complete(a, false);
+        break;
+    default:
+        return SDL_SetError("Native XA loop has an unsupported original command phase");
     }
     return true;
 }
@@ -183,7 +246,13 @@ static bool Pause(SotnCdAudio *a, Uint32 clock)
         const Uint32 remaining = a->duration > elapsed ? a->duration - elapsed : 1;
         SavedMusic *saved = &a->bookmarks[a->saved];
         SotnMusic_Destroy(saved->music);
-        *saved = (SavedMusic){a->current, remaining, a->playing, a->finite};
+        *saved = (SavedMusic){.music = a->current,
+                              .duration = remaining,
+                              .playing = a->playing,
+                              .mode = a->mode,
+                              .finite = a->finite,
+                              .managed = a->managed,
+                              .native_ready = a->native_ready};
         a->current = NULL;
         a->serial = false; // Actual retained decoder stops advancing at native Pause commit.
         ++a->phase;
@@ -244,6 +313,9 @@ static bool Restore(SotnCdAudio *a, Uint32 clock)
         a->started = clock;
         a->duration = a->bookmarks[a->saved - 1U].duration;
         a->finite = a->bookmarks[a->saved - 1U].finite;
+        a->mode = a->bookmarks[a->saved - 1U].mode;
+        a->managed = a->bookmarks[a->saved - 1U].managed;
+        a->native_ready = a->bookmarks[a->saved - 1U].native_ready;
         a->serial = true;
         ++a->phase;
         break;
@@ -334,14 +406,16 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
         a->volume = a->target_volume = state.volume;
         a->serial = true;
         a->finite = state.once;
+        a->mode = state.mode;
+        a->native_ready = true;
     }
     *music = NULL;
     return true;
 }
 bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
 {
-    if (!a || (command != 0x10 && command != 0x11 && command != 0xa && !Voice(command)))
-        return SDL_SetError("Native CD owner requires original10/11/A or selected US Fairy speech");
+    if (!a || (command != 0x10 && command != 0x11 && command != 0xa && !XaCommand(command)))
+        return SDL_SetError("Native CD owner requires original10/11/A or US XA sound301..532");
     if (command == 0x10 || command == 0x11)
         a->acknowledge_busy = true;
     a->incoming[a->write] = command;
@@ -354,8 +428,31 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
         return SDL_SetError("Native CD tick requires its actual owner and full stereo PCM output");
     SoundCommands(a);
     // Original strict comparison and private mode-two twenty-tick tail, before CD dispatch.
-    if (a->playing && !a->busy && a->finite && clock - a->started > a->duration)
-        Add(a, 2);
+    if (a->playing && !a->busy && clock - a->started > a->duration)
+    {
+        if (!a->managed)
+        {
+            if (a->finite)
+                Add(a, 2);
+        }
+        else if (a->mode == 2)
+            Add(a, 2);
+        else if (a->mode == 1)
+        {
+            SotnMusicState state = {0};
+            if (!SotnMusic_ContinueXa(a->current) || !Current(a, &state))
+                return false;
+            a->queued = a->playing;
+            a->mode = state.mode;
+            a->duration = state.duration;
+            a->started = clock;
+        }
+        else
+        {
+            a->queued = a->playing;
+            Add(a, 6);
+        }
+    }
     if (a->count)
     {
         bool ok = true;
@@ -366,6 +463,9 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
             break;
         case 4:
             ok = Start(a, clock);
+            break;
+        case 6:
+            ok = Loop(a, clock);
             break;
         case 12:
             ok = Pause(a, clock);
@@ -380,7 +480,7 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
             return false;
     }
     SDL_memset(pcm, 0, SOTN_SOUND_FRAMES * 2 * sizeof(*pcm));
-    if (a->serial && a->current)
+    if (a->serial && a->current && (!a->managed || a->native_ready))
     {
         SotnMusicState state = {0};
         if (!SotnMusic_Tick(a->current, pcm, count) || !Current(a, &state))
@@ -404,11 +504,13 @@ bool SotnCdAudio_Get(const SotnCdAudio *a, SotnCdAudioState *out)
                               .saved = a->saved,
                               .volume = a->volume,
                               .target_volume = a->target_volume,
+                              .mode = a->mode,
                               .acknowledged = !a->acknowledge_busy,
                               .queue_empty = !a->count,
                               .playing_xa = a->playing != 0,
                               .busy = a->busy,
                               .serial = a->serial,
+                              .managed = a->managed,
                               .decoder_present = a->current != NULL};
     if (a->current && !SotnMusic_Get(a->current, &state.decoder))
         return false;

@@ -22,12 +22,12 @@ static bool SameState(SotnCdAudioState a, SotnCdAudioState b)
            a.phase == b.phase && a.saved == b.saved && a.volume == b.volume &&
            a.target_volume == b.target_volume && a.acknowledged == b.acknowledged &&
            a.queue_empty == b.queue_empty && a.playing_xa == b.playing_xa && a.busy == b.busy &&
-           a.serial == b.serial && a.decoder_present == b.decoder_present &&
-           a.decoder.sector == b.decoder.sector && a.decoder.remaining == b.decoder.remaining &&
-           a.decoder.duration == b.decoder.duration && a.decoder.start == b.decoder.start &&
-           a.decoder.id == b.decoder.id && a.decoder.volume == b.decoder.volume &&
-           a.decoder.mode == b.decoder.mode && a.decoder.looping == b.decoder.looping &&
-           a.decoder.once == b.decoder.once;
+           a.serial == b.serial && a.mode == b.mode && a.managed == b.managed &&
+           a.decoder_present == b.decoder_present && a.decoder.sector == b.decoder.sector &&
+           a.decoder.remaining == b.decoder.remaining && a.decoder.duration == b.decoder.duration &&
+           a.decoder.start == b.decoder.start && a.decoder.id == b.decoder.id &&
+           a.decoder.volume == b.decoder.volume && a.decoder.mode == b.decoder.mode &&
+           a.decoder.looping == b.decoder.looping && a.decoder.once == b.decoder.once;
 }
 static bool Tick(SotnCdAudio *a, Uint32 *clock, SotnCdAudioState *state)
 {
@@ -131,7 +131,7 @@ static bool Exercise(SotnDataView dra, SotnStream *stream)
     CHECK(Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     CHECK(SotnCdAudio_Queue(a, 0x11) && Tick(a, &clock, &s) && s.queue_empty && s.acknowledged);
     const SotnCdAudioState before = s;
-    CHECK(!SotnCdAudio_Queue(a, 0x474) && SotnCdAudio_Get(a, &s) && SameState(s, before));
+    CHECK(!SotnCdAudio_Queue(a, 0x533) && SotnCdAudio_Get(a, &s) && SameState(s, before));
     CHECK(StartVoice(a, &clock, 0x472, &s));
     const Uint32 started = s.started;
     CHECK(s.duration == 36 && s.decoder.duration == 16);
@@ -195,11 +195,123 @@ static bool Exercise(SotnDataView dra, SotnStream *stream)
     SotnCdAudio_Destroy(a);
     return true;
 }
+static bool CommandTransport(SotnDataView dra, SotnStream *stream)
+{
+    SotnMusic *music = NULL, *reference = NULL, *loop = NULL;
+    CHECK(SotnMusic_CreateXa(dra, stream, 0x32e, &music) &&
+          SotnMusic_CreateXa(dra, stream, 0x32e, &reference));
+    Sint16 actual[SOTN_SOUND_FRAMES * 2], expected[SOTN_SOUND_FRAMES * 2];
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(SotnMusic_Tick(music, actual, SDL_arraysize(actual)) &&
+              SotnMusic_Tick(reference, expected, SDL_arraysize(expected)) &&
+              !SDL_memcmp(actual, expected, sizeof(actual)));
+    SotnMusicState before = {0}, after = {0};
+    CHECK(SotnMusic_Get(music, &before) && SotnMusic_ContinueXa(music) &&
+          SotnMusic_Get(music, &after) && before.sector == after.sector && after.id == 47 &&
+          after.looping && after.remaining == 16 && after.volume == 127);
+    // Continuing metadata must retain buffered PCM, resampler and ADPCM history exactly.
+    for (Uint16 i = 0; i < 24; ++i)
+        CHECK(SotnMusic_Tick(music, actual, SDL_arraysize(actual)) &&
+              SotnMusic_Tick(reference, expected, SDL_arraysize(expected)) &&
+              !SDL_memcmp(actual, expected, sizeof(actual)));
+    CHECK(SotnMusic_Get(music, &before));
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        CHECK(SotnMusic_Tick(music, actual, SDL_arraysize(actual)));
+        for (Uint16 j = 0; j < SDL_arraysize(actual); ++j)
+            CHECK(!actual[j]);
+    }
+    CHECK(SotnMusic_Get(music, &after) && before.sector == after.sector &&
+          SotnMusic_Playing(music)); // PCM exhaustion never completes the CD command owner.
+    CHECK(SotnMusic_Get(music, &before) && SotnMusic_PrepareXaLoop(music, &loop) &&
+          SotnMusic_Get(music, &after) && before.sector == after.sector &&
+          before.remaining == after.remaining && SotnMusic_Get(loop, &after) &&
+          after.sector == after.start && after.remaining == 16 && after.id == 47 && after.looping &&
+          !SotnMusic_ContinueXa(loop));
+    SotnMusic_Destroy(music);
+    SotnMusic_Destroy(reference);
+    music = reference = NULL;
+    CHECK(SotnMusic_CreateXa(dra, stream, 0x32e, &reference) && SotnMusic_Prepare(loop));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(SotnMusic_Tick(loop, actual, SDL_arraysize(actual)) &&
+              SotnMusic_Tick(reference, expected, SDL_arraysize(expected)) &&
+              !SDL_memcmp(actual, expected, sizeof(actual)));
+    SotnMusic_Destroy(loop);
+    SotnMusic_Destroy(reference);
+    CHECK(!SotnMusic_CreateXa(dra, stream, 0x300, &music) && !music &&
+          !SotnMusic_CreateXa(dra, stream, 0x533, &music) && !music);
+    CHECK(SotnMusic_Create(dra, stream, &music) && !SotnMusic_ContinueXa(music));
+    loop = NULL;
+    CHECK(!SotnMusic_PrepareXaLoop(music, &loop) && !loop);
+    SotnMusic_Destroy(music);
+    return true;
+}
+static bool CommandMusic(SotnDataView dra, SotnStream *stream)
+{
+    SotnMusic *music = NULL;
+    SotnCdAudio *a = NULL;
+    SotnCdAudioState s = {0};
+    Uint32 clock = SDL_MAX_UINT32 - 12U;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && StartVoice(a, &clock, 0x32e, &s) &&
+          s.mode == 1 && s.managed && s.duration == 16);
+    const Uint32 started = s.started;
+    while (clock - started <= 16)
+        CHECK(Tick(a, &clock, &s) && s.started == started && !s.decoder.looping && s.queue_empty);
+    const Uint32 sector = s.decoder.sector;
+    CHECK(Tick(a, &clock, &s) && s.mode == 0 && s.managed && s.decoder.looping &&
+          s.decoder.id == 47 && s.decoder.sector >= sector && s.queue_empty && s.volume == 127 &&
+          s.target_volume == 127);
+    const Uint32 continued = s.started;
+    while (clock - continued <= 16)
+        CHECK(Tick(a, &clock, &s) && s.started == continued && s.queue_empty);
+    CHECK(Tick(a, &clock, &s) && s.command == 6 && s.phase == 2 && s.busy && s.serial &&
+          s.decoder.sector == s.decoder.start && s.decoder.remaining == 16);
+    CHECK(Tick(a, &clock, &s) && s.phase == 3 && s.decoder.sector == s.decoder.start + 1 &&
+          s.decoder.remaining == 15);
+    CHECK(Tick(a, &clock, &s) && s.phase == 4 && Tick(a, &clock, &s) && s.queue_empty && !s.busy &&
+          s.playing == 46 && s.mode == 0 && s.duration == 16);
+    SotnMusicState held = {0};
+    CHECK(PauseMusic(a, &clock, &s, &held) && s.saved == 1 && StartVoice(a, &clock, 0x472, &s) &&
+          s.saved == 1 && s.mode == 2 && StopMusic(a, &clock, &s) &&
+          RestoreMusic(a, &clock, &s, held) && s.mode == 0 && s.managed && s.playing == 46);
+    SotnCdAudio_Destroy(a);
+    a = NULL;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && StartVoice(a, &clock, 0x32e, &s) &&
+          PauseMusic(a, &clock, &s, &held) && s.saved == 1 && StartVoice(a, &clock, 0x31d, &s) &&
+          !s.saved && s.playing == 29);
+    SotnCdAudio_Destroy(a);
+    return true;
+}
+static bool LoopPauseOrder(SotnDataView dra, SotnStream *stream)
+{
+    SotnMusic *music = NULL;
+    SotnCdAudio *a = NULL;
+    SotnCdAudioState s = {0};
+    Uint32 clock = 0;
+    CHECK(SotnCdAudio_Create(dra, stream, &music, clock, &a) && StartVoice(a, &clock, 0x32e, &s));
+    while (s.mode == 1)
+        CHECK(Tick(a, &clock, &s));
+    while (clock - s.started <= s.duration)
+        CHECK(Tick(a, &clock, &s));
+    CHECK(SotnCdAudio_Queue(a, 0x10) && Tick(a, &clock, &s) && s.command == 12 && s.commands == 3 &&
+          s.phase == 1);
+    bool restored = false, sought = false, complete = false;
+    for (Uint16 i = 0; i < 100 && !complete; ++i)
+    {
+        CHECK(Tick(a, &clock, &s));
+        restored |= s.command == 14;
+        sought |= s.command == 6;
+        complete = restored && sought && s.queue_empty && !s.busy;
+    }
+    CHECK(complete && s.playing == 46 && !s.saved && s.acknowledged && s.mode == 0);
+    SotnCdAudio_Destroy(a);
+    return true;
+}
 static bool Run(const char *directory)
 {
     Uint8 *dra = SDL_calloc(1, 0x20000), *raw = SDL_calloc(32, SOTN_CD_SECTOR_BYTES);
     CHECK(dra && raw);
-    const Uint16 ids[] = {46, 47, 0x172, 0x173, 0x176, 0x179, 0x17a, 0x18a, 0x18e, 0x192};
+    const Uint16 ids[] = {46, 47, 29, 30, 0x172, 0x173, 0x176, 0x179, 0x17a, 0x18a, 0x18e, 0x192};
     for (Uint16 i = 0; i < SDL_arraysize(ids); ++i)
     {
         Uint8 *p = dra + 0x1d224 + ids[i] * 16;
@@ -207,7 +319,7 @@ static bool Run(const char *directory)
         Put32(p + 4, 16);
         p[8] = 1;
         p[10] = 127;
-        Put32(p + 12, i < 2 ? (i == 0 ? 1 : 0) : 2);
+        Put32(p + 12, i < 4 ? ((i & 1U) ? 0 : 1) : 2);
     }
     for (Uint16 i = 0; i < 32; ++i)
     {
@@ -235,7 +347,10 @@ static bool Run(const char *directory)
     SotnStream *stream = NULL;
     CHECK(SotnData_OpenStreamSpec(directory, &spec, &stream));
     dra[0x1d224 + 47 * 16 + 10] = 63;
-    CHECK(LoopVolume((SotnDataView){dra, 0x20000}, stream));
+    CHECK(LoopVolume((SotnDataView){dra, 0x20000}, stream) &&
+          CommandTransport((SotnDataView){dra, 0x20000}, stream) &&
+          CommandMusic((SotnDataView){dra, 0x20000}, stream) &&
+          LoopPauseOrder((SotnDataView){dra, 0x20000}, stream));
     dra[0x1d224 + 47 * 16 + 10] = 127;
     CHECK(Exercise((SotnDataView){dra, 0x20000}, stream));
     SotnStream_Close(stream);

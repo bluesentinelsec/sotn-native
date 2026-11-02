@@ -11,8 +11,8 @@ typedef struct SotnCdAudioState
 {
     Uint32 started, duration;
     Uint16 playing, queued, command, commands;
-    Uint8 phase, saved, volume, target_volume;
-    bool acknowledged, queue_empty, playing_xa, busy, serial;
+    Uint8 phase, saved, volume, target_volume, mode;
+    bool acknowledged, queue_empty, playing_xa, busy, serial, managed;
     bool decoder_present;
     SotnMusicState decoder;
 } SotnCdAudioState;
@@ -32,10 +32,15 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
  * real resampler/sector/ADPCM position. This lets a resource transaction allocate first
  * and transfer ownership only at commit; it supplies no playback acknowledgement. */
 bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock);
-/** @brief Queue original10/11/A or one of the eight selected US Fairy narrative IDs.
+/** @brief Queue original10/11/A or an original US XA sound ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.
- * @return Success or SDL error without mutation for unsupported commands. */
+ * Actual private metadata/format and native reads are validated before playback acknowledgement.
+ * Modes0/1 use original continuation/command6; adopted legacy intro/loop decoders keep
+ * their existing native loop service. Enables no additional stage/familiar controls.
+ * Managed loop seeks require the retained configured base; changed global queued-base
+ * contention fails explicitly before seeking and still requires its actual owner.
+ * @return Success or SDL error without mutation for commands outside the original domain. */
 bool SotnCdAudio_Queue(SotnCdAudio *audio, Uint16 command);
 /** @brief Execute sound commands, original expiry, then one CD-command phase and PCM tick.
  * @param audio Actual owner. @param clock Actual wrapping engine/VSync clock, not save playtime.

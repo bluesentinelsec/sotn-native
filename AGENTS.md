@@ -1,3 +1,17 @@
+The [CD-command service](docs/familiar-cd-audio.md) now reconstructs selected
+managed mode1 continuation and mode0 command6 with actual private music transports.
+Preserve original playing identity, strict wrapping-clock expiry, metadata-only
+continuation without PCM/history reset, real loop Setloc/ReadN and pending12-to14/6
+ordering including255-entry overflow. Preserve mode/transport bookmarks and raw<40
+music's abandoned-position reset. Actual PCM exhaustion flushes its tail and holds
+silence until real seek/stop without changing command state or reading unrelated
+tracks. Adopted legacy loops and finite speech retain their own behavior. Changed
+global queued-base retargeting fails explicitly; general native stage/dialogue/CD
+session ownership, reverb and whole sharing remain unfinished. Wider301..532 service
+inputs are not additional controls. Explicit expiry-clock fixtures and private
+audio-service cadence checks are not stage-route/menu/acquisition/console evidence.
+No grants/pools/v9 changes; ordinary Fairy selection and all six gates remain open.
+
 Selected [engine/session familiar initialization](docs/familiar-lifecycle.md) now
 derives the actual active card, binds original mode0 after native bootstrap/64
 AluInit RNG calls, and transfers seven records/selection without a menu load.
