@@ -147,6 +147,7 @@ void SoundResetStopped(SotnSound *sound)
     SDL_memset(sound->priority, 0, sizeof(sound->priority));
     SDL_memset(sound->queue, 0, sizeof(sound->queue));
     sound->queued = sound->ambience_id = 0;
+    sound->queue_read = sound->queue_write = 0;
     sound->scripts_paused = false;
     sound->sequence = (SotnSequence){0};
     sound->sequence_data = (SotnDataView){0};
@@ -415,10 +416,10 @@ bool SotnSound_Create(SotnSoundSources sources, SotnSound **out)
 
 bool SotnSound_Queue(SotnSound *sound, Uint16 id)
 {
-    if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1 && id != 0xe && id != 0xf) ||
-        sound->queued >= SDL_arraysize(sound->queue))
-        return SDL_SetError("Sound event is invalid or the bounded queue is full");
-    const Uint16 slot = sound->queued++;
+    if (sound == NULL || ((id <= 0x600 || id > 0x8e0) && id != 0xa1 && id != 0xe && id != 0xf))
+        return SDL_SetError("Sound event is invalid");
+    const Uint8 slot = sound->queue_write++;
+    sound->queued = (Uint8)(sound->queue_write - sound->queue_read);
     sound->queue[slot].id = id;
     sound->queue[slot].volume = SDL_MAX_UINT16;
     sound->queue[slot].pan = 0;
@@ -432,17 +433,19 @@ bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 
         return SDL_SetError("Sound volume/pan event exceeds its original bounds");
     if (!SotnSound_Queue(sound, id))
         return false;
-    sound->queue[sound->queued - 1].volume = volume;
-    sound->queue[sound->queued - 1].pan = pan;
+    const Uint8 slot = (Uint8)(sound->queue_write - 1);
+    sound->queue[slot].volume = volume;
+    sound->queue[slot].pan = pan;
     return true;
 }
 
 bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan)
 {
-    if (sound == NULL || volume > 127 || pan < -8 || pan > 8 ||
-        sound->queued >= SDL_arraysize(sound->queue))
-        return SDL_SetError("Ambience gain exceeds its original bounds or the sound queue is full");
-    const Uint16 slot = sound->queued++;
+    if (sound == NULL || volume > 127 || pan < -8 || pan > 8)
+        return SDL_SetError("Ambience gain exceeds its original bounds");
+    const Uint8 slot = sound->queue_write++;
+    sound->queued = (Uint8)(sound->queue_write - sound->queue_read);
+    sound->queue[slot].id = 0;
     sound->queue[slot].ambience_volume = true;
     sound->queue[slot].volume = volume;
     sound->queue[slot].pan = pan;
@@ -453,21 +456,43 @@ bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out)
 {
     if (!sound || !out)
         return SDL_SetError("Sound command update requires its actual owner and frame output");
-    for (Uint32 i = 0; i < sound->queued; ++i)
+    while (sound->queue_read != sound->queue_write)
+    {
+        const Uint8 i = sound->queue_read;
+        const Uint16 id = sound->queue[i].id;
+        sound->queue[i].id = 0;
+        bool duplicate = false;
+        // ExecSfx clears the current ID before looking ahead. Only the last
+        // matching effect runs, with its own volume/pan and relative order.
+        if (id > 0x600)
+            for (Uint8 next = (Uint8)(i + 1); next != sound->queue_write; ++next)
+                if (!sound->queue[next].ambience_volume && sound->queue[next].id == id)
+                {
+                    duplicate = true;
+                    break;
+                }
+        if (duplicate)
+        {
+            ++sound->queue_read;
+            sound->queued = (Uint8)(sound->queue_write - sound->queue_read);
+            continue;
+        }
         if (sound->queue[i].ambience_volume)
         {
             if (!AmbienceVolume(sound, sound->queue[i].volume, sound->queue[i].pan))
                 return false;
         }
-        else if (sound->queue[i].id == 0xe)
+        else if (id == 0xe)
             SoundPauseScripts(sound);
-        else if (sound->queue[i].id == 0xf)
+        else if (id == 0xf)
             SoundResumeScripts(sound);
-        else if (sound->queue[i].id == 0xa1)
+        else if (id == 0xa1)
             SoundReleaseVoices(sound, 0x300000, 14);
-        else if (!Event(sound, sound->queue[i].id, sound->queue[i].volume, sound->queue[i].pan))
+        else if (!Event(sound, id, sound->queue[i].volume, sound->queue[i].pan))
             return false;
-    sound->queued = 0;
+        ++sound->queue_read;
+        sound->queued = (Uint8)(sound->queue_write - sound->queue_read);
+    }
     const Uint32 first_script = sound->sequence_open ? 3 : 0,
                  end_script = sound->sequence_open ? 4 : 3;
     for (Uint32 i = first_script; i < end_script; ++i)

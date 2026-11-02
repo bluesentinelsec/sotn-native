@@ -1,3 +1,14 @@
+Selected [effect-ring ownership](docs/laboratory-audio.md) now preserves the original
+256 read/write slots, last matching effect, retained volume/pan and wrap-to-empty.
+Consume IDs before lookahead; preserve physical cursors and stale volume/pan words
+through ordinary updates and prepared SPU replacement, clearing them only at actual
+MuteSound initialization. No queue-capacity failure or replacement voice pool.
+Standalone controls/ambience retain their compatibility API; bound controls use the
+real CD sound ring. Explicit burst/arrival/protection fixtures and dispatch adapters
+are not ordinary producer/acquisition/route/console evidence. Global bootstrap,
+voice allocation/key timing, session continuity and all six milestone gates remain
+open; no grants, savesv9 changes or ordinary Fairy UI.
+
 Selected [bound game-over audio](docs/laboratory-game-over.md) now consumes actual
 death128 through separate Engine81/Init11 frames, acknowledgement-plus-XA gating,
 12/B cleanup, actual MuteSound metadata/transport retirement and managed33e. Queue

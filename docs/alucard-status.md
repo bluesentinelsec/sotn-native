@@ -159,7 +159,11 @@ needs a source-backed inventory of its remaining branches and an evidence record
   Natural SEQ end retains its access and fourth script gate; explicit close
   releases all24. Selected bound
   7/E/F/A1/202/204 now share the actual CD sound ring after script updates, retaining
-  duplicate-XA holds, delayed resume and pre-command lease spans. CD sends,
+  duplicate-XA holds, delayed resume and pre-command lease spans. The
+  [effect ring](laboratory-audio.md) now retains original256 read/write slots,
+  last-duplicate order/volume/pan and wrap-to-empty behavior without a capacity
+  failure. Standalone control/ambience compatibility APIs remain separately scoped.
+  Full voice allocation/key timing, CD sends,
   unbound bootstrap/game-over routing, other presets, remaining mixing
   and cross-session audio remain unfinished. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing

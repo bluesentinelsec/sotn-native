@@ -84,7 +84,8 @@ void SotnSound_StopSequence(SotnSound *sound);
 /** @brief Queue an original sound-effect ID for the next simulation tick.
  * @param sound Borrowed owned simulation. @param id Original US effect0x601..0x8e0,
  * ambience release0xA1 or script pause/resume0xE/0xF.
- * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue.
+ * @return Success, or false with SDL_GetError() for invalid input. Effects use the original
+ * 256-entry read/write ring: 256 unconsumed writes wrap to empty; the last duplicate wins.
  * @note Queue also accepts original commands0xE/0xF for script pause/resume. They preserve playing
  * voices, direct effects and stage music. They run in queue order on the next Tick. Script mode5
  * remains live; copied cursors restore with original allocation/overwrite rules. These commands do
@@ -94,14 +95,14 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id);
 /** @brief Queue an original effect with explicit volume and signed stereo distance.
  * @param sound Borrowed simulation. @param id Original effect ID, 0x601..0x8e0.
  * @param volume Original 0..127 multiplier. @param pan Original distance, -8..8.
- * @return Success or SDL error; the queue is unchanged on invalid input or exhaustion.
+ * @return Success or SDL error; the queue is unchanged on invalid input.
  * Pan coefficients remain in the private DRA image. */
 bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan);
 
 /** @brief Queue original channels 22/23 gain without restarting their loop or envelope.
  * @param sound Borrowed simulation. @param volume Original multiplier 0..127.
- * @param pan Original signed distance -8..8. @return Success or SDL error on invalid input
- * or queue exhaustion. A valid update with no active ambience has no effect. */
+ * @param pan Original signed distance -8..8. @return Success or SDL error on invalid
+ * bounds. A valid update with no active ambience has no effect. */
 bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
 
 /** @brief Advance scripts/voices and render one tick of signed native-endian stereo PCM.

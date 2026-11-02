@@ -62,3 +62,10 @@ queue/cursor instructions; standalone callers keep their existing selected API.
 All-voice InitSoundVars2 clears the pause flag while retaining copied cursors. See
 [bound sound-ring ownership](familiar-cd-audio.md) for evidence and remaining global,
 bootstrap/game-over/session limits.
+
+
+The selected [effect ring](laboratory-audio.md) now keeps the last duplicate effect
+with its own volume/pan and original256-write wrap. Effects retain physical read/
+write cursors across updates; valid overflow no longer stops the native session.
+Standalone controls remain compatibility commands; bound E/F still use their
+separate actual CD ring after script updates. Full global ordering remains open.

@@ -59,7 +59,7 @@ The accompanying Gaussian coefficients are public-domain mathematical reference
 values, not game assets. Full notices ship in `licenses/` and `THIRD_PARTY.md`.
 
 Public synthetic tests cover known ADPCM samples/predictor history, direct and
-scripted playback, nonzero PCM, deterministic output, queue bounds, malformed
+scripted playback, nonzero PCM, deterministic output, invalid queue inputs, malformed
 scripts, truncated bodies, and invalid VAB attributes. A private check rendered
 11 original combat sound IDs to nonzero PCM, without publishing the recording.
 A native candle break/collection check with SDL audio passed under LLDB.
@@ -100,3 +100,50 @@ proof of complete listening quality or audiovisual parity.
 The [selected spell script-pause service](spell-sound-freeze.md) now retains original
 queued pause/resume, non-pausing scripts and copied cursor/allocation behavior.
 The native spirit-casting owner and full audio parity remain incomplete.
+
+
+## Selected effect ring
+
+The actual sound owner now retains the original256-slot read/write ring across
+updates. PlaySfx/PlaySfxVolPan advance the write cursor without a capacity error;
+256 unconsumed writes make the cursors equal and leave no pending effects.
+A subsequent write exposes only its new retained span. ExecSfx clears each current
+ID, scans the remaining span and dispatches only the last matching ID, retaining
+that request's relative order, volume and pan. Consumed volume/pan words remain
+in their actual slots. MuteSound initialization clears both cursors and records;
+prepared familiar SPU replacement copies the live ring without an extra update.
+
+The existing array supplies this ownership; no second effect/voice pool is added.
+Bound native SPU controls still use the actual separate
+[CD sound-command ring](familiar-cd-audio.md). Standalone pause/resume/release and
+queued ambience gain retain their selected compatibility API in the sound queue.
+Their shared fallback storage is not evidence of full original global command
+ordering or ambience-command ownership.
+
+Public authored tests cover last-request script order and gain/pan, lookahead
+across the physical end,256-wrap silence,257th-write selection and invalid-input
+holds. Private Debug/ASan production-controller traces match8 contexts,
+20,648 requests,96 drains and2,751 surviving dispatches against complete original
+PlaySfx/PlaySfxVolPan/ExecSfx/IncrementRingBufferPos instructions. All256 ID/volume/pan
+records and both cursors match after every call; Debug/ASan traces are identical.
+The effect-dispatch callee is an explicit adapter in this ring comparison; scripts,
+voices, DSP and source routes are separate evidence.
+
+Actual native Debug/ASan checks compare43 command/render pairs against independently
+queued surviving requests using real private scripts and voice/DSP/RAM/PCM owners.
+They cover last-request order and gain/pan,256-wrap silence,257th-write selection,
+eight menu updates, an ordinary five-MP Summon Spirit cast with33 frozen updates
+plus release, and five repeated draws retaining complete sound state. Arrival,
+protection and supplied effect bursts do not establish ordinary effect producers,
+acquisition, uninterrupted routes, hardware DSP or console parity.
+
+All eight final CD/rescue/game-over/actual-app regressions pass in Debug/ASan
+with normal exits and no sanitizer errors. All220 public tests pass in Debug,
+Release and macOS ASan/UBSan alongside Python, policy and package checks.
+
+Full direct-effect voice allocation and retained identities, key status/SDK key
+timing, universal bootstrap, CD/SEQ/dialogue/session continuity, other presets,
+remaining positional/movement/ambient producers and NTSC scheduling remain open.
+This batch does not close any of the six [Alucard milestone gates](alucard-status.md).
+Provenance remains the pinned AGPL source noted above; all private inputs and traces
+remain outside public source and packages.

@@ -114,7 +114,7 @@ static bool Simulation(Fixture *f)
     CHECK(!SotnSound_Queue(a, 0x600) && !SotnSound_Queue(a, 0x8e1));
     for (Uint32 i = 0; i < 256; i++)
         CHECK(SotnSound_Queue(a, 0x601));
-    CHECK(!SotnSound_Queue(a, 0x601));
+    CHECK(!a->queued && a->queue_read == a->queue_write && SotnSound_Queue(a, 0x601));
     CHECK(SotnSound_Tick(a, first, SDL_arraysize(first)));
     CHECK(!SotnSound_Tick(a, first, 1));
     Put32(f->dra, 0x21ed0, 0xfffffff0);
@@ -122,6 +122,54 @@ static bool Simulation(Fixture *f)
     CHECK(!SotnSound_Tick(a, first, SDL_arraysize(first)));
     SotnSound_Destroy(a);
     SotnSound_Destroy(b);
+    return true;
+}
+
+static bool EffectRing(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    // Two distinct authored scripts make retained request order observable.
+    const size_t first = 0x1f554 + 2U * 7U;
+    SDL_memcpy(f->dra + first + 7, f->dra + first, 7);
+    f->dra[first + 7 + 1] = 1;
+    Put32(f->dra, 0x21ed4, 0x800a1000);
+    SotnSound *sound = NULL;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_Create(sources, &sound));
+    CHECK(SotnSound_QueueVolumePan(sound, 0x602, 11, -8) &&
+          SotnSound_QueueVolumePan(sound, 0x603, 90, -3) &&
+          SotnSound_QueueVolumePan(sound, 0x602, 70, 5) && SotnSound_UpdateCommands(sound, &frame));
+    CHECK(sound->scripts[0].id == 0x603 && sound->scripts[0].volume == (126U * 90U >> 7) &&
+          sound->scripts[0].pan == -3 && sound->scripts[1].id == 0x602 &&
+          sound->scripts[1].volume == (126U * 70U >> 7) && sound->scripts[1].pan == 5 &&
+          !sound->queued && sound->queue_read == 3 && sound->queue_write == 3 &&
+          !sound->queue[0].id && !sound->queue[1].id && !sound->queue[2].id);
+    SotnSound_Destroy(sound);
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint16 i = 0; i < 256; ++i)
+        CHECK(SotnSound_Queue(sound, 0x602));
+    CHECK(!sound->queued && !sound->queue_read && !sound->queue_write &&
+          SotnSound_UpdateCommands(sound, &frame) && !sound->scripts[0].id &&
+          sound->queue[0].id == 0x602 && sound->queue[255].id == 0x602 &&
+          SotnSound_QueueVolumePan(sound, 0x603, 30, -7) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].id == 0x603 &&
+          sound->scripts[0].pan == -7 && sound->queue_read == 1 && sound->queue_write == 1);
+    // Drain to index255, then look ahead across the physical end of the ring.
+    for (Uint16 i = 0; i < 254; ++i)
+        CHECK(SotnSound_Queue(sound, 0x601));
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->queue_read == 255 &&
+          sound->queue_write == 255);
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    CHECK(SotnSound_QueueVolumePan(sound, 0x602, 12, -8) && SotnSound_Queue(sound, 0x603) &&
+          SotnSound_QueueVolumePan(sound, 0x602, 100, 8) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].id == 0x603 &&
+          sound->scripts[1].id == 0x602 && sound->scripts[1].pan == 8 &&
+          sound->scripts[1].volume == (126U * 100U >> 7) && sound->queue_read == 2 &&
+          sound->queue_write == 2 && !sound->queued && !sound->queue[255].id);
+    const Uint8 writer = sound->queue_write;
+    CHECK(!SotnSound_QueueVolumePan(sound, 0x602, 128, 0) &&
+          !SotnSound_QueueVolumePan(sound, 0x602, 127, 9) && sound->queue_write == writer);
+    SotnSound_Destroy(sound);
     return true;
 }
 
@@ -250,7 +298,7 @@ static bool MovingAmbience(Fixture *f)
     CHECK(audible > 100);
     for (Uint32 i = 0; i < 256; ++i)
         CHECK(SotnSound_QueueAmbienceVolume(a, 64, 0));
-    CHECK(!SotnSound_QueueAmbienceVolume(a, 64, 0));
+    CHECK(!a->queued && a->queue_read == a->queue_write && SotnSound_QueueAmbienceVolume(a, 64, 0));
     CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)));
     SotnSound_Destroy(a);
     SotnSound_Destroy(b);
@@ -600,7 +648,7 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
+    const bool passed = Decode() && Simulation(f) && EffectRing(f) && Ambience(f) && VolumePan(f) &&
                         MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
                         ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
                         ReverbOwner(f) && FramePhases(f);

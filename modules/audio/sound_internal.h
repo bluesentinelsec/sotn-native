@@ -53,6 +53,7 @@ struct SotnSound
         bool ambience_volume;
     } queue[256];
     Uint16 queued, ambience_id;
+    Uint8 queue_read, queue_write;
     Uint8 priority[4];
 };
 
