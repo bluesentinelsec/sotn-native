@@ -12,6 +12,8 @@ typedef struct SotnCdAudioState
     Uint32 started, duration;
     Uint16 playing, queued, command, commands;
     Sint16 fade_multiplier, fade_counter; /**< Original signed CD-volume fade words. */
+    Sint16 master_volume, master_target;  /**< Original signed master fade words. */
+    Sint32 release_counter;               /**< Original D_800BD1C4 countdown. */
     Uint8 phase, saved, volume, target_volume, mode;
     bool acknowledged, queue_empty, playing_xa, busy, serial, managed;
     bool fade_acknowledged; /**< Original single fade flag, distinct from10/11 and queue empty. */
@@ -41,12 +43,15 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *audio, SotnMusic **music, Uint32 clock)
  * The sound owner must remain live until replacement or CD destruction. Native callers rebind
  * prepared sound replacement before retiring the departing owner. This does not enable CD sends. */
 bool SotnCdAudio_BindSound(SotnCdAudio *audio, SotnSound *sound);
-/** @brief Queue original10/11/A/90..94 or an original US XA sound ID301..532.
+/** @brief Queue original10/11/A/80..84/90..94 or an original US XA sound ID301..532.
  * Sets the original acknowledgement-busy flag immediately for10/11. Commands subsequently
  * enter the original256-entry command ring and CD queue, with original overflow behavior.
  * Commands90..94 immediately set the separate fade flag; command8 owns the original
  *128/8/4/2/1 multipliers, signed counter and deferred stop2. Shared multiplier changes
  * can raise gain; the original flag can clear while another fade remains queued.
+ * Commands80..84 require the bound actual SPU: command10 controls master gain, depth0,
+ * StopSeq, delayed all24-voice RR8/cleanup and queued CdFadeOut1 (command3) restoring master127.
+ * Apply master_volume once to the final native mix, including SPU, CD and legacy inputs.
  * Actual private metadata/format and native reads are validated before playback acknowledgement.
  * Modes0/1 use original continuation/command6; adopted legacy intro/loop decoders keep
  * their existing native loop service. Enables no additional stage/familiar controls.

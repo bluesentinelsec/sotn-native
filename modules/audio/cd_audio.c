@@ -25,6 +25,8 @@ struct SotnCdAudio
     Uint16 read, write, count, playing, queued, config;
     Uint32 started, duration;
     Sint16 fade_multiplier, fade_counter;
+    Sint16 master_volume, master_target;
+    Sint32 release_counter;
     Uint8 phase, saved, volume, target_volume, mode;
     bool acknowledge_busy, fade_busy, busy, serial, finite, managed, native_ready;
 };
@@ -100,6 +102,11 @@ static void SoundCommands(SotnCdAudio *a)
             }
             a->queued = (Uint16)(id - 0x300U);
             Add(a, 4);
+        }
+        else if (id >= 0x80 && id <= 0x84)
+        {
+            a->fade_multiplier = id == 0x80 ? 32 : (Sint16)(1U << (0x84U - id));
+            Add(a, 10);
         }
         else if (id >= 0x90 && id <= 0x94)
         {
@@ -366,7 +373,7 @@ static bool Restore(SotnCdAudio *a, Uint32 clock)
     }
     return true;
 }
-static bool Stop(SotnCdAudio *a)
+static bool Stop(SotnCdAudio *a, bool reset_master)
 {
     SotnMusicState state = {0};
     switch (a->phase)
@@ -374,6 +381,8 @@ static bool Stop(SotnCdAudio *a)
     case 0:
         if (!a->playing)
         {
+            if (reset_master)
+                a->master_volume = a->master_target = 127;
             Advance(a);
             break;
         }
@@ -392,6 +401,8 @@ static bool Stop(SotnCdAudio *a)
         SotnMusic_Destroy(a->current);
         a->current = NULL;
         a->playing = 0;
+        if (reset_master)
+            a->master_volume = a->master_target = 127;
         Complete(a, false);
         break;
     default:
@@ -427,6 +438,49 @@ static bool Fade(SotnCdAudio *a)
     }
     return true;
 }
+static bool FadeMaster(SotnCdAudio *a)
+{
+    switch (a->phase)
+    {
+    case 0:
+        a->busy = true;
+        a->fade_counter = 0;
+        ++a->phase;
+        break;
+    case 1:
+        a->fade_counter = Word(a->fade_counter + 1);
+        a->master_volume =
+            a->master_volume > 0
+                ? Word(a->master_target -
+                       ((Sint32)a->master_target * a->fade_multiplier * a->fade_counter) / 512)
+                : 0;
+        if (a->master_volume < 0)
+            a->master_volume = 0;
+        if (!a->master_volume)
+            ++a->phase;
+        break;
+    case 2:
+        if (!SotnSound_SetReverbDepth(a->sound, 0, 0))
+            return false;
+        SotnSound_StopSequence(a->sound);
+        Add(a, 3); // CD_SOUND_COMMAND_FADE_OUT_1's actual enum value.
+        a->release_counter = 3;
+        ++a->phase;
+        break;
+    case 3:
+        --a->release_counter;
+        if (!a->release_counter)
+        {
+            SoundReleaseAll(a->sound);
+            a->fade_busy = false;
+            Complete(a, false);
+        }
+        break;
+    default:
+        return SDL_SetError("Native master fade lost its original command10 phase");
+    }
+    return true;
+}
 bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music, Uint32 clock,
                         SotnCdAudio **out)
 {
@@ -441,6 +495,7 @@ bool SotnCdAudio_Create(SotnDataView dra, SotnStream *stream, SotnMusic **music,
     a->dra = dra;
     a->stream = stream;
     a->fade_multiplier = 32; // Original InitSoundVars1, before any queued multiplier change.
+    a->master_volume = a->master_target = 127;
     if (!SotnCdAudio_AdoptMusic(a, music, clock))
     {
         SDL_free(a);
@@ -477,11 +532,15 @@ bool SotnCdAudio_AdoptMusic(SotnCdAudio *a, SotnMusic **music, Uint32 clock)
 bool SotnCdAudio_Queue(SotnCdAudio *a, Uint16 command)
 {
     if (!a || (command != 0x10 && command != 0x11 && command != 0xa &&
-               !(command >= 0x90 && command <= 0x94) && !XaCommand(command)))
-        return SDL_SetError("Native CD owner requires original10/11/A/90..94 or US XA301..532");
+               !(command >= 0x80 && command <= 0x84) && !(command >= 0x90 && command <= 0x94) &&
+               !XaCommand(command)))
+        return SDL_SetError(
+            "Native CD owner requires original10/11/A/80..84/90..94 or US XA301..532");
+    if (command >= 0x80 && command <= 0x84 && !a->sound)
+        return SDL_SetError("Master fade requires the actual configured SPU owner");
     if (command == 0x10 || command == 0x11)
         a->acknowledge_busy = true;
-    if (command >= 0x90 && command <= 0x94)
+    if ((command >= 0x80 && command <= 0x84) || (command >= 0x90 && command <= 0x94))
         a->fade_busy = true;
     a->incoming[a->write] = command;
     a->write = (Uint16)((a->write + 1U) & 255U);
@@ -533,8 +592,9 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
         bool ok = true;
         switch (a->commands[0])
         {
+        case 3:
         case 2:
-            ok = Stop(a);
+            ok = Stop(a, a->commands[0] == 3);
             break;
         case 4:
             ok = Start(a, clock);
@@ -544,6 +604,9 @@ bool SotnCdAudio_Tick(SotnCdAudio *a, Uint32 clock, Sint16 *pcm, size_t count)
             break;
         case 8:
             ok = Fade(a);
+            break;
+        case 10:
+            ok = FadeMaster(a);
             break;
         case 12:
             ok = Pause(a, clock);
@@ -580,6 +643,9 @@ bool SotnCdAudio_Get(const SotnCdAudio *a, SotnCdAudioState *out)
                               .commands = a->count,
                               .fade_multiplier = a->fade_multiplier,
                               .fade_counter = a->fade_counter,
+                              .master_volume = a->master_volume,
+                              .master_target = a->master_target,
+                              .release_counter = a->release_counter,
                               .phase = a->phase,
                               .saved = a->saved,
                               .volume = a->volume,

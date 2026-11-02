@@ -1,3 +1,15 @@
+Selected [bound master fades](docs/familiar-cd-audio.md) now own original80..84,
+command10, actual final native gain, depth0, StopSeq and three-update all24 RR8
+release/cleanup. Preserve shared80/90 multipliers, signed counters, immediate single
+fade flag and actual CdFadeOut1 queue3/reset127, including no-playing reset. Original
+StopSeq closes an access retained after EOT and releases all24; EOT itself releases
+only SEQ notes. RR writes clear low6 bits without clearing envelope/decoder/RAM;
+current scripts/allocations clear, paused copies and pending effects survive.
+Native final mix applies master once after SPU/CD/legacy additions. Explicit
+arrival/card/load/protection/events/tone/SEQ-access fixtures are not ordinary
+routes/acquisition/console evidence. Bootstrap/gameover/globalring/CDwet/session/
+persistence/whole-pass and all six gates remain open; no Fairy UI/pools/grants/v9 change.
+
 Selected [CD/SPU depth ownership](docs/familiar-cd-audio.md) now binds the actual
 configured sound owner, applies mode0 depth127 before6 and restores the original
 current byte at6 completion. BSS restore0 is separate from SoundInit SDK depth10;
@@ -5,7 +17,7 @@ actual SEQ changes the byte. Rebind prepared sound before retiring the old owner
 Preserve command-update/CD/render order and pre-SEQ script lease span, including
 fourth-channel retirement when SEQ ends. Binding/depth requests never tick DSP.
 Explicit clock/tone/owner fixtures are not normal traversal or console evidence;
-normal unskipped service cadence remains separate. CD wet/master/remaining global
+normal unskipped service cadence remains separate. CD wet/unbound master/remaining global
 mix/order/session/persistence/whole-pass and all six gates remain open. No new
 pool/grants/v9 changes or ordinary Fairy UI.
 
@@ -17,7 +29,7 @@ clearing/uploading; familiar preparation retains the live DSP and work RAM. Nati
 SoundInit depth10 and selected private SEQ depths now apply. Audio updates continue
 through menu/spell freeze; draws/load preparation never tick it. Explicit tone/card/
 protection/reference fixtures are not ordinary effect/acquisition/route/console
-evidence. Remaining CD sends, other presets/master/mixer/session continuity
+evidence. Remaining CD sends, other presets/unbound master/mixer/session continuity
 and all six milestone gates remain open. No new pool/grants/v9 changes or Fairy UI.
 
 Selected [bound stage CD routing](docs/familiar-cd-audio.md) now shares actual
@@ -28,7 +40,7 @@ Never create overlapping legacy decoders for that binding. Laboratory/Library90
 and shared dialogue92 retain original identities; Laboratory victory during active
 state3 increments to4 before5. Explicit audio events/activity/retained music words
 and card/protection fixtures are not encounter-route/acquisition/console evidence.
-Unbound bootstrap/game-over, master/reverb, other collapsed stage requests, full
+Unbound bootstrap/game-over, CD reverb, other collapsed stage requests, full
 sound-ring sharing/session continuity/persistence/whole-pass and Fairy UI stay open.
 No grants/pools/v9 changes; all six milestone gates remain open.
 
@@ -40,7 +52,7 @@ playing identity, never decoder readiness; ordinary/frozen/FFF actor snapshots u
 that owner. Loop6 may reconstruct its retired decoder but never enables serial mix.
 Menu/spirit-freeze audio advances on actual engine clocks; draws hold. Supplied
 stage-event/card/protection/music fixtures are not ordinary script/acquisition/route
-or console evidence. Master80..84, general stage music/dialogue, reverb, persistence
+or console evidence. Unbound master routing, general stage music/dialogue, CD reverb, persistence
 and whole sharing remain open; no grants/pools/v9 changes or ordinary Fairy UI.
 
 The [CD-command service](docs/familiar-cd-audio.md) now reconstructs selected

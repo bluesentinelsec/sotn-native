@@ -72,7 +72,11 @@ actual Library SEQ restore depths. Supplied engine-expiry and sound-replacement
 fixtures additionally verify same-frame native PCM and binding lifetime; they do
 not establish an uninterrupted gameplay route.
 
-CD reverb sends, other presets, master-volume commands, remaining mixer/SDK
+Bound master80..84 now commit depth0 before same-frame rendering, actual SEQ
+closure, delayed all24-voice release and final native master gain. See the
+[CD owner](familiar-cd-audio.md) for source/SDK/native evidence and boundaries.
+
+CD reverb sends, other presets, remaining mixer/SDK
 scheduling and cross-session DSP continuity remain open.
 This voice processor does not complete [shared CD audio](familiar-cd-audio.md),
 ordinary familiar activation, Alucard, castle or console parity. All six

@@ -75,8 +75,10 @@ bool SotnSound_SetStageSequence(SotnSound *sound, SotnDataView executable, SotnD
  * @return Success or SDL error. Voices share the original bounded hardware pool with effects.
  * Full reverb/hardware timing parity remains incomplete. */
 bool SotnSound_PlaySequence(SotnSound *sound, Uint16 id);
-/** @brief Release only sequence-owned voices and stop its cursor; other effects remain active.
- * @param sound Borrowed initialized owner or NULL. */
+/** @brief Original StopSeq: close an open SEQ and release all24 voices with RR8.
+ * @param sound Borrowed initialized owner or NULL. A natural end leaves the access open;
+ * explicit close clears current script/allocation state but retains paused script copies.
+ * Without an open access, only retained sequence notes receive key-off. */
 void SotnSound_StopSequence(SotnSound *sound);
 
 /** @brief Queue an original sound-effect ID for the next simulation tick.

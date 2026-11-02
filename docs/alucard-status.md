@@ -129,7 +129,7 @@ needs a source-backed inventory of its remaining branches and an evidence record
   commands with actual transports. Selected native stage90..94 volume requests now
   bind actual command8, separate fade acknowledgement and original activity snapshots
   through ordinary/frozen/FFF scheduling. Remaining general stage music/dialogue,
-  master-volume fades, retargeted queues, reverb and general sharing remain open;
+  unbound master routing, retargeted queues, CD reverb and general sharing remain open;
   this does not enable ordinary familiar selection.
   An already bound native CD owner also receives selected stage music/speech,
   stop, pause/restore and real-profile restart requests without overlapping legacy
@@ -151,7 +151,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   per-tone sends, selected SEQ depths and shared work RAM with menu/freeze/draw/load
   boundaries. Bound CD expiry/loop depth work now reaches that actual owner between
   command updates and sample rendering, with prepared sound rebinding and retained
-  pre-SEQ lease spans. CD sends, master commands, other presets, remaining mixing
+  pre-SEQ lease spans. Bound80..84 now use actual master gain, depth0, SEQ close,
+  three-update all24 RR8 cleanup and queued CdFadeOut1 (command3)/reset127.
+  Natural SEQ end retains its access; explicit close releases all24. CD sends,
+  unbound bootstrap/game-over routing, other presets, remaining mixing
   and cross-session audio remain unfinished. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
   callbacks before lookup and prunes32/33/65 before destination allocations. The

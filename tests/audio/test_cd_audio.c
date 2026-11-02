@@ -25,12 +25,14 @@ static bool SameState(SotnCdAudioState a, SotnCdAudioState b)
            a.queue_empty == b.queue_empty && a.playing_xa == b.playing_xa && a.busy == b.busy &&
            a.serial == b.serial && a.mode == b.mode && a.managed == b.managed &&
            a.fade_multiplier == b.fade_multiplier && a.fade_counter == b.fade_counter &&
-           a.fade_acknowledged == b.fade_acknowledged && a.xa_active == b.xa_active &&
-           a.decoder_present == b.decoder_present && a.decoder.sector == b.decoder.sector &&
-           a.decoder.remaining == b.decoder.remaining && a.decoder.duration == b.decoder.duration &&
-           a.decoder.start == b.decoder.start && a.decoder.id == b.decoder.id &&
-           a.decoder.volume == b.decoder.volume && a.decoder.mode == b.decoder.mode &&
-           a.decoder.looping == b.decoder.looping && a.decoder.once == b.decoder.once;
+           a.master_volume == b.master_volume && a.master_target == b.master_target &&
+           a.release_counter == b.release_counter && a.fade_acknowledged == b.fade_acknowledged &&
+           a.xa_active == b.xa_active && a.decoder_present == b.decoder_present &&
+           a.decoder.sector == b.decoder.sector && a.decoder.remaining == b.decoder.remaining &&
+           a.decoder.duration == b.decoder.duration && a.decoder.start == b.decoder.start &&
+           a.decoder.id == b.decoder.id && a.decoder.volume == b.decoder.volume &&
+           a.decoder.mode == b.decoder.mode && a.decoder.looping == b.decoder.looping &&
+           a.decoder.once == b.decoder.once;
 }
 static bool Tick(SotnCdAudio *a, Uint32 *clock, SotnCdAudioState *state)
 {
@@ -396,6 +398,78 @@ static void Sound16(Uint8 *p, Uint16 value)
     p[0] = (Uint8)value;
     p[1] = (Uint8)(value >> 8);
 }
+static bool MasterFades(SotnSoundSources inputs, SotnDataView image, SotnDataView seq,
+                        SotnStream *stream)
+{
+    const Sint16 multipliers[] = {32, 8, 4, 2, 1};
+    const Uint16 steps[] = {16, 64, 128, 256, 512};
+    for (Uint16 profile = 0; profile < 5; ++profile)
+        for (Uint16 context = 0; context < 4; ++context)
+        {
+            SotnSound *sound = NULL;
+            SotnCdAudio *a = NULL;
+            SotnMusic *music = NULL;
+            SotnCdAudioState s = {0};
+            Uint32 clock = SDL_MAX_UINT32 - 20U;
+            CHECK(SotnSound_Create(inputs, &sound) && SotnSound_ConfigureReverb(sound, image) &&
+                  SotnCdAudio_Create(inputs.dra, stream, &music, clock, &a) &&
+                  SotnCdAudio_Get(a, &s));
+            const SotnCdAudioState unbound = s;
+            CHECK(!SotnCdAudio_Queue(a, 0x80) && SotnCdAudio_Get(a, &s) && SameState(unbound, s) &&
+                  SotnCdAudio_BindSound(a, sound));
+            if (context & 1U)
+                CHECK(StartVoice(a, &clock, 0x32e, &s));
+            if (context & 2U)
+                CHECK(SotnSound_SetStageSequence(sound, image, seq, 0x202) &&
+                      SotnSound_PlaySequence(sound, 0x202));
+            for (Uint16 i = 0; i < 24; ++i)
+                CHECK(SoundKey(sound, i, 1, 0, 0, 60, 127, 64));
+            const SoundScript paused = {.id = 0x602, .address = 0x800b0000, .timer = 9};
+            sound->script_backup[0] = paused;
+            sound->scripts_paused = true;
+            sound->scripts[0] = (SoundScript){.id = 0x601, .allocation_id = 0x601};
+            sound->priority[0] = 7;
+            sound->ambience_id = 0x603;
+            CHECK(SotnSound_Queue(sound, 0x604) && SotnCdAudio_Queue(a, (Uint16)(0x80 + profile)) &&
+                  SotnCdAudio_Get(a, &s) && !s.fade_acknowledged && s.master_volume == 127 &&
+                  Tick(a, &clock, &s) && s.phase == 1 && s.command == 10 && s.busy &&
+                  s.fade_multiplier == multipliers[profile] && !s.fade_counter);
+            for (Uint16 i = 1; i <= steps[profile]; ++i)
+                CHECK(Tick(a, &clock, &s) && s.fade_counter == i &&
+                      s.master_volume == 127 - 127 * multipliers[profile] * i / 512 &&
+                      s.master_target == 127 && s.volume == ((context & 1U) ? 127 : 0) &&
+                      s.phase == (i == steps[profile] ? 2 : 1) && !s.fade_acknowledged &&
+                      !sound->voices[23].key_off);
+            CHECK(Tick(a, &clock, &s) && s.phase == 3 && s.release_counter == 3 &&
+                  s.commands == 2 && !sound->reverb.depth[0] && !sound->reverb.depth[1] &&
+                  !sound->sequence_open && !sound->sequence.playing &&
+                  sound->voices[23].key_off == ((context & 2U) != 0));
+            // A new actual voice after StopSeq still receives the later all-voice release.
+            CHECK(SoundKey(sound, 23, 1, 0, 0, 60, 127, 64));
+            sound->scripts[3] = (SoundScript){.id = 0x601, .allocation_id = 0x601};
+            CHECK(Tick(a, &clock, &s) && s.release_counter == 2 && !sound->voices[23].key_off &&
+                  Tick(a, &clock, &s) && s.release_counter == 1 && !sound->voices[23].key_off &&
+                  Tick(a, &clock, &s) && !s.release_counter && s.command == 3 && !s.phase &&
+                  !s.busy && s.fade_acknowledged && !s.master_volume);
+            for (Uint16 i = 0; i < 24; ++i)
+                CHECK(sound->voices[i].key_off && sound->voices[i].active &&
+                      (sound->registers[i].adsr[1] & 63U) == 8 &&
+                      sound->voices[i].adsr_hi == sound->registers[i].adsr[1]);
+            const SoundScript empty = {0};
+            for (Uint16 i = 0; i < 4; ++i)
+                CHECK(!SDL_memcmp(&sound->scripts[i], &empty, sizeof(empty)) &&
+                      !sound->priority[i]);
+            CHECK(!sound->ambience_id && sound->queued == 1 && sound->scripts_paused &&
+                  !SDL_memcmp(&sound->script_backup[0], &paused, sizeof(paused)));
+            for (Uint16 i = 0; i < 6 && s.command == 3; ++i)
+                CHECK(Tick(a, &clock, &s));
+            CHECK(s.command != 3 && !s.playing_xa && s.master_volume == 127 &&
+                  s.master_target == 127 && !s.serial);
+            SotnCdAudio_Destroy(a);
+            SotnSound_Destroy(sound);
+        }
+    return true;
+}
 static bool BoundReverb(Uint8 *dra, SotnStream *stream)
 {
     Uint8 header[3104] = {0}, body[32] = {0};
@@ -500,6 +574,8 @@ static bool BoundReverb(Uint8 *dra, SotnStream *stream)
         SotnCdAudio_Destroy(a);
         SotnSound_Destroy(sound);
     }
+    CHECK(MasterFades(inputs, (SotnDataView){image, 0x24000}, (SotnDataView){seq, sizeof(seq)},
+                      stream));
     SDL_free(reference);
     SDL_free(image);
     return true;

@@ -119,6 +119,20 @@ bool SotnSound_SetReverbDepth(SotnSound *sound, Sint16 left, Sint16 right)
     return SoundReverb_SetDepth(&sound->reverb, left, right);
 }
 
+void SoundReleaseAll(SotnSound *sound)
+{
+    for (Uint16 i = 0; i < 24; ++i)
+    {
+        // SDK RR-only writes clear the exponential-release bit as well as the old rate.
+        sound->registers[i].adsr[1] = (Uint16)((sound->registers[i].adsr[1] & 0xffc0U) | 8U);
+        sound->voices[i].adsr_hi = sound->registers[i].adsr[1];
+        sound->voices[i].key_off = 1;
+    }
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    SDL_memset(sound->priority, 0, sizeof(sound->priority));
+    sound->ambience_id = 0;
+}
+
 bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
                                    SotnSound **out)
 {

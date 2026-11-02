@@ -34,6 +34,7 @@ struct SotnSound
     SoundSeqVoice sequence_voices[16];
     Uint8 sequence_volume, sequence_flush;
     Uint16 sequence_id;
+    bool sequence_open; /**< Original SEQ access remains open after its event cursor ends. */
     Uint16 sequence_silence[16];
     Uint8 ram[SOTN_SPU_RAM_SIZE];
     SoundBank banks[4];
@@ -63,6 +64,9 @@ void SoundPauseScripts(SotnSound *sound);
  * voices.
  * @param sound Non-NULL actual owner. Preserves original unreserved restore/overwrite behavior. */
 void SoundResumeScripts(SotnSound *sound);
+/** @brief Original SetReleaseRate2/InitSoundVars2 on all24 live hardware voices.
+ * Preserves envelopes, decoder/RAM state, pending effects and paused script copies. */
+void SoundReleaseAll(SotnSound *sound);
 
 /** @brief Start one validated voice, invalidating any previous sequence owner. */
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,

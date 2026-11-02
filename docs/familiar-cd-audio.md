@@ -2,7 +2,7 @@
 
 `SotnCdAudio` now owns selected original sound/CD command queues, acknowledgement,
 XA start/expiry/stop, and the two saved music positions using actual native XA
-decoders. It accepts10/11/A/90..94 and original US XA command identities301..532, with
+decoders. It accepts10/11/A/80..84/90..94 and original US XA command identities301..532, with
 actual private metadata/format validation before playback acknowledgement. The
 eight selected US Fairy narrative IDs have actual [native producers](fairy-native-dispatch.md);
 the wider audio service domain does not enable other controls. Ordinary Fairy
@@ -61,7 +61,7 @@ shared dialogue opcodes9/20 preserve92 separately from stopA. The Laboratory man
 also retains the original state3-to4 increment when both bosses die during active
 music; it reaches5 on the next callback. Other collapsed stage requests and global
 stage-music flags still need their own source audits. Initial unbound bootstrap,
-game-over audio, master-volume/CD reverb, whole sound-ring ordering and cross-session
+game-over audio, CD reverb, whole sound-ring ordering and cross-session
 CD continuity remain unfinished. This selected binding does not enable Fairy menus.
 
 Selected native stage volume requests90..94 now reach this actual CD owner. Command8
@@ -73,7 +73,8 @@ flag clearance nor queue exhaustion substitutes for the other.
 Original `xa_play_ck` means pending fade or a playing identity, rather than decoder
 readiness. Ordinary, spell-frozen and FFF stage actor snapshots and Fairy sound input
 now bind that actual activity and separate busy flag. Remaining general stage music,
-dialogue, master-volume fades80..84 and CD reverb still require their actual owners.
+dialogue and CD reverb still require their remaining owners. Bound master fades80..84
+now use the actual owners described below.
 A pending loop6 can outlive stop2's decoder retirement: it reconstructs its real
 transport from retained validated configuration and reads at ReadN. Original loop6
 does not enable serial mix; a playing identity may therefore coexist with serial off.
@@ -111,7 +112,7 @@ failed binding preserves the previous owner and advances no clock.
 Actual native sound command updates precede CD commands and voice/DSP rendering,
 so these depth changes reach the same audio frame. Rendering retains the script
 lease span captured before SEQ updates, including an ending sequence's fourth
-channel. CD sends, master commands, global sound-ring ordering and remaining mixer
+channel. CD sends, global sound-ring ordering and remaining mixer
 integration still need their actual owners.
 
 Public authored checks cover nested saves/restores, third-save wrap, exact cursor
@@ -184,3 +185,48 @@ AddCdSoundCommand, func_80133FCC, CdSoundCommand4/6/12, CdSoundStartXaPlayback a
 CdFadeOut2 at sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`
 (AGPL-3.0-or-later). Existing XA decoding retains its separate PSY-Z provenance.
 All metadata, speech and music remain private.
+
+
+Bound native master requests80..84 now enter actual command10 with shared32/8/4/2/1
+multipliers, the immediate single fade flag and signed master/counter words. These
+share the multiplier with90..94; later requests can raise an in-flight gain. Phase2
+commits actual SPU depth0, closes SEQ, queues `CdFadeOut1` (actual command3) and starts
+its original three-update countdown. Completion performs real all24-voice RR8/key-off
+and current script/allocation cleanup before clearing the fade flag and advancing.
+Paused script copies, pending effects, voice envelopes/decoders and shared SPU RAM
+remain retained. No replacement shutdown timer or voice pool is used.
+
+Original StopSeq releases all24 voices when an actual SEQ access is open. A natural
+event-stream end releases its own notes and retains the access until explicit close;
+it must not silently clear unrelated effects. RR-only SDK writes clear low6 ADSR
+bits, including exponential release, while keeping the other bits. CdFadeOut1 uses
+the existing real CD fade/pause/retirement and restores both master words to127.
+With no playing identity it restores them before advancing. Stop2 keeps its separate
+behavior. Native final mixing applies the committed master gain once after actual
+SPU/CD and any legacy contributions, retaining the current native clipping/gain
+convention. Physical console mixer equivalence remains unproven.
+
+Public authored tests cover all five profiles in20 playing/no-playing and open/no-SEQ
+contexts, exact phase/countdown/release boundaries, rejected unbound requests,
+retained pending/copy owners and stop3 restoration. Debug/ASan traces match50 contexts,
+45,000 updates and1,415 queued calls byte for byte. Original US instruction execution
+matches both full queues, signed master/counter/restore words, SEQ access, all24 actual
+SDK release registers and both actual SDK master-volume MMIO registers. Original
+SDK RR/master functions execute; CD hardware, VSync, serial/CD volume, reverb depth
+and SEQ stop/close services have explicit adapters. Supplied SEQ-access/register
+and expiry-clock fixtures isolate those boundaries and do not establish a route.
+Five additional contexts/4,500 updates/1,280 calls match original queue overflow
+that discards command3. Master gain stays zero when the actual reset command is lost;
+no out-of-band restoration is invented.
+
+Actual native Debug/ASan final-mix checks each cover1,061 frames, five all24 release callbacks,
+two actual private Library SEQ closures,964 partial-gain and45 zero-gain frames.
+All final PCM samples match a single committed master multiplication;1,468,443
+samples differ from bypassing it. Eight menu updates hold player/game time while
+audio advances. A real five-MP Summon cast has34 frozen/release audio updates, kills
+a real enemy and earns level2 (HP71/MP24) after the initial70HP/20MP and cast-to15MP.
+Twenty-five repeated draws hold all audio clocks. Arrival/card/load/protection,
+stage-event and VAB-tone fixtures retain their separate scope. All six final Debug/ASan CD, rescue and actual-app regressions pass with normal
+inferior exits. These checks do
+not close bootstrap/game-over routing, global sound-ring ordering, CD sends,
+session continuity, ordinary familiar activation/persistence or whole-pass gates.

@@ -378,7 +378,8 @@ static bool QueueAudio(SotnLaboratory *session, const SotnActorCombat *combat, U
     if (combat->cd_command)
     {
         if (session->fairy_cd &&
-            ((combat->cd_command >= 0x90 && combat->cd_command <= 0x94) ||
+            ((combat->cd_command >= 0x80 && combat->cd_command <= 0x84) ||
+             (combat->cd_command >= 0x90 && combat->cd_command <= 0x94) ||
              combat->cd_command == 0x10 || combat->cd_command == 0x11 || combat->cd_command == 0xa))
         {
             if (!SotnCdAudio_Queue(session->fairy_cd, combat->cd_command))
@@ -511,6 +512,13 @@ static bool TickAudio(SotnLaboratory *session, const SotnActorCombat *combat, Ui
     if (session->fairy_cd &&
         !SotnCdAudio_Tick(session->fairy_cd, session->system_timer, cd_pcm, SDL_arraysize(cd_pcm)))
         return false;
+    if (session->fairy_cd)
+    {
+        SotnCdAudioState state = {0};
+        if (!SotnCdAudio_Get(session->fairy_cd, &state))
+            return false;
+        session->master_gain = (Uint8)state.master_volume;
+    }
     if (session->game_over == NULL &&
         !SotnSound_RenderFrame(session->sound, sound_frame, pcm, SDL_arraysize(pcm)))
         return false;
