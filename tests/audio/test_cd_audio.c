@@ -460,7 +460,7 @@ static bool BoundControls(SotnSoundSources inputs, SotnDataView image, SotnDataV
           Tick(a, &clock, &state));
     for (Uint16 i = 0; i < 24; ++i)
         CHECK(sound->voices[i].key_off == (i == 20 || i == 21) &&
-              (sound->registers[i].adsr[1] & 63U) == ((i == 20 || i == 21) ? 14 : 32) &&
+              (sound->registers[i].adsr[1] & 63U) == ((i == 20 || i == 21) ? 14U : 32U) &&
               sound->voices[i].adsr_hi == sound->registers[i].adsr[1]);
     CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
     SotnCdAudio_Destroy(a);
