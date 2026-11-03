@@ -846,20 +846,25 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
 }
 static Uint16 HandFamily(Uint16 item)
 {
-    return !item         ? 255
-           : item == 16  ? 52
-           : item == 18  ? 31
-           : item == 19  ? 37
-           : item == 86  ? 0
-           : item == 123 ? 43
-           : item == 128 ? 2
-                         : 256;
+    return !item                          ? 255
+           : item == 16                   ? 52
+           : item == 18                   ? 31
+           : item == 19                   ? 37
+           : SotnEquipment_IsSword0(item) ? 0
+           : item == 123                  ? 43
+           : item == 128                  ? 2
+                                          : 256;
+}
+static Uint16 HandVariant(Uint16 item)
+{
+    return SotnEquipment_IsSword0(item) ? (item >= 116 ? 2 : item >= 104 ? 1 : 0) : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
 {
     const Uint16 hand = (packed & 0x800000U) != 0;
-    const Uint32 expected = item ? 48U | ((Uint32)(hand + 1U) << 12) | ((Uint32)hand << 23)
+    const Uint32 expected = item ? 48U | ((Uint32)(hand + 1U) << 12) |
+                                       ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
                                  : (42U + hand) | ((Uint32)hand << 23);
     if (!r || !allocated || HandFamily(item) > 255 ||
         (packed != expected && (packed != 0x10039 || item)))
@@ -888,7 +893,8 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
            !c->food && !c->neutron && !c->sire && !c->pentagram && !c->magic && !c->thrown &&
            !c->star && !c->karma && !c->thrown_particle_parent && c->state.hand.family <= 255 &&
            c->state.hand.family == HandFamily(c->state.hand.item) &&
-           c->parameter == (hand ? 0x8000 : 0) && w->parameter == c->parameter &&
+           c->parameter == ((HandVariant(c->state.hand.item) << 8) | (hand ? 0x8000 : 0)) &&
+           w->parameter == c->parameter &&
            (c->kind == (c->state.hand.item ? (hand ? 0xf0 : 0xe0) : (hand ? 0xfe : 0xee))) &&
            (c->initialized ? w->phase && w->phase <= (c->state.hand.family == 52 ? 4 : 1) &&
                                  c->group == hand + 1U && w->properties.id == c->state.hand.item &&
@@ -1773,7 +1779,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     {
         const Uint16 family = HandFamily(child.argument_low);
         if (generation || child.argument_high || family > 255 ||
-            child.parameter != (c.kind >= 0xf0 ? 0x8000 : 0) ||
+            child.parameter !=
+                ((HandVariant(child.argument_low) << 8) | (c.kind >= 0xf0 ? 0x8000 : 0)) ||
             (family == 255) != (c.kind == 0xee || c.kind == 0xfe))
             return SDL_SetError("Ordinary child lost its actual slot16/program/hand ownership");
         c.state.hand.item = child.argument_low;

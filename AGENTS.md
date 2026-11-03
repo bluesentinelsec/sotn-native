@@ -9,8 +9,12 @@ SetWeaponProperties override/attack1 remain separate. Commit form/spell retireme
 after player success before the next real owner. Later effect rollback starts at
 the post-player boundary; full-pass rollback remains open. Explicit stock/relic/
 protection/position/occupancy/data/save-room fixtures are not acquisition/route/
-console evidence. Other 21 weapon0 items, secondary producers, shield spells, full
-equipment/sharing and Alucard/castle remain incomplete. No new grants/pool/v9 fields.
+console evidence. Selected [weapon0 swords](docs/player-basic-swords.md) now add19
+owned one-hand items, real variants0/1/2 and actual palette-index/full384-word
+copies. Preserve negative attack caps, actual defense/elements, Mourneblade orb-before-immunity and
+existing deferred8HP contact. Namakura two-hand and Badelaire playtime remain
+unavailable. Secondary producers, shield spells, full equipment/sharing and
+Alucard/castle remain incomplete. No new grants/pool/v9 fields.
 
 Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,
 stock/Duplicator, shared weapon20 factories/children/26-row lease, private sprites/

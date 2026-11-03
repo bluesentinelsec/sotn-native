@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Adapted from sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5:
-// src/dra/4AEA4.c:LoadPendingGfx, 4A538.c bulk palettes, and 4B758.c multipart sprites.
+// src/dra/4AEA4.c:LoadPendingGfx, 4A538.c bulk palettes, 4B758.c multipart sprites
+// and weapon/shared.h:LoadWeaponPalette.
 #include <SDL3/SDL_error.h>
 #include <sotn/actor_graphics.h>
 #include <sotn/decompress.h>
@@ -379,16 +380,19 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 15 ? 0x8017a7dcU
                            : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
+    if (equipment.family == 0 && equipment.palette >= 5)
+        return SDL_SetError("Ordinary sword requires an actual bounded weapon0 palette index");
     const Uint32 color_count =
-        (equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
-                 equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
-                 equipment.family == 16 || equipment.family == 15
+        (equipment.family == 0 || equipment.family == 20 || equipment.family == 22 ||
+                 equipment.family == 21 || equipment.family == 19 || equipment.family == 18 ||
+                 equipment.family == 17 || equipment.family == 16 || equipment.family == 15
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
                                   : 7U) *
         16;
-    if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
+    if (!Resolve(overlay, 0x8017a000,
+                 address + (equipment.family == 0 ? equipment.palette * 4U : 0), 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
     const size_t pixels = (size_t)equipment.family * 0x7000;

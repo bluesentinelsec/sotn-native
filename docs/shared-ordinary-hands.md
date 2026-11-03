@@ -94,10 +94,11 @@ program reloads and in-memory v9 Continue. Supplied equipment/relic/protection,
 position, foreign occupancy, malformed data, Talisman and save-room contexts are
 not acquisition, uninterrupted route or console evidence. No user save is written.
 
-Other swords, shield-rod spells, weapon37 secondary producers, further equipment,
+The selected [weapon0 sword batch](player-basic-swords.md) now adds19 one-hand
+items through this owner. Shield-rod spells, weapon37 secondary producers, further equipment,
 familiars, full sharing/RNG/audio and Alucard/castle parity remain unfinished.
-The other 21 family0 items remain unavailable pending their metadata/palette and
-conditional-stat owners. All six [milestone gates](alucard-status.md) remain open.
+Family0 Namakura and Badelaire remain unavailable pending actual two-hand and
+playtime/stat owners. All six [milestone gates](alucard-status.md) remain open.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_000.c`, `w_002.c`, `w_031.c`,
 `w_037.c`, `w_043.c`, `w_052.c`, `dra/6E42C.c`, `6DF70.c`, `7879C.c`,

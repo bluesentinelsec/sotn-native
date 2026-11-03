@@ -316,6 +316,48 @@ static bool Ownership(void)
     *before = *r;
     CHECK(SotnBatRuntime_RequestHand(r, source, 0x1030, 123, &allocated) && !allocated &&
           !SDL_memcmp(r, before, sizeof(*r)));
+    // New weapon0 variants use their own descriptor and real packed factory parameters.
+    Definition(dra, 116, 0, 18);
+    Uint8 *term = dra + 0x500 + 116U * 52U, *ordinary = weapons + 0x4000;
+    term[16] = 2;
+    term[20] = 2;
+    SDL_memcpy(ordinary + 0x108c, ordinary + 0x106c, 16);
+    Put32(ordinary + 0x1090, 0x8017a220);
+    ordinary[0x224] = 13;
+    ordinary[0x225] = 251;
+    ordinary[0x226] = 11;
+    ordinary[0x227] = 7;
+    in.weapon_family[0] = in.weapon_family[1] = 0;
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SDL_zero(*r);
+        CHECK(SotnCharacter_Collect(character, false, 116) &&
+              SotnCharacter_Equip(character, hand, 116));
+        *before = *r;
+        CHECK(!SotnBatRuntime_RequestHand(r, source, 0x1030, 116, &allocated) &&
+              !SDL_memcmp(r, before, sizeof(*r)));
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(
+                  r, source, 0x20030U | ((Uint32)(hand + 1U) << 12) | ((Uint32)hand << 23), 116,
+                  &allocated) &&
+              allocated && SotnBatRuntime_Tick(r, character, in) && r->hand_attack &&
+              r->children[0].parameter == (0x200U | (hand ? 0x8000U : 0U)) &&
+              SotnBatRuntime_HandValid(&r->children[0], 0) &&
+              r->children[0].state.hand.motion.hitbox_x == 13 &&
+              r->children[0].state.hand.motion.hitbox_y == -5 &&
+              r->children[0].group == hand + 1U && !r->children[0].primitive_count &&
+              SotnActors_CommitBatPrimitives(actors, r));
+    }
+    Definition(dra, 83, 0, (Uint16)-30);
+    dra[0x500 + 83U * 52U + 21] = 18;
+    CHECK(SotnCharacter_Collect(character, false, 83) && SotnCharacter_Equip(character, 0, 83));
+    SotnCharacterStats negative = {0};
+    SotnEquipment properties = {0};
+    CHECK(SotnCharacter_Get(character, NULL, &negative) && !negative.attack[0] &&
+          SotnCharacter_HandProperties(character, 83, false, &shield_random, &properties) &&
+          !properties.attack);
+    CHECK(!SotnCharacter_Equip(character, 0, 84) &&
+          !SotnCharacter_HandProperties(character, 125, false, &shield_random, &properties));
     SotnCharacter_Destroy(character);
     SDL_free(before);
     SDL_free(r);

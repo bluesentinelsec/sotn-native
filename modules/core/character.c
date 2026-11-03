@@ -95,12 +95,13 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .category = body ? 0 : p[14],
                      .icon = Read16(p + (body ? 24 : 44)),
                      .palette = Read16(p + (body ? 26 : 46)),
-                     .supported = body ? BodySupported(id)
-                                       : (id == 0 || id == 16 || id == 18 || id == 19 || id == 24 ||
-                                          id == 25 || id == 80 || id == 81 || id == 82 ||
-                                          id == 134 || id == 135 || id == 86 || id == 123 ||
-                                          id == 128 || id == 166 || (id >= 29 && id <= 79) ||
-                                          (id >= 144 && id <= 162 && id != 146 && id != 147))};
+                     .supported =
+                         body ? BodySupported(id)
+                              : (id == 0 || id == 16 || id == 18 || id == 19 || id == 24 ||
+                                 id == 25 || id == 80 || id == 81 || id == 82 || id == 134 ||
+                                 id == 135 || SotnEquipment_IsSword0(id) || id == 123 ||
+                                 id == 128 || id == 166 || (id >= 29 && id <= 79) ||
+                                 (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -326,8 +327,8 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
 bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool poison, Uint32 *random,
                                   SotnEquipment *out)
 {
-    if (!c || (item != 0 && item != 16 && item != 18 && item != 19 && item != 86 && item != 123 &&
-               item != 128))
+    if (!c || (item != 0 && item != 16 && item != 18 && item != 19 &&
+               !SotnEquipment_IsSword0(item) && item != 123 && item != 128))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&

@@ -128,6 +128,22 @@ static bool Metadata(Fixture *f)
     CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, -1, &frame) && frame.sprite == 0);
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 32, 1, &frame));
     CHECK(!SotnWeapon_ReadFrame((SotnDataView){0}, equipment, 0x41, 0, 1, &frame));
+    // An authored second descriptor must affect the legacy raw-frame view too.
+    SDL_memcpy(f->weapons + 0x508c, f->weapons + 0x506c, 16);
+    Put32(f->weapons + 0x5090, 0x8017b400);
+    f->weapons[0x5404] = 249;
+    f->weapons[0x5405] = 3;
+    f->weapons[0x5406] = 13;
+    f->weapons[0x5407] = 6;
+    equipment.variant = 2;
+    CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, 1, &frame) && frame.x == -7 &&
+          frame.y == 3 && frame.width == 13 && frame.height == 6 && frame.sprite == 1);
+    equipment.variant = 5;
+    const SotnWeaponFrame retained = frame;
+    CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, 1, &frame) &&
+          !SDL_memcmp(&retained, &frame, sizeof(frame)));
+    equipment.variant = 0;
+    frame = (SotnWeaponFrame){0};
     Put32(f->weapons + 0x506c, 0xfffffffc);
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 0, 1, &frame));
     CHECK(frame.sprite == 0);

@@ -278,6 +278,35 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand, (SotnEquipment){0}));
         CHECK(!SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
     }
+    // Authored weapon0 palette2 and its last copied row must belong to the selected hand.
+    Uint8 *ordinary = fixture->weapons + 0x4000;
+    Put32(ordinary + 0x10c4, 0x8017b600);
+    Put16(ordinary + 0x1602, 0x03e0);
+    Put16(ordinary + 0x1600 + 23U * 32U + 2U, 0x7c00);
+    CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                       (SotnEquipment){.id = 116, .family = 0, .palette = 2}));
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 1, (SotnEquipment){.id = 86, .family = 0}));
+    ClearFrame(fixture);
+    SotnActorSprite selected = {
+        .animation_set = 16, .frame = 1, .palette = 0x110, .texture_offset = 0x64};
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x03e0);
+    selected.palette = 0x127;
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x7c00);
+    const SotnActorSprite right = {
+        .animation_set = 18, .frame = 1, .palette = 0x128, .texture_offset = 0x66};
+    // The same weapon0 artwork is resident in either hand's texture range.
+    CHECK(SotnActorGraphics_Draw(graphics, right, 32, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 32] == 31);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 116, .family = 0, .palette = 5}));
+    Put32(ordinary + 0x10c0, 0x8017ce80);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 122, .family = 0, .palette = 1}));
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x7c00);
     Uint8 *short_sword = fixture->weapons + 37 * 0x7000 + 0x4000;
     SDL_memcpy(short_sword, fixture->weapons + 0x4000, 0x3000);
     // Exactly five palettes fit; a seven-palette read would exceed this synthetic overlay.
