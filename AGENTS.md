@@ -1,3 +1,23 @@
+Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,
+stock/Duplicator, shared weapon20 factories/children/26-row lease, private sprites/
+G4/GT4 presentation and native physical/global damage with real Soul orbs. Preserve
+chain1 before curse, player-success stock/grunt, mandatory26 allocation before root
+RNG/shield callback and real failure retirement without retry. Birth sets neither
+word10 nor12. Preserve floor-first/top correction/early return, private pose sound
+volumes and actual coin-flip RNG. Tails owns word10=4/properties/internal UpdateAnim
+hitbox words; heads owns word12=4/fixed4/hit82/effect2/group without a property roll.
+Preserve high-only anchors, per-hand writable angles/closing-edge update order,
+signed counter remainders and whole-word wrap, real84 scheduling/low parameters/
+next-pass children, inherited raw bank/texture and parent existence every callback.
+Same-family/room retains data; actual program/Axe Armor/full-stage/Continue reload
+restores private data/BSS, never saves or transfers it. Native Wolf replacement
+releases real rows before later allocation. Preserve shared sound-volume order,
+Blink/clock/camera/shake, holds, real retirement and late-failure runtime/program/
+row/character/RNG/player rollback. No new pool/grants/savev9 changes. Supplied
+stock/relic/health/arrival/position/camera/RNG/pressure/failure/in-memory-save fixtures
+and adapters are not acquisition/routes/whole-pass/full sharing/console evidence.
+All Alucard/cold New Game gates stay open; ordinary Fairy UI remains disabled.
+
 Selected [weapon15 stars/TNT](docs/player-star-weapons.md) now owns75..79 actual
 menu/hand use, stock/Duplicator, shared roots/descendants/rows, private sprites/
 animation and native damage. Preserve kinds129/130, actual50/68, chain3/TNT1 before

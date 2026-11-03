@@ -378,6 +378,7 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->neutron && c->primitive_count == 1) ||
                (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
                (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
+               (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
                (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
@@ -525,7 +526,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
     next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
-        next->thrown_mask = next->star_mask = 0;
+        next->thrown_mask = next->star_mask = next->karma_mask = 0;
     next->magic_clear_shield = false;
     // These are consumed callback notifications, not original retained global counters.
     SDL_zero(next->medicine);

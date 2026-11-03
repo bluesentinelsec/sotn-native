@@ -715,9 +715,21 @@ static bool LoadHandProgram(SotnLaboratory *s, SotnDataView weapons, Uint16 hand
 {
     Uint8 family = 255;
     bool bound = false;
-    if (!SotnActorGraphics_WeaponBinding(s->actor_graphics, hand, &family, &bound) ||
-        !SotnActorGraphics_LoadWeapon(s->actor_graphics, weapons, hand, equipment))
+    if (!SotnActorGraphics_WeaponBinding(s->actor_graphics, hand, &family, &bound))
         return false;
+    SotnKarmaShared karma = {0};
+    const bool reload_karma = equipment.id && equipment.family == 20 && (!bound || family != 20);
+    if (reload_karma)
+    {
+        SotnDataView overlay = {0};
+        if (!SotnWeapon_Overlay(weapons, equipment, &overlay) ||
+            !SotnKarmaCoin_LoadProgram(&karma, overlay))
+            return false;
+    }
+    if (!SotnActorGraphics_LoadWeapon(s->actor_graphics, weapons, hand, equipment))
+        return false;
+    if (reload_karma)
+        s->bat_runtime.karma[hand] = karma;
     // Original LoadWeaponPrg retains an already loaded family and skips FF. A genuine
     // weapon16 program replacement reloads its zero-initialized BSS, unlike a draw binding.
     if (equipment.id && equipment.family == 15 && (!bound || family != 15))
@@ -1064,7 +1076,9 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                             Uint16 item, bool *allocated)
 {
     SotnLaboratory *s = context;
-    return item >= 75 && item <= 79
+    return item == 24
+               ? SotnBatRuntime_RequestKarma(&s->bat_runtime, source, packed, item, allocated)
+           : item >= 75 && item <= 79
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
@@ -1107,7 +1121,8 @@ static bool BindFood(SotnLaboratory *s)
         // Factory birth already copies the actual item into ext.weapon.equipId (AE),
         // before the later SetWeaponProperties/attack activation callback.
         const Uint16 hand = (c->parameter & 0x8000U) != 0;
-        const Uint16 item = c->star                     ? c->state.star.motion.item
+        const Uint16 item = c->karma                    ? c->state.karma.item
+                            : c->star                   ? c->state.star.motion.item
                             : c->thrown                 ? c->state.thrown.item
                             : c->magic                  ? c->state.magic.motion.item
                             : c->neutron                ? 71
@@ -1148,6 +1163,15 @@ static bool ApplyMenuCharacter(SotnLaboratory *s)
     {
         SDL_zero(s->bat_runtime.thrown_fire_counter);
         SDL_zero(s->bat_runtime.star_fire_counter);
+        for (Uint16 hand = 0; hand < 2; ++hand)
+            if (s->bat_runtime.karma[hand].loaded)
+            {
+                SotnDataView overlay = {0};
+                if (!SotnWeapon_Overlay(SotnResource_View(s->weapons),
+                                        (SotnEquipment){.id = 24, .family = 20}, &overlay) ||
+                    !SotnKarmaCoin_LoadProgram(&s->bat_runtime.karma[hand], overlay))
+                    return false;
+            }
     }
     return true;
 }
@@ -1336,7 +1360,10 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
             !SotnPlayer_SetSpellUseTimer(s->player, s->bat_runtime.spell_use_ticks))
             return false;
         for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
-            if (!SotnSound_Queue(s->sound, s->bat_runtime.sounds[i]))
+            if (!(s->bat_runtime.sound_volume_mask & ((Uint64)1 << i)
+                      ? SotnSound_QueueVolumePan(s->sound, s->bat_runtime.sounds[i],
+                                                 s->bat_runtime.sound_volumes[i], 0)
+                      : SotnSound_Queue(s->sound, s->bat_runtime.sounds[i])))
                 return false;
         if (player.gravity.ceiling_impact && !SotnCameraShake_Request(&s->shake, s->dra, 3))
             return false;
@@ -1367,15 +1394,15 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     bool transaction = player.medicine.used || player.food.used || player.throwing.used;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        transaction |= s->bat_runtime.children[i].kind == 32 ||
-                       s->bat_runtime.children[i].kind == 38 ||
-                       s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
-                       s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
-                       s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
-                       s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
-                       s->bat_runtime.children[i].thrown_particle_parent ||
-                       (s->bat_runtime.children[i].kind == 5 &&
-                        (s->bat_runtime.children[i].parameter >> 8) == 12);
+        transaction |=
+            s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 38 ||
+            s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
+            s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
+            s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
+            s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
+            s->bat_runtime.children[i].karma || s->bat_runtime.children[i].thrown_particle_parent ||
+            (s->bat_runtime.children[i].kind == 5 &&
+             (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
                        (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
@@ -1387,6 +1414,7 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                         s->bat_runtime.factories[i].cursor.blueprint == 63 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 68 ||
                         s->bat_runtime.factories[i].star_factory ||
+                        s->bat_runtime.factories[i].karma_factory ||
                         s->bat_runtime.factories[i].thrown_factory ||
                         s->bat_runtime.factories[i].thrown_particles);
     for (Uint16 i = 0; i < player.hurt.count; ++i)
@@ -2230,6 +2258,7 @@ static bool RetireSharedRoom(SotnLaboratory *s)
                    s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
                    s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
                    s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
+                   s->bat_runtime.children[i].karma ||
                    s->bat_runtime.children[i].thrown_particle_parent ||
                    (s->bat_runtime.children[i].kind == 5 &&
                     (s->bat_runtime.children[i].parameter >> 8) == 12);
@@ -2247,8 +2276,8 @@ static bool RetireSharedRoom(SotnLaboratory *s)
         SotnBatRuntime_PruneFood(next) && SotnBatRuntime_PruneNeutron(next) &&
         SotnBatRuntime_PruneSire(next) && SotnBatRuntime_PrunePentagram(next) &&
         SotnBatRuntime_PruneMagicMissile(next) && SotnBatRuntime_PruneThrown(next) &&
-        SotnBatRuntime_PruneStar(next) && SotnBatRuntime_PruneRoomFactories(next) &&
-        SotnActors_CommitBatPrimitives(s->actors, next);
+        SotnBatRuntime_PruneStar(next) && SotnBatRuntime_PruneKarma(next) &&
+        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -3868,6 +3897,26 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_MAGIC_MISSILE}))
                 return false;
+            if (child->karma && child->initialized)
+            {
+                const SotnKarmaCoin *m = &child->state.karma.motion;
+                if (m->frame && m->bank &&
+                    !((m->draw_flags & 0x80U) && (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){
+                            .priority = m->priority, .primitive = owner, .kind = SOTN_DRAW_KARMA}))
+                    return false;
+                for (Uint16 row = m->phase >= 5 ? child->primitive_count : 0; row > 0; --row)
+                    if (!(m->quads[row - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = m->quads[row - 1U].priority,
+                                            .primitive =
+                                                (Uint16)(owner * SOTN_KARMA_ROWS + row - 1U),
+                                            .kind = SOTN_DRAW_KARMA_QUAD}))
+                        return false;
+            }
             if (child->star && child->initialized)
             {
                 const SotnThrownWeapon *m = &child->state.star.motion.motion;
@@ -3909,7 +3958,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .kind = SOTN_DRAW_FOOD}))
                 return false;
             if (!child->food && !child->sire && !child->magic && !child->thrown && !child->star &&
-                child->initialized &&
+                !child->karma && child->initialized &&
                 (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
                  child->kind == 0xf2) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -4751,6 +4800,55 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_KARMA_QUAD)
+        {
+            const Uint16 owner = command.primitive / SOTN_KARMA_ROWS,
+                         row = command.primitive % SOTN_KARMA_ROWS;
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
+            if (!c->karma || !c->initialized || !SotnBatRuntime_KarmaValid(c, owner) ||
+                row >= c->primitive_count)
+                return SDL_SetError("Karma draw lost its actual26-row lease");
+            const SotnPlayerEffectQuad *q = &c->state.karma.motion.quads[row];
+            if (!(row == 0 ? SotnActorGraphics_PlayerColorEffect(
+                                 q, session->draw_target.offset_x + session->shake.x,
+                                 session->draw_target.offset_y + session->shake.y,
+                                 session->draw_target.surface)
+                           : DrawPlayerEffectQuad(session, q)))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_KARMA)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            const SotnKarmaCoin *m = &c->state.karma.motion;
+            if (!c->karma || !c->initialized || !m->bank ||
+                !SotnBatRuntime_KarmaValid(c, command.primitive))
+                return SDL_SetError("Karma sprite lost actual callback/raw-bank ownership");
+            const Uint16 bank =
+                m->bank >= 0x8010 && m->bank <= 0x8013 ? (Uint16)(m->bank & 0x7fffU) : m->bank;
+            if (!(m->bank == 0x8011 || m->bank == 0x8013
+                      ? SotnActorGraphics_DrawSecondaryWeaponSurface
+                      : SotnActorGraphics_DrawSurface)(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = bank,
+                                      .frame = m->frame,
+                                      .palette = m->palette,
+                                      .texture_offset = m->texture,
+                                      .blend_mode = m->blend,
+                                      .facing_left = m->facing_left},
+                    Pixel(c->source.x) - view_x + session->draw_target.offset_x + session->shake.x,
+                    Pixel(c->source.y) - view_y + session->draw_target.offset_y + session->shake.y,
+                    (SotnSpriteTransform){.scale_x = 256,
+                                          .scale_y = 256,
+                                          .opacity = m->draw_flags & 8U ? m->opacity : 128,
+                                          .executable = session->executable,
+                                          .sdk_rotation = true},
+                    session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_STAR)
         {
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
@@ -4873,7 +4971,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
             const bool image = c->kind == 0xe1 || c->kind == 0xf1;
-            if (!c->generation || !c->initialized || (!image && c->kind != 0xe2 && c->kind != 0xf2))
+            if (!c->generation || !c->initialized || c->karma ||
+                (!image && c->kind != 0xe2 && c->kind != 0xf2))
                 return SDL_SetError("Sword draw lost its actual initialized child");
             if (image)
             {

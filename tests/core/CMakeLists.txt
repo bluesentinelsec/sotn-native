@@ -1264,6 +1264,13 @@ target_link_libraries(sotn-thrown-weapon-tests PRIVATE sotn-core)
 add_test(NAME thrown-weapon-controller COMMAND sotn-thrown-weapon-tests)
 set_tests_properties(thrown-weapon-controller PROPERTIES TIMEOUT 20)
 
+add_executable(sotn-karma-coin-tests test_karma_coin.c)
+sotn_configure_c_target(sotn-karma-coin-tests)
+target_include_directories(sotn-karma-coin-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-karma-coin-tests PRIVATE sotn-core)
+add_test(NAME karma-coin-controller COMMAND sotn-karma-coin-tests)
+set_tests_properties(karma-coin-controller PROPERTIES TIMEOUT 20)
+
 add_executable(sotn-star-weapon-tests test_star_weapon.c)
 sotn_configure_c_target(sotn-star-weapon-tests)
 target_include_directories(sotn-star-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

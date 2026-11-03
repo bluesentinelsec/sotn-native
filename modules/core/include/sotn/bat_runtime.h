@@ -15,6 +15,7 @@
 #include <sotn/holy_hit.h>
 #include <sotn/ice_hit.h>
 #include <sotn/immunity_text.h>
+#include <sotn/karma_coin.h>
 #include <sotn/magic_missile.h>
 #include <sotn/neutron.h>
 #include <sotn/pentagram.h>
@@ -66,8 +67,14 @@ typedef struct SotnBatRuntimeChild
     Uint16 kind, parameter;
     Uint8 group;
     bool initialized, food, neutron, sire, sire_child, pentagram, magic, thrown, star,
-        thrown_particle_parent;
+        thrown_particle_parent, karma;
     union {
+        struct
+        {
+            SotnKarmaCoin motion;
+            SotnPlayerAttack attack;
+            Uint16 parent_slot, item;
+        } karma;
         struct
         {
             SotnStarWeapon motion;
@@ -195,13 +202,15 @@ typedef struct SotnBatRuntime
         Uint32 bat_generation, sword_parent;
         Uint32 fire_parent;
         Uint16 fire_parent_slot, sire_parent_slot, magic_parent_slot, thrown_parent_slot,
-            star_parent_slot;
-        bool sire_factory, magic_factory, thrown_factory, thrown_particles, star_factory;
+            star_parent_slot, karma_parent_slot;
+        bool sire_factory, magic_factory, thrown_factory, thrown_particles, star_factory,
+            karma_factory;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
     SotnPentagramShared pentagram[2]; /**< Original weapon17 BSS, one actual program per hand. */
-    Uint32 star_fire_counter[2];      /**< Actual per-hand weapon15 mutable program BSS. */
+    SotnKarmaShared karma[2];      /**< Actual initialized per-hand weapon20 writable data/BSS. */
+    Uint32 star_fire_counter[2];   /**< Actual per-hand weapon15 mutable program BSS. */
     Uint32 thrown_fire_counter[2]; /**< Actual weapon16 BSS; reset only with program replacement. */
     Uint32 dark_blend_phase;       /**< Actual DRA global, retained through session replacement. */
     SotnHolyHitShared holy;        /**< Actual shared entity47 points, not one copy per child. */
@@ -232,8 +241,9 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
-    Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask;
-    bool magic_clear_shield; /**< Conditional weapon16 shield retirement, committed by its owner. */
+    Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
+    bool magic_clear_shield; /**< Conditional hand-effect shield retirement, committed by its owner.
+                              */
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
     Uint64
@@ -244,15 +254,25 @@ typedef struct SotnBatRuntime
     Uint16 capture_count, freeze;
     bool freeze_changed; /**< Actual child request this tick, never capture/factory readiness. */
     Uint16 sounds[48], sound_count;
+    Uint16 sound_volumes[48];
+    Uint64 sound_volume_mask; /**< Selected ordered PlaySfxVolPan requests; pan remains zero. */
     Uint8 wolf_shakes[32], wolf_shake_count; /**< Includes up to24 actual Iron-ball impact calls. */
-    Uint8 use_ticks;                         /**< Original timer10: selected Bat Fire birth. */
-    Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births. */
+    Uint8 use_ticks;       /**< Original timer10: selected effect births and Karma tails. */
+    Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births and Karma heads. */
     Uint8 groups[11];
     bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
     bool echo_attack;
     bool dissolve_frame_load; /**< Actual entity32 ANIM_FRAME_LOAD request, never body hiding. */
     bool afterimage_reset;    /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
+
+/** @brief Reserve actual weapon20 item24 root50 after its normal chain/curse gates. */
+bool SotnBatRuntime_RequestKarma(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                 Uint16 item, bool *allocated);
+/** @brief Validate actual weapon20 root/child/row/raw-parent ownership. */
+bool SotnBatRuntime_KarmaValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Retire actual weapon20 room owners without ticking or resetting resident program data. */
+bool SotnBatRuntime_PruneKarma(SotnBatRuntime *);
 
 /** @brief Run the selected entity33 subset of original room-entry cleanup.
  * Other shared children retain their existing owners; no callbacks or RNG advance. */
