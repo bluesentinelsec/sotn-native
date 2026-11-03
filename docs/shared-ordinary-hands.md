@@ -97,8 +97,8 @@ not acquisition, uninterrupted route or console evidence. No user save is writte
 The selected [weapon0 sword batch](player-basic-swords.md) now adds19 one-hand
 items through this owner. Shield-rod spells, weapon37 secondary producers, further equipment,
 familiars, full sharing/RNG/audio and Alucard/castle parity remain unfinished.
-Family0 Namakura and Badelaire remain unavailable pending actual two-hand and
-playtime/stat owners. All six [milestone gates](alucard-status.md) remain open.
+Selected [Namakura/two-hand ownership](player-two-hand-equipment.md) now runs.
+Family0 Badelaire remains unavailable pending its actual playtime/stat owner. All six [milestone gates](alucard-status.md) remain open.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_000.c`, `w_002.c`, `w_031.c`,
 `w_037.c`, `w_043.c`, `w_052.c`, `dra/6E42C.c`, `6DF70.c`, `7879C.c`,

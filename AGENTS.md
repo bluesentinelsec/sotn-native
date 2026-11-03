@@ -1,3 +1,16 @@
+Selected [two-hand equipment](docs/player-two-hand-equipment.md) now owns ordinary
+Namakura84 selection, one-copy/both-word reservation, displaced returns, real menu
+confirmation and paired v9 restoration. Preserve selected-first return, one return
+for old paired weapons, spare decrement before capped return (255 reselects254),
+full169 order and virtual-empty exclusion without adding stock. Setter idempotence
+is distinct from actual menu confirmation. Original shop capacity still counts both
+words. Player/development bindings reject unpaired84 before grants; reread the first
+commit before binding the second hand. Existing shared16/properties/graphics/forms/
+rollback owners remain real; no extra pool/defaults/v9 fields. Explicit stock255,
+protection/arrival/position/save-room/failure fixtures and adapters are not acquisition,
+route/full-pass/console evidence. Other two-hand families, Badelaire playtime,
+remaining equipment/familiars/sharing and Alucard/cold New Game remain incomplete.
+
 Selected [ordinary hands](docs/shared-ordinary-hands.md) now own actual shared16,
 factory48/empty42/43, normal casting-grunt then property RNG, groups1/2, native
 combat/rendering, Alucard-sword optional16 TILEs and shield phase4 knock-away.
@@ -12,8 +25,8 @@ protection/position/occupancy/data/save-room fixtures are not acquisition/route/
 console evidence. Selected [weapon0 swords](docs/player-basic-swords.md) now add19
 owned one-hand items, real variants0/1/2 and actual palette-index/full384-word
 copies. Preserve negative attack caps, actual defense/elements, Mourneblade orb-before-immunity and
-existing deferred8HP contact. Namakura two-hand and Badelaire playtime remain
-unavailable. Secondary producers, shield spells, full equipment/sharing and
+existing deferred8HP contact. Selected Namakura two-hand now runs; Badelaire
+playtime remains unavailable. Secondary producers, shield spells, full equipment/sharing and
 Alucard/castle remain incomplete. No new grants/pool/v9 fields.
 
 Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,

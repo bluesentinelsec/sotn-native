@@ -1,3 +1,8 @@
+add_executable(sotn-two-hand-equipment-tests test_two_hand_equipment.c)
+sotn_configure_c_target(sotn-two-hand-equipment-tests)
+target_link_libraries(sotn-two-hand-equipment-tests PRIVATE sotn-core)
+add_test(NAME two-hand-equipment COMMAND sotn-two-hand-equipment-tests)
+
 add_executable(sotn-hand-weapon-tests test_hand_weapon.c)
 sotn_configure_c_target(sotn-hand-weapon-tests)
 target_include_directories(sotn-hand-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

@@ -2951,6 +2951,8 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
 {
     if (player == NULL || player->attack_mode != 0)
         return SDL_SetError("Equipment can change only when the player has no active attack");
+    if ((left == 84 || right == 84) && left != right)
+        return SDL_SetError("Namakura requires its actual paired hand equipment");
     const Uint16 ids[2] = {left, right};
     Uint16 power[2] = {0};
     for (Uint32 i = 0; i < 2; ++i)

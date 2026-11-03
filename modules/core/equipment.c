@@ -27,8 +27,9 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_IsSword0(Uint16 id)
 {
-    return id == 83 || (id >= 86 && id <= 94) || id == 96 || id == 99 || (id >= 104 && id <= 106) ||
-           id == 108 || id == 110 || id == 116 || id == 118 || id == 122;
+    return id == 83 || id == 84 || (id >= 86 && id <= 94) || id == 96 || id == 99 ||
+           (id >= 104 && id <= 106) || id == 108 || id == 110 || id == 116 || id == 118 ||
+           id == 122;
 }
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
@@ -61,8 +62,9 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (medicine &&
          (record[15] != 255 || record[17] != 131 || record[18] != 0xbe || record[19] != 55)) ||
         (sword0 && id != 86 &&
-         (record[14] != 1 || record[19] != 48 || record[21] != (id == 83 ? 18 : 13) ||
-          record[22] != 128 || record[23] || record[24])) ||
+         (record[14] != (id == 84 ? 5 : 1) || record[19] != 48 ||
+          record[21] != (id == 83 || id == 84 ? 18 : 13) || record[22] != 128 || record[23] ||
+          record[24])) ||
         record[20] != (medicine ? variant : sword_variant) || record[16] != palette ||
         record[21] > 31 || record[25] != (medicine ? 1 : 0) || Read16(record + 36) != 0)
         return SDL_SetError("Selected hand-item definition does not match its supported US path");

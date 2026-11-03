@@ -161,6 +161,11 @@ bool SotnCharacter_LearnSpell(SotnCharacterState *state, Uint16 id);
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not
  * mutate state. */
 bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
+/** @brief Actual native menu confirmation, including reselected spare decrement/return.
+ * Two-hand selection reserves both slots for one copy; displaced items return in original
+ * order through the inventory owner. Virtual empty rows retain the native adaptation.
+ * This is distinct from the idempotent equipment setter. All changes commit on success. */
+bool SotnCharacter_ConfirmEquipment(SotnCharacter *, Uint32 slot, Uint16 id);
 /** @brief Install the original first-Entrance equipment on a fresh character.
  * @param character Fresh owner before play; replaces the seven equipment slots atomically.
  * @return Success or SDL error. Resources and prologue-derived stats remain caller-owned.

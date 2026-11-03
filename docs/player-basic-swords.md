@@ -76,8 +76,9 @@ protection, arrival, enemy-position/immunity, save-room and injected failure con
 are supplied fixtures. They are not ordinary acquisition, uninterrupted routes,
 whole-pass rollback, full contention or console evidence. No user save is written.
 
-Namakura84 remains unavailable until actual two-hand inventory/menu/restoration
-ownership runs. Badelaire125 remains unavailable until original playtime phases
+Selected [Namakura84/two-hand ownership](player-two-hand-equipment.md) now supplies
+its actual inventory/menu/restoration and shared callback owners. Badelaire125
+remains unavailable until original playtime phases
 and its hours-dependent attack have their real owner. Other weapon families,
 equipment specials, complete enemy feedback, familiars, shared timing/presentation,
 Alucard and castle remain incomplete. All six [milestone gates](alucard-status.md)

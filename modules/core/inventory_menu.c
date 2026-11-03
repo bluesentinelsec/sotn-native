@@ -172,7 +172,7 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
         }
         if (tapped & SOTN_BUTTON_JUMP)
         {
-            if (SotnCharacter_Equip(c, m->slot, m->rows[m->item_cursor]))
+            if (SotnCharacter_ConfirmEquipment(c, m->slot, m->rows[m->item_cursor]))
             {
                 m->phase = SOTN_MENU_EQUIPMENT;
                 *changed = true;

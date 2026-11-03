@@ -16,7 +16,14 @@ profile remains explicit: level 1, 70 HP, 20 MP, base stats 6, and 10/50 hearts.
 It is not the original new-game entry.
 
 Selected ordinary weapon attacks include empty hands, Basilard, Gladius, Short sword,
-Mace, and Alucard sword/shield.
+Mace, and Alucard sword/shield through the actual [shared hand owner](shared-ordinary-hands.md).
+The selected [ordinary weapon0 swords](player-basic-swords.md) add19 one-hand items;
+[Namakura/two-hand ownership](player-two-hand-equipment.md) now adds one-copy/both-word
+reservation, ordered displaced returns and paired restoration. The native menu
+performs actual confirmation, including spare decrement before a capped return.
+Programmatic equipment setting remains idempotent. Virtual empty rows stay out of
+physical first-empty searches without receiving stock. No default grants or v9
+fields are added; remaining two-hand families and equipment effects stay open.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;
@@ -108,7 +115,7 @@ now connect poison/curse/stone and selected equipment passives; full elemental
 reactions and other special item behavior remain unfinished.
 
 The [progression service](character-progression.md) now awards EXP and updates
-levels/resources. Version 3 [native saves](native-saves.md) retain this supported
+levels/resources. Version-nine [native saves](native-saves.md) retain this supported
 progress; [selected subweapons](laboratory-subweapons.md) consume hearts and damage
 enemies. Versions 1/2 migrate explicitly from their earlier limited profile.
 

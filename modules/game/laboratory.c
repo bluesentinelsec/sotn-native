@@ -2747,17 +2747,23 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
     SotnPlayerState current = {0};
     if (!SotnPlayer_GetState(session->player, &current) || current.attack_mode)
         return SDL_SetError("Development equipment requires an idle ordinary hand owner");
+    if ((left == 84 || right == 84) && left != right)
+        return SDL_SetError("Development Namakura equipment requires both actual hand slots");
     const Uint16 ids[2] = {left, right};
     SotnCharacterState state = {0};
     if (!SotnCharacter_Get(session->character, &state, NULL))
         return false;
     for (Uint32 i = 0; i < 2; ++i)
+    {
+        if (!SotnCharacter_Get(session->character, &state, NULL))
+            return false;
         if (state.equipment[i] != ids[i])
         {
             if (!SotnCharacter_Collect(session->character, false, ids[i]) ||
                 !SotnCharacter_Equip(session->character, i, ids[i]))
                 return false;
         }
+    }
     if (!ApplyMenuCharacter(session))
         return false;
     session->dirty = true;

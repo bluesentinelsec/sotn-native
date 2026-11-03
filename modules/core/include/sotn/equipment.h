@@ -19,8 +19,8 @@ typedef struct SotnWeaponFrame
     Uint16 width, height, sprite, sound;
 } SotnWeaponFrame;
 
-/** @brief Selected one-hand weapon0 identities with actual shared callback/stat/palette owners.
- * Namakura and Badelaire remain excluded pending their two-hand and playtime owners. */
+/** @brief Selected weapon0 identities with actual shared callback/stat/palette owners.
+ * Namakura uses its actual paired inventory slots; Badelaire remains excluded pending playtime. */
 bool SotnEquipment_IsSword0(Uint16 id);
 
 /** @brief Read a supported hand-item definition, without importing runtime tables.

@@ -182,6 +182,8 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
     for (Uint32 i = 0; i < 7; ++i)
         if (s->equipment[i] >= (i < 2 ? SOTN_HAND_ITEMS : SOTN_BODY_ITEMS))
             return SDL_SetError("Equipped item exceeds its table");
+    if ((s->equipment[0] == 84 || s->equipment[1] == 84) && s->equipment[0] != s->equipment[1])
+        return SDL_SetError("Namakura requires its one owned copy in both actual hand slots");
     // Original hand stock is a byte. Ordinary pickups cap at99, but a Fairy's later
     // unchecked decrement can wrap after another producer consumes the last spare.
     for (Uint32 i = 0; i < SOTN_BODY_ITEMS; ++i)
@@ -245,6 +247,9 @@ static bool Calculate(SotnCharacter *c)
             result.absorption |= items[i].absorption;
         }
     }
+    if ((items[0].category == 5 || items[1].category == 5) &&
+        c->state.equipment[0] != c->state.equipment[1])
+        return SDL_SetError("Two-hand equipment lost its paired actual slots");
     for (Uint32 i = 0; i < 4; ++i)
     {
         if ((i == 0 && (c->stat_buff_mask & (1U << SOTN_BUFF_STRENGTH))) ||
@@ -556,7 +561,7 @@ bool SotnCharacter_Collect(SotnCharacter *c, bool body, Uint16 id)
         {
             if (order[i] == id)
                 existing = i;
-            if (empty == size && counts[order[i]] == 0)
+            if (empty == size && counts[order[i]] == 0 && !IsEmpty(body, order[i]))
             {
                 SotnItem other = {0};
                 if (!SotnItem_Read(c->dra, body, order[i], &other))
@@ -640,7 +645,7 @@ bool SotnCharacter_Trade(SotnCharacter *c, bool body, Uint16 id, Uint16 quantity
     *c = next;
     return true;
 }
-bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
+static bool Equip(SotnCharacter *c, Uint32 slot, Uint16 id, bool confirmation)
 {
     if (c == NULL || slot >= 7)
         return SDL_SetError("Equipment slot must be 0..6");
@@ -654,8 +659,12 @@ bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
         return SDL_SetError(
             "This item requires an unintegrated behavior or another equipment slot");
     const Uint16 old = c->state.equipment[slot];
-    if (old == id)
+    if (old == id && !confirmation)
         return true;
+    SotnItem prior = {0}, other = {0};
+    if (!body && (!SotnItem_Read(c->dra, false, old, &prior) ||
+                  !SotnItem_Read(c->dra, false, c->state.equipment[1U - slot], &other)))
+        return false;
     SotnCharacter next = *c;
     Uint8 *count = body ? next.state.body_count : next.state.hand_count;
     if (!IsEmpty(body, id))
@@ -664,13 +673,29 @@ bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
             return SDL_SetError("No unequipped copy of this item is owned");
         --count[id];
     }
-    if (!IsEmpty(body, old))
-        count[old] = (Uint8)SDL_min(99, count[old] + 1);
+    if (!SotnCharacter_Collect(&next, body, old))
+        return false;
     next.state.equipment[slot] = id;
+    if (!body && prior.category == 5)
+        next.state.equipment[1U - slot] = 0;
+    if (!body && item.category == 5)
+    {
+        if (other.category != 5 && !SotnCharacter_Collect(&next, false, other.id))
+            return false;
+        next.state.equipment[1U - slot] = id;
+    }
     if (!Calculate(&next))
         return false;
     *c = next;
     return true;
+}
+bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
+{
+    return Equip(c, slot, id, false);
+}
+bool SotnCharacter_ConfirmEquipment(SotnCharacter *c, Uint32 slot, Uint16 id)
+{
+    return Equip(c, slot, id, true);
 }
 bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
 {
