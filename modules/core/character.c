@@ -420,6 +420,17 @@ bool SotnCharacter_SetPlaytime(SotnCharacter *c, SotnPlaytime clock)
     *c = next;
     return true;
 }
+bool SotnCharacter_CommitMainLoop(SotnCharacter *c, SotnPlaytime clock, Uint32 random)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    if (!SotnCharacter_SetPlaytime(&next, clock))
+        return false;
+    next.state.random = random;
+    *c = next;
+    return true;
+}
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
 {
     if (!c)

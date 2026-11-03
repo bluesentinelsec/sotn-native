@@ -56,6 +56,12 @@ from the departing title window cannot pause the new session. Ordinary save byte
 resource grants and v9 layout are unchanged. Game-over return still uses the existing
 native Continue shell; original return-to-title remains unfinished.
 
+The later [MainGame tail owner](main-loop-tail.md) now advances actual startup
+status/map words and one trailing native libc-adapter call after each successful
+title/menu frame. Cold Continue carries the live map word without an extra tick.
+The existing native saved-RNG restoration remains a separate adapter; this does
+not establish full BIOS RNG continuity or enable New Game.
+
 ## Selected evidence
 
 Public authored tests cover title phases/lightning/fades/request and failure

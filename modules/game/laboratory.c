@@ -18,6 +18,7 @@
 #include <sotn/inventory.h>
 #include <sotn/laboratory.h>
 #include <sotn/launch_renderer.h>
+#include <sotn/main_loop.h>
 #include <sotn/music.h>
 #include <sotn/playback.h>
 #include <sotn/player.h>
@@ -57,7 +58,7 @@ struct SotnLaboratory
     bool map_open;
     Uint16 stage_script_mode;
     Uint8 map_opacity;
-    Uint64 map_ticks;
+    Uint32 map_cursor, map_draw_cursor;
     SotnStageRoom room;
     SotnWorldState world;
     SotnCamera camera;
@@ -155,6 +156,7 @@ typedef struct SessionStart
     const SotnLaboratory *familiars; /**< Actual connected-stage source, borrowed until commit. */
     const SotnSaveState *saved;
     const SotnPlaytime *playtime;
+    Uint32 map_cursor, map_draw_cursor;
     const SotnSound *startup_sound;
     SotnSaveStore *startup_store;
     Uint16 startup_buttons;
@@ -2541,6 +2543,8 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     session->saves = start.startup_store;
     session->borrowed_saves = start.startup_store != NULL;
     session->system_timer = start.system_timer;
+    session->map_cursor = start.map_cursor;
+    session->map_draw_cursor = start.map_draw_cursor;
     session->game_timer = start.game_timer;
     if (start.spirit_target_cursor >= SOTN_SPELL_TARGETS)
     {
@@ -2960,7 +2964,6 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
             session->map_open = false;
         session->map_opacity = (Uint8)(session->map_open ? SDL_min(64, session->map_opacity + 8)
                                                          : SDL_max(0, session->map_opacity - 8));
-        ++session->map_ticks;
         const SotnActorCombat silent = {0};
         session->dirty = true;
         return TickAudio(session, &silent, 0, 0, 0, 0);
@@ -3193,12 +3196,18 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     // Each committed native fixed60 engine frame supplies one SDK frame quantum.
     // The original MainGame clock follows UpdateGame/render preparation, including
     // frozen/release/FFF/dead frames; post-update menu/map flags hold it.
-    SotnPlaytime next = session->playtime;
-    if (!SotnPlaytime_Advance(&next, 256, session->menu.phase != SOTN_MENU_CLOSED,
-                              session->map_open) ||
-        !SotnCharacter_SetPlaytime(session->character, next))
+    SotnCharacterState profile = {0};
+    if (!SotnCharacter_Get(session->character, &profile, NULL))
         return false;
-    session->playtime = next;
+    SotnMainLoopTail next = {session->playtime, session->map_cursor, profile.random};
+    if (!SotnMainLoop_Advance(&next, 256, session->menu.phase != SOTN_MENU_CLOSED,
+                              session->map_open) ||
+        !SotnCharacter_CommitMainLoop(session->character, next.playtime, next.random))
+        return false;
+    // The original map packet samples before the tail increments its global cursor.
+    session->map_draw_cursor = session->map_cursor;
+    session->map_cursor = next.map_cursor;
+    session->playtime = next.playtime;
     return true;
 }
 
@@ -5531,7 +5540,7 @@ static bool DrawMap(SotnLaboratory *session)
                                 63),
                  cy =
                      SDL_clamp((Sint32)session->room.foreground.top + Pixel(player.y) / 256, 0, 63);
-    Sint32 tick = 63 - (Sint32)(session->map_ticks & 63);
+    Sint32 tick = 63 - (Sint32)(session->map_draw_cursor & 63);
     tick = 15 - ((tick * tick) >> 8);
     if (tick == 0)
         tick = 15;
@@ -5784,7 +5793,8 @@ bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Ui
 
 bool Laboratory_ContinueStartup(const SotnGameData *data, const char *directory,
                                 SotnSaveStore *store, Uint32 slot, Uint32 engine_clock,
-                                Uint16 buttons, const SotnSound *sound, SotnLaboratory **out)
+                                Uint32 map_cursor, Uint16 buttons, const SotnSound *sound,
+                                SotnLaboratory **out)
 {
     if (!out)
         return SDL_InvalidParamError("out");
@@ -5802,6 +5812,8 @@ bool Laboratory_ContinueStartup(const SotnGameData *data, const char *directory,
                                       .saved = &saved,
                                       .system_timer = engine_clock,
                                       .startup_buttons = buttons,
+                                      .map_cursor = map_cursor,
+                                      .map_draw_cursor = map_cursor,
                                       .startup_sound = sound,
                                       .startup_store = store},
                        &candidate))
@@ -5911,6 +5923,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
                                          .playtime = &old->playtime,
+                                         .map_cursor = old->map_cursor,
+                                         .map_draw_cursor = old->map_draw_cursor,
                                          .stat_buffs = &old->stat_buffs,
                                          .familiars = old,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
@@ -5926,6 +5940,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
+                                         .map_cursor = old->map_cursor,
+                                         .map_draw_cursor = old->map_draw_cursor,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
                                          .water_breath_timer = previous_player.water_breath_timer,
                                          .water_pain_timer = previous_player.water_pain_timer},
@@ -5945,6 +5961,8 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
+                                         .map_cursor = old->map_cursor,
+                                         .map_draw_cursor = old->map_draw_cursor,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,
                                          .water_breath_timer = previous_player.water_breath_timer,
                                          .water_pain_timer = previous_player.water_pain_timer},

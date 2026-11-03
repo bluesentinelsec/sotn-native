@@ -165,6 +165,7 @@ SOTN_FORMAT_SOURCES += modules/core/fairy.c modules/core/include/sotn/fairy.h te
 SOTN_FORMAT_SOURCES += modules/core/familiar_animation.c \
 	  modules/core/include/sotn/familiar_animation.h tests/core/test_familiar_animation.c
 
+SOTN_FORMAT_SOURCES += modules/core/main_loop.c modules/core/include/sotn/main_loop.h tests/core/test_main_loop.c
 SOTN_FORMAT_SOURCES += modules/core/playtime.c modules/core/include/sotn/playtime.h \
 	  tests/core/test_playtime.c
 

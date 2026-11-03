@@ -31,3 +31,8 @@ Public synthetic tests cover reveal/purchase overlap, permanent secret edges,
 reversed orientation, invalid progress/resources/capacity/opacity, atomic failure,
 and input mappings. A local LLDB run checked opening, closing, fixed simulation
 time while open, resuming play, and rendering private map data.
+
+The selected [MainGame tail owner](main-loop-tail.md) now supplies the actual global
+map cursor across all committed engine phases. Native map packets sample its
+pre-tail phase, and repeated draws hold that sample. The former map-only counter
+is removed. This does not complete original map/menu/GPU or SDK timing parity.

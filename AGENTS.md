@@ -1,3 +1,16 @@
+Selected [native MainGame tail](docs/main-loop-tail.md) now owns actual global
+map-word advancement and one trailing native libc-adapter call after status time.
+Preserve all paused/frozen/release/FFF/dead/GameOver calls, zero-count Rand, signed
+normalization/wrap, pre-tail map packet phase, no draw/failure/pending-stage ticks,
+atomic character HMS/RNG binding and no-tick connected/cold map-word transfer.
+Startup consumes the same tail after actual title/menu/render/audio preparation.
+No extra live pool/grants/savev9 fields. Fixed60 supplies256; native libc seed/LCG,
+stage/combat RNG and saved-RNG restoration remain explicit adapters, not BIOS boot/
+full sharing/raster/whole-pass parity. Source comparisons with supplied words/counts/
+flags/cursors and native clock/protection/arrival/save-room/Fairy-load/failure fixtures
+are not acquisition/routes/ordinary familiar activation/console evidence. All six
+Alucard and full cold New Game/prologue gates remain open.
+
 Selected [playtime/Badelaire](docs/player-playtime-badelaire.md) now owns actual
 four signed status words, original single carries/hour cap and125 variant3 shared
 hands. Preserve post-menu/map holds/closing-frame advance, frozen/release/FFF/dead/
@@ -7,7 +20,8 @@ services separate; stage phases and Wolf Blink use engine, subweapon phases use 
 Continue binds before gear/actor bootstrap; connected transfer keeps all four words
 without ticks or legacy aggregate-ceiling loss. Preserve v9 legacy99999-hour import,
 serialization ceiling without live mutation, signed pre-cap hour bonus and unbound
-raw gates. Global map cursor/end-MainGame Rand and remaining timing stay open.
+raw gates. Selected global map cursor/end-MainGame native libc-adapter call now run;
+full BIOS/shared RNG/remaining timing stay open.
 No new pool/grants/save fields; supplied clock/equipment/protection/arrival/save-room/
 Fairy-load/failure fixtures are not acquisition/routes/ordinary activation/full-pass/
 SDK/console evidence. All Alucard and full cold New Game gates remain open.

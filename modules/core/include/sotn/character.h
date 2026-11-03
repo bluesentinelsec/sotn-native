@@ -113,6 +113,13 @@ bool SotnCharacter_NeutronProperties(const SotnCharacter *character, bool poison
  * @param clock Actual copied main-loop status words; signed values remain unnormalized.
  * @return Success or SDL error. Recalculates derived stats only on first bind/hour change. */
 bool SotnCharacter_SetPlaytime(SotnCharacter *character, SotnPlaytime clock);
+/** @brief Commit actual MainGame tail time and its existing owned libc cursor atomically.
+ * @param character Actual owner, preserved on failure.
+ * @param clock Copied committed main-loop status words.
+ * @param random Copied cursor after the actual trailing rand call.
+ * @return Success or SDL error. Bootstrap/restore still use SetPlaytime without a RNG tick.
+ * Adds no pool, item/resource grant, or ordinary-save field. */
+bool SotnCharacter_CommitMainLoop(SotnCharacter *character, SotnPlaytime clock, Uint32 random);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.

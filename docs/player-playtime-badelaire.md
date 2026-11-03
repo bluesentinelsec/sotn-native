@@ -30,9 +30,11 @@ Gameplay `g_GameTimer` still owns MP/water and selected subweapon draw phases.
 Engine `g_Timer` owns paused presentation phases, generic Wolf Blink and stage
 service phases. Stage time-of-day services receive the actual HMS/frame snapshot
 separately from that wrapping engine word. The remaining legacy per-entity pickup
-flicker approximations are not converted by this batch. The original MainGame
-map-cursor update and unconditional trailing `rand()` remain separate unowned
-work; these clock comparisons do not establish whole-main-loop RNG/timing parity.
+flicker approximations are not converted by this batch. The later
+[MainGame tail owner](main-loop-tail.md) now supplies the global
+map-cursor update and unconditional trailing native libc-adapter call. These
+clock comparisons alone do not establish whole-main-loop RNG/timing parity;
+full BIOS state, shared RNG ownership and SDK timing remain open.
 
 Badelaire adds the actual low signed word of `timerHours` before attack caps,
 poison and the original retained-property buff calculation. Display attack and

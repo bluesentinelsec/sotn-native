@@ -127,7 +127,7 @@ needs a source-backed inventory of its remaining branches and an evidence record
   signed attack/defense/elements and Mourneblade's real orb healing. Selected
   [Namakura/two-hand ownership](player-two-hand-equipment.md) now adds actual paired
   reservation, ordered stock returns/menu confirmation and v9 restoration. Other
-  two-hand families remain open. [Actual playtime/Badelaire125](player-playtime-badelaire.md) now supplies the four status words, original signed hours bonus and real variant3 hand owner; full main-loop RNG/SDK timing remain open.
+  two-hand families remain open. [Actual playtime/Badelaire125](player-playtime-badelaire.md) now supplies the four status words, original signed hours bonus and real variant3 hand owner; the [selected main-loop tail](main-loop-tail.md) now supplies its actual map word and native libc-adapter call, while full BIOS/shared RNG/SDK timing remain open.
 - [ ] **Familiars and remaining spells:** finish actual familiar lifecycle,
   ordinary controls, behavior/combat/progression and Sword Brothers' familiar-dependent
   execution. Its existing recognizer is not an available spell. See
@@ -208,6 +208,10 @@ needs a source-backed inventory of its remaining branches and an evidence record
   and cross-session audio remain unfinished. Native sessions now initialize the
   common CD owner before familiar loading; no-card deaths use its actual game-over
   lifecycle. Selected
+  [MainGame tail](main-loop-tail.md) now binds actual global map words and the
+  trailing native libc-adapter call across startup/gameplay/pause/freeze/death,
+  retaining pre-tail packet phases and no-tick session transfer. Full BIOS/shared
+  RNG/SDK and whole-pass gates remain open. Selected
   [room callback/cleanup ownership](player-room-ordering.md) now runs departing
   callbacks before lookup and prunes32/33/65 before destination allocations. The
   medicine batch extends actual root cleanup to every eight-slot record by flags,

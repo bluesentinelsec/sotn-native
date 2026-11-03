@@ -11,13 +11,16 @@ static Sint32 Add(Sint32 a, Sint32 b)
 {
     return Signed((Uint32)a + (Uint32)b);
 }
+Sint32 SotnPlaytime_FrameDelta(Sint32 vcount)
+{
+    const Uint32 count = (Uint32)vcount + 255U;
+    return count < 0x80000000U ? (Sint32)(count >> 8) : (Sint32)((Sint64)(count >> 8) - 16777216);
+}
 bool SotnPlaytime_Advance(SotnPlaytime *clock, Sint32 vcount, bool menu, bool map_pause)
 {
     if (!clock)
         return SDL_InvalidParamError("playtime");
-    const Uint32 count = (Uint32)vcount + 255U;
-    const Sint32 elapsed =
-        count < 0x80000000U ? (Sint32)(count >> 8) : (Sint32)((Sint64)(count >> 8) - 16777216);
+    const Sint32 elapsed = SotnPlaytime_FrameDelta(vcount);
     if (!menu && !map_pause)
     {
         clock->frames = Add(clock->frames, elapsed);

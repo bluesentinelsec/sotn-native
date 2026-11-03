@@ -7,6 +7,9 @@ typedef struct SotnPlaytime
 {
     Sint32 hours, minutes, seconds, frames;
 } SotnPlaytime;
+/** @brief Normalize the raw signed SDK count with original signed32 wrap.
+ * @param vcount Actual supplied vertical count. @return Arithmetic (vcount+255)>>8. */
+Sint32 SotnPlaytime_FrameDelta(Sint32 vcount);
 /** @brief Advance the original status clock using SDK vertical-count normalization.
  * @param clock Borrowed mutable status words; preserved on failure.
  * @param vcount Signed SDK count. Native fixed60 frames supply256.

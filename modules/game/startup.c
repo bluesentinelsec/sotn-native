@@ -5,6 +5,7 @@
 #include "startup_internal.h"
 #include <sotn/actor_graphics.h>
 #include <sotn/launch_renderer.h>
+#include <sotn/main_loop.h>
 #include <sotn/playback.h>
 #include <sotn/player.h>
 #include <sotn/presenter.h>
@@ -42,6 +43,8 @@ struct SotnStartup
     SotnSound *sound;
     SotnPlayback *playback;
     SotnStartupState state;
+    SotnPlaytime playtime;
+    Uint32 map_cursor;
     // The original namespace belongs to SEL while no gameplay session exists.
     // All title generations retire before a later menu/session can take ownership.
     StartupPrimitive primitives[SOTN_PRIMITIVE_SLOTS];
@@ -226,7 +229,7 @@ static bool StartupMenu(SotnStartup *s, Uint16 buttons)
     return true;
 }
 
-bool SotnStartup_Step(SotnStartup *s, Uint16 buttons)
+static bool StartupFrame(SotnStartup *s, Uint16 buttons)
 {
     if (!s || s->transferred)
         return SDL_InvalidParamError("startup");
@@ -334,6 +337,18 @@ bool SotnStartup_Step(SotnStartup *s, Uint16 buttons)
     s->dirty = true;
     return true;
 }
+bool SotnStartup_Step(SotnStartup *s, Uint16 buttons)
+{
+    if (!StartupFrame(s, buttons))
+        return false;
+    SotnMainLoopTail next = {s->playtime, s->map_cursor, s->state.random};
+    if (!SotnMainLoop_Advance(&next, 256, false, false))
+        return false;
+    s->playtime = next.playtime;
+    s->map_cursor = next.map_cursor;
+    s->state.random = next.random;
+    return true;
+}
 bool SotnStartup_Draw(SotnStartup *s)
 {
     if (!s)
@@ -383,8 +398,8 @@ bool SotnStartup_TakeGame(SotnStartup *s, SotnLaboratory **out)
         return true;
     SotnLaboratory *game = NULL;
     if (!Laboratory_ContinueStartup(s->data, s->directory, s->saves, s->requested_slot,
-                                    s->state.engine_clock, s->state.previous_buttons, s->sound,
-                                    &game))
+                                    s->state.engine_clock, s->map_cursor, s->state.previous_buttons,
+                                    s->sound, &game))
     {
         StartupError(s, SDL_GetError());
         s->menu.phase = SOTN_LAUNCH_ERROR;

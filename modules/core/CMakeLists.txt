@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  main_loop.c
+  include/sotn/main_loop.h
   playtime.c
   include/sotn/playtime.h
   hand_weapon.c

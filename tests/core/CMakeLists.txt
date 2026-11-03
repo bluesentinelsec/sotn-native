@@ -1,3 +1,8 @@
+add_executable(sotn-main-loop-tests test_main_loop.c)
+sotn_configure_c_target(sotn-main-loop-tests)
+target_link_libraries(sotn-main-loop-tests PRIVATE sotn-core)
+add_test(NAME main-loop-tail COMMAND sotn-main-loop-tests)
+
 add_executable(sotn-playtime-tests test_playtime.c)
 sotn_configure_c_target(sotn-playtime-tests)
 target_include_directories(sotn-playtime-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

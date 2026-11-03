@@ -35,6 +35,7 @@ bool SotnStartup_TakeGame(SotnStartup *startup, SotnLaboratory **out);
 bool SotnStartup_Event(SotnStartup *startup, const SDL_Event *event);
 bool SotnStartup_Iterate(SotnStartup *startup);
 /** @brief Advance one startup engine update with actual physical button words.
+ * Includes the actual post-render status/map tail and one native libc-adapter call.
  * Stop at the MainMenu request unless EnableContinue attached the native filesystem adapter.
  * Original SEL menus/New Game/prologue remain separate, unavailable owners. */
 bool SotnStartup_Step(SotnStartup *startup, Uint16 buttons);
