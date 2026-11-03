@@ -86,10 +86,11 @@ bool SotnCharacter_SelectFamiliar(SotnCharacter *character, Uint16 selected, boo
  * Applies signed-word body/buff bonuses before caps, then poison, without granting an item. */
 bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, Uint32 *random,
                                    SotnEquipment *out);
-/** @brief Retained owned71..74 properties at their actual activation callbacks. */
+/** @brief Retained selected throwing-item properties at their actual activation callbacks. */
 bool SotnCharacter_ThrowingProperties(const SotnCharacter *, Uint16 item, bool poison,
                                       Uint32 *random, SotnEquipment *out);
-/** @brief Resolve actual retained weapon22 arrow properties from selected raw parent0/25.
+/** @brief Resolve actual arrow/explosion properties from selected raw parent0/25,
+ * weapon15 items75..79 or weapon16 items80..82/134/135.
  * Uses the character's current attributes and supplied libc cursor transactionally.
  * This sealed component service enables no equipment selection, grant or hand control. */
 bool SotnCharacter_MagicMissileProperties(const SotnCharacter *, Uint16 item, bool poison,
@@ -185,7 +186,8 @@ bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 ite
 /** @brief Consume actual weapon21 food29..70 after successful player control.
  * Spare stock, last-copy removal and actual Duplicator use the same original ReduceWeapon. */
 bool SotnCharacter_UseFood(SotnCharacter *character, Uint16 hand, Uint16 item, Uint16 *equipped);
-/** @brief Consume owned71..74 with actual stock/Duplicator semantics, after player success. */
+/** @brief Consume a selected owned throwing item after player success, preserving stock/Duplicator.
+ */
 bool SotnCharacter_UseThrowing(SotnCharacter *, Uint16 hand, Uint16 item, Uint16 *equipped);
 /** @brief Consume equipped Neutron Bomb71 after player success, preserving Duplicator rules. */
 bool SotnCharacter_UseNeutron(SotnCharacter *character, Uint16 hand, Uint16 *equipped);

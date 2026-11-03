@@ -1,3 +1,24 @@
+Selected [weapon15 stars/TNT](docs/player-star-weapons.md) now owns75..79 actual
+menu/hand use, stock/Duplicator, shared roots/descendants/rows, private sprites/
+animation and native damage. Preserve kinds129/130, actual50/68, chain3/TNT1 before
+curse, player-success cost/grunt, timer10=4/conditional shield and raw AE/params.
+Buffalo58 uses32..63, born9 lifetime/no inherited rotation; empty-parent blank
+trail keeps wrapped priority65534. Flame80 uses25..31; common4/profile11 changes
+factory entityId EF/FF only. Real weapon15 BSS holds same-family/room, resets on
+actual program/Axe Armor/full-stage/Continue reload, never saves/transfers. TNT's
+optional32 leases precede64 RNG; failure omits only visual, fixed1 attack/group/
+SFX/word10/shield continue and never retry sparks. Preserve fuse absolute clock,
+hit-byte2/3/return, collision order, spark words/hide ordering,76's split ranges/
+low-byte increments/delay,78's scaled parameters and next-pass births. Properties
+increment least-used before raw-parent group overwrite. Actual Wolf replacement
+releases TNT rows; cleared body VX/VY/AE and group0 feed surviving real explosions.
+Use explicit weapon15 secondary17/19 API; resident sleep17 stays resident. Preserve
+raw-parent fields/no generation equality, private SDK, Blink/camera/shake/holds,
+real retirement and native late-failure runtime/BSS/row/RNG rollback. State3/
+scatter fixtures establish no ordinary producer. No new pool/grants/savev9 fields;
+pressure/stock/relic/pose/position/failure/save fixtures and adapters are not routes,
+whole-pass/full sharing/console evidence. Alucard/cold New Game gates stay open.
+
 Selected [weapon16 throwing items](docs/player-thrown-weapons.md) now owns actual
 80/81/82/134/135 menu/hand use, stock/Duplicator, shared roots/children/leases,
 private sprites/animation and native physical combat. Preserve actual kinds129/130,

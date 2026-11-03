@@ -292,6 +292,12 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActo
 bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, SotnSpriteTransform transform,
                                    SotnActorSurface surface);
+/** @brief Draw an actual weapon15 secondary bank17/19 after SetSpriteBank2.
+ * Requires its real resident hand program and private table. Common bank17 stays resident.
+ * Other parameters and atomic validation follow DrawSurface; this binds no gameplay owner. */
+bool SotnActorGraphics_DrawSecondaryWeaponSurface(const SotnActorGraphics *, SotnActorSprite,
+                                                  Sint32 x, Sint32 y, SotnSpriteTransform,
+                                                  SotnActorSurface);
 /** @brief Prepare the original Wall rope cache with bounded CPU copies in texture memory.
  * @param graphics Borrowed initialized texture service, after loading the room bank.
  * @return Success or SDL error; invalid/missing source pixels leave texture memory intact. */

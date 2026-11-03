@@ -113,6 +113,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         r->pentagram_mask &= ~((Uint64)1 << i);
         r->magic_mask &= ~((Uint64)1 << i);
         r->thrown_mask &= ~((Uint64)1 << i);
+        r->star_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
@@ -346,6 +347,18 @@ static bool MagicParent(const SotnBatRuntime *r, Uint16 slot, SotnMagicMissilePa
         *out = (SotnMagicMissileParent){0};
         return true;
     }
+    if (c->star)
+    {
+        const SotnStarWeapon *n = &c->state.star.motion;
+        const SotnThrownWeapon *m = &n->motion;
+        *out = (SotnMagicMissileParent){.exists = true,
+                                        .facing_left = m->facing_left,
+                                        .palette = m->palette,
+                                        .bank = m->bank,
+                                        .texture = m->texture,
+                                        .item = n->item};
+        return true;
+    }
     if (c->thrown)
     {
         const SotnThrownWeapon *m = &c->state.thrown.motion;
@@ -443,6 +456,18 @@ static bool ThrownParent(const SotnBatRuntime *r, Uint16 slot, SotnThrownParent 
     const SotnBatRuntimeChild *c = &r->children[slot - 16U];
     if (!c->kind)
         return true;
+    if (c->star)
+    {
+        const SotnThrownWeapon *s = &c->state.star.motion.motion;
+        *out = (SotnThrownParent){.bank = s->bank,
+                                  .frame = s->frame,
+                                  .texture = s->texture,
+                                  .palette = s->palette,
+                                  .rotation = s->rotation,
+                                  .facing_left = s->facing_left};
+        *vx = s->velocity_x;
+        return true;
+    }
     if (c->thrown)
     {
         const SotnThrownWeapon *s = &c->state.thrown.motion;
@@ -468,6 +493,166 @@ static bool ThrownParent(const SotnBatRuntime *r, Uint16 slot, SotnThrownParent 
     }
     return SDL_SetError("Weapon16 raw parent requires its actual selected field owner");
 }
+static bool StarItem(Uint16 item)
+{
+    return item >= 75 && item <= 79;
+}
+bool SotnBatRuntime_RequestStar(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                                Uint16 item, bool *allocated)
+{
+    const Uint32 hand = (packed >> 12) & 15U, blueprint = item == 79 ? 68U : 50U;
+    const Uint32 parameter = (item == 79 ? 0U : (Uint32)item - 75U) + (hand == 2 ? 128U : 0U);
+    if (!r || !allocated || !StarItem(item) || (hand != 1 && hand != 2) ||
+        packed != (blueprint | hand << 12 | parameter << 16))
+        return SDL_SetError("Weapon15 reservation requires its actual item/hand/blueprint");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, (Sint16)item))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+static bool StarFactory(SotnBatRuntime *r, SotnThrownFactory request, Uint16 slot, Uint16 hand)
+{
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, request.source, request.packed, 0))
+                return false;
+            if (request.weapon_dispatch)
+                f.entity_id = hand ? 0xff : 0xef;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            if (request.weapon_dispatch)
+            {
+                r->factories[i].thrown_particles = true;
+                r->factories[i].thrown_parent_slot = slot;
+            }
+            else
+            {
+                r->factories[i].star_factory = true;
+                r->factories[i].star_parent_slot = slot;
+            }
+            return true;
+        }
+    return true;
+}
+static bool StarParent(const SotnBatRuntime *r, Uint16 slot, SotnStarParent *out)
+{
+    SotnThrownParent image = {0};
+    Sint32 vx = 0;
+    if (!ThrownParent(r, slot, &image, &vx))
+        return false;
+    *out = (SotnStarParent){.image = image, .velocity_x = vx};
+    if (slot <= 30 && r->wolf.children[slot - 17U].identity)
+    {
+        const SotnWolfPart *p = &r->wolf.body.parts[slot - 17U];
+        out->exists = true;
+        out->priority = p->priority;
+        out->group = (Uint8)p->enemy_id;
+        return true;
+    }
+    const SotnBatRuntimeChild *c = &r->children[slot - 16U];
+    if (!c->kind)
+        return true;
+    out->exists = true;
+    out->priority = c->source.priority;
+    out->group = c->group;
+    if (c->star)
+    {
+        out->item = c->state.star.motion.item;
+        out->velocity_y = c->state.star.motion.motion.velocity_y;
+    }
+    else if (c->thrown)
+    {
+        out->item = c->state.thrown.item;
+        out->velocity_y = c->state.thrown.motion.velocity_y;
+    }
+    else if (c->magic)
+    {
+        out->item = c->state.magic.motion.item;
+        // Magic Missile entities retain their actual cleared velocityY; neither callback writes it.
+        out->velocity_y = 0;
+    }
+    return true;
+}
+bool SotnBatRuntime_StarValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->star)
+        return true;
+    const Uint16 role = c->kind & 15U;
+    const SotnStarWeapon *n = &c->state.star.motion;
+    const SotnThrownWeapon *s = &n->motion;
+    const bool root = role == 0 || role == 3, attack = root || role == 4 || role == 5;
+    if (!((c->kind >= 0xe0 && c->kind <= 0xe5) || (c->kind >= 0xf0 && c->kind <= 0xf5)) ||
+        c->food || c->neutron || c->sire || c->pentagram || c->magic || c->thrown ||
+        c->thrown_particle_parent || !c->generation || c->bat_generation || c->draw_count ||
+        s->removed || s->parameter != c->parameter ||
+        s->phase > (role == 3   ? 3
+                    : role == 0 ? 2
+                                : 1))
+        return false;
+    if (role == 1   ? index < 16 || index > 47
+        : role == 2 ? index < 9 || index > 15
+        : role == 4 ? index < 1 || index > 47
+        : role == 5 ? index < 1 || index > 31
+                    : index < 1 || index > 15)
+        return false;
+    if (root)
+    {
+        if (!StarItem(n->item) || c->state.star.parent_slot || role != (n->item == 79 ? 3 : 0) ||
+            c->parameter !=
+                ((c->kind >= 0xf0 ? 0x8000U : 0U) | (n->item == 79 ? 0U : (n->item - 75U) << 8)))
+            return false;
+    }
+    else if (c->state.star.parent_slot < 17 || c->state.star.parent_slot > 31 ||
+             ((role == 1 || role == 2 || role == 5) && c->parameter) ||
+             (role == 4 && (c->parameter >> 8) > 23))
+        return false;
+    if (c->primitive_count != (c->initialized && role == 3 && (s->flags & 0x800000U) ? 32 : 0))
+        return false;
+    if (!c->initialized)
+        return !s->phase && !c->group && !c->state.star.attack.active &&
+               (!attack || root || !n->item);
+    // A real emptied raw slot supplies priority0; the original rowless trail keeps
+    // its wrapped -2 word with no bank/frame until its own lifetime retirement.
+    const bool empty_trail = role == 1 && !s->bank && !s->frame && s->priority == 65534U;
+    if (!s->phase || (s->priority > 511 && !empty_trail))
+        return false;
+    const Uint16 timeline = role == 2 ? 0x6c0 : role == 4 || role == 5 ? 0x770 : 0;
+    if (c->state.star.animation_offset != timeline || c->state.star.animation.pose >= 15 ||
+        c->state.star.animation.remaining < -1)
+        return false;
+    if (!attack)
+        return !c->group && !c->state.star.attack.active;
+    if (root ? c->group < 3 || c->group > 6 : c->group != 0 && (c->group < 3 || c->group > 10))
+        return false;
+    return c->state.star.attack.equipment == n->item && c->state.star.attack.hit_type == 2 &&
+           c->state.star.attack.width == s->width && c->state.star.attack.height == s->height &&
+           (!n->attack_cleared || !c->state.star.attack.active);
+}
+bool SotnBatRuntime_PruneStar(SotnBatRuntime *r)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!SotnBatRuntime_StarValid(&r->children[i], i))
+            return SDL_SetError("Weapon15 cleanup lost actual child/row ownership");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (r->children[i].star)
+            r->children[i] = (SotnBatRuntimeChild){0};
+    r->star_mask = 0;
+    return true;
+}
+
 bool SotnBatRuntime_RequestSire(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
 {
@@ -623,6 +808,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
     if (!c->initialized)
         return c->source.flags;
+    if (c->star)
+        return c->state.star.motion.motion.flags;
     if (c->thrown)
         return c->state.thrown.motion.flags;
     if (c->food)
@@ -1051,7 +1238,8 @@ bool SotnBatRuntime_PruneThrown(SotnBatRuntime *r)
     if (!r)
         return SDL_InvalidParamError("runtime");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if (!SotnBatRuntime_ThrownValid(&r->children[i], i))
+        if (!SotnBatRuntime_ThrownValid(&r->children[i], i) ||
+            !SotnBatRuntime_StarValid(&r->children[i], i))
             return SDL_SetError("Weapon16 room cleanup lost its actual child/row ownership");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (r->children[i].thrown || r->children[i].thrown_particle_parent ||
@@ -1090,7 +1278,8 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
             !SotnBatRuntime_SireValid(&r->children[i], i) ||
             !SotnBatRuntime_PentagramValid(&r->children[i], i) ||
             !SotnBatRuntime_MagicMissileValid(&r->children[i], i) ||
-            !SotnBatRuntime_ThrownValid(&r->children[i], i))
+            !SotnBatRuntime_ThrownValid(&r->children[i], i) ||
+            !SotnBatRuntime_StarValid(&r->children[i], i))
             return SDL_SetError("Weapon retirement lost its actual child ownership");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (ChangedWeapon(r->children[i].kind, hands))
@@ -1102,6 +1291,7 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
             r->pentagram_mask &= ~((Uint64)1 << i);
             r->magic_mask &= ~((Uint64)1 << i);
             r->thrown_mask &= ~((Uint64)1 << i);
+            r->star_mask &= ~((Uint64)1 << i);
         }
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
@@ -1281,7 +1471,7 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!SotnBatRuntime_FoodChildValid(c, index))
         return false;
-    if (c->food || c->sire || c->pentagram || c->magic || c->thrown)
+    if (c->food || c->sire || c->pentagram || c->magic || c->thrown || c->star)
         return true;
     if (c->kind == 0xe1 || c->kind == 0xf1)
         return index == 0 && !c->primitive_count && !c->draw_count && !c->group &&
@@ -1301,7 +1491,7 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->food)
-        return c->neutron || c->sire || c->pentagram || c->magic || c->thrown ||
+        return c->neutron || c->sire || c->pentagram || c->magic || c->thrown || c->star ||
                (c->kind != 0xe0 && c->kind != 0xf0);
     const SotnFood *f = &c->state.food;
     const bool inventory = c->kind == 0xe1 || c->kind == 0xf1;
@@ -1318,7 +1508,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                   Uint32 fire_parent, Uint16 fire_parent_slot, bool sire_factory,
                   Uint16 sire_parent_slot, bool magic_factory, Uint16 magic_parent_slot,
                   bool thrown_factory, bool thrown_particles, Uint16 thrown_parent_slot,
-                  const SotnBatRuntimeInput *input)
+                  bool star_factory, Uint16 star_parent_slot, const SotnBatRuntimeInput *input)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -1359,6 +1549,37 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                                  : child.argument_low == 82                              ? 3
                                                                                          : 5)) ||
                 (thrown_factory && (thrown_role == 1 || thrown_role == 4)));
+    const Uint16 star_role = c.kind & 15U;
+    c.star =
+        ((c.kind >= 0xe0 && c.kind <= 0xe5) || (c.kind >= 0xf0 && c.kind <= 0xf5)) &&
+        ((StarItem(child.argument_low) && star_role == (child.argument_low == 79 ? 3 : 0)) ||
+         (star_factory && (star_role == 1 || star_role == 2 || star_role == 4 || star_role == 5)));
+    if (c.star)
+    {
+        const Uint16 index = (Uint16)(child.slot - 16U);
+        if (generation || child.argument_high ||
+            (star_role == 1   ? index < 16 || index > 47
+             : star_role == 2 ? index < 9 || index > 15
+             : star_role == 4 ? index < 1 || index > 47
+             : star_role == 5 ? index < 1 || index > 31
+                              : index < 1 || index > 15) ||
+            (star_factory
+                 ? (child.argument_low || star_parent_slot < 17 || star_parent_slot > 31 ||
+                    ((star_role == 1 || star_role == 2 || star_role == 5) && child.parameter) ||
+                    (star_role == 4 && (child.parameter >> 8) > 23))
+                 : child.parameter !=
+                       ((c.kind >= 0xf0 ? 0x8000U : 0U) |
+                        (child.argument_low == 79 ? 0U : (child.argument_low - 75U) << 8))))
+            return SDL_SetError("Weapon15 child lost actual role/item/parameter/raw parent");
+        c.state.star.parent_slot = star_factory ? star_parent_slot : 0;
+        c.state.star.motion = (SotnStarWeapon){.item = child.argument_low,
+                                               .motion = {.x = child.source.x,
+                                                          .y = child.source.y,
+                                                          .flags = child.source.flags,
+                                                          .parameter = child.parameter,
+                                                          .priority = child.source.priority,
+                                                          .facing_left = child.source.facing_left}};
+    }
     if (c.thrown)
     {
         if (generation || child.argument_high ||
@@ -1388,13 +1609,14 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.particle_parent_slot = thrown_parent_slot;
     }
     c.food = ((c.kind == 0xe0 || c.kind == 0xf0) && !c.neutron && !c.sire && !c.pentagram &&
-              !c.magic && !c.thrown) ||
+              !c.magic && !c.thrown && !c.star) ||
              ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
               ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
-    if ((c.food || c.neutron || c.sire || c.pentagram || c.magic || c.thrown) && input)
+    if ((c.food || c.neutron || c.sire || c.pentagram || c.magic || c.thrown || c.star) && input)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
-        if (input->weapon_bound[hand] && input->weapon_family[hand] != (c.thrown      ? 16
+        if (input->weapon_bound[hand] && input->weapon_family[hand] != (c.star        ? 15
+                                                                        : c.thrown    ? 16
                                                                         : c.magic     ? 22
                                                                         : c.pentagram ? 17
                                                                         : c.sire      ? 18
@@ -1477,7 +1699,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                                   .facing_left = child.source.facing_left,
                                   .inventory = inventory};
     }
-    if (!c.thrown && (c.kind == 0xe2 || c.kind == 0xf2))
+    if (!c.thrown && !c.star && (c.kind == 0xe2 || c.kind == 0xf2))
     {
         if (child.slot < 17 || child.slot > 31 || !generation || child.parameter ||
             child.argument_low || child.argument_high)
@@ -1547,7 +1769,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
-    if (!c.food && !c.sire && !c.magic && !c.thrown && (c.kind == 0xe1 || c.kind == 0xf1))
+    if (!c.food && !c.sire && !c.magic && !c.thrown && !c.star &&
+        (c.kind == 0xe1 || c.kind == 0xf1))
     {
         if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
             child.parameter != (c.kind == 0xf1 ? 0x8000 : 0))
@@ -1580,7 +1803,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         if (!(occupied & ((Uint64)1 << slot)))
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
-                       0, 0, 0, false, 0, false, 0, false, false, 0, NULL))
+                       0, 0, 0, false, 0, false, 0, false, false, 0, false, 0, NULL))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -1821,7 +2044,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         !SotnBatRuntime_PruneTeleport(&r) || !SotnBatRuntime_PruneMedicines(&r) ||
                         !SotnBatRuntime_PruneFood(&r) || !SotnBatRuntime_PruneNeutron(&r) ||
                         !SotnBatRuntime_PruneSire(&r) || !SotnBatRuntime_PrunePentagram(&r) ||
-                        !SotnBatRuntime_PruneMagicMissile(&r) || !SotnBatRuntime_PruneThrown(&r)))
+                        !SotnBatRuntime_PruneMagicMissile(&r) || !SotnBatRuntime_PruneThrown(&r) ||
+                        !SotnBatRuntime_PruneStar(&r)))
         return false;
     if (r.common_generation &&
         (r.common_generation != r.wolf.environment_generation || !r.wolf.environment_reserved))
@@ -1888,6 +2112,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Sword special lost its actual slot/role/lifetime ownership");
         if (!SotnBatRuntime_PentagramValid(c, i))
             return SDL_SetError("Pentagram lost its actual slot/role/lifetime ownership");
+        if (!SotnBatRuntime_StarValid(c, i))
+            return SDL_SetError("Weapon15 lost actual role/row/callback ownership");
         if (!SotnBatRuntime_ThrownValid(c, i))
             return SDL_SetError("Weapon16 lost its actual role/row/callback ownership");
         if (!SotnBatRuntime_MagicMissileValid(c, i))
@@ -1920,6 +2146,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                  c->primitive_count == 1) ||
                 (c->neutron && c->primitive_count == 1) ||
                 (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
+                (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                 (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
                 (c->kind == 61 && c->primitive_count == 16) ||
                 (c->kind == 63 && c->primitive_count == 9) ||
@@ -1977,6 +2204,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         {
             c->state.pentagram.motion.x = FixedShift(c->state.pentagram.motion.x, in.room_shift_x);
             c->state.pentagram.motion.y = FixedShift(c->state.pentagram.motion.y, in.room_shift_y);
+        }
+        else if (c->star)
+        {
+            SotnThrownWeapon *m = &c->state.star.motion.motion;
+            m->x = FixedShift(m->x, in.room_shift_x);
+            m->y = FixedShift(m->y, in.room_shift_y);
+            if (c->initialized && c->primitive_count)
+                for (Uint16 j = 0; j < 32; ++j)
+                {
+                    SotnStarSpark *q = &c->state.star.motion.sparks[j];
+                    q->x = Word(q->x + in.room_shift_x);
+                    q->y = Word(q->y + in.room_shift_y);
+                }
         }
         else if (c->thrown)
         {
@@ -2468,6 +2708,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              r.factories[i].fire_parent_slot >= SOTN_BAT_RUNTIME_SLOTS ||
              r.factories[i].bat_generation || r.factories[i].sword_parent))
             return SDL_SetError("Fire particle factory lost its actual source identity");
+        if (r.factories[i].cursor.entity_id && r.factories[i].star_factory)
+        {
+            const Uint16 bp = r.factories[i].cursor.blueprint;
+            if ((bp != 58 && bp != 80 && bp != 76 && bp != 78 && bp != 104) ||
+                r.factories[i].star_parent_slot < 17 || r.factories[i].star_parent_slot > 31 ||
+                r.factories[i].bat_generation || r.factories[i].thrown_factory ||
+                r.factories[i].magic_factory || r.factories[i].sword_parent)
+                return SDL_SetError("Weapon15 factory lost actual descendant/raw parent ownership");
+        }
         if (!r.factories[i].cursor.entity_id ||
             (in.freeze && !(r.factories[i].cursor.source.flags & 0x10000U)))
             continue;
@@ -2505,7 +2754,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                        r.factories[i].sire_factory, r.factories[i].sire_parent_slot,
                        r.factories[i].magic_factory, r.factories[i].magic_parent_slot,
                        r.factories[i].thrown_factory, r.factories[i].thrown_particles,
-                       r.factories[i].thrown_parent_slot, &in))
+                       r.factories[i].thrown_parent_slot, r.factories[i].star_factory,
+                       r.factories[i].star_parent_slot, &in))
                 return false;
         }
     }
@@ -2522,7 +2772,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.player_hitbox_state = SotnPlayerStep_IsDead(p.step) ? 0 : 1;
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
-        r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = 0;
+        r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.echo_attack = false;
@@ -2538,7 +2788,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             continue;
         if (in.freeze && !(ChildFlags(c) & 0x10000U))
         {
-            if (c->initialized && !c->thrown && (c->kind == 0xe2 || c->kind == 0xf2))
+            if (c->initialized && !c->thrown && !c->star && (c->kind == 0xe2 || c->kind == 0xf2))
                 r.sword_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 36)
                 r.wing_mask |= (Uint16)(1U << (i - 1U));
@@ -2556,6 +2806,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.pentagram_mask |= (Uint64)1 << i;
             if (c->initialized && c->sire && !c->sire_child && c->state.sire.attack.active)
                 r.sire_mask |= (Uint64)1 << i;
+            if (c->initialized && c->star && c->state.star.attack.active)
+                r.star_mask |= (Uint64)1 << i;
             if (c->initialized && c->thrown && c->state.thrown.attack.active)
                 r.thrown_mask |= (Uint64)1 << i;
             if (c->initialized && c->magic && c->state.magic.attack.active)
@@ -2566,7 +2818,131 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->thrown)
+        if (c->star)
+        {
+            const Uint16 role = c->kind & 15U, hand = c->kind >= 0xf0;
+            SotnStarWeapon *n = &c->state.star.motion;
+            SotnThrownWeapon *s = &n->motion;
+            bool allocated = c->primitive_count != 0;
+            if (role == 3 && !c->initialized &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, 32, c->primitives, &allocated))
+                return false;
+            if (role == 3)
+                c->primitive_count = allocated ? 32 : 0;
+            SotnStarParent parent = {0};
+            if ((role == 1 || role == 4 || role == 5) && !s->phase &&
+                !StarParent(&r, c->state.star.parent_slot, &parent))
+                return false;
+            SotnDataView overlay = {0};
+            if (!SotnWeapon_Overlay(in.weapons, (SotnEquipment){.id = 75, .family = 15}, &overlay))
+                return false;
+            SotnStarEvents events = {0};
+            if (!SotnStarWeapon_Tick(n,
+                                     (SotnStarInput){.role = (SotnStarRole)role,
+                                                     .executable = in.executable,
+                                                     .overlay = overlay,
+                                                     .collision = in.food_collision,
+                                                     .parent = parent,
+                                                     .player_x = p.x,
+                                                     .player_y = p.y,
+                                                     .offset_x = p.animation.hitbox_x,
+                                                     .offset_y = p.animation.hitbox_y,
+                                                     .remaining = c->state.star.animation.remaining,
+                                                     .game_timer = in.game_timer,
+                                                     .player_step = (Uint16)p.step,
+                                                     .priority = p.priority,
+                                                     .hand = hand,
+                                                     .buttons = p.buttons,
+                                                     .facing_left = p.facing_left,
+                                                     .primitive_allocated = allocated},
+                                     &progress.random, &r.star_fire_counter[hand], &events))
+                return false;
+            if (events.effects.properties || events.fixed_tnt_properties)
+            {
+                SotnEquipment equipment = {.attack = 1,
+                                           .element = 0x20,
+                                           .hit_type = 2,
+                                           .hit_effect = 1,
+                                           .stun = 4,
+                                           .invincibility = 20};
+                if (events.effects.properties &&
+                    !SotnCharacter_MagicMissileProperties(character, n->item, p.poison_ticks != 0,
+                                                          &progress.random, &equipment))
+                    return false;
+                Uint16 group = 3;
+                for (Uint16 j = 4; j < 7; ++j)
+                    if (r.groups[j] < r.groups[group])
+                        group = j;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Weapon15 shared property group overflow");
+                ++r.groups[group];
+                // Original property assignment increments the least-used group before the
+                // explosion overwrites enemyId with its raw parent's current group.
+                if (events.inherit_group)
+                    group = parent.group;
+                if (group != 0 && (group < 3 || group > 10))
+                    return SDL_SetError(
+                        "Weapon15 requires its actual selected raw parent attack group");
+                c->group = (Uint8)group;
+                c->state.star.attack =
+                    (SotnPlayerAttack){.power = (Uint16)equipment.attack,
+                                       .element = equipment.element,
+                                       .hit_type = equipment.hit_type,
+                                       .hit_effect = equipment.hit_effect,
+                                       .stun_frames = equipment.stun,
+                                       .invincibility_frames = equipment.invincibility,
+                                       .critical_rate = (Uint8)equipment.critical_rate,
+                                       .equipment = n->item,
+                                       .right_hand = hand != 0,
+                                       .active = true};
+            }
+            c->state.star.attack.width = s->width;
+            c->state.star.attack.height = s->height;
+            if (n->attack_cleared)
+                c->state.star.attack.active = false;
+            for (Uint16 j = 0; j < events.effects.factory_count; ++j)
+                if (!StarFactory(&r, events.effects.factories[j], (Uint16)(i + 16U), hand))
+                    return false;
+            for (Uint16 j = 0; j < events.effects.sound_count; ++j)
+                if (!Sound(&r, events.effects.sounds[j]))
+                    return false;
+            for (Uint16 j = 0; j < events.effects.shake_count; ++j)
+            {
+                if (r.wolf_shake_count >= SDL_arraysize(r.wolf_shakes))
+                    return SDL_SetError("Weapon15 exceeded actual bounded shake requests");
+                r.wolf_shakes[r.wolf_shake_count++] = events.effects.shakes[j];
+            }
+            if (events.effects.use_ticks)
+                r.use_ticks = events.effects.use_ticks;
+            r.magic_clear_shield |= events.effects.clear_shield;
+            if (events.animation_offset)
+            {
+                c->state.star.animation_offset = events.animation_offset;
+                c->state.star.animation = (SotnThrownAnimation){0};
+            }
+            const Sint16 dx = Word(in.room_shift_x - in.screen_shift_x),
+                         dy = Word(in.room_shift_y - in.screen_shift_y);
+            const Sint16 x = Word(Pixel(s->x) - in.camera_x + dx),
+                         y = Word(Pixel(s->y) - in.camera_y + dy);
+            removed = s->removed ||
+                      (!(s->flags & 0x04000000U) && (x < -32 || x > 288 || y < -16 || y > 256));
+            if (c->state.star.animation_offset && !removed)
+            {
+                if (!SotnStarWeapon_Animate(&c->state.star.animation, overlay,
+                                            c->state.star.animation_offset))
+                    return false;
+                s->frame = c->state.star.animation.frame;
+            }
+            c->source = (SotnPlayerFactorySource){.x = s->x,
+                                                  .y = s->y,
+                                                  .flags = s->flags,
+                                                  .priority = s->priority,
+                                                  .facing_left = s->facing_left};
+            c->initialized = !removed;
+            if (!removed && c->state.star.attack.active)
+                r.star_mask |= (Uint64)1 << i;
+        }
+        else if (c->thrown)
         {
             const Uint16 role = c->kind & 15U, hand = c->kind >= 0xf0;
             SotnThrownWeapon *s = &c->state.thrown.motion;
@@ -4351,7 +4727,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if ((r.children[i].kind == 36 || r.children[i].kind == 45 || r.children[i].kind == 26 ||
              r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
              r.children[i].kind == 53 || r.children[i].neutron || r.children[i].sire ||
-             r.children[i].pentagram || r.children[i].magic || r.children[i].thrown) &&
+             r.children[i].pentagram || r.children[i].magic || r.children[i].thrown ||
+             r.children[i].star) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
@@ -4362,7 +4739,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     {
         r.wing_mask = r.wolf_mask = 0;
         r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
-            r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = 0;
+            r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask = 0;
         r.soul_attack = r.echo_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
             r.wolf.body.parts[i].hitbox_state = 0;
@@ -4379,10 +4756,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.hellfire_fire.attack.active = false;
             else if (c->kind == 61)
                 c->state.spirit.attack.active = false;
-            else if (!c->thrown && (c->kind == 0xe2 || c->kind == 0xf2))
+            else if (!c->thrown && !c->star && (c->kind == 0xe2 || c->kind == 0xf2))
                 c->state.sword.attack.active = false;
             else if (c->pentagram)
                 c->state.pentagram.attack.active = false;
+            else if (c->star)
+                c->state.star.attack.active = false;
             else if (c->thrown)
                 c->state.thrown.attack.active = false;
             else if (c->magic)
@@ -4434,14 +4813,17 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
 
 bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags)
 {
+    const bool star = r && i < 48 && r->children[i].star && r->children[i].state.star.attack.active;
     const bool magic = r && i < 48 && r->children[i].magic &&
                        (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
     if (!r || i >= 48 || !flags || flags > 3 ||
-        (!magic && r->children[i].kind != 45 && r->children[i].kind != 26 &&
+        (!magic && !star && r->children[i].kind != 45 && r->children[i].kind != 26 &&
          r->children[i].kind != 27) ||
         !generation || r->children[i].generation != generation || !r->children[i].initialized)
         return SDL_SetError("Bat fireball feedback requires its actual live child generation");
-    if (magic)
+    if (star)
+        r->children[i].state.star.motion.hit_flags = flags;
+    else if (magic)
         r->children[i].state.magic.hit_flags = flags;
     else if (r->children[i].kind == 45)
         r->children[i].state.fire.hit_flags = flags;

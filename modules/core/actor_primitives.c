@@ -204,7 +204,7 @@ static bool BatPrimitiveKind(Uint16 kind)
     return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
-           kind == 38 || kind == 0xe0 || kind == 0xf0;
+           kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe3 || kind == 0xf3;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -322,6 +322,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
             return SDL_SetError("Sword commit lost its actual child/lifetime/slot ownership");
         if (!SotnBatRuntime_MagicMissileValid(c, i))
             return SDL_SetError("Magic Missile commit lost its actual bow/arrow ownership");
+        if (!SotnBatRuntime_StarValid(c, i))
+            return SDL_SetError("Weapon15 commit lost actual role/row ownership");
         if (!SotnBatRuntime_ThrownValid(c, i))
             return SDL_SetError("Weapon16 commit lost its actual role/row/parent ownership");
         if (!SotnBatRuntime_PentagramValid(c, i))
@@ -375,6 +377,7 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->kind == 63 && c->primitive_count == 9) ||
                (c->neutron && c->primitive_count == 1) ||
                (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
+               (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
@@ -522,7 +525,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
     next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
-        next->thrown_mask = 0;
+        next->thrown_mask = next->star_mask = 0;
     next->magic_clear_shield = false;
     // These are consumed callback notifications, not original retained global counters.
     SDL_zero(next->medicine);

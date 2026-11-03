@@ -300,6 +300,58 @@ static bool TestWeapons(Fixture *fixture)
     return true;
 }
 
+static bool TestSecondaryWeapon(Fixture *f)
+{
+    MakeFixture(f);
+    // Authored common17 retains its own blue sprite; weapon15's secondary table is red.
+    Put32(f->dra + 0x3b70 + 17U * 4U, 0x800a0100);
+    Uint8 *o = f->weapons + 15U * 0x7000 + 0x4000;
+    Put32(o + 0x2b4, 0x8017a2b8);
+    Put16(o + 0x2b8, 1);
+    Uint8 *p = o + 0x2ba;
+    Put16(p + 6, 4);
+    Put16(p + 8, 1);
+    Put16(p + 18, 4);
+    Put16(p + 20, 1);
+    Put32(o + 0x7dc, 0x8017a800);
+    Put16(o + 0x802, 31);
+    f->weapons[15U * 0x7000] = 0x11;
+    f->weapons[15U * 0x7000 + 1] = 0x11;
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    const SotnActorSurface surface = {.pixels = f->frame,
+                                      .count = SOTN_FRAME_PIXELS,
+                                      .width = SOTN_FRAME_WIDTH,
+                                      .height = SOTN_FRAME_HEIGHT};
+    const SotnSpriteTransform transform = {.scale_x = 256, .scale_y = 256, .opacity = 128};
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnActorSprite sprite = {.animation_set = (Uint16)(17 + hand * 2U),
+                                  .frame = 1,
+                                  .palette = (Uint16)(0x110 + hand * 24U),
+                                  .texture_offset = (Uint16)(100 + hand * 2U)};
+        ClearFrame(f);
+        CHECK(
+            !SotnActorGraphics_DrawSecondaryWeaponSurface(g, sprite, 16, 16, transform, surface) &&
+            f->frame[16 * 256 + 16] == 7);
+        CHECK(SotnActorGraphics_LoadWeapon(g, (SotnDataView){f->weapons, sizeof(f->weapons)}, hand,
+                                           (SotnEquipment){.id = 75, .family = 15}));
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_DrawSecondaryWeaponSurface(g, sprite, 16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 31);
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_Draw(g, (SotnActorSprite){.animation_set = 17, .frame = 1}, 1, 1,
+                                     f->frame, SOTN_FRAME_PIXELS) &&
+              f->frame[0] == 0x7c00);
+    }
+    ClearFrame(f);
+    CHECK(!SotnActorGraphics_DrawSecondaryWeaponSurface(
+              g, (SotnActorSprite){.animation_set = 16, .frame = 1}, 16, 16, transform, surface) &&
+          f->frame[16 * 256 + 16] == 7);
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 static bool TestQuad(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -1615,10 +1667,11 @@ int main(void)
         TestSdkRotationFailure(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
         TestColorDither(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
         TestFailures(fixture) && TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
-        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-        TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
-        TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
-        ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) && TestFamiliar(fixture);
+        TestSecondaryWeapon(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+        PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
+        TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
+        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) &&
+        TestFamiliar(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

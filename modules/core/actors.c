@@ -593,8 +593,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                        actors->bat_runtime->sword_mask || actors->bat_runtime->axe_mask ||
                        actors->bat_runtime->neutron_mask || actors->bat_runtime->sire_mask ||
                        actors->bat_runtime->pentagram_mask || actors->bat_runtime->magic_mask ||
-                       actors->bat_runtime->thrown_mask || actors->bat_runtime->echo_attack ||
-                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->thrown_mask || actors->bat_runtime->star_mask ||
+                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
+                       actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -618,6 +619,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_pentagram = (runtime->pentagram_mask & ((Uint64)1 << index)) != 0;
             const bool selected_sire = (runtime->sire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_magic = (runtime->magic_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_star = (runtime->star_mask & ((Uint64)1 << index)) != 0;
             const bool selected_thrown = (runtime->thrown_mask & ((Uint64)1 << index)) != 0;
             const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
@@ -627,7 +629,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf &&
                 !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
                 !selected_axe && !selected_neutron && !selected_sire && !selected_pentagram &&
-                !selected_magic && !selected_thrown)
+                !selected_magic && !selected_thrown && !selected_star)
                 continue;
             if (selected_wolf)
             {
@@ -684,6 +686,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                      (!child->magic || !SotnBatRuntime_MagicMissileValid(child, (Uint16)index) ||
                       (child->kind != 0xe1 && child->kind != 0xf1) ||
                       !child->state.magic.attack.active)) ||
+                    (selected_star &&
+                     (!child->star || !SotnBatRuntime_StarValid(child, (Uint16)index) ||
+                      !child->state.star.attack.active)) ||
                     (selected_thrown &&
                      (!child->thrown || !SotnBatRuntime_ThrownValid(child, (Uint16)index) ||
                       !child->state.thrown.attack.active)) ||
@@ -695,7 +700,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_thrown      ? child->state.thrown.attack
+                source.attack = selected_star        ? child->state.star.attack
+                                : selected_thrown    ? child->state.thrown.attack
                                 : selected_magic     ? child->state.magic.attack
                                 : selected_pentagram ? child->state.pentagram.attack
                                 : selected_sire      ? child->state.sire.attack
@@ -705,9 +711,10 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                 : selected_fire      ? child->state.fire.attack
                                 : selected_spirit    ? child->state.spirit.attack
                                                      : child->state.attack;
-                hand = selected_axe     ? 0U
-                       : selected_sword ? ACTOR_ZERO_CHANNEL
-                                        : ACTOR_WING_CHANNEL + child->group - 3U;
+                hand = selected_axe ? 0U
+                       : selected_sword || (selected_star && !child->group)
+                           ? ACTOR_ZERO_CHANNEL
+                           : ACTOR_WING_CHANNEL + child->group - 3U;
             }
         }
         else if (channel >= gas_start)
@@ -876,7 +883,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                         return false;
                 }
                 else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
-                         (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)))
+                         (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) ||
+                         child->star)
                 {
                     Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                     if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||

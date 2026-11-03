@@ -375,11 +375,13 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 17 ? 0x8017a3a0U
                            : equipment.family == 18 ? 0x8017a730U
                            : equipment.family == 19 ? 0x8017a548U
+                           : equipment.family == 15 ? 0x8017a7dcU
                            : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
     const Uint32 color_count =
         (equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
-                 equipment.family == 18 || equipment.family == 17 || equipment.family == 16
+                 equipment.family == 18 || equipment.family == 17 || equipment.family == 16 ||
+                 equipment.family == 15
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -433,16 +435,22 @@ static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint
                    out);
 }
 
-static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out)
+static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out,
+                  bool secondary)
 {
     sprite.frame = (Uint16)(sprite.frame & 0x7fffU);
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
+    const Uint16 hand = bank >= 18 ? 1 : 0;
+    if (secondary && (stage || (bank != 17 && bank != 19) || graphics->weapon_family[hand] != 15 ||
+                      !graphics->weapon[hand].bytes))
+        return SDL_SetError(
+            "Secondary weapon sprite requires actual resident weapon15/bank17 or19");
     if (stage && bank == 20)
         return MultipartFrame(graphics->familiar, 0x80170000U, graphics->familiar_parts,
                               sprite.frame, out);
-    const bool weapon = !stage && (bank == 16 || bank == 18);
-    const SotnDataView image = weapon  ? graphics->weapon[bank == 18 ? 1 : 0]
+    const bool weapon = secondary || (!stage && (bank == 16 || bank == 18));
+    const SotnDataView image = weapon  ? graphics->weapon[hand]
                                : stage ? graphics->nz0
                                        : graphics->dra;
     const Uint32 base = weapon ? 0x8017a000U : stage ? 0x80180000U : 0x800a0000U;
@@ -450,7 +458,7 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
     if (bank == 0 || (!weapon && bank >= (stage ? graphics->sprite_banks : 18U)) ||
         (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
-    const Uint32 table_address = weapon  ? base + 0x40
+    const Uint32 table_address = weapon  ? base + (secondary ? 0x2b0U : 0x40U)
                                  : stage ? Read32(graphics->nz0.bytes + 20)
                                          : base + 0x3b70;
     if (!weapon &&
@@ -1009,14 +1017,15 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
 }
 
 static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x, Sint32 y,
-                 SotnActorSurface surface, const SotnSpriteTransform *transform, bool sdk_scale)
+                 SotnActorSurface surface, const SotnSpriteTransform *transform, bool sdk_scale,
+                 bool secondary)
 {
     if (!graphics || !ValidSurface(surface))
         return SDL_SetError("Actor drawing requires initialized graphics and a complete surface");
     if ((sprite.frame & 0x7fff) == 0 || sprite.animation_set == 0)
         return true;
     SotnDataView definition = {0};
-    if (!Frame(graphics, sprite, &definition))
+    if (!Frame(graphics, sprite, &definition, secondary))
         return false;
     const Uint32 parts = Read16(definition.bytes);
     if ((parts & 0x8000) && sdk_scale)
@@ -1160,7 +1169,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count)
 {
-    return Draw(graphics, sprite, x, y, FrameSurface(frame, count), NULL, false);
+    return Draw(graphics, sprite, x, y, FrameSurface(frame, count), NULL, false, false);
 }
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count)
@@ -1168,7 +1177,7 @@ bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorS
     const SotnSpriteTransform transform = {
         .rotation = angle, .scale_x = 256, .scale_y = 256, .opacity = 128};
     return Draw(graphics, sprite, x, y, FrameSurface(frame, count),
-                (angle & 4095) == 0 ? NULL : &transform, false);
+                (angle & 4095) == 0 ? NULL : &transform, false, false);
 }
 bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *frame, size_t count)
 {
@@ -1328,9 +1337,8 @@ bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *p, Sint32 o
     return QuadDraw(NULL, q, surface, true);
 }
 
-bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
-                                   Sint32 y, SotnSpriteTransform transform,
-                                   SotnActorSurface surface)
+static bool DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x, Sint32 y,
+                        SotnSpriteTransform transform, SotnActorSurface surface, bool secondary)
 {
     if (transform.scale_x == 0 || transform.scale_y == 0 ||
         (!transform.sdk_rotation && (transform.scale_x < -1024 || transform.scale_x > 1024 ||
@@ -1346,8 +1354,22 @@ bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite s
     if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
         transform.opacity == 128 && !transform.tint && !transform.sdk_rotation &&
         !transform.original_uv && !transform.sdk_scale)
-        return Draw(g, sprite, x, y, surface, NULL, false);
-    return Draw(g, sprite, x, y, surface, &transform, transform.sdk_scale);
+        return Draw(g, sprite, x, y, surface, NULL, false, secondary);
+    return Draw(g, sprite, x, y, surface, &transform, transform.sdk_scale, secondary);
+}
+
+bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
+                                   Sint32 y, SotnSpriteTransform transform,
+                                   SotnActorSurface surface)
+{
+    return DrawSurface(g, sprite, x, y, transform, surface, false);
+}
+bool SotnActorGraphics_DrawSecondaryWeaponSurface(const SotnActorGraphics *g,
+                                                  SotnActorSprite sprite, Sint32 x, Sint32 y,
+                                                  SotnSpriteTransform transform,
+                                                  SotnActorSurface surface)
+{
+    return DrawSurface(g, sprite, x, y, transform, surface, true);
 }
 
 bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
@@ -1394,7 +1416,7 @@ bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *g, SotnActorSprite spri
     if (!(sprite.frame & 0x7fffU))
         return true;
     SotnDataView definition = {0}, sheet = {0};
-    if (!Frame(g, sprite, &definition) || !(Read16(definition.bytes) & 0x8000U) ||
+    if (!Frame(g, sprite, &definition, false) || !(Read16(definition.bytes) & 0x8000U) ||
         !PackedImage(g, sprite, definition, &sheet))
         return SDL_SetError("BO4 display cache requires a backed packed body/bat pose");
     const Uint32 x = Read16(g->dra.bytes + 0x21d8);
@@ -1441,7 +1463,7 @@ bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *g, Uint16 frame, Sint1
         return SDL_SetError("BO4 bat pivot requires a bounded pose and original offset table");
     SotnDataView definition = {0}, sheet = {0};
     const SotnActorSprite sprite = {.animation_set = 0x8002, .frame = frame};
-    if (!Frame(g, sprite, &definition) || !PackedImage(g, sprite, definition, &sheet))
+    if (!Frame(g, sprite, &definition, false) || !PackedImage(g, sprite, definition, &sheet))
         return false;
     const Sint32 pivot = Signed16(g->nz0.bytes + 0x11e8 + pose * 2U) + offset;
     if (pivot < -1024 || pivot > 1024)
@@ -1976,7 +1998,7 @@ bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *g, SotnActorSprite sp
         return SDL_SetError("Exact SDK sprite scale must be within 1..1024");
     const SotnSpriteTransform t = {
         .scale_x = (Sint16)scale_x, .scale_y = (Sint16)scale_y, .opacity = 128};
-    return Draw(g, sprite, x, y, surface, &t, true);
+    return Draw(g, sprite, x, y, surface, &t, true, false);
 }
 
 bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *g, SotnActorSprite sprite,
@@ -1989,7 +2011,7 @@ bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *g, SotnActorS
                                    .scale_y = (Sint16)scale_y,
                                    .opacity = 128,
                                    .original_uv = true};
-    return Draw(g, sprite, x, y, surface, &t, true);
+    return Draw(g, sprite, x, y, surface, &t, true, false);
 }
 
 bool SotnActorGraphics_CreateTitle(SotnDataView dra, SotnDataView first, SotnDataView second,

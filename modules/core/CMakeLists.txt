@@ -4,7 +4,9 @@ add_library(sotn-core STATIC
   magic_missile.c
   include/sotn/magic_missile.h
   thrown_weapon.c
+  star_weapon.c
   include/sotn/thrown_weapon.h
+  include/sotn/star_weapon.h
   pentagram.c
   include/sotn/pentagram.h
   sire.c

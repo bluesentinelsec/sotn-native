@@ -1263,3 +1263,10 @@ target_include_directories(sotn-thrown-weapon-tests PRIVATE "${PROJECT_SOURCE_DI
 target_link_libraries(sotn-thrown-weapon-tests PRIVATE sotn-core)
 add_test(NAME thrown-weapon-controller COMMAND sotn-thrown-weapon-tests)
 set_tests_properties(thrown-weapon-controller PROPERTIES TIMEOUT 20)
+
+add_executable(sotn-star-weapon-tests test_star_weapon.c)
+sotn_configure_c_target(sotn-star-weapon-tests)
+target_include_directories(sotn-star-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-star-weapon-tests PRIVATE sotn-core)
+add_test(NAME star-weapon-controller COMMAND sotn-star-weapon-tests)
+set_tests_properties(star-weapon-controller PROPERTIES TIMEOUT 20)
