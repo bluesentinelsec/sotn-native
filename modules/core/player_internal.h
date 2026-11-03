@@ -82,6 +82,12 @@ struct SotnPlayer
     Uint8 throwing_count[2];
     SotnPlayerMedicineUse food;
     SotnPlayerMedicineFactory food_factory;
+    SotnPlayerMedicineFactory hand_factory;
+    SotnPlayerThrowingRandom hand_random;
+    void *hand_context;
+    Uint8 hand_retire;
+    Uint16 hand_grunt;
+    bool hand_used;
     SotnPlayerMedicineConsume food_consume;
     void *food_context;
     Uint8 food_count[2];

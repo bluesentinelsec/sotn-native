@@ -187,8 +187,11 @@ static bool Cart(SotnActors *s, Actor *a)
     case 2: {
         a->vy = 0;
         const bool ready =
-            (s->player.step == SOTN_PLAYER_STAND || s->player.step == SOTN_PLAYER_CROUCH) &&
-            !s->player.attack.active && !s->player.shield.active && !s->player.subweapon_starting;
+            s->player.hand_owned
+                ? !(s->player.status & ~0x3a300120U)
+                : (s->player.step == SOTN_PLAYER_STAND || s->player.step == SOTN_PLAYER_CROUCH) &&
+                      !s->player.attack.active && !s->player.shield.active &&
+                      !s->player.subweapon_starting;
         if (Distance(a, s->player) < 6 &&
             SDL_abs((Sint64)Pixel(a->state.y) - Pixel(s->player.y)) < 16 && ready)
         {

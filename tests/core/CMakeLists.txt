@@ -1,3 +1,9 @@
+add_executable(sotn-hand-weapon-tests test_hand_weapon.c)
+sotn_configure_c_target(sotn-hand-weapon-tests)
+target_include_directories(sotn-hand-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-hand-weapon-tests PRIVATE sotn-core)
+add_test(NAME ordinary-hand-weapon-controller COMMAND sotn-hand-weapon-tests)
+
 add_executable(sotn-title-screen-tests test_title_screen.c)
 sotn_configure_c_target(sotn-title-screen-tests)
 target_link_libraries(sotn-title-screen-tests PRIVATE sotn-core)

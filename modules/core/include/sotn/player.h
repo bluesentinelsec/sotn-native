@@ -457,7 +457,7 @@ typedef struct SotnPlayerState
     SotnPlayerDodge dodge;
     SotnPlayerAxeArmor axe_armor;
     bool looking_up, can_pause;
-    Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
+    Uint32 random; /**< Physical-damage/raw-controller RNG, separate from native hand libc RNG. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
     SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
@@ -490,6 +490,11 @@ typedef struct SotnPlayerState
     SotnPlayerSoul soul;
     bool hellfire_started,
         hellfire_hidden; /**< Accepted cast intent and actual palette visibility. */
+    Uint16 attack_mode;  /**< Actual unk46; shared ordinary weapons validate this after control. */
+    bool hand_owned;     /**< Actual native factory/callback owner is bound. */
+    Uint8 hand_retire;   /**< One-update actual request: one conditional shield, two slot16. */
+    Uint16 hand_grunt;   /**< Accepted ordinary hand's actual pre-birth casting voice. */
+    bool hand_used;      /**< Successful ordinary non-shield hand use; not a stock grant/cost. */
     Uint16 tapped; /**< Actual padTapped, including original stone/death forced direction taps. */
     Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
     Uint16 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
@@ -510,6 +515,9 @@ bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory facto
                                 bool weapon_present);
 typedef bool (*SotnPlayerMedicineFactory)(void *context, SotnPlayerFactorySource source,
                                           Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Copy actual post-callback shield state for player control/status gates.
+ * This never grants a shield, produces an attack, or advances its animation. */
+bool SotnPlayer_CommitHandShield(SotnPlayer *, Uint16 phase, Uint16 hand);
 typedef bool (*SotnPlayerMedicineConsume)(void *context, Uint16 hand, Uint16 item,
                                           Uint16 *equipped);
 /** @brief Bind actual medicine55 reservation/consumption and current entity39 slots32..63.
@@ -526,9 +534,13 @@ bool SotnPlayer_SetMedicineContext(SotnPlayer *player, SotnPlayerMedicineFactory
 bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                SotnPlayerMedicineConsume consume, void *context, Uint8 left_count,
                                Uint8 right_count);
-/** @brief Supply one real libc rand result at the successful throwing-hand grunt call.
+/** @brief Supply one real libc rand result at a successful ordinary/throwing-hand grunt call.
  * Native callers must roll back that cursor if the enclosing player update fails. */
 typedef bool (*SotnPlayerThrowingRandom)(void *context, Uint16 *value);
+/** @brief Bind actual ordinary-hand factory and casting-grunt RNG ownership.
+ * Standalone callers retain their selected legacy frame interface until this is bound. */
+bool SotnPlayer_SetHandContext(SotnPlayer *, SotnPlayerMedicineFactory, SotnPlayerThrowingRandom,
+                               void *);
 /** @brief Bind actual weapon17/18/19 factories, consumption and current equipped item/hand counts.
  */
 bool SotnPlayer_SetThrowingContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,

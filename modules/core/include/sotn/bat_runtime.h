@@ -8,6 +8,7 @@
 #include <sotn/fire_hit.h>
 #include <sotn/food.h>
 #include <sotn/food_popup.h>
+#include <sotn/hand_weapon.h>
 #include <sotn/healing_number.h>
 #include <sotn/hellfire_beam.h>
 #include <sotn/hellfire_effects.h>
@@ -67,8 +68,14 @@ typedef struct SotnBatRuntimeChild
     Uint16 kind, parameter;
     Uint8 group;
     bool initialized, food, neutron, sire, sire_child, pentagram, magic, thrown, star,
-        thrown_particle_parent, karma;
+        thrown_particle_parent, karma, hand_weapon;
     union {
+        struct
+        {
+            SotnHandWeapon motion;
+            SotnPlayerAttack attack;
+            Uint16 item, family;
+        } hand;
         struct
         {
             SotnKarmaCoin motion;
@@ -209,8 +216,9 @@ typedef struct SotnBatRuntime
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
     SotnPentagramShared pentagram[2]; /**< Original weapon17 BSS, one actual program per hand. */
-    SotnKarmaShared karma[2];      /**< Actual initialized per-hand weapon20 writable data/BSS. */
-    Uint32 star_fire_counter[2];   /**< Actual per-hand weapon15 mutable program BSS. */
+    SotnKarmaShared karma[2]; /**< Actual initialized per-hand weapon20 writable data/BSS. */
+    SotnHandWeaponProgram hand_program[2]; /**< Original weapon37/52 writable program state. */
+    Uint32 star_fire_counter[2];           /**< Actual per-hand weapon15 mutable program BSS. */
     Uint32 thrown_fire_counter[2]; /**< Actual weapon16 BSS; reset only with program replacement. */
     Uint32 dark_blend_phase;       /**< Actual DRA global, retained through session replacement. */
     SotnHolyHitShared holy;        /**< Actual shared entity47 points, not one copy per child. */
@@ -242,6 +250,9 @@ typedef struct SotnBatRuntime
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
     Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
+    bool hand_attack; /**< Actual shared slot16 ordinary-hand attack. */
+    Uint8
+        hand_shield; /**< Original retained unk48 word, updated by actual callbacks/replacement. */
     bool magic_clear_shield; /**< Conditional hand-effect shield retirement, committed by its owner.
                               */
     Uint16 hellfire_signal, hellfire_palette;
@@ -265,6 +276,15 @@ typedef struct SotnBatRuntime
     bool dissolve_frame_load; /**< Actual entity32 ANIM_FRAME_LOAD request, never body hiding. */
     bool afterimage_reset;    /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
+
+/** @brief Reserve actual ordinary bp48 or unarmed bp42/43 factories. */
+bool SotnBatRuntime_RequestHand(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                Uint16 item, bool *allocated);
+/** @brief Validate actual shared ordinary slot16 identity, properties and optional tiles. */
+bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Apply actual func_8010FAF4/func_8010E3E0 slot retirement to a working row plan.
+ * The caller must commit the real stage pool before granting another slot16 owner. */
+bool SotnBatRuntime_RetireHand(SotnBatRuntime *, bool shield_only);
 
 /** @brief Reserve actual weapon20 item24 root50 after its normal chain/curse gates. */
 bool SotnBatRuntime_RequestKarma(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,

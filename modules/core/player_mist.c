@@ -128,6 +128,7 @@ void SotnPlayer_MistTick(SotnPlayer *p)
     p->substep = p->mist_motion.phase;
     if (events.started)
     {
+        p->hand_retire = 2;
         p->movement_flags = 0;
         p->attack_mode = 0;
         p->attack = p->shield = (SotnPlayerAttack){0};

@@ -67,6 +67,8 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                                   .kind = record[17],
                                   .animation = record[18],
                                   .variant = record[20],
+                                  .blueprint = record[19],
+                                  .chain_limit = record[22],
                                   .lock = record[21],
                                   .invincibility = record[26]};
     *out = result;

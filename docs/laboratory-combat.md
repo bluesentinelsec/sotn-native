@@ -1,5 +1,13 @@
 # Laboratory combat integration
 
+The [shared ordinary hand owner](shared-ordinary-hands.md) supersedes the earlier
+native player-side attack views described below. Empty hand and the six selected
+equipped sword/shield paths now use real factories, slot16, character property RNG,
+hand cooldown groups and rendering. Alucard sword TILEs and shield knock-away now
+run. Alucard shield's displayed attack stays zero. The
+[milestone checklist](alucard-status.md) records current availability; the older
+checkpoint sections below retain their original scope and evidence boundaries.
+
 ## Empty-hand attack dependency
 
 The default development loadout now uses Gladius in the left hand and an empty right hand.

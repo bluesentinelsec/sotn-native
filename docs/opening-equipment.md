@@ -9,9 +9,10 @@ still use the documented development profile until prologue initialization is
 integrated; this is not the original new-game flow.
 
 Ordinary Alucard sword attacks use its own private overlay, frame streams,
-hitboxes, sound, artwork, and palette. The ordinary shield has an independent
-raise/hold/movement/lower cursor. It follows walking/crouching/jumping and can
-coexist with the other hand's attack. Its private hitboxes block susceptible
+hitboxes, sound, artwork, and palette. The [shared ordinary hand owner](shared-ordinary-hands.md)
+now supplies their actual factories and slot16. A new sword/shield replaces the
+previous slot owner; held shield control can raise it again during permitted
+recovery. Its private hitboxes block susceptible
 projectiles before player contact; ordinary shield contact deals no enemy damage.
 Dragon helm halves enemy defense during player damage resolution. Mail/necklace
 attributes use the existing original definition reader. Twilight cloak applies
@@ -25,8 +26,9 @@ IDs. Public regression coverage now checks equipped theft as well.
 
 The selected [Alucard sword command attack](player-sword-warp.md) now runs its
 actual image/strike factories, outlines, MP and state15 recovery. Ordinary slash
-sparkles, shield-rod spells, knocked-away shield presentation, full elemental/status
-behavior and exact GPU blending remain incomplete. Opening relics and the
+sparkles and knocked-away shield presentation now use their real shared owners.
+Shield-rod spells, full elemental/status behavior and exact GPU blending remain
+incomplete. Opening relics and the
 original character's prologue-derived resources remain separate progression work.
 
 Public synthetic tests cover shield cursor transitions, held movement frames,

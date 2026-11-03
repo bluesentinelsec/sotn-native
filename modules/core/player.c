@@ -485,6 +485,29 @@ static void Backdash(SotnPlayer *player)
     player->sound = 0x617;
 }
 
+static bool ReserveHand(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
+{
+    if (!player->hand_factory)
+        return true;
+    SotnPlayerState captured = {0};
+    bool allocated = false;
+    const Uint32 packed = equipment.id ? equipment.blueprint | ((hand + 1U) << 12) |
+                                             ((Uint32)(equipment.variant + hand * 128U) << 16)
+                                       : (42U + hand) | (hand << 23);
+    if (!SotnPlayer_GetState(player, &captured) ||
+        !player->hand_factory(player->hand_context,
+                              (SotnPlayerFactorySource){.x = player->x.value,
+                                                        .y = player->y.value,
+                                                        .priority = captured.priority,
+                                                        .facing_left = player->facing_left},
+                              packed, equipment.id, &allocated))
+    {
+        player->failed = true;
+        return false;
+    }
+    return allocated;
+}
+
 // Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
 static bool StartAttack(SotnPlayer *player)
 {
@@ -587,14 +610,17 @@ static bool StartAttack(SotnPlayer *player)
     if (player->curse_ticks && equipment.id != 0)
     {
         if ((equipment.kind == 132 && player->food_factory) ||
-            ((equipment.kind == 129 || equipment.kind == 130) && player->throwing_factory))
+            ((equipment.kind == 129 || equipment.kind == 130) && player->throwing_factory) ||
+            player->hand_factory)
         {
             const SotnPlayerMedicineFactory factory =
                 (equipment.kind == 129 || equipment.kind == 130) ? player->throwing_factory
-                                                                 : player->food_factory;
+                : equipment.kind == 132                          ? player->food_factory
+                                                                 : player->hand_factory;
             void *context = (equipment.kind == 129 || equipment.kind == 130)
                                 ? player->throwing_context
-                                : player->food_context;
+                            : equipment.kind == 132 ? player->food_context
+                                                    : player->hand_context;
             bool allocated = false;
             SotnPlayerState captured = {0};
             if (!SotnPlayer_GetState(player, &captured) ||
@@ -612,6 +638,7 @@ static bool StartAttack(SotnPlayer *player)
         ClearAttack(player);
         player->curse_failure = true;
         player->attack_mode = 0x8012;
+        player->attack_lock = 255;
         player->substep = 0x51;
         player->sound = 0x6e7;
         if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
@@ -695,6 +722,8 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (equipment.kind == 128)
     {
+        if (!ReserveHand(player, equipment, hand))
+            return player->failed;
         player->shield_button = hand == 0 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
         if (player->step == SOTN_PLAYER_STAND)
         {
@@ -702,7 +731,10 @@ static bool StartAttack(SotnPlayer *player)
             Animate(player, (Uint16)(0x63 + ((player->contact & 0x20) ? 1 : 0)));
         }
         else if (player->step == SOTN_PLAYER_CROUCH)
+        {
+            player->substep = 0;
             Animate(player, 0x65);
+        }
         return true;
     }
     if (equipment.id == 123 && player->sword_factory && player->sword_command.phase == 255 &&
@@ -742,10 +774,26 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
+    if (!ReserveHand(player, equipment, hand))
+        return player->failed;
+    if (player->hand_factory)
+    {
+        Uint16 random = 0;
+        if (!player->hand_random(player->hand_context, &random) || !player->dra.bytes ||
+            player->dra.size < 0xcf68)
+        {
+            player->failed = true;
+            return true;
+        }
+        const Uint16 voice = random % 8U;
+        if (voice < 4)
+            player->hand_grunt = Attack16(player->dra.bytes + 0xcf60 + voice * 2U);
+        player->hand_used = true;
+    }
     player->subweapon_cast = false;
     player->attack_equipment = equipment;
     Sint32 critical = equipment.critical_rate;
-    if (equipment.id != 0)
+    if (equipment.id != 0 && !player->hand_factory)
     {
         const Uint16 value = (Uint16)(player->attributes.total[3] * 2 +
                                       (SotnCombat_Random(&player->damage_random) & 15));
@@ -791,6 +839,11 @@ static bool StartAttack(SotnPlayer *player)
 
 static bool TickShield(SotnPlayer *player)
 {
+    if (player->hand_factory)
+    {
+        player->shield = (SotnPlayerAttack){0};
+        return true;
+    }
     Uint16 button = player->shield_button;
     if (button == 0)
         button = player->equipment[0] == 16 ? SOTN_BUTTON_LEFT_HAND : SOTN_BUTTON_RIGHT_HAND;
@@ -833,6 +886,8 @@ static bool TickShield(SotnPlayer *player)
 static bool ReadAttack(SotnPlayer *player)
 {
     player->attack = (SotnPlayerAttack){0};
+    if (player->hand_factory)
+        return true;
     if (player->subweapon_cast || player->curse_failure)
         return true;
     if (player->attack_mode != 0 && player->attack_equipment.id != 0)
@@ -2209,6 +2264,7 @@ static void NormalSpellInput(SotnPlayer *p)
                                    : SOTN_PLAYER_DARK);
     p->shield_cursor = (SotnShield){0};
     p->shield = (SotnPlayerAttack){0};
+    p->hand_retire = SDL_max(p->hand_retire, 1);
     if (events.spell == 5)
     {
         Animate(p, 0xda);
@@ -2413,6 +2469,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.food.used = false;
     next.throwing.used = false;
     next.throwing_grunt = 0;
+    next.hand_retire = 0;
+    next.hand_grunt = 0;
+    next.hand_used = false;
     next.water_pain = (SotnPlayerWaterPain){0};
     next.defense_buff_minimum = 0;
     next.hud_hp_hold = false;
@@ -2832,6 +2891,27 @@ bool SotnPlayer_SetSwordContext(SotnPlayer *p, SotnPlayerSwordFactory factory, v
     return true;
 }
 
+bool SotnPlayer_SetHandContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
+                               SotnPlayerThrowingRandom random, void *context)
+{
+    if (!p || !factory || !random || !context)
+        return SDL_SetError("Ordinary hands require actual shared factory ownership");
+    p->hand_factory = factory;
+    p->hand_random = random;
+    p->hand_context = context;
+    return true;
+}
+bool SotnPlayer_CommitHandShield(SotnPlayer *p, Uint16 phase, Uint16 hand)
+{
+    if (!p || !p->hand_factory || phase > 4 || hand > 1)
+        return SDL_SetError("Shield status requires its actual ordinary hand callback");
+    p->shield_cursor = (SotnShield){.phase = phase};
+    p->shield_button = hand ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
+    p->shield = (SotnPlayerAttack){0};
+    p->hand_retire = 0;
+    return true;
+}
+
 bool SotnPlayer_SetTeleportContext(SotnPlayer *p, SotnPlayerTeleportFactory factory,
                                    SotnPlayerLibraryCardUse use, void *context, Sint32 origin_x)
 {
@@ -2883,7 +2963,7 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
             return false;
         const Uint16 strength = player->attributes.total[0];
         power[i] =
-            equipment.kind == 131 || equipment.kind == 132
+            equipment.id == 16 || equipment.kind == 131 || equipment.kind == 132
                 ? 0
                 : (Uint16)SDL_clamp(equipment.attack +
                                         (equipment.attack <= strength ? strength : strength / 2),
@@ -3255,6 +3335,11 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .buttons = player->buttons,
         .tapped = player->tapped,
         .attack = player->attack,
+        .attack_mode = player->attack_mode,
+        .hand_owned = player->hand_factory != NULL,
+        .hand_retire = player->hand_retire,
+        .hand_grunt = player->hand_grunt,
+        .hand_used = player->hand_used,
         .hp = player->hp,
         .hp_max = player->hp_max,
         .invulnerable = SotnPlayer_Protected(player) || player->step == SOTN_PLAYER_HIT ||
@@ -3873,7 +3958,7 @@ bool SotnPlayer_SeedInput(SotnPlayer *p, Uint16 buttons)
 
 bool SotnPlayer_ClearShield(SotnPlayer *p)
 {
-    if (!p || p->shield_cursor.phase > 3)
+    if (!p || p->shield_cursor.phase > (p->hand_factory ? 4 : 3))
         return SDL_SetError("Shield retirement requires its actual ordinary weapon owner");
     if (p->shield_cursor.phase)
     {

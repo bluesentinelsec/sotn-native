@@ -89,6 +89,9 @@ bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, 
 /** @brief Retained selected throwing-item properties at their actual activation callbacks. */
 bool SotnCharacter_ThrowingProperties(const SotnCharacter *, Uint16 item, bool poison,
                                       Uint32 *random, SotnEquipment *out);
+/** @brief Actual selected ordinary-hand GetEquipProperties with its working libc RNG cursor. */
+bool SotnCharacter_HandProperties(const SotnCharacter *, Uint16 item, bool poison, Uint32 *random,
+                                  SotnEquipment *out);
 /** @brief Resolve actual arrow/explosion properties from selected raw parent0/24/25,
  * weapon15 items75..79 or weapon16 items80..82/134/135.
  * Uses the character's current attributes and supplied libc cursor transactionally.

@@ -258,7 +258,8 @@ static bool Calculate(SotnCharacter *c)
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack += 20;
     for (Uint32 i = 0; i < 2; ++i)
-        result.attack[i] = items[i].category == 6 || items[i].category == 10
+        result.attack[i] = items[i].category == 6 || items[i].category == 10 || items[i].id == 16 ||
+                                   (items[i].category == 9 && items[i].attack == 1)
                                ? 0
                                : (Uint16)SDL_clamp(Word(items[i].attack + attack +
                                                         (items[i].attack <= result.total[0]
@@ -315,10 +316,22 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack = Word(attack + 20);
     e.attack = (Sint16)(SDL_clamp(attack, 0, 999) >> (poison ? 1 : 0));
+    if (e.id == 16)
+        e.attack = 0;
     e.critical_rate = (Uint16)SDL_clamp(critical, 0, 255);
     *random = next_random;
     *out = e;
     return true;
+}
+bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool poison, Uint32 *random,
+                                  SotnEquipment *out)
+{
+    if (!c || (item != 0 && item != 16 && item != 18 && item != 19 && item != 86 && item != 123 &&
+               item != 128))
+        return SDL_SetError("Ordinary properties require an actual integrated hand item");
+    SotnEquipment e = {0};
+    return SotnEquipment_Read(c->dra, item, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
 }
 bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
                                    SotnEquipment *out)

@@ -844,6 +844,102 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
     *allocated = false;
     return true;
 }
+static Uint16 HandFamily(Uint16 item)
+{
+    return !item         ? 255
+           : item == 16  ? 52
+           : item == 18  ? 31
+           : item == 19  ? 37
+           : item == 86  ? 0
+           : item == 123 ? 43
+           : item == 128 ? 2
+                         : 256;
+}
+bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                                Uint16 item, bool *allocated)
+{
+    const Uint16 hand = (packed & 0x800000U) != 0;
+    const Uint32 expected = item ? 48U | ((Uint32)(hand + 1U) << 12) | ((Uint32)hand << 23)
+                                 : (42U + hand) | ((Uint32)hand << 23);
+    if (!r || !allocated || HandFamily(item) > 255 ||
+        (packed != expected && (packed != 0x10039 || item)))
+        return SDL_SetError("Ordinary hand lost its actual item/factory/parameter identity");
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, (Sint16)item))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->hand_weapon)
+        return true;
+    const SotnHandWeapon *w = &c->state.hand.motion;
+    const Uint16 hand = c->kind >= 0xf0;
+    return index == 0 && c->generation && !c->bat_generation && !c->draw_count && !w->removed &&
+           !c->food && !c->neutron && !c->sire && !c->pentagram && !c->magic && !c->thrown &&
+           !c->star && !c->karma && !c->thrown_particle_parent && c->state.hand.family <= 255 &&
+           c->state.hand.family == HandFamily(c->state.hand.item) &&
+           c->parameter == (hand ? 0x8000 : 0) && w->parameter == c->parameter &&
+           (c->kind == (c->state.hand.item ? (hand ? 0xf0 : 0xe0) : (hand ? 0xfe : 0xee))) &&
+           (c->initialized ? w->phase && w->phase <= (c->state.hand.family == 52 ? 4 : 1) &&
+                                 c->group == hand + 1U && w->properties.id == c->state.hand.item &&
+                                 c->primitive_count == (w->allocated ? 16 : 0) &&
+                                 (!w->allocated || c->state.hand.family == 43)
+                           : !w->phase && !c->group && !c->primitive_count);
+}
+typedef struct HandPropertyContext
+{
+    const SotnCharacter *character;
+    Uint16 item;
+    bool poison;
+} HandPropertyContext;
+bool SotnBatRuntime_RetireHand(SotnBatRuntime *r, bool shield_only)
+{
+    if (!r)
+        return SDL_InvalidParamError("runtime");
+    if (shield_only && !r->hand_shield)
+        return true;
+    SotnBatRuntimeChild *c = &r->children[0];
+    if (c->hand_weapon && !SotnBatRuntime_HandValid(c, 0))
+        return SDL_SetError("Ordinary retirement lost its actual hand owner");
+    if (shield_only && (!c->hand_weapon || c->state.hand.family != 52))
+        return SDL_SetError("Conditional retirement lost its actual shield owner");
+    *c = (SotnBatRuntimeChild){0};
+    r->hand_shield = 0;
+    r->hand_attack = false;
+    r->axe_mask &= ~1ULL;
+    r->sword_mask &= ~1ULL;
+    r->groups[1] = r->groups[2] = 0;
+    return true;
+}
+static bool HandProperties(void *context, Uint32 *random, SotnEquipment *out)
+{
+    const HandPropertyContext *p = context;
+    return SotnCharacter_HandProperties(p->character, p->item, p->poison, random, out);
+}
+static bool ClearHandShield(SotnBatRuntime *r, SotnPrimitiveSlots *slots)
+{
+    if (!r->hand_shield)
+        return true;
+    SotnBatRuntimeChild *c = &r->children[0];
+    if (!c->hand_weapon || c->state.hand.family != 52 || !SotnBatRuntime_HandValid(c, 0))
+        return SDL_SetError("Conditional hand retirement lost its actual shield owner");
+    if (c->primitive_count && !SotnPrimitiveSlots_Release(slots, c->primitive_count, c->primitives))
+        return false;
+    *c = (SotnBatRuntimeChild){0};
+    r->hand_shield = 0;
+    r->hand_attack = false;
+    return true;
+}
 bool SotnBatRuntime_RequestSword(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                  Sint16 argument, bool *allocated)
 {
@@ -913,13 +1009,15 @@ static bool ChildKind(Uint16 kind)
            kind == 38 || kind == 39 || kind == 45 || kind == 46 || kind == 49 || kind == 50 ||
            kind == 54 || kind == 47 || kind == 51 || kind == 52 || kind == 53 || kind == 61 ||
            kind == 63 || kind == 65 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 ||
-           (kind >= 0xe1 && kind <= 0xe5) || (kind >= 0xf1 && kind <= 0xf5) ||
-           (kind >= 24 && kind <= 29);
+           kind == 0xee || kind == 0xfe || (kind >= 0xe1 && kind <= 0xe5) ||
+           (kind >= 0xf1 && kind <= 0xf5) || (kind >= 24 && kind <= 29);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
     if (!c->initialized)
         return c->source.flags;
+    if (c->hand_weapon)
+        return c->state.hand.motion.flags;
     if (c->karma)
         return c->state.karma.motion.flags;
     if (c->star)
@@ -1413,6 +1511,11 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
             SDL_zero(r->factories[i]);
+    if (!r->children[0].kind)
+    {
+        r->hand_attack = false;
+        r->hand_shield = 0;
+    }
     return true;
 }
 bool SotnBatRuntime_PruneTeleport(SotnBatRuntime *r)
@@ -1537,6 +1640,7 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
             !SotnBatRuntime_IceHitValid(&r->children[i]) ||
             !SotnBatRuntime_CircleValid(&r->children[i]) ||
             !SotnBatRuntime_MedicineValid(&r->children[i]) ||
+            !SotnBatRuntime_HandValid(&r->children[i], i) ||
             !SotnBatRuntime_MagicMissileValid(&r->children[i], i))
             return SDL_SetError("Player shove lost its actual holy child owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
@@ -1562,6 +1666,15 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
     {
         SotnBatRuntimeChild *c = &r->children[i];
+        if (c->hand_weapon && c->initialized && (c->state.hand.motion.flags & 0x40000U))
+        {
+            const Uint32 bx = (Uint32)c->state.hand.motion.x + (Uint32)x,
+                         by = (Uint32)c->state.hand.motion.y + (Uint32)y;
+            SDL_memcpy(&c->state.hand.motion.x, &bx, sizeof(bx));
+            SDL_memcpy(&c->state.hand.motion.y, &by, sizeof(by));
+            c->source.x = c->state.hand.motion.x;
+            c->source.y = c->state.hand.motion.y;
+        }
         if (c->magic && c->initialized && (c->state.magic.motion.flags & 0x40000U))
         {
             const Uint32 bx = (Uint32)c->state.magic.motion.x + (Uint32)x,
@@ -1586,6 +1699,8 @@ bool SotnBatRuntime_HealingNumberValid(const SotnBatRuntimeChild *c, Uint16 inde
 }
 bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
+    if (c->hand_weapon)
+        return SotnBatRuntime_HandValid(c, index);
     if (!SotnBatRuntime_FoodChildValid(c, index))
         return false;
     if (c->food || c->sire || c->pentagram || c->magic || c->thrown || c->star || c->karma)
@@ -1609,7 +1724,7 @@ bool SotnBatRuntime_FoodChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->food)
         return c->neutron || c->sire || c->pentagram || c->magic || c->thrown || c->star ||
-               c->karma || (c->kind != 0xe0 && c->kind != 0xf0);
+               c->karma || c->hand_weapon || (c->kind != 0xe0 && c->kind != 0xf0);
     const SotnFood *f = &c->state.food;
     const bool inventory = c->kind == 0xe1 || c->kind == 0xf1;
     const Uint16 value = (Uint16)((f->parameter >> 8) & 127U);
@@ -1652,6 +1767,27 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
+    c.hand_weapon =
+        child.slot == 16 && (c.kind == 0xe0 || c.kind == 0xf0 || c.kind == 0xee || c.kind == 0xfe);
+    if (c.hand_weapon)
+    {
+        const Uint16 family = HandFamily(child.argument_low);
+        if (generation || child.argument_high || family > 255 ||
+            child.parameter != (c.kind >= 0xf0 ? 0x8000 : 0) ||
+            (family == 255) != (c.kind == 0xee || c.kind == 0xfe))
+            return SDL_SetError("Ordinary child lost its actual slot16/program/hand ownership");
+        c.state.hand.item = child.argument_low;
+        c.state.hand.family = family;
+        c.state.hand.motion = (SotnHandWeapon){.x = child.source.x,
+                                               .y = child.source.y,
+                                               .flags = child.source.flags,
+                                               .parameter = child.parameter,
+                                               .facing_left = child.source.facing_left};
+        if (input && family != 255 &&
+            (!input->weapon_bound[c.kind >= 0xf0] ||
+             input->weapon_family[c.kind >= 0xf0] != family))
+            return SDL_SetError("Ordinary child lost its resident native hand program");
+    }
     c.neutron = (c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 71;
     c.sire_child = sire_factory && (c.kind == 0xe1 || c.kind == 0xf1);
     c.sire = c.sire_child || ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 72);
@@ -1746,7 +1882,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.particle_parent_slot = thrown_parent_slot;
     }
     c.food = ((c.kind == 0xe0 || c.kind == 0xf0) && !c.neutron && !c.sire && !c.pentagram &&
-              !c.magic && !c.thrown && !c.star && !c.karma) ||
+              !c.magic && !c.thrown && !c.star && !c.karma && !c.hand_weapon) ||
              ((c.kind == 0xe1 || c.kind == 0xf1) && child.slot >= 17 && child.slot <= 31 &&
               ((child.parameter >> 8) & 127U) >= 29 && ((child.parameter >> 8) & 127U) <= 69);
     if ((c.food || c.neutron || c.sire || c.pentagram || c.magic || c.thrown || c.star ||
@@ -2290,6 +2426,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
                 (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                 (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
+                (c->hand_weapon && c->state.hand.family == 43 && c->primitive_count == 16) ||
                 (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
                 (c->kind == 61 && c->primitive_count == 16) ||
                 (c->kind == 63 && c->primitive_count == 9) ||
@@ -2407,6 +2544,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     Word(c->state.neutron.motion.halo.x[v] + in.screen_shift_x);
                 c->state.neutron.motion.halo.y[v] =
                     Word(c->state.neutron.motion.halo.y[v] + in.screen_shift_y);
+            }
+        }
+        else if (c->hand_weapon)
+        {
+            SotnHandWeapon *w = &c->state.hand.motion;
+            w->x = FixedShift(w->x, in.room_shift_x);
+            w->y = FixedShift(w->y, in.room_shift_y);
+            for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
+            {
+                w->tiles[j].x[0] = Word(w->tiles[j].x[0] + in.screen_shift_x);
+                w->tiles[j].y[0] = Word(w->tiles[j].y[0] + in.screen_shift_y);
             }
         }
         else if (c->kind == 0xe1 || c->kind == 0xf1)
@@ -2584,6 +2732,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             !SotnPrimitiveSlots_Release(&in.primitive_slots, old->primitive_count, old->primitives))
             return false;
         *old = (SotnBatRuntimeChild){0};
+        r.hand_shield = 0;
     }
     for (Uint16 i = 0; i < p.axe_armor.events.factory_count; ++i)
     {
@@ -2893,7 +3042,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (child.replace)
             {
                 if (child.slot != 16 ||
-                    (child.entity_id != 0xe1 && child.entity_id != 0xf1 && child.entity_id != 50) ||
+                    (child.entity_id != 0xe0 && child.entity_id != 0xf0 &&
+                     child.entity_id != 0xee && child.entity_id != 0xfe &&
+                     child.entity_id != 0xe1 && child.entity_id != 0xf1 && child.entity_id != 50) ||
                     (in.other_occupied & ((Uint64)1 << 16)))
                     return SDL_SetError("Shared runtime received an unowned weapon replacement");
                 SotnBatRuntimeChild *old = &r.children[0];
@@ -2902,6 +3053,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                 old->primitives))
                     return false;
                 *old = (SotnBatRuntimeChild){0};
+                r.hand_shield = 0;
                 child.replace = false;
             }
             if (!Spawn(&r, child,
@@ -2934,6 +3086,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
+    r.hand_attack = false;
     r.echo_attack = false;
     SotnSpiritTargetSnapshot targets = {0};
     if (in.spirit_targets)
@@ -2944,7 +3097,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return false;
         SotnBatRuntimeChild *c = &r.children[i];
         if (!c->kind)
+        {
+            if (!i)
+                r.hand_shield = 0;
             continue;
+        }
         if (in.freeze && !(ChildFlags(c) & 0x10000U))
         {
             if (c->initialized && !c->thrown && !c->star && !c->karma &&
@@ -2976,11 +3133,108 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.magic_mask |= (Uint64)1 << i;
             if (c->initialized && c->neutron && c->state.neutron.attack.active)
                 r.neutron_mask |= (Uint64)1 << i;
+            if (c->initialized && c->hand_weapon)
+                r.hand_attack = c->state.hand.attack.active;
             continue;
         }
         bool removed = false;
         c->draw_count = 0;
-        if (c->karma)
+        if (c->hand_weapon)
+        {
+            const Uint16 hand = c->kind >= 0xf0, family = c->state.hand.family;
+            if (family != 255 && (!in.weapon_bound[hand] || in.weapon_family[hand] != family))
+                return SDL_SetError("Ordinary callback lost its actual resident hand program");
+            SotnHandWeapon *w = &c->state.hand.motion;
+            bool allocated = c->primitive_count != 0;
+            if (!c->initialized && family == 43 &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_HAND_WEAPON_TILES,
+                                            c->primitives, &allocated))
+                return false;
+            if (family == 43)
+                c->primitive_count = allocated ? SOTN_HAND_WEAPON_TILES : 0;
+            SotnDataView overlay = in.dra;
+            if (family != 255 &&
+                !SotnWeapon_Overlay(
+                    in.weapons, (SotnEquipment){.id = c->state.hand.item, .family = (Uint8)family},
+                    &overlay))
+                return false;
+            bool started[SOTN_HAND_WEAPON_TILES];
+            SDL_memcpy(started, w->tile_started, sizeof(started));
+            HandPropertyContext context = {character, c->state.hand.item, p.poison_ticks != 0};
+            SotnHandWeaponEvents events = {0};
+            if (!SotnHandWeapon_Tick(
+                    w, &r.hand_program[hand],
+                    (SotnHandWeaponInput){.overlay = overlay,
+                                          .properties = HandProperties,
+                                          .context = &context,
+                                          .x = p.x,
+                                          .y = p.y,
+                                          .velocity_x = p.velocity_x,
+                                          .status = p.status,
+                                          .contacts = p.contacts,
+                                          .remaining = (Sint16)p.animation.remaining,
+                                          .scale_y = 256,
+                                          .pivot_y = p.draw_pivot_y,
+                                          .hand = hand,
+                                          .family = family,
+                                          .animation = p.animation.id,
+                                          .pose = p.animation.pose,
+                                          .priority = p.priority,
+                                          .step = (Uint16)p.step,
+                                          .substep = p.substep,
+                                          .attack_mode = p.attack_mode,
+                                          .draw_flags = p.wolf.active ? p.wolf.draw_flags
+                                                        : p.rotated   ? 4
+                                                                      : 0,
+                                          .facing_left = p.facing_left,
+                                          .held = (p.buttons & (hand ? SOTN_BUTTON_RIGHT_HAND
+                                                                     : SOTN_BUTTON_LEFT_HAND)) != 0,
+                                          .allocated = allocated},
+                    &progress.random, &events))
+                return false;
+            for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
+                if (!started[j] && w->tile_started[j])
+                {
+                    w->tiles[j].x[0] = Word(w->tiles[j].x[0] - in.camera_x);
+                    w->tiles[j].y[0] = Word(w->tiles[j].y[0] - in.camera_y);
+                }
+            if (events.properties)
+                c->group = (Uint8)(hand + 1U);
+            if (events.shield)
+                r.hand_shield = events.shield == 1;
+            // Current selected Short sword uses variant zero. Other weapon37 producers
+            // require their real secondary owners before the menu can expose them.
+            if (events.factory)
+                return SDL_SetError("Ordinary weapon37 secondary has no actual native owner");
+            if (events.sound && !Sound(&r, events.sound))
+                return false;
+            c->source.x = w->x;
+            c->source.y = w->y;
+            c->source.facing_left = w->facing_left;
+            const SotnEquipment e = w->properties;
+            c->state.hand.attack = (SotnPlayerAttack){
+                .offset_x = w->hitbox_x,
+                .offset_y = w->hitbox_y,
+                .width = w->hitbox_width,
+                .height = w->hitbox_height,
+                .power = (Uint16)e.attack,
+                .element = e.element,
+                .hit_type = w->hitbox_state,
+                .hit_effect = e.hit_effect,
+                .stun_frames = e.stun,
+                .invincibility_frames = e.invincibility,
+                .critical_rate = (Uint8)e.critical_rate,
+                .equipment = c->state.hand.item,
+                .right_hand = hand != 0,
+                .active = w->hitbox_state && w->hitbox_width && w->hitbox_height};
+            const Sint32 x = Pixel(w->x) - in.camera_x, y = Pixel(w->y) - in.camera_y;
+            removed = w->removed ||
+                      (!(w->flags & 0x2000000U) && (x > 288 || x < -32 || y > 256 || y < -16));
+            c->initialized = !removed;
+            if (!removed)
+                r.hand_attack = c->state.hand.attack.active;
+        }
+        else if (c->karma)
         {
             const bool child = (c->kind & 15U) == 2;
             const Uint16 hand = c->kind >= 0xf0;
@@ -3072,6 +3326,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.use_ticks = events.use_ticks;
             if (events.protect_ticks)
                 r.spell_use_ticks = events.protect_ticks;
+            if (events.clear_shield && !ClearHandShield(&r, &in.primitive_slots))
+                return false;
             r.magic_clear_shield |= events.clear_shield;
             if (events.sound)
             {
@@ -3195,6 +3451,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             if (events.effects.use_ticks)
                 r.use_ticks = events.effects.use_ticks;
+            if (events.effects.clear_shield && !ClearHandShield(&r, &in.primitive_slots))
+                return false;
             r.magic_clear_shield |= events.effects.clear_shield;
             if (events.animation_offset)
             {
@@ -3300,6 +3558,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
+            if (events.clear_shield && !ClearHandShield(&r, &in.primitive_slots))
+                return false;
             r.magic_clear_shield |= events.clear_shield;
             if (events.fire_animation)
                 c->state.thrown.animation = (SotnThrownAnimation){0};
@@ -3388,6 +3648,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
+            if (events.clear_shield && !ClearHandShield(&r, &in.primitive_slots))
+                return false;
             r.magic_clear_shield |= events.clear_shield;
             if (events.animation)
             {
@@ -5014,6 +5276,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
         ++r.groups[1];
+    if (r.children[0].hand_weapon && r.children[0].group)
+        r.groups[r.children[0].group] = 1;
     // Original UpdatePlayerEntities clears actual DRA hitboxState after all callbacks.
     // Retained attack owners stay disabled until their own callback writes a new hitbox.
     if (SotnPlayerStep_IsDead(p.step) || (p.step == SOTN_PLAYER_TELEPORT && !p.substep))
@@ -5023,6 +5287,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask =
                 r.karma_mask = 0;
         r.soul_attack = r.echo_attack = false;
+        r.hand_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
             r.wolf.body.parts[i].hitbox_state = 0;
         for (Uint16 i = 0; i < 2; ++i)
@@ -5030,7 +5295,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         {
             SotnBatRuntimeChild *c = &r.children[i];
-            if (c->kind == 36 || c->kind == 50 || c->kind == 52 || c->kind == 53)
+            if (c->hand_weapon)
+            {
+                c->state.hand.motion.hitbox_state = 0;
+                c->state.hand.attack.active = false;
+            }
+            else if (c->kind == 36 || c->kind == 50 || c->kind == 52 || c->kind == 53)
                 c->state.attack.active = false;
             else if (c->kind == 45)
                 c->state.fire.attack.active = false;

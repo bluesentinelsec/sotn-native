@@ -1,3 +1,17 @@
+Selected [ordinary hands](docs/shared-ordinary-hands.md) now own actual shared16,
+factory48/empty42/43, normal casting-grunt then property RNG, groups1/2, native
+combat/rendering, Alucard-sword optional16 TILEs and shield phase4 knock-away.
+Preserve FFFF-before-hitbox versus negative-timer-after-hitbox ordering, actual
+unk48/preemption, original final shield drawFlags overwrite, double timer decrement,
+allocation-before-particle RNG/no retry, same-family BSS, no-tick room/shove and
+menu/map/frozen/draw holds. Alucard-shield displayed/GetProps ATK stays0; its
+SetWeaponProperties override/attack1 remain separate. Commit form/spell retirement
+after player success before the next real owner. Later effect rollback starts at
+the post-player boundary; full-pass rollback remains open. Explicit stock/relic/
+protection/position/occupancy/data/save-room fixtures are not acquisition/route/
+console evidence. Other 21 weapon0 items, secondary producers, shield spells, full
+equipment/sharing and Alucard/castle remain incomplete. No new grants/pool/v9 fields.
+
 Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,
 stock/Duplicator, shared weapon20 factories/children/26-row lease, private sprites/
 G4/GT4 presentation and native physical/global damage with real Soul orbs. Preserve

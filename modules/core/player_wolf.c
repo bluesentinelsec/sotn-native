@@ -312,6 +312,7 @@ static void Transition(SotnPlayer *p)
     p->wolf.finish_flash = e.finish_flash;
     if (e.clear_weapon)
     {
+        p->hand_retire = 2;
         p->attack_mode = 0;
         p->attack = p->shield = (SotnPlayerAttack){0};
         p->shield_cursor = (SotnShield){0};

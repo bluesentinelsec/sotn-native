@@ -254,6 +254,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
                 if (!Generation(p))
                     return;
                 p->bat.started = true;
+                p->hand_retire = 2;
                 p->bat.signal = 1;
                 p->attack_mode = 0;
                 p->attack = p->shield = (SotnPlayerAttack){0};

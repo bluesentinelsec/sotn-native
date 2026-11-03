@@ -193,12 +193,42 @@ static bool Switch(Fixture *f)
     SotnActorLayout_Close(f->layout);
     return true;
 }
+static bool NativeReadiness(Fixture *f)
+{
+    SotnActors *s = NULL;
+    CHECK(Open(f, &s));
+    s->world->flags[SOTN_OUTER_ELEVATOR] = 1;
+    Actor *cart = &s->slots[88];
+    *cart = (Actor){.state = {.id = 0x29, .generation = 100, .x = 300 * 65536, .y = 700 * 65536},
+                    .slot = 88,
+                    .dynamic = true};
+    SotnPlayerState p = {.x = cart->state.x,
+                         .y = cart->state.y - 8 * 65536,
+                         .hp = 70,
+                         .hand_owned = true,
+                         .status = 0x10000000};
+    CHECK(SotnActors_Tick(s, p, 0, 0) && SotnActors_Tick(s, p, 0, 0) && cart->state.step == 2);
+    // Shared hand hitboxes no longer masquerade as player-side attacks. Original startup,
+    // subweapon, ailment and airborne status still prevent the real elevator from starting.
+    const Uint32 blocked[] = {0x400, 0x800, 0x4000, 0x8000, 0x2000};
+    CHECK(SotnActors_SetButtons(s, SOTN_BUTTON_UP));
+    for (Uint16 i = 0; i < SDL_arraysize(blocked); ++i)
+    {
+        p.status = 0x10000000U | blocked[i];
+        CHECK(SotnActors_Tick(s, p, 0, 0) && cart->state.step == 2);
+    }
+    p.status = 0x3a300120U;
+    CHECK(SotnActors_Tick(s, p, 0, 0) && cart->state.step == 3);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(f->layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = Ride(f) && Switch(f);
+    const bool ok = Ride(f) && Switch(f) && NativeReadiness(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

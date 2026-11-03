@@ -730,6 +730,8 @@ static bool LoadHandProgram(SotnLaboratory *s, SotnDataView weapons, Uint16 hand
         return false;
     if (reload_karma)
         s->bat_runtime.karma[hand] = karma;
+    if (equipment.id && (!bound || family != equipment.family))
+        s->bat_runtime.hand_program[hand] = (SotnHandWeaponProgram){0};
     // Original LoadWeaponPrg retains an already loaded family and skips FF. A genuine
     // weapon16 program replacement reloads its zero-initialized BSS, unlike a draw binding.
     if (equipment.id && equipment.family == 15 && (!bound || family != 15))
@@ -1039,6 +1041,12 @@ static bool SwordFactory(void *context, SotnPlayerFactorySource source, Uint32 p
     SotnLaboratory *s = context;
     return SotnBatRuntime_RequestSword(&s->bat_runtime, source, packed, argument, allocated);
 }
+static bool HandFactory(void *context, SotnPlayerFactorySource source, Uint32 packed, Uint16 item,
+                        bool *allocated)
+{
+    SotnLaboratory *s = context;
+    return SotnBatRuntime_RequestHand(&s->bat_runtime, source, packed, item, allocated);
+}
 static bool TeleportFactory(void *context, SotnPlayerFactorySource source, Uint32 packed,
                             bool *allocated)
 {
@@ -1161,6 +1169,7 @@ static bool ApplyMenuCharacter(SotnLaboratory *s)
         return false;
     if (armor_program)
     {
+        SDL_zero(s->bat_runtime.hand_program);
         SDL_zero(s->bat_runtime.thrown_fire_counter);
         SDL_zero(s->bat_runtime.star_fire_counter);
         for (Uint16 hand = 0; hand < 2; ++hand)
@@ -1383,6 +1392,14 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         if (s->bat_runtime.magic_clear_shield && !SotnPlayer_ClearShield(s->player))
             return false;
         s->bat_runtime.magic_clear_shield = false;
+        if (player.hand_owned)
+        {
+            const SotnBatRuntimeChild *hand = &s->bat_runtime.children[0];
+            const Uint16 phase =
+                s->bat_runtime.hand_shield && hand->hand_weapon ? hand->state.hand.motion.phase : 0;
+            if (!SotnPlayer_CommitHandShield(s->player, phase, hand->kind >= 0xf0))
+                return false;
+        }
     }
     s->blink_rebase_x = s->blink_rebase_y = 0;
     s->blink_camera_x = s->camera.x;
@@ -1394,21 +1411,25 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
 {
     bool transaction = player.medicine.used || player.food.used || player.throwing.used;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        transaction |=
-            s->bat_runtime.children[i].kind == 32 || s->bat_runtime.children[i].kind == 38 ||
-            s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
-            s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
-            s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
-            s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
-            s->bat_runtime.children[i].karma || s->bat_runtime.children[i].thrown_particle_parent ||
-            (s->bat_runtime.children[i].kind == 5 &&
-             (s->bat_runtime.children[i].parameter >> 8) == 12);
+        transaction |= s->bat_runtime.children[i].kind == 32 ||
+                       s->bat_runtime.children[i].kind == 38 ||
+                       s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
+                       s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
+                       s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
+                       s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
+                       s->bat_runtime.children[i].karma || s->bat_runtime.children[i].hand_weapon ||
+                       s->bat_runtime.children[i].thrown_particle_parent ||
+                       (s->bat_runtime.children[i].kind == 5 &&
+                        (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         transaction |= s->bat_runtime.factories[i].cursor.entity_id &&
                        (s->bat_runtime.factories[i].cursor.blueprint == 39 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 53 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 55 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 50 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 48 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 42 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 43 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 56 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 62 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 63 ||
@@ -1988,6 +2009,23 @@ static bool TickFairy(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
     return true;
 }
 
+static bool CommitHandRetirement(SotnLaboratory *s, SotnPlayerState p)
+{
+    if (!p.hand_retire)
+        return true;
+    if (p.hand_retire > 2)
+        return SDL_SetError("Ordinary hand retirement lost its actual player request");
+    SotnBatRuntime *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return SDL_OutOfMemory();
+    *next = s->bat_runtime;
+    const bool ok = SotnBatRuntime_RetireHand(next, p.hand_retire == 1) &&
+                    SotnActors_CommitBatPrimitives(s->actors, next);
+    if (ok)
+        s->bat_runtime = *next;
+    SDL_free(next);
+    return ok;
+}
 static bool UpdateActors(SotnLaboratory *session, bool entering)
 {
     // Connected-room translation already used the actual old/new player screen positions.
@@ -1997,7 +2035,7 @@ static bool UpdateActors(SotnLaboratory *session, bool entering)
     SotnPlayerState player = {0};
     if (!SotnPlayer_GetState(session->player, &player))
         return false;
-    if (!VisitMap(session) ||
+    if ((!entering && !CommitHandRetirement(session, player)) || !VisitMap(session) ||
         !SotnCamera_Tick(&session->camera, Pixel(player.x), Pixel(player.y), false))
         return false;
     Sint32 camera_x = 0, camera_y = 0;
@@ -2706,6 +2744,9 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
+    SotnPlayerState current = {0};
+    if (!SotnPlayer_GetState(session->player, &current) || current.attack_mode)
+        return SDL_SetError("Development equipment requires an idle ordinary hand owner");
     const Uint16 ids[2] = {left, right};
     SotnCharacterState state = {0};
     if (!SotnCharacter_Get(session->character, &state, NULL))
@@ -2717,18 +2758,7 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
                 !SotnCharacter_Equip(session->character, i, ids[i]))
                 return false;
         }
-    SotnEquipment equipment[2] = {0};
-    const SotnDataView weapons = SotnResource_View(session->weapons);
-    if (!SotnEquipment_Read(session->dra, left, &equipment[0]) ||
-        !SotnEquipment_Read(session->dra, right, &equipment[1]) ||
-        !SotnPlayer_SetEquipment(session->player, weapons, left, right))
-        return false;
-    for (Uint32 hand = 0; hand < 2; ++hand)
-        if (!LoadHandProgram(session, weapons, (Uint16)hand, equipment[hand]))
-            return false;
-    session->hands[0] = left;
-    session->hands[1] = right;
-    if (!ApplyCharacter(session))
+    if (!ApplyMenuCharacter(session))
         return false;
     session->dirty = true;
     SDL_Log("Development hand equipment: left %u, right %u (0 empty, 18 Basilard, 86 Gladius, 128 "
@@ -2995,6 +3025,7 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetSwordContext(session->player, SwordFactory, session,
                                     session->bat_runtime.children[0].kind != 0 ||
                                         session->mist_present) ||
+        !SotnPlayer_SetHandContext(session->player, HandFactory, ThrowingRandom, session) ||
         !SotnPlayer_SetMedicineContext(session->player, MedicineFactory, UseMedicine, session,
                                        SotnBatRuntime_MedicinePresent(&session->bat_runtime)) ||
         !BindFood(session) ||
@@ -3016,10 +3047,11 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
         return false;
     // Player's casting grunt precedes the later factory/child callbacks and their sounds.
     // Keep an actual earlier guard voice ahead of it; the final audio pass must not replay it.
-    if (state.throwing.used &&
+    if ((state.throwing.used || state.hand_used) &&
         ((state.guard.applied && state.guard.sound &&
           !QueueNativeSound(session, state.guard.sound)) ||
-         (state.throwing_grunt && !QueueNativeSound(session, state.throwing_grunt))))
+         (state.throwing_grunt && !QueueNativeSound(session, state.throwing_grunt)) ||
+         (state.hand_grunt && !QueueNativeSound(session, state.hand_grunt))))
         return false;
     if (state.dark.started || state.spirit.started || state.hellfire_started || state.soul.started)
     {
@@ -3060,7 +3092,9 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     if (!SotnPlayer_GetState(session->player, &state) ||
         !SotnActors_GetCombat(session->actors, &combat) || !TickHudFrame(session) ||
         !TickAudio(session, &combat, state.sound, state.extra_sound, state.third_sound,
-                   state.guard.applied && !state.throwing.used ? state.guard.sound : 0))
+                   state.guard.applied && !state.throwing.used && !state.hand_used
+                       ? state.guard.sound
+                       : 0))
         return false;
     if (!SotnPlayerStep_IsDead(state.step) && !session->spell_freeze.active &&
         !session->bat_runtime.teleport_warp_mode)
@@ -3897,6 +3931,26 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_MAGIC_MISSILE}))
                 return false;
+            if (child->hand_weapon && child->initialized)
+            {
+                const SotnHandWeapon *w = &child->state.hand.motion;
+                if (w->frame && w->bank &&
+                    !((w->draw_flags & 0x80U) && (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                        &draw_count,
+                                        (SotnActorDraw){.priority = w->priority,
+                                                        .primitive = owner,
+                                                        .kind = SOTN_DRAW_HAND_WEAPON}))
+                    return false;
+                for (Uint16 row = child->primitive_count; row > 0; --row)
+                    if (!(w->tiles[row - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                            &draw_count,
+                                            (SotnActorDraw){.priority = w->tiles[row - 1U].priority,
+                                                            .primitive = (Uint16)(row - 1U),
+                                                            .kind = SOTN_DRAW_HAND_TILE}))
+                        return false;
+            }
             if (child->karma && child->initialized)
             {
                 const SotnKarmaCoin *m = &child->state.karma.motion;
@@ -4794,6 +4848,56 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                                  .red = 128,
                                                                  .green = 64},
                                                session->draw_target.surface))
+                return false;
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_HAND_WEAPON || command.kind == SOTN_DRAW_HAND_TILE)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[0];
+            const SotnHandWeapon *w = &c->state.hand.motion;
+            if (!c->hand_weapon || !c->initialized || !SotnBatRuntime_HandValid(c, 0))
+                return SDL_SetError("Ordinary hand draw lost its actual shared slot16 owner");
+            if (command.kind == SOTN_DRAW_HAND_TILE)
+            {
+                if (c->primitive_count != 16 || command.primitive >= 16)
+                    return SDL_SetError("Ordinary sword TILE lost its actual optional row");
+                const SotnPlayerEffectQuad *p = &w->tiles[command.primitive];
+                const Sint32 x = p->x[0] + session->draw_target.offset_x + session->shake.x,
+                             y = p->y[0] + session->draw_target.offset_y + session->shake.y;
+                if (!SotnActorGraphics_QuadSurface(
+                        session->actor_graphics,
+                        (SotnTextureQuad){.x = {x, x + p->u[0], x, x + p->u[0]},
+                                          .y = {y, y, y + p->v[0], y + p->v[0]},
+                                          .page = (Uint16)(p->draw_mode & 0x60U),
+                                          .untextured = true,
+                                          .blend = (p->draw_mode & 1U) != 0,
+                                          .red = p->red[0],
+                                          .green = p->green[0],
+                                          .blue = p->blue[0]},
+                        session->draw_target.surface))
+                    return false;
+            }
+            else if (!SotnActorGraphics_DrawSurface(
+                         session->actor_graphics,
+                         (SotnActorSprite){.animation_set = (Uint16)(w->bank & 0x7fffU),
+                                           .frame = w->frame,
+                                           .palette = w->palette,
+                                           .texture_offset = w->texture,
+                                           .blend_mode = w->blend,
+                                           .facing_left = w->facing_left},
+                         Pixel(w->x) - view_x + session->draw_target.offset_x + session->shake.x,
+                         Pixel(w->y) - view_y + session->draw_target.offset_y + session->shake.y,
+                         (SotnSpriteTransform){.scale_x = 256,
+                                               .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
+                                               .rotation = (w->draw_flags & 4U) ? w->rotation : 0,
+                                               .pivot_y = w->pivot_y,
+                                               .opacity = 128,
+                                               .executable = session->executable,
+                                               .sdk_rotation = true},
+                         session->draw_target.surface))
                 return false;
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))

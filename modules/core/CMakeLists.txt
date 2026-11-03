@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  hand_weapon.c
+  include/sotn/hand_weapon.h
   title_screen.c
   karma_coin.c
   include/sotn/karma_coin.h

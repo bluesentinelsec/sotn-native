@@ -366,6 +366,7 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                  c->kind == 35) &&
                 c->primitive_count == 1) ||
                (c->kind == 61 && c->primitive_count == 16) ||
+               (c->hand_weapon && c->state.hand.family == 43 && c->primitive_count == 16) ||
                (c->kind == 19 && c->primitive_count == 20) ||
                (c->kind == 37 && c->primitive_count == 18) ||
                (c->kind == 47 && c->primitive_count == 16) ||
@@ -528,6 +529,8 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
         next->thrown_mask = next->star_mask = next->karma_mask = 0;
     next->magic_clear_shield = false;
+    next->hand_attack = false;
+    next->hand_shield = 0;
     // These are consumed callback notifications, not original retained global counters.
     SDL_zero(next->medicine);
     SDL_zero(next->wolf_events);
