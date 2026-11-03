@@ -3,6 +3,7 @@
 #include <sotn/equipment.h>
 #include <sotn/familiar_stats.h>
 #include <sotn/game_data.h>
+#include <sotn/playtime.h>
 #include <sotn/stat_buffs.h>
 
 enum
@@ -105,6 +106,13 @@ bool SotnCharacter_SireProperties(const SotnCharacter *, bool poison, Uint32 *ra
  * Uses live stats/body buffs and copied libc RNG, even after the last hand copy is consumed. */
 bool SotnCharacter_NeutronProperties(const SotnCharacter *character, bool poison, Uint32 *random,
                                      SotnEquipment *out);
+/** @brief Bind the actual main-loop status-clock snapshot before the next control.
+ * Retains the source hours word for Badelaire's pre-cap signed attack. This ephemeral
+ * context is not an ordinary-save field; unbound callers cannot equip/use125.
+ * @param character Actual character, preserved on failure.
+ * @param clock Actual copied main-loop status words; signed values remain unnormalized.
+ * @return Success or SDL error. Recalculates derived stats only on first bind/hour change. */
+bool SotnCharacter_SetPlaytime(SotnCharacter *character, SotnPlaytime clock);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.

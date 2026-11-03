@@ -20,7 +20,10 @@ Full fractional root origins convert from screen to room coordinates once.
 The ordinary birth pass retains its snapshotted gate: later shared8..63 callbacks
 and the ordinary stage finish before engine-five entry. FFF runs full dead-player
 callbacks, familiar4..7, frozen stage, HUD and audio. It holds gameplay clock,
-playtime, shared8..63, attack-group recount and camera/shake; engine time continues.
+shared8..63, attack-group recount and camera/shake. Engine time continues, and
+the later [main-loop clock owner](player-playtime-badelaire.md) advances actual
+HMS words after this dispatch. The former playtime hold described the separate
+legacy simulation count; it is not the original MainGame status clock.
 Clearing FFF during a callback still finishes that frozen frame. The following
 release-only frame applies protection48 and sound0F, then the next normal frame
 recovers state17 through real Blink4A. Spell3 retains its distinct animation,

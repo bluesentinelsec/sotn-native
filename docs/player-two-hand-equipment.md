@@ -83,7 +83,7 @@ byte255 and injected-failure contexts are supplied fixtures. No user save is wri
 They establish no uninterrupted acquisition route, complete retail inventory UI,
 all-family contention, global timing or console parity.
 
-Badelaire125 still needs its actual playtime/stat owner. Other weapon families,
+[Badelaire125](player-playtime-badelaire.md) now has its actual playtime/stat owner. Other weapon families,
 full damage/equipment/familiar/shared ownership, [Alucard milestone gates](alucard-status.md)
 and full [cold New Game](cold-start.md) remain incomplete. Default resources,
 ordinary grants and save version9 are unchanged.

@@ -1,4 +1,6 @@
 add_library(sotn-core STATIC
+  playtime.c
+  include/sotn/playtime.h
   hand_weapon.c
   include/sotn/hand_weapon.h
   title_screen.c

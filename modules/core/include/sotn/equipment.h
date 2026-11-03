@@ -20,7 +20,7 @@ typedef struct SotnWeaponFrame
 } SotnWeaponFrame;
 
 /** @brief Selected weapon0 identities with actual shared callback/stat/palette owners.
- * Namakura uses its actual paired inventory slots; Badelaire remains excluded pending playtime. */
+ * Namakura requires paired inventory slots; Badelaire requires the actual playtime owner. */
 bool SotnEquipment_IsSword0(Uint16 id);
 
 /** @brief Read a supported hand-item definition, without importing runtime tables.

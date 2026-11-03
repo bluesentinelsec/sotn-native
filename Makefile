@@ -165,6 +165,9 @@ SOTN_FORMAT_SOURCES += modules/core/fairy.c modules/core/include/sotn/fairy.h te
 SOTN_FORMAT_SOURCES += modules/core/familiar_animation.c \
 	  modules/core/include/sotn/familiar_animation.h tests/core/test_familiar_animation.c
 
+SOTN_FORMAT_SOURCES += modules/core/playtime.c modules/core/include/sotn/playtime.h \
+	  tests/core/test_playtime.c
+
 .PHONY: dev debug debug-build release release-build configure build run test sanitizer package web android ios fmt clean
 configure:
 	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=$(CONFIG) $(CMAKE_FLAGS)

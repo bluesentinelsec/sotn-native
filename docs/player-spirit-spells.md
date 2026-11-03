@@ -21,7 +21,9 @@ Subsequent frozen frames advance the engine clock, selected cast animation,
 flag-permitted shared children, original eligible/new stage actors, palette jobs,
 shake and audio. Player movement/collision, game clock, MP recovery, status/use/
 invincibility timers, stage hit detection/cooldowns, ordinary projectile updates,
-saves and menus stay held. Current physical buttons still update their adapters.
+saves and menus stay held. The later [main-loop playtime owner](player-playtime-badelaire.md)
+advances actual HMS through frozen and release frames, separately from gameplay.
+Current physical buttons still update their adapters.
 The retiring portal completes its final frame under frozen rules. The next frame
 only applies original protection and script resume; normal updates resume one
 frame later. Pending blood healing is retained, never replayed during freeze.

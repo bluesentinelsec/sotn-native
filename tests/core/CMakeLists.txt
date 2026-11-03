@@ -1,3 +1,9 @@
+add_executable(sotn-playtime-tests test_playtime.c)
+sotn_configure_c_target(sotn-playtime-tests)
+target_include_directories(sotn-playtime-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-playtime-tests PRIVATE sotn-core)
+add_test(NAME main-loop-playtime COMMAND sotn-playtime-tests)
+
 add_executable(sotn-two-hand-equipment-tests test_two_hand_equipment.c)
 sotn_configure_c_target(sotn-two-hand-equipment-tests)
 target_link_libraries(sotn-two-hand-equipment-tests PRIVATE sotn-core)

@@ -1,3 +1,17 @@
+Selected [playtime/Badelaire](docs/player-playtime-badelaire.md) now owns actual
+four signed status words, original single carries/hour cap and125 variant3 shared
+hands. Preserve post-menu/map holds/closing-frame advance, frozen/release/FFF/dead/
+GameOver time, draw/failure/pending-stage holds and birth-hour attack retention.
+Native fixed60 supplies256, not actual SDK raster stalls. Keep engine/gameplay/HMS
+services separate; stage phases and Wolf Blink use engine, subweapon phases use game.
+Continue binds before gear/actor bootstrap; connected transfer keeps all four words
+without ticks or legacy aggregate-ceiling loss. Preserve v9 legacy99999-hour import,
+serialization ceiling without live mutation, signed pre-cap hour bonus and unbound
+raw gates. Global map cursor/end-MainGame Rand and remaining timing stay open.
+No new pool/grants/save fields; supplied clock/equipment/protection/arrival/save-room/
+Fairy-load/failure fixtures are not acquisition/routes/ordinary activation/full-pass/
+SDK/console evidence. All Alucard and full cold New Game gates remain open.
+
 Selected [two-hand equipment](docs/player-two-hand-equipment.md) now owns ordinary
 Namakura84 selection, one-copy/both-word reservation, displaced returns, real menu
 confirmation and paired v9 restoration. Preserve selected-first return, one return
@@ -8,7 +22,7 @@ words. Player/development bindings reject unpaired84 before grants; reread the f
 commit before binding the second hand. Existing shared16/properties/graphics/forms/
 rollback owners remain real; no extra pool/defaults/v9 fields. Explicit stock255,
 protection/arrival/position/save-room/failure fixtures and adapters are not acquisition,
-route/full-pass/console evidence. Other two-hand families, Badelaire playtime,
+route/full-pass/console evidence. Other two-hand families,
 remaining equipment/familiars/sharing and Alucard/cold New Game remain incomplete.
 
 Selected [ordinary hands](docs/shared-ordinary-hands.md) now own actual shared16,
@@ -25,8 +39,7 @@ protection/position/occupancy/data/save-room fixtures are not acquisition/route/
 console evidence. Selected [weapon0 swords](docs/player-basic-swords.md) now add19
 owned one-hand items, real variants0/1/2 and actual palette-index/full384-word
 copies. Preserve negative attack caps, actual defense/elements, Mourneblade orb-before-immunity and
-existing deferred8HP contact. Selected Namakura two-hand now runs; Badelaire
-playtime remains unavailable. Secondary producers, shield spells, full equipment/sharing and
+existing deferred8HP contact. Selected Namakura two-hand and actual playtime/Badelaire now run. Secondary producers, shield spells, full equipment/sharing and
 Alucard/castle remain incomplete. No new grants/pool/v9 fields.
 
 Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,
@@ -404,7 +417,7 @@ selection, acquisition, route or console evidence. All six Alucard gates stay op
 The [bound native Fairy dispatch](docs/fairy-native-dispatch.md) now runs actual
 4..7 callbacks and a distinct full-player FFF engine branch: Life Apple spending,
 real effects/cleanup/resources, release-only frame and Blink4A. Preserve stable
-birth gates, held gameclock/playtime/shared8..63/recount/shake, continuing engine/
+birth gates, held gameplay/shared8..63/recount/shake, continuing engine/HMS/
 audio time, captured death texture/generation and separate dead resource writes.
 Seven actual signed-word familiar records now belong to the character. Raw enemy
 rewards update the selected record transactionally, with player99/zero/no-selection

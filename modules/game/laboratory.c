@@ -110,6 +110,7 @@ struct SotnLaboratory
     Uint8 game_over_audio_phase;
     Uint16 scene_buttons, mp, hands[2];
     Uint64 simulation_ticks;
+    SotnPlaytime playtime;
     Uint32 system_timer, game_timer;
     SotnSaveStore *saves;
     bool borrowed_saves;
@@ -153,6 +154,7 @@ typedef struct SessionStart
     const SotnStatBuffs *stat_buffs;
     const SotnLaboratory *familiars; /**< Actual connected-stage source, borrowed until commit. */
     const SotnSaveState *saved;
+    const SotnPlaytime *playtime;
     const SotnSound *startup_sound;
     SotnSaveStore *startup_store;
     Uint16 startup_buttons;
@@ -297,7 +299,8 @@ static bool BindActorAudio(SotnLaboratory *s)
         dialogue = cd.xa_active;
         busy = busy || !cd.fade_acknowledged || !cd.acknowledged;
     }
-    return SotnActors_SetServices(s->actors, s->executable, s->simulation_ticks, playing) &&
+    return SotnActors_SetEngineServices(s->actors, s->executable, s->playtime, s->system_timer,
+                                        playing) &&
            SotnActors_SetDialogueBusy(s->actors, busy) &&
            SotnActors_Dialogue(s->actors, dialogue, NULL);
 }
@@ -2218,12 +2221,15 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
     SotnCharacterState character = {0};
     if (!SotnCharacter_Get(session->character, &character, NULL))
         return false;
+    Uint64 playtime_ticks = 0;
+    if (!SotnPlaytime_Ticks(session->playtime, &playtime_ticks))
+        return false;
     character.hp = player.hp;
     *out = (SotnSaveState){.stage = session->stage_id,
                            .room = session->room_index,
                            .character = character,
                            .world = session->world,
-                           .ticks = session->simulation_ticks,
+                           .ticks = playtime_ticks,
                            .player_random = player.random,
                            .actor_random = progress.random,
                            .combat_random = progress.combat_random};
@@ -2421,6 +2427,8 @@ static bool PrimeAudio(SotnLaboratory *session, bool render)
 }
 
 static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state);
+static bool RestoreCharacterAt(SotnLaboratory *, SotnSaveState, const SotnPlaytime *);
+static bool RestoreSessionAt(SotnLaboratory *, SotnSaveState, Uint32, const SotnPlaytime *);
 static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot);
 
 static bool InitializeEquipment(SotnLaboratory *session, const SotnSaveState *saved)
@@ -2523,6 +2531,13 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
     SotnLaboratory *session = SDL_calloc(1, sizeof(*session));
     if (session == NULL)
         return false;
+    if (!SotnPlaytime_FromTicks(saved ? saved->ticks : 0, &session->playtime))
+    {
+        SDL_free(session);
+        return false;
+    }
+    if (start.playtime)
+        session->playtime = *start.playtime;
     session->saves = start.startup_store;
     session->borrowed_saves = start.startup_store != NULL;
     session->system_timer = start.system_timer;
@@ -2553,6 +2568,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnGameData_GetFile(data, SOTN_GAME_DRA, &session->dra) ||
         !StageOverlay(session, data, directory) ||
         !SotnCharacter_Create(session->dra, &session->character) ||
+        !SotnCharacter_SetPlaytime(session->character, session->playtime) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
         !SotnStage_GetRoomDefinitions(session->stage, session->room_index, 2048, &session->room) ||
         !ValidateStart(session, start) ||
@@ -2573,6 +2589,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
             : stage_id == 65 && start_room == 11 ? 388
                                                  : 135,
             &session->player) ||
+        !SotnPlayer_SetHandContext(session->player, HandFactory, ThrowingRandom, session) ||
         !SotnPlayer_SetScriptContext(session->player, session->executable) ||
         !SotnPlayer_SetStageContext(session->player, stage_id) ||
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
@@ -2605,13 +2622,14 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
                                       &session->save_renderer) ||
         !SotnHud_Create(session->dra, SotnResource_View(session->common),
                         (SotnHudStatus){70, 70, 20, 20, 10, 0}, &session->hud) ||
-        (saved != NULL && !RestoreCharacter(session, *saved)) ||
+        (saved != NULL && !RestoreCharacterAt(session, *saved, start.playtime)) ||
         !SotnPlayer_SetAxeContext(session->player, SotnResource_View(session->weapons), true) ||
         !EnterActors(session) ||
         // Teleports may begin inside a closed red-door column. Its actor must open
         // the owned tiles before the first player collision, as in original room entry.
         !TickActors(session) || (start.arrival != NULL && !SotnPlayer_Tick(session->player, 0)) ||
-        (saved != NULL && !RestoreSession(session, *saved, slot)) ||
+        (saved != NULL && !(start.playtime ? RestoreSessionAt(session, *saved, slot, start.playtime)
+                                           : RestoreSession(session, *saved, slot))) ||
         !SotnPlayer_SetWaterBreathTimer(session->player, start.water_breath_timer) ||
         !SotnPlayer_SetWaterPainTimer(session->player, start.water_pain_timer) ||
         !InitializeParticleVectors(session) ||
@@ -2852,13 +2870,13 @@ static bool TickFairyFreeze(SotnLaboratory *s, Uint16 buttons)
         !SotnActors_GetCombat(s->actors, &combat) || !TickHudFrame(s) ||
         !TickAudio(s, &combat, player.sound, player.extra_sound, player.third_sound, 0))
         return false;
-    // Original FFF deliberately omits shared8..63, group recount, camera/shake and playtime.
+    // FFF omits shared8..63, group recount and camera/shake. Main-loop playtime follows later.
     // A callback clearing FFF still finishes this full frozen frame; release is next frame.
     s->dirty = s->targets_pending = true;
     return true;
 }
 
-bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
+static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
 {
     if (session == NULL)
         return SDL_InvalidParamError("laboratory");
@@ -3161,6 +3179,26 @@ bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
     }
     session->dirty = true;
     session->targets_pending = true;
+    return true;
+}
+
+bool SotnLaboratory_Step(SotnLaboratory *session, Uint16 buttons)
+{
+    if (!session)
+        return SDL_InvalidParamError("laboratory");
+    if (session->stage_pending)
+        return true;
+    if (!StepFrame(session, buttons))
+        return false;
+    // Each committed native fixed60 engine frame supplies one SDK frame quantum.
+    // The original MainGame clock follows UpdateGame/render preparation, including
+    // frozen/release/FFF/dead frames; post-update menu/map flags hold it.
+    SotnPlaytime next = session->playtime;
+    if (!SotnPlaytime_Advance(&next, 256, session->menu.phase != SOTN_MENU_CLOSED,
+                              session->map_open) ||
+        !SotnCharacter_SetPlaytime(session->character, next))
+        return false;
+    session->playtime = next;
     return true;
 }
 
@@ -3491,7 +3529,7 @@ static bool PrepareWolfPresentation(SotnLaboratory *s, SotnPlayerState p, Sint32
                                     .player_priority = p.priority,
                                     .slot = slot,
                                     .available = 768,
-                                    .game_timer = (Uint32)s->simulation_ticks},
+                                    .game_timer = s->system_timer},
                 s->wolf_packets + s->wolf_packet_count,
                 SDL_arraysize(s->wolf_packets) - s->wolf_packet_count, &count))
             return false;
@@ -5464,7 +5502,7 @@ static bool DrawGameplay(SotnLaboratory *session)
                                              SOTN_FRAME_PIXELS)) &&
            DrawActorsAndPlayer(session, state, camera_x, camera_y, false) &&
            SotnSubweapons_Draw(session->subweapons, session->actor_graphics, session->dra,
-                               session->simulation_ticks, view_x, view_y, session->frame,
+                               session->game_timer, view_x, view_y, session->frame,
                                SOTN_FRAME_PIXELS) &&
            (!session->save_room ||
             SotnSavePointRenderer_DrawOffset(session->save_renderer, session->save_point, true,
@@ -5664,21 +5702,36 @@ void SotnLaboratory_Destroy(SotnLaboratory *session)
     }
 }
 
-static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state)
+static bool RestoreCharacterAt(SotnLaboratory *session, SotnSaveState state,
+                               const SotnPlaytime *retained)
 {
     const SotnCharacterState *c = &state.character;
-    if (!SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
+    SotnPlaytime clock = {0};
+    if (!SotnPlaytime_FromTicks(state.ticks, &clock))
+        return false;
+    if (retained)
+        clock = *retained;
+    if (!SotnCharacter_SetPlaytime(session->character, clock) ||
+        !SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
         !SotnPlayer_Restore(session->player, c->hp, state.player_random))
         return false;
+    session->playtime = clock;
     return true;
 }
+static bool RestoreCharacter(SotnLaboratory *session, SotnSaveState state)
+{
+    return RestoreCharacterAt(session, state, NULL);
+}
 
-static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
+static bool RestoreSessionAt(SotnLaboratory *session, SotnSaveState state, Uint32 slot,
+                             const SotnPlaytime *retained)
 {
     const SotnCharacterState *c = &state.character;
     const SotnActorProgress progress = {c->hearts, c->subweapon,       c->gold,
                                         c->kills,  state.actor_random, state.combat_random};
-    if (!RestoreCharacter(session, state) || !SotnActors_Restore(session->actors, progress))
+    if (!(retained ? RestoreCharacterAt(session, state, retained)
+                   : RestoreCharacter(session, state)) ||
+        !SotnActors_Restore(session->actors, progress))
         return false;
     SotnHud_Destroy(session->hud);
     session->hud = NULL;
@@ -5693,6 +5746,11 @@ static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 
     session->simulation_ticks = state.ticks;
     session->save_point.slot = (Uint8)slot;
     return true;
+}
+
+static bool RestoreSession(SotnLaboratory *session, SotnSaveState state, Uint32 slot)
+{
+    return RestoreSessionAt(session, state, slot, NULL);
 }
 
 bool SotnLaboratory_Continue(const SotnGameData *data, const char *directory, Uint32 slot,
@@ -5852,6 +5910,7 @@ bool SotnLaboratory_UpdateSession(const SotnGameData *data, SotnLaboratory **own
                                          .music = old->music_stream,
                                          .system_timer = old->system_timer,
                                          .game_timer = old->game_timer,
+                                         .playtime = &old->playtime,
                                          .stat_buffs = &old->stat_buffs,
                                          .familiars = old,
                                          .spirit_target_cursor = old->bat_runtime.target_cursor,

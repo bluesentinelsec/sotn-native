@@ -77,9 +77,9 @@ are supplied fixtures. They are not ordinary acquisition, uninterrupted routes,
 whole-pass rollback, full contention or console evidence. No user save is written.
 
 Selected [Namakura84/two-hand ownership](player-two-hand-equipment.md) now supplies
-its actual inventory/menu/restoration and shared callback owners. Badelaire125
-remains unavailable until original playtime phases
-and its hours-dependent attack have their real owner. Other weapon families,
+its actual inventory/menu/restoration and shared callback owners. Selected
+[playtime/Badelaire125](player-playtime-badelaire.md) now supplies its actual
+four status words, hours-dependent attack and shared variant3 owner. Other weapon families,
 equipment specials, complete enemy feedback, familiars, shared timing/presentation,
 Alucard and castle remain incomplete. All six [milestone gates](alucard-status.md)
 and the full [cold New Game gate](cold-start.md) remain open.

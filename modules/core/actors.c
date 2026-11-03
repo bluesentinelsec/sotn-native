@@ -2470,6 +2470,22 @@ bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint64 ticks
     return true;
 }
 
+bool SotnActors_SetEngineServices(SotnActors *s, SotnDataView executable, SotnPlaytime clock,
+                                  Uint32 engine_timer, bool music_playing)
+{
+    if (!s || !executable.bytes || executable.size < 0x22a10 + 2050 || clock.hours < 0 ||
+        clock.hours > 99999 || clock.minutes < 0 || clock.minutes >= 60 || clock.seconds < 0 ||
+        clock.seconds >= 60 || clock.frames < 0 || clock.frames >= 60)
+        return SDL_SetError("Native stage services require actual bounded status/engine clocks");
+    s->executable = executable;
+    s->game_seconds =
+        (Uint32)clock.hours * 3600U + (Uint32)clock.minutes * 60U + (Uint32)clock.seconds;
+    s->game_frame = (Uint8)clock.frames;
+    s->service_ticks = engine_timer;
+    s->music_playing = music_playing;
+    return true;
+}
+
 bool SotnActors_DoppleDeathMask(const SotnActors *actors, SotnDataView *out)
 {
     if (actors == NULL || out == NULL || actors->stage_id != 26)

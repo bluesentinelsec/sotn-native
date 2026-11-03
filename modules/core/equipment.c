@@ -29,7 +29,7 @@ bool SotnEquipment_IsSword0(Uint16 id)
 {
     return id == 83 || id == 84 || (id >= 86 && id <= 94) || id == 96 || id == 99 ||
            (id >= 104 && id <= 106) || id == 108 || id == 110 || id == 116 || id == 118 ||
-           id == 122;
+           id == 122 || id == 125;
 }
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
@@ -44,7 +44,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
          id != 128 && id != 166 && (id < 144 || id > 162)))
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
     const bool sword0 = SotnEquipment_IsSword0(id);
-    const Uint16 sword_variant = sword0 ? (id >= 116 ? 2 : id >= 104 ? 1 : 0) : 0;
+    const Uint16 sword_variant = sword0 ? (id == 125 ? 3 : id >= 116 ? 2 : id >= 104 ? 1 : 0) : 0;
     const Uint8 palette = id == 116 ? 2 : id == 122 ? 1 : 0;
     const bool medicine = id == 166 || (id >= 144 && id <= 162);
     const Uint16 variant = id == 166 ? 20 : id >= 157 ? id - 143 : id >= 144 ? id - 144 : 0;

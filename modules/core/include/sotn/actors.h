@@ -64,6 +64,17 @@ typedef struct SotnActorMotion
  * executed. */
 bool SotnActors_SetServices(SotnActors *actors, SotnDataView executable, Uint64 ticks,
                             bool music_playing);
+/** @brief Native services with actual main-loop HMS words and independent engine phase.
+ * Legacy raw callers retain SetServices' aggregate adapter. This validates all inputs
+ * before committing SDK/audio/HMS/phase bindings and performs no actor update.
+ * @param actors Borrowed stage owner.
+ * @param executable Borrowed resident SDK tables; must outlive actors.
+ * @param clock Bounded native status words, hours0..99999 and other words0..59.
+ * @param engine_timer Actual wrapping g_Timer, independent of playtime/gameplay.
+ * @param music_playing Actual audio activity snapshot.
+ * @return Success or SDL error, preserving all service bindings on failure. */
+bool SotnActors_SetEngineServices(SotnActors *actors, SotnDataView executable, SotnPlaytime clock,
+                                  Uint32 engine_timer, bool music_playing);
 /** @brief Borrow the scene camera for original room-lock actors; NULL selects a room fallback.
  * @param actors Borrowed simulation. @param camera Borrowed writable scene-owned state.
  * @return Success or SDL error. The camera must outlive the actors. */

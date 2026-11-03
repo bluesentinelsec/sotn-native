@@ -14,6 +14,8 @@ struct SotnCharacter
     SotnFamiliarProgress familiars;
     Uint16 familiar;
     Uint16 stat_buff_mask;
+    SotnPlaytime playtime;
+    bool playtime_bound;
 };
 static Uint16 Read16(const Uint8 *p)
 {
@@ -99,8 +101,8 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                          body ? BodySupported(id)
                               : (id == 0 || id == 16 || id == 18 || id == 19 || id == 24 ||
                                  id == 25 || id == 80 || id == 81 || id == 82 || id == 134 ||
-                                 id == 135 || SotnEquipment_IsSword0(id) || id == 123 ||
-                                 id == 128 || id == 166 || (id >= 29 && id <= 79) ||
+                                 id == 135 || (id != 125 && SotnEquipment_IsSword0(id)) ||
+                                 id == 123 || id == 128 || id == 166 || (id >= 29 && id <= 79) ||
                                  (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
@@ -223,6 +225,14 @@ static Uint16 Root(Uint16 value)
     }
     return (Uint16)((root << ((31U - even) / 2U)) >> 12);
 }
+static bool ReadOwnedItem(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
+{
+    if (!SotnItem_Read(c->dra, body, id, out))
+        return false;
+    if (!body && id == 125)
+        out->supported = c->playtime_bound;
+    return true;
+}
 static bool Calculate(SotnCharacter *c)
 {
     SotnCharacterStats result = {0};
@@ -230,7 +240,7 @@ static bool Calculate(SotnCharacter *c)
     Sint32 bonus[4] = {0}, attack = 0, defense = 0;
     for (Uint32 i = 0; i < 7; ++i)
     {
-        if (!SotnItem_Read(c->dra, i >= 2, c->state.equipment[i], &items[i]))
+        if (!ReadOwnedItem(c, i >= 2, c->state.equipment[i], &items[i]))
             return false;
         if (!items[i].supported || (i >= 2 && items[i].type != Type(i)))
             return SDL_SetError(
@@ -264,14 +274,16 @@ static bool Calculate(SotnCharacter *c)
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack += 20;
     for (Uint32 i = 0; i < 2; ++i)
-        result.attack[i] = items[i].category == 6 || items[i].category == 10 || items[i].id == 16 ||
-                                   (items[i].category == 9 && items[i].attack == 1)
-                               ? 0
-                               : (Uint16)SDL_clamp(Word(items[i].attack + attack +
-                                                        (items[i].attack <= result.total[0]
-                                                             ? result.total[0]
-                                                             : result.total[0] / 2)),
-                                                   0, 999);
+        result.attack[i] =
+            items[i].category == 6 || items[i].category == 10 || items[i].id == 16 ||
+                    (items[i].category == 9 && items[i].attack == 1)
+                ? 0
+                : (Uint16)SDL_clamp(
+                      Word(items[i].attack + attack +
+                           (items[i].attack <= result.total[0] ? result.total[0]
+                                                               : result.total[0] / 2) +
+                           (items[i].id == 125 ? Word(c->playtime.hours) : 0)),
+                      0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
         return false;
@@ -319,6 +331,12 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
     Sint16 attack = Word(
         e.attack + (e.attack <= c->stats.total[0] ? c->stats.total[0] : c->stats.total[0] / 2));
     attack = Word(attack + bonus);
+    if (e.id == 125)
+    {
+        if (!c->playtime_bound)
+            return SDL_SetError("Badelaire requires its actual main-loop playtime owner");
+        attack = Word(attack + Word(c->playtime.hours));
+    }
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack = Word(attack + 20);
     e.attack = (Sint16)(SDL_clamp(attack, 0, 999) >> (poison ? 1 : 0));
@@ -390,6 +408,18 @@ bool SotnCharacter_SireProperties(const SotnCharacter *c, bool poison, Uint32 *r
            RetainedWeaponProperties(c, e, poison, random, out);
 }
 
+bool SotnCharacter_SetPlaytime(SotnCharacter *c, SotnPlaytime clock)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    next.playtime = clock;
+    next.playtime_bound = true;
+    if ((!c->playtime_bound || c->playtime.hours != clock.hours) && !Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
 {
     if (!c)
@@ -653,7 +683,7 @@ static bool Equip(SotnCharacter *c, Uint32 slot, Uint16 id, bool confirmation)
     if (!body && (id == 146 || id == 147))
         return SDL_SetError("This item cannot be equipped");
     SotnItem item = {0};
-    if (!SotnItem_Read(c->dra, body, id, &item))
+    if (!ReadOwnedItem(c, body, id, &item))
         return false;
     if (!item.supported || (body && item.type != Type(slot)))
         return SDL_SetError(
@@ -701,7 +731,7 @@ bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *
 {
     if (c == NULL)
         return SDL_InvalidParamError("character");
-    return SotnItem_Read(c->dra, body, id, out);
+    return ReadOwnedItem(c, body, id, out);
 }
 
 static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped,
