@@ -127,7 +127,7 @@ static bool Tnt(SotnStarWeapon *n, SotnStarInput in, Uint32 *rng, SotnStarEvents
                 SotnStarSpark *p = &n->sparks[i];
                 if (!p->delay)
                 {
-                    Uint16 x, y;
+                    Uint16 x = 0, y = 0;
                     if (!Table(in.overlay, 0x6fc, (Uint16)p->direction, 16, &x) ||
                         !Table(in.overlay, 0x71c, (Uint16)p->direction, 16, &y))
                         return false;
@@ -304,8 +304,8 @@ bool SotnStarWeapon_Tick(SotnStarWeapon *state, SotnStarInput in, Uint32 *random
             s->blend = 0x30;
             if (in.role == SOTN_STAR_SCATTER)
             {
-                Sint16 angle;
-                SotnMathTrig trig;
+                Sint16 angle = 0;
+                SotnMathTrig trig = {0};
                 if (!SotnMath_Atan2Vector(in.executable, Fixed(0U - (Uint32)in.parent.velocity_y),
                                           in.parent.velocity_x, &angle))
                     return false;
@@ -319,7 +319,7 @@ bool SotnStarWeapon_Tick(SotnStarWeapon *state, SotnStarInput in, Uint32 *random
             }
             else if ((s->parameter >> 8) >= 16)
             {
-                Uint16 scale;
+                Uint16 scale = 0;
                 if (!Table(in.overlay, 0x78c, s->parameter >> 8, 24, &scale))
                     return false;
                 n.scale_x = n.scale_y = scale;
@@ -330,7 +330,7 @@ bool SotnStarWeapon_Tick(SotnStarWeapon *state, SotnStarInput in, Uint32 *random
                 if (in.buttons & 0x4000U)
                 {
                     const Sint16 angle = (Sint16)(SotnCombat_Random(&rng) % 1535U + 256U);
-                    SotnMathTrig trig;
+                    SotnMathTrig trig = {0};
                     if (!SotnMath_Trig(in.executable, angle, &trig))
                         return false;
                     s->velocity_x = trig.cosine * 64;
@@ -383,7 +383,7 @@ bool SotnStarWeapon_Animate(SotnThrownAnimation *animation, SotnDataView overlay
         overlay.size < (size_t)offset + 60 || animation->pose >= 15 || animation->remaining < -1)
         return SDL_SetError("Weapon15 animation requires its actual private timeline");
     SotnThrownAnimation n = *animation;
-    Uint16 duration, frame;
+    Uint16 duration = 0, frame = 0;
     if (n.remaining != -1)
     {
         if (!n.remaining)
