@@ -325,6 +325,43 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
         CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
     }
+    // Original shield palette copies always span 24 rows. Knight shield9's copy crosses its live
+    // g_HandId word (color 14 of row 21), so the upload carries the bound hand, not the authored
+    // bytes; Alucard shield52's copy ends before its hand word and keeps the authored color.
+    const Uint16 shield_ids[] = {6, 16}, shield_families[] = {9, 52};
+    const Uint32 shield_tables[] = {0xab8, 0xc1c}, shield_sources[] = {0x8017a804, 0x8017a808};
+    for (Uint32 k = 0; k < SDL_arraysize(shield_ids); ++k)
+    {
+        Uint8 *shield = fixture->weapons + shield_families[k] * 0x7000U + 0x4000U;
+        SDL_memcpy(shield, fixture->weapons + 0x4000, 0x3000);
+        Put32(shield + shield_tables[k], shield_sources[k]);
+        Uint8 *word = shield + (shield_sources[k] - 0x8017a000U) + 700U;
+        Put16(word, 0x7c00);
+        Put16(word + 2, 0x03e0);
+        fixture->weapons[shield_families[k] * 0x7000U] = 0xee;
+        fixture->weapons[shield_families[k] * 0x7000U + 1] = 0xee;
+        for (Uint32 hand = 0; hand < 2; ++hand)
+        {
+            CHECK(SotnActorGraphics_LoadWeapon(
+                graphics, weapons, hand,
+                (SotnEquipment){.id = shield_ids[k], .family = (Uint8)shield_families[k]}));
+            CHECK(word[0] == 0x00 && word[1] == 0x7c && word[2] == 0xe0 && word[3] == 0x03);
+            ClearFrame(fixture);
+            const SotnActorSprite sprite = {.animation_set = (Uint16)(hand == 0 ? 16 : 18),
+                                            .frame = 1,
+                                            .palette = (Uint16)((hand == 0 ? 0x110 : 0x128) + 21),
+                                            .texture_offset = (Uint16)(hand == 0 ? 0x64 : 0x66)};
+            CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame,
+                                         SOTN_FRAME_PIXELS));
+            // The bound left hand is zero, which the texture treats as transparent.
+            const Uint16 expected = shield_families[k] == 52 ? 0x7c00 : hand ? 1 : 7;
+            CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == expected);
+        }
+        CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                            (SotnEquipment){.id = shield_ids[k],
+                                                            .family = (Uint8)shield_families[k],
+                                                            .palette = 1}));
+    }
     SotnActorGraphics_Destroy(graphics);
     return true;
 }

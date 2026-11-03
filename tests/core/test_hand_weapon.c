@@ -159,6 +159,62 @@ static bool Run(void)
     CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.removed && !w.timer);
     return true;
 }
+static bool BasicShieldProperties(void *context, Uint32 *random, SotnEquipment *out)
+{
+    if (!Properties(context, random, out))
+        return false;
+    out->hit_type = 4;
+    return true;
+}
+static bool BasicShields(void)
+{
+    const Uint16 families[] = {9, 11, 26}, tables[] = {0xa40, 0xb94, 0xa60};
+    CHECK(!SotnHandWeapon_IsShieldFamily(10) && !SotnHandWeapon_IsShieldFamily(255));
+    for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
+        for (Uint16 hand = 0; hand < 2; ++hand)
+        {
+            Uint8 overlay[0x1200] = {0};
+            Resources(overlay);
+            const Uint16 table = tables[i], props = (Uint16)(table - 0x48U + 4U);
+            for (Uint16 animation = 0; animation < 14; ++animation)
+                Put32(overlay + table + animation * 4U, 0x8017a400);
+            overlay[props] = 249;
+            overlay[props + 1] = 254;
+            overlay[props + 2] = 8;
+            overlay[props + 3] = 16;
+            SotnHandWeaponInput in = {.overlay = {overlay, table},
+                                      .family = families[i],
+                                      .hand = hand,
+                                      .properties = BasicShieldProperties,
+                                      .x = 0x123456,
+                                      .y = -345678,
+                                      .priority = 148,
+                                      .held = true};
+            SotnHandWeapon w = {0};
+            SotnHandWeaponProgram program = {.shield_attack = 123};
+            SotnHandWeaponEvents events = {.sound = 777};
+            Uint32 random = 7, expected = random;
+            // Failed private table reads cannot publish birth properties/RNG or events.
+            const SotnHandWeapon before = w;
+            CHECK(!SotnHandWeapon_Tick(&w, &program, in, &random, &events) && random == 7 &&
+                  !SDL_memcmp(&w, &before, sizeof(w)) && program.shield_attack == 123 &&
+                  events.sound == 777);
+            in.overlay.size = sizeof(overlay);
+            (void)SotnCombat_Random(&expected);
+            CHECK(SotnHandWeapon_IsShieldFamily(in.family) &&
+                  SotnHandWeapon_Tick(&w, &program, in, &random, &events) && random == expected &&
+                  events.shield == 1 && events.properties && w.hitbox_state == 4 &&
+                  w.properties.attack == 255 && program.shield_attack == 123 &&
+                  w.bank == 0x8010U + hand * 2U && w.frame == 61 && w.hitbox_x == -7 &&
+                  w.hitbox_y == -2 && w.hitbox_width == 8 && w.hitbox_height == 16);
+            in.held = false;
+            for (Uint16 frame = 0; frame < 4 && !w.removed; ++frame)
+                CHECK(SotnHandWeapon_Tick(&w, &program, in, &random, &events) &&
+                      events.shield == 2 && !events.properties && random == expected);
+            CHECK(w.removed && program.shield_attack == 123);
+        }
+    return true;
+}
 static void Definition(Uint8 *dra, Uint16 item, Uint16 family, Uint16 attack)
 {
     Uint8 *p = dra + 0x500 + item * 52U;
@@ -358,6 +414,72 @@ static bool Ownership(void)
           !properties.attack);
     CHECK(!SotnCharacter_Equip(character, 0, 84) &&
           !SotnCharacter_HandProperties(character, 125, false, &shield_random, &properties));
+    // Knight6/AxeLord8/Shaman12 bind their own resident families through the same slot16
+    // owner. GetEquipProperties zeroes base-ATK1 shields even with Attack buffs or poison;
+    // the callback's later hit-state4 SetWeaponProperties override alone produces attack255.
+    const Uint16 shield_ids[] = {6, 8, 12}, shield_families[] = {9, 11, 26};
+    const Uint16 shield_tables[] = {0xa40, 0xb94, 0xa60};
+    CHECK(SotnCharacter_SetStatBuffMask(character, 1U << SOTN_BUFF_ATTACK));
+    for (Uint16 k = 0; k < SDL_arraysize(shield_ids); ++k)
+    {
+        const Uint16 id = shield_ids[k], family = shield_families[k];
+        Definition(dra, id, family, 1);
+        Uint8 *record = dra + 0x500 + id * 52U;
+        record[14] = 9;
+        record[17] = 128;
+        record[18] = 0x63;
+        record[21] = 0;
+        Put16(record + 40, 4);
+        SotnEquipment definition = {0};
+        record[23] = 1;
+        CHECK(!SotnEquipment_Read(actors->dra, id, &definition));
+        record[23] = 0;
+        CHECK(SotnEquipment_Read(actors->dra, id, &definition) && definition.family == family &&
+              definition.kind == 128 && definition.attack == 1);
+        Uint8 *overlay = weapons + family * 0x7000U + 0x4000U;
+        Resources(overlay);
+        for (Uint16 animation = 0; animation < 14; ++animation)
+            Put32(overlay + shield_tables[k] + animation * 4U, 0x8017a400);
+        const Uint16 props = (Uint16)(shield_tables[k] - 0x48U + 4U);
+        overlay[props] = 249;
+        overlay[props + 1] = 254;
+        overlay[props + 2] = 8;
+        overlay[props + 3] = 16;
+        CHECK(SotnCharacter_Collect(character, false, id) &&
+              SotnCharacter_Equip(character, SOTN_EQUIP_LEFT, id));
+        SotnCharacterStats shield_attack = {0};
+        Uint32 roll = 11, rolled = 11;
+        (void)SotnCombat_Random(&rolled);
+        CHECK(SotnCharacter_Get(character, NULL, &shield_attack) && !shield_attack.attack[0] &&
+              SotnCharacter_HandProperties(character, id, true, &roll, &properties) &&
+              !properties.attack && properties.hit_type == 4 && roll == rolled);
+        SDL_zero(*r);
+        in.weapon_family[0] = in.weapon_family[1] = (Uint8)family;
+        in.player.buttons = SOTN_BUTTON_LEFT_HAND;
+        in.player.attack_mode = 0;
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        expected = progress.random;
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(r, source, 0x1030, id, &allocated) && allocated);
+        // A different resident program cannot run this item's callback.
+        in.weapon_family[0] = 52;
+        *before = *r;
+        CHECK(!SotnBatRuntime_Tick(r, character, in) && !SDL_memcmp(r, before, sizeof(*r)) &&
+              SotnCharacter_Get(character, &progress, NULL) && progress.random != expected);
+        in.weapon_family[0] = (Uint8)family;
+        const SotnBatRuntimeChild *c = &r->children[0];
+        CHECK(SotnBatRuntime_Tick(r, character, in) && c->hand_weapon &&
+              c->state.hand.family == family && c->group == 1 && r->groups[1] == 1 &&
+              !c->primitive_count && SotnBatRuntime_HandValid(c, 0) && r->hand_shield &&
+              c->state.hand.motion.hitbox_state == 4 &&
+              c->state.hand.motion.properties.attack == 255 && c->state.hand.attack.hit_type == 4 &&
+              c->state.hand.attack.power == 255 && c->state.hand.attack.equipment == id &&
+              r->hand_program[0].shield_attack == 0 &&
+              SotnCharacter_Get(character, &progress, NULL) && progress.random == expected);
+        CHECK(SotnBatRuntime_RetireHand(r, true) && !r->children[0].hand_weapon && !r->hand_shield);
+    }
+    CHECK(SotnCharacter_SetStatBuffMask(character, 0));
     SotnCharacter_Destroy(character);
     SDL_free(before);
     SDL_free(r);
@@ -368,5 +490,5 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && Ownership() ? 0 : 1;
+    return Run() && BasicShields() && Ownership() ? 0 : 1;
 }

@@ -847,6 +847,9 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
 static Uint16 HandFamily(Uint16 item)
 {
     return !item                          ? 255
+           : item == 6                    ? 9
+           : item == 8                    ? 11
+           : item == 12                   ? 26
            : item == 16                   ? 52
            : item == 18                   ? 31
            : item == 19                   ? 37
@@ -900,11 +903,13 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
            c->parameter == ((HandVariant(c->state.hand.item) << 8) | (hand ? 0x8000 : 0)) &&
            w->parameter == c->parameter &&
            (c->kind == (c->state.hand.item ? (hand ? 0xf0 : 0xe0) : (hand ? 0xfe : 0xee))) &&
-           (c->initialized ? w->phase && w->phase <= (c->state.hand.family == 52 ? 4 : 1) &&
-                                 c->group == hand + 1U && w->properties.id == c->state.hand.item &&
-                                 c->primitive_count == (w->allocated ? 16 : 0) &&
-                                 (!w->allocated || c->state.hand.family == 43)
-                           : !w->phase && !c->group && !c->primitive_count);
+           (c->initialized
+                ? w->phase &&
+                      w->phase <= (SotnHandWeapon_IsShieldFamily(c->state.hand.family) ? 4 : 1) &&
+                      c->group == hand + 1U && w->properties.id == c->state.hand.item &&
+                      c->primitive_count == (w->allocated ? 16 : 0) &&
+                      (!w->allocated || c->state.hand.family == 43)
+                : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
 {
@@ -921,7 +926,7 @@ bool SotnBatRuntime_RetireHand(SotnBatRuntime *r, bool shield_only)
     SotnBatRuntimeChild *c = &r->children[0];
     if (c->hand_weapon && !SotnBatRuntime_HandValid(c, 0))
         return SDL_SetError("Ordinary retirement lost its actual hand owner");
-    if (shield_only && (!c->hand_weapon || c->state.hand.family != 52))
+    if (shield_only && (!c->hand_weapon || !SotnHandWeapon_IsShieldFamily(c->state.hand.family)))
         return SDL_SetError("Conditional retirement lost its actual shield owner");
     *c = (SotnBatRuntimeChild){0};
     r->hand_shield = 0;
@@ -941,7 +946,8 @@ static bool ClearHandShield(SotnBatRuntime *r, SotnPrimitiveSlots *slots)
     if (!r->hand_shield)
         return true;
     SotnBatRuntimeChild *c = &r->children[0];
-    if (!c->hand_weapon || c->state.hand.family != 52 || !SotnBatRuntime_HandValid(c, 0))
+    if (!c->hand_weapon || !SotnHandWeapon_IsShieldFamily(c->state.hand.family) ||
+        !SotnBatRuntime_HandValid(c, 0))
         return SDL_SetError("Conditional hand retirement lost its actual shield owner");
     if (c->primitive_count && !SotnPrimitiveSlots_Release(slots, c->primitive_count, c->primitives))
         return false;

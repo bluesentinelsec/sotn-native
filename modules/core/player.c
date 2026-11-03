@@ -514,9 +514,11 @@ static bool StartAttack(SotnPlayer *player)
     Uint16 pressed = player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND);
     if (player->shield_cursor.phase != 1 && player->shield_cursor.phase != 2)
     {
-        if (player->equipment[0] == 16 && (player->buttons & SOTN_BUTTON_LEFT_HAND))
+        if (SotnEquipment_IsShield(player->equipment[0]) &&
+            (player->buttons & SOTN_BUTTON_LEFT_HAND))
             pressed |= SOTN_BUTTON_LEFT_HAND;
-        if (player->equipment[1] == 16 && (player->buttons & SOTN_BUTTON_RIGHT_HAND))
+        if (SotnEquipment_IsShield(player->equipment[1]) &&
+            (player->buttons & SOTN_BUTTON_RIGHT_HAND))
             pressed |= SOTN_BUTTON_RIGHT_HAND;
     }
     if (pressed == 0)
@@ -2951,8 +2953,10 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
 {
     if (player == NULL || player->attack_mode != 0)
         return SDL_SetError("Equipment can change only when the player has no active attack");
-    if ((left == 125 || right == 125) && !player->hand_factory)
-        return SDL_SetError("Badelaire equipment requires actual shared hand/property ownership");
+    if ((left == 125 || right == 125 || SotnEquipment_IsBasicShield(left) ||
+         SotnEquipment_IsBasicShield(right)) &&
+        !player->hand_factory)
+        return SDL_SetError("This equipment requires actual shared hand/property ownership");
     if ((left == 84 || right == 84) && left != right)
         return SDL_SetError("Namakura requires its actual paired hand equipment");
     const Uint16 ids[2] = {left, right};
@@ -2967,7 +2971,9 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
             return false;
         const Uint16 strength = player->attributes.total[0];
         power[i] =
-            equipment.id == 16 || equipment.kind == 131 || equipment.kind == 132
+            equipment.id == 16 ||
+                    (SotnEquipment_IsBasicShield(equipment.id) && equipment.attack == 1) ||
+                    equipment.kind == 131 || equipment.kind == 132
                 ? 0
                 : (Uint16)SDL_clamp(equipment.attack +
                                         (equipment.attack <= strength ? strength : strength / 2),

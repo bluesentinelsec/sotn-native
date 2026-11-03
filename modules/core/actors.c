@@ -819,8 +819,17 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SotnCombatEnemy enemy = recipient->enemy;
             if (dragon_helm)
                 enemy.defense /= 2;
-            if (source.attack.equipment == 16)
+            // Original collision.h treats every hitbox-state-4 attacker (ordinary shields) as a
+            // guard: blockable projectiles die without DealDamage; other targets still run
+            // DealDamage, including its critical RNG, before the result is discarded.
+            if (source.attack.hit_type == 4)
             {
+                if (!(actor->state.hitbox_state & 8) && recipient->state.hit_points != 0 &&
+                    recipient->state.hit_points != 0x7fff && source.attack.power &&
+                    !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
+                                                 source.attack.critical_rate, stats, luck, 1,
+                                                 &actors->combat_random, &damage))
+                    return false;
                 actor->hit_flags = 0x10;
                 actor->hit_params = 1;
                 actor->cooldown[hand] = source.attack.invincibility_frames;

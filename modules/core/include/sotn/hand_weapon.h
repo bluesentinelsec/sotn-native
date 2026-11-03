@@ -47,8 +47,12 @@ typedef struct SotnHandWeaponEvents
     Uint8 shield; /**< Zero: no write; one: original unk48=1; two: original unk48=0. */
     bool properties;
 } SotnHandWeaponEvents;
-/** @brief Execute a complete selected ordinary weapon0/2/31/37/43/52 or unarmed255 callback.
- * Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite transforms.
+/** @brief Identify selected ordinary shield9/11/26/52 callbacks, without enabling equipment.
+ * @param family Actual private program identity. @return Whether this callback is reconstructed.
+ * Resource, property, factory, blocking and native presentation ownership remain required. */
+bool SotnHandWeapon_IsShieldFamily(Uint16 family);
+/** @brief Execute a complete selected ordinary weapon0/2/9/11/26/31/37/43/52 or unarmed255
+ * callback. Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite transforms.
  * Private animations remain borrowed. Actual factories, slot16 replacement, weapon properties,
  * groups, optional weapon43 leases, rendering and combat are caller obligations. Outputs and
  * the working RNG/program cursors commit together only on success. No controls are enabled. */

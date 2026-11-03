@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Ordinary weapon/w_000.c, w_002.c, w_031.c, w_037.c, w_043.c, w_052.c and
+// Ordinary weapon/w_000.c, w_002.c, w_009.c, w_011.c, w_026.c, w_031.c,
+// w_037.c, w_043.c, w_052.c and
 // dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // All original animation, hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
@@ -71,20 +72,30 @@ static bool Hitbox(SotnHandWeapon *w, SotnDataView o, Uint32 base, Uint32 props,
     w->frame = packed & 511U;
     return true;
 }
-static bool ShieldFrame(SotnHandWeapon *w, SotnDataView o, Uint16 *time, Uint16 *packed)
+bool SotnHandWeapon_IsShieldFamily(Uint16 family)
+{
+    return family == 9 || family == 11 || family == 26 || family == 52;
+}
+static Uint16 ShieldAnimationTable(Uint16 family)
+{
+    return family == 9 ? 0xa40 : family == 11 ? 0xb94 : family == 26 ? 0xa60 : 0xb84;
+}
+static bool ShieldFrame(SotnHandWeapon *w, SotnDataView o, Uint16 table, Uint16 *time,
+                        Uint16 *packed)
 {
     const Uint8 *p = NULL;
-    if (w->animation >= 14 || w->pose >= 64 || !View(o, 0xb84 + w->animation * 4U, 4, &p) ||
+    if (w->animation >= 14 || w->pose >= 64 || !View(o, table + w->animation * 4U, 4, &p) ||
         !Address(o, 0x8017a000U, Read32(p) + w->pose * 4U, 4, &p))
         return SDL_SetError("Ordinary shield private animation cursor");
     *time = Read16(p);
     *packed = Read16(p + 2);
     return true;
 }
-static bool ShieldAnimation(SotnHandWeapon *w, SotnDataView o)
+static bool ShieldAnimation(SotnHandWeapon *w, SotnDataView o, Uint16 family)
 {
     Uint16 time = 0, packed = 0;
-    if (!ShieldFrame(w, o, &time, &packed))
+    const Uint16 table = ShieldAnimationTable(family);
+    if (!ShieldFrame(w, o, table, &time, &packed))
         return false;
     if (w->remaining != -1)
     {
@@ -93,7 +104,7 @@ static bool ShieldAnimation(SotnHandWeapon *w, SotnDataView o)
         else if (!--w->remaining)
         {
             ++w->pose;
-            if (!ShieldFrame(w, o, &time, &packed))
+            if (!ShieldFrame(w, o, table, &time, &packed))
                 return false;
             if (!time)
                 w->pose = packed;
@@ -109,13 +120,13 @@ static bool ShieldAnimation(SotnHandWeapon *w, SotnDataView o)
             }
             else
                 w->remaining = Word(time);
-            if (!ShieldFrame(w, o, &time, &packed))
+            if (!ShieldFrame(w, o, table, &time, &packed))
                 return false;
             if (!w->remaining)
                 w->remaining = Word(time);
         }
     }
-    return Hitbox(w, o, 0x8017a000U, 0x8017ab3cU, packed);
+    return Hitbox(w, o, 0x8017a000U, 0x8017a000U + table - 0x48U, packed);
 }
 static Uint16 ShieldMovement(Uint16 animation, Uint16 crouch, bool *follow)
 {
@@ -184,8 +195,11 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         e->shield = 1;
         if (!Properties(w, in, random, e))
             return false;
-        program->shield_attack = w->properties.attack;
-        w->properties.attack = 1;
+        if (in.family == 52)
+        {
+            program->shield_attack = w->properties.attack;
+            w->properties.attack = 1;
+        }
         ++w->phase;
         SDL_FALLTHROUGH;
     case 1:
@@ -228,7 +242,7 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         }
         break;
     }
-    if (w->phase != 4 && !ShieldAnimation(w, in.overlay))
+    if (w->phase != 4 && !ShieldAnimation(w, in.overlay, in.family))
         return false;
     // The original assignment also overwrites the earlier phase-four rotate/blink flags.
     Transform(w, in);
@@ -274,15 +288,15 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                          SotnHandWeaponInput in, Uint32 *random, SotnHandWeaponEvents *events)
 {
     if (!out || !program || !random || !events || out->removed || in.hand > 1 ||
-        out->phase > (in.family == 52 ? 4 : 1) ||
+        out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4 : 1) ||
         (in.family != 0 && in.family != 2 && in.family != 31 && in.family != 37 &&
-         in.family != 43 && in.family != 52 && in.family != 255))
+         in.family != 43 && !SotnHandWeapon_IsShieldFamily(in.family) && in.family != 255))
         return SDL_SetError("Ordinary weapon requires a supported live hand/program context");
     SotnHandWeapon w = *out;
     SotnHandWeaponProgram shared = *program;
     SotnHandWeaponEvents e = {0};
     Uint32 rng = *random;
-    if (in.family == 52)
+    if (SotnHandWeapon_IsShieldFamily(in.family))
     {
         if (!Shield(&w, &shared, in, &rng, &e))
             return false;

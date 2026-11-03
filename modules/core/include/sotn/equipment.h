@@ -19,16 +19,22 @@ typedef struct SotnWeaponFrame
     Uint16 width, height, sprite, sound;
 } SotnWeaponFrame;
 
+/** @brief Selected Knight6/AxeLord8/Shaman12 ordinary shield identities with shared owners.
+ * Metadata recognition alone is not a resource/factory/blocking availability gate. */
+bool SotnEquipment_IsBasicShield(Uint16 id);
+/** @brief Selected ordinary shields6/8/12/16 with actual shared callbacks. */
+bool SotnEquipment_IsShield(Uint16 id);
+
 /** @brief Selected weapon0 identities with actual shared callback/stat/palette owners.
  * Namakura requires paired inventory slots; Badelaire requires the actual playtime owner. */
 bool SotnEquipment_IsSword0(Uint16 id);
 
 /** @brief Read a supported hand-item definition, without importing runtime tables.
  * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Basilard (18), the selected
- * twenty one-hand weapon0 swords, Short sword (19), Mace (128), Alucard sword (123), Alucard shield
- * (16), medicines144..162, or Library Card (166), Karma Coin24, Magic Missile25, food29..70,
- * Neutron Bomb71, Power of Sire72 and Pentagrams73/74, stars/TNT75..79 and throwing
- * items80..82/134/135.
+ * weapon0 swords including Namakura/Badelaire, Short sword (19), Mace (128), Alucard sword (123),
+ * Alucard shield (16), Knight6/AxeLord8/Shaman12 ordinary shields, medicines144..162, or Library
+ * Card (166), Karma Coin24, Magic Missile25, food29..70, Neutron Bomb71, Power of Sire72 and
+ * Pentagrams73/74, stars/TNT75..79 and throwing items80..82/134/135.
  * @param out Receives copied metadata, unchanged on failure.
  * @return Success, or false with SDL_GetError() for invalid or unsupported definitions.
  * @note Life Apple146/Hammer147 metadata does not enable equipping or hand use.

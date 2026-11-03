@@ -1,3 +1,13 @@
+Selected [basic shields](docs/player-basic-shields.md) now own Knight6/AxeLord8/
+Shaman12 through actual families9/11/26, shared slot16, private animation/hitbox
+tables, palette copies with the live hand word and native guarding. Only family52
+caches/overrides attack1; basic shields keep hit-state4 attack255 and zero displayed/
+GetProps ATK under buffs/poison. Any hit-state4 guard kills blockable projectiles
+without DealDamage and otherwise rolls DealDamage, then discards it. Shield spells
+and other shield families stay unavailable. No pool/grants/savev9 change; supplied
+stock/protection/position/curse/save fixtures are not acquisition/route/console
+evidence. All six Alucard gates remain open.
+
 Selected [native MainGame tail](docs/main-loop-tail.md) now owns actual global
 map-word advancement and one trailing native libc-adapter call after status time.
 Preserve all paused/frozen/release/FFF/dead/GameOver calls, zero-count Rand, signed

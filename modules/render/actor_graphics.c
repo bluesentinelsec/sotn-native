@@ -5,6 +5,7 @@
 #include <SDL3/SDL_error.h>
 #include <sotn/actor_graphics.h>
 #include <sotn/decompress.h>
+#include <sotn/hand_weapon.h>
 #include <sotn/stage_profile.h>
 
 #define VRAM_WORDS (1024U * 512U)
@@ -368,6 +369,9 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     const Uint32 address = equipment.family == 45   ? 0x8017a370U
                            : equipment.family == 43 ? 0x8017b044U
                            : equipment.family == 37 ? 0x8017a7b8U
+                           : equipment.family == 9  ? 0x8017aab8U
+                           : equipment.family == 11 ? 0x8017ac34U
+                           : equipment.family == 26 ? 0x8017aae4U
                            : equipment.family == 52 ? 0x8017ac1cU
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
@@ -380,12 +384,14 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 15 ? 0x8017a7dcU
                            : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
-    if (equipment.family == 0 && equipment.palette >= 5)
-        return SDL_SetError("Ordinary sword requires an actual bounded weapon0 palette index");
+    if ((equipment.family == 0 && equipment.palette >= 5) ||
+        (SotnHandWeapon_IsShieldFamily(equipment.family) && equipment.palette))
+        return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
-        (equipment.family == 0 || equipment.family == 20 || equipment.family == 22 ||
-                 equipment.family == 21 || equipment.family == 19 || equipment.family == 18 ||
-                 equipment.family == 17 || equipment.family == 16 || equipment.family == 15
+        (SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 0 ||
+                 equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
+                 equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
+                 equipment.family == 16 || equipment.family == 15
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -395,6 +401,26 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  address + (equipment.family == 0 ? equipment.palette * 4U : 0), 4, 4, &pointer) ||
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
+    Uint8 shield_colors[24U * 16U * 2U] = {0};
+    const Uint8 *upload_colors = colors.bytes;
+    if (SotnHandWeapon_IsShieldFamily(equipment.family))
+    {
+        // These original fixed-size copies cross the live program's actual g_HandId word.
+        // Materialize that owned binding in the upload copy, never in immutable program/art.
+        SDL_memcpy(shield_colors, colors.bytes, sizeof(shield_colors));
+        const Uint32 source = Read32(pointer.bytes);
+        const Uint32 hand_word = equipment.family == 9    ? 0x8017aac0U
+                                 : equipment.family == 11 ? 0x8017ac3cU
+                                 : equipment.family == 26 ? 0x8017aaecU
+                                                          : 0x8017ac20U;
+        if (hand_word >= source && hand_word - source <= sizeof(shield_colors) - 4U)
+        {
+            const Uint32 at = hand_word - source;
+            shield_colors[at] = (Uint8)hand;
+            shield_colors[at + 1] = shield_colors[at + 2] = shield_colors[at + 3] = 0;
+        }
+        upload_colors = shield_colors;
+    }
     const size_t pixels = (size_t)equipment.family * 0x7000;
     if (pixels > weapons.size || 0x4000 > weapons.size - pixels)
         return SDL_SetError("Weapon texture is truncated");
@@ -402,7 +428,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     for (Uint32 i = 0; i < color_count; ++i)
     {
         const Uint32 index = 0x1100 + hand * 0x180 + i;
-        Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, colors.bytes + i * 2);
+        Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, upload_colors + i * 2);
     }
     graphics->weapon[hand] = overlay;
     graphics->weapon_family[hand] = equipment.family;
