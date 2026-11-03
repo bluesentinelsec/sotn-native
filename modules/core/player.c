@@ -536,7 +536,7 @@ static bool StartAttack(SotnPlayer *player)
     if (equipment.kind == 132 &&
         (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2))
         return false;
-    if ((equipment.kind == 130) &&
+    if ((equipment.kind == 129 || equipment.kind == 130) &&
         (!player->throwing_factory || !player->throwing_consume || !player->throwing_random ||
          !equipment.chain_limit || player->throwing_count[hand] >= equipment.chain_limit))
         return false;
@@ -587,12 +587,14 @@ static bool StartAttack(SotnPlayer *player)
     if (player->curse_ticks && equipment.id != 0)
     {
         if ((equipment.kind == 132 && player->food_factory) ||
-            ((equipment.kind == 130) && player->throwing_factory))
+            ((equipment.kind == 129 || equipment.kind == 130) && player->throwing_factory))
         {
             const SotnPlayerMedicineFactory factory =
-                (equipment.kind == 130) ? player->throwing_factory : player->food_factory;
-            void *context =
-                (equipment.kind == 130) ? player->throwing_context : player->food_context;
+                (equipment.kind == 129 || equipment.kind == 130) ? player->throwing_factory
+                                                                 : player->food_factory;
+            void *context = (equipment.kind == 129 || equipment.kind == 130)
+                                ? player->throwing_context
+                                : player->food_context;
             bool allocated = false;
             SotnPlayerState captured = {0};
             if (!SotnPlayer_GetState(player, &captured) ||
@@ -626,9 +628,9 @@ static bool StartAttack(SotnPlayer *player)
         }
         return true;
     }
-    if (equipment.kind == 132 || (equipment.kind == 130))
+    if (equipment.kind == 132 || equipment.kind == 129 || equipment.kind == 130)
     {
-        const bool throwing = equipment.kind == 130;
+        const bool throwing = (equipment.kind == 129 || equipment.kind == 130);
         const SotnPlayerMedicineFactory factory =
             throwing ? player->throwing_factory : player->food_factory;
         void *context = throwing ? player->throwing_context : player->food_context;
@@ -639,8 +641,8 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
         bool allocated = false;
-        const Uint32 packed =
-            50U | ((hand + 1U) << 12) | ((Uint32)(equipment.variant + hand * 128U) << 16);
+        const Uint32 packed = (throwing ? equipment.blueprint : 50U) | ((hand + 1U) << 12) |
+                              ((Uint32)(equipment.variant + hand * 128U) << 16);
         if (!factory(context,
                      (SotnPlayerFactorySource){.x = player->x.value,
                                                .y = player->y.value,

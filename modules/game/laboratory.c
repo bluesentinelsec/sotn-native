@@ -710,6 +710,20 @@ static bool EnterActors(SotnLaboratory *session)
     return true;
 }
 
+static bool LoadHandProgram(SotnLaboratory *s, SotnDataView weapons, Uint16 hand,
+                            SotnEquipment equipment)
+{
+    Uint8 family = 255;
+    bool bound = false;
+    if (!SotnActorGraphics_WeaponBinding(s->actor_graphics, hand, &family, &bound) ||
+        !SotnActorGraphics_LoadWeapon(s->actor_graphics, weapons, hand, equipment))
+        return false;
+    // Original LoadWeaponPrg retains an already loaded family and skips FF. A genuine
+    // weapon16 program replacement reloads its zero-initialized BSS, unlike a draw binding.
+    if (equipment.id && equipment.family == 16 && (!bound || family != 16))
+        s->bat_runtime.thrown_fire_counter[hand] = 0;
+    return true;
+}
 static bool ApplyCharacter(SotnLaboratory *session)
 {
     SotnCharacterState state = {0};
@@ -742,7 +756,7 @@ static bool ApplyCharacter(SotnLaboratory *session)
             SotnEquipment equipment = {0};
             if (!SotnEquipment_Read(session->dra, state.equipment[hand], &equipment) ||
                 (equipment.id && equipment.family != 255 &&
-                 !SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment)))
+                 !LoadHandProgram(session, weapons, (Uint16)hand, equipment)))
                 return false;
             session->hands[hand] = state.equipment[hand];
         }
@@ -1048,7 +1062,9 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                             Uint16 item, bool *allocated)
 {
     SotnLaboratory *s = context;
-    return item == 25
+    return item == 80 || item == 81 || item == 82 || item == 134 || item == 135
+               ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
+           : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
@@ -1087,7 +1103,8 @@ static bool BindFood(SotnLaboratory *s)
         // Factory birth already copies the actual item into ext.weapon.equipId (AE),
         // before the later SetWeaponProperties/attack activation callback.
         const Uint16 hand = (c->parameter & 0x8000U) != 0;
-        const Uint16 item = c->magic                    ? c->state.magic.motion.item
+        const Uint16 item = c->thrown                   ? c->state.thrown.item
+                            : c->magic                  ? c->state.magic.motion.item
                             : c->neutron                ? 71
                             : c->sire && !c->sire_child ? 72
                             : c->pentagram              ? c->state.pentagram.item
@@ -1104,10 +1121,13 @@ static bool BindFood(SotnLaboratory *s)
 static bool ApplyMenuCharacter(SotnLaboratory *s)
 {
     SotnCharacterState state = {0};
-    if (!SotnCharacter_Get(s->character, &state, NULL))
+    SotnPlayerState player = {0};
+    if (!SotnCharacter_Get(s->character, &state, NULL) || !SotnPlayer_GetState(s->player, &player))
         return false;
-    const Uint8 hands =
-        (s->hands[0] != state.equipment[0]) | ((s->hands[1] != state.equipment[1]) << 1);
+    const bool armor_program = player.axe_armor.active != (state.equipment[SOTN_EQUIP_ARMOR] == 25);
+    const Uint8 hands = armor_program ? 3
+                                      : (s->hands[0] != state.equipment[0]) |
+                                            ((s->hands[1] != state.equipment[1]) << 1);
     SotnBatRuntime *next = SDL_malloc(sizeof(*next));
     if (!next)
         return SDL_OutOfMemory();
@@ -1117,7 +1137,11 @@ static bool ApplyMenuCharacter(SotnLaboratory *s)
     if (ok)
         s->bat_runtime = *next;
     SDL_free(next);
-    return ok && ApplyCharacter(s);
+    if (!ok || !ApplyCharacter(s))
+        return false;
+    if (armor_program)
+        SDL_zero(s->bat_runtime.thrown_fire_counter);
+    return true;
 }
 static bool CommitMedicine(SotnLaboratory *s)
 {
@@ -1340,6 +1364,8 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                        s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
                        s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
                        s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
+                       s->bat_runtime.children[i].thrown ||
+                       s->bat_runtime.children[i].thrown_particle_parent ||
                        (s->bat_runtime.children[i].kind == 5 &&
                         (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -1348,7 +1374,12 @@ static bool TickBlinks(SotnLaboratory *s, SotnPlayerState player, bool entering)
                         s->bat_runtime.factories[i].cursor.blueprint == 53 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 55 ||
                         s->bat_runtime.factories[i].cursor.blueprint == 50 ||
-                        s->bat_runtime.factories[i].cursor.blueprint == 56);
+                        s->bat_runtime.factories[i].cursor.blueprint == 56 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 62 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 63 ||
+                        s->bat_runtime.factories[i].cursor.blueprint == 68 ||
+                        s->bat_runtime.factories[i].thrown_factory ||
+                        s->bat_runtime.factories[i].thrown_particles);
     for (Uint16 i = 0; i < player.hurt.count; ++i)
         transaction |= (player.hurt.factories[i].blueprint & 0xfffU) == 39;
     if (!transaction)
@@ -2189,6 +2220,8 @@ static bool RetireSharedRoom(SotnLaboratory *s)
                    s->bat_runtime.children[i].kind == 39 || s->bat_runtime.children[i].food ||
                    s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
                    s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
+                   s->bat_runtime.children[i].thrown ||
+                   s->bat_runtime.children[i].thrown_particle_parent ||
                    (s->bat_runtime.children[i].kind == 5 &&
                     (s->bat_runtime.children[i].parameter >> 8) == 12);
     for (Uint16 i = 0; i < SDL_arraysize(s->bat_runtime.factories); ++i)
@@ -2204,8 +2237,8 @@ static bool RetireSharedRoom(SotnLaboratory *s)
         SotnBatRuntime_PruneTeleport(next) && SotnBatRuntime_PruneMedicines(next) &&
         SotnBatRuntime_PruneFood(next) && SotnBatRuntime_PruneNeutron(next) &&
         SotnBatRuntime_PruneSire(next) && SotnBatRuntime_PrunePentagram(next) &&
-        SotnBatRuntime_PruneMagicMissile(next) && SotnBatRuntime_PruneRoomFactories(next) &&
-        SotnActors_CommitBatPrimitives(s->actors, next);
+        SotnBatRuntime_PruneMagicMissile(next) && SotnBatRuntime_PruneThrown(next) &&
+        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -2652,7 +2685,7 @@ bool SotnLaboratory_SetEquipment(SotnLaboratory *session, Uint16 left, Uint16 ri
         !SotnPlayer_SetEquipment(session->player, weapons, left, right))
         return false;
     for (Uint32 hand = 0; hand < 2; ++hand)
-        if (!SotnActorGraphics_LoadWeapon(session->actor_graphics, weapons, hand, equipment[hand]))
+        if (!LoadHandProgram(session, weapons, (Uint16)hand, equipment[hand]))
             return false;
     session->hands[0] = left;
     session->hands[1] = right;
@@ -3825,6 +3858,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_MAGIC_MISSILE}))
                 return false;
+            if (child->thrown && child->initialized && child->state.thrown.motion.frame &&
+                child->state.thrown.motion.bank &&
+                !((child->state.thrown.motion.draw_flags & 0x80U) &&
+                  (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                    &draw_count,
+                                    (SotnActorDraw){.priority = child->source.priority,
+                                                    .primitive = owner,
+                                                    .kind = SOTN_DRAW_THROWN}))
+                return false;
             if (child->food && child->initialized && child->state.food.frame &&
                 !((child->state.food.draw_flags & 0x80U) &&
                   (((owner + 16U) ^ session->system_timer) & 1U)) &&
@@ -3834,7 +3877,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .primitive = owner,
                                                     .kind = SOTN_DRAW_FOOD}))
                 return false;
-            if (!child->food && !child->sire && !child->magic && child->initialized &&
+            if (!child->food && !child->sire && !child->magic && !child->thrown &&
+                child->initialized &&
                 (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
                  child->kind == 0xf2) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -4646,6 +4690,37 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                           .executable = session->executable,
                                           .sdk_rotation = true,
                                           .opacity = (n->draw_flags & 8U) ? n->opacity : 128},
+                    session->draw_target.surface) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_THROWN)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            const SotnThrownWeapon *m = &c->state.thrown.motion;
+            if (!c->thrown || !c->initialized || !m->bank ||
+                !SotnBatRuntime_ThrownValid(c, command.primitive))
+                return SDL_SetError("Weapon16 draw lost its actual callback/row/parent ownership");
+            const Uint16 bank =
+                m->bank == 0x8010 || m->bank == 0x8012 ? (Uint16)(m->bank & 0x7fffU) : m->bank;
+            if (!SotnActorGraphics_DrawSurface(
+                    session->actor_graphics,
+                    (SotnActorSprite){.animation_set = bank,
+                                      .frame = m->frame,
+                                      .palette = m->palette,
+                                      .texture_offset = m->texture,
+                                      .blend_mode = m->blend,
+                                      .facing_left = m->facing_left},
+                    Pixel(c->source.x) - view_x + session->draw_target.offset_x + session->shake.x,
+                    Pixel(c->source.y) - view_y + session->draw_target.offset_y + session->shake.y,
+                    (SotnSpriteTransform){.scale_x = 256,
+                                          .scale_y = 256,
+                                          .rotation = m->draw_flags & 4U ? m->rotation : 0,
+                                          .opacity = m->draw_flags & 8U ? m->opacity : 128,
+                                          .executable = session->executable,
+                                          .sdk_rotation = true},
                     session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))

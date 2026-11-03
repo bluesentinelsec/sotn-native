@@ -1,3 +1,23 @@
+Selected [weapon16 throwing items](docs/player-thrown-weapons.md) now owns actual
+80/81/82/134/135 menu/hand use, stock/Duplicator, shared roots/children/leases,
+private sprites/animation and native physical combat. Preserve actual kinds129/130,
+blueprints50/62/68/63 and chain3/3/2/3/4 before curse, player-success cost/grunt,
+conditional shield/word10=4, knife allocation before properties and next-pass
+trails58 in32..63/fire110 in25..31/common4-profile11 in32..63. Fire smoke changes
+factory entityId EF/FF only. Preserve raw-parent fields without generation equality,
+actual Wolf bank/body rotation/zero selfVX, private SDK/wrap/collision query order,
+all24 eight-Iron impact requests and profile9 dust. Actual per-hand weapon16 BSS
+holds through same-family menus/room cleanup; real program/Axe Armor/full-stage/
+Continue reloads reset it, never save or transfer it. Menus/draws/spirit freeze hold
+throwing/flame/profile11 owners; common smoke keeps its own original freeze flag.
+Room cleanup precedes new allocation and retires projectiles/profile11/profile9
+without a tick. Preserve real cull/Blink and native late-failure runtime/BSS/row/RNG
+rollback. No new pool/grants/savev9 changes. Supplied inventory/equipment/relic/
+protection/arrival/position/collision/failure/in-memory-save contexts and component
+adapters are not acquisition/routes/whole-pass/global-sharing/console evidence.
+US wet-smoke remains unsupported. All six Alucard gates and cold New Game/prologue
+remain open; ordinary Fairy UI stays disabled.
+
 Selected [cold title/Continue](docs/cold-start.md) now owns actual resident/SEL/title
 startup before any character,17 real SEL SPRTs, private512x240/4:3 rendering,
 four resident SPU banks/reverb and the explicit native filesystem Continue adapter.

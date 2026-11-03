@@ -32,6 +32,7 @@
 #include <sotn/sword_warp.h>
 #include <sotn/talisman_effect.h>
 #include <sotn/teleport_effect.h>
+#include <sotn/thrown_weapon.h>
 #include <sotn/thunder_hit.h>
 
 enum
@@ -63,8 +64,16 @@ typedef struct SotnBatRuntimeChild
     Uint16 particle_parent_slot;
     Uint16 kind, parameter;
     Uint8 group;
-    bool initialized, food, neutron, sire, sire_child, pentagram, magic;
+    bool initialized, food, neutron, sire, sire_child, pentagram, magic, thrown,
+        thrown_particle_parent;
     union {
+        struct
+        {
+            SotnThrownWeapon motion;
+            SotnThrownAnimation animation;
+            SotnPlayerAttack attack;
+            Uint16 item, parent_slot;
+        } thrown;
         SotnHellfireBeam hellfire_beam;
         SotnHellfireEffect hellfire_effect;
         struct
@@ -177,15 +186,16 @@ typedef struct SotnBatRuntime
         SotnPlayerFactory cursor;
         Uint32 bat_generation, sword_parent;
         Uint32 fire_parent;
-        Uint16 fire_parent_slot, sire_parent_slot, magic_parent_slot;
-        bool sire_factory, magic_factory;
+        Uint16 fire_parent_slot, sire_parent_slot, magic_parent_slot, thrown_parent_slot;
+        bool sire_factory, magic_factory, thrown_factory, thrown_particles;
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
     SotnPentagramShared pentagram[2]; /**< Original weapon17 BSS, one actual program per hand. */
-    Uint32 dark_blend_phase;     /**< Actual DRA global, retained through session replacement. */
-    SotnHolyHitShared holy;      /**< Actual shared entity47 points, not one copy per child. */
-    SotnTeleportShared teleport; /**< Actual shared entity65 points, never a new particle pool. */
+    Uint32 thrown_fire_counter[2]; /**< Actual weapon16 BSS; reset only with program replacement. */
+    Uint32 dark_blend_phase;       /**< Actual DRA global, retained through session replacement. */
+    SotnHolyHitShared holy;        /**< Actual shared entity47 points, not one copy per child. */
+    SotnTeleportShared teleport;   /**< Actual shared entity65 points, never a new particle pool. */
     Uint16 teleport_palette;
     Uint8 teleport_warp_mode;
     bool teleport_acknowledged;
@@ -212,7 +222,7 @@ typedef struct SotnBatRuntime
     Uint32 serial;
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
-    Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask;
+    Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask;
     bool magic_clear_shield; /**< Conditional weapon16 shield retirement, committed by its owner. */
     Uint16 hellfire_signal, hellfire_palette;
     bool hellfire_upload; /**< One-update private-gradient upload intent, not completed pixels. */
@@ -224,8 +234,8 @@ typedef struct SotnBatRuntime
     Uint16 capture_count, freeze;
     bool freeze_changed; /**< Actual child request this tick, never capture/factory readiness. */
     Uint16 sounds[48], sound_count;
-    Uint8 wolf_shakes[8], wolf_shake_count;
-    Uint8 use_ticks;       /**< Original timer10: selected Bat Fire birth. */
+    Uint8 wolf_shakes[32], wolf_shake_count; /**< Includes up to24 actual Iron-ball impact calls. */
+    Uint8 use_ticks;                         /**< Original timer10: selected Bat Fire birth. */
     Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births. */
     Uint8 groups[11];
     bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
@@ -283,6 +293,13 @@ bool SotnBatRuntime_PrunePentagram(SotnBatRuntime *);
 bool SotnBatRuntime_MagicMissileValid(const SotnBatRuntimeChild *, Uint16 index);
 /** @brief Retire actual weapon22 room-local children without callbacks, RNG or another pool. */
 bool SotnBatRuntime_PruneMagicMissile(SotnBatRuntime *);
+/** @brief Actual weapon16 role/item/row/parent validation, shared by update and stage commit. */
+bool SotnBatRuntime_ThrownValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Retire real room-local weapon16 children/rows without advancing callbacks or BSS. */
+bool SotnBatRuntime_PruneThrown(SotnBatRuntime *);
+/** @brief Reserve original50/62/63/68 roots for the five actual owned weapon16 items. */
+bool SotnBatRuntime_RequestThrown(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
+                                  Uint16 item, bool *allocated);
 /** @brief Reserve actual weapon22/item25 root50 in the existing eight factory slots.
  * Inventory and player-success commitment belong to the bound native hand owner. */
 bool SotnBatRuntime_RequestMagicMissile(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
@@ -324,7 +341,7 @@ typedef struct SotnBatRuntimeInput
         weapon_family[2]; /**< Actual resident program identity, retained after last consumption. */
     bool weapon_bound[2]; /**< False only for component callers without a native program owner. */
     const SotnFoodTextPlan *food_text;
-    SotnCollisionMap food_collision; /**< Actual current room collision for weapon21. */
+    SotnCollisionMap food_collision; /**< Actual current room collision for weapon21/16. */
     SotnPlayerState player;
     SotnPlayerImage image;
     SotnPlayerImage talisman_image;    /**< Actual private normal frame9F. */

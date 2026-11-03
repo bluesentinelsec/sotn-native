@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7879C.c:EntitySmokePuff profiles0/1/3/4/5/6/7/8/10 and alu_anim.c:UpdateAnim,
+// Selected dra/7879C.c:EntitySmokePuff profiles0/1/3/4/5/6/7/8/9/10 and alu_anim.c:UpdateAnim,
 // sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Tables stay private.
 #include <SDL3/SDL_error.h>
 #include <sotn/collision.h>
@@ -60,11 +60,11 @@ bool SotnPlayerSmoke_TickShared(SotnPlayerSmoke *smoke, SotnDataView dra,
                                 const SotnPlayerSmokeEnvironment *environment, Uint32 *random)
 {
     const Uint16 high = parameter >> 8, low = parameter & 255U;
-    const bool wall = high == 4 || high == 8, scattered = high == 3 || high == 7;
+    const bool wall = high == 4 || high == 8, scattered = high == 3 || high == 7 || high == 9;
     if (!smoke || smoke->phase > 1 || smoke->pose >= 24 || smoke->remaining < -1 ||
         smoke->removed || priority > 509 ||
         (high != 0 && high != 1 && high != 3 && high != 4 && high != 5 && high != 6 && high != 7 &&
-         high != 8 && high != 10) ||
+         high != 8 && high != 9 && high != 10) ||
         (!scattered && low > 5) || (high == 5 && low > 2) || (high == 8 && low > 3) || !dra.bytes ||
         dra.size < (wall ? (high == 4 ? 0xd5eeU : 0xd5faU) : 0xd5e0U))
         return SDL_SetError(
@@ -88,10 +88,15 @@ bool SotnPlayerSmoke_TickShared(SotnPlayerSmoke *smoke, SotnDataView dra,
         Sint32 offset;
         if (scattered)
         {
-            offset =
-                (Sint32)(SotnCombat_Random(&rng) % (high == 3 ? 30U : 60U)) - (high == 3 ? 14 : 30);
+            offset = (Sint32)(SotnCombat_Random(&rng) % (high == 3   ? 30U
+                                                         : high == 9 ? 16U
+                                                                     : 60U)) -
+                     (high == 3   ? 14
+                      : high == 9 ? 8
+                                  : 30);
             selected = (Uint16)((SotnCombat_Random(&rng) & 3U) + 2U);
-            source.y = Fixed((Uint32)source.y - (SotnCombat_Random(&rng) % 4U) * 65536U);
+            source.y = Fixed((Uint32)source.y -
+                             ((high == 9 ? 20U : 0U) + SotnCombat_Random(&rng) % 4U) * 65536U);
         }
         else
             offset = walking ? -6 : Word(Read16(dra.bytes + 0xd54c + low * 2U)) + (slide ? -8 : 6);

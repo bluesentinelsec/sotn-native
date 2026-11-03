@@ -9,6 +9,7 @@ typedef struct SotnEquipment
     Uint16 id, element, stun, hit_type, hit_effect, critical_rate;
     Sint16 attack;
     Uint8 family, palette, kind, animation, variant, lock, invincibility, chain_limit;
+    Uint16 blueprint; /**< Actual copied factory identity; avoids implicit byte-tail padding. */
 } SotnEquipment;
 
 /** @brief Resolved frame of the original player-locked weapon entity. */
@@ -31,7 +32,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out);
 /** @brief Read original weapon21 food29..70 metadata for the actual shared hand owner.
  * Raw food ATK is healing, never strength/poison-scaled weapon damage. */
 bool SotnEquipment_ReadFood(SotnDataView dra, Uint16 id, SotnEquipment *out);
-/** @brief Original owned weapon22/item25 and weapon17/18/19 item71..74 metadata. */
+/** @brief Original weapon22/item25, weapon17/18/19 item71..74 and weapon16 five-item metadata. */
 bool SotnEquipment_ReadThrowing(SotnDataView dra, Uint16 item, SotnEquipment *out);
 /** @brief Read private weapon22/item25 metadata for the bound native bow/arrow owner. */
 bool SotnEquipment_ReadMagicMissile(SotnDataView dra, SotnEquipment *out);

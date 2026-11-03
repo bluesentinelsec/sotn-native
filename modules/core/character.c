@@ -97,8 +97,9 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                      .palette = Read16(p + (body ? 26 : 46)),
                      .supported = body ? BodySupported(id)
                                        : (id == 0 || id == 16 || id == 18 || id == 19 || id == 25 ||
-                                          id == 86 || id == 123 || id == 128 || id == 166 ||
-                                          (id >= 29 && id <= 74) ||
+                                          id == 80 || id == 81 || id == 82 || id == 134 ||
+                                          id == 135 || id == 86 || id == 123 || id == 128 ||
+                                          id == 166 || (id >= 29 && id <= 74) ||
                                           (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
@@ -352,11 +353,12 @@ bool SotnCharacter_NeutronProperties(const SotnCharacter *c, bool poison, Uint32
 bool SotnCharacter_MagicMissileProperties(const SotnCharacter *c, Uint16 item, bool poison,
                                           Uint32 *random, SotnEquipment *out)
 {
-    if (!c || (item != 0 && item != 25))
+    if (!c || (item != 0 && item != 25 && item != 80 && item != 81 && item != 82 && item != 134 &&
+               item != 135))
         return SDL_SetError("Magic Missile properties require an actual supported raw parent item");
     SotnEquipment e = {0};
-    return (item == 25 ? SotnEquipment_ReadMagicMissile(c->dra, &e)
-                       : SotnEquipment_Read(c->dra, 0, &e)) &&
+    return (item != 0 ? SotnEquipment_ReadThrowing(c->dra, item, &e)
+                      : SotnEquipment_Read(c->dra, 0, &e)) &&
            RetainedWeaponProperties(c, e, poison, random, out);
 }
 bool SotnCharacter_SireProperties(const SotnCharacter *c, bool poison, Uint32 *random,
@@ -668,7 +670,8 @@ static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16
 {
     if (!c || hand > 1 || !equipped || c->state.equipment[hand] != item ||
         (kind == 132   ? item < 29 || item > 70
-         : kind == 130 ? item != 25 && (item < 71 || item > 74)
+         : kind == 130 ? item != 25 && item != 80 && item != 81 && item != 82 && item != 134 &&
+                             item != 135 && (item < 71 || item > 74)
                        : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
         return SDL_SetError("Consumption requires its actual supported equipped hand item");
     SotnEquipment medicine = {0};

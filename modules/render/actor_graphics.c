@@ -375,10 +375,11 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 17 ? 0x8017a3a0U
                            : equipment.family == 18 ? 0x8017a730U
                            : equipment.family == 19 ? 0x8017a548U
+                           : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
     const Uint32 color_count =
         (equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
-                 equipment.family == 18 || equipment.family == 17
+                 equipment.family == 18 || equipment.family == 17 || equipment.family == 16
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U

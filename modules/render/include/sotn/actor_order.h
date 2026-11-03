@@ -41,7 +41,8 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_NEUTRON,        /**< Actual weapon19 child index1..15. */
     SOTN_DRAW_SIRE,           /**< Actual weapon18 parent/burst child index1..15. */
     SOTN_DRAW_PENTAGRAM,      /**< Actual weapon17 child index1..15 and row0..24. */
-    SOTN_DRAW_MAGIC_MISSILE   /**< Actual rowless weapon22 bow/arrow child index1..15. */
+    SOTN_DRAW_MAGIC_MISSILE,  /**< Actual rowless weapon22 bow/arrow child index1..15. */
+    SOTN_DRAW_THROWN          /**< Actual weapon16 root/trail/fire child index1..47. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

@@ -27,7 +27,8 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
-    if (id == 25 || (id >= 71 && id <= 74))
+    if (id == 25 || (id >= 71 && id <= 74) || id == 80 || id == 81 || id == 82 || id == 134 ||
+        id == 135)
         return SotnEquipment_ReadThrowing(dra, id, out);
     if (id >= 29 && id <= 70)
         return SotnEquipment_ReadFood(dra, id, out);
@@ -102,24 +103,33 @@ bool SotnEquipment_ReadFood(SotnDataView dra, Uint16 id, SotnEquipment *out)
 static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out)
 {
     const bool magic = item == 25;
+    const bool thrown = item == 80 || item == 81 || item == 82 || item == 134 || item == 135;
     const Uint8 *pointer = NULL, *p = NULL;
-    if (!out || (!magic && (item < 71 || item > 74)))
-        return SDL_SetError("Throwing definition requires original item25/71..74");
+    if (!out || (!magic && !thrown && (item < 71 || item > 74)))
+        return SDL_SetError("Throwing definition requires an actual supported original item");
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
         !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)item * 52U, 50, &p))
         return false;
-    if (p[14] != (magic ? 8 : 7) ||
-        p[15] != (magic        ? 22
+    const Uint8 blueprint = item == 81 || item == 134 ? 62
+                            : item == 82              ? 68
+                            : item == 135             ? 63
+                                                      : 50;
+    const Uint8 chain = thrown ? item == 82 ? 2 : item == 135 ? 4 : 3 : magic ? 4 : 1;
+    if (p[14] != (magic || thrown ? 8 : 7) ||
+        p[15] != (thrown       ? 16
+                  : magic      ? 22
                   : item == 71 ? 19
                   : item == 72 ? 18
                                : 17) ||
-        p[16] || p[17] != 130 || p[18] != 0x60 || p[19] != 50 || p[20] != (item == 74 ? 1 : 0) ||
-        p[21] || p[22] != (magic ? 4 : 1) || p[23] || p[24] || p[25] != 1 || Read16(p + 36) ||
-        Read16(p + 8) > 999 || Read16(p + 40) != (magic ? 2 : 0x82))
+        p[16] || p[17] != (thrown && item != 80 ? 129 : 130) || p[18] != (thrown ? 0x5d : 0x60) ||
+        p[19] != blueprint || p[20] != (item == 74 || item == 134 ? 1 : 0) || p[21] ||
+        p[22] != chain || p[23] || p[24] || p[25] != 1 || Read16(p + 36) || Read16(p + 8) > 999 ||
+        Read16(p + 40) != (magic || thrown ? 2 : 0x82))
         return SDL_SetError("Throwing definition does not match its original owned weapon path");
     *out = (SotnEquipment){.id = item,
                            .family = p[15],
-                           .kind = 130,
+                           .kind = p[17],
+                           .blueprint = p[19],
                            .animation = p[18],
                            .variant = p[20],
                            .attack = (Sint16)Read16(p + 8),
@@ -135,8 +145,6 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
 
 bool SotnEquipment_ReadThrowing(SotnDataView dra, Uint16 item, SotnEquipment *out)
 {
-    if (item != 25 && (item < 71 || item > 74))
-        return SDL_SetError("Throwing metadata requires owned item25/71..74");
     return ThrowingDefinition(dra, item, out);
 }
 
@@ -169,9 +177,13 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
 {
     if (out == NULL ||
         (equipment.id != 16 && equipment.id != 18 && equipment.id != 19 && equipment.id != 25 &&
-         equipment.id != 86 && equipment.id != 123 && equipment.id != 197 && equipment.id != 216 &&
-         equipment.id != 128 && (equipment.id < 29 || equipment.id > 74)) ||
-        equipment.family != (equipment.id == 25                           ? 22
+         equipment.id != 80 && equipment.id != 81 && equipment.id != 82 && equipment.id != 134 &&
+         equipment.id != 135 && equipment.id != 86 && equipment.id != 123 && equipment.id != 197 &&
+         equipment.id != 216 && equipment.id != 128 && (equipment.id < 29 || equipment.id > 74)) ||
+        equipment.family != (equipment.id == 80 || equipment.id == 81 || equipment.id == 82 ||
+                                     equipment.id == 134 || equipment.id == 135
+                                 ? 16
+                             : equipment.id == 25                         ? 22
                              : equipment.id == 86                         ? 0
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
