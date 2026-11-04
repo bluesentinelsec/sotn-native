@@ -28,8 +28,8 @@ Selected [basic shields](player-basic-shields.md) add Knight6, Axe Lord8 and Sha
 through the same owner; their shield spells and other shield families stay unavailable.
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
 special-bearing Iron Fist and Fist of Tulkas stay unavailable.
-Selected [Morningstar/Mablung/Takemitsu](player-plain-weapons.md) add three special-free
-weapons; Takemitsu uses the same paired two-hand reservation as Namakura.
+Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,
+Nunchaku and Red Rust; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;

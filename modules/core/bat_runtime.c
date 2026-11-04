@@ -856,6 +856,8 @@ static Uint16 HandFamily(Uint16 item)
            : SotnEquipment_IsSword0(item) ? 0
            : item == 85 || item == 97     ? 1
            : item == 129                  ? 3
+           : item == 21                   ? 33
+           : item == 26                   ? 35
            : item == 27                   ? 36
            : item == 124                  ? 57
            : item == 123                  ? 43
@@ -3246,6 +3248,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return SDL_SetError("Ordinary weapon37 secondary has no actual native owner");
             if (events.sound && !Sound(&r, events.sound))
                 return false;
+            for (Uint16 j = 0; j < SDL_arraysize(events.extra_sounds); ++j)
+                if (events.extra_sounds[j] && !Sound(&r, events.extra_sounds[j]))
+                    return false;
             c->source.x = w->x;
             c->source.y = w->y;
             c->source.facing_left = w->facing_left;

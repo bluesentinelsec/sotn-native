@@ -508,6 +508,29 @@ static bool ReserveHand(SotnPlayer *player, SotnEquipment equipment, Uint32 hand
     return allocated;
 }
 
+// 6E42C.c block_70: the shared curse and Red Rust failure animation/lock/voice.
+static void HandFailure(SotnPlayer *player)
+{
+    ClearAttack(player);
+    player->curse_failure = true;
+    player->attack_mode = 0x8012;
+    player->attack_lock = 255;
+    player->substep = 0x51;
+    player->sound = 0x6e7;
+    if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
+    {
+        player->step = SOTN_PLAYER_STAND;
+        Animate(player, 0xb5);
+    }
+    else if (player->step == SOTN_PLAYER_CROUCH)
+        Animate(player, 0xb6);
+    else
+    {
+        player->step = SOTN_PLAYER_JUMP;
+        Animate(player, 0xb7);
+    }
+}
+
 // Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
 static bool StartAttack(SotnPlayer *player)
 {
@@ -637,24 +660,7 @@ static bool StartAttack(SotnPlayer *player)
                 return true;
             }
         }
-        ClearAttack(player);
-        player->curse_failure = true;
-        player->attack_mode = 0x8012;
-        player->attack_lock = 255;
-        player->substep = 0x51;
-        player->sound = 0x6e7;
-        if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
-        {
-            player->step = SOTN_PLAYER_STAND;
-            Animate(player, 0xb5);
-        }
-        else if (player->step == SOTN_PLAYER_CROUCH)
-            Animate(player, 0xb6);
-        else
-        {
-            player->step = SOTN_PLAYER_JUMP;
-            Animate(player, 0xb7);
-        }
+        HandFailure(player);
         return true;
     }
     if (equipment.kind == 132 || equipment.kind == 129 || equipment.kind == 130)
@@ -778,6 +784,21 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (!ReserveHand(player, equipment, hand))
         return player->failed;
+    // Red Rust (kind13) rolls once after its actual hand factory; rand()&7 == 0 fails.
+    if (player->hand_factory && equipment.kind == 13)
+    {
+        Uint16 roll = 0;
+        if (!player->hand_random(player->hand_context, &roll))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (!(roll & 7U))
+        {
+            HandFailure(player);
+            return true;
+        }
+    }
     if (player->hand_factory)
     {
         Uint16 random = 0;

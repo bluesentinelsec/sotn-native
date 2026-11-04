@@ -215,7 +215,11 @@ static bool BasicShields(void)
         }
     return true;
 }
-// Weapon3/36/57 run w_002's callback from their own descriptors and add additive blending.
+static Uint16 Read16Test(const Uint8 *p)
+{
+    return (Uint16)(p[0] | (Uint16)p[1] << 8);
+}
+// Weapon3/33/35/36/57 run w_002's callback from their own descriptors; blends differ.
 static bool PlainWeapons(void)
 {
     static Uint8 o[0x1200];
@@ -223,8 +227,10 @@ static bool PlainWeapons(void)
     SDL_memcpy(o + 0xc28, o + 0x106c, 16);
     SDL_memcpy(o + 0x540, o + 0x106c, 16);
     SDL_memcpy(o + 0x109c, o + 0x106c, 16);
+    SDL_memcpy(o + 0xc3c, o + 0x106c, 16);
+    SDL_memcpy(o + 0x530, o + 0x106c, 16);
     Put16(o + 0xc28 + 8, 5);
-    const Uint16 families[] = {3, 36, 57, 2}, variants[] = {0, 0, 3, 0};
+    const Uint16 families[] = {3, 36, 57, 2, 33, 35}, variants[] = {0, 0, 3, 0, 0, 0};
     for (Uint16 k = 0; k < SDL_arraysize(families); ++k)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -245,10 +251,21 @@ static bool PlainWeapons(void)
             Uint32 rng = 21, expected = 21;
             (void)SotnCombat_Random(&expected);
             CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected &&
-                  e.properties && w.blend == (families[k] == 2 ? 0 : 0x30) &&
-                  w.bank == 0x8010U + hand * 2U && w.priority == 98 &&
+                  e.properties &&
+                  w.blend == (families[k] == 2 || families[k] == 33 ? 0
+                              : families[k] == 35                   ? 0x10
+                                                                    : 0x30) &&
+                  !e.extra_sounds[0] && !e.extra_sounds[1] && w.bank == 0x8010U + hand * 2U &&
+                  w.priority == 98 &&
                   w.palette == 0x110U + hand * 24U + (families[k] == 3 ? 5U : 0U) &&
                   program.short_pose == 4 && program.shield_attack == 9);
+            // Nunchaku repeats its descriptor swing and adds SWISH_B at pose12 (timer1).
+            in.pose = 12;
+            SotnHandWeaponEvents swing = {0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &swing) &&
+                  swing.extra_sounds[0] == (families[k] == 33 ? Read16Test(o + 0x106c + 10) : 0) &&
+                  swing.extra_sounds[1] == (families[k] == 33 ? 0x60b : 0));
+            in.pose = 4;
             // Single-descriptor programs reject any other variant before mutation.
             if (families[k] != 57)
             {

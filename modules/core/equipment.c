@@ -29,13 +29,36 @@ bool SotnEquipment_IsBasicShield(Uint16 id)
 {
     return id == 6 || id == 8 || id == 12;
 }
+// Actual US definition bytes for the selected w_002-template programs.
+typedef struct PlainSpec
+{
+    Uint8 category, family, kind, animation;
+} PlainSpec;
+static PlainSpec PlainWeapon(Uint16 id)
+{
+    switch (id)
+    {
+    case 21: // Nunchaku
+        return (PlainSpec){5, 33, 11, 0x8b};
+    case 26: // Red Rust
+        return (PlainSpec){5, 35, 13, 0x99};
+    case 27: // Takemitsu
+        return (PlainSpec){5, 36, 14, 0xa0};
+    case 124: // Mablung
+        return (PlainSpec){1, 57, 1, 0x41};
+    case 129: // Morningstar
+        return (PlainSpec){4, 3, 2, 0x48};
+    default:
+        return (PlainSpec){0};
+    }
+}
 bool SotnEquipment_IsPlainWeapon(Uint16 id)
 {
-    return id == 27 || id == 124 || id == 129;
+    return PlainWeapon(id).family != 0;
 }
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
-    return id == 27 || id == 84;
+    return id == 21 || id == 26 || id == 27 || id == 84;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {
@@ -69,6 +92,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
     const Uint8 shield_family = id == 6 ? 9 : id == 8 ? 11 : 26;
     const bool fist = SotnEquipment_IsBasicFist(id);
     const bool plain = SotnEquipment_IsPlainWeapon(id);
+    const PlainSpec spec = PlainWeapon(id);
     const Uint16 sword_variant = sword0      ? (id == 125   ? 3
                                                 : id >= 116 ? 2
                                                 : id >= 104 ? 1
@@ -90,19 +114,9 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (fist && (record[14] != 3 || record[15] != 1 || record[17] != 0 || record[18] != 0x24 ||
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
-        (plain && (record[14] != (id == 27    ? 5
-                                  : id == 124 ? 1
-                                              : 4) ||
-                   record[15] != (id == 27    ? 36
-                                  : id == 124 ? 57
-                                              : 3) ||
-                   record[17] != (id == 27    ? 14
-                                  : id == 124 ? 1
-                                              : 2) ||
-                   record[18] != (id == 27    ? 0xa0
-                                  : id == 124 ? 0x41
-                                              : 0x48) ||
-                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
+        (plain && (record[14] != spec.category || record[15] != spec.family ||
+                   record[17] != spec.kind || record[18] != spec.animation || record[19] != 48 ||
+                   record[22] != 128 || record[23] || record[24])) ||
         (basic_shield && (record[14] != 9 || record[15] != shield_family || record[17] != 128 ||
                           record[18] != 0x63 || record[19] != 48 || record[21] ||
                           record[22] != 128 || record[23] || record[24])) ||
@@ -266,12 +280,11 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
                              : equipment.id == 80 || equipment.id == 81 || equipment.id == 82 ||
                                      equipment.id == 134 || equipment.id == 135
                                  ? 16
-                             : equipment.id == 25                         ? 22
-                             : SotnEquipment_IsSword0(equipment.id)       ? 0
-                             : SotnEquipment_IsBasicFist(equipment.id)    ? 1
-                             : equipment.id == 27                         ? 36
-                             : equipment.id == 124                        ? 57
-                             : equipment.id == 129                        ? 3
+                             : equipment.id == 25                      ? 22
+                             : SotnEquipment_IsSword0(equipment.id)    ? 0
+                             : SotnEquipment_IsBasicFist(equipment.id) ? 1
+                             : SotnEquipment_IsPlainWeapon(equipment.id)
+                                 ? PlainWeapon(equipment.id).family
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
                              : equipment.id == 123 || equipment.id == 197 ? 43

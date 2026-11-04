@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_009.c, w_011.c, w_026.c, w_031.c,
-// w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
+// w_033.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
 // dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // All original animation, hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
@@ -375,14 +375,34 @@ static void Tiles(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *random)
             q->draw_mode |= 8U;
     }
 }
+// Reconstructed ordinary callbacks; shields and unarmed255 are included.
+static bool OrdinaryFamily(Uint16 family)
+{
+    switch (family)
+    {
+    case 0:
+    case 1:
+    case 2:
+    case 3:
+    case 31:
+    case 33:
+    case 35:
+    case 36:
+    case 37:
+    case 43:
+    case 57:
+    case 255:
+        return true;
+    default:
+        return SotnHandWeapon_IsShieldFamily(family);
+    }
+}
 bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                          SotnHandWeaponInput in, Uint32 *random, SotnHandWeaponEvents *events)
 {
     if (!out || !program || !random || !events || out->removed || in.hand > 1 ||
         out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4 : 1) ||
-        (in.family != 0 && in.family != 1 && in.family != 2 && in.family != 3 && in.family != 31 &&
-         in.family != 36 && in.family != 37 && in.family != 43 && in.family != 57 &&
-         !SotnHandWeapon_IsShieldFamily(in.family) && in.family != 255))
+        !OrdinaryFamily(in.family))
         return SDL_SetError("Ordinary weapon requires a supported live hand/program context");
     SotnHandWeapon w = *out;
     SotnHandWeaponProgram shared = *program;
@@ -409,6 +429,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 0  ? 0x106cU
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
+                                  : in.family == 33 ? 0xc3cU
+                                  : in.family == 35 ? 0x530U
                                   : in.family == 36 ? 0x540U
                                   : in.family == 57 ? 0x106cU
                                   : in.family == 2  ? 0xbc4U
@@ -442,6 +464,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 if (in.family == 0 || in.family == 3 || in.family == 36 || in.family == 43 ||
                     in.family == 57)
                     w.blend = 0x30;
+                else if (in.family == 35)
+                    w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
                 if (in.family == 43 && in.allocated)
                 {
                     w.allocated = true;
@@ -473,6 +497,12 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
             w.animation = (Uint16)(in.animation - d[12]);
             if (in.remaining == 1 && in.pose == d[13])
                 e.sound = Read16(d + 10);
+            // w_033 Nunchaku repeats its swing and adds SFX_WEAPON_SWISH_B at pose12.
+            if (in.family == 33 && in.remaining == 1 && in.pose == 12)
+            {
+                e.extra_sounds[0] = Read16(d + 10);
+                e.extra_sounds[1] = 0x60b;
+            }
             if (in.pose >= 64 || !Address(in.overlay, base, Read32(d) + w.animation * 4U, 4, &p) ||
                 !Address(in.overlay, base, Read32(p) + in.pose * 2U, 2, &p))
                 return SDL_SetError("Ordinary weapon private player-frame bounds");
