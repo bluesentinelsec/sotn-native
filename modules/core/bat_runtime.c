@@ -864,6 +864,8 @@ static Uint16 HandFamily(Uint16 item)
            : item == 131 || item == 171   ? 5
            : item == 121 || item == 195   ? 54
            : item == 115 || item == 196   ? 55
+           : item == 23 || item == 191    ? 38
+           : item == 22 || item == 190    ? 39
            : item == 20 || item == 175    ? 32
            : item == 127                  ? 51
            : item == 21                   ? 33
@@ -883,7 +885,7 @@ static Uint16 HandVariant(Uint16 item)
            : item == 97                 ? 1
            : item == 124                ? 3
            : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ||
-                   item == 175 || item == 196
+                   item == 175 || item == 196 || item == 190 || item == 191
                ? 1
                : 0;
 }
@@ -3454,12 +3456,15 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 parent_group = parent->hand_weapon ? parent->group : 0;
             }
             SotnDataView overlay = {0};
-            if (!SotnWeapon_Overlay(in.weapons, (SotnEquipment){.id = 115, .family = 55}, &overlay))
+            // Any selected owning item resolves the resident program's overlay slice.
+            const Uint16 owner = family == 55 ? 115 : family == 38 ? 23 : 22;
+            if (!SotnWeapon_Overlay(
+                    in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
                 return false;
             HandPropertyContext context = {character, item, p.poison_ticks != 0};
             SotnWeaponSecondaryEvents events = {0};
             if (!SotnWeaponSecondary_Tick(
-                    w,
+                    w, &r.hand_program[hand],
                     (SotnWeaponSecondaryInput){.overlay = overlay,
                                                .executable = in.executable,
                                                .properties = HandProperties,
@@ -3475,6 +3480,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .priority = p.priority,
                                                .animation = p.animation.id,
                                                .attack_mode = p.attack_mode,
+                                               .substep = p.substep,
                                                .draw_flags = p.wolf.active ? p.wolf.draw_flags
                                                              : p.rotated   ? 4
                                                                            : 0,
@@ -3482,6 +3488,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .allocated = allocated},
                     &progress.random, &events))
                 return false;
+            for (Uint16 j = 0; j < SDL_arraysize(events.sounds); ++j)
+                if (events.sounds[j] && !Sound(&r, events.sounds[j]))
+                    return false;
             if (events.properties)
             {
                 // SetWeaponProperties increments the least-used group before the copy of the

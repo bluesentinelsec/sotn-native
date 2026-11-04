@@ -1,4 +1,5 @@
-// Weapon func_ptr_80170004 secondaries (w_055 Holy sword) with authored tables only: mandatory
+// Weapon func_ptr_80170004 secondaries (w_055 Holy sword, w_038/w_039 lunges) with authored tables
+// only: mandatory
 // LINE_G2 rows before RNG, raw-parent properties/group, hitbox shrink, post-callback UpdateAnim,
 // blueprint56 runtime ownership, shared rows, holds, rebases and failure atomicity.
 #include "actors_internal.h"
@@ -75,6 +76,7 @@ static bool Module(void)
     static Uint8 o[0x1400], exe[0x24000];
     Program(o);
     Math(exe);
+    SotnHandWeaponProgram program = {0};
     Uint16 hit = 2;
     SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
                                    .executable = {exe, sizeof(exe)},
@@ -107,8 +109,8 @@ static bool Module(void)
                 length[i] = (Sint16)((SotnCombat_Random(&expected) & 0xffU) + 512U);
             }
             (void)SotnCombat_Random(&expected);
-            CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && rng == expected && e.properties &&
-                  s.phase == 1 && s.allocated && s.flags == 0x960000U &&
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == expected &&
+                  e.properties && s.phase == 1 && s.allocated && s.flags == 0x960000U &&
                   s.bank == 0x8011 + hand * 2U && s.palette == 0x117 + hand * 24U &&
                   s.texture == 0x65 + hand * 2U && s.priority == 152 && s.row_priority == 150 &&
                   s.blend == 0x30 && s.hitbox_width == 32 && s.hitbox_height == 32 &&
@@ -120,9 +122,9 @@ static bool Module(void)
                 const SotnWeaponSecondaryRow *r = &s.rows[i];
                 SotnMathTrig t = {0};
                 CHECK(SotnMath_Trig(in.executable, angle[i], &t));
-                CHECK(r->red == 115 && r->green == 115 && r->blue == 231 && r->angle == angle[i] &&
-                      r->growth == length[i] / 2 && r->length == length[i] + length[i] / 2 &&
-                      r->x[0] == x && r->y[0] == y &&
+                CHECK(r->red[1] == 115 && r->green[1] == 115 && r->blue[1] == 231 && !r->red[0] &&
+                      r->angle == angle[i] && r->growth == length[i] / 2 &&
+                      r->length == length[i] + length[i] / 2 && r->x[0] == x && r->y[0] == y &&
                       r->x[1] == x + Floor256(Floor256(t.cosine) * length[i]) &&
                       r->y[1] == y - Floor256(Floor256(t.sine) * length[i]));
             }
@@ -135,7 +137,8 @@ static bool Module(void)
             {
                 const SotnWeaponSecondary before = s;
                 const Uint32 kept = rng;
-                CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && rng == kept && !e.properties);
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == kept &&
+                      !e.properties);
                 ++callbacks;
                 if (before.frame == 1 && before.remaining == 1)
                     shrink = callbacks;
@@ -144,9 +147,9 @@ static bool Module(void)
                           !SDL_memcmp(s.rows, before.rows, sizeof(s.rows)));
                 else
                     CHECK(SotnWeaponSecondary_Animate(&s, in.overlay, 55) &&
-                          s.rows[5].blue == (Uint8)(before.rows[5].blue >= 17
-                                                        ? before.rows[5].blue - 24U
-                                                        : before.rows[5].blue));
+                          s.rows[5].blue[1] == (Uint8)(before.rows[5].blue[1] >= 17
+                                                           ? before.rows[5].blue[1] - 24U
+                                                           : before.rows[5].blue[1]));
             }
             CHECK(callbacks == 10 && shrink == 3 && s.hitbox_width == 12 && s.hitbox_x == 13 &&
                   s.frame == 4);
@@ -156,8 +159,8 @@ static bool Module(void)
     SotnWeaponSecondaryEvents e = {0};
     Uint32 rng = 5;
     in.allocated = false;
-    CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && s.removed && rng == 5 && !e.properties &&
-          !s.phase && !s.rows[0].blue);
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 5 &&
+          !e.properties && !s.phase && !s.rows[0].blue[1]);
     in.allocated = true;
     // Animation range and unk46 gate use the parameter-selected frameStart.
     const Uint16 animations[] = {0x40, 0x48, 0x43};
@@ -167,34 +170,130 @@ static bool Module(void)
         s = (SotnWeaponSecondary){0};
         in.animation = animations[k];
         in.attack_mode = modes[k];
-        CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && s.removed && rng == 5);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 5);
     }
     in.attack_mode = 0x801d;
     s = (SotnWeaponSecondary){.parameter = 0x100};
     in.animation = 0x50;
-    CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && !s.removed && s.phase == 1);
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.removed && s.phase == 1);
     // Hit type4 keeps the original attack255 override.
     hit = 4;
     s = (SotnWeaponSecondary){0};
     in.animation = 0x41;
-    CHECK(SotnWeaponSecondary_Tick(&s, in, &rng, &e) && s.properties.attack == 255 &&
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.properties.attack == 255 &&
           s.hitbox_state == 4);
     // Failures leave every word, the RNG cursor and events unchanged.
     const SotnWeaponSecondary before = s;
     const Uint32 kept = rng;
     in.family = 54;
-    CHECK(!SotnWeaponSecondary_Tick(&s, in, &rng, &e) && !SDL_memcmp(&s, &before, sizeof(s)) &&
-          rng == kept && !SotnWeaponSecondary_Animate(&s, in.overlay, 54));
+    CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+          !SDL_memcmp(&s, &before, sizeof(s)) && rng == kept &&
+          !SotnWeaponSecondary_Animate(&s, in.overlay, 54));
     in.family = 55;
     in.overlay.size = 0x1000;
-    CHECK(!SotnWeaponSecondary_Tick(&s, in, &rng, &e) && !SDL_memcmp(&s, &before, sizeof(s)) &&
-          !SotnWeaponSecondary_Animate(&s, in.overlay, 55) && !SDL_memcmp(&s, &before, sizeof(s)));
+    CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+          !SDL_memcmp(&s, &before, sizeof(s)) && !SotnWeaponSecondary_Animate(&s, in.overlay, 55) &&
+          !SDL_memcmp(&s, &before, sizeof(s)));
     in.overlay.size = sizeof(o);
     in.executable.size = 0x1000;
-    CHECK(!SotnWeaponSecondary_Tick(&s, in, &rng, &e) && !SDL_memcmp(&s, &before, sizeof(s)) &&
-          rng == kept);
+    CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+          !SDL_memcmp(&s, &before, sizeof(s)) && rng == kept);
     CHECK(SotnWeaponSecondary_Supported(55) && !SotnWeaponSecondary_Supported(54) &&
           SotnWeaponSecondary_Rows(55) == 64 && !SotnWeaponSecondary_Rows(56));
+    return true;
+}
+// w_038/w_039 lunge sparks: mandatory rows before RNG, step_s0x5A/unk46 gates, program-BSS
+// countdown with ANIME_SWORD_B/VO_ALU_ATTACK_C, Rapier's cycling rows and Were bane's chain.
+static bool Lunge(void)
+{
+    Uint16 hit = 2;
+    for (Uint16 family = 38; family <= 39; ++family)
+    {
+        const Uint16 rows = family == 38 ? 24 : 32;
+        SotnWeaponSecondaryInput in = {.properties = Properties,
+                                       .context = &hit,
+                                       .x = 150 * 65536 + 99,
+                                       .y = 120 * 65536 + 7,
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .family = family,
+                                       .priority = 148,
+                                       .attack_mode = 0x801b,
+                                       .substep = 0x5a,
+                                       .draw_flags = 2,
+                                       .allocated = true};
+        SotnWeaponSecondary s = {0};
+        SotnHandWeaponProgram program = {.secondary_counter = 7, .secondary_x = {99}};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 41, expected = 41;
+        for (Uint16 i = 0; i < (family == 38 ? rows : 0); ++i)
+            (void)SotnCombat_Random(&expected);
+        (void)SotnCombat_Random(&expected);
+        // Row0's countdown starts at one, so it is placed in the birth callback (two calls).
+        const Sint32 dx = (Sint32)(SotnCombat_Random(&expected) % 24U) - 12,
+                     dy = (Sint32)(SotnCombat_Random(&expected) % 18U) - 9;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == expected &&
+              e.properties && !e.sounds[0] && s.phase == 1 && s.flags == 0x860000U && !s.bank &&
+              !s.frame && s.draw_mode == 0x331 && s.row_priority == 152 && s.hitbox_width == 24 &&
+              s.hitbox_height == 10 && s.hitbox_x == 38 && s.hitbox_y == -12 &&
+              program.secondary_counter == 40);
+        CHECK(!s.rows[0].hidden && s.rows[0].phase == 1 && s.rows[1].hidden &&
+              s.rows[rows - 1U].hidden && s.rows[0].y[0] == s.rows[0].y[1]);
+        const Sint32 x = 150 - 30 + 34, y = 120 - 10 - 14 - 3;
+        CHECK(s.rows[0].y[0] == y + dy && s.rows[0].x[0] == x + dx + (family == 38 ? -12 : -16));
+        if (family == 38)
+            CHECK(s.rows[0].timer == 3 && s.rows[1].timer == 1 && s.rows[0].red[0] == 15 &&
+                  s.rows[0].green[1] == 255 && s.rows[0].red[1] >= 63 && s.rows[0].red[1] < 79 &&
+                  s.rows[0].x[1] - s.rows[0].x[0] == 28 && s.rows[0].x[0] >= x - 24 &&
+                  s.rows[0].x[0] < x);
+        else
+            CHECK(s.rows[0].timer == 9 && s.rows[1].timer == 2 && s.rows[0].red[0] == 0xbf &&
+                  s.rows[0].blue[1] == 0xff && s.rows[0].x[1] - s.rows[0].x[0] == 32 &&
+                  program.secondary_x[0] == s.rows[0].x[1] &&
+                  program.secondary_y[0] == s.rows[0].y[1]);
+        // The countdown queues ANIME_SWORD_B at counter&7==7 and ends with VO_ALU_ATTACK_C.
+        Uint16 swish = 0, callbacks = 1;
+        while (!s.removed)
+        {
+            const Sint32 counter = program.secondary_counter;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties);
+            ++callbacks;
+            swish += e.sounds[0] == 0x640;
+            CHECK(e.sounds[0] == ((counter & 7) == 7 ? 0x640 : counter == 1 ? 0x6f0 : 0));
+            if (family == 39 && callbacks == 4)
+                CHECK(!s.rows[1].hidden && s.rows[1].x[0] == s.rows[0].x[1] &&
+                      s.rows[1].y[0] == s.rows[0].y[1] && program.secondary_x[1] == s.rows[1].x[1]);
+            if (family == 38 && callbacks == 4)
+                CHECK(s.rows[0].hidden && s.rows[0].phase == 0 && s.rows[0].timer == 2);
+        }
+        CHECK(callbacks == 41 && swish == 5 && !program.secondary_counter);
+        // Leaving step_s0x5A or clearing unk46 retires before rows, RNG or the countdown.
+        for (Uint16 k = 0; k < 2; ++k)
+        {
+            s = (SotnWeaponSecondary){0};
+            program.secondary_counter = 12;
+            in.substep = k ? 0x5a : 0x50;
+            in.attack_mode = k ? 0 : 0x801b;
+            const Uint32 kept = rng;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed &&
+                  rng == kept && program.secondary_counter == 12 && !e.properties);
+        }
+        in.substep = 0x5a;
+        in.attack_mode = 0x801b;
+        // Exhausted mandatory rows retire without RNG; failures commit no program BSS.
+        s = (SotnWeaponSecondary){0};
+        in.allocated = false;
+        const Uint32 kept = rng;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == kept &&
+              program.secondary_counter == 12);
+        in.allocated = true;
+        s = (SotnWeaponSecondary){0};
+        in.properties = NULL;
+        CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase &&
+              program.secondary_counter == 12 && rng == kept);
+        in.properties = Properties;
+        CHECK(SotnWeaponSecondary_Rows(family) == rows && SotnWeaponSecondary_Supported(family));
+    }
     return true;
 }
 static void Definition(Uint8 *dra, Uint16 item, Uint8 kind, Uint8 variant, Uint16 mp, Uint8 special)
@@ -368,5 +467,5 @@ static bool Runtime(void)
 }
 int main(void)
 {
-    return Module() && Runtime() ? 0 : 1;
+    return Module() && Lunge() && Runtime() ? 0 : 1;
 }

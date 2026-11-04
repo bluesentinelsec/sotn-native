@@ -3,7 +3,9 @@
 The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts Gurthang121
 through its own weapon54 program, together with its QCF [weapon special](player-weapon-specials.md)
 195 (descriptor1, kind1). Muramasa shares the same attack callback but also spawns a secondary
-once its attack reaches 30, so it stays unavailable until that secondary has an owner.
+once its attack reaches 30. Its attack adds the square root of a persistent blood counter
+(`g_Status.D_80097C40`) that ordinary v9 saves do not store, so it stays unavailable pending a
+save-format decision.
 
 ## Callback ownership
 

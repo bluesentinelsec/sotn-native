@@ -84,6 +84,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 115 * 52 + 24] = 196; // QCF specialMove
     Item(f->dra, 196, 1, 55, 28, 0x41, 1, 13, 0);
     Put16(f->dra + 0x500 + 196 * 52 + 36, 5);
+    Item(f->dra, 23, 0, 38, 16, 0xae, 0, 13, 0);
+    f->dra[0x500 + 23 * 52 + 24] = 191; // QCF specialMove
+    Item(f->dra, 191, 0, 38, 26, 0xae, 1, 13, 0);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -262,6 +265,47 @@ static bool HolySword(Fixture *f)
     CHECK(f->item == 115 && f->roll_count == 1 && f->p->mp == 4 && f->p->substep == 0x41);
     return true;
 }
+// 6E42C.c kind26 (Rapier special191): grounded QCF, no grunt, stops both velocities and plays
+// SFX_VO_ALU_ATTACK_B; 71830.c substep0x5A holds pose6 while forty updates last, and a Down tap
+// or the backward direction resumes the ordinary substep0x50.
+static bool Lunge(Fixture *f)
+{
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        CHECK(Create(f, 23, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+              Tick(f, SOTN_BUTTON_RIGHT) && f->p->sword_command.phase == 255);
+        f->p->vx = 0x18000;
+        f->p->vy = 0x1000;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == 191 &&
+              f->packed == 0x11030U && !f->roll_count && p.sound == 0x6ef &&
+              f->p->substep == 0x5a && f->p->attack_mode == 0x801b && f->p->attack_hold == 40 &&
+              !f->p->vx && !f->p->vy && f->p->step == SOTN_PLAYER_STAND);
+        if (k == 0)
+        {
+            Uint16 held = 0, t = 0;
+            for (; t < 80 && f->p->substep == 0x5a; ++t)
+            {
+                CHECK(Tick(f, 0));
+                held += f->p->animation.pose == 6;
+            }
+            // Pose6 holds for the rest of the forty-update countdown (authored two-update poses
+            // reach it after twelve), then pose10 resumes substep0x50.
+            CHECK(held == 28 && f->p->substep == 0x50 && !f->p->attack_hold &&
+                  f->p->animation.pose == 10);
+        }
+        else
+        {
+            CHECK(Tick(f, 0) && Tick(f, k == 1 ? SOTN_BUTTON_DOWN : SOTN_BUTTON_LEFT) &&
+                  f->p->substep == 0x50 && f->p->attack_hold == 38);
+        }
+    }
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -307,7 +351,7 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && HolySword(f) && CombatKnife(f) && AirborneKindZero(f);
+         QuarterCircle(f) && HolySword(f) && Lunge(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

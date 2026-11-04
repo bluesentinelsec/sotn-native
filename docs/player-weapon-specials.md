@@ -36,8 +36,10 @@ Selected virtual items:
 - Holy sword115's QCF special196: kind28 with five MP, a ten-update pose0 hold and SFX_VO_ALU_
   ATTACK_B instead of the casting grunt; weapon55 descriptor1 spawns the first native
   [weapon secondary](player-holy-sword.md).
+- Rapier23's special191 and Were bane22's special190: kind26 lunges that hold pose6 for up
+  to forty updates with their own spark secondaries (see [lunges](player-lunge-weapons.md)).
 
-The other ~24 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+The other ~22 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

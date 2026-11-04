@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Weapon func_ptr_80170004 secondaries: weapon/w_055.c and weapon/shared.h, plus dra/7879C.c
+// Weapon func_ptr_80170004 secondaries: weapon/w_038.c, w_039.c, w_055.c and weapon/shared.h, plus
+// dra/7879C.c
 // UpdateAnim, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Descriptor, timeline and
 // artwork tables remain private inputs.
 #include <sotn/combat.h>
@@ -27,49 +28,201 @@ static Sint32 Asr(Sint32 v, unsigned int n)
 
 typedef struct Layout
 {
-    Uint32 frame_start; /**< D_8017B0B8: the descriptor table's frameStart byte. */
-    Uint32 timeline;    /**< Private AnimationFrame list. */
-    Uint16 timeline_count;
+    Uint32 frame_start; /**< w_055 D_8017B0B8: the descriptor table's frameStart byte. */
+    Uint32 timeline;    /**< w_055 private AnimationFrame list. */
+    Uint16 timeline_count, rows;
     Uint16 bank, palette, texture;
 } Layout;
 static bool Program(Uint16 family, Layout *out)
 {
-    if (family != 55)
+    if (family == 55)
+        *out = (Layout){.frame_start = 0x10b8,
+                        .timeline = 0x1174,
+                        .timeline_count = 5,
+                        .rows = 64,
+                        .bank = 0x8011,
+                        .palette = 0x117,
+                        .texture = 0x65};
+    else if (family == 38 || family == 39)
+        *out = (Layout){.rows = family == 38 ? 24 : 32};
+    else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
-    *out = (Layout){.frame_start = 0x10b8,
-                    .timeline = 0x1174,
-                    .timeline_count = 5,
-                    .bank = 0x8011,
-                    .palette = 0x117,
-                    .texture = 0x65};
     return true;
 }
 
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
-    return family == 55;
+    return family == 55 || family == 38 || family == 39;
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
 {
-    return family == 55 ? SOTN_WEAPON_SECONDARY_ROWS : 0;
+    Layout layout = {0};
+    return SotnWeaponSecondary_Supported(family) && Program(family, &layout) ? (Uint8)layout.rows
+                                                                             : 0;
 }
 
-bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInput in,
-                              Uint32 *random, SotnWeaponSecondaryEvents *events)
+// Shared SetWeaponProperties with the raw parent's equip id; hit type4 keeps attack255.
+static bool Properties(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                       SotnWeaponSecondaryEvents *e)
+{
+    if (!in.properties || !in.properties(in.context, rng, &s->properties))
+        return SDL_SetError("Weapon secondary requires actual equipment property ownership");
+    s->hitbox_state = s->properties.hit_type;
+    if (s->hitbox_state == 4)
+        s->properties.attack = 255;
+    e->properties = true;
+    return true;
+}
+static Uint16 Rand(Uint32 *rng)
+{
+    return (Uint16)(SotnCombat_Random(rng) & 0x7fffU);
+}
+
+// w_038/w_039: the lunge sparks follow the player's screen position while step_s stays 0x5A.
+static bool Lunge(SotnWeaponSecondary *s, SotnHandWeaponProgram *program,
+                  SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 rows = SotnWeaponSecondary_Rows(in.family);
+    if (!in.attack_mode || in.substep != 0x5a)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->allocated = true;
+        for (Uint16 i = 0; i < rows; ++i)
+        {
+            SotnWeaponSecondaryRow *r = &s->rows[i];
+            *r = (SotnWeaponSecondaryRow){.hidden = true};
+            if (in.family == 38)
+            {
+                r->red[1] = (Uint8)((Rand(rng) & 0xfU) + 63U);
+                r->green[1] = 255;
+                r->blue[1] = 63;
+                r->red[0] = 15;
+                r->green[0] = 63;
+                r->blue[0] = 15;
+                r->timer = (Uint8)(i + 1U);
+            }
+            else
+            {
+                r->red[0] = r->red[1] = 0xbf;
+                r->green[0] = r->green[1] = 0x3f;
+                r->blue[0] = r->blue[1] = 0xff;
+                r->timer = (Uint8)(i * 2U + 1U);
+            }
+        }
+        s->row_priority = (Uint16)(in.priority + 4U);
+        s->draw_mode = 0x331;
+        s->flags = 0x860000U;
+        if (!Properties(s, in, rng, e))
+            return false;
+        program->secondary_counter = 40;
+        s->hitbox_width = 24;
+        s->hitbox_height = 10;
+        s->hitbox_x = 38;
+        s->hitbox_y = -12;
+        s->phase = 1;
+    }
+    else
+    {
+        Uint16 sound = 0;
+        if ((program->secondary_counter & 7) == 7)
+            e->sounds[sound++] = 0x640;
+        program->secondary_counter = (Sint32)((Uint32)program->secondary_counter - 1U);
+        if (!program->secondary_counter)
+        {
+            e->sounds[sound] = 0x6f0;
+            s->removed = true;
+            return true;
+        }
+    }
+    const Sint16 x = Word(Word(Pixel(in.x) - in.camera_x) + (in.facing_left ? -34 : 34)),
+                 y = Word(Word(Pixel(in.y) - in.camera_y) - 14 - ((in.draw_flags & 2U) ? 3 : 0));
+    for (Uint16 i = 0; i < rows; ++i)
+    {
+        SotnWeaponSecondaryRow *r = &s->rows[i];
+        if (r->phase == 0)
+        {
+            if (--r->timer)
+                continue;
+            const Sint16 px = Word(x + (Sint32)(Rand(rng) % 24U) - 12),
+                         py = Word(y + (Sint32)(Rand(rng) % 18U) - 9);
+            if (in.family == 38)
+            {
+                r->x[0] = Word(px + (in.facing_left ? 16 : -12));
+                r->x[1] = Word(px + (in.facing_left ? -12 : 16));
+                r->y[0] = r->y[1] = py;
+                r->timer = 3;
+            }
+            else
+            {
+                // Row0 starts the chain; later rows continue from the previous retained end.
+                const bool outward = i == 0 || (i & 1U) == 0;
+                if (i == 0)
+                {
+                    r->x[0] = Word(px + (in.facing_left ? 16 : -16));
+                    r->y[0] = py;
+                }
+                else
+                {
+                    r->x[0] = program->secondary_x[i - 1U];
+                    r->y[0] = program->secondary_y[i - 1U];
+                }
+                r->x[1] = Word(px + ((in.facing_left != 0) == outward ? -16 : 16));
+                r->y[1] = py;
+                program->secondary_x[i] = r->x[1];
+                program->secondary_y[i] = r->y[1];
+                r->timer = 9;
+            }
+            r->hidden = false;
+            ++r->phase;
+        }
+        else if (r->phase == 1 && !--r->timer)
+        {
+            if (in.family == 38)
+            {
+                r->timer = 2;
+                r->phase = 0;
+            }
+            else
+                ++r->phase;
+            r->hidden = true;
+        }
+    }
+    return true;
+}
+
+bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
+                              SotnWeaponSecondaryInput in, Uint32 *random,
+                              SotnWeaponSecondaryEvents *events)
 {
     Layout layout = {0};
-    if (!state || !random || !events || in.hand > 1 || !Program(in.family, &layout) ||
+    if (!state || !program || !random || !events || in.hand > 1 || !Program(in.family, &layout) ||
         state->removed || state->phase > 1 || state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
-    if (!in.overlay.bytes || at >= in.overlay.size)
+    if (in.family == 55 && (!in.overlay.bytes || at >= in.overlay.size))
         return SDL_SetError("Weapon secondary descriptor frameStart is outside its program");
     SotnWeaponSecondary s = *state;
+    SotnHandWeaponProgram shared = *program;
     SotnWeaponSecondaryEvents e = {0};
     Uint32 rng = *random;
     s.x = in.x;
     s.y = in.y;
     s.facing_left = in.facing_left;
+    if (in.family != 55)
+    {
+        if (!Lunge(&s, &shared, in, &rng, &e))
+            return false;
+        goto commit;
+    }
     s.draw_flags = in.draw_flags;
     s.scale_y = in.scale_y;
     s.pivot_y = in.pivot_y;
@@ -92,12 +245,13 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInp
         for (Uint16 i = 0; i < SOTN_WEAPON_SECONDARY_ROWS; ++i)
         {
             SotnWeaponSecondaryRow *r = &s.rows[i];
-            *r = (SotnWeaponSecondaryRow){.red = 127, .green = 127, .blue = 255};
+            *r = (SotnWeaponSecondaryRow){.red = {0, 127}, .green = {0, 127}, .blue = {0, 255}};
             r->angle = (Sint16)(SotnCombat_Random(&rng) & 0xfffU);
             r->length = (Sint16)((SotnCombat_Random(&rng) & 0xffU) + 512U);
             r->growth = (Sint16)(r->length / 2);
         }
         s.row_priority = (Uint16)(in.priority + 2U);
+        s.draw_mode = 0x331;
         s.bank = (Uint16)(layout.bank + in.hand * 2U);
         s.palette = (Uint16)(layout.palette + in.hand * 24U);
         s.texture = (Uint16)(layout.texture + in.hand * 2U);
@@ -107,12 +261,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInp
         s.frame = 0;
         s.priority = (Uint16)(in.priority + 4U);
         s.blend = 0x30;
-        if (!in.properties || !in.properties(in.context, &rng, &s.properties))
-            return SDL_SetError("Weapon secondary requires actual equipment property ownership");
-        s.hitbox_state = s.properties.hit_type;
-        if (s.hitbox_state == 4)
-            s.properties.attack = 255;
-        e.properties = true;
+        if (!Properties(&s, in, &rng, &e))
+            return false;
         s.hitbox_width = s.hitbox_height = 32;
         s.hitbox_x = 12;
         s.hitbox_y = -28;
@@ -132,12 +282,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInp
     for (Uint16 i = 0; i < SOTN_WEAPON_SECONDARY_ROWS; ++i)
     {
         SotnWeaponSecondaryRow *r = &s.rows[i];
-        if (r->red >= 17)
-            r->red = (Uint8)(r->red - 12U);
-        if (r->green >= 17)
-            r->green = (Uint8)(r->green - 12U);
-        if (r->blue >= 17)
-            r->blue = (Uint8)(r->blue - 24U);
+        if (r->red[1] >= 17)
+            r->red[1] = (Uint8)(r->red[1] - 12U);
+        if (r->green[1] >= 17)
+            r->green[1] = (Uint8)(r->green[1] - 12U);
+        if (r->blue[1] >= 17)
+            r->blue[1] = (Uint8)(r->blue[1] - 24U);
         SotnMathTrig trig = {0};
         if (!SotnMath_Trig(in.executable, r->angle, &trig))
             return false;
@@ -150,6 +300,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInp
     }
 commit:
     *state = s;
+    *program = shared;
     *random = rng;
     *events = e;
     return true;
@@ -158,7 +309,7 @@ commit:
 bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overlay, Uint16 family)
 {
     Layout layout = {0};
-    if (!state || !Program(family, &layout) || state->removed || !state->phase ||
+    if (!state || !Program(family, &layout) || family != 55 || state->removed || !state->phase ||
         state->pose >= layout.timeline_count || state->remaining < -1 || !overlay.bytes ||
         overlay.size < layout.timeline + layout.timeline_count * 4U)
         return SDL_SetError("Weapon secondary animation requires its actual private timeline");

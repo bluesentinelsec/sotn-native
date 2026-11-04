@@ -75,6 +75,14 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0};
     case 196:
         return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5};
+    case 23: // Rapier and its QCF lunge special191
+        return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0};
+    case 191:
+        return (PlainSpec){0, 38, 26, 0xae, 1, 0, 0, 0};
+    case 22: // Were bane and its QCF lunge special190
+        return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0};
+    case 190:
+        return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0};
     case 127: // Great Sword
         return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0};
     case 131: // Star flail and its back-forward special171

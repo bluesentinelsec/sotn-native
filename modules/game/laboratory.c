@@ -4022,7 +4022,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .kind = SOTN_DRAW_WEAPON_SECONDARY}))
                     return false;
                 for (Uint16 row = child->primitive_count; row > 0; --row)
-                    if (!SotnActorOrder_Add(
+                    if (!w->rows[row - 1U].hidden &&
+                        !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = w->row_priority,
                                             .primitive = (Uint16)(owner * 64U + row - 1U),
@@ -5023,17 +5024,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return SDL_SetError("Weapon secondary draw lost its actual child/row lease");
             if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_LINE)
             {
-                // Original drawMode0x331: semi-transparent LINE_G2 with tpage ABR1 (additive).
+                // Original drawMode0x331/0x339: semi-transparent LINE_G2 whose DR_MODE selects
+                // ABR from bits5..6 (additive for all selected secondaries).
                 const SotnWeaponSecondaryRow *q = &w->rows[row];
                 const Sint32 ox = session->draw_target.offset_x + session->shake.x,
                              oy = session->draw_target.offset_y + session->shake.y;
                 const SotnColorLine line = {.x = {q->x[0] + ox, q->x[1] + ox},
                                             .y = {q->y[0] + oy, q->y[1] + oy},
-                                            .red = {0, q->red},
-                                            .green = {0, q->green},
-                                            .blue = {0, q->blue},
-                                            .blend = true,
-                                            .blend_mode = 1};
+                                            .red = {q->red[0], q->red[1]},
+                                            .green = {q->green[0], q->green[1]},
+                                            .blue = {q->blue[0], q->blue[1]},
+                                            .blend = (w->draw_mode & 1U) != 0,
+                                            .blend_mode = (Uint8)((w->draw_mode >> 5) & 3U)};
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
                     return false;
             }

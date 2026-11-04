@@ -13,6 +13,10 @@ typedef struct SotnHandWeaponProgram
 {
     Uint32 short_pose;
     Sint32 shield_attack;
+    /** Weapon38/39 secondary BSS: lunge countdown (D_8017B844/D_8017BA28) and weapon39's
+     * retained chain endpoints (D_8017BA2C/D_8017BA6C). Zeroed with a genuine program load. */
+    Sint32 secondary_counter;
+    Sint16 secondary_x[32], secondary_y[32];
 } SotnHandWeaponProgram;
 /** @brief Selected ordinary shared weapon entity: optional weapon43 TILEs or weapon1 GT4 trails. */
 typedef struct SotnHandWeapon
@@ -67,14 +71,15 @@ typedef struct SotnHandWeaponEvents
  * @param family Actual private program identity. @return Whether this callback is reconstructed.
  * Resource, property, factory, blocking and native presentation ownership remain required. */
 bool SotnHandWeapon_IsShieldFamily(Uint16 family);
-/** @brief Execute a complete selected ordinary weapon0/1/2/3/9/11/26/31/33/35/36/37/43/52/55/57
- * or unarmed255 callback. Weapon55 descriptor1 reports its birth sound and WFACTORY(0x38) secondary
- * request through events. Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite
- * transforms. Weapon1 (descriptors0..3) requires its four mandatory rows: allocated false destroys
- * it before flags/properties/RNG; its trails use the supplied camera and executable SDK tables.
- * Private animations remain borrowed. Actual factories, slot16 replacement, weapon properties,
- * groups, optional weapon43 leases, rendering and combat are caller obligations. Outputs and
- * the working RNG/program cursors commit together only on success. No controls are enabled. */
+/** @brief Execute a complete selected ordinary weapon0/1/2/3/9/11/26/31/33/35/36/37/38/39/43/52/
+ * 55/57 or unarmed255 callback. Weapon55 descriptor1 (at birth) and weapon38/39 descriptor1
+ * (pose4's final update) report their WFACTORY(0x38) secondary requests through events. Unarmed255
+ * borrows DRA instead of a weapon overlay and copies no sprite transforms. Weapon1
+ * (descriptors0..3) requires its four mandatory rows: allocated false destroys it before
+ * flags/properties/RNG; its trails use the supplied camera and executable SDK tables. Private
+ * animations remain borrowed. Actual factories, slot16 replacement, weapon properties, groups,
+ * optional weapon43 leases, rendering and combat are caller obligations. Outputs and the working
+ * RNG/program cursors commit together only on success. No controls are enabled. */
 bool SotnHandWeapon_Tick(SotnHandWeapon *, SotnHandWeaponProgram *, SotnHandWeaponInput,
                          Uint32 *random, SotnHandWeaponEvents *);
 #endif

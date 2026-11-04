@@ -870,14 +870,17 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
-    // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt; kind28
-    // instead stands still, holds pose0 for ten updates and plays SFX_VO_ALU_ATTACK_B.
+    // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt; kinds28
+    // (pose0 hold10) and26 (lunge hold40, vertical stop) instead stand still and play
+    // SFX_VO_ALU_ATTACK_B.
     const bool grunt = equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 &&
-                       equipment.kind != 25 && equipment.kind != 28;
-    if (player->hand_factory && equipment.kind == 28)
+                       equipment.kind != 25 && equipment.kind != 28 && equipment.kind != 26;
+    if (player->hand_factory && (equipment.kind == 28 || equipment.kind == 26))
     {
         player->step = SOTN_PLAYER_STAND;
-        player->attack_hold = 10;
+        player->attack_hold = equipment.kind == 28 ? 10 : 40;
+        if (equipment.kind == 26)
+            player->vy = 0;
         player->vx = 0;
         player->sound = 0x6ef;
     }
@@ -1208,6 +1211,21 @@ static void StandTick(SotnPlayer *player)
             player->chair_sleep = 0x200;
         }
         flags = 1;
+    }
+    else if (player->attack_mode != 0 && player->substep == 0x5a)
+    {
+        // 71830.c substep0x5A: the lunge holds pose6 while D_80139824 lasts; pose10, a Down/Up
+        // tap or the backward direction resumes the item's ordinary substep0x50.
+        SotnPlayer_AfterimageReset(player);
+        if (player->attack_hold > 0)
+            --player->attack_hold;
+        if (player->animation.pose == 6 && player->animation.remaining == 1 && player->attack_hold)
+            player->animation.remaining = 2;
+        if (player->animation.pose == 10 ||
+            (player->tapped & (SOTN_BUTTON_DOWN | SOTN_BUTTON_UP)) ||
+            (player->buttons & (player->facing_left ? SOTN_BUTTON_RIGHT : SOTN_BUTTON_LEFT)))
+            player->substep = 0x50;
+        flags = 0;
     }
     else if (player->attack_mode != 0 && player->substep == 0x5c)
     {

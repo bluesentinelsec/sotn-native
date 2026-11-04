@@ -7,13 +7,16 @@
 /** Maximum original LINE_G2 rows owned by one selected weapon secondary. */
 #define SOTN_WEAPON_SECONDARY_ROWS 64
 
-/** @brief One original LINE_G2 row. Its first endpoint colors stay zero (DestroyPrimitive);
- * angle/length/growth are the callback's x2/x3/y2 scratch words. Coordinates are screen words. */
+/** @brief One original LINE_G2 row. Endpoint colors start zero (DestroyPrimitive); angle/length/
+ * growth are weapon55's x2/x3/y2 scratch words; timer/phase are weapon38/39's r2/r3 bytes.
+ * Coordinates are screen words. */
 typedef struct SotnWeaponSecondaryRow
 {
     Sint16 x[2], y[2];
     Sint16 angle, length, growth;
-    Uint8 red, green, blue;
+    Uint8 red[2], green[2], blue[2];
+    Uint8 timer, phase;
+    bool hidden; /**< Original DRAW_HIDE. */
 } SotnWeaponSecondaryRow;
 
 /** @brief Selected weapon func_ptr_80170004 child (blueprint56 E1/F1) of a resident program.
@@ -28,6 +31,7 @@ typedef struct SotnWeaponSecondary
     Sint16 remaining; /**< Original poseTimer; -1 after the END control. */
     Uint16 parameter; /**< Actual factory child params (paramsBase plus index). */
     Uint16 bank, palette, texture, priority, row_priority, blend, pose, frame, hitbox_state;
+    Uint16 draw_mode; /**< Shared original row drawMode without DRAW_HIDE (ABR in bits5..6). */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
     bool facing_left, removed, allocated;
 } SotnWeaponSecondary;
@@ -44,6 +48,7 @@ typedef struct SotnWeaponSecondaryInput
     Sint32 camera_x, camera_y; /**< Actual camera; rows are screen-space. */
     Sint16 scale_y, pivot_y;
     Uint16 hand, family, priority, animation, attack_mode;
+    Uint16 substep; /**< Actual player step_s; weapon38/39 retire outside0x5A. */
     Uint8 draw_flags;
     bool facing_left;
     bool allocated; /**< The mandatory rows were reserved before the first callback. */
@@ -52,24 +57,27 @@ typedef struct SotnWeaponSecondaryInput
 /** @brief One-update requests; none is a completed native operation. */
 typedef struct SotnWeaponSecondaryEvents
 {
+    Uint16 sounds[2]; /**< Ordered original PlaySfx requests; zero when absent. */
     /** SetWeaponProperties ran: the caller increments the least-used group, then copies the raw
      * parent's enemyId over it. */
     bool properties;
 } SotnWeaponSecondaryEvents;
 
-/** @brief Identify selected secondary programs (Holy sword weapon55). */
+/** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39). */
 bool SotnWeaponSecondary_Supported(Uint16 family);
 /** @brief Number of mandatory LINE_G2 rows reserved before the first callback; zero if none. */
 Uint8 SotnWeaponSecondary_Rows(Uint16 family);
 
 /** @brief Run one original selected func_ptr_80170004 callback.
- * @param state Actual child words, unchanged on error. @param input Copied context.
+ * @param state Actual child words, unchanged on error.
+ * @param program Actual per-hand program BSS, committed only on success. @param input Context.
  * @param random Working character libc cursor, committed only on success.
  * @param events Requests, unchanged on error.
  * @return Success or SDL error. Exhausted mandatory rows retire the child before any RNG or
  * property roll. Culling and the post-callback UpdateAnim follow separately. */
-bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnWeaponSecondaryInput input,
-                              Uint32 *random, SotnWeaponSecondaryEvents *events);
+bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
+                              SotnWeaponSecondaryInput input, Uint32 *random,
+                              SotnWeaponSecondaryEvents *events);
 
 /** @brief Original post-callback UpdateAnim for children flagged 0x100000 after culling.
  * @param state Actual child, unchanged on error. @param overlay Resident program bytes.

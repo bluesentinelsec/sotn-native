@@ -1,3 +1,11 @@
+Selected [Rapier/Were bane](docs/player-lunge-weapons.md) now own items23/22 and QCF
+lunges191/190 through weapon38/39 and the shared weapon-secondary owner. Descriptor1 requests
+WFACTORY(0x38,0) on pose4's final update. Kind26 stops both velocities, holds pose6 on a
+forty-update D_80139824 and resumes substep0x50 at pose10/Down-Up tap/backward. Secondaries
+retire outside step_s0x5A, reserve 24/32 mandatory rows, keep a per-hand program-BSS
+countdown (0x640 at &7==7, 0x6F0 at zero) and Were bane's chain arrays; never saved.
+Muramasa awaits a save-format decision for its persistent blood counter.
+
 Selected [Holy sword](docs/player-holy-sword.md) now owns item115/QCF special196 through
 weapon55 and the first native weapon-secondary owner: descriptor1 queues 0x69D then
 WFACTORY(0x38,0) before properties; next-pass E1/F1 in slots17..31 reserves 64 mandatory

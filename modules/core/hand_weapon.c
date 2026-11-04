@@ -473,6 +473,8 @@ static bool OrdinaryFamily(Uint16 family)
     case 4:
     case 5:
     case 31:
+    case 38:
+    case 39:
     case 55:
     case 32:
     case 33:
@@ -519,6 +521,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 57 ? 4
                              : in.family == 54 ? 3
                              : in.family == 55 ? 2
+                             : in.family == 38 ? 2
+                             : in.family == 39 ? 2
                              : in.family == 32 ? 2
                              : in.family == 51 ? 1
                              : in.family == 4  ? 2
@@ -533,6 +537,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 3  ? 0xc28U
                                   : in.family == 54 ? 0xec4U
                                   : in.family == 55 ? 0x10acU
+                                  : in.family == 38 ? 0xdc0U
+                                  : in.family == 39 ? 0xdc0U
                                   : in.family == 32 ? 0x8f8U
                                   : in.family == 51 ? 0xcd8U
                                   : in.family == 4  ? 0x12f4U
@@ -712,6 +718,10 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         return false;
                     if (in.family == 54 && !GurthangTrails(&w, in))
                         return false;
+                    // w_038/w_039 descriptor1 requests WFACTORY(0x38,0) on pose4's last update.
+                    if ((in.family == 38 || in.family == 39) && variant && in.pose == 4 &&
+                        in.remaining == 1)
+                        e.factory = 0x38U | ((in.hand + 1U) << 12);
                     // w_005 Star flail widens its reach on poses6 and7 after the hitbox write.
                     if (in.family == 5 && in.pose >= 6 && in.pose < 8)
                     {

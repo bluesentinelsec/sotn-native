@@ -440,6 +440,41 @@ static bool HolySword(void)
     }
     return true;
 }
+// w_038/w_039 descriptor1 requests WFACTORY(0x38,0) on pose4's final update only; no blend.
+static bool Lunges(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    SDL_memcpy(o + 0xdc0, o + 0x106c, 16);
+    SDL_memcpy(o + 0xdd0, o + 0x106c, 16);
+    for (Uint16 k = 0; k < 16; ++k)
+    {
+        const Uint16 family = k & 1U ? 39 : 38, variant = (k >> 1) & 1U, hand = (k >> 2) & 1U,
+                     timer = (k >> 3) & 1U ? 2 : 1;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = family,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .animation = 0x41,
+                                  .pose = 3,
+                                  .remaining = 1,
+                                  .attack_mode = 0x801b};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory && !w.blend &&
+              w.priority == 146 && w.phase == 1);
+        in.pose = 4;
+        in.remaining = (Sint16)timer;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) &&
+              e.factory == (variant && timer == 1 ? 0x38U | (hand + 1U) << 12 : 0U));
+    }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -938,7 +973,7 @@ static bool Ownership(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   KnifeAndGreatSword() && Ownership()
+                   Lunges() && KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }
