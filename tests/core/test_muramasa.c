@@ -82,8 +82,7 @@ int main(void)
           SotnCharacter_AddMuramasaBlood(c) && SotnCharacter_Get(c, &state, &stats) &&
           state.muramasa_blood == 0x80000000U && stats.attack[0] == base + ((0x10U << 15) >> 12));
     CHECK(Attack(c, 0xffffff00U, &attack) &&
-          attack == (Uint16)SDL_clamp((Sint16)(base + (Sint16)(Uint16)((0xffff8000U << 3) >> 12)),
-                                      0, 999));
+          attack == (Uint16)SDL_max(0, (Sint32)base - 64)); // root0xFFFC0 is word -64
     CHECK(Attack(c, SDL_MAX_UINT32, &attack) && attack == base &&
           SotnCharacter_AddMuramasaBlood(c) && SotnCharacter_Get(c, &state, NULL) &&
           state.muramasa_blood == SDL_MAX_UINT32);
