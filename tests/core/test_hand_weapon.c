@@ -1202,7 +1202,55 @@ static bool Ownership(void)
               c->state.hand.attack.power == 255 && c->state.hand.attack.equipment == id &&
               r->hand_program[0].shield_attack == 0 &&
               SotnCharacter_Get(character, &progress, NULL) && progress.random == expected);
-        CHECK(SotnBatRuntime_RetireHand(r, true) && !r->children[0].hand_weapon && !r->hand_shield);
+        if (k)
+        {
+            CHECK(SotnBatRuntime_RetireHand(r, true) && !r->children[0].hand_weapon &&
+                  !r->hand_shield);
+            continue;
+        }
+        // Runesword's root runs DestroyEntityWeapon(true) at birth: the raised shield in slot16
+        // retires through its actual owner, with unk48 cleared and the timer10 use request.
+        static Uint8 rune_exe[0x1dbcc + 2050];
+        Definition(dra, 143, 14, 40);
+        Uint8 *rune = dra + 0x500 + 143U * 52U;
+        rune[14] = 2;
+        rune[17] = 129;
+        rune[18] = 0x5d;
+        rune[19] = 50;
+        rune[21] = 0;
+        rune[22] = 1;
+        const Uint8 bp50[5] = {0, 1, 0xc1, 0, 0x26}, bp72[5] = {1, 4, 0xc4, 0, 1};
+        SDL_memcpy(dra + 0xd1d4 + 50U * 6U, bp50, 5);
+        SDL_memcpy(dra + 0xd1d4 + 0x72U * 6U, bp72, 5);
+        dra[0xd4b8 + 2] = dra[0xd4b8 + 12] = 17;
+        dra[0xd4b9 + 2] = 47;
+        dra[0xd4b9 + 12] = 31;
+        const SotnDataView executable = in.executable;
+        in.executable = (SotnDataView){rune_exe, sizeof(rune_exe)};
+        in.weapon_family[1] = 14;
+        CHECK(SotnBatRuntime_RequestThrown(r, source, 0x802032U, 143, &allocated) && allocated);
+        // Free the earlier exhaustion filler so the root's mandatory 48 rows are available.
+        static bool filler[SOTN_PRIMITIVE_SLOTS];
+        for (Uint16 q = 0; q < SOTN_PRIMITIVE_SLOTS; ++q)
+            if ((filler[q] = q != 7 && actors->primitives[q].owner == 777))
+                actors->primitives[q].owner = 0;
+        bool retired = false;
+        for (Uint16 t = 0; t < 4 && !retired; ++t)
+        {
+            CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+                  SotnBatRuntime_Tick(r, character, in) &&
+                  SotnActors_CommitBatPrimitives(actors, r));
+            retired = !r->children[0].kind;
+            CHECK(retired == (r->magic_clear_shield && r->use_ticks == 4));
+        }
+        CHECK(retired && !r->hand_shield);
+        SDL_zero(*r);
+        CHECK(SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 q = 0; q < SOTN_PRIMITIVE_SLOTS; ++q)
+            if (filler[q])
+                actors->primitives[q].owner = 777;
+        in.executable = executable;
+        in.weapon_family[1] = (Uint8)family;
     }
     CHECK(SotnCharacter_SetStatBuffMask(character, 0));
     // Knuckle duster85/Jewel knuckles97 own four mandatory shared rows in slot16; exhaustion

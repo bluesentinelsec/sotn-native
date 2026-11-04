@@ -19,7 +19,7 @@ typedef struct Fixture
     SotnPlayer *p;
     SotnCharacter *character;
     SotnCollisionMap map;
-    Uint16 rolls[4], roll_count, factories, item, swords;
+    Uint16 rolls[4], roll_count, factories, item, swords, consumed;
     Uint32 packed, sword_packed;
     bool allocate;
 } Fixture;
@@ -48,6 +48,14 @@ static bool Sword(void *context, SotnPlayerFactorySource source, Uint32 packed, 
     ++f->swords;
     f->sword_packed = packed;
     *allocated = true;
+    return true;
+}
+static bool Consume(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    (void)hand;
+    (void)item;
+    (void)equipped;
+    ++((Fixture *)context)->consumed;
     return true;
 }
 static bool Random(void *context, Uint16 *value)
@@ -135,6 +143,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 182 * 52 + 19] = 54;
     Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
     Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
+    Item(f->dra, 143, 2, 14, 129, 0x5d, 0, 0, 0);
+    f->dra[0x500 + 143 * 52 + 19] = 50;
+    f->dra[0x500 + 143 * 52 + 22] = 1;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -157,7 +168,8 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
     const Uint16 right = item == 26 || item == 139 || item == 98 || item == 95 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
-    CHECK(item == 18 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
+    // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
+    CHECK(item == 18 || item == 143 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
@@ -623,6 +635,30 @@ static bool MoonRod(Fixture *f)
     CHECK(!SotnPlayer_SetSpecialChain(f->p, 49, 0));
     return true;
 }
+// 6E42C.c kind129 Runesword: blueprint50 with the hand's variant, the casting grunt roll, chain1
+// against live children carrying143, and ReduceWeapon leaving the non-consumable hand intact.
+static bool Runesword(Fixture *f)
+{
+    for (Uint16 k = 0; k < 2; ++k)
+    {
+        CHECK(Create(f, 143, 1, 2, true));
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, k, 0));
+        Put16(f->dra + 0xcf62, 0x6f2); // Grunt voice1 of func_8010EA54(8)'s table.
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p));
+        if (k)
+            CHECK(!f->factories && !f->roll_count && !p.throwing.used);
+        else
+            CHECK(f->factories == 1 && f->item == 143 && f->packed == 0x1032U &&
+                  f->roll_count == 1 && p.throwing.used && p.throwing.keep && !f->consumed &&
+                  p.throwing_grunt == 0x6f2 && f->p->animation.id == 0x5d &&
+                  f->p->equipment[0] == 143);
+    }
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -669,7 +705,7 @@ int main(void)
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
-         Weapon51Specials(f) && MoonRod(f) && CombatKnife(f) && AirborneKindZero(f);
+         Weapon51Specials(f) && MoonRod(f) && Runesword(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

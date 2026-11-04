@@ -26,7 +26,8 @@ raw-parent enemyId copy. A crescent starts at the player's animation hitbox offs
 (PLAYER.hitboxOffX/Y). Its horizontal speed is SetSpeedX(rand-4) and its vertical speed comes
 from the private launch table (D_8017ABF0) plus rand&0x1FFF. It plays VO_ALU_ATTACK_A (first
 crescent only) and SetWeaponProperties. It calls DestroyEntityWeapon(true), the conditional
-slot16 retirement, and sets player timer10 to4.
+slot16 retirement, and sets player timer10 to4. The shared secondary owner now retires a raised
+shield's actual slot16 owner here; earlier builds cleared only the player's unk48.
 
 The crescent decelerates by0x2800 while growing a scale step per update. Once stopped, it spins
 up by8 for twenty-four updates and plays SFX_TRANSFORM. It then grows by two and accelerates

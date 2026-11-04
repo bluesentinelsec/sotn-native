@@ -308,6 +308,8 @@ typedef struct SotnPlayerMedicineUse
 {
     Uint16 hand, item;
     bool used;
+    /** Original isConsumable clear (Runesword143): ReduceWeapon leaves the hand unchanged. */
+    bool keep;
 } SotnPlayerMedicineUse;
 /** @brief Actual one-update Library Card use and retained original arrival acknowledgement. */
 typedef struct SotnPlayerTeleport

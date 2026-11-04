@@ -1096,7 +1096,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestKarma(&s->bat_runtime, source, packed, item, allocated)
            : item >= 75 && item <= 79
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
-           : item == 80 || item == 81 || item == 82 || item == 134 || item == 135
+           : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1144,7 +1144,11 @@ static bool BindFood(SotnLaboratory *s)
                             : c->neutron                ? 71
                             : c->sire && !c->sire_child ? 72
                             : c->pentagram              ? c->state.pentagram.item
-                                                        : 0;
+                            // Runesword's root carries143 from birth; its hitboxes only after
+                            // their first callback copies the raw parent's equip id.
+                            : c->weapon_secondary && c->state.secondary.family == 14
+                                ? c->state.secondary.item
+                                : 0;
         // CheckChainLimit reads raw AE and params, not the callback's hand family.
         // Both original56 arrows retain params0, including right-hand F1 arrows.
         if (item && item == state.equipment[hand])
@@ -4066,7 +4070,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 const Uint16 family = child->state.secondary.family, role = child->kind & 15U;
                 const bool slash = family == 53 || family == 51,
                            ring = role == 2 || family == 1 || (family == 50 && role == 4),
-                           sparkle = family == 50 && role == 1;
+                           sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
+                // Weapon14's forty-eight trail GT4s share the compact-row command.
+                for (Uint16 q = rune ? child->primitive_count : 0; q > 0; --q)
+                    if (!w->rune_hidden[q - 1U] &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->row_priority,
+                                            .primitive = (Uint16)(owner * 80U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SPARKLE}))
+                        return false;
                 // Weapon50's eighty sparkles are compact rows rebuilt at draw time.
                 for (Uint16 q = sparkle ? 80 : 0; q > 0; --q)
                     if (w->ice_size[q - 1U] &&
@@ -4084,8 +4097,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 16U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle ? 0 : child->primitive_count; row > 0;
-                     --row)
+                for (Uint16 row = slash || ring || sparkle || rune ? 0 : child->primitive_count;
+                     row > 0; --row)
                     if (!w->rows[row - 1U].hidden &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -5079,6 +5092,39 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                          index = (Uint16)(command.primitive % 80U);
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            if (c->weapon_secondary && c->state.secondary.family == 14)
+            {
+                if (!c->initialized || (c->kind & 15U) || index >= c->primitive_count ||
+                    w->rune_hidden[index] || !SotnBatRuntime_SecondaryValid(c, owner))
+                    return SDL_SetError("Runesword trail draw lost its actual root/row lease");
+                // Row i spans the blade at callbacks i and i+1: its x0/x2 repeat row i-1's
+                // x1/x3 (row0 keeps its birth corners). drawMode0x173, tpage0x19.
+                const bool right = (c->parameter & 0x8000U) != 0;
+                const Sint32 x0 = index ? w->rune_x1[index - 1U] : w->rune_x0,
+                             y0 = index ? w->rune_y1[index - 1U] : w->rune_y0,
+                             x2 = index ? w->rune_x3[index - 1U] : w->rune_x2,
+                             y2 = index ? w->rune_y3[index - 1U] : w->rune_y2;
+                const Uint8 v0 = right ? 0xe0 : 0x60, v2 = right ? 0xff : 0x7f;
+                const SotnPlayerEffectQuad q = {
+                    .x = {BlinkWord(x0 - view_x), BlinkWord(w->rune_x1[index] - view_x),
+                          BlinkWord(x2 - view_x), BlinkWord(w->rune_x3[index] - view_x)},
+                    .y = {BlinkWord(y0 - view_y), BlinkWord(w->rune_y1[index] - view_y),
+                          BlinkWord(y2 - view_y), BlinkWord(w->rune_y3[index] - view_y)},
+                    .u = {w->rune_u0[index], w->rune_u1[index], w->rune_u0[index],
+                          w->rune_u1[index]},
+                    .v = {v0, v0, v2, v2},
+                    .green = {0x10},
+                    .red = {1},
+                    .palette = right ? 0x135 : 0x11d,
+                    .page = 0x19,
+                    .priority = w->row_priority,
+                    .draw_mode = w->draw_mode};
+                if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             if (!c->weapon_secondary || !c->initialized || c->state.secondary.family != 50 ||
                 (c->kind & 15U) != 1 || index >= c->primitive_count || !w->ice_size[index] ||
                 !SotnBatRuntime_SecondaryValid(c, owner))
@@ -5158,7 +5204,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
                     return false;
             }
-            else if (c->state.secondary.family == 49 || c->state.secondary.family == 6)
+            else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
+                     c->state.secondary.family == 14)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.

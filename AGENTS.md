@@ -1,3 +1,11 @@
+Selected [Runesword](docs/player-runesword.md) now owns kind129 item143 through weapon14 hosted
+by the secondary owner as role0: blueprint50 E0/F0 roots in slots17..31 (own item, least-used
+group, 48 mandatory GT4s before RNG) fly/stop/drift/home and retire at the player's hitbox;
+four 0x72 hitboxes copy the raw parent's id/enemyId and retire when its slot empties. The throw
+is never consumed (`keep`); CheckChainLimit counts the root and initialized hitboxes. Trail
+corners are world pixels (DRAW_UNK02|UNK_100). Secondary DestroyEntityWeapon(true) now retires
+a raised slot16 shield (Moon rod too). SFX_RUNESWORD_ATTACK uses PlaySfxVolPan 0x50.
+
 Selected [Moon rod](docs/player-moon-rod.md) now owns item132 and kind5 QCF special172: blueprint72
 spawns five own-item E1/F1 crescents (player hitbox origin, least-used group, shield clear,
 timer10=4, hit flash) whose sparkles chain from them. QCF honours limited CheckChainLimit via

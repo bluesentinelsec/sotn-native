@@ -53,6 +53,19 @@ typedef struct SotnWeaponSecondary
             Sint32 accel_x, accel_y; /**< Weapon6 crescent accelerations. */
             Sint16 spin, counter;    /**< Weapon6 crescent velocityZ and unk7C. */
         };
+        /** Weapon14 Runesword root: forty-eight GT4 trail rows kept as blade corners x1/y1 and
+         * x3/y3 (row i's x0/x2 repeat row i-1's), UVs and the r0 shown byte. The original
+         * DRAW_UNK02|UNK_100 screen vertices follow the camera, so corners are world pixels. */
+        struct
+        {
+            Sint32 rune_x1[48], rune_y1[48], rune_x3[48], rune_y3[48];
+            Sint32 rune_x0, rune_y0, rune_x2, rune_y2; /**< Row0's birth corners. */
+            Sint32 rune_velocity_y;
+            Uint8 rune_u0[48], rune_u1[48]; /**< u0=u2 and u1=u3. */
+            bool rune_shown[48];            /**< Original r0: uncovered once. */
+            bool rune_hidden[48];           /**< Original DRAW_HIDE. */
+            Sint16 rune_count;              /**< ext.weapon_014.unk9C: completed callbacks. */
+        };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
@@ -71,7 +84,7 @@ typedef struct SotnWeaponSecondary
     Uint8 hit_flags;         /**< Actual collision hitFlags recorded since the last callback. */
     Uint16 age;              /**< Weapon53 unk7E: completed callbacks, retired at nine. */
     Uint16 timeline;         /**< Private AnimationFrame list chosen at birth (zero: family's). */
-    Uint8 role;              /**< Child callback recorded at birth (1..5). */
+    Uint8 role; /**< Child callback recorded at birth (0..5; 0 is weapon14's thrown root). */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
     bool facing_left, removed, allocated;
 } SotnWeaponSecondary;
@@ -101,6 +114,15 @@ typedef struct SotnWeaponSecondaryInput
     Uint16 parent_hitbox_state;
     /** Actual player animation hitbox offsets (PLAYER.hitboxOffX/Y): weapon6 crescent origin. */
     Sint16 parent_hitbox_x, parent_hitbox_y;
+    /** Weapon14 root: PLAYER.velocityX, hitboxWidth/Height and step==Player_Crouch. */
+    Sint32 player_velocity_x;
+    Uint8 player_hitbox_width, player_hitbox_height;
+    bool player_crouch_step;
+    /** Weapon14 hitboxes: the raw parent slot's current entity words (absent: entityId0). */
+    bool parent_exists, parent_facing_left;
+    Sint32 parent_x, parent_y;
+    Sint16 parent_rotate;
+    Uint8 parent_draw_flags;
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -117,12 +139,16 @@ typedef struct SotnWeaponSecondaryEvents
     /** Weapon6 crescents: DestroyEntityWeapon(true) and the player timer10 use request. */
     bool clear_shield;
     Uint8 use_ticks;
+    /** Weapon14: sounds[0] is PlaySfxVolPan(sound, volume, pan0). */
+    bool volume_sound;
+    Uint16 volume;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,
  * Thunderbrand48). */
 bool SotnWeaponSecondary_Supported(Uint16 family);
-/** @brief Whether a resident program owns the given child callback role (1 or 2). */
+/** @brief Whether a resident program owns the given child callback role (0..5; role0 is only
+ * weapon14's factory-born thrown EntityWeaponAttack). */
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one role's child; zero if unsupported. */
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);

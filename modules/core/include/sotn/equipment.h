@@ -12,6 +12,9 @@ typedef struct SotnEquipment
     /** Original QCF specialMove and back-forward unk17 virtual items; zero when absent. */
     Uint8 special_move, back_forward;
     Uint16 blueprint; /**< Actual copied factory identity; avoids implicit byte-tail padding. */
+    /** Original isConsumable byte (ReduceWeapon decrements only when set); 16-bit so the
+     * struct keeps no implicit tail padding. Read for kind129/130 items only. */
+    Uint16 consumable;
 } SotnEquipment;
 
 /** @brief Resolved frame of the original player-locked weapon entity. */

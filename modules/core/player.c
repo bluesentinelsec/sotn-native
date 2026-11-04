@@ -690,8 +690,10 @@ static bool StartAttack(SotnPlayer *player)
         }
         if (!allocated)
             return false;
-        const SotnPlayerMedicineUse use = {
-            .hand = (Uint16)hand, .item = equipment.id, .used = true};
+        const SotnPlayerMedicineUse use = {.hand = (Uint16)hand,
+                                           .item = equipment.id,
+                                           .used = true,
+                                           .keep = throwing && !equipment.consumable};
         if (throwing)
         {
             Uint16 random = 0;
@@ -3152,7 +3154,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (next.food.used && !next.food_consume(next.food_context, next.food.hand, next.food.item,
                                              &next.equipment[next.food.hand]))
         return false;
-    if (next.throwing.used &&
+    if (next.throwing.used && !next.throwing.keep &&
         !next.throwing_consume(next.throwing_context, next.throwing.hand, next.throwing.item,
                                &next.equipment[next.throwing.hand]))
         return false;

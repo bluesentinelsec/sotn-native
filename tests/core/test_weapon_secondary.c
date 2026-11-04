@@ -1305,6 +1305,175 @@ static bool Moon(void)
           !SotnWeaponSecondary_SupportedRole(6, 3));
     return true;
 }
+// w_014: the thrown Runesword flies out levelling its blade, stops, drifts back and homes on the
+// player's hitbox; its trail uncovers one row per update and keeps the newest seventeen.
+static bool Rune(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    const Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 hand = k >> 1;
+        const bool left = (k & 1U) != 0, crouch = k == 3;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = 100 * 65536 + 0x1234,
+                                 .y = 80 * 65536 + 0x4321,
+                                 .facing_left = !left};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 120 * 65536,
+                                       .y = 100 * 65536,
+                                       .camera_x = 30,
+                                       .camera_y = -10,
+                                       .hand = hand,
+                                       .family = 14,
+                                       .role = 0,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = true,
+                                       .parent_hitbox_x = 5,
+                                       .parent_hitbox_y = -6,
+                                       .player_velocity_x = 0x8000,
+                                       .player_hitbox_width = 12,
+                                       .player_hitbox_height = 30,
+                                       .player_crouch_step = crouch};
+        Uint32 rng = 7, check = 7;
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              rng == check && e.properties && e.clear_shield && e.use_ticks == 4 &&
+              e.sounds[0] == 0x677 && e.volume_sound && e.volume == 0x50 && e.sounds[1] == 0x66c &&
+              e.chain == (0x72U | (hand + 1U) << 12) && s.bank == 0x8010U + hand * 2U &&
+              s.texture == 0x64U + hand * 2U && s.palette == (hand ? 0x134 : 0x11c) &&
+              s.frame == 8 && s.facing_left == left && s.priority == 146 && s.row_priority == 144 &&
+              s.draw_mode == 0x173 && s.flags == 0x0c820000U && s.draw_flags == 4 &&
+              s.rotate == -0x700 && s.hitbox_width == 4 && s.hitbox_height == 4 &&
+              s.lifetime == 0x16 && s.velocity_x == (left ? -0x60000 : 0x60000) + 0x8000 &&
+              s.rune_velocity_y == 0x10000 && s.rune_count == 1);
+        // Origin: the player's hitbox, sixteen (crouching eight) pixels up; fractions kept.
+        CHECK(s.x == (120 + (left ? -5 : 5)) * 65536 + 0x1234 &&
+              s.y == (100 - 6 - (crouch ? 8 : 16)) * 65536 + 0x4321);
+        for (Uint16 i = 0; i < 48; ++i)
+            CHECK(s.rune_hidden[i] && !s.rune_shown[i]);
+        // Flight: the blade turns 0x70 per update to level, stops below lifetime7.
+        for (Uint16 t = 1; t <= 0x16; ++t)
+        {
+            const Sint32 x = s.x, y = s.y, vx = s.velocity_x;
+            const Sint16 rotate = s.rotate;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties &&
+                  !e.sounds[0] && !e.chain && rng == check);
+            CHECK(s.x == x + vx && s.y == y + 0x10000 && s.rotate == SDL_min(rotate + 0x70, 0) &&
+                  s.rune_count == t + 1);
+            CHECK(s.rune_shown[t - 1U] && !s.rune_hidden[t - 1U] &&
+                  (t == 0x16 || !s.rune_shown[t]));
+            if (t < 0x16)
+                CHECK(s.velocity_x == (0x16 - t < 7 ? 0 : vx));
+        }
+        CHECK(s.phase == 2 && s.lifetime == 8 && s.velocity_x == (left ? 0x30000 : -0x30000));
+        // The newest seventeen rows stay visible; the texture spreads over sixteen of them.
+        for (Uint16 i = 0; i < 0x16; ++i)
+            CHECK(s.rune_hidden[i] == (i < 0x16 - 17));
+        CHECK(s.rune_u0[0x15] == 120 && s.rune_u1[0x15] == 128 && s.rune_u0[6] == 0 &&
+              s.rune_u1[6] == 8);
+        // Row0 x0/x2 hold the birth corners; later rows chain the previous row's x1/x3.
+        CHECK(s.rune_x1[0] != s.rune_x0 || s.rune_y1[0] != s.rune_y0);
+        for (Uint16 t = 0; t < 8; ++t)
+        {
+            const Sint32 x = s.x, y = s.y;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.x == x + s.velocity_x &&
+                  s.y == y && !(s.draw_flags & 4U));
+        }
+        CHECK(s.phase == 3);
+        // Homing: ten pixels per update toward the hitbox; retires inside its window.
+        Uint16 t = 0;
+        Sint32 distance = 1 << 30;
+        for (; t < 200 && !s.removed; ++t)
+        {
+            const Sint16 count = s.rune_count;
+            const Sint32 dx = 120 + 5 - (Sint32)(s.x >> 16), dy = 100 - 6 - (Sint32)(s.y >> 16);
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (s.removed)
+            {
+                CHECK(SDL_abs(dx) < (12 + 16) / 2 && SDL_abs(dy) < (30 + 4) / 2 &&
+                      s.rune_count == count);
+                break;
+            }
+            CHECK((s.draw_flags & 4U) && dx * dx + dy * dy <= distance);
+            distance = dx * dx + dy * dy;
+        }
+        CHECK(s.removed);
+    }
+    // Exhausted rows retire the root before properties or RNG.
+    {
+        SotnWeaponSecondary s = {.x = 100 * 65536, .y = 80 * 65536};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 14,
+                                       .role = 0};
+        Uint32 rng = 3;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 3 &&
+              !e.properties && !e.sounds[0] && !e.chain);
+        SotnWeaponSecondary bad = {.phase = 4};
+        CHECK(!SotnWeaponSecondary_Tick(&bad, &program, in, &rng, &e));
+    }
+    // Hitboxes: four blade offsets from the raw parent, retired once its slot is empty.
+    for (Uint16 index = 0; index < 4; ++index)
+    {
+        static const Sint16 reach[4] = {10, 20, 30, 40};
+        SotnWeaponSecondary s = {.parameter = index, .x = 1 * 65536 + 0x77, .y = 2 * 65536};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 14,
+                                       .role = 1,
+                                       .parent_exists = true,
+                                       .parent_facing_left = index == 2,
+                                       .parent_x = 90 * 65536,
+                                       .parent_y = 70 * 65536,
+                                       .parent_rotate = 0x400};
+        Uint32 rng = 5;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.properties &&
+              s.phase == 1 && s.flags == 0x0c020000U && s.facing_left == (index == 2) &&
+              s.hitbox_width == 4 && s.hitbox_height == 4);
+        CHECK(s.x == (90 + (index == 2 ? -reach[index] : reach[index])) * 65536 + 0x77 &&
+              s.y == 70 * 65536);
+        // The parent's rotation counts only while it draws rotated.
+        in.parent_draw_flags = 4;
+        in.parent_facing_left = !in.parent_facing_left;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties &&
+              s.x == 90 * 65536 + 0x77 && s.y == (70 + reach[index]) * 65536 &&
+              s.facing_left == (index == 2));
+        in.parent_exists = false;
+        const Uint32 before = rng;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == before);
+    }
+    SotnWeaponSecondary forged = {.parameter = 4};
+    SotnWeaponSecondaryEvents e = {0};
+    Uint32 rng = 1;
+    CHECK(!SotnWeaponSecondary_Tick(&forged, &program,
+                                    (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                               .executable = {exe, sizeof(exe)},
+                                                               .family = 14,
+                                                               .role = 1,
+                                                               .parent_exists = true},
+                                    &rng, &e));
+    CHECK(SotnWeaponSecondary_SupportedRole(14, 0) && SotnWeaponSecondary_SupportedRole(14, 1) &&
+          !SotnWeaponSecondary_SupportedRole(14, 2) && SotnWeaponSecondary_RoleRows(14, 0) == 48 &&
+          !SotnWeaponSecondary_RoleRows(14, 1) && !SotnWeaponSecondary_SupportedRole(6, 0));
+    return true;
+}
+
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -2296,12 +2465,134 @@ static bool MoonRuntime(void)
     SDL_free(dra);
     return true;
 }
+// Blueprint50 creates the Runesword root in slots17..31 (own item143, least-used group, 48 rows);
+// its WFACTORY(0x72,0) hitboxes copy its equip id/group, and all retire once it homes back.
+static bool RuneRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 143, 2, 14, 129, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 143 * 52;
+    record[18] = 0x5d;
+    record[19] = 50;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[][6] = {{50, 0, 1, 0xc1, 0, 0x26}, {0x72, 1, 4, 0xc4, 0, 0x01}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 2] = 17;
+    dra[0xd4b9 + 2] = 47;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment rune = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 143, &rune) && rune.kind == 129 && rune.family == 14 &&
+          rune.blueprint == 50 && rune.chain_limit == 1 && !rune.consumable);
+    record[25] = 1;
+    CHECK(!SotnEquipment_Read(actors->dra, 143, &rune));
+    record[25] = 0;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {14, 14},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x5d,
+                                                       .hitbox_x = 4,
+                                                       .hitbox_y = -18,
+                                                       .hitbox_width = 12,
+                                                       .hitbox_height = 30}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(!SotnBatRuntime_RequestThrown(r, source, 0x1033U, 143, &allocated));
+    CHECK(SotnBatRuntime_RequestThrown(r, source, 0x1032U, 143, &allocated) && allocated);
+    Uint16 root = 0, hitboxes = 0, volume = 0;
+    for (Uint16 t = 0; t < 6; ++t)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 k = 0; k < r->sound_count; ++k)
+            if (r->sounds[k] == 0x677)
+                volume += ((r->sound_volume_mask >> k) & 1U) && r->sound_volumes[k] == 0x50;
+            else if (r->sounds[k] == 0x66c)
+                CHECK(!((r->sound_volume_mask >> k) & 1U));
+        hitboxes = 0;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 14)
+                continue;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            if (c->kind == 0xe0)
+            {
+                CHECK(i >= 1 && i <= 15 && c->state.secondary.own_item &&
+                      c->state.secondary.item == 143 && c->primitive_count == 48 && c->group >= 3 &&
+                      c->group <= 6 && c->state.secondary.attack.equipment == 143);
+                root = i;
+            }
+            else if (c->initialized)
+            {
+                CHECK(c->kind == 0xe1 && c->state.secondary.parent_slot == root + 16U &&
+                      c->state.secondary.item == 143 && c->group == r->children[root].group &&
+                      !c->primitive_count && c->state.secondary.attack.width == 4);
+                ++hitboxes;
+            }
+        }
+    }
+    CHECK(root && hitboxes == 4 && volume == 1);
+    // A forged root without its own item143 is rejected.
+    SotnBatRuntimeChild forged = r->children[root];
+    forged.state.secondary.item = 172;
+    CHECK(!SotnBatRuntime_SecondaryValid(&forged, root));
+    // Room entry moves the world-space trail corners with the entity.
+    const SotnWeaponSecondary trail = r->children[root].state.secondary.motion;
+    in.entering = true;
+    in.room_shift_x = 7;
+    in.room_shift_y = -3;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const SotnWeaponSecondary *moved = &r->children[root].state.secondary.motion;
+    CHECK(moved->rune_x0 == trail.rune_x0 + 7 && moved->rune_y2 == trail.rune_y2 - 3);
+    for (Uint16 j = 0; j < 48; ++j)
+        if (trail.rune_shown[j])
+            CHECK(moved->rune_x1[j] == trail.rune_x1[j] + 7 &&
+                  moved->rune_y3[j] == trail.rune_y3[j] - 3);
+    in.entering = false;
+    in.room_shift_x = in.room_shift_y = 0;
+    // The sword returns to the stationary player: root and hitboxes retire with every row.
+    for (Uint16 t = 0; t < 200; ++t)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
-                   IceRuntime() && MoonRuntime()
+                   IceRuntime() && MoonRuntime() && Rune() && RuneRuntime()
                ? 0
                : 1;
 }

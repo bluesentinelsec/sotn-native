@@ -63,6 +63,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 80};
     else if (family == 6)
         *out = (Layout){.rows = 0};
+    else if (family == 14)
+        *out = (Layout){.rows = 48};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -71,7 +73,8 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1 || family == 51 || family == 49 || family == 50 || family == 6;
+           family == 1 || family == 51 || family == 49 || family == 50 || family == 6 ||
+           family == 14;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -89,6 +92,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon6 owns Moon rod's crescents and their sparkles.
     if (family == 6)
         return role == 1 || role == 2;
+    // Weapon14's blueprint50 root runs EntityWeaponAttack outside slot16; E1 hitboxes follow it.
+    if (family == 14)
+        return role <= 1;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
@@ -101,6 +107,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 1 ? 80 : role == 2 ? 16 : role == 3 ? 32 : 8;
     if (family == 6)
         return role == 2 ? 1 : 0;
+    if (family == 14)
+        return role == 0 ? 48 : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -1644,6 +1652,206 @@ static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uin
     return true;
 }
 
+// w_014 blade line at the entity's rotation: its point 47 pixels out and its hilt 8 pixels out.
+static bool RuneCorners(SotnDataView exe, Sint16 angle, Sint16 x, Sint16 y, bool left, Sint16 *x1,
+                        Sint16 *y1, Sint16 *x3, Sint16 *y3)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, angle, &t))
+        return false;
+    const Sint32 point = Asr(Asr(t.cosine, 4) * 47, 8), hilt = Asr(t.cosine, 9);
+    *x1 = Word(left ? x - point : x + point);
+    *y1 = Word(y + Asr(Asr(t.sine, 4) * 47, 8));
+    *x3 = Word(left ? x - hilt : x + hilt);
+    *y3 = Word(y + Asr(t.sine, 9));
+    return true;
+}
+// w_014 EntityWeaponAttack: the thrown Runesword flies out spinning to level, stops, drifts back,
+// then homes on the player's hitbox, retiring there; a 48-row trail follows its blade.
+static bool Rune(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                 SotnWeaponSecondaryEvents *e)
+{
+    const Sint32 sx = Word(Pixel(s->x) - in.camera_x);
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 0;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->palette = in.hand ? 0x134 : 0x11c;
+        s->frame = 8;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->flags = 0x0c820000U;
+        s->velocity_x = s->facing_left ? -0x60000 : 0x60000;
+        s->rune_velocity_y = 0x10000;
+        const Sint16 offset = Word(Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y);
+        SetScreen(&s->y, Word(offset - (in.player_crouch_step ? 8 : 16)), in.camera_y);
+        const Sint16 px = Word(Pixel(in.x) - in.camera_x);
+        SetScreen(&s->x, Word(s->facing_left ? px - in.parent_hitbox_x : px + in.parent_hitbox_x),
+                  in.camera_x);
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)in.player_velocity_x);
+        s->lifetime = 0x16;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        s->hitbox_width = s->hitbox_height = 4;
+        s->rotate = -0x700;
+        s->draw_flags |= 4;
+        Sint16 x0 = 0, y0 = 0, x2 = 0, y2 = 0;
+        if (!RuneCorners(in.executable, s->rotate, Word(Pixel(s->x) - in.camera_x),
+                         Word(Pixel(s->y) - in.camera_y), s->facing_left, &x0, &y0, &x2, &y2))
+            return false;
+        s->rune_x0 = x0 + in.camera_x;
+        s->rune_y0 = y0 + in.camera_y;
+        s->rune_x2 = x2 + in.camera_x;
+        s->rune_y2 = y2 + in.camera_y;
+        for (Uint16 i = 0; i < 48; ++i)
+            s->rune_hidden[i] = true;
+        s->row_priority = (Uint16)(s->priority - 2U);
+        s->draw_mode = 0x173;
+        e->sounds[0] = 0x677;
+        e->volume_sound = true;
+        e->volume = 0x50;
+        e->sounds[1] = 0x66c;
+        e->use_ticks = 4;
+        e->chain = 0x72U | ((Uint32)(in.hand + 1U) << 12);
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->rotate = Word(s->rotate + 0x70);
+        if (s->rotate > 0)
+            s->rotate = 0;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->rune_velocity_y);
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (s->lifetime < 7)
+            s->velocity_x = Decelerate(s->velocity_x, 0xe0000);
+        if (!s->lifetime)
+        {
+            s->lifetime = 8;
+            s->velocity_x = s->facing_left ? 0x30000 : -0x30000;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        s->draw_flags &= (Uint8)~4U;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (!s->lifetime)
+            s->phase = 3;
+        break;
+    default: {
+        const Sint32 tx = (Sint32)Word(Pixel(in.x) - in.camera_x) + in.parent_hitbox_x,
+                     ty = (Sint32)Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y,
+                     sy = Word(Pixel(s->y) - in.camera_y);
+        const Sint16 dx = Word(tx - sx < 0 ? sx - tx : tx - sx),
+                     dy = Word(ty - sy < 0 ? sy - ty : ty - sy);
+        if (dx < (in.player_hitbox_width + 16) / 2 && dy < (in.player_hitbox_height + 4) / 2)
+        {
+            s->removed = true;
+            return true;
+        }
+        Sint16 angle = 0;
+        if (!SotnMath_Atan2(in.executable, -(Sint32)Word(ty - sy), Word(tx - sx), &angle))
+            return false;
+        angle = (Sint16)(angle & 0xfff);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)t.cosine * 32U * 5U);
+        s->y = (Sint32)((Uint32)s->y - (Uint32)t.sine * 32U * 5U);
+        s->rotate = s->facing_left ? angle : Word(0x800 - angle);
+        s->draw_flags |= 4;
+        break;
+    }
+    }
+    // Uncover the row for this callback, keep sixteen visible and spread the texture over them.
+    const Sint16 count = s->rune_count;
+    for (Sint32 i = 0; i < 48; ++i)
+    {
+        if (!s->rune_shown[i] && i == count - 1)
+        {
+            Sint16 x1 = 0, y1 = 0, x3 = 0, y3 = 0;
+            if (!RuneCorners(in.executable, s->rotate, Word(Pixel(s->x) - in.camera_x),
+                             Word(Pixel(s->y) - in.camera_y), s->facing_left, &x1, &y1, &x3, &y3))
+                return false;
+            s->rune_x1[i] = x1 + in.camera_x;
+            s->rune_y1[i] = y1 + in.camera_y;
+            s->rune_x3[i] = x3 + in.camera_x;
+            s->rune_y3[i] = y3 + in.camera_y;
+            s->rune_hidden[i] = false;
+            s->rune_shown[i] = true;
+        }
+        if (count - 1 >= 0x11 && i < count - 0x11)
+            s->rune_hidden[i] = true;
+    }
+    if (count)
+    {
+        const Sint16 end = count > 47 ? 47 : Word(count - 1);
+        Sint16 start = Word(count - 16);
+        if (start < 0)
+            start = 0;
+        if (start > 47)
+            start = 47;
+        Sint32 range = end - start + 1;
+        if (!range)
+            range = 1;
+        const Sint16 step = Word(128 / range);
+        for (Sint32 i = start; i <= end && i < 48; ++i)
+        {
+            s->rune_u0[i] = (Uint8)((i - start) * step);
+            s->rune_u1[i] = (Uint8)((i - start + 1) * step);
+        }
+    }
+    s->rune_count = Word(count + 1);
+    return true;
+}
+// w_014 func_ptr_80170004: four 4x4 hitboxes along the parent's blade (paramsLo 0..3), retired
+// once the raw parent slot is empty.
+static bool RuneHitbox(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                       SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    const Uint16 index = (Uint16)(s->parameter & 0xffU);
+    if (index > 3)
+        return SDL_SetError("Weapon14 hitbox requires its actual paramsLo0..3");
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->facing_left = in.parent_facing_left;
+        s->flags = 0x0c020000U;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 4;
+        s->phase = 1;
+    }
+    Sint16 angle = (in.parent_draw_flags & 4U) ? in.parent_rotate : 0;
+    if (s->facing_left)
+        angle = Word(0x800 - angle);
+    static const Uint8 scale[4] = {5, 5, 15, 5}, shift[4] = {7, 6, 7, 5};
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(in.executable, angle, &t))
+        return false;
+    const Sint16 bx = Word(Asr(Asr(t.cosine, 4) * scale[index], shift[index])),
+                 by = Word(Asr(Asr(t.sine, 4) * scale[index], shift[index]));
+    SetScreen(&s->x, Word(bx + Word(Pixel(in.parent_x) - in.camera_x)), in.camera_x);
+    SetScreen(&s->y, Word(by + Word(Pixel(in.parent_y) - in.camera_y)), in.camera_y);
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -1651,10 +1859,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     Layout layout = {0};
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 5 ||
         !Program(in.family, &layout) ||
-        !SotnWeaponSecondary_SupportedRole(in.family, in.role ? in.role : 1) || state->removed ||
-        state->phase > (in.family == 49 && in.role == 4  ? 2
-                        : in.family == 6 && in.role == 1 ? 4
-                                                         : 1) ||
+        !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ? in.role : 1) ||
+        state->removed ||
+        state->phase > (in.family == 49 && in.role == 4   ? 2
+                        : in.family == 6 && in.role == 1  ? 4
+                        : in.family == 14 && in.role == 0 ? 3
+                                                          : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
@@ -1685,6 +1895,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 6)
     {
         if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 14)
+    {
+        if (!(in.role == 0 ? Rune(&s, in, &rng, &e) : RuneHitbox(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
