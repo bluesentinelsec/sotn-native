@@ -509,6 +509,51 @@ static bool Katana(void)
     }
     return true;
 }
+// w_048: descriptor1 birth requests the bolt root, three branches and the ring; the first update
+// pose1 follows pose0 adds a root and three branches (0x10 ordinary, 0x20 special) once.
+static bool Thunderbrand(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    SDL_memcpy(o + 0xfc0, o + 0x106c, 16);
+    SDL_memcpy(o + 0xfd0, o + 0x106c, 16);
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 variant = k & 1U, hand = k >> 1;
+        const Uint32 h = (hand + 1U) << 12, base = variant ? 0x20U : 0x10U;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 48,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .animation = 0x41,
+                                  .pose = 0,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {.previous_pose = 9};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.blend == 0x30 &&
+              !program.previous_pose);
+        if (variant)
+            CHECK(e.factory == (0x38U | h) && e.more_factories[0] == (0x3aU | h | 1U << 16) &&
+                  e.more_factories[2] == (0x3aU | h | 3U << 16) &&
+                  e.more_factories[3] == (0x40U | h) && !e.more_factories[4]);
+        else
+            CHECK(!e.factory && !e.more_factories[0]);
+        in.pose = 1;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) &&
+              e.factory == (0x38U | h | base << 16) &&
+              e.more_factories[0] == (0x3aU | h | (base + 1U) << 16) &&
+              e.more_factories[2] == (0x3aU | h | (base + 3U) << 16) && !e.more_factories[3] &&
+              program.previous_pose == 1);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory);
+    }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -1007,7 +1052,7 @@ static bool Ownership(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   Lunges() && Katana() && KnifeAndGreatSword() && Ownership()
+                   Lunges() && Katana() && Thunderbrand() && KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }

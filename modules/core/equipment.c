@@ -75,6 +75,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0};
     case 196:
         return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5};
+    case 112: // Thunderbrand and its QCF special178 (kind19, five MP)
+        return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0};
+    case 178:
+        return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5};
     case 100: // Katana and its QCF slash special189
         return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0};
     case 189:

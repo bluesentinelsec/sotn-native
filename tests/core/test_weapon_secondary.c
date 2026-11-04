@@ -408,6 +408,147 @@ static bool Slash(void)
           !e.chain && SotnWeaponSecondary_Rows(53) == 1);
     return true;
 }
+// Authored weapon48 tables: four bolt colors at0xfe0 and seven per-animation anchor rows at0x1000.
+static void ThunderProgram(Uint8 *o)
+{
+    const Uint16 colors[4][3] = {{128, 128, 128}, {64, 176, 16}, {32, 208, 16}, {0, 255, 64}};
+    for (Uint16 i = 0; i < 4; ++i)
+        for (Uint16 c = 0; c < 3; ++c)
+            Put16(o + 0xfe0 + i * 8U + c * 2U, colors[i][c]);
+    for (Uint16 a = 0; a < 7; ++a)
+    {
+        Put16(o + 0x1000 + a * 8U, (Uint16)(20 + a));
+        Put16(o + 0x1002 + a * 8U, (Uint16)(Sint16)(-10 + a));
+        Put16(o + 0x1004 + a * 8U, (Uint16)(60 - a));
+        Put16(o + 0x1006 + a * 8U, (Uint16)(a * 4U));
+    }
+}
+static bool Thunder(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    ThunderProgram(o);
+    Math(exe);
+    Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    const Uint16 params[] = {0, 3, 0x11, 0x20, 0x22};
+    for (Uint16 k = 0; k < SDL_arraysize(params); ++k)
+    {
+        const Uint16 param = params[k];
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .x = 150 * 65536 + 99,
+                                       .y = 120 * 65536 + 7,
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .family = 48,
+                                       .role = 1,
+                                       .hand = (Uint16)(k & 1U),
+                                       .priority = 148,
+                                       .animation = 0x43,
+                                       .attack_mode = 0x8014,
+                                       .facing_left = k == 2,
+                                       .allocated = true};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(param << 8)};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 21, expected = 21;
+        Sint16 angles[10];
+        for (Uint16 i = 0; i < 10; ++i)
+            angles[i] = (Sint16)SotnCombat_Random(&expected);
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == expected &&
+              e.properties && s.phase == 1 && s.flags == 0x860000U && s.draw_mode == 0x335 &&
+              s.row_priority == 152 && s.remaining == (param < 16 ? 40 : 6));
+        // Colors fade along the bolt; each row keeps its rand angle advanced by768.
+        const Uint16 c = param & 0xfU, red = c == 0 ? 128 : c == 1 ? 64 : c == 2 ? 32 : 0;
+        CHECK(s.rows[0].red[0] == red && s.rows[9].red[1] == 0 &&
+              s.rows[4].red[1] == red * 5U / 10U && s.rows[3].angle == (Sint16)(angles[3] + 768));
+        if (param < 16)
+            CHECK(s.hitbox_width == 4 && s.hitbox_height == 20 && s.hitbox_y == -20 &&
+                  s.rows[0].x[0] == 150 - 30 + 12 && s.rows[0].y[0] == 120 - 10 - 26);
+        else if (param >= 32 && !(param & 0xfU))
+            CHECK(s.hitbox_width == 32 && s.hitbox_height == 6 && s.hitbox_x == 32 &&
+                  s.hitbox_state == 2);
+        else
+            CHECK(!s.hitbox_width && s.hitbox_state == (param >= 32 ? 0 : 2));
+        if (param >= 16)
+        {
+            // Anchor row2 (animation0x43): +-22 then -8 vertically; extents halve below0x20.
+            const Sint16 ax = k == 2 ? -22 : 22;
+            CHECK(s.rows[0].x[0] == 150 - 30 + ax && s.rows[0].y[0] == 120 - 10 - 8);
+            // The bolt ends within its three-pixel jitter of the (halved below0x20) extent58/8.
+            const Sint32 reach = (param < 32 ? 29 : 58) * (k == 2 ? -1 : 1);
+            CHECK(SDL_abs(s.rows[9].x[1] - (s.rows[0].x[0] + reach)) <= 3 &&
+                  SDL_abs(s.rows[9].y[1] - (s.rows[0].y[0] + (param < 32 ? 4 : 8))) <= 3);
+        }
+        Uint16 callbacks = 1;
+        while (!s.removed)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties);
+            ++callbacks;
+        }
+        CHECK(callbacks == (param < 16 ? 41 : 7));
+    }
+    // The Y-scale flag lifts bolts (three more below parameter16) and leaving0x41..0x47 retires.
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .properties = Properties,
+                                   .context = &hit,
+                                   .x = 150 * 65536,
+                                   .y = 120 * 65536,
+                                   .family = 48,
+                                   .role = 1,
+                                   .animation = 0x43,
+                                   .attack_mode = 1,
+                                   .draw_flags = 2,
+                                   .allocated = true};
+    SotnWeaponSecondary s = {0};
+    SotnWeaponSecondaryEvents e = {0};
+    Uint32 rng = 1;
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.rows[0].y[0] == 120 - 26 - 4);
+    in.animation = 0x48;
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed);
+    // Role2 ring: sixteen GT4 wedges, radius4 growing by4 to24, blue fading over forty updates.
+    in = (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                    .executable = {exe, sizeof(exe)},
+                                    .x = 150 * 65536,
+                                    .y = 120 * 65536,
+                                    .camera_x = 30,
+                                    .camera_y = 10,
+                                    .family = 48,
+                                    .role = 2,
+                                    .priority = 148,
+                                    .animation = 0x44,
+                                    .attack_mode = 1,
+                                    .allocated = true};
+    s = (SotnWeaponSecondary){0};
+    rng = 7;
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 7 && !e.properties &&
+          e.sounds[0] == 0x665 && s.remaining == 4 && s.age == 0x28 && !s.hitbox_width);
+    const SotnPlayerEffectQuad *q = &s.quads[0];
+    CHECK(q->x[2] == 150 - 30 + 12 && q->y[2] == 120 - 10 - 26 && q->x[0] == q->x[2] + 4 &&
+          q->y[0] == q->y[2] && q->u[0] == 32 + 32 && q->v[0] == 0xe0 && s.quads[12].v[0] == 0xff &&
+          s.quads[4].v[0] == 0xc0 && q->u[2] == 0x20 && q->v[2] == 0xe0 && q->palette == 0x15f &&
+          q->page == 0x1a && q->blue[2] == 0x80 && !q->blue[0] && q->draw_mode == 0x335 &&
+          q->priority == 150);
+    Uint16 callbacks = 1;
+    while (!s.removed)
+    {
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        ++callbacks;
+        if (!s.removed)
+            CHECK(s.remaining == SDL_min(4 + 4 * (callbacks - 1), 24) &&
+                  s.quads[5].blue[2] == (s.age < 16 ? s.age * 8 : 0x80));
+    }
+    CHECK(callbacks == 0x29 && SotnWeaponSecondary_RoleRows(48, 2) == 16 &&
+          SotnWeaponSecondary_RoleRows(48, 1) == 10 && !SotnWeaponSecondary_RoleRows(53, 2));
+    in.role = 2;
+    in.family = 55;
+    s = (SotnWeaponSecondary){0};
+    CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase);
+    return true;
+}
 static void FamilyDefinition(Uint8 *dra, Uint16 item, Uint8 category, Uint8 family, Uint8 kind,
                              Uint8 variant, Uint16 mp, Uint8 special)
 {
@@ -681,7 +822,103 @@ static bool KatanaRuntime(void)
     SDL_free(dra);
     return true;
 }
+// Thunderbrand178's birth requests: the bp56 root in slot17, bp58 branches reverse-allocated in
+// slots63/62/61 and the bp64 ring in slot60, each owning its rows and copying slot16's group.
+static bool ThunderRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 112, 1, 48, 1, 0, 0, 178);
+    FamilyDefinition(dra, 178, 1, 48, 19, 1, 5, 0);
+    const Uint8 blueprints[][6] = {{48, 0, 1, 0xc1, 0, 0x23},
+                                   {56, 1, 1, 0xc1, 0, 0x06},
+                                   {58, 1, 1, 0xc1, 0, 0x00},
+                                   {64, 2, 1, 0xc1, 0, 0x00}};
+    for (Uint16 i = 0; i < 4; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    Uint8 *o = weapons + 48U * 0x7000 + 0x4000;
+    Program(o);
+    SDL_memcpy(o + 0xfc0, o + 0x10ac, 16);
+    SDL_memcpy(o + 0xfd0, o + 0x10ac, 16);
+    ThunderProgram(o);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {48, 48},
+                              .weapon_bound = {true, true},
+                              .camera_x = 20,
+                              .camera_y = 8,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536 + 123,
+                                         .y = 100 * 65536 + 456,
+                                         .priority = 148,
+                                         .attack_mode = 0x8014,
+                                         .animation = {.id = 0x41, .pose = 0, .remaining = 2}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x11030, 178, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 pending = 0;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        pending += r->factories[i].cursor.entity_id && r->factories[i].secondary_factory &&
+                   r->factories[i].secondary_parent_slot == 16;
+    CHECK(pending == 5);
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const struct
+    {
+        Uint16 index, kind, parameter, rows;
+        Uint8 group;
+    } expect[] = {{1, 0xe1, 0, 10, 1},
+                  {47, 0xe1, 0x100, 10, 1},
+                  {46, 0xe1, 0x200, 10, 1},
+                  {45, 0xe1, 0x300, 10, 1},
+                  {44, 0xe2, 0, 16, 0}};
+    for (Uint16 k = 0; k < SDL_arraysize(expect); ++k)
+    {
+        const SotnBatRuntimeChild *c = &r->children[expect[k].index];
+        CHECK(c->weapon_secondary && c->kind == expect[k].kind &&
+              c->parameter == expect[k].parameter && c->primitive_count == expect[k].rows &&
+              c->group == expect[k].group && c->initialized &&
+              SotnBatRuntime_SecondaryValid(c, expect[k].index));
+        CHECK(((r->secondary_mask >> expect[k].index) & 1U) == (expect[k].kind == 0xe1));
+    }
+    // Leaving the brand's animations retires every secondary and releases all rows.
+    in.player.animation.id = 0x30;
+    in.player.attack_mode = 0;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
-    return Module() && Lunge() && Slash() && Runtime() && KatanaRuntime() ? 0 : 1;
+    return Module() && Lunge() && Slash() && Thunder() && Runtime() && KatanaRuntime() &&
+                   ThunderRuntime()
+               ? 0
+               : 1;
 }

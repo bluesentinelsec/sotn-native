@@ -17,6 +17,7 @@ typedef struct SotnHandWeaponProgram
      * retained chain endpoints (D_8017BA2C/D_8017BA6C). Zeroed with a genuine program load. */
     Sint32 secondary_counter;
     Sint16 secondary_x[32], secondary_y[32];
+    Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
 } SotnHandWeaponProgram;
 /** @brief Selected ordinary shared weapon entity: optional weapon43 TILEs or weapon1 GT4 trails. */
 typedef struct SotnHandWeapon
@@ -57,6 +58,8 @@ typedef struct SotnHandWeaponInput
 typedef struct SotnHandWeaponEvents
 {
     Uint32 factory;
+    /** Further ordered WFACTORY requests after factory (weapon48); zero-terminated. */
+    Uint32 more_factories[8];
     Uint16 sound;
     /** Ordered additional sounds after sound (weapon33 pose12 pair); zero when absent. */
     Uint16 extra_sounds[2];

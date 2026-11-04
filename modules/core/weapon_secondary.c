@@ -47,6 +47,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = family == 38 ? 24 : 32};
     else if (family == 53)
         *out = (Layout){.rows = 1};
+    else if (family == 48)
+        *out = (Layout){.rows = 10};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -54,7 +56,17 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
-    return family == 55 || family == 38 || family == 39 || family == 53;
+    return family == 55 || family == 38 || family == 39 || family == 53 || family == 48;
+}
+bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
+{
+    return SotnWeaponSecondary_Supported(family) && (role == 1 || (role == 2 && family == 48));
+}
+Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
+{
+    return !SotnWeaponSecondary_SupportedRole(family, role) ? 0
+           : role == 2                                      ? 16
+                                                            : SotnWeaponSecondary_Rows(family);
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
 {
@@ -295,13 +307,227 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
     return true;
 }
 
+// w_048 func_ptr_8017B810: a per-animation anchor/extent row (whole or halved extent).
+static bool ThunderAnchor(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, bool half,
+                          Sint16 *px, Sint16 *py)
+{
+    const Uint8 *row = NULL;
+    if (in.animation < 0x41 || in.animation >= 0x48 ||
+        !View(in.overlay, 0x1000U + (in.animation - 0x41U) * 8U, 8, &row))
+        return SDL_SetError("Weapon48 anchor requires its private animation row");
+    const Sint16 ax = (Sint16)Read16(row), ay = (Sint16)Read16(row + 2),
+                 dx = (Sint16)Read16(row + 4), dy = (Sint16)Read16(row + 6);
+    const Sint16 x = Word(Pixel(in.x) - in.camera_x), y = Word(Pixel(in.y) - in.camera_y);
+    const Sint16 hx = half ? (Sint16)(dx / 2) : dx;
+    s->x = (Sint32)((Uint32)(Word(x + (in.facing_left ? -ax : ax)) + in.camera_x) * 65536U |
+                    ((Uint32)s->x & 0xffffU));
+    s->y = (Sint32)((Uint32)(Word(y + ay) + in.camera_y) * 65536U | ((Uint32)s->y & 0xffffU));
+    *px = in.facing_left ? (Sint16)-hx : hx;
+    *py = half ? (Sint16)(dy / 2) : dy;
+    return true;
+}
+// w_048 func_ptr_80170004: ten LINE_G2 lightning segments from the anchor toward its target.
+static bool Lightning(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                      SotnWeaponSecondaryEvents *e)
+{
+    if (in.animation < 65 || in.animation >= 72 || !in.attack_mode)
+    {
+        s->removed = true;
+        return true;
+    }
+    const Uint16 params = (s->parameter >> 8) & 0x7fU;
+    Sint16 x = 0, y = 0, tx = 0, ty = 0;
+    if (params < 16)
+    {
+        x = Word(Word(Pixel(in.x) - in.camera_x) + (in.facing_left ? -12 : 12));
+        y = Word(Word(Pixel(in.y) - in.camera_y) - 26);
+        tx = x;
+        ty = Word(y - 48);
+    }
+    else
+    {
+        Sint16 dx = 0, dy = 0;
+        if (!ThunderAnchor(s, in, params < 32, &dx, &dy))
+            return false;
+        x = Word(Pixel(s->x) - in.camera_x);
+        y = Word(Pixel(s->y) - in.camera_y);
+        tx = Word(x + dx);
+        ty = Word(y + dy);
+    }
+    s->facing_left = in.facing_left;
+    if (in.draw_flags & 2U)
+    {
+        const Sint16 lift = (in.animation - 65 == 2 || in.animation - 65 == 3) ? 1 : 3;
+        const Sint16 extra = params < 16 ? 3 : 0;
+        y = Word(y - extra - lift);
+        ty = Word(ty - extra - lift);
+    }
+    s->x = (Sint32)((Uint32)(x + in.camera_x) * 65536U | ((Uint32)s->x & 0xffffU));
+    s->y = (Sint32)((Uint32)(y + in.camera_y) * 65536U | ((Uint32)s->y & 0xffffU));
+    if (!s->phase)
+    {
+        const Uint8 *color = NULL;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        if (!View(in.overlay, 0xfe0U + (params & 0xfU) * 8U, 6, &color))
+            return false;
+        s->allocated = true;
+        s->flags = 0x860000U;
+        const Uint32 red = Read16(color), blue = Read16(color + 2), green = Read16(color + 4);
+        for (Uint16 i = 0; i < 10; ++i)
+        {
+            SotnWeaponSecondaryRow *r = &s->rows[i];
+            *r = (SotnWeaponSecondaryRow){0};
+            r->red[0] = (Uint8)(red * (10U - i) / 10U);
+            r->blue[0] = (Uint8)(blue * (10U - i) / 10U);
+            r->green[0] = (Uint8)(green * (10U - i) / 10U);
+            r->red[1] = (Uint8)(red * (9U - i) / 10U);
+            r->blue[1] = (Uint8)(blue * (9U - i) / 10U);
+            r->green[1] = (Uint8)(green * (9U - i) / 10U);
+            r->angle = (Sint16)SotnCombat_Random(rng);
+        }
+        s->row_priority = (Uint16)(in.priority + 4U);
+        s->draw_mode = 0x335;
+        if (!Properties(s, in, rng, e))
+            return false;
+        if (params < 16)
+        {
+            s->hitbox_x = 0;
+            s->hitbox_y = -20;
+            s->hitbox_width = 4;
+            s->hitbox_height = 20;
+            s->remaining = 40;
+        }
+        else
+        {
+            if (params >= 32)
+            {
+                if (!(params & 0xfU))
+                {
+                    s->hitbox_x = 32;
+                    s->hitbox_y = 0;
+                    s->hitbox_width = 32;
+                    s->hitbox_height = 6;
+                }
+                else
+                    s->hitbox_state = 0;
+            }
+            s->remaining = 6;
+        }
+        s->phase = 1;
+    }
+    else if (!(s->remaining = Word(s->remaining - 1)))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint32 dx = tx - x, dy = ty - y;
+    Sint16 cx = x, cy = y;
+    for (Uint16 i = 0; i < 10; ++i)
+    {
+        SotnWeaponSecondaryRow *r = &s->rows[i];
+        r->x[0] = cx;
+        r->y[0] = cy;
+        const Sint16 angle = r->angle;
+        r->angle = Word(r->angle + 768);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        r->x[1] = Word(Word(x + dx * (i + 1) / 10) + Asr(Asr(t.cosine, 4) * 3, 8));
+        r->y[1] = Word(Word(y + dy * (i + 1) / 10) - Asr(Asr(t.sine, 4) * 3, 8));
+        cx = r->x[1];
+        cy = r->y[1];
+    }
+    return true;
+}
+// w_048 func_ptr_80170008: a sixteen-wedge GT4 ring that grows and fades its blue center.
+static bool Ring(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e)
+{
+    if (!(in.animation > 0x40 && in.animation < 0x48) || !in.attack_mode)
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint16 x = Word(Word(Pixel(in.x) - in.camera_x) + (in.facing_left ? -12 : 12)),
+                 y = Word(Word(Pixel(in.y) - in.camera_y) - 26 - ((in.draw_flags & 2U) ? 5 : 0));
+    s->x = (Sint32)((Uint32)(x + in.camera_x) * 65536U | ((Uint32)s->x & 0xffffU));
+    s->y = (Sint32)((Uint32)(y + in.camera_y) * 65536U | ((Uint32)s->y & 0xffffU));
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->allocated = true;
+        s->flags = 0x860000U;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad q = {.page = 0x1a,
+                                      .palette = 0x15f,
+                                      .priority = (Uint16)(in.priority + 2U),
+                                      .draw_mode = 0x335};
+            for (Uint16 k = 0; k < 2; ++k)
+            {
+                SotnMathTrig t = {0};
+                if (!SotnMath_Trig(in.executable, (Sint32)(i + k) * 256, &t))
+                    return false;
+                q.u[k] = (Uint8)(Asr(t.cosine * 2, 8) + 32);
+                q.v[k] = (Uint8)(-32 - Asr(t.sine * 2, 8));
+                if (q.v[k] < 4)
+                    q.v[k] = 0xff;
+            }
+            q.u[2] = q.u[3] = 0x20;
+            q.v[2] = q.v[3] = 0xe0;
+            q.blue[2] = q.blue[3] = 0x80;
+            s->quads[i] = q;
+        }
+        s->remaining = 4;
+        s->age = 0x28;
+        e->sounds[0] = 0x665;
+        s->phase = 1;
+    }
+    else
+    {
+        if (s->remaining < 24)
+            s->remaining = (Sint16)(s->remaining + 4);
+        if (!--s->age)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    const Uint8 blue = s->age < 16 ? (Uint8)(s->age * 8U) : 0x80;
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->quads[i];
+        q->x[2] = q->x[3] = x;
+        q->y[2] = q->y[3] = y;
+        q->blue[2] = q->blue[3] = blue;
+        for (Uint16 k = 0; k < 2; ++k)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, (Sint32)(i + k) * 256, &t))
+                return false;
+            q->x[k] = Word(x + Asr(Asr(t.cosine, 4) * s->remaining, 8));
+            q->y[k] = Word(y - Asr(Asr(t.sine, 4) * s->remaining, 8));
+        }
+    }
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
 {
     Layout layout = {0};
-    if (!state || !program || !random || !events || in.hand > 1 || !Program(in.family, &layout) ||
-        state->removed || state->phase > 1 || state->remaining < -1)
+    if (!state || !program || !random || !events || in.hand > 1 || in.role > 2 ||
+        !Program(in.family, &layout) ||
+        !SotnWeaponSecondary_SupportedRole(in.family, in.role ? in.role : 1) || state->removed ||
+        state->phase > 1 || state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
     if (in.family == 55 && (!in.overlay.bytes || at >= in.overlay.size))
@@ -313,6 +539,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 53)
     {
         if (!Slash(&s, in, &rng, &e))
+            return false;
+        goto commit;
+    }
+    if (in.family == 48)
+    {
+        if (!(in.role == 2 ? Ring(&s, in, &e) : Lightning(&s, in, &rng, &e)))
             return false;
         goto commit;
     }

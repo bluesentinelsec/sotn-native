@@ -119,7 +119,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room, room_music_stopped;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1573];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 2200];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -4021,15 +4021,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .primitive = owner,
                                                         .kind = SOTN_DRAW_WEAPON_SECONDARY}))
                     return false;
-                if (child->state.secondary.family == 53 && child->primitive_count &&
-                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
-                                        &draw_count,
-                                        (SotnActorDraw){.priority = w->quad.priority,
-                                                        .primitive = owner,
-                                                        .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
-                    return false;
-                for (Uint16 row = child->state.secondary.family == 53 ? 0 : child->primitive_count;
-                     row > 0; --row)
+                // Weapon53 owns one entity-relative GT4; weapon48's ring owns sixteen.
+                const bool slash = child->state.secondary.family == 53,
+                           ring = (child->kind & 15U) == 2;
+                for (Uint16 q = slash ? 1 : ring ? child->primitive_count : 0; q > 0; --q)
+                    if (!SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = slash ? w->quad.priority
+                                                              : w->quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
+                for (Uint16 row = slash || ring ? 0 : child->primitive_count; row > 0; --row)
                     if (!w->rows[row - 1U].hidden &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -5019,14 +5022,18 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD)
         {
-            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
-            if (!c->weapon_secondary || !c->initialized || c->state.secondary.family != 53 ||
-                c->primitive_count != 1 || !SotnBatRuntime_SecondaryValid(c, command.primitive))
-                return SDL_SetError("Weapon53 slash draw lost its actual child/GT4 lease");
-            // Offsets follow the entity: DRAW_UNK02 vertices move with the camera like it does.
+            const Uint16 owner = (Uint16)(command.primitive / 16U),
+                         index = (Uint16)(command.primitive % 16U);
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
+            const bool slash = c->state.secondary.family == 53;
+            if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
+                (!slash && (c->kind & 15U) != 2) || (slash && index) ||
+                !SotnBatRuntime_SecondaryValid(c, owner))
+                return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
-            SotnPlayerEffectQuad q = w->quad;
-            for (Uint16 v = 0; v < 4; ++v)
+            SotnPlayerEffectQuad q = slash ? w->quad : w->quads[index];
+            // Weapon53 offsets follow the entity (DRAW_UNK02); the weapon48 ring is screen-space.
+            for (Uint16 v = 0; slash && v < 4; ++v)
             {
                 q.x[v] = BlinkWord(q.x[v] + Pixel(w->x) - view_x);
                 q.y[v] = BlinkWord(q.y[v] + Pixel(w->y) - view_y);

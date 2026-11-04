@@ -87,6 +87,10 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 23, 0, 38, 16, 0xae, 0, 13, 0);
     f->dra[0x500 + 23 * 52 + 24] = 191; // QCF specialMove
     Item(f->dra, 191, 0, 38, 26, 0xae, 1, 13, 0);
+    Item(f->dra, 112, 1, 48, 1, 0x41, 0, 13, 0);
+    f->dra[0x500 + 112 * 52 + 24] = 178; // QCF specialMove
+    Item(f->dra, 178, 1, 48, 19, 0x41, 1, 13, 0);
+    Put16(f->dra + 0x500 + 178 * 52 + 36, 5);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -265,6 +269,25 @@ static bool HolySword(Fixture *f)
     CHECK(f->item == 115 && f->roll_count == 1 && f->p->mp == 4 && f->p->substep == 0x41);
     return true;
 }
+// 6E42C.c kind19 (Thunderbrand special178): like kind28 but holding pose0 for forty updates in
+// substep0x53, sharing 71830.c's 0x53..0x56/0x5C handler.
+static bool Brand(Fixture *f)
+{
+    CHECK(Create(f, 112, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    const Uint16 mp = f->p->mp;
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+    SotnPlayerState p = {0};
+    CHECK(SotnPlayer_GetState(f->p, &p) && f->item == 178 && f->packed == 0x11030U &&
+          !f->roll_count && p.sound == 0x6ef && f->p->mp == mp - 5 && f->p->substep == 0x53 &&
+          f->p->attack_mode == 0x8014 && f->p->attack_hold == 40);
+    for (Sint32 t = 1; t <= 40; ++t)
+        CHECK(Tick(f, 0) && f->p->attack_hold == 40 - t &&
+              f->p->animation.pose == (t < 40 ? 0 : 1));
+    return true;
+}
 // 6E42C.c kind26 (Rapier special191): grounded QCF, no grunt, stops both velocities and plays
 // SFX_VO_ALU_ATTACK_B; 71830.c substep0x5A holds pose6 while forty updates last, and a Down tap
 // or the backward direction resumes the ordinary substep0x50.
@@ -351,7 +374,8 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && HolySword(f) && Lunge(f) && CombatKnife(f) && AirborneKindZero(f);
+         QuarterCircle(f) && HolySword(f) && Brand(f) && Lunge(f) && CombatKnife(f) &&
+         AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

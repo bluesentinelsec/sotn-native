@@ -7,11 +7,11 @@ bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, So
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
         item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_WEAPON_SECONDARY_QUAD ||
-        ((item.kind == SOTN_DRAW_WEAPON_SECONDARY ||
-          item.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD) &&
-         (item.primitive < 1 || item.primitive > 15)) ||
+        (item.kind == SOTN_DRAW_WEAPON_SECONDARY && (item.primitive < 1 || item.primitive > 47)) ||
         (item.kind == SOTN_DRAW_WEAPON_SECONDARY_LINE &&
-         (item.primitive < 64 || item.primitive >= 16 * 64)) ||
+         (item.primitive < 64 || item.primitive >= 48 * 64)) ||
+        (item.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD &&
+         (item.primitive < 16 || item.primitive >= 48 * 16)) ||
         (item.kind == SOTN_DRAW_HAND_WEAPON && item.primitive != 0) ||
         (item.kind == SOTN_DRAW_HAND_TILE && item.primitive >= 16) ||
         ((item.kind == SOTN_DRAW_FOOD || item.kind == SOTN_DRAW_NEUTRON ||

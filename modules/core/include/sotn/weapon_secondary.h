@@ -28,6 +28,8 @@ typedef struct SotnWeaponSecondary
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
     SotnPlayerEffectQuad quad;
+    /** Weapon48 role2 ring: sixteen screen-space GT4 wedges (DRAW_UNK_200 rows). */
+    SotnPlayerEffectQuad quads[16];
     SotnEquipment properties;
     Sint32 x, y;
     Uint32 flags;
@@ -54,6 +56,7 @@ typedef struct SotnWeaponSecondaryInput
     Sint32 camera_x, camera_y; /**< Actual camera; rows are screen-space. */
     Sint16 scale_y, pivot_y;
     Uint16 hand, family, priority, animation, attack_mode;
+    Uint16 role; /**< Child callback: 1 func_ptr_80170004 (E1/F1), 2 func_ptr_80170008 (E2/F2). */
     Uint16 substep; /**< Actual player step_s; weapon38/39 retire outside0x5A. */
     Uint8 draw_flags;
     bool facing_left;
@@ -72,8 +75,13 @@ typedef struct SotnWeaponSecondaryEvents
     bool properties;
 } SotnWeaponSecondaryEvents;
 
-/** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53). */
+/** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,
+ * Thunderbrand48). */
 bool SotnWeaponSecondary_Supported(Uint16 family);
+/** @brief Whether a resident program owns the given child callback role (1 or 2). */
+bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
+/** @brief Mandatory rows for one role's child; zero if unsupported. */
+Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);
 /** @brief Number of mandatory rows (LINE_G2, or weapon53's one GT4) reserved before the first
  * callback; zero if none. */
 Uint8 SotnWeaponSecondary_Rows(Uint16 family);

@@ -873,9 +873,12 @@ static bool StartAttack(SotnPlayer *player)
     // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt; kinds28
     // (pose0 hold10) and26 (lunge hold40, vertical stop) instead stand still and play
     // SFX_VO_ALU_ATTACK_B.
+    // Kinds19..22 (brands) hold pose0 like kind28 but for forty updates.
+    const bool hold = equipment.kind == 28 || equipment.kind == 26 ||
+                      (equipment.kind >= 19 && equipment.kind <= 22);
     const bool grunt = equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 &&
-                       equipment.kind != 25 && equipment.kind != 28 && equipment.kind != 26;
-    if (player->hand_factory && (equipment.kind == 28 || equipment.kind == 26))
+                       equipment.kind != 25 && !hold;
+    if (player->hand_factory && hold)
     {
         player->step = SOTN_PLAYER_STAND;
         player->attack_hold = equipment.kind == 28 ? 10 : 40;
@@ -1227,7 +1230,8 @@ static void StandTick(SotnPlayer *player)
             player->substep = 0x50;
         flags = 0;
     }
-    else if (player->attack_mode != 0 && player->substep == 0x5c)
+    else if (player->attack_mode != 0 &&
+             (player->substep == 0x5c || (player->substep >= 0x53 && player->substep <= 0x56)))
     {
         // 71830.c substeps0x53..0x56/0x5C hold pose0 on D_80139824, with no crouch window.
         SotnPlayer_AfterimageReset(player);

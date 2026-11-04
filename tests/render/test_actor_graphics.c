@@ -1253,26 +1253,23 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
-    // Weapon secondaries: child index1..15 and index*64 plus LINE_G2 row0..63.
+    // Weapon secondaries: child index1..47, index*64 plus LINE_G2 row and index*16 plus GT4.
     count = 0;
-    CHECK(
-        SotnActorOrder_Add(items, 4, &count,
-                           (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 15}) &&
-        SotnActorOrder_Add(
-            items, 4, &count,
-            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 1023}));
-    CHECK(
-        !SotnActorOrder_Add(items, 4, &count,
-                            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0}) &&
-        !SotnActorOrder_Add(items, 4, &count,
-                            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 16}) &&
-        !SotnActorOrder_Add(
-            items, 4, &count,
-            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63}) &&
-        !SotnActorOrder_Add(
-            items, 4, &count,
-            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 1024}) &&
-        count == 2);
+    const SotnActorDraw valid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 47},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3071},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 16},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 767}};
+    const SotnActorDraw invalid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 48},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3072},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 15},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 768}};
+    for (Uint16 k = 0; k < SDL_arraysize(valid); ++k)
+        CHECK(SotnActorOrder_Add(items, 4, &count, valid[k]));
+    count = 0;
+    for (Uint16 k = 0; k < SDL_arraysize(invalid); ++k)
+        CHECK(!SotnActorOrder_Add(items, 4, &count, invalid[k]) && !count);
     const Uint8 player_kinds[] = {
         SOTN_DRAW_WOLF_PACKET,   SOTN_DRAW_WOLF_IMAGE,      SOTN_DRAW_WOLF_TARGET,
         SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,

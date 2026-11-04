@@ -42,7 +42,10 @@ Selected virtual items:
 - Katana100's QCF special189: kind1, weapon53 descriptor1 with the chained GT4 slash
   secondary (see [Katana](player-katana.md)).
 
-The other ~21 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+- Thunderbrand112's QCF special178: kind19, a forty-update pose0 hold with lightning and a
+  ring (see [Thunderbrand](player-thunderbrand.md)).
+
+The other ~20 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

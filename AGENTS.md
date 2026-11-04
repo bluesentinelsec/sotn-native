@@ -1,3 +1,10 @@
+Selected [Thunderbrand](docs/player-thunderbrand.md) now owns item112/QCF special178 through
+weapon48: birth requests root0x38/branches0x3A,1..3/ring0x40 before properties, pose-BSS bolts at
+the first pose1 (0x10/0x20), kind19's forty-update pose0 hold (0x53..0x56 share 0x5C's handler).
+Secondaries gain role2 (E2/F2) and slots17..63: lightning LINE_G2x10 with anchors/lifts/halved
+extents, the GT4 ring (page0x1A, palette0x15F, THUNDER_B) and E2 row tags. Fire/Ice/Marsil stay
+unavailable.
+
 Selected [Katana](docs/player-katana.md) now owns two-handed item100/QCF special189
 through weapon53: descriptors1/3 blend a quarter; descriptor1 requests WFACTORY(56,0) before
 properties. Slash children own one mandatory GT4, roots0/10/20/30 (and 40..49) copy raw-parent

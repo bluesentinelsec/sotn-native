@@ -33,8 +33,8 @@ Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Take
 Nunchaku, Red Rust, Holy rod, Star flail, Combat knife and Great Sword; [Gurthang](player-gurthang.md) adds its
 QCF special, [Holy sword](player-holy-sword.md) its QCF special with the first weapon
 secondary, [Rapier/Were bane](player-lunge-weapons.md) their QCF lunges, and the two-handed
-[Katana](player-katana.md) its slash chain; the two-handed ones use Namakura's paired
-reservation.
+[Katana](player-katana.md) its slash chain, and [Thunderbrand](player-thunderbrand.md) its
+lightning; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;

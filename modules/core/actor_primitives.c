@@ -205,7 +205,7 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
            kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
-           kind == 0xe3 || kind == 0xf3;
+           kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -373,7 +373,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->hand_weapon && c->state.hand.family == 54 &&
                 c->primitive_count == SOTN_HAND_WEAPON_GURTHANG_ROWS) ||
                (c->weapon_secondary &&
-                c->primitive_count == SotnWeaponSecondary_Rows(c->state.secondary.family)) ||
+                c->primitive_count ==
+                    SotnWeaponSecondary_RoleRows(c->state.secondary.family, c->kind & 15U)) ||
                (c->kind == 19 && c->primitive_count == 20) ||
                (c->kind == 37 && c->primitive_count == 18) ||
                (c->kind == 47 && c->primitive_count == 16) ||

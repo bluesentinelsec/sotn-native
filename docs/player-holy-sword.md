@@ -4,8 +4,8 @@ The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts Ho
 through its own weapon55 program, together with its QCF [weapon special](player-weapon-specials.md)
 196. The special also needed the first native owner for a *weapon secondary*: the child that a
 resident hand program's `func_ptr_80170004` runs after a blueprint56 (`WFACTORY(0x38)`)
-request. [Rapier and Were bane](player-lunge-weapons.md) and [Katana](player-katana.md) now reuse it;
-later specials can too.
+request. [Rapier and Were bane](player-lunge-weapons.md), [Katana](player-katana.md) and
+[Thunderbrand](player-thunderbrand.md) now reuse it; later specials can too.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions validate the
 actual category1, family55, kind1/28, animation0x41, blueprint48, variant, lock13, chain0x80,
