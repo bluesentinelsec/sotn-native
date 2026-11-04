@@ -755,10 +755,10 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                             while (n < 8 && (n ? e.more_factories[n - 1U] : e.factory))
                                 ++n;
                             const Uint32 hand = (in.hand + 1U) << 12,
-                                         base = variant ? 0x20U : 0x10U;
+                                         bolt = variant ? 0x20U : 0x10U;
                             const Uint32 bolts[4] = {
-                                0x38U | hand | base << 16, 0x3aU | hand | (base + 1U) << 16,
-                                0x3aU | hand | (base + 2U) << 16, 0x3aU | hand | (base + 3U) << 16};
+                                0x38U | hand | bolt << 16, 0x3aU | hand | (bolt + 1U) << 16,
+                                0x3aU | hand | (bolt + 2U) << 16, 0x3aU | hand | (bolt + 3U) << 16};
                             for (Uint16 k = 0; k < 4; ++k)
                             {
                                 if (!n)
