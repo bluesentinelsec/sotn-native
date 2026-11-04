@@ -45,106 +45,111 @@ typedef struct PlainSpec
 {
     Uint8 category, family, kind, animation, variant, back_forward, special_move, mp;
     Uint8 blueprint; /**< Zero selects the ordinary blueprint48. */
+    Uint8 chain;     /**< Zero selects the ordinary unlimited chain 128. */
 } PlainSpec;
 static PlainSpec PlainWeapon(Uint16 id)
 {
     switch (id)
     {
     case 21: // Nunchaku
-        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0, 0};
+        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0, 0, 0};
     case 26: // Red Rust
-        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0, 0};
+        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0, 0, 0};
     case 27: // Takemitsu
-        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0, 0};
+        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0, 0, 0};
     case 124: // Mablung
-        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0, 0, 0};
+        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0, 0, 0, 0};
     case 129: // Morningstar
-        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0, 0, 0};
+        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0, 0, 0, 0};
     case 130: // Holy rod and its back-forward special170
-        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0, 0, 0};
+        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0, 0, 0, 0};
     case 170:
-        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0, 0, 0};
+        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0, 0, 0, 0};
     case 121: // Gurthang and its QCF special195
-        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0};
+        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0, 0};
     case 195:
-        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0};
+        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
     case 20: // Combat knife: special175 is both its back-forward and QCF item
-        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0, 0};
+        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0, 0, 0};
     case 175:
-        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0, 0, 0};
+        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0, 0, 0, 0};
     case 115: // Holy sword and its QCF special196 (kind28, five MP)
-        return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0, 0};
+        return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0, 0, 0};
     case 196:
-        return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5, 0};
+        return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5, 0, 0};
     case 112: // Thunderbrand and its QCF special178 (kind19, five MP)
-        return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0, 0};
+        return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0, 0, 0};
     case 178:
-        return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5, 0};
+        return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5, 0, 0};
+    case 132: // Moon rod and its QCF special172 (kind5, blueprint72, chain1, five MP)
+        return (PlainSpec){4, 6, 2, 0x48, 0, 0, 172, 0, 0, 0};
+    case 172:
+        return (PlainSpec){4, 6, 5, 0x66, 0, 0, 0, 5, 72, 1};
     case 113: // Icebrand and its QCF special181 (kind22, five MP)
-        return (PlainSpec){1, 50, 1, 0x41, 0, 0, 181, 0, 0};
+        return (PlainSpec){1, 50, 1, 0x41, 0, 0, 181, 0, 0, 0};
     case 181:
-        return (PlainSpec){1, 50, 22, 0x41, 1, 0, 0, 5, 0};
+        return (PlainSpec){1, 50, 22, 0x41, 1, 0, 0, 5, 0, 0};
     case 111: // Firebrand and its QCF special179 (kind20, five MP)
-        return (PlainSpec){1, 49, 1, 0x41, 0, 0, 179, 0, 0};
+        return (PlainSpec){1, 49, 1, 0x41, 0, 0, 179, 0, 0, 0};
     case 179:
-        return (PlainSpec){1, 49, 20, 0x41, 1, 0, 0, 5, 0};
+        return (PlainSpec){1, 49, 20, 0x41, 1, 0, 0, 5, 0, 0};
     case 117: // Marsil and its QCF special180 (kind21, five MP)
-        return (PlainSpec){1, 49, 1, 0x41, 2, 0, 180, 0, 0};
+        return (PlainSpec){1, 49, 1, 0x41, 2, 0, 180, 0, 0, 0};
     case 180:
-        return (PlainSpec){1, 49, 21, 0x41, 3, 0, 0, 5, 0};
+        return (PlainSpec){1, 49, 21, 0x41, 3, 0, 0, 5, 0, 0};
     case 139: // Osafune katana: back-forward slash192 and QCF warp193 (kind135, blueprint60)
-        return (PlainSpec){5, 53, 1, 0x41, 2, 192, 193, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 2, 192, 193, 0, 0, 0};
     case 192:
-        return (PlainSpec){5, 53, 1, 0x41, 3, 0, 0, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 3, 0, 0, 0, 0, 0};
     case 193:
-        return (PlainSpec){5, 53, 135, 0xd8, 0, 0, 0, 0, 60};
+        return (PlainSpec){5, 53, 135, 0xd8, 0, 0, 0, 0, 60, 0};
     case 140: // Masamune: its ordinary swing already slashes; QCF warp194
-        return (PlainSpec){5, 53, 1, 0x41, 4, 0, 194, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 4, 0, 194, 0, 0, 0};
     case 194:
-        return (PlainSpec){5, 53, 135, 0xd8, 1, 0, 0, 0, 60};
+        return (PlainSpec){5, 53, 135, 0xd8, 1, 0, 0, 0, 60, 0};
     case 100: // Katana and its QCF slash special189
-        return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0, 0, 0};
     case 189:
-        return (PlainSpec){5, 53, 1, 0x41, 1, 0, 0, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 1, 0, 0, 0, 0, 0};
     case 23: // Rapier and its QCF lunge special191
-        return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0, 0};
+        return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0, 0, 0};
     case 191:
-        return (PlainSpec){0, 38, 26, 0xae, 1, 0, 0, 0, 0};
+        return (PlainSpec){0, 38, 26, 0xae, 1, 0, 0, 0, 0, 0};
     case 22: // Were bane and its QCF lunge special190
-        return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0, 0};
+        return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0, 0, 0};
     case 190:
-        return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0, 0};
+        return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0, 0, 0};
     case 102: // Iron Fist and its QCF punch rush186 (kind24, blueprint54 slot16)
-        return (PlainSpec){3, 1, 0, 0x24, 2, 0, 186, 0, 0};
+        return (PlainSpec){3, 1, 0, 0x24, 2, 0, 186, 0, 0, 0};
     case 186:
-        return (PlainSpec){3, 1, 24, 0x24, 0, 0, 0, 0, 54};
+        return (PlainSpec){3, 1, 24, 0x24, 0, 0, 0, 0, 54, 0};
     case 120: // Fist of Tulkas: back-forward rush187 and QCF fireball188 (kind25, descriptor4)
-        return (PlainSpec){3, 1, 0, 0x24, 3, 187, 188, 0, 0};
+        return (PlainSpec){3, 1, 0, 0x24, 3, 187, 188, 0, 0, 0};
     case 187:
-        return (PlainSpec){3, 1, 24, 0x24, 1, 0, 0, 0, 54};
+        return (PlainSpec){3, 1, 24, 0x24, 1, 0, 0, 0, 54, 0};
     case 188:
-        return (PlainSpec){2, 1, 25, 0x24, 4, 0, 0, 0, 0};
+        return (PlainSpec){2, 1, 25, 0x24, 4, 0, 0, 0, 0, 0};
     case 127: // Great Sword
-        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0, 0, 0};
     case 95: // Estoc: kind27 lunge reading w_051's variant8 descriptor past its table
-        return (PlainSpec){5, 51, 27, 0xd6, 8, 0, 0, 0, 0};
+        return (PlainSpec){5, 51, 27, 0xd6, 8, 0, 0, 0, 0, 0};
     case 98: // Claymore/Flamberge/Zwei hander/Obsidian sword: back-forward specials182..185
-        return (PlainSpec){5, 51, 6, 0x68, 0, 182, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 0, 182, 0, 0, 0, 0};
     case 101:
-        return (PlainSpec){5, 51, 6, 0x68, 1, 183, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 1, 183, 0, 0, 0, 0};
     case 103:
-        return (PlainSpec){5, 51, 6, 0x68, 2, 184, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 2, 184, 0, 0, 0, 0};
     case 107:
-        return (PlainSpec){5, 51, 6, 0x68, 3, 185, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 3, 185, 0, 0, 0, 0};
     case 182: // Kind23 slot16 specials (blueprint54) costing five MP
     case 183:
     case 184:
     case 185:
-        return (PlainSpec){1, 51, 23, 0xd6, (Uint8)(id - 182), 0, 0, 5, 54};
+        return (PlainSpec){1, 51, 23, 0xd6, (Uint8)(id - 182), 0, 0, 5, 54, 0};
     case 131: // Star flail and its back-forward special171
-        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0, 0};
+        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0, 0, 0};
     case 171:
-        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0, 0, 0};
+        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0, 0, 0, 0};
     default:
         return (PlainSpec){0};
     }
@@ -215,10 +220,11 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (fist && (record[14] != 3 || record[15] != 1 || record[17] != 0 || record[18] != 0x24 ||
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
-        (plain && (record[14] != spec.category || record[15] != spec.family ||
-                   record[17] != spec.kind || record[18] != spec.animation ||
-                   record[19] != (spec.blueprint ? spec.blueprint : 48) || record[22] != 128 ||
-                   record[23] != spec.back_forward || record[24] != spec.special_move)) ||
+        (plain &&
+         (record[14] != spec.category || record[15] != spec.family || record[17] != spec.kind ||
+          record[18] != spec.animation || record[19] != (spec.blueprint ? spec.blueprint : 48) ||
+          record[22] != (spec.chain ? spec.chain : 128) || record[23] != spec.back_forward ||
+          record[24] != spec.special_move)) ||
         (basic_shield && (record[14] != 9 || record[15] != shield_family || record[17] != 128 ||
                           record[18] != 0x63 || record[19] != 48 || record[21] ||
                           record[22] != 128 || record[23] || record[24])) ||

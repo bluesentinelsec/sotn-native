@@ -569,6 +569,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 3:
     case 4:
     case 5:
+    case 6:
     case 31:
     case 38:
     case 39:
@@ -657,6 +658,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 36 ? 0x540U
                                   : in.family == 57 ? 0x106cU
                                   : in.family == 2  ? 0xbc4U
+                                  : in.family == 6  ? 0xbc4U
                                   : in.family == 31 ? 0x8ecU
                                   : in.family == 37 ? 0x6a4U
                                                     : 0x1014U;
@@ -715,7 +717,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
                     in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
                     in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49 ||
-                    in.family == 50)
+                    in.family == 50 || in.family == 6)
                     w.blend = 0x30;
                 // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
                 if (in.family == 53 && (variant == 1 || variant == 3))

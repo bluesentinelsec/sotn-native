@@ -547,6 +547,10 @@ bool SotnPlayer_SetThrowingContext(SotnPlayer *player, SotnPlayerMedicineFactory
                                    SotnPlayerMedicineConsume consume,
                                    SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
                                    Uint8 right_count);
+/** @brief Supply CheckChainLimit's live count of each hand's QCF special (entities16..63 whose
+ * equip id is that special with that hand's params bit), used for limited-chain specials.
+ * @return False with SDL_GetError() for counts beyond the shared slots. */
+bool SotnPlayer_SetSpecialChain(SotnPlayer *player, Uint8 left_count, Uint8 right_count);
 /** @brief Compatibility entry for the selected Neutron owner. */
 bool SotnPlayer_SetNeutronContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                   SotnPlayerMedicineConsume consume,

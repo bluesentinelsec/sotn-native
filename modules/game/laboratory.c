@@ -1150,6 +1150,27 @@ static bool BindFood(SotnLaboratory *s)
         if (item && item == state.equipment[hand])
             ++throwing_count[hand];
     }
+    // CheckChainLimit for each hand's QCF special counts children carrying its equip id.
+    Uint8 special_count[2] = {0};
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnEquipment held = {0};
+        if (!state.equipment[hand] || !SotnEquipment_IsPlainWeapon(state.equipment[hand]))
+            continue;
+        if (!SotnEquipment_Read(s->dra, state.equipment[hand], &held))
+            return false;
+        for (Uint16 i = 0; held.special_move && i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &s->bat_runtime.children[i];
+            const Uint16 item = c->hand_weapon        ? c->state.hand.item
+                                : c->weapon_secondary ? c->state.secondary.item
+                                                      : 0;
+            special_count[hand] +=
+                item == held.special_move && ((c->parameter & 0x8000U) != 0) == (hand != 0);
+        }
+    }
+    if (!SotnPlayer_SetSpecialChain(s->player, special_count[0], special_count[1]))
+        return false;
     return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]) &&
            SotnPlayer_SetThrowingContext(s->player, ThrowingFactory, UseThrowing, ThrowingRandom, s,
                                          throwing_count[0], throwing_count[1]);
@@ -5137,10 +5158,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
                     return false;
             }
-            else if (c->state.secondary.family == 49)
+            else if (c->state.secondary.family == 49 || c->state.secondary.family == 6)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
-                // its SetSpriteBank2 frames with SDK X/Y scale.
+                // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.
                 const Sint32 x =
                     Pixel(w->x) - view_x + session->draw_target.offset_x + session->shake.x;
                 const Sint32 y =
@@ -5157,8 +5178,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                .opacity = 128,
                                                .executable = session->executable,
                                                .sdk_rotation = true};
-                if (!(w->bank == 9 ? SotnActorGraphics_DrawSurface
-                                   : SotnActorGraphics_DrawSecondaryWeaponSurface)(
+                const Uint16 bank = (Uint16)(w->bank & 0x7fffU);
+                if (!(bank == 17 || bank == 19 ? SotnActorGraphics_DrawSecondaryWeaponSurface
+                                               : SotnActorGraphics_DrawSurface)(
                         session->actor_graphics, sprite, x, y, t, session->draw_target.surface))
                     return false;
             }

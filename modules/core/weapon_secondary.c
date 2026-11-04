@@ -20,6 +20,10 @@ static Uint16 Read16(const Uint8 *p)
 {
     return (Uint16)(p[0] | (Uint16)p[1] << 8);
 }
+static Uint32 Read32(const Uint8 *p)
+{
+    return Read16(p) | (Uint32)Read16(p + 2) << 16;
+}
 // Portable arithmetic right shift matching the MIPS sra the original compiles to.
 static Sint32 Asr(Sint32 v, unsigned int n)
 {
@@ -57,6 +61,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 0};
     else if (family == 50)
         *out = (Layout){.rows = 80};
+    else if (family == 6)
+        *out = (Layout){.rows = 0};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -65,7 +71,7 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1 || family == 51 || family == 49 || family == 50;
+           family == 1 || family == 51 || family == 49 || family == 50 || family == 6;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -80,6 +86,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon50 owns sparkles, its ring, frost streaks and crystals (E1..E4).
     if (family == 50)
         return role >= 1 && role <= 4;
+    // Weapon6 owns Moon rod's crescents and their sparkles.
+    if (family == 6)
+        return role == 1 || role == 2;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
@@ -90,6 +99,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 2 ? 16 : 0;
     if (family == 50)
         return role == 1 ? 80 : role == 2 ? 16 : role == 3 ? 32 : 8;
+    if (family == 6)
+        return role == 2 ? 1 : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -1108,14 +1119,14 @@ static bool Pillar(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *
 
 // w_050 func_8017B784: place one sparkle at its UV row (uv_coords D_8017B000), half-extent six
 // for rows0..2 and four after; every second placement advances the row, and row6 ends it.
-static bool IcePlace(SotnDataView o, Uint8 *row, Uint8 *count, Uint8 uv[8], Uint8 *size,
+static bool IcePlace(SotnDataView o, Uint32 at, Uint8 *row, Uint8 *count, Uint8 uv[8], Uint8 *size,
                      bool *ended)
 {
     const Uint8 *table = NULL;
     *ended = *row == 6;
     if (*ended)
         return true;
-    if (!View(o, 0x1000U + (Uint32)*row * 8U, 8, &table))
+    if (!View(o, at + (Uint32)*row * 8U, 8, &table))
         return SDL_SetError("Weapon50 sparkle requires its private UV rows");
     *size = *row >= 3 ? 4 : 6;
     SDL_memcpy(uv, table, 8);
@@ -1209,7 +1220,8 @@ static bool Sparkles(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeapo
             s->ice_g2[i] = (Uint8)(g2 + 1);
             bool ended = false;
             Uint8 size = 0;
-            if (!IcePlace(in.overlay, &s->ice_b0[i], &s->ice_b1[i], s->ice_uv[i], &size, &ended))
+            if (!IcePlace(in.overlay, 0x1000, &s->ice_b0[i], &s->ice_b1[i], s->ice_uv[i], &size,
+                          &ended))
                 return false;
             if (ended)
             {
@@ -1448,7 +1460,7 @@ static bool Crystals(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeapo
             const Sint16 x = p->ice_x[i], y = p->ice_y[i];
             bool ended = false;
             Uint8 size = 0, uv[8] = {0};
-            if (!IcePlace(in.overlay, &q->blue[0], &q->blue[1], uv, &size, &ended))
+            if (!IcePlace(in.overlay, 0x1000, &q->blue[0], &q->blue[1], uv, &size, &ended))
                 return false;
             p->ice_y[i] = Word(p->ice_y[i] - 1);
             if (ended)
@@ -1474,6 +1486,164 @@ static bool Crystals(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeapo
     return true;
 }
 
+// Place one weapon6/50 sparkle GT4 at a whole screen centre (func_8017B784/func_8017B6A0).
+static bool SparklePlace(SotnDataView o, Uint32 at, SotnPlayerEffectQuad *q, Sint16 x, Sint16 y,
+                         bool *ended)
+{
+    Uint8 size = 0, uv[8] = {0};
+    if (!IcePlace(o, at, &q->blue[0], &q->blue[1], uv, &size, ended))
+        return false;
+    if (*ended)
+        return true;
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        q->u[k] = uv[k * 2U];
+        q->v[k] = uv[k * 2U + 1U];
+    }
+    q->x[0] = q->x[2] = Word(x - size);
+    q->x[1] = q->x[3] = Word(x + size);
+    q->y[0] = q->y[1] = Word(y - size);
+    q->y[2] = q->y[3] = Word(y + size);
+    return true;
+}
+// w_006 func_ptr_80170004: five crescents leave the player's hitbox, slow to a stop while
+// growing, spin up for twenty-four updates, then accelerate away shedding sparkles. Any hit
+// flashes white and retires them eight updates later.
+static bool Crescent(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                     SotnWeaponSecondaryEvents *e)
+{
+    const bool first = !(s->parameter & ~0x8000U);
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->y = (Sint32)((Uint32)s->y + (Uint32)in.parent_hitbox_y * 65536U);
+        s->x =
+            (Sint32)((Uint32)s->x +
+                     (Uint32)(in.facing_left ? -in.parent_hitbox_x : in.parent_hitbox_x) * 65536U);
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->palette = (Uint16)(0x116U + in.hand * 0x18U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->frame = 0x42;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->draw_flags = 7;
+        s->scale_x = s->scale_y = 0x40;
+        s->spin = 0x40;
+        const Sint32 speed = (Sint32)Rand(rng) - 0x40000;
+        s->velocity_x = s->facing_left ? -speed : speed;
+        s->accel_x = s->facing_left ? -0x3c00 : 0x3c00;
+        const Uint8 *table = NULL;
+        if (!View(in.overlay, 0xbf0U + (Uint32)(s->parameter & 0xffU) * 4U, 4, &table))
+            return SDL_SetError("Weapon6 crescent requires its private launch speeds");
+        s->velocity_y = (Sint32)(Rand(rng) & 0x1fffU) + (Sint32)Read32(table);
+        s->accel_y = -(s->velocity_y >> 4);
+        s->flags = 0x08020000U;
+        s->rotate = (Sint16)Rand(rng);
+        if (first)
+            e->sounds[0] = 0x6ee;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        e->use_ticks = 4;
+        s->phase = 1;
+    }
+    else if (s->phase == 1)
+    {
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_x = Decelerate(s->velocity_x, 0x2800);
+        s->scale_x = (Sint16)(s->scale_x + 1);
+        s->scale_y = s->scale_x;
+        if (!s->velocity_x)
+        {
+            s->priority = (Uint16)(in.priority + 2U);
+            s->lifetime = 0x18;
+            s->phase = 2;
+        }
+    }
+    else if (s->phase == 2)
+    {
+        s->spin = (Sint16)(s->spin + 8);
+        if (!(s->lifetime = (Sint16)(s->lifetime - 1)))
+        {
+            e->sounds[0] = 0x668;
+            s->phase = 3;
+        }
+    }
+    else if (s->phase == 3)
+    {
+        s->scale_x = (Sint16)(s->scale_x + 2);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)s->accel_x);
+        s->velocity_y = (Sint32)((Uint32)s->velocity_y + (Uint32)s->accel_y);
+        if (!(s->counter & 1))
+            e->chain = 0x40U | ((Uint32)(in.hand + 1U) << 12);
+    }
+    else
+    {
+        if (!(s->lifetime = (Sint16)(s->lifetime - 1)))
+            s->removed = true;
+        s->hit_flags = 0;
+        return true;
+    }
+    s->scale_y = s->scale_x;
+    s->rotate = Word(s->rotate + s->spin);
+    const Uint8 *cycle = NULL;
+    if (!View(in.overlay, 0xbd4U + (Uint32)((s->counter >> 1) % 14) * 2U, 2, &cycle))
+        return SDL_SetError("Weapon6 crescent requires its private palette cycle");
+    s->palette = (Uint16)(Read16(cycle) + ((s->parameter & 0x8000U) ? 0x12eU : 0x116U));
+    s->counter = (Sint16)(s->counter + 1);
+    s->hitbox_width = s->hitbox_height = (Uint8)((s->scale_x * 3) >> 5);
+    if (s->hit_flags)
+    {
+        s->palette = 0x815f;
+        s->blend = 0x10;
+        s->lifetime = 8;
+        s->phase = 4;
+    }
+    if (s->counter % 10 == 0 && first)
+        e->sounds[e->sounds[0] ? 1 : 0] = 0x60b;
+    s->hit_flags = 0;
+    return true;
+}
+// w_006 func_ptr_80170008: a falling sparkle shed by the crescent, retired after its six rows.
+static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng)
+{
+    bool ended = false;
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        s->flags = 0x08800000U;
+        s->velocity_x = 0x8000; // velocityY: the quad already holds the shared union words.
+        const Sint16 dx = (Sint16)((Sint32)(Rand(rng) % 24U) - 12);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)dx * 65536U);
+        const Sint16 dy = (Sint16)((Sint32)(Rand(rng) % 24U) - 12);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)dy * 65536U);
+        s->quads[0] = (SotnPlayerEffectQuad){.palette = 0x1b0,
+                                             .page = 0x1a,
+                                             .priority = (Uint16)(s->priority + 4U),
+                                             .draw_mode = 0x31};
+        if (!SparklePlace(in.overlay, 0xc04, &s->quads[0], Word(Pixel(s->x) - in.camera_x),
+                          Word(Pixel(s->y) - in.camera_y), &ended))
+            return false;
+        s->phase = 1;
+        return true;
+    }
+    s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_x);
+    if (!SparklePlace(in.overlay, 0xc04, &s->quads[0], Word(Pixel(s->x) - in.camera_x),
+                      Word(Pixel(s->y) - in.camera_y), &ended))
+        return false;
+    s->removed = ended;
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -1482,7 +1652,10 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 5 ||
         !Program(in.family, &layout) ||
         !SotnWeaponSecondary_SupportedRole(in.family, in.role ? in.role : 1) || state->removed ||
-        state->phase > (in.family == 49 && in.role == 4 ? 2 : 1) || state->remaining < -1)
+        state->phase > (in.family == 49 && in.role == 4  ? 2
+                        : in.family == 6 && in.role == 1 ? 4
+                                                         : 1) ||
+        state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
     if (in.family == 55 && (!in.overlay.bytes || at >= in.overlay.size))
@@ -1506,6 +1679,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 51)
     {
         if (!Fan(&s, in, &rng, &e))
+            return false;
+        goto commit;
+    }
+    if (in.family == 6)
+    {
+        if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
             return false;
         goto commit;
     }

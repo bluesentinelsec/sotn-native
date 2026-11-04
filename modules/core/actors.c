@@ -917,8 +917,11 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
                          (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) ||
                          child->star ||
-                         (child->weapon_secondary && child->state.secondary.family == 1 &&
-                          (child->kind == 0xe2 || child->kind == 0xf2)))
+                         (child->weapon_secondary &&
+                          ((child->state.secondary.family == 1 &&
+                            (child->kind == 0xe2 || child->kind == 0xf2)) ||
+                           (child->state.secondary.family == 6 &&
+                            (child->kind == 0xe1 || child->kind == 0xf1)))))
                 {
                     Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
                     if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||

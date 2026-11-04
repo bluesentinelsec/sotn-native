@@ -46,6 +46,9 @@ Selected virtual items:
   forty-update hold, with sparks, rings, puffs, swirls and pillars (see
   [Firebrand/Marsil](player-firebrand-marsil.md)).
 
+- Moon rod132's QCF special172: kind5 with five blueprint72 crescents and chain limit1,
+  counted by CheckChainLimit (see [Moon rod](player-moon-rod.md)).
+
 - Icebrand113's QCF special181: kind22 on the same hold, with sparkles, a ring, frost streaks
   and crystals (see [Icebrand](player-icebrand.md)).
 

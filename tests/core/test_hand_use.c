@@ -124,6 +124,12 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 113 * 52 + 24] = 181;
     Item(f->dra, 181, 1, 50, 22, 0x41, 1, 13, 0);
     Put16(f->dra + 0x500 + 181 * 52 + 36, 5);
+    Item(f->dra, 132, 4, 6, 2, 0x48, 0, 11, 0);
+    f->dra[0x500 + 132 * 52 + 24] = 172;
+    Item(f->dra, 172, 4, 6, 5, 0x66, 0, 0, 0);
+    f->dra[0x500 + 172 * 52 + 19] = 72;
+    f->dra[0x500 + 172 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 172 * 52 + 36, 5);
     Item(f->dra, 98, 5, 51, 6, 0x68, 0, 15, 182);
     Item(f->dra, 182, 1, 51, 23, 0xd6, 0, 13, 0);
     f->dra[0x500 + 182 * 52 + 19] = 54;
@@ -581,6 +587,42 @@ static bool Weapon51Specials(Fixture *f)
           f->p->back_forward.timer >= 0x0f);
     return true;
 }
+// 6E42C.c case5 (Moon rod172): blueprint72, the casting grunt and five MP after the factory;
+// grounded starts stop with substep0x45, airborne ones keep their state. CheckChainLimit refuses
+// the chain1 special while a crescent of that hand lives, falling back to the swing.
+static bool MoonRod(Fixture *f)
+{
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        CHECK(Create(f, 132, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (k == 1)
+        {
+            CHECK(Tick(f, SOTN_BUTTON_JUMP));
+            for (Uint16 i = 0; i < 2; ++i)
+                CHECK(Tick(f, 0));
+        }
+        if (k == 2)
+            CHECK(SotnPlayer_SetSpecialChain(f->p, 1, 0));
+        const Uint16 mp = f->p->mp;
+        const SotnPlayerStep step = f->p->step;
+        CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+              Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p));
+        if (k == 2)
+            CHECK(f->item == 132 && f->packed == 0x1030U && f->p->mp == mp);
+        else if (k == 1)
+            CHECK(f->item == 132 || (f->item == 172 && f->p->step == step && !f->p->attack_mode));
+        else
+            CHECK(f->item == 172 && f->packed == 0x1048U && f->roll_count == 1 && p.hand_used &&
+                  f->p->mp == mp - 5 && f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
+                  f->p->animation.id == 0x66 && !f->p->vx && f->p->step == SOTN_PLAYER_STAND);
+    }
+    CHECK(!SotnPlayer_SetSpecialChain(f->p, 49, 0));
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -627,7 +669,7 @@ int main(void)
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
-         Weapon51Specials(f) && CombatKnife(f) && AirborneKindZero(f);
+         Weapon51Specials(f) && MoonRod(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

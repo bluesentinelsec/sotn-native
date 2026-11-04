@@ -84,7 +84,9 @@ typedef struct SotnBatRuntimeChild
             SotnWeaponSecondary motion;
             SotnPlayerAttack attack;
             Uint16 family, item; /**< item: raw parent equip id copied at birth. */
-            Uint16 parent_slot;  /**< Raw parent slot16..31; never generation-checked. */
+            Uint16 parent_slot;  /**< Raw parent slot16..47; never generation-checked. */
+            /** Player-factory child using its own equip id (weapon1 rush, weapon6 crescents). */
+            bool own_item;
         } secondary;
         SotnWeaponWarp warp;
         struct

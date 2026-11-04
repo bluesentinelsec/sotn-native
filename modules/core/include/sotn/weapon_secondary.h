@@ -44,12 +44,14 @@ typedef struct SotnWeaponSecondary
             Uint8 ice_g0[80], ice_g1[80], ice_g2[80], ice_b0[80], ice_b1[80];
             Uint8 ice_size[80]; /**< Half-extent of the last placement (zero: hidden). */
         };
-        /** Weapon49 sparks/puffs/swirls/pillars, which own no rows or GT4s. */
+        /** Weapon49 sparks/puffs/swirls/pillars and weapon6 crescents (no rows or GT4s). */
         struct
         {
             Sint32 velocity_y;       /**< Puff/pillar rise. */
             Sint16 prev_x, prev_y;   /**< Spark: last whole screen position (ratan2 heading). */
             Sint16 angle, magnitude; /**< Spark/swirl orbit unk80/unk7E. */
+            Sint32 accel_x, accel_y; /**< Weapon6 crescent accelerations. */
+            Sint16 spin, counter;    /**< Weapon6 crescent velocityZ and unk7C. */
         };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
@@ -97,6 +99,8 @@ typedef struct SotnWeaponSecondaryInput
     /** Raw parent's current attack fields (weapon49 sparks copy them instead of a roll). */
     SotnEquipment parent_properties;
     Uint16 parent_hitbox_state;
+    /** Actual player animation hitbox offsets (PLAYER.hitboxOffX/Y): weapon6 crescent origin. */
+    Sint16 parent_hitbox_x, parent_hitbox_y;
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -110,6 +114,9 @@ typedef struct SotnWeaponSecondaryEvents
     bool properties;
     /** Weapon49 sparks: func_80118894 alone (least-used group kept, no parent enemyId copy). */
     bool group;
+    /** Weapon6 crescents: DestroyEntityWeapon(true) and the player timer10 use request. */
+    bool clear_shield;
+    Uint8 use_ticks;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,

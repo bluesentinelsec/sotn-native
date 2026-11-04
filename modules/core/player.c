@@ -815,15 +815,16 @@ static bool StartAttack(SotnPlayer *player)
         SotnEquipment special = {0};
         Uint16 cost = 0;
         if (!SotnEquipment_Read(player->dra, equipment.special_move, &special) ||
-            !SotnEquipment_ReadCost(player->dra, equipment.special_move, &cost) ||
-            !(special.chain_limit & 0x80))
+            !SotnEquipment_ReadCost(player->dra, equipment.special_move, &cost))
         {
-            if (special.id && !(special.chain_limit & 0x80))
-                SDL_SetError("QCF special requires its actual chain owner");
             player->failed = true;
             return true;
         }
-        if (player->mp >= cost)
+        // CheckChainLimit: unlimited specials pass (the active-attack case returned above);
+        // limited ones (Moon rod's172) count their live children of this hand.
+        const bool chained =
+            (special.chain_limit & 0x80) || player->special_count[hand] < special.chain_limit;
+        if (chained && player->mp >= cost)
         {
             equipment = special;
             special_selected = true;
@@ -984,6 +985,24 @@ static bool StartAttack(SotnPlayer *player)
     player->attack_critical = (Uint8)SDL_clamp(critical, 0, 255);
     player->attack_power =
         (Uint16)(player->attributes.attack[hand] >> (player->poison_ticks ? 1 : 0));
+    // 6E42C.c case5 (Moon rod special172): grounded steps stop, take the ledge variant and
+    // substep0x45; an airborne start keeps its state. Both keep the casting grunt above.
+    if (player->hand_factory && equipment.kind == 5)
+    {
+        if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK ||
+            player->step == SOTN_PLAYER_CROUCH)
+        {
+            Animate(player, (Uint16)(equipment.animation + ((player->contact & 0x20) ? 1 : 0)));
+            player->attack_mode = (Uint16)(0x8001 + equipment.kind);
+            player->attack_lock = equipment.lock;
+            player->step = SOTN_PLAYER_STAND;
+            player->substep = (Uint16)(0x40 + equipment.kind);
+            player->vx = 0;
+            player->attack_button =
+                pressed == SOTN_BUTTON_RIGHT_HAND ? SOTN_BUTTON_RIGHT_HAND : SOTN_BUTTON_LEFT_HAND;
+        }
+        return true;
+    }
     Uint16 variant = (player->contact & 0x20) ? 1 : 0;
     if (player->hand_factory && equipment.kind == 27)
     {
@@ -1291,6 +1310,14 @@ static void StandTick(SotnPlayer *player)
             player->chair_sleep = 0x200;
         }
         flags = 1;
+    }
+    else if (player->attack_mode != 0 && player->substep == 0x45)
+    {
+        // 71830.c stand substep0x45 (kind5): no movement window, standing up at the END.
+        SotnPlayer_AfterimageReset(player);
+        flags = 0;
+        if (player->animation.remaining < 0)
+            flags = 0xf;
     }
     else if (player->attack_mode != 0 && (player->substep == 0x57 || player->substep == 0x5b))
     {

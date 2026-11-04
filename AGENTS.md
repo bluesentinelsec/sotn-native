@@ -1,3 +1,8 @@
+Selected [Moon rod](docs/player-moon-rod.md) now owns item132 and kind5 QCF special172: blueprint72
+spawns five own-item E1/F1 crescents (player hitbox origin, least-used group, shield clear,
+timer10=4, hit flash) whose sparkles chain from them. QCF honours limited CheckChainLimit via
+per-hand special counts; kind5 starts only on the ground (substep0x45) and keeps the grunt.
+
 Selected [Icebrand](docs/player-icebrand.md) now owns item113/kind22 QCF special181 through weapon50:
 every pose1 requests FACTORY(0x61,descriptor) crystals; descriptor1 adds APPEAR_A/0x3A/0x40 at
 birth and 0x44 frost at pose1. Sparkles lease eighty actual rows (child rows now 80) but keep

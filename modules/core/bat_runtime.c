@@ -878,6 +878,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 112 || item == 178                               ? 48
            : item == 111 || item == 117 || item == 179 || item == 180 ? 49
            : item == 113 || item == 181                               ? 50
+           : item == 132 || item == 172                               ? 6
            : item == 22 || item == 190                                ? 39
            : item == 20 || item == 175                                ? 32
            : item == 127 || item == 95 || item == 98 || item == 101 || item == 103 || item == 107 ||
@@ -946,6 +947,7 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     // rushes blueprint54 (slot16 E1/F1) instead of48.
     const Uint32 blueprint = item == 193 || item == 194                            ? 60U
                              : item == 186 || item == 187 || Weapon51Special(item) ? 54U
+                             : item == 172                                         ? 72U
                                                                                    : 48U;
     const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << 12) |
                                        ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
@@ -1047,6 +1049,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
         return n <= 1 && (parameter & 0xffU) <= 7;
     if (family == 50)
         return n <= 3 && !(parameter & 0xffU);
+    // Weapon6 crescents count 0..4 on the hand bit; their sparkles use zero.
+    if (family == 6)
+        return (parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 4;
     return (parameter & 0xffU) ? false
            : family == 53      ? n < 50
            : family == 48      ? (n & 0xfU) <= 3 && (n >> 4) <= 2
@@ -1076,10 +1081,16 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
            ((c->kind & 0xf0U) == 0xe0 || (c->kind & 0xf0U) == 0xf0) &&
            SotnWeaponSecondary_SupportedRole(family, c->kind & 15U) &&
            (rush || SecondaryParameter(family, c->parameter)) && w->parameter == c->parameter &&
+           (family == 6 && (c->kind & 15U) == 1
+                ? c->state.secondary.own_item && c->state.secondary.item == 172
+                : c->state.secondary.own_item == rush) &&
            c->state.secondary.parent_slot >= 16 && c->state.secondary.parent_slot <= 47 &&
            SotnWeaponSecondary_Supported(family) &&
            (c->initialized
-                ? w->phase >= 1 && w->phase <= (family == 49 && (c->kind & 15U) == 4 ? 2 : 1) &&
+                ? w->phase >= 1 &&
+                      w->phase <= (family == 49 && (c->kind & 15U) == 4  ? 2
+                                   : family == 6 && (c->kind & 15U) == 1 ? 4
+                                                                         : 1) &&
                       w->allocated && c->group <= 10 &&
                       c->primitive_count == SotnWeaponSecondary_RoleRows(family, c->kind & 15U) &&
                       w->properties.id == c->state.secondary.item
@@ -2040,12 +2051,34 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
          (star_factory && (star_role == 1 || star_role == 2 || star_role == 4 || star_role == 5)));
     c.karma = ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 24) ||
               (karma_factory && (c.kind == 0xe2 || c.kind == 0xf2));
-    // Blueprint54 replaces slot16 with weapon1's E1/F1 punch rush; its factory argument is the
-    // item.
+    // Blueprint54 replaces slot16 with weapon1's E1/F1 punch rush; blueprint72 creates weapon6's
+    // crescents in slots17..31. Their factory argument is the item.
     const bool rush = child.slot == 16 && (c.kind == 0xe1 || c.kind == 0xf1) &&
                       (child.argument_low == 186 || child.argument_low == 187);
-    c.weapon_secondary = rush || (secondary_factory && ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
-                                                        (c.kind >= 0xf1 && c.kind <= 0xf5)));
+    const bool crescent = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+                          (c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 172;
+    c.weapon_secondary = rush || crescent ||
+                         (secondary_factory && ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
+                                                (c.kind >= 0xf1 && c.kind <= 0xf5)));
+    if (crescent)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || (child.parameter & 0x7f00U) ||
+            (child.parameter & 0xffU) > 4 || ((child.parameter & 0x8000U) != 0) != (hand != 0) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 6)))
+            return SDL_SetError(
+                "Weapon6 crescent lost its actual blueprint72/program/item ownership");
+        c.state.secondary.family = 6;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = 172;
+        c.state.secondary.own_item = true;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
     if (rush)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
@@ -2057,6 +2090,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.secondary.family = 1;
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = child.argument_low;
+        c.state.secondary.own_item = true;
         c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
                                                          .y = child.source.y,
                                                          .flags = child.source.flags,
@@ -3721,7 +3755,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             Uint8 parent_group = 0;
             SotnEquipment parent_properties = {0};
             Uint16 parent_hitbox_state = 0;
-            if (cold && i)
+            if (cold && !c->state.secondary.own_item)
             {
                 // A chained child born into its retired root's slot points at itself and reads
                 // its own freshly cleared words.
@@ -3764,6 +3798,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 51 ? 127
                                  : family == 49 ? 111
                                  : family == 50 ? 113
+                                 : family == 6  ? 132
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -3798,12 +3833,18 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .slot16_parameter =
                                                    r.children[0].kind ? r.children[0].parameter : 0,
                                                .parent_properties = parent_properties,
-                                               .parent_hitbox_state = parent_hitbox_state},
+                                               .parent_hitbox_state = parent_hitbox_state,
+                                               .parent_hitbox_x = p.animation.hitbox_x,
+                                               .parent_hitbox_y = p.animation.hitbox_y},
                     &progress.random, &events))
                 return false;
             for (Uint16 j = 0; j < SDL_arraysize(events.sounds); ++j)
                 if (events.sounds[j] && !Sound(&r, events.sounds[j]))
                     return false;
+            // Weapon6 crescents: DestroyEntityWeapon(true) and g_Player.timers[10] = 4.
+            r.magic_clear_shield |= events.clear_shield;
+            if (events.use_ticks)
+                r.use_ticks = events.use_ticks;
             if (events.chain)
             {
                 // A weapon53 root requests its next chained slash from its own entity.
@@ -3844,9 +3885,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 // SetWeaponProperties increments the least-used group before the copy of the
                 // raw parent's enemyId; end-of-pass recount removes that transient count.
-                // func_80118894 gives slot16 (the punch rush) its hand group without a count.
+                // func_80118894 gives slot16 (the punch rush) its hand group without a count;
+                // weapon6's crescents keep their least-used group (no parent enemyId copy).
                 if (!i)
                     c->group = (Uint8)(hand + 1U);
+                else if (c->state.secondary.own_item)
+                {
+                    Uint16 group = 3;
+                    for (Uint16 g = 4; g < 7; ++g)
+                        if (r.groups[g] < r.groups[group])
+                            group = g;
+                    if (r.groups[group] == 255)
+                        return SDL_SetError("Weapon secondary shared group count overflow");
+                    ++r.groups[group];
+                    c->group = (Uint8)group;
+                }
                 else
                 {
                     Uint16 group = i < 16 ? 3 : 7;
@@ -6033,9 +6086,12 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 fl
     const bool magic = r && i < 48 && r->children[i].magic &&
                        (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
     // Weapon1's role2 fireball (Fist of Tulkas) retires on its next callback after any hit.
+    // Weapon1's role2 fireball and weapon6's crescents read the actual collision hitFlags.
     const bool fireball = r && i < 48 && r->children[i].weapon_secondary &&
-                          r->children[i].state.secondary.family == 1 &&
-                          (r->children[i].kind == 0xe2 || r->children[i].kind == 0xf2);
+                          ((r->children[i].state.secondary.family == 1 &&
+                            (r->children[i].kind == 0xe2 || r->children[i].kind == 0xf2)) ||
+                           (r->children[i].state.secondary.family == 6 &&
+                            (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1)));
     if (fireball && flags && flags <= 3 && generation && r->children[i].generation == generation &&
         r->children[i].initialized)
     {
