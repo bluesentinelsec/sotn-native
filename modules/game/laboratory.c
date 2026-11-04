@@ -1003,6 +1003,9 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
         }
     }
     SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
+    const SotnBatRuntimeChild *slot16 = &s->bat_runtime.children[0];
+    if (!SotnPlayer_SetSlot16Item(s->player, slot16->hand_weapon ? slot16->state.hand.item : 0))
+        return false;
     if (SotnPlayer_Tick(s->player, buttons))
     {
         s->throwing_random_used = false;

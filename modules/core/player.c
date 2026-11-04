@@ -782,11 +782,35 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
+    // 6E42C.c Combat knife: unk17 == specialMove. A lingering ordinary knife in slot16 makes
+    // this swing the special; a lingering special makes it the ordinary knife. Either skips the
+    // QCF/back-forward checks; with no knife in slot16 the ordinary checks follow.
+    bool knife_resolved = false;
+    if (player->hand_factory && equipment.back_forward &&
+        equipment.back_forward == equipment.special_move)
+    {
+        if (player->slot16_item == equipment.id)
+        {
+            SotnEquipment special = {0};
+            if (!SotnEquipment_Read(player->dra, equipment.back_forward, &special) ||
+                !(special.chain_limit & 0x80))
+            {
+                if (special.id && !(special.chain_limit & 0x80))
+                    SDL_SetError("Combat knife special requires its actual chain owner");
+                player->failed = true;
+                return true;
+            }
+            equipment = special;
+            knife_resolved = true;
+        }
+        else if (player->slot16_item == equipment.back_forward)
+            knife_resolved = true;
+    }
     // 6E42C.c block_32: a completed grounded QCF selects the equipped specialMove when its
     // chain limit and MP allow; otherwise block_38c's back-forward check follows.
     Uint16 special_cost = 0;
     bool special_selected = false;
-    if (player->hand_factory && equipment.special_move && equipment.id != 123 &&
+    if (!knife_resolved && player->hand_factory && equipment.special_move && equipment.id != 123 &&
         player->sword_command.phase == 255 && (player->contact & 1))
     {
         SotnEquipment special = {0};
@@ -809,7 +833,7 @@ static bool StartAttack(SotnPlayer *player)
     }
     // 6E42C.c block_38c: a completed back-forward command selects the equipped unk17 item.
     // Chain limit 0x80 allows it whenever no attack is active, as already checked above.
-    if (!special_selected && player->hand_factory && equipment.back_forward &&
+    if (!knife_resolved && !special_selected && player->hand_factory && equipment.back_forward &&
         player->back_forward.phase == 255)
     {
         SotnEquipment special = {0};
@@ -4034,6 +4058,14 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
     if (!p || ticks > 32)
         return SDL_SetError("Player spell-use timer requires its owner and bounded ticks");
     p->spell_use_ticks = ticks;
+    return true;
+}
+
+bool SotnPlayer_SetSlot16Item(SotnPlayer *p, Uint16 item)
+{
+    if (!p || item >= 217)
+        return SDL_SetError("Slot16 item requires its owner and a bounded original item");
+    p->slot16_item = item;
     return true;
 }
 

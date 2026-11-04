@@ -1,4 +1,4 @@
-# Selected Morningstar, Mablung, Takemitsu, Nunchaku, Red Rust, Holy rod and Star flail
+# Selected template weapons, Combat knife and Great Sword
 
 The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts five
 more original weapons without weapon specials: Morningstar129 (weapon3), Mablung
@@ -11,7 +11,19 @@ pose12, queued in that order. Holy rod130 (weapon4, palette1) and Star flail131
 (weapon5, palette3) add SFX_ANIME_SWORD_B after their descriptor sound; Star flail
 also widens its hitbox X and width by seven on poses6 and7 after the hitbox write.
 Their back-forward [weapon specials](player-weapon-specials.md) 170/171 use each
-program's descriptor1 (kind4, lock13, casting grunt kept). Muramasa's attack-dependent
+program's descriptor1 (kind4, lock13, casting grunt kept). Great Sword127 (weapon51
+descriptor0, two-handed) draws from DRA sprite bank10 without a per-hand bank offset; its
+siblings' descriptors1-3 cycle palettes and belong to special-bearing items that stay
+unavailable. Combat knife20 (weapon32) draws in front of the player (the special behind),
+adds SFX_VO_ALU_ATTACK_B after a SWISH_B descriptor sound, becomes a hit-state4 parry on
+pose6 within its first four animations, and when its attack ends it lingers four updates
+in slot16 with no sprite or hitbox instead of retiring.
+
+The player resolves Combat knife's special175 (both its back-forward and QCF item) with the
+original quirk: a lingering ordinary knife in slot16 makes the next swing special175, a
+lingering special makes it the ordinary knife, and only an empty slot16 falls back to the
+QCF/back-forward checks. The session supplies slot16's actual item before each player update.
+Kinds9/10 skip the casting grunt. Muramasa's attack-dependent
 behavior differs and stays unsupported.
 
 Red Rust's player-side hand use follows dra/6E42C.c: after the actual hand factory,
@@ -48,21 +60,22 @@ variant bounds and untouched program data; Takemitsu's paired reservation and
 unpaired-restore rejection; the live hand word in its palette upload; and Red Rust's
 factory-then-roll ordering, failure state, omitted grunt and exhaustion.
 
-Private original-instruction comparisons run 12,208 complete callbacks in 384
-contexts across all seven programs (including both Holy rod/Star flail descriptors,
-Star flail's widening and every extra sound; Debug and ASan traces byte-identical),
-and fourteen full 384-word palette copies. The compiled native loader matches that
-reference in both hands, changing only its texture and CLUT words.
+Private original-instruction comparisons run 13,520 complete callbacks in 480
+contexts across all nine programs (including Combat knife's linger, parry and voice, and
+Great Sword's descriptor0; Debug and ASan traces byte-identical), and twenty full 384-word
+palette copies. The compiled native loader matches that reference in both hands.
 
 Native protocols (Debug and ASan, LLDB, muted) exercise real menu equipment in both
 hands, private sprite pixels, real enemy HP damage, Mist retirement and in-memory
 v9 Continue (Mablung+Morningstar and paired Takemitsu), including unpaired-save
 rejection, Red Rust's actual-cursor failure roll in both hands, and Holy rod/Star flail
-ordinary attacks plus their real back-forward specials with real enemy damage. Supplied stock, protection, position, relic, arrival and save-room
+ordinary attacks plus their real back-forward specials with real enemy damage, Great
+Sword's paired sprite and damage, and Combat knife's real slot16 alternation. Supplied stock, protection, position, relic, arrival and save-room
 contexts are not acquisition, uninterrupted-route or console evidence. Other
 weapon families, specials, full sharing and all six [milestone gates](alucard-status.md)
 remain open.
 
-Adapted AGPL-3.0-or-later algorithms: `weapon/w_002.c`, `w_003.c`, `w_004.c`, `w_005.c`, `w_033.c`, `w_035.c`,
+Adapted AGPL-3.0-or-later algorithms: `weapon/w_002.c`, `w_003.c`, `w_004.c`, `w_005.c`, `w_032.c`, `w_033.c`, `w_035.c`,
+`w_051.c`,
 `w_036.c`, `w_057.c`, `weapon/shared.h` and `dra/6E42C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

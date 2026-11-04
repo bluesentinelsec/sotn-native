@@ -292,6 +292,61 @@ static bool PlainWeapons(void)
         }
     return true;
 }
+// Weapon32 Combat knife lingers four updates (no sprite/hitbox) instead of retiring; weapon51
+// Great Sword draws from DRA bank10 without a hand offset. Authored tables only.
+static bool KnifeAndGreatSword(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    SDL_memcpy(o + 0x8f8, o + 0x106c, 16);
+    SDL_memcpy(o + 0x908, o + 0x106c, 16);
+    Put16(o + 0x908 + 10, 0x60b); // special descriptor: SWISH_B adds the attack voice
+    SDL_memcpy(o + 0xcd8, o + 0x106c, 16);
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 51,
+                                  .hand = hand,
+                                  .priority = 100,
+                                  .animation = 0x41,
+                                  .pose = 4,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 3;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.bank == 10 && !w.blend &&
+              w.texture == 100U + hand * 2U && w.palette == 0x110U + hand * 24U);
+        SotnHandWeapon other = {.parameter = 0x100};
+        CHECK(!SotnHandWeapon_Tick(&other, &program, in, &rng, &e));
+        // Knife: variant0 draws in front of the player, the special behind it.
+        for (Uint16 variant = 0; variant < 2; ++variant)
+        {
+            in.family = 32;
+            in.pose = 4;
+            in.remaining = 1;
+            in.attack_mode = 0x8002;
+            SotnHandWeapon k = {.parameter = (Uint16)((variant << 8) | (hand << 15))};
+            SotnHandWeaponEvents ke = {0};
+            CHECK(SotnHandWeapon_Tick(&k, &program, in, &rng, &ke) && k.phase == 1 &&
+                  k.priority == (variant ? 98 : 102) && !k.blend &&
+                  ke.extra_sounds[0] == (variant ? 0x6ef : 0));
+            // Pose6 within the first four animations becomes a hit-state4 parry.
+            in.pose = 6;
+            CHECK(SotnHandWeapon_Tick(&k, &program, in, &rng, &ke) && k.hitbox_state == 4);
+            // The attack ending lingers four updates without a sprite or hitbox.
+            in.attack_mode = 0;
+            CHECK(SotnHandWeapon_Tick(&k, &program, in, &rng, &ke) && k.phase == 2 &&
+                  k.timer == 3 && !k.frame && !k.hitbox_state && !k.removed);
+            for (Uint16 i = 0; i < 2; ++i)
+                CHECK(SotnHandWeapon_Tick(&k, &program, in, &rng, &ke) && !k.removed);
+            CHECK(SotnHandWeapon_Tick(&k, &program, in, &rng, &ke) && k.removed);
+        }
+    }
+    return true;
+}
 // Weapon54: optional LINE_G2 rows with their birth rand calls, Dark descriptor2/attack doubling,
 // timer11 floor and the descriptor1 outline request. Authored tables only.
 static bool Gurthang(void)
@@ -844,7 +899,8 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Ownership()
+    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() &&
+                   KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }

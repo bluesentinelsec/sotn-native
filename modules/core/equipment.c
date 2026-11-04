@@ -67,6 +67,12 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195};
     case 195:
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0};
+    case 20: // Combat knife: special175 is both its back-forward and QCF item
+        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175};
+    case 175:
+        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0};
+    case 127: // Great Sword
+        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0};
     case 131: // Star flail and its back-forward special171
         return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0};
     case 171:
@@ -81,7 +87,7 @@ bool SotnEquipment_IsPlainWeapon(Uint16 id)
 }
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
-    return id == 21 || id == 26 || id == 27 || id == 84;
+    return id == 21 || id == 26 || id == 27 || id == 84 || id == 127;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {

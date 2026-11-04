@@ -104,6 +104,7 @@ struct SotnPlayer
     SotnSpellCommands spell_commands;
     SotnWeaponCommand sword_command;
     SotnWeaponCommand back_forward; /**< Original COMBO_BF; transient, never saved. */
+    Uint16 slot16_item; /**< Actual slot16 weapon equipId seen at hand use (Combat knife). */
     SotnPlayerSwordFactory sword_factory;
     void *sword_context;
     Sint32 sword_recovery;

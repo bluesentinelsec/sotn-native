@@ -862,6 +862,8 @@ static Uint16 HandFamily(Uint16 item)
            : item == 130 || item == 170   ? 4
            : item == 131 || item == 171   ? 5
            : item == 121 || item == 195   ? 54
+           : item == 20 || item == 175    ? 32
+           : item == 127                  ? 51
            : item == 21                   ? 33
            : item == 26                   ? 35
            : item == 27                   ? 36
@@ -878,8 +880,9 @@ static Uint16 HandVariant(Uint16 item)
                                                          : 0)
            : item == 97                 ? 1
            : item == 124                ? 3
-           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ? 1
-                                                                                     : 0;
+           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 || item == 175
+               ? 1
+               : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
@@ -928,7 +931,9 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
            (c->kind == (c->state.hand.item ? (hand ? 0xf0 : 0xe0) : (hand ? 0xfe : 0xee))) &&
            (c->initialized
                 ? w->phase &&
-                      w->phase <= (SotnHandWeapon_IsShieldFamily(c->state.hand.family) ? 4 : 1) &&
+                      w->phase <= (SotnHandWeapon_IsShieldFamily(c->state.hand.family) ? 4
+                                   : c->state.hand.family == 32                        ? 2
+                                                                                       : 1) &&
                       c->group == hand + 1U && w->properties.id == c->state.hand.item &&
                       c->primitive_count == (w->allocated ? HandRows(c->state.hand.family) : 0) &&
                       (!w->allocated || HandRows(c->state.hand.family)) &&

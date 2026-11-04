@@ -74,6 +74,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 18, 1, 31, 7, 0x6f, 0, 5, 174);
     Item(f->dra, 174, 1, 31, 8, 0x76, 1, 8, 0);
     Item(f->dra, 85, 3, 1, 0, 0x24, 0, 5, 0);
+    Item(f->dra, 20, 0, 32, 9, 0x7d, 0, 5, 175);
+    f->dra[0x500 + 20 * 52 + 24] = 175;
+    Item(f->dra, 175, 0, 32, 10, 0x84, 1, 8, 0);
     Item(f->dra, 121, 1, 54, 1, 0x41, 0, 13, 0);
     f->dra[0x500 + 121 * 52 + 24] = 195; // QCF specialMove
     Item(f->dra, 195, 1, 54, 1, 0x41, 1, 13, 0);
@@ -219,6 +222,26 @@ static bool QuarterCircle(Fixture *f)
           !SotnPlayer_RaiseDarkTimer(f->p, 0) && !SotnPlayer_RaiseDarkTimer(f->p, 0x39));
     return true;
 }
+// 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
+// a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
+static bool CombatKnife(Fixture *f)
+{
+    const Uint16 slots[] = {20, 175, 0}, expected[] = {175, 20, 175};
+    for (Uint16 k = 0; k < SDL_arraysize(slots); ++k)
+    {
+        CHECK(Create(f, 20, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (k)
+            CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0) &&
+                  f->p->back_forward.phase == 255);
+        CHECK(SotnPlayer_SetSlot16Item(f->p, slots[k]) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+        CHECK(f->factories == 1 && f->item == expected[k] && !f->roll_count &&
+              f->p->attack_mode == (expected[k] == 175 ? 0x800b : 0x800a));
+    }
+    CHECK(!SotnPlayer_SetSlot16Item(f->p, 217));
+    return true;
+}
 static bool AirborneKindZero(Fixture *f)
 {
     // block_98: kind0 needs Down plus Left/Right for variant6; Down alone stays variant5.
@@ -244,7 +267,7 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && AirborneKindZero(f);
+         QuarterCircle(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

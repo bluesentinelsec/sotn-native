@@ -982,6 +982,10 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
  * @param player Owner. @param minimum Requested floor, 1..0x38. @return Success or SDL error.
  * Only the timer changes; glow/palette owners belong to the Dark spell. */
 bool SotnPlayer_RaiseDarkTimer(SotnPlayer *player, Uint16 minimum);
+/** @brief Supply the actual slot16 entity's equipId before a player update.
+ * @param player Owner. @param item Live ordinary hand item in slot16, or zero.
+ * @return Success or SDL error. dra/6E42C.c reads it for Combat knife's alternation. */
+bool SotnPlayer_SetSlot16Item(SotnPlayer *player, Uint16 item);
 /** @brief Carry actual physical input from a startup/menu owner before first player control.
  * @param player Actual initialized player. @param buttons Current full supported button word.
  * @return Success or SDL error without mutation. Seeds pressed/previous/held and clears only

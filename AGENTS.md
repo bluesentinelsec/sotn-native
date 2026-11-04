@@ -17,7 +17,9 @@ blend (additive; Red Rust transparent; Nunchaku none), Nunchaku's pose12 sound p
 Holy rod/Star flail ANIME_SWORD_B, Star flail's pose6/7 widening, specials170/171,
 Mablung descriptor3, Morningstar palette5 and live hand words in crossing palette
 copies. Red Rust rolls one character libc rand after its actual factory; &7==0 takes
-the curse failure branch without grunt. Muramasa differs and stays unavailable. No
+the curse failure branch without grunt. Great Sword127 (weapon51 descriptor0) uses DRA
+bank10; Combat knife20 lingers four updates in slot16 and alternates with special175 via
+the session-supplied slot16 item. Muramasa differs and stays unavailable. No
 pool/grants/savev9 change; supplied stock/protection/position/relic/arrival/seed/save
 fixtures are not acquisition/route/console evidence. All six Alucard gates remain open.
 

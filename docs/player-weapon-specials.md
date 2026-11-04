@@ -31,6 +31,8 @@ Selected virtual items:
 - Gurthang121's QCF special195: kind1, weapon54 descriptor1; it raises Dark Metamorphosis
   and requests an outline (see [Gurthang](player-gurthang.md)). QCF resolution runs before
   the back-forward check, requires the ground, chain limit0x80 and enough MP.
+- Combat knife20's special175 uses the original slot16 alternation quirk before the QCF and
+  back-forward checks (see [template weapons](player-plain-weapons.md)).
 
 The other ~25 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items

@@ -473,11 +473,13 @@ static bool OrdinaryFamily(Uint16 family)
     case 4:
     case 5:
     case 31:
+    case 32:
     case 33:
     case 35:
     case 36:
     case 37:
     case 43:
+    case 51:
     case 54:
     case 57:
     case 255:
@@ -490,7 +492,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                          SotnHandWeaponInput in, Uint32 *random, SotnHandWeaponEvents *events)
 {
     if (!out || !program || !random || !events || out->removed || in.hand > 1 ||
-        out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4 : 1) ||
+        out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4
+                      : in.family == 32                        ? 2
+                                                               : 1) ||
         !OrdinaryFamily(in.family))
         return SDL_SetError("Ordinary weapon requires a supported live hand/program context");
     SotnHandWeapon w = *out;
@@ -513,6 +517,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 1  ? 4
                              : in.family == 57 ? 4
                              : in.family == 54 ? 3
+                             : in.family == 32 ? 2
+                             : in.family == 51 ? 1
                              : in.family == 4  ? 2
                              : in.family == 5  ? 2
                              : in.family == 43 ? 3
@@ -524,6 +530,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
                                   : in.family == 54 ? 0xec4U
+                                  : in.family == 32 ? 0x8f8U
+                                  : in.family == 51 ? 0xcd8U
                                   : in.family == 4  ? 0x12f4U
                                   : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
@@ -540,7 +548,23 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         w.x = in.x;
         w.y = in.y;
         w.facing_left = in.facing_left;
-        if (in.animation < d[12] || in.animation >= d[12] + 7 || !in.attack_mode)
+        // w_032 Combat knife lingers four updates in slot16 instead of destroying itself.
+        const bool linger = in.family == 32;
+        if (linger && (in.animation < d[12] || in.animation >= d[12] + 7 || !in.attack_mode) &&
+            w.phase != 2)
+        {
+            w.phase = 2;
+            w.timer = 4;
+            w.frame = 0;
+            w.hitbox_state = 0;
+        }
+        if (linger && w.phase == 2)
+        {
+            w.timer = Word(w.timer - 1);
+            if (!w.timer)
+                w.removed = true;
+        }
+        else if (!linger && (in.animation < d[12] || in.animation >= d[12] + 7 || !in.attack_mode))
             w.removed = true;
         else
         {
@@ -552,10 +576,13 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // Weapon1 sets no sprite bank, palette, priority or blend of its own.
                 if (in.family != 255 && in.family != 1)
                 {
-                    w.bank = (Uint16)(0x8010U + in.hand * 2U);
+                    // w_051 draws from DRA sprite bank10 with no per-hand bank offset.
+                    w.bank = in.family == 51 ? 10 : (Uint16)(0x8010U + in.hand * 2U);
                     w.palette = (Uint16)(0x110U + in.hand * 24U + Read16(d + 8));
                     w.texture = (Uint16)(100U + in.hand * 2U);
-                    w.priority = (Uint16)(in.priority + (in.family == 31 && !variant ? 2 : -2));
+                    w.priority =
+                        (Uint16)(in.priority +
+                                 ((in.family == 31 || in.family == 32) && !variant ? 2 : -2));
                 }
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
@@ -613,6 +640,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_004 Holy rod and w_005 Star flail add SFX_ANIME_SWORD_B.
                 if (in.family == 4 || in.family == 5)
                     e.extra_sounds[0] = 0x640;
+                // w_032 adds SFX_VO_ALU_ATTACK_B after a SWISH_B descriptor sound.
+                if (in.family == 32 && e.sound == 0x60b)
+                    e.extra_sounds[0] = 0x6ef;
             }
             // w_033 Nunchaku repeats its swing and adds SFX_WEAPON_SWISH_B at pose12.
             if (in.family == 33 && in.remaining == 1 && in.pose == 12)
@@ -624,15 +654,31 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 !Address(in.overlay, base, Read32(p) + in.pose * 2U, 2, &p))
                 return SDL_SetError("Ordinary weapon private player-frame bounds");
             const Uint16 packed = Read16(p);
-            if (packed == 65535U)
-                w.removed = true;
-            else
+            // UpdateUnarmedAnim < 0: FFFF before the hitbox write, negative timer after it.
+            bool ended = packed == 65535U;
+            if (!ended)
             {
                 if (!Hitbox(&w, in.overlay, base, Read32(d + 4), packed))
                     return false;
-                if (in.remaining < 0)
-                    w.removed = true;
-                else
+                ended = in.remaining < 0;
+            }
+            if (ended && !linger)
+                w.removed = true;
+            else if (linger)
+            {
+                if (ended)
+                {
+                    w.phase = 2;
+                    w.timer = 4;
+                    w.frame = 0;
+                    w.hitbox_state = 0;
+                }
+                if (w.animation < 4 && in.pose == 6)
+                    w.hitbox_state = 4;
+                Transform(&w, in);
+            }
+            else
+            {
                 {
                     if (in.family == 31 && w.animation < 2 && in.pose == 6)
                         w.hitbox_state = 4;
