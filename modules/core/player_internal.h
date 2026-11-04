@@ -133,6 +133,7 @@ struct SotnPlayer
     SotnPlayerSleep sleep;
     Uint16 attack_mode, attack_button;
     Uint8 attack_lock;
+    Sint32 attack_hold; /**< Original BSS D_80139824: kinds19..22/28 pose0 hold count. */
     SotnSubweapons *subweapons;
     bool subweapon_cast;
     Uint16 subweapon_animation;

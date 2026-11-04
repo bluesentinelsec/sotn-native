@@ -119,7 +119,7 @@ struct SotnLaboratory
     SotnSavePointRenderer *save_renderer;
     bool save_room, clock_room, room_music_stopped;
     LaboratoryInput input;
-    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1508];
+    SotnActorDraw draw_items[SOTN_STAGE_ACTOR_SLOTS + SOTN_ACTOR_PRIMITIVES_MAX + 1573];
     Uint16 frame[SOTN_FRAME_PIXELS];
     Uint16 clip_backup[SOTN_FRAME_PIXELS];
     SotnActorTargetCursor draw_target;
@@ -4010,6 +4010,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                             .kind = SOTN_DRAW_HAND_TILE}))
                         return false;
             }
+            if (child->weapon_secondary && child->initialized)
+            {
+                const SotnWeaponSecondary *w = &child->state.secondary.motion;
+                if (w->frame && w->bank &&
+                    !((w->draw_flags & 0x80U) && (((owner + 16U) ^ session->system_timer) & 1U)) &&
+                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                        &draw_count,
+                                        (SotnActorDraw){.priority = w->priority,
+                                                        .primitive = owner,
+                                                        .kind = SOTN_DRAW_WEAPON_SECONDARY}))
+                    return false;
+                for (Uint16 row = child->primitive_count; row > 0; --row)
+                    if (!SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->row_priority,
+                                            .primitive = (Uint16)(owner * 64U + row - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_LINE}))
+                        return false;
+            }
             if (child->karma && child->initialized)
             {
                 const SotnKarmaCoin *m = &child->state.karma.motion;
@@ -4978,6 +4997,58 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                          (SotnSpriteTransform){.scale_x = 256,
                                                .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
                                                .rotation = (w->draw_flags & 4U) ? w->rotation : 0,
+                                               .pivot_y = w->pivot_y,
+                                               .opacity = 128,
+                                               .executable = session->executable,
+                                               .sdk_rotation = true},
+                         session->draw_target.surface))
+                return false;
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_WEAPON_SECONDARY ||
+            command.kind == SOTN_DRAW_WEAPON_SECONDARY_LINE)
+        {
+            const Uint16 owner = command.kind == SOTN_DRAW_WEAPON_SECONDARY
+                                     ? command.primitive
+                                     : (Uint16)(command.primitive / 64U),
+                         row = (Uint16)(command.primitive % 64U);
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            if (!c->weapon_secondary || !c->initialized ||
+                !SotnBatRuntime_SecondaryValid(c, owner) ||
+                (command.kind == SOTN_DRAW_WEAPON_SECONDARY_LINE && row >= c->primitive_count))
+                return SDL_SetError("Weapon secondary draw lost its actual child/row lease");
+            if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_LINE)
+            {
+                // Original drawMode0x331: semi-transparent LINE_G2 with tpage ABR1 (additive).
+                const SotnWeaponSecondaryRow *q = &w->rows[row];
+                const Sint32 ox = session->draw_target.offset_x + session->shake.x,
+                             oy = session->draw_target.offset_y + session->shake.y;
+                const SotnColorLine line = {.x = {q->x[0] + ox, q->x[1] + ox},
+                                            .y = {q->y[0] + oy, q->y[1] + oy},
+                                            .red = {0, q->red},
+                                            .green = {0, q->green},
+                                            .blue = {0, q->blue},
+                                            .blend = true,
+                                            .blend_mode = 1};
+                if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
+                    return false;
+            }
+            else if (!SotnActorGraphics_DrawSecondaryWeaponSurface(
+                         session->actor_graphics,
+                         (SotnActorSprite){.animation_set = (Uint16)(w->bank & 0x7fffU),
+                                           .frame = w->frame,
+                                           .palette = w->palette,
+                                           .texture_offset = w->texture,
+                                           .blend_mode = w->blend,
+                                           .facing_left = w->facing_left},
+                         Pixel(w->x) - view_x + session->draw_target.offset_x + session->shake.x,
+                         Pixel(w->y) - view_y + session->draw_target.offset_y + session->shake.y,
+                         (SotnSpriteTransform){.scale_x = 256,
+                                               .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
                                                .pivot_y = w->pivot_y,
                                                .opacity = 128,
                                                .executable = session->executable,

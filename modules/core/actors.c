@@ -595,8 +595,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                        actors->bat_runtime->sire_mask || actors->bat_runtime->pentagram_mask ||
                        actors->bat_runtime->magic_mask || actors->bat_runtime->thrown_mask ||
                        actors->bat_runtime->star_mask || actors->bat_runtime->karma_mask ||
-                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
-                       actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->secondary_mask || actors->bat_runtime->echo_attack ||
+                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -622,6 +622,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_sire = (runtime->sire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_magic = (runtime->magic_mask & ((Uint64)1 << index)) != 0;
             const bool selected_karma = (runtime->karma_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_secondary = (runtime->secondary_mask & ((Uint64)1 << index)) != 0;
             const bool selected_star = (runtime->star_mask & ((Uint64)1 << index)) != 0;
             const bool selected_thrown = (runtime->thrown_mask & ((Uint64)1 << index)) != 0;
             const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
@@ -633,7 +634,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
                 !selected_hand && !selected_axe && !selected_neutron && !selected_sire &&
                 !selected_pentagram && !selected_magic && !selected_thrown && !selected_star &&
-                !selected_karma)
+                !selected_karma && !selected_secondary)
                 continue;
             if (selected_wolf)
             {
@@ -693,6 +694,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     (selected_karma &&
                      (!child->karma || !SotnBatRuntime_KarmaValid(child, (Uint16)index) ||
                       !child->state.karma.attack.active)) ||
+                    (selected_secondary && (!child->weapon_secondary ||
+                                            !SotnBatRuntime_SecondaryValid(child, (Uint16)index) ||
+                                            !child->state.secondary.attack.active)) ||
                     (selected_star &&
                      (!child->star || !SotnBatRuntime_StarValid(child, (Uint16)index) ||
                       !child->state.star.attack.active)) ||
@@ -711,6 +715,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
                 source.attack = selected_hand        ? child->state.hand.attack
+                                : selected_secondary ? child->state.secondary.attack
                                 : selected_karma     ? child->state.karma.attack
                                 : selected_star      ? child->state.star.attack
                                 : selected_thrown    ? child->state.thrown.attack
@@ -723,11 +728,16 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                 : selected_fire      ? child->state.fire.attack
                                 : selected_spirit    ? child->state.spirit.attack
                                                      : child->state.attack;
-                hand = selected_hand  ? child->group - 1U
-                       : selected_axe ? 0U
-                       : selected_sword || (selected_star && !child->group)
-                           ? ACTOR_ZERO_CHANNEL
-                           : ACTOR_WING_CHANNEL + child->group - 3U;
+                // A weapon secondary copies its raw slot16 parent's enemyId: hand groups1/2
+                // share the hand weapon's channel and cooldown.
+                hand =
+                    selected_hand || (selected_secondary && child->group >= 1 && child->group <= 2)
+                        ? child->group - 1U
+                    : selected_axe ? 0U
+                    : selected_sword || (selected_star && !child->group) ||
+                            (selected_secondary && !child->group)
+                        ? ACTOR_ZERO_CHANNEL
+                        : ACTOR_WING_CHANNEL + child->group - 3U;
             }
         }
         else if (channel >= gas_start)

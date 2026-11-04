@@ -204,7 +204,8 @@ static bool BatPrimitiveKind(Uint16 kind)
     return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
-           kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe3 || kind == 0xf3;
+           kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
+           kind == 0xe3 || kind == 0xf3;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -371,6 +372,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                 c->primitive_count == SOTN_HAND_WEAPON_FIST_ROWS) ||
                (c->hand_weapon && c->state.hand.family == 54 &&
                 c->primitive_count == SOTN_HAND_WEAPON_GURTHANG_ROWS) ||
+               (c->weapon_secondary &&
+                c->primitive_count == SotnWeaponSecondary_Rows(c->state.secondary.family)) ||
                (c->kind == 19 && c->primitive_count == 20) ||
                (c->kind == 37 && c->primitive_count == 18) ||
                (c->kind == 47 && c->primitive_count == 16) ||
@@ -531,7 +534,7 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
     next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
-        next->thrown_mask = next->star_mask = next->karma_mask = 0;
+        next->thrown_mask = next->star_mask = next->karma_mask = next->secondary_mask = 0;
     next->magic_clear_shield = false;
     next->hand_attack = false;
     next->hand_shield = 0;

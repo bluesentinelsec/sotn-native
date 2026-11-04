@@ -37,6 +37,7 @@
 #include <sotn/teleport_effect.h>
 #include <sotn/thrown_weapon.h>
 #include <sotn/thunder_hit.h>
+#include <sotn/weapon_secondary.h>
 
 enum
 {
@@ -69,6 +70,7 @@ typedef struct SotnBatRuntimeChild
     Uint8 group;
     bool initialized, food, neutron, sire, sire_child, pentagram, magic, thrown, star,
         thrown_particle_parent, karma, hand_weapon;
+    bool weapon_secondary; /**< Blueprint56 E1/F1 func_ptr_80170004 of a resident program. */
     union {
         struct
         {
@@ -76,6 +78,12 @@ typedef struct SotnBatRuntimeChild
             SotnPlayerAttack attack;
             Uint16 item, family;
         } hand;
+        struct
+        {
+            SotnWeaponSecondary motion;
+            SotnPlayerAttack attack;
+            Uint16 family, item; /**< item: raw parent equip id copied at birth. */
+        } secondary;
         struct
         {
             SotnKarmaCoin motion;
@@ -193,7 +201,7 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_STONE_DISSOLVE_ROWS]; /**< Actual row indices, including particle
+    Uint16 primitives[SOTN_WEAPON_SECONDARY_ROWS]; /**< Actual row indices, including particle
                                                     sentinels. */
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
@@ -212,6 +220,7 @@ typedef struct SotnBatRuntime
             star_parent_slot, karma_parent_slot;
         bool sire_factory, magic_factory, thrown_factory, thrown_particles, star_factory,
             karma_factory;
+        bool secondary_factory; /**< Weapon WFACTORY(0x38) from the actual slot16 program. */
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
@@ -250,7 +259,8 @@ typedef struct SotnBatRuntime
     Uint16 wing_mask;
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
     Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
-    bool hand_attack; /**< Actual shared slot16 ordinary-hand attack. */
+    Uint64 secondary_mask; /**< Active weapon func_ptr_80170004 attacks by actual slot. */
+    bool hand_attack;      /**< Actual shared slot16 ordinary-hand attack. */
     Uint8
         hand_shield; /**< Original retained unk48 word, updated by actual callbacks/replacement. */
     bool magic_clear_shield; /**< Conditional hand-effect shield retirement, committed by its owner.
@@ -283,6 +293,9 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *, SotnPlayerFactorySource, Uint3
                                 Uint16 item, bool *allocated);
 /** @brief Validate actual shared ordinary slot16 identity, properties and optional tiles. */
 bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Validate an actual blueprint56 weapon secondary in slots17..31, its resident program,
+ * mandatory rows, copied raw-parent group and properties. */
+bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *, Uint16 index);
 /** @brief Apply actual func_8010FAF4/func_8010E3E0 slot retirement to a working row plan.
  * The caller must commit the real stage pool before granting another slot16 owner. */
 bool SotnBatRuntime_RetireHand(SotnBatRuntime *, bool shield_only);

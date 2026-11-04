@@ -373,6 +373,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 3  ? 0x8017ac38U
                            : equipment.family == 4  ? 0x8017b314U
                            : equipment.family == 54 ? 0x8017af04U
+                           : equipment.family == 55 ? 0x8017b188U
                            : equipment.family == 32 ? 0x8017a918U
                            : equipment.family == 51 ? 0x8017aec4U
                            : equipment.family == 5  ? 0x8017b314U
@@ -403,7 +404,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
           equipment.family == 3 || equipment.family == 4 || equipment.family == 5 ||
           equipment.family == 54 || equipment.family == 32 || equipment.family == 51 ||
           equipment.family == 33 || equipment.family == 35 || equipment.family == 36 ||
-          equipment.family == 57) &&
+          equipment.family == 55 || equipment.family == 57) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
@@ -411,10 +412,10 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  equipment.family == 1 || equipment.family == 3 || equipment.family == 4 ||
                  equipment.family == 54 || equipment.family == 32 || equipment.family == 51 ||
                  equipment.family == 5 || equipment.family == 33 || equipment.family == 35 ||
-                 equipment.family == 36 || equipment.family == 57 || equipment.family == 20 ||
-                 equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
-                 equipment.family == 18 || equipment.family == 17 || equipment.family == 16 ||
-                 equipment.family == 15
+                 equipment.family == 36 || equipment.family == 57 || equipment.family == 55 ||
+                 equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
+                 equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
+                 equipment.family == 16 || equipment.family == 15
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -485,17 +486,22 @@ bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 h
     return true;
 }
 
-static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint16 frame,
-                           SotnDataView *out)
+// count: explicit entry count for tables whose definitions precede them; zero infers it from the
+// first definition that follows the table.
+static bool MultipartFrameCounted(SotnDataView image, Uint32 base, Uint32 address, Uint32 count,
+                                  Uint16 frame, SotnDataView *out)
 {
     SotnDataView table = {0}, first = {0};
     if (!Resolve(image, base, address, 8, 4, &table))
         return false;
     const Uint32 first_address = Read32(table.bytes + 4);
-    if (first_address <= address || first_address % 4 != 0 ||
-        (first_address - address) / 4 > 1024 || frame >= (first_address - address) / 4)
+    if (!count && (first_address <= address || first_address % 4 != 0))
         return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
-    if (!Resolve(image, base, address, first_address - address, 4, &table) ||
+    if (!count)
+        count = (first_address - address) / 4;
+    if (count > 1024 || frame >= count)
+        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
+    if (!Resolve(image, base, address, count * 4U, 4, &table) ||
         !Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2, 2, &first))
         return false;
     const Uint16 parts = Read16(first.bytes);
@@ -506,6 +512,11 @@ static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint
     return Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2 + (size_t)parts * 22, 2,
                    out);
 }
+static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint16 frame,
+                           SotnDataView *out)
+{
+    return MultipartFrameCounted(image, base, address, 0, frame, out);
+}
 
 static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out,
                   bool secondary)
@@ -514,10 +525,12 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
     const Uint16 hand = bank >= 18 ? 1 : 0;
-    if (secondary && (stage || (bank != 17 && bank != 19) || graphics->weapon_family[hand] != 15 ||
+    // SetSpriteBank2 tables: weapon15 at0x8017a2b0, weapon55 Holy sword at0x8017b160.
+    const Uint8 resident = graphics->weapon_family[hand];
+    if (secondary && (stage || (bank != 17 && bank != 19) || (resident != 15 && resident != 55) ||
                       !graphics->weapon[hand].bytes))
         return SDL_SetError(
-            "Secondary weapon sprite requires actual resident weapon15/bank17 or19");
+            "Secondary weapon sprite requires actual resident weapon15/55 bank17 or19");
     if (stage && bank == 20)
         return MultipartFrame(graphics->familiar, 0x80170000U, graphics->familiar_parts,
                               sprite.frame, out);
@@ -530,14 +543,18 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
     if (bank == 0 || (!weapon && bank >= (stage ? graphics->sprite_banks : 18U)) ||
         (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
-    const Uint32 table_address = weapon  ? base + (secondary ? 0x2b0U : 0x40U)
+    const Uint32 table_address = weapon  ? base + (!secondary       ? 0x40U
+                                                   : resident == 55 ? 0x1160U
+                                                                    : 0x2b0U)
                                  : stage ? Read32(graphics->nz0.bytes + 20)
                                          : base + 0x3b70;
     if (!weapon &&
         !Resolve(image, base, table_address, (stage ? graphics->sprite_banks : 18U) * 4, 4, &table))
         return false;
     const Uint32 address = weapon ? table_address : Read32(table.bytes + bank * 4);
-    return MultipartFrame(image, base, address, sprite.frame, out);
+    // Weapon55's SetSpriteBank2 table (NULL plus four frames) follows its own definitions.
+    return MultipartFrameCounted(image, base, address, secondary && resident == 55 ? 5 : 0,
+                                 sprite.frame, out);
 }
 
 bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,

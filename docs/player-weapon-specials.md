@@ -33,8 +33,11 @@ Selected virtual items:
   the back-forward check, requires the ground, chain limit0x80 and enough MP.
 - Combat knife20's special175 uses the original slot16 alternation quirk before the QCF and
   back-forward checks (see [template weapons](player-plain-weapons.md)).
+- Holy sword115's QCF special196: kind28 with five MP, a ten-update pose0 hold and SFX_VO_ALU_
+  ATTACK_B instead of the casting grunt; weapon55 descriptor1 spawns the first native
+  [weapon secondary](player-holy-sword.md).
 
-The other ~25 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+The other ~24 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

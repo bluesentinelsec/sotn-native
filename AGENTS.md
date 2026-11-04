@@ -1,3 +1,11 @@
+Selected [Holy sword](docs/player-holy-sword.md) now owns item115/QCF special196 through
+weapon55 and the first native weapon-secondary owner: descriptor1 queues 0x69D then
+WFACTORY(0x38,0) before properties; next-pass E1/F1 in slots17..31 reserves 64 mandatory
+LINE_G2 rows before 128 rand calls, copies the raw slot16 parent's equipId/enemyId after the
+least-used increment, shrinks its hitbox at frame1/timer1 and runs post-cull UpdateAnim.
+Kind28 stands still, holds pose0 ten updates (D_80139824), plays 0x6EF without grunt and
+charges five MP after the factory. Additive ABR1 lines; bank-2 table bounded at five entries.
+
 Selected [Gurthang](docs/player-gurthang.md) now owns item121/QCF special195 through
 weapon54: twelve optional LINE_G2 rows (28 birth rand calls) placed on trigger frames,
 Dark descriptor2 with doubled attack, a 0x38 timer11 floor committed after the player

@@ -402,6 +402,44 @@ static bool Gurthang(void)
     }
     return true;
 }
+// w_055 descriptor1 birth: SFX_MAGIC_SWITCH and WFACTORY(0x38,0) before properties; a
+// same-update descriptor sound follows the birth sound.
+static bool HolySword(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    SDL_memcpy(o + 0x10ac, o + 0x106c, 16);
+    SDL_memcpy(o + 0x10bc, o + 0x106c, 16);
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 variant = k & 1U, hand = (k >> 1) & 1U, sound_pose = k >> 2;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 55,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .animation = 0x41,
+                                  .pose = (Uint16)(sound_pose ? 4 : 0),
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9, expected = 9;
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected && e.properties &&
+              w.phase == 1 && w.blend == 0x30 && w.priority == 146 &&
+              w.bank == 0x8010 + hand * 2U && w.palette == 0x110 + hand * 24U &&
+              w.texture == 100 + hand * 2U);
+        CHECK(e.factory == (variant ? 0x38U | (hand + 1U) << 12 : 0U));
+        const Uint16 first = variant ? 0x69d : sound_pose ? 0x611 : 0;
+        CHECK(e.sound == first && e.extra_sounds[0] == (variant && sound_pose ? 0x611 : 0) &&
+              !e.extra_sounds[1]);
+    }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -899,7 +937,7 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() &&
+    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
                    KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;

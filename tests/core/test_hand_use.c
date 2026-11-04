@@ -80,6 +80,10 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 121, 1, 54, 1, 0x41, 0, 13, 0);
     f->dra[0x500 + 121 * 52 + 24] = 195; // QCF specialMove
     Item(f->dra, 195, 1, 54, 1, 0x41, 1, 13, 0);
+    Item(f->dra, 115, 1, 55, 1, 0x41, 0, 13, 0);
+    f->dra[0x500 + 115 * 52 + 24] = 196; // QCF specialMove
+    Item(f->dra, 196, 1, 55, 28, 0x41, 1, 13, 0);
+    Put16(f->dra + 0x500 + 196 * 52 + 36, 5);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -222,6 +226,42 @@ static bool QuarterCircle(Fixture *f)
           !SotnPlayer_RaiseDarkTimer(f->p, 0) && !SotnPlayer_RaiseDarkTimer(f->p, 0x39));
     return true;
 }
+// 6E42C.c kind28 (Holy sword special196): grounded QCF, five MP after the factory, no casting
+// grunt, standing still with SFX_VO_ALU_ATTACK_B; 71830.c substep0x5C holds pose0 ten updates.
+static bool HolySword(Fixture *f)
+{
+    CHECK(Create(f, 115, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    const Uint16 mp = f->p->mp;
+    f->p->vx = 0x18000;
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && f->p->sword_command.phase == 255);
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT));
+    SotnPlayerState p = {0};
+    CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == 196 &&
+          f->packed == 0x11030U && !f->roll_count && !p.hand_used && p.sound == 0x6ef &&
+          f->p->mp == mp - 5 && f->p->mp_spent == 5 && f->p->step == SOTN_PLAYER_STAND &&
+          !f->p->vx && f->p->substep == 0x5c && f->p->attack_mode == 0x801d &&
+          f->p->attack_hold == 10 && f->p->animation.pose == 0);
+    for (Sint32 t = 1; t <= 10; ++t)
+    {
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND) && f->p->attack_hold == 10 - t &&
+              f->p->substep == 0x5c && f->p->step == SOTN_PLAYER_STAND);
+        CHECK(f->p->animation.pose == (t < 10 ? 0 : 1));
+    }
+    // Without five MP the QCF falls back to the ordinary Holy sword attack.
+    CHECK(Create(f, 115, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    SotnCharacterState before = {0};
+    CHECK(SotnCharacter_Get(f->character, &before, NULL) &&
+          SotnCharacter_SpendMP(f->character, (Uint16)(before.mp - 4U)));
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(f->item == 115 && f->roll_count == 1 && f->p->mp == 4 && f->p->substep == 0x41);
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -267,7 +307,7 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && CombatKnife(f) && AirborneKindZero(f);
+         QuarterCircle(f) && HolySword(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

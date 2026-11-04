@@ -437,6 +437,40 @@ static bool TestSecondaryWeapon(Fixture *f)
     CHECK(!SotnActorGraphics_DrawSecondaryWeaponSurface(
               g, (SotnActorSprite){.animation_set = 16, .frame = 1}, 16, 16, transform, surface) &&
           f->frame[16 * 256 + 16] == 7);
+    // Weapon55's SetSpriteBank2 table lives at0x8017b160, not weapon15's0x8017a2b0.
+    Uint8 *holy = f->weapons + 55U * 0x7000 + 0x4000;
+    // Like the original, its definitions precede the five-entry table (NULL plus frames1..4).
+    SDL_memcpy(holy + 0x10e0, o + 0x2b8, 2 + 22);
+    Put32(holy + 0x1164, 0x8017b0e0);
+    Put32(holy + 0x2b4, 0x8017b240); // A wrong weapon15-offset table would draw blank.
+    Put32(holy + 0x1188, 0x8017a800);
+    Put16(holy + 0x800 + (7U * 16U + 1U) * 2U, 22);
+    // Texture0x65 selects the right128 texels of the hand's resident weapon texture.
+    f->weapons[55U * 0x7000 + 64] = 0x11;
+    f->weapons[55U * 0x7000 + 65] = 0x11;
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        CHECK(SotnActorGraphics_LoadWeapon(g, (SotnDataView){f->weapons, sizeof(f->weapons)}, hand,
+                                           (SotnEquipment){.id = 115, .family = 55}));
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_DrawSecondaryWeaponSurface(
+                  g,
+                  (SotnActorSprite){.animation_set = (Uint16)(17 + hand * 2U),
+                                    .frame = 1,
+                                    .palette = (Uint16)(0x117 + hand * 24U),
+                                    .texture_offset = (Uint16)(0x65 + hand * 2U)},
+                  16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 22);
+        ClearFrame(f);
+        CHECK(!SotnActorGraphics_DrawSecondaryWeaponSurface(
+                  g,
+                  (SotnActorSprite){.animation_set = (Uint16)(17 + hand * 2U),
+                                    .frame = 5,
+                                    .palette = (Uint16)(0x117 + hand * 24U),
+                                    .texture_offset = (Uint16)(0x65 + hand * 2U)},
+                  16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 7);
+    }
     SotnActorGraphics_Destroy(g);
     return true;
 }
@@ -1219,6 +1253,26 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
+    // Weapon secondaries: child index1..15 and index*64 plus LINE_G2 row0..63.
+    count = 0;
+    CHECK(
+        SotnActorOrder_Add(items, 4, &count,
+                           (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 15}) &&
+        SotnActorOrder_Add(
+            items, 4, &count,
+            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 1023}));
+    CHECK(
+        !SotnActorOrder_Add(items, 4, &count,
+                            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0}) &&
+        !SotnActorOrder_Add(items, 4, &count,
+                            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 16}) &&
+        !SotnActorOrder_Add(
+            items, 4, &count,
+            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63}) &&
+        !SotnActorOrder_Add(
+            items, 4, &count,
+            (SotnActorDraw){.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 1024}) &&
+        count == 2);
     const Uint8 player_kinds[] = {
         SOTN_DRAW_WOLF_PACKET,   SOTN_DRAW_WOLF_IMAGE,      SOTN_DRAW_WOLF_TARGET,
         SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,

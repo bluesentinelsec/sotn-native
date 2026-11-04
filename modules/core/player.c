@@ -870,9 +870,17 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
-    // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt.
-    const bool grunt =
-        equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 && equipment.kind != 25;
+    // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt; kind28
+    // instead stands still, holds pose0 for ten updates and plays SFX_VO_ALU_ATTACK_B.
+    const bool grunt = equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 &&
+                       equipment.kind != 25 && equipment.kind != 28;
+    if (player->hand_factory && equipment.kind == 28)
+    {
+        player->step = SOTN_PLAYER_STAND;
+        player->attack_hold = 10;
+        player->vx = 0;
+        player->sound = 0x6ef;
+    }
     if (player->hand_factory && grunt)
     {
         Uint16 random = 0;
@@ -1200,6 +1208,21 @@ static void StandTick(SotnPlayer *player)
             player->chair_sleep = 0x200;
         }
         flags = 1;
+    }
+    else if (player->attack_mode != 0 && player->substep == 0x5c)
+    {
+        // 71830.c substeps0x53..0x56/0x5C hold pose0 on D_80139824, with no crouch window.
+        SotnPlayer_AfterimageReset(player);
+        flags = 0;
+        if (player->animation.pose == 0)
+            player->animation.remaining = --player->attack_hold == 0 ? 1 : 2;
+        if (player->animation.pose >= player->attack_lock)
+        {
+            player->attack_mode &= 0x7fff;
+            flags = 0x1b;
+        }
+        if (player->animation.remaining < 0)
+            flags = 0xf;
     }
     else if (player->attack_mode != 0 && player->substep >= 0x40)
     {

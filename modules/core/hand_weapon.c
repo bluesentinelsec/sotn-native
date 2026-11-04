@@ -473,6 +473,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 4:
     case 5:
     case 31:
+    case 55:
     case 32:
     case 33:
     case 35:
@@ -517,6 +518,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 1  ? 4
                              : in.family == 57 ? 4
                              : in.family == 54 ? 3
+                             : in.family == 55 ? 2
                              : in.family == 32 ? 2
                              : in.family == 51 ? 1
                              : in.family == 4  ? 2
@@ -530,6 +532,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
                                   : in.family == 54 ? 0xec4U
+                                  : in.family == 55 ? 0x10acU
                                   : in.family == 32 ? 0x8f8U
                                   : in.family == 51 ? 0xcd8U
                                   : in.family == 4  ? 0x12f4U
@@ -586,7 +589,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 }
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
-                    in.family == 36 || in.family == 43 || in.family == 54 || in.family == 57)
+                    in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
+                    in.family == 57)
                     w.blend = 0x30;
                 else if (in.family == 35)
                     w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
@@ -611,6 +615,13 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     return false;
                 if (in.family == 54 && in.allocated)
                     GurthangBirth(&w, in, &rng);
+                // w_055 descriptor1 plays SFX_MAGIC_SWITCH and requests WFACTORY(0x38,0)
+                // before SetWeaponProperties.
+                if (in.family == 55 && variant == 1)
+                {
+                    e.sound = 0x69d;
+                    e.factory = 0x38U | ((in.hand + 1U) << 12);
+                }
                 if (!w.removed)
                 {
                     if (!Properties(&w, in, &rng, &e))
@@ -636,7 +647,11 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
             w.animation = (Uint16)(in.animation - d[12]);
             if (in.remaining == 1 && in.pose == d[13])
             {
-                e.sound = Read16(d + 10);
+                // A same-update birth sound keeps its earlier place in the queue.
+                if (e.sound)
+                    e.extra_sounds[0] = Read16(d + 10);
+                else
+                    e.sound = Read16(d + 10);
                 // w_004 Holy rod and w_005 Star flail add SFX_ANIME_SWORD_B.
                 if (in.family == 4 || in.family == 5)
                     e.extra_sounds[0] = 0x640;

@@ -48,7 +48,9 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_KARMA,          /**< Actual weapon20 root/child index1..31. */
     SOTN_DRAW_KARMA_QUAD,     /**< Actual root index times26 plus its real G4/GT4 lease. */
     SOTN_DRAW_HAND_WEAPON,    /**< Actual ordinary weapon entity at shared slot16. */
-    SOTN_DRAW_HAND_TILE       /**< Real optional weapon43 TILE row0..15. */
+    SOTN_DRAW_HAND_TILE,      /**< Real optional weapon43 TILE row0..15. */
+    SOTN_DRAW_WEAPON_SECONDARY,     /**< Actual blueprint56 weapon secondary index1..15. */
+    SOTN_DRAW_WEAPON_SECONDARY_LINE /**< Secondary index times64 plus its LINE_G2 row. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

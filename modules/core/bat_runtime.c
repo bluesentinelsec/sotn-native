@@ -116,6 +116,7 @@ bool SotnBatRuntime_ReplaceWolfSlots(SotnBatRuntime *r)
         r->thrown_mask &= ~((Uint64)1 << i);
         r->star_mask &= ~((Uint64)1 << i);
         r->karma_mask &= ~((Uint64)1 << i);
+        r->secondary_mask &= ~((Uint64)1 << i);
     }
     r->wing_mask &= 0x4000U;
     SDL_zero(r->groups);
@@ -862,6 +863,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 130 || item == 170   ? 4
            : item == 131 || item == 171   ? 5
            : item == 121 || item == 195   ? 54
+           : item == 115 || item == 196   ? 55
            : item == 20 || item == 175    ? 32
            : item == 127                  ? 51
            : item == 21                   ? 33
@@ -880,7 +882,8 @@ static Uint16 HandVariant(Uint16 item)
                                                          : 0)
            : item == 97                 ? 1
            : item == 124                ? 3
-           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 || item == 175
+           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ||
+                   item == 175 || item == 196
                ? 1
                : 0;
 }
@@ -939,6 +942,22 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
                       (!w->allocated || HandRows(c->state.hand.family)) &&
                       (c->state.hand.family != 1 || w->allocated)
                 : !w->phase && !c->group && !c->primitive_count);
+}
+bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->weapon_secondary)
+        return true;
+    const SotnWeaponSecondary *w = &c->state.secondary.motion;
+    const Uint16 family = c->state.secondary.family;
+    return index >= 1 && index <= 15 && c->generation && !c->bat_generation && !c->draw_count &&
+           !w->removed && !c->food && !c->neutron && !c->sire && !c->pentagram && !c->magic &&
+           !c->thrown && !c->star && !c->karma && !c->hand_weapon && !c->thrown_particle_parent &&
+           (c->kind == 0xe1 || c->kind == 0xf1) && !c->parameter && !w->parameter &&
+           SotnWeaponSecondary_Supported(family) &&
+           (c->initialized ? w->phase == 1 && w->allocated && c->group <= 10 &&
+                                 c->primitive_count == SotnWeaponSecondary_Rows(family) &&
+                                 w->properties.id == c->state.secondary.item
+                           : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
 {
@@ -1063,6 +1082,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->source.flags;
     if (c->hand_weapon)
         return c->state.hand.motion.flags;
+    if (c->weapon_secondary)
+        return c->state.secondary.motion.flags;
     if (c->karma)
         return c->state.karma.motion.flags;
     if (c->star)
@@ -1552,6 +1573,8 @@ bool SotnBatRuntime_PruneWeapons(SotnBatRuntime *r, Uint8 hands)
             r->thrown_mask &= ~((Uint64)1 << i);
             r->star_mask &= ~((Uint64)1 << i);
             r->karma_mask &= ~((Uint64)1 << i);
+            r->secondary_mask &= ~((Uint64)1 << i);
+            r->secondary_mask &= ~((Uint64)1 << i);
         }
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (ChangedWeapon(r->factories[i].cursor.entity_id, hands))
@@ -1686,6 +1709,7 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
             !SotnBatRuntime_CircleValid(&r->children[i]) ||
             !SotnBatRuntime_MedicineValid(&r->children[i]) ||
             !SotnBatRuntime_HandValid(&r->children[i], i) ||
+            !SotnBatRuntime_SecondaryValid(&r->children[i], i) ||
             !SotnBatRuntime_MagicMissileValid(&r->children[i], i))
             return SDL_SetError("Player shove lost its actual holy child owner");
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
@@ -1720,6 +1744,15 @@ bool SotnBatRuntime_PlayerShove(SotnBatRuntime *r, Sint32 x, Sint32 y)
             c->source.x = c->state.hand.motion.x;
             c->source.y = c->state.hand.motion.y;
         }
+        if (c->weapon_secondary && c->initialized && (c->state.secondary.motion.flags & 0x40000U))
+        {
+            const Uint32 bx = (Uint32)c->state.secondary.motion.x + (Uint32)x,
+                         by = (Uint32)c->state.secondary.motion.y + (Uint32)y;
+            SDL_memcpy(&c->state.secondary.motion.x, &bx, sizeof(bx));
+            SDL_memcpy(&c->state.secondary.motion.y, &by, sizeof(by));
+            c->source.x = c->state.secondary.motion.x;
+            c->source.y = c->state.secondary.motion.y;
+        }
         if (c->magic && c->initialized && (c->state.magic.motion.flags & 0x40000U))
         {
             const Uint32 bx = (Uint32)c->state.magic.motion.x + (Uint32)x,
@@ -1746,6 +1779,8 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (c->hand_weapon)
         return SotnBatRuntime_HandValid(c, index);
+    if (c->weapon_secondary)
+        return SotnBatRuntime_SecondaryValid(c, index);
     if (!SotnBatRuntime_FoodChildValid(c, index))
         return false;
     if (c->food || c->sire || c->pentagram || c->magic || c->thrown || c->star || c->karma)
@@ -1786,7 +1821,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                   Uint16 sire_parent_slot, bool magic_factory, Uint16 magic_parent_slot,
                   bool thrown_factory, bool thrown_particles, Uint16 thrown_parent_slot,
                   bool star_factory, Uint16 star_parent_slot, bool karma_factory,
-                  Uint16 karma_parent_slot, const SotnBatRuntimeInput *input)
+                  Uint16 karma_parent_slot, bool secondary_factory,
+                  const SotnBatRuntimeInput *input)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -1856,6 +1892,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
          (star_factory && (star_role == 1 || star_role == 2 || star_role == 4 || star_role == 5)));
     c.karma = ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 24) ||
               (karma_factory && (c.kind == 0xe2 || c.kind == 0xf2));
+    c.weapon_secondary = secondary_factory && (c.kind == 0xe1 || c.kind == 0xf1);
+    if (secondary_factory)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        const Uint16 family = input && input->weapon_bound[hand] ? input->weapon_family[hand] : 256;
+        if (!c.weapon_secondary || generation || c.thrown || c.star || c.karma || c.magic ||
+            c.sire || child.slot < 17 || child.slot > 31 || child.argument_low ||
+            child.argument_high || child.parameter || !SotnWeaponSecondary_Supported(family))
+            return SDL_SetError("Weapon secondary lost its actual blueprint56/slot/program owner");
+        c.state.secondary.family = family;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
     if (c.karma)
     {
         const bool auxiliary = (c.kind & 15U) == 2;
@@ -2091,7 +2144,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             .x = child.source.x, .y = child.source.y, .facing_left = child.source.facing_left};
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
-    if (!c.food && !c.sire && !c.magic && !c.thrown && !c.star &&
+    if (!c.food && !c.sire && !c.magic && !c.thrown && !c.star && !c.weapon_secondary &&
         (c.kind == 0xe1 || c.kind == 0xf1))
     {
         if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
@@ -2125,7 +2178,8 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         if (!(occupied & ((Uint64)1 << slot)))
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
-                       0, 0, 0, false, 0, false, 0, false, false, 0, false, 0, false, 0, NULL))
+                       0, 0, 0, false, 0, false, 0, false, false, 0, false, 0, false, 0, false,
+                       NULL))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -2436,6 +2490,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             return SDL_SetError("Pentagram lost its actual slot/role/lifetime ownership");
         if (!SotnBatRuntime_KarmaValid(c, i))
             return SDL_SetError("Karma lost actual callback/row/raw-parent ownership");
+        if (!SotnBatRuntime_SecondaryValid(c, i))
+            return SDL_SetError("Weapon secondary lost its actual program/row/group ownership");
         if (!SotnBatRuntime_StarValid(c, i))
             return SDL_SetError("Weapon15 lost actual role/row/callback ownership");
         if (!SotnBatRuntime_ThrownValid(c, i))
@@ -2474,6 +2530,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
                 (c->hand_weapon && HandRows(c->state.hand.family) &&
                  c->primitive_count == HandRows(c->state.hand.family)) ||
+                (c->weapon_secondary &&
+                 c->primitive_count == SotnWeaponSecondary_Rows(c->state.secondary.family)) ||
                 (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
                 (c->kind == 61 && c->primitive_count == 16) ||
                 (c->kind == 63 && c->primitive_count == 9) ||
@@ -2607,6 +2665,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 {
                     w->tiles[j].x[v] = Word(w->tiles[j].x[v] + in.screen_shift_x);
                     w->tiles[j].y[v] = Word(w->tiles[j].y[v] + in.screen_shift_y);
+                }
+        }
+        else if (c->weapon_secondary)
+        {
+            SotnWeaponSecondary *w = &c->state.secondary.motion;
+            w->x = FixedShift(w->x, in.room_shift_x);
+            w->y = FixedShift(w->y, in.room_shift_y);
+            // DRAW_UNK_200 LINE_G2 rows translate both endpoints without a callback.
+            for (Uint16 j = 0; j < SOTN_WEAPON_SECONDARY_ROWS; ++j)
+                for (Uint16 v = 0; v < 2; ++v)
+                {
+                    w->rows[j].x[v] = Word(w->rows[j].x[v] + in.screen_shift_x);
+                    w->rows[j].y[v] = Word(w->rows[j].y[v] + in.screen_shift_y);
                 }
         }
         else if (c->kind == 0xe1 || c->kind == 0xf1)
@@ -3043,6 +3114,16 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (f->entity_id != 0xef && f->entity_id != 0xff))
                 return SDL_SetError("Weapon16 descendant lost its actual factory/parent/dispatch");
         }
+        if (r.factories[i].cursor.entity_id && r.factories[i].secondary_factory &&
+            (r.factories[i].cursor.blueprint != 56 || r.factories[i].bat_generation ||
+             r.factories[i].sword_parent || r.factories[i].fire_parent ||
+             r.factories[i].sire_factory || r.factories[i].magic_factory ||
+             r.factories[i].thrown_factory || r.factories[i].thrown_particles ||
+             r.factories[i].star_factory || r.factories[i].karma_factory ||
+             r.factories[i].cursor.parameter || r.factories[i].cursor.argument ||
+             (r.factories[i].cursor.entity_modifier != 0xe0 &&
+              r.factories[i].cursor.entity_modifier != 0xf0)))
+            return SDL_SetError("Weapon secondary factory lost its actual blueprint56 owner");
         if (r.factories[i].cursor.entity_id && r.factories[i].sword_parent &&
             (r.factories[i].bat_generation || r.factories[i].cursor.blueprint != 62 ||
              (r.factories[i].cursor.entity_modifier != 0xe0 &&
@@ -3118,7 +3199,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                        r.factories[i].thrown_factory, r.factories[i].thrown_particles,
                        r.factories[i].thrown_parent_slot, r.factories[i].star_factory,
                        r.factories[i].star_parent_slot, r.factories[i].karma_factory,
-                       r.factories[i].karma_parent_slot, &in))
+                       r.factories[i].karma_parent_slot, r.factories[i].secondary_factory, &in))
                 return false;
         }
     }
@@ -3136,7 +3217,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
         r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask = r.karma_mask =
-            0;
+            r.secondary_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.hand_attack = false;
@@ -3178,6 +3259,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.sire_mask |= (Uint64)1 << i;
             if (c->initialized && c->karma && c->state.karma.attack.active)
                 r.karma_mask |= (Uint64)1 << i;
+            if (c->initialized && c->weapon_secondary && c->state.secondary.attack.active)
+                r.secondary_mask |= (Uint64)1 << i;
             if (c->initialized && c->star && c->state.star.attack.active)
                 r.star_mask |= (Uint64)1 << i;
             if (c->initialized && c->thrown && c->state.thrown.attack.active)
@@ -3261,8 +3344,32 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.hand_shield = events.shield == 1;
             // Current selected Short sword uses variant zero. Other weapon37 producers
             // require their real secondary owners before the menu can expose them.
+            if (events.factory && (!SotnWeaponSecondary_Supported(family) ||
+                                   events.factory != (0x38U | ((Uint32)hand + 1U) << 12)))
+                return SDL_SetError("Ordinary weapon secondary has no actual native owner");
             if (events.factory)
-                return SDL_SetError("Ordinary weapon37 secondary has no actual native owner");
+            {
+                // CreateEntFactoryFromEntity(self, WFACTORY(0x38,0)) from the weapon entity;
+                // no free factory slot silently returns NULL.
+                for (Uint16 j = 0; j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+                    if (!r.factories[j].cursor.entity_id)
+                    {
+                        SotnPlayerFactory f = {0};
+                        if (!SotnPlayerFactory_Begin(
+                                &f,
+                                (SotnPlayerFactorySource){.x = w->x,
+                                                          .y = w->y,
+                                                          .flags = w->flags,
+                                                          .priority = w->priority,
+                                                          .facing_left = w->facing_left},
+                                events.factory, 0))
+                            return false;
+                        SDL_zero(r.factories[j]);
+                        r.factories[j].cursor = f;
+                        r.factories[j].secondary_factory = true;
+                        break;
+                    }
+            }
             if (events.dark_minimum)
                 r.dark_minimum = events.dark_minimum;
             if (events.outline)
@@ -3316,6 +3423,107 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             c->initialized = !removed;
             if (!removed)
                 r.hand_attack = c->state.hand.attack.active;
+        }
+        else if (c->weapon_secondary)
+        {
+            const Uint16 hand = c->kind >= 0xf0, family = c->state.secondary.family;
+            if (!in.weapon_bound[hand] || in.weapon_family[hand] != family)
+                return SDL_SetError("Weapon secondary lost its actual resident hand program");
+            SotnWeaponSecondary *w = &c->state.secondary.motion;
+            const bool cold = !c->initialized;
+            const Uint8 rows = SotnWeaponSecondary_Rows(family);
+            bool allocated = c->primitive_count != 0;
+            if (cold && rows &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, rows, c->primitives, &allocated))
+                return false;
+            if (cold)
+                c->primitive_count = allocated ? rows : 0;
+            // The raw ext.weapon.parent is slot16: its current equipId and enemyId, without a
+            // generation check. An empty slot16 reads zero words.
+            Uint16 item = c->state.secondary.item;
+            Uint8 parent_group = 0;
+            if (cold)
+            {
+                const SotnBatRuntimeChild *parent = &r.children[0];
+                if (parent->hand_weapon && !SotnBatRuntime_HandValid(parent, 0))
+                    return SDL_SetError("Weapon secondary raw parent lost its slot16 owner");
+                if (parent->kind && !parent->hand_weapon)
+                    return SDL_SetError(
+                        "Weapon secondary raw parent is not a selected slot16 hand");
+                item = parent->hand_weapon ? parent->state.hand.item : 0;
+                parent_group = parent->hand_weapon ? parent->group : 0;
+            }
+            SotnDataView overlay = {0};
+            if (!SotnWeapon_Overlay(in.weapons, (SotnEquipment){.id = 115, .family = 55}, &overlay))
+                return false;
+            HandPropertyContext context = {character, item, p.poison_ticks != 0};
+            SotnWeaponSecondaryEvents events = {0};
+            if (!SotnWeaponSecondary_Tick(
+                    w,
+                    (SotnWeaponSecondaryInput){.overlay = overlay,
+                                               .executable = in.executable,
+                                               .properties = HandProperties,
+                                               .context = &context,
+                                               .x = p.x,
+                                               .y = p.y,
+                                               .camera_x = in.camera_x,
+                                               .camera_y = in.camera_y,
+                                               .scale_y = 256,
+                                               .pivot_y = p.draw_pivot_y,
+                                               .hand = hand,
+                                               .family = family,
+                                               .priority = p.priority,
+                                               .animation = p.animation.id,
+                                               .attack_mode = p.attack_mode,
+                                               .draw_flags = p.wolf.active ? p.wolf.draw_flags
+                                                             : p.rotated   ? 4
+                                                                           : 0,
+                                               .facing_left = p.facing_left,
+                                               .allocated = allocated},
+                    &progress.random, &events))
+                return false;
+            if (events.properties)
+            {
+                // SetWeaponProperties increments the least-used group before the copy of the
+                // raw parent's enemyId; end-of-pass recount removes that transient count.
+                Uint16 group = i < 16 ? 3 : 7;
+                for (Uint16 g = (Uint16)(group + 1U); g < (i < 16 ? 7 : 11); ++g)
+                    if (r.groups[g] < r.groups[group])
+                        group = g;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Weapon secondary shared group count overflow");
+                ++r.groups[group];
+                c->group = parent_group;
+                c->state.secondary.item = item;
+            }
+            c->source.x = w->x;
+            c->source.y = w->y;
+            c->source.facing_left = w->facing_left;
+            const SotnEquipment e = w->properties;
+            c->state.secondary.attack = (SotnPlayerAttack){
+                .offset_x = w->hitbox_x,
+                .offset_y = w->hitbox_y,
+                .width = w->hitbox_width,
+                .height = w->hitbox_height,
+                .power = (Uint16)e.attack,
+                .element = e.element,
+                .hit_type = w->hitbox_state,
+                .hit_effect = e.hit_effect,
+                .stun_frames = e.stun,
+                .invincibility_frames = e.invincibility,
+                .critical_rate = (Uint8)e.critical_rate,
+                .equipment = c->state.secondary.item,
+                .right_hand = hand != 0,
+                .active = w->hitbox_state && w->hitbox_width && w->hitbox_height};
+            const Sint32 x = Pixel(w->x) - in.camera_x, y = Pixel(w->y) - in.camera_y;
+            removed = w->removed ||
+                      (!(w->flags & 0x2000000U) && (x > 288 || x < -32 || y > 256 || y < -16));
+            if (!removed && (w->flags & 0x100000U) &&
+                !SotnWeaponSecondary_Animate(w, overlay, family))
+                return false;
+            c->initialized = !removed;
+            if (!removed && c->state.secondary.attack.active)
+                r.secondary_mask |= (Uint64)1 << i;
         }
         else if (c->karma)
         {
@@ -5354,7 +5562,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
              r.children[i].kind == 53 || r.children[i].neutron || r.children[i].sire ||
              r.children[i].pentagram || r.children[i].magic || r.children[i].thrown ||
-             r.children[i].star || r.children[i].karma) &&
+             r.children[i].star || r.children[i].karma || r.children[i].weapon_secondary) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
@@ -5368,7 +5576,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.wing_mask = r.wolf_mask = 0;
         r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
             r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask =
-                r.karma_mask = 0;
+                r.karma_mask = r.secondary_mask = 0;
         r.soul_attack = r.echo_attack = false;
         r.hand_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
@@ -5382,6 +5590,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 c->state.hand.motion.hitbox_state = 0;
                 c->state.hand.attack.active = false;
+            }
+            else if (c->weapon_secondary)
+            {
+                c->state.secondary.motion.hitbox_state = 0;
+                c->state.secondary.attack.active = false;
             }
             else if (c->kind == 36 || c->kind == 50 || c->kind == 52 || c->kind == 53)
                 c->state.attack.active = false;

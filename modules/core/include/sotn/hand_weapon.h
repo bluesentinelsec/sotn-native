@@ -67,8 +67,9 @@ typedef struct SotnHandWeaponEvents
  * @param family Actual private program identity. @return Whether this callback is reconstructed.
  * Resource, property, factory, blocking and native presentation ownership remain required. */
 bool SotnHandWeapon_IsShieldFamily(Uint16 family);
-/** @brief Execute a complete selected ordinary weapon0/1/2/3/9/11/26/31/33/35/36/37/43/52/57 or
- * unarmed255 callback. Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite
+/** @brief Execute a complete selected ordinary weapon0/1/2/3/9/11/26/31/33/35/36/37/43/52/55/57
+ * or unarmed255 callback. Weapon55 descriptor1 reports its birth sound and WFACTORY(0x38) secondary
+ * request through events. Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite
  * transforms. Weapon1 (descriptors0..3) requires its four mandatory rows: allocated false destroys
  * it before flags/properties/RNG; its trails use the supplied camera and executable SDK tables.
  * Private animations remain borrowed. Actual factories, slot16 replacement, weapon properties,

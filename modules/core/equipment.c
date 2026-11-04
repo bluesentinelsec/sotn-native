@@ -43,40 +43,44 @@ static Uint8 ShieldFamily(Uint16 id)
 // Actual US definition bytes for the selected w_002-template programs.
 typedef struct PlainSpec
 {
-    Uint8 category, family, kind, animation, variant, back_forward, special_move;
+    Uint8 category, family, kind, animation, variant, back_forward, special_move, mp;
 } PlainSpec;
 static PlainSpec PlainWeapon(Uint16 id)
 {
     switch (id)
     {
     case 21: // Nunchaku
-        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0};
+        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0};
     case 26: // Red Rust
-        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0};
+        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0};
     case 27: // Takemitsu
-        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0};
+        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0};
     case 124: // Mablung
-        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0};
+        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0, 0};
     case 129: // Morningstar
-        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0};
+        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0, 0};
     case 130: // Holy rod and its back-forward special170
-        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0};
+        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0, 0};
     case 170:
-        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0};
+        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0, 0};
     case 121: // Gurthang and its QCF special195
-        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195};
+        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0};
     case 195:
-        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0};
+        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0};
     case 20: // Combat knife: special175 is both its back-forward and QCF item
-        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175};
+        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0};
     case 175:
-        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0};
+        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0, 0};
+    case 115: // Holy sword and its QCF special196 (kind28, five MP)
+        return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0};
+    case 196:
+        return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5};
     case 127: // Great Sword
-        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0};
     case 131: // Star flail and its back-forward special171
-        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0};
+        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0};
     case 171:
-        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0};
+        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0, 0};
     default:
         return (PlainSpec){0};
     }
@@ -162,7 +166,8 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
           record[21] != (id == 83 || id == 84 ? 18 : 13) || record[22] != 128 || record[23] ||
           record[24])) ||
         record[20] != (medicine ? variant : sword_variant) || record[16] != palette ||
-        record[21] > 31 || record[25] != (medicine ? 1 : 0) || Read16(record + 36) != 0)
+        record[21] > 31 || record[25] != (medicine ? 1 : 0) ||
+        Read16(record + 36) != (plain ? spec.mp : 0))
         return SDL_SetError("Selected hand-item definition does not match its supported US path");
     const Uint16 attack = Read16(record + 8);
     const SotnEquipment result = {.id = id,
