@@ -65,6 +65,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 0};
     else if (family == 14)
         *out = (Layout){.rows = 48};
+    else if (family == 13)
+        *out = (Layout){.rows = 0};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -74,7 +76,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
            family == 1 || family == 51 || family == 49 || family == 50 || family == 6 ||
-           family == 14;
+           family == 14 || family == 13;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -92,8 +94,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon6 owns Moon rod's crescents and their sparkles.
     if (family == 6)
         return role == 1 || role == 2;
-    // Weapon14's blueprint50 root runs EntityWeaponAttack outside slot16; E1 hitboxes follow it.
-    if (family == 14)
+    // Weapon14/13 blueprint50 roots run EntityWeaponAttack outside slot16; their E1 hitboxes or
+    // afterimages follow them.
+    if (family == 14 || family == 13)
         return role <= 1;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
@@ -109,6 +112,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 2 ? 1 : 0;
     if (family == 14)
         return role == 0 ? 48 : 0;
+    if (family == 13)
+        return 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -1742,7 +1747,7 @@ static bool Rune(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rn
         }
         break;
     case 2:
-        s->draw_flags &= (Uint8)~4U;
+        s->draw_flags = (Uint8)(s->draw_flags & 0xfbU);
         s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
         s->lifetime = (Sint16)(s->lifetime - 1);
         if (!s->lifetime)
@@ -1852,6 +1857,169 @@ static bool RuneHitbox(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint
     return true;
 }
 
+// w_013 shared schedule of the root's flight steps2/3: an afterimage every other g_GameTimer,
+// the childPalette cycle (D_8017A5E0) and a fading SWISH_A every eighth.
+static bool HeavenTrail(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                        SotnWeaponSecondaryEvents *e)
+{
+    if (!(in.game_timer & 1U))
+        e->chain = 0x3aU | ((Uint32)(in.hand + 1U) << 12);
+    const Uint8 *cycle = NULL;
+    if (!View(in.overlay, 0x5e0U + (Uint32)((s->counter >> 1) % 14) * 2U, 2, &cycle))
+        return SDL_SetError("Weapon13 root requires its private palette cycle");
+    s->child_palette = Word(s->palette + (Sint16)Read16(cycle));
+    if (!(in.game_timer & 7U))
+    {
+        e->sounds[0] = 0x60a;
+        e->volume_sound = true;
+        e->volume = (Uint16)s->volume;
+        s->volume -= 4;
+        if (s->volume < 0)
+            s->volume = 0;
+    }
+    s->counter = Word(s->counter + 1);
+    return true;
+}
+// w_013 EntityWeaponAttack: Heaven sword flies out, stops, rises on a parabola spinning, then
+// steers toward the player's hitbox with a growing turn limit, shedding afterimages.
+static bool Heaven(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                   SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        s->role = 0;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->frame = 6;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->flags = 0x0c020000U;
+        s->velocity_x = s->facing_left ? -0x60000 : 0x60000;
+        Sint16 y = Word(Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y - 8);
+        if (!in.player_crouch_step)
+            y = Word(y - 8);
+        SetScreen(&s->y, y, in.camera_y);
+        const Sint16 px = Word(Pixel(in.x) - in.camera_x);
+        SetScreen(&s->x, Word(s->facing_left ? px - in.parent_hitbox_x : px + in.parent_hitbox_x),
+                  in.camera_x);
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)in.player_velocity_x);
+        s->lifetime = 0x16;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        s->hitbox_width = 0x12;
+        s->hitbox_height = 4;
+        e->sounds[0] = 0x60c;
+        s->volume = 0x50;
+        e->use_ticks = 4;
+        s->phase = 1;
+        return true;
+    }
+    case 1:
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (s->lifetime < 7)
+            s->velocity_x = Decelerate(s->velocity_x, 0x10000);
+        if (!s->lifetime)
+        {
+            s->velocity_y = -0x18000;
+            s->lifetime = 0x18;
+            s->velocity_x = s->facing_left ? 0x30000 : -0x30000;
+            s->phase = 2;
+        }
+        return true;
+    case 2: {
+        s->hitbox_width = s->hitbox_height = 12;
+        s->draw_flags |= 4;
+        s->rotate = Word(s->rotate - 0x80);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_y = (Sint32)((Uint32)s->velocity_y + 0x1000U);
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            s->magnitude = 0x80;
+            Sint16 heading = 0;
+            if (!SotnMath_Atan2Vector(in.executable, (Sint32)(0U - (Uint32)s->velocity_y),
+                                      s->velocity_x, &heading))
+                return false;
+            s->angle = (Sint16)(heading & 0xfff);
+            s->phase = 3;
+        }
+        return HeavenTrail(s, in, e);
+    }
+    default: {
+        s->rotate = Word(s->rotate - 0x80);
+        Sint16 limit = s->magnitude;
+        s->magnitude = Word(s->magnitude + 0x20);
+        const Sint32 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y),
+                     tx = (Sint32)Word(Pixel(in.x) - in.camera_x) + in.parent_hitbox_x,
+                     ty = (Sint32)Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y;
+        const Sint16 dx = Word(tx - sx < 0 ? sx - tx : tx - sx),
+                     dy = Word(ty - sy < 0 ? sy - ty : ty - sy);
+        if (dx < (in.player_hitbox_width + s->hitbox_width) / 2 &&
+            dy < (in.player_hitbox_height + s->hitbox_height) / 2)
+        {
+            s->removed = true;
+            return true;
+        }
+        Sint16 target = 0;
+        if (!SotnMath_Atan2(in.executable, -(Sint32)Word(ty - sy), Word(tx - sx), &target))
+            return false;
+        target = (Sint16)(target & 0xfff);
+        Sint16 angle = (Sint16)(s->angle & 0xfff);
+        const Sint16 diff = Word(angle - target < 0 ? target - angle : angle - target);
+        if (limit > diff)
+            limit = diff;
+        if (angle < target)
+            angle = Word(diff < 0x800 ? angle + limit : angle - limit);
+        else
+            angle = Word(diff < 0x800 ? angle - limit : angle + limit);
+        s->angle = (Sint16)(angle & 0xfff);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, s->angle, &t))
+            return false;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)t.cosine * 64U);
+        s->y = (Sint32)((Uint32)s->y - (Uint32)t.sine * 64U);
+        return HeavenTrail(s, in, e);
+    }
+    }
+}
+// w_013 func_ptr_80170004: an afterimage copying the root's frame, palette cycle and rotation,
+// fading by eight from 0x80 and retiring below48.
+static bool HeavenImage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
+{
+    if (!s->phase)
+    {
+        if (!in.parent_exists)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        s->frame = in.parent_frame;
+        s->bank = in.parent_bank;
+        s->facing_left = in.parent_facing_left;
+        s->texture = in.parent_texture;
+        s->priority = (Uint16)(in.priority - 4U);
+        s->flags = 0x0c020000U;
+        s->palette = in.parent_child_palette;
+        s->draw_flags = (Uint8)(in.parent_draw_flags + 8U);
+        s->rotate = in.parent_rotate;
+        s->opacity = 0x80;
+        s->phase = 1;
+    }
+    if (s->opacity >= 48)
+        s->opacity = (Uint8)(s->opacity - 8);
+    else
+        s->removed = true;
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -1859,12 +2027,13 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     Layout layout = {0};
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 5 ||
         !Program(in.family, &layout) ||
-        !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ? in.role : 1) ||
+        !SotnWeaponSecondary_SupportedRole(
+            in.family, in.role || in.family == 14 || in.family == 13 ? in.role : 1) ||
         state->removed ||
-        state->phase > (in.family == 49 && in.role == 4   ? 2
-                        : in.family == 6 && in.role == 1  ? 4
-                        : in.family == 14 && in.role == 0 ? 3
-                                                          : 1) ||
+        state->phase > (in.family == 49 && in.role == 4                        ? 2
+                        : in.family == 6 && in.role == 1                       ? 4
+                        : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
+                                                                               : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
@@ -1901,6 +2070,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 14)
     {
         if (!(in.role == 0 ? Rune(&s, in, &rng, &e) : RuneHitbox(&s, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 13)
+    {
+        if (!(in.role == 0 ? Heaven(&s, in, &rng, &e) : HeavenImage(&s, in)))
             return false;
         goto commit;
     }

@@ -1,3 +1,10 @@
+Selected [Heaven sword](docs/player-heaven-sword.md) now owns kind129 item119 through weapon13 as
+a role0 secondary root (no rows): fly/stop, parabolic spin rise, turn-limited homing (step grows
+0x20, never overshoots) and hitbox retirement; even g_GameTimer WFACTORY(0x3A,0) afterimages in
+32..63 copy the raw parent's frame/childPalette/rotation with ENTITY_OPACITY fades. Never
+consumed; only the root counts for CheckChainLimit. Item202 (both-buttons CheckWeaponCombo)
+waits for the Shield rod combo owner. Mutation sweeps must use ctest's exit code.
+
 Selected [Runesword](docs/player-runesword.md) now owns kind129 item143 through weapon14 hosted
 by the secondary owner as role0: blueprint50 E0/F0 roots in slots17..31 (own item, least-used
 group, 48 mandatory GT4s before RNG) fly/stop/drift/home and retire at the player's hitbox;

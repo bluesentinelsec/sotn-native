@@ -144,6 +144,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
     Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
     Item(f->dra, 143, 2, 14, 129, 0x5d, 0, 0, 0);
+    Item(f->dra, 119, 2, 13, 129, 0x5d, 0, 0, 0);
+    f->dra[0x500 + 119 * 52 + 19] = 50;
+    f->dra[0x500 + 119 * 52 + 22] = 1;
     f->dra[0x500 + 143 * 52 + 19] = 50;
     f->dra[0x500 + 143 * 52 + 22] = 1;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
@@ -169,7 +172,8 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     const Uint16 right = item == 26 || item == 139 || item == 98 || item == 95 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
-    CHECK(item == 18 || item == 143 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
+    CHECK(item == 18 || item == 143 || item == 119 ||
+          !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
@@ -637,11 +641,11 @@ static bool MoonRod(Fixture *f)
 }
 // 6E42C.c kind129 Runesword: blueprint50 with the hand's variant, the casting grunt roll, chain1
 // against live children carrying143, and ReduceWeapon leaving the non-consumable hand intact.
-static bool Runesword(Fixture *f)
+static bool Runesword(Fixture *f, Uint16 item)
 {
     for (Uint16 k = 0; k < 2; ++k)
     {
-        CHECK(Create(f, 143, 1, 2, true));
+        CHECK(Create(f, item, 1, 2, true));
         CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, k, 0));
         Put16(f->dra + 0xcf62, 0x6f2); // Grunt voice1 of func_8010EA54(8)'s table.
         for (Uint16 i = 0; i < 8; ++i)
@@ -652,10 +656,10 @@ static bool Runesword(Fixture *f)
         if (k)
             CHECK(!f->factories && !f->roll_count && !p.throwing.used);
         else
-            CHECK(f->factories == 1 && f->item == 143 && f->packed == 0x1032U &&
+            CHECK(f->factories == 1 && f->item == item && f->packed == 0x1032U &&
                   f->roll_count == 1 && p.throwing.used && p.throwing.keep && !f->consumed &&
                   p.throwing_grunt == 0x6f2 && f->p->animation.id == 0x5d &&
-                  f->p->equipment[0] == 143);
+                  f->p->equipment[0] == item);
     }
     return true;
 }
@@ -705,7 +709,8 @@ int main(void)
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
-         Weapon51Specials(f) && MoonRod(f) && Runesword(f) && CombatKnife(f) && AirborneKindZero(f);
+         Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
+         CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

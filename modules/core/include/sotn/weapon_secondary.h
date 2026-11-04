@@ -44,7 +44,8 @@ typedef struct SotnWeaponSecondary
             Uint8 ice_g0[80], ice_g1[80], ice_g2[80], ice_b0[80], ice_b1[80];
             Uint8 ice_size[80]; /**< Half-extent of the last placement (zero: hidden). */
         };
-        /** Weapon49 sparks/puffs/swirls/pillars and weapon6 crescents (no rows or GT4s). */
+        /** Weapon49 sparks/puffs/swirls/pillars, weapon6 crescents and the weapon13 root (no
+         * rows or GT4s). */
         struct
         {
             Sint32 velocity_y;       /**< Puff/pillar rise. */
@@ -52,6 +53,9 @@ typedef struct SotnWeaponSecondary
             Sint16 angle, magnitude; /**< Spark/swirl orbit unk80/unk7E. */
             Sint32 accel_x, accel_y; /**< Weapon6 crescent accelerations. */
             Sint16 spin, counter;    /**< Weapon6 crescent velocityZ and unk7C. */
+            /** Weapon13 root: ext.weapon.childPalette and the s32 unk98 swish volume. */
+            Sint16 child_palette;
+            Sint32 volume;
         };
         /** Weapon14 Runesword root: forty-eight GT4 trail rows kept as blade corners x1/y1 and
          * x3/y3 (row i's x0/x2 repeat row i-1's), UVs and the r0 shown byte. The original
@@ -86,6 +90,7 @@ typedef struct SotnWeaponSecondary
     Uint16 timeline;         /**< Private AnimationFrame list chosen at birth (zero: family's). */
     Uint8 role; /**< Child callback recorded at birth (0..5; 0 is weapon14's thrown root). */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
+    Uint8 opacity; /**< Entity opacity (ENTITY_OPACITY): weapon13 afterimages. */
     bool facing_left, removed, allocated;
 } SotnWeaponSecondary;
 
@@ -123,6 +128,9 @@ typedef struct SotnWeaponSecondaryInput
     Sint32 parent_x, parent_y;
     Sint16 parent_rotate;
     Uint8 parent_draw_flags;
+    /** Weapon13 afterimages copy the raw parent's frame, animSet, unk5A and childPalette. */
+    Uint16 parent_frame, parent_bank, parent_texture, parent_child_palette;
+    Uint32 game_timer; /**< Actual wrapping g_GameTimer (weapon13 schedules). */
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -139,7 +147,7 @@ typedef struct SotnWeaponSecondaryEvents
     /** Weapon6 crescents: DestroyEntityWeapon(true) and the player timer10 use request. */
     bool clear_shield;
     Uint8 use_ticks;
-    /** Weapon14: sounds[0] is PlaySfxVolPan(sound, volume, pan0). */
+    /** Weapon14/13: sounds[0] is PlaySfxVolPan(sound, volume, pan0). */
     bool volume_sound;
     Uint16 volume;
 } SotnWeaponSecondaryEvents;

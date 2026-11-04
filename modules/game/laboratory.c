@@ -1096,7 +1096,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestKarma(&s->bat_runtime, source, packed, item, allocated)
            : item >= 75 && item <= 79
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
-           : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143
+           : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
+                   item == 119
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1145,8 +1146,10 @@ static bool BindFood(SotnLaboratory *s)
                             : c->sire && !c->sire_child ? 72
                             : c->pentagram              ? c->state.pentagram.item
                             // Runesword's root carries143 from birth; its hitboxes only after
-                            // their first callback copies the raw parent's equip id.
-                            : c->weapon_secondary && c->state.secondary.family == 14
+                            // their first callback copies the raw parent's equip id. Heaven
+                            // sword's root carries119; its afterimages never take an id.
+                            : c->weapon_secondary && (c->state.secondary.family == 14 ||
+                                                      c->state.secondary.family == 13)
                                 ? c->state.secondary.item
                                 : 0;
         // CheckChainLimit reads raw AE and params, not the callback's hand family.
@@ -5205,7 +5208,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
             }
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
-                     c->state.secondary.family == 14)
+                     c->state.secondary.family == 14 || c->state.secondary.family == 13)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.
@@ -5222,7 +5225,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 const SotnSpriteTransform t = {.rotation = (w->draw_flags & 4U) ? w->rotate : 0,
                                                .scale_x = (w->draw_flags & 1U) ? w->scale_x : 256,
                                                .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
-                                               .opacity = 128,
+                                               // Weapon13 afterimages shade by entity opacity.
+                                               .opacity = (w->draw_flags & 8U) ? w->opacity : 128,
                                                .executable = session->executable,
                                                .sdk_rotation = true};
                 const Uint16 bank = (Uint16)(w->bank & 0x7fffU);

@@ -37,7 +37,7 @@ secondary, [Rapier/Were bane](player-lunge-weapons.md) their QCF lunges, and the
 their glows, specials and lunge, [Osafune/Masamune](player-katana-warp.md) their
 warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, [Icebrand](player-icebrand.md)
 its frost special, [Moon rod](player-moon-rod.md) its crescents, [Runesword](player-runesword.md)
-its homing throw, and
+and [Heaven sword](player-heaven-sword.md) their homing throws, and
 [Thunderbrand](player-thunderbrand.md) its
 lightning; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).

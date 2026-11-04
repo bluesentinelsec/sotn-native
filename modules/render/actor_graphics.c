@@ -381,6 +381,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 50 ? 0x8017b068U
                            : equipment.family == 6  ? 0x8017ac34U
                            : equipment.family == 14 ? 0x8017a5b0U
+                           : equipment.family == 13 ? 0x8017a5fcU
                            : equipment.family == 39 ? 0x8017ade0U
                            : equipment.family == 32 ? 0x8017a918U
                            : equipment.family == 51 ? 0x8017aec4U
@@ -415,7 +416,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
           equipment.family == 55 || equipment.family == 57 || equipment.family == 38 ||
           equipment.family == 39 || equipment.family == 53 || equipment.family == 48 ||
           equipment.family == 49 || equipment.family == 50 || equipment.family == 6 ||
-          equipment.family == 14) &&
+          equipment.family == 14 || equipment.family == 13) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
@@ -426,10 +427,10 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  equipment.family == 36 || equipment.family == 57 || equipment.family == 55 ||
                  equipment.family == 38 || equipment.family == 39 || equipment.family == 53 ||
                  equipment.family == 48 || equipment.family == 49 || equipment.family == 50 ||
-                 equipment.family == 6 || equipment.family == 14 || equipment.family == 20 ||
-                 equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
-                 equipment.family == 18 || equipment.family == 17 || equipment.family == 16 ||
-                 equipment.family == 15
+                 equipment.family == 6 || equipment.family == 14 || equipment.family == 13 ||
+                 equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
+                 equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
+                 equipment.family == 16 || equipment.family == 15
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -469,6 +470,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                              : equipment.family == 50 ? 0x8017b07cU
                              : equipment.family == 6  ? 0x8017ac3cU
                              : equipment.family == 14 ? 0x8017a5b8U
+                             : equipment.family == 13 ? 0x8017a604U
                              : equipment.family == 39 ? 0x8017ade8U
                                                       : 0;
     if (hand_word && !no_palette)
