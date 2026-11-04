@@ -24,12 +24,15 @@ typedef struct SotnWeaponSecondaryRow
  * Positions are world coordinates; rows hold screen coordinates. Never saved. */
 typedef struct SotnWeaponSecondary
 {
-    SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
+    /** A child uses either LINE_G2 rows or the weapon48 ring's GT4 wedges, never both. */
+    union {
+        SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
+        /** Weapon48 role2 ring: sixteen screen-space GT4 wedges (DRAW_UNK_200 rows). */
+        SotnPlayerEffectQuad quads[16];
+    };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
     SotnPlayerEffectQuad quad;
-    /** Weapon48 role2 ring: sixteen screen-space GT4 wedges (DRAW_UNK_200 rows). */
-    SotnPlayerEffectQuad quads[16];
     SotnEquipment properties;
     Sint32 x, y;
     Uint32 flags;
