@@ -318,6 +318,9 @@ typedef struct SotnTextureQuad
     bool untextured;  /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
     bool dither;      /**< Original DTD conversion for selected untextured Gouraud polygons. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
+    /** Original-data geometry: beyond +-2048 apply the GPU's signed 11-bit vertex wrap and drop
+     * triangles spanning more than 1023x511 instead of failing. */
+    bool gpu_wrap;
 } SotnTextureQuad;
 /** @brief Draw a bounded polygon as one GT3 triangle or two quad triangles.
  * @param graphics Borrowed texture service; NULL is valid for an untextured quad.
@@ -349,6 +352,12 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextur
 bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *graphics,
                                     const SotnPlayerEffectQuad *packet, Sint32 offset_x,
                                     Sint32 offset_y, SotnActorSurface surface);
+/** @brief PlayerEffect for packets built from original private tables: out-of-range vertices
+ * follow the GPU (11-bit wrap, over-span triangles dropped) rather than failing.
+ * Parameters, ownership and remaining validation follow SotnActorGraphics_PlayerEffect. */
+bool SotnActorGraphics_PlayerEffectGpu(const SotnActorGraphics *graphics,
+                                       const SotnPlayerEffectQuad *quad, Sint32 offset_x,
+                                       Sint32 offset_y, SotnActorSurface surface);
 /** @brief Draw an original textured GT3 packet using only its first three vertices.
  * Attributes and validation follow PlayerEffect; the fourth packet slot is unused. */
 bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *, const SotnPlayerEffectQuad *,

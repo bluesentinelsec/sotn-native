@@ -865,18 +865,20 @@ static Uint16 HandFamily(Uint16 item)
            : item == 121 || item == 195   ? 54
            : item == 115 || item == 196   ? 55
            : item == 23 || item == 191    ? 38
-           : item == 100 || item == 189   ? 53
-           : item == 112 || item == 178   ? 48
-           : item == 22 || item == 190    ? 39
-           : item == 20 || item == 175    ? 32
-           : item == 127                  ? 51
-           : item == 21                   ? 33
-           : item == 26                   ? 35
-           : item == 27                   ? 36
-           : item == 124                  ? 57
-           : item == 123                  ? 43
-           : item == 128                  ? 2
-                                          : 256;
+           : item == 100 || item == 189 || item == 139 || item == 192 || item == 193 ||
+                   item == 140 || item == 194
+               ? 53
+           : item == 112 || item == 178 ? 48
+           : item == 22 || item == 190  ? 39
+           : item == 20 || item == 175  ? 32
+           : item == 127                ? 51
+           : item == 21                 ? 33
+           : item == 26                 ? 35
+           : item == 27                 ? 36
+           : item == 124                ? 57
+           : item == 123                ? 43
+           : item == 128                ? 2
+                                        : 256;
 }
 static Uint16 HandVariant(Uint16 item)
 {
@@ -888,15 +890,20 @@ static Uint16 HandVariant(Uint16 item)
            : item == 124                ? 3
            : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ||
                    item == 175 || item == 196 || item == 190 || item == 191 || item == 189 ||
-                   item == 178
+                   item == 178 || item == 194
                ? 1
-               : 0;
+           : item == 139 ? 2
+           : item == 192 ? 3
+           : item == 140 ? 4
+                         : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
 {
     const Uint16 hand = (packed & 0x800000U) != 0;
-    const Uint32 expected = item ? 48U | ((Uint32)(hand + 1U) << 12) |
+    // Weapon53's kind135 warps reserve blueprint60 (slot16 E2/F2) instead of48.
+    const Uint32 blueprint = item == 193 || item == 194 ? 60U : 48U;
+    const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << 12) |
                                        ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
                                  : (42U + hand) | ((Uint32)hand << 23);
     if (!r || !allocated || HandFamily(item) > 255 ||
@@ -961,12 +968,25 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
                (bp == 0x40 && param == 0);
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
+bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    if (!c->weapon_warp)
+        return true;
+    const SotnWeaponWarp *w = &c->state.warp;
+    const Uint16 hand = c->kind >= 0xf0;
+    return index == 0 && c->generation && !c->bat_generation && !c->draw_count && !w->removed &&
+           !c->group && !c->primitive_count && !c->hand_weapon && !c->weapon_secondary &&
+           (c->kind == 0xe2 || c->kind == 0xf2) && (w->item == 193 || w->item == 194) &&
+           c->parameter == ((w->item == 194 ? 0x100U : 0U) | (hand ? 0x8000U : 0U)) &&
+           w->parameter == c->parameter && w->phase <= 3 &&
+           (c->initialized ? w->phase != 0 : !w->phase);
+}
 // Weapon53 chains carry their own slash index (below its48-entry table); others use zero.
 static bool SecondaryParameter(Uint16 family, Uint16 parameter)
 {
     const Uint16 n = parameter >> 8;
     return (parameter & 0xffU) ? false
-           : family == 53      ? n < 48
+           : family == 53      ? n < 50
            : family == 48      ? (n & 0xfU) <= 3 && (n >> 4) <= 2
                                : !parameter;
 }
@@ -1115,6 +1135,8 @@ static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
         return c->state.hand.motion.flags;
     if (c->weapon_secondary)
         return c->state.secondary.motion.flags;
+    if (c->weapon_warp)
+        return c->state.warp.flags;
     if (c->karma)
         return c->state.karma.motion.flags;
     if (c->star)
@@ -1812,6 +1834,8 @@ bool SotnBatRuntime_SwordChildValid(const SotnBatRuntimeChild *c, Uint16 index)
         return SotnBatRuntime_HandValid(c, index);
     if (c->weapon_secondary)
         return SotnBatRuntime_SecondaryValid(c, index);
+    if (c->weapon_warp)
+        return SotnBatRuntime_WarpValid(c, index);
     if (!SotnBatRuntime_FoodChildValid(c, index))
         return false;
     if (c->food || c->sire || c->pentagram || c->magic || c->thrown || c->star || c->karma)
@@ -1881,6 +1905,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     SDL_zero(c.state);
     c.hand_weapon =
         child.slot == 16 && (c.kind == 0xe0 || c.kind == 0xf0 || c.kind == 0xee || c.kind == 0xfe);
+    // Blueprint60 replaces slot16 with weapon53's E2/F2 warp; its factory argument is the item.
+    c.weapon_warp = child.slot == 16 && (c.kind == 0xe2 || c.kind == 0xf2) &&
+                    (child.argument_low == 193 || child.argument_low == 194);
+    if (c.weapon_warp)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || secondary_factory ||
+            child.parameter !=
+                ((child.argument_low == 194 ? 0x100U : 0U) | (hand ? 0x8000U : 0U)) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 53)))
+            return SDL_SetError("Weapon53 warp lost its actual slot16/program/item ownership");
+        c.state.warp = (SotnWeaponWarp){.x = child.source.x,
+                                        .y = child.source.y,
+                                        .parameter = child.parameter,
+                                        .item = child.argument_low,
+                                        .facing_left = child.source.facing_left};
+    }
     if (c.hand_weapon)
     {
         const Uint16 family = HandFamily(child.argument_low);
@@ -2111,7 +2152,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                                   .facing_left = child.source.facing_left,
                                   .inventory = inventory};
     }
-    if (!c.thrown && !c.star && !c.karma && !c.weapon_secondary &&
+    if (!c.thrown && !c.star && !c.karma && !c.weapon_secondary && !c.weapon_warp &&
         (c.kind == 0xe2 || c.kind == 0xf2))
     {
         if (child.slot < 17 || child.slot > 31 || !generation || child.parameter ||
@@ -2706,6 +2747,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     w->tiles[j].y[v] = Word(w->tiles[j].y[v] + in.screen_shift_y);
                 }
         }
+        else if (c->weapon_warp)
+        {
+            c->state.warp.x = FixedShift(c->state.warp.x, in.room_shift_x);
+            c->state.warp.y = FixedShift(c->state.warp.y, in.room_shift_y);
+        }
         else if (c->weapon_secondary)
         {
             SotnWeaponSecondary *w = &c->state.secondary.motion;
@@ -3219,7 +3265,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 if (child.slot != 16 ||
                     (child.entity_id != 0xe0 && child.entity_id != 0xf0 &&
                      child.entity_id != 0xee && child.entity_id != 0xfe &&
-                     child.entity_id != 0xe1 && child.entity_id != 0xf1 && child.entity_id != 50) ||
+                     child.entity_id != 0xe1 && child.entity_id != 0xf1 &&
+                     child.entity_id != 0xe2 && child.entity_id != 0xf2 && child.entity_id != 50) ||
                     (in.other_occupied & ((Uint64)1 << 16)))
                     return SDL_SetError("Shared runtime received an unowned weapon replacement");
                 SotnBatRuntimeChild *old = &r.children[0];
@@ -3281,7 +3328,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         if (in.freeze && !(ChildFlags(c) & 0x10000U))
         {
             if (c->initialized && !c->thrown && !c->star && !c->karma && !c->weapon_secondary &&
-                (c->kind == 0xe2 || c->kind == 0xf2))
+                !c->weapon_warp && (c->kind == 0xe2 || c->kind == 0xf2))
                 r.sword_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 36)
                 r.wing_mask |= (Uint16)(1U << (i - 1U));
@@ -3469,6 +3516,55 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!removed)
                 r.hand_attack = c->state.hand.attack.active;
         }
+        else if (c->weapon_warp)
+        {
+            const Uint16 hand = c->kind >= 0xf0;
+            if (!in.weapon_bound[hand] || in.weapon_family[hand] != 53)
+                return SDL_SetError("Weapon53 warp lost its actual resident hand program");
+            SotnWeaponWarp *w = &c->state.warp;
+            SotnWeaponWarpEvents events = {0};
+            if (!SotnWeaponWarp_Tick(
+                    w,
+                    (SotnWeaponWarpInput){.scale_y = 256,
+                                          .pivot_y = p.draw_pivot_y,
+                                          .remaining = (Sint16)p.animation.remaining,
+                                          .hand = hand,
+                                          .pose = p.animation.pose,
+                                          .draw_flags = p.rotated ? 4 : 0,
+                                          .facing_left = p.facing_left},
+                    &events))
+                return false;
+            // Its slash roots0x28/0x1E copy this entity's equip id and enemyId0.
+            for (Uint16 k = 0; k < SDL_arraysize(events.factories) && events.factories[k]; ++k)
+                for (Uint16 j = 0; j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+                    if (!r.factories[j].cursor.entity_id)
+                    {
+                        SotnPlayerFactory f = {0};
+                        if (!SotnPlayerFactory_Begin(
+                                &f,
+                                (SotnPlayerFactorySource){.x = w->x,
+                                                          .y = w->y,
+                                                          .flags = w->flags,
+                                                          .priority = c->source.priority,
+                                                          .facing_left = w->facing_left},
+                                events.factories[k], 0))
+                            return false;
+                        SDL_zero(r.factories[j]);
+                        r.factories[j].cursor = f;
+                        r.factories[j].secondary_factory = true;
+                        r.factories[j].secondary_parent_slot = 16;
+                        break;
+                    }
+            // The warp lacks CAMERA_LOCKED: like Neutron it keeps its screen position after the
+            // camera work, after spawning its roots from the pre-scroll position.
+            w->x = FixedShift(w->x, Word(in.room_shift_x - in.screen_shift_x));
+            w->y = FixedShift(w->y, Word(in.room_shift_y - in.screen_shift_y));
+            c->source.x = w->x;
+            c->source.y = w->y;
+            c->source.facing_left = w->facing_left;
+            removed = w->removed;
+            c->initialized = !removed;
+        }
         else if (c->weapon_secondary)
         {
             const Uint16 hand = c->kind >= 0xf0, family = c->state.secondary.family;
@@ -3499,10 +3595,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     (parent->weapon_secondary &&
                      !SotnBatRuntime_SecondaryValid(parent, (Uint16)(at - 16U))))
                     return SDL_SetError("Weapon secondary raw parent lost its actual owner");
-                if (parent->kind && !parent->hand_weapon && !parent->weapon_secondary)
+                if ((parent->weapon_warp && !SotnBatRuntime_WarpValid(parent, 0)) ||
+                    (parent->kind && !parent->hand_weapon && !parent->weapon_secondary &&
+                     !parent->weapon_warp))
                     return SDL_SetError("Weapon secondary raw parent is not a selected weapon");
                 item = parent->hand_weapon        ? parent->state.hand.item
                        : parent->weapon_secondary ? parent->state.secondary.item
+                       : parent->weapon_warp      ? parent->state.warp.item
                                                   : 0;
                 parent_group = parent->kind ? parent->group : 0;
             }
@@ -5694,7 +5793,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.hellfire_fire.attack.active = false;
             else if (c->kind == 61)
                 c->state.spirit.attack.active = false;
-            else if (!c->thrown && !c->star && !c->karma && (c->kind == 0xe2 || c->kind == 0xf2))
+            else if (!c->thrown && !c->star && !c->karma && !c->weapon_warp &&
+                     (c->kind == 0xe2 || c->kind == 0xf2))
                 c->state.sword.attack.active = false;
             else if (c->pentagram)
                 c->state.pentagram.attack.active = false;

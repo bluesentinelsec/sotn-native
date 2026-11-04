@@ -399,10 +399,24 @@ static bool Slash(void)
                                    .context = &hit,
                                    .family = 53,
                                    .allocated = false};
-    SotnWeaponSecondary s = {.parameter = 48 << 8};
+    SotnWeaponSecondary s = {.parameter = 50 << 8};
     SotnWeaponSecondaryEvents e = {0};
     Uint32 rng = 3;
     CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase);
+    // Row48 lies past the table: its CLUT-order word is the live g_HandId at0x1268, never the
+    // image's stored bytes.
+    o[0x1268] = 0x5a;
+    in.allocated = true;
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        in.hand = hand;
+        s = (SotnWeaponSecondary){.parameter = 48 << 8};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              s.quad.palette == (hand ? 0x18 + 0x122 : 0x11a));
+    }
+    in.hand = 0;
+    in.allocated = false;
+    rng = 3;
     s = (SotnWeaponSecondary){0};
     CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 3 &&
           !e.chain && SotnWeaponSecondary_Rows(53) == 1);
@@ -547,6 +561,47 @@ static bool Thunder(void)
     in.family = 55;
     s = (SotnWeaponSecondary){0};
     CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase);
+    return true;
+}
+// w_053 func_ptr_80170008: out at speed8 (-0.5 up), decelerating15/32 per update, root0x1E at
+// pose6 and pose8's last update, back at pose10 and retired at pose15; variant1 adds root0x28.
+static bool Warp(void)
+{
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const bool masamune = k & 1U, left = k >> 1;
+        SotnWeaponWarp w = {.x = 100 * 65536, .y = 80 * 65536, .parameter = masamune ? 0x100 : 0};
+        SotnWeaponWarpEvents e = {0};
+        SotnWeaponWarpInput in = {.scale_y = 240,
+                                  .pivot_y = -3,
+                                  .hand = 1,
+                                  .draw_flags = 4,
+                                  .facing_left = left,
+                                  .remaining = 2};
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.phase == 1 && w.blend == 0x10 &&
+              w.flags == 0x04020000U && w.velocity_x == (left ? -0x80000 : 0x80000) &&
+              w.velocity_y == -0x8000 && w.x == 100 * 65536 && w.draw_flags == 4 &&
+              w.scale_y == 240 && e.factories[0] == (masamune ? 0x282038U : 0U));
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.x == 100 * 65536 + (left ? -0x80000 : 0x80000) &&
+              w.y == 80 * 65536 - 0x8000 && w.velocity_x == (left ? -0x78800 : 0x78800) &&
+              !e.factories[0]);
+        in.pose = 6;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.phase == 2 && e.factories[0] == 0x1e2038U);
+        in.pose = 8;
+        in.remaining = 1;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && !w.blend && e.factories[0] == 0x1e2038U);
+        in.remaining = 2;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && !e.factories[0]);
+        in.pose = 10;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.phase == 3 &&
+              w.velocity_x == (left ? 0x80000 : -0x80000) && w.velocity_y == 0x8000);
+        const Sint32 x = w.x;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.blend == 0x10 &&
+              w.x == x + (left ? 0x80000 : -0x80000));
+        in.pose = 15;
+        CHECK(SotnWeaponWarp_Tick(&w, in, &e) && w.removed);
+        CHECK(!SotnWeaponWarp_Tick(&w, in, &e));
+    }
     return true;
 }
 static void FamilyDefinition(Uint8 *dra, Uint16 item, Uint8 category, Uint8 family, Uint8 kind,
@@ -915,10 +970,84 @@ static bool ThunderRuntime(void)
     SDL_free(dra);
     return true;
 }
+// Osafune193's blueprint60 replaces slot16 with the warp; its pose6 root0x1E copies the warp's
+// item193 and enemyId0 from that raw parent and keeps its birth position.
+static bool WarpRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 139, 5, 53, 1, 2, 0, 193);
+    FamilyDefinition(dra, 193, 5, 53, 135, 0, 0, 0);
+    dra[0x500 + 193 * 52 + 18] = 0xd8;
+    dra[0x500 + 193 * 52 + 19] = 60;
+    dra[0x500 + 193 * 52 + 21] = 0;
+    const Uint8 blueprints[][6] = {{60, 2, 1, 0xc1, 0, 0x23}, {56, 1, 1, 0xc1, 0, 0x06}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    SlashProgram(weapons + 53U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {53, 53},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0xd8, .pose = 0, .remaining = 2}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x103c, 193, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          r->children[0].weapon_warp && r->children[0].kind == 0xe2 &&
+          r->children[0].state.warp.item == 193 && SotnBatRuntime_WarpValid(&r->children[0], 0));
+    in.player.animation.pose = 6;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const Sint32 warp_x = r->children[0].state.warp.x;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const SotnBatRuntimeChild *root = &r->children[1];
+    CHECK(root->weapon_secondary && root->parameter == 0x1e00 && root->primitive_count == 1 &&
+          root->state.secondary.item == 193 && !root->group &&
+          root->state.secondary.parent_slot == 16 && root->state.secondary.attack.active &&
+          root->state.secondary.motion.x == warp_x + 20 * 65536 && (r->secondary_mask & 2U));
+    in.player.animation.pose = 10;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          r->children[0].state.warp.phase == 3);
+    in.player.animation.pose = 15;
+    for (Uint16 t = 0; t < 20; ++t)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    CHECK(!r->children[0].kind);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
-    return Module() && Lunge() && Slash() && Thunder() && Runtime() && KatanaRuntime() &&
-                   ThunderRuntime()
+    return Module() && Lunge() && Slash() && Thunder() && Warp() && Runtime() && KatanaRuntime() &&
+                   ThunderRuntime() && WarpRuntime()
                ? 0
                : 1;
 }

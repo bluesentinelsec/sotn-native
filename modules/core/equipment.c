@@ -44,59 +44,70 @@ static Uint8 ShieldFamily(Uint16 id)
 typedef struct PlainSpec
 {
     Uint8 category, family, kind, animation, variant, back_forward, special_move, mp;
+    Uint8 blueprint; /**< Zero selects the ordinary blueprint48. */
 } PlainSpec;
 static PlainSpec PlainWeapon(Uint16 id)
 {
     switch (id)
     {
     case 21: // Nunchaku
-        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0};
+        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0, 0};
     case 26: // Red Rust
-        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0};
+        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0, 0};
     case 27: // Takemitsu
-        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0};
+        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0, 0};
     case 124: // Mablung
-        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0, 0};
+        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0, 0, 0};
     case 129: // Morningstar
-        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0, 0};
+        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0, 0, 0};
     case 130: // Holy rod and its back-forward special170
-        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0, 0};
+        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0, 0, 0};
     case 170:
-        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0, 0};
+        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0, 0, 0};
     case 121: // Gurthang and its QCF special195
-        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0};
+        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0};
     case 195:
-        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0};
+        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0};
     case 20: // Combat knife: special175 is both its back-forward and QCF item
-        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0};
+        return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0, 0};
     case 175:
-        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0, 0};
+        return (PlainSpec){0, 32, 10, 0x84, 1, 0, 0, 0, 0};
     case 115: // Holy sword and its QCF special196 (kind28, five MP)
-        return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0};
+        return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0, 0};
     case 196:
-        return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5};
+        return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5, 0};
     case 112: // Thunderbrand and its QCF special178 (kind19, five MP)
-        return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0};
+        return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0, 0};
     case 178:
-        return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5};
+        return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5, 0};
+    case 139: // Osafune katana: back-forward slash192 and QCF warp193 (kind135, blueprint60)
+        return (PlainSpec){5, 53, 1, 0x41, 2, 192, 193, 0, 0};
+    case 192:
+        return (PlainSpec){5, 53, 1, 0x41, 3, 0, 0, 0, 0};
+    case 193:
+        return (PlainSpec){5, 53, 135, 0xd8, 0, 0, 0, 0, 60};
+    case 140: // Masamune: its ordinary swing already slashes; QCF warp194
+        return (PlainSpec){5, 53, 1, 0x41, 4, 0, 194, 0, 0};
+    case 194:
+        return (PlainSpec){5, 53, 135, 0xd8, 1, 0, 0, 0, 60};
     case 100: // Katana and its QCF slash special189
-        return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0, 0};
     case 189:
-        return (PlainSpec){5, 53, 1, 0x41, 1, 0, 0, 0};
+        return (PlainSpec){5, 53, 1, 0x41, 1, 0, 0, 0, 0};
     case 23: // Rapier and its QCF lunge special191
-        return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0};
+        return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0, 0};
     case 191:
-        return (PlainSpec){0, 38, 26, 0xae, 1, 0, 0, 0};
+        return (PlainSpec){0, 38, 26, 0xae, 1, 0, 0, 0, 0};
     case 22: // Were bane and its QCF lunge special190
-        return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0};
+        return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0, 0};
     case 190:
-        return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0};
+        return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0, 0};
     case 127: // Great Sword
-        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0};
+        return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0, 0};
     case 131: // Star flail and its back-forward special171
-        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0};
+        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0, 0};
     case 171:
-        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0, 0};
+        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0, 0, 0};
     default:
         return (PlainSpec){0};
     }
@@ -107,7 +118,8 @@ bool SotnEquipment_IsPlainWeapon(Uint16 id)
 }
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
-    return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100;
+    return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100 || id == 139 ||
+           id == 140;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {
@@ -166,10 +178,10 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (fist && (record[14] != 3 || record[15] != 1 || record[17] != 0 || record[18] != 0x24 ||
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
-        (plain &&
-         (record[14] != spec.category || record[15] != spec.family || record[17] != spec.kind ||
-          record[18] != spec.animation || record[19] != 48 || record[22] != 128 ||
-          record[23] != spec.back_forward || record[24] != spec.special_move)) ||
+        (plain && (record[14] != spec.category || record[15] != spec.family ||
+                   record[17] != spec.kind || record[18] != spec.animation ||
+                   record[19] != (spec.blueprint ? spec.blueprint : 48) || record[22] != 128 ||
+                   record[23] != spec.back_forward || record[24] != spec.special_move)) ||
         (basic_shield && (record[14] != 9 || record[15] != shield_family || record[17] != 128 ||
                           record[18] != 0x63 || record[19] != 48 || record[21] ||
                           record[22] != 128 || record[23] || record[24])) ||

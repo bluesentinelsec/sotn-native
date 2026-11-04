@@ -873,6 +873,26 @@ static bool StartAttack(SotnPlayer *player)
     // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt; kinds28
     // (pose0 hold10) and26 (lunge hold40, vertical stop) instead stand still and play
     // SFX_VO_ALU_ATTACK_B.
+    // 6E42C.c case135 (weapon53 warps): SFX_VO_ALU_ATTACK_C, timer9, then func_8010ED54 enters
+    // Player_SwordWarp with the item's animation and the profile20 outline; no block_98 setup.
+    if (player->hand_factory && equipment.kind == 135)
+    {
+        player->sound = 0x6f0;
+        player->weapon_startup = 4;
+        player->vx = player->vy = 0;
+        SetStep(player, SOTN_PLAYER_SWORD_WARP);
+        Animate(player, equipment.animation);
+        bool outlined = false;
+        if (!player->sword_factory ||
+            !player->sword_factory(player->sword_context,
+                                   (SotnPlayerFactorySource){.x = player->x.value,
+                                                             .y = player->y.value,
+                                                             .priority = 148,
+                                                             .facing_left = player->facing_left},
+                                   0x14003dU, 0, &outlined))
+            player->failed = true;
+        return true;
+    }
     // Kinds19..22 (brands) hold pose0 like kind28 but for forty updates.
     const bool hold = equipment.kind == 28 || equipment.kind == 26 ||
                       (equipment.kind >= 19 && equipment.kind <= 22);

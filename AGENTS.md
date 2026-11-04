@@ -1,3 +1,10 @@
+Selected [Osafune/Masamune](docs/player-katana-warp.md) now own two-handed items139/140,
+back-forward192 (root10) and kind135 warps193/194: blueprint60 replaces slot16 with an E2/F2
+afterimage (factory-argument equip id) that slides out/back with SetSpeedX/DecelerateX, spawns
+roots0x28 (Masamune birth)/0x1E (pose6, pose8 timer1) copying its item and enemyId0, retires at
+pose15 and keeps screen position. Slash rows48/49 read past the table (row48 = live g_HandId);
+original-data quads use the opt-in GPU 11-bit wrap/span rule. Kind135 enters sword-warp.
+
 Selected [Thunderbrand](docs/player-thunderbrand.md) now owns item112/QCF special178 through
 weapon48: birth requests root0x38/branches0x3A,1..3/ring0x40 before properties, pose-BSS bolts at
 the first pose1 (0x10/0x20), kind19's forty-update pose0 hold (0x53..0x56 share 0x5C's handler).

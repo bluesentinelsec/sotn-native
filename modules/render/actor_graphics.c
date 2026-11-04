@@ -1149,10 +1149,68 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics)
     SDL_free(graphics);
 }
 
+// GPU vertex words are signed 11-bit; a triangle spanning more than 1023x511 is not drawn.
+static Sint32 Gpu11(Sint32 v)
+{
+    return (Sint32)(((Uint32)v + 1024U) & 2047U) - 1024;
+}
+static bool GpuSpan(const SotnTextureQuad *q, Uint32 a, Uint32 b, Uint32 c)
+{
+    const Sint32 l = SDL_min(q->x[a], SDL_min(q->x[b], q->x[c])),
+                 r = SDL_max(q->x[a], SDL_max(q->x[b], q->x[c])),
+                 t = SDL_min(q->y[a], SDL_min(q->y[b], q->y[c])),
+                 d = SDL_max(q->y[a], SDL_max(q->y[b], q->y[c]));
+    return r - l <= 1023 && d - t <= 511;
+}
+// Original garbage geometry (beyond the native +-2048 bound) follows the GPU instead of failing:
+// wrap to 11 bits and keep only the triangles the GPU would accept.
+static bool GpuWrap(SotnTextureQuad *q, bool *empty)
+{
+    *empty = false;
+    bool outside = false;
+    for (Uint32 i = 0; i < (q->triangle ? 3U : 4U); ++i)
+        outside |= q->x[i] < -2048 || q->x[i] > 2048 || q->y[i] < -2048 || q->y[i] > 2048;
+    if (!outside)
+        return true;
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        q->x[i] = Gpu11(q->x[i]);
+        q->y[i] = Gpu11(q->y[i]);
+    }
+    const bool first = GpuSpan(q, 0, 1, 2), second = !q->triangle && GpuSpan(q, 1, 3, 2);
+    if (!first && !second)
+        *empty = true;
+    else if (!first)
+    {
+        // Keep (1,3,2) as a GT3.
+        const Uint32 order[3] = {1, 3, 2};
+        SotnTextureQuad t = *q;
+        for (Uint32 i = 0; i < 3; ++i)
+        {
+            t.x[i] = q->x[order[i]];
+            t.y[i] = q->y[order[i]];
+            t.u[i] = q->u[order[i]];
+            t.v[i] = q->v[order[i]];
+            t.vertex_red[i] = q->vertex_red[order[i]];
+            t.vertex_green[i] = q->vertex_green[order[i]];
+            t.vertex_blue[i] = q->vertex_blue[order[i]];
+        }
+        t.triangle = true;
+        *q = t;
+    }
+    else if (!second)
+        q->triangle = true;
+    return true;
+}
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
                      bool write)
 {
     Uint16 *frame = surface.pixels;
+    bool empty = false;
+    if (q.gpu_wrap && !GpuWrap(&q, &empty))
+        return false;
+    if (empty)
+        return true;
     if ((!q.untextured && graphics == NULL) || !ValidSurface(surface) || q.page > 0x1ff ||
         (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)) ||
         (q.dither && (!q.untextured || !q.gouraud)))
@@ -1373,7 +1431,8 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *g, SotnTextureQuad q
 }
 
 static bool PlayerPolygon(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
-                          Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface, bool triangle)
+                          Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface, bool triangle,
+                          bool gpu_wrap)
 {
     if (!g || !p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 ||
         offset_y < -2048 || offset_y > 2048)
@@ -1383,6 +1442,7 @@ static bool PlayerPolygon(const SotnActorGraphics *g, const SotnPlayerEffectQuad
     SotnTextureQuad q = {.page = (Uint16)(p->page + (p->draw_mode & 0x60U)),
                          .palette = p->palette,
                          .triangle = triangle,
+                         .gpu_wrap = gpu_wrap,
                          .blend = (p->draw_mode & 1U) != 0,
                          .modulate = (p->draw_mode & 4U) != 0,
                          .gouraud = (p->draw_mode & 4U) != 0};
@@ -1402,12 +1462,17 @@ static bool PlayerPolygon(const SotnActorGraphics *g, const SotnPlayerEffectQuad
 bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
                                     Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
 {
-    return PlayerPolygon(g, p, offset_x, offset_y, surface, false);
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, false, false);
+}
+bool SotnActorGraphics_PlayerEffectGpu(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                       Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, false, true);
 }
 bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
                                       Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
 {
-    return PlayerPolygon(g, p, offset_x, offset_y, surface, true);
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, true, false);
 }
 
 bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *p, Sint32 offset_x,

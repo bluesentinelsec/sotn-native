@@ -226,10 +226,20 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
                   SotnWeaponSecondaryEvents *e)
 {
     const Uint16 params = (s->parameter >> 8) & 0x7fU;
-    const Uint8 *config = NULL, *cluts = NULL;
-    if (params >= 48 || !View(in.overlay, 0xfc4U + params * 14U, 14, &config) ||
+    const Uint8 *source = NULL, *cluts = NULL;
+    if (params >= 50 || !View(in.overlay, 0xfc4U + params * 14U, 14, &source) ||
         !View(in.overlay, 0xf9cU, 40, &cluts))
         return SDL_SetError("Weapon53 slash parameter exceeds its private table");
+    // Root0x28's chain reaches rows48/49 past the48-row table; row48 overlaps the program's
+    // live g_HandId word at0x1268, which reads as the resident hand.
+    Uint8 config[14];
+    SDL_memcpy(config, source, sizeof(config));
+    for (Uint32 b = 0; b < 4; ++b)
+    {
+        const Uint32 at = 0x1268U + b, base = 0xfc4U + params * 14U;
+        if (at >= base && at < base + 14U)
+            config[at - base] = (Uint8)((Uint32)in.hand >> (8U * b));
+    }
     const bool root = params == 0 || params == 10 || params == 20 || params == 30;
     if (!s->phase)
     {
@@ -682,5 +692,75 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     }
     s.frame = Read16(t + s.pose * 4U + 2U) & 511U;
     *state = s;
+    return true;
+}
+
+// w_053 func_ptr_80170008: SetSpeedX/DecelerateX from the shared weapon helpers.
+static Sint32 Decelerate(Sint32 v, Sint32 amount)
+{
+    if (v < 0)
+        return v + amount > 0 ? 0 : v + amount;
+    return v - amount < 0 ? 0 : v - amount;
+}
+bool SotnWeaponWarp_Tick(SotnWeaponWarp *state, SotnWeaponWarpInput in,
+                         SotnWeaponWarpEvents *events)
+{
+    if (!state || !events || in.hand > 1 || state->removed || state->phase > 3)
+        return SDL_SetError("Weapon53 warp requires its actual live bounded child");
+    SotnWeaponWarp s = *state;
+    SotnWeaponWarpEvents e = {0};
+    const Uint32 hand = (in.hand + 1U) << 12;
+    Uint16 n = 0;
+    switch (s.phase)
+    {
+    case 0:
+        s.blend = 0x10;
+        s.facing_left = in.facing_left;
+        s.flags = 0x04020000U;
+        s.velocity_x = s.facing_left ? -0x80000 : 0x80000;
+        s.velocity_y = -0x8000;
+        if (s.parameter & 0x7f00U)
+            e.factories[n++] = 0x38U | hand | 0x28U << 16;
+        s.phase = 1;
+        break;
+    case 1:
+        s.x = (Sint32)((Uint32)s.x + (Uint32)s.velocity_x);
+        s.y = (Sint32)((Uint32)s.y + (Uint32)s.velocity_y);
+        s.velocity_x = Decelerate(s.velocity_x, 0x7800);
+        if (in.pose == 6)
+        {
+            e.factories[n++] = 0x38U | hand | 0x1eU << 16;
+            s.phase = 2;
+        }
+        break;
+    case 2:
+        s.blend = 0;
+        if (in.pose == 8 && in.remaining == 1)
+            e.factories[n++] = 0x38U | hand | 0x1eU << 16;
+        if (in.pose == 10)
+        {
+            s.velocity_x = s.facing_left ? 0x80000 : -0x80000;
+            s.velocity_y = 0x8000;
+            s.phase = 3;
+        }
+        break;
+    default:
+        s.blend = 0x10;
+        s.x = (Sint32)((Uint32)s.x + (Uint32)s.velocity_x);
+        s.y = (Sint32)((Uint32)s.y + (Uint32)s.velocity_y);
+        s.velocity_x = Decelerate(s.velocity_x, 0x7800);
+        if (in.pose == 15)
+        {
+            s.removed = true;
+            goto commit;
+        }
+        break;
+    }
+    s.draw_flags = in.draw_flags;
+    s.scale_y = in.scale_y;
+    s.pivot_y = in.pivot_y;
+commit:
+    *state = s;
+    *events = e;
     return true;
 }

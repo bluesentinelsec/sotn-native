@@ -3400,6 +3400,19 @@ static bool DrawPlayerEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *
 {
     return DrawPlayerEffectPolygon(s, p, false);
 }
+// Weapon secondaries build vertices from original private rows, some past their tables; those
+// follow the GPU's vertex wrap and span rule instead of the native fail-fast bound.
+static bool DrawOriginalEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
+{
+    const SotnActorSurface surface =
+        s->draw_target.mode
+            ? s->draw_target.surface
+            : (SotnActorSurface){s->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH, SOTN_FRAME_HEIGHT};
+    const bool fixed = (p->draw_mode & 0x2080U) != 0;
+    return SotnActorGraphics_PlayerEffectGpu(
+        s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
+        s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
+}
 static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
 {
     const bool fixed = (p->draw_mode & 0x2080U) != 0;
@@ -5038,7 +5051,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 q.x[v] = BlinkWord(q.x[v] + Pixel(w->x) - view_x);
                 q.y[v] = BlinkWord(q.y[v] + Pixel(w->y) - view_y);
             }
-            if (!DrawPlayerEffectQuad(session, &q) ||
+            if (!DrawOriginalEffectQuad(session, &q) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
@@ -5267,8 +5280,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         if (command.kind == SOTN_DRAW_SWORD)
         {
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
-            const bool image = c->kind == 0xe1 || c->kind == 0xf1;
+            // Weapon53's warp redraws Alucard's current frame like the Alucard-sword image.
+            const bool image = c->kind == 0xe1 || c->kind == 0xf1 || c->weapon_warp;
             if (!c->generation || !c->initialized || c->karma || c->weapon_secondary ||
+                (c->weapon_warp && !SotnBatRuntime_WarpValid(c, command.primitive)) ||
                 (!image && c->kind != 0xe2 && c->kind != 0xf2))
                 return SDL_SetError("Sword draw lost its actual initialized child");
             if (image)
@@ -5280,7 +5295,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 copy.palette = 0x8100;
                 copy.body_color_blend = false;
                 copy.water_death.active = false;
-                if (!DrawRotatedPlayer(session, copy, &alucard, c->state.sword.image.blend))
+                if (!DrawRotatedPlayer(session, copy, &alucard,
+                                       c->weapon_warp ? c->state.warp.blend
+                                                      : c->state.sword.image.blend))
                     return false;
             }
             else

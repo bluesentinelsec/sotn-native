@@ -45,7 +45,10 @@ Selected virtual items:
 - Thunderbrand112's QCF special178: kind19, a forty-update pose0 hold with lightning and a
   ring (see [Thunderbrand](player-thunderbrand.md)).
 
-The other ~20 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+- Osafune139's back-forward slash192 and QCF warp193, and Masamune140's QCF warp194: kind135
+  sword-warp afterimages with slash roots (see [Osafune/Masamune](player-katana-warp.md)).
+
+The other ~17 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

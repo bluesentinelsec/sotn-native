@@ -6,10 +6,8 @@ Katana100 through the weapon53 program, together with its QCF
 chain through the shared [weapon secondary owner](player-holy-sword.md). Katana uses Namakura's
 [paired two-hand reservation](player-two-hand-equipment.md).
 
-Osafune139 and Masamune140 share the program, but their QCF specials (193/194, kind135) use
-the sword-warp player state with weapon53's own warp entities, and Masamune's ordinary swing
-already spawns a slash; Yasutsuna165 is a kind129 thrown item. They stay unavailable until
-those owners exist. Muramasa's secondary runs the same slash code, but Muramasa itself waits
+[Osafune139 and Masamune140](player-katana-warp.md) now share the program, including their
+kind135 warps; Yasutsuna165 is a kind129 thrown item and stays unavailable. Muramasa's secondary runs the same slash code, but Muramasa itself waits
 for a save-format decision (see [Gurthang](player-gurthang.md)).
 
 Definitions validate category5, family53, kind1, animation0x41, blueprint48, variant, lock13,

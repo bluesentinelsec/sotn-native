@@ -19,8 +19,8 @@ typedef struct Fixture
     SotnPlayer *p;
     SotnCharacter *character;
     SotnCollisionMap map;
-    Uint16 rolls[4], roll_count, factories, item;
-    Uint32 packed;
+    Uint16 rolls[4], roll_count, factories, item, swords;
+    Uint32 packed, sword_packed;
     bool allocate;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 value)
@@ -37,6 +37,17 @@ static bool Factory(void *context, SotnPlayerFactorySource source, Uint32 packed
     f->packed = packed;
     f->item = argument;
     *allocated = f->allocate;
+    return true;
+}
+static bool Sword(void *context, SotnPlayerFactorySource source, Uint32 packed, Sint16 argument,
+                  bool *allocated)
+{
+    (void)source;
+    (void)argument;
+    Fixture *f = context;
+    ++f->swords;
+    f->sword_packed = packed;
+    *allocated = true;
     return true;
 }
 static bool Random(void *context, Uint16 *value)
@@ -91,6 +102,11 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 112 * 52 + 24] = 178; // QCF specialMove
     Item(f->dra, 178, 1, 48, 19, 0x41, 1, 13, 0);
     Put16(f->dra + 0x500 + 178 * 52 + 36, 5);
+    Item(f->dra, 139, 5, 53, 1, 0x41, 2, 13, 192);
+    f->dra[0x500 + 139 * 52 + 24] = 193;
+    Item(f->dra, 192, 5, 53, 1, 0x41, 3, 13, 0);
+    Item(f->dra, 193, 5, 53, 135, 0xd8, 0, 0, 0);
+    f->dra[0x500 + 193 * 52 + 19] = 60;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -111,10 +127,11 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
           SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, item));
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
-    const Uint16 right = item == 26 ? 26 : 0;
+    const Uint16 right = item == 26 || item == 139 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     CHECK(item == 18 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
-    CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f));
+    CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
+          SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
     CHECK(SotnPlayer_SetEquipment(f->p, weapons, item, right));
     return true;
@@ -288,6 +305,30 @@ static bool Brand(Fixture *f)
               f->p->animation.pose == (t < 40 ? 0 : 1));
     return true;
 }
+// 6E42C.c case135 (Osafune special193): blueprint60 reservation, VO_ALU_ATTACK_C, no grunt and
+// func_8010ED54's sword-warp step, animation0xD8 and profile20 outline; back-forward keeps192.
+static bool Warp(Fixture *f)
+{
+    CHECK(Create(f, 139, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    f->p->vx = 0x18000;
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+    SotnPlayerState p = {0};
+    CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == 193 &&
+          f->packed == 0x103cU && !f->roll_count && p.sound == 0x6f0 &&
+          f->p->step == SOTN_PLAYER_SWORD_WARP && f->p->animation.id == 0xd8 && !f->p->vx &&
+          !f->p->vy && f->swords == 1 && f->sword_packed == 0x14003dU);
+    CHECK(Create(f, 139, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0) &&
+          Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(f->item == 192 && f->packed == 0x31030U && f->p->step == SOTN_PLAYER_STAND &&
+          f->roll_count == 1);
+    return true;
+}
 // 6E42C.c kind26 (Rapier special191): grounded QCF, no grunt, stops both velocities and plays
 // SFX_VO_ALU_ATTACK_B; 71830.c substep0x5A holds pose6 while forty updates last, and a Down tap
 // or the backward direction resumes the ordinary substep0x50.
@@ -374,7 +415,7 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && HolySword(f) && Brand(f) && Lunge(f) && CombatKnife(f) &&
+         QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && CombatKnife(f) &&
          AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)

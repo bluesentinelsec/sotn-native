@@ -1796,6 +1796,41 @@ static bool TestTitleTextures(void)
     return true;
 }
 
+// Original-data packets past the native bound follow the GPU: over-span triangles are dropped
+// silently, while the ordinary player-effect path keeps failing fast.
+static bool TestGpuWrap(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    const SotnActorSurface surface = {.pixels = f->frame,
+                                      .count = SOTN_FRAME_PIXELS,
+                                      .width = SOTN_FRAME_WIDTH,
+                                      .height = SOTN_FRAME_HEIGHT};
+    ClearFrame(f);
+    const SotnPlayerEffectQuad q = {
+        .x = {3072, 3071, 3072, 3071}, .y = {0, 0, 4, 4}, .page = 0x19, .palette = 0x110};
+    CHECK(!SotnActorGraphics_PlayerEffect(g, &q, 0, 0, surface) && f->frame[0] == 7);
+    CHECK(SotnActorGraphics_PlayerEffectGpu(g, &q, 0, 0, surface));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        CHECK(f->frame[i] == 7);
+    // Untextured opt-in quads: 2049 wraps to1 and draws; a2047-pixel span is dropped.
+    SotnTextureQuad u = {
+        .x = {2049, 5, 1, 5}, .y = {0, 0, 4, 4}, .untextured = true, .red = 248, .gpu_wrap = true};
+    CHECK(SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS) &&
+          f->frame[SOTN_FRAME_WIDTH + 1] == 31 && f->frame[2 * SOTN_FRAME_WIDTH] == 7);
+    ClearFrame(f);
+    const Sint32 spread[4] = {3072, 3071, 3072, 3071};
+    SDL_memcpy(u.x, spread, sizeof(spread));
+    CHECK(SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        CHECK(f->frame[i] == 7);
+    u.gpu_wrap = false;
+    CHECK(!SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
@@ -1811,7 +1846,7 @@ int main(void)
         PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
         TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
         TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) &&
-        TestFamiliar(fixture);
+        TestFamiliar(fixture) && TestGpuWrap(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

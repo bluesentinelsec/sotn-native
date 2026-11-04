@@ -71,6 +71,7 @@ typedef struct SotnBatRuntimeChild
     bool initialized, food, neutron, sire, sire_child, pentagram, magic, thrown, star,
         thrown_particle_parent, karma, hand_weapon;
     bool weapon_secondary; /**< Blueprint56 E1/F1 func_ptr_80170004 of a resident program. */
+    bool weapon_warp;      /**< Weapon53 kind135 slot16 E2/F2 warp afterimage (blueprint60). */
     union {
         struct
         {
@@ -85,6 +86,7 @@ typedef struct SotnBatRuntimeChild
             Uint16 family, item; /**< item: raw parent equip id copied at birth. */
             Uint16 parent_slot;  /**< Raw parent slot16..31; never generation-checked. */
         } secondary;
+        SotnWeaponWarp warp;
         struct
         {
             SotnKarmaCoin motion;
@@ -298,6 +300,8 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *, Uint16 index);
 /** @brief Validate an actual blueprint56 weapon secondary in slots17..31, its resident program,
  * mandatory rows, copied raw-parent group and properties. */
 bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *, Uint16 index);
+/** @brief Validate the actual slot16 weapon53 warp afterimage (rowless, groupless). */
+bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *, Uint16 index);
 /** @brief Apply actual func_8010FAF4/func_8010E3E0 slot retirement to a working row plan.
  * The caller must commit the real stage pool before granting another slot16 owner. */
 bool SotnBatRuntime_RetireHand(SotnBatRuntime *, bool shield_only);

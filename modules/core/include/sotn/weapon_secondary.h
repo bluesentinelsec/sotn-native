@@ -100,6 +100,37 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                               SotnWeaponSecondaryInput input, Uint32 *random,
                               SotnWeaponSecondaryEvents *events);
 
+/** @brief Weapon53 kind135 warp afterimage: the slot16 E2/F2 child of blueprint60 that redraws
+ * Alucard's current frame while sliding out and back. Positions are world 16.16. Never saved. */
+typedef struct SotnWeaponWarp
+{
+    Sint32 x, y, velocity_x, velocity_y;
+    Uint32 flags;
+    Sint16 scale_y, pivot_y;
+    Uint16 parameter, phase, item; /**< item: factory argument (the special's equip id). */
+    Uint8 blend, draw_flags;
+    bool facing_left, removed;
+} SotnWeaponWarp;
+/** @brief Copied player context for one warp callback. */
+typedef struct SotnWeaponWarpInput
+{
+    Sint16 scale_y, pivot_y;
+    Sint16 remaining; /**< Player poseTimer. */
+    Uint16 hand, pose;
+    Uint8 draw_flags;
+    bool facing_left;
+} SotnWeaponWarpInput;
+/** @brief One-update warp requests: ordered WFACTORY(0x38,0x28/0x1E) slash roots. */
+typedef struct SotnWeaponWarpEvents
+{
+    Uint32 factories[2];
+} SotnWeaponWarpEvents;
+/** @brief Run one original w_053 func_ptr_80170008 callback.
+ * @param state Actual child, unchanged on error. @param input Copied player context.
+ * @param events Requests, unchanged on error. @return Success or SDL error. */
+bool SotnWeaponWarp_Tick(SotnWeaponWarp *state, SotnWeaponWarpInput input,
+                         SotnWeaponWarpEvents *events);
+
 /** @brief Original post-callback UpdateAnim for children flagged 0x100000 after culling.
  * @param state Actual child, unchanged on error. @param overlay Resident program bytes.
  * @param family Actual resident program. @return Success or SDL error. Draws never advance it. */
