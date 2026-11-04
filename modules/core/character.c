@@ -89,22 +89,22 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                  body ? 30U : 50U, &record))
         return false;
     const Uint8 *p = record.bytes;
-    SotnItem item = {.id = id,
-                     .body = body,
-                     .attack = Signed16(p + 8),
-                     .defense = Signed16(p + 10),
-                     .type = body ? Read16(p + 28) : 0,
-                     .category = body ? 0 : p[14],
-                     .icon = Read16(p + (body ? 24 : 44)),
-                     .palette = Read16(p + (body ? 26 : 46)),
-                     .supported = body ? BodySupported(id)
-                                       : (id == 0 || SotnEquipment_IsShield(id) || id == 18 ||
-                                          id == 19 || id == 24 || id == 25 || id == 80 ||
-                                          id == 81 || id == 82 || id == 134 || id == 135 ||
-                                          (id != 125 && SotnEquipment_IsSword0(id)) ||
-                                          SotnEquipment_IsBasicFist(id) || id == 123 || id == 128 ||
-                                          id == 166 || (id >= 29 && id <= 79) ||
-                                          (id >= 144 && id <= 162 && id != 146 && id != 147))};
+    SotnItem item = {
+        .id = id,
+        .body = body,
+        .attack = Signed16(p + 8),
+        .defense = Signed16(p + 10),
+        .type = body ? Read16(p + 28) : 0,
+        .category = body ? 0 : p[14],
+        .icon = Read16(p + (body ? 24 : 44)),
+        .palette = Read16(p + (body ? 26 : 46)),
+        .supported =
+            body ? BodySupported(id)
+                 : (id == 0 || SotnEquipment_IsShield(id) || id == 18 || id == 19 || id == 24 ||
+                    id == 25 || id == 80 || id == 81 || id == 82 || id == 134 || id == 135 ||
+                    (id != 125 && SotnEquipment_IsSword0(id)) || SotnEquipment_IsBasicFist(id) ||
+                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 128 || id == 166 ||
+                    (id >= 29 && id <= 79) || (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -185,8 +185,9 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
     for (Uint32 i = 0; i < 7; ++i)
         if (s->equipment[i] >= (i < 2 ? SOTN_HAND_ITEMS : SOTN_BODY_ITEMS))
             return SDL_SetError("Equipped item exceeds its table");
-    if ((s->equipment[0] == 84 || s->equipment[1] == 84) && s->equipment[0] != s->equipment[1])
-        return SDL_SetError("Namakura requires its one owned copy in both actual hand slots");
+    if ((SotnEquipment_IsTwoHand(s->equipment[0]) || SotnEquipment_IsTwoHand(s->equipment[1])) &&
+        s->equipment[0] != s->equipment[1])
+        return SDL_SetError("Two-hand equipment requires its one owned copy in both actual slots");
     // Original hand stock is a byte. Ordinary pickups cap at99, but a Fairy's later
     // unchecked decrement can wrap after another producer consumes the last spare.
     for (Uint32 i = 0; i < SOTN_BODY_ITEMS; ++i)
@@ -354,8 +355,8 @@ bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool pois
                                   SotnEquipment *out)
 {
     if (!c || (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 19 &&
-               !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) && item != 123 &&
-               item != 128))
+               !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
+               !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 128))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&

@@ -2955,11 +2955,12 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
         return SDL_SetError("Equipment can change only when the player has no active attack");
     if ((left == 125 || right == 125 || SotnEquipment_IsBasicShield(left) ||
          SotnEquipment_IsBasicShield(right) || SotnEquipment_IsBasicFist(left) ||
-         SotnEquipment_IsBasicFist(right)) &&
+         SotnEquipment_IsBasicFist(right) || SotnEquipment_IsPlainWeapon(left) ||
+         SotnEquipment_IsPlainWeapon(right)) &&
         !player->hand_factory)
         return SDL_SetError("This equipment requires actual shared hand/property ownership");
-    if ((left == 84 || right == 84) && left != right)
-        return SDL_SetError("Namakura requires its actual paired hand equipment");
+    if ((SotnEquipment_IsTwoHand(left) || SotnEquipment_IsTwoHand(right)) && left != right)
+        return SDL_SetError("Two-hand equipment requires its actual paired hand slots");
     const Uint16 ids[2] = {left, right};
     Uint16 power[2] = {0};
     for (Uint32 i = 0; i < 2; ++i)

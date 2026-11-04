@@ -94,6 +94,21 @@ int main(void)
     TestCharacter_Put32(dra + 0x3400, 0xdeadbeef);
     CHECK(!SotnCharacter_ConfirmEquipment(c, 1, 84) && SotnCharacter_Get(c, &p, NULL) &&
           !SDL_memcmp(&p, &before, sizeof(p)));
+    // Takemitsu27 shares the same one-copy paired reservation and restore validation.
+    TestCharacter_Fill(dra);
+    Definition(dra, 27, 5, 22);
+    Definition(dra, 86, 1, 3);
+    SotnCharacter *takemitsu = NULL;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &takemitsu) &&
+          SotnCharacter_Collect(takemitsu, false, 86) && SotnCharacter_Equip(takemitsu, 0, 86) &&
+          SotnCharacter_Collect(takemitsu, false, 27) &&
+          SotnCharacter_ConfirmEquipment(takemitsu, 1, 27) &&
+          SotnCharacter_Get(takemitsu, &p, NULL) && p.equipment[0] == 27 && p.equipment[1] == 27 &&
+          !p.hand_count[27] && p.hand_count[86] == 1);
+    before = p;
+    before.equipment[0] = 86;
+    CHECK(!SotnCharacter_Validate(&before) && !SotnCharacter_Restore(takemitsu, &before));
+    SotnCharacter_Destroy(takemitsu);
     SotnCharacter_Destroy(restored);
     SotnCharacter_Destroy(c);
     SDL_free(dra);

@@ -1,3 +1,12 @@
+Selected [Morningstar/Mablung/Takemitsu](docs/player-plain-weapons.md) now own
+items129/124/27 through actual weapon3/57/36 programs: w_002's callback with their
+own descriptors (Mablung descriptor3, Morningstar palette5) plus additive blend.
+Takemitsu shares Namakura's one-copy paired reservation/restore/binding rejection;
+its 384-word palette copy binds the live hand word in a temporary upload copy.
+Nunchaku33, Red Rust and Muramasa differ and stay unavailable. No pool/grants/savev9
+change; supplied stock/protection/position/relic/arrival/save fixtures are not
+acquisition/route/console evidence. All six Alucard gates remain open.
+
 Selected [basic fists](docs/player-basic-fists.md) now own Knuckle duster85/Jewel
 knuckles97 through actual weapon1 descriptors0/1, shared slot16 and four mandatory
 GT4 trail rows reserved before flags/properties; exhaustion omits the attack without

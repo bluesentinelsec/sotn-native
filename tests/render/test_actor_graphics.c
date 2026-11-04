@@ -349,8 +349,10 @@ static bool TestWeapons(Fixture *fixture)
     // Original shield palette copies always span 24 rows. Knight shield9's copy crosses its live
     // g_HandId word (color 14 of row 21), so the upload carries the bound hand, not the authored
     // bytes; Alucard shield52's copy ends before its hand word and keeps the authored color.
-    const Uint16 shield_ids[] = {6, 16}, shield_families[] = {9, 52};
-    const Uint32 shield_tables[] = {0xab8, 0xc1c}, shield_sources[] = {0x8017a804, 0x8017a808};
+    // Takemitsu36's authored table places its live hand word (0x8017a558) at the same color.
+    const Uint16 shield_ids[] = {6, 16, 27}, shield_families[] = {9, 52, 36};
+    const Uint32 shield_tables[] = {0xab8, 0xc1c, 0x550},
+                 shield_sources[] = {0x8017a804, 0x8017a808, 0x8017a558U - 700U};
     for (Uint32 k = 0; k < SDL_arraysize(shield_ids); ++k)
     {
         Uint8 *shield = fixture->weapons + shield_families[k] * 0x7000U + 0x4000U;

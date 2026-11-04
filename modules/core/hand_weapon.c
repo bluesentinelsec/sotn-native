@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Ordinary weapon/w_000.c, w_001.c, w_002.c, w_009.c, w_011.c, w_026.c, w_031.c,
-// w_037.c, w_043.c, w_052.c and
+// Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_009.c, w_011.c, w_026.c, w_031.c,
+// w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
 // dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // All original animation, hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
@@ -380,8 +380,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
 {
     if (!out || !program || !random || !events || out->removed || in.hand > 1 ||
         out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4 : 1) ||
-        (in.family != 0 && in.family != 1 && in.family != 2 && in.family != 31 && in.family != 37 &&
-         in.family != 43 && !SotnHandWeapon_IsShieldFamily(in.family) && in.family != 255))
+        (in.family != 0 && in.family != 1 && in.family != 2 && in.family != 3 && in.family != 31 &&
+         in.family != 36 && in.family != 37 && in.family != 43 && in.family != 57 &&
+         !SotnHandWeapon_IsShieldFamily(in.family) && in.family != 255))
         return SDL_SetError("Ordinary weapon requires a supported live hand/program context");
     SotnHandWeapon w = *out;
     SotnHandWeaponProgram shared = *program;
@@ -399,6 +400,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         // Weapon1 descriptor4 belongs to Iron Fist's special and has no selected owner.
         const Uint16 count = in.family == 0    ? 5
                              : in.family == 1  ? 4
+                             : in.family == 57 ? 4
                              : in.family == 43 ? 3
                              : in.family == 37 ? 4
                              : in.family == 31 ? 2
@@ -406,6 +408,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         const Uint32 descriptor = in.family == 255  ? 0xd53cU
                                   : in.family == 0  ? 0x106cU
                                   : in.family == 1  ? 0xf44U
+                                  : in.family == 3  ? 0xc28U
+                                  : in.family == 36 ? 0x540U
+                                  : in.family == 57 ? 0x106cU
                                   : in.family == 2  ? 0xbc4U
                                   : in.family == 31 ? 0x8ecU
                                   : in.family == 37 ? 0x6a4U
@@ -433,7 +438,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     w.texture = (Uint16)(100U + in.hand * 2U);
                     w.priority = (Uint16)(in.priority + (in.family == 31 && !variant ? 2 : -2));
                 }
-                if (in.family == 0 || in.family == 43)
+                // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
+                if (in.family == 0 || in.family == 3 || in.family == 36 || in.family == 43 ||
+                    in.family == 57)
                     w.blend = 0x30;
                 if (in.family == 43 && in.allocated)
                 {

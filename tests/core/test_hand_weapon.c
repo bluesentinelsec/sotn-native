@@ -215,6 +215,51 @@ static bool BasicShields(void)
         }
     return true;
 }
+// Weapon3/36/57 run w_002's callback from their own descriptors and add additive blending.
+static bool PlainWeapons(void)
+{
+    static Uint8 o[0x1200];
+    Resources(o);
+    SDL_memcpy(o + 0xc28, o + 0x106c, 16);
+    SDL_memcpy(o + 0x540, o + 0x106c, 16);
+    SDL_memcpy(o + 0x109c, o + 0x106c, 16);
+    Put16(o + 0xc28 + 8, 5);
+    const Uint16 families[] = {3, 36, 57, 2}, variants[] = {0, 0, 3, 0};
+    for (Uint16 k = 0; k < SDL_arraysize(families); ++k)
+        for (Uint16 hand = 0; hand < 2; ++hand)
+        {
+            if (families[k] == 2)
+                SDL_memcpy(o + 0xbc4, o + 0x106c, 16);
+            SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                      .properties = Properties,
+                                      .family = families[k],
+                                      .hand = hand,
+                                      .priority = 100,
+                                      .animation = 0x41,
+                                      .pose = 4,
+                                      .remaining = 1,
+                                      .attack_mode = 0x8002};
+            SotnHandWeapon w = {.parameter = (Uint16)(variants[k] * 256U + hand * 32768U)};
+            SotnHandWeaponProgram program = {.short_pose = 4, .shield_attack = 9};
+            SotnHandWeaponEvents e = {0};
+            Uint32 rng = 21, expected = 21;
+            (void)SotnCombat_Random(&expected);
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected &&
+                  e.properties && w.blend == (families[k] == 2 ? 0 : 0x30) &&
+                  w.bank == 0x8010U + hand * 2U && w.priority == 98 &&
+                  w.palette == 0x110U + hand * 24U + (families[k] == 3 ? 5U : 0U) &&
+                  program.short_pose == 4 && program.shield_attack == 9);
+            // Single-descriptor programs reject any other variant before mutation.
+            if (families[k] != 57)
+            {
+                SotnHandWeapon other = {.parameter = 0x100};
+                Uint32 kept = 21;
+                CHECK(!SotnHandWeapon_Tick(&other, &program, in, &kept, &e) && kept == 21 &&
+                      !other.phase);
+            }
+        }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -712,5 +757,5 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && BasicFists() && Ownership() ? 0 : 1;
+    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Ownership() ? 0 : 1;
 }

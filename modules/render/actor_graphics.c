@@ -370,6 +370,9 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 43 ? 0x8017b044U
                            : equipment.family == 37 ? 0x8017a7b8U
                            : equipment.family == 1  ? 0x8017afecU
+                           : equipment.family == 3  ? 0x8017ac38U
+                           : equipment.family == 36 ? 0x8017a550U
+                           : equipment.family == 57 ? 0x8017b0acU
                            : equipment.family == 9  ? 0x8017aab8U
                            : equipment.family == 11 ? 0x8017ac34U
                            : equipment.family == 26 ? 0x8017aae4U
@@ -386,12 +389,14 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
     if ((equipment.family == 0 && equipment.palette >= 5) ||
-        ((SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 1) &&
+        ((SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 1 ||
+          equipment.family == 3 || equipment.family == 36 || equipment.family == 57) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
         (SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 0 ||
-                 equipment.family == 1 || equipment.family == 20 || equipment.family == 22 ||
+                 equipment.family == 1 || equipment.family == 3 || equipment.family == 36 ||
+                 equipment.family == 57 || equipment.family == 20 || equipment.family == 22 ||
                  equipment.family == 21 || equipment.family == 19 || equipment.family == 18 ||
                  equipment.family == 17 || equipment.family == 16 || equipment.family == 15
              ? 24U
@@ -409,16 +414,20 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
         return false;
     Uint8 shield_colors[24U * 16U * 2U] = {0};
     const Uint8 *upload_colors = colors.bytes;
-    if (SotnHandWeapon_IsShieldFamily(equipment.family))
+    const Uint32 hand_word = equipment.family == 9    ? 0x8017aac0U
+                             : equipment.family == 11 ? 0x8017ac3cU
+                             : equipment.family == 26 ? 0x8017aaecU
+                             : equipment.family == 52 ? 0x8017ac20U
+                             : equipment.family == 3  ? 0x8017ac3cU
+                             : equipment.family == 36 ? 0x8017a558U
+                             : equipment.family == 57 ? 0x8017b0b0U
+                                                      : 0;
+    if (hand_word && !no_palette)
     {
-        // These original fixed-size copies cross the live program's actual g_HandId word.
+        // These original fixed-size copies can cross the live program's actual g_HandId word.
         // Materialize that owned binding in the upload copy, never in immutable program/art.
         SDL_memcpy(shield_colors, colors.bytes, sizeof(shield_colors));
         const Uint32 source = Read32(pointer.bytes);
-        const Uint32 hand_word = equipment.family == 9    ? 0x8017aac0U
-                                 : equipment.family == 11 ? 0x8017ac3cU
-                                 : equipment.family == 26 ? 0x8017aaecU
-                                                          : 0x8017ac20U;
         if (hand_word >= source && hand_word - source <= sizeof(shield_colors) - 4U)
         {
             const Uint32 at = hand_word - source;

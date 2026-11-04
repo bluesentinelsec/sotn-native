@@ -93,3 +93,6 @@ Adapted AGPL-3.0-or-later algorithms: `dra/menu.c:func_800FB23C`,
 `st/lib/e_shop.c` and `weapon/w_000.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`. Metadata, artwork and original tables
 remain immutable private inputs.
+
+Selected [Takemitsu27](player-plain-weapons.md) now shares this paired reservation,
+restore validation and unpaired-binding rejection.
