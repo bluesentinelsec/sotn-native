@@ -782,6 +782,21 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
+    // 6E42C.c block_38c: a completed back-forward command selects the equipped unk17 item.
+    // Chain limit 0x80 allows it whenever no attack is active, as already checked above.
+    if (player->hand_factory && equipment.back_forward && player->back_forward.phase == 255)
+    {
+        SotnEquipment special = {0};
+        if (!SotnEquipment_Read(player->dra, equipment.back_forward, &special) ||
+            !(special.chain_limit & 0x80))
+        {
+            if (!(special.chain_limit & 0x80))
+                SDL_SetError("Back-forward special requires its actual chain owner");
+            player->failed = true;
+            return true;
+        }
+        equipment = special;
+    }
     if (!ReserveHand(player, equipment, hand))
         return player->failed;
     // Red Rust (kind13) rolls once after its actual hand factory; rand()&7 == 0 fails.
@@ -799,7 +814,10 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
-    if (player->hand_factory)
+    // Kinds8/9/10/25 enter block_98 directly and skip the block_1000 casting grunt.
+    const bool grunt =
+        equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 && equipment.kind != 25;
+    if (player->hand_factory && grunt)
     {
         Uint16 random = 0;
         if (!player->hand_random(player->hand_context, &random) || !player->dra.bytes ||
@@ -847,7 +865,7 @@ static bool StartAttack(SotnPlayer *player)
     {
         variant = player->vy > 0 ? 5 : 4;
         if (player->vy > 0 && (player->buttons & SOTN_BUTTON_DOWN) &&
-            (equipment.id != 0 || (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT))))
+            (equipment.kind != 0 || (player->buttons & (SOTN_BUTTON_LEFT | SOTN_BUTTON_RIGHT))))
             variant = 6;
     }
     Animate(player, (Uint16)(equipment.animation + variant));
@@ -2605,6 +2623,9 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         if (next.sword_factory)
             SotnWeaponCommand_Tick(&next.sword_command, next.buttons, next.facing_left,
                                    next.tight_space != 0);
+        if (next.hand_factory)
+            SotnWeaponBackForward_Tick(&next.back_forward, next.buttons, next.facing_left,
+                                       next.tight_space != 0);
         NormalSpellInput(&next);
         SotnPlayer_MistInput(&next);
         SotnPlayer_BatInput(&next);

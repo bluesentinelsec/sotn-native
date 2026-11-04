@@ -1,5 +1,6 @@
-// Red Rust (kind13) hand use: dra/6E42C.c rolls libc rand()&7 after the actual hand factory;
-// zero takes the shared curse failure branch without the casting grunt. Authored tables only.
+// Ordinary hand-use selection from dra/6E42C.c with authored tables only: Red Rust (kind13)
+// rolls libc rand()&7 after its actual factory; a completed back-forward command selects the
+// equipped unk17 item (Basilard's 174) without the casting grunt; kind0 airborne variants.
 #include "character_fixture.h"
 #include "player_internal.h"
 
@@ -46,22 +47,33 @@ static bool Random(void *context, Uint16 *value)
     *value = f->rolls[f->roll_count++];
     return true;
 }
-static bool Create(Fixture *f, Uint16 first, Uint16 second, bool allocate)
+static void Item(Uint8 *dra, Uint16 id, Uint8 category, Uint8 family, Uint8 kind, Uint8 animation,
+                 Uint8 variant, Uint8 lock, Uint8 back_forward)
+{
+    Uint8 *e = dra + 0x500 + id * 52U;
+    Put16(e + 8, 8);
+    e[14] = category;
+    e[15] = family;
+    e[17] = kind;
+    e[18] = animation;
+    e[19] = 48;
+    e[20] = variant;
+    e[21] = lock;
+    e[22] = 128;
+    e[23] = back_forward;
+    Put16(e + 40, 2);
+}
+static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool allocate)
 {
     SotnPlayer_Close(f->p);
     SotnCharacter_Destroy(f->character);
     SDL_memset(f, 0, sizeof(*f));
     TestCharacter_Fill(f->dra);
-    Uint8 *e = f->dra + 0x500 + 26 * 52;
-    Put16(e + 8, 8);
-    e[14] = 5;
-    e[15] = 35;
-    e[17] = 13;
-    e[18] = 0x99;
-    e[19] = 48;
-    e[21] = 13;
-    e[22] = 128;
-    Put16(e + 40, 2);
+    f->dra[0x500 + 18] = 0x24; // Empty hand item0 animation.
+    Item(f->dra, 26, 5, 35, 13, 0x99, 0, 13, 0);
+    Item(f->dra, 18, 1, 31, 7, 0x6f, 0, 5, 174);
+    Item(f->dra, 174, 1, 31, 8, 0x76, 1, 8, 0);
+    Item(f->dra, 85, 3, 1, 0, 0x24, 0, 5, 0);
     for (Uint16 i = 0; i < 247; ++i)
         TestCharacter_Put32(f->dra + 0x101b8 + i * 4U, 0x800a7000);
     for (Uint16 i = 0; i < 20; ++i)
@@ -76,14 +88,16 @@ static bool Create(Fixture *f, Uint16 first, Uint16 second, bool allocate)
     f->rolls[1] = second;
     f->allocate = allocate;
     CHECK(SotnCharacter_Create((SotnDataView){f->dra, sizeof(f->dra)}, &f->character));
-    CHECK(SotnCharacter_Collect(f->character, false, 26) &&
-          SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, 26));
+    CHECK(SotnCharacter_Collect(f->character, false, item) &&
+          SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, item));
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
-    // Two-hand Red Rust requires actual shared hand ownership before it can bind.
-    CHECK(!SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, 26, 26));
+    const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
+    const Uint16 right = item == 26 ? 26 : 0;
+    // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
+    CHECK(item == 18 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f));
-    CHECK(!SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, 26, 0));
-    CHECK(SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, 26, 26));
+    CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
+    CHECK(SotnPlayer_SetEquipment(f->p, weapons, item, right));
     return true;
 }
 static bool Tick(Fixture *f, Uint16 buttons)
@@ -96,7 +110,7 @@ static bool Tick(Fixture *f, Uint16 buttons)
 }
 static bool Roll(Fixture *f, Uint16 first, bool fails)
 {
-    CHECK(Create(f, first, 5, true));
+    CHECK(Create(f, 26, first, 5, true));
     for (Uint16 i = 0; i < 8; ++i)
         CHECK(Tick(f, 0));
     CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
@@ -113,16 +127,59 @@ static bool Roll(Fixture *f, Uint16 first, bool fails)
         CHECK(f->p->animation.id >= 0x99 && f->p->animation.id < 0x99 + 7);
     return true;
 }
+static bool BackForward(Fixture *f)
+{
+    for (Uint16 special = 0; special < 2; ++special)
+    {
+        CHECK(Create(f, 18, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (special)
+            CHECK(Tick(f, SOTN_BUTTON_LEFT) && f->p->back_forward.phase == 1 &&
+                  Tick(f, SOTN_BUTTON_RIGHT) && f->p->back_forward.phase == 255 && Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p));
+        // The virtual item uses its own blueprint parameter and skips the grunt roll.
+        CHECK(f->factories == 1 && f->item == (special ? 174 : 18) &&
+              f->packed == (0x1030U | (special ? 0x10000U : 0U)) &&
+              f->roll_count == (special ? 0 : 1) && p.hand_used == !special &&
+              f->p->attack_mode == (special ? 0x8009 : 0x8008) &&
+              f->p->substep == (special ? 0x48 : 0x47) && f->p->attack_lock == (special ? 8 : 5) &&
+              f->p->animation.id >= (special ? 0x76 : 0x6f) &&
+              f->p->animation.id < (special ? 0x76 : 0x6f) + 7);
+    }
+    return true;
+}
+static bool AirborneKindZero(Fixture *f)
+{
+    // block_98: kind0 needs Down plus Left/Right for variant6; Down alone stays variant5.
+    for (Uint16 sideways = 0; sideways < 2; ++sideways)
+    {
+        CHECK(Create(f, 85, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_JUMP));
+        for (Uint16 i = 0; i < 60 && f->p->vy <= 0; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(f->p->vy > 0 && f->p->step == SOTN_PLAYER_JUMP);
+        CHECK(Tick(f, (Uint16)(SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_DOWN |
+                               (sideways ? SOTN_BUTTON_RIGHT : 0))));
+        CHECK(f->factories == 1 && f->p->animation.id == 0x24 + (sideways ? 6 : 5));
+    }
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     bool ok = f != NULL;
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
-    ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) && Roll(f, 7, false);
+    ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
+         Roll(f, 7, false) && BackForward(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {
-        ok = Create(f, 8, 5, false);
+        ok = Create(f, 26, 8, 5, false);
         for (Uint16 i = 0; ok && i < 8; ++i)
             ok = Tick(f, 0);
         ok = ok && Tick(f, SOTN_BUTTON_LEFT_HAND) && f->factories == 1 && !f->roll_count &&

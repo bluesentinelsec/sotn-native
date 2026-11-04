@@ -1,3 +1,9 @@
+Selected [weapon special inputs](docs/player-weapon-specials.md) now run the original
+back-forward recognizer after QCF and resolve the equipped unk17 item after curse/
+Alucard-sword QCF and before the actual factory. Basilard18's special174 uses weapon31
+descriptor1, kind8 (no casting grunt). Kind0 airborne variant6 needs Down plus Left/
+Right. Other specials need their own states/callbacks; their items stay unavailable.
+
 Selected [plain weapons](docs/player-plain-weapons.md) now own Morningstar129/
 Mablung124 and paired Takemitsu27/Nunchaku21/Red Rust26 through actual weapon3/57/
 36/33/35 programs running w_002's callback from their own descriptors. Preserve each

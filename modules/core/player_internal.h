@@ -103,6 +103,7 @@ struct SotnPlayer
     PlayerDarkControl dark;
     SotnSpellCommands spell_commands;
     SotnWeaponCommand sword_command;
+    SotnWeaponCommand back_forward; /**< Original COMBO_BF; transient, never saved. */
     SotnPlayerSwordFactory sword_factory;
     void *sword_context;
     Sint32 sword_recovery;

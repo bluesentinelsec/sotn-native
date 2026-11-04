@@ -137,6 +137,32 @@ static bool Tick(Fixture *f, Uint16 buttons)
                                                     .image = {12, 24, -6, -12}}));
     return true;
 }
+// dra/704D0.c CheckBackForwardInput: back then forward relative to the captured facing.
+static bool BackForward(void)
+{
+    SotnWeaponCommand c = {0};
+    SotnWeaponBackForward_Tick(&c, 0x8000, false, false);
+    CHECK(c.phase == 1 && c.timer == 15 && !c.facing_left);
+    // A later turn does not change the captured forward direction.
+    SotnWeaponBackForward_Tick(&c, 0x2000, true, false);
+    CHECK(c.phase == 255 && c.timer == 15 && !c.facing_left);
+    for (Uint16 i = 0; i < 14; ++i)
+        SotnWeaponBackForward_Tick(&c, 0, true, false);
+    CHECK(c.phase == 255 && c.timer == 1);
+    SotnWeaponBackForward_Tick(&c, 0, true, false);
+    CHECK(c.phase == 0 && c.facing_left);
+    // Exact directions only; a diagonal or held extra bit does not advance.
+    SotnWeaponBackForward_Tick(&c, 0x2000, true, false);
+    CHECK(c.phase == 1);
+    SotnWeaponBackForward_Tick(&c, 0xc000, true, false);
+    CHECK(c.phase == 1 && c.timer == 14);
+    SotnWeaponBackForward_Tick(&c, 0x8000, true, false);
+    CHECK(c.phase == 255);
+    // Restoration-space cramping clears a completed command before its window ends.
+    SotnWeaponBackForward_Tick(&c, 0, true, true);
+    CHECK(c.phase == 0 && c.timer == 15);
+    return true;
+}
 static bool CommandAndMotion(void)
 {
     SotnWeaponCommand c = {0};
@@ -378,8 +404,8 @@ int main(void)
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    const bool ok = CommandAndMotion() && Casting(f, false) && Casting(f, true) && Failure(f) &&
-                    Resources(f) && OptionalExhaustion(f);
+    const bool ok = BackForward() && CommandAndMotion() && Casting(f, false) && Casting(f, true) &&
+                    Failure(f) && Resources(f) && OptionalExhaustion(f);
     SotnPlayer_Close(f->p);
     SotnCharacter_Destroy(f->character);
     SDL_free(f);

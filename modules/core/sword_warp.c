@@ -41,6 +41,38 @@ void SotnWeaponCommand_Tick(SotnWeaponCommand *c, Uint16 buttons, bool left, boo
         }
     }
 }
+void SotnWeaponBackForward_Tick(SotnWeaponCommand *c, Uint16 buttons, bool left, bool cramped)
+{
+    const Uint16 direction = buttons & 0xf000U;
+    if (c->phase == 0)
+    {
+        c->facing_left = left;
+        if (direction == (left ? 0x2000 : 0x8000))
+        {
+            c->timer = 15;
+            c->phase = 1;
+        }
+        else if ((c->timer = Word(c->timer - 1)) == 0)
+            c->phase = 0;
+    }
+    else if (c->phase == 1)
+    {
+        if (direction == (c->facing_left ? 0x8000 : 0x2000))
+        {
+            c->timer = 15;
+            c->phase = 255;
+        }
+        else if ((c->timer = Word(c->timer - 1)) == 0)
+            c->phase = 0;
+    }
+    else if (cramped)
+        c->phase = 0;
+    else if (c->timer && (c->timer = Word(c->timer - 1)) == 0)
+    {
+        c->phase = 0;
+        c->facing_left = left;
+    }
+}
 bool SotnSwordWarp_Tick(SotnSwordWarp *state, Uint16 pose, Sint32 remaining, Uint16 frame,
                         SotnSwordWarpEvents *out)
 {

@@ -15,6 +15,14 @@ typedef struct SotnWeaponCommand
 void SotnWeaponCommand_Tick(SotnWeaponCommand *command, Uint16 buttons, bool facing_left,
                             bool cramped);
 
+/** @brief Advance the original back-forward weapon recognizer (dra/704D0.c) once per update.
+ * @param command Actual transient command. @param buttons Original action word.
+ * @param facing_left Current facing. @param cramped Actual restoration-space result.
+ * Completion is phase255 with a fifteen-update window; the owner still needs the equipped
+ * unk17 item, its chain limit and a real factory. */
+void SotnWeaponBackForward_Tick(SotnWeaponCommand *command, Uint16 buttons, bool facing_left,
+                                bool cramped);
+
 /** @brief Actual Alucard-sword special's slot16 image; coordinates are signed16.16. */
 typedef struct SotnSwordWarp
 {

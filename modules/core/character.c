@@ -354,8 +354,8 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
 bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool poison, Uint32 *random,
                                   SotnEquipment *out)
 {
-    if (!c || (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 19 &&
-               !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
+    if (!c || (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 174 &&
+               item != 19 && !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
                !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 128))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};

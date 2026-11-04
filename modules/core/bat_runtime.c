@@ -854,7 +854,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 12                   ? 26
            : item == 167                  ? 58
            : item == 16                   ? 52
-           : item == 18                   ? 31
+           : item == 18 || item == 174    ? 31
            : item == 19                   ? 37
            : SotnEquipment_IsSword0(item) ? 0
            : item == 85 || item == 97     ? 1
@@ -875,7 +875,7 @@ static Uint16 HandVariant(Uint16 item)
                                                          : 0)
            : item == 97                 ? 1
            : item == 124                ? 3
-           : item == 167                ? 1
+           : item == 167 || item == 174 ? 1
                                         : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,

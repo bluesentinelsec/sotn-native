@@ -9,6 +9,8 @@ typedef struct SotnEquipment
     Uint16 id, element, stun, hit_type, hit_effect, critical_rate;
     Sint16 attack;
     Uint8 family, palette, kind, animation, variant, lock, invincibility, chain_limit;
+    /** Original QCF specialMove and back-forward unk17 virtual items; zero when absent. */
+    Uint8 special_move, back_forward;
     Uint16 blueprint; /**< Actual copied factory identity; avoids implicit byte-tail padding. */
 } SotnEquipment;
 
