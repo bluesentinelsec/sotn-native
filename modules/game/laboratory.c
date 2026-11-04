@@ -4021,7 +4021,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .primitive = owner,
                                                         .kind = SOTN_DRAW_WEAPON_SECONDARY}))
                     return false;
-                for (Uint16 row = child->primitive_count; row > 0; --row)
+                if (child->state.secondary.family == 53 && child->primitive_count &&
+                    !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
+                                        &draw_count,
+                                        (SotnActorDraw){.priority = w->quad.priority,
+                                                        .primitive = owner,
+                                                        .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                    return false;
+                for (Uint16 row = child->state.secondary.family == 53 ? 0 : child->primitive_count;
+                     row > 0; --row)
                     if (!w->rows[row - 1U].hidden &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -5005,6 +5013,26 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                          session->draw_target.surface))
                 return false;
             if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD)
+        {
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
+            if (!c->weapon_secondary || !c->initialized || c->state.secondary.family != 53 ||
+                c->primitive_count != 1 || !SotnBatRuntime_SecondaryValid(c, command.primitive))
+                return SDL_SetError("Weapon53 slash draw lost its actual child/GT4 lease");
+            // Offsets follow the entity: DRAW_UNK02 vertices move with the camera like it does.
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            SotnPlayerEffectQuad q = w->quad;
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = BlinkWord(q.x[v] + Pixel(w->x) - view_x);
+                q.y[v] = BlinkWord(q.y[v] + Pixel(w->y) - view_y);
+            }
+            if (!DrawPlayerEffectQuad(session, &q) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;

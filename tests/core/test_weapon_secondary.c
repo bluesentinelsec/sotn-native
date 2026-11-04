@@ -55,10 +55,11 @@ static void Program(Uint8 *o)
     }
     Put16(o + 0x1184, 0xffff);
 }
+// Linear authored quarter wave at the SDK rsin/rcos table offset.
 static void Math(Uint8 *exe)
 {
     for (Uint32 i = 0; i <= 1024; ++i)
-        Put16(exe + 0x22a10 + i * 2, (Uint16)(i * 4));
+        Put16(exe + 0x1dbcc + i * 2, (Uint16)(i * 4));
 }
 static bool Properties(void *context, Uint32 *random, SotnEquipment *out)
 {
@@ -296,13 +297,125 @@ static bool Lunge(void)
     }
     return true;
 }
-static void Definition(Uint8 *dra, Uint16 item, Uint8 kind, Uint8 variant, Uint16 mp, Uint8 special)
+// Authored weapon53 slash tables: config rows at0xfc4 (u/v flip, CLUT order, radius, rotation,
+// RGB) and the two nine-entry CLUT schedules at0xf9c/0xfb0.
+static void SlashProgram(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 48; ++i)
+    {
+        Uint8 *c = o + 0xfc4 + i * 14U;
+        Put16(c, (Uint16)(i & 1U));
+        Put16(c + 2, (Uint16)((i >> 1) & 1U));
+        Put16(c + 4, (Uint16)((i >> 2) & 1U));
+        Put16(c + 6, (Uint16)(24 + i));
+        Put16(c + 8, (Uint16)(i * 300U));
+        c[10] = (Uint8)(i + 1U);
+        c[11] = 96;
+        c[12] = (Uint8)(200U - i);
+    }
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0xf9c + i * 2U, (Uint16)(0x11a + i));
+        Put16(o + 0xfb0 + i * 2U, (Uint16)(0x122 - i));
+    }
+}
+static bool Slash(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    SlashProgram(o);
+    Math(exe);
+    Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 param = k == 0 ? 0 : k == 1 ? 1 : k == 2 ? 30 : 41;
+        const bool root = param == 0 || param == 30, properties = root || param == 41;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .x = 150 * 65536 + 99,
+                                       .y = 120 * 65536 + 7,
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .family = 53,
+                                       .hand = (Uint16)(k & 1U),
+                                       .priority = 148,
+                                       .facing_left = k == 3,
+                                       .crouch = k == 1 || k == 2,
+                                       .allocated = true};
+        SotnWeaponSecondary s = {
+            .parameter = (Uint16)(param << 8), .x = 100 * 65536 + 0x1111, .y = 90 * 65536 + 0x2222};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3, expected = 3;
+        if (properties)
+            (void)SotnCombat_Random(&expected);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == expected &&
+              e.properties == properties && s.phase == 1 && s.age == 1 && s.flags == 0x08820000U &&
+              s.quad.page == 0x19 && s.quad.priority == 150 && s.quad.draw_mode == 0x137 &&
+              s.lifetime == 24 + param && s.rotate == (Sint16)(param * 300U) &&
+              s.quad.red[2] == param + 1U && s.quad.blue[0] == 200U - param);
+        CHECK(e.sounds[0] == (param % 4 == 0 ? 0x60c : 0) &&
+              e.chain == (root ? 0x38U | ((k & 1U) + 1U) << 12 | (Uint32)(param + 1U) << 16 : 0U));
+        const Uint8 v = (k & 1U) ? 0x80 : 0;
+        CHECK(s.quad.u[0] == ((param & 1U) ? 0xc0 : 0x80) &&
+              s.quad.v[0] == (((param >> 1) & 1U) ? (v | 0x40) : v) &&
+              s.quad.palette == ((k & 1U) ? 0x18 : 0) + ((param >> 2) & 1U ? 0x122 : 0x11a));
+        if (properties)
+            CHECK(s.hitbox_width == 30 && s.hitbox_height == 32 &&
+                  s.hitbox_x == (param >= 30 ? 0x12 : 0));
+        else
+            CHECK(!s.hitbox_width && !s.hitbox_state);
+        // Params below0x1e follow the player at (+-38, crouch11/-5) with their own fraction;
+        // others keep their birth offset (+-20, -5/11) from the factory position.
+        if (param < 0x1e)
+            CHECK(s.x == (150 + (k == 3 ? -38 : 38)) * 65536 + 0x1111 &&
+                  s.y == (120 + (k == 1 ? 11 : -5)) * 65536 + 0x2222);
+        else
+            CHECK(s.x == (100 + (k == 3 ? -20 : 20)) * 65536 + 0x1111 &&
+                  s.y == (90 + (k == 2 ? 11 : -5)) * 65536 + 0x2222);
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig(in.executable, (Sint16)(s.rotate + 0x600), &t));
+        const Sint32 c16 = t.cosine >= 0 ? t.cosine / 16 : -((-t.cosine + 15) / 16),
+                     s16 = t.sine >= 0 ? t.sine / 16 : -((-t.sine + 15) / 16);
+        CHECK(c16 && s16);
+        CHECK(s.quad.x[0] == (k == 3 ? -1 : 1) * Floor256(c16 * s.lifetime) &&
+              s.quad.y[0] == -Floor256(s16 * s.lifetime));
+        Uint16 callbacks = 1;
+        while (!s.removed)
+        {
+            const Uint16 age = s.age;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties);
+            ++callbacks;
+            CHECK(e.chain ==
+                  (root ? 0x38U | ((k & 1U) + 1U) << 12 | (Uint32)(age + param + 1U) << 16 : 0U));
+        }
+        CHECK(callbacks == 9 && s.age == 9);
+    }
+    // Parameters beyond the private table and exhausted GT4 rows.
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .properties = Properties,
+                                   .context = &hit,
+                                   .family = 53,
+                                   .allocated = false};
+    SotnWeaponSecondary s = {.parameter = 48 << 8};
+    SotnWeaponSecondaryEvents e = {0};
+    Uint32 rng = 3;
+    CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase);
+    s = (SotnWeaponSecondary){0};
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 3 &&
+          !e.chain && SotnWeaponSecondary_Rows(53) == 1);
+    return true;
+}
+static void FamilyDefinition(Uint8 *dra, Uint16 item, Uint8 category, Uint8 family, Uint8 kind,
+                             Uint8 variant, Uint16 mp, Uint8 special)
 {
     Uint8 *p = dra + 0x500 + item * 52U;
     Put16(p + 8, 26);
     Put16(p + 12, 64);
-    p[14] = 1;
-    p[15] = 55;
+    p[14] = category;
+    p[15] = family;
     p[17] = kind;
     p[18] = 0x41;
     p[19] = 48;
@@ -315,6 +428,10 @@ static void Definition(Uint8 *dra, Uint16 item, Uint8 kind, Uint8 variant, Uint1
     Put16(p + 38, 4);
     Put16(p + 40, 2);
     Put16(p + 42, 129);
+}
+static void Definition(Uint8 *dra, Uint16 item, Uint8 kind, Uint8 variant, Uint16 mp, Uint8 special)
+{
+    FamilyDefinition(dra, item, 1, 55, kind, variant, mp, special);
 }
 static bool Runtime(void)
 {
@@ -465,7 +582,106 @@ static bool Runtime(void)
     SDL_free(dra);
     return true;
 }
+// Katana189's root (raw parent slot16) chains nine slashes; each chained child's raw parent is
+// the root's own slot, reads no properties and owns one shared GT4 row until it retires.
+static bool KatanaRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 100, 5, 53, 1, 0, 0, 189);
+    FamilyDefinition(dra, 189, 5, 53, 1, 1, 0, 0);
+    Uint8 *p = dra + 0xd1d4 + 48U * 6U;
+    p[1] = 1;
+    p[2] = 0xc1;
+    p[4] = 0x23;
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    p = dra + 0xd1d4 + 56U * 6U;
+    p[0] = 1;
+    p[1] = 1;
+    p[2] = 0xc1;
+    p[4] = 0x06;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    Uint8 *o = weapons + 53U * 0x7000 + 0x4000;
+    Program(o);
+    for (Uint16 v = 0; v < 5; ++v)
+        SDL_memcpy(o + 0xf4c + v * 16U, o + 0x10ac, 16);
+    SlashProgram(o);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {53, 53},
+                              .weapon_bound = {true, true},
+                              .camera_x = 20,
+                              .camera_y = 8,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536 + 123,
+                                         .y = 100 * 65536 + 456,
+                                         .priority = 148,
+                                         .attack_mode = 0x8002,
+                                         .animation = {.id = 0x41, .pose = 0, .remaining = 2}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x11030, 189, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 chained = 0, max_live = 0;
+    bool root_seen = false;
+    for (Uint16 t = 0; t < 30; ++t)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in));
+        CHECK(SotnActors_CommitBatPrimitives(actors, r));
+        Uint16 live = 0;
+        for (Uint16 i = 1; i < 16; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary)
+                continue;
+            ++live;
+            CHECK(c->primitive_count == 1 && SotnBatRuntime_SecondaryValid(c, i));
+            if (!c->parameter)
+            {
+                root_seen = true;
+                CHECK(c->state.secondary.parent_slot == 16 && c->group == 1 &&
+                      c->state.secondary.item == 189 && c->state.secondary.attack.active);
+            }
+            else
+            {
+                // Chained children name the root's slot17, even when reborn into it.
+                CHECK(c->state.secondary.parent_slot == 17 && !c->group &&
+                      !c->state.secondary.item && !c->state.secondary.attack.active &&
+                      (c->parameter >> 8) <= 9);
+                chained |= (Uint16)(1U << (c->parameter >> 8));
+            }
+        }
+        max_live = SDL_max(max_live, live);
+    }
+    // Nine chained slashes (params1..9) follow the root; every row is released afterwards.
+    // The root retires in the update its eighth chained child is born, so at most eight overlap.
+    CHECK(root_seen && chained == 0x3fe && max_live == 8);
+    for (Uint16 i = 1; i < 16; ++i)
+        CHECK(!r->children[i].weapon_secondary);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner || actors->primitives[i].ability_kind != 0xe1);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
-    return Module() && Lunge() && Runtime() ? 0 : 1;
+    return Module() && Lunge() && Slash() && Runtime() && KatanaRuntime() ? 0 : 1;
 }

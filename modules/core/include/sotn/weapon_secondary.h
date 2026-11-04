@@ -3,6 +3,7 @@
 #include <sotn/equipment.h>
 #include <sotn/game_data.h>
 #include <sotn/hand_weapon.h>
+#include <sotn/player_blink.h>
 
 /** Maximum original LINE_G2 rows owned by one selected weapon secondary. */
 #define SOTN_WEAPON_SECONDARY_ROWS 64
@@ -24,6 +25,9 @@ typedef struct SotnWeaponSecondaryRow
 typedef struct SotnWeaponSecondary
 {
     SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
+    /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
+     * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
+    SotnPlayerEffectQuad quad;
     SotnEquipment properties;
     Sint32 x, y;
     Uint32 flags;
@@ -32,6 +36,8 @@ typedef struct SotnWeaponSecondary
     Uint16 parameter; /**< Actual factory child params (paramsBase plus index). */
     Uint16 bank, palette, texture, priority, row_priority, blend, pose, frame, hitbox_state;
     Uint16 draw_mode; /**< Shared original row drawMode without DRAW_HIDE (ABR in bits5..6). */
+    Sint16 rotate, lifetime; /**< Weapon53 slash rotation and private-table radius. */
+    Uint16 age;              /**< Weapon53 unk7E: completed callbacks, retired at nine. */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
     bool facing_left, removed, allocated;
 } SotnWeaponSecondary;
@@ -51,6 +57,7 @@ typedef struct SotnWeaponSecondaryInput
     Uint16 substep; /**< Actual player step_s; weapon38/39 retire outside0x5A. */
     Uint8 draw_flags;
     bool facing_left;
+    bool crouch;    /**< Actual player status crouch bit0x20 (weapon53 vertical offset). */
     bool allocated; /**< The mandatory rows were reserved before the first callback. */
 } SotnWeaponSecondaryInput;
 
@@ -58,14 +65,17 @@ typedef struct SotnWeaponSecondaryInput
 typedef struct SotnWeaponSecondaryEvents
 {
     Uint16 sounds[2]; /**< Ordered original PlaySfx requests; zero when absent. */
+    /** Weapon53 roots: packed WFACTORY(0x38,n) from this child (its own raw parent). */
+    Uint32 chain;
     /** SetWeaponProperties ran: the caller increments the least-used group, then copies the raw
      * parent's enemyId over it. */
     bool properties;
 } SotnWeaponSecondaryEvents;
 
-/** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39). */
+/** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53). */
 bool SotnWeaponSecondary_Supported(Uint16 family);
-/** @brief Number of mandatory LINE_G2 rows reserved before the first callback; zero if none. */
+/** @brief Number of mandatory rows (LINE_G2, or weapon53's one GT4) reserved before the first
+ * callback; zero if none. */
 Uint8 SotnWeaponSecondary_Rows(Uint16 family);
 
 /** @brief Run one original selected func_ptr_80170004 callback.

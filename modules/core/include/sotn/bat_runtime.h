@@ -83,6 +83,7 @@ typedef struct SotnBatRuntimeChild
             SotnWeaponSecondary motion;
             SotnPlayerAttack attack;
             Uint16 family, item; /**< item: raw parent equip id copied at birth. */
+            Uint16 parent_slot;  /**< Raw parent slot16..31; never generation-checked. */
         } secondary;
         struct
         {
@@ -220,7 +221,8 @@ typedef struct SotnBatRuntime
             star_parent_slot, karma_parent_slot;
         bool sire_factory, magic_factory, thrown_factory, thrown_particles, star_factory,
             karma_factory;
-        bool secondary_factory; /**< Weapon WFACTORY(0x38) from the actual slot16 program. */
+        bool secondary_factory;       /**< Weapon WFACTORY(0x38) from the actual slot16 program. */
+        Uint16 secondary_parent_slot; /**< Raw ext.weapon.parent: slot16 or a secondary. */
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;

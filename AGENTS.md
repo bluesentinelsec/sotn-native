@@ -1,3 +1,11 @@
+Selected [Katana](docs/player-katana.md) now owns two-handed item100/QCF special189
+through weapon53: descriptors1/3 blend a quarter; descriptor1 requests WFACTORY(56,0) before
+properties. Slash children own one mandatory GT4, roots0/10/20/30 (and 40..49) copy raw-parent
+properties/enemyId, roots request WFACTORY(0x38,age+param+1) every callback (nine chained
+children whose raw parent is the root's slot, even when reborn into it), CLUT schedules,
+nine-callback lifetime and entity-relative DRAW_UNK02 corners. Osafune/Masamune (kind135
+warp) and Yasutsuna (thrown) remain unavailable.
+
 Selected [Rapier/Were bane](docs/player-lunge-weapons.md) now own items23/22 and QCF
 lunges191/190 through weapon38/39 and the shared weapon-secondary owner. Descriptor1 requests
 WFACTORY(0x38,0) on pose4's final update. Kind26 stops both velocities, holds pose6 on a

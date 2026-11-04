@@ -39,7 +39,10 @@ Selected virtual items:
 - Rapier23's special191 and Were bane22's special190: kind26 lunges that hold pose6 for up
   to forty updates with their own spark secondaries (see [lunges](player-lunge-weapons.md)).
 
-The other ~22 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+- Katana100's QCF special189: kind1, weapon53 descriptor1 with the chained GT4 slash
+  secondary (see [Katana](player-katana.md)).
+
+The other ~21 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

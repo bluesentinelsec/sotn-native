@@ -75,6 +75,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 55, 1, 0x41, 0, 0, 196, 0};
     case 196:
         return (PlainSpec){1, 55, 28, 0x41, 1, 0, 0, 5};
+    case 100: // Katana and its QCF slash special189
+        return (PlainSpec){5, 53, 1, 0x41, 0, 0, 189, 0};
+    case 189:
+        return (PlainSpec){5, 53, 1, 0x41, 1, 0, 0, 0};
     case 23: // Rapier and its QCF lunge special191
         return (PlainSpec){0, 38, 16, 0xae, 0, 0, 191, 0};
     case 191:
@@ -99,7 +103,7 @@ bool SotnEquipment_IsPlainWeapon(Uint16 id)
 }
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
-    return id == 21 || id == 26 || id == 27 || id == 84 || id == 127;
+    return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {

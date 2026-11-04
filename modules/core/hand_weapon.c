@@ -475,6 +475,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 31:
     case 38:
     case 39:
+    case 53:
     case 55:
     case 32:
     case 33:
@@ -522,6 +523,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 54 ? 3
                              : in.family == 55 ? 2
                              : in.family == 38 ? 2
+                             : in.family == 53 ? 5
                              : in.family == 39 ? 2
                              : in.family == 32 ? 2
                              : in.family == 51 ? 1
@@ -538,6 +540,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 54 ? 0xec4U
                                   : in.family == 55 ? 0x10acU
                                   : in.family == 38 ? 0xdc0U
+                                  : in.family == 53 ? 0xf4cU
                                   : in.family == 39 ? 0xdc0U
                                   : in.family == 32 ? 0x8f8U
                                   : in.family == 51 ? 0xcd8U
@@ -596,8 +599,11 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
                     in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
-                    in.family == 57)
+                    in.family == 57 || in.family == 53)
                     w.blend = 0x30;
+                // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
+                if (in.family == 53 && (variant == 1 || variant == 3))
+                    w.blend = 0x70;
                 else if (in.family == 35)
                     w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
                 if (in.family == 43 && in.allocated)
@@ -628,6 +634,13 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     e.sound = 0x69d;
                     e.factory = 0x38U | ((in.hand + 1U) << 12);
                 }
+                // w_053 descriptors1/3/4 request WFACTORY(56,0/10/0x14) before properties.
+                if (in.family == 53 && (variant == 1 || variant == 3 || variant == 4))
+                    e.factory = 0x38U | ((in.hand + 1U) << 12) |
+                                ((Uint32)(variant == 1   ? 0
+                                          : variant == 3 ? 10
+                                                         : 0x14)
+                                 << 16);
                 if (!w.removed)
                 {
                     if (!Properties(&w, in, &rng, &e))

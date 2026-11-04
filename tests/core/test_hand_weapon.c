@@ -475,6 +475,40 @@ static bool Lunges(void)
     }
     return true;
 }
+// w_053 descriptors1/3 blend a quarter; descriptors1/3/4 request slash roots0/10/0x14 at birth.
+static bool Katana(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    for (Uint16 v = 0; v < 5; ++v)
+        SDL_memcpy(o + 0xf4c + v * 16U, o + 0x106c, 16);
+    for (Uint16 k = 0; k < 10; ++k)
+    {
+        const Uint16 variant = k % 5U, hand = k / 5U;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 53,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .animation = 0x41,
+                                  .pose = 0,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.properties &&
+              w.blend == (variant == 1 || variant == 3 ? 0x70 : 0x30));
+        const Uint32 root = variant == 1 ? 0 : variant == 3 ? 10 : 0x14;
+        CHECK(e.factory == (variant == 1 || variant == 3 || variant == 4
+                                ? 0x38U | (hand + 1U) << 12 | root << 16
+                                : 0U));
+    }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -973,7 +1007,7 @@ static bool Ownership(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   Lunges() && KnifeAndGreatSword() && Ownership()
+                   Lunges() && Katana() && KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }

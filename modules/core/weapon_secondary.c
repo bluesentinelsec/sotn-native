@@ -45,6 +45,8 @@ static bool Program(Uint16 family, Layout *out)
                         .texture = 0x65};
     else if (family == 38 || family == 39)
         *out = (Layout){.rows = family == 38 ? 24 : 32};
+    else if (family == 53)
+        *out = (Layout){.rows = 1};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -52,7 +54,7 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
-    return family == 55 || family == 38 || family == 39;
+    return family == 55 || family == 38 || family == 39 || family == 53;
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
 {
@@ -199,6 +201,100 @@ static bool Lunge(SotnWeaponSecondary *s, SotnHandWeaponProgram *program,
     return true;
 }
 
+static bool View(SotnDataView o, Uint32 at, Uint32 size, const Uint8 **out)
+{
+    if (!o.bytes || at > o.size || o.size - at < size)
+        return SDL_SetError("Weapon secondary private table is outside its program");
+    *out = o.bytes + at;
+    return true;
+}
+// w_053 (shared with w_056): one textured GT4 slash per child. Roots0/10/20/30/40 request a
+// chained child every callback; nine callbacks complete it.
+static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                  SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 params = (s->parameter >> 8) & 0x7fU;
+    const Uint8 *config = NULL, *cluts = NULL;
+    if (params >= 48 || !View(in.overlay, 0xfc4U + params * 14U, 14, &config) ||
+        !View(in.overlay, 0xf9cU, 40, &cluts))
+        return SDL_SetError("Weapon53 slash parameter exceeds its private table");
+    const bool root = params == 0 || params == 10 || params == 20 || params == 30;
+    if (!s->phase)
+    {
+        s->facing_left = in.facing_left;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)(in.facing_left ? -20 : 20) * 65536U);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)(in.crouch ? 11 : -5) * 65536U);
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->allocated = true;
+        const Uint8 v = in.hand ? 0x80 : 0;
+        SotnPlayerEffectQuad q = {
+            .page = 0x19, .priority = (Uint16)(in.priority + 2U), .draw_mode = 0x137};
+        q.u[0] = q.u[2] = Read16(config) ? 0xc0 : 0x80;
+        q.u[1] = q.u[3] = Read16(config) ? 0x80 : 0xc0;
+        q.v[0] = q.v[1] = Read16(config + 2) ? (Uint8)(v | 0x40U) : v;
+        q.v[2] = q.v[3] = Read16(config + 2) ? v : (Uint8)(v | 0x40U);
+        for (Uint16 i = 0; i < 4; ++i)
+        {
+            q.red[i] = config[10];
+            q.green[i] = config[11];
+            q.blue[i] = config[12];
+        }
+        s->quad = q;
+        s->flags = 0x08820000U;
+        if (root || (params > 0x27 && params <= 0x31))
+        {
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->hitbox_width = 30;
+            s->hitbox_height = 32;
+        }
+        if (!(params & 3U))
+            e->sounds[0] = 0x60c;
+        s->rotate = (Sint16)Read16(config + 8);
+        s->lifetime = (Sint16)Read16(config + 6);
+        s->age = 0;
+        s->phase = 1;
+    }
+    if (root || params == 0x28)
+        e->chain = 0x38U | ((in.hand + 1U) << 12) | ((Uint32)(s->age + params + 1U) << 16);
+    s->quad.palette = (Uint16)((in.hand ? 0x18 : 0) +
+                               Read16(cluts + (Read16(config + 4) ? 20U : 0U) + s->age * 2U));
+    if (++s->age >= 9)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (params >= 0x1e && params < 0x32)
+        s->hitbox_x = 0x12;
+    else
+    {
+        // posX.i.hi only: the child keeps its own fraction.
+        s->x = (Sint32)((Uint32)(Pixel(in.x) + (s->facing_left ? -0x26 : 0x26)) * 65536U |
+                        ((Uint32)s->x & 0xffffU));
+        s->y = (Sint32)((Uint32)(Pixel(in.y) + (in.crouch ? 0xb : -5)) * 65536U |
+                        ((Uint32)s->y & 0xffffU));
+    }
+    // Corners at rotate+0x600, -0x400, -0x800, +0x400, scaled by the private radius.
+    const Sint16 steps[4] = {0x600, -0x400, -0x800, 0x400};
+    Sint16 angle = s->rotate;
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        angle = Word(angle + steps[i]);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        const Sint32 dx = Asr(Asr(t.cosine, 4) * s->lifetime, 8),
+                     dy = Asr(Asr(t.sine, 4) * s->lifetime, 8);
+        s->quad.x[i] = Word(s->facing_left ? -dx : dx);
+        s->quad.y[i] = Word(-dy);
+    }
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -214,6 +310,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     SotnHandWeaponProgram shared = *program;
     SotnWeaponSecondaryEvents e = {0};
     Uint32 rng = *random;
+    if (in.family == 53)
+    {
+        if (!Slash(&s, in, &rng, &e))
+            return false;
+        goto commit;
+    }
     s.x = in.x;
     s.y = in.y;
     s.facing_left = in.facing_left;
