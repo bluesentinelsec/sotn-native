@@ -4,13 +4,15 @@
 #include <sotn/player_blink.h>
 
 #define SOTN_HAND_WEAPON_TILES 16
+/** Mandatory original weapon1 GT4 punch-trail rows. */
+#define SOTN_HAND_WEAPON_FIST_ROWS 4
 /** @brief Actual per-hand writable weapon37/52 program data; never save data. */
 typedef struct SotnHandWeaponProgram
 {
     Uint32 short_pose;
     Sint32 shield_attack;
 } SotnHandWeaponProgram;
-/** @brief Selected ordinary shared weapon entity, including optional weapon43 tiles. */
+/** @brief Selected ordinary shared weapon entity: optional weapon43 TILEs or weapon1 GT4 trails. */
 typedef struct SotnHandWeapon
 {
     SotnPlayerEffectQuad tiles[SOTN_HAND_WEAPON_TILES];
@@ -31,6 +33,10 @@ typedef bool (*SotnHandWeaponProperties)(void *, Uint32 *random, SotnEquipment *
 typedef struct SotnHandWeaponInput
 {
     SotnDataView overlay;
+    /** Borrowed private executable for weapon1 SDK sqrt/atan2/trig tables. */
+    SotnDataView executable;
+    /** Actual current camera; weapon1 trails are screen-space GT4s. */
+    Sint32 camera_x, camera_y;
     SotnHandWeaponProperties properties;
     void *context;
     Sint32 x, y, velocity_x;
@@ -51,8 +57,10 @@ typedef struct SotnHandWeaponEvents
  * @param family Actual private program identity. @return Whether this callback is reconstructed.
  * Resource, property, factory, blocking and native presentation ownership remain required. */
 bool SotnHandWeapon_IsShieldFamily(Uint16 family);
-/** @brief Execute a complete selected ordinary weapon0/2/9/11/26/31/37/43/52 or unarmed255
+/** @brief Execute a complete selected ordinary weapon0/1/2/9/11/26/31/37/43/52 or unarmed255
  * callback. Unarmed255 borrows DRA instead of a weapon overlay and copies no sprite transforms.
+ * Weapon1 (descriptors0..3) requires its four mandatory rows: allocated false destroys it before
+ * flags/properties/RNG; its trails use the supplied camera and executable SDK tables.
  * Private animations remain borrowed. Actual factories, slot16 replacement, weapon properties,
  * groups, optional weapon43 leases, rendering and combat are caller obligations. Outputs and
  * the working RNG/program cursors commit together only on success. No controls are enabled. */

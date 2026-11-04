@@ -215,6 +215,143 @@ static bool BasicShields(void)
         }
     return true;
 }
+// Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
+static void FistResources(Uint8 *o)
+{
+    Resources(o);
+    for (Uint16 v = 0; v < 5; ++v)
+    {
+        Uint8 *d = o + 0xf44 + v * 16U;
+        Put32(d, 0x8017a100);
+        Put32(d + 4, 0x8017a200);
+        Put16(d + 8, (Uint16)(0x19e + v));
+        Put16(d + 10, 0x60c);
+        d[12] = 0x24;
+        d[13] = 1;
+    }
+    for (Uint16 a = 0; a < 7; ++a)
+    {
+        Put16(o + 0xf94 + a * 4U, (Uint16)(18 + a));
+        Put16(o + 0xf96 + a * 4U, (Uint16)(Sint16)(-13 + a));
+    }
+    const Uint8 colors[] = {0, 32, 32, 80, 80, 32, 32, 0};
+    SDL_memcpy(o + 0xfb0, colors, sizeof(colors));
+}
+// Linear authored SDK tables at the original executable offsets.
+static void FistMath(Uint8 *exe)
+{
+    for (Uint32 i = 0; i <= 1024; ++i)
+    {
+        Put16(exe + 0x22a10 + i * 2, (Uint16)(i / 2));
+        Put16(exe + 0x1dbcc + i * 2, (Uint16)(i * 4));
+    }
+    for (Uint32 i = 0; i < 192; ++i)
+        Put16(exe + 0x1e3e0 + i * 2, 4096);
+}
+static bool BasicFists(void)
+{
+    static Uint8 o[0x1200], exe[0x24000];
+    FistResources(o);
+    FistMath(exe);
+    SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                              .executable = {exe, sizeof(exe)},
+                              .camera_x = 30,
+                              .camera_y = 10,
+                              .properties = Properties,
+                              .x = 100 * 65536 + 77,
+                              .y = 50 * 65536 + 5,
+                              .family = 1,
+                              .priority = 148,
+                              .animation = 0x24,
+                              .pose = 2,
+                              .remaining = 2,
+                              .attack_mode = 0x8002,
+                              .draw_flags = 2,
+                              .allocated = false};
+    SotnHandWeaponProgram program = {.short_pose = 9, .shield_attack = -3};
+    SotnHandWeaponEvents e = {.sound = 77};
+    // Exhausted mandatory rows destroy the entity before flags, properties or RNG.
+    SotnHandWeapon w = {.parameter = 0};
+    Uint32 rng = 5;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.removed && !w.flags &&
+          !w.allocated && !e.properties && !e.sound && rng == 5 && !w.phase &&
+          program.short_pose == 9 && program.shield_attack == -3);
+    // Birth binds four GT4 rows, no sprite bank, then the property roll and per-row rand.
+    in.allocated = true;
+    SDL_zero(w);
+    Uint32 expected = rng;
+    (void)SotnCombat_Random(&expected);
+    Uint32 spreads[4] = {0};
+    for (Uint16 i = 0; i < 4; ++i)
+        spreads[i] = (SotnCombat_Random(&expected) & 15U) + 16U;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !w.removed && w.allocated &&
+          w.flags == 0x860000U && e.properties && w.phase == 1 && !w.bank && !w.palette &&
+          !w.texture && !w.blend && !w.priority && rng == expected && w.frame == 23 &&
+          w.hitbox_x == -4 && w.hitbox_y == -6);
+    const Sint16 x = (Sint16)(100 - 30 + 18), y = (Sint16)(50 - 10 - 13 - 3);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const SotnPlayerEffectQuad *q = &w.tiles[i];
+        CHECK(q->page == 0x1a && q->palette == 0x19e && q->priority == 152 &&
+              q->draw_mode == 0x335 && q->u[0] == 0x80 && q->u[1] == 0xa0 && q->u[2] == 0x80 &&
+              q->v[0] == 0x80 + i * 4 && q->v[2] == 0x84 + i * 4 && q->red[1] == 0 &&
+              q->red[0] == (Uint8)(i ? (i == 1   ? 32
+                                        : i == 2 ? 80
+                                                 : 32)
+                                     : 0) &&
+              q->x[0] == x + 16 && q->x[2] == x + 16 && q->x[1] == x - (Sint16)spreads[i] &&
+              q->x[3] == q->x[1] && q->y[0] == -8 + y + i * 4 && q->y[2] == q->y[0] + 4);
+    }
+    // Variant0 hides animation0 pose4; variant1 keeps it, using its own descriptor palette.
+    in.pose = 4;
+    const SotnHandWeapon visible = w;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected &&
+          (w.tiles[0].draw_mode & 8U) && w.tiles[0].x[0] == visible.tiles[0].x[0]);
+    SotnHandWeapon second = {.parameter = 0x100};
+    Uint32 second_rng = 11;
+    CHECK(SotnHandWeapon_Tick(&second, &program, in, &second_rng, &e) &&
+          second.tiles[0].palette == 0x19f && !(second.tiles[0].draw_mode & 8U));
+    // Facing left mirrors the origin and spread; scale flag absent leaves Y unchanged.
+    in.pose = 2;
+    in.facing_left = true;
+    in.draw_flags = 0;
+    expected = rng;
+    const Uint32 left_spread = (SotnCombat_Random(&expected) & 15U) + 16U;
+    for (Uint16 i = 1; i < 4; ++i)
+        (void)SotnCombat_Random(&expected);
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected &&
+          w.tiles[0].x[0] == 100 - 30 - 18 - 16 &&
+          w.tiles[0].x[1] == 100 - 30 - 18 + (Sint16)left_spread &&
+          w.tiles[0].y[0] == 50 - 10 - 13 - 8);
+    // Animation5 follow-through rotates every vertex with SDK sqrt/atan2/trig; table failure
+    // leaves the entity, rows and RNG untouched.
+    in.animation = 0x29;
+    in.pose = 1;
+    const SotnHandWeapon before = w;
+    const Uint32 before_rng = rng;
+    in.executable.size = 0x1000;
+    CHECK(!SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == before_rng &&
+          !SDL_memcmp(&w, &before, sizeof(w)));
+    in.executable.size = sizeof(exe);
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.animation == 5 &&
+          !(w.tiles[0].draw_mode & 8U));
+    SotnHandWeapon flat = before;
+    Uint32 flat_rng = before_rng;
+    in.animation = 0x28;
+    CHECK(SotnHandWeapon_Tick(&flat, &program, in, &flat_rng, &e) && flat_rng == rng &&
+          (flat.tiles[0].x[0] != w.tiles[0].x[0] || flat.tiles[0].y[0] != w.tiles[0].y[0]));
+    // Descriptor4 is Iron Fist's special; malformed trail colors fail before publication.
+    SotnHandWeapon special = {.parameter = 0x400};
+    Uint32 special_rng = 3;
+    CHECK(!SotnHandWeapon_Tick(&special, &program, in, &special_rng, &e) && special_rng == 3 &&
+          !special.phase);
+    SotnHandWeapon truncated = {0};
+    in.overlay.size = 0xfb4;
+    in.animation = 0x24;
+    CHECK(!SotnHandWeapon_Tick(&truncated, &program, in, &special_rng, &e) && special_rng == 3 &&
+          !truncated.phase && !truncated.allocated);
+    return true;
+}
 static void Definition(Uint8 *dra, Uint16 item, Uint16 family, Uint16 attack)
 {
     Uint8 *p = dra + 0x500 + item * 52U;
@@ -480,6 +617,91 @@ static bool Ownership(void)
         CHECK(SotnBatRuntime_RetireHand(r, true) && !r->children[0].hand_weapon && !r->hand_shield);
     }
     CHECK(SotnCharacter_SetStatBuffMask(character, 0));
+    // Knuckle duster85/Jewel knuckles97 own four mandatory shared rows in slot16; exhaustion
+    // omits the attack before properties, and retirement releases every actual row.
+    static Uint8 fist_exe[0x24000];
+    FistMath(fist_exe);
+    FistResources(weapons + 0x7000U + 0x4000U);
+    in.executable = (SotnDataView){fist_exe, sizeof(fist_exe)};
+    for (Uint16 k = 0; k < 2; ++k)
+    {
+        const Uint16 id = k ? 97 : 85;
+        Definition(dra, id, 1, k ? 21 : 1);
+        Uint8 *record = dra + 0x500 + id * 52U;
+        record[14] = 3;
+        record[17] = 0;
+        record[18] = 0x24;
+        record[20] = (Uint8)k;
+        record[21] = 5;
+        SotnEquipment definition = {0};
+        record[24] = 186;
+        CHECK(!SotnEquipment_Read(actors->dra, id, &definition));
+        record[24] = 0;
+        CHECK(SotnEquipment_Read(actors->dra, id, &definition) && definition.family == 1 &&
+              definition.variant == k && definition.animation == 0x24);
+        CHECK(SotnCharacter_Collect(character, false, id) &&
+              SotnCharacter_Equip(character, SOTN_EQUIP_LEFT, id));
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            actors->primitives[i].owner = i == 7 ? 777U : 0U;
+        SDL_zero(*r);
+        in.weapon_family[0] = in.weapon_family[1] = 1;
+        in.player.animation.id = 0x24;
+        in.player.animation.pose = 2;
+        in.player.animation.remaining = 2;
+        in.player.attack_mode = 0x8002;
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        expected = progress.random;
+        for (Uint16 i = 0; i < 5; ++i)
+            (void)SotnCombat_Random(&expected);
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(r, source, 0x1030 | ((Uint32)k << 16), id, &allocated) &&
+              allocated && SotnBatRuntime_Tick(r, character, in));
+        const SotnBatRuntimeChild *c = &r->children[0];
+        CHECK(c->hand_weapon && c->state.hand.family == 1 && c->group == 1 &&
+              c->primitive_count == SOTN_HAND_WEAPON_FIST_ROWS && SotnBatRuntime_HandValid(c, 0) &&
+              r->hand_attack && c->parameter == (Uint16)(k << 8) &&
+              !(c->state.hand.motion.tiles[0].draw_mode & 8U) &&
+              SotnCharacter_Get(character, &progress, NULL) && progress.random == expected &&
+              SotnActors_CommitBatPrimitives(actors, r) && actors->primitives[7].owner == 777);
+        // Room rebases translate all four trail vertices without a callback or RNG.
+        const SotnHandWeapon placed = c->state.hand.motion;
+        in.entering = true;
+        in.room_shift_x = 7;
+        in.screen_shift_x = -5;
+        in.screen_shift_y = 3;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) &&
+              SotnCharacter_Get(character, &progress, NULL) && progress.random == expected &&
+              c->state.hand.motion.x == placed.x + 7 * 65536 &&
+              SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 0; i < SOTN_HAND_WEAPON_FIST_ROWS; ++i)
+            for (Uint16 v = 0; v < 4; ++v)
+                CHECK(c->state.hand.motion.tiles[i].x[v] == placed.tiles[i].x[v] - 5 &&
+                      c->state.hand.motion.tiles[i].y[v] == placed.tiles[i].y[v] + 3);
+        in.entering = false;
+        in.room_shift_x = in.screen_shift_x = in.screen_shift_y = 0;
+        Uint16 leased = 0;
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            leased += actors->primitives[i].owner && i != 7;
+        CHECK(leased == SOTN_HAND_WEAPON_FIST_ROWS && SotnBatRuntime_RetireHand(r, false) &&
+              SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            CHECK(actors->primitives[i].owner == (i == 7 ? 777U : 0U));
+        // Three free rows cannot satisfy the mandatory four: no attack, group or property roll.
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            actors->primitives[i].owner = i < 3 ? 0U : 777U;
+        SDL_zero(*r);
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        expected = progress.random;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(r, source, 0x1030 | ((Uint32)k << 16), id, &allocated) &&
+              allocated && SotnBatRuntime_Tick(r, character, in) && !r->children[0].kind &&
+              !r->hand_attack && !r->groups[1] && SotnCharacter_Get(character, &progress, NULL) &&
+              progress.random == expected && SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            CHECK(actors->primitives[i].owner == (i < 3 ? 0U : 777U));
+    }
+    in.executable = (SotnDataView){0};
     SotnCharacter_Destroy(character);
     SDL_free(before);
     SDL_free(r);
@@ -490,5 +712,5 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && Ownership() ? 0 : 1;
+    return Run() && BasicShields() && BasicFists() && Ownership() ? 0 : 1;
 }

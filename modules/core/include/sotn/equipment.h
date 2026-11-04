@@ -22,6 +22,9 @@ typedef struct SotnWeaponFrame
 /** @brief Selected Knight6/AxeLord8/Shaman12 ordinary shield identities with shared owners.
  * Metadata recognition alone is not a resource/factory/blocking availability gate. */
 bool SotnEquipment_IsBasicShield(Uint16 id);
+/** @brief Selected Knuckle duster85/Jewel knuckles97 weapon1 fists without weapon specials.
+ * Iron Fist102 and Fist of Tulkas120 require their special owners and are excluded. */
+bool SotnEquipment_IsBasicFist(Uint16 id);
 /** @brief Selected ordinary shields6/8/12/16 with actual shared callbacks. */
 bool SotnEquipment_IsShield(Uint16 id);
 
@@ -32,7 +35,8 @@ bool SotnEquipment_IsSword0(Uint16 id);
 /** @brief Read a supported hand-item definition, without importing runtime tables.
  * @param dra Borrowed immutable DRA bytes. @param id Empty hand (0), Basilard (18), the selected
  * weapon0 swords including Namakura/Badelaire, Short sword (19), Mace (128), Alucard sword (123),
- * Alucard shield (16), Knight6/AxeLord8/Shaman12 ordinary shields, medicines144..162, or Library
+ * Alucard shield (16), Knight6/AxeLord8/Shaman12 ordinary shields, Knuckle duster85/Jewel
+ * knuckles97, medicines144..162, or Library
  * Card (166), Karma Coin24, Magic Missile25, food29..70, Neutron Bomb71, Power of Sire72 and
  * Pentagrams73/74, stars/TNT75..79 and throwing items80..82/134/135.
  * @param out Receives copied metadata, unchanged on failure.

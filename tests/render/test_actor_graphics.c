@@ -325,6 +325,27 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
         CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
     }
+    // Weapon1's original CLUT table holds NULL: LoadWeaponPalette returns without any write,
+    // so the previous hand colors remain while the program and texture still bind.
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 0, (SotnEquipment){.id = 86, .family = 0}));
+    Uint8 *fist = fixture->weapons + 0x7000U + 0x4000U;
+    SDL_memcpy(fist, fixture->weapons + 0x4000, 0x3000);
+    Put32(fist + 0xfec, 0);
+    fixture->weapons[0x7000U] = 0x11;
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 0, (SotnEquipment){.id = 85, .family = 1}));
+    Uint8 fist_family = 0;
+    bool fist_bound = false;
+    CHECK(SotnActorGraphics_WeaponBinding(graphics, 0, &fist_family, &fist_bound) && fist_bound &&
+          fist_family == 1);
+    ClearFrame(fixture);
+    const SotnActorSprite retained = {
+        .animation_set = 16, .frame = 1, .palette = 0x110, .texture_offset = 0x64};
+    CHECK(SotnActorGraphics_Draw(graphics, retained, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 85, .family = 1, .palette = 1}));
     // Original shield palette copies always span 24 rows. Knight shield9's copy crosses its live
     // g_HandId word (color 14 of row 21), so the upload carries the bound hand, not the authored
     // bytes; Alucard shield52's copy ends before its hand word and keeps the authored color.

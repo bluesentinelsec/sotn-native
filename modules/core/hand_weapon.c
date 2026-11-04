@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Ordinary weapon/w_000.c, w_002.c, w_009.c, w_011.c, w_026.c, w_031.c,
+// Ordinary weapon/w_000.c, w_001.c, w_002.c, w_009.c, w_011.c, w_026.c, w_031.c,
 // w_037.c, w_043.c, w_052.c and
 // dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // All original animation, hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
+#include <sotn/game_math.h>
 #include <sotn/hand_weapon.h>
 static Sint16 Word(Sint32 n)
 {
@@ -248,6 +249,96 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
     Transform(w, in);
     return true;
 }
+static Sint16 Signed16(const Uint8 *p)
+{
+    return Word(Read16(p));
+}
+// w_001.c EntityWeaponAttack birth: four mandatory GT4 trails before SetWeaponProperties.
+static bool FistBirth(SotnHandWeapon *w, SotnHandWeaponInput in, const Uint8 *descriptor)
+{
+    const Uint8 *colors = NULL;
+    if (!View(in.overlay, 0xfb0, 8, &colors))
+        return false;
+    for (Uint16 i = 0; i < SOTN_HAND_WEAPON_FIST_ROWS; ++i)
+    {
+        SotnPlayerEffectQuad *q = &w->tiles[i];
+        *q = (SotnPlayerEffectQuad){.page = 0x1a,
+                                    .palette = Read16(descriptor + 8),
+                                    .priority = (Uint16)(in.priority + 4U),
+                                    .draw_mode = 0x335};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0xa0;
+        q->v[0] = q->v[1] = (Uint8)(0x80U + i * 4U);
+        q->v[2] = q->v[3] = (Uint8)(0x80U + (i + 1U) * 4U);
+        q->red[0] = q->green[0] = q->blue[0] = colors[i * 2U];
+        q->red[2] = q->green[2] = q->blue[2] = colors[i * 2U + 1U];
+    }
+    w->allocated = true;
+    w->flags = 0x860000U;
+    return true;
+}
+static Uint16 FistPhase(Uint16 animation, Uint16 pose, Uint16 variant)
+{
+    const bool first = variant == 0;
+    if (animation <= 3)
+        return first ? pose == 2 || pose == 3 : pose >= 2 && pose <= 4;
+    if (animation == 4 || animation == 5)
+    {
+        const bool active = first ? pose == 1 || pose == 2 : pose >= 1 && pose <= 3;
+        return active ? (animation == 4 ? 1 : 2) : 0;
+    }
+    return 0;
+}
+// w_001.c trail placement: one libc call per row, then the SDK follow-through rotation.
+static bool FistTrails(SotnHandWeapon *w, SotnHandWeaponInput in, Uint16 variant, Uint32 *random)
+{
+    const Uint16 phase = FistPhase(w->animation, in.pose, variant);
+    if (!phase)
+    {
+        for (Uint16 i = 0; i < SOTN_HAND_WEAPON_FIST_ROWS; ++i)
+            w->tiles[i].draw_mode |= 8U;
+        return true;
+    }
+    const Uint8 *offsets = NULL;
+    if (w->animation > 6 || !View(in.overlay, 0xf94 + w->animation * 4U, 4, &offsets))
+        return false;
+    Sint16 x_offset = Signed16(offsets), y_offset = Signed16(offsets + 2);
+    if (in.facing_left)
+        x_offset = Word(-x_offset);
+    const Sint16 x = Word(Pixel(in.x) - in.camera_x + x_offset);
+    Sint16 y = Word(Pixel(in.y) - in.camera_y + y_offset);
+    if (in.draw_flags & 2U)
+        y = Word(y - 3);
+    const Sint16 base_angle = in.facing_left ? 512 : -512;
+    for (Uint16 i = 0; i < SOTN_HAND_WEAPON_FIST_ROWS; ++i)
+    {
+        SotnPlayerEffectQuad *q = &w->tiles[i];
+        const Sint32 spread = (Sint32)(SotnCombat_Random(random) & 15U) + 16;
+        q->x[0] = q->x[2] = Word(x + (in.facing_left ? -16 : 16));
+        q->x[1] = q->x[3] = Word(in.facing_left ? x + spread : x - spread);
+        q->y[0] = q->y[1] = Word(-8 + y + i * 4);
+        q->y[2] = q->y[3] = Word(q->y[0] + 4);
+        q->draw_mode &= 0xfff7U;
+        if (phase != 2)
+            continue;
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            const Sint16 width = Word(q->x[v] - x), height = Word(q->y[v] - y);
+            Uint32 root = 0;
+            Sint16 direction = 0;
+            SotnMathTrig trig = {0};
+            const Sint32 squared = (Sint32)width * width + (Sint32)height * height;
+            if (!SotnMath_Sqrt12(in.executable, (Uint32)squared << 12, &root) ||
+                !SotnMath_Atan2(in.executable, -height, width, &direction) ||
+                !SotnMath_Trig(in.executable, Word(base_angle + direction), &trig))
+                return false;
+            const Sint32 size = (Sint32)(root >> 12);
+            q->x[v] = Word(x + (((trig.cosine >> 4) * size) >> 8));
+            q->y[v] = Word(y - (((trig.sine >> 4) * size) >> 8));
+        }
+    }
+    return true;
+}
 static void Tiles(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *random)
 {
     Sint16 modifier = 0;
@@ -289,7 +380,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
 {
     if (!out || !program || !random || !events || out->removed || in.hand > 1 ||
         out->phase > (SotnHandWeapon_IsShieldFamily(in.family) ? 4 : 1) ||
-        (in.family != 0 && in.family != 2 && in.family != 31 && in.family != 37 &&
+        (in.family != 0 && in.family != 1 && in.family != 2 && in.family != 31 && in.family != 37 &&
          in.family != 43 && !SotnHandWeapon_IsShieldFamily(in.family) && in.family != 255))
         return SDL_SetError("Ordinary weapon requires a supported live hand/program context");
     SotnHandWeapon w = *out;
@@ -305,13 +396,16 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
     {
         const Uint16 variant = (w.parameter & 0x7fffU) >> 8;
         const Uint32 base = in.family == 255 ? 0x800a0000U : 0x8017a000U;
+        // Weapon1 descriptor4 belongs to Iron Fist's special and has no selected owner.
         const Uint16 count = in.family == 0    ? 5
+                             : in.family == 1  ? 4
                              : in.family == 43 ? 3
                              : in.family == 37 ? 4
                              : in.family == 31 ? 2
                                                : 1;
         const Uint32 descriptor = in.family == 255  ? 0xd53cU
                                   : in.family == 0  ? 0x106cU
+                                  : in.family == 1  ? 0xf44U
                                   : in.family == 2  ? 0xbc4U
                                   : in.family == 31 ? 0x8ecU
                                   : in.family == 37 ? 0x6a4U
@@ -328,8 +422,11 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         {
             if (!w.phase)
             {
-                w.flags = 0x60000;
-                if (in.family != 255)
+                // Weapon1 assigns flags only after its mandatory rows exist.
+                if (in.family != 1)
+                    w.flags = 0x60000;
+                // Weapon1 sets no sprite bank, palette, priority or blend of its own.
+                if (in.family != 255 && in.family != 1)
                 {
                     w.bank = (Uint16)(0x8010U + in.hand * 2U);
                     w.palette = (Uint16)(0x110U + in.hand * 24U + Read16(d + 8));
@@ -353,10 +450,19 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         q->draw_mode = 0x239;
                     }
                 }
-                if (!Properties(&w, in, &rng, &e))
+                if (in.family == 1 && !in.allocated)
+                    w.removed = true;
+                else if (in.family == 1 && !FistBirth(&w, in, d))
                     return false;
-                ++w.phase;
+                if (!w.removed)
+                {
+                    if (!Properties(&w, in, &rng, &e))
+                        return false;
+                    ++w.phase;
+                }
             }
+            if (w.removed)
+                goto commit;
             w.animation = (Uint16)(in.animation - d[12]);
             if (in.remaining == 1 && in.pose == d[13])
                 e.sound = Read16(d + 10);
@@ -383,14 +489,17 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                 58U | ((in.hand + 1U) << 12) | ((Uint32)(variant - 1U) << 16);
                         shared.short_pose = in.pose;
                     }
-                    if (in.family != 255)
+                    if (in.family != 255 && in.family != 1)
                         Transform(&w, in);
                     if (in.family == 43 && w.allocated)
                         Tiles(&w, in, &rng);
+                    if (in.family == 1 && !FistTrails(&w, in, variant, &rng))
+                        return false;
                 }
             }
         }
     }
+commit:
     *out = w;
     *program = shared;
     *random = rng;

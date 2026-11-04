@@ -4913,7 +4913,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnHandWeapon *w = &c->state.hand.motion;
             if (!c->hand_weapon || !c->initialized || !SotnBatRuntime_HandValid(c, 0))
                 return SDL_SetError("Ordinary hand draw lost its actual shared slot16 owner");
-            if (command.kind == SOTN_DRAW_HAND_TILE)
+            if (command.kind == SOTN_DRAW_HAND_TILE && c->state.hand.family == 1)
+            {
+                // Weapon1 punch trails are textured screen-space GT4s.
+                if (c->primitive_count != SOTN_HAND_WEAPON_FIST_ROWS ||
+                    command.primitive >= SOTN_HAND_WEAPON_FIST_ROWS)
+                    return SDL_SetError("Ordinary fist trail lost its actual mandatory row");
+                if (!DrawPlayerEffectQuad(session, &w->tiles[command.primitive]))
+                    return false;
+            }
+            else if (command.kind == SOTN_DRAW_HAND_TILE)
             {
                 if (c->primitive_count != 16 || command.primitive >= 16)
                     return SDL_SetError("Ordinary sword TILE lost its actual optional row");

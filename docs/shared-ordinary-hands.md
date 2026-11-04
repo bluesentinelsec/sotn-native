@@ -100,7 +100,9 @@ familiars, full sharing/RNG/audio and Alucard/castle parity remain unfinished.
 Selected [Namakura/two-hand ownership](player-two-hand-equipment.md) now runs.
 Selected [Badelaire125](player-playtime-badelaire.md) now binds its actual playtime/stat owner and variant3.
 Selected [basic shields](player-basic-shields.md) add Knight6/AxeLord8/Shaman12; any
-hit-state4 guard now runs the original DealDamage roll before discarding damage. All six [milestone gates](alucard-status.md) remain open.
+hit-state4 guard now runs the original DealDamage roll before discarding damage.
+Selected [basic fists](player-basic-fists.md) add Knuckle duster85/Jewel knuckles97 with
+four mandatory shared GT4 trail rows. All six [milestone gates](alucard-status.md) remain open.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_000.c`, `w_002.c`, `w_031.c`,
 `w_037.c`, `w_043.c`, `w_052.c`, `dra/6E42C.c`, `6DF70.c`, `7879C.c`,

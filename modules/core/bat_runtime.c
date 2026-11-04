@@ -854,6 +854,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 18                   ? 31
            : item == 19                   ? 37
            : SotnEquipment_IsSword0(item) ? 0
+           : item == 85 || item == 97     ? 1
            : item == 123                  ? 43
            : item == 128                  ? 2
                                           : 256;
@@ -864,6 +865,7 @@ static Uint16 HandVariant(Uint16 item)
                                            : item >= 116 ? 2
                                            : item >= 104 ? 1
                                                          : 0)
+           : item == 97                 ? 1
                                         : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
@@ -890,6 +892,11 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     *allocated = false;
     return true;
 }
+// Weapon43 tiles are optional; weapon1 fist trails are mandatory before birth properties.
+static Uint16 HandRows(Uint16 family)
+{
+    return family == 43 ? SOTN_HAND_WEAPON_TILES : family == 1 ? SOTN_HAND_WEAPON_FIST_ROWS : 0;
+}
 bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->hand_weapon)
@@ -907,8 +914,9 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? w->phase &&
                       w->phase <= (SotnHandWeapon_IsShieldFamily(c->state.hand.family) ? 4 : 1) &&
                       c->group == hand + 1U && w->properties.id == c->state.hand.item &&
-                      c->primitive_count == (w->allocated ? 16 : 0) &&
-                      (!w->allocated || c->state.hand.family == 43)
+                      c->primitive_count == (w->allocated ? HandRows(c->state.hand.family) : 0) &&
+                      (!w->allocated || HandRows(c->state.hand.family)) &&
+                      (c->state.hand.family != 1 || w->allocated)
                 : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
@@ -2443,7 +2451,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
                 (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                 (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
-                (c->hand_weapon && c->state.hand.family == 43 && c->primitive_count == 16) ||
+                (c->hand_weapon && HandRows(c->state.hand.family) &&
+                 c->primitive_count == HandRows(c->state.hand.family)) ||
                 (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
                 (c->kind == 61 && c->primitive_count == 16) ||
                 (c->kind == 63 && c->primitive_count == 9) ||
@@ -2568,11 +2577,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnHandWeapon *w = &c->state.hand.motion;
             w->x = FixedShift(w->x, in.room_shift_x);
             w->y = FixedShift(w->y, in.room_shift_y);
+            // Weapon43 TILEs use one origin vertex; weapon1 GT4 trails own all four.
+            const Uint16 vertices = c->state.hand.family == 1 ? 4 : 1;
             for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
-            {
-                w->tiles[j].x[0] = Word(w->tiles[j].x[0] + in.screen_shift_x);
-                w->tiles[j].y[0] = Word(w->tiles[j].y[0] + in.screen_shift_y);
-            }
+                for (Uint16 v = 0; v < vertices; ++v)
+                {
+                    w->tiles[j].x[v] = Word(w->tiles[j].x[v] + in.screen_shift_x);
+                    w->tiles[j].y[v] = Word(w->tiles[j].y[v] + in.screen_shift_y);
+                }
         }
         else if (c->kind == 0xe1 || c->kind == 0xf1)
         {
@@ -3163,12 +3175,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return SDL_SetError("Ordinary callback lost its actual resident hand program");
             SotnHandWeapon *w = &c->state.hand.motion;
             bool allocated = c->primitive_count != 0;
-            if (!c->initialized && family == 43 &&
-                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, SOTN_HAND_WEAPON_TILES,
-                                            c->primitives, &allocated))
+            if (!c->initialized && HandRows(family) &&
+                !SotnPrimitiveSlots_Reserve(&in.primitive_slots, HandRows(family), c->primitives,
+                                            &allocated))
                 return false;
-            if (family == 43)
-                c->primitive_count = allocated ? SOTN_HAND_WEAPON_TILES : 0;
+            if (HandRows(family))
+                c->primitive_count = allocated ? HandRows(family) : 0;
             SotnDataView overlay = in.dra;
             if (family != 255 &&
                 !SotnWeapon_Overlay(
@@ -3182,6 +3194,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             if (!SotnHandWeapon_Tick(
                     w, &r.hand_program[hand],
                     (SotnHandWeaponInput){.overlay = overlay,
+                                          .executable = in.executable,
+                                          .camera_x = in.camera_x,
+                                          .camera_y = in.camera_y,
                                           .properties = HandProperties,
                                           .context = &context,
                                           .x = p.x,

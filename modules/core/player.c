@@ -2954,7 +2954,8 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
     if (player == NULL || player->attack_mode != 0)
         return SDL_SetError("Equipment can change only when the player has no active attack");
     if ((left == 125 || right == 125 || SotnEquipment_IsBasicShield(left) ||
-         SotnEquipment_IsBasicShield(right)) &&
+         SotnEquipment_IsBasicShield(right) || SotnEquipment_IsBasicFist(left) ||
+         SotnEquipment_IsBasicFist(right)) &&
         !player->hand_factory)
         return SDL_SetError("This equipment requires actual shared hand/property ownership");
     if ((left == 84 || right == 84) && left != right)

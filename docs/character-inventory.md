@@ -26,6 +26,8 @@ physical first-empty searches without receiving stock. No default grants or v9
 fields are added; remaining two-hand families and equipment effects stay open.
 Selected [basic shields](player-basic-shields.md) add Knight6, Axe Lord8 and Shaman12
 through the same owner; their shield spells and other shield families stay unavailable.
+Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
+special-bearing Iron Fist and Fist of Tulkas stay unavailable.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;
