@@ -4034,9 +4034,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .primitive = owner,
                                                         .kind = SOTN_DRAW_WEAPON_SECONDARY}))
                     return false;
-                // Weapon53 owns one entity-relative GT4; weapon48's ring owns sixteen.
+                // Weapon53 owns one entity-relative GT4; weapon48's ring and weapon1's punch rush
+                // own sixteen screen-space GT4s.
                 const bool slash = child->state.secondary.family == 53,
-                           ring = (child->kind & 15U) == 2;
+                           ring = (child->kind & 15U) == 2 || child->state.secondary.family == 1;
                 for (Uint16 q = slash ? 1 : ring ? child->primitive_count : 0; q > 0; --q)
                     if (!SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -5040,8 +5041,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
             const bool slash = c->state.secondary.family == 53;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && (c->kind & 15U) != 2) || (slash && index) ||
-                !SotnBatRuntime_SecondaryValid(c, owner))
+                (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1) ||
+                (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
             SotnPlayerEffectQuad q = slash ? w->quad : w->quads[index];
@@ -5085,6 +5086,21 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .blend = (w->draw_mode & 1U) != 0,
                                             .blend_mode = (Uint8)((w->draw_mode >> 5) & 3U)};
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
+                    return false;
+            }
+            else if (c->state.secondary.family == 1)
+            {
+                // w_001's fireball draws DRA animSet9 with its own SDK X/Y scales.
+                if (!SotnActorGraphics_DrawScaled(
+                        session->actor_graphics,
+                        (SotnActorSprite){.animation_set = w->bank,
+                                          .frame = w->frame,
+                                          .palette = w->palette,
+                                          .blend_mode = w->blend,
+                                          .facing_left = w->facing_left},
+                        Pixel(w->x) - view_x + session->draw_target.offset_x + session->shake.x,
+                        Pixel(w->y) - view_y + session->draw_target.offset_y + session->shake.y,
+                        (Uint16)w->scale_x, (Uint16)w->scale_y, session->draw_target.surface))
                     return false;
             }
             else if (!SotnActorGraphics_DrawSecondaryWeaponSurface(

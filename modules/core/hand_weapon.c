@@ -285,6 +285,9 @@ static bool FistBirth(SotnHandWeapon *w, SotnHandWeaponInput in, const Uint8 *de
 }
 static Uint16 FistPhase(Uint16 animation, Uint16 pose, Uint16 variant)
 {
+    // w_001's phase switches name descriptors0..3 only; Tulkas's descriptor4 never shows trails.
+    if (variant > 3)
+        return 0;
     const bool first = variant == 0;
     if (animation <= 3)
         return first ? pose == 2 || pose == 3 : pose >= 2 && pose <= 4;
@@ -517,9 +520,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         const Uint16 variant =
             in.family == 54 && in.dark_ticks ? 2 : (Uint16)((w.parameter & 0x7fffU) >> 8);
         const Uint32 base = in.family == 255 ? 0x800a0000U : 0x8017a000U;
-        // Weapon1 descriptor4 belongs to Iron Fist's special and has no selected owner.
+        // Weapon1 descriptor4 is Fist of Tulkas's QCF special188.
         const Uint16 count = in.family == 0    ? 5
-                             : in.family == 1  ? 4
+                             : in.family == 1  ? 5
                              : in.family == 57 ? 4
                              : in.family == 54 ? 3
                              : in.family == 55 ? 2
@@ -628,6 +631,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     w.removed = true;
                 else if (in.family == 1 && !FistBirth(&w, in, d))
                     return false;
+                // w_001 descriptor4 (Tulkas's QCF) plays SFX_VO_ALU_ATTACK_A after its rows.
+                if (in.family == 1 && variant == 4 && !w.removed)
+                    e.sound = 0x6ee;
                 if (in.family == 54 && in.allocated)
                     GurthangBirth(&w, in, &rng);
                 // w_055 descriptor1 plays SFX_MAGIC_SWITCH and requests WFACTORY(0x38,0)
@@ -744,6 +750,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         Tiles(&w, in, &rng);
                     if (in.family == 1 && !FistTrails(&w, in, variant, &rng))
                         return false;
+                    // Descriptor4 requests the WFACTORY(0x3E,0) fireball on pose2's last update.
+                    if (in.family == 1 && variant == 4 && in.pose == 2 && in.remaining == 1)
+                        e.factory = 0x3eU | ((in.hand + 1U) << 12);
                     if (in.family == 54 && !GurthangTrails(&w, in))
                         return false;
                     // w_048 requests four more bolts the first update pose1 follows pose0.

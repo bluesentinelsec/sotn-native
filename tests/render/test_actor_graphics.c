@@ -1253,17 +1253,17 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
-    // Weapon secondaries: child index1..47, index*64 plus LINE_G2 row and index*16 plus GT4.
+    // Weapon secondaries: child index1..47, index*64 plus LINE_G2 row and index*16 plus GT4
+    // (index0 is weapon1's slot16 punch rush).
     count = 0;
     const SotnActorDraw valid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 47},
                                    {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3071},
-                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 16},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 0},
                                    {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 767}};
     const SotnActorDraw invalid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 48},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3072},
-                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 15},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 768}};
     for (Uint16 k = 0; k < SDL_arraysize(valid); ++k)
         CHECK(SotnActorOrder_Add(items, 4, &count, valid[k]));

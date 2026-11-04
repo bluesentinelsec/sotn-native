@@ -679,11 +679,25 @@ static bool BasicFists(void)
     in.animation = 0x28;
     CHECK(SotnHandWeapon_Tick(&flat, &program, in, &flat_rng, &e) && flat_rng == rng &&
           (flat.tiles[0].x[0] != w.tiles[0].x[0] || flat.tiles[0].y[0] != w.tiles[0].y[0]));
-    // Descriptor4 is Iron Fist's special; malformed trail colors fail before publication.
+    // Descriptor4 is Fist of Tulkas's QCF special188: SFX_VO_ALU_ATTACK_A after its rows, no
+    // trails, and WFACTORY(0x3E,0) on pose2's last update. Descriptor5 is outside the table.
     SotnHandWeapon special = {.parameter = 0x400};
     Uint32 special_rng = 3;
-    CHECK(!SotnHandWeapon_Tick(&special, &program, in, &special_rng, &e) && special_rng == 3 &&
-          !special.phase);
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&special, &program, in, &special_rng, &e) && special.phase &&
+          e.sound == 0x6ee && !e.factory && (special.tiles[0].draw_mode & 8U));
+    in.pose = 2;
+    in.remaining = 1;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&special, &program, in, &special_rng, &e) && e.factory == 0x103e &&
+          !e.sound && (special.tiles[3].draw_mode & 8U));
+    in.remaining = 2;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&special, &program, in, &special_rng, &e) && !e.factory);
+    SotnHandWeapon outside = {.parameter = 0x500};
+    special_rng = 3;
+    CHECK(!SotnHandWeapon_Tick(&outside, &program, in, &special_rng, &e) && special_rng == 3 &&
+          !outside.phase);
     SotnHandWeapon truncated = {0};
     in.overlay.size = 0xfb4;
     in.animation = 0x24;

@@ -897,7 +897,18 @@ static bool StartAttack(SotnPlayer *player)
     const bool hold = equipment.kind == 28 || equipment.kind == 26 ||
                       (equipment.kind >= 19 && equipment.kind <= 22);
     const bool grunt = equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 &&
-                       equipment.kind != 25 && !hold;
+                       equipment.kind != 25 && equipment.kind != 24 && !hold;
+    // Kind24 (Iron Fist/Tulkas punch rush) keeps an airborne player in Player_Jump and stops both
+    // velocities for a0x80-update D_80139824 hold.
+    if (player->hand_factory && equipment.kind == 24)
+    {
+        player->step = player->step == SOTN_PLAYER_FALL || player->step == SOTN_PLAYER_JUMP
+                           ? SOTN_PLAYER_JUMP
+                           : SOTN_PLAYER_STAND;
+        player->attack_hold = 0x80;
+        player->vx = player->vy = 0;
+        player->sound = 0x6ef;
+    }
     if (player->hand_factory && hold)
     {
         player->step = SOTN_PLAYER_STAND;
@@ -1235,6 +1246,20 @@ static void StandTick(SotnPlayer *player)
         }
         flags = 1;
     }
+    else if (player->attack_mode != 0 && player->substep == 0x58)
+    {
+        // 71830.c stand substep0x58: the punch rush rewinds pose4 to pose2 while D_80139824
+        // lasts; pose6, a Down tap or the backward direction resumes substep0x40.
+        SotnPlayer_AfterimageReset(player);
+        if (player->attack_hold > 0)
+            --player->attack_hold;
+        if (player->animation.pose == 4 && player->animation.remaining == 1 && player->attack_hold)
+            player->animation.pose = 2;
+        if (player->animation.pose == 6 || (player->tapped & SOTN_BUTTON_DOWN) ||
+            (player->buttons & (player->facing_left ? SOTN_BUTTON_RIGHT : SOTN_BUTTON_LEFT)))
+            player->substep = 0x40;
+        flags = 10;
+    }
     else if (player->attack_mode != 0 && player->substep == 0x5a)
     {
         // 71830.c substep0x5A: the lunge holds pose6 while D_80139824 lasts; pose10, a Down/Up
@@ -1336,6 +1361,21 @@ static void StandTick(SotnPlayer *player)
 
 static void JumpTick(SotnPlayer *player)
 {
+    // 71830.c PlayerStepJump substep0x58 hovers: no deceleration, rise clamp or transitions
+    // (gravity/landing) until pose4 or a Down/Up tap resumes substep0x40.
+    if (player->attack_mode != 0 && player->substep == 0x58)
+    {
+        SotnPlayer_AfterimageReset(player);
+        if (player->attack_hold > 0)
+            --player->attack_hold;
+        if (player->animation.pose == 3 && player->animation.remaining == 1 && player->attack_hold)
+            player->animation.pose = 1;
+        if (player->animation.pose == 4 || (player->tapped & (SOTN_BUTTON_DOWN | SOTN_BUTTON_UP)))
+            player->substep = 0x40;
+        if (player->movement_flags & 0x100)
+            player->vx = 0;
+        return;
+    }
     Decelerate(player, 4096);
     if (player->vy < -FIX_ONE)
     {

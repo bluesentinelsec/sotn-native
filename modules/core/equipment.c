@@ -102,6 +102,16 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){0, 39, 16, 0xae, 0, 0, 190, 0, 0};
     case 190:
         return (PlainSpec){0, 39, 26, 0xae, 1, 0, 0, 0, 0};
+    case 102: // Iron Fist and its QCF punch rush186 (kind24, blueprint54 slot16)
+        return (PlainSpec){3, 1, 0, 0x24, 2, 0, 186, 0, 0};
+    case 186:
+        return (PlainSpec){3, 1, 24, 0x24, 0, 0, 0, 0, 54};
+    case 120: // Fist of Tulkas: back-forward rush187 and QCF fireball188 (kind25, descriptor4)
+        return (PlainSpec){3, 1, 0, 0x24, 3, 187, 188, 0, 0};
+    case 187:
+        return (PlainSpec){3, 1, 24, 0x24, 1, 0, 0, 0, 54};
+    case 188:
+        return (PlainSpec){2, 1, 25, 0x24, 4, 0, 0, 0, 0};
     case 127: // Great Sword
         return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0, 0};
     case 131: // Star flail and its back-forward special171

@@ -49,6 +49,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 1};
     else if (family == 48)
         *out = (Layout){.rows = 10};
+    else if (family == 1)
+        *out = (Layout){.timeline = 0xfc8, .timeline_count = 9, .rows = 16};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -56,16 +58,18 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
-    return family == 55 || family == 38 || family == 39 || family == 53 || family == 48;
+    return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
+           family == 1;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
-    return SotnWeaponSecondary_Supported(family) && (role == 1 || (role == 2 && family == 48));
+    return SotnWeaponSecondary_Supported(family) &&
+           (role == 1 || (role == 2 && (family == 48 || family == 1)));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
 {
     return !SotnWeaponSecondary_SupportedRole(family, role) ? 0
-           : role == 2                                      ? 16
+           : role == 2                                      ? (family == 1 ? 0 : 16)
                                                             : SotnWeaponSecondary_Rows(family);
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
@@ -529,6 +533,149 @@ static bool Ring(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, SotnWeapon
     return true;
 }
 
+// w_001 func_ptr_80170004: the slot16 punch rush (Iron Fist/Tulkas kind24) flashes sixteen
+// textured GT4 fists while the player's attack window lasts.
+static bool Punches(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                    SotnWeaponSecondaryEvents *e)
+{
+    const Uint8 *d = NULL, *uv = NULL;
+    const Uint16 index = (Uint16)((s->parameter & 0x7fffU) >> 8);
+    if (index > 4 || !View(in.overlay, 0xf44U + index * 16U, 16, &d) ||
+        !View(in.overlay, 0xfb8U, 8, &uv))
+        return SDL_SetError("Weapon1 punch rush requires its private descriptor and UVs");
+    s->x = in.x;
+    s->y = in.y;
+    s->facing_left = in.facing_left;
+    if (in.animation < d[12] || in.animation >= d[12] + 7U || !in.attack_mode)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->allocated = true;
+        const Uint8 v = in.hand ? 0x80 : 0;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad q = {.page = 0x19,
+                                      .palette = 0x100,
+                                      .priority = (Uint16)(in.priority + 4U),
+                                      .draw_mode = 0x379};
+            for (Uint16 k = 0; k < 4; ++k)
+            {
+                q.u[k] = uv[k * 2U];
+                q.v[k] = (Uint8)(uv[k * 2U + 1U] + v);
+            }
+            s->quads[i] = q;
+            s->quad_timer[i] = (Uint8)(i + 1U);
+            s->quad_phase[i] = 0;
+        }
+        s->flags = 0x860000U;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->remaining = 128;
+        s->hitbox_width = 18;
+        s->hitbox_height = 10;
+        s->hitbox_x = 28;
+        s->hitbox_y = -12;
+        s->phase = 1;
+    }
+    else
+    {
+        if ((s->remaining & 7) == 7)
+            e->sounds[0] = 0x60c;
+        if (!(s->remaining = Word(s->remaining - 1)))
+        {
+            e->sounds[e->sounds[0] ? 1 : 0] = 0x6f0;
+            s->removed = true;
+            return true;
+        }
+    }
+    const Sint16 px = Word(Word(Pixel(in.x) - in.camera_x) + (in.facing_left ? -26 : 26)),
+                 py = Word(Word(Pixel(in.y) - in.camera_y) - 6 - ((in.draw_flags & 2U) ? 3 : 0));
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->quads[i];
+        Uint8 *timer = &s->quad_timer[i], *phase = &s->quad_phase[i];
+        if (*phase == 0)
+        {
+            if (--*timer)
+                continue;
+            const Sint16 x = Word(px + (Sint32)(Rand(rng) % 24U) - 12);
+            const Sint16 y = Word(py + (Sint32)(Rand(rng) % 18U) - 9);
+            q->x[0] = q->x[2] = Word(x + (in.facing_left ? 8 : -8));
+            q->x[1] = q->x[3] = Word(x + (in.facing_left ? -8 : 8));
+            q->y[0] = q->y[1] = Word(y - 8);
+            q->y[2] = q->y[3] = Word(y + 8);
+            q->draw_mode = (Uint16)(q->draw_mode & ~8U);
+            *timer = 2;
+            *phase = 1;
+        }
+        else if (*phase <= 2 && !--*timer)
+        {
+            for (Uint16 k = 0; k < 4; ++k)
+                q->u[k] = (Uint8)(q->u[k] + (*phase == 1 ? 48U : 208U));
+            *timer = 2;
+            if (*phase == 1)
+                *phase = 2;
+            else
+            {
+                *phase = 0;
+                q->draw_mode |= 8U;
+            }
+        }
+    }
+    return true;
+}
+// w_001 func_ptr_80170008: Tulkas's growing fireball, retired the callback after any hit.
+static bool Fireball(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                     SotnWeaponSecondaryEvents *e)
+{
+    if (!s->phase)
+    {
+        s->flags = 0x08100000U;
+        s->bank = 9;
+        s->pose = 0;
+        s->remaining = 0;
+        s->frame = 0;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = !in.facing_left;
+        s->velocity_x = s->facing_left ? 0x48000 : -0x48000;
+        s->palette = 0x81b0;
+        s->blend = 0x30;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x * 6U);
+        s->y = (Sint32)((Uint32)s->y - (Uint32)(13 + ((in.draw_flags & 2U) ? 3 : 0)) * 65536U);
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0x60;
+        s->allocated = true;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = 10;
+        s->hitbox_height = 8;
+        e->sounds[0] = 0x62c;
+        s->phase = 1;
+        return true;
+    }
+    if (s->hit_flags)
+    {
+        s->removed = true;
+        return true;
+    }
+    s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+    s->scale_x = (Sint16)(s->scale_x + 0x10);
+    s->scale_y = (Sint16)(s->scale_y + 0x10);
+    if (s->scale_y >= 0x101)
+        s->scale_y = 0x100;
+    if (s->scale_x >= 0x181)
+        s->scale_x = 0x180;
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -556,6 +703,13 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     {
         if (!(in.role == 2 ? Ring(&s, in, &e) : Lightning(&s, in, &rng, &e)))
             return false;
+        goto commit;
+    }
+    if (in.family == 1)
+    {
+        if (!(in.role == 2 ? Fireball(&s, in, &rng, &e) : Punches(&s, in, &rng, &e)))
+            return false;
+        s.hit_flags = 0;
         goto commit;
     }
     s.x = in.x;
@@ -653,9 +807,9 @@ commit:
 bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overlay, Uint16 family)
 {
     Layout layout = {0};
-    if (!state || !Program(family, &layout) || family != 55 || state->removed || !state->phase ||
-        state->pose >= layout.timeline_count || state->remaining < -1 || !overlay.bytes ||
-        overlay.size < layout.timeline + layout.timeline_count * 4U)
+    if (!state || !Program(family, &layout) || (family != 55 && family != 1) || state->removed ||
+        !state->phase || state->pose >= layout.timeline_count || state->remaining < -1 ||
+        !overlay.bytes || overlay.size < layout.timeline + layout.timeline_count * 4U)
         return SDL_SetError("Weapon secondary animation requires its actual private timeline");
     const Uint8 *t = overlay.bytes + layout.timeline;
     SotnWeaponSecondary s = *state;

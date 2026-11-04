@@ -3,9 +3,7 @@
 The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts the
 two original weapon1 fists without weapon specials: Knuckle duster85 (descriptor0)
 and Jewel knuckles97 (descriptor1). Iron Fist102 and Fist of Tulkas120 share the
-program but carry back-forward/QCF special items186..188, which need their own player
-states and secondary callbacks. They stay unsupported, so those inputs can never
-silently produce an ordinary punch.
+program; their rushes and fireball are documented in [fist specials](player-fist-specials.md).
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual fist category3, family1, kind0, animation0x24, blueprint48,
@@ -66,8 +64,8 @@ hands, visible trail pixels, real enemy HP damage, row release, mandatory-row
 exhaustion, Mist/Bat/Wolf retirement, draw holds, pause refusal, curse failure and
 in-memory v9 Continue with mixed pairs. Supplied stock, protection, position,
 occupancy, curse and save-room contexts are not acquisition, uninterrupted-route or
-console evidence. Iron Fist/Fist of Tulkas specials, other weapon families, full
-sharing and all six [milestone gates](alucard-status.md) remain open.
+console evidence. Other weapon families, full sharing and all six
+[milestone gates](alucard-status.md) remain open.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_001.c`, `weapon/shared.h` and
 `dra/alu_anim.c` at sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

@@ -48,7 +48,11 @@ Selected virtual items:
 - Osafune139's back-forward slash192 and QCF warp193, and Masamune140's QCF warp194: kind135
   sword-warp afterimages with slash roots (see [Osafune/Masamune](player-katana-warp.md)).
 
-The other ~17 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
+- Iron Fist102's QCF special186 and Fist of Tulkas120's back-forward special187: kind24
+  punch rushes in slot16; Tulkas's QCF special188: kind25 descriptor4 fireball (see
+  [fist specials](player-fist-specials.md)).
+
+The other virtual specials (two-handed swords, remaining brands, Yasutsuna, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

@@ -28,7 +28,7 @@ Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Axe Lor
 Shaman12 and Alucart167
 through the same owner; their shield spells and other shield families stay unavailable.
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
-special-bearing Iron Fist and Fist of Tulkas stay unavailable.
+[Iron Fist and Fist of Tulkas](player-fist-specials.md) add their punch rushes and fireball.
 Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,
 Nunchaku, Red Rust, Holy rod, Star flail, Combat knife and Great Sword; [Gurthang](player-gurthang.md) adds its
 QCF special, [Holy sword](player-holy-sword.md) its QCF special with the first weapon

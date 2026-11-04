@@ -107,6 +107,15 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 192, 5, 53, 1, 0x41, 3, 13, 0);
     Item(f->dra, 193, 5, 53, 135, 0xd8, 0, 0, 0);
     f->dra[0x500 + 193 * 52 + 19] = 60;
+    Item(f->dra, 102, 3, 1, 0, 0x24, 2, 5, 0);
+    f->dra[0x500 + 102 * 52 + 24] = 186;
+    Item(f->dra, 186, 3, 1, 24, 0x24, 0, 5, 0);
+    f->dra[0x500 + 186 * 52 + 19] = 54;
+    Item(f->dra, 120, 3, 1, 0, 0x24, 3, 5, 187);
+    f->dra[0x500 + 120 * 52 + 24] = 188;
+    Item(f->dra, 187, 3, 1, 24, 0x24, 1, 5, 0);
+    f->dra[0x500 + 187 * 52 + 19] = 54;
+    Item(f->dra, 188, 2, 1, 25, 0x24, 4, 7, 0);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -370,6 +379,82 @@ static bool Lunge(Fixture *f)
     }
     return true;
 }
+// 6E42C.c kind24 (Iron Fist special186/Tulkas187): blueprint54, no grunt, both velocities
+// stopped, SFX_VO_ALU_ATTACK_B and a0x80 hold; an airborne player stays in Player_Jump, which
+// hovers in substep0x58. Tulkas's QCF188 is kind25 (block_98 directly, unarmed substep0x59).
+static bool Punches(Fixture *f)
+{
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        // QCF is grounded; the airborne case uses Tulkas's back-forward rush187.
+        const bool airborne = k == 3;
+        CHECK(Create(f, airborne ? 120 : 102, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (airborne)
+        {
+            for (Uint16 i = 0; i < 5; ++i)
+                CHECK(Tick(f, i ? 0 : SOTN_BUTTON_JUMP));
+            CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0) &&
+                  f->p->back_forward.phase == 255 && f->p->step == SOTN_PLAYER_JUMP);
+        }
+        else
+            CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+                  Tick(f, SOTN_BUTTON_RIGHT) && f->p->sword_command.phase == 255);
+        f->p->vx = 0x18000;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 &&
+              f->item == (airborne ? 187 : 186) && f->packed == (airborne ? 0x11036U : 0x1036U) &&
+              !f->roll_count && p.sound == 0x6ef && f->p->substep == 0x58 &&
+              f->p->attack_mode == 0x8019 && f->p->attack_hold == 0x80 && !f->p->vx && !f->p->vy &&
+              f->p->step == (airborne ? SOTN_PLAYER_JUMP : SOTN_PLAYER_STAND) &&
+              f->p->animation.id == (airborne ? 0x28 : 0x24));
+        if (k == 0)
+        {
+            Uint16 t = 0, rewound = 0, last = 0;
+            for (; t < 200 && f->p->substep == 0x58; ++t)
+            {
+                CHECK(Tick(f, 0));
+                // Pose4's rewind to pose2 advances to pose3 within the same update.
+                rewound += last == 4 && f->p->animation.pose == 3;
+                last = f->p->animation.pose;
+            }
+            // 0x80 updates: the rush loops poses3..4 (two updates each) until the hold ends.
+            CHECK(t == 133 && rewound == 30 && f->p->substep == 0x40 && !f->p->attack_hold &&
+                  f->p->animation.pose == 6);
+        }
+        else if (k < 3)
+            CHECK(Tick(f, 0) && Tick(f, k == 1 ? SOTN_BUTTON_DOWN : SOTN_BUTTON_LEFT) &&
+                  f->p->substep == 0x40 && f->p->attack_hold == 0x7e);
+        else
+        {
+            const Sint32 y = f->p->y.value;
+            for (Uint16 i = 0; i < 6; ++i)
+                CHECK(Tick(f, 0) && f->p->substep == 0x58 && f->p->y.value == y && !f->p->vy &&
+                      f->p->step == SOTN_PLAYER_JUMP);
+            CHECK(Tick(f, SOTN_BUTTON_UP) && f->p->substep == 0x40);
+            CHECK(Tick(f, 0) && f->p->vy > 0);
+        }
+    }
+    CHECK(Create(f, 120, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0) &&
+          Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(f->item == 187 && f->packed == 0x11036U && f->p->substep == 0x58 &&
+          f->p->attack_hold == 0x80 && !f->roll_count);
+    CHECK(Create(f, 120, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+    SotnPlayerState p = {0};
+    CHECK(SotnPlayer_GetState(f->p, &p) && f->item == 188 && f->packed == 0x41030U &&
+          !f->roll_count && !p.hand_used && p.sound != 0x6ef && f->p->substep == 0x59 &&
+          f->p->attack_mode == 0x801a && f->p->attack_lock == 7 && !f->p->attack_hold);
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -415,8 +500,8 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && CombatKnife(f) &&
-         AirborneKindZero(f);
+         QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
+         CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

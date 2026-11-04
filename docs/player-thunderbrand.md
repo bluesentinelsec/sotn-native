@@ -48,7 +48,8 @@ updates and has no attack. Its rows carry the E2/F2 primitive tag, which the sha
 now recognizes so they are released.
 
 Draws use the additive line and textured GT4 paths, apply shake once and never tick. Holds,
-rebases, shoves, retirement and failure atomicity follow the shared secondary owner.
+rebases, shoves, retirement and failure atomicity follow the shared secondary owner. Room
+entry translates all four vertices of each ring GT4 (not the LINE_G2 row storage they share).
 
 ## Evidence
 

@@ -1,3 +1,10 @@
+Selected [Iron Fist/Fist of Tulkas](docs/player-fist-specials.md) now own items102/120,
+kind24 rushes186/187 and kind25 fireball188: kind24 holds D_80139824 0x80 in substep0x58
+(stand pose4->2; airborne Player_Jump hovers without transitions). Blueprint54 replaces slot16
+with the E1/F1 rush (own item, hand group, 16 mandatory GT4s, lifetime128); descriptor4 requests
+WFACTORY(0x3E,0) for the E2/F2 fireball, which copies its raw parent and retires after hitFlags.
+Room entry translates quad-backed secondaries (ring/rush) per GT4 vertex, never as row storage.
+
 Selected [Osafune/Masamune](docs/player-katana-warp.md) now own two-handed items139/140,
 back-forward192 (root10) and kind135 warps193/194: blueprint60 replaces slot16 with an E2/F2
 afterimage (factory-argument equip id) that slides out/back with SetSpeedX/DecelerateX, spawns

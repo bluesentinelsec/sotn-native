@@ -27,8 +27,12 @@ typedef struct SotnWeaponSecondary
     /** A child uses either LINE_G2 rows or the weapon48 ring's GT4 wedges, never both. */
     union {
         SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
-        /** Weapon48 role2 ring: sixteen screen-space GT4 wedges (DRAW_UNK_200 rows). */
-        SotnPlayerEffectQuad quads[16];
+        struct
+        {
+            /** Weapon48 role2 ring wedges or weapon1 role1 punches: sixteen screen-space GT4s. */
+            SotnPlayerEffectQuad quads[16];
+            Uint8 quad_timer[16], quad_phase[16]; /**< Weapon1 punch r0/r1 scratch bytes. */
+        };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
@@ -42,6 +46,9 @@ typedef struct SotnWeaponSecondary
     Uint16 bank, palette, texture, priority, row_priority, blend, pose, frame, hitbox_state;
     Uint16 draw_mode; /**< Shared original row drawMode without DRAW_HIDE (ABR in bits5..6). */
     Sint16 rotate, lifetime; /**< Weapon53 slash rotation and private-table radius. */
+    Sint32 velocity_x;       /**< Weapon1 role2 fireball speed. */
+    Sint16 scale_x;          /**< Weapon1 role2 fireball X scale (scale_y shared). */
+    Uint8 hit_flags;         /**< Actual collision hitFlags recorded since the last callback. */
     Uint16 age;              /**< Weapon53 unk7E: completed callbacks, retired at nine. */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
     bool facing_left, removed, allocated;

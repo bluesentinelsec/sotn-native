@@ -858,13 +858,15 @@ static Uint16 HandFamily(Uint16 item)
            : item == 18 || item == 174    ? 31
            : item == 19                   ? 37
            : SotnEquipment_IsSword0(item) ? 0
-           : item == 85 || item == 97     ? 1
-           : item == 129                  ? 3
-           : item == 130 || item == 170   ? 4
-           : item == 131 || item == 171   ? 5
-           : item == 121 || item == 195   ? 54
-           : item == 115 || item == 196   ? 55
-           : item == 23 || item == 191    ? 38
+           : item == 85 || item == 97 || item == 102 || item == 120 || item == 186 || item == 187 ||
+                   item == 188
+               ? 1
+           : item == 129                ? 3
+           : item == 130 || item == 170 ? 4
+           : item == 131 || item == 171 ? 5
+           : item == 121 || item == 195 ? 54
+           : item == 115 || item == 196 ? 55
+           : item == 23 || item == 191  ? 38
            : item == 100 || item == 189 || item == 139 || item == 192 || item == 193 ||
                    item == 140 || item == 194
                ? 53
@@ -892,17 +894,21 @@ static Uint16 HandVariant(Uint16 item)
                    item == 175 || item == 196 || item == 190 || item == 191 || item == 189 ||
                    item == 178 || item == 194
                ? 1
-           : item == 139 ? 2
-           : item == 192 ? 3
-           : item == 140 ? 4
-                         : 0;
+           : item == 139 || item == 102 ? 2
+           : item == 192 || item == 120 ? 3
+           : item == 140 || item == 188 ? 4
+           : item == 187                ? 1
+                                        : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
 {
     const Uint16 hand = (packed & 0x800000U) != 0;
-    // Weapon53's kind135 warps reserve blueprint60 (slot16 E2/F2) instead of48.
-    const Uint32 blueprint = item == 193 || item == 194 ? 60U : 48U;
+    // Weapon53's kind135 warps reserve blueprint60 (slot16 E2/F2) and weapon1's kind24 punch
+    // rushes blueprint54 (slot16 E1/F1) instead of48.
+    const Uint32 blueprint = item == 193 || item == 194   ? 60U
+                             : item == 186 || item == 187 ? 54U
+                                                          : 48U;
     const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << 12) |
                                        ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
                                  : (42U + hand) | ((Uint32)hand << 23);
@@ -955,8 +961,8 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
                       (c->state.hand.family != 1 || w->allocated)
                 : !w->phase && !c->group && !c->primitive_count);
 }
-// Selected hand-program WFACTORY requests: blueprint56 roots and weapon48's58 branches and64
-// ring, with their actual parameters.
+// Selected hand-program WFACTORY requests: blueprint56 roots, weapon48's58 branches and64
+// ring and weapon1's62 fireball, with their actual parameters.
 static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
 {
     const Uint32 bp = request & 0xfffU, param = request >> 16;
@@ -966,6 +972,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
                (bp == 0x40 && param == 0);
+    // Weapon1 descriptor4 (Tulkas's QCF) requests the blueprint62 fireball.
+    if (family == 1)
+        return bp == 0x3e && param == 0;
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
 bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -996,12 +1005,23 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
         return true;
     const SotnWeaponSecondary *w = &c->state.secondary.motion;
     const Uint16 family = c->state.secondary.family;
-    return index >= 1 && index <= 47 && c->generation && !c->bat_generation && !c->draw_count &&
-           !w->removed && !c->food && !c->neutron && !c->sire && !c->pentagram && !c->magic &&
-           !c->thrown && !c->star && !c->karma && !c->hand_weapon && !c->thrown_particle_parent &&
+    // Blueprint54's slot16 punch rush owns its own item and hand group; weapon1's role1 exists
+    // only there.
+    const bool rush = index == 0;
+    if (rush != (family == 1 && (c->kind == 0xe1 || c->kind == 0xf1)))
+        return false;
+    if (rush && (family != 1 || (c->kind != 0xe1 && c->kind != 0xf1) ||
+                 (c->state.secondary.item != 186 && c->state.secondary.item != 187) ||
+                 c->parameter != ((c->state.secondary.item == 187 ? 0x100U : 0U) |
+                                  (c->kind == 0xf1 ? 0x8000U : 0U)) ||
+                 (c->initialized && c->group != (c->kind == 0xf1 ? 2U : 1U))))
+        return false;
+    return index <= 47 && c->generation && !c->bat_generation && !c->draw_count && !w->removed &&
+           !c->food && !c->neutron && !c->sire && !c->pentagram && !c->magic && !c->thrown &&
+           !c->star && !c->karma && !c->hand_weapon && !c->thrown_particle_parent &&
            (c->kind == 0xe1 || c->kind == 0xf1 || c->kind == 0xe2 || c->kind == 0xf2) &&
            SotnWeaponSecondary_SupportedRole(family, c->kind & 15U) &&
-           SecondaryParameter(family, c->parameter) && w->parameter == c->parameter &&
+           (rush || SecondaryParameter(family, c->parameter)) && w->parameter == c->parameter &&
            c->state.secondary.parent_slot >= 16 && c->state.secondary.parent_slot <= 31 &&
            SotnWeaponSecondary_Supported(family) &&
            (c->initialized
@@ -1964,8 +1984,30 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
          (star_factory && (star_role == 1 || star_role == 2 || star_role == 4 || star_role == 5)));
     c.karma = ((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 24) ||
               (karma_factory && (c.kind == 0xe2 || c.kind == 0xf2));
-    c.weapon_secondary =
-        secondary_factory && (c.kind == 0xe1 || c.kind == 0xf1 || c.kind == 0xe2 || c.kind == 0xf2);
+    // Blueprint54 replaces slot16 with weapon1's E1/F1 punch rush; its factory argument is the
+    // item.
+    const bool rush = child.slot == 16 && (c.kind == 0xe1 || c.kind == 0xf1) &&
+                      (child.argument_low == 186 || child.argument_low == 187);
+    c.weapon_secondary = rush || (secondary_factory && (c.kind == 0xe1 || c.kind == 0xf1 ||
+                                                        c.kind == 0xe2 || c.kind == 0xf2));
+    if (rush)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || secondary_factory ||
+            child.parameter !=
+                ((child.argument_low == 187 ? 0x100U : 0U) | (hand ? 0x8000U : 0U)) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 1)))
+            return SDL_SetError("Weapon1 punch rush lost its actual slot16/program/item ownership");
+        c.state.secondary.family = 1;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = child.argument_low;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
     if (secondary_factory)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
@@ -2757,13 +2799,26 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnWeaponSecondary *w = &c->state.secondary.motion;
             w->x = FixedShift(w->x, in.room_shift_x);
             w->y = FixedShift(w->y, in.room_shift_y);
-            // DRAW_UNK_200 LINE_G2 rows translate both endpoints without a callback.
-            for (Uint16 j = 0; j < SOTN_WEAPON_SECONDARY_ROWS; ++j)
-                for (Uint16 v = 0; v < 2; ++v)
-                {
-                    w->rows[j].x[v] = Word(w->rows[j].x[v] + in.screen_shift_x);
-                    w->rows[j].y[v] = Word(w->rows[j].y[v] + in.screen_shift_y);
-                }
+            // DRAW_UNK_200 primitives translate every vertex without a callback: LINE_G2 rows,
+            // or the GT4s sharing their storage (weapon48's ring, weapon1's punch rush).
+            // Weapon53's slash quad is entity-relative and the fireball owns no rows.
+            const Uint16 family = c->state.secondary.family, role = c->kind & 15U;
+            if (role == 2 ? family == 48 : family == 1)
+            {
+                for (Uint16 j = 0; j < c->primitive_count && j < 16; ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        w->quads[j].x[v] = Word(w->quads[j].x[v] + in.screen_shift_x);
+                        w->quads[j].y[v] = Word(w->quads[j].y[v] + in.screen_shift_y);
+                    }
+            }
+            else if (role == 1 && family != 53)
+                for (Uint16 j = 0; j < SOTN_WEAPON_SECONDARY_ROWS; ++j)
+                    for (Uint16 v = 0; v < 2; ++v)
+                    {
+                        w->rows[j].x[v] = Word(w->rows[j].x[v] + in.screen_shift_x);
+                        w->rows[j].y[v] = Word(w->rows[j].y[v] + in.screen_shift_y);
+                    }
         }
         else if (c->kind == 0xe1 || c->kind == 0xf1)
         {
@@ -3201,7 +3256,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         if (r.factories[i].cursor.entity_id && r.factories[i].secondary_factory &&
             ((r.factories[i].cursor.blueprint != 56 && r.factories[i].cursor.blueprint != 58 &&
-              r.factories[i].cursor.blueprint != 64) ||
+              r.factories[i].cursor.blueprint != 64 && r.factories[i].cursor.blueprint != 62) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -3583,7 +3638,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // and enemyId without a generation check. An empty slot reads zero words.
             Uint16 item = c->state.secondary.item;
             Uint8 parent_group = 0;
-            if (cold)
+            if (cold && i)
             {
                 // A chained child born into its retired root's slot points at itself and reads
                 // its own freshly cleared words.
@@ -3611,6 +3666,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 38 ? 23
                                  : family == 53 ? 100
                                  : family == 48 ? 112
+                                 : family == 1  ? 85
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -3674,15 +3730,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 // SetWeaponProperties increments the least-used group before the copy of the
                 // raw parent's enemyId; end-of-pass recount removes that transient count.
-                Uint16 group = i < 16 ? 3 : 7;
-                for (Uint16 g = (Uint16)(group + 1U); g < (i < 16 ? 7 : 11); ++g)
-                    if (r.groups[g] < r.groups[group])
-                        group = g;
-                if (r.groups[group] == 255)
-                    return SDL_SetError("Weapon secondary shared group count overflow");
-                ++r.groups[group];
-                c->group = parent_group;
-                c->state.secondary.item = item;
+                // func_80118894 gives slot16 (the punch rush) its hand group without a count.
+                if (!i)
+                    c->group = (Uint8)(hand + 1U);
+                else
+                {
+                    Uint16 group = i < 16 ? 3 : 7;
+                    for (Uint16 g = (Uint16)(group + 1U); g < (i < 16 ? 7 : 11); ++g)
+                        if (r.groups[g] < r.groups[group])
+                            group = g;
+                    if (r.groups[group] == 255)
+                        return SDL_SetError("Weapon secondary shared group count overflow");
+                    ++r.groups[group];
+                    c->group = parent_group;
+                    c->state.secondary.item = item;
+                }
             }
             c->source.x = w->x;
             c->source.y = w->y;
@@ -5856,6 +5918,16 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 fl
     const bool star = r && i < 48 && r->children[i].star && r->children[i].state.star.attack.active;
     const bool magic = r && i < 48 && r->children[i].magic &&
                        (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
+    // Weapon1's role2 fireball (Fist of Tulkas) retires on its next callback after any hit.
+    const bool fireball = r && i < 48 && r->children[i].weapon_secondary &&
+                          r->children[i].state.secondary.family == 1 &&
+                          (r->children[i].kind == 0xe2 || r->children[i].kind == 0xf2);
+    if (fireball && flags && flags <= 3 && generation && r->children[i].generation == generation &&
+        r->children[i].initialized)
+    {
+        r->children[i].state.secondary.motion.hit_flags = flags;
+        return true;
+    }
     if (!r || i >= 48 || !flags || flags > 3 ||
         (!magic && !star && r->children[i].kind != 45 && r->children[i].kind != 26 &&
          r->children[i].kind != 27) ||
