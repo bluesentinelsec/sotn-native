@@ -982,6 +982,10 @@ void SotnPlayer_Close(SotnPlayer *player);
  * @param player Borrowed owner. @param ticks Original timer value, 0..32.
  * @return Success or SDL error without mutation. This grants no invincibility. */
 bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Commit original hand-weapon startup timer9 after a successful actual child update
+ * (weapon12's slash birth). @param player Borrowed player. @param ticks Original value, 0..32.
+ * @return Success or SDL error without mutation. */
+bool SotnPlayer_SetWeaponStartup(SotnPlayer *player, Uint8 ticks);
 /** @brief Commit original spell-use timer12 after a successful actual child update.
  * @param player Borrowed player. @param ticks Original timer value, 0..32.
  * @return Success or SDL error without mutation. Timer10 and damage-invincibility

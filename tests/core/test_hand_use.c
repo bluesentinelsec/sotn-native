@@ -144,6 +144,15 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
     Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
     Item(f->dra, 141, 5, 56, 29, 0x41, 0, 13, 0);
+    Item(f->dra, 133, 2, 12, 130, 0x60, 0, 0, 0);
+    f->dra[0x500 + 133 * 52 + 19] = 56;
+    f->dra[0x500 + 133 * 52 + 22] = 2;
+    Item(f->dra, 163, 1, 12, 129, 0x5d, 1, 0, 0);
+    f->dra[0x500 + 163 * 52 + 19] = 50;
+    f->dra[0x500 + 163 * 52 + 22] = 3;
+    Item(f->dra, 164, 1, 12, 129, 0x5d, 2, 0, 0);
+    f->dra[0x500 + 164 * 52 + 19] = 52;
+    f->dra[0x500 + 164 * 52 + 22] = 3;
     Item(f->dra, 143, 2, 14, 129, 0x5d, 0, 0, 0);
     Item(f->dra, 119, 2, 13, 129, 0x5d, 0, 0, 0);
     f->dra[0x500 + 119 * 52 + 19] = 50;
@@ -174,7 +183,7 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
         item == 26 || item == 139 || item == 98 || item == 95 || item == 141 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
-    CHECK(item == 18 || item == 143 || item == 119 ||
+    CHECK(item == 18 || item == 143 || item == 119 || item == 133 || item == 163 || item == 164 ||
           !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
@@ -645,10 +654,18 @@ static bool MoonRod(Fixture *f)
 // against live children carrying143, and ReduceWeapon leaving the non-consumable hand intact.
 static bool Runesword(Fixture *f, Uint16 item)
 {
+    // Weapon12: Chakram133 (blueprint56, kind130 animation0x60) and Vorpal163/Crissaegrim164
+    // (blueprints50/52 with descriptors1/2) take the same path.
+    const Uint32 packed = item == 133   ? 0x1038U
+                          : item == 163 ? 0x1032U | 1U << 16
+                          : item == 164 ? 0x1034U | 2U << 16
+                                        : 0x1032U;
+    const Uint8 limit = item == 133 ? 2 : item == 163 || item == 164 ? 3 : 1;
     for (Uint16 k = 0; k < 2; ++k)
     {
         CHECK(Create(f, item, 1, 2, true));
-        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, (Uint8)k, 0));
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f,
+                                            (Uint8)(k ? limit : limit - 1U), 0));
         Put16(f->dra + 0xcf62, 0x6f2); // Grunt voice1 of func_8010EA54(8)'s table.
         for (Uint16 i = 0; i < 8; ++i)
             CHECK(Tick(f, 0));
@@ -658,9 +675,9 @@ static bool Runesword(Fixture *f, Uint16 item)
         if (k)
             CHECK(!f->factories && !f->roll_count && !p.throwing.used);
         else
-            CHECK(f->factories == 1 && f->item == item && f->packed == 0x1032U &&
+            CHECK(f->factories == 1 && f->item == item && f->packed == packed &&
                   f->roll_count == 1 && p.throwing.used && p.throwing.keep && !f->consumed &&
-                  p.throwing_grunt == 0x6f2 && f->p->animation.id == 0x5d &&
+                  p.throwing_grunt == 0x6f2 && f->p->animation.id == (item == 133 ? 0x60 : 0x5d) &&
                   f->p->equipment[0] == item);
     }
     return true;
@@ -754,7 +771,8 @@ int main(void)
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f);
+         Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Muramasa(f) &&
+         CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

@@ -37,7 +37,8 @@ secondary, [Rapier/Were bane](player-lunge-weapons.md) their QCF lunges, and the
 their glows, specials and lunge, [Osafune/Masamune](player-katana-warp.md) their
 warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, [Icebrand](player-icebrand.md)
 its frost special, [Moon rod](player-moon-rod.md) its crescents, [Runesword](player-runesword.md)
-and [Heaven sword](player-heaven-sword.md) their homing throws, two-handed
+and [Heaven sword](player-heaven-sword.md) their homing throws, [Chakram, Vorpal blade and
+Crissaegrim](player-weapon12.md) their returning ring and sliding slashes, two-handed
 [Muramasa](player-muramasa.md) its blood-grown attack and slashes, and
 [Thunderbrand](player-thunderbrand.md) its
 lightning; the two-handed ones use Namakura's paired reservation.

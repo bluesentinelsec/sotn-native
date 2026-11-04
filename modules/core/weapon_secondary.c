@@ -67,6 +67,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 48};
     else if (family == 13)
         *out = (Layout){.rows = 0};
+    else if (family == 12)
+        *out = (Layout){.rows = 1};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -76,7 +78,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
-           family == 6 || family == 14 || family == 13;
+           family == 6 || family == 14 || family == 13 || family == 12;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -98,6 +100,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // afterimages follow them.
     if (family == 14 || family == 13)
         return role <= 1;
+    // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
+    if (family == 12)
+        return role <= 2;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
@@ -114,6 +119,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 0 ? 48 : 0;
     if (family == 13)
         return 0;
+    if (family == 12)
+        return role == 0 ? 1 : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -2003,7 +2010,7 @@ static bool HeavenImage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
             s->removed = true;
             return true;
         }
-        s->role = 1;
+        s->role = (Uint8)in.role;
         s->allocated = true;
         s->frame = in.parent_frame;
         s->bank = in.parent_bank;
@@ -2024,6 +2031,243 @@ static bool HeavenImage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
     return true;
 }
 
+// w_012 EntityWeaponAttack (blueprint50/52 roots): Vorpal blade's and Crissaegrim's sliding GT4
+// slash. The program's slash count (D_8017BB28) picks one of three shapes; the CLUT steps
+// through ten fade palettes and retires the slash after the last.
+static bool Vorpal(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                   Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 masked = (Uint16)(s->parameter & 0x7f00U);
+    const bool slide = masked == 0x100 || masked == 0x200;
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 0;
+        s->allocated = true;
+        s->x = in.x;
+        s->y = in.y;
+        s->facing_left = in.facing_left;
+        s->slash_x[0] = s->slash_x[2] = 0xb;
+        s->slash_x[1] = s->slash_x[3] = 0x4b;
+        s->slash_y[0] = s->slash_y[1] = -0x27;
+        s->slash_y[2] = s->slash_y[3] = 0x19;
+        s->slash_drop = in.player_crouch_step && in.player_substep != 2 ? 0x18 : 0;
+        s->slash_shape = (Sint16)(p->secondary_counter % 3);
+        s->slash_spread[0] = s->slash_spread[1] = 0;
+        if (s->slash_shape == 1)
+        {
+            s->slash_step[0] = -2;
+            s->slash_step[1] = -1;
+            for (Uint16 i = 0; i < 4; ++i)
+                s->slash_y[i] = Word(-s->slash_y[i]);
+            s->slash_x[2] = Word(s->slash_x[2] - 0x10);
+            if (s->slash_drop)
+                s->slash_spread[0] = -0x10;
+        }
+        if (s->slash_shape == 0)
+        {
+            s->slash_step[0] = 2;
+            s->slash_step[1] = 1;
+            s->slash_x[0] = Word(s->slash_x[0] - 0x10);
+            if (s->slash_drop)
+                s->slash_spread[1] = 0x10;
+        }
+        if (s->slash_shape == 2)
+        {
+            s->slash_step[0] = s->slash_step[1] = 1;
+            s->slash_spread[0] = s->slash_spread[1] = 0x10;
+        }
+        if (s->facing_left)
+            for (Uint16 i = 0; i < 4; ++i)
+                s->slash_x[i] = Word(-s->slash_x[i]);
+        if (slide)
+        {
+            s->velocity_x = s->facing_left ? -0x40000 : 0x40000;
+            s->x = (Sint32)((Uint32)s->x - (Uint32)s->velocity_x * 4U);
+        }
+        SotnPlayerEffectQuad q = {.page = 0x19,
+                                  .palette = (Uint16)((in.hand ? 0x18 : 0) + 0x110),
+                                  .priority = (Uint16)(in.priority + 2U),
+                                  .draw_mode = 0x33};
+        if (masked == 0x200)
+        {
+            for (Uint16 i = 0; i < 4; ++i)
+                q.red[i] = q.green[i] = q.blue[i] = 0x80;
+            q.draw_mode |= 4;
+        }
+        s->flags = 0x08800000U;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_x = 0x2b;
+        s->hitbox_width = 0x1e;
+        s->hitbox_y = (Sint16)(s->slash_drop - 6);
+        s->hitbox_height = (Uint8)(0x1c - s->slash_drop / 2);
+        e->clear_shield = true;
+        const Uint8 v = in.hand ? 0x80 : 0;
+        q.u[0] = q.u[2] = 0;
+        q.u[1] = q.u[3] = 0x40;
+        q.v[0] = q.v[1] = v;
+        q.v[2] = q.v[3] = (Uint8)(v + 0x40U);
+        s->quad = q;
+        p->secondary_counter = (Sint32)((Uint32)p->secondary_counter + 1U);
+        e->sounds[0] = 0x60b;
+        e->startup_ticks = 4;
+        s->phase = 1;
+    }
+    else
+    {
+        if (masked == 0x100)
+            s->velocity_x = Decelerate(s->velocity_x, 0x3000);
+        if (masked == 0x200)
+            s->velocity_x = Decelerate(s->velocity_x, 0x1000);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->quad.palette = (Uint16)(s->quad.palette + 1U);
+    }
+    if (s->quad.palette >= ((s->parameter & 0x8000U) ? 0x132 : 0x11a))
+    {
+        s->removed = true;
+        return true;
+    }
+    if (slide)
+    {
+        s->slash_spread[0] = Word(s->slash_spread[0] + s->slash_step[0]);
+        s->slash_spread[1] = Word(s->slash_spread[1] + s->slash_step[1]);
+        if (masked == 0x200)
+        {
+            const Sint16 d = s->velocity_x < 0 ? -7 : 7;
+            s->slash_x[0] = Word(s->slash_x[0] + d);
+            s->slash_x[2] = Word(s->slash_x[2] + d);
+        }
+    }
+    // Corners are offsets from the entity's whole pixels (DRAW_UNK02 follows the camera).
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        s->quad.x[i] = s->slash_x[i];
+        s->quad.y[i] = Word(s->slash_y[i] + s->slash_drop +
+                            (i < 2 ? s->slash_spread[0] : -s->slash_spread[1]));
+    }
+    return true;
+}
+// w_012 func_ptr_80170004 (blueprint56): the Chakram arcs out with random speeds for
+// twenty-eight updates, then steers back with a growing turn limit like Heaven sword's root.
+static bool Chakram(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                    SotnWeaponSecondaryEvents *e)
+{
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->frame = 3;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->palette = 0x100;
+        s->flags = 0x0c020000U;
+        const Sint32 speed = (Sint32)(((Rand(rng) & 0x3fffU) * 2U) | 0x48000U);
+        s->velocity_x = s->facing_left ? -speed : speed;
+        s->lifetime = 0x1c;
+        const Sint16 offset = Word(Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y);
+        SetScreen(&s->y, Word(offset - (in.player_crouch_step ? 8 : 0x10)), in.camera_y);
+        const Sint16 px = Word(Pixel(in.x) - in.camera_x);
+        SetScreen(&s->x, Word(s->facing_left ? px - in.parent_hitbox_x : px + in.parent_hitbox_x),
+                  in.camera_x);
+        s->accel_x = s->facing_left ? 0x2800 : -0x2800;
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)in.player_velocity_x);
+        s->magnitude = 0x80;
+        s->velocity_y = (Sint32)(Rand(rng) & 0x7fffU) * 2 + 0x20000;
+        s->accel_y = -0x2000;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        s->hitbox_width = s->hitbox_height = 4;
+        e->use_ticks = 4;
+        s->volume = 0x60;
+        s->phase = 1;
+    }
+    else if (s->phase == 1)
+    {
+        if (!(s->counter & 7))
+        {
+            e->sounds[0] = 0x60a;
+            e->volume_sound = true;
+            e->volume = (Uint16)s->volume;
+        }
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)(Sint32)Word(s->accel_x));
+        s->velocity_y = (Sint32)((Uint32)s->velocity_y + (Uint32)(Sint32)Word(s->accel_y));
+        s->accel_y = Word(s->accel_y - 0x1c0);
+        if (s->lifetime == 4)
+            ++s->frame;
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            Sint16 heading = 0;
+            if (!SotnMath_Atan2Vector(in.executable, (Sint32)(0U - (Uint32)s->velocity_y),
+                                      s->velocity_x, &heading))
+                return false;
+            s->angle = (Sint16)(heading & 0xfff);
+            ++s->frame;
+            s->phase = 2;
+        }
+    }
+    else
+    {
+        Sint16 limit = s->magnitude;
+        s->magnitude = Word(s->magnitude + 0x10);
+        const Sint32 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y),
+                     tx = (Sint32)Word(Pixel(in.x) - in.camera_x) + in.parent_hitbox_x,
+                     ty = (Sint32)Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y;
+        const Sint16 dx = Word(tx - sx < 0 ? sx - tx : tx - sx),
+                     dy = Word(ty - sy < 0 ? sy - ty : ty - sy);
+        if (dx < (in.player_hitbox_width + s->hitbox_width) >> 1 &&
+            dy < (in.player_hitbox_height + s->hitbox_height) >> 1)
+        {
+            s->removed = true;
+            return true;
+        }
+        Sint16 target = 0;
+        if (!SotnMath_Atan2(in.executable, -(Sint32)Word(ty - sy), Word(tx - sx), &target))
+            return false;
+        target = (Sint16)(target & 0xfff);
+        Sint16 angle = (Sint16)(s->angle & 0xfff);
+        const Sint16 diff = Word(angle - target < 0 ? target - angle : angle - target);
+        if (limit > diff)
+            limit = diff;
+        if (angle < target)
+            angle = Word(diff < 0x800 ? angle + limit : angle - limit);
+        else
+            angle = Word(diff < 0x800 ? angle - limit : angle + limit);
+        s->angle = (Sint16)(angle & 0xfff);
+        s->facing_left = false;
+        s->draw_flags |= 4;
+        s->rotate = Word(0x800 - s->angle);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, s->angle, &t))
+            return false;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)t.cosine * 64U);
+        s->y = (Sint32)((Uint32)s->y - (Uint32)t.sine * 64U);
+        if (!(s->counter & 7))
+        {
+            e->sounds[0] = 0x60a;
+            e->volume_sound = true;
+            e->volume = (Uint16)s->volume;
+            s->volume -= 0xc;
+            if (s->volume < 0)
+                s->volume = 0;
+        }
+    }
+    if (!(in.game_timer & 3U))
+        e->chain = 0x40U | ((Uint32)(in.hand + 1U) << 12);
+    s->counter = Word(s->counter + 1);
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -2032,11 +2276,13 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 5 ||
         !Program(in.family, &layout) ||
         !SotnWeaponSecondary_SupportedRole(
-            in.family, in.role || in.family == 14 || in.family == 13 ? in.role : 1) ||
+            in.family,
+            in.role || in.family == 14 || in.family == 13 || in.family == 12 ? in.role : 1) ||
         state->removed ||
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
                         : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
+                        : in.family == 12 && in.role == 1                      ? 2
                                                                                : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
@@ -2080,6 +2326,15 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 13)
     {
         if (!(in.role == 0 ? Heaven(&s, in, &rng, &e) : HeavenImage(&s, in)))
+            return false;
+        goto commit;
+    }
+    // w_012's func_ptr_80170008 afterimage matches w_013's, copying the parent's own palette.
+    if (in.family == 12)
+    {
+        if (!(in.role == 0   ? Vorpal(&s, &shared, in, &rng, &e)
+              : in.role == 1 ? Chakram(&s, in, &rng, &e)
+                             : HeavenImage(&s, in)))
             return false;
         goto commit;
     }

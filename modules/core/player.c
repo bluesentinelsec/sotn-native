@@ -4315,6 +4315,14 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *p, Uint8 ticks)
     return true;
 }
 
+bool SotnPlayer_SetWeaponStartup(SotnPlayer *p, Uint8 ticks)
+{
+    if (!p || ticks > 32)
+        return SDL_SetError("Player weapon-startup timer requires its owner and bounded ticks");
+    p->weapon_startup = ticks;
+    return true;
+}
+
 bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
 {
     if (!p || ticks > 32)

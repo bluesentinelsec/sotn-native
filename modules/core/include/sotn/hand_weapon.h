@@ -14,7 +14,8 @@ typedef struct SotnHandWeaponProgram
     Uint32 short_pose;
     Sint32 shield_attack;
     /** Weapon38/39 secondary BSS: lunge countdown (D_8017B844/D_8017BA28) and weapon39's
-     * retained chain endpoints (D_8017BA2C/D_8017BA6C). Zeroed with a genuine program load. */
+     * retained chain endpoints (D_8017BA2C/D_8017BA6C); weapon12's slash count D_8017BB28.
+     * Zeroed with a genuine program load. */
     Sint32 secondary_counter;
     union {
         struct

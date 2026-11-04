@@ -57,6 +57,13 @@ typedef struct SotnWeaponSecondary
             Sint16 child_palette;
             Sint32 volume;
         };
+        /** Weapon12 E0 slash: ext.sword corner offsets x0..x3 (unk90/92/94/96), y0..y3
+         * (unk98/88/9A/8A), spread steps unk82/84, spreads unk9C/9E, shape unk86, drop unkA0. */
+        struct
+        {
+            Sint16 slash_x[4], slash_y[4], slash_step[2], slash_spread[2];
+            Sint16 slash_shape, slash_drop;
+        };
         /** Weapon14 Runesword root: forty-eight GT4 trail rows kept as blade corners x1/y1 and
          * x3/y3 (row i's x0/x2 repeat row i-1's), UVs and the r0 shown byte. The original
          * DRAW_UNK02|UNK_100 screen vertices follow the camera, so corners are world pixels. */
@@ -130,7 +137,8 @@ typedef struct SotnWeaponSecondaryInput
     Uint8 parent_draw_flags;
     /** Weapon13 afterimages copy the raw parent's frame, animSet, unk5A and childPalette. */
     Uint16 parent_frame, parent_bank, parent_texture, parent_child_palette;
-    Uint32 game_timer; /**< Actual wrapping g_GameTimer (weapon13 schedules). */
+    Uint32 game_timer;     /**< Actual wrapping g_GameTimer (weapon13/12 schedules). */
+    Uint16 player_substep; /**< PLAYER.step_s (weapon12 slashes drop while crouched). */
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -147,9 +155,11 @@ typedef struct SotnWeaponSecondaryEvents
     /** Weapon6 crescents: DestroyEntityWeapon(true) and the player timer10 use request. */
     bool clear_shield;
     Uint8 use_ticks;
-    /** Weapon14/13: sounds[0] is PlaySfxVolPan(sound, volume, pan0). */
+    /** Weapon14/13/12: sounds[0] is PlaySfxVolPan(sound, volume, pan0). */
     bool volume_sound;
     Uint16 volume;
+    /** Weapon12 slashes: g_Player.timers[9] (hand-weapon startup) request. */
+    Uint8 startup_ticks;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,

@@ -1,3 +1,10 @@
+Selected [Chakram/Vorpal blade/Crissaegrim](docs/player-weapon12.md) now own items133/163/164
+through weapon12 as secondary roots in17..31: role0 GT4 slashes (blueprints50/52, descriptors1/2,
+one mandatory row, program count D_8017BB28 in secondary_counter picks the shape, CLUT fade
+retirement, timer9 via startup_ticks/SotnPlayer_SetWeaponStartup), role1 the blueprint56 Chakram
+(rand speeds, accelerations, turn-limited homing) and role2 0x40 afterimages copying its palette.
+All never consumed; roots/Chakram carry their items for CheckChainLimit.
+
 Selected [Muramasa](docs/player-muramasa.md) now owns two-hand item141/kind29 through weapon56
 (Gurthang's callback, own tables; descriptor2 under timer11; attack>=0x1E requests the
 WFACTORY(56,0) Katana slash chain over tables 0xFCC/0xFA4, hand word 0x105C). func_8010A3F0 runs

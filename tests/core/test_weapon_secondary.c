@@ -1703,6 +1703,159 @@ static bool MuramasaSlash(void)
     return true;
 }
 
+static Sint32 Decel(Sint32 v, Sint32 amount)
+{
+    if (v < 0)
+        return v + amount > 0 ? 0 : v + amount;
+    return v - amount < 0 ? 0 : v - amount;
+}
+
+// w_012 slashes: the program's count picks one of three shapes; Vorpal (descriptor1) slides
+// from four updates back and decelerates, Crissaegrim (descriptor2) shades its GT4 and widens;
+// the CLUT steps through ten fade palettes. The Chakram arcs out, then steers home.
+static bool Twelve(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    const Uint16 hit = 2;
+    for (Uint16 k = 0; k < 7; ++k)
+    {
+        const Uint16 variant = k < 3 ? 1 : 2, hand = k & 1U;
+        SotnHandWeaponProgram program = {.secondary_counter = (Sint32)k};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnWeaponSecondaryEvents e = {0};
+        // Crouching drops the slash only outside crouch substep2 (k6 crouches in substep2).
+        const bool left = k == 2, crouch = k == 4, crouched = k == 4 || k == 6;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 100 * 65536 + 0x55,
+                                       .y = 80 * 65536,
+                                       .hand = hand,
+                                       .family = 12,
+                                       .role = 0,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = true,
+                                       .player_crouch_step = crouched,
+                                       .player_substep = (Uint16)(k == 6 ? 2 : 1)};
+        Uint32 rng = 3;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              e.properties && e.clear_shield && e.startup_ticks == 4 && e.sounds[0] == 0x60b &&
+              program.secondary_counter == (Sint32)k + 1 && s.slash_shape == (Sint16)(k % 3U) &&
+              s.slash_drop == (crouch ? 0x18 : 0));
+        CHECK(s.velocity_x == (left ? -0x40000 : 0x40000) &&
+              s.x == 100 * 65536 + 0x55 - 4 * s.velocity_x && s.flags == 0x08800000U &&
+              s.hitbox_x == 0x2b && s.hitbox_width == 0x1e &&
+              s.hitbox_y == (crouch ? 0x18 - 6 : -6) &&
+              s.hitbox_height == (crouch ? 0x1c - 12 : 0x1c) &&
+              s.quad.palette == (hand ? 0x128 : 0x110) && s.quad.priority == 150 &&
+              s.quad.draw_mode == (variant == 2 ? 0x37 : 0x33) &&
+              s.quad.red[0] == (variant == 2 ? 0x80 : 0) && s.quad.v[2] == (hand ? 0xc0 : 0x40));
+        // Shape0 pulls x0 in by16, shape1 x2 and flips y, shape2 spreads both edges by16.
+        const Sint16 sign = left ? -1 : 1, shape = s.slash_shape;
+        CHECK(s.slash_x[1] == sign * 0x4b &&
+              s.slash_x[0] ==
+                  sign * (shape == 0 ? 0xb - 0x10 : 0xb) + (variant == 2 ? (left ? -7 : 7) : 0) &&
+              s.slash_y[0] == (shape == 1 ? 0x27 : -0x27));
+        Uint16 t = 1;
+        for (; t < 20 && !s.removed; ++t)
+        {
+            const Sint32 vx = s.velocity_x, x = s.x;
+            const Uint16 palette = s.quad.palette;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            const Sint32 slowed = Decel(vx, variant == 1 ? 0x3000 : 0x1000);
+            CHECK(s.velocity_x == slowed && s.x == x + slowed);
+            if (!s.removed)
+                CHECK(s.quad.palette == palette + 1U);
+        }
+        CHECK(s.removed && t == 11);
+    }
+    // Exhausted rows retire before properties; the Chakram's two launch rolls precede properties.
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 12,
+                                       .role = 0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 3 &&
+              !program.secondary_counter);
+    }
+    for (Uint16 k = 0; k < 2; ++k)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.x = 10 * 65536, .y = 10 * 65536};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 11U + k * 1000U, check = rng;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 120 * 65536,
+                                       .y = 100 * 65536,
+                                       .hand = k,
+                                       .family = 12,
+                                       .role = 1,
+                                       .priority = 148,
+                                       .facing_left = k != 0,
+                                       .parent_hitbox_x = 5,
+                                       .parent_hitbox_y = -6,
+                                       .player_hitbox_width = 12,
+                                       .player_hitbox_height = 30,
+                                       .game_timer = 4};
+        const Sint32 speed = (Sint32)(((SotnCombat_Random(&check) & 0x3fffU) * 2U) | 0x48000U);
+        const Sint32 vy = (Sint32)(SotnCombat_Random(&check) & 0x7fffU) * 2 + 0x20000;
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.frame == 3 && s.palette == 0x100 && s.flags == 0x0c020000U &&
+              s.velocity_x == (k ? -speed : speed) && s.velocity_y == vy &&
+              s.accel_x == (k ? 0x2800 : -0x2800) && s.accel_y == -0x2000 && s.lifetime == 0x1c &&
+              s.volume == 0x60 && e.use_ticks == 4 && e.clear_shield &&
+              e.chain == (0x40U | (k + 1U) << 12) && s.counter == 1);
+        Uint16 t = 0, chains = 0;
+        for (; t < 0x1c; ++t)
+        {
+            in.game_timer = 5U + t;
+            e = (SotnWeaponSecondaryEvents){0};
+            const Sint32 vx = s.velocity_x, vy0 = s.velocity_y;
+            const Sint16 ay = (Sint16)s.accel_y;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                  s.velocity_x == vx + (k ? 0x2800 : -0x2800) && s.velocity_y == vy0 + ay &&
+                  (Sint16)s.accel_y == ay - 0x1c0);
+            chains += e.chain != 0;
+            CHECK(!(e.sounds[0] == 0x60a) == !!((s.counter - 1) & 7));
+        }
+        CHECK(s.phase == 2 && s.frame == 5 && chains == 7);
+        // Homing grows the turn limit by0x10; every eighth update swishes and fades by0xC.
+        Uint16 fades = 0;
+        for (t = 0; t < 400 && !s.removed; ++t)
+        {
+            const Sint16 limit = s.magnitude;
+            const Sint32 volume = s.volume;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (s.removed)
+                break;
+            CHECK(!s.facing_left && (s.draw_flags & 4U) && s.magnitude == limit + 0x10);
+            if (e.sounds[0] == 0x60a)
+            {
+                CHECK(e.volume == volume && s.volume == SDL_max(volume - 0xc, 0));
+                ++fades;
+            }
+        }
+        CHECK(s.removed && fades);
+    }
+    CHECK(SotnWeaponSecondary_SupportedRole(12, 2) && !SotnWeaponSecondary_SupportedRole(12, 3) &&
+          SotnWeaponSecondary_RoleRows(12, 0) == 1 && !SotnWeaponSecondary_RoleRows(12, 1));
+    return true;
+}
+
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -2912,13 +3065,135 @@ static bool HeavenRuntime(void)
     return true;
 }
 
+// Blueprint52 releases Crissaegrim's four slashes one every four updates (index0..3, one GT4
+// each, own item164); blueprint56's Chakram (own item133) spawns blueprint0x40 afterimages in
+// slots32..63 naming it; everything retires with its rows.
+static bool TwelveRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 164, 1, 12, 129, 2, 0, 0);
+    Uint8 *record = dra + 0x500 + 164 * 52;
+    record[18] = 0x5d;
+    record[19] = 52;
+    record[21] = 0;
+    record[22] = 3;
+    FamilyDefinition(dra, 133, 2, 12, 130, 0, 0, 0);
+    record = dra + 0x500 + 133 * 52;
+    record[18] = 0x60;
+    record[19] = 56;
+    record[21] = 0;
+    record[22] = 2;
+    const Uint8 blueprints[][6] = {
+        {52, 0, 4, 0xc1, 4, 0x26}, {56, 1, 1, 0xc1, 0, 0x06}, {0x40, 2, 1, 0xc1, 0, 0}};
+    for (Uint16 i = 0; i < 3; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment e = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 164, &e) && e.blueprint == 52 && e.variant == 2 &&
+          e.chain_limit == 3 && !e.consumable && SotnEquipment_Read(actors->dra, 133, &e) &&
+          e.kind == 130 && e.blueprint == 56 && e.chain_limit == 2 && !e.consumable);
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {12, 12},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x5d,
+                                                       .hitbox_x = 4,
+                                                       .hitbox_y = -18,
+                                                       .hitbox_width = 12,
+                                                       .hitbox_height = 30}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(!SotnBatRuntime_RequestThrown(r, source, 0x1032U | 2U << 16, 164, &allocated) &&
+          SotnBatRuntime_RequestThrown(r, source, 0x1034U | 2U << 16, 164, &allocated) &&
+          allocated);
+    Uint16 seen = 0, startups = 0;
+    for (Uint16 t = 0; t < 40; ++t)
+    {
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        startups += r->startup_ticks == 4;
+        for (Uint16 i = 1; i < 16; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 12)
+                continue;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && c->kind == 0xe0 &&
+                  c->state.secondary.item == 164 && c->primitive_count == 1 &&
+                  (c->parameter & 0x7f00U) == 0x200 && c->group >= 3 && c->group <= 6);
+            seen |= (Uint16)(1U << (c->parameter & 3U));
+        }
+    }
+    CHECK(seen == 15 && startups == 4 && r->hand_program[0].secondary_counter == 4);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    // The Chakram and its afterimages.
+    CHECK(SotnBatRuntime_RequestThrown(r, source, 0x2038U | 0x80U << 16, 133, &allocated) &&
+          allocated);
+    Uint16 images = 0, chakram = 0;
+    for (Uint16 t = 0; t < 300; ++t)
+    {
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 12 || !c->initialized)
+                continue;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            if (c->kind == 0xf1)
+            {
+                CHECK(i <= 15 && c->state.secondary.item == 133 && !c->primitive_count);
+                chakram = i;
+            }
+            else
+            {
+                CHECK(c->kind == 0xf2 && i >= 16 &&
+                      c->state.secondary.parent_slot == chakram + 16U &&
+                      c->state.secondary.motion.palette == 0x100 && !c->state.secondary.item &&
+                      (c->state.secondary.motion.draw_flags & 8U));
+                ++images;
+            }
+        }
+    }
+    CHECK(chakram && images > 10);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
-                   HeavenRuntime() && MuramasaSlash()
+                   HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime()
                ? 0
                : 1;
 }

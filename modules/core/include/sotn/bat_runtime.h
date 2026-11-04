@@ -292,6 +292,7 @@ typedef struct SotnBatRuntime
     Uint64 sound_volume_mask; /**< Selected ordered PlaySfxVolPan requests; pan remains zero. */
     Uint8 wolf_shakes[32], wolf_shake_count; /**< Includes up to24 actual Iron-ball impact calls. */
     Uint8 use_ticks;       /**< Original timer10: selected effect births and Karma tails. */
+    Uint8 startup_ticks;   /**< Original timer9: weapon12 slash births. */
     Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births and Karma heads. */
     Uint16 dark_minimum;   /**< Original timer11 floor from weapon54 specials; zero if absent. */
     Uint8 groups[11];

@@ -183,7 +183,7 @@ bool SotnEquipment_IsSword0(Uint16 id)
 bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
     if (id == 24 || id == 25 || (id >= 71 && id <= 79) || id == 80 || id == 81 || id == 82 ||
-        id == 134 || id == 135 || id == 143 || id == 119)
+        id == 134 || id == 135 || id == 143 || id == 119 || id == 133 || id == 163 || id == 164)
         return SotnEquipment_ReadThrowing(dra, id, out);
     if (id >= 29 && id <= 70)
         return SotnEquipment_ReadFood(dra, id, out);
@@ -314,8 +314,12 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
     // Runesword143 (weapon14) and Heaven sword119 (weapon13) are kind129 swords thrown through
     // blueprint50, never consumed.
     const bool rune = item == 143 || item == 119;
+    // Weapon12: Chakram133 (kind130, blueprint56, chain2) and the kind129 Vorpal blade163/
+    // Crissaegrim164 slashes (blueprints50/52, descriptors1/2, chain3), never consumed.
+    const bool chakram = item == 133, vorpal = item == 163 || item == 164;
     const Uint8 *pointer = NULL, *p = NULL;
-    if (!out || (!karma && !magic && !thrown && !star && !rune && (item < 71 || item > 74)))
+    if (!out || (!karma && !magic && !thrown && !star && !rune && !chakram && !vorpal &&
+                 (item < 71 || item > 74)))
         return SDL_SetError("Throwing definition requires an actual supported original item");
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
         !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)item * 52U, 50, &p))
@@ -324,33 +328,43 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
                             : item == 81 || item == 134 ? 62
                             : item == 82                ? 68
                             : item == 135               ? 63
+                            : chakram                   ? 56
+                            : item == 164               ? 52
                                                         : 50;
-    const Uint8 chain = star     ? item == 79 ? 1 : 3
+    const Uint8 chain = chakram  ? 2
+                        : vorpal ? 3
+                        : star   ? item == 79 ? 1 : 3
                         : thrown ? item == 82    ? 2
                                    : item == 135 ? 4
                                                  : 3
                         : magic  ? 4
                                  : 1;
-    if (p[14] != (rune                      ? 2
+    if (p[14] != (rune || chakram           ? 2
+                  : vorpal                  ? 1
                   : magic || thrown || star ? 8
                                             : 7) ||
-        p[15] != (rune         ? (item == 143 ? 14 : 13)
-                  : karma      ? 20
-                  : star       ? 15
-                  : thrown     ? 16
-                  : magic      ? 22
-                  : item == 71 ? 19
-                  : item == 72 ? 18
-                               : 17) ||
+        p[15] != (rune                ? (item == 143 ? 14 : 13)
+                  : chakram || vorpal ? 12
+                  : karma             ? 20
+                  : star              ? 15
+                  : thrown            ? 16
+                  : magic             ? 22
+                  : item == 71        ? 19
+                  : item == 72        ? 18
+                                      : 17) ||
         p[16] ||
-        p[17] != ((thrown && item != 80) || item == 76 || item == 78 || rune ? 129 : 130) ||
-        p[18] != (thrown || rune || item == 76 || item == 78 ? 0x5d : 0x60) || p[19] != blueprint ||
-        p[20] != (star && item != 79          ? item - 75U
-                  : item == 74 || item == 134 ? 1
-                                              : 0) ||
-        p[21] || p[22] != chain || p[23] || p[24] || p[25] != (rune ? 0 : 1) || Read16(p + 36) ||
-        Read16(p + 8) > 999 ||
-        Read16(p + 40) != (karma || magic || thrown || star || rune ? 2 : 0x82))
+        p[17] !=
+            ((thrown && item != 80) || item == 76 || item == 78 || rune || vorpal ? 129 : 130) ||
+        p[18] != (thrown || rune || vorpal || item == 76 || item == 78 ? 0x5d : 0x60) ||
+        p[19] != blueprint ||
+        p[20] != (star && item != 79                         ? item - 75U
+                  : item == 74 || item == 134 || item == 163 ? 1
+                  : item == 164                              ? 2
+                                                             : 0) ||
+        p[21] || p[22] != chain || p[23] || p[24] || p[25] != (rune || chakram || vorpal ? 0 : 1) ||
+        Read16(p + 36) || Read16(p + 8) > 999 ||
+        Read16(p + 40) !=
+            (karma || magic || thrown || star || rune || chakram || vorpal ? 2 : 0x82))
         return SDL_SetError("Throwing definition does not match its original owned weapon path");
     *out = (SotnEquipment){.id = item,
                            .family = p[15],
@@ -406,32 +420,34 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
         (!SotnEquipment_IsShield(equipment.id) && equipment.id != 18 && equipment.id != 174 &&
          equipment.id != 19 && equipment.id != 24 && equipment.id != 25 && equipment.id != 80 &&
          equipment.id != 81 && equipment.id != 82 && equipment.id != 134 && equipment.id != 135 &&
-         equipment.id != 143 && equipment.id != 119 && !SotnEquipment_IsSword0(equipment.id) &&
+         equipment.id != 143 && equipment.id != 119 && equipment.id != 133 && equipment.id != 163 &&
+         equipment.id != 164 && !SotnEquipment_IsSword0(equipment.id) &&
          !SotnEquipment_IsBasicFist(equipment.id) && !SotnEquipment_IsPlainWeapon(equipment.id) &&
          equipment.id != 123 && equipment.id != 197 && equipment.id != 216 && equipment.id != 128 &&
          (equipment.id < 29 || equipment.id > 79)) ||
-        equipment.family != (equipment.id == 24                         ? 20
-                             : equipment.id >= 75 && equipment.id <= 79 ? 15
-                             : equipment.id == 80 || equipment.id == 81 || equipment.id == 82 ||
-                                     equipment.id == 134 || equipment.id == 135
-                                 ? 16
-                             : equipment.id == 25                      ? 22
-                             : equipment.id == 143                     ? 14
-                             : equipment.id == 119                     ? 13
-                             : SotnEquipment_IsSword0(equipment.id)    ? 0
-                             : SotnEquipment_IsBasicFist(equipment.id) ? 1
-                             : SotnEquipment_IsPlainWeapon(equipment.id)
-                                 ? PlainWeapon(equipment.id).family
-                             : equipment.id == 18 || equipment.id == 174  ? 31
-                             : equipment.id == 19                         ? 37
-                             : equipment.id == 123 || equipment.id == 197 ? 43
-                             : SotnEquipment_IsShield(equipment.id)     ? ShieldFamily(equipment.id)
-                             : equipment.id == 216                      ? 45
-                             : equipment.id >= 29 && equipment.id <= 70 ? 21
-                             : equipment.id == 71                       ? 19
-                             : equipment.id == 72                       ? 18
-                             : equipment.id == 73 || equipment.id == 74 ? 17
-                                                                        : 2))
+        equipment.family !=
+            (equipment.id == 24                         ? 20
+             : equipment.id >= 75 && equipment.id <= 79 ? 15
+             : equipment.id == 80 || equipment.id == 81 || equipment.id == 82 ||
+                     equipment.id == 134 || equipment.id == 135
+                 ? 16
+             : equipment.id == 25                                                ? 22
+             : equipment.id == 143                                               ? 14
+             : equipment.id == 119                                               ? 13
+             : equipment.id == 133 || equipment.id == 163 || equipment.id == 164 ? 12
+             : SotnEquipment_IsSword0(equipment.id)                              ? 0
+             : SotnEquipment_IsBasicFist(equipment.id)                           ? 1
+             : SotnEquipment_IsPlainWeapon(equipment.id)  ? PlainWeapon(equipment.id).family
+             : equipment.id == 18 || equipment.id == 174  ? 31
+             : equipment.id == 19                         ? 37
+             : equipment.id == 123 || equipment.id == 197 ? 43
+             : SotnEquipment_IsShield(equipment.id)       ? ShieldFamily(equipment.id)
+             : equipment.id == 216                        ? 45
+             : equipment.id >= 29 && equipment.id <= 70   ? 21
+             : equipment.id == 71                         ? 19
+             : equipment.id == 72                         ? 18
+             : equipment.id == 73 || equipment.id == 74   ? 17
+                                                          : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;
     if (weapons.bytes == NULL || offset > weapons.size || 0x3000 > weapons.size - offset)
