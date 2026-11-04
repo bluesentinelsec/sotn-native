@@ -2157,7 +2157,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         const Uint16 variant = child.argument_low == 163 ? 1 : child.argument_low == 164 ? 2 : 0;
         const Uint16 base = (Uint16)((variant << 8) | (hand ? 0x8000U : 0U));
         if (generation || child.argument_high || child.parameter < base ||
-            child.parameter - base > (child.argument_low == 164 ? 3U : 0U) ||
+            (Uint32)(child.parameter - base) > (child.argument_low == 164 ? 3U : 0U) ||
             (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 12)))
             return SDL_SetError("Weapon12 root lost its actual blueprint/program/item ownership");
         c.state.secondary.family = 12;
