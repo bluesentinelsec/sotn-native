@@ -63,6 +63,11 @@ without a callback; player shoves move only the entity. Death clears its hitbox.
 changes, Wolf replacement and form retirement clear its attack mask, and the commit releases
 its rows. Late failures leave the runtime, rows and character RNG unchanged.
 
+The session's Alucard-sword image path once matched any unclaimed E1/E2 child, so each weapon
+secondary also drew an aliased Alucard image at its position. Secondaries are now excluded
+from that path and its validator; native protocols check that a fully hidden secondary draws
+exactly nothing.
+
 ## Evidence
 
 Public tests cover the attack birth sound/factory/order and both hands; secondary birth with

@@ -4099,7 +4099,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                     .kind = SOTN_DRAW_FOOD}))
                 return false;
             if (!child->food && !child->sire && !child->magic && !child->thrown && !child->star &&
-                !child->karma && child->initialized &&
+                !child->karma && !child->weapon_secondary && child->initialized &&
                 (child->kind == 0xe1 || child->kind == 0xf1 || child->kind == 0xe2 ||
                  child->kind == 0xf2) &&
                 !SotnActorOrder_Add(session->draw_items, SDL_arraysize(session->draw_items),
@@ -5261,7 +5261,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[command.primitive];
             const bool image = c->kind == 0xe1 || c->kind == 0xf1;
-            if (!c->generation || !c->initialized || c->karma ||
+            if (!c->generation || !c->initialized || c->karma || c->weapon_secondary ||
                 (!image && c->kind != 0xe2 && c->kind != 0xf2))
                 return SDL_SetError("Sword draw lost its actual initialized child");
             if (image)

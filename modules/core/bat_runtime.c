@@ -2086,7 +2086,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                                   .facing_left = child.source.facing_left,
                                   .inventory = inventory};
     }
-    if (!c.thrown && !c.star && !c.karma && (c.kind == 0xe2 || c.kind == 0xf2))
+    if (!c.thrown && !c.star && !c.karma && !c.weapon_secondary &&
+        (c.kind == 0xe2 || c.kind == 0xf2))
     {
         if (child.slot < 17 || child.slot > 31 || !generation || child.parameter ||
             child.argument_low || child.argument_high)
@@ -3252,7 +3253,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         if (in.freeze && !(ChildFlags(c) & 0x10000U))
         {
-            if (c->initialized && !c->thrown && !c->star && !c->karma &&
+            if (c->initialized && !c->thrown && !c->star && !c->karma && !c->weapon_secondary &&
                 (c->kind == 0xe2 || c->kind == 0xf2))
                 r.sword_mask |= (Uint64)1 << i;
             if (c->initialized && c->kind == 36)
