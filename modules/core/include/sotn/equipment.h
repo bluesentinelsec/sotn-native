@@ -63,6 +63,10 @@ bool SotnEquipment_ReadThrowing(SotnDataView dra, Uint16 item, SotnEquipment *ou
 bool SotnEquipment_ReadMagicMissile(SotnDataView dra, SotnEquipment *out);
 /** @brief Read original weapon19 Neutron Bomb71 metadata for its actual hand owner. */
 bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out);
+/** @brief Read an original hand item's MP usage word (definition offset36).
+ * @param dra Borrowed DRA bytes. @param id Original hand or virtual item below217.
+ * @param out Receives the cost, unchanged on failure. @return Success or SDL error. */
+bool SotnEquipment_ReadCost(SotnDataView dra, Uint16 id, Uint16 *out);
 /** @brief Read virtual197 for an actual equipped Alucard sword123 special.
  * @param dra Borrowed private US definitions. @param equipped Actual owned hand item.
  * @param out Copied metadata. @param mp Actual original special cost.

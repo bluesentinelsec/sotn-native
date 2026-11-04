@@ -270,6 +270,7 @@ typedef struct SotnBatRuntime
     Uint8 wolf_shakes[32], wolf_shake_count; /**< Includes up to24 actual Iron-ball impact calls. */
     Uint8 use_ticks;       /**< Original timer10: selected effect births and Karma tails. */
     Uint8 spell_use_ticks; /**< Original timer12: selected weapon17/18/19 births and Karma heads. */
+    Uint16 dark_minimum;   /**< Original timer11 floor from weapon54 specials; zero if absent. */
     Uint8 groups[11];
     bool soul_attack; /**< Actual initialized slot47/child53 global spell-five attack. */
     bool echo_attack;

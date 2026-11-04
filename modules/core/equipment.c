@@ -43,30 +43,34 @@ static Uint8 ShieldFamily(Uint16 id)
 // Actual US definition bytes for the selected w_002-template programs.
 typedef struct PlainSpec
 {
-    Uint8 category, family, kind, animation, variant, back_forward;
+    Uint8 category, family, kind, animation, variant, back_forward, special_move;
 } PlainSpec;
 static PlainSpec PlainWeapon(Uint16 id)
 {
     switch (id)
     {
     case 21: // Nunchaku
-        return (PlainSpec){5, 33, 11, 0x8b, 0, 0};
+        return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0};
     case 26: // Red Rust
-        return (PlainSpec){5, 35, 13, 0x99, 0, 0};
+        return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0};
     case 27: // Takemitsu
-        return (PlainSpec){5, 36, 14, 0xa0, 0, 0};
+        return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0};
     case 124: // Mablung
-        return (PlainSpec){1, 57, 1, 0x41, 3, 0};
+        return (PlainSpec){1, 57, 1, 0x41, 3, 0, 0};
     case 129: // Morningstar
-        return (PlainSpec){4, 3, 2, 0x48, 0, 0};
+        return (PlainSpec){4, 3, 2, 0x48, 0, 0, 0};
     case 130: // Holy rod and its back-forward special170
-        return (PlainSpec){4, 4, 3, 0x4f, 0, 170};
+        return (PlainSpec){4, 4, 3, 0x4f, 0, 170, 0};
     case 170:
-        return (PlainSpec){4, 4, 4, 0x56, 1, 0};
+        return (PlainSpec){4, 4, 4, 0x56, 1, 0, 0};
+    case 121: // Gurthang and its QCF special195
+        return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195};
+    case 195:
+        return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0};
     case 131: // Star flail and its back-forward special171
-        return (PlainSpec){4, 5, 3, 0x4f, 0, 171};
+        return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0};
     case 171:
-        return (PlainSpec){4, 5, 4, 0x56, 1, 0};
+        return (PlainSpec){4, 5, 4, 0x56, 1, 0, 0};
     default:
         return (PlainSpec){0};
     }
@@ -136,9 +140,10 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         (id == 123 && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (fist && (record[14] != 3 || record[15] != 1 || record[17] != 0 || record[18] != 0x24 ||
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
-        (plain && (record[14] != spec.category || record[15] != spec.family ||
-                   record[17] != spec.kind || record[18] != spec.animation || record[19] != 48 ||
-                   record[22] != 128 || record[23] != spec.back_forward || record[24])) ||
+        (plain &&
+         (record[14] != spec.category || record[15] != spec.family || record[17] != spec.kind ||
+          record[18] != spec.animation || record[19] != 48 || record[22] != 128 ||
+          record[23] != spec.back_forward || record[24] != spec.special_move)) ||
         (basic_shield && (record[14] != 9 || record[15] != shield_family || record[17] != 128 ||
                           record[18] != 0x63 || record[19] != 48 || record[21] ||
                           record[22] != 128 || record[23] || record[24])) ||
@@ -174,6 +179,18 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                                   .lock = record[21],
                                   .invincibility = record[26]};
     *out = result;
+    return true;
+}
+
+bool SotnEquipment_ReadCost(SotnDataView dra, Uint16 id, Uint16 *out)
+{
+    const Uint8 *pointer = NULL, *record = NULL;
+    if (!out || id >= 217)
+        return SDL_SetError("Equipment MP cost requires a bounded original hand item");
+    if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)id * 52, 50, &record))
+        return false;
+    *out = Read16(record + 36);
     return true;
 }
 

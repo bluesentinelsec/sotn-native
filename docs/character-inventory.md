@@ -30,7 +30,8 @@ through the same owner; their shield spells and other shield families stay unava
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
 special-bearing Iron Fist and Fist of Tulkas stay unavailable.
 Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,
-Nunchaku, Red Rust, Holy rod and Star flail; the two-handed ones use Namakura's paired reservation.
+Nunchaku, Red Rust, Holy rod and Star flail; [Gurthang](player-gurthang.md) adds its
+QCF special; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;

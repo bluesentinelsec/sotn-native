@@ -74,6 +74,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 18, 1, 31, 7, 0x6f, 0, 5, 174);
     Item(f->dra, 174, 1, 31, 8, 0x76, 1, 8, 0);
     Item(f->dra, 85, 3, 1, 0, 0x24, 0, 5, 0);
+    Item(f->dra, 121, 1, 54, 1, 0x41, 0, 13, 0);
+    f->dra[0x500 + 121 * 52 + 24] = 195; // QCF specialMove
+    Item(f->dra, 195, 1, 54, 1, 0x41, 1, 13, 0);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -186,6 +189,36 @@ static bool FistCombo(Fixture *f)
     CHECK(f->p->substep != 0x40 && !f->p->attack_mode);
     return true;
 }
+// 6E42C.c block_32: a grounded completed QCF selects Gurthang's specialMove195 (kind1, grunt);
+// airborne or incomplete commands keep the ordinary item.
+static bool QuarterCircle(Fixture *f)
+{
+    for (Uint16 grounded = 0; grounded < 2; ++grounded)
+    {
+        CHECK(Create(f, 121, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (!grounded)
+        {
+            CHECK(Tick(f, SOTN_BUTTON_JUMP));
+            for (Uint16 i = 0; i < 4; ++i)
+                CHECK(Tick(f, 0));
+        }
+        CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+              Tick(f, SOTN_BUTTON_RIGHT) && f->p->sword_command.phase == 255);
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 &&
+              f->item == (grounded ? 195 : 121) && f->packed == (grounded ? 0x11030U : 0x1030U) &&
+              f->roll_count == 1 && p.hand_used);
+    }
+    // The weapon54 timer request only raises Dark Metamorphosis to its bounded floor.
+    CHECK(SotnPlayer_RaiseDarkTimer(f->p, 0x38) && f->p->dark_ticks == 0x38);
+    f->p->dark_ticks = 0x100;
+    CHECK(SotnPlayer_RaiseDarkTimer(f->p, 0x38) && f->p->dark_ticks == 0x100 &&
+          !SotnPlayer_RaiseDarkTimer(f->p, 0) && !SotnPlayer_RaiseDarkTimer(f->p, 0x39));
+    return true;
+}
 static bool AirborneKindZero(Fixture *f)
 {
     // block_98: kind0 needs Down plus Left/Right for variant6; Down alone stays variant5.
@@ -211,7 +244,7 @@ int main(void)
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         AirborneKindZero(f);
+         QuarterCircle(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

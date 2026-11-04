@@ -28,6 +28,9 @@ Selected virtual items:
   Basilard swing.
 - Holy rod130's special170 and Star flail131's special171: kind4 (keeps the casting grunt),
   each program's descriptor1, animation0x56, lock13, attack mode0x8005.
+- Gurthang121's QCF special195: kind1, weapon54 descriptor1; it raises Dark Metamorphosis
+  and requests an outline (see [Gurthang](player-gurthang.md)). QCF resolution runs before
+  the back-forward check, requires the ground, chain limit0x80 and enough MP.
 
 The other ~25 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items

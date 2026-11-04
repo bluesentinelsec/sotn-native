@@ -345,6 +345,86 @@ static bool FistTrails(SotnHandWeapon *w, SotnHandWeaponInput in, Uint16 variant
     }
     return true;
 }
+// w_054.c birth: twelve optional LINE_G2 rows, each consuming its original rand() calls.
+static void GurthangBirth(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *random)
+{
+    w->allocated = true;
+    w->flags |= 0x800000U;
+    for (Uint16 i = 0; i < SOTN_HAND_WEAPON_GURTHANG_ROWS; ++i)
+    {
+        SotnPlayerEffectQuad *q = &w->tiles[i];
+        *q = (SotnPlayerEffectQuad){0};
+        if (i <= 3)
+        {
+            q->red[2] = (Uint8)(SotnCombat_Random(random) & 3U);
+            q->blue[2] = 1;
+        }
+        if (i < 7)
+        {
+            q->red[2] = (Uint8)(SotnCombat_Random(random) & 7U);
+            q->blue[2] = 1;
+        }
+        else if (i & 1U)
+        {
+            q->red[2] = (Uint8)(SotnCombat_Random(random) & 15U);
+            q->blue[2] = 2;
+        }
+        else
+        {
+            q->red[2] = (Uint8)(SotnCombat_Random(random) & 7U);
+            q->blue[2] = 1;
+        }
+        q->red[3] = (Uint8)(i / 6U);
+        if (i == 11)
+        {
+            q->red[2] = 0x18;
+            q->red[3] = 2;
+            q->blue[2] = 3;
+        }
+        q->red[0] = q->red[1] = 255;
+        q->blue[0] = q->blue[1] = q->green[0] = q->green[1] =
+            (Uint8)(SotnCombat_Random(random) & 0x1fU);
+        q->priority = in.priority;
+        q->draw_mode = 0x308;
+    }
+}
+// w_054.c post-hitbox rows on frames0xD/0x22/0x2C/0x3E; other frames leave them unchanged.
+static bool GurthangTrails(SotnHandWeapon *w, SotnHandWeaponInput in)
+{
+    const Uint16 frame = w->frame;
+    const Uint16 index = frame == 0xd    ? 0
+                         : frame == 0x22 ? 1
+                         : frame == 0x2c ? 2
+                         : frame == 0x3e ? 3
+                                         : 4;
+    if (index == 4 || !w->allocated)
+        return true;
+    const Uint8 *xs = NULL, *ys = NULL;
+    if (!View(in.overlay, 0xef4 + index * 2U, 2, &xs) ||
+        !View(in.overlay, 0xefc + index * 2U, 2, &ys))
+        return false;
+    const Sint16 px = Word(Pixel(w->x) - in.camera_x), py = Word(Pixel(w->y) - in.camera_y);
+    for (Uint16 i = 0; i < SOTN_HAND_WEAPON_GURTHANG_ROWS; ++i)
+    {
+        SotnPlayerEffectQuad *q = &w->tiles[i];
+        Sint16 x = Word(Read16(xs) - i), step = -1;
+        if (w->facing_left)
+        {
+            x = Word(-x);
+            step = 1;
+        }
+        q->x[2] = Word(step + q->x[2]);
+        const Sint32 y = Word(Read16(ys)) + i / 6;
+        q->x[0] = Word(x + px);
+        q->x[1] = Word(q->x[0] + q->x[2]);
+        q->y[0] = Word(y + py);
+        q->y[1] = Word(y + py + q->red[3]);
+        if (q->red[2] > q->red[3])
+            q->red[3] = (Uint8)(q->red[3] + q->blue[2]);
+        q->draw_mode &= 0xfff7U;
+    }
+    return true;
+}
 static void Tiles(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *random)
 {
     Sint16 modifier = 0;
@@ -398,6 +478,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 36:
     case 37:
     case 43:
+    case 54:
     case 57:
     case 255:
         return true;
@@ -423,12 +504,15 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
     }
     else
     {
-        const Uint16 variant = (w.parameter & 0x7fffU) >> 8;
+        // w_054 swaps to descriptor2 while the player's Dark Metamorphosis timer runs.
+        const Uint16 variant =
+            in.family == 54 && in.dark_ticks ? 2 : (Uint16)((w.parameter & 0x7fffU) >> 8);
         const Uint32 base = in.family == 255 ? 0x800a0000U : 0x8017a000U;
         // Weapon1 descriptor4 belongs to Iron Fist's special and has no selected owner.
         const Uint16 count = in.family == 0    ? 5
                              : in.family == 1  ? 4
                              : in.family == 57 ? 4
+                             : in.family == 54 ? 3
                              : in.family == 4  ? 2
                              : in.family == 5  ? 2
                              : in.family == 43 ? 3
@@ -439,6 +523,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 0  ? 0x106cU
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
+                                  : in.family == 54 ? 0xec4U
                                   : in.family == 4  ? 0x12f4U
                                   : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
@@ -474,7 +559,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 }
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
-                    in.family == 36 || in.family == 43 || in.family == 57)
+                    in.family == 36 || in.family == 43 || in.family == 54 || in.family == 57)
                     w.blend = 0x30;
                 else if (in.family == 35)
                     w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
@@ -497,10 +582,25 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     w.removed = true;
                 else if (in.family == 1 && !FistBirth(&w, in, d))
                     return false;
+                if (in.family == 54 && in.allocated)
+                    GurthangBirth(&w, in, &rng);
                 if (!w.removed)
                 {
                     if (!Properties(&w, in, &rng, &e))
                         return false;
+                    // w_054 descriptors1/2 double under Dark Metamorphosis and keep it at
+                    // least0x38; descriptor1 also requests the profile0x11 outline factory.
+                    if (in.family == 54 && variant)
+                    {
+                        if (in.dark_ticks)
+                            w.properties.attack = Word(w.properties.attack * 2);
+                        if (in.dark_ticks < 0x38)
+                        {
+                            e.dark_minimum = 0x38;
+                            if (variant == 1)
+                                e.outline = 0x11003dU;
+                        }
+                    }
                     ++w.phase;
                 }
             }
@@ -548,6 +648,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     if (in.family == 43 && w.allocated)
                         Tiles(&w, in, &rng);
                     if (in.family == 1 && !FistTrails(&w, in, variant, &rng))
+                        return false;
+                    if (in.family == 54 && !GurthangTrails(&w, in))
                         return false;
                     // w_005 Star flail widens its reach on poses6 and7 after the hitbox write.
                     if (in.family == 5 && in.pose >= 6 && in.pose < 8)

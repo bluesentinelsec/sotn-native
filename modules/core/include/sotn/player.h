@@ -978,6 +978,10 @@ bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
  * @return Success or SDL error without mutation. Timer10 and damage-invincibility
  * words retain their own producers; this operation does not advance any timer. */
 bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Apply an actual weapon54 request: raise timer11 (Dark Metamorphosis) to a floor.
+ * @param player Owner. @param minimum Requested floor, 1..0x38. @return Success or SDL error.
+ * Only the timer changes; glow/palette owners belong to the Dark spell. */
+bool SotnPlayer_RaiseDarkTimer(SotnPlayer *player, Uint16 minimum);
 /** @brief Carry actual physical input from a startup/menu owner before first player control.
  * @param player Actual initialized player. @param buttons Current full supported button word.
  * @return Success or SDL error without mutation. Seeds pressed/previous/held and clears only

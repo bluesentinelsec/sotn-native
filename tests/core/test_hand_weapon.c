@@ -292,6 +292,61 @@ static bool PlainWeapons(void)
         }
     return true;
 }
+// Weapon54: optional LINE_G2 rows with their birth rand calls, Dark descriptor2/attack doubling,
+// timer11 floor and the descriptor1 outline request. Authored tables only.
+static bool Gurthang(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    for (Uint16 v = 0; v < 3; ++v)
+        SDL_memcpy(o + 0xec4 + v * 16U, o + 0x106c, 16);
+    Put16(o + 0x300 + 2U * 2U, 512U + 13U); // pose2 shows trigger frame0xD
+    Put16(o + 0xef4, (Uint16)-9);
+    Put16(o + 0xefc, (Uint16)-8);
+    struct
+    {
+        Uint16 variant, dark, allocated;
+    } cases[] = {{0, 0, 1}, {0, 0, 0}, {1, 0, 1}, {0, 0x40, 1}, {0, 0x10, 1}};
+    for (Uint16 k = 0; k < SDL_arraysize(cases); ++k)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 54,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .camera_x = 20,
+                                  .camera_y = 10,
+                                  .animation = 0x41,
+                                  .pose = 2,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .dark_ticks = cases[k].dark,
+                                  .allocated = cases[k].allocated != 0};
+        SotnHandWeapon w = {.parameter = (Uint16)(cases[k].variant << 8)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 33, expected = 33;
+        for (Uint16 i = 0; i < (cases[k].allocated ? 28 : 0) + 1; ++i)
+            (void)SotnCombat_Random(&expected);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected &&
+              w.allocated == (cases[k].allocated != 0) &&
+              w.flags == (cases[k].allocated ? 0x860000U : 0x60000U));
+        const bool alternate = cases[k].variant || cases[k].dark;
+        CHECK(w.properties.attack == (cases[k].dark && alternate ? 38 : 19) &&
+              e.dark_minimum == (alternate && cases[k].dark < 0x38 ? 0x38 : 0) &&
+              e.outline == (cases[k].variant == 1 && !cases[k].dark ? 0x11003dU : 0U));
+        if (cases[k].allocated)
+        {
+            // Frame0xD places every row from screen coordinates; row0's delta starts at -1.
+            const SotnPlayerEffectQuad *q = &w.tiles[0];
+            CHECK(w.frame == 13 && !(q->draw_mode & 8U) && q->x[2] == -1 &&
+                  q->x[0] == 100 - 20 - 9 && q->x[1] == q->x[0] - 1 && q->y[0] == 80 - 10 - 8 &&
+                  q->red[0] == 255 && q->priority == 148 && w.tiles[11].red[2] == 0x18);
+        }
+    }
+    return true;
+}
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
 static void FistResources(Uint8 *o)
 {
@@ -789,5 +844,7 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Ownership() ? 0 : 1;
+    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Ownership()
+               ? 0
+               : 1;
 }

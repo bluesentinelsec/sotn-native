@@ -782,9 +782,35 @@ static bool StartAttack(SotnPlayer *player)
             return true;
         }
     }
+    // 6E42C.c block_32: a completed grounded QCF selects the equipped specialMove when its
+    // chain limit and MP allow; otherwise block_38c's back-forward check follows.
+    Uint16 special_cost = 0;
+    bool special_selected = false;
+    if (player->hand_factory && equipment.special_move && equipment.id != 123 &&
+        player->sword_command.phase == 255 && (player->contact & 1))
+    {
+        SotnEquipment special = {0};
+        Uint16 cost = 0;
+        if (!SotnEquipment_Read(player->dra, equipment.special_move, &special) ||
+            !SotnEquipment_ReadCost(player->dra, equipment.special_move, &cost) ||
+            !(special.chain_limit & 0x80))
+        {
+            if (special.id && !(special.chain_limit & 0x80))
+                SDL_SetError("QCF special requires its actual chain owner");
+            player->failed = true;
+            return true;
+        }
+        if (player->mp >= cost)
+        {
+            equipment = special;
+            special_cost = cost;
+            special_selected = true;
+        }
+    }
     // 6E42C.c block_38c: a completed back-forward command selects the equipped unk17 item.
     // Chain limit 0x80 allows it whenever no attack is active, as already checked above.
-    if (player->hand_factory && equipment.back_forward && player->back_forward.phase == 255)
+    if (!special_selected && player->hand_factory && equipment.back_forward &&
+        player->back_forward.phase == 255)
     {
         SotnEquipment special = {0};
         if (!SotnEquipment_Read(player->dra, equipment.back_forward, &special) ||
@@ -799,6 +825,12 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (!ReserveHand(player, equipment, hand))
         return player->failed;
+    // HasEnoughMp(cost, 1) after the actual factory.
+    if (special_cost)
+    {
+        player->mp = (Uint16)(player->mp - special_cost);
+        player->mp_spent = (Uint16)(player->mp_spent + special_cost);
+    }
     // Red Rust (kind13) rolls once after its actual hand factory; rand()&7 == 0 fails.
     if (player->hand_factory && equipment.kind == 13)
     {
@@ -2625,7 +2657,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     if (!SotnPlayerStep_IsDead(next.step) && !teleporting)
     {
         SotnPlayer_GravityInput(&next);
-        if (next.sword_factory)
+        if (next.sword_factory || next.hand_factory)
             SotnWeaponCommand_Tick(&next.sword_command, next.buttons, next.facing_left,
                                    next.tight_space != 0);
         if (next.hand_factory)
@@ -4002,6 +4034,15 @@ bool SotnPlayer_SetSpellUseTimer(SotnPlayer *p, Uint8 ticks)
     if (!p || ticks > 32)
         return SDL_SetError("Player spell-use timer requires its owner and bounded ticks");
     p->spell_use_ticks = ticks;
+    return true;
+}
+
+bool SotnPlayer_RaiseDarkTimer(SotnPlayer *p, Uint16 minimum)
+{
+    if (!p || !minimum || minimum > 0x38)
+        return SDL_SetError("Dark timer floor requires its owner and the original bounded value");
+    if (p->dark_ticks < minimum)
+        p->dark_ticks = minimum;
     return true;
 }
 

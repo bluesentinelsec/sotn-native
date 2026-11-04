@@ -861,6 +861,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 129                  ? 3
            : item == 130 || item == 170   ? 4
            : item == 131 || item == 171   ? 5
+           : item == 121 || item == 195   ? 54
            : item == 21                   ? 33
            : item == 26                   ? 35
            : item == 27                   ? 36
@@ -871,14 +872,14 @@ static Uint16 HandFamily(Uint16 item)
 }
 static Uint16 HandVariant(Uint16 item)
 {
-    return SotnEquipment_IsSword0(item)                               ? (item == 125   ? 3
-                                                                         : item >= 116 ? 2
-                                                                         : item >= 104 ? 1
-                                                                                       : 0)
-           : item == 97                                               ? 1
-           : item == 124                                              ? 3
-           : item == 167 || item == 174 || item == 170 || item == 171 ? 1
-                                                                      : 0;
+    return SotnEquipment_IsSword0(item) ? (item == 125   ? 3
+                                           : item >= 116 ? 2
+                                           : item >= 104 ? 1
+                                                         : 0)
+           : item == 97                 ? 1
+           : item == 124                ? 3
+           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ? 1
+                                                                                     : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
@@ -904,12 +905,13 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     *allocated = false;
     return true;
 }
-// Weapon43 tiles are optional; weapon1 fist trails are mandatory before birth properties.
+// Weapon43 tiles and weapon54 lines are optional; weapon1 fist trails are mandatory.
 static Uint8 HandRows(Uint16 family)
 {
-    return (Uint8)(family == 43  ? SOTN_HAND_WEAPON_TILES
-                   : family == 1 ? SOTN_HAND_WEAPON_FIST_ROWS
-                                 : 0);
+    return (Uint8)(family == 43   ? SOTN_HAND_WEAPON_TILES
+                   : family == 1  ? SOTN_HAND_WEAPON_FIST_ROWS
+                   : family == 54 ? SOTN_HAND_WEAPON_GURTHANG_ROWS
+                                  : 0);
 }
 bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -2592,7 +2594,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             w->x = FixedShift(w->x, in.room_shift_x);
             w->y = FixedShift(w->y, in.room_shift_y);
             // Weapon43 TILEs use one origin vertex; weapon1 GT4 trails own all four.
-            const Uint16 vertices = c->state.hand.family == 1 ? 4 : 1;
+            const Uint16 vertices = c->state.hand.family == 1    ? 4
+                                    : c->state.hand.family == 54 ? 2
+                                                                 : 1;
             for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
                 for (Uint16 v = 0; v < vertices; ++v)
                 {
@@ -2756,6 +2760,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.sound_volume_mask = 0;
     r.wolf_shake_count = 0;
     r.use_ticks = r.spell_use_ticks = 0;
+    r.dark_minimum = 0;
     r.magic_clear_shield = false;
     r.afterimage_reset = false;
     r.dissolve_frame_load = false;
@@ -3211,6 +3216,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                           .executable = in.executable,
                                           .camera_x = in.camera_x,
                                           .camera_y = in.camera_y,
+                                          .dark_ticks = p.dark.ticks,
                                           .properties = HandProperties,
                                           .context = &context,
                                           .x = p.x,
@@ -3252,6 +3258,29 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // require their real secondary owners before the menu can expose them.
             if (events.factory)
                 return SDL_SetError("Ordinary weapon37 secondary has no actual native owner");
+            if (events.dark_minimum)
+                r.dark_minimum = events.dark_minimum;
+            if (events.outline)
+            {
+                // w_054's FACTORY(61,0x11) begins at the weapon's own position and facing.
+                bool outline_allocated = false;
+                for (Uint16 j = 0; j < 8 && !outline_allocated; ++j)
+                    if (!r.factories[j].cursor.entity_id)
+                    {
+                        SotnPlayerFactory f = {0};
+                        if (!SotnPlayerFactory_Begin(
+                                &f,
+                                (SotnPlayerFactorySource){.x = w->x,
+                                                          .y = w->y,
+                                                          .priority = w->priority,
+                                                          .facing_left = w->facing_left},
+                                events.outline, 0))
+                            return false;
+                        SDL_zero(r.factories[j]);
+                        r.factories[j].cursor = f;
+                        outline_allocated = true;
+                    }
+            }
             if (events.sound && !Sound(&r, events.sound))
                 return false;
             for (Uint16 j = 0; j < SDL_arraysize(events.extra_sounds); ++j)

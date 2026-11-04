@@ -6,6 +6,8 @@
 #define SOTN_HAND_WEAPON_TILES 16
 /** Mandatory original weapon1 GT4 punch-trail rows. */
 #define SOTN_HAND_WEAPON_FIST_ROWS 4
+/** Optional original weapon54 LINE_G2 trail rows. */
+#define SOTN_HAND_WEAPON_GURTHANG_ROWS 12
 /** @brief Actual per-hand writable weapon37/52 program data; never save data. */
 typedef struct SotnHandWeaponProgram
 {
@@ -37,6 +39,8 @@ typedef struct SotnHandWeaponInput
     SotnDataView executable;
     /** Actual current camera; weapon1 trails are screen-space GT4s. */
     Sint32 camera_x, camera_y;
+    /** Actual player Dark Metamorphosis timer word11 (weapon54 descriptor/attack/request). */
+    Uint16 dark_ticks;
     SotnHandWeaponProperties properties;
     void *context;
     Sint32 x, y, velocity_x;
@@ -52,6 +56,10 @@ typedef struct SotnHandWeaponEvents
     Uint16 sound;
     /** Ordered additional sounds after sound (weapon33 pose12 pair); zero when absent. */
     Uint16 extra_sounds[2];
+    /** Weapon54: raise player timer11 to this minimum (0x38); zero when absent. */
+    Uint16 dark_minimum;
+    /** Weapon54 special: original FACTORY(61,0x11) outline request; zero when absent. */
+    Uint32 outline;
     Uint8 shield; /**< Zero: no write; one: original unk48=1; two: original unk48=0. */
     bool properties;
 } SotnHandWeaponEvents;

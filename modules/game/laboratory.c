@@ -1373,6 +1373,9 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         if (s->bat_runtime.spell_use_ticks &&
             !SotnPlayer_SetSpellUseTimer(s->player, s->bat_runtime.spell_use_ticks))
             return false;
+        if (s->bat_runtime.dark_minimum &&
+            !SotnPlayer_RaiseDarkTimer(s->player, s->bat_runtime.dark_minimum))
+            return false;
         for (Uint16 i = 0; i < s->bat_runtime.sound_count; ++i)
             if (!(s->bat_runtime.sound_volume_mask & ((Uint64)1 << i)
                       ? SotnSound_QueueVolumePan(s->sound, s->bat_runtime.sounds[i],
@@ -4913,7 +4916,24 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnHandWeapon *w = &c->state.hand.motion;
             if (!c->hand_weapon || !c->initialized || !SotnBatRuntime_HandValid(c, 0))
                 return SDL_SetError("Ordinary hand draw lost its actual shared slot16 owner");
-            if (command.kind == SOTN_DRAW_HAND_TILE && c->state.hand.family == 1)
+            if (command.kind == SOTN_DRAW_HAND_TILE && c->state.hand.family == 54)
+            {
+                // Weapon54 trails are opaque screen-space LINE_G2 rows (drawMode0x300).
+                if (c->primitive_count != SOTN_HAND_WEAPON_GURTHANG_ROWS ||
+                    command.primitive >= SOTN_HAND_WEAPON_GURTHANG_ROWS)
+                    return SDL_SetError("Ordinary Gurthang trail lost its actual optional row");
+                const SotnPlayerEffectQuad *q = &w->tiles[command.primitive];
+                const Sint32 ox = session->draw_target.offset_x + session->shake.x,
+                             oy = session->draw_target.offset_y + session->shake.y;
+                const SotnColorLine line = {.x = {q->x[0] + ox, q->x[1] + ox},
+                                            .y = {q->y[0] + oy, q->y[1] + oy},
+                                            .red = {q->red[0], q->red[1]},
+                                            .green = {q->green[0], q->green[1]},
+                                            .blue = {q->blue[0], q->blue[1]}};
+                if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
+                    return false;
+            }
+            else if (command.kind == SOTN_DRAW_HAND_TILE && c->state.hand.family == 1)
             {
                 // Weapon1 punch trails are textured screen-space GT4s.
                 if (c->primitive_count != SOTN_HAND_WEAPON_FIST_ROWS ||

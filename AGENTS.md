@@ -1,3 +1,9 @@
+Selected [Gurthang](docs/player-gurthang.md) now owns item121/QCF special195 through
+weapon54: twelve optional LINE_G2 rows (28 birth rand calls) placed on trigger frames,
+Dark descriptor2 with doubled attack, a 0x38 timer11 floor committed after the player
+update and the FACTORY(61,0x11) outline. QCF resolution now precedes back-forward (grounded,
+chain0x80, MP after the factory). Muramasa shares the callback but needs its secondary.
+
 Selected [weapon special inputs](docs/player-weapon-specials.md) now run the original
 back-forward recognizer after QCF and resolve the equipped unk17 item after curse/
 Alucard-sword QCF and before the actual factory. Basilard18's special174 uses weapon31
