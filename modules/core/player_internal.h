@@ -81,6 +81,7 @@ struct SotnPlayer
     void *throwing_context;
     Uint8 throwing_count[2];
     Uint8 special_count[2]; /**< Live children carrying each hand's QCF special equip id. */
+    Uint8 special_cross[2]; /**< The same special's live children with the other hand's params. */
     SotnPlayerMedicineUse food;
     SotnPlayerMedicineFactory food_factory;
     SotnPlayerMedicineFactory hand_factory;

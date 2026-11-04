@@ -1,3 +1,10 @@
+Selected [Shotel](docs/player-shotel.md) now owns item28 (kind12, w_002-template weapon34
+swing, BLEND_TRANSP) and its QCF special176: a kind129 throw (StartThrow, blueprint56, chain1,
+never consumed, no MP) whose E1/F1 boomerang flies out (4.5 plus player speed, 0x1C updates,
+ROT(45) spin) and homes back (turn limit 0x200 +0x10). While any 176 lives with either hand's
+params (SetSpecialChain/SetSpecialCross), case12 punches: Shotel's factory, then 42+hand, item0's
+animation/kind/lock.
+
 Selected [Yasutsuna](docs/player-yasutsuna.md) now owns two-handed item165 through weapon53 as a
 kind129 throw (blueprint68, chain1, animation0x5D, never consumed; either button). Its E3/F3
 role3 root in17..31 stays at its factory origin (no forward offset; crouch +11 else -5), takes one

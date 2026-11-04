@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Weapon func_ptr_80170004 secondaries: weapon/w_038.c, w_039.c, w_055.c and weapon/shared.h, plus
+// Weapon func_ptr_80170004 secondaries: weapon/w_034.c, w_038.c, w_039.c, w_055.c and
+// weapon/shared.h, plus
 // dra/7879C.c
 // UpdateAnim, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Descriptor, timeline and
 // artwork tables remain private inputs.
@@ -69,6 +70,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 0};
     else if (family == 12)
         *out = (Layout){.rows = 1};
+    else if (family == 34)
+        *out = (Layout){.rows = 0};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -78,7 +81,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
-           family == 6 || family == 14 || family == 13 || family == 12;
+           family == 6 || family == 14 || family == 13 || family == 12 || family == 34;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -103,6 +106,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
+    // Weapon34's role1 is Shotel's thrown special176.
+    if (family == 34)
+        return role == 1;
     // Weapon53's role3 is Yasutsuna's blueprint68 slash; its chain uses role1.
     if (family == 53)
         return role == 1 || role == 3;
@@ -124,6 +130,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return 0;
     if (family == 12)
         return role == 0 ? 1 : 0;
+    if (family == 34)
+        return 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -2276,6 +2284,104 @@ static bool Chakram(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 
     return true;
 }
 
+// w_034 func_ptr_80170004: Shotel's QCF176 boomerang (blueprint56, own item). It spins by
+// ROT(45) every update, flies out decelerating for 0x1C updates, then homes on the player's
+// hitbox with a turn limit growing by 0x10 from 0x200 and retires inside half the summed
+// hitboxes. Every eighth g_GameTimer plays SWISH_B (not on the retiring update).
+static bool Shotel(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                   SotnWeaponSecondaryEvents *e)
+{
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->palette = (Uint16)(0x110U + in.hand * 0x18U);
+        s->frame = 0x3a;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->flags = 0x0c020000U;
+        s->blend = 0x10;
+        s->velocity_x = s->facing_left ? -0x48000 : 0x48000;
+        s->lifetime = 0x1c;
+        const Sint16 offset = Word(Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y);
+        SetScreen(&s->y, Word(offset - (in.player_crouch_step ? 8 : 0x10)), in.camera_y);
+        const Sint16 px = Word(Pixel(in.x) - in.camera_x);
+        SetScreen(&s->x, Word(s->facing_left ? px - in.parent_hitbox_x : px + in.parent_hitbox_x),
+                  in.camera_x);
+        s->accel_x = s->facing_left ? 0x2000 : -0x2000;
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)in.player_velocity_x);
+        s->magnitude = 0x200;
+        s->velocity_y = -0x4000;
+        s->accel_y = 0x400;
+        s->rotate = 0;
+        s->draw_flags |= 4;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        s->hitbox_width = s->hitbox_height = 9;
+        e->use_ticks = 4;
+        s->phase = 1;
+    }
+    else if (s->phase == 1)
+    {
+        s->rotate = Word(s->rotate + 0x200);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_x = (Sint32)((Uint32)s->velocity_x + (Uint32)(Sint32)Word(s->accel_x));
+        s->velocity_y = (Sint32)((Uint32)s->velocity_y + (Uint32)(Sint32)Word(s->accel_y));
+        s->lifetime = Word(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            Sint16 heading = 0;
+            if (!SotnMath_Atan2Vector(in.executable, (Sint32)(0U - (Uint32)s->velocity_y),
+                                      s->velocity_x, &heading))
+                return false;
+            s->angle = (Sint16)(heading & 0xfff);
+            s->phase = 2;
+        }
+    }
+    else
+    {
+        s->rotate = Word(s->rotate + 0x200);
+        Sint16 limit = s->magnitude;
+        s->magnitude = Word(s->magnitude + 0x10);
+        const Sint32 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y),
+                     tx = (Sint32)Word(Pixel(in.x) - in.camera_x) + in.parent_hitbox_x,
+                     ty = (Sint32)Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y;
+        const Sint16 dx = Word(tx - sx < 0 ? sx - tx : tx - sx),
+                     dy = Word(ty - sy < 0 ? sy - ty : ty - sy);
+        if (dx < (in.player_hitbox_width + s->hitbox_width) >> 1 &&
+            dy < (in.player_hitbox_height + s->hitbox_height) >> 1)
+        {
+            s->removed = true;
+            return true;
+        }
+        Sint16 target = 0;
+        if (!SotnMath_Atan2(in.executable, -(Sint32)Word(ty - sy), Word(tx - sx), &target))
+            return false;
+        target = (Sint16)(target & 0xfff);
+        Sint16 angle = (Sint16)(s->angle & 0xfff);
+        const Sint16 diff = Word(angle - target < 0 ? target - angle : angle - target);
+        if (limit > diff)
+            limit = diff;
+        if (angle < target)
+            angle = Word(diff < 0x800 ? angle + limit : angle - limit);
+        else
+            angle = Word(diff < 0x800 ? angle - limit : angle + limit);
+        s->angle = (Sint16)(angle & 0xfff);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, s->angle, &t))
+            return false;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)t.cosine * 64U);
+        s->y = (Sint32)((Uint32)s->y - (Uint32)t.sine * 64U);
+    }
+    if (!(in.game_timer & 7U))
+        e->sounds[0] = 0x60b;
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -2290,7 +2396,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
                         : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
-                        : in.family == 12 && in.role == 1                      ? 2
+                        : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                                                                                : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
@@ -2343,6 +2449,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         if (!(in.role == 0   ? Vorpal(&s, &shared, in, &rng, &e)
               : in.role == 1 ? Chakram(&s, in, &rng, &e)
                              : HeavenImage(&s, in)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 34)
+    {
+        if (!Shotel(&s, in, &rng, &e))
             return false;
         goto commit;
     }

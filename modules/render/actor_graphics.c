@@ -391,6 +391,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 36 ? 0x8017a550U
                            : equipment.family == 33 ? 0x8017ac4cU
                            : equipment.family == 35 ? 0x8017a540U
+                           : equipment.family == 34 ? 0x8017a944U
                            : equipment.family == 57 ? 0x8017b0acU
                            : equipment.family == 8  ? 0x8017aab8U
                            : equipment.family == 9  ? 0x8017aab8U
@@ -419,7 +420,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
           equipment.family == 39 || equipment.family == 53 || equipment.family == 48 ||
           equipment.family == 49 || equipment.family == 50 || equipment.family == 6 ||
           equipment.family == 14 || equipment.family == 13 || equipment.family == 56 ||
-          equipment.family == 12) &&
+          equipment.family == 12 || equipment.family == 34) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
@@ -434,7 +435,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  equipment.family == 56 || equipment.family == 12 || equipment.family == 20 ||
                  equipment.family == 22 || equipment.family == 21 || equipment.family == 19 ||
                  equipment.family == 18 || equipment.family == 17 || equipment.family == 16 ||
-                 equipment.family == 15
+                 equipment.family == 15 || equipment.family == 34
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -466,6 +467,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                              : equipment.family == 36 ? 0x8017a558U
                              : equipment.family == 33 ? 0x8017ac54U
                              : equipment.family == 35 ? 0x8017a548U
+                             : equipment.family == 34 ? 0x8017a94cU
                              : equipment.family == 57 ? 0x8017b0b0U
                              : equipment.family == 38 ? 0x8017ade8U
                              : equipment.family == 53 ? 0x8017b268U

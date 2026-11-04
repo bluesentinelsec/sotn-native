@@ -1097,7 +1097,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
            : item >= 75 && item <= 79
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
-                   item == 119 || item == 133 || item == 163 || item == 164 || item == 165
+                   item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
+                   item == 176
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1161,8 +1162,9 @@ static bool BindFood(SotnLaboratory *s)
         if (item && item == state.equipment[hand])
             ++throwing_count[hand];
     }
-    // CheckChainLimit for each hand's QCF special counts children carrying its equip id.
-    Uint8 special_count[2] = {0};
+    // CheckChainLimit for each hand's QCF special counts children carrying its equip id, with
+    // that hand's params bit (special_count) or the other hand's (special_cross, Shotel's punch).
+    Uint8 special_count[2] = {0}, special_cross[2] = {0};
     for (Uint16 hand = 0; hand < 2; ++hand)
     {
         SotnEquipment held = {0};
@@ -1176,11 +1178,13 @@ static bool BindFood(SotnLaboratory *s)
             const Uint16 item = c->hand_weapon        ? c->state.hand.item
                                 : c->weapon_secondary ? c->state.secondary.item
                                                       : 0;
-            special_count[hand] +=
-                item == held.special_move && ((c->parameter & 0x8000U) != 0) == (hand != 0);
+            const bool same = ((c->parameter & 0x8000U) != 0) == (hand != 0);
+            special_count[hand] += item == held.special_move && same;
+            special_cross[hand] += item == held.special_move && !same;
         }
     }
-    if (!SotnPlayer_SetSpecialChain(s->player, special_count[0], special_count[1]))
+    if (!SotnPlayer_SetSpecialChain(s->player, special_count[0], special_count[1]) ||
+        !SotnPlayer_SetSpecialCross(s->player, special_cross[0], special_cross[1]))
         return false;
     return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]) &&
            SotnPlayer_SetThrowingContext(s->player, ThrowingFactory, UseThrowing, ThrowingRandom, s,
@@ -5222,7 +5226,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
                      c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
-                     c->state.secondary.family == 12)
+                     c->state.secondary.family == 12 || c->state.secondary.family == 34)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.

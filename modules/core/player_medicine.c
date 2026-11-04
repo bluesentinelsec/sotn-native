@@ -29,6 +29,14 @@ bool SotnPlayer_SetSpecialChain(SotnPlayer *p, Uint8 left_count, Uint8 right_cou
     p->special_count[1] = right_count;
     return true;
 }
+bool SotnPlayer_SetSpecialCross(SotnPlayer *p, Uint8 left_count, Uint8 right_count)
+{
+    if (!p || left_count > 48 || right_count > 48)
+        return SDL_SetError("Special chain counts require actual shared player slots");
+    p->special_cross[0] = left_count;
+    p->special_cross[1] = right_count;
+    return true;
+}
 bool SotnPlayer_SetNeutronContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
                                   SotnPlayerMedicineConsume consume,
                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,

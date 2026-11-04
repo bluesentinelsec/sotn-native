@@ -40,7 +40,8 @@ its frost special, [Moon rod](player-moon-rod.md) its crescents, [Runesword](pla
 and [Heaven sword](player-heaven-sword.md) their homing throws, [Chakram, Vorpal blade and
 Crissaegrim](player-weapon12.md) their returning ring and sliding slashes, two-handed
 [Muramasa](player-muramasa.md) its blood-grown attack and slashes, two-handed
-[Yasutsuna](player-yasutsuna.md) its thrown slash chain, and
+[Yasutsuna](player-yasutsuna.md) its thrown slash chain, [Shotel](player-shotel.md) its
+boomerang throw and punch, and
 [Thunderbrand](player-thunderbrand.md) its
 lightning; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).

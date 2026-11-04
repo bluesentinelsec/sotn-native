@@ -404,13 +404,13 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
                                   Uint16 item, bool *allocated)
 {
     const Uint32 hand = (packed >> 12) & 15U;
-    const Uint32 blueprint = item == 81 || item == 134 ? 62U
-                             : item == 82              ? 68U
-                             : item == 135             ? 63U
-                             : item == 133             ? 56U
-                             : item == 164             ? 52U
-                             : item == 165             ? 68U
-                                                       : 50U;
+    const Uint32 blueprint = item == 81 || item == 134    ? 62U
+                             : item == 82                 ? 68U
+                             : item == 135                ? 63U
+                             : item == 133 || item == 176 ? 56U
+                             : item == 164                ? 52U
+                             : item == 165                ? 68U
+                                                          : 50U;
     const Uint32 parameter = (item == 134 || item == 163 ? 1U
                               : item == 164              ? 2U
                                                          : 0U) +
@@ -419,7 +419,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
     // blade163 and Crissaegrim164 (weapon12, blueprints50/52) are thrown but never consumed.
     if (!r || !allocated ||
         (!ThrownItem(item) && item != 143 && item != 119 && item != 133 && item != 163 &&
-         item != 164 && item != 165) ||
+         item != 164 && item != 165 && item != 176) ||
         (hand != 1 && hand != 2) || packed != (blueprint | hand << 12 | parameter << 16))
         return SDL_SetError(
             "Weapon16/Runesword reservation requires its actual owned item/blueprint/hand");
@@ -898,6 +898,7 @@ static Uint16 HandFamily(Uint16 item)
                ? 51
            : item == 21  ? 33
            : item == 26  ? 35
+           : item == 28  ? 34
            : item == 27  ? 36
            : item == 124 ? 57
            : item == 123 ? 43
@@ -1076,8 +1077,8 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon14's root carries only the hand bit; its four hitboxes count 0..3 on it.
     if (family == 14)
         return (parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 3;
-    // Weapon13's root and afterimages carry only the hand bit.
-    if (family == 13)
+    // Weapon13's root and afterimages, and Shotel's weapon34 boomerang, carry only the hand bit.
+    if (family == 13 || family == 34)
         return !(parameter & 0x7fffU);
     // Weapon12's slashes carry descriptor1/2 and Crissaegrim's index0..3; the Chakram and its
     // afterimages carry only the hand bit.
@@ -1121,6 +1122,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 14 ? 143 : 119) &&
                       !(c->parameter & 0xffU) && c->state.secondary.parent_slot == 16
+            : family == 34 ? c->state.secondary.own_item && c->state.secondary.item == 176 &&
+                                 !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 53 && (c->kind & 15U) == 3
                 ? c->state.secondary.own_item && c->state.secondary.item == 165 &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
@@ -1139,7 +1142,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                       w->phase <= (family == 49 && (c->kind & 15U) == 4                     ? 2
                                    : family == 6 && (c->kind & 15U) == 1                    ? 4
                                    : (family == 14 || family == 13) && (c->kind & 15U) == 0 ? 3
-                                   : family == 12 && (c->kind & 15U) == 1                   ? 2
+                                   : (family == 12 || family == 34) && (c->kind & 15U) == 1 ? 2
                                                                                             : 1) &&
                       w->allocated && c->group <= 10 &&
                       c->primitive_count == SotnWeaponSecondary_RoleRows(family, c->kind & 15U) &&
@@ -2121,7 +2124,10 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     // Blueprint68 creates Yasutsuna's weapon53 E3/F3 slash in17..31.
     const bool yasutsuna = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                            (c.kind == 0xe3 || c.kind == 0xf3) && child.argument_low == 165;
-    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna ||
+    // Blueprint56 also creates Shotel's weapon34 E1/F1 boomerang (QCF special176) in17..31.
+    const bool shotel = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+                        (c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 176;
+    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna || shotel ||
                          (secondary_factory && ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
                                                 (c.kind >= 0xf1 && c.kind <= 0xf5)));
     if (crescent)
@@ -2170,6 +2176,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.secondary.family = 53;
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = 165;
+        c.state.secondary.own_item = true;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
+    if (shotel)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 34)))
+            return SDL_SetError("Shotel lost its actual blueprint56/program/item ownership");
+        c.state.secondary.family = 34;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = 176;
         c.state.secondary.own_item = true;
         c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
                                                          .y = child.source.y,
@@ -3014,7 +3037,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon53's slash quad is entity-relative; the fireball and weapon49's other
             // children own no rows (their union words hold motion instead).
             const Uint16 family = c->state.secondary.family, role = c->kind & 15U;
-            if (family == 14 || family == 13 || family == 12)
+            if (family == 14 || family == 13 || family == 12 || family == 34)
             {
                 // Weapon14's trail corners are world pixels like the entity (DRAW_UNK_100 rows
                 // shift with it); its hitboxes own no rows.
@@ -3944,6 +3967,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 13 ? 119
                                  : family == 56 ? 141
                                  : family == 12 ? 133
+                                 : family == 34 ? 28
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))

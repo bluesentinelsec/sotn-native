@@ -163,6 +163,11 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 143 * 52 + 19] = 50;
     f->dra[0x500 + 143 * 52 + 22] = 1;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
+    Item(f->dra, 28, 0, 34, 12, 0x92, 0, 13, 0);
+    f->dra[0x500 + 28 * 52 + 24] = 176; // QCF specialMove
+    Item(f->dra, 176, 1, 34, 129, 0x5d, 0, 0, 0);
+    f->dra[0x500 + 176 * 52 + 19] = 56;
+    f->dra[0x500 + 176 * 52 + 22] = 1;
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
         TestCharacter_Put32(f->dra + 0x101b8 + i * 4U, 0x800a7000);
@@ -687,6 +692,49 @@ static bool Runesword(Fixture *f, Uint16 item)
     }
     return true;
 }
+// 6E42C.c Shotel28 (kind12): its QCF special176 is a kind129 throw (blueprint56, grunt, the
+// throw animation, never consumed). While a176 lives with either hand's params, CheckChainLimit
+// refuses the special and case12 turns the swing into a punch: Shotel's factory, then the
+// empty-hand factory42, with item0's animation, kind and lock.
+static bool Shotel(Fixture *f)
+{
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        CHECK(Create(f, 28, 1, 2, true));
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, 0, 0));
+        Put16(f->dra + 0xcf62, 0x6f2);
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(SotnPlayer_SetSpecialChain(f->p, k == 1, 0) &&
+              SotnPlayer_SetSpecialCross(f->p, k == 2, 0));
+        const Uint16 mp = f->p->mp;
+        if (k < 2)
+            CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+                  Tick(f, SOTN_BUTTON_RIGHT));
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->p->mp == mp && f->p->equipment[0] == 28 &&
+              !f->consumed);
+        if (k == 0)
+            CHECK(f->factories == 1 && f->item == 176 && f->packed == 0x1038U &&
+                  f->roll_count == 1 && p.throwing.used && p.throwing.keep &&
+                  p.throwing.item == 176 && p.throwing_grunt == 0x6f2 && !p.hand_used &&
+                  // Case129 sets the throw animation only from Player_Stand (or crouch).
+                  (f->p->step == SOTN_PLAYER_WALK ? f->p->animation.id != 0x5d
+                                                  : f->p->animation.id == 0x5d));
+        else if (k < 3)
+            CHECK(f->factories == 2 && !f->item && f->packed == 0x2aU && f->roll_count == 1 &&
+                  p.hand_used && !p.throwing.used && f->p->attack_mode == 0x8001 &&
+                  f->p->substep == 0x40 && f->p->animation.id == 0x24 &&
+                  f->p->attack_lock == f->dra[0x500 + 21]);
+        else
+            CHECK(f->factories == 1 && f->item == 28 && f->packed == 0x1030U &&
+                  f->roll_count == 1 && p.hand_used && f->p->attack_mode == 0x800d &&
+                  f->p->substep == 0x4c && f->p->animation.id == 0x92 && f->p->attack_lock == 13);
+    }
+    CHECK(!SotnPlayer_SetSpecialCross(f->p, 49, 0));
+    return true;
+}
 // 6E42C.c case29: Muramasa runs GetEquipProperties (one critical rand); at attack11 or more
 // it swings normally, below (including poison's halving) it takes Red Rust's rand()&7 roll.
 // 692E8.c func_8010A3F0 holds timer11 at0x20 and counts updates with absorbed blood.
@@ -777,7 +825,7 @@ int main(void)
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f);
+         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

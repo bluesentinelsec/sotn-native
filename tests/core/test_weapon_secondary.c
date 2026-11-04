@@ -1856,6 +1856,92 @@ static bool Twelve(void)
     return true;
 }
 
+// w_034 func_ptr_80170004: Shotel's176 boomerang launches at4.5 plus the player's speed from
+// its hitbox (16 up, 8 when crouched), spins ROT(45) per update, decelerates for0x1C updates,
+// then homes with a turn limit growing0x10 from0x200 and retires at the player's hitbox.
+static bool ShotelBoomerang(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    const Uint16 hit = 2;
+    for (Uint16 k = 0; k < 2; ++k)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.x = 10 * 65536 + 0x1234, .y = 10 * 65536 + 0x4321};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 21U + k, check = rng;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 120 * 65536,
+                                       .y = 100 * 65536,
+                                       .hand = k,
+                                       .family = 34,
+                                       .role = 1,
+                                       .priority = 148,
+                                       .facing_left = k != 0,
+                                       .parent_hitbox_x = 5,
+                                       .parent_hitbox_y = -6,
+                                       .player_hitbox_width = 12,
+                                       .player_hitbox_height = 30,
+                                       .player_velocity_x = 0x18000,
+                                       .player_crouch_step = k != 0,
+                                       .game_timer = 8};
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.frame == 0x3a && s.palette == 0x110U + k * 0x18U &&
+              s.bank == 0x8010U + k * 2U && s.texture == 0x64U + k * 2U && s.blend == 0x10 &&
+              s.priority == 146 && s.flags == 0x0c020000U &&
+              s.velocity_x == (k ? -0x48000 : 0x48000) + 0x18000 && s.velocity_y == -0x4000 &&
+              s.accel_x == (k ? 0x2000 : -0x2000) && s.accel_y == 0x400 && s.lifetime == 0x1c &&
+              s.magnitude == 0x200 && !s.rotate && (s.draw_flags & 4U) && s.hitbox_width == 9 &&
+              s.hitbox_height == 9 && e.use_ticks == 4 && e.clear_shield && e.properties &&
+              e.sounds[0] == 0x60b && !e.chain);
+        CHECK((s.x >> 16) == (k ? 115 : 125) && (s.x & 0xffff) == 0x1234 &&
+              (s.y >> 16) == 100 - 6 - (k ? 8 : 16) && (s.y & 0xffff) == 0x4321);
+        Uint16 t = 0;
+        for (; t < 0x1c; ++t)
+        {
+            in.game_timer = 9U + t;
+            e = (SotnWeaponSecondaryEvents){0};
+            const Sint32 vx = s.velocity_x, vy = s.velocity_y, x = s.x, y = s.y;
+            const Sint16 rotate = s.rotate;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.x == x + vx &&
+                  s.y == y + vy && s.velocity_x == vx + (k ? 0x2000 : -0x2000) &&
+                  s.velocity_y == vy + 0x400 && s.rotate == (Sint16)(rotate + 0x200) &&
+                  rng == check && !e.properties && (e.sounds[0] == 0x60b) == !(in.game_timer & 7U));
+        }
+        CHECK(s.phase == 2 && !s.lifetime);
+        Uint16 updates = 0;
+        for (t = 0; t < 400 && !s.removed; ++t)
+        {
+            const Sint16 limit = s.magnitude, angle = s.angle, rotate = s.rotate;
+            in.game_timer = 0x40U + t;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            CHECK(s.magnitude == limit + 0x10 && s.rotate == (Sint16)(rotate + 0x200));
+            if (s.removed)
+            {
+                CHECK(!e.sounds[0]);
+                break;
+            }
+            Sint16 turn = (Sint16)(s.angle - angle);
+            if (turn > 0x800)
+                turn = (Sint16)(turn - 0x1000);
+            if (turn < -0x800)
+                turn = (Sint16)(turn + 0x1000);
+            CHECK(turn <= limit && turn >= -limit && s.facing_left == (k != 0) &&
+                  (e.sounds[0] == 0x60b) == !(in.game_timer & 7U));
+            ++updates;
+        }
+        CHECK(s.removed && updates);
+    }
+    CHECK(SotnWeaponSecondary_SupportedRole(34, 1) && !SotnWeaponSecondary_SupportedRole(34, 0) &&
+          !SotnWeaponSecondary_SupportedRole(34, 2) && !SotnWeaponSecondary_RoleRows(34, 1));
+    return true;
+}
+
 // w_053 func_ptr_8017000C: Yasutsuna's blueprint68 slash stays at its origin (only the crouch Y
 // offset), rolls properties and chains WFACTORY(0x38,age+1) every callback for parameter0, and
 // keeps its fixed hitbox offset while the player moves.
@@ -3339,6 +3425,88 @@ static bool YasutsunaRuntime(Uint16 hand)
     return true;
 }
 
+// Blueprint56 creates Shotel's176 E1/F1 boomerang (own item, least-used group, no rows) in
+// slots17..31; it flies out and back and retires at the player's hitbox.
+static bool ShotelRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 28, 0, 34, 12, 0, 0, 176);
+    dra[0x500 + 28 * 52 + 18] = 0x92;
+    FamilyDefinition(dra, 176, 1, 34, 129, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 176 * 52;
+    record[18] = 0x5d;
+    record[19] = 56;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprint[] = {1, 1, 0xc1, 0, 0x06};
+    SDL_memcpy(dra + 0xd1d4 + 56U * 6U, blueprint, 5);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment e = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 28, &e) && e.kind == 12 && e.special_move == 176 &&
+          e.family == 34 && SotnEquipment_Read(actors->dra, 176, &e) && e.kind == 129 &&
+          e.blueprint == 56 && e.chain_limit == 1 && !e.consumable && e.animation == 0x5d);
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {34, 34},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x5d,
+                                                       .hitbox_x = 4,
+                                                       .hitbox_y = -18,
+                                                       .hitbox_width = 12,
+                                                       .hitbox_height = 30}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    const Uint32 packed = 56U | (hand + 1U) << 12 | (hand ? 0x80U << 16 : 0U);
+    CHECK(!SotnBatRuntime_RequestThrown(r, source, packed ^ 0x10000U, 176, &allocated) &&
+          SotnBatRuntime_RequestThrown(r, source, packed, 176, &allocated) && allocated);
+    Uint16 boomerang = 0, live = 0;
+    for (Uint16 t = 0; t < 300; ++t)
+    {
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 34 || !c->initialized)
+                continue;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && i <= 15 &&
+                  c->kind == (hand ? 0xf1 : 0xe1) && c->state.secondary.item == 176 &&
+                  c->state.secondary.own_item && !c->primitive_count &&
+                  c->parameter == (hand ? 0x8000U : 0U) && c->group >= 3 && c->group <= 6 &&
+                  c->state.secondary.motion.properties.id == 176);
+            boomerang = i;
+            ++live;
+        }
+    }
+    CHECK(boomerang && live > 0x1c);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -3346,7 +3514,8 @@ int main(void)
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime() &&
-                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1)
+                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
+                   ShotelRuntime(0) && ShotelRuntime(1)
                ? 0
                : 1;
 }

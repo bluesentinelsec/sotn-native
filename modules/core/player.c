@@ -531,6 +531,76 @@ static void HandFailure(SotnPlayer *player)
     }
 }
 
+// 6E42C.c cases129/130/132: the food/throwing factory, successful-player cost commit, casting
+// grunt (throws only) and the item animation. Returns false when the factory is exhausted.
+static bool StartThrow(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
+{
+    const bool throwing = (equipment.kind == 129 || equipment.kind == 130);
+    const SotnPlayerMedicineFactory factory =
+        throwing ? player->throwing_factory : player->food_factory;
+    void *context = throwing ? player->throwing_context : player->food_context;
+    SotnPlayerState captured = {0};
+    if (!SotnPlayer_GetState(player, &captured))
+    {
+        player->failed = true;
+        return true;
+    }
+    bool allocated = false;
+    const Uint32 packed = (throwing ? equipment.blueprint : 50U) | ((hand + 1U) << 12) |
+                          ((Uint32)(equipment.variant + hand * 128U) << 16);
+    if (!factory(context,
+                 (SotnPlayerFactorySource){.x = player->x.value,
+                                           .y = player->y.value,
+                                           .priority = captured.priority,
+                                           .facing_left = player->facing_left},
+                 packed, equipment.id, &allocated))
+    {
+        player->failed = true;
+        return true;
+    }
+    if (!allocated)
+        return false;
+    const SotnPlayerMedicineUse use = {.hand = (Uint16)hand,
+                                       .item = equipment.id,
+                                       .used = true,
+                                       .keep = throwing && !equipment.consumable};
+    if (throwing)
+    {
+        Uint16 random = 0;
+        if (!player->throwing_random(context, &random) || !player->dra.bytes ||
+            player->dra.size < 0xcf68)
+        {
+            player->failed = true;
+            return true;
+        }
+        const Uint16 voice = random % 8U;
+        if (voice < 4)
+        {
+            const Uint8 *p = player->dra.bytes + 0xcf60 + voice * 2U;
+            player->throwing_grunt = (Uint16)(p[0] | (Uint16)p[1] << 8);
+        }
+        player->throwing = use;
+    }
+    else
+        player->food = use;
+    if (player->substep < 0x40)
+    {
+        Uint16 variant = (player->contact & 0x20) != 0;
+        if (player->step == SOTN_PLAYER_CROUCH)
+        {
+            variant = 2;
+            if (!player->tight_space && player->substep == 2)
+            {
+                variant = (player->contact & 0x20) != 0;
+                SetStep(player, SOTN_PLAYER_STAND);
+            }
+        }
+        if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_CROUCH)
+            Animate(player, (Uint16)(equipment.animation + variant));
+    }
+    return true;
+}
+
 // Selected empty-hand paths in 6E42C.c, 71830.c, and EntityUnarmedAttack.
 static bool StartAttack(SotnPlayer *player)
 {
@@ -664,72 +734,7 @@ static bool StartAttack(SotnPlayer *player)
         return true;
     }
     if (equipment.kind == 132 || equipment.kind == 129 || equipment.kind == 130)
-    {
-        const bool throwing = (equipment.kind == 129 || equipment.kind == 130);
-        const SotnPlayerMedicineFactory factory =
-            throwing ? player->throwing_factory : player->food_factory;
-        void *context = throwing ? player->throwing_context : player->food_context;
-        SotnPlayerState captured = {0};
-        if (!SotnPlayer_GetState(player, &captured))
-        {
-            player->failed = true;
-            return true;
-        }
-        bool allocated = false;
-        const Uint32 packed = (throwing ? equipment.blueprint : 50U) | ((hand + 1U) << 12) |
-                              ((Uint32)(equipment.variant + hand * 128U) << 16);
-        if (!factory(context,
-                     (SotnPlayerFactorySource){.x = player->x.value,
-                                               .y = player->y.value,
-                                               .priority = captured.priority,
-                                               .facing_left = player->facing_left},
-                     packed, equipment.id, &allocated))
-        {
-            player->failed = true;
-            return true;
-        }
-        if (!allocated)
-            return false;
-        const SotnPlayerMedicineUse use = {.hand = (Uint16)hand,
-                                           .item = equipment.id,
-                                           .used = true,
-                                           .keep = throwing && !equipment.consumable};
-        if (throwing)
-        {
-            Uint16 random = 0;
-            if (!player->throwing_random(context, &random) || !player->dra.bytes ||
-                player->dra.size < 0xcf68)
-            {
-                player->failed = true;
-                return true;
-            }
-            const Uint16 voice = random % 8U;
-            if (voice < 4)
-            {
-                const Uint8 *p = player->dra.bytes + 0xcf60 + voice * 2U;
-                player->throwing_grunt = (Uint16)(p[0] | (Uint16)p[1] << 8);
-            }
-            player->throwing = use;
-        }
-        else
-            player->food = use;
-        if (player->substep < 0x40)
-        {
-            Uint16 variant = (player->contact & 0x20) != 0;
-            if (player->step == SOTN_PLAYER_CROUCH)
-            {
-                variant = 2;
-                if (!player->tight_space && player->substep == 2)
-                {
-                    variant = (player->contact & 0x20) != 0;
-                    SetStep(player, SOTN_PLAYER_STAND);
-                }
-            }
-            if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_CROUCH)
-                Animate(player, (Uint16)(equipment.animation + variant));
-        }
-        return true;
-    }
+        return StartThrow(player, equipment, hand);
     if (equipment.kind == 128)
     {
         if (!ReserveHand(player, equipment, hand))
@@ -832,6 +837,18 @@ static bool StartAttack(SotnPlayer *player)
             special_selected = true;
         }
     }
+    // A kind129 special (Shotel's176) then takes case129's thrown-item path: its own factory,
+    // the casting grunt and the throw animation; the equipped item is never consumed.
+    if (special_selected && (equipment.kind == 129 || equipment.kind == 130))
+    {
+        if (!player->throwing_factory || !player->throwing_random)
+        {
+            SDL_SetError("Thrown weapon special requires its actual throwing owner");
+            player->failed = true;
+            return true;
+        }
+        return StartThrow(player, equipment, hand);
+    }
     // 6E42C.c block_38c: a completed back-forward command selects the equipped unk17 item.
     // Chain limit 0x80 allows it whenever no attack is active, as already checked above.
     if (!knife_resolved && !special_selected && player->hand_factory && equipment.back_forward &&
@@ -850,6 +867,33 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (!ReserveHand(player, equipment, hand))
         return player->failed;
+    // 6E42C.c case12 (Shotel): while a thrown specialMove lives with either hand's params
+    // (CheckChainLimit for both hands), the swing becomes a punch. Shotel's own factory already
+    // exists; the empty-hand factory follows (its result is ignored) and item0 supplies the
+    // animation, kind and lock.
+    if (player->hand_factory && equipment.kind == 12)
+    {
+        SotnEquipment special = {0};
+        if (!SotnEquipment_Read(player->dra, equipment.special_move, &special))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (player->special_count[hand] >= special.chain_limit ||
+            player->special_cross[hand] >= special.chain_limit)
+        {
+            SotnEquipment empty = {0};
+            if (!SotnEquipment_Read(player->dra, 0, &empty))
+            {
+                player->failed = true;
+                return true;
+            }
+            (void)ReserveHand(player, empty, hand);
+            if (player->failed)
+                return true;
+            equipment = empty;
+        }
+    }
     // HasEnoughMp(mpUsage, 1) after the actual factory, for whichever item was selected: a
     // back-forward special (weapon51's182..185) runs without MP and then costs nothing.
     if (player->hand_factory && equipment.id)

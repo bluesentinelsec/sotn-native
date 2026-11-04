@@ -71,6 +71,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0, 0};
     case 195:
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
+    case 28: // Shotel: QCF special176 throws it (kind129, blueprint56, chain1, never consumed)
+        return (PlainSpec){0, 34, 12, 0x92, 0, 0, 176, 0, 0, 0};
+    case 176:
+        return (PlainSpec){1, 34, 129, 0x5d, 0, 0, 0, 0, 56, 1};
     case 20: // Combat knife: special175 is both its back-forward and QCF item
         return (PlainSpec){0, 32, 9, 0x7d, 0, 175, 175, 0, 0, 0};
     case 175:

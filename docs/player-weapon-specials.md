@@ -66,7 +66,10 @@ Selected virtual items:
   punch rushes in slot16; Tulkas's QCF special188: kind25 descriptor4 fireball (see
   [fist specials](player-fist-specials.md)).
 
-The other virtual specials (rods, Shotel,
+- Shotel28's QCF special176: a kind129 throw (blueprint56 boomerang) through the thrown-item
+  path; while it lives, Shotel's swing becomes a punch (see [Shotel](player-shotel.md)).
+
+The other virtual specials (rods,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

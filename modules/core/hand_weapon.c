@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_004.c, w_005.c, w_009.c, w_011.c, w_026.c,
-// w_031.c, w_033.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and dra/alu_anim.c,
-// sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All original animation, hitbox, palette and
-// artwork tables remain private inputs.
+// w_031.c, w_033.c, w_034.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
+// dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All original animation,
+// hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
 #include <sotn/game_math.h>
 #include <sotn/hand_weapon.h>
@@ -583,6 +583,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 55:
     case 32:
     case 33:
+    case 34:
     case 35:
     case 36:
     case 37:
@@ -660,6 +661,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 4  ? 0x12f4U
                                   : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
+                                  : in.family == 34 ? 0x934U
                                   : in.family == 35 ? 0x530U
                                   : in.family == 36 ? 0x540U
                                   : in.family == 57 ? 0x106cU
@@ -728,8 +730,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
                 if (in.family == 53 && (variant == 1 || variant == 3))
                     w.blend = 0x70;
-                else if (in.family == 35)
-                    w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
+                else if (in.family == 35 || in.family == 34)
+                    w.blend = 0x10; // w_035 Red Rust and w_034 Shotel: BLEND_TRANSP only.
                 // w_051 descriptors1/2 add, descriptor3 is transparent; the glow restarts from
                 // words read at D_8017AD58[subType*16-2/0/+2].
                 if (in.family == 51 && variant)
