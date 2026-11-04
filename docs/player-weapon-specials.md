@@ -42,6 +42,10 @@ Selected virtual items:
 - Katana100's QCF special189: kind1, weapon53 descriptor1 with the chained GT4 slash
   secondary (see [Katana](player-katana.md)).
 
+- Firebrand111's QCF special179 and Marsil117's QCF special180: kinds20/21 on the same
+  forty-update hold, with sparks, rings, puffs, swirls and pillars (see
+  [Firebrand/Marsil](player-firebrand-marsil.md)).
+
 - Thunderbrand112's QCF special178: kind19, a forty-update pose0 hold with lightning and a
   ring (see [Thunderbrand](player-thunderbrand.md)).
 
@@ -56,7 +60,7 @@ Selected virtual items:
   punch rushes in slot16; Tulkas's QCF special188: kind25 descriptor4 fireball (see
   [fist specials](player-fist-specials.md)).
 
-The other virtual specials (remaining brands, Yasutsuna, rods, Shotel,
+The other virtual specials (Icebrand, Yasutsuna, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

@@ -24,7 +24,7 @@ typedef struct SotnWeaponSecondaryRow
  * Positions are world coordinates; rows hold screen coordinates. Never saved. */
 typedef struct SotnWeaponSecondary
 {
-    /** A child uses either LINE_G2 rows or the weapon48 ring's GT4 wedges, never both. */
+    /** A child uses LINE_G2 rows, GT4s or weapon49 motion words, never two of them. */
     union {
         SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
         struct
@@ -32,6 +32,13 @@ typedef struct SotnWeaponSecondary
             /** Weapon48 role2 ring wedges or weapon1 role1 punches: sixteen screen-space GT4s. */
             SotnPlayerEffectQuad quads[16];
             Uint8 quad_timer[16], quad_phase[16]; /**< Weapon1 punch r0/r1 scratch bytes. */
+        };
+        /** Weapon49 sparks/puffs/swirls/pillars, which own no rows or GT4s. */
+        struct
+        {
+            Sint32 velocity_y;       /**< Puff/pillar rise. */
+            Sint16 prev_x, prev_y;   /**< Spark: last whole screen position (ratan2 heading). */
+            Sint16 angle, magnitude; /**< Spark/swirl orbit unk80/unk7E. */
         };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
@@ -50,6 +57,8 @@ typedef struct SotnWeaponSecondary
     Sint16 scale_x;          /**< Weapon1 role2 fireball X scale (scale_y shared). */
     Uint8 hit_flags;         /**< Actual collision hitFlags recorded since the last callback. */
     Uint16 age;              /**< Weapon53 unk7E: completed callbacks, retired at nine. */
+    Uint16 timeline;         /**< Private AnimationFrame list chosen at birth (zero: family's). */
+    Uint8 role;              /**< Child callback recorded at birth (1..5). */
     Uint8 hitbox_width, hitbox_height, draw_flags, phase;
     bool facing_left, removed, allocated;
 } SotnWeaponSecondary;
@@ -74,6 +83,9 @@ typedef struct SotnWeaponSecondaryInput
     bool allocated; /**< The mandatory rows were reserved before the first callback. */
     /** Raw current slot16 params (zero when empty): weapon51's fan colour index. */
     Uint16 slot16_parameter;
+    /** Raw parent's current attack fields (weapon49 sparks copy them instead of a roll). */
+    SotnEquipment parent_properties;
+    Uint16 parent_hitbox_state;
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -85,6 +97,8 @@ typedef struct SotnWeaponSecondaryEvents
     /** SetWeaponProperties ran: the caller increments the least-used group, then copies the raw
      * parent's enemyId over it. */
     bool properties;
+    /** Weapon49 sparks: func_80118894 alone (least-used group kept, no parent enemyId copy). */
+    bool group;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,

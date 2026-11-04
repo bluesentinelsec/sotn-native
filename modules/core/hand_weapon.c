@@ -542,6 +542,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 38:
     case 39:
     case 48:
+    case 49:
     case 53:
     case 55:
     case 32:
@@ -592,6 +593,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 38 ? 2
                              : in.family == 53 ? 5
                              : in.family == 48 ? 2
+                             : in.family == 49 ? 4
                              : in.family == 39 ? 2
                              : in.family == 32 ? 2
                              : in.family == 51 ? 4
@@ -610,6 +612,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 38 ? 0xdc0U
                                   : in.family == 53 ? 0xf4cU
                                   : in.family == 48 ? 0xfc0U
+                                  : in.family == 49 ? 0xffcU
                                   : in.family == 39 ? 0xdc0U
                                   : in.family == 32 ? 0x8f8U
                                   : in.family == 51 ? (in.special ? 0xd18U : 0xcd8U)
@@ -677,7 +680,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
                     in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
-                    in.family == 57 || in.family == 53 || in.family == 48)
+                    in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49)
                     w.blend = 0x30;
                 // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
                 if (in.family == 53 && (variant == 1 || variant == 3))
@@ -749,11 +752,20 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                           : variant == 3 ? 10
                                                          : 0x14)
                                  << 16);
+                // w_049 descriptor1 requests the WFACTORY(0x5B,0) sparks; descriptor3 the
+                // WFACTORY(0x5F,0) swirls and the WFACTORY(0x40,1) ring.
+                if (in.family == 49 && (variant == 1 || variant == 3))
+                {
+                    const Uint32 hand = (in.hand + 1U) << 12;
+                    e.factory = (variant == 1 ? 0x5bU : 0x5fU) | hand;
+                    if (variant == 3)
+                        e.more_factories[0] = 0x40U | hand | 1U << 16;
+                }
                 if (!w.removed)
                 {
                     if (!Properties(&w, in, &rng, &e))
                         return false;
-                    if (in.family == 48)
+                    if (in.family == 48 || in.family == 49)
                         shared.previous_pose = 0;
                     // w_054 descriptors1/2 double under Dark Metamorphosis and keep it at
                     // least0x38; descriptor1 also requests the profile0x11 outline factory.
@@ -853,6 +865,30 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         e.factory = 0x3eU | ((in.hand + 1U) << 12);
                     if (in.family == 54 && !GurthangTrails(&w, in))
                         return false;
+                    // w_049 requests the WFACTORY(0x5D) puffs and SFX_FM_EXPLODE_B the first
+                    // update pose1 follows pose0 (descriptors1/3 param0, descriptor2 param1).
+                    if (in.family == 49)
+                    {
+                        if (!shared.previous_pose && in.pose == 1 && variant)
+                        {
+                            Uint16 n = 0;
+                            while (n < 8 && (n ? e.more_factories[n - 1U] : e.factory))
+                                ++n;
+                            const Uint32 puffs =
+                                0x5dU | ((in.hand + 1U) << 12) | (variant == 2 ? 1U << 16 : 0U);
+                            if (!n)
+                                e.factory = puffs;
+                            else
+                                e.more_factories[n - 1U] = puffs;
+                            if (!e.sound)
+                                e.sound = 0x65b;
+                            else if (!e.extra_sounds[0])
+                                e.extra_sounds[0] = 0x65b;
+                            else
+                                e.extra_sounds[1] = 0x65b;
+                        }
+                        shared.previous_pose = in.pose;
+                    }
                     // w_048 requests four more bolts the first update pose1 follows pose0.
                     if (in.family == 48)
                     {

@@ -116,6 +116,10 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 187, 3, 1, 24, 0x24, 1, 5, 0);
     f->dra[0x500 + 187 * 52 + 19] = 54;
     Item(f->dra, 188, 2, 1, 25, 0x24, 4, 7, 0);
+    Item(f->dra, 111, 1, 49, 1, 0x41, 0, 13, 0);
+    f->dra[0x500 + 111 * 52 + 24] = 179;
+    Item(f->dra, 179, 1, 49, 20, 0x41, 1, 13, 0);
+    Put16(f->dra + 0x500 + 179 * 52 + 36, 5);
     Item(f->dra, 98, 5, 51, 6, 0x68, 0, 15, 182);
     Item(f->dra, 182, 1, 51, 23, 0xd6, 0, 13, 0);
     f->dra[0x500 + 182 * 52 + 19] = 54;
@@ -317,6 +321,15 @@ static bool Brand(Fixture *f)
     for (Sint32 t = 1; t <= 40; ++t)
         CHECK(Tick(f, 0) && f->p->attack_hold == 40 - t &&
               f->p->animation.pose == (t < 40 ? 0 : 1));
+    // Firebrand111's QCF special179 is kind20 (substep0x54) on the same hold.
+    CHECK(Create(f, 111, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    const Uint16 fire_mp = f->p->mp;
+    CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+          Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(f->item == 179 && f->packed == 0x11030U && !f->roll_count && f->p->mp == fire_mp - 5 &&
+          f->p->substep == 0x54 && f->p->attack_mode == 0x8015 && f->p->attack_hold == 40);
     return true;
 }
 // 6E42C.c case135 (Osafune special193): blueprint60 reservation, VO_ALU_ATTACK_C, no grunt and

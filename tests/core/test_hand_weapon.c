@@ -698,6 +698,51 @@ static bool Weapon51(void)
     }
     return true;
 }
+// w_049: descriptor1 requests the sparks and descriptor3 the swirls plus the param1 ring at birth;
+// the first pose1 after pose0 requests WFACTORY(0x5D) puffs (param1 for descriptor2) with
+// SFX_FM_EXPLODE_B. Descriptor0 (Firebrand's swing) requests nothing.
+static bool Weapon49(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    for (Uint16 v = 0; v < 4; ++v)
+        SDL_memcpy(o + 0xffc + v * 16U, o + 0x106c, 16);
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 variant = k & 3U, hand = k >> 2;
+        const Uint32 h = (hand + 1U) << 12;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 49,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .pose = 0,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {.previous_pose = 9};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.blend == 0x30 &&
+              w.bank == 0x8010U + hand * 2U && !program.previous_pose && e.properties);
+        CHECK(e.factory == (variant == 1   ? (0x5bU | h)
+                            : variant == 3 ? (0x5fU | h)
+                                           : 0U) &&
+              e.more_factories[0] == (variant == 3 ? (0x40U | h | 1U << 16) : 0U));
+        in.pose = 1;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && program.previous_pose == 1);
+        if (variant)
+            CHECK(e.factory == (0x5dU | h | (variant == 2 ? 1U << 16 : 0U)) &&
+                  (e.sound == 0x65b || e.extra_sounds[0] == 0x65b));
+        else
+            CHECK(!e.factory && e.sound != 0x65b && e.extra_sounds[0] != 0x65b);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory);
+    }
+    return true;
+}
 static void FistResources(Uint8 *o)
 {
     Resources(o);
@@ -1209,8 +1254,8 @@ static bool Ownership(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   Lunges() && Katana() && Thunderbrand() && Weapon51() && KnifeAndGreatSword() &&
-                   Ownership()
+                   Lunges() && Katana() && Thunderbrand() && Weapon49() && Weapon51() &&
+                   KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }

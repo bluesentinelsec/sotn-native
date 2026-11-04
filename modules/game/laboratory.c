@@ -5095,6 +5095,31 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface))
                     return false;
             }
+            else if (c->state.secondary.family == 49)
+            {
+                // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
+                // its SetSpriteBank2 frames with SDK X/Y scale.
+                const Sint32 x =
+                    Pixel(w->x) - view_x + session->draw_target.offset_x + session->shake.x;
+                const Sint32 y =
+                    Pixel(w->y) - view_y + session->draw_target.offset_y + session->shake.y;
+                const SotnActorSprite sprite = {.animation_set = (Uint16)(w->bank & 0x7fffU),
+                                                .frame = w->frame,
+                                                .palette = w->palette,
+                                                .texture_offset = w->texture,
+                                                .blend_mode = w->blend,
+                                                .facing_left = w->facing_left};
+                const SotnSpriteTransform t = {.rotation = (w->draw_flags & 4U) ? w->rotate : 0,
+                                               .scale_x = (w->draw_flags & 1U) ? w->scale_x : 256,
+                                               .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
+                                               .opacity = 128,
+                                               .executable = session->executable,
+                                               .sdk_rotation = true};
+                if (!(w->bank == 9 ? SotnActorGraphics_DrawSurface
+                                   : SotnActorGraphics_DrawSecondaryWeaponSurface)(
+                        session->actor_graphics, sprite, x, y, t, session->draw_target.surface))
+                    return false;
+            }
             else if (c->state.secondary.family == 1)
             {
                 // w_001's fireball draws DRA animSet9 with its own SDK X/Y scales.

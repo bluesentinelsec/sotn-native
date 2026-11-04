@@ -53,6 +53,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.timeline = 0xfc8, .timeline_count = 9, .rows = 16};
     else if (family == 51)
         *out = (Layout){.rows = 1};
+    else if (family == 49)
+        *out = (Layout){.rows = 0};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -61,21 +63,29 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1 || family == 51;
+           family == 1 || family == 51 || family == 49;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
     // Weapon51's role1 is the slot16 hand-weapon special; only its role2 fan is a secondary.
-    return SotnWeaponSecondary_Supported(family) &&
-           (family == 51 ? role == 2 : role == 1 || (role == 2 && (family == 48 || family == 1)));
+    if (!SotnWeaponSecondary_Supported(family))
+        return false;
+    if (family == 51)
+        return role == 2;
+    // Weapon49 owns sparks, ring, puffs, swirls and pillars (E1..E5).
+    if (family == 49)
+        return role >= 1 && role <= 5;
+    return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
 {
-    return !SotnWeaponSecondary_SupportedRole(family, role) ? 0
-           : role == 2                                      ? (family == 1    ? 0
-                                                               : family == 51 ? 1
-                                                                              : 16)
-                                                            : SotnWeaponSecondary_Rows(family);
+    if (!SotnWeaponSecondary_SupportedRole(family, role))
+        return 0;
+    if (family == 49)
+        return role == 2 ? 16 : 0;
+    if (role == 2)
+        return family == 1 ? 0 : family == 51 ? 1 : 16;
+    return SotnWeaponSecondary_Rows(family);
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
 {
@@ -781,15 +791,323 @@ static bool Fan(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng
     return true;
 }
 
+// Weapon49 children keep original screen positions; native positions are world (screen plus
+// camera) with the original fraction retained.
+static void SetScreen(Sint32 *position, Sint16 screen, Sint32 camera)
+{
+    *position = (Sint32)(((Uint32)(screen + camera) << 16) | ((Uint32)*position & 0xffffU));
+}
+static bool BrandOrbit(Sint16 angle, Sint16 magnitude, SotnDataView exe, Sint16 *dx, Sint16 *dy)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, angle, &t))
+        return false;
+    *dx = Word(((t.cosine >> 4) * magnitude) >> 8);
+    *dy = Word(((t.sine >> 4) * magnitude) >> 8);
+    return true;
+}
+static bool BrandWindow(SotnWeaponSecondaryInput in)
+{
+    return in.animation >= 0x41 && in.animation <= 0x47 && in.attack_mode;
+}
+// w_049 func_ptr_80170004: eight sparks orbit the blade, copying its attack fields, then spiral
+// in; spark0 requests the WFACTORY(0x40,0) ring at lifetime0x18.
+static bool Sparks(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                   SotnWeaponSecondaryEvents *e)
+{
+    if (!BrandWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Uint8 params = (Uint8)s->parameter;
+    const Sint16 bx = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -12 : 12)),
+                 by = Word(Pixel(in.y) - in.camera_y - ((in.draw_flags & 2U) ? 0x1f : 0x1a));
+    bool rotate = false;
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->bank = 9;
+        s->timeline = 0x1074;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->facing_left = true;
+        s->flags = 0x160000U;
+        s->draw_flags = 4;
+        s->angle = (Sint16)(params * 512);
+        s->rotate = Word(s->angle - 0x400);
+        s->properties = in.parent_properties;
+        s->hitbox_state = in.parent_hitbox_state;
+        e->group = true;
+        s->hitbox_width = s->hitbox_height = 6;
+        s->magnitude = 0x40;
+        s->lifetime = 0x28;
+        s->allocated = true;
+        s->phase = 1;
+    }
+    else
+    {
+        rotate = true;
+        if (s->magnitude >= 8)
+            s->magnitude = (Sint16)(s->magnitude - 3);
+        s->lifetime = (Sint16)(s->lifetime - 1);
+        if (s->lifetime == 0x18 && params == 0)
+            e->chain = 0x40U | ((Uint32)(in.hand + 1U) << 12);
+        s->angle = Word(s->angle - 0x20);
+        if (s->lifetime < 0x11)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    Sint16 dx = 0, dy = 0;
+    if (!BrandOrbit(s->angle, s->magnitude, in.executable, &dx, &dy))
+        return false;
+    const Sint16 x = Word(bx + dx), y = Word(by - dy);
+    if (rotate)
+    {
+        Sint16 heading = 0;
+        if (!SotnMath_Atan2(in.executable, -(Sint32)Word(y - s->prev_y), Word(x - s->prev_x),
+                            &heading))
+            return false;
+        s->rotate = heading;
+    }
+    s->prev_x = x;
+    s->prev_y = y;
+    SetScreen(&s->x, x, in.camera_x);
+    SetScreen(&s->y, y, in.camera_y);
+    return true;
+}
+// w_049 func_ptr_80170008: a ring of sixteen white-fill wedges (LINE_G2 rows retyped GT4)
+// around the blade, growing six per update to forty and fading out over its last eight.
+static bool BrandRing(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
+{
+    if (!BrandWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint16 x = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -12 : 12)),
+                 y = Word(Pixel(in.y) - in.camera_y - 26 - ((in.draw_flags & 2U) ? 5 : 0));
+    SetScreen(&s->x, x, in.camera_x);
+    SetScreen(&s->y, y, in.camera_y);
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad q = {.u = {0, 0, 0x20, 0x20},
+                                      .v = {0, 0, 0xe0, 0xe0},
+                                      .red = {0, 0, 0xff, 0xff},
+                                      .green = {0, 0, 0x7f, 0x7f},
+                                      .palette = 0x15f,
+                                      .page = 0x1a,
+                                      .priority = (Uint16)(in.priority + 2U),
+                                      .draw_mode = 0x335};
+            for (Uint16 k = 0; k < 2; ++k)
+            {
+                SotnMathTrig t = {0};
+                if (!SotnMath_Trig(in.executable, (Sint16)((i + k) * 256U), &t))
+                    return false;
+                q.u[k] = (Uint8)(((t.cosine * 2) >> 8) + 32);
+                q.v[k] = (Uint8)(-32 - ((t.sine * 2) >> 8));
+                if (q.v[k] < 4)
+                    q.v[k] = 0xff;
+            }
+            s->quads[i] = q;
+        }
+        s->flags = 0x860000U;
+        s->lifetime = 4;
+        s->age = (s->parameter & 0x7f00U) ? 40 : 0x19;
+        s->phase = 1;
+    }
+    else
+    {
+        if (s->lifetime < 40)
+            s->lifetime = (Sint16)(s->lifetime + 6);
+        if (!--s->age)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    const Uint8 red = s->age < 8 ? (Uint8)(s->age * 16U) : 0x80, green = (Uint8)(red >> 1);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->quads[i];
+        q->x[2] = q->x[3] = x;
+        q->y[2] = q->y[3] = y;
+        q->red[2] = q->red[3] = red;
+        q->green[2] = q->green[3] = green;
+        for (Uint16 k = 0; k < 2; ++k)
+        {
+            Sint16 dx = 0, dy = 0;
+            if (!BrandOrbit((Sint16)((i + k) * 256U), s->lifetime, in.executable, &dx, &dy))
+                return false;
+            q->x[k] = Word(x + dx);
+            q->y[k] = Word(y - dy);
+        }
+    }
+    return true;
+}
+// w_049 func_ptr_8017000C: fire puffs placed along the blade's private anchor, rising with a
+// random palette, scale, priority and blend; retired after their animation ends.
+static bool Puffs(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                  SotnWeaponSecondaryEvents *e)
+{
+    if (s->phase)
+    {
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        if (s->remaining < 0)
+            s->removed = true;
+        return true;
+    }
+    if (!BrandWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Uint16 upper = (Uint16)((s->parameter >> 8) & 0x7fU),
+                 lower = (Uint16)(s->parameter & 0xffU);
+    const Uint8 *a = NULL;
+    if (!View(in.overlay, 0x103cU + (Uint32)(in.animation - 0x41) * 8U, 8, &a))
+        return SDL_SetError("Weapon49 puff requires its private blade anchors");
+    const Sint32 ax = (Sint16)Read16(a), ay = (Sint16)Read16(a + 2), ex = (Sint16)Read16(a + 4),
+                 ey = (Sint16)Read16(a + 6);
+    const bool wide = upper != 1;
+    s->facing_left = in.facing_left;
+    Sint16 x = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -ax : ax)),
+           y = Word(Pixel(in.y) - in.camera_y + ay);
+    const Sint16 px = Word(wide ? ex * 3 / 4 : ex * 2 / 3),
+                 py = Word(wide ? ey * 3 / 4 : ey * 2 / 3);
+    const Sint16 tx = in.facing_left ? Word(-px) : px;
+    x = Word(x + tx * (Sint32)lower / 8);
+    y = Word(y + py * (Sint32)lower / 8);
+    y = Word(y + (Sint32)(Rand(rng) % 16U));
+    x = Word(x + (Sint32)(Rand(rng) % 4U));
+    s->role = 3;
+    s->bank = (Uint16)(0x8011U + in.hand * 2U);
+    s->texture = (Uint16)(0x65U + in.hand * 2U);
+    s->palette = (Uint16)((Rand(rng) & 7U) + (in.hand ? 0x12fU : 0x117U));
+    s->timeline = 0x10d4;
+    s->draw_flags = 3;
+    s->scale_x = s->scale_y = (Sint16)((Rand(rng) & 0x3fU) | 0x80U);
+    s->priority = (Uint16)(in.priority + (Rand(rng) & 1U) * 4U);
+    s->flags = 0x08100000U;
+    s->blend = 0x30;
+    if (Rand(rng) % 3U)
+        s->blend = 0x70;
+    s->velocity_y = -0x8000;
+    if (in.draw_flags & 2U)
+        y = Word(y - (in.animation >= 0x43 && in.animation < 0x45 ? 1 : 3));
+    SetScreen(&s->x, x, in.camera_x);
+    SetScreen(&s->y, y, in.camera_y);
+    s->allocated = true;
+    if (!Properties(s, in, rng, e))
+        return false;
+    s->hitbox_width = s->hitbox_height = 6;
+    s->phase = 1;
+    return true;
+}
+// w_049 func_ptr_80170010: invisible swirls spiral out from the blade, requesting the
+// WFACTORY(0x65,0) pillar whenever their counter reaches a multiple of seven.
+static bool Swirl(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                  SotnWeaponSecondaryEvents *e)
+{
+    if (s->phase <= 1 && !BrandWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint8 params = (Sint8)(Uint8)s->parameter;
+    const Sint16 bx = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -12 : 12)),
+                 by = Word(Pixel(in.y) - in.camera_y - ((in.draw_flags & 2U) ? 0x1f : 0x1a));
+    if (!s->phase)
+    {
+        s->role = 4;
+        s->facing_left = true;
+        s->flags = 0x60000U;
+        s->angle = (Sint16)(params * 512);
+        s->allocated = true;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 0;
+        s->magnitude = 0xc;
+        s->lifetime = (Sint16)(Rand(rng) % 5U);
+        s->phase = 1;
+    }
+    else if (s->phase == 1)
+    {
+        s->magnitude = (Sint16)(s->magnitude + 4);
+        s->angle = Word(s->angle - 0x20);
+        if (s->magnitude >= 0x40)
+            s->phase = 2;
+    }
+    else
+    {
+        s->magnitude = (Sint16)(s->magnitude + 4);
+        s->flags = 0x08000000U;
+        if (s->magnitude >= 0x70)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    Sint16 dx = 0, dy = 0;
+    s->lifetime = (Sint16)(s->lifetime + 1);
+    if (!BrandOrbit(s->angle, s->magnitude, in.executable, &dx, &dy))
+        return false;
+    SetScreen(&s->x, Word(bx + dx), in.camera_x);
+    SetScreen(&s->y, Word(by - dy), in.camera_y);
+    if (s->lifetime % 7 == 0)
+        e->chain = 0x65U | ((Uint32)(in.hand + 1U) << 12);
+    return true;
+}
+// w_049 func_ptr_80170014: a rising fire pillar with SFX_FM_EXPLODE_B, retired at its END.
+static bool Pillar(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                   SotnWeaponSecondaryEvents *e)
+{
+    if (s->phase)
+    {
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        if (s->remaining < 0)
+            s->removed = true;
+        return true;
+    }
+    s->role = 5;
+    s->bank = (Uint16)(0x8011U + in.hand * 2U);
+    s->texture = (Uint16)(0x65U + in.hand * 2U);
+    s->palette = in.hand ? 0x12f : 0x117;
+    s->timeline = 0x110c;
+    s->priority = (Uint16)(in.priority + 2U);
+    s->flags = 0x08100000U;
+    s->draw_flags = 3;
+    s->scale_x = s->scale_y = 0x100;
+    s->blend = 0x30;
+    s->allocated = true;
+    if (!Properties(s, in, rng, e))
+        return false;
+    s->hitbox_width = s->hitbox_height = 12;
+    s->velocity_y = -0x6000;
+    e->sounds[0] = 0x65b;
+    s->phase = 1;
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
 {
     Layout layout = {0};
-    if (!state || !program || !random || !events || in.hand > 1 || in.role > 2 ||
+    if (!state || !program || !random || !events || in.hand > 1 || in.role > 5 ||
         !Program(in.family, &layout) ||
         !SotnWeaponSecondary_SupportedRole(in.family, in.role ? in.role : 1) || state->removed ||
-        state->phase > 1 || state->remaining < -1)
+        state->phase > (in.family == 49 && in.role == 4 ? 2 : 1) || state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
     const size_t at = layout.frame_start + ((state->parameter >> 4) & 0x7f0U);
     if (in.family == 55 && (!in.overlay.bytes || at >= in.overlay.size))
@@ -813,6 +1131,17 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 51)
     {
         if (!Fan(&s, in, &rng, &e))
+            return false;
+        goto commit;
+    }
+    if (in.family == 49)
+    {
+        const bool ok = in.role == 1   ? Sparks(&s, in, &e)
+                        : in.role == 2 ? BrandRing(&s, in)
+                        : in.role == 3 ? Puffs(&s, in, &rng, &e)
+                        : in.role == 4 ? Swirl(&s, in, &rng, &e)
+                                       : Pillar(&s, in, &rng, &e);
+        if (!ok)
             return false;
         goto commit;
     }
@@ -918,9 +1247,17 @@ commit:
 bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overlay, Uint16 family)
 {
     Layout layout = {0};
-    if (!state || !Program(family, &layout) || (family != 55 && family != 1) || state->removed ||
-        !state->phase || state->pose >= layout.timeline_count || state->remaining < -1 ||
-        !overlay.bytes || overlay.size < layout.timeline + layout.timeline_count * 4U)
+    if (state && family == 49)
+        layout = (Layout){0};
+    else if (!Program(family, &layout))
+        return SDL_SetError("Weapon secondary animation requires its actual private timeline");
+    // Weapon49 children choose their private timeline at birth (sparks9, puffs/pillar14 words).
+    if (state && family == 49)
+        layout = (Layout){.timeline = state->timeline, .timeline_count = state->role == 1 ? 9 : 14};
+    if (!state || (family != 55 && family != 1 && (family != 49 || !layout.timeline)) ||
+        state->removed || !state->phase || state->pose >= layout.timeline_count ||
+        state->remaining < -1 || !overlay.bytes ||
+        overlay.size < layout.timeline + layout.timeline_count * 4U)
         return SDL_SetError("Weapon secondary animation requires its actual private timeline");
     const Uint8 *t = overlay.bytes + layout.timeline;
     SotnWeaponSecondary s = *state;

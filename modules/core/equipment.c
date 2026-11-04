@@ -80,6 +80,14 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0, 0};
     case 178:
         return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5, 0};
+    case 111: // Firebrand and its QCF special179 (kind20, five MP)
+        return (PlainSpec){1, 49, 1, 0x41, 0, 0, 179, 0, 0};
+    case 179:
+        return (PlainSpec){1, 49, 20, 0x41, 1, 0, 0, 5, 0};
+    case 117: // Marsil and its QCF special180 (kind21, five MP)
+        return (PlainSpec){1, 49, 1, 0x41, 2, 0, 180, 0, 0};
+    case 180:
+        return (PlainSpec){1, 49, 21, 0x41, 3, 0, 0, 5, 0};
     case 139: // Osafune katana: back-forward slash192 and QCF warp193 (kind135, blueprint60)
         return (PlainSpec){5, 53, 1, 0x41, 2, 192, 193, 0, 0};
     case 192:

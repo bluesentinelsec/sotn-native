@@ -1,3 +1,10 @@
+Selected [Firebrand/Marsil](docs/player-firebrand-marsil.md) now own items111/117 and kind20/21
+QCF specials179/180 through weapon49 and five secondary roles: sparks (parent attack copy,
+func_80118894 group alone, orbit, ratan2 heading, ring request), the 16-wedge ring, puffs (private
+anchors, six rand calls), swirls (phase2 CAMERA_LOCKED, pillar on %7) and pillars. Raw parents
+may sit in slots16..47; E3..E5/F3..F5 are secondary kinds; bank2 frames at D_8017AA44. Icebrand
+stays unavailable.
+
 Selected [weapon51 swords](docs/player-weapon51-specials.md) now own two-handed Claymore98/
 Flamberge101/Zwei103/Obsidian107, Estoc95 (variant8 = D_8017AD58 past the table) and back-forward
 kind23 specials182..185. Descriptors1..3 glow colour11 of their palette through program-BSS
