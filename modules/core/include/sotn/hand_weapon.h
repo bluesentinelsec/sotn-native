@@ -16,7 +16,17 @@ typedef struct SotnHandWeaponProgram
     /** Weapon38/39 secondary BSS: lunge countdown (D_8017B844/D_8017BA28) and weapon39's
      * retained chain endpoints (D_8017BA2C/D_8017BA6C). Zeroed with a genuine program load. */
     Sint32 secondary_counter;
-    Sint16 secondary_x[32], secondary_y[32];
+    union {
+        struct
+        {
+            Sint16 secondary_x[32], secondary_y[32];
+        };
+        /** Weapon50 D_8017CBFC: the sparkle points shared by all of the program's E1/E4. */
+        struct
+        {
+            Sint16 ice_x[80], ice_y[80];
+        };
+    };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
     /** Weapon51 program BSS shared by its attack and special: the glow colour's _r/_g/_b,
      * color_step and _a words (D_8017AD68..D_8017AD70). */
@@ -66,8 +76,9 @@ typedef struct SotnHandWeaponEvents
     /** Further ordered WFACTORY requests after factory (weapon48); zero-terminated. */
     Uint32 more_factories[8];
     Uint16 sound;
-    /** Ordered additional sounds after sound (weapon33 pose12 pair); zero when absent. */
-    Uint16 extra_sounds[2];
+    /** Ordered additional sounds after sound (weapon33 pose12 pair, weapon50 pose1 trio);
+     * zero when absent. */
+    Uint16 extra_sounds[3];
     /** Weapon54: raise player timer11 to this minimum (0x38); zero when absent. */
     Uint16 dark_minimum;
     /** Weapon54 special: original FACTORY(61,0x11) outline request; zero when absent. */

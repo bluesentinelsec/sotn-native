@@ -1044,6 +1044,156 @@ static bool Brand(void)
           SotnWeaponSecondary_SupportedRole(49, 5) && !SotnWeaponSecondary_SupportedRole(49, 6));
     return true;
 }
+// Authored weapon50 layout: descriptors at 0xfc0, six UV rows at 0x1000 and blade anchors at
+// 0x1030 (24,-14 with extent 64,6*i).
+static void Weapon50Program(Uint8 *o)
+{
+    Program(o);
+    for (Uint16 v = 0; v < 4; ++v)
+        SDL_memcpy(o + 0xfc0 + v * 16U, o + 0x10ac, 16);
+    for (Uint16 r = 0; r < 6; ++r)
+        for (Uint16 k = 0; k < 8; ++k)
+            o[0x1000 + r * 8U + k] = (Uint8)(r * 16U + k);
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        Put16(o + 0x1030 + i * 8U, 24);
+        Put16(o + 0x1032 + i * 8U, (Uint16)-14);
+        Put16(o + 0x1034 + i * 8U, 64);
+        Put16(o + 0x1036 + i * 8U, (Uint16)(i * 6U));
+    }
+}
+// w_050: eighty sparkles wait, then drift through six UV rows (two placements each, size six then
+// four) to the blade; the ring rolls properties with a radius-sized box; frost streaks flash once
+// each; crystals rise from points shared with the sparkles.
+static bool Ice(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Weapon50Program(o);
+    Math(exe);
+    const Uint16 hit = 2;
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .properties = Properties,
+                                   .context = (void *)&hit,
+                                   .x = 100 * 65536 + 7,
+                                   .y = 80 * 65536 + 9,
+                                   .camera_x = 10,
+                                   .camera_y = 4,
+                                   .family = 50,
+                                   .priority = 148,
+                                   .animation = 0x42,
+                                   .attack_mode = 0x8016,
+                                   .allocated = true};
+    SotnHandWeaponProgram program = {0};
+    // Sparkles: 80 delays rolled at birth (no properties), retirement after forty updates.
+    {
+        SotnWeaponSecondary s = {.x = 5 * 65536};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3, check = 3;
+        in.role = 1;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties &&
+              s.flags == 0x860000U && s.lifetime == 40 && s.priority == 152 && s.x == 5 * 65536);
+        // The birth callback also runs the update: each 1..24 delay has ticked once, and a
+        // delay of one has already fired.
+        for (Uint16 i = 0; i < 80; ++i)
+        {
+            const Uint8 delay = (Uint8)((SotnCombat_Random(&check) & 0x7fffU) % 24U + 1U);
+            CHECK(delay == 1 ? s.ice_g0[i] == 1 && !s.ice_g1[i]
+                             : !s.ice_g0[i] && s.ice_g1[i] == delay - 1U);
+        }
+        Uint16 shown = 0, t = 1, ended = 0;
+        for (; t < 60 && !s.removed; ++t)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            for (Uint16 i = 0; i < 80 && !s.removed; ++i)
+            {
+                if (s.ice_size[i])
+                {
+                    CHECK((s.ice_size[i] == 6) ==
+                          (s.ice_b0[i] < 3 || (s.ice_b0[i] == 3 && (s.ice_b1[i] & 1U) == 0)));
+                    ++shown;
+                }
+                ended += s.ice_g0[i] == 2;
+            }
+        }
+        // Forty updates after birth (the counter starts at forty and retires on zero).
+        CHECK(s.removed && t == 41 && shown > 200 && ended > 0);
+    }
+    // Ring: properties with a box of radius minus four, fading over its last sixteen updates.
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        in.role = 2;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.properties &&
+              s.age == 0x28 && s.lifetime == 4 && !s.hitbox_width && s.quads[0].blue[2] == 0x80);
+        Uint16 t = 0;
+        for (; t < 60 && !s.removed; ++t)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties);
+            if (!s.removed)
+                CHECK(s.hitbox_width == s.lifetime - 4 &&
+                      s.quads[7].blue[3] == (s.age < 16 ? s.age * 16 : 0x80));
+        }
+        CHECK(s.removed && t == 0x28 && s.lifetime == 0x28);
+    }
+    // Frost: thirty-two streaks with six rand calls each, then the property roll; each shows for
+    // exactly one update; the child retires after eight.
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 5, check = 5;
+        in.role = 3;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.properties &&
+              s.hitbox_x == 0x18 && s.hitbox_width == 0x18 && s.hitbox_height == 8 &&
+              s.draw_mode == 0x335 && s.row_priority == 152);
+        for (Uint16 i = 0; i < 32 * 6 + 1; ++i)
+            (void)SotnCombat_Random(&check);
+        CHECK(rng == check);
+        Uint16 flashes[32] = {0};
+        for (Uint16 t = 0; t < 12 && !s.removed; ++t)
+        {
+            for (Uint16 i = 0; i < 32; ++i)
+                flashes[i] += !s.rows[i].hidden;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        }
+        for (Uint16 i = 0; i < 32; ++i)
+            CHECK(flashes[i] <= 1 && s.rows[i].red[1] == 0x20 && s.rows[i].blue[0] >= 0xe0);
+        CHECK(s.removed);
+    }
+    // Crystals: eight points written into the program's shared sparkle points, each rising a
+    // pixel per placement after a 2i+1 delay.
+    for (Uint16 param = 0; param < 2; ++param)
+    {
+        SotnWeaponSecondary s = {.parameter = (Uint16)(param << 8)};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 9;
+        in.role = 4;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties &&
+              s.quads[0].draw_mode == (param ? 0x339 : 0x379) && s.quads[3].green[1] == 6 &&
+              s.lifetime == 0x18);
+        const Sint16 y0 = program.ice_y[0];
+        Uint16 t = 0;
+        for (; t < 40 && !s.removed; ++t)
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        // Crystal0 placed twelve times (six rows, two each) before row6 ends it.
+        CHECK(s.removed && t == 0x18 && program.ice_y[0] == y0 - 13);
+    }
+    // Leaving the brand's animations retires sparkles, rings and crystals before any RNG.
+    for (Uint16 role = 1; role <= 4; role += role == 2 ? 2 : 1)
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        in.role = role;
+        in.animation = 0x48;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 3);
+        in.animation = 0x42;
+    }
+    CHECK(SotnWeaponSecondary_RoleRows(50, 1) == 80 && SotnWeaponSecondary_RoleRows(50, 3) == 32 &&
+          SotnWeaponSecondary_RoleRows(50, 4) == 8 && !SotnWeaponSecondary_SupportedRole(50, 5));
+    return true;
+}
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -1859,11 +2009,97 @@ static bool BrandRuntime(void)
     SDL_free(dra);
     return true;
 }
+// Icebrand181's descriptor1 spawns the eighty-row sparkles and the ring; pose1 adds frost and
+// crystals. Each role leases its actual rows (80/16/32/8) and releases them on retirement.
+static bool IceRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 181, 1, 50, 22, 1, 5, 0);
+    const Uint8 blueprints[][6] = {{48, 0, 1, 0xc1, 0, 0x23},
+                                   {0x3a, 1, 1, 0xc1, 0, 0},
+                                   {0x40, 2, 1, 0xc1, 0, 0},
+                                   {0x44, 3, 1, 0xc1, 0, 6},
+                                   {0x61, 4, 1, 0xc1, 0, 0}};
+    for (Uint16 i = 0; i < SDL_arraysize(blueprints); ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    Weapon50Program(weapons + 50U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {50, 50},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x8016,
+                                         .animation = {.id = 0x41, .pose = 0, .remaining = 2}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x11030U, 181, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    Uint32 roles = 0;
+    Uint16 max_rows = 0;
+    for (Uint16 t = 0; t < 8; ++t)
+    {
+        in.player.animation.pose = (Uint16)(t < 2 ? 0 : 1);
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        Uint16 rows = 0;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary)
+                continue;
+            const Uint16 role = c->kind & 15U;
+            CHECK(c->state.secondary.family == 50 && SotnBatRuntime_SecondaryValid(c, i) &&
+                  c->primitive_count == SotnWeaponSecondary_RoleRows(50, role) &&
+                  c->state.secondary.item == ((role == 2 || role == 3) ? 181 : 0));
+            roles |= 1U << role;
+        }
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            rows += actors->primitives[i].owner != 0;
+        max_rows = SDL_max(max_rows, rows);
+    }
+    CHECK(roles == 0x1eU && max_rows == 80 + 16 + 32 + 8);
+    in.player.animation.id = 0x30;
+    in.player.attack_mode = 0;
+    for (Uint16 t = 0; t < 12; ++t)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].kind);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
-                   Runtime() && KatanaRuntime() && ThunderRuntime() && WarpRuntime() &&
-                   FistRuntime() && FanRuntime() && BrandRuntime()
+                   Ice() && Runtime() && KatanaRuntime() && ThunderRuntime() && WarpRuntime() &&
+                   FistRuntime() && FanRuntime() && BrandRuntime() && IceRuntime()
                ? 0
                : 1;
 }

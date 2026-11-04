@@ -205,7 +205,8 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
            kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
-           kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3;
+           kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3 || kind == 0xe4 ||
+           kind == 0xf4;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {

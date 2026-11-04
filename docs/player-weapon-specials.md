@@ -46,6 +46,9 @@ Selected virtual items:
   forty-update hold, with sparks, rings, puffs, swirls and pillars (see
   [Firebrand/Marsil](player-firebrand-marsil.md)).
 
+- Icebrand113's QCF special181: kind22 on the same hold, with sparkles, a ring, frost streaks
+  and crystals (see [Icebrand](player-icebrand.md)).
+
 - Thunderbrand112's QCF special178: kind19, a forty-update pose0 hold with lightning and a
   ring (see [Thunderbrand](player-thunderbrand.md)).
 
@@ -60,7 +63,7 @@ Selected virtual items:
   punch rushes in slot16; Tulkas's QCF special188: kind25 descriptor4 fireball (see
   [fist specials](player-fist-specials.md)).
 
-The other virtual specials (Icebrand, Yasutsuna, rods, Shotel,
+The other virtual specials ( Yasutsuna, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

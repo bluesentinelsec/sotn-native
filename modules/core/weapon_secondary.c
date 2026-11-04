@@ -55,6 +55,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 1};
     else if (family == 49)
         *out = (Layout){.rows = 0};
+    else if (family == 50)
+        *out = (Layout){.rows = 80};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -63,7 +65,7 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1 || family == 51 || family == 49;
+           family == 1 || family == 51 || family == 49 || family == 50;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -75,6 +77,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon49 owns sparks, ring, puffs, swirls and pillars (E1..E5).
     if (family == 49)
         return role >= 1 && role <= 5;
+    // Weapon50 owns sparkles, its ring, frost streaks and crystals (E1..E4).
+    if (family == 50)
+        return role >= 1 && role <= 4;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
@@ -83,6 +88,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return 0;
     if (family == 49)
         return role == 2 ? 16 : 0;
+    if (family == 50)
+        return role == 1 ? 80 : role == 2 ? 16 : role == 3 ? 32 : 8;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -1099,6 +1106,374 @@ static bool Pillar(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *
     return true;
 }
 
+// w_050 func_8017B784: place one sparkle at its UV row (uv_coords D_8017B000), half-extent six
+// for rows0..2 and four after; every second placement advances the row, and row6 ends it.
+static bool IcePlace(SotnDataView o, Uint8 *row, Uint8 *count, Uint8 uv[8], Uint8 *size,
+                     bool *ended)
+{
+    const Uint8 *table = NULL;
+    *ended = *row == 6;
+    if (*ended)
+        return true;
+    if (!View(o, 0x1000U + (Uint32)*row * 8U, 8, &table))
+        return SDL_SetError("Weapon50 sparkle requires its private UV rows");
+    *size = *row >= 3 ? 4 : 6;
+    SDL_memcpy(uv, table, 8);
+    ++*count;
+    if (!(*count & 1U))
+        ++*row;
+    return true;
+}
+// w_050 func_8017B87C/func_8017BA38: the blade anchor for the player's animation, with three
+// quarters of its extent or a smaller fraction (two thirds / one half).
+static bool IceAnchor(SotnWeaponSecondaryInput in, bool wide, bool half, Sint16 *x, Sint16 *y,
+                      Sint16 *px, Sint16 *py)
+{
+    const Uint8 *a = NULL;
+    // Frost streaks outlive the attack window: other animations index the program's words
+    // around D_8017B030 exactly as the original does.
+    const Sint32 at = 0x1030 + ((Sint32)in.animation - 0x41) * 8;
+    if (at < 0 || !View(in.overlay, (Uint32)at, 8, &a))
+        return SDL_SetError("Weapon50 child requires its private blade anchor");
+    const Sint32 ax = (Sint16)Read16(a), ay = (Sint16)Read16(a + 2), ex = (Sint16)Read16(a + 4),
+                 ey = (Sint16)Read16(a + 6);
+    *x = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -ax : ax));
+    *y = Word(Pixel(in.y) - in.camera_y + ay);
+    const Sint16 fx = Word(wide ? ex * 3 / 4 : half ? ex / 2 : ex * 2 / 3);
+    *px = in.facing_left ? Word(-fx) : fx;
+    *py = Word(wide ? ey * 3 / 4 : half ? ey / 2 : ey * 2 / 3);
+    return true;
+}
+static bool IceWindow(SotnWeaponSecondaryInput in)
+{
+    return in.animation > 0x40 && in.animation < 0x48 && in.attack_mode;
+}
+// w_050 func_ptr_80170004: eighty sparkles, each waiting 1..24 updates, then drifting from a
+// random point on a 32..63 radius into the blade over fifteen steps of its UV schedule.
+static bool Sparkles(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                     Uint32 *rng)
+{
+    if (!IceWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint16 x = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -12 : 12)),
+                 y = Word(Pixel(in.y) - in.camera_y - 26 - ((in.draw_flags & 2U) ? 5 : 0));
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        for (Uint16 i = 0; i < 80; ++i)
+        {
+            s->ice_b0[i] = s->ice_b1[i] = s->ice_g0[i] = s->ice_g2[i] = s->ice_size[i] = 0;
+            s->ice_g1[i] = (Uint8)(Rand(rng) % 24U + 1U);
+        }
+        s->priority = (Uint16)(in.priority + 4U);
+        s->draw_mode = 0x331;
+        s->flags = 0x860000U;
+        s->lifetime = 40;
+        s->phase = 1;
+    }
+    else if (!(s->lifetime = (Sint16)(s->lifetime - 1)))
+    {
+        s->removed = true;
+        return true;
+    }
+    for (Uint16 i = 0; i < 80; ++i)
+    {
+        if (s->ice_g0[i] == 0)
+        {
+            if (--s->ice_g1[i] == 0)
+            {
+                const Sint16 angle = (Sint16)Rand(rng);
+                const Sint16 magnitude = (Sint16)((Rand(rng) & 0x1fU) + 32U);
+                Sint16 dx = 0, dy = 0;
+                if (!BrandOrbit(angle, magnitude, in.executable, &dx, &dy))
+                    return false;
+                p->ice_x[i] = Word(x + dx);
+                p->ice_y[i] = Word(y - dy);
+                s->ice_g0[i] = 1;
+            }
+        }
+        else if (s->ice_g0[i] == 1)
+        {
+            const Sint32 g2 = s->ice_g2[i];
+            const Sint16 px = Word(p->ice_x[i] - (p->ice_x[i] - x) * g2 / 15),
+                         py = Word(p->ice_y[i] - (p->ice_y[i] - y) * g2 / 15);
+            s->ice_g2[i] = (Uint8)(g2 + 1);
+            bool ended = false;
+            Uint8 size = 0;
+            if (!IcePlace(in.overlay, &s->ice_b0[i], &s->ice_b1[i], s->ice_uv[i], &size, &ended))
+                return false;
+            if (ended)
+            {
+                s->ice_size[i] = 0;
+                s->ice_g0[i] = 2;
+            }
+            else
+            {
+                s->ice_cx[i] = px;
+                s->ice_cy[i] = py;
+                s->ice_size[i] = size;
+            }
+        }
+    }
+    return true;
+}
+// w_050 func_ptr_80170008: the frost ring, rolling properties from its raw parent with a box
+// growing with the radius, white-fill wedges fading over the last sixteen of forty updates.
+static bool IceRing(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                    SotnWeaponSecondaryEvents *e)
+{
+    if (!IceWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint16 x = Word(Pixel(in.x) - in.camera_x + (in.facing_left ? -12 : 12)),
+                 y = Word(Pixel(in.y) - in.camera_y - ((in.draw_flags & 2U) ? 0x1f : 0x1a));
+    SetScreen(&s->x, x, in.camera_x);
+    SetScreen(&s->y, y, in.camera_y);
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad q = {.u = {0, 0, 0x20, 0x20},
+                                      .v = {0, 0, 0xe0, 0xe0},
+                                      .red = {0, 0, 0xff, 0xff},
+                                      .green = {0, 0, 0xff, 0xff},
+                                      .blue = {0, 0, 0xff, 0xff},
+                                      .palette = 0x15f,
+                                      .page = 0x1a,
+                                      .priority = (Uint16)(in.priority + 2U),
+                                      .draw_mode = 0x335};
+            for (Uint16 k = 0; k < 2; ++k)
+            {
+                SotnMathTrig t = {0};
+                if (!SotnMath_Trig(in.executable, (Sint16)((i + k) * 256U), &t))
+                    return false;
+                q.u[k] = (Uint8)(((t.cosine * 2) >> 8) + 32);
+                q.v[k] = (Uint8)(-32 - ((t.sine * 2) >> 8));
+                if (q.v[k] < 4)
+                    q.v[k] = 0xff;
+            }
+            s->quads[i] = q;
+        }
+        s->flags = 0x860000U;
+        s->lifetime = 4;
+        s->age = 0x28;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_x = s->hitbox_y = 0;
+        s->phase = 1;
+    }
+    else
+    {
+        if (s->lifetime < 0x28)
+            s->lifetime = (Sint16)(s->lifetime + 6);
+        if (!--s->age)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    s->hitbox_width = s->hitbox_height = (Uint8)(s->lifetime - 4);
+    const Uint8 color = s->age < 0x10 ? (Uint8)(s->age * 16U) : 0x80;
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->quads[i];
+        q->x[2] = q->x[3] = x;
+        q->y[2] = q->y[3] = y;
+        q->red[2] = q->red[3] = q->green[2] = q->green[3] = q->blue[2] = q->blue[3] = color;
+        for (Uint16 k = 0; k < 2; ++k)
+        {
+            Sint16 dx = 0, dy = 0;
+            if (!BrandOrbit((Sint16)((i + k) * 256U), s->lifetime, in.executable, &dx, &dy))
+                return false;
+            q->x[k] = Word(x + dx);
+            q->y[k] = Word(y - dy);
+        }
+    }
+    return true;
+}
+// w_050 func_ptr_8017000C: thirty-two frost streaks along the blade, each shown for one update
+// after a 1..5 delay; the child attacks for eight updates.
+static bool Frost(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                  SotnWeaponSecondaryEvents *e)
+{
+    Sint16 x = 0, y = 0, px = 0, py = 0;
+    if (!IceAnchor(in, true, false, &x, &y, &px, &py))
+        return false;
+    SetScreen(&s->x, x, in.camera_x);
+    SetScreen(&s->y, y, in.camera_y);
+    s->facing_left = in.facing_left;
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 3;
+        s->allocated = true;
+        s->flags = 0x860000U;
+        for (Uint16 i = 0; i < 32; ++i)
+        {
+            SotnWeaponSecondaryRow *r = &s->rows[i];
+            *r = (SotnWeaponSecondaryRow){.red = {0, 0x20}, .green = {0, 0x20}, .blue = {0, 0x20}};
+            r->red[0] = (Uint8)((Rand(rng) & 0x1fU) + 0x80U);
+            r->green[0] = (Uint8)((Rand(rng) & 0x1fU) + 0x60U);
+            r->blue[0] = (Uint8)((Rand(rng) & 0x1fU) + 0xe0U);
+            const Sint16 ry = (Sint16)((Sint32)(Rand(rng) % 24U) - 12),
+                         rx = (Sint16)((Sint32)(Rand(rng) % 24U) - 12);
+            r->x[0] = Word(x + rx);
+            r->y[0] = Word(y + ry);
+            r->x[1] = Word(px + r->x[0]);
+            r->y[1] = Word(py + r->y[0]);
+            r->phase = 0;
+            r->timer = (Uint8)(Rand(rng) % 5U + 1U);
+            r->hidden = true;
+        }
+        s->row_priority = (Uint16)(in.priority + 4U);
+        s->draw_mode = 0x335;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_x = 0x18;
+        s->hitbox_width = 0x18;
+        s->hitbox_height = 8;
+        s->hitbox_y = 0;
+        s->lifetime = 8;
+        s->phase = 1;
+    }
+    else if (!(s->lifetime = (Sint16)(s->lifetime - 1)))
+    {
+        s->removed = true;
+        return true;
+    }
+    for (Uint16 i = 0; i < 32; ++i)
+    {
+        SotnWeaponSecondaryRow *r = &s->rows[i];
+        if (r->phase == 0)
+        {
+            if (--r->timer == 0)
+            {
+                r->hidden = false;
+                r->phase = 1;
+            }
+        }
+        else if (r->phase == 1)
+        {
+            r->hidden = true;
+            r->phase = 2;
+        }
+    }
+    return true;
+}
+// w_050 func_ptr_80170010: eight crystals along the blade (sharing the sparkle points), each
+// rising one pixel per placement after a staggered delay.
+static bool Crystals(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                     Uint32 *rng)
+{
+    if (!IceWindow(in))
+    {
+        s->removed = true;
+        return true;
+    }
+    const Uint16 params = (Uint16)((s->parameter & 0x7f00U) >> 8);
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 4;
+        s->allocated = true;
+        s->flags = 0x860000U;
+        Sint16 x = 0, y = 0, bx = 0, by = 0;
+        if (!IceAnchor(in, params == 1, params != 1, &x, &y, &bx, &by))
+            return false;
+        if (in.draw_flags & 2U)
+        {
+            const Sint32 index = (Sint32)in.animation - 0x41;
+            y = Word(y - (index == 2 || index == 3 ? 1 : 3));
+        }
+        SetScreen(&s->x, x, in.camera_x);
+        SetScreen(&s->y, y, in.camera_y);
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            Sint16 qx = Word(bx * (Sint32)i / 8 + x), qy = Word(by * (Sint32)i / 8 + y);
+            qy = Word(qy + (Sint32)(Rand(rng) % 10U));
+            qx = Word(qx + (Sint32)(Rand(rng) % 4U));
+            p->ice_x[i] = qx;
+            p->ice_y[i] = qy;
+            s->quads[i] = (SotnPlayerEffectQuad){.palette = 0x1b0,
+                                                 .page = 0x1a,
+                                                 .priority = in.priority,
+                                                 .draw_mode = (Uint16)(params == 0 ? 0x379 : 0x339),
+                                                 .green = {0, (Uint8)(i * 2U + 1U), 0, 0}};
+        }
+        s->lifetime = 0x18;
+        s->phase = 1;
+    }
+    else if (!(s->lifetime = (Sint16)(s->lifetime - 1)))
+    {
+        s->removed = true;
+        return true;
+    }
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        // The original prim scratch bytes: g0 = green[0], g1 = green[1], b0/b1 = blue[0]/[1].
+        SotnPlayerEffectQuad *q = &s->quads[i];
+        if (q->green[0] == 0)
+        {
+            if (--q->green[1] == 0)
+                q->green[0] = 1;
+        }
+        else if (q->green[0] == 1)
+        {
+            const Sint16 x = p->ice_x[i], y = p->ice_y[i];
+            bool ended = false;
+            Uint8 size = 0, uv[8] = {0};
+            if (!IcePlace(in.overlay, &q->blue[0], &q->blue[1], uv, &size, &ended))
+                return false;
+            p->ice_y[i] = Word(p->ice_y[i] - 1);
+            if (ended)
+            {
+                q->draw_mode |= 8U;
+                q->green[0] = 2;
+            }
+            else
+            {
+                for (Uint16 k = 0; k < 4; ++k)
+                {
+                    q->u[k] = uv[k * 2U];
+                    q->v[k] = uv[k * 2U + 1U];
+                }
+                q->x[0] = q->x[2] = Word(x - size);
+                q->x[1] = q->x[3] = Word(x + size);
+                q->y[0] = q->y[1] = Word(y - size);
+                q->y[2] = q->y[3] = Word(y + size);
+                q->draw_mode = (Uint16)(q->draw_mode & ~8U);
+            }
+        }
+    }
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -1131,6 +1506,16 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 51)
     {
         if (!Fan(&s, in, &rng, &e))
+            return false;
+        goto commit;
+    }
+    if (in.family == 50)
+    {
+        const bool ok = in.role == 1   ? Sparkles(&s, &shared, in, &rng)
+                        : in.role == 2 ? IceRing(&s, in, &rng, &e)
+                        : in.role == 3 ? Frost(&s, in, &rng, &e)
+                                       : Crystals(&s, &shared, in, &rng);
+        if (!ok)
             return false;
         goto commit;
     }

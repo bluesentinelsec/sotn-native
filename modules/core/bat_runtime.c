@@ -877,6 +877,7 @@ static Uint16 HandFamily(Uint16 item)
                ? 53
            : item == 112 || item == 178                               ? 48
            : item == 111 || item == 117 || item == 179 || item == 180 ? 49
+           : item == 113 || item == 181                               ? 50
            : item == 22 || item == 190                                ? 39
            : item == 20 || item == 175                                ? 32
            : item == 127 || item == 95 || item == 98 || item == 101 || item == 103 || item == 107 ||
@@ -892,22 +893,50 @@ static Uint16 HandFamily(Uint16 item)
 }
 static Uint16 HandVariant(Uint16 item)
 {
-    return SotnEquipment_IsSword0(item) ? (item == 125   ? 3
-                                           : item >= 116 ? 2
-                                           : item >= 104 ? 1
-                                                         : 0)
-           : item == 97                 ? 1
-           : item == 124                ? 3
-           : item == 167 || item == 174 || item == 170 || item == 171 || item == 195 ||
-                   item == 175 || item == 196 || item == 190 || item == 191 || item == 189 ||
-                   item == 178 || item == 194
-               ? 1
-           : item == 139 || item == 102 || item == 103 || item == 184 || item == 117 ? 2
-           : item == 192 || item == 120 || item == 107 || item == 185 || item == 180 ? 3
-           : item == 140 || item == 188                                              ? 4
-           : item == 187 || item == 101 || item == 183 || item == 179                ? 1
-           : item == 95                                                              ? 8
-                                                                                     : 0;
+    if (SotnEquipment_IsSword0(item))
+        return item == 125 ? 3 : item >= 116 ? 2 : item >= 104 ? 1 : 0;
+    switch (item)
+    {
+    case 97:
+    case 167:
+    case 174:
+    case 170:
+    case 171:
+    case 195:
+    case 175:
+    case 196:
+    case 190:
+    case 191:
+    case 189:
+    case 178:
+    case 194:
+    case 187:
+    case 101:
+    case 183:
+    case 179:
+    case 181:
+        return 1;
+    case 139:
+    case 102:
+    case 103:
+    case 184:
+    case 117:
+        return 2;
+    case 124:
+    case 192:
+    case 120:
+    case 107:
+    case 185:
+    case 180:
+        return 3;
+    case 140:
+    case 188:
+        return 4;
+    case 95:
+        return 8;
+    default:
+        return 0;
+    }
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
@@ -990,6 +1019,10 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     if (family == 49)
         return ((bp == 0x5b || bp == 0x5f) && param == 0) || (bp == 0x40 && param == 1) ||
                (bp == 0x5d && param <= 1);
+    // Weapon50: sparkles0x3A, ring0x40, frost0x44 and crystals0x61 (param = descriptor).
+    if (family == 50)
+        return ((bp == 0x3a || bp == 0x40 || bp == 0x44) && param == 0) ||
+               (bp == 0x61 && param <= 3);
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
 bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -1012,6 +1045,8 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon49 children count in the low byte (sparks/swirls0..7, puffs0..7 on base0/1).
     if (family == 49)
         return n <= 1 && (parameter & 0xffU) <= 7;
+    if (family == 50)
+        return n <= 3 && !(parameter & 0xffU);
     return (parameter & 0xffU) ? false
            : family == 53      ? n < 50
            : family == 48      ? (n & 0xfU) <= 3 && (n >> 4) <= 2
@@ -2825,7 +2860,18 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon53's slash quad is entity-relative; the fireball and weapon49's other
             // children own no rows (their union words hold motion instead).
             const Uint16 family = c->state.secondary.family, role = c->kind & 15U;
-            if (role == 2 ? family == 48 || family == 49 : family == 1)
+            if (family == 50 && role == 1)
+            {
+                // Weapon50 sparkles keep compact placements; their GT4 centres translate.
+                for (Uint16 j = 0; j < 80; ++j)
+                {
+                    w->ice_cx[j] = Word(w->ice_cx[j] + in.screen_shift_x);
+                    w->ice_cy[j] = Word(w->ice_cy[j] + in.screen_shift_y);
+                }
+            }
+            else if (role == 2   ? family == 48 || family == 49 || family == 50
+                     : role == 4 ? family == 50
+                                 : family == 1)
             {
                 for (Uint16 j = 0; j < c->primitive_count && j < 16; ++j)
                     for (Uint16 v = 0; v < 4; ++v)
@@ -2834,7 +2880,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         w->quads[j].y[v] = Word(w->quads[j].y[v] + in.screen_shift_y);
                     }
             }
-            else if (role == 1 && family != 53 && family != 49)
+            else if ((role == 1 && family != 53 && family != 49) || (role == 3 && family == 50))
                 for (Uint16 j = 0; j < SOTN_WEAPON_SECONDARY_ROWS; ++j)
                     for (Uint16 v = 0; v < 2; ++v)
                     {
@@ -3280,7 +3326,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             ((r.factories[i].cursor.blueprint != 56 && r.factories[i].cursor.blueprint != 58 &&
               r.factories[i].cursor.blueprint != 64 && r.factories[i].cursor.blueprint != 62 &&
               r.factories[i].cursor.blueprint != 0x5b && r.factories[i].cursor.blueprint != 0x5d &&
-              r.factories[i].cursor.blueprint != 0x5f && r.factories[i].cursor.blueprint != 0x65) ||
+              r.factories[i].cursor.blueprint != 0x5f && r.factories[i].cursor.blueprint != 0x65 &&
+              r.factories[i].cursor.blueprint != 0x44 && r.factories[i].cursor.blueprint != 0x61) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -3716,6 +3763,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 1  ? 85
                                  : family == 51 ? 127
                                  : family == 49 ? 111
+                                 : family == 50 ? 113
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))

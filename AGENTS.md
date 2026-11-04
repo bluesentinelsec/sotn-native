@@ -1,9 +1,14 @@
+Selected [Icebrand](docs/player-icebrand.md) now owns item113/kind22 QCF special181 through weapon50:
+every pose1 requests FACTORY(0x61,descriptor) crystals; descriptor1 adds APPEAR_A/0x3A/0x40 at
+birth and 0x44 frost at pose1. Sparkles lease eighty actual rows (child rows now 80) but keep
+compact centre/UV/scratch state rebuilt at draw (SOTN_DRAW_WEAPON_SPARKLE); D_8017CBFC points live
+in a program-BSS union shared with the crystals. Frost re-anchors outside the window as original.
+
 Selected [Firebrand/Marsil](docs/player-firebrand-marsil.md) now own items111/117 and kind20/21
 QCF specials179/180 through weapon49 and five secondary roles: sparks (parent attack copy,
 func_80118894 group alone, orbit, ratan2 heading, ring request), the 16-wedge ring, puffs (private
 anchors, six rand calls), swirls (phase2 CAMERA_LOCKED, pillar on %7) and pillars. Raw parents
-may sit in slots16..47; E3..E5/F3..F5 are secondary kinds; bank2 frames at D_8017AA44. Icebrand
-stays unavailable.
+may sit in slots16..47; E3..E5/F3..F5 are secondary kinds; bank2 frames at D_8017AA44.
 
 Selected [weapon51 swords](docs/player-weapon51-specials.md) now own two-handed Claymore98/
 Flamberge101/Zwei103/Obsidian107, Estoc95 (variant8 = D_8017AD58 past the table) and back-forward

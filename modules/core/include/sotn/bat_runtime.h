@@ -204,8 +204,8 @@ typedef struct SotnBatRuntimeChild
     } state;
     SotnPlayerEffectQuad trail_quad;
     Uint8 draw_count;
-    Uint16 primitives[SOTN_WEAPON_SECONDARY_ROWS]; /**< Actual row indices, including particle
-                                                    sentinels. */
+    /** Actual row indices, including particle sentinels (weapon50's sparkles lease eighty). */
+    Uint16 primitives[SOTN_BAT_CHILD_ROWS];
     Uint8 primitive_count;
 } SotnBatRuntimeChild;
 

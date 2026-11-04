@@ -136,6 +136,37 @@ static bool Glow(SotnDataView o, SotnHandWeaponProgram *program, Uint16 hand, Ui
                              (Uint32)program->glow_blue << 10 | (Uint32)program->glow_alpha << 15);
     return true;
 }
+// Original PlaySfx/CreateEntFactoryFromEntity calls keep their order within one callback.
+static bool AppendSound(SotnHandWeaponEvents *e, Uint16 sound)
+{
+    if (!e->sound)
+        e->sound = sound;
+    else
+    {
+        Uint16 n = 0;
+        while (n < SDL_arraysize(e->extra_sounds) && e->extra_sounds[n])
+            ++n;
+        if (n == SDL_arraysize(e->extra_sounds))
+            return SDL_SetError("Ordinary weapon exceeded its per-callback sound requests");
+        e->extra_sounds[n] = sound;
+    }
+    return true;
+}
+static bool AppendFactory(SotnHandWeaponEvents *e, Uint32 request)
+{
+    if (!e->factory)
+        e->factory = request;
+    else
+    {
+        Uint16 n = 0;
+        while (n < SDL_arraysize(e->more_factories) && e->more_factories[n])
+            ++n;
+        if (n == SDL_arraysize(e->more_factories))
+            return SDL_SetError("Ordinary weapon exceeded its per-callback factory requests");
+        e->more_factories[n] = request;
+    }
+    return true;
+}
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
     return family == 8 || family == 9 || family == 11 || family == 25 || family == 26 ||
@@ -543,6 +574,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 39:
     case 48:
     case 49:
+    case 50:
     case 53:
     case 55:
     case 32:
@@ -594,6 +626,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 53 ? 5
                              : in.family == 48 ? 2
                              : in.family == 49 ? 4
+                             : in.family == 50 ? 4
                              : in.family == 39 ? 2
                              : in.family == 32 ? 2
                              : in.family == 51 ? 4
@@ -613,6 +646,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 53 ? 0xf4cU
                                   : in.family == 48 ? 0xfc0U
                                   : in.family == 49 ? 0xffcU
+                                  : in.family == 50 ? 0xfc0U
                                   : in.family == 39 ? 0xdc0U
                                   : in.family == 32 ? 0x8f8U
                                   : in.family == 51 ? (in.special ? 0xd18U : 0xcd8U)
@@ -680,7 +714,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
                     in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
-                    in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49)
+                    in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49 ||
+                    in.family == 50)
                     w.blend = 0x30;
                 // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
                 if (in.family == 53 && (variant == 1 || variant == 3))
@@ -761,11 +796,20 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     if (variant == 3)
                         e.more_factories[0] = 0x40U | hand | 1U << 16;
                 }
+                // w_050 descriptor1 plays SFX_MAGIC_WEAPON_APPEAR_A and requests the
+                // WFACTORY(0x3A,0) sparkles and WFACTORY(0x40,0) ring before its properties.
+                if (in.family == 50 && variant == 1)
+                {
+                    const Uint32 hand = (in.hand + 1U) << 12;
+                    if (!AppendSound(&e, 0x669) || !AppendFactory(&e, 0x3aU | hand) ||
+                        !AppendFactory(&e, 0x40U | hand))
+                        return false;
+                }
                 if (!w.removed)
                 {
                     if (!Properties(&w, in, &rng, &e))
                         return false;
-                    if (in.family == 48 || in.family == 49)
+                    if (in.family == 48 || in.family == 49 || in.family == 50)
                         shared.previous_pose = 0;
                     // w_054 descriptors1/2 double under Dark Metamorphosis and keep it at
                     // least0x38; descriptor1 also requests the profile0x11 outline factory.
@@ -865,6 +909,23 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         e.factory = 0x3eU | ((in.hand + 1U) << 12);
                     if (in.family == 54 && !GurthangTrails(&w, in))
                         return false;
+                    // w_050's first pose1 after pose0 requests (descriptor1 only) WFACTORY(0x44,0)
+                    // with SFX_FM_EXPLODE_B and SFX_MAGIC_SWITCH, then FACTORY(0x61, descriptor)
+                    // with every descriptor.
+                    if (in.family == 50)
+                    {
+                        if (!shared.previous_pose && in.pose == 1)
+                        {
+                            const Uint32 hand = (in.hand + 1U) << 12;
+                            if (variant == 1 &&
+                                (!AppendFactory(&e, 0x44U | hand) || !AppendSound(&e, 0x65b) ||
+                                 !AppendSound(&e, 0x69d)))
+                                return false;
+                            if (!AppendFactory(&e, 0x61U | hand | (Uint32)variant << 16))
+                                return false;
+                        }
+                        shared.previous_pose = in.pose;
+                    }
                     // w_049 requests the WFACTORY(0x5D) puffs and SFX_FM_EXPLODE_B the first
                     // update pose1 follows pose0 (descriptors1/3 param0, descriptor2 param1).
                     if (in.family == 49)

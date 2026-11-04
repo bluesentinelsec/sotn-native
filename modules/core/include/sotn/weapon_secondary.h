@@ -7,6 +7,8 @@
 
 /** Maximum original LINE_G2 rows owned by one selected weapon secondary. */
 #define SOTN_WEAPON_SECONDARY_ROWS 64
+/** Largest single child row lease (weapon50's eighty sparkle GT4s). */
+#define SOTN_BAT_CHILD_ROWS 80
 
 /** @brief One original LINE_G2 row. Endpoint colors start zero (DestroyPrimitive); angle/length/
  * growth are weapon55's x2/x3/y2 scratch words; timer/phase are weapon38/39's r2/r3 bytes.
@@ -32,6 +34,15 @@ typedef struct SotnWeaponSecondary
             /** Weapon48 role2 ring wedges or weapon1 role1 punches: sixteen screen-space GT4s. */
             SotnPlayerEffectQuad quads[16];
             Uint8 quad_timer[16], quad_phase[16]; /**< Weapon1 punch r0/r1 scratch bytes. */
+        };
+        /** Weapon50 E1 sparkles: eighty GT4 rows kept as centre, UVs and the original prim
+         * scratch bytes g0/g1/g2/b0/b1 (rebuilt into packets at draw time). */
+        struct
+        {
+            Sint16 ice_cx[80], ice_cy[80];
+            Uint8 ice_uv[80][8];
+            Uint8 ice_g0[80], ice_g1[80], ice_g2[80], ice_b0[80], ice_b1[80];
+            Uint8 ice_size[80]; /**< Half-extent of the last placement (zero: hidden). */
         };
         /** Weapon49 sparks/puffs/swirls/pillars, which own no rows or GT4s. */
         struct

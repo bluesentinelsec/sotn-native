@@ -80,6 +80,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 48, 1, 0x41, 0, 0, 178, 0, 0};
     case 178:
         return (PlainSpec){1, 48, 19, 0x41, 1, 0, 0, 5, 0};
+    case 113: // Icebrand and its QCF special181 (kind22, five MP)
+        return (PlainSpec){1, 50, 1, 0x41, 0, 0, 181, 0, 0};
+    case 181:
+        return (PlainSpec){1, 50, 22, 0x41, 1, 0, 0, 5, 0};
     case 111: // Firebrand and its QCF special179 (kind20, five MP)
         return (PlainSpec){1, 49, 1, 0x41, 0, 0, 179, 0, 0};
     case 179:

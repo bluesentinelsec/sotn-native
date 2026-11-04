@@ -3,7 +3,8 @@
 The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts Firebrand111 and
 Marsil117 through the weapon49 program, with their QCF specials179 (kind20) and180 (kind21).
 Like [Thunderbrand](player-thunderbrand.md)'s special, both hold pose0 for forty updates, cost
-five MP after the factory and play no casting grunt. Icebrand113 (weapon50) stays unavailable.
+five MP after the factory and play no casting grunt. [Icebrand](player-icebrand.md) uses its
+own weapon50 program.
 Defaults, grants and v9 saves are unchanged.
 
 Definitions validate category1, family49, the special bytes, variants0..3, kinds20/21 and five

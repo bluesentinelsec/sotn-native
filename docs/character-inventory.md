@@ -35,7 +35,8 @@ QCF special, [Holy sword](player-holy-sword.md) its QCF special with the first w
 secondary, [Rapier/Were bane](player-lunge-weapons.md) their QCF lunges, and the two-handed
 [Katana](player-katana.md) its slash chain, [Claymore/Flamberge/Zwei hander/Obsidian sword/Estoc](player-weapon51-specials.md)
 their glows, specials and lunge, [Osafune/Masamune](player-katana-warp.md) their
-warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, and
+warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, [Icebrand](player-icebrand.md)
+its frost special, and
 [Thunderbrand](player-thunderbrand.md) its
 lightning; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).

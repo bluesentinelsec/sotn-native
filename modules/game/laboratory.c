@@ -4042,9 +4042,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
                 // Weapon53's slash and weapon51's fan blade own one entity-relative GT4;
                 // weapon48's ring and weapon1's punch rush own sixteen screen-space GT4s.
-                const bool slash = child->state.secondary.family == 53 ||
-                                   child->state.secondary.family == 51,
-                           ring = (child->kind & 15U) == 2 || child->state.secondary.family == 1;
+                const Uint16 family = child->state.secondary.family, role = child->kind & 15U;
+                const bool slash = family == 53 || family == 51,
+                           ring = role == 2 || family == 1 || (family == 50 && role == 4),
+                           sparkle = family == 50 && role == 1;
+                // Weapon50's eighty sparkles are compact rows rebuilt at draw time.
+                for (Uint16 q = sparkle ? 80 : 0; q > 0; --q)
+                    if (w->ice_size[q - 1U] &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->priority,
+                                            .primitive = (Uint16)(owner * 80U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SPARKLE}))
+                        return false;
                 for (Uint16 q = slash ? 1 : ring ? child->primitive_count : 0; q > 0; --q)
                     if (!SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -4053,7 +4063,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 16U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring ? 0 : child->primitive_count; row > 0; --row)
+                for (Uint16 row = slash || ring || sparkle ? 0 : child->primitive_count; row > 0;
+                     --row)
                     if (!w->rows[row - 1U].hidden &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -5041,6 +5052,36 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_WEAPON_SPARKLE)
+        {
+            const Uint16 owner = (Uint16)(command.primitive / 80U),
+                         index = (Uint16)(command.primitive % 80U);
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            if (!c->weapon_secondary || !c->initialized || c->state.secondary.family != 50 ||
+                (c->kind & 15U) != 1 || index >= c->primitive_count || !w->ice_size[index] ||
+                !SotnBatRuntime_SecondaryValid(c, owner))
+                return SDL_SetError("Weapon50 sparkle draw lost its actual child/row lease");
+            // drawMode0x331 (TPAGE|TPAGE2|UNK_100|UNK_200, transparent) with palette0x1B0.
+            const Sint16 z = w->ice_size[index], x = w->ice_cx[index], y = w->ice_cy[index];
+            SotnPlayerEffectQuad q = {
+                .x = {(Sint16)(x - z), (Sint16)(x + z), (Sint16)(x - z), (Sint16)(x + z)},
+                .y = {(Sint16)(y - z), (Sint16)(y - z), (Sint16)(y + z), (Sint16)(y + z)},
+                .palette = 0x1b0,
+                .page = 0x1a,
+                .priority = w->priority,
+                .draw_mode = w->draw_mode};
+            for (Uint16 k = 0; k < 4; ++k)
+            {
+                q.u[k] = w->ice_uv[index][k * 2U];
+                q.v[k] = w->ice_uv[index][k * 2U + 1U];
+            }
+            if (!DrawOriginalEffectQuad(session, &q) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD)
         {
             const Uint16 owner = (Uint16)(command.primitive / 16U),
@@ -5048,7 +5089,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
             const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 51;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1) ||
+                (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
+                 !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
