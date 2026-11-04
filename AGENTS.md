@@ -1,3 +1,11 @@
+Selected [weapon51 swords](docs/player-weapon51-specials.md) now own two-handed Claymore98/
+Flamberge101/Zwei103/Obsidian107, Estoc95 (variant8 = D_8017AD58 past the table) and back-forward
+kind23 specials182..185. Descriptors1..3 glow colour11 of their palette through program-BSS
+words and real g_Clut writes, committed after the pass. Selected items pay HasEnoughMp(mp,1)
+after the factory (back-forward: only if MP covers it); cramped Estoc starts no attack.
+Blueprint54 replaces slot16 with the E1/F1 special (palette0x110+subType*2, pose1
+WFACTORY(0x3E,0)); its fan root copies the raw parent and chains nine-callback GT4 blades.
+
 Selected [Iron Fist/Fist of Tulkas](docs/player-fist-specials.md) now own items102/120,
 kind24 rushes186/187 and kind25 fireball188: kind24 holds D_80139824 0x80 in substep0x58
 (stand pose4->2; airborne Player_Jump hovers without transitions). Blueprint54 replaces slot16

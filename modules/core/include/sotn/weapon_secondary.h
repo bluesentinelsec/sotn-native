@@ -45,7 +45,7 @@ typedef struct SotnWeaponSecondary
     Uint16 parameter; /**< Actual factory child params (paramsBase plus index). */
     Uint16 bank, palette, texture, priority, row_priority, blend, pose, frame, hitbox_state;
     Uint16 draw_mode; /**< Shared original row drawMode without DRAW_HIDE (ABR in bits5..6). */
-    Sint16 rotate, lifetime; /**< Weapon53 slash rotation and private-table radius. */
+    Sint16 rotate, lifetime; /**< Weapon53/51 rotation and private-table radius/timer. */
     Sint32 velocity_x;       /**< Weapon1 role2 fireball speed. */
     Sint16 scale_x;          /**< Weapon1 role2 fireball X scale (scale_y shared). */
     Uint8 hit_flags;         /**< Actual collision hitFlags recorded since the last callback. */
@@ -72,6 +72,8 @@ typedef struct SotnWeaponSecondaryInput
     bool facing_left;
     bool crouch;    /**< Actual player status crouch bit0x20 (weapon53 vertical offset). */
     bool allocated; /**< The mandatory rows were reserved before the first callback. */
+    /** Raw current slot16 params (zero when empty): weapon51's fan colour index. */
+    Uint16 slot16_parameter;
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */

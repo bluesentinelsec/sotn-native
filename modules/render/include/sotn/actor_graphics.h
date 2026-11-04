@@ -228,6 +228,12 @@ bool SotnActorGraphics_LoadDialogue(SotnActorGraphics *graphics, SotnDialogueSta
  * @return Success, or false with SDL_GetError() and unchanged texture memory on bad references. */
 bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
                                   SotnEquipment equipment);
+/** @brief Commit one weapon-program g_Clut word, as weapon51's glow LoadImage uploads it.
+ * @param graphics Owned graphics. @param palette Palette 0x110..0x13F (the uploaded 256x3 rows).
+ * @param color Colour 0..15. @param value 15-bit colour plus mask bit.
+ * @return Success, or false with SDL_GetError() and unchanged memory outside those rows. */
+bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                     Uint16 value);
 /** @brief Copy the actual successfully loaded program binding, retained after last-copy use. */
 bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
                                      bool *bound);

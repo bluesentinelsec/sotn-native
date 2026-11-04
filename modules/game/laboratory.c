@@ -1328,6 +1328,12 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 .entering = entering}) ||
         !SotnActors_CommitBatPrimitives(s->actors, &s->bat_runtime))
         return false;
+    // Weapon51's glow uploads its g_Clut word once the pass has committed.
+    for (Uint16 i = 0; i < s->bat_runtime.clut_count; ++i)
+        if (!SotnActorGraphics_SetWeaponClut(s->actor_graphics, s->bat_runtime.clut[i].palette,
+                                             s->bat_runtime.clut[i].color,
+                                             s->bat_runtime.clut[i].value))
+            return false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (s->bat_runtime.children[i].kind == 46 && s->bat_runtime.children[i].initialized)
         {
@@ -4034,9 +4040,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                         .primitive = owner,
                                                         .kind = SOTN_DRAW_WEAPON_SECONDARY}))
                     return false;
-                // Weapon53 owns one entity-relative GT4; weapon48's ring and weapon1's punch rush
-                // own sixteen screen-space GT4s.
-                const bool slash = child->state.secondary.family == 53,
+                // Weapon53's slash and weapon51's fan blade own one entity-relative GT4;
+                // weapon48's ring and weapon1's punch rush own sixteen screen-space GT4s.
+                const bool slash = child->state.secondary.family == 53 ||
+                                   child->state.secondary.family == 51,
                            ring = (child->kind & 15U) == 2 || child->state.secondary.family == 1;
                 for (Uint16 q = slash ? 1 : ring ? child->primitive_count : 0; q > 0; --q)
                     if (!SotnActorOrder_Add(
@@ -5039,14 +5046,14 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const Uint16 owner = (Uint16)(command.primitive / 16U),
                          index = (Uint16)(command.primitive % 16U);
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
-            const bool slash = c->state.secondary.family == 53;
+            const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 51;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
                 (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
             SotnPlayerEffectQuad q = slash ? w->quad : w->quads[index];
-            // Weapon53 offsets follow the entity (DRAW_UNK02); the weapon48 ring is screen-space.
+            // Weapon53/51 offsets follow the entity (DRAW_UNK02); ring and rush are screen-space.
             for (Uint16 v = 0; slash && v < 4; ++v)
             {
                 q.x[v] = BlinkWord(q.x[v] + Pixel(w->x) - view_x);

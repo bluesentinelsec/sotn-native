@@ -18,6 +18,9 @@ typedef struct SotnHandWeaponProgram
     Sint32 secondary_counter;
     Sint16 secondary_x[32], secondary_y[32];
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
+    /** Weapon51 program BSS shared by its attack and special: the glow colour's _r/_g/_b,
+     * color_step and _a words (D_8017AD68..D_8017AD70). */
+    Sint16 glow_red, glow_blue, glow_green, glow_step, glow_alpha;
 } SotnHandWeaponProgram;
 /** @brief Selected ordinary shared weapon entity: optional weapon43 TILEs or weapon1 GT4 trails. */
 typedef struct SotnHandWeapon
@@ -54,6 +57,8 @@ typedef struct SotnHandWeaponInput
     Uint16 hand, family, animation, pose, priority, step, substep, attack_mode;
     Uint8 draw_flags;
     bool facing_left, held, allocated;
+    /** Weapon51 slot16 E1/F1 special (func_ptr_80170004) instead of EntityWeaponAttack. */
+    bool special;
 } SotnHandWeaponInput;
 typedef struct SotnHandWeaponEvents
 {
@@ -69,6 +74,9 @@ typedef struct SotnHandWeaponEvents
     Uint32 outline;
     Uint8 shield; /**< Zero: no write; one: original unk48=1; two: original unk48=0. */
     bool properties;
+    /** Weapon51 glow: one g_Clut word written and uploaded this callback (clut set). */
+    bool clut;
+    Uint16 clut_palette, clut_color, clut_value;
 } SotnHandWeaponEvents;
 /** @brief Identify selected ordinary shield9/11/26/52 callbacks, without enabling equipment.
  * @param family Actual private program identity. @return Whether this callback is reconstructed.

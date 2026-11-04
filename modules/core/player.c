@@ -808,7 +808,6 @@ static bool StartAttack(SotnPlayer *player)
     }
     // 6E42C.c block_32: a completed grounded QCF selects the equipped specialMove when its
     // chain limit and MP allow; otherwise block_38c's back-forward check follows.
-    Uint16 special_cost = 0;
     bool special_selected = false;
     if (!knife_resolved && player->hand_factory && equipment.special_move && equipment.id != 123 &&
         player->sword_command.phase == 255 && (player->contact & 1))
@@ -827,7 +826,6 @@ static bool StartAttack(SotnPlayer *player)
         if (player->mp >= cost)
         {
             equipment = special;
-            special_cost = cost;
             special_selected = true;
         }
     }
@@ -849,12 +847,25 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (!ReserveHand(player, equipment, hand))
         return player->failed;
-    // HasEnoughMp(cost, 1) after the actual factory.
-    if (special_cost)
+    // HasEnoughMp(mpUsage, 1) after the actual factory, for whichever item was selected: a
+    // back-forward special (weapon51's182..185) runs without MP and then costs nothing.
+    if (player->hand_factory && equipment.id)
     {
-        player->mp = (Uint16)(player->mp - special_cost);
-        player->mp_spent = (Uint16)(player->mp_spent + special_cost);
+        Uint16 cost = 0;
+        if (!SotnEquipment_ReadCost(player->dra, equipment.id, &cost))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (cost && player->mp >= cost)
+        {
+            player->mp = (Uint16)(player->mp - cost);
+            player->mp_spent = (Uint16)(player->mp_spent + cost);
+        }
     }
+    // Estoc in a cramped space keeps its factory and MP but starts no attack.
+    if (player->hand_factory && equipment.id == 95 && player->tight_space)
+        return false;
     // Red Rust (kind13) rolls once after its actual hand factory; rand()&7 == 0 fails.
     if (player->hand_factory && equipment.kind == 13)
     {
@@ -897,7 +908,33 @@ static bool StartAttack(SotnPlayer *player)
     const bool hold = equipment.kind == 28 || equipment.kind == 26 ||
                       (equipment.kind >= 19 && equipment.kind <= 22);
     const bool grunt = equipment.kind != 8 && equipment.kind != 9 && equipment.kind != 10 &&
-                       equipment.kind != 25 && equipment.kind != 24 && !hold;
+                       equipment.kind != 25 && equipment.kind != 24 && equipment.kind != 23 &&
+                       equipment.kind != 27 && !hold;
+    // Kind23 (weapon51 specials) stands, turns to the input and lunges at speed5 (halved by
+    // block_98); kind27 (Estoc) lunges at speed4 halved, staying airborne when off the ground.
+    if (player->hand_factory && (equipment.kind == 23 || equipment.kind == 27))
+    {
+        (void)Direction(player);
+        const Sint32 speed = equipment.kind == 23 ? 5 * FIX_ONE : 4 * FIX_ONE;
+        player->vx = player->facing_left ? -speed : speed;
+        player->sound = 0x6ef;
+        if (equipment.kind == 27)
+        {
+            player->vx = player->vx >= 0 ? player->vx / 2 : -((-player->vx + 1) / 2);
+            if (player->contact & 1)
+            {
+                player->step = SOTN_PLAYER_STAND;
+                player->vy = 0;
+            }
+            else
+                player->step = SOTN_PLAYER_JUMP;
+        }
+        else
+        {
+            player->step = SOTN_PLAYER_STAND;
+            player->vy = 0;
+        }
+    }
     // Kind24 (Iron Fist/Tulkas punch rush) keeps an airborne player in Player_Jump and stops both
     // velocities for a0x80-update D_80139824 hold.
     if (player->hand_factory && equipment.kind == 24)
@@ -948,7 +985,11 @@ static bool StartAttack(SotnPlayer *player)
     player->attack_power =
         (Uint16)(player->attributes.attack[hand] >> (player->poison_ticks ? 1 : 0));
     Uint16 variant = (player->contact & 0x20) ? 1 : 0;
-    if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
+    if (player->hand_factory && equipment.kind == 27)
+    {
+        // Kind27 bypasses block_98: it keeps its own step and the ledge variant.
+    }
+    else if (player->step == SOTN_PLAYER_STAND || player->step == SOTN_PLAYER_WALK)
     {
         player->vx = player->vx >= 0 ? player->vx / 2 : -((-player->vx + 1) / 2);
         player->step = SOTN_PLAYER_STAND;
@@ -1198,9 +1239,14 @@ static void StandTick(SotnPlayer *player)
 {
     if (player->subweapon_cast && player->animation.id != player->subweapon_animation)
         player->subweapon_cast = false;
-    if (Transitions(player, 0x4301c))
+    // 71830.c: the kind23/27 lunges (substeps0x57/0x5B) glide with the 1/16 deceleration and
+    // without the landing transition until pose5.
+    const bool lunge = player->attack_mode != 0 &&
+                       (player->substep == 0x57 || player->substep == 0x5b) &&
+                       player->animation.pose < 5;
+    if (Transitions(player, lunge ? 0x43018 : 0x4301c))
         return;
-    Decelerate(player, 8192);
+    Decelerate(player, lunge ? 4096 : 8192);
     SotnPlayer_WaterBreath(player, false,
                            player->shield_cursor.phase == 1 || player->shield_cursor.phase == 2);
     Uint32 flags = 3;
@@ -1245,6 +1291,32 @@ static void StandTick(SotnPlayer *player)
             player->chair_sleep = 0x200;
         }
         flags = 1;
+    }
+    else if (player->attack_mode != 0 && (player->substep == 0x57 || player->substep == 0x5b))
+    {
+        // 71830.c stand substeps0x57/0x5B: grounded dust FACTORY(69,1) on odd game-timer
+        // updates while the pose is six short of the lock; leaving the ground at pose4's last
+        // update switches to animation0x6C pose5 in Player_Jump.
+        SotnPlayer_AfterimageReset(player);
+        flags = 0;
+        if (player->animation.pose < player->attack_lock - 6 && (player->contact & 1) &&
+            (player->mist_game_timer & 1U))
+            MovementSmoke(player, 0x10045);
+        if (player->animation.pose >= player->attack_lock)
+        {
+            player->attack_mode &= 0x7fff;
+            flags = 0x19;
+        }
+        if (player->animation.remaining < 0)
+            flags = 0xf;
+        if (player->animation.pose == 4 && player->animation.remaining == 1 &&
+            !(player->contact & 1))
+        {
+            player->animation.pose = 5;
+            player->animation.id = 0x6c;
+            player->step = SOTN_PLAYER_JUMP;
+            player->movement_flags = 1;
+        }
     }
     else if (player->attack_mode != 0 && player->substep == 0x58)
     {
@@ -1397,6 +1469,34 @@ static void JumpTick(SotnPlayer *player)
             if (!(player->buttons & SOTN_BUTTON_JUMP))
                 player->vy = -278528;
             player->movement_flags |= 0x40;
+        }
+        if ((player->substep > 1 || (player->movement_flags & 1)) &&
+            (player->movement_flags & 0x100))
+            player->vx = 0;
+        return;
+    }
+    if (player->attack_mode != 0 && (player->substep == 0x57 || player->substep == 0x5b))
+    {
+        // 71830.c jump substeps0x57/0x5B decelerate again; animation0x6C ends into the ordinary
+        // fall/jump, leaving the back-forward recognizer in its0xFE hold for sixteen updates.
+        SotnPlayer_AfterimageReset(player);
+        Decelerate(player, 4096);
+        if (player->animation.id == 0x6c)
+        {
+            if (player->animation.remaining < 0)
+            {
+                player->substep = player->vy > FIX_ONE ? 1 : 0;
+                Animate(player, player->vy > FIX_ONE ? 31 : 27);
+                ClearAttack(player);
+                player->movement_flags = 1;
+                player->back_forward.phase = 0xfe;
+                player->back_forward.timer = 0x10;
+            }
+        }
+        else if (player->animation.pose == 4 && player->animation.remaining == 1)
+        {
+            player->animation.pose = 5;
+            player->animation.id = 0x6c;
         }
         if ((player->substep > 1 || (player->movement_flags & 1)) &&
             (player->movement_flags & 0x100))

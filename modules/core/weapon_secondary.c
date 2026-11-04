@@ -51,6 +51,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 10};
     else if (family == 1)
         *out = (Layout){.timeline = 0xfc8, .timeline_count = 9, .rows = 16};
+    else if (family == 51)
+        *out = (Layout){.rows = 1};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -59,17 +61,20 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1;
+           family == 1 || family == 51;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
+    // Weapon51's role1 is the slot16 hand-weapon special; only its role2 fan is a secondary.
     return SotnWeaponSecondary_Supported(family) &&
-           (role == 1 || (role == 2 && (family == 48 || family == 1)));
+           (family == 51 ? role == 2 : role == 1 || (role == 2 && (family == 48 || family == 1)));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
 {
     return !SotnWeaponSecondary_SupportedRole(family, role) ? 0
-           : role == 2                                      ? (family == 1 ? 0 : 16)
+           : role == 2                                      ? (family == 1    ? 0
+                                                               : family == 51 ? 1
+                                                                              : 16)
                                                             : SotnWeaponSecondary_Rows(family);
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
@@ -676,6 +681,106 @@ static bool Fireball(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32
     return true;
 }
 
+static Sint32 Decelerate(Sint32 v, Sint32 amount);
+// w_051 data words read through the live program: g_HandId (D_8017AED0) is the resident hand.
+static bool FanWord(SotnDataView o, Uint16 hand, Uint32 at, Uint16 *out)
+{
+    const Uint8 *p = NULL;
+    if (at == 0xed0 || at == 0xed2)
+        *out = at == 0xed0 ? hand : 0;
+    else if (View(o, at, 2, &p))
+        *out = Read16(p);
+    else
+        return false;
+    return true;
+}
+// w_051 func_ptr_80170008: the special's fan of GT4 blades. Param0 (the root) attacks and
+// requests FACTORY(0x3E,n) children every callback; each blade slides out and retires at nine.
+static bool Fan(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 sub = (Uint16)((s->parameter & 0x7f00U) >> 8),
+                 color = (Uint16)((in.slot16_parameter & 0x7f00U) >> 8);
+    const Uint8 *a = NULL;
+    if (!View(in.overlay, 0xe74U + (sub % 8U) * 6U, 6, &a))
+        return SDL_SetError("Weapon51 fan requires its private animation properties");
+    if (!s->phase)
+    {
+        s->x = in.x;
+        s->y = in.y;
+        s->facing_left = in.facing_left;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->allocated = true;
+        const Uint8 v = in.hand ? 0x80 : 0;
+        const bool flipped = Read16(a) != 0;
+        SotnPlayerEffectQuad q = {
+            .u = {128, 192, 128, 192},
+            .v = {(Uint8)(flipped ? v | 0x40 : v), (Uint8)(flipped ? v | 0x40 : v),
+                  (Uint8)(flipped ? v : v | 0x40), (Uint8)(flipped ? v : v | 0x40)},
+            .palette = 0x15f,
+            .page = 0x19,
+            .priority = (Uint16)(in.priority + 4U),
+            .draw_mode = (Uint16)(color == 3 ? 0x117 : 0x177)};
+        Uint8 *channel[3][2] = {
+            {&q.red[1], &q.red[3]}, {&q.green[1], &q.green[3]}, {&q.blue[1], &q.blue[3]}};
+        for (Uint16 k = 0; k < 3; ++k)
+        {
+            Uint16 tint = 0;
+            if (!FanWord(in.overlay, in.hand, 0xea4U + (color * 4U + k) * 2U, &tint))
+                return SDL_SetError("Weapon51 fan colour index left its program");
+            const Uint8 value = (Uint8)(tint + (Rand(rng) & 15U));
+            *channel[k][0] = *channel[k][1] = value;
+        }
+        s->quad = q;
+        s->flags = 0x08820000U;
+        if (!sub)
+        {
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->hitbox_width = 30;
+            s->hitbox_height = 16;
+            s->hitbox_x = 8;
+        }
+        if (!(sub & 3U))
+            e->sounds[0] = 0x60c;
+        const Sint32 dx = (color == 0 ? 20 : 30) * (s->facing_left ? -1 : 1);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)dx * 65536U);
+        s->y = (Sint32)((Uint32)s->y - 18U * 65536U);
+        s->rotate = (Sint16)Read16(a + 4);
+        s->lifetime = (Sint16)Read16(a + 2);
+        s->age = 0;
+        const Sint32 speed = (Sint32)Rand(rng) * 2 + 0x60000;
+        s->velocity_x = s->facing_left ? -speed : speed;
+        s->phase = 1;
+    }
+    s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+    s->velocity_x = Decelerate(s->velocity_x, 0x2800);
+    if (!sub)
+        e->chain = 0x3eU | ((Uint32)(in.hand + 1U) << 12) | ((Uint32)(s->age + 1U) << 16);
+    if (++s->age > 8)
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint16 steps[4] = {0x600, -0x400, -0x800, 0x400};
+    Sint16 angle = s->rotate;
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        angle = Word(angle + steps[k]);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        const Sint32 dx = ((t.cosine >> 4) * s->lifetime) >> 8;
+        s->quad.x[k] = Word(s->facing_left ? -dx : dx);
+        s->quad.y[k] = Word(-(((t.sine >> 4) * s->lifetime) >> 9));
+    }
+    return true;
+}
+
 bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram *program,
                               SotnWeaponSecondaryInput in, Uint32 *random,
                               SotnWeaponSecondaryEvents *events)
@@ -702,6 +807,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 48)
     {
         if (!(in.role == 2 ? Ring(&s, in, &e) : Lightning(&s, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 51)
+    {
+        if (!Fan(&s, in, &rng, &e))
             return false;
         goto commit;
     }

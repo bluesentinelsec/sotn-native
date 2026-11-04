@@ -73,6 +73,69 @@ static bool Hitbox(SotnHandWeapon *w, SotnDataView o, Uint32 base, Uint32 props,
     w->frame = packed & 511U;
     return true;
 }
+// w_051's color words live at D_8017AD68.. in declaration order (_r, _b, _g, color_step, _a);
+// reads of its private tables that land there see the live program values.
+static Sint16 *GlowWord(SotnHandWeaponProgram *program, Uint32 at)
+{
+    Sint16 *words[5] = {&program->glow_red, &program->glow_blue, &program->glow_green,
+                        &program->glow_step, &program->glow_alpha};
+    return at >= 0xd68 && at < 0xd72 && !(at & 1U) ? words[(at - 0xd68) / 2U] : NULL;
+}
+static bool GlowRead(SotnDataView o, SotnHandWeaponProgram *program, Uint32 at, Sint16 *out)
+{
+    const Sint16 *live = GlowWord(program, at);
+    const Uint8 *p = NULL;
+    if (live)
+        *out = *live;
+    else if (View(o, at, 2, &p))
+        *out = (Sint16)Read16(p);
+    else
+        return false;
+    return true;
+}
+static bool GlowTable(SotnDataView o, Uint32 index, Sint32 *out)
+{
+    const Uint8 *p = NULL;
+    if (!View(o, 0xd74U + index * 4U, 4, &p))
+        return false;
+    *out = (Sint32)Read32(p);
+    return true;
+}
+// w_051 func_8017B1DC: pulse one colour of the descriptor's palette, then upload the CLUT rows.
+static bool Glow(SotnDataView o, SotnHandWeaponProgram *program, Uint16 hand, Uint16 row,
+                 SotnHandWeaponEvents *e)
+{
+    Sint16 *channel[3] = {&program->glow_red, &program->glow_green, &program->glow_blue};
+    if (program->glow_step == 2)
+        return true;
+    if (program->glow_step != 0 && program->glow_step != 1)
+        return SDL_SetError("Weapon51 glow left its original two-phase schedule");
+    const bool rising = program->glow_step == 0;
+    Uint16 changed = 0;
+    for (Uint16 k = 0; k < 3; ++k)
+        *channel[k] = (Sint16)(*channel[k] + (rising ? 2 : -2));
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        Sint32 limit = 0;
+        if (!GlowTable(o, row * 8U + (rising ? 4U : 0U) + k, &limit))
+            return false;
+        if (rising ? *channel[k] >= limit : *channel[k] <= limit)
+        {
+            ++changed;
+            *channel[k] = (Sint16)limit;
+        }
+    }
+    program->glow_alpha = program->glow_red || program->glow_green || program->glow_blue;
+    if (changed == 3)
+        ++program->glow_step;
+    const Uint32 index = hand * 24U * 16U + 0x2bU + row * 0x20U;
+    e->clut = true;
+    e->clut_palette = (Uint16)(0x110U + index / 16U);
+    e->clut_color = (Uint16)(index % 16U);
+    e->clut_value = (Uint16)((Uint32)program->glow_red | (Uint32)program->glow_green << 5 |
+                             (Uint32)program->glow_blue << 10 | (Uint32)program->glow_alpha << 15);
+    return true;
+}
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
     return family == 8 || family == 9 || family == 11 || family == 25 || family == 26 ||
@@ -531,7 +594,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 48 ? 2
                              : in.family == 39 ? 2
                              : in.family == 32 ? 2
-                             : in.family == 51 ? 1
+                             : in.family == 51 ? 4
                              : in.family == 4  ? 2
                              : in.family == 5  ? 2
                              : in.family == 43 ? 3
@@ -549,7 +612,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 48 ? 0xfc0U
                                   : in.family == 39 ? 0xdc0U
                                   : in.family == 32 ? 0x8f8U
-                                  : in.family == 51 ? 0xcd8U
+                                  : in.family == 51 ? (in.special ? 0xd18U : 0xcd8U)
                                   : in.family == 4  ? 0x12f4U
                                   : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
@@ -561,14 +624,20 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 37 ? 0x6a4U
                                                     : 0x1014U;
         const Uint8 *d = NULL, *p = NULL;
-        if (variant >= count || !View(in.overlay, descriptor + variant * 16U, 16, &d))
+        // Estoc's variant8 reads w_051's D_8017AD58 words past the four-entry table as its
+        // descriptor (frameStart0xD6).
+        const bool estoc = in.family == 51 && !in.special && variant == 8;
+        if ((variant >= count && !estoc) || (in.special && in.family != 51) ||
+            !View(in.overlay, descriptor + variant * 16U, 16, &d))
             return SDL_SetError("Ordinary weapon descriptor bounds");
+        // func_ptr_80170004 retires outside animations0xD6..0xD7 instead of the seven frames.
+        const Uint16 window = in.special ? 2 : 7;
         w.x = in.x;
         w.y = in.y;
         w.facing_left = in.facing_left;
         // w_032 Combat knife lingers four updates in slot16 instead of destroying itself.
         const bool linger = in.family == 32;
-        if (linger && (in.animation < d[12] || in.animation >= d[12] + 7 || !in.attack_mode) &&
+        if (linger && (in.animation < d[12] || in.animation >= d[12] + window || !in.attack_mode) &&
             w.phase != 2)
         {
             w.phase = 2;
@@ -582,7 +651,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
             if (!w.timer)
                 w.removed = true;
         }
-        else if (!linger && (in.animation < d[12] || in.animation >= d[12] + 7 || !in.attack_mode))
+        else if (!linger && (in.animation < d[12] || in.animation >= d[12] + window ||
+                             (!in.special && !in.attack_mode)))
             w.removed = true;
         else
         {
@@ -596,7 +666,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 {
                     // w_051 draws from DRA sprite bank10 with no per-hand bank offset.
                     w.bank = in.family == 51 ? 10 : (Uint16)(0x8010U + in.hand * 2U);
-                    w.palette = (Uint16)(0x110U + in.hand * 24U + Read16(d + 8));
+                    // w_051's special adds subType*2 instead of its descriptors' zero palette.
+                    w.palette = (Uint16)(0x110U + in.hand * 24U +
+                                         (in.special ? variant * 2U : Read16(d + 8)));
                     w.texture = (Uint16)(100U + in.hand * 2U);
                     w.priority =
                         (Uint16)(in.priority +
@@ -612,6 +684,23 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     w.blend = 0x70;
                 else if (in.family == 35)
                     w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
+                // w_051 descriptors1/2 add, descriptor3 is transparent; the glow restarts from
+                // words read at D_8017AD58[subType*16-2/0/+2].
+                if (in.family == 51 && variant)
+                {
+                    w.blend = variant == 3 ? 0x10 : variant <= 2 ? 0x30 : 0;
+                    const Uint32 at = 0xd58U + (Uint32)(variant * 16 - 2) * 2U;
+                    Sint16 red = 0, green = 0, blue = 0;
+                    if (!GlowRead(in.overlay, &shared, at, &red) ||
+                        !GlowRead(in.overlay, &shared, at + 4U, &green) ||
+                        !GlowRead(in.overlay, &shared, at + 8U, &blue))
+                        return false;
+                    shared.glow_red = red;
+                    shared.glow_green = green;
+                    shared.glow_blue = blue;
+                    shared.glow_step = 0;
+                    shared.glow_alpha = 0;
+                }
                 if (in.family == 43 && in.allocated)
                 {
                     w.allocated = true;
@@ -685,7 +774,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
             if (w.removed)
                 goto commit;
             w.animation = (Uint16)(in.animation - d[12]);
-            if (in.remaining == 1 && in.pose == d[13])
+            if (!in.special && in.remaining == 1 && in.pose == d[13])
             {
                 // A same-update birth sound keeps its earlier place in the queue.
                 if (e.sound)
@@ -744,8 +833,17 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                 58U | ((in.hand + 1U) << 12) | ((Uint32)(variant - 1U) << 16);
                         shared.short_pose = in.pose;
                     }
+                    // w_051's special requests the WFACTORY(0x3E,0) fan root on pose1's last
+                    // update.
+                    if (in.special && in.pose == 1 && in.remaining == 1)
+                        e.factory = 0x3eU | ((in.hand + 1U) << 12);
                     if (in.family != 255 && in.family != 1)
                         Transform(&w, in);
+                    // The special keeps its glow still on pose4 once the colour started.
+                    if (in.family == 51 && variant &&
+                        (!in.special || in.pose != 4 || shared.glow_step == 0) &&
+                        !Glow(in.overlay, &shared, in.hand, (Uint16)(variant - 1U), &e))
+                        return false;
                     if (in.family == 43 && w.allocated)
                         Tiles(&w, in, &rng);
                     if (in.family == 1 && !FistTrails(&w, in, variant, &rng))

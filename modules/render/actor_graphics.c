@@ -486,6 +486,16 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     graphics->weapon_family[hand] = equipment.family;
     return true;
 }
+bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                     Uint16 value)
+{
+    if (!graphics || palette < 0x110 || palette >= 0x140 || color > 15)
+        return SDL_SetError("Weapon CLUT write must stay within the uploaded program rows");
+    const Uint32 index = palette * 16U + color;
+    const Uint8 bytes[2] = {(Uint8)value, (Uint8)(value >> 8)};
+    Upload(graphics, index & 255U, 240U + (index - 0x1000U) / 256U, 1, 1, bytes);
+    return true;
+}
 bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
                                      bool *bound)
 {

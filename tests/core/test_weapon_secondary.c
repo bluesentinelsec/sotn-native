@@ -750,6 +750,113 @@ static bool Fist(void)
           SotnWeaponSecondary_RoleRows(1, 1) == 16 && !SotnWeaponSecondary_RoleRows(1, 2));
     return true;
 }
+// Authored weapon51 layout: the special's descriptors at 0xd18 (frameStart0xD6), fan
+// AnimProperties {flipped, timer, rotation} at 0xe74 and tints at 0xea4.
+static void Weapon51Program(Uint8 *o)
+{
+    Program(o);
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        SDL_memcpy(o + 0xcd8 + v * 16U, o + 0x10ac, 16);
+        SDL_memcpy(o + 0xd18 + v * 16U, o + 0x10ac, 16);
+        o[0xd18 + v * 16U + 12] = 0xd6;
+    }
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        Put16(o + 0xe74 + i * 6U, (Uint16)(i & 1U));
+        Put16(o + 0xe76 + i * 6U, (Uint16)(37U - (i & 3U) * 4U));
+        Put16(o + 0xe78 + i * 6U, (Uint16)(0x100U * i));
+    }
+    for (Uint16 i = 0; i < 16; ++i)
+        Put16(o + 0xea4 + i * 2U, (Uint16)(0x40U + i * 8U));
+}
+// w_051 func_ptr_80170008: blades slide out from the player at speed6+rand/32768, the root
+// attacks and chains FACTORY(0x3E,n) children each callback, and every blade retires at nine.
+static bool Fan(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Weapon51Program(o);
+    Math(exe);
+    const Uint16 hit = 2;
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const bool left = k & 1U;
+        const Uint16 hand = k >> 1, sub = k == 3 ? 4 : 0, color = k == 3 ? 3 : 0;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(sub << 8)};
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 100 * 65536 + 7,
+                                       .y = 80 * 65536 + 9,
+                                       .hand = hand,
+                                       .family = 51,
+                                       .role = 2,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = true,
+                                       .slot16_parameter = (Uint16)(color << 8 | hand << 15)};
+        Uint32 rng = 21, check = 21;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 && s.allocated &&
+              s.flags == 0x08820000U && s.age == 1 && s.rotate == (Sint16)(0x100 * (sub % 8)) &&
+              s.lifetime == 37 - (sub & 3) * 4);
+        Uint8 tint[3] = {0};
+        for (Uint16 c = 0; c < 3; ++c)
+            tint[c] = (Uint8)(0x40U + (color * 4U + c) * 8U +
+                              ((SotnCombat_Random(&check) & 0x7fffU) & 15U));
+        if (!sub)
+            (void)SotnCombat_Random(&check);
+        const Sint32 speed = (Sint32)(SotnCombat_Random(&check) & 0x7fffU) * 2 + 0x60000;
+        const Sint32 dx = color ? 30 : 20, velocity = left ? -speed : speed;
+        const SotnPlayerEffectQuad q = s.quad;
+        CHECK(rng == check && s.x == 100 * 65536 + 7 + (left ? -dx : dx) * 65536 + velocity &&
+              s.y == 62 * 65536 + 9 &&
+              s.velocity_x == (left ? velocity + 0x2800 : velocity - 0x2800) && q.u[0] == 128 &&
+              q.u[1] == 192 && q.v[0] == (hand ? 0x80 : 0) && q.v[2] == (hand ? 0xc0 : 0x40) &&
+              q.red[1] == tint[0] && q.red[3] == tint[0] && q.green[1] == tint[1] &&
+              q.blue[3] == tint[2] && !q.red[0] && !q.blue[2] && q.palette == 0x15f &&
+              q.page == 0x19 && q.priority == 152 && q.draw_mode == (color == 3 ? 0x117 : 0x177) &&
+              e.sounds[0] == 0x60c);
+        if (!sub)
+            CHECK(e.properties && s.hitbox_width == 30 && s.hitbox_height == 16 &&
+                  s.hitbox_x == 8 && e.chain == (0x3eU | (hand + 1U) << 12 | 1U << 16));
+        else
+            CHECK(!e.properties && !s.hitbox_width && !e.chain);
+        // Mirrored facing negates the X corners only.
+        SotnWeaponSecondary mirror = {.parameter = s.parameter};
+        Uint32 mirror_rng = 21;
+        SotnWeaponSecondaryInput other = in;
+        other.facing_left = !left;
+        CHECK(SotnWeaponSecondary_Tick(&mirror, &program, other, &mirror_rng, &e));
+        for (Uint16 v = 0; v < 4; ++v)
+            CHECK(mirror.quad.x[v] == -q.x[v] && mirror.quad.y[v] == q.y[v]);
+        Uint16 t = 1;
+        for (; t < 20 && !s.removed; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.sounds[0]);
+            if (!sub)
+                CHECK(e.chain == (0x3eU | (hand + 1U) << 12 | (Uint32)(t + 1U) << 16));
+        }
+        CHECK(s.removed && t == 9 && s.age == 9);
+    }
+    // Losing the mandatory GT4 retires before any RNG.
+    SotnWeaponSecondary s = {0};
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondaryEvents e = {0};
+    Uint32 rng = 5;
+    CHECK(SotnWeaponSecondary_Tick(
+              &s, &program,
+              (SotnWeaponSecondaryInput){
+                  .overlay = {o, sizeof(o)}, .family = 51, .role = 2, .properties = Properties},
+              &rng, &e) &&
+          s.removed && rng == 5 && !e.properties);
+    CHECK(SotnWeaponSecondary_SupportedRole(51, 2) && !SotnWeaponSecondary_SupportedRole(51, 1) &&
+          SotnWeaponSecondary_RoleRows(51, 2) == 1);
+    return true;
+}
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -1339,10 +1446,111 @@ static bool FistRuntime(void)
     SDL_free(dra);
     return true;
 }
+// Flamberge183's blueprint54 replaces slot16 with the E1 special hand child (its own item, hand
+// group, glow writes); pose1 requests the fan root, which copies 183 and the hand group from
+// that raw parent and chains its blades from its own slot.
+static bool FanRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 101, 5, 51, 6, 1, 0, 0);
+    FamilyDefinition(dra, 183, 1, 51, 23, 1, 5, 0);
+    dra[0x500 + 101 * 52 + 18] = 0x68;
+    dra[0x500 + 101 * 52 + 23] = 183;
+    dra[0x500 + 183 * 52 + 18] = 0xd6;
+    dra[0x500 + 183 * 52 + 19] = 54;
+    const Uint8 blueprints[][6] = {{54, 1, 1, 0xc1, 0, 0x23}, {62, 2, 1, 0xc1, 0, 0x06}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    Weapon51Program(weapons + 51U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {51, 51},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x8018,
+                                         .animation = {.id = 0xd6, .pose = 0, .remaining = 2}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x11036, 183, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const SotnBatRuntimeChild *special = &r->children[0];
+    CHECK(special->hand_weapon && special->kind == 0xe1 && special->state.hand.item == 183 &&
+          special->state.hand.family == 51 && special->group == 1 && special->initialized &&
+          special->state.hand.motion.palette == 0x112 && SotnBatRuntime_HandValid(special, 0) &&
+          r->clut_count == 1 && r->clut[0].palette == 0x112 && r->clut[0].color == 11);
+    SotnBatRuntimeChild forged = *special;
+    forged.kind = 0xe0;
+    CHECK(!SotnBatRuntime_HandValid(&forged, 0));
+    // The ordinary blueprint48 identity cannot carry a special item.
+    SotnBatRuntime *other = SDL_calloc(1, sizeof(*other));
+    CHECK(other && !SotnBatRuntime_RequestHand(other, source, 0x11030, 183, &allocated));
+    SDL_free(other);
+    in.player.animation.pose = 1;
+    in.player.animation.remaining = 1;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    in.player.animation.remaining = 2;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    const SotnBatRuntimeChild *root = &r->children[1];
+    CHECK(root->weapon_secondary && root->kind == 0xe2 && root->state.secondary.family == 51 &&
+          !root->parameter && root->state.secondary.item == 183 && root->group == 1 &&
+          root->primitive_count == 1 && root->state.secondary.attack.active &&
+          (r->secondary_mask & 2U) && SotnBatRuntime_SecondaryValid(root, 1));
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 blades = 0;
+    for (Uint16 i = 2; i < 16; ++i)
+        if (r->children[i].weapon_secondary)
+        {
+            const SotnBatRuntimeChild *b = &r->children[i];
+            CHECK(b->parameter == 0x100 && b->state.secondary.parent_slot == 17 &&
+                  !b->state.secondary.attack.active && b->primitive_count == 1 &&
+                  SotnBatRuntime_SecondaryValid(b, i));
+            ++blades;
+        }
+    CHECK(blades == 1);
+    // Leaving the special's animations retires it; the fan finishes on its own schedule.
+    in.player.animation.id = 0x30;
+    in.player.attack_mode = 0;
+    for (Uint16 t = 0; t < 24; ++t)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].kind);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 int main(void)
 {
-    return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Runtime() &&
-                   KatanaRuntime() && ThunderRuntime() && WarpRuntime() && FistRuntime()
+    return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Runtime() &&
+                   KatanaRuntime() && ThunderRuntime() && WarpRuntime() && FistRuntime() &&
+                   FanRuntime()
                ? 0
                : 1;
 }

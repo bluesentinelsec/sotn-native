@@ -1827,6 +1827,13 @@ static bool TestGpuWrap(Fixture *f)
         CHECK(f->frame[i] == 7);
     u.gpu_wrap = false;
     CHECK(!SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS));
+    // Weapon51 glow writes stay within the uploaded program rows (palettes0x110..0x13F).
+    CHECK(SotnActorGraphics_SetWeaponClut(g, 0x112, 11, 0x8042) &&
+          SotnActorGraphics_SetWeaponClut(g, 0x13f, 15, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x10f, 11, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x140, 0, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x112, 16, 0) &&
+          !SotnActorGraphics_SetWeaponClut(NULL, 0x112, 11, 0));
     SotnActorGraphics_Destroy(g);
     return true;
 }

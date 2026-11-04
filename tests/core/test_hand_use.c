@@ -116,6 +116,11 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 187, 3, 1, 24, 0x24, 1, 5, 0);
     f->dra[0x500 + 187 * 52 + 19] = 54;
     Item(f->dra, 188, 2, 1, 25, 0x24, 4, 7, 0);
+    Item(f->dra, 98, 5, 51, 6, 0x68, 0, 15, 182);
+    Item(f->dra, 182, 1, 51, 23, 0xd6, 0, 13, 0);
+    f->dra[0x500 + 182 * 52 + 19] = 54;
+    Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
+    Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
@@ -136,7 +141,7 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
           SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, item));
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
-    const Uint16 right = item == 26 || item == 139 ? item : 0;
+    const Uint16 right = item == 26 || item == 139 || item == 98 || item == 95 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     CHECK(item == 18 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
@@ -455,6 +460,101 @@ static bool Punches(Fixture *f)
           f->p->attack_mode == 0x801a && f->p->attack_lock == 7 && !f->p->attack_hold);
     return true;
 }
+// 6E42C.c kind23 (Claymore98's back-forward special182): blueprint54, no grunt, SFX_VO_ALU_
+// ATTACK_B, speed5 halved by block_98 and five MP after the factory only when MP covers it;
+// 71830.c substep0x57 glides at 1/16 deceleration with grounded dust on odd game-timer updates.
+// Kind27 (Estoc95): speed4 halved, its own step (airborne stays Player_Jump) and substep0x5B;
+// in a cramped space it keeps the factory but starts no attack. In the air the ledge variant
+// (IN_AIR_OR_EDGE) selects animation0xD7.
+static bool Weapon51Specials(Fixture *f)
+{
+    for (Uint16 poor = 0; poor < 2; ++poor)
+    {
+        CHECK(Create(f, 98, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (poor)
+        {
+            SotnCharacterState before = {0};
+            CHECK(SotnCharacter_Get(f->character, &before, NULL) &&
+                  SotnCharacter_SpendMP(f->character, (Uint16)(before.mp - 4U)));
+        }
+        CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0) &&
+              f->p->back_forward.phase == 255);
+        const Uint16 mp = f->p->mp;
+        CHECK(mp == (poor ? 4 : 20));
+        f->p->mist_game_timer = 1;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == 182 &&
+              f->packed == 0x1036U && !f->roll_count && !p.hand_used && p.sound == 0x6ef &&
+              f->p->mp == (poor ? mp : mp - 5) && f->p->substep == 0x57 &&
+              f->p->attack_mode == 0x8018 && f->p->step == SOTN_PLAYER_STAND &&
+              f->p->vx == 163840 && !f->p->vy && f->p->animation.id == 0xd6);
+        // The lunge decelerates by 1/16 and raises dust on odd timer updates while grounded.
+        Uint16 dust = 0;
+        for (Uint16 t = 0; t < 6; ++t)
+        {
+            const Sint32 vx = f->p->vx;
+            f->p->mist_game_timer = t;
+            CHECK(Tick(f, 0) && f->p->substep == 0x57);
+            CHECK(f->p->vx == vx - 4096);
+            dust +=
+                f->p->movement_effects.smoke && f->p->movement_effects.smoke_blueprint == 0x10045;
+            CHECK(f->p->movement_effects.smoke == ((t & 1U) != 0));
+        }
+        CHECK(dust == 3);
+    }
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        CHECK(Create(f, 95, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (k == 1)
+        {
+            CHECK(Tick(f, SOTN_BUTTON_JUMP));
+            for (Uint16 i = 0; i < 3; ++i)
+                CHECK(Tick(f, 0));
+            CHECK(f->p->step == SOTN_PLAYER_JUMP);
+        }
+        if (k == 2)
+        {
+            // A low ceiling over the player makes the actual tight-space probe report cramped.
+            for (Uint16 x = 0; x < 64; ++x)
+                f->tiles[(7U * 64U + x) * 2] = 1;
+            for (Uint16 i = 0; i < 4; ++i)
+                CHECK(Tick(f, 0));
+        }
+        const Sint32 vy = f->p->vy;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == 95 &&
+              f->packed == 0x81030U && !f->roll_count);
+        if (k == 2)
+            CHECK(!f->p->attack_mode && f->p->substep != 0x5b);
+        else
+            CHECK(p.sound == 0x6ef && f->p->substep == 0x5b && f->p->attack_mode == 0x801c &&
+                  f->p->animation.id == (k ? 0xd7 : 0xd6) && f->p->attack_lock == 18 &&
+                  f->p->step == (k ? SOTN_PLAYER_JUMP : SOTN_PLAYER_STAND) &&
+                  (k ? f->p->vy != 0 || vy == 0 : !f->p->vy));
+    }
+    // Animation0x6C's end in Player_Jump resumes the fall and holds back-forward in0xFE.
+    CHECK(Create(f, 95, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    f->p->y.parts.high = 60;
+    f->p->contact = 0;
+    f->p->step = SOTN_PLAYER_JUMP;
+    f->p->substep = 0x57;
+    f->p->attack_mode = 0x8018;
+    f->p->animation.id = 0x6c;
+    f->p->animation.remaining = -1;
+    f->p->vy = 2 * 65536;
+    CHECK(Tick(f, 0) && f->p->substep == 1 && f->p->animation.id == 31 && !f->p->attack_mode &&
+          f->p->back_forward.phase == 0xfe && f->p->back_forward.timer <= 0x10 &&
+          f->p->back_forward.timer >= 0x0f);
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -501,7 +601,7 @@ int main(void)
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
-         CombatKnife(f) && AirborneKindZero(f);
+         Weapon51Specials(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

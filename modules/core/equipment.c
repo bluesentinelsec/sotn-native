@@ -114,6 +114,21 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){2, 1, 25, 0x24, 4, 0, 0, 0, 0};
     case 127: // Great Sword
         return (PlainSpec){5, 51, 6, 0x68, 0, 0, 0, 0, 0};
+    case 95: // Estoc: kind27 lunge reading w_051's variant8 descriptor past its table
+        return (PlainSpec){5, 51, 27, 0xd6, 8, 0, 0, 0, 0};
+    case 98: // Claymore/Flamberge/Zwei hander/Obsidian sword: back-forward specials182..185
+        return (PlainSpec){5, 51, 6, 0x68, 0, 182, 0, 0, 0};
+    case 101:
+        return (PlainSpec){5, 51, 6, 0x68, 1, 183, 0, 0, 0};
+    case 103:
+        return (PlainSpec){5, 51, 6, 0x68, 2, 184, 0, 0, 0};
+    case 107:
+        return (PlainSpec){5, 51, 6, 0x68, 3, 185, 0, 0, 0};
+    case 182: // Kind23 slot16 specials (blueprint54) costing five MP
+    case 183:
+    case 184:
+    case 185:
+        return (PlainSpec){1, 51, 23, 0xd6, (Uint8)(id - 182), 0, 0, 5, 54};
     case 131: // Star flail and its back-forward special171
         return (PlainSpec){4, 5, 3, 0x4f, 0, 171, 0, 0, 0};
     case 171:
@@ -129,7 +144,7 @@ bool SotnEquipment_IsPlainWeapon(Uint16 id)
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
     return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100 || id == 139 ||
-           id == 140;
+           id == 140 || id == 95 || id == 98 || id == 101 || id == 103 || id == 107;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {

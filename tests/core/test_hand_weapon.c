@@ -319,7 +319,10 @@ static bool KnifeAndGreatSword(void)
         Uint32 rng = 3;
         CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.bank == 10 && !w.blend &&
               w.texture == 100U + hand * 2U && w.palette == 0x110U + hand * 24U);
-        SotnHandWeapon other = {.parameter = 0x100};
+        // Weapon51 owns descriptors0..3 and Estoc's variant8; others stay out of bounds.
+        SotnHandWeapon other = {.parameter = 0x400};
+        CHECK(!SotnHandWeapon_Tick(&other, &program, in, &rng, &e));
+        other = (SotnHandWeapon){.parameter = 0x900};
         CHECK(!SotnHandWeapon_Tick(&other, &program, in, &rng, &e));
         // Knife: variant0 draws in front of the player, the special behind it.
         for (Uint16 variant = 0; variant < 2; ++variant)
@@ -555,6 +558,146 @@ static bool Thunderbrand(void)
     return true;
 }
 // Authored weapon1 overlay: descriptors0..3, trail offsets and colors; no original tables.
+// Authored weapon51 layout: attack descriptors0..3 at 0xcd8 (frameStart0x41, palettes 0/2/4/6),
+// special descriptors at 0xd18 (frameStart0xD6), Estoc's past-table words at 0xd58 and the
+// glow colour_table at 0xd74 (row0 rises to 16/15/0, row1 to 0/16/16).
+static void Weapon51Resources(Uint8 *o)
+{
+    Resources(o);
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        SDL_memcpy(o + 0xcd8 + v * 16U, o + 0x106c, 16);
+        Put16(o + 0xcd8 + v * 16U + 8, (Uint16)(v * 2U));
+        SDL_memcpy(o + 0xd18 + v * 16U, o + 0x106c, 16);
+        o[0xd18 + v * 16U + 12] = 0xd6;
+    }
+    SDL_memcpy(o + 0xd58, o + 0x106c, 16);
+    o[0xd58 + 12] = 0xd6;
+    const Sint32 table[16] = {0, 0, 0, 0, 16, 15, 0, 1, 0, 0, 0, 0, 0, 16, 16, 1};
+    for (Uint16 i = 0; i < 16; ++i)
+        Put32(o + 0xd74 + i * 4U, (Uint32)table[i]);
+}
+// w_051: descriptors1/2 add, 3 is transparent; func_8017B1DC pulses colour11 of the descriptor's
+// palette up then down (two per update), writing and uploading g_Clut until both phases end.
+static bool Weapon51(void)
+{
+    static Uint8 o[0x1400];
+    Weapon51Resources(o);
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 hand = k >> 1, variant = (Uint16)(1U + (k & 1U));
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 51,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .pose = 0,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {.glow_red = 9, .glow_step = 2};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        const Uint16 palette = (Uint16)(0x110U + hand * 24U + variant * 2U);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.blend == 0x30 &&
+              w.palette == palette && e.clut && e.clut_palette == palette && e.clut_color == 11 &&
+              program.glow_step == 0 && program.glow_green == 2 &&
+              e.clut_value == (variant == 1 ? 0x8042U : 0x8840U));
+        Uint16 writes = 1, t = 0;
+        for (; t < 40 && program.glow_step != 2; ++t)
+        {
+            e = (SotnHandWeaponEvents){0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.clut);
+            ++writes;
+        }
+        // Row0 rises 2..16 (8 writes) then falls to0 (8 writes); row1 rises to16 (8 + 8).
+        CHECK(program.glow_step == 2 && !program.glow_red && !program.glow_green &&
+              !program.glow_blue && !program.glow_alpha && writes == 16);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.clut);
+    }
+    // Descriptor3 is BLEND_TRANSP; descriptor0 (Great Sword/Claymore) never glows.
+    for (Uint16 variant = 0; variant < 4; variant += 3)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 51,
+                                  .animation = 0x41,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 1;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.blend == (variant ? 0x10 : 0) &&
+              e.clut == (variant != 0));
+    }
+    // Estoc's variant8 uses the words at D_8017AD58 as its descriptor (frameStart0xD6) and
+    // glows colour11 of palette0x120 with row7 (all zero): two writes of zero, then nothing.
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 51,
+                                  .hand = 1,
+                                  .animation = 0xd6,
+                                  .remaining = 2,
+                                  .attack_mode = 0x8002};
+        SotnHandWeapon w = {.parameter = 0x8800};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 1;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !w.removed && !w.blend &&
+              w.palette == 0x110 + 24 && e.clut && e.clut_palette == 0x120 + 24 &&
+              e.clut_color == 11 && !e.clut_value && program.glow_step == 1);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.clut && !e.clut_value &&
+              program.glow_step == 2);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.clut);
+        in.animation = 0xdd;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.removed);
+    }
+    // The special (func_ptr_80170004): palette0x110+subType*2, no descriptor sound or attack-
+    // mode check, WFACTORY(0x3E,0) on pose1's last update, glow held on pose4 once started and
+    // retirement outside animations0xD6..0xD7.
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 51,
+                                  .hand = hand,
+                                  .animation = 0xd7,
+                                  .pose = 4,
+                                  .remaining = 1,
+                                  .special = true};
+        SotnHandWeapon w = {.parameter = (Uint16)(0x200 | hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 1;
+        // Pose4 at birth still glows (colour_step is zero) and plays no descriptor sound.
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !w.removed &&
+              w.palette == 0x110U + hand * 24U + 4U && w.blend == 0x30 && e.clut && !e.sound &&
+              !e.factory && program.glow_green == 2);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.clut && program.glow_green == 4);
+        for (Uint16 t = 0; t < 8; ++t)
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e));
+        CHECK(program.glow_step == 1);
+        e = (SotnHandWeaponEvents){0};
+        const Sint16 green = program.glow_green;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.clut &&
+              program.glow_green == green);
+        in.pose = 1;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.clut &&
+              e.factory == (0x3eU | (hand + 1U) << 12));
+        in.remaining = 2;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory);
+        in.animation = 0xd8;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.removed);
+    }
+    return true;
+}
 static void FistResources(Uint8 *o)
 {
     Resources(o);
@@ -1066,7 +1209,8 @@ static bool Ownership(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   Lunges() && Katana() && Thunderbrand() && KnifeAndGreatSword() && Ownership()
+                   Lunges() && Katana() && Thunderbrand() && Weapon51() && KnifeAndGreatSword() &&
+                   Ownership()
                ? 0
                : 1;
 }

@@ -845,6 +845,11 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
     *allocated = false;
     return true;
 }
+// Weapon51's back-forward specials182..185 replace slot16 with its E1/F1 hand child.
+static bool Weapon51Special(Uint16 item)
+{
+    return item >= 182 && item <= 185;
+}
 static Uint16 HandFamily(Uint16 item)
 {
     return !item                          ? 255
@@ -873,14 +878,16 @@ static Uint16 HandFamily(Uint16 item)
            : item == 112 || item == 178 ? 48
            : item == 22 || item == 190  ? 39
            : item == 20 || item == 175  ? 32
-           : item == 127                ? 51
-           : item == 21                 ? 33
-           : item == 26                 ? 35
-           : item == 27                 ? 36
-           : item == 124                ? 57
-           : item == 123                ? 43
-           : item == 128                ? 2
-                                        : 256;
+           : item == 127 || item == 95 || item == 98 || item == 101 || item == 103 || item == 107 ||
+                   (item >= 182 && item <= 185)
+               ? 51
+           : item == 21  ? 33
+           : item == 26  ? 35
+           : item == 27  ? 36
+           : item == 124 ? 57
+           : item == 123 ? 43
+           : item == 128 ? 2
+                         : 256;
 }
 static Uint16 HandVariant(Uint16 item)
 {
@@ -894,11 +901,12 @@ static Uint16 HandVariant(Uint16 item)
                    item == 175 || item == 196 || item == 190 || item == 191 || item == 189 ||
                    item == 178 || item == 194
                ? 1
-           : item == 139 || item == 102 ? 2
-           : item == 192 || item == 120 ? 3
-           : item == 140 || item == 188 ? 4
-           : item == 187                ? 1
-                                        : 0;
+           : item == 139 || item == 102 || item == 103 || item == 184 ? 2
+           : item == 192 || item == 120 || item == 107 || item == 185 ? 3
+           : item == 140 || item == 188                               ? 4
+           : item == 187 || item == 101 || item == 183                ? 1
+           : item == 95                                               ? 8
+                                                                      : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)
@@ -906,9 +914,9 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     const Uint16 hand = (packed & 0x800000U) != 0;
     // Weapon53's kind135 warps reserve blueprint60 (slot16 E2/F2) and weapon1's kind24 punch
     // rushes blueprint54 (slot16 E1/F1) instead of48.
-    const Uint32 blueprint = item == 193 || item == 194   ? 60U
-                             : item == 186 || item == 187 ? 54U
-                                                          : 48U;
+    const Uint32 blueprint = item == 193 || item == 194                            ? 60U
+                             : item == 186 || item == 187 || Weapon51Special(item) ? 54U
+                                                                                   : 48U;
     const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << 12) |
                                        ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
                                  : (42U + hand) | ((Uint32)hand << 23);
@@ -949,7 +957,9 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
            c->state.hand.family == HandFamily(c->state.hand.item) &&
            c->parameter == ((HandVariant(c->state.hand.item) << 8) | (hand ? 0x8000 : 0)) &&
            w->parameter == c->parameter &&
-           (c->kind == (c->state.hand.item ? (hand ? 0xf0 : 0xe0) : (hand ? 0xfe : 0xee))) &&
+           (c->kind == (Weapon51Special(c->state.hand.item) ? (hand ? 0xf1 : 0xe1)
+                        : c->state.hand.item                ? (hand ? 0xf0 : 0xe0)
+                                                            : (hand ? 0xfe : 0xee))) &&
            (c->initialized
                 ? w->phase &&
                       w->phase <= (SotnHandWeapon_IsShieldFamily(c->state.hand.family) ? 4
@@ -972,8 +982,8 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
                (bp == 0x40 && param == 0);
-    // Weapon1 descriptor4 (Tulkas's QCF) requests the blueprint62 fireball.
-    if (family == 1)
+    // Weapon1 descriptor4 (Tulkas's QCF) and weapon51's special request blueprint62.
+    if (family == 1 || family == 51)
         return bp == 0x3e && param == 0;
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
@@ -997,6 +1007,7 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     return (parameter & 0xffU) ? false
            : family == 53      ? n < 50
            : family == 48      ? (n & 0xfU) <= 3 && (n >> 4) <= 2
+           : family == 51      ? n <= 9
                                : !parameter;
 }
 bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -1923,8 +1934,9 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
-    c.hand_weapon =
-        child.slot == 16 && (c.kind == 0xe0 || c.kind == 0xf0 || c.kind == 0xee || c.kind == 0xfe);
+    c.hand_weapon = child.slot == 16 &&
+                    (c.kind == 0xe0 || c.kind == 0xf0 || c.kind == 0xee || c.kind == 0xfe ||
+                     ((c.kind == 0xe1 || c.kind == 0xf1) && Weapon51Special(child.argument_low)));
     // Blueprint60 replaces slot16 with weapon53's E2/F2 warp; its factory argument is the item.
     c.weapon_warp = child.slot == 16 && (c.kind == 0xe2 || c.kind == 0xf2) &&
                     (child.argument_low == 193 || child.argument_low == 194);
@@ -2266,7 +2278,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     if (c.kind == 31)
         c.state.outline.parameter = child.parameter;
     if (!c.food && !c.sire && !c.magic && !c.thrown && !c.star && !c.weapon_secondary &&
-        (c.kind == 0xe1 || c.kind == 0xf1))
+        !c.hand_weapon && (c.kind == 0xe1 || c.kind == 0xf1))
     {
         if (child.slot != 16 || child.argument_low != 197 || child.argument_high ||
             child.parameter != (c.kind == 0xf1 ? 0x8000 : 0))
@@ -3365,6 +3377,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.hand_attack = false;
+    r.clut_count = 0;
     r.echo_attack = false;
     SotnSpiritTargetSnapshot targets = {0};
     if (in.spirit_targets)
@@ -3473,6 +3486,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                           .facing_left = p.facing_left,
                                           .held = (p.buttons & (hand ? SOTN_BUTTON_RIGHT_HAND
                                                                      : SOTN_BUTTON_LEFT_HAND)) != 0,
+                                          .special = (c->kind & 15U) == 1,
                                           .allocated = allocated},
                     &progress.random, &events))
                 return false;
@@ -3484,6 +3498,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 }
             if (events.properties)
                 c->group = (Uint8)(hand + 1U);
+            if (events.clut)
+            {
+                if (r.clut_count >= SDL_arraysize(r.clut))
+                    return SDL_SetError("Weapon51 glow exceeded its per-pass palette writes");
+                r.clut[r.clut_count].palette = events.clut_palette;
+                r.clut[r.clut_count].color = events.clut_color;
+                r.clut[r.clut_count++].value = events.clut_value;
+            }
             if (events.shield)
                 r.hand_shield = events.shield == 1;
             // Current selected Short sword uses variant zero. Other weapon37 producers
@@ -3667,6 +3689,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 53 ? 100
                                  : family == 48 ? 112
                                  : family == 1  ? 85
+                                 : family == 51 ? 127
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -3675,29 +3698,31 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnWeaponSecondaryEvents events = {0};
             if (!SotnWeaponSecondary_Tick(
                     w, &r.hand_program[hand],
-                    (SotnWeaponSecondaryInput){.overlay = overlay,
-                                               .executable = in.executable,
-                                               .properties = HandProperties,
-                                               .context = &context,
-                                               .x = p.x,
-                                               .y = p.y,
-                                               .camera_x = in.camera_x,
-                                               .camera_y = in.camera_y,
-                                               .scale_y = 256,
-                                               .pivot_y = p.draw_pivot_y,
-                                               .hand = hand,
-                                               .family = family,
-                                               .priority = p.priority,
-                                               .animation = p.animation.id,
-                                               .attack_mode = p.attack_mode,
-                                               .substep = p.substep,
-                                               .role = (Uint16)(c->kind & 15U),
-                                               .crouch = (p.status & 0x20U) != 0,
-                                               .draw_flags = p.wolf.active ? p.wolf.draw_flags
-                                                             : p.rotated   ? 4
-                                                                           : 0,
-                                               .facing_left = p.facing_left,
-                                               .allocated = allocated},
+                    (SotnWeaponSecondaryInput){
+                        .overlay = overlay,
+                        .executable = in.executable,
+                        .properties = HandProperties,
+                        .context = &context,
+                        .x = p.x,
+                        .y = p.y,
+                        .camera_x = in.camera_x,
+                        .camera_y = in.camera_y,
+                        .scale_y = 256,
+                        .pivot_y = p.draw_pivot_y,
+                        .hand = hand,
+                        .family = family,
+                        .priority = p.priority,
+                        .animation = p.animation.id,
+                        .attack_mode = p.attack_mode,
+                        .substep = p.substep,
+                        .role = (Uint16)(c->kind & 15U),
+                        .crouch = (p.status & 0x20U) != 0,
+                        .draw_flags = p.wolf.active ? p.wolf.draw_flags
+                                      : p.rotated   ? 4
+                                                    : 0,
+                        .facing_left = p.facing_left,
+                        .allocated = allocated,
+                        .slot16_parameter = r.children[0].kind ? r.children[0].parameter : 0},
                     &progress.random, &events))
                 return false;
             for (Uint16 j = 0; j < SDL_arraysize(events.sounds); ++j)
