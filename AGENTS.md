@@ -20,7 +20,7 @@ knuckles97 through actual weapon1 descriptors0/1, shared slot16 and four mandato
 GT4 trail rows reserved before flags/properties; exhaustion omits the attack without
 RNG/retry. Preserve no sprite, per-row libc, camera-subtracted screen placement,
 SDK sqrt/atan2/trig follow-through, NULL palette table, four-vertex rebases and draw
-holds. Iron Fist/Tulkas specials stay unavailable. No pool/grants/savev9 change;
+holds. Kind0 attacks use the original substep0x40 handler (pose7 combo, 0x24 stand-up). Iron Fist/Tulkas specials stay unavailable. No pool/grants/savev9 change;
 supplied stock/protection/position/occupancy/curse/save fixtures are not acquisition/
 route/console evidence. All six Alucard gates remain open.
 

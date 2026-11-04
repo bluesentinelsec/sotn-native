@@ -1086,6 +1086,13 @@ static bool Transitions(SotnPlayer *player, Uint32 flags)
     return false;
 }
 
+// 71830.c handles substeps0x40/0x59 (kind0 empty hand, fists and kind25) separately from
+// weapon kinds: shorter crouch window, fixed0x24 stand-up and the pose7 combo continuation.
+static bool UnarmedKind(const SotnPlayer *player)
+{
+    return player->substep == 0x40 || player->substep == 0x59;
+}
+
 static void StandTick(SotnPlayer *player)
 {
     if (player->subweapon_cast && player->animation.id != player->subweapon_animation)
@@ -1152,7 +1159,7 @@ static void StandTick(SotnPlayer *player)
         }
         else if (player->animation.pose < player->attack_lock)
         {
-            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
+            if (player->animation.pose < (UnarmedKind(player) ? 2 : 3))
             {
                 (void)Direction(player);
                 if (player->buttons & SOTN_BUTTON_DOWN)
@@ -1165,15 +1172,15 @@ static void StandTick(SotnPlayer *player)
         else
         {
             player->attack_mode &= 0x7fff;
-            flags = player->attack_equipment.id == 0 ? 0xb : 0x1b;
-            if (player->attack_equipment.id == 0 && player->animation.pose == 7)
+            flags = UnarmedKind(player) ? 0xb : 0x1b;
+            if (UnarmedKind(player) && player->animation.pose == 7)
             {
                 if (player->buttons & player->attack_button)
                     player->animation.remaining = 2;
                 else
                     flags = 0xf;
             }
-            else if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+            else if (!UnarmedKind(player) && player->animation.remaining < 0)
                 flags = 0xf;
         }
     }
@@ -1394,7 +1401,7 @@ static void CrouchTick(SotnPlayer *player)
         }
         else if (player->animation.pose < player->attack_lock)
         {
-            if (player->animation.pose < (player->attack_equipment.id == 0 ? 2 : 3))
+            if (player->animation.pose < (UnarmedKind(player) ? 2 : 3))
             {
                 (void)Direction(player);
                 if (!(player->buttons & SOTN_BUTTON_DOWN) && player->tight_space == 0)
@@ -1402,9 +1409,7 @@ static void CrouchTick(SotnPlayer *player)
                     player->step = SOTN_PLAYER_STAND;
                     player->animation.id =
                         (Uint16)(player->attack_equipment.animation +
-                                 (player->attack_equipment.id != 0 && (player->contact & 0x20)
-                                      ? 1
-                                      : 0));
+                                 (!UnarmedKind(player) && (player->contact & 0x20) ? 1 : 0));
                 }
             }
         }
@@ -1412,14 +1417,14 @@ static void CrouchTick(SotnPlayer *player)
         {
             player->attack_mode &= 0x7fff;
             flags = 0xe;
-            if (player->attack_equipment.id == 0 && player->animation.pose == 7)
+            if (UnarmedKind(player) && player->animation.pose == 7)
             {
                 if (player->buttons & player->attack_button)
                     player->animation.remaining = 2;
                 else
                     flags = 0x2e;
             }
-            else if (player->attack_equipment.id != 0 && player->animation.remaining < 0)
+            else if (!UnarmedKind(player) && player->animation.remaining < 0)
                 flags = 0x2e;
         }
         break;

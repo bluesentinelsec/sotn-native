@@ -167,6 +167,25 @@ static bool KindFourSpecial(Fixture *f)
           f->p->substep == 0x44 && f->p->attack_lock == 13);
     return true;
 }
+// 71830.c substep0x40: kind0 fists continue at pose7 while the attack button is held.
+static bool FistCombo(Fixture *f)
+{
+    CHECK(Create(f, 85, 1, 2, true));
+    for (Uint16 i = 0; i < 8; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND) && f->p->substep == 0x40);
+    for (Uint16 i = 0; i < 80 && f->p->animation.pose < 7; ++i)
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+    CHECK(f->p->animation.pose == 7);
+    for (Uint16 i = 0; i < 6; ++i)
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND) && f->p->animation.pose == 7 &&
+              f->p->animation.remaining == 1 && f->p->substep == 0x40);
+    for (Uint16 i = 0; i < 6 && f->p->substep == 0x40; ++i)
+        CHECK(Tick(f, 0));
+    CHECK(f->p->substep != 0x40 && !f->p->attack_mode);
+    return true;
+}
 static bool AirborneKindZero(Fixture *f)
 {
     // block_98: kind0 needs Down plus Left/Right for variant6; Down alone stays variant5.
@@ -191,7 +210,8 @@ int main(void)
     bool ok = f != NULL;
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
-         Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && AirborneKindZero(f);
+         Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
+         AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

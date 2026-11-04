@@ -29,6 +29,14 @@ original SDK square root, quantized atan2 and quarter-wave trigonometry. Other
 poses hide the rows without moving them. Native positions are world coordinates;
 the callback subtracts the actual camera, matching the original screen words.
 
+## Player attack state
+
+Fists are kind0, so the player uses the original substep0x40 handler (shared with the
+empty hand and kind25): a two-pose crouch window, the fixed0x24 stand-up from a crouched
+attack, and the pose7 combo continuation while the attack button stays held. Native
+previously keyed that handler on item id0, so fists took the weapon branch. The falling
+Down variant likewise needs Down plus Left/Right for kind0 items.
+
 ## Rendering, holds and failures
 
 Weapon1's original palette table entries are NULL, so its palette callback returns
