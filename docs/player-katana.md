@@ -7,7 +7,8 @@ chain through the shared [weapon secondary owner](player-holy-sword.md). Katana 
 [paired two-hand reservation](player-two-hand-equipment.md).
 
 [Osafune139 and Masamune140](player-katana-warp.md) now share the program, including their
-kind135 warps; Yasutsuna165 is a kind129 thrown item and stays unavailable. [Muramasa](player-muramasa.md)'s secondary runs the same slash code over its
+kind135 warps, and [Yasutsuna165](player-yasutsuna.md) throws a fixed slash that chains
+these slashes. [Muramasa](player-muramasa.md)'s secondary runs the same slash code over its
 own tables.
 
 Definitions validate category5, family53, kind1, animation0x41, blueprint48, variant, lock13,

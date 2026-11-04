@@ -409,6 +409,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
                              : item == 135             ? 63U
                              : item == 133             ? 56U
                              : item == 164             ? 52U
+                             : item == 165             ? 68U
                                                        : 50U;
     const Uint32 parameter = (item == 134 || item == 163 ? 1U
                               : item == 164              ? 2U
@@ -418,7 +419,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
     // blade163 and Crissaegrim164 (weapon12, blueprints50/52) are thrown but never consumed.
     if (!r || !allocated ||
         (!ThrownItem(item) && item != 143 && item != 119 && item != 133 && item != 163 &&
-         item != 164) ||
+         item != 164 && item != 165) ||
         (hand != 1 && hand != 2) || packed != (blueprint | hand << 12 | parameter << 16))
         return SDL_SetError(
             "Weapon16/Runesword reservation requires its actual owned item/blueprint/hand");
@@ -1082,11 +1083,14 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // afterimages carry only the hand bit.
     if (family == 12)
         return (parameter & 0x7f00U) <= 0x200 && !(parameter & 0xfcU);
-    return (parameter & 0xffU)            ? false
-           : family == 53 || family == 56 ? n < 50
-           : family == 48                 ? (n & 0xfU) <= 3 && (n >> 4) <= 2
-           : family == 51                 ? n <= 9
-                                          : !parameter;
+    // Yasutsuna's blueprint68 root (weapon53 role3) carries the right hand's bit, which w_053
+    // masks off; its chained slashes and every weapon56 slash carry only the index.
+    return (parameter & 0xffU)                    ? false
+           : family == 53 && parameter == 0x8000U ? true
+           : family == 53 || family == 56         ? n < 50
+           : family == 48                         ? (n & 0xfU) <= 3 && (n >> 4) <= 2
+           : family == 51                         ? n <= 9
+                                                  : !parameter;
 }
 bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -1117,6 +1121,9 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 14 ? 143 : 119) &&
                       !(c->parameter & 0xffU) && c->state.secondary.parent_slot == 16
+            : family == 53 && (c->kind & 15U) == 3
+                ? c->state.secondary.own_item && c->state.secondary.item == 165 &&
+                      !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 12 && (c->kind & 15U) <= 1
                 ? c->state.secondary.own_item && c->state.secondary.parent_slot == 16 &&
                       ((c->kind & 15U) ? c->state.secondary.item == 133 && !(c->parameter & 0x7fffU)
@@ -2111,7 +2118,10 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                         (((c.kind == 0xe0 || c.kind == 0xf0) &&
                           (child.argument_low == 163 || child.argument_low == 164)) ||
                          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 133));
-    c.weapon_secondary = rush || crescent || rune || vorpal ||
+    // Blueprint68 creates Yasutsuna's weapon53 E3/F3 slash in17..31.
+    const bool yasutsuna = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+                           (c.kind == 0xe3 || c.kind == 0xf3) && child.argument_low == 165;
+    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna ||
                          (secondary_factory && ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
                                                 (c.kind >= 0xf1 && c.kind <= 0xf5)));
     if (crescent)
@@ -2143,6 +2153,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.secondary.family = family;
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = child.argument_low;
+        c.state.secondary.own_item = true;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
+    if (yasutsuna)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 53)))
+            return SDL_SetError("Yasutsuna lost its actual blueprint68/program/item ownership");
+        c.state.secondary.family = 53;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = 165;
         c.state.secondary.own_item = true;
         c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
                                                          .y = child.source.y,
@@ -4074,7 +4101,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     if (r.groups[group] == 255)
                         return SDL_SetError("Weapon secondary shared group count overflow");
                     ++r.groups[group];
-                    c->group = (Uint8)group;
+                    // Yasutsuna's root then copies its raw parent's enemyId: the player entity's,
+                    // which no DRA code writes (zero).
+                    c->group = family == 53 ? 0 : (Uint8)group;
                 }
                 else
                 {

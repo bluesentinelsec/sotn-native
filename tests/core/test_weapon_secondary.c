@@ -1856,6 +1856,72 @@ static bool Twelve(void)
     return true;
 }
 
+// w_053 func_ptr_8017000C: Yasutsuna's blueprint68 slash stays at its origin (only the crouch Y
+// offset), rolls properties and chains WFACTORY(0x38,age+1) every callback for parameter0, and
+// keeps its fixed hitbox offset while the player moves.
+static bool Yasutsuna(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    SlashProgram(o);
+    Math(exe);
+    const Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnWeaponSecondary s = {
+            .parameter = (Uint16)(hand << 15), .x = 100 * 65536 + 0x1111, .y = 90 * 65536 + 0x2222};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = 140 * 65536,
+                                       .y = 120 * 65536,
+                                       .hand = hand,
+                                       .family = 53,
+                                       .role = 3,
+                                       .priority = 148,
+                                       .facing_left = hand != 0,
+                                       .crouch = hand != 0,
+                                       .allocated = true};
+        Uint32 rng = 5;
+        for (Uint16 t = 0; t < 9; ++t)
+        {
+            SotnWeaponSecondaryEvents e = {0};
+            in.x = (140 + t * 7) * 65536;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            CHECK(e.chain == (0x38U | (hand + 1U) << 12 | (Uint32)(t + 1U) << 16) &&
+                  e.properties == (t == 0) && s.x == 100 * 65536 + 0x1111 &&
+                  s.y == (90 + (hand ? 11 : -5)) * 65536 + 0x2222);
+            if (t < 8)
+                CHECK(!s.removed && s.hitbox_x == 0x12 && s.hitbox_width == 30 &&
+                      s.quad.palette == (hand ? 0x18 : 0) + 0x11a + t);
+        }
+        CHECK(s.removed);
+    }
+    // Other parameters (even Katana's later roots and 0x28..0x31) neither roll properties nor
+    // chain.
+    const Uint16 others[] = {1, 5, 0x28, 0x2a};
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        SotnWeaponSecondary s = {.parameter = (Uint16)(others[k] << 8)};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 5;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program,
+                                       (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                                  .executable = {exe, sizeof(exe)},
+                                                                  .properties = Properties,
+                                                                  .context = (void *)&hit,
+                                                                  .family = 53,
+                                                                  .role = 3,
+                                                                  .allocated = true},
+                                       &rng, &e) &&
+              !e.properties && !e.chain && rng == 5 && !s.hitbox_width && s.hitbox_x == 0x12);
+    }
+    CHECK(SotnWeaponSecondary_SupportedRole(53, 3) && SotnWeaponSecondary_RoleRows(53, 3) == 1 &&
+          !SotnWeaponSecondary_SupportedRole(53, 2));
+    return true;
+}
+
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -3187,13 +3253,100 @@ static bool TwelveRuntime(void)
     return true;
 }
 
+// Blueprint68 creates Yasutsuna's E3 root (own item165, enemyId0 from the player entity, one
+// GT4); it chains nine blueprint56 E1 slashes naming it, and all retire with their rows.
+static bool YasutsunaRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    SlashProgram(weapons + 53U * 0x7000 + 0x4000);
+    FamilyDefinition(dra, 165, 5, 53, 129, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 165 * 52;
+    record[18] = 0x5d;
+    record[19] = 68;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[][6] = {{68, 3, 1, 0xc1, 0, 0x06}, {56, 1, 1, 0xc1, 0, 0x06}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment e = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 165, &e) && e.blueprint == 68 && e.family == 53 &&
+          !e.consumable && SotnEquipment_IsTwoHand(165));
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {53, 53},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x5d}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestThrown(r, source, hand ? 0x802044U : 0x1044U, 165, &allocated) &&
+          allocated);
+    Uint16 root = 0, chained = 0, seen = 0;
+    for (Uint16 t = 0; t < 30; ++t)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        chained = 0;
+        for (Uint16 i = 1; i < 16; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 53 || !c->initialized)
+                continue;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && c->primitive_count == 1);
+            if (c->kind == (hand ? 0xf3 : 0xe3))
+            {
+                CHECK(c->state.secondary.own_item && c->state.secondary.item == 165 &&
+                      c->parameter == (hand ? 0x8000U : 0U) && !c->group &&
+                      c->state.secondary.attack.active &&
+                      c->state.secondary.attack.equipment == 165);
+                root = i;
+            }
+            else
+            {
+                CHECK(c->kind == (hand ? 0xf1 : 0xe1) &&
+                      c->state.secondary.parent_slot == root + 16U &&
+                      !c->state.secondary.attack.active);
+                seen |= (Uint16)(1U << ((c->parameter >> 8) & 15U));
+                ++chained;
+            }
+        }
+    }
+    CHECK(root && seen == 0x3fe && !chained);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
-                   HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime()
+                   HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime() &&
+                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1)
                ? 0
                : 1;
 }

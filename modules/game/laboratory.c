@@ -1097,7 +1097,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
            : item >= 75 && item <= 79
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
-                   item == 119 || item == 133 || item == 163 || item == 164
+                   item == 119 || item == 133 || item == 163 || item == 164 || item == 165
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1138,22 +1138,24 @@ static bool BindFood(SotnLaboratory *s)
         // Factory birth already copies the actual item into ext.weapon.equipId (AE),
         // before the later SetWeaponProperties/attack activation callback.
         const Uint16 hand = (c->parameter & 0x8000U) != 0;
-        const Uint16 item = c->karma                    ? c->state.karma.item
-                            : c->star                   ? c->state.star.motion.item
-                            : c->thrown                 ? c->state.thrown.item
-                            : c->magic                  ? c->state.magic.motion.item
-                            : c->neutron                ? 71
-                            : c->sire && !c->sire_child ? 72
-                            : c->pentagram              ? c->state.pentagram.item
-                            // Runesword's root carries143 from birth; its hitboxes only after
-                            // their first callback copies the raw parent's equip id. Heaven
-                            // sword's root carries119; its afterimages never take an id. Weapon12's
-                            // slashes and Chakram carry their own items from birth.
-                            : c->weapon_secondary && (c->state.secondary.family == 14 ||
-                                                      c->state.secondary.family == 13 ||
-                                                      c->state.secondary.family == 12)
-                                ? c->state.secondary.item
-                                : 0;
+        const Uint16 item =
+            c->karma                    ? c->state.karma.item
+            : c->star                   ? c->state.star.motion.item
+            : c->thrown                 ? c->state.thrown.item
+            : c->magic                  ? c->state.magic.motion.item
+            : c->neutron                ? 71
+            : c->sire && !c->sire_child ? 72
+            : c->pentagram              ? c->state.pentagram.item
+            // Runesword's root carries143 from birth; its hitboxes only after
+            // their first callback copies the raw parent's equip id. Heaven
+            // sword's root carries119; its afterimages never take an id. Weapon12's
+            // slashes and Chakram carry their own items from birth.
+            : c->weapon_secondary &&
+                    (c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
+                     c->state.secondary.family == 12 ||
+                     (c->state.secondary.family == 53 && c->state.secondary.own_item))
+                ? c->state.secondary.item
+                : 0;
         // CheckChainLimit reads raw AE and params, not the callback's hand family.
         // Both original56 arrows retain params0, including right-hand F1 arrows.
         if (item && item == state.equipment[hand])

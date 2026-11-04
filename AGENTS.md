@@ -1,3 +1,10 @@
+Selected [Yasutsuna](docs/player-yasutsuna.md) now owns two-handed item165 through weapon53 as a
+kind129 throw (blueprint68, chain1, animation0x5D, never consumed; either button). Its E3/F3
+role3 root in17..31 stays at its factory origin (no forward offset; crouch +11 else -5), takes one
+mandatory GT4 and, only at parameter0, rolls properties (least-used increment, then group0 from
+the raw player parent) and requests WFACTORY(0x38,age+1) each callback: nine Katana role1
+slashes. The right hand's 0x8000 parameter bit is masked as w_053 does; hitbox X stays 0x12.
+
 Selected [Chakram/Vorpal blade/Crissaegrim](docs/player-weapon12.md) now own items133/163/164
 through weapon12 as secondary roots in17..31: role0 GT4 slashes (blueprints50/52, descriptors1/2,
 one mandatory row, program count D_8017BB28 in secondary_counter picks the shape, CLUT fade
@@ -81,8 +88,8 @@ through weapon53: descriptors1/3 blend a quarter; descriptor1 requests WFACTORY(
 properties. Slash children own one mandatory GT4, roots0/10/20/30 (and 40..49) copy raw-parent
 properties/enemyId, roots request WFACTORY(0x38,age+param+1) every callback (nine chained
 children whose raw parent is the root's slot, even when reborn into it), CLUT schedules,
-nine-callback lifetime and entity-relative DRAW_UNK02 corners. Osafune/Masamune (kind135
-warp) and Yasutsuna (thrown) remain unavailable.
+nine-callback lifetime and entity-relative DRAW_UNK02 corners. Osafune/Masamune own kind135 warps;
+Yasutsuna has its own thrown owner (see its block).
 
 Selected [Rapier/Were bane](docs/player-lunge-weapons.md) now own items23/22 and QCF
 lunges191/190 through weapon38/39 and the shared weapon-secondary owner. Descriptor1 requests

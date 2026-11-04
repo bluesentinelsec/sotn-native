@@ -66,7 +66,7 @@ Selected virtual items:
   punch rushes in slot16; Tulkas's QCF special188: kind25 descriptor4 fireball (see
   [fist specials](player-fist-specials.md)).
 
-The other virtual specials ( Yasutsuna, rods, Shotel,
+The other virtual specials (rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.
 

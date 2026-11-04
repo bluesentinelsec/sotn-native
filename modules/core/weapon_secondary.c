@@ -103,6 +103,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
+    // Weapon53's role3 is Yasutsuna's blueprint68 slash; its chain uses role1.
+    if (family == 53)
+        return role == 1 || role == 3;
     return role == 1 || (role == 2 && (family == 48 || family == 1));
 }
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
@@ -301,11 +304,16 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
         if (at >= base && at < base + 14U)
             config[at - base] = (Uint8)((Uint32)in.hand >> (8U * b));
     }
-    const bool root = params == 0 || params == 10 || params == 20 || params == 30;
+    // w_053 func_ptr_8017000C (role3, blueprint68): Yasutsuna's slash stays at its factory
+    // origin; only parameter0 rolls properties and chains, and it never follows the player.
+    const bool fixed = in.role == 3;
+    const bool root =
+        fixed ? params == 0 : params == 0 || params == 10 || params == 20 || params == 30;
     if (!s->phase)
     {
         s->facing_left = in.facing_left;
-        s->x = (Sint32)((Uint32)s->x + (Uint32)(in.facing_left ? -20 : 20) * 65536U);
+        if (!fixed)
+            s->x = (Sint32)((Uint32)s->x + (Uint32)(in.facing_left ? -20 : 20) * 65536U);
         s->y = (Sint32)((Uint32)s->y + (Uint32)(in.crouch ? 11 : -5) * 65536U);
         if (!in.allocated)
         {
@@ -328,7 +336,7 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
         }
         s->quad = q;
         s->flags = 0x08820000U;
-        if (root || (params > 0x27 && params <= 0x31))
+        if (root || (!fixed && params > 0x27 && params <= 0x31))
         {
             if (!Properties(s, in, rng, e))
                 return false;
@@ -342,7 +350,7 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
         s->age = 0;
         s->phase = 1;
     }
-    if (root || params == 0x28)
+    if (root || (!fixed && params == 0x28))
         e->chain = 0x38U | ((in.hand + 1U) << 12) | ((Uint32)(s->age + params + 1U) << 16);
     s->quad.palette = (Uint16)((in.hand ? 0x18 : 0) +
                                Read16(cluts + (Read16(config + 4) ? 20U : 0U) + s->age * 2U));
@@ -351,7 +359,7 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
         s->removed = true;
         return true;
     }
-    if (params >= 0x1e && params < 0x32)
+    if (fixed || (params >= 0x1e && params < 0x32))
         s->hitbox_x = 0x12;
     else
     {

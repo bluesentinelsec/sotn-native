@@ -144,6 +144,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
     Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
     Item(f->dra, 141, 5, 56, 29, 0x41, 0, 13, 0);
+    Item(f->dra, 165, 5, 53, 129, 0x5d, 0, 0, 0);
+    f->dra[0x500 + 165 * 52 + 19] = 68;
+    f->dra[0x500 + 165 * 52 + 22] = 1;
     Item(f->dra, 133, 2, 12, 130, 0x60, 0, 0, 0);
     f->dra[0x500 + 133 * 52 + 19] = 56;
     f->dra[0x500 + 133 * 52 + 22] = 2;
@@ -180,11 +183,12 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
     const Uint16 right =
-        item == 26 || item == 139 || item == 98 || item == 95 || item == 141 ? item : 0;
+        item == 26 || item == 139 || item == 98 || item == 95 || item == 141 || item == 165 ? item
+                                                                                            : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
     CHECK(item == 18 || item == 143 || item == 119 || item == 133 || item == 163 || item == 164 ||
-          !SotnPlayer_SetEquipment(f->p, weapons, item, right));
+          item == 165 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
@@ -659,6 +663,7 @@ static bool Runesword(Fixture *f, Uint16 item)
     const Uint32 packed = item == 133   ? 0x1038U
                           : item == 163 ? 0x1032U | 1U << 16
                           : item == 164 ? 0x1034U | 2U << 16
+                          : item == 165 ? 0x1044U
                                         : 0x1032U;
     const Uint8 limit = item == 133 ? 2 : item == 163 || item == 164 ? 3 : 1;
     for (Uint16 k = 0; k < 2; ++k)
@@ -771,8 +776,8 @@ int main(void)
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
-         Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Muramasa(f) &&
-         CombatKnife(f) && AirborneKindZero(f);
+         Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
+         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

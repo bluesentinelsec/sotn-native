@@ -4,8 +4,8 @@ The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts th
 Osafune katana139 and Masamune140 through the weapon53 program shared with
 [Katana](player-katana.md). Osafune's back-forward special192 is a slash root10; Masamune's
 ordinary swing already spawns slash root0x14. Their QCF specials 193 and 194 are kind135
-warps: the sword-warp player state with weapon53's own slot16 afterimage. Yasutsuna165 (kind129
-thrown) stays unavailable.
+warps: the sword-warp player state with weapon53's own slot16 afterimage. [Yasutsuna165](player-yasutsuna.md)
+throws its own fixed slash.
 
 Definitions validate category5, family53, the special bytes, variants2/3/4 and, for 193/194,
 kind135, animation0xD8, lock0 and blueprint60; the definition reader now accepts a per-item
