@@ -1,3 +1,13 @@
+Selected [Muramasa](docs/player-muramasa.md) now owns two-hand item141/kind29 through weapon56
+(Gurthang's callback, own tables; descriptor2 under timer11; attack>=0x1E requests the
+WFACTORY(56,0) Katana slash chain over tables 0xFCC/0xFA4, hand word 0x105C). func_8010A3F0 runs
+before healing: two-hand Muramasa holds timer11 at 0x20 and counts blood updates
+(`muramasa_blood`, committed after success); contacts clear each living update. Ordinary saves
+are now v10: the u32 counter at 3632 (v9 migrates to 0). CalcAttack adds SquareRoot0(counter) in
+its signed word; counters >=0x80000000 need SotnCharacter_BindExecutable. Case29: one crit rand,
+attack (halved by poison) below 11 takes the rand()&7 roll. Older "v9" notes describe the v10
+layout's other fields unchanged.
+
 Selected [Heaven sword](docs/player-heaven-sword.md) now owns kind129 item119 through weapon13 as
 a role0 secondary root (no rows): fly/stop, parabolic spin rise, turn-limited homing (step grows
 0x20, never overshoots) and hitbox retirement; even g_GameTimer WFACTORY(0x3A,0) afterimages in
@@ -73,7 +83,7 @@ WFACTORY(0x38,0) on pose4's final update. Kind26 stops both velocities, holds po
 forty-update D_80139824 and resumes substep0x50 at pose10/Down-Up tap/backward. Secondaries
 retire outside step_s0x5A, reserve 24/32 mandatory rows, keep a per-hand program-BSS
 countdown (0x640 at &7==7, 0x6F0 at zero) and Were bane's chain arrays; never saved.
-Muramasa awaits a save-format decision for its persistent blood counter.
+Muramasa now has its own owner (see its block); its counter is saved in v10.
 
 Selected [Holy sword](docs/player-holy-sword.md) now owns item115/QCF special196 through
 weapon55 and the first native weapon-secondary owner: descriptor1 queues 0x69D then
@@ -87,7 +97,7 @@ Selected [Gurthang](docs/player-gurthang.md) now owns item121/QCF special195 thr
 weapon54: twelve optional LINE_G2 rows (28 birth rand calls) placed on trigger frames,
 Dark descriptor2 with doubled attack, a 0x38 timer11 floor committed after the player
 update and the FACTORY(61,0x11) outline. QCF resolution now precedes back-forward (grounded,
-chain0x80, MP after the factory). Muramasa shares the callback but needs its secondary.
+chain0x80, MP after the factory). Muramasa shares the callback (see its block).
 
 Selected [weapon special inputs](docs/player-weapon-specials.md) now run the original
 back-forward recognizer after QCF and resolve the equipped unk17 item after curse/
@@ -104,7 +114,7 @@ Mablung descriptor3, Morningstar palette5 and live hand words in crossing palett
 copies. Red Rust rolls one character libc rand after its actual factory; &7==0 takes
 the curse failure branch without grunt. Great Sword127 (weapon51 descriptor0) uses DRA
 bank10; Combat knife20 lingers four updates in slot16 and alternates with special175 via
-the session-supplied slot16 item. Muramasa differs and stays unavailable. No
+the session-supplied slot16 item. Muramasa has its own owner. No
 pool/grants/savev9 change; supplied stock/protection/position/relic/arrival/seed/save
 fixtures are not acquisition/route/console evidence. All six Alucard gates remain open.
 

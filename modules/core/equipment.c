@@ -55,6 +55,8 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){5, 33, 11, 0x8b, 0, 0, 0, 0, 0, 0};
     case 26: // Red Rust
         return (PlainSpec){5, 35, 13, 0x99, 0, 0, 0, 0, 0, 0};
+    case 141: // Muramasa (kind29: blood-grown attack, low-attack failure roll)
+        return (PlainSpec){5, 56, 29, 0x41, 0, 0, 0, 0, 0, 0};
     case 27: // Takemitsu
         return (PlainSpec){5, 36, 14, 0xa0, 0, 0, 0, 0, 0, 0};
     case 124: // Mablung
@@ -161,7 +163,7 @@ bool SotnEquipment_IsPlainWeapon(Uint16 id)
 bool SotnEquipment_IsTwoHand(Uint16 id)
 {
     return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100 || id == 139 ||
-           id == 140 || id == 95 || id == 98 || id == 101 || id == 103 || id == 107;
+           id == 140 || id == 95 || id == 98 || id == 101 || id == 103 || id == 107 || id == 141;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {

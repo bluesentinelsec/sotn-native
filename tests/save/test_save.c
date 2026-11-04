@@ -75,9 +75,9 @@ static bool Codec(void)
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
     // Independently produced with Python struct and zlib for Profile().
-    CHECK(record[4092] == 0x4d && record[4093] == 0xee && record[4094] == 0xc3 &&
-          record[4095] == 0x6c);
-    CHECK(record[8] == 9 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
+    CHECK(record[4092] == 0xde && record[4093] == 0xbe && record[4094] == 0x9f &&
+          record[4095] == 0x38);
+    CHECK(record[8] == 10 && record[12] == 0 && record[13] == 16 && record[24] == 2 &&
           record[28] == 1 && record[48] == 87);
     CHECK(record[92] == 57 && record[93] == 48 && record[104 + 99] == 99 && record[363] == 168 &&
           record[622] == 0x81);
@@ -124,7 +124,7 @@ static bool Codec(void)
                                       3625,
                                       3626,
                                       3627,
-                                      3632,
+                                      3636,
                                       4091,
                                       624 + SOTN_LAB_CANNON,
                                       624 + SOTN_MARIA_HIPPOGRYPH};
@@ -137,6 +137,41 @@ static bool Codec(void)
         CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     }
     CHECK(SotnSave_Encode(state, record, sizeof(record)));
+    // v10 stores Muramasa's u32 blood counter at3632; v9 records migrate it to zero and keep
+    // those bytes reserved.
+    {
+        SotnSaveState blood = state;
+        blood.character.muramasa_blood = 0x9abcdef0U;
+        Uint8 v10[SOTN_SAVE_BYTES] = {0};
+        CHECK(SotnSave_Encode(blood, v10, sizeof(v10)) && v10[3632] == 0xf0 && v10[3633] == 0xde &&
+              v10[3634] == 0xbc && v10[3635] == 0x9a);
+        CHECK(SotnSave_Decode(v10, sizeof(v10), &decoded) &&
+              decoded.character.muramasa_blood == 0x9abcdef0U);
+        blood.character.muramasa_blood = SDL_MAX_UINT32;
+        CHECK(SotnSave_Encode(blood, v10, sizeof(v10)) &&
+              SotnSave_Decode(v10, sizeof(v10), &decoded) &&
+              decoded.character.muramasa_blood == SDL_MAX_UINT32);
+        Uint8 v9[SOTN_SAVE_BYTES] = {0};
+        SDL_memcpy(v9, record, sizeof(v9));
+        v9[8] = 9;
+        Rechecksum(v9, sizeof(v9));
+        // The former v9 encoding of Profile(), checksum produced independently with zlib.
+        CHECK(v9[4092] == 0x4d && v9[4093] == 0xee && v9[4094] == 0xc3 && v9[4095] == 0x6c);
+        decoded.character.muramasa_blood = 77;
+        CHECK(SotnSave_Decode(v9, sizeof(v9), &decoded) && !decoded.character.muramasa_blood &&
+              decoded.character.hp == 87);
+        v9[3632] = 1;
+        Rechecksum(v9, sizeof(v9));
+        decoded.room = 99;
+        CHECK(!SotnSave_Decode(v9, sizeof(v9), &decoded) && decoded.room == 99);
+        v10[3636] = 1;
+        Rechecksum(v10, sizeof(v10));
+        CHECK(!SotnSave_Decode(v10, sizeof(v10), &decoded) && decoded.room == 99);
+        v10[3636] = 0;
+        v10[8] = 11;
+        Rechecksum(v10, sizeof(v10));
+        CHECK(!SotnSave_Decode(v10, sizeof(v10), &decoded) && decoded.room == 99);
+    }
     Uint8 version_eight[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(version_eight, record, sizeof(version_eight));
     version_eight[8] = 8;
@@ -225,11 +260,11 @@ static bool Codec(void)
     version_three[624] = 1;
     Rechecksum(version_three, sizeof(version_three));
     CHECK(!SotnSave_Decode(version_three, sizeof(version_three), &decoded));
-    record[8] = 10;
+    record[8] = 11;
     decoded.room = 99;
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
     CHECK(SDL_strstr(SDL_GetError(), "migration") != NULL);
-    record[8] = 9;
+    record[8] = 10;
     record[273] = 100;
     Rechecksum(record, sizeof(record));
     CHECK(!SotnSave_Decode(record, sizeof(record), &decoded) && decoded.room == 99);
@@ -287,7 +322,7 @@ static bool Codec(void)
     Rechecksum(version_two, 80);
     CHECK(SotnSave_Decode(version_two, 80, &decoded) && decoded.player_random == 42 &&
           decoded.actor_random == 43 && decoded.combat_random == 44);
-    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 9);
+    CHECK(SotnSave_Encode(decoded, record, sizeof(record)) && record[8] == 10);
     CHECK(SotnSave_Decode(record, sizeof(record), &decoded) && decoded.character.hp_max == 70);
     version_two[12] = 0;
     Rechecksum(version_two, 80);
@@ -304,7 +339,7 @@ static bool Stages(void)
     {
         seen.world.cutscenes_seen = completions[i];
         CHECK(SotnSave_Encode(seen, seen_record, sizeof(seen_record)));
-        CHECK(seen_record[8] == 9 && seen_record[3628] == (Uint8)completions[i] &&
+        CHECK(seen_record[8] == 10 && seen_record[3628] == (Uint8)completions[i] &&
               seen_record[3631] == (Uint8)(completions[i] >> 24));
         CHECK(SotnSave_Decode(seen_record, sizeof(seen_record), &seen_loaded) &&
               seen_loaded.world.cutscenes_seen == completions[i]);
@@ -599,7 +634,7 @@ static bool OlroxSecretProgress(void)
     {
         state.world.flags[SOTN_NO2_SECRET_WALL] = wall;
         state.world.flags[SOTN_NO2_SECRET_CEILING] = wall & 1U;
-        CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 9 &&
+        CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 10 &&
               SotnSave_Decode(record, sizeof(record), &loaded));
         CHECK(loaded.world.flags[SOTN_NO2_SECRET_WALL] == wall &&
               loaded.world.flags[SOTN_NO2_SECRET_CEILING] == (wall & 1U) &&
@@ -621,7 +656,7 @@ static bool RawHandStock(void)
     SotnSaveState state = Profile(), decoded = {0};
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     state.character.hand_count[159] = 255;
-    CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 9 && record[12] == 0 &&
+    CHECK(SotnSave_Encode(state, record, sizeof(record)) && record[8] == 10 && record[12] == 0 &&
           record[13] == 16 && record[104 + 159] == 255 &&
           SotnSave_Decode(record, sizeof(record), &decoded));
     CHECK(decoded.character.hand_count[159] == 255 &&

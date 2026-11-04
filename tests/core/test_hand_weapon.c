@@ -405,6 +405,77 @@ static bool Gurthang(void)
     }
     return true;
 }
+static bool PowerProperties(void *context, Uint32 *random, SotnEquipment *out)
+{
+    (void)SotnCombat_Random(random);
+    *out = (SotnEquipment){.id = 141, .attack = *(const Sint16 *)context, .hit_type = 2};
+    return true;
+}
+// w_056: Gurthang's callback over Muramasa's own tables (descriptors0xF64, rows0xF94/0xF9C);
+// timer11 selects descriptor2 without doubling, and attack0x1E or more requests WFACTORY(56,0).
+static bool Muramasa(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    for (Uint16 v = 0; v < 3; ++v)
+        SDL_memcpy(o + 0xf64 + v * 16U, o + 0x106c, 16);
+    o[0xf64 + 2U * 16U + 12] = 0x50; // descriptor2's frameStart differs
+    Put16(o + 0x300 + 2U * 2U, 512U + 13U);
+    Put16(o + 0xf94, (Uint16)-7);
+    Put16(o + 0xf9c, (Uint16)-6);
+    const struct
+    {
+        Sint16 attack;
+        Uint16 dark, hand;
+    } cases[] = {{29, 0, 0}, {30, 0, 1}, {45, 0x20, 0}, {12, 0x20, 1}};
+    for (Uint16 k = 0; k < SDL_arraysize(cases); ++k)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = PowerProperties,
+                                  .context = (void *)&cases[k].attack,
+                                  .family = 56,
+                                  .hand = cases[k].hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .camera_x = 20,
+                                  .camera_y = 10,
+                                  .animation = (Uint16)(cases[k].dark ? 0x50 : 0x41),
+                                  .pose = 2,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .dark_ticks = cases[k].dark,
+                                  .allocated = true};
+        SotnHandWeapon w = {.parameter = (Uint16)(cases[k].hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 33, expected = 33;
+        for (Uint16 i = 0; i < 29; ++i)
+            (void)SotnCombat_Random(&expected);
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == expected && !w.removed &&
+              w.allocated && w.blend == 0x30 && w.properties.attack == cases[k].attack &&
+              !e.dark_minimum && !e.outline &&
+              e.factory == (cases[k].attack >= 0x1e ? 0x38U | (cases[k].hand + 1U) << 12 : 0U));
+        const SotnPlayerEffectQuad *q = &w.tiles[0];
+        CHECK(w.frame == 13 && q->x[0] == 100 - 20 - 7 && q->y[0] == 80 - 10 - 6 &&
+              q->red[0] == 255 && w.tiles[11].red[2] == 0x18);
+    }
+    // Outside descriptor2's window while timer11 runs, the attack retires.
+    SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                              .properties = PowerProperties,
+                              .context = (void *)&cases[0].attack,
+                              .family = 56,
+                              .animation = 0x41,
+                              .attack_mode = 0x8002,
+                              .dark_ticks = 1,
+                              .allocated = true};
+    SotnHandWeapon w = {0};
+    SotnHandWeaponProgram program = {0};
+    SotnHandWeaponEvents e = {0};
+    Uint32 rng = 1;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.removed && rng == 1);
+    return true;
+}
 // w_055 descriptor1 birth: SFX_MAGIC_SWITCH and WFACTORY(0x38,0) before properties; a
 // same-update descriptor sound follows the birth sound.
 static bool HolySword(void)
@@ -1348,9 +1419,9 @@ static bool Ownership(void)
 }
 int main(void)
 {
-    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && HolySword() &&
-                   Lunges() && Katana() && Thunderbrand() && Weapon49() && Weapon50() &&
-                   Weapon51() && KnifeAndGreatSword() && Ownership()
+    return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
+                   HolySword() && Lunges() && Katana() && Thunderbrand() && Weapon49() &&
+                   Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership()
                ? 0
                : 1;
 }

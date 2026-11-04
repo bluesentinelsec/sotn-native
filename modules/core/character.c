@@ -16,6 +16,7 @@ struct SotnCharacter
     Uint16 stat_buff_mask;
     SotnPlaytime playtime;
     bool playtime_bound;
+    SotnDataView executable; /**< Borrowed SDK image for Muramasa's signed-range SquareRoot0. */
 };
 static Uint16 Read16(const Uint8 *p)
 {
@@ -196,7 +197,7 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
             return SDL_SetError("Body inventory exceeds 99");
     return true;
 }
-static Uint16 Root(Uint16 value)
+static Uint32 Root(Uint32 value)
 {
     if (!value)
         return 0;
@@ -210,8 +211,7 @@ static Uint16 Root(Uint16 value)
         ++leading;
     }
     const Uint16 even = (Uint16)(leading & 0xfffeU);
-    const Uint32 normalized =
-        even >= 24 ? (Uint32)value << (even - 24U) : (Uint32)value >> (24U - even);
+    const Uint32 normalized = even >= 24 ? value << (even - 24U) : value >> (24U - even);
     Uint32 remaining = normalized << 18, root = 0, bit = 1U << 30;
     while (bit > remaining)
         bit >>= 2;
@@ -226,7 +226,40 @@ static Uint16 Root(Uint16 value)
             root >>= 1;
         bit >>= 2;
     }
-    return (Uint16)((root << ((31U - even) / 2U)) >> 12);
+    return (root << ((31U - even) / 2U)) >> 12;
+}
+// SDK SquareRoot0 for Muramasa's u32 counter: the signed input counts leading sign bits and
+// shifts arithmetically, so counters from 0x80000000 index entries before the private table
+// (0x8002DBE0, file 0x1E3E0). Nonnegative counters use the equivalent table-free Root.
+static bool MuramasaRoot(const SotnCharacter *c, Sint32 *out)
+{
+    const Uint32 value = c->state.muramasa_blood;
+    if (value <= (Uint32)SDL_MAX_SINT32)
+    {
+        *out = (Sint32)Root(value);
+        return true;
+    }
+    Uint32 lzc = 0;
+    const Uint32 inverted = ~value;
+    while (lzc < 32 && !(inverted & (0x80000000U >> lzc)))
+        ++lzc;
+    if (lzc == 32)
+    {
+        *out = 0;
+        return true;
+    }
+    const Uint32 even = lzc & ~1U, shift = (31U - even) >> 1;
+    const Sint32 signed_value = (Sint32)(value - 0x80000000U) - SDL_MAX_SINT32 - 1;
+    const Sint32 normalized = even >= 24
+                                  ? (Sint32)(value << (even - 24U))
+                                  : -(Sint32)(((Uint32)(-(signed_value + 1)) >> (24U - even)) + 1U);
+    const Sint64 at = 0x1e3e0 + ((Sint64)normalized - 64) * 2;
+    if (!c->executable.bytes || at < 0 || (Uint64)at + 2U > c->executable.size)
+        return SDL_SetError("Muramasa's signed-range SquareRoot0 requires its bound SDK image");
+    const Uint8 *p = c->executable.bytes + at;
+    const Sint16 coefficient = (Sint16)(Uint16)(p[0] | (Uint16)p[1] << 8);
+    *out = (Sint32)(((Uint32)(Sint32)coefficient << shift) >> 12);
+    return true;
 }
 static bool ReadOwnedItem(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
 {
@@ -240,7 +273,10 @@ static bool Calculate(SotnCharacter *c)
 {
     SotnCharacterStats result = {0};
     SotnItem items[7] = {0};
-    Sint32 bonus[4] = {0}, attack = 0, defense = 0;
+    Sint32 bonus[4] = {0}, attack = 0, defense = 0, muramasa = 0;
+    if ((c->state.equipment[0] == 141 || c->state.equipment[1] == 141) &&
+        !MuramasaRoot(c, &muramasa))
+        return false;
     for (Uint32 i = 0; i < 7; ++i)
     {
         if (!ReadOwnedItem(c, i >= 2, c->state.equipment[i], &items[i]))
@@ -285,7 +321,8 @@ static bool Calculate(SotnCharacter *c)
                       Word(items[i].attack + attack +
                            (items[i].attack <= result.total[0] ? result.total[0]
                                                                : result.total[0] / 2) +
-                           (items[i].id == 125 ? Word(c->playtime.hours) : 0)),
+                           (items[i].id == 125 ? Word(c->playtime.hours) : 0) +
+                           (items[i].id == 141 ? Word(muramasa) : 0)),
                       0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
@@ -310,7 +347,7 @@ static bool Calculate(SotnCharacter *c)
         result.immunity |= 0x200;
     if (c->stat_buff_mask & (1U << SOTN_BUFF_DARK))
         result.resistance |= 0x800;
-    result.defense = (Uint16)SDL_clamp(Word(defense + Root(result.total[1]) - 2), 0, 999);
+    result.defense = (Uint16)SDL_clamp(Word(defense + (Sint32)Root(result.total[1]) - 2), 0, 999);
     c->stats = result;
     return true;
 }
@@ -322,7 +359,8 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
     Uint32 next_random = *random;
     const Sint32 critical =
         e.critical_rate +
-        Root((Uint16)(c->stats.total[3] * 2U + (SotnCombat_Random(&next_random) & 15U))) - 5;
+        (Sint32)Root((Uint16)(c->stats.total[3] * 2U + (SotnCombat_Random(&next_random) & 15U))) -
+        5;
     Sint16 bonus = 0;
     for (Uint16 i = 2; i < 7; ++i)
     {
@@ -339,6 +377,13 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
         if (!c->playtime_bound)
             return SDL_SetError("Badelaire requires its actual main-loop playtime owner");
         attack = Word(attack + Word(c->playtime.hours));
+    }
+    if (e.id == 141)
+    {
+        Sint32 root = 0;
+        if (!MuramasaRoot(c, &root))
+            return false;
+        attack = Word(attack + Word(root));
     }
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack = Word(attack + 20);
@@ -423,6 +468,30 @@ bool SotnCharacter_SetPlaytime(SotnCharacter *c, SotnPlaytime clock)
     next.playtime = clock;
     next.playtime_bound = true;
     if ((!c->playtime_bound || c->playtime.hours != clock.hours) && !Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_BindExecutable(SotnCharacter *c, SotnDataView executable)
+{
+    if (!c || !executable.bytes || executable.size < 0x1e3e0 + 192U * 2U)
+        return SDL_SetError("Character SDK binding requires the complete private executable");
+    SotnCharacter next = *c;
+    next.executable = executable;
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_AddMuramasaBlood(SotnCharacter *c)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    if (c->state.muramasa_blood == SDL_MAX_UINT32)
+        return true;
+    SotnCharacter next = *c;
+    ++next.state.muramasa_blood;
+    if (!Calculate(&next))
         return false;
     *c = next;
     return true;

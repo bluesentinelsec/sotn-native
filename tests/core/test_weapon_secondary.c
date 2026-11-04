@@ -200,7 +200,8 @@ static bool Module(void)
     CHECK(!SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
           !SDL_memcmp(&s, &before, sizeof(s)) && rng == kept);
     CHECK(SotnWeaponSecondary_Supported(55) && !SotnWeaponSecondary_Supported(54) &&
-          SotnWeaponSecondary_Rows(55) == 64 && !SotnWeaponSecondary_Rows(56));
+          SotnWeaponSecondary_Rows(55) == 64 && SotnWeaponSecondary_Rows(56) == 1 &&
+          !SotnWeaponSecondary_Rows(57));
     return true;
 }
 // w_038/w_039 lunge sparks: mandatory rows before RNG, step_s0x5A/unk46 gates, program-BSS
@@ -1644,6 +1645,64 @@ static bool Heaven(void)
     return true;
 }
 
+// w_056 shares w_053's slash callback over its own tables eight bytes later (0xFCC rows,
+// 0xFA4/0xFB8 CLUT schedules); row10 overlaps its live g_HandId word at0x105C.
+static bool MuramasaSlash(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        Uint8 *c = o + 0xfcc + i * 14U;
+        Put16(c + 4, (Uint16)(i & 1U));
+        Put16(c + 6, (Uint16)(40 + i));
+        Put16(c + 8, (Uint16)(i * 100U));
+        c[10] = (Uint8)(i + 7U);
+        c[11] = 64;
+        c[12] = 32;
+    }
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0xfa4 + i * 2U, (Uint16)(0x150 + i));
+        Put16(o + 0xfb8 + i * 2U, (Uint16)(0x160 + i));
+    }
+    // Weapon53's schedule starts eight bytes earlier: Muramasa must not read those words.
+    SDL_memset(o + 0xf9c, 0xee, 8);
+    Put32(o + 0x105c, 0x12345678U); // g_HandId's static image, replaced by the live hand
+    const Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 hand = 0; hand < 2; ++hand)
+        for (Uint16 param = 0; param <= 10; param += 10)
+        {
+            SotnWeaponSecondary s = {
+                .parameter = (Uint16)(param << 8), .x = 100 * 65536, .y = 90 * 65536};
+            SotnWeaponSecondaryEvents e = {0};
+            Uint32 rng = 5;
+            const SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                                 .executable = {exe, sizeof(exe)},
+                                                 .properties = Properties,
+                                                 .context = (void *)&hit,
+                                                 .x = 120 * 65536,
+                                                 .y = 100 * 65536,
+                                                 .hand = hand,
+                                                 .family = 56,
+                                                 .role = 1,
+                                                 .priority = 148,
+                                                 .allocated = true};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+                  e.properties && s.hitbox_width == 30 &&
+                  e.chain == (0x38U | (hand + 1U) << 12 | (Uint32)(param + 1U) << 16));
+            // Row10's bytes4..7 (CLUT flag, lifetime) are the live hand word: the right hand
+            // selects the second schedule and both read lifetime0.
+            CHECK(param ? s.lifetime == 0 && s.rotate == 1000 &&
+                              s.quad.palette == (hand ? 0x18 + 0x160 : 0x150)
+                        : s.lifetime == 40 && s.rotate == 0 &&
+                              s.quad.palette == (hand ? 0x18 : 0) + 0x150 && s.quad.red[0] == 7 &&
+                              s.quad.green[0] == 64);
+        }
+    return true;
+}
+
 // Room entry translates DRAW_UNK_200 GT4s (all four vertices) without touching their UVs,
 // schedules or modes, and never applies the LINE_G2 row translation to quad storage.
 static bool QuadsRebased(const SotnWeaponSecondary *before, const SotnWeaponSecondary *after,
@@ -2859,7 +2918,7 @@ int main(void)
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
-                   HeavenRuntime()
+                   HeavenRuntime() && MuramasaSlash()
                ? 0
                : 1;
 }

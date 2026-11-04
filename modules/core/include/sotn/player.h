@@ -475,6 +475,9 @@ typedef struct SotnPlayerState
     SotnPlayerGravity gravity;
     SotnPlayerHurt hurt;
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
+    /** dra/692E8.c func_8010A3F0: both hands run Muramasa's program and blood was absorbed since
+     * the last update; the session commits SotnCharacter_AddMuramasaBlood after success. */
+    bool muramasa_blood;
     SotnPlayerMist mist;
     SotnPlayerBat bat;
     SotnPlayerWolf wolf;
@@ -1007,7 +1010,8 @@ bool SotnPlayer_ClearShield(SotnPlayer *player);
  * @param player Borrowed owner. @param amount Original first-request amount0/8/16.
  * @param contacts Actual consumed contacts this stage update,1..32.
  * @return Success or SDL error without mutation. An existing pending amount wins;
- * the original contact counter still advances with unsigned word wrap. This changes no HP,
+ * the original contact counter (g_Player.unk10) still advances, and each living update clears
+ * it after Muramasa's func_8010A3F0 check. This changes no HP,
  * grants no ability and writes no save; successful player ticks consume the request once. */
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
 /** @brief Commit the actual Healing Mail HUD request after stage updates.

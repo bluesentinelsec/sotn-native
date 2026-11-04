@@ -485,7 +485,8 @@ static void GurthangBirth(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *ran
         q->draw_mode = 0x308;
     }
 }
-// w_054.c post-hitbox rows on frames0xD/0x22/0x2C/0x3E; other frames leave them unchanged.
+// w_054.c (and w_056.c, with its own tables) post-hitbox rows on frames0xD/0x22/0x2C/0x3E;
+// other frames leave them unchanged.
 static bool GurthangTrails(SotnHandWeapon *w, SotnHandWeaponInput in)
 {
     const Uint16 frame = w->frame;
@@ -497,8 +498,9 @@ static bool GurthangTrails(SotnHandWeapon *w, SotnHandWeaponInput in)
     if (index == 4 || !w->allocated)
         return true;
     const Uint8 *xs = NULL, *ys = NULL;
-    if (!View(in.overlay, 0xef4 + index * 2U, 2, &xs) ||
-        !View(in.overlay, 0xefc + index * 2U, 2, &ys))
+    const Uint32 table = in.family == 56 ? 0xf94U : 0xef4U;
+    if (!View(in.overlay, table + index * 2U, 2, &xs) ||
+        !View(in.overlay, table + 8U + index * 2U, 2, &ys))
         return false;
     const Sint16 px = Word(Pixel(w->x) - in.camera_x), py = Word(Pixel(w->y) - in.camera_y);
     for (Uint16 i = 0; i < SOTN_HAND_WEAPON_GURTHANG_ROWS; ++i)
@@ -573,6 +575,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 31:
     case 38:
     case 39:
+    case 56:
     case 48:
     case 49:
     case 50:
@@ -613,15 +616,17 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
     }
     else
     {
-        // w_054 swaps to descriptor2 while the player's Dark Metamorphosis timer runs.
-        const Uint16 variant =
-            in.family == 54 && in.dark_ticks ? 2 : (Uint16)((w.parameter & 0x7fffU) >> 8);
+        // w_054 and w_056 swap to descriptor2 while the player's Dark Metamorphosis timer runs.
+        const Uint16 variant = (in.family == 54 || in.family == 56) && in.dark_ticks
+                                   ? 2
+                                   : (Uint16)((w.parameter & 0x7fffU) >> 8);
         const Uint32 base = in.family == 255 ? 0x800a0000U : 0x8017a000U;
         // Weapon1 descriptor4 is Fist of Tulkas's QCF special188.
         const Uint16 count = in.family == 0    ? 5
                              : in.family == 1  ? 5
                              : in.family == 57 ? 4
                              : in.family == 54 ? 3
+                             : in.family == 56 ? 3
                              : in.family == 55 ? 2
                              : in.family == 38 ? 2
                              : in.family == 53 ? 5
@@ -642,6 +647,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
                                   : in.family == 54 ? 0xec4U
+                                  : in.family == 56 ? 0xf64U
                                   : in.family == 55 ? 0x10acU
                                   : in.family == 38 ? 0xdc0U
                                   : in.family == 53 ? 0xf4cU
@@ -717,7 +723,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
                     in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
                     in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49 ||
-                    in.family == 50 || in.family == 6)
+                    in.family == 50 || in.family == 6 || in.family == 56)
                     w.blend = 0x30;
                 // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
                 if (in.family == 53 && (variant == 1 || variant == 3))
@@ -763,7 +769,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 // w_001 descriptor4 (Tulkas's QCF) plays SFX_VO_ALU_ATTACK_A after its rows.
                 if (in.family == 1 && variant == 4 && !w.removed)
                     e.sound = 0x6ee;
-                if (in.family == 54 && in.allocated)
+                if ((in.family == 54 || in.family == 56) && in.allocated)
                     GurthangBirth(&w, in, &rng);
                 // w_055 descriptor1 plays SFX_MAGIC_SWITCH and requests WFACTORY(0x38,0)
                 // before SetWeaponProperties.
@@ -815,6 +821,10 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         shared.previous_pose = 0;
                     // w_054 descriptors1/2 double under Dark Metamorphosis and keep it at
                     // least0x38; descriptor1 also requests the profile0x11 outline factory.
+                    // w_056 requests its WFACTORY(56,0) slash chain once the rolled attack
+                    // reaches0x1E (Muramasa's blood counter raises it).
+                    if (in.family == 56 && w.properties.attack >= 0x1e)
+                        e.factory = 0x38U | ((in.hand + 1U) << 12);
                     if (in.family == 54 && variant)
                     {
                         if (in.dark_ticks)
@@ -909,7 +919,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     // Descriptor4 requests the WFACTORY(0x3E,0) fireball on pose2's last update.
                     if (in.family == 1 && variant == 4 && in.pose == 2 && in.remaining == 1)
                         e.factory = 0x3eU | ((in.hand + 1U) << 12);
-                    if (in.family == 54 && !GurthangTrails(&w, in))
+                    if ((in.family == 54 || in.family == 56) && !GurthangTrails(&w, in))
                         return false;
                     // w_050's first pose1 after pose0 requests (descriptor1 only) WFACTORY(0x44,0)
                     // with SFX_FM_EXPLODE_B and SFX_MAGIC_SWITCH, then FACTORY(0x61, descriptor)

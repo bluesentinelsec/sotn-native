@@ -144,6 +144,7 @@ struct SotnPlayer
     Uint16 kick_hit;
     SotnPlayerGravity gravity;
     Uint16 mp, mp_spent, held;
+    bool muramasa_blood; /**< This update's func_8010A3F0 counter request. */
     SotnMistMotion mist_motion;
     SotnPlayerMist mist;
     SotnPlayerBat bat;

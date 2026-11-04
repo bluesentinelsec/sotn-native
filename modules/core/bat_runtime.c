@@ -872,6 +872,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 130 || item == 170 ? 4
            : item == 131 || item == 171 ? 5
            : item == 121 || item == 195 ? 54
+           : item == 141                ? 56
            : item == 115 || item == 196 ? 55
            : item == 23 || item == 191  ? 38
            : item == 100 || item == 189 || item == 139 || item == 192 || item == 193 ||
@@ -974,10 +975,10 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
 // Weapon43 tiles and weapon54 lines are optional; weapon1 fist trails are mandatory.
 static Uint8 HandRows(Uint16 family)
 {
-    return (Uint8)(family == 43   ? SOTN_HAND_WEAPON_TILES
-                   : family == 1  ? SOTN_HAND_WEAPON_FIST_ROWS
-                   : family == 54 ? SOTN_HAND_WEAPON_GURTHANG_ROWS
-                                  : 0);
+    return (Uint8)(family == 43                   ? SOTN_HAND_WEAPON_TILES
+                   : family == 1                  ? SOTN_HAND_WEAPON_FIST_ROWS
+                   : family == 54 || family == 56 ? SOTN_HAND_WEAPON_GURTHANG_ROWS
+                                                  : 0);
 }
 bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -1033,6 +1034,7 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return bp == 0x72 && param == 0;
     if (family == 13)
         return bp == 0x3a && param == 0;
+    // Weapon56 (Muramasa) requests only its WFACTORY(56,0) root, like the default.
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
 bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *c, Uint16 index)
@@ -1066,11 +1068,11 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon13's root and afterimages carry only the hand bit.
     if (family == 13)
         return !(parameter & 0x7fffU);
-    return (parameter & 0xffU) ? false
-           : family == 53      ? n < 50
-           : family == 48      ? (n & 0xfU) <= 3 && (n >> 4) <= 2
-           : family == 51      ? n <= 9
-                               : !parameter;
+    return (parameter & 0xffU)            ? false
+           : family == 53 || family == 56 ? n < 50
+           : family == 48                 ? (n & 0xfU) <= 3 && (n >> 4) <= 2
+           : family == 51                 ? n <= 9
+                                          : !parameter;
 }
 bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -2913,9 +2915,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             w->x = FixedShift(w->x, in.room_shift_x);
             w->y = FixedShift(w->y, in.room_shift_y);
             // Weapon43 TILEs use one origin vertex; weapon1 GT4 trails own all four.
-            const Uint16 vertices = c->state.hand.family == 1    ? 4
-                                    : c->state.hand.family == 54 ? 2
-                                                                 : 1;
+            const Uint16 vertices = c->state.hand.family == 1                                  ? 4
+                                    : c->state.hand.family == 54 || c->state.hand.family == 56 ? 2
+                                                                                               : 1;
             for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
                 for (Uint16 v = 0; v < vertices; ++v)
                 {
@@ -2977,7 +2979,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         w->quads[j].y[v] = Word(w->quads[j].y[v] + in.screen_shift_y);
                     }
             }
-            else if ((role == 1 && family != 53 && family != 49) || (role == 3 && family == 50))
+            else if ((role == 1 && family != 53 && family != 56 && family != 49) ||
+                     (role == 3 && family == 50))
                 for (Uint16 j = 0; j < SOTN_WEAPON_SECONDARY_ROWS; ++j)
                     for (Uint16 v = 0; v < 2; ++v)
                     {
@@ -3865,6 +3868,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 6  ? 132
                                  : family == 14 ? 143
                                  : family == 13 ? 119
+                                 : family == 56 ? 141
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))

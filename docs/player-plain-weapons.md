@@ -23,8 +23,8 @@ The player resolves Combat knife's special175 (both its back-forward and QCF ite
 original quirk: a lingering ordinary knife in slot16 makes the next swing special175, a
 lingering special makes it the ordinary knife, and only an empty slot16 falls back to the
 QCF/back-forward checks. The session supplies slot16's actual item before each player update.
-Kinds9/10 skip the casting grunt. Muramasa's attack-dependent
-behavior differs and stays unsupported.
+Kinds9/10 skip the casting grunt. [Muramasa](player-muramasa.md)'s
+attack-dependent roll is described separately.
 
 Red Rust's player-side hand use follows dra/6E42C.c: after the actual hand factory,
 one libc rand() from the character cursor decides the swing. A zero low-three-bit

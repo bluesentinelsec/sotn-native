@@ -34,6 +34,9 @@ typedef struct SotnCharacterState
     Uint32 spells_learned; /**< Original known-spell mask; casting remains a separate service. */
     Uint8 spells[SOTN_SPELLS]; /**< Acquisition order, original 0x80-known encoding. */
     Uint8 laboratory_items[2]; /**< Original NZ0 persistent item indices, not transient candles. */
+    /** Original g_Status.D_80097C40: frames on which an equipped Muramasa absorbed blood. Its
+     * square root adds to Muramasa's attack; it saturates at 0xFFFFFFFF and persists in v10. */
+    Uint32 muramasa_blood;
 } SotnCharacterState;
 /** @brief Decoded private equipment record; text views expire with the source DRA image. */
 typedef struct SotnItem
@@ -120,6 +123,15 @@ bool SotnCharacter_SetPlaytime(SotnCharacter *character, SotnPlaytime clock);
  * @return Success or SDL error. Bootstrap/restore still use SetPlaytime without a RNG tick.
  * Adds no pool, item/resource grant, or ordinary-save field. */
 bool SotnCharacter_CommitMainLoop(SotnCharacter *character, SotnPlaytime clock, Uint32 random);
+/** @brief Borrow the verified SDK image for Muramasa's signed-range SquareRoot0.
+ * @param character Owner, preserved on failure. @param executable Borrowed SLUS image that
+ * outlives the character. @return Success or SDL error. Counters below 0x80000000 need none. */
+bool SotnCharacter_BindExecutable(SotnCharacter *character, SotnDataView executable);
+/** @brief Commit dra/692E8.c func_8010A3F0's increment of g_Status.D_80097C40 after a
+ * successful player update (both hands' programs are Muramasa's and it absorbed blood).
+ * @param character Owner, preserved on failure. @return Success or SDL error. Saturates at
+ * 0xFFFFFFFF; recalculates attack, which adds SquareRoot0 of the counter to Muramasa. */
+bool SotnCharacter_AddMuramasaBlood(SotnCharacter *character);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.

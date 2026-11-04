@@ -49,7 +49,7 @@ static bool Program(Uint16 family, Layout *out)
                         .texture = 0x65};
     else if (family == 38 || family == 39)
         *out = (Layout){.rows = family == 38 ? 24 : 32};
-    else if (family == 53)
+    else if (family == 53 || family == 56)
         *out = (Layout){.rows = 1};
     else if (family == 48)
         *out = (Layout){.rows = 10};
@@ -74,9 +74,9 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
-    return family == 55 || family == 38 || family == 39 || family == 53 || family == 48 ||
-           family == 1 || family == 51 || family == 49 || family == 50 || family == 6 ||
-           family == 14 || family == 13;
+    return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
+           family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
+           family == 6 || family == 14 || family == 13;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -276,17 +276,21 @@ static bool Slash(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *r
                   SotnWeaponSecondaryEvents *e)
 {
     const Uint16 params = (s->parameter >> 8) & 0x7fU;
+    // w_056 runs the same callback over its own tables, eight bytes later.
+    const bool muramasa = in.family == 56;
+    const Uint32 table = muramasa ? 0xfccU : 0xfc4U, hand_word = muramasa ? 0x105cU : 0x1268U;
     const Uint8 *source = NULL, *cluts = NULL;
-    if (params >= 50 || !View(in.overlay, 0xfc4U + params * 14U, 14, &source) ||
-        !View(in.overlay, 0xf9cU, 40, &cluts))
-        return SDL_SetError("Weapon53 slash parameter exceeds its private table");
-    // Root0x28's chain reaches rows48/49 past the48-row table; row48 overlaps the program's
-    // live g_HandId word at0x1268, which reads as the resident hand.
+    if (params >= 50 || !View(in.overlay, table + params * 14U, 14, &source) ||
+        !View(in.overlay, muramasa ? 0xfa4U : 0xf9cU, 40, &cluts))
+        return SDL_SetError("Weapon53/56 slash parameter exceeds its private table");
+    // Root0x28's chain reaches rows48/49 past weapon53's48-row table; row48 overlaps its live
+    // g_HandId word at0x1268, which reads as the resident hand. Weapon56's shorter table reaches
+    // its own g_HandId at0x105C (row10) and then program words, read as the original does.
     Uint8 config[14];
     SDL_memcpy(config, source, sizeof(config));
     for (Uint32 b = 0; b < 4; ++b)
     {
-        const Uint32 at = 0x1268U + b, base = 0xfc4U + params * 14U;
+        const Uint32 at = hand_word + b, base = table + params * 14U;
         if (at >= base && at < base + 14U)
             config[at - base] = (Uint8)((Uint32)in.hand >> (8U * b));
     }
@@ -2043,7 +2047,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     SotnHandWeaponProgram shared = *program;
     SotnWeaponSecondaryEvents e = {0};
     Uint32 rng = *random;
-    if (in.family == 53)
+    if (in.family == 53 || in.family == 56)
     {
         if (!Slash(&s, in, &rng, &e))
             return false;

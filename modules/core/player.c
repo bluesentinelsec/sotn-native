@@ -869,8 +869,22 @@ static bool StartAttack(SotnPlayer *player)
     // Estoc in a cramped space keeps its factory and MP but starts no attack.
     if (player->hand_factory && equipment.id == 95 && player->tight_space)
         return false;
+    // Muramasa (kind29) first runs GetEquipProperties: one critical rand, then its attack
+    // (halved by poison). At11 or more it is an ordinary sword; below, it shares Red Rust's roll.
+    bool roll_failure = player->hand_factory && equipment.kind == 13;
+    if (player->hand_factory && equipment.kind == 29)
+    {
+        Uint16 critical = 0;
+        if (!player->hand_random(player->hand_context, &critical))
+        {
+            player->failed = true;
+            return true;
+        }
+        roll_failure =
+            (Uint16)(player->attributes.attack[hand] >> (player->poison_ticks ? 1 : 0)) < 11;
+    }
     // Red Rust (kind13) rolls once after its actual hand factory; rand()&7 == 0 fails.
-    if (player->hand_factory && equipment.kind == 13)
+    if (roll_failure)
     {
         Uint16 roll = 0;
         if (!player->hand_random(player->hand_context, &roll))
@@ -2827,6 +2841,19 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.healing.applied = next.healing.effects = false;
     next.healing.applied_kind = 0;
     next.healing.applied_amount = 0;
+    // dra/692E8.c func_8010A3F0 precedes healing for living, non-teleporting players: two-hand
+    // Muramasa (both programs weapon56) holds Dark Metamorphosis' absorption timer at0x20 and
+    // counts an update with blood contacts; the contact counter (g_Player.unk10) then clears.
+    next.muramasa_blood = false;
+    if (alive && !teleporting)
+    {
+        if (next.equipment[0] == 141 && next.equipment[1] == 141)
+        {
+            next.dark_ticks = 0x20;
+            next.muramasa_blood = next.healing.contacts != 0;
+        }
+        next.healing.contacts = 0;
+    }
     if (next.healing.pending && alive && !teleporting)
     {
         if (next.healing.pending_kind != 1 && next.healing.pending_kind != 2)
@@ -3734,6 +3761,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
         .hurt = player->hurt,
         .mp = player->mp,
         .mp_spent = player->mp_spent,
+        .muramasa_blood = player->muramasa_blood,
         .mist = player->mist,
         .bat = player->bat,
         .wolf = player->wolf,

@@ -371,7 +371,7 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->hand_weapon && c->state.hand.family == 43 && c->primitive_count == 16) ||
                (c->hand_weapon && c->state.hand.family == 1 &&
                 c->primitive_count == SOTN_HAND_WEAPON_FIST_ROWS) ||
-               (c->hand_weapon && c->state.hand.family == 54 &&
+               (c->hand_weapon && (c->state.hand.family == 54 || c->state.hand.family == 56) &&
                 c->primitive_count == SOTN_HAND_WEAPON_GURTHANG_ROWS) ||
                (c->weapon_secondary &&
                 c->primitive_count ==

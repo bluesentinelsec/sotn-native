@@ -2613,6 +2613,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !StageOverlay(session, data, directory) ||
         !SotnCharacter_Create(session->dra, &session->character) ||
         !SotnCharacter_SetPlaytime(session->character, session->playtime) ||
+        !SotnCharacter_BindExecutable(session->character, session->executable) ||
         !SotnStage_Open(session->nz0, &session->stage) ||
         !SotnStage_GetRoomDefinitions(session->stage, session->room_index, 2048, &session->room) ||
         !ValidateStart(session, start) ||
@@ -3110,7 +3111,8 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
          (!SotnStatBuffs_Minimum(&session->stat_buffs, SOTN_BUFF_DEFENSE,
                                  state.defense_buff_minimum) ||
           !SyncStatBuffs(session))) ||
-        (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)))
+        (state.mp_spent && !SotnCharacter_SpendMP(session->character, state.mp_spent)) ||
+        (state.muramasa_blood && !SotnCharacter_AddMuramasaBlood(session->character)))
         return false;
     // Player's casting grunt precedes the later factory/child callbacks and their sounds.
     // Keep an actual earlier guard voice ahead of it; the final audio pass must not replay it.
@@ -4071,7 +4073,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 // Weapon53's slash and weapon51's fan blade own one entity-relative GT4;
                 // weapon48's ring and weapon1's punch rush own sixteen screen-space GT4s.
                 const Uint16 family = child->state.secondary.family, role = child->kind & 15U;
-                const bool slash = family == 53 || family == 51,
+                const bool slash = family == 53 || family == 56 || family == 51,
                            ring = role == 2 || family == 1 || (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
                 // Weapon14's forty-eight trail GT4s share the compact-row command.
@@ -5019,7 +5021,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const SotnHandWeapon *w = &c->state.hand.motion;
             if (!c->hand_weapon || !c->initialized || !SotnBatRuntime_HandValid(c, 0))
                 return SDL_SetError("Ordinary hand draw lost its actual shared slot16 owner");
-            if (command.kind == SOTN_DRAW_HAND_TILE && c->state.hand.family == 54)
+            if (command.kind == SOTN_DRAW_HAND_TILE &&
+                (c->state.hand.family == 54 || c->state.hand.family == 56))
             {
                 // Weapon54 trails are opaque screen-space LINE_G2 rows (drawMode0x300).
                 if (c->primitive_count != SOTN_HAND_WEAPON_GURTHANG_ROWS ||
@@ -5157,7 +5160,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const Uint16 owner = (Uint16)(command.primitive / 16U),
                          index = (Uint16)(command.primitive % 16U);
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
-            const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 51;
+            const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 56 ||
+                               c->state.secondary.family == 51;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
                 (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||

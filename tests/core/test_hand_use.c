@@ -143,6 +143,7 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 182 * 52 + 19] = 54;
     Put16(f->dra + 0x500 + 182 * 52 + 36, 5);
     Item(f->dra, 95, 5, 51, 27, 0xd6, 8, 18, 0);
+    Item(f->dra, 141, 5, 56, 29, 0x41, 0, 13, 0);
     Item(f->dra, 143, 2, 14, 129, 0x5d, 0, 0, 0);
     Item(f->dra, 119, 2, 13, 129, 0x5d, 0, 0, 0);
     f->dra[0x500 + 119 * 52 + 19] = 50;
@@ -169,7 +170,8 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
           SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, item));
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
-    const Uint16 right = item == 26 || item == 139 || item == 98 || item == 95 ? item : 0;
+    const Uint16 right =
+        item == 26 || item == 139 || item == 98 || item == 95 || item == 141 ? item : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
     CHECK(item == 18 || item == 143 || item == 119 ||
@@ -663,6 +665,48 @@ static bool Runesword(Fixture *f, Uint16 item)
     }
     return true;
 }
+// 6E42C.c case29: Muramasa runs GetEquipProperties (one critical rand); at attack11 or more
+// it swings normally, below (including poison's halving) it takes Red Rust's rand()&7 roll.
+// 692E8.c func_8010A3F0 holds timer11 at0x20 and counts updates with absorbed blood.
+static bool Muramasa(Fixture *f)
+{
+    const struct
+    {
+        Uint16 attack, first, second, rolls;
+        bool poison, fails;
+    } cases[] = {{8, 3, 5, 2, false, false},
+                 {1, 3, 8, 2, false, true},
+                 {1, 3, 9, 3, false, false},
+                 {8, 3, 0x7ff8, 2, true, true}};
+    for (Uint16 k = 0; k < SDL_arraysize(cases); ++k)
+    {
+        CHECK(Create(f, 141, cases[k].first, cases[k].second, true));
+        Put16(f->dra + 0x500 + 141 * 52 + 8, cases[k].attack);
+        SotnCharacterState progress = {0};
+        CHECK(SotnCharacter_Get(f->character, &progress, NULL) &&
+              SotnCharacter_Restore(f->character, &progress));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (cases[k].poison)
+            f->p->poison_ticks = 100;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        CHECK(f->factories == 1 && f->item == 141 && f->roll_count == cases[k].rolls &&
+              f->p->curse_failure == cases[k].fails);
+    }
+    // Two-hand Muramasa holds the Dark Metamorphosis timer and reports blood updates; the
+    // contact counter clears every living update.
+    CHECK(Create(f, 141, 1, 2, true) && Tick(f, 0) && f->p->dark_ticks >= 0x1f &&
+          !f->p->muramasa_blood);
+    CHECK(SotnPlayer_QueueBloodHealing(f->p, 8, 2) && Tick(f, 0) && f->p->muramasa_blood &&
+          !f->p->healing.contacts && Tick(f, 0) && !f->p->muramasa_blood);
+    SotnPlayerState state = {0};
+    CHECK(SotnPlayer_QueueBloodHealing(f->p, 0, 1) && Tick(f, 0) &&
+          SotnPlayer_GetState(f->p, &state) && state.muramasa_blood);
+    CHECK(Create(f, 26, 1, 2, true) && Tick(f, 0) && !f->p->dark_ticks &&
+          SotnPlayer_QueueBloodHealing(f->p, 0, 1) && Tick(f, 0) && !f->p->muramasa_blood &&
+          !f->p->healing.contacts);
+    return true;
+}
 // 6E42C.c Combat knife: a lingering knife in slot16 selects special175 without any command;
 // a lingering special selects the ordinary knife even after back-forward; kinds9/10 skip grunt.
 static bool CombatKnife(Fixture *f)
@@ -710,7 +754,7 @@ int main(void)
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
-         CombatKnife(f) && AirborneKindZero(f);
+         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {
