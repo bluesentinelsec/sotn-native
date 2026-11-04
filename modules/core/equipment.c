@@ -43,22 +43,30 @@ static Uint8 ShieldFamily(Uint16 id)
 // Actual US definition bytes for the selected w_002-template programs.
 typedef struct PlainSpec
 {
-    Uint8 category, family, kind, animation;
+    Uint8 category, family, kind, animation, variant, back_forward;
 } PlainSpec;
 static PlainSpec PlainWeapon(Uint16 id)
 {
     switch (id)
     {
     case 21: // Nunchaku
-        return (PlainSpec){5, 33, 11, 0x8b};
+        return (PlainSpec){5, 33, 11, 0x8b, 0, 0};
     case 26: // Red Rust
-        return (PlainSpec){5, 35, 13, 0x99};
+        return (PlainSpec){5, 35, 13, 0x99, 0, 0};
     case 27: // Takemitsu
-        return (PlainSpec){5, 36, 14, 0xa0};
+        return (PlainSpec){5, 36, 14, 0xa0, 0, 0};
     case 124: // Mablung
-        return (PlainSpec){1, 57, 1, 0x41};
+        return (PlainSpec){1, 57, 1, 0x41, 3, 0};
     case 129: // Morningstar
-        return (PlainSpec){4, 3, 2, 0x48};
+        return (PlainSpec){4, 3, 2, 0x48, 0, 0};
+    case 130: // Holy rod and its back-forward special170
+        return (PlainSpec){4, 4, 3, 0x4f, 0, 170};
+    case 170:
+        return (PlainSpec){4, 4, 4, 0x56, 1, 0};
+    case 131: // Star flail and its back-forward special171
+        return (PlainSpec){4, 5, 3, 0x4f, 0, 171};
+    case 171:
+        return (PlainSpec){4, 5, 4, 0x56, 1, 0};
     default:
         return (PlainSpec){0};
     }
@@ -109,7 +117,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                                                              : id >= 104 ? 1
                                                                          : 0)
                                  : fist                   ? (id == 97 ? 1 : 0)
-                                 : id == 124              ? 3
+                                 : plain                  ? spec.variant
                                  : id == 167 || id == 174 ? 1
                                                           : 0;
     const Uint8 palette = id == 116 ? 2 : id == 122 ? 1 : 0;
@@ -130,7 +138,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
         (plain && (record[14] != spec.category || record[15] != spec.family ||
                    record[17] != spec.kind || record[18] != spec.animation || record[19] != 48 ||
-                   record[22] != 128 || record[23] || record[24])) ||
+                   record[22] != 128 || record[23] != spec.back_forward || record[24])) ||
         (basic_shield && (record[14] != 9 || record[15] != shield_family || record[17] != 128 ||
                           record[18] != 0x63 || record[19] != 48 || record[21] ||
                           record[22] != 128 || record[23] || record[24])) ||

@@ -859,6 +859,8 @@ static Uint16 HandFamily(Uint16 item)
            : SotnEquipment_IsSword0(item) ? 0
            : item == 85 || item == 97     ? 1
            : item == 129                  ? 3
+           : item == 130 || item == 170   ? 4
+           : item == 131 || item == 171   ? 5
            : item == 21                   ? 33
            : item == 26                   ? 35
            : item == 27                   ? 36
@@ -869,14 +871,14 @@ static Uint16 HandFamily(Uint16 item)
 }
 static Uint16 HandVariant(Uint16 item)
 {
-    return SotnEquipment_IsSword0(item) ? (item == 125   ? 3
-                                           : item >= 116 ? 2
-                                           : item >= 104 ? 1
-                                                         : 0)
-           : item == 97                 ? 1
-           : item == 124                ? 3
-           : item == 167 || item == 174 ? 1
-                                        : 0;
+    return SotnEquipment_IsSword0(item)                               ? (item == 125   ? 3
+                                                                         : item >= 116 ? 2
+                                                                         : item >= 104 ? 1
+                                                                                       : 0)
+           : item == 97                                               ? 1
+           : item == 124                                              ? 3
+           : item == 167 || item == 174 || item == 170 || item == 171 ? 1
+                                                                      : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
                                 Uint16 item, bool *allocated)

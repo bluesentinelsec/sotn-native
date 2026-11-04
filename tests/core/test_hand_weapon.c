@@ -226,7 +226,7 @@ static Uint16 Read16Test(const Uint8 *p)
 // Weapon3/33/35/36/57 run w_002's callback from their own descriptors; blends differ.
 static bool PlainWeapons(void)
 {
-    static Uint8 o[0x1200];
+    static Uint8 o[0x1400];
     Resources(o);
     SDL_memcpy(o + 0xc28, o + 0x106c, 16);
     SDL_memcpy(o + 0x540, o + 0x106c, 16);
@@ -234,7 +234,9 @@ static bool PlainWeapons(void)
     SDL_memcpy(o + 0xc3c, o + 0x106c, 16);
     SDL_memcpy(o + 0x530, o + 0x106c, 16);
     Put16(o + 0xc28 + 8, 5);
-    const Uint16 families[] = {3, 36, 57, 2, 33, 35}, variants[] = {0, 0, 3, 0, 0, 0};
+    SDL_memcpy(o + 0x12f4, o + 0x106c, 16);
+    SDL_memcpy(o + 0x1304, o + 0x106c, 16);
+    const Uint16 families[] = {3, 36, 57, 2, 33, 35, 4, 5}, variants[] = {0, 0, 3, 0, 0, 0, 1, 1};
     for (Uint16 k = 0; k < SDL_arraysize(families); ++k)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -259,8 +261,9 @@ static bool PlainWeapons(void)
                   w.blend == (families[k] == 2 || families[k] == 33 ? 0
                               : families[k] == 35                   ? 0x10
                                                                     : 0x30) &&
-                  !e.extra_sounds[0] && !e.extra_sounds[1] && w.bank == 0x8010U + hand * 2U &&
-                  w.priority == 98 &&
+                  e.sound == Read16Test(o + 0x106c + 10) &&
+                  e.extra_sounds[0] == (families[k] == 4 || families[k] == 5 ? 0x640 : 0) &&
+                  !e.extra_sounds[1] && w.bank == 0x8010U + hand * 2U && w.priority == 98 &&
                   w.palette == 0x110U + hand * 24U + (families[k] == 3 ? 5U : 0U) &&
                   program.short_pose == 4 && program.shield_attack == 9);
             // Nunchaku repeats its descriptor swing and adds SWISH_B at pose12 (timer1).
@@ -269,9 +272,17 @@ static bool PlainWeapons(void)
             CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &swing) &&
                   swing.extra_sounds[0] == (families[k] == 33 ? Read16Test(o + 0x106c + 10) : 0) &&
                   swing.extra_sounds[1] == (families[k] == 33 ? 0x60b : 0));
+            // Star flail widens its reach by seven on poses6 and7 only.
+            in.pose = 6;
+            SotnHandWeaponEvents reach = {0};
+            const Uint8 width = w.hitbox_width;
+            const Sint16 x = w.hitbox_x;
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &reach) &&
+                  w.hitbox_width == width + (families[k] == 5 ? 7 : 0) &&
+                  w.hitbox_x == x + (families[k] == 5 ? 7 : 0));
             in.pose = 4;
             // Single-descriptor programs reject any other variant before mutation.
-            if (families[k] != 57)
+            if (families[k] != 57 && families[k] != 4 && families[k] != 5)
             {
                 SotnHandWeapon other = {.parameter = 0x100};
                 Uint32 kept = 21;

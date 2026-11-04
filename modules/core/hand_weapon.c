@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_009.c, w_011.c, w_026.c, w_031.c,
-// w_033.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
-// dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// All original animation, hitbox, palette and artwork tables remain private inputs.
+// Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_004.c, w_005.c, w_009.c, w_011.c, w_026.c,
+// w_031.c, w_033.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and dra/alu_anim.c,
+// sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All original animation, hitbox, palette and
+// artwork tables remain private inputs.
 #include <sotn/combat.h>
 #include <sotn/game_math.h>
 #include <sotn/hand_weapon.h>
@@ -390,6 +390,8 @@ static bool OrdinaryFamily(Uint16 family)
     case 1:
     case 2:
     case 3:
+    case 4:
+    case 5:
     case 31:
     case 33:
     case 35:
@@ -427,6 +429,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
         const Uint16 count = in.family == 0    ? 5
                              : in.family == 1  ? 4
                              : in.family == 57 ? 4
+                             : in.family == 4  ? 2
+                             : in.family == 5  ? 2
                              : in.family == 43 ? 3
                              : in.family == 37 ? 4
                              : in.family == 31 ? 2
@@ -435,6 +439,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 0  ? 0x106cU
                                   : in.family == 1  ? 0xf44U
                                   : in.family == 3  ? 0xc28U
+                                  : in.family == 4  ? 0x12f4U
+                                  : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
                                   : in.family == 35 ? 0x530U
                                   : in.family == 36 ? 0x540U
@@ -467,8 +473,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     w.priority = (Uint16)(in.priority + (in.family == 31 && !variant ? 2 : -2));
                 }
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
-                if (in.family == 0 || in.family == 3 || in.family == 36 || in.family == 43 ||
-                    in.family == 57)
+                if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
+                    in.family == 36 || in.family == 43 || in.family == 57)
                     w.blend = 0x30;
                 else if (in.family == 35)
                     w.blend = 0x10; // w_035 Red Rust: BLEND_TRANSP only.
@@ -502,7 +508,12 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 goto commit;
             w.animation = (Uint16)(in.animation - d[12]);
             if (in.remaining == 1 && in.pose == d[13])
+            {
                 e.sound = Read16(d + 10);
+                // w_004 Holy rod and w_005 Star flail add SFX_ANIME_SWORD_B.
+                if (in.family == 4 || in.family == 5)
+                    e.extra_sounds[0] = 0x640;
+            }
             // w_033 Nunchaku repeats its swing and adds SFX_WEAPON_SWISH_B at pose12.
             if (in.family == 33 && in.remaining == 1 && in.pose == 12)
             {
@@ -538,6 +549,12 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         Tiles(&w, in, &rng);
                     if (in.family == 1 && !FistTrails(&w, in, variant, &rng))
                         return false;
+                    // w_005 Star flail widens its reach on poses6 and7 after the hitbox write.
+                    if (in.family == 5 && in.pose >= 6 && in.pose < 8)
+                    {
+                        w.hitbox_x = Word(w.hitbox_x + 7);
+                        w.hitbox_width = (Uint8)(w.hitbox_width + 7U);
+                    }
                 }
             }
         }

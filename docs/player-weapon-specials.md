@@ -26,6 +26,8 @@ Selected virtual items:
 - Basilard18's back-forward special174: kind8, the actual weapon31 program's descriptor1,
   animation0x76, lock8, attack mode0x8009. Previously the same input produced an ordinary
   Basilard swing.
+- Holy rod130's special170 and Star flail131's special171: kind4 (keeps the casting grunt),
+  each program's descriptor1, animation0x56, lock13, attack mode0x8005.
 
 The other ~25 virtual specials (two-handed swords, brands, katanas, fists, rods, Shotel,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items

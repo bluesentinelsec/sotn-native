@@ -24,8 +24,9 @@ typedef struct SotnWeaponFrame
 /** @brief Selected Leather5/Knight6/AxeLord8/Goddess11/Shaman12/Alucart167 ordinary shields.
  * Metadata recognition alone is not a resource/factory/blocking availability gate. */
 bool SotnEquipment_IsBasicShield(Uint16 id);
-/** @brief Selected Nunchaku21, Red Rust26, Takemitsu27, Mablung124 and Morningstar129:
- * weapon33/35/36/57/3 programs sharing w_002's ordinary callback; none carries a weapon special. */
+/** @brief Selected Nunchaku21, Red Rust26, Takemitsu27, Mablung124, Morningstar129, Holy rod130
+ * and Star flail131 (with their back-forward virtual specials170/171): weapon33/35/36/57/3/4/5
+ * programs sharing w_002's ordinary callback. */
 bool SotnEquipment_IsPlainWeapon(Uint16 id);
 /** @brief Selected two-hand items whose one owned copy occupies both actual hand slots. */
 bool SotnEquipment_IsTwoHand(Uint16 id);

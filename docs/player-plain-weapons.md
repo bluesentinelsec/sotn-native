@@ -1,4 +1,4 @@
-# Selected Morningstar, Mablung, Takemitsu, Nunchaku and Red Rust
+# Selected Morningstar, Mablung, Takemitsu, Nunchaku, Red Rust, Holy rod and Star flail
 
 The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts five
 more original weapons without weapon specials: Morningstar129 (weapon3), Mablung
@@ -7,8 +7,12 @@ Nunchaku21 (weapon33) and Red Rust26 (weapon35). Each runs Mace's weapon2 callba
 template from its own private descriptor. Morningstar, Mablung and Takemitsu add
 additive blending (BLEND_TRANSP|BLEND_ADD); Red Rust adds plain transparency;
 Nunchaku adds none but repeats its swing sound and adds SFX_WEAPON_SWISH_B at
-pose12, queued in that order. Muramasa's attack-dependent behavior differs and
-stays unsupported.
+pose12, queued in that order. Holy rod130 (weapon4, palette1) and Star flail131
+(weapon5, palette3) add SFX_ANIME_SWORD_B after their descriptor sound; Star flail
+also widens its hitbox X and width by seven on poses6 and7 after the hitbox write.
+Their back-forward [weapon specials](player-weapon-specials.md) 170/171 use each
+program's descriptor1 (kind4, lock13, casting grunt kept). Muramasa's attack-dependent
+behavior differs and stays unsupported.
 
 Red Rust's player-side hand use follows dra/6E42C.c: after the actual hand factory,
 one libc rand() from the character cursor decides the swing. A zero low-three-bit
@@ -44,19 +48,21 @@ variant bounds and untouched program data; Takemitsu's paired reservation and
 unpaired-restore rejection; the live hand word in its palette upload; and Red Rust's
 factory-then-roll ordering, failure state, omitted grunt and exhaustion.
 
-Private original-instruction comparisons run 4,160 complete callbacks in 256 contexts
-across all five programs, including every Nunchaku pose12 sound (Debug and ASan traces
-byte-identical), and ten full 384-word palette copies. The compiled native loader
-matches that reference in both hands, changing only its texture and CLUT words.
+Private original-instruction comparisons run 12,208 complete callbacks in 384
+contexts across all seven programs (including both Holy rod/Star flail descriptors,
+Star flail's widening and every extra sound; Debug and ASan traces byte-identical),
+and fourteen full 384-word palette copies. The compiled native loader matches that
+reference in both hands, changing only its texture and CLUT words.
 
 Native protocols (Debug and ASan, LLDB, muted) exercise real menu equipment in both
 hands, private sprite pixels, real enemy HP damage, Mist retirement and in-memory
 v9 Continue (Mablung+Morningstar and paired Takemitsu), including unpaired-save
-rejection, and Red Rust's actual-cursor failure roll in both hands. Supplied stock, protection, position, relic, arrival and save-room
+rejection, Red Rust's actual-cursor failure roll in both hands, and Holy rod/Star flail
+ordinary attacks plus their real back-forward specials with real enemy damage. Supplied stock, protection, position, relic, arrival and save-room
 contexts are not acquisition, uninterrupted-route or console evidence. Other
 weapon families, specials, full sharing and all six [milestone gates](alucard-status.md)
 remain open.
 
-Adapted AGPL-3.0-or-later algorithms: `weapon/w_002.c`, `w_003.c`, `w_033.c`, `w_035.c`,
+Adapted AGPL-3.0-or-later algorithms: `weapon/w_002.c`, `w_003.c`, `w_004.c`, `w_005.c`, `w_033.c`, `w_035.c`,
 `w_036.c`, `w_057.c`, `weapon/shared.h` and `dra/6E42C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.
