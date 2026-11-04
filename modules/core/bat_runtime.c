@@ -893,9 +893,11 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     return true;
 }
 // Weapon43 tiles are optional; weapon1 fist trails are mandatory before birth properties.
-static Uint16 HandRows(Uint16 family)
+static Uint8 HandRows(Uint16 family)
 {
-    return family == 43 ? SOTN_HAND_WEAPON_TILES : family == 1 ? SOTN_HAND_WEAPON_FIST_ROWS : 0;
+    return (Uint8)(family == 43  ? SOTN_HAND_WEAPON_TILES
+                   : family == 1 ? SOTN_HAND_WEAPON_FIST_ROWS
+                                 : 0);
 }
 bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -3180,7 +3182,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                             &allocated))
                 return false;
             if (HandRows(family))
-                c->primitive_count = allocated ? HandRows(family) : 0;
+                c->primitive_count = (Uint8)(allocated ? HandRows(family) : 0U);
             SotnDataView overlay = in.dra;
             if (family != 255 &&
                 !SotnWeapon_Overlay(
