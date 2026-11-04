@@ -168,7 +168,10 @@ static bool BasicShieldProperties(void *context, Uint32 *random, SotnEquipment *
 }
 static bool BasicShields(void)
 {
-    const Uint16 families[] = {9, 11, 26}, tables[] = {0xa40, 0xb94, 0xa60};
+    // Leather8 shares Knight9's layout, Goddess25 Shaman26's and Alucart58 Alucard52's;
+    // only weapon58 (like 52) caches the property attack and overrides it to one.
+    const Uint16 families[] = {9, 11, 26, 8, 25, 58},
+                 tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
     CHECK(!SotnHandWeapon_IsShieldFamily(10) && !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
@@ -204,14 +207,15 @@ static bool BasicShields(void)
             CHECK(SotnHandWeapon_IsShieldFamily(in.family) &&
                   SotnHandWeapon_Tick(&w, &program, in, &random, &events) && random == expected &&
                   events.shield == 1 && events.properties && w.hitbox_state == 4 &&
-                  w.properties.attack == 255 && program.shield_attack == 123 &&
+                  w.properties.attack == (families[i] == 58 ? 1 : 255) &&
+                  program.shield_attack == (families[i] == 58 ? 255 : 123) &&
                   w.bank == 0x8010U + hand * 2U && w.frame == 61 && w.hitbox_x == -7 &&
                   w.hitbox_y == -2 && w.hitbox_width == 8 && w.hitbox_height == 16);
             in.held = false;
             for (Uint16 frame = 0; frame < 4 && !w.removed; ++frame)
                 CHECK(SotnHandWeapon_Tick(&w, &program, in, &random, &events) &&
                       events.shield == 2 && !events.properties && random == expected);
-            CHECK(w.removed && program.shield_attack == 123);
+            CHECK(w.removed && program.shield_attack == (families[i] == 58 ? 255 : 123));
         }
     return true;
 }

@@ -1,12 +1,14 @@
 # Selected ordinary basic shields
 
-The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts three
-more original shields: Knight shield6 (weapon family9), Axe Lord shield8 (family11)
-and Shaman shield12 (family26). Their ordinary callbacks match Alucard shield16's
-family52 callback after symbol normalization; each reads its own private animation,
-hitbox and palette tables. Their shield-rod spells are separate and unavailable.
-Other shield families (leather, iron, herald, dark, goddess, fire, medusa, skull)
-differ and remain unsupported; metadata alone never enables them.
+The actual shared [ordinary hand owner](shared-ordinary-hands.md) now accepts six
+more original shields: Leather shield5 (weapon family8), Knight shield6 (family9),
+Axe Lord shield8 (family11), Goddess shield11 (family25), Shaman shield12 (family26)
+and Alucart shield167 (family58, descriptor1). Their ordinary callbacks match Alucard
+shield16's family52 callback after symbol normalization; Leather reuses Knight's
+table layout, Goddess Shaman's and Alucart Alucard shield's. Each reads its own
+private animation, hitbox and palette tables. Their shield-rod spells are separate
+and unavailable. Iron, Herald, Dark, Medusa, Skull and Fire shields add on-hit or
+item behaviors and remain unsupported; metadata alone never enables them.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and
@@ -18,8 +20,8 @@ weapon, effect or primitive pool is introduced.
 The callback runs the original raise/hold/movement/lower animation, signed wraps,
 phase4 knock-away with its double timer decrement and the final drawFlags overwrite.
 The private animation table differs per family; hitboxes sit 0x48 bytes before it.
-Basic shields leave per-hand program data untouched: only family52 caches its
-attack and overrides attack to one. The actual SetWeaponProperties hit-state4 rule
+Basic shields leave per-hand program data untouched: only families52/58 cache their
+attack and override attack to one; Alucart's cached value lives in its own program. The actual SetWeaponProperties hit-state4 rule
 gives basic shields attack255.
 
 GetEquipProperties and the displayed attack are zero for base-ATK1 shields, even
@@ -35,10 +37,10 @@ which previously skipped that roll.
 
 ## Rendering
 
-Original LoadWeaponPalette always copies 24x16 words. For families9/11/26 that copy
-crosses the program's live g_HandId word. The native loader binds the actual hand
+Original LoadWeaponPalette always copies 24x16 words. For families8/9/11/25/26 that
+copy crosses the program's live g_HandId word. The native loader binds the actual hand
 in a temporary upload copy; immutable program and artwork bytes stay untouched.
-Family52's copy ends before its hand word. Palette indices other than zero fail
+Families52/58's copies end before their hand words. Palette indices other than zero fail
 before any upload.
 
 ## Persistence and failure boundaries
@@ -57,10 +59,11 @@ table atomicity, definition validation, zero ATK under buffs and poison, slot16
 runtime binding, wrong-program rejection, the generalized collision guard roll,
 and hand-word palette binding.
 
-Private instruction comparisons cover 8,136 complete callbacks in 96 contexts,
-5,808 private animation calls and 96 property calls, plus eight full384-word
-palette copies. The compiled native palette loader matches that reference for all
-four families and both hands, changing only its texture and CLUT words.
+Private instruction comparisons cover 8,136 complete callbacks in 96 contexts for
+families9/11/26 and another 8,136 for families8/25/58 (including family58's own
+cached attack), with private animation and property calls, plus fourteen full
+384-word palette copies. The compiled native palette loader matches that reference
+for every family and both hands, changing only its texture and CLUT words.
 
 Native protocols (Debug, LLDB, muted) exercise real menu equipment in both hands,
 private sprite pixels, raised guards, real enemy-contact knock-away without enemy

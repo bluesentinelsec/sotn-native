@@ -27,7 +27,18 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_IsBasicShield(Uint16 id)
 {
-    return id == 6 || id == 8 || id == 12;
+    return id == 5 || id == 6 || id == 8 || id == 11 || id == 12 || id == 167;
+}
+// Actual weapon program for each selected ordinary shield.
+static Uint8 ShieldFamily(Uint16 id)
+{
+    return id == 5     ? 8
+           : id == 6   ? 9
+           : id == 8   ? 11
+           : id == 11  ? 25
+           : id == 12  ? 26
+           : id == 167 ? 58
+                       : 52;
 }
 // Actual US definition bytes for the selected w_002-template programs.
 typedef struct PlainSpec
@@ -89,7 +100,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
     const bool sword0 = SotnEquipment_IsSword0(id);
     const bool basic_shield = SotnEquipment_IsBasicShield(id);
-    const Uint8 shield_family = id == 6 ? 9 : id == 8 ? 11 : 26;
+    const Uint8 shield_family = ShieldFamily(id);
     const bool fist = SotnEquipment_IsBasicFist(id);
     const bool plain = SotnEquipment_IsPlainWeapon(id);
     const PlainSpec spec = PlainWeapon(id);
@@ -99,6 +110,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                                                             : 0)
                                  : fist      ? (id == 97 ? 1 : 0)
                                  : id == 124 ? 3
+                                 : id == 167 ? 1
                                              : 0;
     const Uint8 palette = id == 116 ? 2 : id == 122 ? 1 : 0;
     const bool medicine = id == 166 || (id >= 144 && id <= 162);
@@ -288,16 +300,13 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
                              : equipment.id == 18                         ? 31
                              : equipment.id == 19                         ? 37
                              : equipment.id == 123 || equipment.id == 197 ? 43
-                             : equipment.id == 6                          ? 9
-                             : equipment.id == 8                          ? 11
-                             : equipment.id == 12                         ? 26
-                             : equipment.id == 16                         ? 52
-                             : equipment.id == 216                        ? 45
-                             : equipment.id >= 29 && equipment.id <= 70   ? 21
-                             : equipment.id == 71                         ? 19
-                             : equipment.id == 72                         ? 18
-                             : equipment.id == 73 || equipment.id == 74   ? 17
-                                                                          : 2))
+                             : SotnEquipment_IsShield(equipment.id)     ? ShieldFamily(equipment.id)
+                             : equipment.id == 216                      ? 45
+                             : equipment.id >= 29 && equipment.id <= 70 ? 21
+                             : equipment.id == 71                       ? 19
+                             : equipment.id == 72                       ? 18
+                             : equipment.id == 73 || equipment.id == 74 ? 17
+                                                                        : 2))
         return SDL_SetError("Weapon overlay requires a supported equipped item");
     const size_t offset = (size_t)equipment.family * 0x7000 + 0x4000;
     if (weapons.bytes == NULL || offset > weapons.size || 0x3000 > weapons.size - offset)

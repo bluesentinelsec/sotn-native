@@ -75,11 +75,16 @@ static bool Hitbox(SotnHandWeapon *w, SotnDataView o, Uint32 base, Uint32 props,
 }
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
-    return family == 9 || family == 11 || family == 26 || family == 52;
+    return family == 8 || family == 9 || family == 11 || family == 25 || family == 26 ||
+           family == 52 || family == 58;
 }
+// w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
 {
-    return family == 9 ? 0xa40 : family == 11 ? 0xb94 : family == 26 ? 0xa60 : 0xb84;
+    return family == 8 || family == 9     ? 0xa40
+           : family == 11                 ? 0xb94
+           : family == 25 || family == 26 ? 0xa60
+                                          : 0xb84;
 }
 static bool ShieldFrame(SotnHandWeapon *w, SotnDataView o, Uint16 table, Uint16 *time,
                         Uint16 *packed)
@@ -196,7 +201,8 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         e->shield = 1;
         if (!Properties(w, in, random, e))
             return false;
-        if (in.family == 52)
+        // w_052 and w_058 cache the property attack and override it to one.
+        if (in.family == 52 || in.family == 58)
         {
             program->shield_attack = w->properties.attack;
             w->properties.attack = 1;

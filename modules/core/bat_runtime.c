@@ -847,9 +847,12 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
 static Uint16 HandFamily(Uint16 item)
 {
     return !item                          ? 255
+           : item == 5                    ? 8
            : item == 6                    ? 9
            : item == 8                    ? 11
+           : item == 11                   ? 25
            : item == 12                   ? 26
+           : item == 167                  ? 58
            : item == 16                   ? 52
            : item == 18                   ? 31
            : item == 19                   ? 37
@@ -872,6 +875,7 @@ static Uint16 HandVariant(Uint16 item)
                                                          : 0)
            : item == 97                 ? 1
            : item == 124                ? 3
+           : item == 167                ? 1
                                         : 0;
 }
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,

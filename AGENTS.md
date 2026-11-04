@@ -17,10 +17,10 @@ holds. Iron Fist/Tulkas specials stay unavailable. No pool/grants/savev9 change;
 supplied stock/protection/position/occupancy/curse/save fixtures are not acquisition/
 route/console evidence. All six Alucard gates remain open.
 
-Selected [basic shields](docs/player-basic-shields.md) now own Knight6/AxeLord8/
-Shaman12 through actual families9/11/26, shared slot16, private animation/hitbox
-tables, palette copies with the live hand word and native guarding. Only family52
-caches/overrides attack1; basic shields keep hit-state4 attack255 and zero displayed/
+Selected [basic shields](docs/player-basic-shields.md) now own Leather5/Knight6/
+AxeLord8/Goddess11/Shaman12/Alucart167 through actual families8/9/11/25/26/58,
+shared slot16, private animation/hitbox tables, palette copies with the live hand
+word and native guarding. Only families52/58 cache/override attack1; basic shields keep hit-state4 attack255 and zero displayed/
 GetProps ATK under buffs/poison. Any hit-state4 guard kills blockable projectiles
 without DealDamage and otherwise rolls DealDamage, then discards it. Shield spells
 and other shield families stay unavailable. No pool/grants/savev9 change; supplied

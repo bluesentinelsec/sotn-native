@@ -24,7 +24,8 @@ performs actual confirmation, including spare decrement before a capped return.
 Programmatic equipment setting remains idempotent. Virtual empty rows stay out of
 physical first-empty searches without receiving stock. No default grants or v9
 fields are added; remaining two-hand families and equipment effects stay open.
-Selected [basic shields](player-basic-shields.md) add Knight6, Axe Lord8 and Shaman12
+Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Axe Lord8, Goddess11,
+Shaman12 and Alucart167
 through the same owner; their shield spells and other shield families stay unavailable.
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
 special-bearing Iron Fist and Fist of Tulkas stay unavailable.

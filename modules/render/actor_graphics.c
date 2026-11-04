@@ -375,7 +375,10 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 33 ? 0x8017ac4cU
                            : equipment.family == 35 ? 0x8017a540U
                            : equipment.family == 57 ? 0x8017b0acU
+                           : equipment.family == 8  ? 0x8017aab8U
                            : equipment.family == 9  ? 0x8017aab8U
+                           : equipment.family == 25 ? 0x8017aad8U
+                           : equipment.family == 58 ? 0x8017abc4U
                            : equipment.family == 11 ? 0x8017ac34U
                            : equipment.family == 26 ? 0x8017aae4U
                            : equipment.family == 52 ? 0x8017ac1cU
@@ -418,7 +421,10 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
         return false;
     Uint8 shield_colors[24U * 16U * 2U] = {0};
     const Uint8 *upload_colors = colors.bytes;
-    const Uint32 hand_word = equipment.family == 9    ? 0x8017aac0U
+    const Uint32 hand_word = equipment.family == 8    ? 0x8017aac0U
+                             : equipment.family == 25 ? 0x8017aae0U
+                             : equipment.family == 58 ? 0x8017abc8U
+                             : equipment.family == 9  ? 0x8017aac0U
                              : equipment.family == 11 ? 0x8017ac3cU
                              : equipment.family == 26 ? 0x8017aaecU
                              : equipment.family == 52 ? 0x8017ac20U
