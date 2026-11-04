@@ -646,7 +646,7 @@ static bool Runesword(Fixture *f, Uint16 item)
     for (Uint16 k = 0; k < 2; ++k)
     {
         CHECK(Create(f, item, 1, 2, true));
-        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, k, 0));
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, (Uint8)k, 0));
         Put16(f->dra + 0xcf62, 0x6f2); // Grunt voice1 of func_8010EA54(8)'s table.
         for (Uint16 i = 0; i < 8; ++i)
             CHECK(Tick(f, 0));
