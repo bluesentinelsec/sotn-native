@@ -170,7 +170,8 @@ static bool AppendFactory(SotnHandWeaponEvents *e, Uint32 request)
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
     return family == 8 || family == 9 || family == 10 || family == 11 || family == 23 ||
-           family == 24 || family == 25 || family == 26 || family == 52 || family == 58;
+           family == 24 || family == 25 || family == 26 || family == 27 || family == 52 ||
+           family == 58;
 }
 // w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
@@ -180,6 +181,7 @@ static Uint16 ShieldAnimationTable(Uint16 family)
            : family == 11                 ? 0xb94
            : family == 23                 ? 0xb20
            : family == 24                 ? 0xc20
+           : family == 27                 ? 0xc54
            : family == 25 || family == 26 ? 0xa60
                                           : 0xb84;
 }

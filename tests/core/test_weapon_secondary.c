@@ -60,11 +60,14 @@ static void Program(Uint8 *o)
     }
     Put16(o + 0x1184, 0xffff);
 }
-// Linear authored quarter wave at the SDK rsin/rcos table offset.
+// Linear authored quarter wave at the SDK rsin/rcos table offset, and an authored monotonic
+// square-root coefficient table (4096..8107) at its offset.
 static void Math(Uint8 *exe)
 {
     for (Uint32 i = 0; i <= 1024; ++i)
         Put16(exe + 0x1dbcc + i * 2, (Uint16)(i * 4));
+    for (Uint32 i = 0; i < 192; ++i)
+        Put16(exe + 0x1e3e0 + i * 2, (Uint16)(4096 + i * 21));
 }
 static bool Properties(void *context, Uint32 *random, SotnEquipment *out)
 {
@@ -8088,6 +8091,542 @@ static bool DarkRuntime(Uint16 hand)
     return true;
 }
 
+// w_027 EntityWeaponShieldSpell against an exact model: birth (one glow row, fixed priority0x1B6),
+// growth (22), D_8017AC8C with FLAG_UNK_100000 for eight updates, D_8017ACB4 while the glow spreads
+// and fades (15), FACTORY(98) with the freeze's end at glow160, the 80-update hold (D_8017AC8C
+// again at its 64th left) and the shrink (22).
+static bool MedusaSpellTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0xc8c + i * 4U, (Uint16)(3 + (i == 0)));
+        Put16(o + 0xc8e + i * 4U, (Uint16)(0xc40 + i));
+    }
+    Put16(o + 0xcb4, 1);
+    Put16(o + 0xcb6, 0xc3f);
+    Put16(o + 0xcb8, 2);
+    Put16(o + 0xcba, 0xa3e);
+    for (Uint16 k = 0; k < 5; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 2, starved = k == 3, failed = k == 4;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = (100 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .camera_x = 99,
+                                       .camera_y = 77,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 27,
+                                       .role = 8,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = !failed,
+                                       .free_factories = (Uint8)(starved ? 0 : 8)};
+        Uint32 rng = 5;
+        Uint16 tick = 0, transitions[6] = {0}, lasers = 0;
+        Uint8 phase = 0;
+        while (!s.removed && tick < 300)
+        {
+            in.engine_timer = tick + k;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+            if (failed)
+            {
+                CHECK(s.removed && !e.freeze_set);
+                break;
+            }
+            if (!s.removed && (s.flags & 0x100000U))
+                CHECK(SotnWeaponSecondary_Animate(&s, in.overlay, 27));
+            if (!tick)
+            {
+                const SotnPlayerEffectQuad *g = &s.spell_quads[0];
+                CHECK(e.freeze_set && e.clear_shield && e.sounds[0] == 0x641 && s.phase == 1 &&
+                      s.priority == 0x1b6 && s.flags == 0x04810000U && s.frame == 0x3e &&
+                      s.velocity_x == (left ? 0x20000 : -0x20000) && g->palette == 0x19f &&
+                      g->priority == 0x1b4 && (g->draw_mode & 0xfff7U) == 0x75 &&
+                      g->v[0] == (hand ? 0 : 0x80) &&
+                      s.spell_child_palette == (hand ? 0x137 : 0x11f));
+            }
+            if (s.phase != phase)
+            {
+                transitions[s.phase] = tick;
+                phase = s.phase;
+            }
+            const bool entered = transitions[s.phase] == tick;
+            CHECK(!e.sounds[0] || !tick);
+            CHECK(e.freeze_clear == (tick == 45));
+            if (tick == 45)
+            {
+                CHECK(e.factory_count == (starved ? 0 : 1) && s.spell_timer == 80 &&
+                      (s.spell_quads[0].draw_mode & 8U) && s.spell_quads[0].blue[3] == 6);
+                if (!starved)
+                    CHECK(e.factories[0] == (98U | (hand + 1U) << 14) && e.factory_x[0] == s.x);
+                lasers += e.factory_count;
+            }
+            else
+                CHECK(!e.factory_count);
+            // Animations: D_8017AC8C from full size, D_8017ACB4 after the hold's eighth update,
+            // D_8017AC8C again at the 80-update hold's 64th left.
+            const Uint32 timeline = s.phase < 2                                   ? 0
+                                    : s.phase == 2 || (s.phase == 3 && entered)   ? 0xc8c
+                                    : s.phase == 3 || (s.phase == 4 && tick < 62) ? 0xcb4
+                                                                                  : 0xc8c;
+            if (s.removed)
+                break;
+            CHECK(s.timeline == (s.phase == 3 && entered ? 0xcb4 : timeline) &&
+                  ((s.flags & 0x100000U) != 0) == (s.phase >= 2));
+            if (s.phase == 3 && !entered)
+                CHECK(s.spell_glow == 0x28 + 8 * (tick - 30) &&
+                      s.spell_quads[0].blue[3] == 0x80 - 4 * (tick - 30));
+            if (s.phase == 5 && !entered)
+                CHECK(s.scale_x == 0x100 - 12 * (tick - 125));
+            if (s.phase == 1 && tick)
+                CHECK(s.scale_x == 12 * tick && s.spell_glow == s.scale_x * 40 / 256);
+            const Sint16 x = (Sint16)((s.x >> 16) - 30), y = (Sint16)((s.y >> 16) - 10);
+            const SotnPlayerEffectQuad *g = &s.spell_quads[0];
+            CHECK(g->x[0] == x - s.spell_glow && g->x[1] == x + s.spell_glow - 1 &&
+                  g->y[2] == y + s.spell_glow - 1);
+            if (g->blue[3] > 8)
+                CHECK(((g->draw_mode & 8U) != 0) == (((tick + k) & 1U) != 0));
+            ++tick;
+        }
+        if (failed)
+            continue;
+        CHECK(transitions[2] == 22 && transitions[3] == 30 && transitions[4] == 45 &&
+              transitions[5] == 125 && tick == 147 && s.removed && lasers == (starved ? 0 : 1));
+    }
+    return true;
+}
+// w_027 func_ptr_80170024 against a model of the original arithmetic: row gate, side offset and
+// aim per params/facing, rows on the aim's perpendicular, the target request and BIBLE_SCRAPE;
+// then func_80118B18 turning with the tightening/relaxing limit, the SquareRoot0 wave with
+// damping, three-unit steps, the once-per-period scrape on screen, FACTORY(100) on even g_Timer,
+// the growing then sliding eighteen-segment ribbon with its UVs, and far-off-screen retirement.
+static bool MedusaLaserTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    Uint16 scrapes = 0, retired = 0;
+    // k6..11 preset edge states after birth: a scrape at screen X 0x110, screen Y 0x190, damping
+    // reaching zero, both width clamps and a full ribbon that slides.
+    for (Uint16 k = 0; k < 12; ++k)
+    {
+        const Uint16 hand = k & 1U, index = (k >> 1) & 1U;
+        const bool left = k == 1 || k == 2 || k == 5, failed = k == 4, targeted = k != 3 && k < 6;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)((hand << 15) | index),
+                                 .flags = 0x10000,
+                                 .facing_left = left,
+                                 .x = (150 + 30) * 65536 + 0x1357,
+                                 .y = (110 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .camera_x = 31,
+                                       .camera_y = 11,
+                                       .hand = hand,
+                                       .family = 27,
+                                       .role = 9,
+                                       .allocated = !failed,
+                                       .free_factories = 4};
+        Uint32 rng = 9;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        if (failed)
+        {
+            CHECK(s.removed && !e.select_target && !e.sounds[0]);
+            continue;
+        }
+        const Sint16 step = index ? 14 : 6;
+        Sint16 heading = left ? (Sint16)((index << 9) + 0x100) : (Sint16)(0x700 - (index << 9));
+        CHECK(s.phase == 1 && e.select_target && e.sounds[0] == 0x6b2 &&
+              (s.x >> 16) == 150 + 30 + (left ? -step : step) && (s.x & 0xffff) == 0x1357 &&
+              s.laser_heading == heading && s.laser_turn == 0x50 && s.laser_phase == 0x400 &&
+              s.laser_step == -0x58 && !s.laser_swing && s.laser_damping == 0x300 &&
+              s.laser_length == 1 && s.laser_palette == (hand ? 0x129 : 0x111) &&
+              s.laser_band == (hand ? 0x80 : 0) && s.flags == 0x04810000U);
+        {
+            SotnMathTrig a = {0}, b = {0};
+            CHECK(SotnMath_Trig(x_exe, (Sint16)(heading + 0x400), &a) &&
+                  SotnMath_Trig(x_exe, (Sint16)(heading - 0x400), &b));
+            const Sint16 x = (Sint16)((s.x >> 16) - 30), y = (Sint16)((s.y >> 16) - 10);
+            for (Uint16 i = 0; i < 18; ++i)
+            {
+                const SotnPlayerEffectQuad *q = &s.laser_quads[i];
+                CHECK(q->palette == s.laser_palette && q->page == 0x19 && q->priority == 0x1bc &&
+                      (i ? q->draw_mode == 0x39 : q->draw_mode == 0x31) &&
+                      q->x[0] == (i ? x + HeraldShift(a.cosine, 9) : q->x[0]) &&
+                      q->red[0] == 0x80 &&
+                      q->x[2] == (i ? x + HeraldShift(b.cosine, 9) : q->x[2]) &&
+                      q->y[2] == (i ? y - HeraldShift(b.sine, 9) : q->y[2]));
+            }
+        }
+        s.laser_bound = targeted;
+        if (k == 6)
+        {
+            s.x = (0x110 + 30) * 65536;
+            s.laser_phase = 0xfe8;
+            s.laser_previous = 0x1040;
+        }
+        if (k == 7)
+            s.y = (0x190 + 10) * 65536;
+        if (k == 8)
+            s.laser_damping = 1;
+        if (k == 9)
+            s.laser_swing = 0x90000;
+        if (k == 10)
+            s.laser_swing = -0x1000000;
+        if (k == 11)
+            s.laser_length = 0x20;
+        Sint16 turn = s.laser_turn, phase = s.laser_phase, damping = s.laser_damping,
+               previous = s.laser_previous, length = s.laser_length;
+        Sint32 swing = s.laser_swing, x = s.x, y = s.y;
+        Uint16 clamped = 0;
+        for (Uint16 tick = 1; tick < 300 && !s.removed; ++tick)
+        {
+            in.engine_timer = tick;
+            in.target = (SotnSpellTarget){.x = (Sint16)(80 + (tick % 120)),
+                                          .y = (Sint16)(60 + (tick % 50)),
+                                          .identity = 0x31,
+                                          .hitbox = 2};
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 9);
+            // Model: the original laser update.
+            const Sint16 sx = (Sint16)((x >> 16) - 30), sy = (Sint16)((y >> 16) - 10);
+            const bool scrape = (phase & 0x800) && !(previous & 0x800) && sx >= -0x120 &&
+                                sx <= 0x120 && sy >= 0 && sy <= 0x100;
+            previous = phase;
+            const Sint16 tx = targeted ? in.target.x : (left ? -32 : 288),
+                         ty = targeted ? in.target.y : 112;
+            Sint16 aim = 0;
+            CHECK(SotnMath_Atan2(x_exe, -(Sint32)(Sint16)(ty - sy), (Sint16)(tx - sx), &aim));
+            Sint32 offset = 0;
+            if (sx > 288)
+                offset = 0x4000;
+            if (sx < -32)
+                offset = 0x5000;
+            if (sy > 240)
+                offset = 0x6000;
+            if (sy < 0)
+                offset = 0x7000;
+            aim = (Sint16)((aim & 0xfff) - offset);
+            if (aim >= 0)
+            {
+                const Sint32 a = heading & 0xfff;
+                const Sint16 gap = (Sint16)SDL_abs((Sint16)a - aim);
+                if (gap < turn)
+                    turn = gap;
+                heading =
+                    (Sint16)(((Sint16)a < aim && gap >= 0x800) || ((Sint16)a >= aim && gap < 0x800)
+                                 ? (a - turn) & 0xfff
+                                 : (a + turn) & 0xfff);
+            }
+            phase = (Sint16)(phase - 0x58);
+            SotnMathTrig w = {0}, h = {0};
+            CHECK(SotnMath_Trig(x_exe, phase, &w) && SotnMath_Trig(x_exe, heading, &h));
+            Uint32 root = 0;
+            CHECK(SotnMath_Sqrt0(x_exe, (Uint32)(0x1000000 - w.sine * w.sine), &root));
+            swing -= HeraldShift(w.sine * 4096, 8);
+            const Sint16 speed = (Sint16)((Sint16)root - damping * swing / 0x10000);
+            damping = (Sint16)SDL_max(damping - 1, 0);
+            x += HeraldShift(h.cosine * speed, 7) * 3;
+            y += -HeraldShift(h.sine * speed, 7) * 3;
+            turn = (Sint16)SDL_min(turn + 8, 0x100);
+            length = (Sint16)SDL_min(length + 1, 0x80);
+            scrapes += scrape;
+            CHECK(e.sounds[0] == (scrape ? 0x6b2 : 0) && s.laser_heading == heading &&
+                  s.laser_turn == turn && s.laser_phase == phase && s.laser_swing == swing &&
+                  s.laser_damping == damping && s.laser_length == length && s.x == x && s.y == y);
+            const Sint16 px = (Sint16)((x >> 16) - 30), py = (Sint16)((y >> 16) - 10);
+            const bool gone = px < -0x200 || px > 0x200 || py < -0xc0 || py > 0x1a0;
+            CHECK(s.removed == gone);
+            if (gone)
+            {
+                ++retired;
+                break;
+            }
+            CHECK(e.factory_count == !(tick & 1U));
+            if (e.factory_count)
+                CHECK(e.factories[0] == (100U | (hand + 1U) << 14) && e.factory_x[0] == s.x);
+            // The newest segment's outer edges sit on the heading's perpendicular, scaled by the
+            // swing-derived width and lifted by the swing.
+            Sint16 width =
+                swing > 0 ? (Sint16)(8 - (swing >> 16)) : (Sint16)(8 - HeraldShift(swing, 0x13));
+            if (swing > 0 && width < 0)
+            {
+                width = 1;
+                ++clamped;
+            }
+            if (swing <= 0 && width > 16)
+            {
+                width = 16;
+                ++clamped;
+            }
+            const Sint16 lift = (Sint16)-HeraldShift(swing, 15);
+            SotnMathTrig a = {0}, b = {0};
+            CHECK(SotnMath_Trig(x_exe, (Sint16)(heading + 0x400), &a) &&
+                  SotnMath_Trig(x_exe, (Sint16)(heading - 0x400), &b));
+            const Uint16 newest = (Uint16)(length < 0x13 ? length - 1 : 17);
+            const SotnPlayerEffectQuad *q = &s.laser_quads[newest];
+            // Coordinates are 16-bit screen words (they wrap with extreme swings); the preset
+            // full ribbon (k11) slides rows that were never revealed.
+            CHECK(
+                q->x[1] == (Sint16)(px + HeraldShift(HeraldShift(a.cosine, 4) * width, 8)) &&
+                q->y[1] == (Sint16)(lift + (py - HeraldShift(HeraldShift(a.sine, 4) * width, 8))) &&
+                q->x[3] == (Sint16)(px + HeraldShift(HeraldShift(b.cosine, 4) * width, 8)) &&
+                q->y[3] == (Sint16)(lift + (py - HeraldShift(HeraldShift(b.sine, 4) * width, 8))) &&
+                (k == 11 || !(q->draw_mode & 8U)));
+            if (length < 0x13 && newest)
+                CHECK(q->x[0] == s.laser_quads[newest - 1].x[1] &&
+                      q->y[2] == s.laser_quads[newest - 1].y[3]);
+            else if (length >= 0x13)
+            {
+                CHECK(q->x[0] == before.laser_quads[17].x[1] &&
+                      q->y[2] == before.laser_quads[17].y[3]);
+                for (Uint16 i = 0; i < 17; ++i)
+                    CHECK(s.laser_quads[i].x[1] == before.laser_quads[i + 1].x[1] &&
+                          s.laser_quads[i].y[3] == before.laser_quads[i + 1].y[3]);
+            }
+            const Sint16 count = length >= 0x13 ? 0x12 : length;
+            for (Sint16 i = 0; i < count; ++i)
+                CHECK(s.laser_quads[i].u[0] == (Uint8)(((i * 3) << 5) / count) &&
+                      s.laser_quads[i].u[3] == (Uint8)(((i + 1) * 0x60) / count - 1) &&
+                      s.laser_quads[i].v[0] == (Uint8)(s.laser_band + 0x30) &&
+                      s.laser_quads[i].v[3] == (Uint8)(s.laser_band + 0x3f));
+            x = s.x;
+            y = s.y;
+            if (k == 6 && tick == 1)
+                CHECK(scrape);
+            if (k == 7 && tick == 1)
+                CHECK(!s.removed && py > 0x180);
+            if (k == 8 && tick == 3)
+                CHECK(!damping);
+        }
+        if (k == 9 || k == 10)
+            CHECK(clamped);
+    }
+    CHECK(scrapes > 3 && retired >= 1);
+    return true;
+}
+// w_027 func_ptr_80170028: raw-parent retirement every update, SetWeaponProperties (one roll) with
+// a 6x6 hitbox at birth, six-update life, hitFlags counting and the sixth-hit target release.
+static bool MedusaHitTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.flags = 0x10000,
+                                 .x = 100 * 65536,
+                                 .y = 90 * 65536,
+                                 .laser_hits = (Sint16)(k == 3 ? 4 : 0)};
+        const Uint16 hit = 2;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 27,
+                                       .role = 10,
+                                       .parent_exists = k != 0};
+        Uint32 rng = 3, model = rng;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        if (!k)
+        {
+            CHECK(s.removed && !e.properties && rng == model);
+            continue;
+        }
+        (void)SotnCombat_Random(&model);
+        CHECK(!s.removed && s.phase == 1 && e.properties && rng == model && s.laser_timer == 6 &&
+              s.hitbox_width == 6 && s.hitbox_height == 6 && s.hitbox_state == 2);
+        Uint16 cleared = 0, hits = (Uint16)s.laser_hits;
+        for (Uint16 tick = 1; tick < 10 && !s.removed; ++tick)
+        {
+            in.parent_exists = !(k == 2 && tick == 3);
+            s.hit_flags = (Uint8)(k == 3 || tick == 2 ? 1 : 0);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == model);
+            if (!in.parent_exists || tick == 6)
+            {
+                CHECK(s.removed && !e.clear_parent_target);
+                break;
+            }
+            if (k == 3 || tick == 2)
+                ++hits;
+            CHECK(!s.removed && s.laser_timer == 6 - tick && s.laser_hits == hits && !s.hit_flags &&
+                  e.clear_parent_target == (hits >= 6 && (k == 3 || tick == 2)));
+            cleared += e.clear_parent_target;
+        }
+        CHECK(s.removed && cleared == (k == 3 ? 4 : 0));
+    }
+    return true;
+}
+// Medusa shield's spell211 in the runtime: the E8/F8 spell (one row, with its animations), the two
+// FACTORY(98) E9/F9 lasers (eighteen rows, item0, no target here so they fly to the screen edge
+// and retire), their FACTORY(100) E10/F10 hit points (item0 properties, least-used groups7..10,
+// active 6x6 attacks), one freeze set and release and full release.
+static bool MedusaRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    Uint8 *o = weapons + 27U * 0x7000U + 0x4000U;
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0xc8c + i * 4U, 3);
+        Put16(o + 0xc8e + i * 4U, (Uint16)(0xc40 + i));
+    }
+    Put16(o + 0xcb4, 1);
+    Put16(o + 0xcb6, 0xc3f);
+    Put16(o + 0xcb8, 2);
+    Put16(o + 0xcba, 0xa3e);
+    FamilyDefinition(dra, 13, 9, 27, 128, 0, 0, 0);
+    FamilyDefinition(dra, 211, 1, 27, 5, 0, 30, 0);
+    Uint8 *record = dra + 0x500 + 211 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    // Item0 (empty hand: category3, family255, kind0, animation0x24, blueprint0x2A): the lasers'
+    // factory argument, which their hit points roll SetWeaponProperties for.
+    {
+        Uint8 *empty = dra + 0x500;
+        SDL_memset(empty + 8, 0, 44);
+        empty[14] = 3;
+        empty[15] = 255;
+        empty[18] = 0x24;
+        empty[19] = 42;
+        empty[21] = 5;
+        empty[22] = 128;
+        empty[26] = 8;
+        Put16(empty + 38, 4);
+        Put16(empty + 40, 2);
+    }
+    const Uint8 blueprints[4][6] = {{8, 1, 0xc1, 0, 6, 0},
+                                    {9, 2, 0xc2, 0, 6, 0},
+                                    {10, 1, 0xc1, 0, 1, 0},
+                                    {11, 1, 0x81, 0, 0, 0}};
+    const Uint16 ids[4] = {86, 98, 100, 44};
+    for (Uint16 b = 0; b < 4; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8 + 2] = 17;
+    dra[0xd4b9 + 2] = 47;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {hand ? 57 : 27, hand ? 27 : 57},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536,
+                                         .y = 135 * 65536,
+                                         .priority = 148,
+                                         .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 211,
+                                     &allocated) &&
+          allocated);
+    Uint16 spell_ticks = 0, laser_ticks = 0, most_lasers = 0, hit_ticks = 0, freezes = 0,
+           released = 0, animated = 0;
+    Uint32 laser_indices = 0, hit_groups = 0;
+    for (Uint16 t = 0; t < 900; ++t)
+    {
+        in.game_timer = t;
+        in.engine_timer = t;
+        in.freeze = r->freeze;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        freezes += r->freeze_changed && r->freeze == 1;
+        released += r->freeze_changed && r->freeze == 0;
+        Uint16 lasers = 0, hits = 0;
+        bool spell = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 27 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            if ((c->kind & 15U) == 8)
+            {
+                CHECK(c->kind == (hand ? 0xf8 : 0xe8) && c->primitive_count == 1 &&
+                      c->state.secondary.item == 211);
+                spell = true;
+                ++spell_ticks;
+                animated += w->timeline != 0 && w->frame >= 0x3f;
+                continue;
+            }
+            if ((c->kind & 15U) == 9)
+            {
+                CHECK(c->kind == (hand ? 0xf9 : 0xe9) && c->primitive_count == 18 &&
+                      !c->state.secondary.item && !c->state.secondary.attack.active &&
+                      !w->laser_bound && i < 16);
+                laser_indices |= 1U << (c->parameter & 0xffU);
+                ++lasers;
+                ++laser_ticks;
+                continue;
+            }
+            CHECK(c->kind == (hand ? 0xfa : 0xea) && !c->primitive_count &&
+                  !c->state.secondary.item && !w->properties.id &&
+                  c->state.secondary.attack.active && c->state.secondary.attack.width == 6 &&
+                  c->group >= (i < 16 ? 3 : 7) && c->group <= (i < 16 ? 6 : 10));
+            hit_groups |= 1U << c->group;
+            ++hits;
+            ++hit_ticks;
+        }
+        most_lasers = (Uint16)SDL_max(most_lasers, lasers);
+        if (!spell && spell_ticks && !lasers && !hits)
+            break;
+    }
+    CHECK(spell_ticks > 140 && animated > 100 && most_lasers == 2 && laser_indices == 3 &&
+          laser_ticks > 40 && hit_ticks > 40 && hit_groups && freezes == 1 && released == 1);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -8099,11 +8638,13 @@ int main(void)
                    IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
                    HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
                    HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&
-                   DarkRuntime(0) && DarkRuntime(1) && MuramasaSlash() && Twelve() &&
-                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
-                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
-                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
-                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() && MedusaLaserTest() &&
+                   MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) && MuramasaSlash() &&
+                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
+                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
+                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
+                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
+                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&
