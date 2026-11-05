@@ -3647,7 +3647,7 @@ static bool DawnCircleTest(Uint16 hand)
             in.game_timer = t;
             CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
             if (!s.removed)
-                CHECK(((s.dawn_quads[0].draw_mode & 8U) != 0) == (t & 1U) &&
+                CHECK(((s.dawn_quads[0].draw_mode & 8U) != 0) == ((t & 1U) != 0) &&
                       s.dawn_quads[0].red[0] == SDL_min(0x80 + 6 * (t + 1), 240) &&
                       s.dawn_quads[0].blue[3] == SDL_max(0x80 - 6 * (t + 1), 10));
         }
