@@ -1115,9 +1115,10 @@ static bool Ownership(void)
     Uint32 shield_random = 7, shield_expected = 7;
     (void)SotnCombat_Random(&shield_expected);
     SotnEquipment shield_properties = {0};
-    CHECK(SotnCharacter_HandProperties(character, 16, false, &shield_random, &shield_properties) &&
-          !shield_properties.attack && shield_properties.hit_type == 4 &&
-          shield_random == shield_expected);
+    CHECK(
+        SotnCharacter_HandProperties(character, 16, 0, false, &shield_random, &shield_properties) &&
+        !shield_properties.attack && shield_properties.hit_type == 4 &&
+        shield_random == shield_expected);
     SotnBatRuntimeInput in = {.dra = actors->dra,
                               .weapons = {weapons, 53U * 0x7000},
                               .weapon_family = {43, 43},
@@ -1232,6 +1233,43 @@ static bool Ownership(void)
     ordinary[0x226] = 11;
     ordinary[0x227] = 7;
     in.weapon_family[0] = in.weapon_family[1] = 0;
+    // Alucart sword168 runs w_043's descriptor1: a variant0 request is not its identity; its
+    // descriptor1 request owns family43, the sixteen blue tiles and the hand's attack.
+    Definition(dra, 168, 43, 2);
+    dra[0x500 + 168 * 52 + 20] = 1;
+    // US w_043 descriptor1 repeats descriptor0.
+    SDL_memcpy(weapons + 43U * 0x7000 + 0x4000 + 0x1024, weapons + 43U * 0x7000 + 0x4000 + 0x1014,
+               16);
+    const SotnBatRuntimeInput saved_in = in;
+    in.weapon_family[0] = in.weapon_family[1] = 43;
+    in.player.animation = (SotnAnimation){.id = 0x41, .pose = 3, .remaining = 1};
+    in.player.attack_mode = 0x8002;
+    in.freeze = 0;
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SDL_zero(*r);
+        CHECK(SotnCharacter_Collect(character, false, 168) &&
+              SotnCharacter_Equip(character, hand, 168));
+        *before = *r;
+        CHECK(!SotnBatRuntime_RequestHand(r, source, 0x1030, 168, &allocated) &&
+              !SDL_memcmp(r, before, sizeof(*r)));
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(
+                  r, source, 0x10030U | ((Uint32)(hand + 1U) << 12) | ((Uint32)hand << 23), 168,
+                  &allocated) &&
+              allocated && SotnBatRuntime_Tick(r, character, in) && r->hand_attack &&
+              r->children[0].parameter == (0x100U | (hand ? 0x8000U : 0U)) &&
+              r->children[0].state.hand.family == 43 && r->children[0].primitive_count == 16 &&
+              r->children[0].state.hand.motion.tiles[0].blue[0] == 255 &&
+              SotnBatRuntime_HandValid(&r->children[0], 0) &&
+              SotnActors_CommitBatPrimitives(actors, r));
+        SDL_zero(*r);
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            if (actors->primitives[i].owner != 777)
+                actors->primitives[i].owner = 0;
+        CHECK(SotnCharacter_Equip(character, hand, 0));
+    }
+    in = saved_in;
     for (Uint16 hand = 0; hand < 2; ++hand)
     {
         SDL_zero(*r);
@@ -1258,10 +1296,10 @@ static bool Ownership(void)
     SotnCharacterStats negative = {0};
     SotnEquipment properties = {0};
     CHECK(SotnCharacter_Get(character, NULL, &negative) && !negative.attack[0] &&
-          SotnCharacter_HandProperties(character, 83, false, &shield_random, &properties) &&
+          SotnCharacter_HandProperties(character, 83, 0, false, &shield_random, &properties) &&
           !properties.attack);
     CHECK(!SotnCharacter_Equip(character, 0, 84) &&
-          !SotnCharacter_HandProperties(character, 125, false, &shield_random, &properties));
+          !SotnCharacter_HandProperties(character, 125, 0, false, &shield_random, &properties));
     // Knight6/AxeLord8/Shaman12 bind their own resident families through the same slot16
     // owner. GetEquipProperties zeroes base-ATK1 shields even with Attack buffs or poison;
     // the callback's later hit-state4 SetWeaponProperties override alone produces attack255.
@@ -1299,7 +1337,7 @@ static bool Ownership(void)
         Uint32 roll = 11, rolled = 11;
         (void)SotnCombat_Random(&rolled);
         CHECK(SotnCharacter_Get(character, NULL, &shield_attack) && !shield_attack.attack[0] &&
-              SotnCharacter_HandProperties(character, id, true, &roll, &properties) &&
+              SotnCharacter_HandProperties(character, id, 0, true, &roll, &properties) &&
               !properties.attack && properties.hit_type == 4 && roll == rolled);
         SDL_zero(*r);
         in.weapon_family[0] = in.weapon_family[1] = (Uint8)family;

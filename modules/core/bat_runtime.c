@@ -910,11 +910,11 @@ static Uint16 HandFamily(Uint16 item)
            : item == 15                ? 29
            : SotnWeaponSecondary_ShieldSpellFamily(item)
                ? SotnWeaponSecondary_ShieldSpellFamily(item)
-           : item == 27  ? 36
-           : item == 124 ? 57
-           : item == 123 ? 43
-           : item == 128 ? 2
-                         : 256;
+           : item == 27                 ? 36
+           : item == 124                ? 57
+           : item == 123 || item == 168 ? 43
+           : item == 128                ? 2
+                                        : 256;
 }
 static Uint16 HandVariant(Uint16 item)
 {
@@ -924,6 +924,7 @@ static Uint16 HandVariant(Uint16 item)
     {
     case 97:
     case 167:
+    case 168:
     case 174:
     case 170:
     case 171:
@@ -1310,7 +1311,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
 typedef struct HandPropertyContext
 {
     const SotnCharacter *character;
-    Uint16 item;
+    Uint16 item, hand;
     bool poison;
 } HandPropertyContext;
 bool SotnBatRuntime_RetireHand(SotnBatRuntime *r, bool shield_only)
@@ -1335,7 +1336,7 @@ bool SotnBatRuntime_RetireHand(SotnBatRuntime *r, bool shield_only)
 static bool HandProperties(void *context, Uint32 *random, SotnEquipment *out)
 {
     const HandPropertyContext *p = context;
-    return SotnCharacter_HandProperties(p->character, p->item, p->poison, random, out);
+    return SotnCharacter_HandProperties(p->character, p->item, p->hand, p->poison, random, out);
 }
 static bool ClearHandShield(SotnBatRuntime *r, SotnPrimitiveSlots *slots)
 {
@@ -3961,7 +3962,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             bool started[SOTN_HAND_WEAPON_TILES];
             SDL_memcpy(started, w->tile_started, sizeof(started));
-            HandPropertyContext context = {character, c->state.hand.item, p.poison_ticks != 0};
+            HandPropertyContext context = {character, c->state.hand.item, hand,
+                                           p.poison_ticks != 0};
             SotnHandWeaponEvents events = {0};
             if (!SotnHandWeapon_Tick(
                     w, &r.hand_program[hand],
@@ -4379,7 +4381,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 if (own && (root->kind & 15U) == 9)
                     parent.parent_quad = root->state.secondary.motion.spell_quads[0];
             }
-            HandPropertyContext context = {character, item, p.poison_ticks != 0};
+            HandPropertyContext context = {character, item, hand, p.poison_ticks != 0};
             SotnWeaponSecondaryEvents events = {0};
             // Weapon30's circle reads free factory entities and the raw slots17..31 at its
             // callback (CreateEntFactoryFromEntity and its E2/F2 spacing scan).

@@ -3,8 +3,9 @@
 Shield rod4 is a kind2 rod that runs the weapon7 program (`w_007`) in slot16 through the shared
 ordinary hand owner, in either hand. Its back-forward special173 releases a guarding orb that
 sheds sparkles. Its combo main bits (0x3FFE) pair it with every shield, like Mablung, so both
-buttons cast each owned shield's [spell](player-shield-combos.md). Defaults, grants and v10 saves
-are unchanged.
+buttons cast each owned shield's [spell](player-shield-combos.md). Beside any shield its attack
+gains `CalcAttack`'s five, on the status sheet and every swing ([details](player-alucart-set.md)).
+Defaults, grants and v10 saves are unchanged.
 
 ## Swing
 

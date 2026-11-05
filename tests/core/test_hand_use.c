@@ -881,6 +881,25 @@ static bool ComboWith(Fixture *f, Uint16 weapon, Uint16 shield, Uint16 spell, Ui
           !SotnPlayer_ComboSupported(201));
     return true;
 }
+// Original GetEquipProperties: Shield rod4's attack gains CalcAttack's five beside a shield in the
+// other hand (equipment[1 - hand]); the right hand's rod beside the left rod gains nothing.
+static bool ShieldRodAttack(Fixture *f)
+{
+    CHECK(Create(f, 4, 1, 2, true));
+    SotnEquipment alone = {0}, guarded = {0}, paired = {0};
+    Uint32 random = 9;
+    CHECK(SotnCharacter_HandProperties(f->character, 4, 0, false, &random, &alone));
+    CHECK(SotnCharacter_Collect(f->character, false, 5) &&
+          SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, 5) &&
+          SotnCharacter_HandProperties(f->character, 4, 0, false, &random, &guarded) &&
+          guarded.attack == alone.attack + 5);
+    CHECK(SotnCharacter_Collect(f->character, false, 4) &&
+          SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, 4) &&
+          SotnCharacter_HandProperties(f->character, 4, 1, false, &random, &paired) &&
+          paired.attack == alone.attack &&
+          !SotnCharacter_HandProperties(f->character, 4, 2, false, &random, &paired));
+    return true;
+}
 static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
 {
     return ComboWith(f, 124, shield, spell, cost);
@@ -1089,7 +1108,8 @@ int main(void)
          Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) && Combo(f, 12, 210, 10) &&
          Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) && Combo(f, 10, 208, 30) &&
          Combo(f, 13, 211, 30) && Combo(f, 14, 212, 40) && Combo(f, 15, 213, 50) &&
-         Combo(f, 16, 214, 20) && ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
+         ShieldRodAttack(f) && Combo(f, 16, 214, 20) && ComboWith(f, 4, 5, 203, 10) &&
+         ComboWith(f, 4, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

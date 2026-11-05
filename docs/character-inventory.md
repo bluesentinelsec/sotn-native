@@ -16,7 +16,8 @@ profile remains explicit: level 1, 70 HP, 20 MP, base stats 6, and 10/50 hearts.
 It is not the original new-game entry.
 
 Selected ordinary weapon attacks include empty hands, Basilard, Gladius, Short sword,
-Mace, and Alucard sword/shield through the actual [shared hand owner](shared-ordinary-hands.md).
+Mace, and Alucard sword/shield through the actual [shared hand owner](shared-ordinary-hands.md);
+[Alucart sword168 and mail89](player-alucart-set.md) complete the Alucart set and its LCK30.
 The selected [ordinary weapon0 swords](player-basic-swords.md) add19 one-hand items;
 [Namakura/two-hand ownership](player-two-hand-equipment.md) now adds one-copy/both-word
 reservation, ordered displaced returns and paired restoration. The native menu
