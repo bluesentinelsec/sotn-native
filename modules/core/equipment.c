@@ -71,6 +71,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0, 0};
     case 195:
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
+    case 4: // Shield rod: back-forward special173 releases its orb (kind2, weapon7)
+        return (PlainSpec){4, 7, 2, 0x48, 0, 173, 0, 0, 0, 0};
+    case 173:
+        return (PlainSpec){4, 7, 2, 0x48, 1, 0, 0, 0, 0, 0};
     case 202: // Heaven sword pair's both-buttons combo (kind5, blueprint62 sweep, five MP)
         return (PlainSpec){2, 13, 5, 0x66, 0, 0, 0, 5, 62, 1};
     case 203: // Leather shield's both-buttons spell (Shield rod/Mablung combo, kind5)

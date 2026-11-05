@@ -39,7 +39,7 @@ their glows, specials and lunge, [Osafune/Masamune](player-katana-warp.md) their
 warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, [Icebrand](player-icebrand.md)
 its frost special, [Moon rod](player-moon-rod.md) its crescents, [Runesword](player-runesword.md)
 and [Heaven sword](player-heaven-sword.md) their homing throws (a pair of Heaven swords also casts its
-both-buttons sweep), [Chakram, Vorpal blade and
+both-buttons sweep), [Shield rod](player-shield-rod.md) its guarding orb, [Chakram, Vorpal blade and
 Crissaegrim](player-weapon12.md) their returning ring and sliding slashes, two-handed
 [Muramasa](player-muramasa.md) its blood-grown attack and slashes, two-handed
 [Yasutsuna](player-yasutsuna.md) its thrown slash chain, [Shotel](player-shotel.md) its

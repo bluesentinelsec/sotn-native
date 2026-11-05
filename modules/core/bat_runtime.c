@@ -901,6 +901,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 28                ? 34
            : item == 17 || item == 177 ? 30
            : item == 202               ? 13
+           : item == 4 || item == 173  ? 7
            : SotnWeaponSecondary_ShieldSpellFamily(item)
                ? SotnWeaponSecondary_ShieldSpellFamily(item)
            : item == 27  ? 36
@@ -933,6 +934,7 @@ static Uint16 HandVariant(Uint16 item)
     case 183:
     case 179:
     case 181:
+    case 173:
         return 1;
     case 139:
     case 102:
@@ -1070,6 +1072,10 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // afterimages.
     if (family == 14)
         return bp == 0x72 && param == 0;
+    // Weapon7: Shield rod special173's swing requests its 0x4A orb (animation index0..6), the
+    // orb its0x40 sparkles.
+    if (family == 7)
+        return (bp == 0x4a && param <= 6) || (bp == 0x40 && param == 0);
     // Weapon13's root requests its0x3A afterimages; combo202's sweep its0x46 strike swords
     // (D_8017A5E0 palette offsets1..8).
     if (family == 13)
@@ -1120,6 +1126,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon25: the spell carries the hand bit, its clouds params1.
     if (family == 11 || family == 25)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
+    // Weapon7's orb carries its animation index0..6 (no hand bit); its sparkles zero.
+    if (family == 7)
+        return !(parameter & 0x80ffU) && (parameter >> 8) <= 6;
     // Weapon13's strike swords carry only their palette offset1..8 (no hand bit).
     if (family == 13 && (parameter & 0x7f00U))
         return !(parameter & 0x80ffU) && (parameter >> 8) <= 8;
@@ -1211,6 +1220,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : (family == 14 || family == 13) && (c->kind & 15U) == 0 ? 3
                                    : family == 13 && (c->kind & 15U) == 2                   ? 4
                                    : family == 13 && (c->kind & 15U) == 3                   ? 3
+                                   : family == 7 && (c->kind & 15U) == 1                    ? 4
                                    : (family == 12 || family == 34) && (c->kind & 15U) == 1 ? 2
                                    : family == 30 && (c->kind & 15U) == 1                   ? 4
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
@@ -3692,7 +3702,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
               r.factories[i].cursor.blueprint != 0x72 && r.factories[i].cursor.blueprint != 0x3e &&
               r.factories[i].cursor.blueprint != 0x46 && r.factories[i].cursor.blueprint != 0x6a &&
               r.factories[i].cursor.blueprint != 88 && r.factories[i].cursor.blueprint != 90 &&
-              r.factories[i].cursor.blueprint != 92) ||
+              r.factories[i].cursor.blueprint != 92 && r.factories[i].cursor.blueprint != 0x4a) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -4183,6 +4193,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 6  ? 132
                                  : family == 14 ? 143
                                  : family == 13 ? 119
+                                 : family == 7  ? 4
                                  : family == 56 ? 141
                                  : family == 12 ? 133
                                  : family == 34 ? 28
@@ -4332,6 +4343,22 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 else if (root->kind &&
                          !(root->weapon_secondary && root->state.secondary.family == 30))
                     return SDL_SetError("Sword of Dawn soldier raw parent is not its circle");
+            }
+            // Weapon7's orb reads its raw slot16 parent at birth (facing, bank, unk5A, palette).
+            if (family == 7 && (c->kind & 15U) == 1 && cold)
+            {
+                const SotnBatRuntimeChild *root = &r.children[0];
+                if (root->kind && !root->hand_weapon)
+                    return SDL_SetError("Shield rod orb raw parent is not its hand weapon");
+                secondary_in.parent_exists = root->kind != 0;
+                if (root->hand_weapon)
+                {
+                    const SotnHandWeapon *m = &root->state.hand.motion;
+                    secondary_in.parent_facing_left = m->facing_left;
+                    secondary_in.parent_bank = m->bank;
+                    secondary_in.parent_texture = m->texture;
+                    secondary_in.parent_palette = m->palette;
+                }
             }
             // Weapon13's strike swords read their raw parent sweep every update (its retirement
             // retires them; birth copies its sprite words and target; they launch at its step3).
@@ -4565,11 +4592,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         SotnPlayerFactory f = {0};
                         if (!SotnPlayerFactory_Begin(
                                 &f,
-                                (SotnPlayerFactorySource){.x = w->x,
-                                                          .y = w->y,
-                                                          .flags = w->flags,
-                                                          .priority = c->source.priority,
-                                                          .facing_left = w->facing_left},
+                                (SotnPlayerFactorySource){
+                                    .x = w->x,
+                                    .y = w->y,
+                                    .flags = w->flags,
+                                    // Weapon7's orb factory copies its
+                                    // own zPriority0xA8.
+                                    .priority = family == 7 ? w->priority : c->source.priority,
+                                    .facing_left = w->facing_left},
                                 events.chain, 0))
                             return false;
                         SDL_zero(r.factories[j]);
@@ -4590,8 +4620,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     return SDL_SetError("Weapon secondary shared group count overflow");
                 ++r.groups[group];
                 c->group = (Uint8)group;
-                // Weapon30 soldiers keep their factory's zero equip id.
-                if (family != 30)
+                // Weapon30 soldiers and weapon7's orb keep their factory's zero equip id.
+                if (family != 30 && family != 7)
                     c->state.secondary.item = item;
             }
             if (events.properties)

@@ -558,6 +558,46 @@ static bool Lunges(void)
     }
     return true;
 }
+// w_007 (Shield rod): descriptors at 0xC28 add like w_003; descriptor1 (special173) requests the
+// 0x4A orb with the weapon's animation index on pose4 while the player's poseTimer is7.
+static bool ShieldRod(void)
+{
+    static Uint8 o[0x1400];
+    Resources(o);
+    SDL_memcpy(o + 0xc28, o + 0x106c, 16);
+    SDL_memcpy(o + 0xc38, o + 0x106c, 16);
+    CHECK(o[0xc28 + 12] == 0x41);
+    for (Uint16 k = 0; k < 12; ++k)
+    {
+        const Uint16 variant = k & 1U, hand = (k >> 1) & 1U,
+                     timer = (Uint16)(k >> 2) == 0 ? 7
+                             : (k >> 2) == 1       ? 6
+                                                   : 8;
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .family = 7,
+                                  .hand = hand,
+                                  .priority = 148,
+                                  .x = 100 * 65536,
+                                  .y = 80 * 65536,
+                                  .animation = 0x43,
+                                  .pose = 3,
+                                  .remaining = 7,
+                                  .attack_mode = 0x801b};
+        SotnHandWeapon w = {.parameter = (Uint16)(variant << 8 | hand << 15)};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory && w.blend == 0x30 &&
+              w.priority == 146 && w.phase == 1 && w.bank == 0x8010U + hand * 2U &&
+              w.palette == 0x110U + hand * 24U + Read16Test(o + 0xc28 + 8) && w.flags == 0x60000);
+        in.pose = 4;
+        in.remaining = (Sint16)timer;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) &&
+              e.factory == (variant && timer == 7 ? 0x4aU | (hand + 1U) << 12 | 2U << 16 : 0U));
+    }
+    return true;
+}
 // w_053 descriptors1/3 blend a quarter; descriptors1/3/4 request slash roots0/10/0x14 at birth.
 static bool Katana(void)
 {
@@ -1657,8 +1697,8 @@ static bool AlucardRuntime(void)
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
-                   HolySword() && Lunges() && Katana() && Thunderbrand() && Weapon49() &&
-                   Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
+                   HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
+                   Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
                    AlucardArmed() && AlucardRuntime()
                ? 0
                : 1;

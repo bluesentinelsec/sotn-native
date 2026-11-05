@@ -23,6 +23,15 @@ heals/hearts/BlinkWhite0x15/timer13 on hits (SotnPlayer_CommitShieldHit) and at 
 rolls properties again and releases the 0x3A E1/F1 letters.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,
+additive) and back-forward special173: descriptor1 requests WFACTORY(0x4A, anim) on pose4 at player
+poseTimer7. The E1 orb (slots28..31) reads its raw slot16 parent only at birth, keeps equip id0,
+takes fixed hit-type4 attack1 words and func_80118894's group, grows/decelerates, bobs for 0x200
+updates shedding WFACTORY(0x40,0) sparkles every eighth, shrinks on countdown or hit (a hit on the
+growth's last update strands it in the original's unhandled step4). Sparkles lease one optional GT4
+before two rands; quads use the retained (pre-scroll) camera. Native combat now writes attacker
+hitFlags for hit-state-4 guards too (collision.h does so on overlap); guards only meet bit4 hitboxes.
+
 Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,
 weapon30 swing: DRA bank10, TRANSP|QUARTER) and QCF special177 (kind5, bp56, chain8, five MP;
 equipped 0x11 also refuses vram flag0x40). The circle (E1, 11 GT4) rolls one/six soldiers then

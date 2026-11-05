@@ -226,6 +226,10 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 176 * 52 + 19] = 56;
     f->dra[0x500 + 176 * 52 + 22] = 1;
     Item(f->dra, 170, 4, 4, 4, 0x56, 1, 13, 0);
+    // Shield rod4 (weapon7, kind2) and its back-forward special173 (descriptor1).
+    Item(f->dra, 4, 4, 7, 2, 0x48, 0, 13, 173);
+    TestCharacter_Put32(f->dra + 0x500 + 4 * 52 + 0x20, 0x3ffe);
+    Item(f->dra, 173, 4, 7, 2, 0x48, 1, 13, 0);
     for (Uint16 i = 0; i < 247; ++i)
         TestCharacter_Put32(f->dra + 0x101b8 + i * 4U, 0x800a7000);
     for (Uint16 i = 0; i < 20; ++i)
@@ -322,6 +326,27 @@ static bool KindFourSpecial(Fixture *f)
     CHECK(SotnPlayer_GetState(f->p, &p) && f->item == 170 && f->packed == 0x11030U &&
           f->roll_count == 1 && p.hand_used && f->p->attack_mode == 0x8005 &&
           f->p->substep == 0x44 && f->p->attack_lock == 13);
+    return true;
+}
+// Shield rod4 is kind2 (substep0x42, lock13); the back-forward command selects special173 with
+// descriptor1's blueprint48 parameter.
+static bool ShieldRodUse(Fixture *f)
+{
+    for (Uint16 special = 0; special < 2; ++special)
+    {
+        CHECK(Create(f, 4, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        if (special)
+            CHECK(Tick(f, SOTN_BUTTON_LEFT) && Tick(f, SOTN_BUTTON_RIGHT) && Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(
+            SotnPlayer_GetState(f->p, &p) && f->factories == 1 && f->item == (special ? 173 : 4) &&
+            f->packed == (0x1030U | (special ? 0x10000U : 0U)) && f->roll_count == 1 &&
+            p.hand_used && f->p->attack_mode == 0x8003 && f->p->substep == 0x42 &&
+            f->p->attack_lock == 13 && f->p->animation.id >= 0x48 && f->p->animation.id < 0x48 + 7);
+    }
     return true;
 }
 // 71830.c substep0x40: kind0 fists continue at pose7 while the attack button is held.
@@ -754,11 +779,11 @@ static bool Runesword(Fixture *f, Uint16 item)
 // 6E42C.c both buttons: Mablung124 + Leather5 resolve CheckWeaponCombo to spell203 on the
 // shield's hand; the spell's factory takes <<14 hand bits, ten MP and kind5's grounded stop.
 // A live spell (chain1) or too little MP leaves the left hand's ordinary swing.
-static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
+static bool ComboWith(Fixture *f, Uint16 weapon, Uint16 shield, Uint16 spell, Uint16 cost)
 {
     for (Uint16 k = 0; k < 4; ++k)
     {
-        const Uint16 left = k == 3 ? shield : 124, right = k == 3 ? 124 : shield;
+        const Uint16 left = k == 3 ? shield : weapon, right = k == 3 ? weapon : shield;
         CHECK(Create(f, left, 1, 2, true));
         CHECK(SotnCharacter_Collect(f->character, false, right) &&
               SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, right) &&
@@ -792,8 +817,8 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
                   f->p->mp == mp - cost && f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
                   f->p->animation.id == 0xba);
         else
-            CHECK(f->item == 124 && f->packed == 0x31030U && f->p->mp == mp &&
-                  f->p->attack_mode == 0x8002);
+            CHECK(f->item == weapon && f->packed == (weapon == 4 ? 0x1030U : 0x31030U) &&
+                  f->p->mp == mp && f->p->attack_mode == (weapon == 4 ? 0x8003 : 0x8002));
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
     // Every shield spell (203..215) and Heaven sword's dual202 have native owners; other combo
@@ -804,6 +829,10 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
           SotnPlayer_ComboSupported(215) && SotnPlayer_ComboSupported(202) &&
           !SotnPlayer_ComboSupported(205) && !SotnPlayer_ComboSupported(201));
     return true;
+}
+static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
+{
+    return ComboWith(f, 124, shield, spell, cost);
 }
 // Two Heaven swords: CheckWeaponCombo pairs the left main with the right sub, so dual202 casts
 // with the left hand (flag clear): blueprint62 at <<14, five MP, kind5's grounded stop. A live
@@ -1000,13 +1029,14 @@ int main(void)
     bool ok = f != NULL;
     // rand()&7: 8 and 0x7ff8 fail; 9 and 7 continue to the ordinary attack.
     ok = ok && Roll(f, 8, true) && Roll(f, 0x7ff8, true) && Roll(f, 9, false) &&
-         Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
-         QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
-         Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
-         HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) &&
-         Runesword(f, 165) && Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) &&
-         SwordOfDawn(f) && Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
-         Combo(f, 12, 210, 10) && Combo(f, 16, 214, 20);
+         Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && ShieldRodUse(f) &&
+         FistCombo(f) && QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) &&
+         Punches(f) && Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) &&
+         Runesword(f, 119) && HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) &&
+         Runesword(f, 164) && Runesword(f, 165) && Muramasa(f) && CombatKnife(f) &&
+         AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) && Combo(f, 5, 203, 10) &&
+         Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) && Combo(f, 12, 210, 10) &&
+         Combo(f, 16, 214, 20) && ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

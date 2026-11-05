@@ -622,6 +622,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 51:
     case 54:
     case 57:
+    case 7:
     case 255:
         return true;
     default:
@@ -670,6 +671,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                              : in.family == 51 ? 4
                              : in.family == 4  ? 2
                              : in.family == 5  ? 2
+                             : in.family == 7  ? 2
                              : in.family == 43 ? 3
                              : in.family == 37 ? 4
                              : in.family == 31 ? 2
@@ -691,6 +693,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 51 ? (in.special ? 0xd18U : 0xcd8U)
                                   : in.family == 4  ? 0x12f4U
                                   : in.family == 5  ? 0x12f4U
+                                  : in.family == 7  ? 0xc28U
                                   : in.family == 33 ? 0xc3cU
                                   : in.family == 34 ? 0x934U
                                   : in.family == 30 ? 0x5e4U
@@ -756,9 +759,9 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 }
                 // w_003/w_036/w_057 share w_002's callback but add BLEND_TRANSP|BLEND_ADD.
                 if (in.family == 0 || in.family == 3 || in.family == 4 || in.family == 5 ||
-                    in.family == 36 || in.family == 43 || in.family == 54 || in.family == 55 ||
-                    in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49 ||
-                    in.family == 50 || in.family == 6 || in.family == 56)
+                    in.family == 7 || in.family == 36 || in.family == 43 || in.family == 54 ||
+                    in.family == 55 || in.family == 57 || in.family == 53 || in.family == 48 ||
+                    in.family == 49 || in.family == 50 || in.family == 6 || in.family == 56)
                     w.blend = 0x30;
                 // w_053 descriptors1/3 and w_030 use BLEND_TRANSP|BLEND_QUARTER.
                 if ((in.family == 53 && (variant == 1 || variant == 3)) || in.family == 30)
@@ -1021,6 +1024,10 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                         }
                         shared.previous_pose = in.pose;
                     }
+                    // w_007 descriptor1 (Shield rod's special173) requests its 0x4A orb with the
+                    // weapon's animation index on pose4 while the player's poseTimer is7.
+                    if (in.family == 7 && variant && in.pose == 4 && in.remaining == 7)
+                        e.factory = 0x4aU | ((in.hand + 1U) << 12) | (Uint32)w.animation << 16;
                     // w_038/w_039 descriptor1 requests WFACTORY(0x38,0) on pose4's last update.
                     if ((in.family == 38 || in.family == 39) && variant && in.pose == 4 &&
                         in.remaining == 1)

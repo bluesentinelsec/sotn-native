@@ -5308,9 +5308,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     return false;
             }
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
-                     c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
-                     c->state.secondary.family == 12 || c->state.secondary.family == 34 ||
-                     c->state.secondary.family == 30 ||
+                     c->state.secondary.family == 7 || c->state.secondary.family == 14 ||
+                     c->state.secondary.family == 13 || c->state.secondary.family == 12 ||
+                     c->state.secondary.family == 34 || c->state.secondary.family == 30 ||
                      SotnWeaponSecondary_ShieldSpell(c->state.secondary.family))
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use

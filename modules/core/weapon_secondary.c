@@ -68,6 +68,9 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 48};
     else if (family == 13)
         *out = (Layout){.rows = 0};
+    // Weapon7 (Shield rod): the orb loops D_8017AB44's four poses.
+    else if (family == 7)
+        *out = (Layout){.timeline = 0xb44, .timeline_count = 5, .rows = 0};
     else if (family == 12)
         *out = (Layout){.rows = 1};
     else if (family == 34)
@@ -119,7 +122,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
-           family == 30 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 30 || family == 7 || SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -144,6 +147,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
         return role <= 1;
     if (family == 13)
         return role <= 3;
+    // Weapon7: Shield rod special173's orb (role1) and its sparkles (role2).
+    if (family == 7)
+        return role == 1 || role == 2;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -183,6 +189,9 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 0 ? 48 : 0;
     if (family == 13)
         return 0;
+    // Weapon7's sparkles take one optional GT4 (failure retires them before their rand calls).
+    if (family == 7)
+        return role == 2 ? 1 : 0;
     if (family == 12)
         return role == 0 ? 1 : 0;
     if (family == 34)
@@ -2342,6 +2351,164 @@ static bool HeavenStrike(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Ui
         return true;
     }
     }
+}
+// w_007 func_ptr_80170004: Shield rod special173's orb. At birth it copies its raw slot16 parent's
+// facing, bank, texture and palette, offsets itself by D_8017AC48[params>>7] and launches at
+// SetSpeedX(4.75) (3.75 with velocityY 2.75 for animations3/6) from 1/16 scale. It decelerates
+// while growing, bobs on rsin while counting 0x200 updates down (a WFACTORY(0x40,0) sparkle every
+// eighth), and shrinks out after the countdown or a hit. A hit while still growing leaves step4,
+// which the original never handles.
+static bool RodOrb(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                   SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.parent_exists)
+        {
+            s->removed = true;
+            return true;
+        }
+        const Uint8 *offset = NULL;
+        if (!View(in.overlay, 0xc48U + (Uint32)(s->parameter >> 7) * 2U, 4, &offset))
+            return SDL_SetError("Weapon7 orb requires its private origin table");
+        s->role = 1;
+        s->allocated = true;
+        s->facing_left = in.parent_facing_left;
+        Uint16 ox = Read16(offset);
+        if (s->facing_left)
+            ox = (Uint16)(0U - ox);
+        s->x = (Sint32)((Uint32)s->x + ((Uint32)ox << 16));
+        s->y = (Sint32)((Uint32)s->y + ((Uint32)Read16(offset + 2) << 16));
+        s->bank = in.parent_bank;
+        s->priority = 0xa8;
+        s->texture = in.parent_texture;
+        s->palette = in.parent_palette;
+        const bool low = (s->parameter & 0xff00U) == 0x300 || (s->parameter & 0xff00U) == 0x600;
+        const Sint32 speed = low ? 0x3c000 : 0x4c000;
+        s->velocity_x = s->facing_left ? -speed : speed;
+        s->velocity_y = low ? 0x2c000 : 0;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0x10;
+        s->flags = 0x08100000U;
+        s->hitbox_width = s->hitbox_height = 9;
+        // Fixed words, not SetWeaponProperties: hit type4 keeps attack1.
+        s->properties = (SotnEquipment){
+            .attack = 1, .hit_type = 4, .invincibility = 4, .stun = 4, .hit_effect = 1};
+        s->hitbox_state = 4;
+        e->group = true;
+        e->sounds[0] = 0x6ad;
+        s->phase = 1;
+        return true;
+    }
+    case 1:
+        if (s->hit_flags)
+            s->phase = 3;
+        s->velocity_x = Decelerate(s->velocity_x, 0x3800);
+        s->velocity_y = Decelerate(s->velocity_y, 0x3800);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        if (s->scale_x < 0x100)
+        {
+            s->scale_x = Word(s->scale_x + 0x10);
+            s->scale_y = Word(s->scale_y + 0x10);
+        }
+        if (!s->velocity_x && s->scale_x >= 0x100)
+        {
+            s->orb_countdown = 0x200;
+            ++s->phase;
+        }
+        return true;
+    case 3:
+        s->scale_x = Word(s->scale_x - 0xc);
+        s->scale_y = Word(s->scale_y - 0xc);
+        if (s->scale_x < 0x10)
+        {
+            s->removed = true;
+            return true;
+        }
+        // fall through
+    case 2: {
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, s->orb_wave, &t))
+            return false;
+        s->velocity_y = t.sine;
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->orb_wave = Word(s->orb_wave + 0x20);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        if (!(s->orb_countdown & 7))
+            e->chain = 0x40U | ((in.hand + 1U) << 12);
+        s->orb_countdown = Word(s->orb_countdown - 1);
+        if (!s->orb_countdown || s->hit_flags)
+            s->phase = 3;
+        return true;
+    }
+    default:
+        return true;
+    }
+}
+// w_007 func_8017B604: the sparkle's 6x6 (from frame3, 4x4) GT4 around its screen point with
+// D_8017AC64's UVs; b1 advances b0 every second call and frame6 retires it.
+static bool RodSparkleQuad(SotnWeaponSecondary *s, SotnDataView overlay, Sint16 x, Sint16 y,
+                           bool *done)
+{
+    SotnPlayerEffectQuad *q = &s->quads[0];
+    const Uint8 frame = s->quad_phase[0];
+    const Sint16 size = frame >= 3 ? 2 : 3;
+    *done = frame == 6;
+    if (*done)
+        return true;
+    const Uint8 *uv = NULL;
+    if (!View(overlay, 0xc64U + frame * 8U, 8, &uv))
+        return SDL_SetError("Weapon7 sparkle requires its private UV frames");
+    const Sint16 left = Word(x - size), right = Word(x + size), top = Word(y - size),
+                 bottom = Word(y + size);
+    const Sint16 xs[4] = {left, right, left, right}, ys[4] = {top, top, bottom, bottom};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q->x[v] = xs[v];
+        q->y[v] = ys[v];
+        q->u[v] = uv[v * 2U];
+        q->v[v] = uv[v * 2U + 1U];
+    }
+    if (!(++s->quad_timer[0] & 1U))
+        ++s->quad_phase[0];
+    return true;
+}
+// w_007 func_ptr_80170008: a sparkle takes one GT4 (failure retires it before its rand calls),
+// scatters by rand()%16-8 / rand()%16 and sinks at 0.75 pixels per update through six frames.
+static bool RodSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng)
+{
+    bool done = false;
+    if (!s->phase)
+    {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        s->flags = 0x08800000U;
+        s->quad_velocity_y = 0xc000;
+        const Sint32 dx = (Sint32)(Rand(rng) % 16U) - 8, dy = (Sint32)(Rand(rng) % 16U);
+        s->x = (Sint32)((Uint32)s->x + ((Uint32)dx << 16));
+        s->y = (Sint32)((Uint32)s->y + ((Uint32)dy << 16));
+        s->quads[0] = (SotnPlayerEffectQuad){.page = 0x1a,
+                                             .palette = 0x1b0,
+                                             .priority = (Uint16)(s->priority + 4U),
+                                             .draw_mode = 0x31};
+        s->quad_phase[0] = s->quad_timer[0] = 0;
+        s->phase = 1;
+        return RodSparkleQuad(s, in.overlay, Word(Pixel(s->x) - in.retained_camera_x),
+                              Word(Pixel(s->y) - in.retained_camera_y), &done);
+    }
+    s->y = (Sint32)((Uint32)s->y + (Uint32)s->quad_velocity_y);
+    if (!RodSparkleQuad(s, in.overlay, Word(Pixel(s->x) - in.retained_camera_x),
+                        Word(Pixel(s->y) - in.retained_camera_y), &done))
+        return false;
+    s->removed = done;
+    return true;
 }
 // w_013 func_ptr_80170004: an afterimage copying the root's frame, palette cycle and rotation,
 // fading by eight from 0x80 and retiring below48.
@@ -5741,6 +5908,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
                         : in.family == 13 && in.role == 2                      ? 4
                         : in.family == 13 && in.role == 3                      ? 3
+                        : in.family == 7 && in.role == 1                       ? 4
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -5792,6 +5960,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 14)
     {
         if (!(in.role == 0 ? Rune(&s, in, &rng, &e) : RuneHitbox(&s, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 7)
+    {
+        if (!(in.role == 1 ? RodOrb(&s, in, &e) : RodSparkle(&s, in, &rng)))
             return false;
         goto commit;
     }
@@ -6006,7 +6180,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0x548 ? 3 : 13};
     if (!state ||
-        (family != 55 && family != 1 &&
+        (family != 55 && family != 1 && (family != 7 || state->role != 1) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

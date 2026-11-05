@@ -33,7 +33,8 @@ Native collision now follows original `collision.h`: any hit-state4 attacker is 
 guard, not only item16. Blockable (state8) projectiles die without DealDamage.
 Other state4 targets still run DealDamage, including its critical roll, then
 discard the result; enemy HP is never reduced. This also corrects Alucard shield16,
-which previously skipped that roll.
+which previously skipped that roll. As in `collision.h`, the guard also receives the attacker
+hitFlags on overlap (Shield rod's orb reads them).
 
 ## Rendering
 

@@ -490,6 +490,44 @@ static void HippogryphHit(SotnActors *s, Actor *root, const Actor *hit, Uint32 c
         weapon->state.flags &= ~0x20000000U;
     }
 }
+// collision.h writes the attacker's hitFlags when the boxes overlap, before any guard or
+// damage handling: hit type4 guards (shields, Shield rod's orb) receive them too.
+static bool AttackerFeedback(SotnActors *actors, Uint32 channel, Uint32 wing_start,
+                             const Actor *actor, const Actor *recipient)
+{
+    if (channel >= wing_start)
+    {
+        const Uint16 index = (Uint16)(channel - wing_start);
+        const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
+        if (index == 2 && (actors->bat_runtime->wolf_mask & 1U))
+        {
+            Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+            if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                flags = 2;
+            if (!SotnWolfRuntime_Hit(&actors->bat_runtime->wolf,
+                                     actors->bat_runtime->wolf.children[1].generation, flags))
+                return false;
+        }
+        else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
+                 (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) || child->star ||
+                 // collision.h writes the attacker's hitFlags unless both it and the
+                 // enemy carry FLAG_UNK_100000.
+                 ((child->weapon_secondary || child->hand_weapon) &&
+                  !((child->weapon_secondary ? child->state.secondary.motion.flags
+                                             : child->state.hand.motion.flags) &
+                    recipient->state.flags & 0x100000U)))
+        {
+            Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+            if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                flags = 2;
+            if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
+                return false;
+        }
+    }
+    return true;
+}
 static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     if (SotnPlayerStep_IsDead(player.step) || actor->state.step == 0 || actor->state.unsupported ||
@@ -861,7 +899,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     recipient->state.hit_points = 0;
                     recipient->state.flags |= 0x100;
                 }
-                return true;
+                return AttackerFeedback(actors, channel, wing_start, actor, recipient);
             }
             if (recipient->state.hit_points != 0x7fff && recipient->state.hit_points != 0 &&
                 !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
@@ -899,39 +937,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->hit_params = source.attack.hit_effect & 127;
             if (actors->stage_id == 25 && recipient->state.id == 0x22)
                 recipient->hit_params = actor->hit_params;
-            if (channel >= wing_start)
-            {
-                const Uint16 index = (Uint16)(channel - wing_start);
-                const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
-                if (index == 2 && (actors->bat_runtime->wolf_mask & 1U))
-                {
-                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
-                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
-                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
-                        flags = 2;
-                    if (!SotnWolfRuntime_Hit(&actors->bat_runtime->wolf,
-                                             actors->bat_runtime->wolf.children[1].generation,
-                                             flags))
-                        return false;
-                }
-                else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
-                         (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) ||
-                         child->star ||
-                         // collision.h writes the attacker's hitFlags unless both it and the
-                         // enemy carry FLAG_UNK_100000.
-                         ((child->weapon_secondary || child->hand_weapon) &&
-                          !((child->weapon_secondary ? child->state.secondary.motion.flags
-                                                     : child->state.hand.motion.flags) &
-                            recipient->state.flags & 0x100000U)))
-                {
-                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
-                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
-                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
-                        flags = 2;
-                    if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
-                        return false;
-                }
-            }
+            if (!AttackerFeedback(actors, channel, wing_start, actor, recipient))
+                return false;
             if (channel >= 2 && channel <= normal_channels)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;

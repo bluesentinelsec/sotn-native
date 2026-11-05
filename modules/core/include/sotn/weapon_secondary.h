@@ -33,9 +33,11 @@ typedef struct SotnWeaponSecondary
         SotnWeaponSecondaryRow rows[SOTN_WEAPON_SECONDARY_ROWS];
         struct
         {
-            /** Weapon48 role2 ring wedges or weapon1 role1 punches: sixteen screen-space GT4s. */
+            /** Weapon48 role2 ring wedges or weapon1 role1 punches: sixteen screen-space GT4s;
+             * weapon7's sparkle owns quads[0] (b0 frame in quad_phase[0], b1 in quad_timer[0]). */
             SotnPlayerEffectQuad quads[16];
             Uint8 quad_timer[16], quad_phase[16]; /**< Weapon1 punch r0/r1 scratch bytes. */
+            Sint32 quad_velocity_y;               /**< Weapon7 sparkle velocityY. */
         };
         /** Weapon50 E1 sparkles: eighty GT4 rows kept as centre, UVs and the original prim
          * scratch bytes g0/g1/g2/b0/b1 (rebuilt into packets at draw time). */
@@ -58,6 +60,8 @@ typedef struct SotnWeaponSecondary
             /** Weapon13 root: ext.weapon.childPalette and the s32 unk98 swish volume. */
             Sint16 child_palette;
             Sint32 volume;
+            /** Weapon7 orb: ext.weapon.lifetime wave angle and unk7E countdown. */
+            Sint16 orb_wave, orb_countdown;
         };
         /** Weapon12 E0 slash: ext.sword corner offsets x0..x3 (unk90/92/94/96), y0..y3
          * (unk98/88/9A/8A), spread steps unk82/84, spreads unk9C/9E, shape unk86, drop unkA0. */

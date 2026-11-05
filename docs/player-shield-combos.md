@@ -24,7 +24,7 @@ A combo spell:
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
 Only combos with an actual native owner are selected. Every shield spell now has one, with
-Mablung (or a Shield rod, once owned): Leather shield's 203, Knight shield's 204, Axe Lord
+Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Axe Lord
 shield's 206, Goddess shield's 209, Shaman shield's 210, Alucard shield's 214 and Alucart
 shield's 215. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).

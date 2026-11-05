@@ -30,6 +30,10 @@ static void Put32(Uint8 *p, Uint32 n)
 }
 // Authored weapon55 layout: two attack descriptors, frame stream, hitbox and the secondary's
 // five-entry timeline; linear SDK quarter wave. No original tables.
+static Uint16 Read16Test(const Uint8 *p)
+{
+    return (Uint16)(p[0] | p[1] << 8);
+}
 static void Program(Uint8 *o)
 {
     for (Uint16 v = 0; v < 2; ++v)
@@ -3514,6 +3518,332 @@ static bool HeavenRuntime(void)
     return true;
 }
 
+// w_007 func_ptr_80170004/80170008: Shield rod special173's orb launches from its D_8017AC48
+// origin, decelerates while growing, bobs for 0x200 updates shedding a sparkle every eighth, and
+// shrinks out; a hit on the growth's last update strands it in step4. Sparkles take one GT4
+// before two rand calls, then sink through six UV frames.
+static void RodTables(Uint8 *o)
+{
+    const Uint16 origins[14] = {0x28, 0xfff2, 0x28,   0xfff2, 0x28,   4,    0x24,
+                                0x14, 0x28,   0xfff2, 0x28,   0xfff3, 0x28, 0x10};
+    for (Uint16 i = 0; i < 14; ++i)
+        Put16(o + 0xc48 + i * 2U, origins[i]);
+    for (Uint16 i = 0; i < 48; ++i)
+        o[0xc64 + i] = (Uint8)(0x10 + i);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        Put16(o + 0xb44 + i * 4U, 4);
+        Put16(o + 0xb46 + i * 4U, (Uint16)(0x243d + i));
+    }
+    Put16(o + 0xb54, 0);
+    Put16(o + 0xb56, 0);
+}
+static bool RodOrbTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    RodTables(o);
+    SotnHandWeaponProgram program = {0};
+    CHECK(SotnWeaponSecondary_Supported(7) && SotnWeaponSecondary_SupportedRole(7, 1) &&
+          SotnWeaponSecondary_SupportedRole(7, 2) && !SotnWeaponSecondary_SupportedRole(7, 0) &&
+          !SotnWeaponSecondary_SupportedRole(7, 3) && !SotnWeaponSecondary_RoleRows(7, 1) &&
+          SotnWeaponSecondary_RoleRows(7, 2) == 1);
+    {
+        SotnWeaponSecondary orphan = {.parameter = 0x100};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        CHECK(SotnWeaponSecondary_Tick(&orphan, &program,
+                                       (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                                  .executable = {exe, sizeof(exe)},
+                                                                  .family = 7,
+                                                                  .role = 1},
+                                       &rng, &e) &&
+              orphan.removed && !e.group && !e.sounds[0] && rng == 3);
+    }
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const Uint16 anim = k < 2 ? 0 : k < 4 ? 3 : 6, hand = k & 1U;
+        const bool left = k == 1 || k == 2 || k == 5, low = anim == 3 || anim == 6, strand = k == 4;
+        SotnWeaponSecondary s = {
+            .parameter = (Uint16)(anim << 8), .x = 100 * 65536 + 0x1234, .y = 80 * 65536 + 0x4321};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .hand = hand,
+                                       .family = 7,
+                                       .role = 1,
+                                       .parent_exists = true,
+                                       .parent_facing_left = left,
+                                       .parent_bank = (Uint16)(0x8010U + hand * 2U),
+                                       .parent_texture = (Uint16)(0x64U + hand * 2U),
+                                       .parent_palette = (Uint16)(0x11fU + hand * 24U)};
+        Uint32 rng = 5;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && e.group &&
+              e.sounds[0] == 0x6ad && !e.properties && s.phase == 1 && s.role == 1 &&
+              s.facing_left == left && s.bank == 0x8010U + hand * 2U &&
+              s.texture == 0x64U + hand * 2U && s.palette == 0x11fU + hand * 24U &&
+              s.priority == 0xa8 && s.flags == 0x08100000U && s.draw_flags == 3 &&
+              s.scale_x == 0x10 && s.scale_y == 0x10 && s.hitbox_width == 9 &&
+              s.hitbox_height == 9 && s.hitbox_state == 4 && s.properties.attack == 1 &&
+              s.properties.hit_type == 4 && s.properties.invincibility == 4 &&
+              s.properties.stun == 4 && s.properties.hit_effect == 1 && !s.properties.id);
+        const Sint16 ox = (Sint16)(anim == 0   ? 0x28
+                                   : anim == 3 ? 0x24
+                                               : 0x28),
+                     oy = (Sint16)(anim == 0   ? -14
+                                   : anim == 3 ? 0x14
+                                               : 0x10);
+        const Sint32 speed = low ? 0x3c000 : 0x4c000;
+        CHECK(s.x == (100 + (left ? -ox : ox)) * 65536 + 0x1234 &&
+              s.y == (80 + oy) * 65536 + 0x4321 && s.velocity_x == (left ? -speed : speed) &&
+              s.velocity_y == (low ? 0x2c000 : 0));
+        CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 7) && s.frame == 0x3d &&
+              s.remaining == 4);
+        // Growth: both velocities decelerate by 7/32 toward zero, scale +0x10 up to 0x100.
+        Uint16 updates = 0;
+        while (s.phase == 1)
+        {
+            const Sint32 vx = s.velocity_x, vy = s.velocity_y, x = s.x, y = s.y;
+            const Sint16 scale = s.scale_x;
+            const Sint32 nvx = vx < 0 ? SDL_min(vx + 0x3800, 0) : SDL_max(vx - 0x3800, 0),
+                         nvy = vy < 0 ? SDL_min(vy + 0x3800, 0) : SDL_max(vy - 0x3800, 0);
+            s.hit_flags = (Uint8)(strand && !nvx && scale + 0x10 >= 0x100 ? 2 : 0);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.chain);
+            ++updates;
+            CHECK(s.velocity_x == nvx && s.velocity_y == nvy && s.x == x + nvx && s.y == y + nvy &&
+                  s.scale_x == (scale < 0x100 ? scale + 0x10 : scale) && s.scale_y == s.scale_x);
+        }
+        CHECK(updates == (low ? 18 : 22) && s.orb_countdown == 0x200);
+        if (strand)
+        {
+            // The hit set step3 before step++: the original's unhandled step4 holds it.
+            s.hit_flags = 0;
+            const SotnWeaponSecondary held = s;
+            CHECK(s.phase == 4 && SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                  !SDL_memcmp(&s, &held, sizeof(s)));
+            continue;
+        }
+        CHECK(s.phase == 2);
+        // Bobbing: velocityY = rsin(wave) added twice, wave +0x20, a sparkle every eighth.
+        Uint16 sparkles = 0, shrink = 0;
+        const bool hit = k == 5;
+        for (Uint16 t = 0; !s.removed && t < 0x300; ++t)
+        {
+            const Sint16 wave = s.orb_wave, count = s.orb_countdown, scale = s.scale_x;
+            const Uint8 phase = s.phase;
+            const Sint32 y = s.y;
+            SotnMathTrig trig = {0};
+            CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, wave, &trig));
+            s.hit_flags = (Uint8)(hit && t == 40 ? 1 : 0);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (phase == 3 && scale - 0xc < 0x10)
+            {
+                CHECK(s.removed && !e.chain);
+                break;
+            }
+            CHECK(s.velocity_y == trig.sine && s.y == y + 2 * trig.sine &&
+                  s.orb_wave == (Sint16)(wave + 0x20) && s.orb_countdown == count - 1 &&
+                  e.chain == (!(count & 7) ? 0x40U | (hand + 1U) << 12 : 0U));
+            sparkles += e.chain != 0;
+            if (phase == 3)
+            {
+                CHECK(s.scale_x == scale - 0xc);
+                ++shrink;
+            }
+            CHECK(s.phase == (phase == 3 || count == 1 || (hit && t == 40) ? 3 : 2));
+        }
+        // 0x200..1 (64 sparkles) then 0..-19 while shrinking (0, -8, -16); a hit after update40
+        // leaves six, then 0x1D7..0x1C4 (0x1D0, 0x1C8).
+        CHECK(s.removed && shrink == 20 && sparkles == (hit ? 6 + 2 : 0x200 / 8 + 3));
+    }
+    return true;
+}
+static bool RodSparkleTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    RodTables(o);
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondaryEvents e = {0};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .family = 7,
+                                   .role = 2,
+                                   .camera_x = 50,
+                                   .camera_y = 9,
+                                   .retained_camera_x = 40,
+                                   .retained_camera_y = 4};
+    {
+        SotnWeaponSecondary s = {.x = 140 * 65536, .y = 90 * 65536, .priority = 0xa8};
+        Uint32 rng = 21;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 21);
+    }
+    in.allocated = true;
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        SotnWeaponSecondary s = {.x = 140 * 65536 + 0x77, .y = 90 * 65536 + 0x55, .priority = 0xa8};
+        Uint32 rng = 21U + k * 1000U, check = rng;
+        const Sint32 dx = (Sint32)((SotnCombat_Random(&check) & 0x7fffU) % 16U) - 8,
+                     dy = (Sint32)((SotnCombat_Random(&check) & 0x7fffU) % 16U);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.flags == 0x08800000U && s.quad_velocity_y == 0xc000 &&
+              s.x == (140 + dx) * 65536 + 0x77 && s.y == (90 + dy) * 65536 + 0x55 &&
+              s.quads[0].page == 0x1a && s.quads[0].palette == 0x1b0 &&
+              s.quads[0].priority == 0xac && s.quads[0].draw_mode == 0x31);
+        Uint16 calls = 1;
+        for (;;)
+        {
+            const Uint8 frame = (Uint8)((calls - 1U) / 2U);
+            const Sint16 size = frame >= 3 ? 2 : 3, sx = (Sint16)((s.x >> 16) - 40),
+                         sy = (Sint16)((s.y >> 16) - 4);
+            CHECK(s.quads[0].x[0] == sx - size && s.quads[0].x[3] == sx + size &&
+                  s.quads[0].y[1] == sy - size && s.quads[0].y[2] == sy + size &&
+                  s.quads[0].u[0] == 0x10 + frame * 8 && s.quads[0].v[3] == 0x10 + frame * 8 + 7 &&
+                  s.quad_timer[0] == calls && s.quad_phase[0] == calls / 2U);
+            const Sint32 y = s.y;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+                  s.y == y + 0xc000);
+            ++calls;
+            if (s.removed)
+                break;
+        }
+        CHECK(calls == 13);
+    }
+    return true;
+}
+// Shield rod special173 through the shared runtime: slot16's descriptor1 requests the 0x4A orb
+// (slots28..31, raw parent slot16, no equip id, least-used group, hit type4) whose 0x40 sparkles
+// (slots32..63) each lease one row before their two rand calls; all retire with their rows.
+static bool RodRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 173, 4, 7, 2, 1, 0, 0);
+    Uint8 *record = dra + 0x500 + 173 * 52;
+    record[18] = 0x48;
+    record[21] = 13;
+    const Uint8 blueprints[][6] = {
+        {48, 0, 1, 0xc1, 0, 0x23}, {0x4a, 1, 1, 0xc1, 0, 0x24}, {0x40, 2, 1, 0xc1, 0, 0}};
+    for (Uint16 i = 0; i < 3; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8 + 8] = 28;
+    dra[0xd4b9 + 8] = 31;
+    Uint8 *o = weapons + 7U * 0x7000 + 0x4000;
+    Program(o);
+    SDL_memcpy(o + 0xc28, o + 0x10ac, 16);
+    SDL_memcpy(o + 0xc38, o + 0x10ac, 16);
+    o[0xc28 + 12] = o[0xc38 + 12] = 0x48;
+    RodTables(o);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment rod = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 173, &rod) && rod.family == 7 && rod.kind == 2 &&
+          rod.variant == 1);
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {7, 7},
+                              .weapon_bound = {true, true},
+                              .camera_x = 20,
+                              .camera_y = 8,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x801d,
+                                         .animation = {.id = 0x4e, .pose = 4, .remaining = 7}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x11030, 173, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && r->children[0].hand_weapon &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 pending = 0;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (r->factories[i].secondary_factory)
+        {
+            ++pending;
+            CHECK(r->factories[i].cursor.blueprint == 0x4a &&
+                  r->factories[i].cursor.entity_modifier == 0xe0 &&
+                  r->factories[i].secondary_parent_slot == 16);
+        }
+    CHECK(pending == 1);
+    in.player.animation.remaining = 6;
+    Uint16 orb = 0, sparkles = 0, sparkle_births = 0, live_max = 0, ticks = 0;
+    bool born[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    for (Uint16 t = 0; t < 900; ++t)
+    {
+        // The swing ends: slot16 retires, the orb keeps its birth copies.
+        if (t == 3)
+            in.player.attack_mode = 0;
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        Uint16 live = 0;
+        bool any = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 7 || !c->initialized)
+            {
+                born[i] = false;
+                continue;
+            }
+            any = true;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && !c->state.secondary.item);
+            if (c->kind == 0xe1)
+            {
+                CHECK(i >= 12 && i <= 15 && c->state.secondary.parent_slot == 16 &&
+                      c->parameter == 0x600 && c->group >= 3 && c->group <= 6 &&
+                      !c->primitive_count && c->state.secondary.attack.active &&
+                      c->state.secondary.attack.hit_type == 4 &&
+                      c->state.secondary.attack.power == 1 && w->priority == 0xa8 &&
+                      w->palette == 0x110U + Read16Test(o + 0xc38 + 8) && w->frame >= 0x3d &&
+                      w->frame <= 0x40);
+                orb = i;
+            }
+            else
+            {
+                CHECK(c->kind == 0xe2 && i >= 16 && c->state.secondary.parent_slot == orb + 16U &&
+                      !c->parameter && c->primitive_count == 1 && !c->group &&
+                      !c->state.secondary.attack.active && w->quads[0].priority == 0xac);
+                sparkle_births += !born[i];
+                born[i] = true;
+                ++live;
+                ++sparkles;
+            }
+        }
+        live_max = SDL_max(live_max, live);
+        if (!any && t > 10)
+            break;
+    }
+    // One sparkle every eighth countdown, each living twelve updates: at most two at once.
+    CHECK(orb && sparkle_births == 67 && live_max == 2 && sparkles == 67 * 12 && ticks < 900);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // Combo202 through the shared runtime: blueprint62's E2 sweep (own item, least-used group, no
 // rows) sheds blueprint0x46 strike swords whose raw parent is its slot; they launch with its
 // item/enemyId, the sweep leases one real row only at step4, and both keep their screen
@@ -6111,12 +6441,12 @@ int main(void)
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
-                   HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && MuramasaSlash() &&
-                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
-                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
-                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
-                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && RodOrbTest() &&
+                   RodSparkleTest() && RodRuntime() && MuramasaSlash() && Twelve() &&
+                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
+                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
+                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
+                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&
