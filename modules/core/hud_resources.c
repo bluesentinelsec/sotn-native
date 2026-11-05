@@ -11,7 +11,7 @@ bool SotnHudResources_Tick(SotnHudResources *state, SotnHudResourcesInput in,
             "HUD resources require actual bounded MP and a0..127 walking-heal counter");
     SotnHudResources next = *state;
     SotnHudResourcesEvents e = {.mp = in.mp};
-    if (!(in.player_status & 0x20000000U) &&
+    if (!(in.player_status & 0x20000000U) && !in.mp_hold &&
         (!(in.game_timer & 63U) || (in.mystic_pendant && (in.game_timer & 63U) == 31U)))
         e.mp = (Uint16)SDL_min(in.mp_max, (Uint32)in.mp + 1U);
     if (in.healing_mail && (in.player_status & 0x04000000U) && !(in.player_status & 7U))

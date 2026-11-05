@@ -29,6 +29,16 @@ typedef struct SotnHandWeaponProgram
         };
         /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
         Sint16 dawn_phase[10];
+        /** Weapon52 (Alucard shield): the spell's armed flag/timer D_8017ABBC/ABC0 (overlay
+         * data, zero at load), its letter centres/priorities D_8017CB88/CBA0/CBB8 and the expiry
+         * letters' D_8017CBD0 positions/velocities. */
+        struct
+        {
+            Sint32 alucard_active, alucard_timer;
+            Sint16 alucard_x[11], alucard_y[11];
+            Sint16 alucard_priority[11];
+            Sint32 letter_x[11], letter_y[11], letter_vx[11], letter_vy[11];
+        };
         /** Shield programs' shieldAngles (overlay data, loaded at first use and retained). */
         struct
         {
@@ -82,6 +92,9 @@ typedef struct SotnHandWeaponInput
     bool facing_left, held, allocated;
     /** Weapon51 slot16 E1/F1 special (func_ptr_80170004) instead of EntityWeaponAttack. */
     bool special;
+    /** Actual g_GameTimer and current MP (weapon52's armed shield drain and expiry). */
+    Uint32 game_timer;
+    Uint16 mp;
 } SotnHandWeaponInput;
 typedef struct SotnHandWeaponEvents
 {
@@ -97,6 +110,10 @@ typedef struct SotnHandWeaponEvents
     /** Weapon54 special: original FACTORY(61,0x11) outline request; zero when absent. */
     Uint32 outline;
     Uint8 shield; /**< Zero: no write; one: original unk48=1; two: original unk48=0. */
+    /** Weapon52's armed shield (its spell): D_80097BF8 MP-regeneration hold, one MP drained on
+     * every sixteenth g_GameTimer, and on a raised hit func_8010E168(0,0x60) (BlinkWhite0x15 and
+     * timer13), kind1 eight-HP healing unless kind1 is pending, and AddHearts(1). */
+    bool mp_hold, mp_drain, shield_hit;
     bool properties;
     /** Weapon51 glow: one g_Clut word written and uploaded this callback (clut set). */
     bool clut;

@@ -273,6 +273,9 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         w->y = in.y;
         w->facing_left = in.facing_left;
     }
+    // w_052: while its spell's armed flag stands, a raised hit (actual collision hitFlags)
+    // requests func_8010E168(0,0x60), kind1 healing and a heart.
+    const bool armed = in.family == 52 && program->alucard_active && !(w->parameter & 0x7f00U);
     if ((in.status & 0x10000U) && w->phase != 4)
     {
         w->priority = (Uint16)(in.priority + 2U);
@@ -282,6 +285,11 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         w->timer = 128;
         w->flags = 0x8000000U;
         w->frame = 62;
+    }
+    if (armed && (w->phase == 1 || w->phase == 2) && w->hit_flags)
+    {
+        e->shield_hit = true;
+        w->hit_flags = 0;
     }
     const Uint16 crouch = in.step == 2 && in.substep != in.step;
     switch (w->phase)
@@ -347,6 +355,28 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         return false;
     // The original assignment also overwrites the earlier phase-four rotate/blink flags.
     Transform(w, in);
+    // The armed shield holds MP regeneration, drains one MP every sixteenth game update and
+    // restores its cached attack; raised, it also attacks (hitbox |2) until its timer or MP ends,
+    // then rolls its properties again and releases the 0x3A letters.
+    if (armed)
+    {
+        e->mp_hold = true;
+        e->mp_drain = !(in.game_timer % 16U);
+        w->properties.attack = (Sint16)program->shield_attack;
+        if (w->phase != 1 && w->phase != 2)
+            return true;
+        w->hitbox_state |= 2;
+        program->alucard_timer = (Sint32)((Uint32)program->alucard_timer - 1U);
+        if (!program->alucard_timer || (Sint32)in.mp - (e->mp_drain ? 1 : 0) <= 0)
+        {
+            program->alucard_active = 0;
+            if (!Properties(w, in, random, e))
+                return false;
+            w->properties.attack = 1;
+            if (!AppendFactory(e, ((in.hand + 1U) << 14) | 0x3aU))
+                return false;
+        }
+    }
     return true;
 }
 static Sint16 Signed16(const Uint8 *p)

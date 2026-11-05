@@ -32,6 +32,15 @@ static bool Resources(void)
                                                             .mystic_pendant = true},
                                     &e) &&
               e.mp == 1);
+        // Weapon52's armed shield sets D_80097BF8 bit1 through entities: regeneration holds too.
+        CHECK(SotnHudResources_Tick(&s,
+                                    (SotnHudResourcesInput){.game_timer = clock,
+                                                            .mp = 1,
+                                                            .mp_max = 20,
+                                                            .mystic_pendant = true,
+                                                            .mp_hold = true},
+                                    &e) &&
+              e.mp == 1);
     }
     CHECK(SotnHudResources_Tick(
               &s,
@@ -125,6 +134,23 @@ static bool Healing(void)
           SotnPlayer_QueueMailHealing(p) && p->healing.pending == 1 &&
           p->healing.pending_kind == 2 && SotnPlayer_QueueBloodHealing(p, 16, 1) &&
           p->healing.pending == 1 && p->healing.pending_kind == 2);
+    // W_052's armed-shield hit overwrites a non-kind1 request with kind1 eight; a pending kind1
+    // stays. Its timer13 floor rises only when the signed word is at or below it.
+    {
+        SotnPlayer copy = *p;
+        copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] = 0x10;
+        CHECK(SotnPlayer_CommitShieldHit(&copy, 0x60) && copy.healing.pending_kind == 1 &&
+              copy.healing.pending == 8 && copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] == 0x60);
+        copy.healing.pending = 3;
+        copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] = 0x70;
+        CHECK(SotnPlayer_CommitShieldHit(&copy, 0x60) && copy.healing.pending == 3 &&
+              copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] == 0x70);
+        copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] = 0x8000;
+        CHECK(SotnPlayer_CommitShieldHit(&copy, 0x60) &&
+              copy.timers[SOTN_PLAYER_TIMER_INVINCIBLE] == 0x60 &&
+              !SotnPlayer_CommitShieldHit(NULL, 0x60) &&
+              !SotnPlayer_CommitShieldHit(&copy, 0x8000));
+    }
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, false) && p->hp == 40 && p->healing.pending == 1 &&
           p->healing.pending_kind == 2 && !p->healing.applied_kind);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 41 && !p->healing.pending && !p->healing.pending_kind &&

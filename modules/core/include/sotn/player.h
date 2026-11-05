@@ -1037,6 +1037,12 @@ bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 cont
  * successful living player update applies it once. Dead/frozen players retain it without
  * revival or a simulated tick. Actual equipment/counter qualification stays with the HUD. */
 bool SotnPlayer_QueueMailHealing(SotnPlayer *player);
+/** @brief Commit w_052's armed-shield hit after stage updates: kind1 eight-HP healing unless
+ * kind1 is already pending (the original overwrites any other kind), and func_8010E168(0,0x60)'s
+ * timer13 floor (raised only when the signed word is at or below it).
+ * @param player Actual owner. @return Success or SDL error without mutation. The next successful
+ * living player update applies the heal once; dead players retain it without revival. */
+bool SotnPlayer_CommitShieldHit(SotnPlayer *player, Uint16 protection);
 
 /** @brief Actual shared factory reservation, called once at the original player boundary.
  * false availability is real exhaustion; success never implies child readiness. */

@@ -103,13 +103,13 @@ typedef struct SotnWeaponSecondary
             Uint16 dawn_slot;
             bool dawn_bound;
         };
-        /** Shield spells (E8): two to seventeen GT4 rows in screen pixels (no DRAW_UNK02) and
-         * ext.shield words unk80 timer, unk82 glow half size, unk84/86 card half extents, unk8A
-         * angle step, unk90 band brightness, unk92/94 wave amplitudes, childPalette and unk7C/7D
-         * rows. */
+        /** Shield spells (E8): two to twenty-three GT4 (and weapon52's G4 ribbon) rows in screen
+         * pixels (no DRAW_UNK02) and ext.shield words unk80 timer, unk82 glow half size, unk84/86
+         * card half extents, unk8A angle step, unk90 band brightness, unk92/94 wave amplitudes,
+         * childPalette and unk7C/7D rows. */
         struct
         {
-            SotnPlayerEffectQuad spell_quads[17];
+            SotnPlayerEffectQuad spell_quads[23];
             Sint16 spell_timer, spell_glow, spell_half_w, spell_half_h, spell_step;
             /** Weapon25 clouds (E9): ext.shield unk96 spin and unk98 orbit angle. */
             Sint16 cloud_spin, cloud_angle;
@@ -244,6 +244,8 @@ typedef struct SotnWeaponSecondaryEvents
     bool freeze_set, freeze_clear;
     /** Shield spells: FACTORY(55, n) pink medicine effect profile, zero when absent. */
     Uint8 pink;
+    /** Weapon52's spell: BlinkWhite FACTORY(44, blink) from the spell entity; zero when absent. */
+    Uint8 blink;
     /** Weapon26: one g_Clut word becomes (word & clut_mask) + clut_add, then uploads. */
     bool clut;
     Uint16 clut_palette, clut_color, clut_mask, clut_add;

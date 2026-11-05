@@ -71,9 +71,8 @@ HP loss, destruction of a real Laboratory Skeleton bone (with an unraised-shield
 control that is hit), Mist/Bat/Wolf retirement, menu/draw holds, curse failure and
 in-memory v9 Continue with mixed pairs. Supplied stock, protection, position,
 curse and save-room contexts are not acquisition, uninterrupted-route or console
-evidence. Leather/Knight/Alucart/Axe Lord/Goddess/Shaman shields' [combo spells](player-shield-combos.md) now run; other
-shield spells,
-other shield families, full sharing and all six
+evidence. Every owned shield's both-buttons [combo spell](player-shield-combos.md) now runs with
+Mablung (Alucard's arms the shield itself). Other shield families, full sharing and all six
 [milestone gates](alucard-status.md) remain open.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_009.c`, `w_011.c`, `w_026.c`,

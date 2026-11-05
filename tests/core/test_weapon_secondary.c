@@ -5385,6 +5385,277 @@ static bool ShamanRuntime(Uint16 hand)
     return true;
 }
 
+// Alucard's orbit from the original constants: letters at angle+i*4096/11 around 0x1C ahead and
+// 0x30 above the player, radius (unk90) by vertical scale (unk98), size12/16 (letter6 twelve).
+static bool AlucardOrbit(const SotnWeaponSecondary *s, Uint8 *exe, Sint16 px, Sint16 py, bool left)
+{
+    const Sint16 cx = (Sint16)(px - (left ? -0x1c : 0x1c)), cy = (Sint16)(py - 0x30);
+    const Sint16 rx = s->spell_half_w, ry = (Sint16)(s->spell_half_w * s->spell_bright / 256);
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        const SotnPlayerEffectQuad *q = &s->spell_quads[1 + i];
+        if (q->green[0])
+            continue;
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig((SotnDataView){exe, 0x24000},
+                            (Sint16)(s->spell_wave_x + ((Sint32)i << 12) / 11), &t));
+        const Sint32 mx = cx + Sra(Sra(t.cosine, 4) * rx, 8), my = cy - Sra(Sra(t.sine, 4) * ry, 8);
+        const Sint16 h = (Sint16)(s->spell_half_h * (i == 6 ? 12 : 16) / 256),
+                     w = (Sint16)(s->spell_half_h * 12 / 256);
+        CHECK(q->x[0] == (Sint16)(mx - w) && q->x[3] == (Sint16)(mx + w) &&
+              q->y[0] == (Sint16)(my - h) && q->y[3] == (Sint16)(my + h));
+    }
+    return true;
+}
+// w_052 EntityWeaponShieldSpell: Alucard's twenty-three rows and eleven birth rands. Letters
+// circle 0x1C ahead of and 0x30 above the player as the shield grows (22), holds (0x40, then
+// TRANSFORM) and flashes (16); they keep circling while the glow fades (0x20), then streak away
+// with TELEPORT_BANG_B; the G4 ribbons between their retained centres open by twelve (20 updates)
+// before BlinkWhite FACTORY(44,1) and the armed flag, fade for 0x20 updates, arm the timer
+// (0x1000) and end the freeze.
+static bool AlucardSpellTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        o[0xbc4 + i * 4U] = (Uint8)(i * 8);
+        o[0xbc5 + i * 4U] = 0x30;
+        o[0xbc6 + i * 4U] = (Uint8)(i * 8 + 7);
+        o[0xbc7 + i * 4U] = 0x4f;
+        o[0xbf0 + i * 4U] = (Uint8)(0x80 - i * 8);
+        o[0xbf1 + i * 4U] = (Uint8)(i * 8);
+        o[0xbf2 + i * 4U] = 0x40;
+    }
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15), .x = 128 * 65536, .y = 120 * 65536};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .x = 100 * 65536,
+                                   .y = 150 * 65536,
+                                   .hand = hand,
+                                   .family = 52,
+                                   .role = 8,
+                                   .priority = 148,
+                                   .facing_left = hand != 0,
+                                   .allocated = true};
+    Uint32 rng = 5, check = 5;
+    Uint16 roll[11] = {0};
+    for (Uint16 i = 0; i < 11; ++i)
+        roll[i] = (Uint16)(SotnCombat_Random(&check) & 0x7fffU);
+    SotnWeaponSecondaryEvents e = {0};
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check && s.phase == 1 &&
+          e.freeze_set && e.clear_shield && e.sounds[0] == 0x641 &&
+          s.spell_quads[1].palette == (hand ? 0x129 : 0x111) &&
+          s.spell_quads[11].palette == (hand ? 0x133 : 0x11b) && s.spell_quads[11].u[1] == 87 &&
+          s.spell_quads[11].v[0] == (hand ? 0xb0 : 0x30) && s.spell_quads[11].draw_mode == 0 &&
+          s.spell_quads[4].red[0] == (Uint8)((roll[3] & 15U) + 1U) &&
+          (s.spell_quads[12].draw_mode & 8U) && s.spell_quads[12].red[0] == 0x80 &&
+          s.spell_quads[12].red[1] == 0x78 && s.spell_quads[22].green[1] == 0 &&
+          SotnWeaponSecondary_RoleRows(52, 8) == 23 && SotnWeaponSecondary_RoleRows(52, 1) == 11 &&
+          SotnWeaponSecondary_ShieldSpellItem(52) == 214 &&
+          SotnWeaponSecondary_ShieldSpellFamily(214) == 52);
+    // Letters circle (0x1C ahead, 0x30 above) with a radius shrinking from0x78.
+    const Sint16 cx = (Sint16)(100 - (hand ? -0x1c : 0x1c)), cy = 150 - 0x30;
+    for (Uint16 i = 0; i < 11; ++i)
+        CHECK(SDL_abs(program.alucard_x[i] - cx) <= 0x78 &&
+              SDL_abs(program.alucard_y[i] - cy) <= 0x78);
+    Uint16 t = 0, counts[9] = {0}, transform = 0, bang = 0, blink = 0;
+    // The original scalars: radius unk90, angle unk92, size unk94, step unk86, scale unk98.
+    Sint16 radius = 0x78, angle = 0, size = 0, step = 0x40, yscale = 0x100, scale = 0;
+    CHECK(s.spell_half_w == radius && s.spell_wave_x == angle && s.spell_half_h == size &&
+          s.spell_step == step && s.spell_bright == yscale &&
+          AlucardOrbit(&s, exe, 100, 150, hand));
+    for (; !s.removed && t < 600; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        const Sint16 ribbon = s.spell_wave_y, timer = s.spell_timer;
+        SotnPlayerEffectQuad letters[11];
+        SDL_memcpy(letters, &s.spell_quads[1], sizeof(letters));
+        e = (SotnWeaponSecondaryEvents){0};
+        check = rng;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+        ++counts[phase];
+        switch (phase)
+        {
+        case 1:
+            scale = (Sint16)SDL_min(scale + 12, 0x100);
+            size = scale;
+            angle = (Sint16)(angle + step);
+            radius = (Sint16)(radius - 3);
+            break;
+        case 2:
+            if (step > 0)
+                --step;
+            angle = (Sint16)(angle + step);
+            break;
+        case 3:
+            size = (Sint16)(size - 2);
+            yscale = (Sint16)SDL_max(yscale - 2, 0x80);
+            step = (Sint16)(step + 3);
+            angle = (Sint16)(angle + step);
+            radius = (Sint16)(radius - 1);
+            CHECK(s.spell_quads[0].priority == (!(timer & 1) ? 0x1fc : 144));
+            break;
+        case 4:
+            size = (Sint16)(size - 2);
+            yscale = (Sint16)SDL_max(yscale - 2, 0x80);
+            step = (Sint16)(step + 1);
+            angle = (Sint16)(angle + step);
+            step = (Sint16)(step + 4);
+            angle = (Sint16)(angle + step);
+            break;
+        default:
+            break;
+        }
+        if (!s.removed)
+        {
+            CHECK(s.spell_half_w == radius && s.spell_wave_x == angle && s.spell_half_h == size &&
+                  s.spell_step == step && s.spell_bright == yscale &&
+                  AlucardOrbit(&s, exe, 100, 150, hand));
+            // Streaking letters (state5) narrow by one per side (to a line), open by twelve per
+            // update both ways and hide once beyond the 0..0xF0 screen rows.
+            for (Uint16 i = 0; i < 11; ++i)
+            {
+                const SotnPlayerEffectQuad *a = &letters[i], *b = &s.spell_quads[1 + i];
+                if (a->green[0] != 5)
+                    continue;
+                const bool narrow = a->x[1] - a->x[0] > 2;
+                const Sint16 y0 = (Sint16)(a->y[0] - 12), y2 = (Sint16)(a->y[2] + 12);
+                CHECK(b->x[0] == (narrow ? a->x[0] + 1 : a->x[1]) &&
+                      b->x[1] == (narrow ? a->x[1] - 1 : a->x[1]) && b->x[2] == b->x[0] &&
+                      b->x[3] == b->x[1] && b->y[0] == y0 && b->y[1] == y0 && b->y[2] == y2 &&
+                      b->y[3] == y2 && b->green[0] == (y0 < 0 && y2 > 0xf0 ? 6 : 5) &&
+                      ((b->draw_mode & 8U) != 0) == (y0 < 0 && y2 > 0xf0));
+            }
+        }
+        transform += e.sounds[0] == 0x668;
+        if (e.sounds[0] == 0x636)
+        {
+            CHECK(phase == 4 && s.phase == 6 && s.spell_quads[1].green[0] == 5 &&
+                  s.spell_quads[11].green[0] == 5);
+            ++bang;
+        }
+        if (phase == 6 && !e.blink)
+        {
+            // Ribbons span neighbouring letter centres, opened by the current height.
+            const SotnPlayerEffectQuad *q = &s.spell_quads[13];
+            CHECK(q->x[0] == program.alucard_x[1] && q->x[1] == program.alucard_x[2] &&
+                  q->y[0] == program.alucard_y[1] - s.spell_wave_y &&
+                  q->y[3] == program.alucard_y[2] + s.spell_wave_y &&
+                  s.spell_wave_y == ribbon + 12 && q->draw_mode == 0x31 &&
+                  q->priority == (Uint16)program.alucard_priority[1]);
+        }
+        if (e.blink)
+        {
+            CHECK(e.blink == 1 && phase == 6 && s.phase == 7 && program.alucard_active == 1 &&
+                  !program.alucard_timer);
+            ++blink;
+        }
+        if (phase == 7 && !s.removed)
+            CHECK(s.spell_quads[12].red[0] <= SDL_max(8, 0x80 - 4 * (counts[7])));
+        CHECK(e.freeze_clear == s.removed);
+    }
+    // A streaking letter reaching exactly row0xF0 stays shown; beyond it, it hides.
+    {
+        SotnWeaponSecondary edge = s;
+        edge.removed = false;
+        edge.phase = 6;
+        edge.spell_wave_y = 0;
+        edge.allocated = true;
+        SotnPlayerEffectQuad *q = &edge.spell_quads[1];
+        *q = (SotnPlayerEffectQuad){.x = {10, 30, 10, 30}, .y = {-50, -50, 228, 228}};
+        q->green[0] = 5;
+        SotnWeaponSecondaryEvents edge_events = {0};
+        SotnHandWeaponProgram edge_program = program;
+        CHECK(SotnWeaponSecondary_Tick(&edge, &edge_program, in, &rng, &edge_events) &&
+              q->y[2] == 0xf0 && q->green[0] == 5 && !(q->draw_mode & 8U));
+        CHECK(SotnWeaponSecondary_Tick(&edge, &edge_program, in, &rng, &edge_events) &&
+              q->y[2] == 0xfc && q->green[0] == 6 && (q->draw_mode & 8U));
+    }
+    CHECK(s.removed && transform == 1 && bang == 1 && blink == 1 && counts[1] == 22 &&
+          counts[2] == 0x40 && counts[3] == 16 && counts[4] == 0x20 && counts[6] == 20 &&
+          counts[7] == 0x20 && counts[8] == 1 && program.alucard_active == 1 &&
+          program.alucard_timer == 0x1000);
+    return true;
+}
+// w_052 func_ptr_80170004 (blueprint0x3A from the expiring armed shield): eleven letters from the
+// player (8 above), one countdown and two velocity rands each; they grow and fall for0x20
+// updates, count down, streak upward and hide; WEAPON_SWISH_C on every fourth update from0x60 to
+// 0x48 of the 0x60-update tail.
+static bool AlucardLettersTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 i = 0; i < 11; ++i)
+        program.letter_x[i] = 0x1234;
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .camera_x = 10,
+                                   .camera_y = 4,
+                                   .x = 130 * 65536,
+                                   .y = 140 * 65536,
+                                   .hand = hand,
+                                   .family = 52,
+                                   .role = 1,
+                                   .priority = 148};
+    Uint32 rng = 21, check = 21;
+    SotnWeaponSecondaryEvents e = {0};
+    {
+        SotnWeaponSecondary cold = {.flags = 0x10000};
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, in, &rng, &e) && cold.removed &&
+              rng == check);
+    }
+    in.allocated = true;
+    SotnWeaponSecondary s = {.flags = 0x10000, .priority = 150};
+    Uint16 r[33] = {0};
+    for (Uint16 i = 0; i < 33; ++i)
+        r[i] = (Uint16)(SotnCombat_Random(&check) & 0x7fffU);
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check && s.phase == 1 &&
+          s.flags == 0x04810000U && s.spell_timer == 0x20 && s.spell_half_h == 0x20 &&
+          s.spell_quads[0].palette == (hand ? 0x129 : 0x111) && s.spell_quads[0].priority == 148 &&
+          s.spell_quads[5].red[0] == (Uint8)((r[15] & 15U) + 1U) &&
+          program.letter_x[5] == (Sint32)((120U << 16) | 0x1234U) &&
+          (program.letter_y[5] >> 16) == 140 - 4 - 8 &&
+          program.letter_vx[5] == (Sint32)(r[16] * 6U) - 0x18000 &&
+          program.letter_vy[5] == -0x20000 - (Sint32)(r[17] * 4U) &&
+          SotnWeaponSecondary_SupportedRole(52, 1) && !SotnWeaponSecondary_SupportedRole(52, 9));
+    Uint16 t = 0, swish = 0, streaking = 0;
+    for (; !s.removed && t < 300; ++t)
+    {
+        const Sint32 vy = program.letter_vy[3];
+        const Uint8 phase = s.phase;
+        SotnPlayerEffectQuad before[11];
+        SDL_memcpy(before, s.spell_quads, sizeof(before));
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+        // Streaks (state2) narrow while at least five wide (else snap to two), rise eighteen at
+        // the top and six at the bottom, and hide (state3, drawMode8) once the bottom is above0.
+        for (Uint16 i = 0; !s.removed && i < 11; ++i)
+        {
+            const SotnPlayerEffectQuad *a = &before[i], *b = &s.spell_quads[i];
+            if (a->green[0] == 2)
+            {
+                const bool narrow = a->x[1] - a->x[0] >= 5;
+                CHECK(b->x[0] == (narrow ? a->x[0] + 1 : a->x[1] - 2) &&
+                      b->x[1] == (narrow ? a->x[1] - 1 : a->x[1]) && b->y[0] == a->y[0] - 18 &&
+                      b->y[2] == a->y[2] - 6 && b->y[1] == b->y[0] && b->x[2] == b->x[0] &&
+                      b->green[0] == (b->y[2] < 0 ? 3 : 2));
+            }
+            if (a->green[0] == 3)
+                CHECK(b->draw_mode == 8);
+        }
+        if (phase == 1)
+            CHECK(program.letter_vy[3] == vy + 0x2000 &&
+                  s.spell_half_h == SDL_min(0x20 + 0x10 * (t + 1), 0xc0));
+        swish += e.sounds[0] == 0x60c;
+        streaking += s.spell_quads[3].green[0] == 2;
+    }
+    CHECK(s.removed && swish == 7 && streaking > 0 && t == 0x20 + 0x60);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -5405,7 +5676,8 @@ int main(void)
                    GoddessRuntime(1, false) && GoddessRuntime(0, true) && GoddessRuntime(1, true) &&
                    ShamanSpellTest(0) && ShamanSpellTest(1) && ShamanStarTest(0, 3) &&
                    ShamanStarTest(1, 3) && ShamanStarTest(0, 2) && ShamanTrailTest() &&
-                   ShamanRuntime(0) && ShamanRuntime(1)
+                   ShamanRuntime(0) && ShamanRuntime(1) && AlucardSpellTest(0) &&
+                   AlucardSpellTest(1) && AlucardLettersTest(0) && AlucardLettersTest(1)
                ? 0
                : 1;
 }

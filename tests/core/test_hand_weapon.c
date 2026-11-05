@@ -1426,11 +1426,240 @@ static bool Ownership(void)
     SDL_free(dra);
     return true;
 }
+// w_052 armed by its spell (D_8017ABBC): it holds MP regeneration, drains one MP on every
+// sixteenth game update and restores its cached attack; raised (phase1/2) it attacks (hitbox |2),
+// a hit requests func_8010E168/healing/a heart, and the timer or MP end it with a fresh property
+// roll, attack1 and the ((hand+1)<<14)|0x3A letters.
+static bool GuardProperties(void *context, Uint32 *random, SotnEquipment *out)
+{
+    (void)context;
+    (void)SotnCombat_Random(random);
+    *out = (SotnEquipment){.id = 16, .attack = 20, .hit_type = 4, .element = 64};
+    return true;
+}
+static bool AlucardArmed(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                              .properties = Properties,
+                              .priority = 148,
+                              .animation = 0x41,
+                              .remaining = 1,
+                              .attack_mode = 0x8002,
+                              .scale_y = 256,
+                              .family = 52,
+                              .hand = 1,
+                              .held = true,
+                              .mp = 40,
+                              .game_timer = 1};
+    SotnHandWeapon w = {0};
+    SotnHandWeaponProgram program = {0};
+    SotnHandWeaponEvents e = {0};
+    Uint32 rng = 9;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 1 &&
+          w.properties.attack == 1 && program.shield_attack == 19 && !e.mp_hold && !e.mp_drain);
+    // Unarmed hits are ignored (no heal/heart requests).
+    w.hit_flags = 1;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.shield_hit && w.hit_flags == 1);
+    program.alucard_active = 1;
+    program.alucard_timer = 3;
+    in.game_timer = 32;
+    e = (SotnHandWeaponEvents){0};
+    Uint32 check = rng;
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == check && e.mp_hold &&
+          e.mp_drain && e.shield_hit && !w.hit_flags && w.properties.attack == 19 &&
+          (w.hitbox_state & 2U) && program.alucard_timer == 2 && !e.factory);
+    in.game_timer = 33;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.mp_hold && !e.mp_drain &&
+          !e.shield_hit && program.alucard_timer == 1);
+    // The timer reaches zero: a fresh roll (one rand), attack1 and the letters.
+    e = (SotnHandWeaponEvents){0};
+    (void)SotnCombat_Random(&check);
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && rng == check && e.properties &&
+          !program.alucard_active && w.properties.attack == 1 && w.hitbox_state == 2 &&
+          e.factory == ((2U << 14) | 0x3aU));
+    // Disarmed: no hold, no drain.
+    in.game_timer = 48;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.mp_hold && !e.mp_drain &&
+          w.properties.attack == 1);
+    // MP running out ends it too (the drained word reaches zero), even with time left.
+    program.alucard_active = 1;
+    program.alucard_timer = 100;
+    in.mp = 1;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.mp_drain &&
+          !program.alucard_active && program.alucard_timer == 99 &&
+          e.factory == ((2U << 14) | 0x3aU));
+    // Lowering (phase3): the hold and drain continue, but no attack bit, timer or expiry.
+    program.alucard_active = 1;
+    program.alucard_timer = 1;
+    in.mp = 40;
+    in.held = false;
+    in.game_timer = 64;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 3 && e.mp_hold &&
+          e.mp_drain && program.alucard_active && program.alucard_timer == 1 && !e.factory);
+    // A guard roll (hit type4, attack255 cached) gains the attack bit only while armed and raised.
+    in.properties = GuardProperties;
+    in.held = true;
+    in.mp = 40;
+    program = (SotnHandWeaponProgram){0};
+    w = (SotnHandWeapon){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.hitbox_state == 4 &&
+          program.shield_attack == 255 && w.properties.attack == 1);
+    program.alucard_active = 1;
+    program.alucard_timer = 100;
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.hitbox_state == 6 &&
+          w.properties.attack == 255);
+    // A params-carrying (0x7F00) shield entity is never the armed one.
+    SotnHandWeapon other = {.parameter = 0x100};
+    SotnHandWeaponProgram armed = {.alucard_active = 1, .alucard_timer = 100};
+    e = (SotnHandWeaponEvents){0};
+    CHECK(SotnHandWeapon_Tick(&other, &armed, in, &rng, &e) && !e.mp_hold && !e.mp_drain);
+    e = (SotnHandWeaponEvents){0};
+    other.hit_flags = 1;
+    CHECK(SotnHandWeapon_Tick(&other, &armed, in, &rng, &e) && !e.shield_hit &&
+          !(other.hitbox_state & 2U) && armed.alucard_timer == 100);
+    return true;
+}
+
+// Runtime: Alucard shield16 (family52) armed by its spell. The raised shield holds MP regeneration
+// and drains the character's MP on every sixteenth game update; a delivered hit becomes one
+// BlinkWhite0x15 factory, the timer13 floor, a kind1 heal request and one heart; at expiry it
+// releases blueprint0x3A's E1/F1 letters (eleven rows in32..63), which retire on their own.
+static bool AlucardRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(53, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Definition(dra, 16, 52, 20);
+    Uint8 *shield = dra + 0x500 + 16U * 52U;
+    shield[14] = 9;
+    shield[17] = 128;
+    shield[18] = 0x63;
+    shield[21] = 0;
+    Put16(shield + 40, 4);
+    const Uint8 blueprints[3][6] = {
+        {0, 1, 0xc1, 0, 0x23, 0}, {11, 1, 0x81, 0, 0, 0}, {1, 1, 0xc1, 0, 0, 0}};
+    const Uint16 ids[3] = {48, 44, 58};
+    for (Uint16 b = 0; b < 3; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    Uint8 *blink = dra + 0xd670 + 0x15U * 20U;
+    Put16(blink + 6, 0x100);
+    for (Uint16 k = 8; k <= 12; k += 2)
+        Put16(blink + k, 256);
+    Put16(blink + 14, 0x7002);
+    Put16(blink + 16, 0x31);
+    Put16(blink + 18, 512);
+    Resources(weapons + 52U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    CHECK(SotnCharacter_Collect(character, false, 16) &&
+          SotnCharacter_Equip(character, SOTN_EQUIP_RIGHT, 16));
+    SotnCharacterState progress = {0};
+    CHECK(SotnCharacter_Get(character, &progress, NULL));
+    progress.mp = progress.mp_max = 30;
+    progress.hearts = 5;
+    CHECK(SotnCharacter_Restore(character, &progress));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .weapons = {weapons, 53U * 0x7000},
+                              .weapon_family = {52, 52},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x8002,
+                                         .buttons = SOTN_BUTTON_RIGHT_HAND,
+                                         .animation = {.id = 0x41, .pose = 3, .remaining = 1}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x802030, 16, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          r->children[0].hand_weapon && !r->shield_mp_hold);
+    r->hand_program[1].alucard_active = 1;
+    r->hand_program[1].alucard_timer = 0x30;
+    Uint16 holds = 0, drained = 0, letters = 0, letter_rows = 0, heals = 0, blinks = 0;
+    for (Uint16 t = 1; t < 400; ++t)
+    {
+        in.game_timer = t;
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        const Uint16 mp = progress.mp, hearts = progress.hearts;
+        if (t == 5)
+            CHECK(SotnBatRuntime_Hit(r, 0, r->children[0].generation, 1));
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        holds += r->shield_mp_hold;
+        drained += (Uint16)(mp - progress.mp);
+        if (r->shield_heal)
+        {
+            CHECK(t == 5 && r->shield_protection == 0x60 && progress.hearts == hearts + 1);
+            ++heals;
+        }
+        else
+            CHECK(progress.hearts == hearts && !r->shield_protection);
+        for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+            blinks += r->factories[i].cursor.entity_id && r->factories[i].cursor.blueprint == 44 &&
+                      r->factories[i].cursor.parameter == 0x1500 && t == 5;
+        for (Uint16 i = 16; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || !c->initialized)
+                continue;
+            CHECK(c->state.secondary.family == 52 && c->kind == 0xf1 && c->primitive_count == 11 &&
+                  SotnBatRuntime_SecondaryValid(c, i));
+            ++letters;
+            letter_rows += !(c->state.secondary.motion.spell_quads[3].draw_mode & 8U);
+        }
+    }
+    // Re-armed with one MP: the drain takes it to zero and ends the armed state at once.
+    CHECK(SotnCharacter_Get(character, &progress, NULL));
+    progress.mp = 1;
+    CHECK(SotnCharacter_Restore(character, &progress));
+    CHECK(r->children[0].hand_weapon);
+    {
+        r->hand_program[1].alucard_active = 1;
+        r->hand_program[1].alucard_timer = 0x30;
+        in.game_timer = 0x400;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+              SotnCharacter_Get(character, &progress, NULL) && !progress.mp &&
+              !r->hand_program[1].alucard_active);
+    }
+    // Thirty-one raised updates hold regeneration and drain on every sixteenth game update.
+    CHECK(heals == 1 && blinks == 1 && holds >= 0x30 && drained >= 2 && drained <= 4 &&
+          !r->hand_program[1].alucard_active && letters > 0x60 && letter_rows > 20);
+    for (Uint16 i = 16; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
                    HolySword() && Lunges() && Katana() && Thunderbrand() && Weapon49() &&
-                   Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership()
+                   Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
+                   AlucardArmed() && AlucardRuntime()
                ? 0
                : 1;
 }

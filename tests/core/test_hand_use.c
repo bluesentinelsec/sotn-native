@@ -197,6 +197,14 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 210 * 52 + 22] = 1;
     Put16(f->dra + 0x500 + 210 * 52 + 36, 10);
     TestCharacter_Put32(f->dra + 0x500 + 210 * 52 + 0x1c, 0x100);
+    // Alucard shield16 (sub0x1000) casts spell214 for twenty MP.
+    Item(f->dra, 16, 9, 52, 128, 0x63, 0, 0, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 16 * 52 + 0x1c, 0x1000);
+    Item(f->dra, 214, 10, 52, 5, 0xba, 0, 0, 0);
+    f->dra[0x500 + 214 * 52 + 19] = 86;
+    f->dra[0x500 + 214 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 214 * 52 + 36, 20);
+    TestCharacter_Put32(f->dra + 0x500 + 214 * 52 + 0x1c, 0x1000);
     Item(f->dra, 17, 5, 30, 6, 0x68, 0, 13, 0);
     f->dra[0x500 + 17 * 52 + 24] = 177; // QCF specialMove
     Item(f->dra, 177, 1, 30, 5, 0xb8, 0, 0, 0);
@@ -233,8 +241,9 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
                              : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
-    CHECK(item == 18 || item == 143 || item == 119 || item == 133 || item == 163 || item == 164 ||
-          item == 165 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
+    // Alucard shield16 binds without it too (its family52 owner predates the shared hand).
+    CHECK(item == 16 || item == 18 || item == 143 || item == 119 || item == 133 || item == 163 ||
+          item == 164 || item == 165 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
@@ -778,12 +787,12 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
                   f->p->attack_mode == 0x8002);
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
-    // Leather203, Knight204, AxeLord206, Goddess209, Shaman210 and Alucart215 have native spells;
-    // Alucard214 not yet.
+    // Every shield spell (203..215 with a native owner) is selected; Heaven sword's dual202
+    // waits for its own owner.
     CHECK(SotnPlayer_ComboSupported(203) && SotnPlayer_ComboSupported(204) &&
           SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(209) &&
-          SotnPlayer_ComboSupported(210) && SotnPlayer_ComboSupported(215) &&
-          !SotnPlayer_ComboSupported(214));
+          SotnPlayer_ComboSupported(210) && SotnPlayer_ComboSupported(214) &&
+          SotnPlayer_ComboSupported(215) && !SotnPlayer_ComboSupported(202));
     return true;
 }
 // 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,
@@ -950,7 +959,7 @@ int main(void)
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
          Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
          Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
-         Combo(f, 12, 210, 10);
+         Combo(f, 12, 210, 10) && Combo(f, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

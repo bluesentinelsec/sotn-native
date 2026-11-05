@@ -12,6 +12,9 @@ typedef struct SotnHudResourcesInput
     Uint32 game_timer, player_status;
     Uint16 mp, mp_max;
     bool healing_mail, mystic_pendant;
+    /** D_80097BF8 bit1 set by entities this frame (weapon52's armed shield); transformation's
+     * status0x20000000 sets it too. Either holds MP regeneration. */
+    bool mp_hold;
 } SotnHudResourcesInput;
 /** @brief Proposed actual MP and original kind2/amount1 deferred-heal request. */
 typedef struct SotnHudResourcesEvents

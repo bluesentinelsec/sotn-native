@@ -1,4 +1,4 @@
-# Selected weapon combos and the Leather/Knight/Alucart/Axe Lord/Goddess/Shaman shield spells
+# Selected weapon combos and every shield spell
 
 Pressing both attack buttons can cast a combo spell. CheckWeaponCombo (`menu.c`) runs with each
 weapon load and records `D_8013AEE4`: the combo item, plus bit 31 when the right hand owns it.
@@ -23,11 +23,11 @@ A combo spell:
 
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
-Only combos with an actual native owner are selected. Currently those are Leather shield's 203,
-Knight shield's 204, Axe Lord shield's 206, Goddess shield's 209, Shaman shield's 210 and Alucart
-shield's 215, with Mablung (or a Shield
-rod, once owned). Other combos keep the ordinary left-hand attack, a documented gap until their
-spells exist.
+Only combos with an actual native owner are selected. Every shield spell now has one, with
+Mablung (or a Shield rod, once owned): Leather shield's 203, Knight shield's 204, Axe Lord
+shield's 206, Goddess shield's 209, Shaman shield's 210, Alucard shield's 214 and Alucart
+shield's 215. Dual Heaven swords' 202 still keeps the ordinary left-hand attack, a documented
+gap until its owner exists.
 
 ## Leather shield spell (item203)
 
@@ -163,6 +163,54 @@ empties. The star's projection uses PSY-Z-derived SDK matrix and divider math, s
 effect. A foreign occupant of a raw parent slot reads as step 0 with offset 0 here. Stars and
 trails run during the freeze and keep their screen position.
 
+## Alucard shield spell (item214) and its armed shield
+
+Alucard shield's spell (w_052) costs twenty MP and takes twenty-three rows:
+- the glow;
+- eleven letters (overlay UVs, palettes base+0..10, each with a 1..16 countdown from one of the
+  eleven birth rand calls);
+- eleven untextured G4 ribbons, coloured from the overlay table and drawn as gouraud quads.
+
+The sequence:
+1. The letters circle a point 0x1C ahead of and 0x30 above the player. Their radius shrinks from
+   0x78 and their angle steps from 0x40. Meanwhile the shield grows, holds 0x40 updates, plays
+   TRANSFORM and flashes out.
+2. The letters keep circling while the glow fades. Their last centres and priorities stay in the
+   program (`D_8017CB88/CBA0/CBB8`).
+3. With TELEPORT_BANG_B the letters stretch away and hide. The ribbons between neighbouring
+   retained centres open by twelve per update.
+4. Past 0xE0 the spell requests BlinkWhite `FACTORY(44, 1)` and sets `D_8017ABBC`. The ribbons fade
+   for 0x20 updates.
+5. It sets the timer `D_8017ABC0 = 0x1000` and ends the freeze.
+
+Those two program words arm the shield's own `EntityWeaponAttack` (the family-52 slot16 owner).
+While armed, every callback:
+- sets `D_80097BF8` bit 1, which holds the HUD's MP regeneration for that frame;
+- drains one MP on every sixteenth `g_GameTimer`;
+- restores the attack it cached at birth.
+
+While the shield is raised (steps 1/2) it also:
+- adds hitbox bit 2, so it attacks with that attack instead of only guarding;
+- on a hit (actual collision `hitFlags`), calls `func_8010E168(0, 0x60)` (BlinkWhite 0x15 and the
+  timer-13 floor), queues kind-1 eight-HP healing unless kind 1 is pending, and adds a heart;
+- counts its timer down. When the timer reaches zero, or MP would reach zero, it clears the flag,
+  rolls `SetWeaponProperties` again, sets attack 1 and releases `((hand+1)<<14)|0x3A`: the
+  E1/F1 letters.
+
+The letters child (`func_ptr_80170004`, eleven GT4s in slots 32..63) makes three rand calls per
+letter: a countdown and two velocities (`D_8017CBD0`). The letters burst from 8 above the player,
+grow and fall for 0x20 updates, count down, streak upward and hide. WEAPON_SWISH_C plays on every
+fourth update from 0x60 to 0x48 of their 0x60-update tail.
+
+Native code commits these effects as follows:
+- MP drain and the heart go to the character within the runtime pass.
+- The heal and timer-13 floor go through `SotnPlayer_CommitShieldHit` after the pass.
+- The regeneration hold is an explicit HUD input.
+
+The original's signed MP can reach -1 while the shield is lowered and still draining; native MP
+stops at zero (the shield still expires on its next raised callback). BlinkWhite 0x15 joins the
+selected BlinkWhite profiles.
+
 Rows are screen pixels, because the original drawMode lacks DRAW_UNK02. The entity is
 screen-fixed, but the camera is static for its whole frozen life.
 
@@ -187,6 +235,12 @@ Public tests cover:
   star release, phase lengths, RGB bands and the spread. For the star: its delay roll, UVs, trail
   request, spin, shrink, release, fly-off and projected bounds. For the trail: row selection,
   copy and hide, and parent-loss retirement. Read-modify palette words are covered too.
+- **Alucard:** the spell's rolls, rows, phase lengths, letter orbit, streaks, ribbon geometry and
+  fade, BlinkWhite request and arming. The letters' rolls, fall, growth, swishes and streaks.
+  The armed shield (hand tests): the hold and drain cadence, attack restore, hitbox bit, hit
+  requests, timer and MP expiry, and the lowered-shield exceptions. The runtime armed shield:
+  character MP drain, heal, heart, BlinkWhite 0x15 and timer-13 outputs, and the letters through
+  retirement. The HUD hold and `SotnPlayer_CommitShieldHit` are covered too.
 - **Runtime:** the spell, E9/F9 walker (spell item, least-used group, params0) and afterimages
   (32..63, equipId0, no roll) through the actual factories. Another hand's Shotel boomerangs take
   the retired walker's slot while its afterimages fade. Camera moves after the freeze keep the
@@ -207,7 +261,10 @@ last changes the empty-slot birth origin, which native play cannot reach (clouds
 while the spell lives); the private comparison covers it. Of sixty-four Shaman mutations,
 sixty-three are caught. The remaining one moves the fly-off bound by one, but the star's Y offset
 moves in steps of six from multiples of six, so -127 and -128 are never reached. (The OTZ
-visibility shift is also invisible: the star's depth stays 0x180 +/- 216, always inside the test.)
+visibility shift is also invisible: the star's depth stays 0x180 +/- 216, always inside the test.) Of sixty-one Alucard
+mutations, fifty-eight are caught. Two are equivalent: the vertical scale only falls to 160, so its
+0x80 floor is never reached, and letter widths stay even, so a gap of 3 never occurs. One does not
+compile.
 
 The private original-instruction comparisons run complete original callbacks:
 - **Spells:** 19,552 w_008/w_009/w_058/w_011/w_025/w_026 callbacks across 120 contexts, comparing
@@ -223,16 +280,24 @@ The private original-instruction comparisons run complete original callbacks:
 - **Shaman stars:** 2,175 star and 488 trail w_026 callbacks. They run the real SLUS
   `RotMatrix`/`TransMatrix`/`RotTransPers4` code, with a private PSY-Z COP2 register model
   executing 4,302 GTE commands.
+- **Alucard:** 3,012 w_052 spell callbacks across 20 contexts and 776 letter callbacks across 8,
+  comparing 77,264 rows. The comparison includes the retained centres, arming, BlinkWhite and
+  freeze. The armed shield runs inside the hand-weapon comparison: 888 armed callbacks of the
+  real `EntityWeaponAttack`, with 124 raised hits through `func_8010E168`/`AddHearts`, heal kind,
+  MP drain and hold, and expiry rolls.
+- **BlinkWhite 0x15:** compared in the BlinkWhite oracle alongside the other selected profiles.
 
 Debug and ASan traces are byte-identical.
 
-Native Debug/ASan protocols equip Mablung with Leather, Knight, Alucart, Axe Lord, Goddess or
-Shaman shield through the menu in both arrangements. They check:
+Native Debug/ASan protocols equip Mablung with each of the seven shields through the menu in both
+arrangements. They check:
 - the actual combo word, ten (twenty, forty) MP and the spell's pixels;
 - about 196 frozen frames (88 for Axe Lord, 288 for Goddess), both Blinks and the pink effect;
 - up to seven Goddess clouds, which draw pixels and move during the freeze;
 - Shaman's eight stars and eight trails, whose projected rows draw and move during its 253 frozen
   updates;
+- Alucard's 188 frozen updates with its ribbons, then the armed shield. Held raised with little MP,
+  it holds regeneration, drains MP to zero, expires and releases letters that draw and retire;
 - release without a Mablung swing;
 - Alucart's question-mark pixels;
 - Axe Lord's walker in Laboratory room 5. It holds its actual group, hitbox and active 206
@@ -242,7 +307,7 @@ Too little MP keeps the left-hand swing. Supplied stock, protection and MP conte
 acquisition, route or console evidence.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_008.c`, `weapon/w_009.c`, `weapon/w_011.c`,
-`weapon/w_025.c`, `weapon/w_026.c`,
+`weapon/w_025.c`, `weapon/w_026.c`, `weapon/w_052.c`,
 `weapon/w_058.c`, `dra/menu.c` (CheckWeaponCombo),
 `dra/6E42C.c`, `dra/6DF70.c` and `dra/7879C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

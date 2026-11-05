@@ -1041,6 +1041,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // Weapon25: Goddess's spell requests its blueprint90 clouds.
     if (family == 25)
         return bp == 90 && param == 1;
+    // Weapon52: the expiring armed shield requests its blueprint0x3A letters.
+    if (family == 52)
+        return bp == 0x3a && param == 0;
     // Weapon26: Shaman's spell requests blueprint92's stars, each star its blueprint90 trail.
     if (family == 26)
         return (bp == 92 && param == 0) || (bp == 90 && param == 1);
@@ -1202,6 +1205,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 25 && (c->kind & 15U) == 9                   ? 3
                                    : family == 26 && (c->kind & 15U) == 9                   ? 2
                                    : family == 26                                           ? 8
+                                   : family == 52 && (c->kind & 15U) == 1                   ? 2
+                                   : family == 52                                           ? 8
                                    : family == 25                                           ? 9
                                    : family == 11                                           ? 7
                                    : family == 8 || family == 9                             ? 7
@@ -3748,8 +3753,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         return false;
     SotnDeathImage dissolve_image = in.dissolve_image ? *in.dissolve_image : (SotnDeathImage){0};
     const Uint32 previous_random = progress.random;
-    const Uint16 previous_mp = progress.mp;
+    const Uint16 previous_mp = progress.mp, previous_hearts = progress.hearts;
     bool inventory_changed = false;
+    r.shield_mp_hold = r.shield_heal = false;
+    r.shield_protection = 0;
     bool healing_pending = p.healing.pending_kind != 0;
     if (!in.freeze)
         r.player_hitbox_state = SotnPlayerStep_IsDead(p.step) ? 0 : 1;
@@ -3870,7 +3877,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                           .held = (p.buttons & (hand ? SOTN_BUTTON_RIGHT_HAND
                                                                      : SOTN_BUTTON_LEFT_HAND)) != 0,
                                           .special = (c->kind & 15U) == 1,
-                                          .allocated = allocated},
+                                          .allocated = allocated,
+                                          .game_timer = in.game_timer,
+                                          .mp = progress.mp},
                     &progress.random, &events))
                 return false;
             for (Uint16 j = 0; j < SOTN_HAND_WEAPON_TILES; ++j)
@@ -3892,6 +3901,39 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             if (events.shield)
                 r.hand_shield = events.shield == 1;
+            // Weapon52's armed shield: D_80097BF8 holds MP regeneration this update; one MP
+            // drains on every sixteenth game update (the original's signed MP may reach -1 while
+            // the shield lowers; native MP stops at zero); a raised hit requests
+            // func_8010E168(0,0x60) (BlinkWhite0x15 from the shield and timer13), kind1 healing
+            // and AddHearts(1).
+            if (events.mp_hold)
+                r.shield_mp_hold = true;
+            if (events.mp_drain && progress.mp)
+                --progress.mp;
+            if (events.shield_hit)
+            {
+                Uint16 j = 0;
+                while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
+                    ++j;
+                if (j < SOTN_BAT_RUNTIME_FACTORIES)
+                {
+                    SotnPlayerFactory made = {0};
+                    if (!SotnPlayerFactory_Begin(
+                            &made,
+                            (SotnPlayerFactorySource){.x = w->x,
+                                                      .y = w->y,
+                                                      .flags = w->flags,
+                                                      .priority = w->priority,
+                                                      .facing_left = w->facing_left},
+                            44U | 0x15U << 16, 0))
+                        return false;
+                    SDL_zero(r.factories[j]);
+                    r.factories[j].cursor = made;
+                }
+                r.shield_protection = 0x60;
+                r.shield_heal = true;
+                progress.hearts = (Uint16)SDL_min(progress.hearts_max, progress.hearts + 1U);
+            }
             // Current selected Short sword uses variant zero. Other weapon37 producers
             // require their real secondary owners before the menu can expose them.
             // Ordered WFACTORY requests from the actual weapon entity; a full factory table
@@ -4102,6 +4144,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 11 ? 8
                                  : family == 25 ? 11
                                  : family == 26 ? 12
+                                 : family == 52 ? 16
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4316,6 +4359,28 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.freeze_changed = true;
                 r.freeze = events.freeze_set ? 1 : 0;
             }
+            // Weapon52's spell: BlinkWhite FACTORY(44, n) from the spell entity.
+            if (events.blink)
+            {
+                Uint16 j = 0;
+                while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
+                    ++j;
+                if (j < SOTN_BAT_RUNTIME_FACTORIES)
+                {
+                    SotnPlayerFactory made = {0};
+                    if (!SotnPlayerFactory_Begin(
+                            &made,
+                            (SotnPlayerFactorySource){.x = w->x,
+                                                      .y = w->y,
+                                                      .flags = w->flags,
+                                                      .priority = c->source.priority,
+                                                      .facing_left = w->facing_left},
+                            44U | (Uint32)events.blink << 16, 0))
+                        return false;
+                    SDL_zero(r.factories[j]);
+                    r.factories[j].cursor = made;
+                }
+            }
             for (Uint16 b = 0; events.freeze_set && b < 2; ++b)
             {
                 Uint16 j = 0;
@@ -4488,7 +4553,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Shield spells lack CAMERA_LOCKED: like the warp they keep their screen position
             // after the camera work (Axe Lord's outlives its freeze by twenty updates).
             if (SotnWeaponSecondary_ShieldSpell(family) &&
-                ((c->kind & 15U) == 8 || family == 25 || family == 26) && !w->removed)
+                ((c->kind & 15U) == 8 || family == 25 || family == 26 || family == 52) &&
+                !w->removed)
             {
                 w->x = FixedShift(w->x, Word(in.room_shift_x - in.screen_shift_x));
                 w->y = FixedShift(w->y, Word(in.room_shift_y - in.screen_shift_y));
@@ -6621,7 +6687,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.neutron.attack.active = false;
         }
     }
-    if ((inventory_changed || progress.random != previous_random || progress.mp != previous_mp) &&
+    if ((inventory_changed || progress.random != previous_random || progress.mp != previous_mp ||
+         progress.hearts != previous_hearts) &&
         !SotnCharacter_Restore(character, &progress))
         return false;
     *runtime = r;

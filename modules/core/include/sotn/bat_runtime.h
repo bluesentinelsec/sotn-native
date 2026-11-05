@@ -277,6 +277,11 @@ typedef struct SotnBatRuntime
     } clut[4];
     Uint8
         hand_shield; /**< Original retained unk48 word, updated by actual callbacks/replacement. */
+    /** Weapon52's armed shield this pass: D_80097BF8 MP-regeneration hold, a kind1 eight-HP
+     * healing request and the timer13 floor (0x60) from func_8010E168; committed by the session
+     * after a successful pass. */
+    bool shield_mp_hold, shield_heal;
+    Uint16 shield_protection;
     bool magic_clear_shield; /**< Conditional hand-effect shield retirement, committed by its owner.
                               */
     Uint16 hellfire_signal, hellfire_palette;

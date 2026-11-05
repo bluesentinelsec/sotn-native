@@ -1,5 +1,5 @@
 Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
-on every equipment set and cast Leather203/Knight204/Alucart215/AxeLord206/Goddess209/Shaman210 shield spells with Mablung on both buttons (held
+on every equipment set and cast every shield spell (Leather203/Knight204/AxeLord206/Goddess209/Shaman210/Alucard214/Alucart215) with Mablung on both buttons (held
 shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
 factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
 rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
@@ -16,6 +16,11 @@ Shaman (w_026, 14 rows) keeps program angles/green cycle/glass counter, rewrites
 colour13 green each callback (read-modify g_Clut, committed after the pass), releases
 blueprint92's eight GTE stars (RotTransPers4, screen0x280; ChildRows: star1/trail4 rows) and
 pink6; stars read the raw spell's step, trails copy the raw star's row.
+Alucard (w_052, 23 rows incl. 11 G4 ribbons drawn untextured) arms its shield's program
+(D_8017ABBC/ABC0=0x1000): the raised family52 shield attacks (hitbox|2, cached attack), holds MP
+regeneration (D_80097BF8 -> HUD mp_hold), drains MP each 16th game update (native MP stops at 0),
+heals/hearts/BlinkWhite0x15/timer13 on hits (SotnPlayer_CommitShieldHit) and at timer/MP expiry
+rolls properties again and releases the 0x3A E1/F1 letters.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,

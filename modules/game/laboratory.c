@@ -842,7 +842,8 @@ static bool TickHudResources(SotnLaboratory *s)
                                     .mp_max = progress.mp_max,
                                     .healing_mail = progress.equipment[SOTN_EQUIP_ARMOR] == 17,
                                     .mystic_pendant =
-                                        progress.equipment[5] == 76 || progress.equipment[6] == 76},
+                                        progress.equipment[5] == 76 || progress.equipment[6] == 76,
+                                    .mp_hold = s->bat_runtime.shield_mp_hold},
             &events))
         return false;
     if (events.mp != progress.mp)
@@ -1433,6 +1434,9 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
             return false;
         if (s->bat_runtime.spell_use_ticks &&
             !SotnPlayer_SetSpellUseTimer(s->player, s->bat_runtime.spell_use_ticks))
+            return false;
+        if (s->bat_runtime.shield_heal &&
+            !SotnPlayer_CommitShieldHit(s->player, s->bat_runtime.shield_protection))
             return false;
         if (s->bat_runtime.dark_minimum &&
             !SotnPlayer_RaiseDarkTimer(s->player, s->bat_runtime.dark_minimum))
@@ -5240,6 +5244,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .blend = (q.draw_mode & 1U) != 0,
                                             .blend_mode = (Uint8)((q.draw_mode >> 5) & 3U)};
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            // Weapon52's spell rows12..22 are untextured G4 ribbons (prim->type = PRIM_G4).
+            if (spell && c->state.secondary.family == 52 && (c->kind & 15U) == 8 && index >= 12)
+            {
+                if (!DrawIceQuad(session, &q) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;

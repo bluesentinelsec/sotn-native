@@ -80,6 +80,7 @@ static bool Program(Uint16 family, Layout *out)
                                 : family == 11 ? 10
                                 : family == 25 ? 17
                                 : family == 26 ? 14
+                                : family == 52 ? 23
                                                : 11};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
@@ -89,7 +90,7 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
     return family == 8 || family == 9 || family == 58 || family == 11 || family == 25 ||
-           family == 26;
+           family == 26 || family == 52;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
@@ -99,6 +100,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
            : family == 11 ? 206
            : family == 25 ? 209
            : family == 26 ? 210
+           : family == 52 ? 214
                           : 0;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
@@ -109,6 +111,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
            : item == 206 ? 11
            : item == 209 ? 25
            : item == 210 ? 26
+           : item == 214 ? 52
                          : 0;
 }
 bool SotnWeaponSecondary_Supported(Uint16 family)
@@ -146,6 +149,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // its vector9 clouds.
     if (family == 11 || family == 25 || family == 26)
         return role == 8 || role == 9;
+    // Alucard shield's spell (role8) and its expiring armed shield's 0x3A letters (role1).
+    if (family == 52)
+        return role == 8 || role == 1;
     if (SotnWeaponSecondary_ShieldSpell(family))
         return role == 8;
     // Weapon30: role1 Sword of Dawn's circle, role2 its soldiers, role3 arrows/swords, role4
@@ -186,8 +192,10 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                                                  : family == 11 ? 10
                                                  : family == 25 ? 17
                                                  : family == 26 ? 14
+                                                 : family == 52 ? 23
                                                                 : 11)
                : family == 25 || family == 26 ? 1
+               : family == 52                 ? 11
                                               : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
@@ -4761,6 +4769,419 @@ static bool ShamanTrail(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
         s->spell_quads[row].draw_mode |= 8;
     return true;
 }
+// w_052 letters: one GT4 per letter (D_8017ABC4 UVs, palette base+i), states kept in its
+// original g0 scratch byte (here the row's green[0]) with the r0 countdown (red[0]).
+static bool AlucardLetterRows(SotnPlayerEffectQuad *rows, SotnWeaponSecondaryInput in, Uint16 base,
+                              Uint16 priority, Uint32 *rng)
+{
+    const Uint8 *uv = NULL;
+    if (!View(in.overlay, 0xbc4, 44, &uv))
+        return false;
+    const Uint8 offset = in.hand ? 0x80 : 0;
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        SotnPlayerEffectQuad *q = &rows[i];
+        *q = (SotnPlayerEffectQuad){.page = 0x19, .palette = (Uint16)(base + i)};
+        q->u[0] = q->u[2] = uv[i * 4U];
+        q->v[0] = q->v[1] = (Uint8)(uv[i * 4U + 1U] + offset);
+        q->u[1] = q->u[3] = uv[i * 4U + 2U];
+        q->v[2] = q->v[3] = (Uint8)(uv[i * 4U + 3U] + offset);
+        q->priority = priority;
+        q->draw_mode = 0;
+        q->red[0] = (Uint8)((Rand(rng) & 0xfU) + 1U);
+    }
+    return true;
+}
+// w_052 EntityWeaponShieldSpell: Alucard shield's both-buttons spell (item214, twenty-three
+// mandatory rows: the glow, eleven letters and eleven G4 ribbons; eleven birth rand calls). The
+// letters circle the player (radius0x78 shrinking, angle steps from unk86) while the shield grows,
+// holds 0x40 and flashes out with TRANSFORM; then they stretch away (TELEPORT_BANG_B), the
+// ribbons between their last centres open by twelve per update, BlinkWhite FACTORY(44,1) follows,
+// the ribbons fade, and the spell arms the shield (D_8017ABBC=1, D_8017ABC0=0x1000) as it ends
+// the freeze.
+static bool AlucardSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                         SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    Uint8 ribbons = 0;
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->flags = 0x04810000U;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0x80 + 0x4f;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = (Uint16)(s->priority - 4U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        if (!AlucardLetterRows(&s->spell_quads[1], in, in.hand ? 0x129 : 0x111,
+                               (Uint16)(s->priority - 4U), rng))
+            return false;
+        const Uint8 *colors = NULL;
+        if (!View(in.overlay, 0xbf0, 44, &colors))
+            return false;
+        for (Uint16 i = 0; i < 11; ++i)
+        {
+            q = &s->spell_quads[12 + i];
+            *q = (SotnPlayerEffectQuad){.draw_mode = 8};
+            const Uint8 *a = colors + i * 4U, *b = colors + ((i + 1U) % 11U) * 4U;
+            q->red[0] = q->red[2] = a[0];
+            q->green[0] = q->green[2] = a[1];
+            q->blue[0] = q->blue[2] = a[2];
+            q->red[1] = q->red[3] = b[0];
+            q->green[1] = q->green[3] = b[1];
+            q->blue[1] = q->blue[3] = b[2];
+        }
+        s->spell_half_w = 0x78;  // unk90 radius
+        s->spell_wave_x = 0;     // unk92 angle
+        s->spell_half_h = 0;     // unk94 letter size
+        s->spell_step = 0x40;    // unk86 angle step
+        s->spell_bright = 0x100; // unk98 vertical scale
+        s->spell_wave_y = 0;     // unk96 ribbon half height
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->clear_shield = true;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 0x28 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 0x40;
+            s->phase = 2;
+        }
+        s->spell_half_h = s->scale_x;
+        s->spell_wave_x = Word(s->spell_wave_x + s->spell_step);
+        s->spell_half_w = Word(s->spell_half_w - 3);
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+        {
+            s->spell_timer = 0x10;
+            e->sounds[0] = 0x668;
+            s->phase = 3;
+        }
+        if (s->spell_step > 0)
+            s->spell_step = Word(s->spell_step - 1);
+        s->spell_wave_x = Word(s->spell_wave_x + s->spell_step);
+        break;
+    case 3:
+        s->spell_quads[0].priority = !(s->spell_timer & 1) ? 0x1fc : (Uint16)(s->priority - 2U);
+        s->scale_x = Word(s->scale_x - 0x10);
+        if (s->scale_x <= 0)
+            s->scale_x = 0;
+        s->scale_y = s->scale_x;
+        s->spell_half_h = Word(s->spell_half_h - 2);
+        s->spell_bright = Word(s->spell_bright - 2);
+        if (s->spell_bright < 0x80)
+            s->spell_bright = 0x80;
+        s->spell_step = Word(s->spell_step + 3);
+        s->spell_wave_x = Word(s->spell_wave_x + s->spell_step);
+        s->spell_half_w = Word(s->spell_half_w - 1);
+        if (--s->spell_timer == 0)
+        {
+            s->frame = 0;
+            s->spell_timer = 0x20;
+            s->phase = 4;
+        }
+        break;
+    case 4: {
+        s->spell_half_h = Word(s->spell_half_h - 2);
+        s->spell_bright = Word(s->spell_bright - 2);
+        if (s->spell_bright < 0x80)
+            s->spell_bright = 0x80;
+        s->spell_step = Word(s->spell_step + 1);
+        s->spell_wave_x = Word(s->spell_wave_x + s->spell_step);
+        s->spell_glow = Word(s->spell_glow + 8);
+        s->scale_x = Word(s->scale_x + 0x10);
+        if (s->scale_x >= 0x100)
+            s->scale_x = 0x100;
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        if (q->blue[3] > 8)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        s->spell_step = Word(s->spell_step + 4);
+        s->spell_wave_x = Word(s->spell_wave_x + s->spell_step);
+        if (--s->spell_timer == 0)
+        {
+            for (Uint16 i = 0; i < 11; ++i)
+                s->spell_quads[1 + i].green[0] = 5;
+            e->sounds[0] = 0x636;
+            s->phase = 6;
+        }
+        break;
+    }
+    case 6:
+        ribbons = 1;
+        if (s->spell_wave_y > 0xe0)
+        {
+            ribbons = 2;
+            s->phase = 7;
+            s->spell_timer = 0x20;
+            e->blink = 1;
+            p->alucard_active = 1;
+        }
+        s->spell_wave_y = Word(s->spell_wave_y + 12);
+        break;
+    case 7:
+        ribbons = 2;
+        if (--s->spell_timer == 0)
+        {
+            s->phase = 8;
+            p->alucard_active = 1;
+            p->alucard_timer = 0x1000;
+        }
+        break;
+    default:
+        e->freeze_clear = true;
+        s->removed = true;
+        return true;
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.camera_x), y = Word(Pixel(s->y) - in.camera_y);
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    if (q->blue[3] > 8)
+    {
+        if (in.engine_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode &= 0xfff7U;
+    }
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    // Letters circle 0x1C ahead of and 0x30 above the player's whole screen position.
+    const Sint16 cx = Word(Word(Pixel(in.x) - in.camera_x) - (in.facing_left ? -0x1c : 0x1c)),
+                 cy = Word(Word(Pixel(in.y) - in.camera_y) - 0x30);
+    const Sint16 rx = s->spell_half_w, ry = (Sint16)(s->spell_half_w * s->spell_bright / 256);
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        q = &s->spell_quads[1 + i];
+        if (q->green[0] == 0)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, Word(s->spell_wave_x + ((Sint32)i << 12) / 11), &t))
+                return false;
+            const Sint16 mx = Word(cx + Asr(Asr(t.cosine, 4) * rx, 8)),
+                         my = Word(cy - Asr(Asr(t.sine, 4) * ry, 8));
+            const Sint16 h = (Sint16)(s->spell_half_h * (i == 6 ? 12 : 16) / 256),
+                         w = (Sint16)(s->spell_half_h * 12 / 256);
+            q->x[0] = q->x[2] = Word(mx - w);
+            q->x[1] = q->x[3] = Word(mx + w);
+            q->y[0] = q->y[1] = Word(my - h);
+            q->y[2] = q->y[3] = Word(my + h);
+            p->alucard_priority[i] = (Sint16)q->priority;
+            p->alucard_x[i] = mx;
+            p->alucard_y[i] = my;
+        }
+        else if (q->green[0] == 1)
+        {
+            if (--q->red[0] == 0)
+                ++q->green[0];
+        }
+        else if (q->green[0] == 5)
+        {
+            if (q->x[1] - q->x[0] > 2)
+            {
+                q->x[0] = Word(q->x[0] + 1);
+                q->x[1] = Word(q->x[1] - 1);
+            }
+            else
+                q->x[0] = q->x[1];
+            q->y[0] = Word(q->y[0] - 12);
+            q->y[2] = Word(q->y[2] + 12);
+            q->y[1] = q->y[0];
+            q->y[3] = q->y[2];
+            q->x[2] = q->x[0];
+            q->x[3] = q->x[1];
+            if (q->y[0] < 0 && q->y[2] > 0xf0)
+            {
+                q->draw_mode |= 8;
+                ++q->green[0];
+            }
+        }
+    }
+    for (Uint16 i = 0; ribbons && i < 11; ++i)
+    {
+        q = &s->spell_quads[12 + i];
+        if (ribbons == 2)
+        {
+            Uint8 *channel[3][4] = {{&q->red[0], &q->red[1], &q->red[2], &q->red[3]},
+                                    {&q->blue[0], &q->blue[1], &q->blue[2], &q->blue[3]},
+                                    {&q->green[0], &q->green[1], &q->green[2], &q->green[3]}};
+            for (Uint16 c = 0; c < 3; ++c)
+                for (Uint16 k = 0; k < 4; ++k)
+                    if (*channel[c][k] > 8)
+                        *channel[c][k] = (Uint8)(*channel[c][k] - 4);
+        }
+        else
+        {
+            const Uint16 j = (Uint16)((i + 1U) % 11U);
+            q->x[0] = q->x[2] = p->alucard_x[i];
+            q->x[1] = q->x[3] = p->alucard_x[j];
+            q->y[0] = Word(p->alucard_y[i] - s->spell_wave_y);
+            q->y[2] = Word(p->alucard_y[i] + s->spell_wave_y);
+            q->y[1] = Word(p->alucard_y[j] - s->spell_wave_y);
+            q->y[3] = Word(p->alucard_y[j] + s->spell_wave_y);
+            q->priority = (Uint16)p->alucard_priority[i];
+        }
+        q->draw_mode = 0x20 | 0x10 | 0x01;
+    }
+    return true;
+}
+// w_052 func_ptr_80170004 (E1, blueprint0x3A from the expiring armed shield): the eleven letters
+// burst from the player (eleven GT4s, then per letter one rand countdown and two rand
+// velocities), grow, fall, wait their countdowns, streak upward and hide; WEAPON_SWISH_C plays on
+// every fourth update of the first 24 of its 0x60-update tail.
+static bool AlucardLetters(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                           SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        s->flags = 0x04810000U;
+        const Uint16 px = (Uint16)Word(Pixel(in.x) - in.camera_x);
+        const Sint16 py = Word(Word(Pixel(in.y) - in.camera_y) - 8);
+        const Uint8 *uv = NULL;
+        if (!View(in.overlay, 0xbc4, 44, &uv))
+            return false;
+        const Uint8 offset = in.hand ? 0x80 : 0;
+        for (Uint16 i = 0; i < 11; ++i)
+        {
+            SotnPlayerEffectQuad *q = &s->spell_quads[i];
+            *q = (SotnPlayerEffectQuad){.page = 0x19,
+                                        .palette = (Uint16)((in.hand ? 0x129 : 0x111) + i)};
+            q->u[0] = q->u[2] = uv[i * 4U];
+            q->v[0] = q->v[1] = (Uint8)(uv[i * 4U + 1U] + offset);
+            q->u[1] = q->u[3] = uv[i * 4U + 2U];
+            q->v[2] = q->v[3] = (Uint8)(uv[i * 4U + 3U] + offset);
+            q->priority = (Uint16)(s->priority - 2U);
+            q->draw_mode = 0;
+            q->red[0] = (Uint8)((Rand(rng) & 0xfU) + 1U);
+            p->letter_x[i] = (Sint32)(((Uint32)px << 16) | ((Uint32)p->letter_x[i] & 0xffffU));
+            p->letter_y[i] =
+                (Sint32)(((Uint32)(Uint16)py << 16) | ((Uint32)p->letter_y[i] & 0xffffU));
+            p->letter_vx[i] = (Sint32)(Rand(rng) * 6U) - 0x18000;
+            p->letter_vy[i] = -0x20000 - (Sint32)(Rand(rng) * 4U);
+        }
+        s->spell_half_h = 0x20;
+        s->spell_timer = 0x20;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->spell_half_h = Word(s->spell_half_h + 0x10);
+        if (s->spell_half_h > 0xc0)
+            s->spell_half_h = 0xc0;
+        for (Uint16 i = 0; i < 11; ++i)
+        {
+            p->letter_x[i] = (Sint32)((Uint32)p->letter_x[i] + (Uint32)p->letter_vx[i]);
+            p->letter_y[i] = (Sint32)((Uint32)p->letter_y[i] + (Uint32)p->letter_vy[i]);
+            p->letter_vy[i] = (Sint32)((Uint32)p->letter_vy[i] + 0x2000U);
+        }
+        if (--s->spell_timer == 0)
+        {
+            for (Uint16 i = 0; i < 11; ++i)
+                s->spell_quads[i].green[0] = 1;
+            s->spell_timer = 0x60;
+            s->phase = 2;
+        }
+        break;
+    default:
+        if (s->spell_timer >= 0x48 && !(s->spell_timer % 4))
+            e->sounds[0] = 0x60c;
+        if (--s->spell_timer == 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    for (Uint16 i = 0; i < 11; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->spell_quads[i];
+        switch (q->green[0])
+        {
+        case 0: {
+            const Sint16 mx = Pixel(p->letter_x[i]), my = Pixel(p->letter_y[i]);
+            const Sint16 h = (Sint16)(s->spell_half_h * (i == 6 ? 12 : 16) / 256),
+                         w = (Sint16)(s->spell_half_h * 12 / 256);
+            q->x[0] = q->x[2] = Word(mx - w);
+            q->x[1] = q->x[3] = Word(mx + w);
+            q->y[0] = q->y[1] = Word(my - h);
+            q->y[2] = q->y[3] = Word(my + h);
+            break;
+        }
+        case 1:
+            if (--q->red[0] == 0)
+                ++q->green[0];
+            break;
+        case 2:
+            if (q->x[1] - q->x[0] >= 5)
+            {
+                q->x[0] = Word(q->x[0] + 1);
+                q->x[1] = Word(q->x[1] - 1);
+            }
+            else
+                q->x[0] = Word(q->x[1] - 2);
+            q->y[0] = Word(q->y[0] - 18);
+            q->y[2] = Word(q->y[2] - 6);
+            q->y[1] = q->y[0];
+            q->y[3] = q->y[2];
+            q->x[2] = q->x[0];
+            q->x[3] = q->x[1];
+            if (q->y[2] < 0)
+                ++q->green[0];
+            break;
+        case 3:
+            q->draw_mode = 8;
+            break;
+        default:
+            break;
+        }
+    }
+    return true;
+}
 // Blueprint90 (FACTORY(90,1) with <<14 hand bits): one fading afterimage of the walker.
 static void Afterimage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
                        SotnWeaponSecondaryEvents *e)
@@ -5071,6 +5492,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 25 && in.role == 9                      ? 3
                         : in.family == 26 && in.role == 9                      ? 2
                         : in.family == 26                                      ? 8
+                        : in.family == 52 && in.role == 1                      ? 2
+                        : in.family == 52                                      ? 8
                         : in.family == 25                                      ? 9
                         : in.family == 11                                      ? 7
                         : in.family == 8 || in.family == 9                     ? 7
@@ -5138,6 +5561,13 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 25)
     {
         if (!(in.role == 9 ? GoddessCloud(&s, in, &rng) : GoddessSpell(&s, &shared, in, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 52)
+    {
+        if (!(in.role == 8 ? AlucardSpell(&s, &shared, in, &rng, &e)
+                           : AlucardLetters(&s, &shared, in, &rng, &e)))
             return false;
         goto commit;
     }
