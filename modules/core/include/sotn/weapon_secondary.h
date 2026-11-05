@@ -236,6 +236,12 @@ typedef struct SotnWeaponSecondaryEvents
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,
  * Thunderbrand48). */
 bool SotnWeaponSecondary_Supported(Uint16 family);
+/** @brief Whether a shield program owns a native both-buttons spell (role8, blueprint86). */
+bool SotnWeaponSecondary_ShieldSpell(Uint16 family);
+/** @brief The combo spell item of a shield program with a native spell, or zero. */
+Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family);
+/** @brief The shield program of a native combo spell item, or zero. */
+Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item);
 /** @brief Whether a resident program owns the given child callback role (0..5; role0 is only
  * weapon14's factory-born thrown EntityWeaponAttack). */
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);

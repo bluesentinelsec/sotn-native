@@ -4054,6 +4054,66 @@ static bool LeatherSpellTest(Uint16 hand, bool knight)
     return true;
 }
 
+// w_058 EntityWeaponShieldSpell: Alucart's two rows; the shield grows, holds 0x40 updates, plays
+// TRANSFORM, flashes out, keeps the unused unk86/unk92 accumulations, then shows the page-0x1E
+// question mark above the player for 0x28 updates and ends the freeze.
+static bool AlucartSpellTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15), .x = 128 * 65536, .y = 120 * 65536};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .x = 100 * 65536,
+                                   .y = 150 * 65536,
+                                   .hand = hand,
+                                   .family = 58,
+                                   .role = 8,
+                                   .priority = 148,
+                                   .facing_left = hand != 0,
+                                   .allocated = true};
+    Uint32 rng = 5;
+    SotnWeaponSecondaryEvents e = {0};
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && e.freeze_set &&
+          e.clear_shield && e.sounds[0] == 0x641 && s.spell_half_h == (hand ? 0x129 : 0x111) &&
+          s.spell_quads[1].palette == 0x190 && s.spell_quads[1].page == 0x1e &&
+          s.spell_quads[1].u[1] == 0x7f && s.spell_quads[1].v[2] == 15 &&
+          s.spell_quads[1].priority == 150 && s.spell_quads[1].draw_mode == 8 &&
+          s.spell_quads[1].x[0] == (hand ? 102 : 94) && s.spell_quads[1].y[0] == 150 - 0x22 &&
+          !program.shield_angles_loaded);
+    Uint16 t = 0, shown = 0, holding = 0, transform = 0;
+    for (; !s.removed && t < 400; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        const Sint16 sum = s.spell_wave_x, unk86 = s.spell_half_h;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+        holding += phase == 2;
+        transform += e.sounds[0] == 0x668;
+        // The flash alternates the glow behind everything (0x1FC) with priority-2.
+        if (phase == 3 && s.phase == 3)
+            CHECK(s.spell_quads[0].priority == (!((s.spell_timer + 1) & 1) ? 0x1fc : 144));
+        if (phase == 4)
+            CHECK(s.spell_half_h == unk86 + 4 && s.spell_wave_x == (Sint16)(sum + s.spell_half_h));
+        if (phase == 5)
+        {
+            CHECK(!s.spell_quads[1].draw_mode);
+            ++shown;
+        }
+        else if (!s.removed)
+            CHECK(s.spell_quads[1].draw_mode == 8);
+        if (s.removed)
+            CHECK(e.freeze_clear && phase == 6 && !e.pink);
+    }
+    CHECK(s.removed && holding == 0x40 && transform == 1 && shown == 0x28 &&
+          SotnWeaponSecondary_RoleRows(58, 8) == 2 && SotnWeaponSecondary_ShieldSpell(58) &&
+          SotnWeaponSecondary_ShieldSpellItem(58) == 215 &&
+          SotnWeaponSecondary_ShieldSpellFamily(215) == 58);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -4066,7 +4126,8 @@ int main(void)
                    DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
                    DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
-                   LeatherSpellTest(0, true) && LeatherSpellTest(1, true)
+                   LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
+                   AlucartSpellTest(1)
                ? 0
                : 1;
 }

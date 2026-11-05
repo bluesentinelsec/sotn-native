@@ -2,6 +2,7 @@
 // dra/692E8.c:EntityAlucard, 7E4BC.c:EntityPlayerPinkEffect and
 // 71830.c:PlayerStepStone, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 #include "player_internal.h"
+#include <sotn/weapon_secondary.h>
 
 bool SotnPlayer_SetThrowingContext(SotnPlayer *p, SotnPlayerMedicineFactory factory,
                                    SotnPlayerMedicineConsume consume,
@@ -42,8 +43,8 @@ Uint32 SotnPlayer_Combo(const SotnPlayer *p)
 }
 bool SotnPlayer_ComboSupported(Uint16 item)
 {
-    // Combo spells with an actual native owner (Leather203, Knight204).
-    return item == 203 || item == 204;
+    // Combo spells with an actual native owner (Leather203, Knight204, Alucart215).
+    return SotnWeaponSecondary_ShieldSpellFamily(item) != 0;
 }
 bool SotnPlayer_SetSpecialCross(SotnPlayer *p, Uint8 left_count, Uint8 right_count)
 {

@@ -72,7 +72,7 @@ Selected virtual items:
 - Sword of Dawn17's QCF special177: kind5 summoning circle and skeleton squad (see
   [Sword of Dawn](player-sword-of-dawn.md)).
 
-- Both-buttons combos (CheckWeaponCombo): Leather203/Knight204 shield spells with Mablung (see
+- Both-buttons combos (CheckWeaponCombo): Leather203/Knight204/Alucart215 shield spells with Mablung (see
   [shield combos](player-shield-combos.md)); other combo spells keep the left-hand attack.
 
 The other virtual specials (rods,

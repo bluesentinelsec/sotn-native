@@ -1,10 +1,11 @@
 Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
-on every equipment set and cast Leather203/Knight204 shield spells with Mablung on both buttons (held
+on every equipment set and cast Leather203/Knight204/Alucart215 shield spells with Mablung on both buttons (held
 shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
 factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
 rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
 flashes, opens a nine-band card on retained program shieldAngles and releases FACTORY(55,8);
-Knight (w_009, 12 rows) slices ten horizontal RGB bands, 48x40 card, pink7, bright<4 fade.
+Knight (w_009, 12 rows) slices ten horizontal RGB bands, 48x40 card, pink7, bright<4 fade;
+Alucart (w_058, 2 rows) holds 0x40, flashes (0x1FC) and shows the page-0x1E question mark.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,
