@@ -1,5 +1,5 @@
 Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
-on every equipment set and cast Leather203/Knight204/Alucart215/AxeLord206 shield spells with Mablung on both buttons (held
+on every equipment set and cast Leather203/Knight204/Alucart215/AxeLord206/Goddess209 shield spells with Mablung on both buttons (held
 shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
 factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
 rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
@@ -9,6 +9,9 @@ Alucart (w_058, 2 rows) holds 0x40, flashes (0x1FC) and shows the page-0x1E ques
 Axe Lord (w_011, 10 rows, 20 MP) resets its band angles, ends the freeze itself and creates the
 blueprint88 E9/F9 walker (raw-parent copy, least-used group, no parent enemyId, params without
 the hand bit) whose blueprint90 afterimages (32..63) keep equipId0; raw parents read only at birth.
+Goddess (w_025, 17 rows, 40 MP) keeps fifteen program angles, requests FACTORY(90,1) E9/F9 clouds
+(one row, 32..63, flag0x10000, six birth rands, raw parent read each aim; empty slot reads screen0)
+and pink15; spell/clouds keep screen position. Lab GT4 commands pack owner*32+row.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,

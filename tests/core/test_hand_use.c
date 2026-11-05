@@ -181,6 +181,14 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 206 * 52 + 22] = 1;
     Put16(f->dra + 0x500 + 206 * 52 + 36, 20);
     TestCharacter_Put32(f->dra + 0x500 + 206 * 52 + 0x1c, 0x10);
+    // Goddess shield11 (sub0x80) casts spell209 for forty MP.
+    Item(f->dra, 11, 9, 25, 128, 0x63, 0, 0, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 11 * 52 + 0x1c, 0x80);
+    Item(f->dra, 209, 10, 25, 5, 0xba, 0, 0, 0);
+    f->dra[0x500 + 209 * 52 + 19] = 86;
+    f->dra[0x500 + 209 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 209 * 52 + 36, 40);
+    TestCharacter_Put32(f->dra + 0x500 + 209 * 52 + 0x1c, 0x80);
     Item(f->dra, 17, 5, 30, 6, 0x68, 0, 13, 0);
     f->dra[0x500 + 17 * 52 + 24] = 177; // QCF specialMove
     Item(f->dra, 177, 1, 30, 5, 0xb8, 0, 0, 0);
@@ -734,6 +742,15 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
         for (Uint16 i = 0; i < 8; ++i)
             CHECK(Tick(f, 0));
         CHECK(SotnPlayer_SetComboChain(f->p, k == 1));
+        if (f->p->mp < cost)
+        {
+            // Goddess costs forty: raise the fixture's MP (and maximum) first.
+            SotnCharacterState progress = {0};
+            CHECK(SotnCharacter_Get(f->character, &progress, NULL));
+            progress.mp = progress.mp_max = cost;
+            CHECK(SotnCharacter_Restore(f->character, &progress));
+            f->p->mp = cost;
+        }
         if (k == 2)
         {
             SotnCharacterState progress = {0};
@@ -753,10 +770,11 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
                   f->p->attack_mode == 0x8002);
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
-    // Leather203, Knight204, AxeLord206 and Alucart215 have native spells; Goddess209 not yet.
+    // Leather203, Knight204, AxeLord206, Goddess209 and Alucart215 have native spells; Shaman210
+    // not yet.
     CHECK(SotnPlayer_ComboSupported(203) && SotnPlayer_ComboSupported(204) &&
-          SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(215) &&
-          !SotnPlayer_ComboSupported(209));
+          SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(209) &&
+          SotnPlayer_ComboSupported(215) && !SotnPlayer_ComboSupported(210));
     return true;
 }
 // 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,
@@ -922,7 +940,7 @@ int main(void)
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
          Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
-         Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20);
+         Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40);
     // Exhausted factories never reach the roll.
     if (ok)
     {

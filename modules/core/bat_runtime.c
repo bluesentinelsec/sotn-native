@@ -1038,6 +1038,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // Weapon11: the spell's blueprint88 walker and the walker's blueprint90 afterimages.
     if (family == 11)
         return (bp == 88 && param == 0) || (bp == 90 && param == 1);
+    // Weapon25: Goddess's spell requests its blueprint90 clouds.
+    if (family == 25)
+        return bp == 90 && param == 1;
     if (family == 48)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
@@ -1098,7 +1101,8 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     if (family == 14)
         return (parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 3;
     // Weapon11: the spell carries the hand bit; its walker params0, afterimages params1.
-    if (family == 11)
+    // Weapon25: the spell carries the hand bit, its clouds params1.
+    if (family == 11 || family == 25)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
     // Weapon13's root and afterimages, and Shotel's weapon34 boomerang, carry only the hand bit.
     if (family == 13 || family == 34 || SotnWeaponSecondary_ShieldSpell(family))
@@ -1188,6 +1192,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 30                                           ? 4
                                    : family == 58                                           ? 6
                                    : family == 11 && (c->kind & 15U) == 9                   ? 4
+                                   : family == 25 && (c->kind & 15U) == 9                   ? 3
+                                   : family == 25                                           ? 9
                                    : family == 11                                           ? 7
                                    : family == 8 || family == 9                             ? 7
                                                                                             : 1) &&
@@ -4082,6 +4088,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 9  ? 6
                                  : family == 58 ? 167
                                  : family == 11 ? 8
+                                 : family == 25 ? 11
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4118,6 +4125,21 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .parent_child_palette =
                             family == 12 || family == 11 ? m->palette : (Uint16)m->child_palette};
                 }
+            }
+            // Weapon25's clouds read their raw parent slot's entityId and position at birth and
+            // every fourth update. The original reads any later occupant's words too; such an
+            // occupant supplies its tracked origin here. An empty slot's zeroed words are screen
+            // position0.
+            if (family == 25 && (c->kind & 15U) == 9)
+            {
+                const SotnBatRuntimeChild *root = &r.children[c->state.secondary.parent_slot - 16U];
+                parent.parent_exists = root->kind != 0;
+                parent.parent_x = !root->kind              ? (Sint32)((Uint32)in.camera_x * 65536U)
+                                  : root->weapon_secondary ? root->state.secondary.motion.x
+                                                           : root->source.x;
+                parent.parent_y = !root->kind              ? (Sint32)((Uint32)in.camera_y * 65536U)
+                                  : root->weapon_secondary ? root->state.secondary.motion.y
+                                                           : root->source.y;
             }
             HandPropertyContext context = {character, item, p.poison_ticks != 0};
             SotnWeaponSecondaryEvents events = {0};
@@ -4425,7 +4447,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             // Shield spells lack CAMERA_LOCKED: like the warp they keep their screen position
             // after the camera work (Axe Lord's outlives its freeze by twenty updates).
-            if (SotnWeaponSecondary_ShieldSpell(family) && (c->kind & 15U) == 8 && !w->removed)
+            if (SotnWeaponSecondary_ShieldSpell(family) && ((c->kind & 15U) == 8 || family == 25) &&
+                !w->removed)
             {
                 w->x = FixedShift(w->x, Word(in.room_shift_x - in.screen_shift_x));
                 w->y = FixedShift(w->y, Word(in.room_shift_y - in.screen_shift_y));

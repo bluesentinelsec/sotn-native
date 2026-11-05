@@ -51,7 +51,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_HAND_TILE,      /**< Real optional weapon43 TILE row0..15. */
     SOTN_DRAW_WEAPON_SECONDARY,      /**< Actual weapon secondary child index1..47. */
     SOTN_DRAW_WEAPON_SECONDARY_LINE, /**< Secondary index times64 plus its LINE_G2 row. */
-    SOTN_DRAW_WEAPON_SECONDARY_QUAD, /**< Secondary index times16 plus its GT4 (weapon53/48). */
+    SOTN_DRAW_WEAPON_SECONDARY_QUAD, /**< Secondary index times32 plus its GT4 (up to17 rows). */
     SOTN_DRAW_WEAPON_SPARKLE         /**< Weapon50 sparkle child index times80 plus its GT4 row. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */

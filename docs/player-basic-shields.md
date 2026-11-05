@@ -71,7 +71,7 @@ HP loss, destruction of a real Laboratory Skeleton bone (with an unraised-shield
 control that is hit), Mist/Bat/Wolf retirement, menu/draw holds, curse failure and
 in-memory v9 Continue with mixed pairs. Supplied stock, protection, position,
 curse and save-room contexts are not acquisition, uninterrupted-route or console
-evidence. Leather/Knight/Alucart/Axe Lord shields' [combo spells](player-shield-combos.md) now run; other
+evidence. Leather/Knight/Alucart/Axe Lord/Goddess shields' [combo spells](player-shield-combos.md) now run; other
 shield spells,
 other shield families, full sharing and all six
 [milestone gates](alucard-status.md) remain open.

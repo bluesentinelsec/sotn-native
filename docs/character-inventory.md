@@ -26,8 +26,8 @@ physical first-empty searches without receiving stock. No default grants or v9
 fields are added; remaining two-hand families and equipment effects stay open.
 Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Axe Lord8, Goddess11,
 Shaman12 and Alucart167
-through the same owner; other shield families stay unavailable. Leather/Knight/Alucart/Axe Lord
-shields' both-buttons [combo spells](player-shield-combos.md) now run with Mablung; other shield spells do not yet.
+through the same owner; other shield families stay unavailable. Leather/Knight/Alucart/Axe Lord/
+Goddess shields' both-buttons [combo spells](player-shield-combos.md) now run with Mablung; other shield spells do not yet.
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
 [Iron Fist and Fist of Tulkas](player-fist-specials.md) add their punch rushes and fireball.
 Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,

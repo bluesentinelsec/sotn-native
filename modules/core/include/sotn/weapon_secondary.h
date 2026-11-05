@@ -103,14 +103,16 @@ typedef struct SotnWeaponSecondary
             Uint16 dawn_slot;
             bool dawn_bound;
         };
-        /** Shield spells (E8): eleven/twelve GT4 rows in screen pixels (no DRAW_UNK02) and
+        /** Shield spells (E8): two to seventeen GT4 rows in screen pixels (no DRAW_UNK02) and
          * ext.shield words unk80 timer, unk82 glow half size, unk84/86 card half extents, unk8A
          * angle step, unk90 band brightness, unk92/94 wave amplitudes, childPalette and unk7C/7D
          * rows. */
         struct
         {
-            SotnPlayerEffectQuad spell_quads[12];
+            SotnPlayerEffectQuad spell_quads[17];
             Sint16 spell_timer, spell_glow, spell_half_w, spell_half_h, spell_step;
+            /** Weapon25 clouds (E9): ext.shield unk96 spin and unk98 orbit angle. */
+            Sint16 cloud_spin, cloud_angle;
             Sint16 spell_bright, spell_wave_x, spell_wave_y;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;

@@ -1,4 +1,4 @@
-# Selected weapon combos and the Leather/Knight/Alucart/Axe Lord shield spells
+# Selected weapon combos and the Leather/Knight/Alucart/Axe Lord/Goddess shield spells
 
 Pressing both attack buttons can cast a combo spell. CheckWeaponCombo (`menu.c`) runs with each
 weapon load and records `D_8013AEE4`: the combo item, plus bit 31 when the right hand owns it.
@@ -24,7 +24,7 @@ A combo spell:
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
 Only combos with an actual native owner are selected. Currently those are Leather shield's 203,
-Knight shield's 204, Axe Lord shield's 206 and Alucart shield's 215, with Mablung (or a Shield
+Knight shield's 204, Axe Lord shield's 206, Goddess shield's 209 and Alucart shield's 215, with Mablung (or a Shield
 rod, once owned). Other combos keep the ordinary left-hand attack, a documented gap until their
 spells exist.
 
@@ -97,14 +97,42 @@ walker's current frame, keeps the factory's equipId 0 and fades by two over 0x18
 walker and its afterimages read their raw parent only at birth. A later, foreign occupant of
 that slot is not their parent.
 
+## Goddess shield spell (item209) and its clouds
+
+Goddess shield's spell (w_025) costs forty MP and takes seventeen rows. Its fifteen band angles
+are program data loaded once and kept across casts. Then:
+1. The shield grows, holds for eight updates and flashes out with TRANSFORM_3X, revealing
+   fifteen white bands.
+2. The card narrows to 32x120 as its wave decays (`unk92` loses one on every eighth and every
+   second g_Timer value).
+3. The card darkens by ten per update, waits 0x40 updates and releases `FACTORY(55, 15)`.
+4. It brightens past 0x120, the angle step drops from 0x80 to 0x20, and the bands spread for
+   sixteen updates.
+5. The spell fades for 0x40 updates, then clears the freeze and retires.
+
+During phases 2..4, every tenth timer value requests a `FACTORY(90,1)` cloud with the combo's
+`<<14` hand bits. That is the shield program's vector9 as an E9/F9 child in slots 32..63, params
+0x100. It inherits the spell's 0x10000, so it runs during the freeze. Each cloud:
+- takes one mandatory GT4 before six rand calls: its position around the raw parent's words, its
+  priority, first timer, spin (never zero) and orbit angle;
+- grows, then orbits a point circling 0x20 above the parent. Every fourth update it re-aims with
+  SDK `ratan2`/`rsin`/`rcos` at speed 0.5, spinning as it goes;
+- fades by six per update once its timer ends or its parent slot empties.
+
+The raw parent is read every aim. An empty slot's zeroed words are screen position 0, and a later
+foreign occupant supplies its tracked origin. Neither the spell nor its clouds are
+CAMERA_LOCKED, so both keep their screen position when the camera moves. The lab's GT4 draw
+commands now pack `owner*32 + row`, because the spell's seventeenth row overflowed the old stride
+of 16.
+
 Rows are screen pixels, because the original drawMode lacks DRAW_UNK02. The entity is
 screen-fixed, but the camera is static for its whole frozen life.
 
 ## Evidence
 
 Public tests cover:
-- **Selection:** combo resolution and hand selection (both arrangements), `<<14` factories, ten
-  or twenty MP and kind 5, plus refusal by a live spell or too little MP.
+- **Selection:** combo resolution and hand selection (both arrangements), `<<14` factories, ten,
+  twenty or forty MP and kind 5, plus refusal by a live spell or too little MP.
 - **Spell:** birth, freeze set and clear, growth timing, flash, card sizes and brightening, the
   pink factory, retained angles and row exhaustion, for Leather and Knight. Alucart's hold,
   flash priority, accumulations and question-mark display are covered too. Axe Lord's angle
@@ -113,29 +141,42 @@ Public tests cover:
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.
+- **Goddess:** phase lengths, angle retention and steps, cloud requests, the exact wave decay,
+  band seams, card sizes and spread. For the cloud: birth placement and the six rolls (including
+  the zero-spin case), growth, aims and corners recomputed from the original constants, its timer,
+  and parent-loss fades.
 - **Runtime:** the spell, E9/F9 walker (spell item, least-used group, params0) and afterimages
   (32..63, equipId0, no roll) through the actual factories. Another hand's Shotel boomerangs take
   the retired walker's slot while its afterimages fade. Camera moves after the freeze keep the
-  spell's screen position.
+  spell's screen position. Goddess's clouds run through the actual factories (one row, flag
+  0x10000, no roll or attack). They keep their screen position, and fade once the spell's slot is
+  emptied mid-flight.
 - **Scene freeze:** the scene freeze now accepts request 1.
 
 Twenty-nine targeted mutations are caught. Two more are equivalent: Knight's `i*80/10` slice
 equals `i*8`, and its fade steps by 8 from 0x130, so thresholds 4 and 8 trigger together. Of
 forty-one Axe Lord mutations, forty are caught. The remaining one changes a vertical-wave
-angle that multiplies the always-zero `unk94`, so it is equivalent.
+angle that multiplies the always-zero `unk94`, so it is equivalent. Of forty-nine Goddess
+mutations, forty-five are caught. Two are equivalent: no phase-2 timer value is a multiple of 9,
+and the fade reaches 2 either way. One does not compile, because it leaves a variable unused. The
+last changes the empty-slot birth origin, which native play cannot reach (clouds are born only
+while the spell lives); the private comparison covers it.
 
-The private original-instruction comparison runs 10,912 complete w_008/w_009/w_058/w_011 spell
-callbacks, comparing 95,440 GT4 rows across 80 contexts. These include a second cast that
-continues the retained angles, plus w_011's twelve walker factories (it omits the walker without a
-free factory). A second comparison runs 2,748 complete w_011 `func_ptr_80170024` callbacks: 1,808
+The private original-instruction comparison runs 15,500 complete w_008/w_009/w_058/w_011/w_025
+spell callbacks, comparing 173,096 GT4 rows across 100 contexts. These include a second cast that
+continues the retained angles, plus w_011's twelve walker factories and w_025's eighty cloud
+factories (both omitted without a free factory). A third comparison runs 4,525 complete w_025
+cloud callbacks across 40 contexts with 1,049 real `ratan2` aims and 4,485 rows. Its contexts
+include an empty parent at birth and parents retiring mid-flight. A second comparison runs 2,748 complete w_011 `func_ptr_80170024` callbacks: 1,808
 walker and 940 afterimage. It uses the real DRA UpdateAnim as the post-callback (1,768 calls),
 4,516 synthetic-world CheckCollision probes and 298 afterimage factories, with origins compared.
 Debug and ASan traces are byte-identical.
 
-Native Debug/ASan protocols equip Mablung with Leather, Knight, Alucart or Axe Lord shield
-through the menu in both arrangements. They check:
-- the actual combo word, ten (twenty) MP and the spell's pixels;
-- about 196 frozen frames (88 for Axe Lord), both Blinks and the pink effect;
+Native Debug/ASan protocols equip Mablung with Leather, Knight, Alucart, Axe Lord or Goddess
+shield through the menu in both arrangements. They check:
+- the actual combo word, ten (twenty, forty) MP and the spell's pixels;
+- about 196 frozen frames (88 for Axe Lord, 288 for Goddess), both Blinks and the pink effect;
+- up to seven Goddess clouds, which draw pixels and move during the freeze;
 - release without a Mablung swing;
 - Alucart's question-mark pixels;
 - Axe Lord's walker in Laboratory room 5. It holds its actual group, hitbox and active 206
@@ -145,6 +186,7 @@ Too little MP keeps the left-hand swing. Supplied stock, protection and MP conte
 acquisition, route or console evidence.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_008.c`, `weapon/w_009.c`, `weapon/w_011.c`,
+`weapon/w_025.c`,
 `weapon/w_058.c`, `dra/menu.c` (CheckWeaponCombo),
 `dra/6E42C.c`, `dra/6DF70.c` and `dra/7879C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

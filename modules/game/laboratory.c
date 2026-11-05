@@ -4108,7 +4108,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = w->spell_quads[q - 1U].priority,
-                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .primitive = (Uint16)(owner * 32U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
                 // Weapon30's circle (eleven) and soldiers (fourteen) own entity-relative GT4s.
@@ -4117,7 +4117,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = w->dawn_quads[q - 1U].priority,
-                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .primitive = (Uint16)(owner * 32U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
                 // Weapon14's forty-eight trail GT4s share the compact-row command.
@@ -4143,7 +4143,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = slash ? w->quad.priority
                                                               : w->quads[q - 1U].priority,
-                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .primitive = (Uint16)(owner * 32U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
                 for (Uint16 row = slash || ring || sparkle || rune || family == 30 ||
@@ -5204,8 +5204,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         }
         if (command.kind == SOTN_DRAW_WEAPON_SECONDARY_QUAD)
         {
-            const Uint16 owner = (Uint16)(command.primitive / 16U),
-                         index = (Uint16)(command.primitive % 16U);
+            // Commands pack owner*32+row: Goddess's spell owns seventeen rows.
+            const Uint16 owner = (Uint16)(command.primitive / 32U),
+                         index = (Uint16)(command.primitive % 32U);
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[owner];
             const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 56 ||
                                c->state.secondary.family == 51 ||
