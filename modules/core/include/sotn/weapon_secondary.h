@@ -134,6 +134,8 @@ typedef struct SotnWeaponSecondary
              * ext.weapon.accelerationY; spell_wave_x is their unk92 stretch. */
             Sint16 dark_size, dark_anchor;
             Sint32 dark_accel;
+            /** Weapon28's spell: ext.shield.unk9A, its screen Y when the beam starts. */
+            Sint16 skull_y;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;

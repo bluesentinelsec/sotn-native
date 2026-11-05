@@ -44,6 +44,10 @@ glow row, spell timeline word 0xC8C/0xCB4) requests FACTORY(98)'s two E9 lasers 
 laser_slot/laser_bound from func_80118970, TargetHeading = func_80118B18, SquareRoot0 swing), which
 request FACTORY(100)'s E10 hit points (item0 properties, 6x6, six updates; sixth-hit release
 unreachable). laser_quads overlays spell_quads. Oracle adapts SquareRoot0's COP2 LZC.
+Skull (w_028, family28, item14, plain guard 0xAE0). Spell212 (13 rows, ten program angles 0xB1C)
+runs the D_8017AB18/AB1A red ramp into palette0x113 colour11 each drawing callback, recoils with a
+tremble, and requests FACTORY(88)'s E9 beam: three rows, raw parent X every update, and
+SetWeaponProperties every phase-2 update with the raw parent's equipId re-read (zero once empty).
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,
