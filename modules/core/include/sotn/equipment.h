@@ -70,6 +70,10 @@ bool SotnEquipment_ReadNeutron(SotnDataView dra, SotnEquipment *out);
  * @param dra Borrowed DRA bytes. @param id Original hand or virtual item below217.
  * @param out Receives the cost, unchanged on failure. @return Success or SDL error. */
 bool SotnEquipment_ReadCost(SotnDataView dra, Uint16 id, Uint16 *out);
+/** @brief Resolve the original both-buttons combo (menu.c CheckWeaponCombo, D_8013AEE4).
+ * @param out Receives the combo item plus 0x80000000 when the right hand owns it, or zero.
+ * @return Success or SDL error for unbounded items or truncated definitions. */
+bool SotnEquipment_Combo(SotnDataView dra, Uint16 left, Uint16 right, Uint32 *out);
 /** @brief Read virtual197 for an actual equipped Alucard sword123 special.
  * @param dra Borrowed private US definitions. @param equipped Actual owned hand item.
  * @param out Copied metadata. @param mp Actual original special cost.

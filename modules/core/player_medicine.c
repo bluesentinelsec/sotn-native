@@ -29,6 +29,22 @@ bool SotnPlayer_SetSpecialChain(SotnPlayer *p, Uint8 left_count, Uint8 right_cou
     p->special_count[1] = right_count;
     return true;
 }
+bool SotnPlayer_SetComboChain(SotnPlayer *p, Uint8 count)
+{
+    if (!p || count > 48)
+        return SDL_SetError("Combo chain count requires actual shared player slots");
+    p->combo_count = count;
+    return true;
+}
+Uint32 SotnPlayer_Combo(const SotnPlayer *p)
+{
+    return p ? p->combo : 0;
+}
+bool SotnPlayer_ComboSupported(Uint16 item)
+{
+    // Combo spells with an actual native owner (Leather shield's203).
+    return item == 203;
+}
 bool SotnPlayer_SetSpecialCross(SotnPlayer *p, Uint8 left_count, Uint8 right_count)
 {
     if (!p || left_count > 48 || right_count > 48)

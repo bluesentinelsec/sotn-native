@@ -71,6 +71,8 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0, 0};
     case 195:
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
+    case 203: // Leather shield's both-buttons spell (Shield rod/Mablung combo, kind5)
+        return (PlainSpec){10, 8, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 17: // Sword of Dawn (two-handed): QCF special177 summons its soldiers (kind5, bp56)
         return (PlainSpec){5, 30, 6, 0x68, 0, 0, 177, 0, 0, 0};
     case 177:
@@ -276,6 +278,36 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
     return true;
 }
 
+bool SotnEquipment_Combo(SotnDataView dra, Uint16 left, Uint16 right, Uint32 *out)
+{
+    const Uint8 *pointer = NULL, *l = NULL, *r = NULL;
+    if (!out || left >= 217 || right >= 217)
+        return SDL_SetError("Weapon combo requires bounded original hand items");
+    if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)left * 52, 50, &l) ||
+        !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)right * 52, 50, &r))
+        return false;
+    // menu.c CheckWeaponCombo: the right hand's main against the left hand's sub selects the
+    // left hand (hand flag clear); otherwise the reverse pairing marks the right hand.
+    Uint32 flag = 0x80000000U, combo = Read32(l + 0x1c) & Read32(r + 0x20);
+    if (combo)
+        flag = 0;
+    combo |= Read32(l + 0x20) & Read32(r + 0x1c);
+    if (combo)
+        for (Uint16 i = 0xaa; i < 0xd9; ++i)
+        {
+            const Uint8 *e = NULL;
+            if (!Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)i * 52, 50, &e))
+                return false;
+            if (combo & Read32(e + 0x1c))
+            {
+                *out = flag + i;
+                return true;
+            }
+        }
+    *out = 0;
+    return true;
+}
 bool SotnEquipment_ReadCost(SotnDataView dra, Uint16 id, Uint16 *out)
 {
     const Uint8 *pointer = NULL, *record = NULL;

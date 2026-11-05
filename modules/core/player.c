@@ -485,13 +485,15 @@ static void Backdash(SotnPlayer *player)
     player->sound = 0x617;
 }
 
-static bool ReserveHand(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
+// A both-buttons combo spell's factory takes its hand bits at <<14 (6E42C.c var_s7): the plain
+// DRA factory entity with the E0/F0 child offset.
+static bool ReserveHandAt(SotnPlayer *player, SotnEquipment equipment, Uint32 hand, bool combo)
 {
     if (!player->hand_factory)
         return true;
     SotnPlayerState captured = {0};
     bool allocated = false;
-    const Uint32 packed = equipment.id ? equipment.blueprint | ((hand + 1U) << 12) |
+    const Uint32 packed = equipment.id ? equipment.blueprint | ((hand + 1U) << (combo ? 14 : 12)) |
                                              ((Uint32)(equipment.variant + hand * 128U) << 16)
                                        : (42U + hand) | (hand << 23);
     if (!SotnPlayer_GetState(player, &captured) ||
@@ -506,6 +508,10 @@ static bool ReserveHand(SotnPlayer *player, SotnEquipment equipment, Uint32 hand
         return false;
     }
     return allocated;
+}
+static bool ReserveHand(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
+{
+    return ReserveHandAt(player, equipment, hand, false);
 }
 
 // 6E42C.c block_70: the shared curse and Red Rust failure animation/lock/voice.
@@ -644,9 +650,32 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (player->attack_mode & 0x8000)
         return false;
-    const Uint32 hand = pressed == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
+    Uint32 hand = pressed == SOTN_BUTTON_RIGHT_HAND ? 1U : 0U;
     SotnEquipment equipment = {0};
-    if (!SotnEquipment_Read(player->dra, player->equipment[hand], &equipment))
+    // 6E42C.c both buttons: an equipped combo (CheckWeaponCombo's D_8013AEE4) casts its spell
+    // with the combo's hand when its chain limit and MP allow; otherwise the left hand attacks.
+    bool combo = false;
+    const Uint16 combo_item = (Uint16)(player->combo & 0xffffU);
+    if (pressed == (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND) && player->hand_factory &&
+        !player->tight_space && combo_item && SotnPlayer_ComboSupported(combo_item))
+    {
+        SotnEquipment special = {0};
+        Uint16 cost = 0;
+        if (!SotnEquipment_Read(player->dra, combo_item, &special) ||
+            !SotnEquipment_ReadCost(player->dra, combo_item, &cost))
+        {
+            player->failed = true;
+            return true;
+        }
+        if (((special.chain_limit & 0x80) || player->combo_count < special.chain_limit) &&
+            player->mp >= cost)
+        {
+            combo = true;
+            hand = (player->combo & 0x80000000U) ? 1U : 0U;
+            equipment = special;
+        }
+    }
+    if (!combo && !SotnEquipment_Read(player->dra, player->equipment[hand], &equipment))
     {
         player->failed = true;
         return true;
@@ -792,8 +821,8 @@ static bool StartAttack(SotnPlayer *player)
     // 6E42C.c Combat knife: unk17 == specialMove. A lingering ordinary knife in slot16 makes
     // this swing the special; a lingering special makes it the ordinary knife. Either skips the
     // QCF/back-forward checks; with no knife in slot16 the ordinary checks follow.
-    bool knife_resolved = false;
-    if (player->hand_factory && equipment.back_forward &&
+    bool knife_resolved = combo;
+    if (!combo && player->hand_factory && equipment.back_forward &&
         equipment.back_forward == equipment.special_move)
     {
         if (player->slot16_item == equipment.id)
@@ -853,8 +882,8 @@ static bool StartAttack(SotnPlayer *player)
     }
     // 6E42C.c block_38c: a completed back-forward command selects the equipped unk17 item.
     // Chain limit 0x80 allows it whenever no attack is active, as already checked above.
-    if (!knife_resolved && !special_selected && player->hand_factory && equipment.back_forward &&
-        player->back_forward.phase == 255)
+    if (!combo && !knife_resolved && !special_selected && player->hand_factory &&
+        equipment.back_forward && player->back_forward.phase == 255)
     {
         SotnEquipment special = {0};
         if (!SotnEquipment_Read(player->dra, equipment.back_forward, &special) ||
@@ -867,7 +896,7 @@ static bool StartAttack(SotnPlayer *player)
         }
         equipment = special;
     }
-    if (!ReserveHand(player, equipment, hand))
+    if (!ReserveHandAt(player, equipment, hand, combo))
         return player->failed;
     // 6E42C.c case12 (Shotel): while a thrown specialMove lives with either hand's params
     // (CheckChainLimit for both hands), the swing becomes a punch. Shotel's own factory already
@@ -3394,6 +3423,11 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
     player->attributes.attack[0] = power[0];
     player->attributes.attack[1] = power[1];
     player->weapons = weapons;
+    // menu.c CheckWeaponCombo runs with each weapon load.
+    Uint32 combo = 0;
+    if (!SotnEquipment_Combo(player->dra, left, right, &combo))
+        return false;
+    player->combo = combo;
     player->equipment[0] = left;
     player->equipment[1] = right;
     player->shield_cursor = (SotnShield){0};

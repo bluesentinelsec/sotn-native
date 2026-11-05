@@ -1,3 +1,11 @@
+Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
+on every equipment set and cast Leather shield's spell203 with Mablung on both buttons (held
+shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
+factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
+rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
+flashes, opens a nine-band card on retained program shieldAngles and releases FACTORY(55,8).
+Other combos keep the left-hand attack (gap) until their spells exist.
+
 Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,
 weapon30 swing: DRA bank10, TRANSP|QUARTER) and QCF special177 (kind5, bp56, chain8, five MP;
 equipped 0x11 also refuses vram flag0x40). The circle (E1, 11 GT4) rolls one/six soldiers then

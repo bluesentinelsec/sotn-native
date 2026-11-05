@@ -3955,6 +3955,89 @@ static bool DawnBombTest(Uint16 hand)
     return true;
 }
 
+// w_008 EntityWeaponShieldSpell: eleven mandatory rows first; birth retires a raised shield,
+// plays ANIME_SWORD_C and enters freeze1; the image grows (12/update), holds, flashes out with
+// TRANSFORM_3X, the wave card opens and darkens, the pink FACTORY(55,8) follows, and the spell
+// ends the freeze and retires. shieldAngles load once from the program and keep stepping.
+static bool LeatherSpellTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    for (Uint16 i = 0; i < 16; ++i)
+        Put32(o + 0xa78 + i * 4U, i * 0x200U);
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondary s = {
+        .parameter = (Uint16)(hand << 15), .x = 128 * 65536 + 0x111, .y = 120 * 65536};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .hand = hand,
+                                   .family = 8,
+                                   .role = 8,
+                                   .priority = 148,
+                                   .facing_left = hand != 0,
+                                   .allocated = true};
+    Uint32 rng = 5;
+    SotnWeaponSecondaryEvents e = {0};
+    {
+        SotnWeaponSecondary cold = {0};
+        SotnWeaponSecondaryInput none = in;
+        none.allocated = false;
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, none, &rng, &e) && cold.removed &&
+              !e.freeze_set && !e.sounds[0] && program.shield_angles_loaded &&
+              program.shield_angles[3] == 0x600);
+        program = (SotnHandWeaponProgram){0};
+    }
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && s.phase == 1 &&
+          e.clear_shield && e.sounds[0] == 0x641 && e.freeze_set && !e.freeze_clear &&
+          s.bank == (hand ? 0x8012 : 0x8010) && s.palette == (hand ? 0x128 : 0x110) &&
+          s.texture == (hand ? 0x66 : 0x64) && s.frame == 0x3e && s.draw_flags == 3 && !s.scale_x &&
+          Pixel(s.y) == 112 && s.flags == 0x04810000U && s.priority == 146 &&
+          s.velocity_x == (hand ? 0x20000 : -0x20000) && s.spell_bright == 0x100 &&
+          s.spell_quads[0].palette == 0x19f && s.spell_quads[0].draw_mode == 0x75 &&
+          s.spell_quads[0].v[0] == (hand ? 0 : 0x80) && s.spell_quads[0].priority == 142 &&
+          s.spell_quads[1].palette == (hand ? 0x129 : 0x111) && s.spell_quads[1].draw_mode == 8 &&
+          s.spell_quads[1].v[0] == (hand ? 0xb0 : 0x30) && s.spell_quads[10].u[1] == 71 &&
+          s.spell_quads[10].palette == 0x15f && s.spell_quads[10].draw_mode == 0x3d &&
+          s.spell_quads[10].priority == 0x1be && program.shield_angles[0] == 0x40 &&
+          program.shield_angles[8] == 0x1040 && program.shield_angles[9] == 0x1200);
+    Uint16 t = 0, pink = 0, flashes = 0, brightening = 0;
+    Sint32 vx = s.velocity_x;
+    for (; !s.removed && t < 400; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+        if (phase == 1)
+        {
+            vx = vx < 0 ? SDL_min(vx + 0x1000, 0) : SDL_max(vx - 0x1000, 0);
+            CHECK(s.velocity_x == vx && (s.phase == 2 ? s.scale_x == 0x100 && s.spell_glow == 0x28
+                                                      : s.scale_x == 12 * (t + 1)));
+        }
+        // The darkened card brightens 0x10 per update: nineteen updates past0x120.
+        brightening += phase == 6;
+        if (e.sounds[0] == 0x6b1)
+        {
+            CHECK(phase == 3 && s.phase == 4 && !s.frame && !(s.spell_quads[1].draw_mode & 8U) &&
+                  !(s.spell_quads[5].draw_mode & 8U) && s.spell_timer == 0x20);
+            ++flashes;
+        }
+        if (e.pink)
+        {
+            CHECK(e.pink == 8 && phase == 6 && s.phase == 7 && s.spell_bright > 0x120 &&
+                  (s.spell_quads[1].draw_mode & 8U));
+            ++pink;
+        }
+        if (s.removed)
+            CHECK(e.freeze_clear && phase == 7 && s.spell_wave_y > 0xc0);
+    }
+    CHECK(s.removed && pink == 1 && flashes == 1 && brightening == 19 &&
+          program.shield_angles[0] == (Sint32)(0x40 * (t + 0U)));
+    CHECK(SotnWeaponSecondary_SupportedRole(8, 8) && !SotnWeaponSecondary_SupportedRole(8, 1) &&
+          SotnWeaponSecondary_RoleRows(8, 8) == 11);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -3965,7 +4048,8 @@ int main(void)
                    Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
                    ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
                    DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1)
+                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) && LeatherSpellTest(0) &&
+                   LeatherSpellTest(1)
                ? 0
                : 1;
 }

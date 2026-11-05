@@ -560,6 +560,15 @@ bool SotnPlayer_SetSpecialChain(SotnPlayer *player, Uint8 left_count, Uint8 righ
  * hand's params bit. Shotel (kind12) punches while either count reaches the special's limit.
  * @return False with SDL_GetError() for counts beyond the shared slots. */
 bool SotnPlayer_SetSpecialCross(SotnPlayer *player, Uint8 left_count, Uint8 right_count);
+/** @brief Supply CheckChainLimit's live count of the equipped combo spell (children carrying its
+ * item with the combo hand's params). @return False with SDL_GetError() beyond the slots. */
+bool SotnPlayer_SetComboChain(SotnPlayer *player, Uint8 count);
+/** @brief Whether a both-buttons combo spell has an actual native owner; unsupported combos keep
+ * the ordinary left-hand attack (documented gap). */
+bool SotnPlayer_ComboSupported(Uint16 item);
+/** @brief The equipped combo (CheckWeaponCombo's D_8013AEE4): item plus bit31 for the right hand.
+ */
+Uint32 SotnPlayer_Combo(const SotnPlayer *player);
 /** @brief Compatibility entry for the selected Neutron owner. */
 bool SotnPlayer_SetNeutronContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
                                   SotnPlayerMedicineConsume consume,

@@ -103,6 +103,18 @@ typedef struct SotnWeaponSecondary
             Uint16 dawn_slot;
             bool dawn_bound;
         };
+        /** Shield spells (E8): eleven GT4 rows in screen pixels (no DRAW_UNK02) and ext.shield
+         * words unk80 timer, unk82 glow half size, unk84/86 card half extents, unk8A angle step,
+         * unk90 band brightness, unk92/94 wave amplitudes, childPalette and unk7C/7D rows. */
+        struct
+        {
+            SotnPlayerEffectQuad spell_quads[11];
+            Sint16 spell_timer, spell_glow, spell_half_w, spell_half_h, spell_step;
+            Sint16 spell_bright, spell_wave_x, spell_wave_y;
+            Uint16 spell_child_palette;
+            Uint8 spell_v0, spell_v1;
+            Sint32 spell_velocity_y;
+        };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
@@ -184,6 +196,7 @@ typedef struct SotnWeaponSecondaryInput
     Uint16 parent_pose;
     /** Weapon30 homing swords: the retained target slot's current stage words (screen). */
     SotnSpellTarget target;
+    Uint32 engine_timer; /**< Actual g_Timer (shield spells' flicker, unlike g_GameTimer). */
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -213,6 +226,10 @@ typedef struct SotnWeaponSecondaryEvents
     Uint8 shake; /**< Weapon30 ShakeCamera request (0: none). */
     /** Weapon30 homing swords: func_80118970 selects (and marks) a target now. */
     bool select_target;
+    /** Shield spells: g_unkGraphicsStruct.unk28 (1 enters the spell freeze, 0 leaves it). */
+    bool freeze_set, freeze_clear;
+    /** Shield spells: FACTORY(55, n) pink medicine effect profile, zero when absent. */
+    Uint8 pink;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,

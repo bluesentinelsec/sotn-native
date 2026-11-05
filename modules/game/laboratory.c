@@ -1183,7 +1183,17 @@ static bool BindFood(SotnLaboratory *s)
             special_cross[hand] += item == held.special_move && !same;
         }
     }
-    if (!SotnPlayer_SetSpecialChain(s->player, special_count[0], special_count[1]) ||
+    // CheckChainLimit for the equipped combo spell: children carrying its item with its hand.
+    const Uint32 combo = SotnPlayer_Combo(s->player);
+    Uint8 combo_count = 0;
+    for (Uint16 i = 0; combo && i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        const SotnBatRuntimeChild *c = &s->bat_runtime.children[i];
+        combo_count += c->weapon_secondary && c->state.secondary.item == (combo & 0xffffU) &&
+                       ((c->parameter & 0x8000U) != 0) == ((combo & 0x80000000U) != 0);
+    }
+    if (!SotnPlayer_SetComboChain(s->player, combo_count) ||
+        !SotnPlayer_SetSpecialChain(s->player, special_count[0], special_count[1]) ||
         !SotnPlayer_SetSpecialCross(s->player, special_cross[0], special_cross[1]))
         return false;
     return SotnPlayer_SetFoodContext(s->player, FoodFactory, UseFood, s, count[0], count[1]) &&
@@ -4090,6 +4100,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    (family == 12 && role == 0),
                            ring = role == 2 || family == 1 || (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
+                // Shield spells (E8) own eleven screen-space GT4s.
+                for (Uint16 q = family == 8 ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->spell_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->spell_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
                 // Weapon30's circle (eleven) and soldiers (fourteen) own entity-relative GT4s.
                 for (Uint16 q = family == 30 ? child->primitive_count : 0; q > 0; --q)
                     if (!(w->dawn_quads[q - 1U].draw_mode & 8U) &&
@@ -4125,7 +4144,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 16U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle || rune || family == 30
+                for (Uint16 row = slash || ring || sparkle || rune || family == 30 || family == 8
                                       ? 0
                                       : child->primitive_count;
                      row > 0; --row)
@@ -5188,16 +5207,19 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 56 ||
                                c->state.secondary.family == 51 ||
                                (c->state.secondary.family == 12 && !(c->kind & 15U));
-            const bool dawn = c->state.secondary.family == 30;
+            const bool dawn = c->state.secondary.family == 30,
+                       spell = c->state.secondary.family == 8;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && !dawn && (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
+                (!slash && !dawn && !spell && (c->kind & 15U) != 2 &&
+                 c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
-            SotnPlayerEffectQuad q = slash  ? w->quad
-                                     : dawn ? w->dawn_quads[index]
-                                            : w->quads[index];
+            SotnPlayerEffectQuad q = slash   ? w->quad
+                                     : dawn  ? w->dawn_quads[index]
+                                     : spell ? w->spell_quads[index]
+                                             : w->quads[index];
             if (dawn && (c->kind & 15U) == 1 && index == 10 && w->dawn_line)
             {
                 // The circle's row10 tether is a LINE_G2 (ABR from drawMode bits5..6).
@@ -5265,7 +5287,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
                      c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 || c->state.secondary.family == 34 ||
-                     c->state.secondary.family == 30)
+                     c->state.secondary.family == 30 || c->state.secondary.family == 8)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.
@@ -5287,7 +5309,11 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                .executable = session->executable,
                                                .sdk_rotation = true};
                 const Uint16 bank = (Uint16)(w->bank & 0x7fffU);
-                if (!(bank == 17 || bank == 19 ? SotnActorGraphics_DrawSecondaryWeaponSurface
+                // A zero ENTITY_SCALEX/Y collapses the sprite to nothing (shield spells' birth).
+                const bool collapsed =
+                    ((w->draw_flags & 1U) && !w->scale_x) || ((w->draw_flags & 2U) && !w->scale_y);
+                if (!collapsed &&
+                    !(bank == 17 || bank == 19 ? SotnActorGraphics_DrawSecondaryWeaponSurface
                                                : SotnActorGraphics_DrawSurface)(
                         session->actor_graphics, sprite, x, y, t, session->draw_target.surface))
                     return false;

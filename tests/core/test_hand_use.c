@@ -163,6 +163,16 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 143 * 52 + 19] = 50;
     f->dra[0x500 + 143 * 52 + 22] = 1;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
+    // Mablung124 (combo main0x3FFE) with Leather shield5 (sub2) casts spell203 (sub2).
+    Item(f->dra, 124, 1, 57, 1, 0x41, 3, 13, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 124 * 52 + 0x20, 0x3ffe);
+    Item(f->dra, 5, 9, 8, 128, 0x63, 0, 0, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 5 * 52 + 0x1c, 2);
+    Item(f->dra, 203, 10, 8, 5, 0xba, 0, 0, 0);
+    f->dra[0x500 + 203 * 52 + 19] = 86;
+    f->dra[0x500 + 203 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 203 * 52 + 36, 10);
+    TestCharacter_Put32(f->dra + 0x500 + 203 * 52 + 0x1c, 2);
     Item(f->dra, 17, 5, 30, 6, 0x68, 0, 13, 0);
     f->dra[0x500 + 17 * 52 + 24] = 177; // QCF specialMove
     Item(f->dra, 177, 1, 30, 5, 0xb8, 0, 0, 0);
@@ -699,6 +709,44 @@ static bool Runesword(Fixture *f, Uint16 item)
     }
     return true;
 }
+// 6E42C.c both buttons: Mablung124 + Leather5 resolve CheckWeaponCombo to spell203 on the
+// shield's hand; the spell's factory takes <<14 hand bits, ten MP and kind5's grounded stop.
+// A live spell (chain1) or too little MP leaves the left hand's ordinary swing.
+static bool Combo(Fixture *f)
+{
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 left = k == 3 ? 5 : 124, right = k == 3 ? 124 : 5;
+        CHECK(Create(f, left, 1, 2, true));
+        CHECK(SotnCharacter_Collect(f->character, false, right) &&
+              SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, right) &&
+              SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, left,
+                                      right));
+        CHECK(SotnPlayer_Combo(f->p) == (k == 3 ? 0xcbU : 0x800000cbU));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(SotnPlayer_SetComboChain(f->p, k == 1));
+        if (k == 2)
+        {
+            SotnCharacterState progress = {0};
+            CHECK(SotnCharacter_Get(f->character, &progress, NULL));
+            progress.mp = 9;
+            CHECK(SotnCharacter_Restore(f->character, &progress));
+            f->p->mp = 9;
+        }
+        const Uint16 mp = f->p->mp;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND));
+        if (k == 0 || k == 3)
+            CHECK(f->item == 203 && f->packed == (k == 3 ? 0x4056U : 0x808056U) &&
+                  f->p->mp == mp - 10 && f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
+                  f->p->animation.id == 0xba);
+        else
+            CHECK(f->item == 124 && f->packed == 0x31030U && f->p->mp == mp &&
+                  f->p->attack_mode == 0x8002);
+    }
+    CHECK(!SotnPlayer_SetComboChain(f->p, 49));
+    return true;
+}
 // 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,
 // five MP after the factory, grounded substep0x45). The QCF also refuses ground with vram flag
 // 0x40, falling back to the ordinary swing.
@@ -861,7 +909,8 @@ int main(void)
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f);
+         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
+         Combo(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

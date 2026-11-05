@@ -29,6 +29,12 @@ typedef struct SotnHandWeaponProgram
         };
         /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
         Sint16 dawn_phase[10];
+        /** Shield programs' shieldAngles (overlay data, loaded at first use and retained). */
+        struct
+        {
+            Sint32 shield_angles[16];
+            bool shield_angles_loaded;
+        };
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
     /** Weapon51 program BSS shared by its attack and special: the glow colour's _r/_g/_b,
