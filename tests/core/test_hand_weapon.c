@@ -174,8 +174,8 @@ static bool BasicShields(void)
                  tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
     CHECK(SotnHandWeapon_IsShieldFamily(10) && SotnHandWeapon_IsShieldFamily(23) &&
           SotnHandWeapon_IsShieldFamily(24) && SotnHandWeapon_IsShieldFamily(27) &&
-          SotnHandWeapon_IsShieldFamily(28) && !SotnHandWeapon_IsShieldFamily(29) &&
-          !SotnHandWeapon_IsShieldFamily(255));
+          SotnHandWeapon_IsShieldFamily(28) && SotnHandWeapon_IsShieldFamily(29) &&
+          !SotnHandWeapon_IsShieldFamily(30) && !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -1738,6 +1738,50 @@ static bool SkullGuard(void)
     }
     return true;
 }
+// w_029 (Fire shield): every update the palette is unk80 plus D_8017ACF8[g_GameTimer/2%5]; every
+// fifth game update a shield that is not flung requests WFACTORY(0x38,0)'s afterimage after its
+// animation (none once status0x10000 flings it, though its palette keeps cycling).
+static bool FireGuard(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    SDL_memmove(o + 0xcc0 - 0x48, o + 0xb84 - 0x48, 0x48 + 14 * 4);
+    SDL_memset(o + 0xb84, 0xff, 14 * 4);
+    const Uint16 offsets[5] = {3, 0, 4, 1, 2};
+    for (Uint16 i = 0; i < 5; ++i)
+        Put16(o + 0xcf8 + i * 2U, offsets[i]);
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .scale_y = 256,
+                                  .family = 29,
+                                  .hand = hand,
+                                  .held = true};
+        SotnHandWeapon w = {0};
+        SotnHandWeaponProgram program = {0};
+        Uint32 rng = 9;
+        Uint16 requests = 0;
+        for (Uint16 tick = 0; tick < 40; ++tick)
+        {
+            in.game_timer = 1000U + tick * 3U;
+            in.status = tick >= 30 ? 0x10000U : 0;
+            SotnHandWeaponEvents e = {0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.more_factories[0]);
+            const bool request = tick < 30 && !(in.game_timer % 5U);
+            CHECK(e.factory == (request ? 0x38U | (hand + 1U) << 12 : 0) &&
+                  w.palette == 0x110 + hand * 24 + offsets[in.game_timer / 2 % 5] &&
+                  w.phase == (tick < 30 ? w.phase : 4));
+            requests += request;
+        }
+        CHECK(requests == 6 && w.phase == 4);
+    }
+    return true;
+}
 static bool AlucardArmed(void)
 {
     Uint8 o[0x1200] = {0};
@@ -2072,7 +2116,8 @@ int main(void)
                    HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
                    Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
                    IronGuard() && HeraldGuard() && HeraldRuntime() && DarkGuard() &&
-                   MedusaGuard() && SkullGuard() && AlucardArmed() && AlucardRuntime()
+                   MedusaGuard() && SkullGuard() && FireGuard() && AlucardArmed() &&
+                   AlucardRuntime()
                ? 0
                : 1;
 }

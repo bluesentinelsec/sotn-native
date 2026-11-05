@@ -90,6 +90,7 @@ static bool Program(Uint16 family, Layout *out)
                                 : family == 24 ? 18
                                 : family == 27 ? 1
                                 : family == 28 ? 13
+                                : family == 29 ? 1
                                 : family == 58 ? 2
                                 : family == 11 ? 10
                                 : family == 25 ? 17
@@ -104,8 +105,8 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
     return family == 8 || family == 9 || family == 10 || family == 23 || family == 24 ||
-           family == 27 || family == 28 || family == 58 || family == 11 || family == 25 ||
-           family == 26 || family == 52;
+           family == 27 || family == 28 || family == 29 || family == 58 || family == 11 ||
+           family == 25 || family == 26 || family == 52;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
@@ -116,6 +117,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
            : family == 24 ? 208
            : family == 27 ? 211
            : family == 28 ? 212
+           : family == 29 ? 213
            : family == 58 ? 215
            : family == 11 ? 206
            : family == 25 ? 209
@@ -132,6 +134,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
            : item == 208 ? 24
            : item == 211 ? 27
            : item == 212 ? 28
+           : item == 213 ? 29
            : item == 215 ? 58
            : item == 206 ? 11
            : item == 209 ? 25
@@ -190,6 +193,10 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon28 (Skull shield): its spell (role8) and beam (role9).
     if (family == 28)
         return role == 8 || role == 9;
+    // Weapon29 (Fire shield): its guard's afterimages (role1), spell (role8), dragons (role9) and
+    // hit points (role10).
+    if (family == 29)
+        return role == 1 || role == 8 || role == 9 || role == 10;
     // Shield programs (Leather8/Knight9/Alucart58): role8 is the both-buttons spell.
     // Axe Lord's spell (role8) also creates its vector9 walker/afterimages (role9); Goddess's
     // its vector9 clouds.
@@ -242,6 +249,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                                                  : family == 24 ? 18
                                                  : family == 27 ? 1
                                                  : family == 28 ? 13
+                                                 : family == 29 ? 1
                                                  : family == 58 ? 2
                                                  : family == 11 ? 10
                                                  : family == 25 ? 17
@@ -253,6 +261,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                : family == 24                 ? (role == 9 ? 1 : 0)
                : family == 27                 ? (role == 9 ? 18 : 0)
                : family == 28                 ? (role == 9 ? 3 : 0)
+               : family == 29                 ? (role == 9 ? 19 : 0)
                : family == 25 || family == 26 ? 1
                : family == 52                 ? 11
                                               : 0;
@@ -6262,6 +6271,404 @@ static bool SkullBeam(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint3
     q[2].palette = palette;
     return true;
 }
+// w_029 func_ptr_80170004 (WFACTORY(56,0), role1): the Fire shield guard's afterimage. Every
+// update it retires unless its raw slot16 parent holds item15; at birth it copies the parent's
+// bank, unk5A, frame and unk80 palette base four priorities in front, is CAMERA_LOCKED and fades
+// with ENTITY_OPACITY|MASK_R (red held at 128) for twenty updates through D_8017AD04's offsets.
+static bool FireImage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->priority = (Uint16)(in.parent_priority + 4U);
+        s->texture = in.parent_texture;
+        s->spell_child_palette = in.parent_child_palette;
+        s->frame = in.parent_frame;
+        s->flags = 0x08000000U;
+        s->draw_flags = 0x18;
+        s->opacity = 0x80;
+        s->lifetime = 0x14;
+        s->phase = 1;
+    }
+    else
+    {
+        if (s->opacity >= 7)
+            s->opacity = (Uint8)(s->opacity - 7U);
+        s->lifetime = Word(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            s->removed = true;
+            return true;
+        }
+    }
+    const Uint8 *offset = NULL;
+    if (!View(in.overlay, 0xd04U + (in.game_timer / 2U % 5U) * 2U, 2, &offset))
+        return SDL_SetError("Fire shield afterimage private palette offsets");
+    s->palette = (Uint16)(s->spell_child_palette + Read16(offset));
+    return true;
+}
+static bool FirePalette(SotnDataView o, Uint32 timer, Uint16 base, Uint16 *out)
+{
+    const Uint8 *offset = NULL;
+    if (!View(o, 0xcf8U + (timer / 2U % 5U) * 2U, 2, &offset))
+        return SDL_SetError("Fire shield spell private palette offsets");
+    *out = (Uint16)(base + Read16(offset));
+    return true;
+}
+// w_029 EntityWeaponShieldSpell: Fire shield's both-buttons spell (item213, one mandatory GT4,
+// the glow). Like the card spells it retires a raised shield, plays ANIME_SWORD_C, freezes the
+// scene and drifts back while the shield image grows (its palette cycling D_8017ACF8 on g_Timer,
+// then g_GameTimer while it shrinks away). The flame (D_8017AD24, FLAG_UNK_100000, priority0x1B6)
+// then grows with TRANSFORM while the glow spreads and fades; after 0x20 updates the glow hides,
+// FIREBALL_SHOT_A plays, FACTORY(102) releases the three dragons, the freeze ends and, 0x18
+// updates later, the flame shrinks away.
+static bool FireSpell(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                      SotnWeaponSecondaryEvents *e)
+{
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    switch (s->phase)
+    {
+    case 0:
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->spell_child_palette = in.hand ? 0x128 : 0x110;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->flags = 0x04810000U;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0xcf;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = (Uint16)(s->priority - 4U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->clear_shield = true;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 40 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 8;
+            s->phase = 2;
+        }
+        if (!FirePalette(in.overlay, in.engine_timer, s->spell_child_palette, &s->palette))
+            return false;
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+            s->phase = 3;
+        if (!FirePalette(in.overlay, in.engine_timer, s->spell_child_palette, &s->palette))
+            return false;
+        break;
+    case 3:
+        if (!FirePalette(in.overlay, in.game_timer, s->spell_child_palette, &s->palette))
+            return false;
+        s->scale_x = Word(s->scale_x - 0x10);
+        s->scale_y = s->scale_x;
+        if (s->scale_x <= 0)
+        {
+            s->scale_x = 0;
+            s->timeline = 0xd24;
+            s->pose = 0;
+            s->remaining = 0;
+            s->flags |= 0x100000U;
+            s->spell_timer = 0x20;
+            s->palette = s->spell_child_palette;
+            s->priority = 0x1b6;
+            e->sounds[0] = 0x668;
+            s->phase = 4;
+        }
+        break;
+    case 4:
+        s->spell_glow = Word(s->spell_glow + 8);
+        s->scale_x = Word(s->scale_x + 0x10);
+        if (s->scale_x >= 0x100)
+            s->scale_x = 0x100;
+        s->scale_y = s->scale_x;
+        if (q->blue[3] >= 9)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        if (--s->spell_timer == 0)
+        {
+            q->draw_mode |= 8;
+            e->sounds[0] = 0x660;
+            // FACTORY(102)'s three dragons with the combo's <<14 hand bits (dropped without a
+            // free factory entity).
+            if (in.free_factories > e->factory_count)
+            {
+                e->factories[e->factory_count] = 102U | ((in.hand + 1U) << 14);
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count++] = s->y;
+            }
+            s->spell_timer = 0x18;
+            e->freeze_clear = true;
+            s->phase = 5;
+        }
+        break;
+    case 5:
+        if (--s->spell_timer == 0)
+            s->phase = 6;
+        break;
+    default:
+        s->scale_x = Word(s->scale_x - 0x10);
+        s->scale_y = s->scale_x;
+        if (s->scale_x <= 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    return true;
+}
+// One dragon edge: centre plus ((trig>>4)*size)>>8, Y subtracted.
+static bool FireEdge(SotnDataView exe, Sint16 cx, Sint16 cy, Sint32 angle, Sint16 size, Sint16 *x,
+                     Sint16 *y)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, angle, &t))
+        return false;
+    *x = Word(cx + Asr(Asr(t.cosine, 4) * size, 8));
+    *y = Word(cy - Asr(Asr(t.sine, 4) * size, 8));
+    return true;
+}
+// w_029 func_ptr_80170024 (FACTORY(102), role9): one of three fire dragons (params0..2). It takes
+// nineteen GT4s (failure retires it), resets its program-BSS row of twenty screen 16.16 segments
+// at its position, heading 0x540 per dragon (0x800 more facing left), rolls properties from its
+// raw parent's equipId and strikes with a 20x20 hitbox. Segments wake two updates apart, swing
+// with their wave, curl, slow (dragon0's FIREBALL_SHOT_A as each turns), then speed off and stop
+// turning off screen; the first to pass speed0x100 retires the dragon. Rows cycle D_8017AD10's
+// palettes on g_Timer; the head rides segment1, whose screen position the entity takes before
+// requesting FACTORY(100)'s hit point every update.
+static bool FireDragon(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                       SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 dragon = s->parameter & 0xffU;
+    const bool left = s->facing_left;
+    SotnPlayerEffectQuad *q = s->fire_quads;
+    SotnWeaponFireSegment *g = s->fire_segments;
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 9;
+        s->allocated = true;
+        s->fire_palette = in.hand ? 0x128 : 0x110;
+        s->fire_band = in.hand ? 0x80 : 0;
+        s->flags |= 0x04800000U;
+        s->fire_head = 0x40;
+        for (Uint16 i = 0; i < 19; ++i)
+        {
+            q[i] =
+                (SotnPlayerEffectQuad){.page = 0x19, .palette = s->fire_palette, .priority = 0x1ba};
+            q[i].u[0] = q[i].u[2] = 0x50;
+            q[i].v[0] = q[i].v[1] = (Uint8)(s->fire_band + 8);
+            q[i].u[1] = q[i].u[3] = 0x7f;
+            q[i].v[2] = q[i].v[3] = (Uint8)(s->fire_band + 0x2f);
+        }
+        q[0].u[0] = q[0].u[1] = 0;
+        q[0].u[2] = q[0].u[3] = 0x57;
+        q[0].v[0] = q[0].v[2] = (Uint8)(s->fire_band + 0x30);
+        q[0].v[1] = q[0].v[3] = (Uint8)(s->fire_band + 0x6f);
+        const Sint32 sx = (Sint32)(((Uint32)Word(Pixel(s->x) - in.retained_camera_x) << 16) |
+                                   ((Uint32)s->x & 0xffffU)),
+                     sy = (Sint32)(((Uint32)Word(Pixel(s->y) - in.retained_camera_y) << 16) |
+                                   ((Uint32)s->y & 0xffffU));
+        for (Uint16 i = 0; i < 20; ++i)
+            g[i] = (SotnWeaponFireSegment){.x = sx,
+                                           .y = sy,
+                                           .heading = Word((left ? 0x800 : 0) + dragon * 0x540),
+                                           .turn = 0xc00,
+                                           .speed = 0x70,
+                                           .wave = 0xc00,
+                                           .width = i == 19   ? 0
+                                                    : i == 18 ? 10
+                                                              : 20,
+                                           .delay = (Sint16)(i * 2 + 1),
+                                           .swell = 256};
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 20;
+        s->phase = 1;
+        break;
+    }
+    default:
+        for (Uint16 i = 0; i < 20; ++i)
+        {
+            SotnWeaponFireSegment *k = &g[i];
+            if (k->state)
+            {
+                SotnMathTrig wave = {0}, head = {0};
+                k->wave = Word(k->wave + 0x80);
+                k->swell = Word(k->swell - 4);
+                if (!SotnMath_Trig(in.executable, k->wave, &wave) ||
+                    !SotnMath_Trig(in.executable, k->heading, &head))
+                    return false;
+                const Sint32 swing = Word(wave.sine / 2 + 0x1000);
+                if (k->swell < 0)
+                    k->swell = 0;
+                k->x = (Sint32)((Uint32)k->x + (Uint32)(Asr(head.cosine * k->speed, 12) * swing));
+                k->y = (Sint32)((Uint32)k->y + (Uint32)(-Asr(head.sine * k->speed, 12) * swing));
+                k->heading = Word(k->heading + (left ? -1 : 1) * Asr((Sint16)k->turn, 4));
+            }
+            switch (k->state)
+            {
+            case 0:
+                if (--k->delay == 0)
+                    ++k->state;
+                break;
+            case 1:
+                k->turn = (Uint16)(k->turn - 40U);
+                if (k->wave > 0x1400)
+                    ++k->state;
+                break;
+            case 2:
+                k->turn = (Uint16)(k->turn - 80U);
+                k->speed = Word(k->speed - 4);
+                if (k->speed < 0x40)
+                {
+                    if (!(s->parameter & 0x7fU))
+                        e->sounds[e->sounds[0] ? 1 : 0] = 0x660;
+                    ++k->state;
+                }
+                break;
+            case 3:
+                k->wave = Word(k->wave - 0x60);
+                k->turn = (Uint16)(k->turn - 48U);
+                if (k->x < -288 * 0x10000 || k->x > 288 * 0x10000 || k->y < 0 ||
+                    k->y > 256 * 0x10000)
+                    k->turn = 0;
+                k->speed = Word(k->speed + 2);
+                if (k->speed > 0x100)
+                {
+                    s->removed = true;
+                    return true;
+                }
+                break;
+            }
+        }
+        s->fire_head = Word(s->fire_head + 2);
+        if (s->fire_head > 0x100)
+            s->fire_head = 0x100;
+        break;
+    }
+    const Uint8 *offsets = NULL;
+    if (!View(in.overlay, 0xd10U + (in.engine_timer / 2U % 10U) * 2U, 2, &offsets))
+        return SDL_SetError("Fire shield dragon private palette offsets");
+    Sint16 x2 = 0, y2 = 0, x3 = 0, y3 = 0;
+    for (Uint16 i = 0; i < 19; ++i)
+    {
+        q[i].palette = (Uint16)(s->fire_palette + Read16(offsets));
+        q[i].x[0] = x2;
+        q[i].y[0] = y2;
+        q[i].x[1] = x3;
+        q[i].y[1] = y3;
+        const SotnWeaponFireSegment *k = &g[i + 1];
+        SotnMathTrig wave = {0};
+        if (!SotnMath_Trig(in.executable, k->wave, &wave))
+            return false;
+        const Sint16 size = Word(k->width * (wave.sine * k->swell / 256 + 4096) / 4096);
+        const Sint16 cx = Pixel(k->x), cy = Pixel(k->y);
+        if (!FireEdge(in.executable, cx, cy, k->heading - 0x400, size, &x2, &y2) ||
+            !FireEdge(in.executable, cx, cy, k->heading + 0x400, size, &x3, &y3))
+            return false;
+        q[i].x[2] = x2;
+        q[i].y[2] = y2;
+        q[i].x[3] = x3;
+        q[i].y[3] = y3;
+    }
+    SotnMathTrig wave = {0};
+    if (!SotnMath_Trig(in.executable, g[0].wave, &wave))
+        return false;
+    const Sint16 size =
+        Word((s->fire_head * 54 / 256) * (wave.sine * g[0].swell / 256 + 4096) / 4096);
+    const Sint16 nx = Pixel(g[1].x), ny = Pixel(g[1].y);
+    if (!FireEdge(in.executable, nx, ny, g[0].heading - 0x199, size, &q[0].x[0], &q[0].y[0]) ||
+        !FireEdge(in.executable, nx, ny, g[0].heading + 0x199, size, &q[0].x[1], &q[0].y[1]) ||
+        !FireEdge(in.executable, nx, ny, g[0].heading + 0x999, size, &q[0].x[2], &q[0].y[2]) ||
+        !FireEdge(in.executable, nx, ny, g[0].heading + 0x667, size, &q[0].x[3], &q[0].y[3]))
+        return false;
+    SetScreen(&s->x, nx, in.retained_camera_x);
+    SetScreen(&s->y, ny, in.retained_camera_y);
+    if (in.free_factories > e->factory_count)
+    {
+        e->factories[e->factory_count] = 100U | ((in.hand + 1U) << 14);
+        e->factory_x[e->factory_count] = s->x;
+        e->factory_y[e->factory_count++] = s->y;
+    }
+    return true;
+}
+// w_029 func_ptr_80170028 (FACTORY(100), role10): a dragon's hit point. It retires once its raw
+// parent's slot empties; at birth it rolls properties from the parent's equipId with a 14x14
+// hitbox, then lives ten more updates.
+static bool FireHit(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                    SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!s->phase)
+    {
+        s->role = 10;
+        s->allocated = true;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 14;
+        s->spell_timer = 10;
+        s->phase = 1;
+    }
+    else if (--s->spell_timer == 0)
+        s->removed = true;
+    return true;
+}
 // w_011 EntityWeaponShieldSpell: Axe Lord shield's both-buttons spell (item206, ten mandatory
 // GT4s). Birth resets the program's sixteen band angles to (i<<9)*2; the shield grows, flashes
 // out with MAGIC_WEAPON_APPEAR_A, eight green/blue bands narrow onto a 16-wide card, then the
@@ -8059,6 +8466,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 27                                      ? 1
                         : in.family == 28 && in.role == 8                      ? 8
                         : in.family == 28                                      ? 3
+                        : in.family == 29 && in.role == 8                      ? 6
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -8132,6 +8540,15 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 28)
     {
         if (!(in.role == 8 ? SkullSpell(&s, &shared, in, &e) : SkullBeam(&s, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 29)
+    {
+        if (!(in.role == 1   ? FireImage(&s, in)
+              : in.role == 8 ? FireSpell(&s, in, &e)
+              : in.role == 9 ? FireDragon(&s, in, &rng, &e)
+                             : FireHit(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -8361,6 +8778,9 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 11 && state->role == 9)
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0xbe8 ? 3 : 7};
+    // Weapon29's spell: D_8017AD24 (eight frames, looping).
+    if (state && family == 29 && state->role == 8)
+        layout = (Layout){.timeline = state->timeline, .timeline_count = 9};
     // Weapon27's spell: D_8017AC8C (nine frames, looping) or D_8017ACB4 (two, looping).
     if (state && family == 27 && state->role == 8)
         layout = (Layout){.timeline = state->timeline,
@@ -8373,6 +8793,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
         (family != 55 && family != 1 && (family != 7 || state->role != 1) &&
          (family != 10 || state->role != 1) && (family != 23 || state->role != 10) &&
          (family != 27 || state->role != 8 || !layout.timeline) &&
+         (family != 29 || state->role != 8 || !layout.timeline) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

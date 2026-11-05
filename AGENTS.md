@@ -1,6 +1,7 @@
 Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
-on every equipment set and cast every shield spell (Leather203/Knight204/Iron205/AxeLord206/Goddess209/Shaman210/Alucard214/Alucart215) with Mablung or Shield rod on both buttons (held
-shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
+on every equipment set and cast every shield spell (Leather203/Knight204/Iron205/AxeLord206/
+Herald207/Dark208/Goddess209/Shaman210/Medusa211/Skull212/Fire213/Alucard214/Alucart215) with
+Mablung or Shield rod on both buttons (held shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
 factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
 rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
 flashes, opens a nine-band card on retained program shieldAngles and releases FACTORY(55,8);
@@ -48,6 +49,12 @@ Skull (w_028, family28, item14, plain guard 0xAE0). Spell212 (13 rows, ten progr
 runs the D_8017AB18/AB1A red ramp into palette0x113 colour11 each drawing callback, recoils with a
 tremble, and requests FACTORY(88)'s E9 beam: three rows, raw parent X every update, and
 SetWeaponProperties every phase-2 update with the raw parent's equipId re-read (zero once empty).
+Fire (w_029, family29, item15, table 0xCC0): palette unk80+D_8017ACF8[g_GameTimer/2%5] every
+update; non-flung shields request WFACTORY(0x38,0) every fifth game update: E1 afterimages (raw
+slot16 item15 each update, CAMERA_LOCKED, OPACITY|MASK_R tint: red 128, twenty updates). Spell213
+(1 row, 50 MP, flame timeline 0xD24) releases FACTORY(102)'s three E9 dragons (19 rows; their
+D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FACTORY(100)'s E10
+hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,

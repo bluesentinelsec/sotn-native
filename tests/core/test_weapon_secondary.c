@@ -9041,6 +9041,618 @@ static bool SkullRuntime(Uint16 hand)
     return true;
 }
 
+// The w_029 private tables: D_8017ACF8 (0..4), D_8017AD04 (5..9), D_8017AD10 and the flame
+// D_8017AD24 (eight three-update frames, then a loop to frame0).
+static void FireTables(Uint8 *o)
+{
+    const Uint16 d10[10] = {10, 15, 11, 15, 12, 15, 13, 15, 14, 15};
+    for (Uint16 i = 0; i < 5; ++i)
+    {
+        Put16(o + 0xcf8 + i * 2U, i);
+        Put16(o + 0xd04 + i * 2U, (Uint16)(5 + i));
+    }
+    for (Uint16 i = 0; i < 10; ++i)
+        Put16(o + 0xd10 + i * 2U, d10[i]);
+    const Uint16 frames[8] = {0xc3f, 0xc40, 0xc3f, 0xc40, 0xc41, 0xc42, 0xc41, 0xc42};
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        Put16(o + 0xd24 + i * 4U, 3);
+        Put16(o + 0xd26 + i * 4U, frames[i]);
+    }
+    Put16(o + 0xd44, 0);
+    Put16(o + 0xd46, 0);
+}
+// w_029 func_ptr_80170004: raw-parent retirement every update, birth copies (bank, unk5A, frame,
+// unk80 base, priority+4), CAMERA_LOCKED, OPACITY|MASK_R from 0x80 losing seven while it can,
+// twenty updates and D_8017AD04's palette offsets on every second game update.
+static bool FireImageTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    FireTables(o);
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.flags = 0x10000, .x = 100 * 65536, .y = 90 * 65536};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .family = 29,
+                                       .role = 1,
+                                       .parent_exists = k != 0,
+                                       .parent_bank = 0x8012,
+                                       .parent_texture = 0x66,
+                                       .parent_priority = 0x92,
+                                       .parent_frame = 0x31,
+                                       .parent_child_palette = 0x128};
+        Uint32 rng = 3;
+        Uint16 tick = 0;
+        for (; tick < 40 && !s.removed; ++tick)
+        {
+            in.game_timer = 7U + tick * 3U;
+            in.parent_exists = k != 0 && !(k == 2 && tick == 9);
+            in.parent_frame = (Uint16)(0x31 + tick);
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 3 &&
+                  !e.properties && !e.factory_count && !e.sounds[0]);
+            if (!in.parent_exists || tick == 20)
+            {
+                CHECK(s.removed);
+                break;
+            }
+            CHECK(!s.removed && s.phase == 1 && s.bank == 0x8012 && s.texture == 0x66 &&
+                  s.priority == 0x96 && s.frame == 0x31 && s.flags == 0x08000000U &&
+                  s.draw_flags == 0x18 && s.lifetime == (tick ? 20 - tick : 20) &&
+                  s.opacity == (tick ? (tick <= 18 ? 0x80 - 7 * tick : 2) : 0x80) &&
+                  s.palette == 0x128 + 5 + in.game_timer / 2 % 5);
+        }
+        CHECK(s.removed && tick == (k == 0 ? 0 : k == 2 ? 9 : 20));
+    }
+    return true;
+}
+// w_029 EntityWeaponShieldSpell against a model: birth (glow row, scale0 image, no palette), the
+// 22-update growth with ACF8's g_Timer palettes, the eight-update hold, the 16-update shrink on
+// g_GameTimer, the flame (D_8017AD24, priority0x1B6, TRANSFORM) growing for 32 updates with the
+// glow spreading and fading, the hidden glow/FIREBALL_SHOT_A/FACTORY(102)/freeze end, a 24-update
+// hold and the 16-update shrink.
+static bool FireSpellTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    FireTables(o);
+    for (Uint16 k = 0; k < 5; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 2, starved = k == 3, failed = k == 4;
+        const Uint16 base = hand ? 0x128 : 0x110;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = (100 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 29,
+                                       .role = 8,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = !failed,
+                                       .free_factories = (Uint8)(starved ? 0 : 8)};
+        Uint32 rng = 5;
+        Uint16 tick = 0, dragons = 0, frames = 0;
+        Sint32 vx = left ? 0x20000 : -0x20000, vy = 0, x = s.x, y = s.y - 0x80000;
+        for (; tick < 300 && !s.removed; ++tick)
+        {
+            in.engine_timer = tick * 3U + k;
+            in.game_timer = tick * 5U + 1U + k * 2U;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+            if (failed)
+            {
+                CHECK(s.removed && !e.freeze_set);
+                break;
+            }
+            if (!s.removed && (s.flags & 0x100000U))
+            {
+                CHECK(SotnWeaponSecondary_Animate(&s, in.overlay, 29));
+                ++frames;
+            }
+            const SotnPlayerEffectQuad *g = &s.spell_quads[0];
+            const Uint8 phase = tick == 0    ? 1
+                                : tick < 22  ? 1
+                                : tick < 30  ? 2
+                                : tick < 46  ? 3
+                                : tick < 78  ? 4
+                                : tick < 102 ? 5
+                                             : 6;
+            CHECK(s.removed == (tick == 118));
+            if (s.removed)
+                break;
+            CHECK(s.phase == phase && e.freeze_set == !tick && e.clear_shield == !tick &&
+                  e.freeze_clear == (tick == 78) &&
+                  e.sounds[0] == (!tick        ? 0x641
+                                  : tick == 46 ? 0x668
+                                  : tick == 78 ? 0x660
+                                               : 0) &&
+                  e.factory_count == (tick == 78 && !starved));
+            if (e.factory_count)
+            {
+                CHECK(e.factories[0] == (102U | (hand + 1U) << 14) && e.factory_x[0] == s.x &&
+                      e.factory_y[0] == s.y);
+                ++dragons;
+            }
+            if (!tick)
+                CHECK(s.flags == 0x04810000U && s.priority == 146 && s.frame == 0x3e &&
+                      s.draw_flags == 3 && !s.scale_x && !s.palette &&
+                      s.bank == 0x8010 + hand * 2 && s.texture == 0x64 + hand * 2 &&
+                      g->palette == 0x19f && g->page == 0x19 && g->priority == 142 &&
+                      g->draw_mode == 0x75 && g->u[1] == 0xcf && g->v[0] == (hand ? 0 : 0x80) &&
+                      g->v[2] == (hand ? 0x4f : 0xcf) && g->red[0] == 0x80 && s.velocity_x == vx);
+            if (tick && tick <= 22)
+            {
+                vx = vx < 0 ? SDL_min(vx + 0x1000, 0) : SDL_max(vx - 0x1000, 0);
+                vy -= 0x2800;
+                x += vx;
+                y += vy;
+            }
+            CHECK(s.x == x && s.y == y);
+            const Sint32 scale = tick <= 22    ? SDL_min(12 * tick, 0x100)
+                                 : tick <= 30  ? 0x100
+                                 : tick <= 46  ? 0x100 - 16 * (tick - 30)
+                                 : tick <= 78  ? SDL_min(16 * (tick - 46), 0x100)
+                                 : tick <= 102 ? 0x100
+                                               : 0x100 - 16 * (tick - 102);
+            const Sint16 glow = tick < 22    ? (Sint16)(12 * tick * 40 / 256)
+                                : tick <= 46 ? 0x28
+                                : tick <= 78 ? (Sint16)(0x28 + 8 * (tick - 46))
+                                             : 0x128;
+            CHECK(s.scale_x == scale && s.scale_y == scale && s.spell_glow == glow);
+            const Uint16 palette = tick == 0   ? 0
+                                   : tick < 31 ? (Uint16)(base + in.engine_timer / 2 % 5)
+                                   : tick < 46 ? (Uint16)(base + in.game_timer / 2 % 5)
+                                               : base;
+            CHECK(s.palette == palette && s.spell_child_palette == base);
+            const Uint8 blue = tick <= 46 ? 0x80 : (Uint8)SDL_max(0x80 - 4 * (tick - 46), 8);
+            CHECK(g->blue[3] == blue && g->red[0] == blue &&
+                  ((g->draw_mode & 8U) != 0) == (tick >= 78));
+            CHECK(((s.flags & 0x100000U) != 0) == (tick >= 46) &&
+                  (tick < 46 || (s.timeline == 0xd24 && s.priority == 0x1b6)));
+            const Sint16 sx = (Sint16)((x >> 16) - 30), sy = (Sint16)((y >> 16) - 10);
+            CHECK(g->x[0] == sx - glow && g->x[3] == sx + glow - 1 && g->y[1] == sy - glow &&
+                  g->y[2] == sy + glow - 1);
+        }
+        if (failed)
+            continue;
+        CHECK(tick == 118 && dragons == (starved ? 0 : 1) && frames == 72);
+    }
+    return true;
+}
+// The original dragon arithmetic, independently of the implementation.
+typedef struct FireModelSegment
+{
+    Sint32 x, y;
+    Sint16 heading;
+    Uint16 turn;
+    Sint16 speed, wave, width, delay, swell, state;
+} FireModelSegment;
+static Sint16 FireModelTrig(SotnDataView exe, Sint32 angle, bool cosine)
+{
+    SotnMathTrig t = {0};
+    (void)SotnMath_Trig(exe, angle, &t);
+    return cosine ? t.cosine : t.sine;
+}
+// w_029 func_ptr_80170024 against a model: the nineteen-row gate, birth rows/UVs/segments,
+// properties with a 20x20 hitbox, staggered wakes, the four segment states (dragon0's
+// FIREBALL_SHOT_A), off-screen turn stops, retirement once a segment passes speed0x100, the
+// head-size ramp, rows chained from each segment's perpendicular edges with D_8017AD10 palettes,
+// the head on segment1 (which the entity rides) and FACTORY(100) every update.
+static bool FireDragonTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    FireTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    Uint16 sounds = 0, stops = 0;
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 hand = k & 1U, dragon = (Uint16)(k % 3U);
+        const bool left = k == 1 || k == 2 || k == 5, failed = k == 7, starved = k == 6;
+        const Uint16 base = hand ? 0x128 : 0x110;
+        const Uint16 hit = 2;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)((hand << 15) | dragon),
+                                 .flags = 0x10000,
+                                 .facing_left = left,
+                                 .x = (110 + 30) * 65536 + 0x1357,
+                                 .y = (90 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 29,
+                                       .role = 9,
+                                       .allocated = !failed,
+                                       .free_factories = (Uint8)(starved ? 0 : 4)};
+        Uint32 rng = 9, model_rng = 9;
+        FireModelSegment m[20] = {0};
+        for (Uint16 i = 0; i < 20; ++i)
+            m[i] = (FireModelSegment){.x = 110 * 65536 + 0x1357,
+                                      .y = 90 * 65536 + 0x2468,
+                                      .heading = (Sint16)((left ? 0x800 : 0) + dragon * 0x540),
+                                      .turn = 0xc00,
+                                      .speed = 0x70,
+                                      .wave = 0xc00,
+                                      .width = (Sint16)(i == 19   ? 0
+                                                        : i == 18 ? 10
+                                                                  : 20),
+                                      .delay = (Sint16)(i * 2 + 1),
+                                      .swell = 256};
+        Sint16 head = 0x40;
+        Uint16 tick = 0;
+        for (; tick < 400 && !s.removed; ++tick)
+        {
+            in.engine_timer = tick * 3U + k;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (failed)
+            {
+                CHECK(s.removed && !e.properties && !e.factory_count);
+                break;
+            }
+            Uint16 sound = 0;
+            bool gone = false;
+            if (!tick)
+            {
+                (void)SotnCombat_Random(&model_rng);
+                CHECK(e.properties && s.hitbox_width == 20 && s.hitbox_height == 20 &&
+                      s.hitbox_state == 2 && s.flags == 0x04810000U && s.fire_head == 0x40 &&
+                      s.fire_palette == base && s.fire_band == (hand ? 0x80 : 0));
+                for (Uint16 i = 0; i < 19; ++i)
+                {
+                    const SotnPlayerEffectQuad *q = &s.fire_quads[i];
+                    CHECK(q->page == 0x19 && q->priority == 0x1ba && !q->draw_mode &&
+                          (i ? q->u[0] == 0x50 && q->u[3] == 0x7f &&
+                                   q->v[0] == (Uint8)(s.fire_band + 8) &&
+                                   q->v[3] == (Uint8)(s.fire_band + 0x2f)
+                             : !q->u[1] && q->u[2] == 0x57 &&
+                                   q->v[2] == (Uint8)(s.fire_band + 0x30) &&
+                                   q->v[1] == (Uint8)(s.fire_band + 0x6f)));
+                }
+            }
+            else
+            {
+                CHECK(!e.properties);
+                for (Uint16 i = 0; i < 20 && !gone; ++i)
+                {
+                    FireModelSegment *g = &m[i];
+                    if (g->state)
+                    {
+                        g->wave = (Sint16)(g->wave + 0x80);
+                        g->swell = (Sint16)(g->swell - 4);
+                        const Sint16 swing =
+                            (Sint16)(FireModelTrig(x_exe, g->wave, false) / 2 + 0x1000);
+                        if (g->swell < 0)
+                            g->swell = 0;
+                        g->x += HeraldShift(FireModelTrig(x_exe, g->heading, true) * g->speed, 12) *
+                                swing;
+                        g->y +=
+                            -HeraldShift(FireModelTrig(x_exe, g->heading, false) * g->speed, 12) *
+                            swing;
+                        g->heading = (Sint16)(g->heading +
+                                              (left ? -1 : 1) * HeraldShift((Sint16)g->turn, 4));
+                    }
+                    switch (g->state)
+                    {
+                    case 0:
+                        if (--g->delay == 0)
+                            ++g->state;
+                        break;
+                    case 1:
+                        g->turn = (Uint16)(g->turn - 40);
+                        if (g->wave > 0x1400)
+                            ++g->state;
+                        break;
+                    case 2:
+                        g->turn = (Uint16)(g->turn - 80);
+                        g->speed = (Sint16)(g->speed - 4);
+                        if (g->speed < 0x40)
+                        {
+                            if (!dragon)
+                                sound = 0x660;
+                            ++g->state;
+                        }
+                        break;
+                    default:
+                        g->wave = (Sint16)(g->wave - 0x60);
+                        g->turn = (Uint16)(g->turn - 48);
+                        if (g->x < -288 * 65536 || g->x > 288 * 65536 || g->y < 0 ||
+                            g->y > 256 * 65536)
+                        {
+                            g->turn = 0;
+                            ++stops;
+                        }
+                        g->speed = (Sint16)(g->speed + 2);
+                        if (g->speed > 0x100)
+                            gone = true;
+                        break;
+                    }
+                }
+                if (!gone)
+                    head = (Sint16)SDL_min(head + 2, 0x100);
+            }
+            CHECK(rng == model_rng && s.removed == gone);
+            if (gone)
+                break;
+            sounds += sound != 0;
+            CHECK(e.sounds[0] == sound && !e.sounds[1] && s.fire_head == head);
+            for (Uint16 i = 0; i < 20; ++i)
+                CHECK(s.fire_segments[i].x == m[i].x && s.fire_segments[i].y == m[i].y &&
+                      s.fire_segments[i].heading == m[i].heading &&
+                      s.fire_segments[i].turn == m[i].turn &&
+                      s.fire_segments[i].speed == m[i].speed &&
+                      s.fire_segments[i].wave == m[i].wave &&
+                      s.fire_segments[i].swell == m[i].swell &&
+                      s.fire_segments[i].delay == m[i].delay &&
+                      s.fire_segments[i].state == m[i].state);
+            static const Uint16 d10[10] = {10, 15, 11, 15, 12, 15, 13, 15, 14, 15};
+            Sint16 x2 = 0, y2 = 0, x3 = 0, y3 = 0;
+            for (Uint16 i = 0; i < 19; ++i)
+            {
+                const SotnPlayerEffectQuad *q = &s.fire_quads[i];
+                const FireModelSegment *g = &m[i + 1];
+                CHECK(q->palette == base + d10[in.engine_timer / 2 % 10]);
+                if (i)
+                    CHECK(q->x[0] == x2 && q->y[0] == y2 && q->x[1] == x3 && q->y[1] == y3);
+                const Sint16 size =
+                    (Sint16)(g->width *
+                             (FireModelTrig(x_exe, g->wave, false) * g->swell / 256 + 4096) / 4096);
+                const Sint32 cx = (Sint16)(g->x >> 16), cy = (Sint16)(g->y >> 16);
+                x2 = (Sint16)(cx +
+                              HeraldShift(
+                                  HeraldShift(FireModelTrig(x_exe, g->heading - 0x400, true), 4) *
+                                      size,
+                                  8));
+                y2 = (Sint16)(cy -
+                              HeraldShift(
+                                  HeraldShift(FireModelTrig(x_exe, g->heading - 0x400, false), 4) *
+                                      size,
+                                  8));
+                x3 = (Sint16)(cx +
+                              HeraldShift(
+                                  HeraldShift(FireModelTrig(x_exe, g->heading + 0x400, true), 4) *
+                                      size,
+                                  8));
+                y3 = (Sint16)(cy -
+                              HeraldShift(
+                                  HeraldShift(FireModelTrig(x_exe, g->heading + 0x400, false), 4) *
+                                      size,
+                                  8));
+                if (i)
+                    CHECK(q->x[2] == x2 && q->y[2] == y2 && q->x[3] == x3 && q->y[3] == y3);
+            }
+            const Sint16 size =
+                (Sint16)((head * 54 / 256) *
+                         (FireModelTrig(x_exe, m[0].wave, false) * m[0].swell / 256 + 4096) / 4096);
+            const Sint32 nx = (Sint16)(m[1].x >> 16), ny = (Sint16)(m[1].y >> 16);
+            const Sint16 angles[4] = {
+                (Sint16)(m[0].heading - 0x199), (Sint16)(m[0].heading + 0x199),
+                (Sint16)(m[0].heading + 0x999), (Sint16)(m[0].heading + 0x667)};
+            for (Uint16 v = 0; v < 4; ++v)
+                CHECK(s.fire_quads[0].x[v] ==
+                          (Sint16)(nx +
+                                   HeraldShift(
+                                       HeraldShift(FireModelTrig(x_exe, angles[v], true), 4) * size,
+                                       8)) &&
+                      s.fire_quads[0].y[v] ==
+                          (Sint16)(ny - HeraldShift(
+                                            HeraldShift(FireModelTrig(x_exe, angles[v], false), 4) *
+                                                size,
+                                            8)));
+            CHECK((s.x >> 16) == nx + 30 && (s.x & 0xffff) == 0x1357 && (s.y >> 16) == ny + 10 &&
+                  (s.y & 0xffff) == 0x2468 && s.phase == 1);
+            CHECK(e.factory_count == !starved);
+            if (e.factory_count)
+                CHECK(e.factories[0] == (100U | (hand + 1U) << 14) && e.factory_x[0] == s.x &&
+                      e.factory_y[0] == s.y);
+        }
+        if (!failed)
+            CHECK(s.removed && tick > 60);
+    }
+    CHECK(sounds >= 20 && stops > 0);
+    return true;
+}
+// w_029 func_ptr_80170028: raw-parent retirement every update, SetWeaponProperties (one roll) with
+// a 14x14 hitbox at birth and ten more updates.
+static bool FireHitTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.flags = 0x10000, .x = 100 * 65536, .y = 90 * 65536};
+        const Uint16 hit = 2;
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 29,
+                                       .role = 10,
+                                       .parent_exists = k != 0};
+        Uint32 rng = 3, model = rng;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        if (!k)
+        {
+            CHECK(s.removed && !e.properties && rng == model);
+            continue;
+        }
+        (void)SotnCombat_Random(&model);
+        CHECK(!s.removed && s.phase == 1 && e.properties && rng == model && s.spell_timer == 10 &&
+              s.hitbox_width == 14 && s.hitbox_height == 14 && s.hitbox_state == 2);
+        Uint16 tick = 1;
+        for (; tick < 20 && !s.removed; ++tick)
+        {
+            in.parent_exists = !(k == 2 && tick == 4);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == model &&
+                  !e.properties);
+            CHECK(s.removed == (!in.parent_exists || tick == 10));
+            if (!s.removed)
+                CHECK(s.spell_timer == 10 - tick);
+        }
+        CHECK(s.removed && tick == (k == 2 ? 5 : 11));
+    }
+    return true;
+}
+// Fire shield's spell213 in the runtime: the E8/F8 spell (one row, with its flame animation), the
+// three FACTORY(102) E9/F9 dragons (nineteen rows, item213 from the spell, least-used groups,
+// 20x20 attacks, indices0..2), their FACTORY(100) E10/F10 hit points (item213, 14x14), one freeze
+// set and release and full release.
+static bool FireRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FireTables(weapons + 29U * 0x7000U + 0x4000U);
+    FamilyDefinition(dra, 15, 9, 29, 128, 0, 0, 0);
+    FamilyDefinition(dra, 213, 1, 29, 5, 0, 50, 0);
+    Uint8 *record = dra + 0x500 + 213 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    Put16(record + 40, 2);
+    const Uint8 blueprints[4][6] = {{8, 1, 0xc1, 0, 6, 0},
+                                    {9, 3, 0xc1, 6, 6, 0},
+                                    {10, 1, 0xc1, 0, 1, 0},
+                                    {11, 1, 0x81, 0, 0, 0}};
+    const Uint16 ids[4] = {86, 102, 100, 44};
+    for (Uint16 b = 0; b < 4; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8 + 2] = 17;
+    dra[0xd4b9 + 2] = 47;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {hand ? 57 : 29, hand ? 29 : 57},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536,
+                                         .y = 135 * 65536,
+                                         .priority = 148,
+                                         .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 213,
+                                     &allocated) &&
+          allocated);
+    Uint16 spell_ticks = 0, dragon_ticks = 0, most_dragons = 0, hit_ticks = 0, most_hits = 0,
+           freezes = 0, released = 0, animated = 0;
+    Uint32 indices = 0, groups = 0;
+    Uint16 retained = 0;
+    for (Uint16 t = 0; t < 900; ++t)
+    {
+        in.game_timer = t;
+        in.engine_timer = t;
+        in.freeze = r->freeze;
+        // A screen shift moves world positions; the screen-word dragons keep their screen place.
+        in.screen_shift_x = (Sint16)(t % 3U);
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        freezes += r->freeze_changed && r->freeze == 1;
+        released += r->freeze_changed && r->freeze == 0;
+        Uint16 dragons = 0, hits = 0;
+        bool spell = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 29 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            if ((c->kind & 15U) == 8)
+            {
+                CHECK(c->kind == (hand ? 0xf8 : 0xe8) && c->primitive_count == 1 &&
+                      c->state.secondary.item == 213);
+                spell = true;
+                ++spell_ticks;
+                animated += w->timeline == 0xd24 && w->frame >= 0x3f;
+                continue;
+            }
+            if ((c->kind & 15U) == 9)
+            {
+                CHECK(c->kind == (hand ? 0xf9 : 0xe9) && c->primitive_count == 19 && i < 16 &&
+                      c->state.secondary.item == 213 && w->properties.id == 213 &&
+                      c->state.secondary.attack.active && c->state.secondary.attack.width == 20 &&
+                      c->group >= 3 && c->group <= 6 && w->fire_palette == (hand ? 0x128 : 0x110));
+                indices |= 1U << (c->parameter & 0xffU);
+                groups |= 1U << c->group;
+                if (w->phase == 1 && !w->removed)
+                {
+                    CHECK((Sint16)((w->x >> 16) - in.camera_x) ==
+                          (Sint16)(w->fire_segments[1].x >> 16));
+                    ++retained;
+                }
+                ++dragons;
+                ++dragon_ticks;
+                continue;
+            }
+            CHECK(c->kind == (hand ? 0xfa : 0xea) && !c->primitive_count &&
+                  c->state.secondary.item == 213 && w->properties.id == 213 &&
+                  c->state.secondary.attack.active && c->state.secondary.attack.width == 14 &&
+                  c->group >= (i < 16 ? 3 : 7) && c->group <= (i < 16 ? 6 : 10));
+            ++hits;
+            ++hit_ticks;
+        }
+        most_dragons = (Uint16)SDL_max(most_dragons, dragons);
+        most_hits = (Uint16)SDL_max(most_hits, hits);
+        if (!spell && spell_ticks && !dragons && !hits)
+            break;
+    }
+    CHECK(spell_ticks > 110 && animated > 60 && most_dragons == 3 && indices == 7 &&
+          dragon_ticks > 150 && hit_ticks > 300 && most_hits >= 20 && groups && freezes == 1 &&
+          released == 1 && retained > 100);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -9054,10 +9666,11 @@ int main(void)
                    HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&
                    DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() && MedusaLaserTest() &&
                    MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) && SkullSpellTest() &&
-                   SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) && MuramasaSlash() &&
-                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
-                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
-                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
+                   SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) && FireImageTest() &&
+                   FireSpellTest() && FireDragonTest() && FireHitTest() && FireRuntime(0) &&
+                   FireRuntime(1) && MuramasaSlash() && Twelve() && TwelveRuntime() &&
+                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
+                   ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
                    DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
                    DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&

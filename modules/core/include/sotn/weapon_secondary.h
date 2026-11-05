@@ -24,6 +24,17 @@ typedef struct SotnWeaponSecondaryRow
     bool hidden; /**< Original DRAW_HIDE. */
 } SotnWeaponSecondaryRow;
 
+/** @brief One w_029 FireShieldDragon segment (program BSS D_8017C9A0[dragon][i]). Positions
+ * are screen 16.16 words the camera never moves; unk8 heading, unkA turn, unkC speed, unkE wave
+ * phase, unk10 width, spawnDelay, unk14 swell and the segment state. */
+typedef struct SotnWeaponFireSegment
+{
+    Sint32 x, y;
+    Sint16 heading;
+    Uint16 turn;
+    Sint16 speed, wave, width, delay, swell, state;
+} SotnWeaponFireSegment;
+
 /** @brief Selected weapon func_ptr_80170004 child (blueprint56 E1/F1) of a resident program.
  * Positions are world coordinates; rows hold screen coordinates. Never saved. */
 typedef struct SotnWeaponSecondary
@@ -155,6 +166,17 @@ typedef struct SotnWeaponSecondary
             Uint16 laser_palette, laser_slot;
             Uint8 laser_band;
             bool laser_bound;
+        };
+        /** Weapon29 dragons (E9): nineteen GT4s (overlaying spell_quads), the twenty segments of
+         * their program-BSS row (each dragon alone writes its own row while the chain limit
+         * holds), ext.shield unk9C head size, childPalette and unk7D band. */
+        struct
+        {
+            SotnPlayerEffectQuad fire_quads[19];
+            SotnWeaponFireSegment fire_segments[20];
+            Sint16 fire_head;
+            Uint16 fire_palette;
+            Uint8 fire_band;
         };
         /** Weapon13 combo202 sweep (E2) and strike swords (E3): ext.heavenSword unk90/94 screen
          * centre (16.16), s32 unk84 radius, unk98 swish volume, the strike's velocityY, angle

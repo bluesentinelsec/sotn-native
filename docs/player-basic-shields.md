@@ -26,8 +26,16 @@ palette, and the sequence's 0xFFFF end applies its offset, restarts at entry0 on
 and rolls again. Medusa shield13 (family27) runs the plain template. Dark and Medusa records give
 hit state 6 (guard plus attack bits): the guard-only branch requires exactly 4, so, as in the
 original, these raised shields also strike enemies with their own attack. Skull shield14
-(family28) runs the plain template (its own table at 0xAE0). Fire shield adds other on-hit or item
-behaviors and remains unsupported; metadata alone never enables it.
+(family28) runs the plain template (its own table at 0xAE0). Fire shield15 (family29, table 0xCC0)
+guards like the plain template but its palette is `unk80` plus `D_8017ACF8[g_GameTimer/2%5]` on every
+update not ending it (knock-away included), and on every fifth game update a shield that is not
+knocked away requests WFACTORY(0x38,0) after its animation. That E1/F1 afterimage (slots17..31)
+retires on any update its raw slot16 parent no longer holds item15; at birth it copies the parent's
+bank, `unk5A`, frame and palette base four priorities in front, is CAMERA_LOCKED (world-anchored,
+not frozen by spells) and draws with ENTITY_OPACITY|ENTITY_MASK_R: red stays at 128 while green and
+blue follow an opacity that loses seven per update from 0x80, so the copy fades to red over its
+twenty updates, its palette stepping `D_8017AD04`. It has no hitbox. Every selected basic shield is
+now owned; metadata alone never enables a shield.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and

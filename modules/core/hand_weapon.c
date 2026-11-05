@@ -171,7 +171,7 @@ bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
     return family == 8 || family == 9 || family == 10 || family == 11 || family == 23 ||
            family == 24 || family == 25 || family == 26 || family == 27 || family == 28 ||
-           family == 52 || family == 58;
+           family == 29 || family == 52 || family == 58;
 }
 // w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
@@ -183,6 +183,7 @@ static Uint16 ShieldAnimationTable(Uint16 family)
            : family == 24                 ? 0xc20
            : family == 27                 ? 0xc54
            : family == 28                 ? 0xae0
+           : family == 29                 ? 0xcc0
            : family == 25 || family == 26 ? 0xa60
                                           : 0xb84;
 }
@@ -427,6 +428,19 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         return false;
     if (in.family == 24 && !DarkCycle(w, in, random))
         return false;
+    // w_029 (Fire shield): every fifth game update a shield that is not flung requests
+    // WFACTORY(0x38,0)'s afterimage after its animation; every update the palette steps through
+    // D_8017ACF8's five offsets on every second game update.
+    if (in.family == 29)
+    {
+        const Uint8 *offsets = NULL;
+        if (w->phase != 4 && !(in.game_timer % 5U) &&
+            !AppendFactory(e, ((in.hand + 1U) << 12) | 0x38U))
+            return false;
+        if (!View(in.overlay, 0xcf8U + (in.game_timer / 2U % 5U) * 2U, 2, &offsets))
+            return SDL_SetError("Fire shield private palette offsets");
+        w->palette = (Uint16)(0x110U + in.hand * 24U + Read16(offsets));
+    }
     // The original assignment also overwrites the earlier phase-four rotate/blink flags.
     Transform(w, in);
     // The armed shield holds MP regeneration, drains one MP every sixteenth game update and
