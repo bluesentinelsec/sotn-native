@@ -4946,10 +4946,15 @@ static bool HeraldSwirl(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
     for (Uint16 i = 0; i < 4; ++i)
     {
         SotnPlayerEffectQuad *q = &s->spell_quads[i];
-        Sint16 vertices[4][3] = {{0}};
-        for (Uint16 k = 0; k < 4; ++k)
-            for (Uint16 c = 0; c < 3; ++c)
-                vertices[k][c] = p->herald_vectors[i * 4U + k][c];
+        const Sint16 vertices[4][3] = {
+            {p->herald_vectors[i * 4U + 0U][0], p->herald_vectors[i * 4U + 0U][1],
+             p->herald_vectors[i * 4U + 0U][2]},
+            {p->herald_vectors[i * 4U + 1U][0], p->herald_vectors[i * 4U + 1U][1],
+             p->herald_vectors[i * 4U + 1U][2]},
+            {p->herald_vectors[i * 4U + 2U][0], p->herald_vectors[i * 4U + 2U][1],
+             p->herald_vectors[i * 4U + 2U][2]},
+            {p->herald_vectors[i * 4U + 3U][0], p->herald_vectors[i * 4U + 3U][1],
+             p->herald_vectors[i * 4U + 3U][2]}};
         SotnProjectedPoint point[4] = {{0}};
         Sint32 otz = 0;
         if (!SotnShieldStar_Project(

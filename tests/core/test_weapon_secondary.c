@@ -7352,10 +7352,15 @@ static bool HeraldSwirlTest(void)
             const Sint32 transfer[3] = {0, 0, 0x140};
             for (Uint16 i = 0; i < 4; ++i)
             {
-                Sint16 vertices[4][3] = {{0}};
-                for (Uint16 v = 0; v < 4; ++v)
-                    for (Uint16 c = 0; c < 3; ++c)
-                        vertices[v][c] = program.herald_vectors[i * 4 + v][c];
+                const Sint16 vertices[4][3] = {
+                    {program.herald_vectors[i * 4 + 0U][0], program.herald_vectors[i * 4 + 0U][1],
+                     program.herald_vectors[i * 4 + 0U][2]},
+                    {program.herald_vectors[i * 4 + 1U][0], program.herald_vectors[i * 4 + 1U][1],
+                     program.herald_vectors[i * 4 + 1U][2]},
+                    {program.herald_vectors[i * 4 + 2U][0], program.herald_vectors[i * 4 + 2U][1],
+                     program.herald_vectors[i * 4 + 2U][2]},
+                    {program.herald_vectors[i * 4 + 3U][0], program.herald_vectors[i * 4 + 3U][1],
+                     program.herald_vectors[i * 4 + 3U][2]}};
                 SotnProjectedPoint point[4] = {{0}};
                 Sint32 otz = 0;
                 CHECK(SotnShieldStar_Project(x_exe, axis, transfer, (Sint16)((s.x >> 16) - 30),
