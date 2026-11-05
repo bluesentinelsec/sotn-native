@@ -24,7 +24,7 @@ equipped 0x11 also refuses vram flag0x40). The circle (E1, 11 GT4) rolls one/six
 scans fifteen CheckCollision ground points and creates WFACTORY2(0x3E) soldiers (free-factory
 limited, E2 spacing); shared D_8017A5F4 bands, tether, wave unk84. Soldiers (E2, 14 world GT4)
 wait for their raw circle's wave, rise, walk/shoot/throw/bomb (real UpdateAnim/frame props),
-blink out on hits (type1 three lives). Arrows/swords (E3) home via shared target marks and
+blink out on hits (type1 three lives; attacker hitFlags now reach every secondary and slot16). Arrows/swords (E3) home via shared target marks and
 func_80118B18; bombs (E4) burst or roll with FACTORY(0x24,1) sparks. Unscanned points read
 zero natively (original uninitialized stack); soldiers lease rows at birth.
 

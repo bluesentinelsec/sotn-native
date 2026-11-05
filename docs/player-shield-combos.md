@@ -89,6 +89,8 @@ It then falls under 1/8 gravity, capped at 6.0, and lands with STOMP_SOFT_A. It 
 fourth g_Timer while falling, every fourth own count while walking. A wall probe, a ceiling probe
 eight pixels above it, or a hit plays CANDLE_HIT, its final animation and one last afterimage.
 The spell rises about 48 pixels, so a low ceiling stops the walker at once, as in the original.
+Enemy contact reaches the walker through collision.h's attacker `hitFlags` (see
+[Sword of Dawn](player-sword-of-dawn.md#enemy-contact)), so striking an enemy stops it.
 
 The spell lacks CAMERA_LOCKED, so it keeps its screen position when the camera moves after the
 freeze, as the warp does. The walker and its afterimages are camera-locked.

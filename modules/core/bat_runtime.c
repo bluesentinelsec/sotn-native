@@ -6667,15 +6667,17 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 fl
                        (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
     // Weapon1's role2 fireball (Fist of Tulkas) retires on its next callback after any hit.
     // Weapon1's role2 fireball and weapon6's crescents read the actual collision hitFlags.
-    const bool fireball = r && i < 48 && r->children[i].weapon_secondary &&
-                          ((r->children[i].state.secondary.family == 1 &&
-                            (r->children[i].kind == 0xe2 || r->children[i].kind == 0xf2)) ||
-                           (r->children[i].state.secondary.family == 6 &&
-                            (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1)));
-    if (fireball && flags && flags <= 3 && generation && r->children[i].generation == generation &&
-        r->children[i].initialized)
+    // Every weapon secondary and the slot16 hand weapon receive collision.h's attacker hitFlags;
+    // only some callbacks read them (fireball, crescents, weapon30 children, weapon11's walker).
+    const bool secondary = r && i < 48 && r->children[i].weapon_secondary;
+    const bool hand = r && i < 48 && r->children[i].hand_weapon;
+    if ((secondary || hand) && flags && flags <= 3 && generation &&
+        r->children[i].generation == generation && r->children[i].initialized)
     {
-        r->children[i].state.secondary.motion.hit_flags = flags;
+        if (secondary)
+            r->children[i].state.secondary.motion.hit_flags = flags;
+        else
+            r->children[i].state.hand.motion.hit_flags = flags;
         return true;
     }
     if (!r || i >= 48 || !flags || flags > 3 ||

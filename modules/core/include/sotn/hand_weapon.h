@@ -57,6 +57,7 @@ typedef struct SotnHandWeapon
     Uint16 bank, texture, palette, priority, frame, animation, pose, parameter;
     Uint16 hitbox_state;
     Uint8 hitbox_width, hitbox_height, phase, draw_flags, blend;
+    Uint8 hit_flags; /**< Actual collision hitFlags recorded since the last callback. */
     bool facing_left, removed, allocated;
 } SotnHandWeapon;
 /** @brief Actual GetEquipProperties adapter. It receives a working RNG cursor.

@@ -2121,6 +2121,12 @@ static bool Runtime(void)
                   r->factories[i].cursor.source.x == r->children[0].state.hand.motion.x &&
                   r->factories[i].cursor.source.priority == 146);
         }
+    // The slot16 hand weapon receives collision.h's attacker hitFlags for its own generation.
+    CHECK(!SotnBatRuntime_Hit(r, 0, r->children[0].generation + 1U, 1) &&
+          !r->children[0].state.hand.motion.hit_flags &&
+          SotnBatRuntime_Hit(r, 0, r->children[0].generation, 3) &&
+          r->children[0].state.hand.motion.hit_flags == 3);
+    r->children[0].state.hand.motion.hit_flags = 0;
     CHECK(pending == 1 && !r->children[1].kind && SotnActors_CommitBatPrimitives(actors, r));
     // Next pass: the factory spawns E1 at slot17, which reserves its64 rows before RNG.
     for (Uint16 i = 0; i < 129; ++i)
@@ -4760,6 +4766,12 @@ static bool AxeLordRuntime(Uint16 hand)
                       c->group <= 6 && w->properties.id == 206 && w->hitbox_width == 8 &&
                       c->state.secondary.attack.active && w->facing_left == (hand == 0) &&
                       w->palette == (hand ? 0x128 : 0x110) && w->bank == (hand ? 0x8012 : 0x8010));
+                // A delivered enemy contact stops the walker on its next callback (CANDLE_HIT).
+                if (walker == 10)
+                    CHECK(SotnBatRuntime_Hit(r, i, c->generation, 1) &&
+                          r->children[i].state.secondary.motion.hit_flags == 1);
+                if (walker == 11)
+                    CHECK(w->phase == 3);
                 ++walker;
                 walker_slot = i;
             }
@@ -4773,7 +4785,7 @@ static bool AxeLordRuntime(Uint16 hand)
         }
     }
     // The walker crosses to the wall column and retires after its final animation.
-    CHECK(spell > 100 && walker > 20 && images > walker && image_slot && freezes >= 2 &&
+    CHECK(spell > 100 && walker >= 11 && images > walker && image_slot && freezes >= 2 &&
           foreign > 0 && shifted > 10);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);

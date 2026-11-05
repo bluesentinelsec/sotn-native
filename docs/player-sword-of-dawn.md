@@ -83,6 +83,14 @@ with EXPLODE_FAST_A rising in volume, until the bomber's pose 0x20. At that poin
 - index 1 turns subtractive and rolls at 3.5, scattering DRA `FACTORY(0x24,1)` sparks (Hellfire's
   high1 trail), and shrinks after a hit.
 
+## Enemy contact
+
+collision.h writes each attacker's `hitFlags` on contact (1, 3 with hitbox bit 8, 2 after a
+metal clang) unless both entities carry FLAG_UNK_100000. Native combat now delivers that word to
+every weapon secondary and to the slot16 hand weapon, not only the fireball and crescents. So
+soldiers lose lives and blink out, arrows and swords blink out, and rolling bombs shrink when they
+actually strike an enemy. Earlier native builds dealt the damage but never told the child.
+
 ## Concessions and gaps
 
 - **Uninitialized point.** The original leaves unscanned points' stack words uninitialized. A

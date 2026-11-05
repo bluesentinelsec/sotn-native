@@ -514,10 +514,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character,
 bool SotnBatRuntime_Visual(const SotnBatRuntime *runtime, Uint16 index,
                            const SotnPlayerEffectQuad **quads, Uint16 *count);
 
-/** @brief Deliver actual enemy contact to one generation-owned fireball.
+/** @brief Deliver actual enemy contact (collision.h's attacker hitFlags) to one generation-owned
+ * fireball, projectile, weapon secondary or the slot16 hand weapon.
  * @param runtime Borrowed owner. @param index Original slot minus sixteen.
  * @param generation Observed child identity. @param flags Original contact word, 1..3.
- * @return Success or SDL error without mutation on stale/non-fire ownership. */
+ * @return Success or SDL error without mutation on stale/unsupported ownership. */
 bool SotnBatRuntime_Hit(SotnBatRuntime *runtime, Uint16 index, Uint32 generation, Uint8 flags);
 
 /** @brief Reserve an actual shared factory for root33/circle37 or original finishing flashes.
