@@ -8337,7 +8337,8 @@ static bool MedusaLaserTest(void)
             Uint32 root = 0;
             CHECK(SotnMath_Sqrt0(x_exe, (Uint32)(0x1000000 - w.sine * w.sine), &root));
             swing -= HeraldShift(w.sine * 4096, 8);
-            const Sint16 speed = (Sint16)((Sint16)root - damping * swing / 0x10000);
+            const Sint16 speed =
+                (Sint16)((Sint16)root - (Sint32)((Uint32)damping * (Uint32)swing) / 0x10000);
             damping = (Sint16)SDL_max(damping - 1, 0);
             x += HeraldShift(h.cosine * speed, 7) * 3;
             y += -HeraldShift(h.sine * speed, 7) * 3;

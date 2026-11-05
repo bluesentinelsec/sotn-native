@@ -5695,7 +5695,9 @@ static bool MedusaLaser(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
             return false;
         Sint16 speed = (Sint16)root;
         s->laser_swing = (Sint32)((Uint32)s->laser_swing - (Uint32)Asr((Sint32)w.sine * 4096, 8));
-        speed = (Sint16)(speed - s->laser_damping * s->laser_swing / 0x10000);
+        // MIPS mult keeps the product's low word.
+        speed =
+            (Sint16)(speed - (Sint32)((Uint32)s->laser_damping * (Uint32)s->laser_swing) / 0x10000);
         if (--s->laser_damping < 0)
             s->laser_damping = 0;
         const Sint32 dx = Asr((Sint32)h.cosine * speed, 7) * 3,
