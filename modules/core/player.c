@@ -4493,6 +4493,13 @@ bool SotnPlayer_CommitProtection(SotnPlayer *p, Uint16 protection)
         p->timers[SOTN_PLAYER_TIMER_INVINCIBLE] = protection;
     return true;
 }
+bool SotnPlayer_SetTransformLockout(SotnPlayer *p, Uint8 ticks)
+{
+    if (!p)
+        return SDL_SetError("Transform lockout requires its actual player owner");
+    p->mist_lockout = ticks;
+    return true;
+}
 bool SotnPlayer_SetSpiritContext(SotnPlayer *p, bool enabled)
 {
     if (!p || (enabled && (!p->dra.bytes || p->dra.size < 0x101b8U + 0xf2U * 4U)))

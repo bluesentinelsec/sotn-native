@@ -173,7 +173,8 @@ static bool BasicShields(void)
     const Uint16 families[] = {9, 11, 26, 8, 25, 58},
                  tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
     CHECK(SotnHandWeapon_IsShieldFamily(10) && SotnHandWeapon_IsShieldFamily(23) &&
-          !SotnHandWeapon_IsShieldFamily(24) && !SotnHandWeapon_IsShieldFamily(255));
+          SotnHandWeapon_IsShieldFamily(24) && !SotnHandWeapon_IsShieldFamily(27) &&
+          !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -1601,6 +1602,85 @@ static bool HeraldGuard(void)
     }
     return true;
 }
+// w_024 (Dark shield): birth rolls rand()&3 for one of D_8017ACF8's four palette sequences
+// before SetWeaponProperties; every later update not ending the shield steps (duration,
+// offset) entries from base palette0x110/0x128, and an 0xFFFF end applies its offset, restarts
+// at entry0 the next update and rolls again. Knock-away keeps cycling.
+static bool DarkGuard(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    SDL_memmove(o + 0xc20 - 0x48, o + 0xb84 - 0x48, 0x48 + 14 * 4);
+    SDL_memset(o + 0xb84, 0xff, 14 * 4);
+    // Authored sequences (duration, signed offset) ending in 0xFFFF.
+    const Sint16 sequences[4][8] = {{3, 1, 2, 5, -1, 9, 0, 0},
+                                    {1, 2, 2, -3, -1, 0, 0, 0},
+                                    {4, 3, -1, 6, 0, 0, 0, 0},
+                                    {2, 7, 1, 4, 3, 2, -1, 11}};
+    for (Uint16 t = 0; t < 4; ++t)
+    {
+        Put32(o + 0xcf8 + t * 4U, 0x8017ad10U + t * 0x20U);
+        for (Uint16 k = 0; k < 8; ++k)
+            Put16(o + 0xd10 + t * 0x20U + k * 2U, (Uint16)sequences[t][k]);
+    }
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .scale_y = 256,
+                                  .family = 24,
+                                  .hand = hand,
+                                  .held = true};
+        SotnHandWeapon w = {0};
+        SotnHandWeaponProgram program = {0};
+        Uint32 rng = 9U + hand * 4U;
+        Uint32 model = rng;
+        Uint8 table = (Uint8)(SotnCombat_Random(&model) & 3U);
+        (void)SotnCombat_Random(&model);
+        Uint16 index = 0, timer = 0, rerolls = 0;
+        const Uint16 base = (Uint16)(0x110U + hand * 24U);
+        for (Uint16 tick = 0; tick < 120; ++tick)
+        {
+            if (tick == 100)
+                in.status = 0x10000; // knocked away: phase4 keeps the cycle
+            SotnHandWeaponEvents e = {0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e));
+            if (!tick)
+                CHECK(w.dark_table == table);
+            Sint16 offset = 0;
+            if (!timer)
+            {
+                timer = (Uint16)sequences[table][index * 2];
+                offset = sequences[table][index * 2 + 1];
+                CHECK(w.palette == (Uint16)(base + offset));
+            }
+            else if (!--timer)
+            {
+                ++index;
+                timer = (Uint16)sequences[table][index * 2];
+                offset = sequences[table][index * 2 + 1];
+                CHECK(w.palette == (Uint16)(base + offset));
+                if (timer == 0xffffU)
+                {
+                    index = 0;
+                    timer = 0;
+                    table = (Uint8)(SotnCombat_Random(&model) & 3U);
+                    ++rerolls;
+                }
+            }
+            CHECK(w.dark_timer == timer && w.dark_index == index && w.dark_table == table &&
+                  rng == model);
+            if (w.removed)
+                break;
+        }
+        CHECK(rerolls > 4 && w.phase == 4);
+    }
+    return true;
+}
 static bool AlucardArmed(void)
 {
     Uint8 o[0x1200] = {0};
@@ -1934,8 +2014,8 @@ int main(void)
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
                    HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
                    Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
-                   IronGuard() && HeraldGuard() && HeraldRuntime() && AlucardArmed() &&
-                   AlucardRuntime()
+                   IronGuard() && HeraldGuard() && HeraldRuntime() && DarkGuard() &&
+                   AlucardArmed() && AlucardRuntime()
                ? 0
                : 1;
 }

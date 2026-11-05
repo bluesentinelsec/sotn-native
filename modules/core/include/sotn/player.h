@@ -1046,6 +1046,10 @@ bool SotnPlayer_CommitShieldHit(SotnPlayer *player, Uint16 protection);
 /** @brief Commit func_8010E168(0, protection)'s timer13 floor alone (Iron shield's guard hit;
  * its BlinkWhite0x15 is a runtime factory). Fails for a missing player or a floor above 0x7FFF. */
 bool SotnPlayer_CommitProtection(SotnPlayer *player, Uint16 protection);
+/** @brief Write the original transform lockout (g_Player.unk20, TRANSFORM_LOCKOUT_TIMER) after a
+ * pass, as Dark shield's spell does every update; the next normal update decrements it.
+ * @param player Actual owner. @param ticks Lockout value. @return Success or SDL error. */
+bool SotnPlayer_SetTransformLockout(SotnPlayer *player, Uint8 ticks);
 
 /** @brief Actual shared factory reservation, called once at the original player boundary.
  * false availability is real exhaustion; success never implies child readiness. */

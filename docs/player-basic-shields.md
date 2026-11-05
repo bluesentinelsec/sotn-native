@@ -18,9 +18,13 @@ cooldown counts down on every update, including the one that set it. Recorded hi
 set until a heart consumes them: a block during the cooldown therefore yields its heart when the
 cooldown ends, and a plain hit (hitFlags1) adds nothing. AddHearts, below the maximum only, adds the heart, then
 requests the player's rising heart (FACTORY(99,0)) and HEART_PICKUP; the Alucard shield's armed
-hit now uses the same helper (it previously skipped the heart effect and sound). Dark, Medusa,
-Skull and Fire shields add other on-hit or item behaviors and remain unsupported; metadata
-alone never enables them.
+hit now uses the same helper (it previously skipped the heart effect and sound). Dark shield10
+(family24) guards like the basic shields but cycles its palette: at birth it rolls rand()&3 for
+one of `D_8017ACF8`'s four (duration, offset) sequences, before SetWeaponProperties's roll; each
+later update not ending the shield (knock-away included) steps that sequence from the hand's base
+palette, and the sequence's 0xFFFF end applies its offset, restarts at entry0 on the next update
+and rolls again. Medusa, Skull and Fire shields add other on-hit or item behaviors and remain
+unsupported; metadata alone never enables them.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and
