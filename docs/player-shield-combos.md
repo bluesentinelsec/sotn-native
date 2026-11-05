@@ -25,9 +25,9 @@ Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
 Only combos with an actual native owner are selected. These shield spells have one, with
 Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
-shield's 205, Axe Lord shield's 206, Herald shield's 207, Goddess shield's 209, Shaman shield's
-210, Alucard shield's 214 and Alucart shield's 215. Dark, Medusa, Skull and Fire shields' spells
-(208, 211..213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
+shield's 205, Axe Lord shield's 206, Herald shield's 207, Dark shield's 208, Goddess shield's
+209, Shaman shield's 210, Alucard shield's 214 and Alucart shield's 215. Medusa, Skull and Fire
+shields' spells (211..213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
 ## Leather shield spell (item203)
@@ -125,6 +125,34 @@ spell's freeze flag through their factories, so they run during the freeze. None
 All three keep screen positions (none is CAMERA_LOCKED): native callbacks use the camera before
 the pass's retained-screen shift. The pink request now follows a spell's factory requests, which
 reproduces Herald's swirl-then-pink order; no other spell requests both in one update.
+
+## Dark shield spell (item208) and its rocks
+
+Dark shield's spell (w_024, thirty MP) writes `g_Player.unk20 = 8` on every callback, including
+its last: the transform lockout (native `mist_lockout`, committed after the pass), so Bat/Mist/
+Wolf stay unavailable until eight normal updates after it ends. It takes eighteen GT4 rows: two
+screen-fixed TILEs (0x90x0xE8 each, drawMode 0x51: subtractive) that darken the screen, the glow,
+the shield image on its side with fixed 0x1C/0x38 half extents and fourteen white slices. It
+retires a raised shield, plays ANIME_SWORD_C, freezes the scene and grows like the card spells;
+its hold ends with ShakeCamera(SHAKE_Y_MEDIUM), and the flash unhides the slices with
+WEAPON_APPEAR while the tiles darken (by 2, then 3, below 0xF8). The image opens from half scale.
+On the opening's 32nd update the spell requests `FACTORY(96)` (skipped without a free factory
+entity), ends the freeze and calls SetWeaponProperties for its own item208 with a 0x7F hitbox:
+it strikes for three callbacks (the freeze's release-only frame can add one native pass). At full
+scale the original's row pointer has moved on to the image, so its last blue becomes 6. The slices
+dim, hold 0x70 updates, brighten past 0x120 (the image hides) and fade as the tiles lift, waving by
+their `unk92`, which shrinks to zero while opening and grows while fading. Colours come from the
+program's retained `D_8017AD08` angles (fourteen of sixteen used).
+
+`FACTORY(96)` creates up to thirty-two rocks (`func_ptr_80170024`, E9/F9, one GT4, slots 63
+downward; the noncritical factory stops at the first occupied slot). A rock retires unless its
+raw parent slot holds an entity, copies the spell's v band and child palette plus one, then rolls
+its size class, screen X anchor, screen Y below the screen and facing (four rand calls).
+Small rocks (size<8) and large ones take their own UVs, extents, shading and priority. It copies
+the spell's equip id through SetWeaponProperties (least-used group, no parent enemyId) with a
+0x40 hitbox, so every rock strikes. It creeps up at a sixteenth of its speed until the raw parent
+passes step5, trembles for a rolled 10..57 updates, plays START_SLAM_A and launches, stretching
+while above screen Y 0x80 and retiring above -0x40. Spell and rocks keep screen positions.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -315,6 +343,22 @@ Public tests cover:
   arrangements (spell, swirl and sprite pixels, freeze, the waiting sprite), deliver supplied
   blocks to a raised Herald shield (hearts, cooldown, rising heart, none at the maximum) and
   fall back to a swing below ten MP.
+- **Dark:** the guard's palette sequences (birth roll before properties, stepping, 0xFFFF
+  restart and reroll, knock-away). The spell's lockout every update, birth rows (subtractive
+  TILEs, image, slices), phase timeline, shake and sounds, tile darkening and lifting, wave, slice
+  geometry and colours from the retained angles, the FACTORY(96) request with the freeze's end
+  and the three-callback 0x7F attack, and the image's moved-pointer blue. The rocks' parent and row
+  gates, four rolls (every size class), UVs, extents, shading, properties and 0x40 hitbox, creep
+  (held through parent step5), tremble, slam, launch, stretch and retirement. The runtime casts the
+  spell: thirty-two rocks with groups 7..10 and the spell's v band and palette, the spell's own
+  three attack passes, every rock slamming, one freeze, the lockout on every spell pass and full
+  release. 86 of 90 Dark mutations are caught; four are equivalent (a slice copy source whose
+  copied fields are all rewritten, a hitbox already cleared, a tile cap the tiles never reach and
+  a rock-factory parameter the spell never requests). The private comparison runs complete
+  `w_024` callbacks: 3,640 spell and 1,851 rock callbacks with 67,067 row comparisons; Debug and
+  ASan traces are byte-identical. Native Debug/ASan protocols cast spell208 in both hand
+  arrangements (spell, darkness, rock pixels; enemies defeated; lockout each spell pass), watch a
+  raised Dark shield cycle fifteen palettes and fall back to a swing below thirty MP.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.

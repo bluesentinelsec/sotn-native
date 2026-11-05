@@ -87,6 +87,7 @@ static bool Program(Uint16 family, Layout *out)
                         .rows = family == 9    ? 12
                                 : family == 10 ? 33
                                 : family == 23 ? 18
+                                : family == 24 ? 18
                                 : family == 58 ? 2
                                 : family == 11 ? 10
                                 : family == 25 ? 17
@@ -100,8 +101,8 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
-    return family == 8 || family == 9 || family == 10 || family == 23 || family == 58 ||
-           family == 11 || family == 25 || family == 26 || family == 52;
+    return family == 8 || family == 9 || family == 10 || family == 23 || family == 24 ||
+           family == 58 || family == 11 || family == 25 || family == 26 || family == 52;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
@@ -109,6 +110,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
            : family == 9  ? 204
            : family == 10 ? 205
            : family == 23 ? 207
+           : family == 24 ? 208
            : family == 58 ? 215
            : family == 11 ? 206
            : family == 25 ? 209
@@ -122,6 +124,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
            : item == 204 ? 9
            : item == 205 ? 10
            : item == 207 ? 23
+           : item == 208 ? 24
            : item == 215 ? 58
            : item == 206 ? 11
            : item == 209 ? 25
@@ -171,6 +174,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon23 (Herald shield): its spell (role8), swirl (role9) and rising sprites (role10).
     if (family == 23)
         return role == 8 || role == 9 || role == 10;
+    // Weapon24 (Dark shield): its spell (role8) and rising rocks (role9).
+    if (family == 24)
+        return role == 8 || role == 9;
     // Shield programs (Leather8/Knight9/Alucart58): role8 is the both-buttons spell.
     // Axe Lord's spell (role8) also creates its vector9 walker/afterimages (role9); Goddess's
     // its vector9 clouds.
@@ -220,6 +226,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 8                      ? (family == 9    ? 12
                                                  : family == 10 ? 33
                                                  : family == 23 ? 18
+                                                 : family == 24 ? 18
                                                  : family == 58 ? 2
                                                  : family == 11 ? 10
                                                  : family == 25 ? 17
@@ -228,6 +235,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                                                                 : 11)
                : family == 10                 ? (role == 9 ? 18 : 0)
                : family == 23                 ? (role == 9 ? 4 : 0)
+               : family == 24                 ? (role == 9 ? 1 : 0)
                : family == 25 || family == 26 ? 1
                : family == 52                 ? 11
                                               : 0;
@@ -5032,6 +5040,409 @@ static bool HeraldSprite(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Ui
     }
     }
 }
+static void DarkTiles(SotnWeaponSecondary *s, Sint16 step, Uint8 limit, bool rise)
+{
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        SotnPlayerEffectQuad *t = &s->spell_quads[i];
+        if (rise ? t->blue[0] < limit : t->blue[0] > limit)
+            t->blue[0] = (Uint8)(t->blue[0] + step);
+        t->red[0] = t->green[0] = t->blue[0];
+    }
+}
+// w_024 EntityWeaponShieldSpell: Dark shield's both-buttons spell (item208, thirty MP, eighteen
+// mandatory GT4 rows). Every update it holds the transform lockout (g_Player.unk20) at 8. Rows0/1
+// are two screen-fixed subtractive TILEs (0x90x0xE8) that darken the screen; row2 the glow, row3
+// the sideways shield image (fixed 0x1C/0x38 half extents) and rows4..17 fourteen white slices.
+// It grows, shakes the camera (SHAKE_Y_MEDIUM), flashes out with WEAPON_APPEAR, then, while its
+// image opens, requests FACTORY(96)'s rising rocks, ends the freeze and attacks for three updates
+// with a 0x7F hitbox (SetWeaponProperties). The slices dim, hold, brighten, hide the image and
+// fade as the darkness lifts. Slice colours come from the program's fourteen D_8017AD08 angles.
+static bool DarkSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                      Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    if (!p->shield_angles_loaded)
+    {
+        const Uint8 *a = NULL;
+        if (!View(in.overlay, 0xd08, 64, &a))
+            return false;
+        for (Uint16 i = 0; i < 16; ++i)
+            p->shield_angles[i] = (Sint32)Read32(a + i * 4U);
+        p->shield_angles_loaded = true;
+    }
+    e->lockout = 8;
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->spell_child_palette = in.hand ? 0x137 : 0x11f;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->flags = 0x04810000U;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        for (Uint16 i = 0; i < 2; ++i)
+        {
+            SotnPlayerEffectQuad *t = &s->spell_quads[i];
+            *t = (SotnPlayerEffectQuad){.priority = 0x1b4, .draw_mode = 0x40 | 0x10 | 0x01};
+            t->x[0] = (Sint16)(i * 0x90);
+            t->u[0] = 0x90;
+            t->v[0] = 0xe8;
+        }
+        SotnPlayerEffectQuad *q = &s->spell_quads[2];
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0x80 + 0x4f;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = (Uint16)(s->priority - 10U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        q = &s->spell_quads[3];
+        *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
+        q->u[0] = q->u[1] = 0;
+        q->u[2] = q->u[3] = 0x6f;
+        q->v[3] = q->v[1] = (Uint8)(s->spell_v1 + 0x30);
+        q->v[2] = q->v[0] = (Uint8)(s->spell_v1 + 0x67);
+        SpellColors(q, 0x80);
+        q->priority = 0x1b8;
+        q->draw_mode = 0x08;
+        for (Uint16 i = 0; i < 14; ++i)
+        {
+            q = &s->spell_quads[4 + i];
+            *q = s->spell_quads[3 + i];
+            q->u[1] = q->u[0] = (Uint8)(i * 8);
+            q->u[2] = q->u[3] = (Uint8)((i + 1) * 8 - 1);
+            q->palette = 0x15f;
+            q->priority = 0x1ba;
+            q->draw_mode |= 0x20 | 0x10 | 0x04 | 0x01;
+        }
+        s->spell_step = 0x80;
+        s->spell_bright = 0x100;
+        s->spell_half_w = 0x1c;
+        s->spell_half_h = 0x38;
+        s->spell_wave_x = 0x20;
+        s->spell_wave_y = 0;
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->clear_shield = true;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 0x28 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 8;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+        {
+            s->spell_timer = 0x10;
+            e->shake = 4;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        s->spell_quads[2].priority = !(s->spell_timer & 1) ? 0x1b8 : (Uint16)(s->priority - 2U);
+        s->scale_x = Word(s->scale_x - 0x10);
+        if (s->scale_x <= 0)
+            s->scale_x = 0;
+        s->scale_y = s->scale_x;
+        if (--s->spell_timer == 0)
+        {
+            s->frame = 0;
+            for (Uint16 i = 4; i < 18; ++i)
+                s->spell_quads[i].draw_mode &= 0xfff7U;
+            s->spell_timer = 0;
+            e->sounds[0] = 0x62f;
+            s->phase = 4;
+        }
+        DarkTiles(s, 2, 0xf8, true);
+        break;
+    case 4: {
+        s->spell_glow = Word(s->spell_glow + 8);
+        s->scale_x = Word(s->scale_x + 6);
+        if (s->scale_x >= 0x100)
+            s->scale_x = 0x100;
+        s->spell_wave_x = Word(s->spell_wave_x - 1);
+        if (s->spell_wave_x < 0)
+            s->spell_wave_x = 0;
+        SotnPlayerEffectQuad *q = &s->spell_quads[2];
+        if (q->blue[3] > 8)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        // From half scale the original's row pointer moves on to the image row, which the
+        // full-scale write below then reaches.
+        if (s->scale_x >= 0x80)
+        {
+            q = &s->spell_quads[3];
+            q->draw_mode &= 0xfff7U;
+        }
+        if (s->spell_timer >= 35)
+            s->hitbox_state = 0;
+        if (s->spell_timer == 32)
+        {
+            // FACTORY(96)'s rocks with the combo's <<14 hand bits (dropped without a free
+            // factory entity), the freeze's end and the spell's own attack.
+            if (in.free_factories > e->factory_count)
+            {
+                e->factories[e->factory_count] = 96U + ((in.hand + 1U) << 14);
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count++] = s->y;
+            }
+            e->freeze_clear = true;
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->hitbox_width = s->hitbox_height = 0x7f;
+        }
+        if (s->scale_x == 0x100)
+        {
+            q->blue[3] = 6;
+            s->spell_quads[2].draw_mode |= 8;
+            s->hitbox_state = 0;
+            s->phase = 5;
+        }
+        s->spell_timer = Word(s->spell_timer + 1);
+        DarkTiles(s, 3, 0xf8, true);
+        break;
+    }
+    case 5:
+        s->spell_bright = Word(s->spell_bright - 10);
+        if (s->spell_bright < 0)
+        {
+            s->spell_bright = 0;
+            s->spell_timer = 0;
+            s->phase = 6;
+        }
+        break;
+    case 6:
+        s->spell_timer = Word(s->spell_timer + 1);
+        if (s->spell_timer == 0x70)
+            s->phase = 7;
+        break;
+    case 7:
+        s->spell_bright = Word(s->spell_bright + 8);
+        if (s->spell_bright > 0x120)
+        {
+            s->spell_quads[3].draw_mode |= 8;
+            s->phase = 8;
+        }
+        break;
+    default:
+        DarkTiles(s, -8, 8, false);
+        s->spell_bright = Word(s->spell_bright - 8);
+        s->spell_wave_x = Word(s->spell_wave_x + 1);
+        if (s->spell_bright < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    // Screen words: the camera before this pass's retained-screen shift.
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    SotnPlayerEffectQuad *q = &s->spell_quads[2];
+    if (q->blue[3] > 8)
+    {
+        if (in.engine_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode &= 0xfff7U;
+    }
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    q = &s->spell_quads[3];
+    const Sint16 top = q->y[0] = q->y[1] = Word(y - s->spell_half_h);
+    Sint16 bottom = q->y[2] = q->y[3] = Word(y + s->spell_half_h - 1);
+    Sint16 back = 0, front = 0;
+    if (!s->facing_left)
+    {
+        back = q->x[0] = q->x[2] = Word(x - s->spell_half_w);
+        front = q->x[1] = q->x[3] = Word(x + s->spell_half_w - 1);
+    }
+    else
+    {
+        front = q->x[1] = q->x[3] = Word(x - s->spell_half_w);
+        back = q->x[0] = q->x[2] = Word(x + s->spell_half_w - 1);
+    }
+    front = Word(front + 1);
+    bottom = Word(bottom + 1);
+    for (Uint16 i = 0; i < 14; ++i)
+    {
+        q = &s->spell_quads[4 + i];
+        SotnMathTrig at = {0}, next = {0}, wave = {0};
+        if (!SotnMath_Trig(in.executable, (Sint16)p->shield_angles[i], &at) ||
+            !SotnMath_Trig(in.executable, (Sint16)p->shield_angles[(i + 1) % 14], &next) ||
+            !SotnMath_Trig(in.executable, (Sint16)p->shield_angles[(i + 6) % 14], &wave))
+            return false;
+        Sint16 base = (Sint16)(Asr(at.sine, 5) * s->spell_wave_x / 256);
+        q->x[0] = Word(back + base);
+        q->x[1] = Word(front + base - 1);
+        base = (Sint16)(Asr(next.sine, 5) * s->spell_wave_x / 256);
+        q->x[2] = Word(back + base);
+        q->x[3] = Word(front + base - 1);
+        base = (Sint16)(Asr(wave.sine, 5) * s->spell_wave_y / 256);
+        q->y[0] = Word(top + ((bottom - top) * i) / 14 - base);
+        q->y[2] = Word(top + ((bottom - top) * (i + 1)) / 14 - base);
+        base = (Sint16)(Asr(next.sine, 5) * s->spell_wave_y / 256);
+        q->y[1] = Word(top + (i * (bottom - top)) / 14 - base);
+        q->y[3] = Word(top + ((bottom - top) * (i + 1)) / 14 - base);
+        const Uint8 near = (Uint8)(((at.sine + 0x1000) >> 6) * s->spell_bright / 256),
+                    far = (Uint8)(((next.sine + 0x1000) >> 6) * s->spell_bright / 256);
+        for (Uint16 k = 0; k < 4; ++k)
+            q->red[k] = q->green[k] = q->blue[k] = k < 2 ? near : far;
+        p->shield_angles[i] = (Sint32)((Uint32)p->shield_angles[i] + (Uint32)s->spell_step);
+    }
+    return true;
+}
+// w_024 func_ptr_80170024 (FACTORY(96), role9): one of thirty-two rocks. Unless its raw parent
+// slot is empty it takes one GT4, copies the spell's v band and child palette (plus one), rolls
+// its size, screen X/Y below the screen and facing (four rand calls), copies the parent's equip
+// id through SetWeaponProperties (0x40 hitbox) and creeps up; once the spell passes step5 it
+// rolls a 10..57-update tremble, plays START_SLAM_A and launches, stretching above screen Y 0x80
+// and retiring above -0x40. Screen words.
+static bool DarkRock(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                     SotnWeaponSecondaryEvents *e)
+{
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.parent_exists || !in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 9;
+        s->allocated = true;
+        s->spell_v1 = in.parent_band;
+        s->spell_child_palette = (Uint16)(in.parent_child_palette + 1U);
+        s->flags |= 0x04800000U;
+        s->dark_size = (Sint16)(Rand(rng) & 0xfU);
+        s->dark_anchor = (Sint16)(Rand(rng) % 248U + 4U);
+        SetScreen(&s->x, s->dark_anchor, in.retained_camera_x);
+        SetScreen(&s->y, (Sint16)((Rand(rng) & 0x3fU) + 0xd8U), in.retained_camera_y);
+        s->facing_left = (Rand(rng) & 1U) != 0;
+        *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
+        Uint8 dark = 0;
+        if (s->dark_size < 8)
+        {
+            q->u[0] = q->u[2] = 0x50;
+            q->u[1] = q->u[3] = 0x50 + 15;
+            q->v[0] = q->v[1] = s->spell_v1;
+            q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x1f);
+            s->spell_half_w = (Sint16)((s->dark_size + 8) * 8 / 10);
+            s->spell_half_h = (Sint16)((s->dark_size + 8) * 0x10 / 10);
+            dark = (Uint8)(-0x80 - (7 - s->dark_size) * 0xf);
+            q->priority = 0x1b8;
+        }
+        else
+        {
+            q->u[0] = q->u[2] = 0x60;
+            q->u[1] = q->u[3] = 0x60 + 31;
+            q->v[0] = q->v[1] = s->spell_v1;
+            q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x2f);
+            s->spell_half_w = (Sint16)(s->dark_size * 0x10 / 10);
+            s->spell_half_h = (Sint16)(s->dark_size * 0x18 / 10);
+            q->priority = 0x1be;
+            dark = (Uint8)(-0x80 - (0xf - s->dark_size) * 0xc);
+        }
+        for (Uint16 k = 0; k < 4; ++k)
+            q->red[k] = q->green[k] = q->blue[k] = k < 2 ? 0x80 : dark;
+        q->draw_mode = 0x04;
+        s->spell_velocity_y = -(s->dark_size * 0x3000 + 0x30000);
+        s->dark_accel = -((s->dark_size << 8) + 0x900);
+        s->spell_wave_x = 0;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 0x40;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->y = (Sint32)((Uint32)s->y + (Uint32)(s->spell_velocity_y / 16));
+        if (in.parent_phase > 5)
+        {
+            s->spell_timer = (Sint16)(Rand(rng) % 48U + 10U);
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        SetScreen(&s->x, Word(s->dark_anchor + (s->spell_timer & 1)), in.retained_camera_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)(s->spell_velocity_y / 32));
+        s->spell_timer = Word(s->spell_timer - 1);
+        if (!s->spell_timer)
+        {
+            s->spell_velocity_y /= 32;
+            e->sounds[0] = 0x63c;
+            s->phase = 3;
+        }
+        break;
+    default: {
+        SetScreen(&s->x, Word(s->dark_anchor + (s->spell_timer & 1)), in.retained_camera_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->spell_velocity_y = (Sint32)((Uint32)s->spell_velocity_y + (Uint32)s->dark_accel);
+        const Sint16 screen = Word(Pixel(s->y) - in.retained_camera_y);
+        if (screen < 0x80)
+        {
+            s->spell_wave_x = Word(s->spell_wave_x + 2);
+            s->dark_accel = (Sint32)((Uint32)s->dark_accel - 0x2000U);
+        }
+        if (screen < -0x40)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    q->y[0] = q->y[1] = Word(y - s->spell_half_h);
+    q->y[2] = q->y[3] = Word(y + s->spell_half_h - 1 + s->spell_wave_x);
+    if (!s->facing_left)
+    {
+        q->x[0] = q->x[2] = Word(x - s->spell_half_w);
+        q->x[1] = q->x[3] = Word(x + s->spell_half_w - 1);
+    }
+    else
+    {
+        q->x[1] = q->x[3] = Word(x - s->spell_half_w);
+        q->x[0] = q->x[2] = Word(x + s->spell_half_w - 1);
+    }
+    return true;
+}
 // w_011 EntityWeaponShieldSpell: Axe Lord shield's both-buttons spell (item206, ten mandatory
 // GT4s). Birth resets the program's sixteen band angles to (i<<9)*2; the shield grows, flashes
 // out with MAGIC_WEAPON_APPEAR_A, eight green/blue bands narrow onto a 16-wide card, then the
@@ -6823,6 +7234,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 10 && in.role == 8                      ? 9
                         : in.family == 23 && in.role == 8                      ? 8
                         : in.family == 23                                      ? 3
+                        : in.family == 24 && in.role == 8                      ? 8
+                        : in.family == 24                                      ? 3
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -6890,6 +7303,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         if (!(in.role == 8   ? HeraldSpell(&s, &shared, in, &e)
               : in.role == 9 ? HeraldSwirl(&s, &shared, in)
                              : HeraldSprite(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 24)
+    {
+        if (!(in.role == 8 ? DarkSpell(&s, &shared, in, &rng, &e) : DarkRock(&s, in, &rng, &e)))
             return false;
         goto commit;
     }

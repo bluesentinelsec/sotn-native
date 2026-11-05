@@ -1438,6 +1438,10 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         if (s->bat_runtime.shield_heal &&
             !SotnPlayer_CommitShieldHit(s->player, s->bat_runtime.shield_protection))
             return false;
+        // Dark shield's spell: g_Player.unk20 = 8 (transform lockout) every update.
+        if (s->bat_runtime.transform_lockout &&
+            !SotnPlayer_SetTransformLockout(s->player, s->bat_runtime.transform_lockout))
+            return false;
         // Iron shield's guard: func_8010E168(0,0x60) alone (no healing).
         if (!s->bat_runtime.shield_heal && s->bat_runtime.shield_protection &&
             !SotnPlayer_CommitProtection(s->player, s->bat_runtime.shield_protection))
@@ -5251,6 +5255,25 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .blend = (q.draw_mode & 1U) != 0,
                                             .blend_mode = (Uint8)((q.draw_mode >> 5) & 3U)};
                 if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            // Weapon24's spell rows0/1 are screen-fixed TILEs (x0/y0, u0/v0 extents, flat
+            // colour); drawMode0x51 selects subtractive blending, darkening the screen.
+            if (spell && c->state.secondary.family == 24 && (c->kind & 15U) == 8 && index < 2)
+            {
+                SotnPlayerEffectQuad tile = q;
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    tile.x[v] = BlinkWord(q.x[0] + (v & 1U ? q.u[0] : 0));
+                    tile.y[v] = BlinkWord(q.y[0] + (v & 2U ? q.v[0] : 0));
+                    tile.red[v] = q.red[0];
+                    tile.green[v] = q.green[0];
+                    tile.blue[v] = q.blue[0];
+                }
+                if (!DrawIceQuad(session, &tile) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;

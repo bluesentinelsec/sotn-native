@@ -130,6 +130,10 @@ typedef struct SotnWeaponSecondary
              * (ext.weapon.lifetime). Both keep spell_timer (unk80), spell_velocity_y; the swirl
              * star_depth (unk9A) and spell_bright (unk9C). */
             Sint16 herald_angle, herald_x;
+            /** Weapon24 rocks (E9): ext.shield unk9A size, unk94 screen X anchor and the s32
+             * ext.weapon.accelerationY; spell_wave_x is their unk92 stretch. */
+            Sint16 dark_size, dark_anchor;
+            Sint32 dark_accel;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;
@@ -279,6 +283,8 @@ typedef struct SotnWeaponSecondaryEvents
     Uint8 pink;
     /** Weapon52's spell: BlinkWhite FACTORY(44, blink) from the spell entity; zero when absent. */
     Uint8 blink;
+    /** Weapon24's spell: g_Player.unk20 (the transform lockout) set to this; zero when absent. */
+    Uint8 lockout;
     /** Weapon26: one g_Clut word becomes (word & clut_mask) + clut_add, then uploads. */
     bool clut;
     Uint16 clut_palette, clut_color, clut_mask, clut_add;

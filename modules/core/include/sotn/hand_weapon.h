@@ -78,6 +78,10 @@ typedef struct SotnHandWeapon
     /** Weapon23 (Herald shield): ext.shield.unk84, the heart cooldown after a blocked
      * projectile. */
     Uint8 guard_cooldown;
+    /** Weapon24 (Dark shield): ext.darkShield unk80 countdown, childPalette entry index and the
+     * rolled D_8017ACF8 sequence. */
+    Uint16 dark_timer, dark_index;
+    Uint8 dark_table;
     bool facing_left, removed, allocated;
 } SotnHandWeapon;
 /** @brief Actual GetEquipProperties adapter. It receives a working RNG cursor.

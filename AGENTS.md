@@ -33,6 +33,12 @@ uses it too) and sets the 0x20 cooldown, decremented every update. Spell207 (18 
 angles 0xB70) requests FACTORY(94)'s 24 E10/F10 sprites (params0..23 wait params*4; params0
 wraps to 65536, kept) and FACTORY(90)'s four-GT4 E9 swirl (RotTrans vectors in program BSS,
 RotTransPers4 x0/x1/x3/x2) before pink9; pink now follows a spell's factories. All screen words.
+Dark (w_024, family24, item10): rand()&3 palette sequence (0xCF8) before properties, stepped
+every non-final update, rerolled at 0xFFFF. Spell208 (30 MP) sets g_Player.unk20 (transform
+lockout, native mist_lockout via SotnPlayer_SetTransformLockout) every callback; rows0/1 are
+subtractive TILEs; FACTORY(96) rocks + freeze end + own SetWeaponProperties 0x7F hitbox for three
+callbacks at opening update32; rocks (E9, 1 GT4, 4 rands, least-used group, 0x40 hitbox) read the
+raw spell's step each update (excluded from the generic parent_phase override).
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,

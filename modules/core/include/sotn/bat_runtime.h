@@ -282,6 +282,9 @@ typedef struct SotnBatRuntime
      * after a successful pass. */
     bool shield_mp_hold, shield_heal;
     Uint16 shield_protection;
+    /** Weapon24's spell this pass: g_Player.unk20 (transform lockout) written to this value after
+     * the player update; zero when absent. Committed by the session after a successful pass. */
+    Uint8 transform_lockout;
     bool magic_clear_shield; /**< Conditional hand-effect shield retirement, committed by its owner.
                               */
     Uint16 hellfire_signal, hellfire_palette;

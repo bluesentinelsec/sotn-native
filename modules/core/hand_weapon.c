@@ -170,7 +170,7 @@ static bool AppendFactory(SotnHandWeaponEvents *e, Uint32 request)
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
     return family == 8 || family == 9 || family == 10 || family == 11 || family == 23 ||
-           family == 25 || family == 26 || family == 52 || family == 58;
+           family == 24 || family == 25 || family == 26 || family == 52 || family == 58;
 }
 // w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
@@ -179,6 +179,7 @@ static Uint16 ShieldAnimationTable(Uint16 family)
            : family == 10                 ? 0xb68
            : family == 11                 ? 0xb94
            : family == 23                 ? 0xb20
+           : family == 24                 ? 0xc20
            : family == 25 || family == 26 ? 0xa60
                                           : 0xb84;
 }
@@ -260,6 +261,47 @@ static Uint16 ShieldMovement(Uint16 animation, Uint16 crouch, bool *follow)
         return crouch;
     }
 }
+// w_024 (Dark shield): one (duration, palette offset) entry of D_8017ACF8's four sequences.
+static bool DarkEntry(SotnDataView o, Uint8 table, Uint16 index, Uint16 *duration, Sint16 *offset)
+{
+    const Uint8 *p = NULL;
+    if (table > 3 || index > 63 || !View(o, 0xcf8U + table * 4U, 4, &p) ||
+        !Address(o, 0x8017a000U, Read32(p) + index * 4U, 4, &p))
+        return SDL_SetError("Dark shield private palette sequence");
+    *duration = Read16(p);
+    *offset = Word(Read16(p + 2));
+    return true;
+}
+// Every update not ending the shield, its palette steps through the rolled sequence; reaching
+// the 0xFFFF end applies that entry's offset, restarts at entry0 next update and rolls rand()&3.
+static bool DarkCycle(SotnHandWeapon *w, SotnHandWeaponInput in, Uint32 *random)
+{
+    const Uint16 base = (Uint16)(0x110U + in.hand * 24U);
+    Uint16 duration = 0;
+    Sint16 offset = 0;
+    if (!w->dark_timer)
+    {
+        if (!DarkEntry(in.overlay, w->dark_table, w->dark_index, &duration, &offset))
+            return false;
+        w->dark_timer = duration;
+        w->palette = (Uint16)(base + (Uint16)offset);
+    }
+    else if (!--w->dark_timer)
+    {
+        ++w->dark_index;
+        if (!DarkEntry(in.overlay, w->dark_table, w->dark_index, &duration, &offset))
+            return false;
+        w->dark_timer = duration;
+        w->palette = (Uint16)(base + (Uint16)offset);
+        if (w->dark_timer == 0xffffU)
+        {
+            w->dark_index = 0;
+            w->dark_timer = 0;
+            w->dark_table = (Uint8)(SotnCombat_Random(random) & 3U);
+        }
+    }
+    return true;
+}
 static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWeaponInput in,
                    Uint32 *random, SotnHandWeaponEvents *e)
 {
@@ -325,6 +367,9 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         w->flags = 0x60000;
         w->priority = (Uint16)(in.priority - 2U);
         e->shield = 1;
+        // w_024 rolls its palette sequence before SetWeaponProperties.
+        if (in.family == 24)
+            w->dark_table = (Uint8)(SotnCombat_Random(random) & 3U);
         if (!Properties(w, in, random, e))
             return false;
         // w_052 and w_058 cache the property attack and override it to one.
@@ -376,6 +421,8 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         break;
     }
     if (w->phase != 4 && !ShieldAnimation(w, in.overlay, in.family))
+        return false;
+    if (in.family == 24 && !DarkCycle(w, in, random))
         return false;
     // The original assignment also overwrites the earlier phase-four rotate/blink flags.
     Transform(w, in);

@@ -198,6 +198,14 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 207 * 52 + 22] = 1;
     Put16(f->dra + 0x500 + 207 * 52 + 36, 10);
     TestCharacter_Put32(f->dra + 0x500 + 207 * 52 + 0x1c, 0x20);
+    // Dark shield10 (sub0x40) casts spell208 (category7) for thirty MP.
+    Item(f->dra, 10, 9, 24, 128, 0x63, 0, 0, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 10 * 52 + 0x1c, 0x40);
+    Item(f->dra, 208, 7, 24, 5, 0xba, 0, 0, 0);
+    f->dra[0x500 + 208 * 52 + 19] = 86;
+    f->dra[0x500 + 208 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 208 * 52 + 36, 30);
+    TestCharacter_Put32(f->dra + 0x500 + 208 * 52 + 0x1c, 0x40);
     // Axe Lord shield8 (sub0x10) casts spell206 (category1) for twenty MP.
     Item(f->dra, 8, 9, 11, 128, 0x63, 0, 0, 0);
     TestCharacter_Put32(f->dra + 0x500 + 8 * 52 + 0x1c, 0x10);
@@ -843,8 +851,9 @@ static bool ComboWith(Fixture *f, Uint16 weapon, Uint16 shield, Uint16 spell, Ui
           SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(209) &&
           SotnPlayer_ComboSupported(210) && SotnPlayer_ComboSupported(214) &&
           SotnPlayer_ComboSupported(215) && SotnPlayer_ComboSupported(202) &&
-          SotnPlayer_ComboSupported(207) && !SotnPlayer_ComboSupported(208) &&
-          SotnPlayer_ComboSupported(205) && !SotnPlayer_ComboSupported(201));
+          SotnPlayer_ComboSupported(207) && SotnPlayer_ComboSupported(208) &&
+          !SotnPlayer_ComboSupported(211) && SotnPlayer_ComboSupported(205) &&
+          !SotnPlayer_ComboSupported(201));
     return true;
 }
 static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
@@ -1053,8 +1062,8 @@ int main(void)
          Runesword(f, 164) && Runesword(f, 165) && Muramasa(f) && CombatKnife(f) &&
          AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) && Combo(f, 5, 203, 10) &&
          Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) && Combo(f, 12, 210, 10) &&
-         Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) && Combo(f, 16, 214, 20) &&
-         ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
+         Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) && Combo(f, 10, 208, 30) &&
+         Combo(f, 16, 214, 20) && ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {
