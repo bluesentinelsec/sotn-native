@@ -26,8 +26,8 @@ Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 Only combos with an actual native owner are selected. These shield spells have one, with
 Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
 shield's 205, Axe Lord shield's 206, Herald shield's 207, Dark shield's 208, Goddess shield's
-209, Shaman shield's 210, Medusa shield's 211, Skull shield's 212, Alucard shield's 214 and
-Alucart shield's 215. Fire shield's spell (213) does not yet. Dual Heaven swords' 202 now has its own owner too: see
+209, Shaman shield's 210, Medusa shield's 211, Skull shield's 212, Fire shield's 213, Alucard
+shield's 214 and Alucart shield's 215: every shield spell. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
 ## Leather shield spell (item203)
@@ -203,6 +203,39 @@ updates it copies the raw parent's equip id and calls SetWeaponProperties every 
 group, re-picked each time) with a hitbox reaching from its position to the screen edge; once the
 spell's slot empties that copy is zero, so it rolls item0's properties. Then it shrinks away. The
 beam fires level with the spell, so floor-level enemies below a risen spell are missed.
+
+## Fire shield spell (item213) and its dragons
+
+Fire shield's spell (w_029, fifty MP) takes one GT4, the glow. Like the card spells it retires a
+raised shield, plays ANIME_SWORD_C, freezes the scene and drifts back while the shield image grows
+by 12 (its palette steps `D_8017ACF8` on every second g_Timer, as the guard's does on g_GameTimer).
+After eight updates at full size it shrinks by 16 (now on g_GameTimer); at zero it starts the
+looping flame `D_8017AD24` (FLAG_UNK_100000, eight three-update frames) at priority 0x1B6 with its
+base palette, plays TRANSFORM and grows back by 16 while the glow spreads by eight and fades. After
+0x20 updates the glow hides, FIREBALL_SHOT_A plays, `FACTORY(102)` releases the dragons (skipped
+without a free factory entity) and the freeze ends; 0x18 updates later the flame shrinks away.
+
+`FACTORY(102)` creates three E9/F9 dragons in slots17..31, six updates apart (params0..2). Each takes
+nineteen GT4s (failure retires it), copies the spell's equip id and rolls SetWeaponProperties
+(least-used group) with a 20x20 hitbox. Its program-BSS row `D_8017C9A0[dragon]` holds twenty
+segments in screen 16.16 words the camera never moves; birth sets each at the dragon's position,
+heading 0x540 per dragon (0x800 more facing left), wave/turn 0xC00, speed 0x70, swell 256, widths
+20 (10 and 0 for the last two) and wake delays of one plus twice the index. A woken segment's wave
+advances 0x80 and its swell shrinks four; it moves by its heading times speed, scaled by half the
+wave's sine plus 0x1000, and turns by its signed turn word >> 4. Segments curl tighter (turn -40) until
+the wave passes 0x1400, then slow (turn -80, speed -4; dragon0 plays FIREBALL_SHOT_A as each passes
+below 0x40), then unwind (wave -0x60, turn -48) and speed off by two; off screen (outside X ±288 or
+Y 0..256) their turn stops, and the first to pass speed 0x100 retires the dragon. The head size
+ramps from 0x40 by two to 0x100. Rows chain each segment's perpendicular edges, scaled by width and
+the swollen wave, with `D_8017AD10` palettes on every second g_Timer; the head row sits on segment1
+(sized from segment0) and the entity takes segment1's position before requesting `FACTORY(100)`
+every update. Because each dragon alone writes its own row while the chain limit stands, the
+native dragon keeps its segments beside its rows.
+
+Each `FACTORY(100)` hit point (E10/F10, slots17..47) retires once its raw parent dragon's slot
+empties; it copies the dragon's equip id (213), rolls SetWeaponProperties with a 14x14 hitbox and
+lives ten more updates. A dragon therefore trails up to ten live hitboxes. The spell, dragons and
+hit points keep screen positions.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -441,6 +474,25 @@ Public tests cover:
   re-read (an emptied spell slot rolls item0), both fixed. Native Debug/ASan protocols cast
   spell212 in both hand arrangements (spell/beam pixels, sixty-three attack passes, palette
   writes, freeze), raise the guarding Skull shield and fall back to a swing below forty MP.
+- **Fire:** the guard's own table, its palette cycle and every-fifth-update afterimage request
+  (none once knocked away). The afterimage's parent retirement, birth copies, fade and palettes.
+  The spell's birth, phase timeline, sounds, freeze, palettes on both clocks, flame timeline and
+  FACTORY(102). An exact model of the dragon: segments, states, sounds, turn stops, retirement,
+  head ramp, chained rows and their palettes, the head row, the entity on segment1 and FACTORY(100)
+  every update. The hit point's gate, properties, hitbox and lifetime. The runtime casts the spell:
+  three dragons (indices 0..2, item213, least-used groups, 20x20 attacks) that keep their screen
+  place across screen shifts, up to 26 live 14x14 hit points, one freeze. 81 of 88 Fire mutations
+  are caught; of the rest one does not compile, one is equivalent (the opacity never equals 7), the
+  private comparison catches the dragon's truncating half-sine and the native protocol the
+  afterimage palette base, and three survive (the far-left turn-stop bound and two permissive
+  request/parameter validators). The private comparison runs complete `w_029` callbacks: 92
+  afterimage, 956 spell (576 real UpdateAnim), 1,836 dragon and 27 hit-point callbacks with 36,720
+  segment and 35,524 row comparisons, plus 64 Fire guard contexts in the hand-weapon comparison;
+  Debug and ASan traces are byte-identical. Native Debug/ASan protocols cast spell213 in both hand
+  arrangements (spell/dragon pixels, three dragons, 26 live hit points, exactly fifty MP, freeze;
+  zombies held on a dragon's hitbox are destroyed, a positioned-contact fixture), raise the guarding
+  Fire shield (palette cycle, red-tinted afterimages over all five palettes) and fall back to a
+  swing below fifty MP.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.
