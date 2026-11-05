@@ -13,6 +13,61 @@
   SHA-256 in `platforms/android/gradle/wrapper/gradle-wrapper.properties`.
   Source and license: https://github.com/gradle/gradle/tree/v8.10.2
 
+- **Reconstructed Fairy slot, primitive and scene owners**, AGPL-3.0-or-later.
+  `modules/core/fairy_runtime.c` and selected primitive/factory/game/render bindings
+  adapt `servant/tt_002/faerie.c`, common servant helpers,
+  `dra/7879C.c:UpdatePlayerEntities/func_8011A870` and original primitive flags at
+  the pinned revision below. The selected G4 renderer implements the PS1 DTD
+  hardware conversion; game artwork, profiles and audio remain private. See
+  [scope and evidence](docs/fairy-slot-runtime.md).
+
+- **Reconstructed selected familiar CD-command audio service**, AGPL-3.0-or-later.
+  `modules/audio/cd_audio.c` adapts selected sound-ring/CD-queue, pause/restore,
+  start/expiry/stop and acknowledgement paths in `dra/sound.c` at the pinned
+  revision below. Native decoder/stream services replace original CD hardware
+  operations; all metadata and audio remain private. See
+  [scope and evidence](docs/familiar-cd-audio.md).
+
+- **Reconstructed Fairy control/effect components and native player inputs**, AGPL-3.0-or-later.
+  `modules/core/fairy.c`, `fairy_effects.c`, `familiar_events.c` and selected player/contact snapshot bindings adapt
+  `servant/tt_002/faerie.c`, common servant movement helpers and
+  `servant/{play_sfx,process_event,shared_globals,create_event_entity}.h` and
+  `dra/692E8.c:EntityAlucard` at the pinned revision below. Private ability, sound,
+  item, animation and wing mappings remain runtime data. See
+  [control scope](docs/fairy-controller.md) and [item effects/speech evidence](docs/fairy-effects.md).
+
+- **Reconstructed shared familiar animation and resource bindings**, AGPL-3.0-or-later.
+  `modules/core/familiar_animation.c` adapts `servant/servant_update_anim.h` and
+  `servant/tt_002/faerie.c:SetAnimationFrame`. Selected render/audio bindings follow
+  `ServantInit`, `dra/cd.c` familiar uploads, `dra/4B758.c` and the existing
+  `dra/sound.c` VAB service at the pinned revision below. All runtime timelines,
+  sprite parts, textures, palettes and samples remain private. See
+  [scope and evidence](docs/familiar-foundation.md).
+
+- **Reconstructed selected owned medicines and shared circles**, AGPL-3.0-or-later.
+  `modules/core/{player_medicine,medicine_effect,player_circle}.c` and selected
+  player/character/shared/native/render bindings adapt `dra/6E42C.c`,
+  `dra/menu.c:func_800FB23C`, `dra/5D5BC.c:ReduceWeapon/GetStatusAilmentTimer`,
+  `dra/7E4BC.c:EntityPlayerPinkEffect/EntityTransparentWhiteCircle`,
+  `dra/7879C.c:EntityGuardText/EntityPlayerBlinkWhite`, `dra/71830.c:PlayerStepStone`
+  and `dra/692E8.c:EntityAlucard` at the pinned revision below. Profiles, item
+  definitions, labels, artwork and SDK inputs remain private. See
+  [scope and evidence](docs/player-medicines.md).
+
+- **Reconstructed selected room callback and cleanup ordering**, AGPL-3.0-or-later.
+  `modules/game/laboratory.c`, `modules/core/bat_runtime.c` and the native contact
+  bridge adapt `dra/5087C.c:RunMainEngine`, `dra/7879C.c:func_8011A9D8` and
+  `dra/5087C.c:func_800F0CD8` at the pinned revision below. Private stage resources
+  remain private. See [scope and evidence](docs/player-room-ordering.md).
+
+- **Reconstructed Alucard sword command and recovery**, AGPL-3.0-or-later.
+  `modules/core/sword_warp.c` adapts `dra/704D0.c` and `weapon/w_043.c`
+  callbacks04/08. The selected player/shared/native owners adapt
+  `dra/6E42C.c`, `71830.c:PlayerStepSwordWarp`, `7879C.c`,
+  `5D5BC.c:GetEquipProperties` and `menu.c:CalcAttack` at the pinned revision
+  below. Runtime metadata, animations, artwork and audio remain private. See
+  [scope and evidence](docs/player-sword-warp.md).
+
 - **Reconstructed BO0 monster head and attacks**, AGPL-3.0-or-later.
   `modules/core/olrox_monster_head.c` reconstructs selected BO0 `313A8.c` head
   behavior; `olrox_monster_attacks.c` adapts `e_laser_attack.c`,
@@ -102,6 +157,16 @@
   `modules/core/player_sensors.c` adapts `6BF64.c`, `70394.c`, and the
   normal-form collision path in `692E8.c`. See
   [movement integration](docs/laboratory-movement.md) for scope and validation.
+  The [control inventory and selected recovery corrections](docs/player-control-audit.md)
+  follow the same original standing/crouch/jump and landing routines, timer6/US
+  simulated-input release in `692E8.c`, and Bat's outer eight-pass collision
+  boundary. Runtime animation/weapon/shield tables remain private; these changes
+  do not implement all original player states.
+  The [scripted player owner](docs/player-script-control.md) in `player_script.c`
+  and native bindings additionally adapts `692E8.c` simulated input/timer2/4 and
+  recovery, `71830.c:PlayerStepUnk48/49`, Blink58 in `7879C.c`, and the actual
+  `st/no3/e_death.c` producer at that same revision. Palette definitions, SDK sine
+  values, animations and script data remain private runtime inputs.
   The selected [Leap Stone double jump](docs/player-leap-stone.md) follows
   `6E42C.c:func_8010E940`, `6FDF8.c:func_8010FDF8`, and the Jump/Fall paths
   in `71830.c`; its animation bytes remain private runtime data.
@@ -178,6 +243,13 @@ and `vm_nowon.c`; see `licenses/PSY-Z-decomp-MIT.txt`.
 `licenses/MPL-2.0.txt`. `gauss.h` retains the source's public-domain declaration
 for its mathematical coefficients. No SDK/platform headers, original samples,
 or game instrument/event tables are included.
+
+`modules/audio/reverb.c` adapts the voice-reverb processor in PSY-Z's
+`psyz/src/psyz/psyz_spu.c` at that same MPL-2.0 revision. Native Studio B setup,
+per-tone sends and depth conversion follow the MIT-licensed SDK paths in
+`decomp/src/libsnd/ut_rev.c`, `ut_rdep.c`, `vm_nowon.c` and
+`decomp/src/libspu/s_srmp.c`. Presets are read from the user's private executable;
+no original SDK coefficient arrays are compiled into the application.
 
 `modules/audio/music.c` additionally adapts selected XA decoding paths in
 PSY-Z's `psyz/src/psyz/libcd.c` at the same backend revision under MPL-2.0.
@@ -815,3 +887,15 @@ The [shared native outline owner](docs/shared-player-outlines.md) connects the s
 original factory/entity31 paths to native stage leases and presentation, preserving
 selected retained player pivots from `dra/71830.c` and initialization in `692E8.c`,
 at the same pinned AGPL-3.0-or-later revision. Original inputs remain private.
+
+The [selected contact immunity owner](docs/player-contact-immunity.md) adapts
+response0 in `dra/692E8.c`, its early `5D5BC.c:HandleDamage` boundary, timer14
+helper in `6DF70.c` and parameter0 `7879C.c:EntityGuardText`, Blink43/51 and the
+zero/type0 `EntityNumberMovesToHpMeter`, at the same pinned AGPL-3.0-or-later
+revision. Text profiles/artwork, SDK lookup data and comparisons remain private.
+
+The [selected high-defense guard owner](docs/player-contact-guard.md) adapts
+`dra/5D5BC.c:HandleDamage` response1, `692E8.c` dispatch/timer3 ordering and
+`7879C.c:EntityNumberMovesToHpMeter` type0 through the existing shared services,
+at the same pinned AGPL-3.0-or-later revision. Definitions, SDK data and artwork
+remain private.

@@ -74,7 +74,8 @@ static bool Manager(Fixture *f, SotnActors *s)
     CHECK(s->library_enemy_flags == 1 && s->world->time_attack_visited == (1U << 17) &&
           !s->world->time_attack[17]);
     s->music_playing = true;
-    CHECK(ActorLibrary(s, a) && a->state.step == 3 && s->combat.music_change && !s->combat.music);
+    CHECK(ActorLibrary(s, a) && a->state.step == 3 && s->combat.cd_command == 0x90 &&
+          !s->combat.music_change);
     SDL_zero(s->combat);
     CHECK(ActorLibrary(s, a) && a->state.step == 3 && !s->combat.music_change);
     s->music_playing = false;
@@ -82,7 +83,7 @@ static bool Manager(Fixture *f, SotnActors *s)
     s->library_enemy_flags |= 2U;
     s->music_playing = true;
     CHECK(ActorLibrary(s, a) && a->state.step == 5 && s->world->time_attack[17] == 205 &&
-          !s->combat.music);
+          s->combat.cd_command == 0x90 && s->combat.music == 0x31d);
     CHECK(ActorLibrary(s, a) && a->state.step == 5 && s->library_arena_active);
     s->library_enemy_flags |= 4U;
     for (Uint16 i = 96; i < 128; ++i)

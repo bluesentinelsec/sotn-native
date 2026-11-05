@@ -147,6 +147,118 @@
     "BOSS/BO0/SD_ZKBO0.VB": {
       "size": 105808,
       "sha1": "0246e4a5dc833a58ac39ae40a282b2db7cd5a7ea"
+    },
+    "SERVANT/TT_000.BIN": {
+      "size": 40960,
+      "sha1": "82dd4ae1c4e3dc0fd483a49e5e4ab4fc5e25ada7"
+    },
+    "SERVANT/FT_000.BIN": {
+      "size": 24576,
+      "sha1": "43776ee1b830dd601e3fa06d7311152db15c7e1d"
+    },
+    "SERVANT/SD_BAT.VH": {
+      "size": 4128,
+      "sha1": "870674e6508bcef8bbd2355aa4194b39e56e0605"
+    },
+    "SERVANT/SD_BAT.VB": {
+      "size": 63904,
+      "sha1": "60d2bfffd75194cb0f6927eadfd1c9815efda365"
+    },
+    "SERVANT/TT_001.BIN": {
+      "size": 40960,
+      "sha1": "326c9d2f9b9e2af678f5d63b30b31fba99ae75d4"
+    },
+    "SERVANT/FT_001.BIN": {
+      "size": 24576,
+      "sha1": "43776ee1b830dd601e3fa06d7311152db15c7e1d"
+    },
+    "SERVANT/SD_GHOST.VH": {
+      "size": 4128,
+      "sha1": "870674e6508bcef8bbd2355aa4194b39e56e0605"
+    },
+    "SERVANT/SD_GHOST.VB": {
+      "size": 63904,
+      "sha1": "60d2bfffd75194cb0f6927eadfd1c9815efda365"
+    },
+    "SERVANT/TT_002.BIN": {
+      "size": 40960,
+      "sha1": "4589bb04fe475439c6d6e9b7273a8971ad859b4d"
+    },
+    "SERVANT/FT_002.BIN": {
+      "size": 24576,
+      "sha1": "53eb4ce6254a9e24a9067eb0a5311bc747ba0bc0"
+    },
+    "SERVANT/SD_FAIRY.VH": {
+      "size": 4128,
+      "sha1": "d7873ed7ca7e2361e6124f82b4a1697d31160449"
+    },
+    "SERVANT/SD_FAIRY.VB": {
+      "size": 63552,
+      "sha1": "18e6f9b78c6cbb6b5935ec2028ed106d3eca8a6b"
+    },
+    "SERVANT/TT_003.BIN": {
+      "size": 40960,
+      "sha1": "b54466dec3923d43bd08d71bec688da252153984"
+    },
+    "SERVANT/FT_003.BIN": {
+      "size": 24576,
+      "sha1": "4dbfa3e913b17b8e76b5dc95357138fba1503ad2"
+    },
+    "SERVANT/SD_DEVIL.VH": {
+      "size": 3616,
+      "sha1": "a0ccb77f6e9cece37dc83b5d199acf553a681540"
+    },
+    "SERVANT/SD_DEVIL.VB": {
+      "size": 59392,
+      "sha1": "db3ccf84adeff63f915c563ca839ade705084f37"
+    },
+    "SERVANT/TT_004.BIN": {
+      "size": 40960,
+      "sha1": "0f2ff898829ead77bb15545324c7b8958f9fb4e1"
+    },
+    "SERVANT/FT_004.BIN": {
+      "size": 24576,
+      "sha1": "081f59dbc1b475ec506f5b37743be01cd545a369"
+    },
+    "SERVANT/SD_SWORD.VH": {
+      "size": 3104,
+      "sha1": "befe20267fe8b84569786beaeaaa1b1c417678d8"
+    },
+    "SERVANT/SD_SWORD.VB": {
+      "size": 64496,
+      "sha1": "55c25f2ea42f9626561b168e7d53e71e566c5a6b"
+    },
+    "BIN/F_TITLE0.BIN": {
+      "size": 262144,
+      "sha1": "b786f2c5db5fd3b7840ae7bcc35335d3130c217b"
+    },
+    "BIN/F_TITLE1.BIN": {
+      "size": 262144,
+      "sha1": "8b8d838c7300aa9881394680ad194d9e08614608"
+    },
+    "BIN/F_PROLO0.BIN": {
+      "size": 262144,
+      "sha1": "2f189f975fe66730fd59d6d0752cb5e045f5c963"
+    },
+    "BIN/F_PROLO1.BIN": {
+      "size": 262144,
+      "sha1": "c8490e80a2b9fab586e6c56a5679019be605092f"
+    },
+    "ST/SEL/SEL.BIN": {
+      "size": 355112,
+      "sha1": "a919a53a760107972049bfdeadde33376428eace"
+    },
+    "ST/SEL/F_SEL.BIN": {
+      "size": 196608,
+      "sha1": "6c591512a01bb97a7f16ca5de920993a72121e98"
+    },
+    "ST/SEL/SD_ZKSEL.VH": {
+      "size": 6688,
+      "sha1": "eb397615f670eba7c4af1240b088867092cb6937"
+    },
+    "ST/SEL/SD_ZKSEL.VB": {
+      "size": 107424,
+      "sha1": "7ee5b1acad671141e1d03e4457e8be22ac21042c"
     }
   },
   "sizes": {

@@ -11,7 +11,12 @@ struct SotnCharacter
     SotnDataView dra;
     SotnCharacterState state;
     SotnCharacterStats stats;
+    SotnFamiliarProgress familiars;
+    Uint16 familiar;
     Uint16 stat_buff_mask;
+    SotnPlaytime playtime;
+    bool playtime_bound;
+    SotnDataView executable; /**< Borrowed SDK image for Muramasa's signed-range SquareRoot0. */
 };
 static Uint16 Read16(const Uint8 *p)
 {
@@ -68,11 +73,12 @@ static bool IsEmpty(bool body, Uint16 id)
 static bool BodySupported(Uint16 id)
 {
     /* Additive records and selected implemented armor/head/cape services. */
-    return id == 14 || id == 15 || id == 17 || id == 21 || id == 22 || (id >= 38 && id <= 43) ||
-           id == 45 || id == 56 || id == 78 || id <= 9 || (id >= 26 && id <= 33) || id == 35 ||
-           id == 36 || id == 46 || id == 47 || id == 48 || id == 49 || id == 51 || id == 54 ||
-           id == 57 || id == 60 || (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 ||
-           id == 82 || id == 85;
+    return id == 83 || id == 24 || id == 25 || id == 87 || id == 14 || id == 15 || id == 17 ||
+           id == 21 || id == 22 || (id >= 38 && id <= 44) || id == 45 || id == 56 || id == 78 ||
+           id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
+           id == 48 || id == 49 || id == 51 || id == 54 || id == 57 || id == 60 ||
+           (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 84 ||
+           id == 85 || id == 80;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -84,16 +90,23 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                  body ? 30U : 50U, &record))
         return false;
     const Uint8 *p = record.bytes;
-    SotnItem item = {.id = id,
-                     .body = body,
-                     .attack = Signed16(p + 8),
-                     .defense = Signed16(p + 10),
-                     .type = body ? Read16(p + 28) : 0,
-                     .icon = Read16(p + (body ? 24 : 44)),
-                     .palette = Read16(p + (body ? 26 : 46)),
-                     .supported = body ? BodySupported(id)
-                                       : (id == 0 || id == 16 || id == 18 || id == 19 || id == 86 ||
-                                          id == 123 || id == 128)};
+    SotnItem item = {
+        .id = id,
+        .body = body,
+        .attack = Signed16(p + 8),
+        .defense = Signed16(p + 10),
+        .type = body ? Read16(p + 28) : 0,
+        .category = body ? 0 : p[14],
+        .icon = Read16(p + (body ? 24 : 44)),
+        .palette = Read16(p + (body ? 26 : 46)),
+        .supported =
+            body ? BodySupported(id)
+                 : (id == 0 || SotnEquipment_IsShield(id) || id == 18 || id == 19 || id == 24 ||
+                    id == 25 || id == 80 || id == 81 || id == 82 || id == 134 || id == 135 ||
+                    id == 143 || id == 119 || id == 133 || id == 163 || id == 164 || id == 165 ||
+                    (id != 125 && SotnEquipment_IsSword0(id)) || SotnEquipment_IsBasicFist(id) ||
+                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 128 || id == 166 ||
+                    (id >= 29 && id <= 79) || (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -174,15 +187,17 @@ bool SotnCharacter_Validate(const SotnCharacterState *s)
     for (Uint32 i = 0; i < 7; ++i)
         if (s->equipment[i] >= (i < 2 ? SOTN_HAND_ITEMS : SOTN_BODY_ITEMS))
             return SDL_SetError("Equipped item exceeds its table");
-    for (Uint32 i = 0; i < SOTN_HAND_ITEMS; ++i)
-        if (s->hand_count[i] > 99)
-            return SDL_SetError("Hand inventory exceeds 99");
+    if ((SotnEquipment_IsTwoHand(s->equipment[0]) || SotnEquipment_IsTwoHand(s->equipment[1])) &&
+        s->equipment[0] != s->equipment[1])
+        return SDL_SetError("Two-hand equipment requires its one owned copy in both actual slots");
+    // Original hand stock is a byte. Ordinary pickups cap at99, but a Fairy's later
+    // unchecked decrement can wrap after another producer consumes the last spare.
     for (Uint32 i = 0; i < SOTN_BODY_ITEMS; ++i)
         if (s->body_count[i] > 99)
             return SDL_SetError("Body inventory exceeds 99");
     return true;
 }
-static Uint16 Root(Uint16 value)
+static Uint32 Root(Uint32 value)
 {
     if (!value)
         return 0;
@@ -196,8 +211,7 @@ static Uint16 Root(Uint16 value)
         ++leading;
     }
     const Uint16 even = (Uint16)(leading & 0xfffeU);
-    const Uint32 normalized =
-        even >= 24 ? (Uint32)value << (even - 24U) : (Uint32)value >> (24U - even);
+    const Uint32 normalized = even >= 24 ? value << (even - 24U) : value >> (24U - even);
     Uint32 remaining = normalized << 18, root = 0, bit = 1U << 30;
     while (bit > remaining)
         bit >>= 2;
@@ -212,16 +226,60 @@ static Uint16 Root(Uint16 value)
             root >>= 1;
         bit >>= 2;
     }
-    return (Uint16)((root << ((31U - even) / 2U)) >> 12);
+    return (root << ((31U - even) / 2U)) >> 12;
+}
+// SDK SquareRoot0 for Muramasa's u32 counter: the signed input counts leading sign bits and
+// shifts arithmetically, so counters from 0x80000000 index entries before the private table
+// (0x8002DBE0, file 0x1E3E0). Nonnegative counters use the equivalent table-free Root.
+static bool MuramasaRoot(const SotnCharacter *c, Sint32 *out)
+{
+    const Uint32 value = c->state.muramasa_blood;
+    if (value <= (Uint32)SDL_MAX_SINT32)
+    {
+        *out = (Sint32)Root(value);
+        return true;
+    }
+    Uint32 lzc = 0;
+    const Uint32 inverted = ~value;
+    while (lzc < 32 && !(inverted & (0x80000000U >> lzc)))
+        ++lzc;
+    if (lzc == 32)
+    {
+        *out = 0;
+        return true;
+    }
+    const Uint32 even = lzc & ~1U, shift = (31U - even) >> 1;
+    const Sint32 signed_value = (Sint32)(value - 0x80000000U) - SDL_MAX_SINT32 - 1;
+    const Sint32 normalized = even >= 24
+                                  ? (Sint32)(value << (even - 24U))
+                                  : -(Sint32)(((Uint32)(-(signed_value + 1)) >> (24U - even)) + 1U);
+    const Sint64 at = 0x1e3e0 + ((Sint64)normalized - 64) * 2;
+    if (!c->executable.bytes || at < 0 || (Uint64)at + 2U > c->executable.size)
+        return SDL_SetError("Muramasa's signed-range SquareRoot0 requires its bound SDK image");
+    const Uint8 *p = c->executable.bytes + at;
+    const Sint16 coefficient = (Sint16)(Uint16)(p[0] | (Uint16)p[1] << 8);
+    *out = (Sint32)(((Uint32)(Sint32)coefficient << shift) >> 12);
+    return true;
+}
+static bool ReadOwnedItem(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
+{
+    if (!SotnItem_Read(c->dra, body, id, out))
+        return false;
+    if (!body && id == 125)
+        out->supported = c->playtime_bound;
+    return true;
 }
 static bool Calculate(SotnCharacter *c)
 {
     SotnCharacterStats result = {0};
     SotnItem items[7] = {0};
-    Sint32 bonus[4] = {0}, attack = 0, defense = 0;
+    Sint32 bonus[4] = {0}, attack = 0, defense = 0, muramasa = 0;
+    if ((c->state.equipment[0] == 141 || c->state.equipment[1] == 141) &&
+        !MuramasaRoot(c, &muramasa))
+        return false;
     for (Uint32 i = 0; i < 7; ++i)
     {
-        if (!SotnItem_Read(c->dra, i >= 2, c->state.equipment[i], &items[i]))
+        if (!ReadOwnedItem(c, i >= 2, c->state.equipment[i], &items[i]))
             return false;
         if (!items[i].supported || (i >= 2 && items[i].type != Type(i)))
             return SDL_SetError(
@@ -238,6 +296,9 @@ static bool Calculate(SotnCharacter *c)
             result.absorption |= items[i].absorption;
         }
     }
+    if ((items[0].category == 5 || items[1].category == 5) &&
+        c->state.equipment[0] != c->state.equipment[1])
+        return SDL_SetError("Two-hand equipment lost its paired actual slots");
     for (Uint32 i = 0; i < 4; ++i)
     {
         if ((i == 0 && (c->stat_buff_mask & (1U << SOTN_BUFF_STRENGTH))) ||
@@ -252,10 +313,17 @@ static bool Calculate(SotnCharacter *c)
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack += 20;
     for (Uint32 i = 0; i < 2; ++i)
-        result.attack[i] = (Uint16)SDL_clamp(
-            Word(items[i].attack + attack +
-                 (items[i].attack <= result.total[0] ? result.total[0] : result.total[0] / 2)),
-            0, 999);
+        result.attack[i] =
+            items[i].category == 6 || items[i].category == 10 || items[i].id == 16 ||
+                    (items[i].category == 9 && items[i].attack == 1)
+                ? 0
+                : (Uint16)SDL_clamp(
+                      Word(items[i].attack + attack +
+                           (items[i].attack <= result.total[0] ? result.total[0]
+                                                               : result.total[0] / 2) +
+                           (items[i].id == 125 ? Word(c->playtime.hours) : 0) +
+                           (items[i].id == 141 ? Word(muramasa) : 0)),
+                      0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
         return false;
@@ -279,8 +347,164 @@ static bool Calculate(SotnCharacter *c)
         result.immunity |= 0x200;
     if (c->stat_buff_mask & (1U << SOTN_BUFF_DARK))
         result.resistance |= 0x800;
-    result.defense = (Uint16)SDL_clamp(Word(defense + Root(result.total[1]) - 2), 0, 999);
+    result.defense = (Uint16)SDL_clamp(Word(defense + (Sint32)Root(result.total[1]) - 2), 0, 999);
     c->stats = result;
+    return true;
+}
+static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bool poison,
+                                     Uint32 *random, SotnEquipment *out)
+{
+    if (!c || !random || !out)
+        return SDL_SetError("Retained weapon properties require actual character and copied RNG");
+    Uint32 next_random = *random;
+    const Sint32 critical =
+        e.critical_rate +
+        (Sint32)Root((Uint16)(c->stats.total[3] * 2U + (SotnCombat_Random(&next_random) & 15U))) -
+        5;
+    Sint16 bonus = 0;
+    for (Uint16 i = 2; i < 7; ++i)
+    {
+        SotnItem item = {0};
+        if (!SotnItem_Read(c->dra, true, c->state.equipment[i], &item))
+            return false;
+        bonus = Word(bonus + item.attack);
+    }
+    Sint16 attack = Word(
+        e.attack + (e.attack <= c->stats.total[0] ? c->stats.total[0] : c->stats.total[0] / 2));
+    attack = Word(attack + bonus);
+    if (e.id == 125)
+    {
+        if (!c->playtime_bound)
+            return SDL_SetError("Badelaire requires its actual main-loop playtime owner");
+        attack = Word(attack + Word(c->playtime.hours));
+    }
+    if (e.id == 141)
+    {
+        Sint32 root = 0;
+        if (!MuramasaRoot(c, &root))
+            return false;
+        attack = Word(attack + Word(root));
+    }
+    if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
+        attack = Word(attack + 20);
+    const bool no_attack =
+        e.id == 16 || (SotnEquipment_IsBasicShield(e.id) && e.kind == 128 && e.attack == 1);
+    e.attack = (Sint16)(SDL_clamp(attack, 0, 999) >> (poison ? 1 : 0));
+    if (no_attack)
+        e.attack = 0;
+    e.critical_rate = (Uint16)SDL_clamp(critical, 0, 255);
+    *random = next_random;
+    *out = e;
+    return true;
+}
+bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool poison, Uint32 *random,
+                                  SotnEquipment *out)
+{
+    if (!c || (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 174 &&
+               item != 19 && !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
+               !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 128 && item != 143 &&
+               item != 133 && item != 163 && item != 164 && item != 165 && item != 119))
+        return SDL_SetError("Ordinary properties require an actual integrated hand item");
+    SotnEquipment e = {0};
+    return SotnEquipment_Read(c->dra, item, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                   SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    Uint16 mp = 0;
+    return SotnEquipment_ReadSwordSpecial(c->dra, 123, &e, &mp) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+bool SotnCharacter_ThrowingProperties(const SotnCharacter *c, Uint16 item, bool poison,
+                                      Uint32 *random, SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    return SotnEquipment_ReadThrowing(c->dra, item, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+
+bool SotnCharacter_NeutronProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                     SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    return SotnEquipment_ReadNeutron(c->dra, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+
+bool SotnCharacter_MagicMissileProperties(const SotnCharacter *c, Uint16 item, bool poison,
+                                          Uint32 *random, SotnEquipment *out)
+{
+    if (!c || (item != 0 && item != 24 && item != 25 && (item < 75 || item > 79) && item != 80 &&
+               item != 81 && item != 82 && item != 134 && item != 135))
+        return SDL_SetError("Magic Missile properties require an actual supported raw parent item");
+    SotnEquipment e = {0};
+    return (item != 0 ? SotnEquipment_ReadThrowing(c->dra, item, &e)
+                      : SotnEquipment_Read(c->dra, 0, &e)) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+bool SotnCharacter_SireProperties(const SotnCharacter *c, bool poison, Uint32 *random,
+                                  SotnEquipment *out)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnEquipment e = {0};
+    return SotnEquipment_ReadThrowing(c->dra, 72, &e) &&
+           RetainedWeaponProperties(c, e, poison, random, out);
+}
+
+bool SotnCharacter_SetPlaytime(SotnCharacter *c, SotnPlaytime clock)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    next.playtime = clock;
+    next.playtime_bound = true;
+    if ((!c->playtime_bound || c->playtime.hours != clock.hours) && !Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_BindExecutable(SotnCharacter *c, SotnDataView executable)
+{
+    if (!c || !executable.bytes || executable.size < 0x1e3e0 + 192U * 2U)
+        return SDL_SetError("Character SDK binding requires the complete private executable");
+    SotnCharacter next = *c;
+    next.executable = executable;
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_AddMuramasaBlood(SotnCharacter *c)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    if (c->state.muramasa_blood == SDL_MAX_UINT32)
+        return true;
+    SotnCharacter next = *c;
+    ++next.state.muramasa_blood;
+    if (!Calculate(&next))
+        return false;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_CommitMainLoop(SotnCharacter *c, SotnPlaytime clock, Uint32 random)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    SotnCharacter next = *c;
+    if (!SotnCharacter_SetPlaytime(&next, clock))
+        return false;
+    next.state.random = random;
+    *c = next;
     return true;
 }
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *c, Uint16 mask)
@@ -305,6 +529,11 @@ bool SotnCharacter_Create(SotnDataView dra, SotnCharacter **out)
     if (c == NULL)
         return false;
     c->dra = dra;
+    if (!SotnFamiliarProgress_Init(&c->familiars))
+    {
+        SDL_free(c);
+        return false;
+    }
     c->state.hp = c->state.hp_max = 70;
     c->state.mp = c->state.mp_max = 20;
     c->state.hearts = 10;
@@ -336,6 +565,44 @@ bool SotnCharacter_OpeningGear(SotnCharacter *c)
     if (!Calculate(&next))
         return false;
     *c = next;
+    return true;
+}
+
+bool SotnCharacter_GetFamiliars(const SotnCharacter *c, SotnFamiliarProgress *p, Uint16 *selected)
+{
+    if (!c || (!p && !selected))
+        return SDL_SetError("Familiar query requires its actual character and an output");
+    if (p)
+        *p = c->familiars;
+    if (selected)
+        *selected = c->familiar;
+    return true;
+}
+bool SotnCharacter_RestoreFamiliars(SotnCharacter *c, const SotnFamiliarProgress *p)
+{
+    if (!c)
+        return SDL_InvalidParamError("character");
+    return SotnCharacter_RestoreFamiliarState(c, p, c->familiar);
+}
+bool SotnCharacter_RestoreFamiliarState(SotnCharacter *c, const SotnFamiliarProgress *p,
+                                        Uint16 selected)
+{
+    if (!c || selected > SOTN_FAMILIAR_COUNT)
+        return SDL_SetError("Familiar restoration requires its actual character and identity0..7");
+    if (!SotnFamiliarProgress_Validate(p))
+        return false;
+    c->familiars = *p;
+    c->familiar = selected;
+    return true;
+}
+bool SotnCharacter_SelectFamiliar(SotnCharacter *c, Uint16 selected, bool reloaded)
+{
+    if (!c || selected > SOTN_FAMILIAR_COUNT || (!selected && reloaded))
+        return SDL_SetError("Familiar selection requires actual identity0..7 and load ownership");
+    if (selected && (selected != c->familiar || reloaded) &&
+        !SotnFamiliarProgress_Load(&c->familiars, selected))
+        return false;
+    c->familiar = selected;
     return true;
 }
 
@@ -411,7 +678,7 @@ bool SotnCharacter_Collect(SotnCharacter *c, bool body, Uint16 id)
         {
             if (order[i] == id)
                 existing = i;
-            if (empty == size && counts[order[i]] == 0)
+            if (empty == size && counts[order[i]] == 0 && !IsEmpty(body, order[i]))
             {
                 SotnItem other = {0};
                 if (!SotnItem_Read(c->dra, body, order[i], &other))
@@ -430,6 +697,18 @@ bool SotnCharacter_Collect(SotnCharacter *c, bool body, Uint16 id)
         }
     }
     ++counts[id];
+    return true;
+}
+bool SotnCharacter_PlanCollect(const SotnCharacter *c, SotnCharacterState *state, bool body,
+                               Uint16 id)
+{
+    if (!c || !state || !SotnCharacter_Validate(state))
+        return SDL_SetError("Inventory planning requires actual character progress");
+    SotnCharacter next = *c;
+    next.state = *state;
+    if (!SotnCharacter_Collect(&next, body, id))
+        return false;
+    *state = next.state;
     return true;
 }
 bool SotnCharacter_LearnSpell(SotnCharacterState *s, Uint16 id)
@@ -483,20 +762,26 @@ bool SotnCharacter_Trade(SotnCharacter *c, bool body, Uint16 id, Uint16 quantity
     *c = next;
     return true;
 }
-bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
+static bool Equip(SotnCharacter *c, Uint32 slot, Uint16 id, bool confirmation)
 {
     if (c == NULL || slot >= 7)
         return SDL_SetError("Equipment slot must be 0..6");
     const bool body = slot >= 2;
+    if (!body && (id == 146 || id == 147))
+        return SDL_SetError("This item cannot be equipped");
     SotnItem item = {0};
-    if (!SotnItem_Read(c->dra, body, id, &item))
+    if (!ReadOwnedItem(c, body, id, &item))
         return false;
     if (!item.supported || (body && item.type != Type(slot)))
         return SDL_SetError(
             "This item requires an unintegrated behavior or another equipment slot");
     const Uint16 old = c->state.equipment[slot];
-    if (old == id)
+    if (old == id && !confirmation)
         return true;
+    SotnItem prior = {0}, other = {0};
+    if (!body && (!SotnItem_Read(c->dra, false, old, &prior) ||
+                  !SotnItem_Read(c->dra, false, c->state.equipment[1U - slot], &other)))
+        return false;
     SotnCharacter next = *c;
     Uint8 *count = body ? next.state.body_count : next.state.hand_count;
     if (!IsEmpty(body, id))
@@ -505,19 +790,95 @@ bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
             return SDL_SetError("No unequipped copy of this item is owned");
         --count[id];
     }
-    if (!IsEmpty(body, old))
-        count[old] = (Uint8)SDL_min(99, count[old] + 1);
+    if (!SotnCharacter_Collect(&next, body, old))
+        return false;
     next.state.equipment[slot] = id;
+    if (!body && prior.category == 5)
+        next.state.equipment[1U - slot] = 0;
+    if (!body && item.category == 5)
+    {
+        if (other.category != 5 && !SotnCharacter_Collect(&next, false, other.id))
+            return false;
+        next.state.equipment[1U - slot] = id;
+    }
     if (!Calculate(&next))
         return false;
     *c = next;
     return true;
 }
+bool SotnCharacter_Equip(SotnCharacter *c, Uint32 slot, Uint16 id)
+{
+    return Equip(c, slot, id, false);
+}
+bool SotnCharacter_ConfirmEquipment(SotnCharacter *c, Uint32 slot, Uint16 id)
+{
+    return Equip(c, slot, id, true);
+}
 bool SotnCharacter_Item(const SotnCharacter *c, bool body, Uint16 id, SotnItem *out)
 {
     if (c == NULL)
         return SDL_InvalidParamError("character");
-    return SotnItem_Read(c->dra, body, id, out);
+    return ReadOwnedItem(c, body, id, out);
+}
+
+static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped,
+                              Uint16 kind)
+{
+    if (!c || hand > 1 || !equipped || c->state.equipment[hand] != item ||
+        (kind == 132 ? item < 29 || item > 70
+         : kind == 130
+             ? item != 24 && item != 25 && (item < 75 || item > 79) && item != 80 && item != 81 &&
+                   item != 82 && item != 134 && item != 135 && (item < 71 || item > 74)
+             : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
+        return SDL_SetError("Consumption requires its actual supported equipped hand item");
+    SotnEquipment medicine = {0};
+    if (!SotnEquipment_Read(c->dra, item, &medicine))
+        return false;
+    SotnCharacter next = *c;
+    if (next.state.equipment[5] != 84 && next.state.equipment[6] != 84)
+    {
+        if (next.state.hand_count[item])
+            --next.state.hand_count[item];
+        else
+        {
+            next.state.equipment[hand] = 0;
+            if (!Calculate(&next))
+                return false;
+        }
+    }
+    *equipped = next.state.equipment[hand];
+    *c = next;
+    return true;
+}
+bool SotnCharacter_UseFood(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, item, equipped, 132);
+}
+bool SotnCharacter_UseThrowing(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, item, equipped, 130);
+}
+
+bool SotnCharacter_UseNeutron(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, 71, equipped, 130);
+}
+bool SotnCharacter_UseMedicine(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
+{
+    return UseHandConsumable(c, hand, item, equipped, 131);
+}
+bool SotnCharacter_UseLibraryCard(SotnCharacter *c, Uint16 hand, Uint16 *equipped)
+{
+    return SotnCharacter_UseMedicine(c, hand, 166, equipped);
+}
+bool SotnCharacter_UseFamiliarItem(SotnCharacter *c, Uint16 item)
+{
+    if (!c || item < 144 || item > 162)
+        return SDL_SetError("Familiar consumption requires its actual mapped medicine-family item");
+    // faerie.c decrements the bag byte at the committed pose, not at its earlier stock check.
+    // Duplicator and the equipped copies are deliberately not involved in this operation.
+    --c->state.hand_count[item];
+    return true;
 }
 
 static bool Progression(const SotnCharacter *c, SotnDataView *thresholds, SotnDataView *health)
@@ -566,6 +927,8 @@ bool SotnCharacter_GainExperience(SotnCharacter *c, Uint16 experience, Uint16 en
         return false;
     SotnCharacter next = *c;
     Uint32 reward = experience;
+    if (!SotnFamiliarProgress_Reward(&next.familiars, next.familiar, experience, next.state.level))
+        return false;
     if (next.state.level > enemy_level)
     {
         for (Uint32 i = enemy_level; i < next.state.level; ++i)

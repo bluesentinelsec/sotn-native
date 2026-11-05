@@ -351,8 +351,11 @@ static bool Spittle(Fixture *f)
 
 static bool Shields(Fixture *f)
 {
-    for (Uint32 facing = 0; facing < 4; ++facing)
+    // Original collision.h guards on hitbox state four, not item identity: Alucard shield16
+    // overrides attack1 and basic shields keep SetWeaponProperties attack255; neither damages.
+    for (Uint32 facing = 0; facing < 8; ++facing)
     {
+        const bool basic = facing >= 4;
         SotnActors *s = NULL;
         SotnActorLayout *layout = NULL;
         CHECK(Open(f, 0x2f, &s, &layout));
@@ -364,12 +367,12 @@ static bool Shields(Fixture *f)
         Actor *bone = &s->slots[0];
         bone->state.x = (Sint32)((facing & 1) ? 108 : 132) * 65536;
         bone->state.y = player.y;
-        const bool projectile = facing < 2;
+        const bool projectile = (facing & 3) < 2;
         bone->state.hitbox_state = projectile ? 13 : 5;
         const Sint16 hp = bone->state.hit_points;
         bone->state.hitbox_width = bone->state.hitbox_height = 8;
         bone->vx = bone->vy = 0;
-        player.shield = (SotnPlayerAttack){.equipment = 16,
+        player.shield = (SotnPlayerAttack){.equipment = basic ? 6 : 16,
                                            .right_hand = true,
                                            .active = true,
                                            .offset_x = 14,
@@ -378,13 +381,19 @@ static bool Shields(Fixture *f)
                                            .hit_type = 4,
                                            .hit_effect = 1,
                                            .invincibility_frames = 6,
-                                           .power = 1};
+                                           .power = basic ? 255 : 1};
+        Uint32 expected = s->combat_random;
+        // DealDamage still rolls its critical chance against ordinary targets only.
+        if (!projectile)
+            (void)SotnCombat_Random(&expected);
         CHECK(SotnActors_Tick(s, player, 0, 0));
-        CHECK(s->combat.contact_damage == 0 && s->combat.kills == 0);
+        CHECK(s->combat.contact_damage == 0 && s->combat.kills == 0 &&
+              s->combat_random == expected);
         if (projectile)
             CHECK(bone->state.generation == 0 || bone->remove || (bone->state.flags & 0x100));
         else
-            CHECK(bone->state.hit_points == hp && !(bone->state.flags & 0x100));
+            CHECK(bone->state.hit_points == hp && !(bone->state.flags & 0x100) &&
+                  bone->cooldown[1] == 6);
         SotnActors_Destroy(s);
         SotnActorLayout_Close(layout);
     }

@@ -12,9 +12,18 @@
 #include <sotn/player_blink.h>
 #include <sotn/player_glow.h>
 #include <sotn/tilemap.h>
+#include <sotn/title_screen.h>
 
 /** @brief Owned stage/common actor texture memory, borrowing immutable DRA/NZ0 images. */
 typedef struct SotnActorGraphics SotnActorGraphics;
+
+/** @brief Create original title texture residency before any stage/player owner exists.
+ * @param dra Borrowed verified resident data. @param first Actual F_TITLE0 planes.
+ * @param second Actual F_TITLE1 planes. @param out Owned memory, NULL on failure.
+ * @return Success or SDL error. Loads original32+32 transfers and private SIM_13 palette;
+ * no stage metadata, player, animation, primitive reservation or boot readiness is created. */
+bool SotnActorGraphics_CreateTitle(SotnDataView dra, SotnDataView first, SotnDataView second,
+                                   SotnActorGraphics **out);
 
 /** @brief Initialize original Alucard/effect palette rows from private character-start job 22.
  * @param graphics Borrowed texture owner, before current equipment colors are applied.
@@ -44,6 +53,12 @@ bool SotnActorGraphics_GetPlayerGlow(const SotnActorGraphics *graphics, SotnPlay
  * belong to their respective callers; this operation changes no animation or readiness. */
 bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
 
+/** @brief Upload actual immutable frame9F pixels into original PlayerDraw slot12.
+ * @param graphics Actual resident texture owner. @param sprite Decoded private normal9F.
+ * @return Success or SDL error before texture changes on invalid geometry/slot metadata.
+ * This shares resident VRAM and creates no alternate texture or simulation clock. */
+bool SotnActorGraphics_UploadTalisman(SotnActorGraphics *graphics, const SotnAlucardSprite *sprite);
+
 /** @brief Copy the original private death rectangle from committed owned display texture memory.
  * @param graphics Actual texture owner. @param out Receives packed pixels and fresh decay cursor.
  * @return Success or SDL error preserving output for malformed bounds or missing uploaded words.
@@ -57,6 +72,25 @@ bool SotnActorGraphics_StoreDeathImage(const SotnActorGraphics *graphics, SotnDe
  * this upload succeeds; repeated drawing must not advance decay or overwrite it with source art.
  */
 bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *graphics, const SotnDeathImage *image);
+
+/** @brief Transaction snapshot of the two original dissolve rectangles, including unloaded
+ * word validity. This is rollback storage, not a texture/effect pool or capture readiness. */
+typedef struct SotnDissolveTextures
+{
+    Uint16 words[2][2560], x[2], y[2];
+    Uint8 valid[2][2560];
+} SotnDissolveTextures;
+/** @brief Snapshot both bounded private32x80 rectangles without requiring resident pixels.
+ * Output holds only owned VRAM words/validity; no art upload, image capture or tick occurs. */
+bool SotnActorGraphics_SaveDissolve(const SotnActorGraphics *graphics, SotnDissolveTextures *out);
+/** @brief Restore both actual rectangle words and validity after failed native work.
+ * Requires the same private rectangle descriptors; unrelated VRAM remains untouched. */
+bool SotnActorGraphics_RestoreDissolve(SotnActorGraphics *graphics,
+                                       const SotnDissolveTextures *snapshot);
+/** @brief Actual original dissolve LoadImage into the primary or adjacent secondary rectangle.
+ * Requires a completed5120-byte capture; validates both descriptors before any texture writes. */
+bool SotnActorGraphics_LoadDissolve(SotnActorGraphics *graphics, const SotnDeathImage *image,
+                                    bool secondary);
 
 /** @brief Prepare an original normal-ARC afterimage packet and its actual private display upload.
  * @param graphics Owned texture memory. @param sprite Borrowed immutable decoded ARC pose.
@@ -103,7 +137,7 @@ bool SotnActorGraphics_SetPlayerPalette(SotnActorGraphics *graphics, const Uint1
  * @return Success or SDL error for missing owner, output or resident palette colors. */
 bool SotnActorGraphics_GetMistPalette(const SotnActorGraphics *graphics, Uint16 out[16]);
 
-/** @brief Borrowed tightly packed RGB555 raster surface; each dimension is 1..256. */
+/** @brief Borrowed tightly packed RGB555 surface; actor dimensions are1..256, title512x240. */
 typedef struct SotnActorSurface
 {
     Uint16 *pixels;
@@ -151,6 +185,31 @@ bool SotnActorGraphics_CreateStage(SotnDataView dra, SotnDataView nz0, SotnTileS
  * @note Handles bounded raw and dictionary/RLE uploads; validates all transfers before applying.
  */
 bool SotnActorGraphics_LoadBank(SotnActorGraphics *graphics, Uint32 bank);
+/** @brief Bind actual familiar stage bank20 and upload its original shared resident rectangles.
+ * @param graphics Owned texture service. @param overlay Verified immutable familiar overlay.
+ * @param textures Verified FT image, exactly24576 bytes; read only during this call.
+ * @param parts Original sprite pointer-table address. @param palette Original CLUT address.
+ * @return Success, or SDL error without VRAM/binding mutation after any validation failure.
+ * Copies all256 original palette words, including private adjacent bytes; never reads beyond
+ * the bounded overlay. Caller retains overlay until replacement/clear/destruction.
+ * No entity, row pool, alternate texture memory or familiar availability is created. */
+bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,
+                                    SotnDataView textures, Uint32 parts, Uint32 palette);
+/** @brief Prepare a detached familiar graphics candidate without changing live VRAM or binding.
+ * @param graphics Actual texture/palette/capture owner, outside an active render target.
+ * @param overlay Borrowed verified overlay. @param textures Borrowed verified FT input.
+ * @param parts Actual sprite-table address. @param palette Actual original CLUT address.
+ * @param out Receives an owned candidate, NULL on failure; destroy normally if not committed.
+ * @return Success or SDL error. Copies current resident pixels, validity, palette jobs and
+ * capture state, then validates/uploads familiar data only in the candidate. Caller commits
+ * all native resource/entity owners before replacing the live pointer. No clocks advance;
+ * borrowed sources must outlive whichever owner retains them. This enables no familiar. */
+bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDataView overlay,
+                                       SotnDataView textures, Uint32 parts, Uint32 palette,
+                                       SotnActorGraphics **out);
+/** @brief Release the borrowed familiar sprite binding, retaining original resident VRAM.
+ * @param graphics Owned service or NULL. Call before releasing its borrowed overlay. */
+void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics);
 /** @brief Upload one original 48x72 eight-bit dialogue portrait from the borrowed overlay.
  * @param graphics Owned texture memory. @param offset Checked stage-relative pixel offset.
  * @param slot Original portrait slot 0 or 1. @return Success or SDL error; unchanged on error.
@@ -169,6 +228,26 @@ bool SotnActorGraphics_LoadDialogue(SotnActorGraphics *graphics, SotnDialogueSta
  * @return Success, or false with SDL_GetError() and unchanged texture memory on bad references. */
 bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weapons, Uint32 hand,
                                   SotnEquipment equipment);
+/** @brief Commit one weapon-program g_Clut word, as weapon51's glow LoadImage uploads it.
+ * @param graphics Owned graphics. @param palette Palette 0x110..0x13F (the uploaded 256x3 rows).
+ * @param color Colour 0..15. @param value 15-bit colour plus mask bit.
+ * @return Success, or false with SDL_GetError() and unchanged memory outside those rows. */
+bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                     Uint16 value);
+/** @brief Read-modify one weapon-program g_Clut word: (word & mask) + add, as weapon26's green
+ * cycle rewrites g_Clut and LoadImage uploads it. The current word must already be uploaded.
+ * @param graphics Owned graphics. @param palette Palette 0x110..0x13F. @param color Colour 0..15.
+ * @param mask Bits kept from the current word. @param add Value added (16-bit wrap).
+ * @return Success, or false with SDL_GetError() and unchanged memory. */
+bool SotnActorGraphics_ModifyWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                        Uint16 mask, Uint16 add);
+/** @brief Read one uploaded weapon-program g_Clut word (palette 0x110..0x13F, colour 0..15).
+ * @return Success, or false with SDL_GetError() when the word was never uploaded. */
+bool SotnActorGraphics_WeaponClut(const SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                  Uint16 *out);
+/** @brief Copy the actual successfully loaded program binding, retained after last-copy use. */
+bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
+                                     bool *bound);
 /**
  * @brief Draw supported common/stage sprites into the shared RGB555 frame.
  * @param graphics Borrowed initialized texture memory and immutable source images.
@@ -198,6 +277,12 @@ typedef struct SotnSpriteTransform
     Uint16 opacity;
     bool tint; /**< When true, RGB multipliers replace opacity. */
     Uint8 red, green, blue;
+    SotnDataView executable; /**< Actual private SDK table when sdk_rotation is enabled. */
+    Sint16 pivot_x, pivot_y; /**< Original entity rotation pivots, before facing adjustment. */
+    bool sdk_rotation; /**< Signed-word scaling before original SquareRoot12/ratan2/trig rotation.
+                           SDK vertex-distance bounds still apply before drawing. */
+    bool sdk_scale;    /**< Original integer scale-only packet path, including entity pivots. */
+    bool original_uv;  /**< Preserve original mirrored packet UV bytes even without rotation. */
 } SotnSpriteTransform;
 /** @brief Resolve a copied actor's explicit transform flags or its legacy value selectors.
  * @param actor Copied presentation state; no ownership transfers.
@@ -209,7 +294,8 @@ SotnSpriteTransform SotnActorGraphics_GetTransform(SotnActorState actor);
 /** @brief Draw a bounded scaled/rotated/color-modulated multipart actor.
  * @param graphics Borrowed texture service. @param sprite Private sprite selection.
  * @param x Screen anchor. @param y Screen anchor. @param transform Nonzero signed scale
- * -1024..1024 (negative reflects the axis), color 0..255.
+ * -1024..1024 (negative reflects the axis), color0..255. With sdk_rotation, nonzero signed-word
+ * scales use original scale-before-rotation packets and actual SDK distance bounds instead.
  * @param frame Full writable frame. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActorSprite sprite,
@@ -223,6 +309,12 @@ bool SotnActorGraphics_DrawTransform(const SotnActorGraphics *graphics, SotnActo
 bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, SotnSpriteTransform transform,
                                    SotnActorSurface surface);
+/** @brief Draw an actual weapon15/55 secondary bank17/19 after SetSpriteBank2.
+ * Requires its real resident hand program and private table. Common bank17 stays resident.
+ * Other parameters and atomic validation follow DrawSurface; this binds no gameplay owner. */
+bool SotnActorGraphics_DrawSecondaryWeaponSurface(const SotnActorGraphics *, SotnActorSprite,
+                                                  Sint32 x, Sint32 y, SotnSpriteTransform,
+                                                  SotnActorSurface);
 /** @brief Prepare the original Wall rope cache with bounded CPU copies in texture memory.
  * @param graphics Borrowed initialized texture service, after loading the room bank.
  * @return Success or SDL error; invalid/missing source pixels leave texture memory intact. */
@@ -235,20 +327,33 @@ typedef struct SotnTextureQuad
     Uint16 u[4], v[4]; /**< Texture edges 0..256, including the mirrored page boundary. */
     Uint16 page, palette;
     bool blend, modulate, tint;
+    bool triangle; /**< Original GT3: use only vertices0..2 and ignore the fourth slot. */
     Uint8 red, green, blue;
     Uint8 opacity;    /**< Color multiplier, 128 neutral, used only when modulate is true. */
     bool gouraud;     /**< Interpolate per-vertex multipliers instead of the uniform tint. */
     bool framebuffer; /**< Sample an owned captured 256x240 frame through direct-color pages. */
     bool untextured;  /**< Use vertex/uniform colors directly; black is opaque, UVs are unused. */
+    bool dither;      /**< Original DTD conversion for selected untextured Gouraud polygons. */
     Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
+    /** Original-data geometry: beyond +-2048 apply the GPU's signed 11-bit vertex wrap and drop
+     * triangles spanning more than 1023x511 instead of failing. */
+    bool gpu_wrap;
 } SotnTextureQuad;
-/** @brief Draw a bounded textured or untextured quad as two triangles.
+/** @brief Draw a bounded polygon as one GT3 triangle or two quad triangles.
  * @param graphics Borrowed texture service; NULL is valid for an untextured quad.
  * @param quad Copied quad, coordinates within +/-2048.
  * @param frame Full RGB555 output. @param count Available pixels.
  * @return Success or SDL error; invalid references leave the frame unchanged. */
 bool SotnActorGraphics_Quad(const SotnActorGraphics *graphics, SotnTextureQuad quad, Uint16 *frame,
                             size_t count);
+/** @brief Draw one original title SPRT through the actual resident palette/texture owner.
+ * @param graphics Actual title graphics. @param sprite Copied original SPRT fields.
+ * @param surface Complete512x240 display. @return Success or SDL error before pixel writes
+ * for invalid reads. Uses r0/g0/b0 only, original byte UV wrap and STP-gated blend.
+ * This performs no resource load, animation, engine clock or menu transition. */
+bool SotnActorGraphics_TitleSprite(const SotnActorGraphics *graphics, const SotnTitleSprite *sprite,
+                                   SotnActorSurface surface);
+
 /** @brief Draw a bounded quad to a borrowed 1..256 by 1..256 RGB555 surface.
  * @param graphics Borrowed texture owner, optional for untextured quads.
  * @param quad Surface-space geometry. @param surface Writable tightly packed pixels/view.
@@ -264,6 +369,24 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *graphics, SotnTextur
 bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *graphics,
                                     const SotnPlayerEffectQuad *packet, Sint32 offset_x,
                                     Sint32 offset_y, SotnActorSurface surface);
+/** @brief PlayerEffect for packets built from original private tables: out-of-range vertices
+ * follow the GPU (11-bit wrap, over-span triangles dropped) rather than failing.
+ * Parameters, ownership and remaining validation follow SotnActorGraphics_PlayerEffect. */
+bool SotnActorGraphics_PlayerEffectGpu(const SotnActorGraphics *graphics,
+                                       const SotnPlayerEffectQuad *quad, Sint32 offset_x,
+                                       Sint32 offset_y, SotnActorSurface surface);
+/** @brief Draw an original textured GT3 packet using only its first three vertices.
+ * Attributes and validation follow PlayerEffect; the fourth packet slot is unused. */
+bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *, const SotnPlayerEffectQuad *,
+                                      Sint32 offset_x, Sint32 offset_y, SotnActorSurface);
+/** @brief Draw a selected original untextured G4 with DRAW_COLORS and optional DTD dithering.
+ * @param packet Borrowed original colors/coordinates/draw mode. @param offset_x Target X shift.
+ * @param offset_y Target Y shift. @param surface Borrowed normal RGB555 raster surface.
+ * @return Success or SDL error; hidden packets hold the raster. Owns no leases or update clock.
+ * Dither uses raster coordinates before RGB555 quantization and original semi-transparency.
+ * Textured/flat DTD and arbitrary offscreen VRAM origins remain outside this selected service. */
+bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *packet, Sint32 offset_x,
+                                         Sint32 offset_y, SotnActorSurface surface);
 /** @brief Open one owned offscreen VRAM target for ordered drawing.
  * @param graphics Borrowed texture owner; no other target may be active.
  * @param target Rectangle in 1024x512 owned texture memory, width/height 1..256.
@@ -369,4 +492,10 @@ bool SotnActorGraphics_ReddenPalette(SotnActorGraphics *graphics, SotnPaletteRed
 bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                   Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
                                   SotnActorSurface surface);
+/** @brief SDK scale-only packets retaining original mirrored UV endpoint bytes.
+ * Same bounds and ownership as DrawScaled. Uses neutral color; callers whose actual
+ * entity flags omit OPACITY must not synthesize a tint from a retained opacity field. */
+bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *graphics, SotnActorSprite sprite,
+                                          Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
+                                          SotnActorSurface surface);
 #endif

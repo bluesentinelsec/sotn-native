@@ -38,6 +38,7 @@ bool SotnPlayer_SetMistContext(SotnPlayer *p, const SotnMistEffect *effect, Uint
 void SotnPlayer_MistInput(SotnPlayer *p)
 {
     p->mist.started = p->mist.request_restore = p->mist.retire = false;
+    p->mist.interrupted = false;
     if (p->mist_lockout)
         --p->mist_lockout;
     if (!p->mist_context || p->mist_lockout || p->script_hold || p->mist_underwater ||
@@ -81,7 +82,7 @@ void SotnPlayer_MistInput(SotnPlayer *p)
         return;
     }
     const bool inverted = p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down;
-    p->dark.ticks = 0;
+    p->dark_ticks = 0;
     SotnPlayer_GravityCancel(p);
     const Sint16 settle = p->mist_motion.settle_y;
     p->mist_motion = (SotnMistMotion){
@@ -127,6 +128,7 @@ void SotnPlayer_MistTick(SotnPlayer *p)
     p->substep = p->mist_motion.phase;
     if (events.started)
     {
+        p->hand_retire = 2;
         p->movement_flags = 0;
         p->attack_mode = 0;
         p->attack = p->shield = (SotnPlayerAttack){0};

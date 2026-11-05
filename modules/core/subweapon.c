@@ -111,6 +111,20 @@ bool SotnSubweapons_Enter(SotnSubweapons *s, SotnCollisionMap map)
     s->sound_count = 0;
     return true;
 }
+bool SotnSubweapons_ClearPlayerEntities(SotnSubweapons *s)
+{
+    if (!s)
+        return SDL_InvalidParamError("subweapons");
+    // Fairy searches actual entity0x29 (stopwatch), not decimal29 (Hellfire flash).
+    for (Uint16 i = 0; i < SOTN_SUBWEAPON_SLOTS; ++i)
+        if (s->slots[i].state.generation && s->slots[i].state.id == 6)
+        {
+            s->frozen = false;
+            break;
+        }
+    SDL_zero(s->slots);
+    return true;
+}
 bool SotnSubweapons_Use(SotnSubweapons *s, SotnPlayerState player, bool *used, Uint16 *animation)
 {
     if (s == NULL || used == NULL || animation == NULL)
@@ -521,6 +535,11 @@ bool SotnSubweapons_Tick(SotnSubweapons *s, SotnPlayerState player, Sint32 camer
         if (s->slots[i].state.generation != 0 && s->slots[i].state.generation <= generation &&
             !TickOne(s, &s->slots[i], player, camera_x, camera_y))
             return false;
+    // UpdatePlayerEntities' final original atari_nuki clears actual retained hitboxes.
+    if (SotnPlayerStep_IsDead(player.step) ||
+        (player.step == SOTN_PLAYER_TELEPORT && !player.substep))
+        for (Uint32 i = 0; i < SOTN_SUBWEAPON_SLOTS; ++i)
+            s->slots[i].state.attack.active = false;
     return true;
 }
 bool SotnSubweapons_Get(const SotnSubweapons *s, Uint32 slot, SotnSubweaponState *out)

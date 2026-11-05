@@ -261,7 +261,9 @@ bool ActorDialogue(SotnActors *s, Actor *a)
                 !ActorDialogue_Byte(s, &s->death_event.script, &low))
                 return false;
             const Uint16 sound = (Uint16)((Uint16)high << 4 | low);
-            if (sound == 0x92 || sound == 0x0a)
+            if (sound == 0x92)
+                s->combat.cd_command = sound;
+            else if (sound == 0x0a)
             {
                 s->combat.music_change = true;
                 s->combat.music = 0;
@@ -383,7 +385,7 @@ static bool Manager(SotnActors *s, Actor *a)
         a->death.timer = 512;
     }
     --a->death.timer;
-    s->control = (SotnActorControl){.timer = 2};
+    s->control = (SotnActorControl){.timer = 1};
     s->motion.protect = true;
     SotnDialogueState *d = &s->death_event.display;
     switch (a->state.step)
@@ -423,6 +425,8 @@ static bool Manager(SotnActors *s, Actor *a)
                 }
             }
             a->timer = 16;
+            s->control.mode = 1;
+            s->control.block_stopwatch = true;
             ++a->state.step;
         }
         break;
@@ -841,6 +845,14 @@ bool SotnActors_Dialogue(SotnActors *s, bool voice_playing, SotnDialogueState *o
     s->death_event.voice_playing = voice_playing;
     if (out != NULL)
         *out = s->death_event.display;
+    return true;
+}
+
+bool SotnActors_GetDialogue(const SotnActors *s, SotnDialogueState *out)
+{
+    if (!s || !out)
+        return SDL_SetError("Dialogue snapshot requires its actual owner and output");
+    *out = s->death_event.display;
     return true;
 }
 

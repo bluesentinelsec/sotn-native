@@ -31,6 +31,13 @@ bool SotnPresenter_Create(const char *title, int width, int height, SotnPresente
 bool SotnPresenter_SetImage(SotnPresenter *presenter, const Uint8 *pixels, size_t size, int width,
                             int height);
 
+/** @brief Set logical display size independently from the uploaded pixel resolution.
+ * @param presenter Borrowed presenter. @param width Positive logical display width, <=16384.
+ * @param height Positive logical display height, <=16384. Set both to0 to use image dimensions.
+ * @return Success or SDL error without mutation. The title uses320x240 logical display for its
+ * 512x240 source. This uploads no image, resizes no window and advances no clock. */
+bool SotnPresenter_SetDisplaySize(SotnPresenter *presenter, int width, int height);
+
 /**
  * @brief Draw the uploaded image with preserved aspect ratio and swap the window.
  * @param presenter Borrowed presenter with an uploaded image.
@@ -44,6 +51,8 @@ bool SotnPresenter_Draw(SotnPresenter *presenter);
  * @param presenter Owned presenter, or NULL for no operation. All references expire on return.
  */
 void SotnPresenter_Destroy(SotnPresenter *presenter);
+/** @brief Actual SDL window identity, or zero for NULL; no window or clock mutation. */
+Uint32 SotnPresenter_WindowID(const SotnPresenter *presenter);
 
 /**
  * @brief Check real shader compilation, texture orientation, colors, and context recreation.

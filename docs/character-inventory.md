@@ -15,7 +15,38 @@ attribute clamps follow selected reconstructed paths. The native Laboratory
 profile remains explicit: level 1, 70 HP, 20 MP, base stats 6, and 10/50 hearts.
 It is not the original new-game entry.
 
-The supported attack implementations are empty hands, Basilard, Gladius, Mace, and ordinary Alucard sword/shield.
+Selected ordinary weapon attacks include empty hands, Basilard, Gladius, Short sword,
+Mace, and Alucard sword/shield through the actual [shared hand owner](shared-ordinary-hands.md).
+The selected [ordinary weapon0 swords](player-basic-swords.md) add19 one-hand items;
+[Namakura/two-hand ownership](player-two-hand-equipment.md) now adds one-copy/both-word
+reservation, ordered displaced returns and paired restoration. The native menu
+performs actual confirmation, including spare decrement before a capped return.
+Programmatic equipment setting remains idempotent. Virtual empty rows stay out of
+physical first-empty searches without receiving stock. No default grants or v9
+fields are added; remaining two-hand families and equipment effects stay open.
+Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Axe Lord8, Goddess11,
+Shaman12 and Alucart167
+through the same owner; other shield families stay unavailable. Every owned shield's both-buttons [combo spell](player-shield-combos.md) now runs with
+Mablung.
+Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
+[Iron Fist and Fist of Tulkas](player-fist-specials.md) add their punch rushes and fireball.
+Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,
+Nunchaku, Red Rust, Holy rod, Star flail, Combat knife and Great Sword; [Gurthang](player-gurthang.md) adds its
+QCF special, [Holy sword](player-holy-sword.md) its QCF special with the first weapon
+secondary, [Rapier/Were bane](player-lunge-weapons.md) their QCF lunges, and the two-handed
+[Katana](player-katana.md) its slash chain, [Claymore/Flamberge/Zwei hander/Obsidian sword/Estoc](player-weapon51-specials.md)
+their glows, specials and lunge, [Osafune/Masamune](player-katana-warp.md) their
+warps, [Firebrand/Marsil](player-firebrand-marsil.md) their fire specials, [Icebrand](player-icebrand.md)
+its frost special, [Moon rod](player-moon-rod.md) its crescents, [Runesword](player-runesword.md)
+and [Heaven sword](player-heaven-sword.md) their homing throws (a pair of Heaven swords also casts its
+both-buttons sweep), [Shield rod](player-shield-rod.md) its guarding orb, [Chakram, Vorpal blade and
+Crissaegrim](player-weapon12.md) their returning ring and sliding slashes, two-handed
+[Muramasa](player-muramasa.md) its blood-grown attack and slashes, two-handed
+[Yasutsuna](player-yasutsuna.md) its thrown slash chain, [Shotel](player-shotel.md) its
+boomerang throw and punch, two-handed [Sword of Dawn](player-sword-of-dawn.md) its summoned
+squad, and
+[Thunderbrand](player-thunderbrand.md) its
+lightning; the two-handed ones use Namakura's paired reservation.
 The original opening body equipment is supported; see [opening scope](opening-equipment.md).
 Spike Breaker now equips and drives the selected [Chapel spike corridor](chapel-spikes.md).
 Its original ownership, armor stats and equipped slot use the existing save fields;
@@ -27,14 +58,51 @@ Owned [Fury Plate](stat-buff-ownership.md), [Healing Mail/Mystic Pendant](hud-he
 and [Blood Cloak](player-blood-cloak.md) now have their selected actual gameplay
 owners. Their availability does not establish all equipment effects; see the
 [current Alucard checklist](alucard-status.md).
+Owned [Library Card166](player-library-card.md) now selects and consumes through
+ordinary hand input and actual Library travel. Duplicator84 preserves this selected
+consumable in either accessory. The subsequent [owned medicine owner](player-medicines.md)
+adds17 equippable items144..162, excluding Life Apple146/Hammer147 as required by
+the original menu. Either Duplicator preserves them; Ankh of Life80 scales Potion/
+High Potion healing once even with two. Their cures, buffs, HP/MP and shared effects
+now run. [Owned food29..70](player-food.md) now adds actual weapon21 use, raw healing,
+Peanuts, Toadstool and Meal Ticket inventory/text pickup. Food and medicine retain
+the original zero displayed weapon attack; raw food attack remains healing power.
+[Owned Pentagram73/Bat Pentagram74](player-pentagrams.md) now selects and consumes
+through either hand, with actual weapon17,25 shared rows, private GT4/GT3 drawing,
+original SDK/GTE breakup and24-frame native global attacks. Duplicator preserves
+both items; last-copy use retains the resident program.
+[Owned Power of Sire72](player-power-of-sire.md) now selects and consumes through
+either hand, with actual shared weapon18 parents/bursts, native global attacks,
+private presentation and real shared flash/shake/particles. Its live weapon attack
+uses retained metadata even after last-copy consumption.
+[Owned Neutron Bomb71](player-neutron-bomb.md) now selects and consumes through
+either hand, with its actual shared weapon19/GT4, private animation/rendering and
+global damage pulse. Its live STR/body/buff/poison-scaled weapon attack remains
+distinct from food's raw healing value. Duplicator preserves the bomb.
+Other consumable/equipment effects and the familiar completion gates stay open.
 Owned Gold/Ruby/Opal/Topaz/Beryl and Cat-eye circlets now connect their actual
 [contact-absorption owner](player-contact-absorption.md), with unchanged ordinary
 ownership and save fields. This does not establish ordinary acquisition routes.
+Owned God's Garb and Nauglamir now use their actual additive attributes through
+selection; the [selected guard owner](player-contact-guard.md) consumes real high
+DEF without granting stats or items in ordinary starts.
+Owned [Talisman](player-contact-talisman.md) now uses the actual accessory count,
+derived LCK and one libc roll for contact dodge, with shared visuals and original
+recovery. This establishes no acquisition or remaining injury parity.
+Owned [Ballroom Mask](player-ballroom-mask.md) now applies its original conditional
+contact reduction as well as its existing additive attributes. Its single actual
+head slot, pre-defense ordering and existing inventory/save ownership remain intact.
 Ordinary armor/head/cape/ring records with integrated additive effects can be
 equipped; conditional/transforming items remain owned but explicitly unavailable
 for use. This does not claim every passive effect, item category, transformation,
 spell, or weapon is implemented. Stage-session temporary candle/enemy flags stay
 separate from permanent item progress.
+
+[Owned Magic Missile25](player-magic-missile.md) now selects and consumes through
+either hand with original chain4, shared bow/arrow factories, private weapon22
+sprites/animation and native physical damage. Raw right-hand arrows retain
+params0 and count toward the left-hand item25 limit. Last-copy use retains the
+actual loaded hand program. No ordinary starts or v9 save fields change.
 
 ## Native equipment loop
 
@@ -70,7 +138,7 @@ now connect poison/curse/stone and selected equipment passives; full elemental
 reactions and other special item behavior remain unfinished.
 
 The [progression service](character-progression.md) now awards EXP and updates
-levels/resources. Version 3 [native saves](native-saves.md) retain this supported
+levels/resources. Version-nine [native saves](native-saves.md) retain this supported
 progress; [selected subweapons](laboratory-subweapons.md) consume hearts and damage
 enemies. Versions 1/2 migrate explicitly from their earlier limited profile.
 

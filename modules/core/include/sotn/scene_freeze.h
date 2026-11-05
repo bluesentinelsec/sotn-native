@@ -1,7 +1,7 @@
 #ifndef SOTN_SCENE_FREEZE_H
 #define SOTN_SCENE_FREEZE_H
 #include <sotn/game_data.h>
-/** @brief Selected original engine-five spell freeze, separate from ordinary pause.
+/** @brief Selected original engine-five spell/Fairy freeze, separate from ordinary pause.
  * Zero-initialize on full stage initialization. No state is saved to ordinary slots. */
 typedef struct SotnSceneFreeze
 {
@@ -12,7 +12,9 @@ typedef enum SotnSceneFreezeFrame
 {
     SOTN_SCENE_NORMAL,
     SOTN_SCENE_FROZEN,
-    SOTN_SCENE_RELEASE
+    SOTN_SCENE_RELEASE,
+    SOTN_SCENE_FAIRY /**< FFF: full player, only familiar4..7, frozen stage; no shared8..63/shake.
+                      */
 } SotnSceneFreezeFrame;
 /** @brief Select this frame's original engine path before any child can change its request.
  * @param freeze Actual engine owner. @param out Receives stable mode for the entire frame.
@@ -20,8 +22,9 @@ typedef enum SotnSceneFreezeFrame
  * separate release-only frame: apply original protection/audio resume then return, with no
  * player/child/stage update. Normal simulation resumes on the following frame. */
 bool SotnSceneFreeze_BeginFrame(SotnSceneFreeze *freeze, SotnSceneFreezeFrame *out);
-/** @brief Apply actual portal birth(3) or retirement(0), without changing this frame's mode.
- * @param freeze Actual engine owner. @param request Selected original request0/3.
+/** @brief Apply actual portal birth(3), Fairy hold(FFF) or retirement(0), without changing this
+ * frame's mode.
+ * @param freeze Actual engine owner. @param request Selected original request0/3/FFF.
  * @return Success or SDL error preserving state. No capture, allocation or readiness is implied. */
 bool SotnSceneFreeze_Request(SotnSceneFreeze *freeze, Uint16 request);
 /** @brief Select engine five at the END of the ordinary birth frame.

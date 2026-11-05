@@ -1,4 +1,71 @@
 add_library(sotn-core STATIC
+  main_loop.c
+  include/sotn/main_loop.h
+  playtime.c
+  include/sotn/playtime.h
+  hand_weapon.c
+  weapon_secondary.c
+  include/sotn/weapon_secondary.h
+  include/sotn/hand_weapon.h
+  title_screen.c
+  karma_coin.c
+  include/sotn/karma_coin.h
+  include/sotn/title_screen.h
+  magic_missile.c
+  include/sotn/magic_missile.h
+  thrown_weapon.c
+  star_weapon.c
+  include/sotn/thrown_weapon.h
+  include/sotn/star_weapon.h
+  pentagram.c
+  include/sotn/pentagram.h
+  sire.c
+  include/sotn/sire.h
+  neutron.c
+  include/sotn/neutron.h
+  food.c
+  include/sotn/food.h
+  food_popup.c
+  include/sotn/food_popup.h
+  actor_food_text.c
+  include/sotn/actor_primitive.h
+  familiar_stats.c
+  include/sotn/familiar_stats.h
+  fairy_runtime.c
+  include/sotn/fairy_runtime.h
+  fairy_effects.c
+  include/sotn/fairy_effects.h
+  familiar_events.c
+  include/sotn/familiar_events.h
+  fairy.c
+  include/sotn/fairy.h
+  familiar_animation.c
+  include/sotn/familiar_animation.h
+  player_medicine.c
+  medicine_effect.c
+  include/sotn/medicine_effect.h
+  player_circle.c
+  include/sotn/player_circle.h
+  teleport_effect.c
+  include/sotn/teleport_effect.h
+  axe_armor.c
+  include/sotn/axe_armor.h
+  talisman_effect.c
+  include/sotn/talisman_effect.h
+  immunity_text.c
+  dark_hit.c
+  include/sotn/dark_hit.h
+  fire_hit.c
+  include/sotn/fire_hit.h
+  ice_hit.c
+  stone_dissolve.c
+  include/sotn/stone_dissolve.h
+  include/sotn/ice_hit.h
+  thunder_hit.c
+  include/sotn/thunder_hit.h
+  holy_hit.c
+  include/sotn/holy_hit.h
+  include/sotn/immunity_text.h
   healing_number.c
   death_image.c
   include/sotn/death_image.h
@@ -8,6 +75,10 @@ add_library(sotn-core STATIC
   include/sotn/water_damage.h
   player_water.c
   player_contact.c
+  player_script.c
+  include/sotn/player_timers.h
+  sword_warp.c
+  include/sotn/sword_warp.h
   stat_buffs.c
   hud_resources.c
   rising_heart.c
@@ -317,6 +388,7 @@ add_library(sotn-core STATIC
   player_kick.c
   player_gravity.c
   player_stone.c
+  player_physical_death.c
   player_sensors.c
   player_internal.h
   include/sotn/collision.h

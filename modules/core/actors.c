@@ -490,6 +490,44 @@ static void HippogryphHit(SotnActors *s, Actor *root, const Actor *hit, Uint32 c
         weapon->state.flags &= ~0x20000000U;
     }
 }
+// collision.h writes the attacker's hitFlags when the boxes overlap, before any guard or
+// damage handling: hit type4 guards (shields, Shield rod's orb) receive them too.
+static bool AttackerFeedback(SotnActors *actors, Uint32 channel, Uint32 wing_start,
+                             const Actor *actor, const Actor *recipient)
+{
+    if (channel >= wing_start)
+    {
+        const Uint16 index = (Uint16)(channel - wing_start);
+        const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
+        if (index == 2 && (actors->bat_runtime->wolf_mask & 1U))
+        {
+            Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+            if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                flags = 2;
+            if (!SotnWolfRuntime_Hit(&actors->bat_runtime->wolf,
+                                     actors->bat_runtime->wolf.children[1].generation, flags))
+                return false;
+        }
+        else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
+                 (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) || child->star ||
+                 // collision.h writes the attacker's hitFlags unless both it and the
+                 // enemy carry FLAG_UNK_100000.
+                 ((child->weapon_secondary || child->hand_weapon) &&
+                  !((child->weapon_secondary ? child->state.secondary.motion.flags
+                                             : child->state.hand.motion.flags) &
+                    recipient->state.flags & 0x100000U)))
+        {
+            Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
+            if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
+                (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
+                flags = 2;
+            if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
+                return false;
+        }
+    }
+    return true;
+}
 static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
 {
     if (SotnPlayerStep_IsDead(player.step) || actor->state.step == 0 || actor->state.unsupported ||
@@ -590,8 +628,13 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
     const bool wing = actors->bat_runtime &&
                       (actors->bat_runtime->wing_mask || actors->bat_runtime->fire_mask ||
                        actors->bat_runtime->spirit_mask || actors->bat_runtime->hellfire_mask ||
-                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
-                       actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->sword_mask || actors->bat_runtime->axe_mask ||
+                       actors->bat_runtime->hand_attack || actors->bat_runtime->neutron_mask ||
+                       actors->bat_runtime->sire_mask || actors->bat_runtime->pentagram_mask ||
+                       actors->bat_runtime->magic_mask || actors->bat_runtime->thrown_mask ||
+                       actors->bat_runtime->star_mask || actors->bat_runtime->karma_mask ||
+                       actors->bat_runtime->secondary_mask || actors->bat_runtime->echo_attack ||
+                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -610,12 +653,26 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_fire = (runtime->fire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_hellfire = (runtime->hellfire_mask & ((Uint64)1 << index)) != 0;
             const bool selected_spirit = (runtime->spirit_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_sword = (runtime->sword_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_hand = !index && runtime->hand_attack;
+            const bool selected_neutron = (runtime->neutron_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_pentagram = (runtime->pentagram_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_sire = (runtime->sire_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_magic = (runtime->magic_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_karma = (runtime->karma_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_secondary = (runtime->secondary_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_star = (runtime->star_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_thrown = (runtime->thrown_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
             const bool selected_echo = index == 31 && runtime->echo_attack;
             const bool selected_soul = index == 31 && runtime->soul_attack;
             const bool selected_wolf = (index == 2 && (runtime->wolf_mask & 1U)) ||
                                        (index == 4 && (runtime->wolf_mask & 2U));
             if (!selected_wing && !selected_fire && !selected_echo && !selected_wolf &&
-                !selected_spirit && !selected_hellfire && !selected_soul)
+                !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
+                !selected_hand && !selected_axe && !selected_neutron && !selected_sire &&
+                !selected_pentagram && !selected_magic && !selected_thrown && !selected_star &&
+                !selected_karma && !selected_secondary)
                 continue;
             if (selected_wolf)
             {
@@ -654,17 +711,71 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     (selected_soul && (child->kind != 53 || child->group < 7 || child->group > 10 ||
                                        child->state.attack.hit_type != 0x82 ||
                                        child->state.attack.hit_effect != 2)) ||
+                    (selected_axe && (index != 0 || child->kind != 50 || child->group != 1)) ||
+                    (selected_pentagram &&
+                     (!child->pentagram || !SotnBatRuntime_PentagramValid(child, (Uint16)index) ||
+                      index < 1 || index > 15 || child->group < 3 || child->group > 6 ||
+                      child->state.pentagram.attack.equipment != child->state.pentagram.item ||
+                      child->state.pentagram.attack.hit_type != 0x82)) ||
+                    (selected_sire && (!child->sire || child->sire_child || index < 1 ||
+                                       index > 15 || child->group < 3 || child->group > 6 ||
+                                       child->state.sire.attack.equipment != 72 ||
+                                       child->state.sire.attack.hit_type != 0x82)) ||
+                    (selected_neutron &&
+                     (!child->neutron || index < 1 || index > 15 || child->group < 3 ||
+                      child->group > 6 || child->state.neutron.attack.equipment != 71 ||
+                      child->state.neutron.attack.hit_type != 0x82)) ||
+                    (selected_magic &&
+                     (!child->magic || !SotnBatRuntime_MagicMissileValid(child, (Uint16)index) ||
+                      (child->kind != 0xe1 && child->kind != 0xf1) ||
+                      !child->state.magic.attack.active)) ||
+                    (selected_karma &&
+                     (!child->karma || !SotnBatRuntime_KarmaValid(child, (Uint16)index) ||
+                      !child->state.karma.attack.active)) ||
+                    (selected_secondary && (!child->weapon_secondary ||
+                                            !SotnBatRuntime_SecondaryValid(child, (Uint16)index) ||
+                                            !child->state.secondary.attack.active)) ||
+                    (selected_star &&
+                     (!child->star || !SotnBatRuntime_StarValid(child, (Uint16)index) ||
+                      !child->state.star.attack.active)) ||
+                    (selected_thrown &&
+                     (!child->thrown || !SotnBatRuntime_ThrownValid(child, (Uint16)index) ||
+                      !child->state.thrown.attack.active)) ||
+                    (selected_hand &&
+                     (!child->hand_weapon || !SotnBatRuntime_HandValid(child, (Uint16)index) ||
+                      !child->state.hand.attack.active)) ||
+                    (selected_sword &&
+                     ((child->kind != 0xe2 && child->kind != 0xf2) || child->group != 0)) ||
                     (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
                                        runtime->echo_generation != child->generation)))
                     return SDL_SetError("Bat attack lost its actual child or original group");
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_hellfire ? child->state.hellfire_fire.attack
-                                : selected_fire   ? child->state.fire.attack
-                                : selected_spirit ? child->state.spirit.attack
-                                                  : child->state.attack;
-                hand = ACTOR_WING_CHANNEL + child->group - 3U;
+                source.attack = selected_hand        ? child->state.hand.attack
+                                : selected_secondary ? child->state.secondary.attack
+                                : selected_karma     ? child->state.karma.attack
+                                : selected_star      ? child->state.star.attack
+                                : selected_thrown    ? child->state.thrown.attack
+                                : selected_magic     ? child->state.magic.attack
+                                : selected_pentagram ? child->state.pentagram.attack
+                                : selected_sire      ? child->state.sire.attack
+                                : selected_neutron   ? child->state.neutron.attack
+                                : selected_sword     ? child->state.sword.attack
+                                : selected_hellfire  ? child->state.hellfire_fire.attack
+                                : selected_fire      ? child->state.fire.attack
+                                : selected_spirit    ? child->state.spirit.attack
+                                                     : child->state.attack;
+                // A weapon secondary copies its raw slot16 parent's enemyId: hand groups1/2
+                // share the hand weapon's channel and cooldown.
+                hand =
+                    selected_hand || (selected_secondary && child->group >= 1 && child->group <= 2)
+                        ? child->group - 1U
+                    : selected_axe ? 0U
+                    : selected_sword || (selected_star && !child->group) ||
+                            (selected_secondary && !child->group)
+                        ? ACTOR_ZERO_CHANNEL
+                        : ACTOR_WING_CHANNEL + child->group - 3U;
             }
         }
         else if (channel >= gas_start)
@@ -756,8 +867,17 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             SotnCombatEnemy enemy = recipient->enemy;
             if (dragon_helm)
                 enemy.defense /= 2;
-            if (source.attack.equipment == 16)
+            // Original collision.h treats every hitbox-state-4 attacker (ordinary shields) as a
+            // guard: blockable projectiles die without DealDamage; other targets still run
+            // DealDamage, including its critical RNG, before the result is discarded.
+            if (source.attack.hit_type == 4)
             {
+                if (!(actor->state.hitbox_state & 8) && recipient->state.hit_points != 0 &&
+                    recipient->state.hit_points != 0x7fff && source.attack.power &&
+                    !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
+                                                 source.attack.critical_rate, stats, luck, 1,
+                                                 &actors->combat_random, &damage))
+                    return false;
                 actor->hit_flags = 0x10;
                 actor->hit_params = 1;
                 actor->cooldown[hand] = source.attack.invincibility_frames;
@@ -779,7 +899,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     recipient->state.hit_points = 0;
                     recipient->state.flags |= 0x100;
                 }
-                return true;
+                return AttackerFeedback(actors, channel, wing_start, actor, recipient);
             }
             if (recipient->state.hit_points != 0x7fff && recipient->state.hit_points != 0 &&
                 !SotnCombat_DamageAttributes(enemy, source.attack.power, source.attack.element,
@@ -817,31 +937,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             actor->hit_params = source.attack.hit_effect & 127;
             if (actors->stage_id == 25 && recipient->state.id == 0x22)
                 recipient->hit_params = actor->hit_params;
-            if (channel >= wing_start)
-            {
-                const Uint16 index = (Uint16)(channel - wing_start);
-                const SotnBatRuntimeChild *child = &actors->bat_runtime->children[index];
-                if (index == 2 && (actors->bat_runtime->wolf_mask & 1U))
-                {
-                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
-                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
-                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
-                        flags = 2;
-                    if (!SotnWolfRuntime_Hit(&actors->bat_runtime->wolf,
-                                             actors->bat_runtime->wolf.children[1].generation,
-                                             flags))
-                        return false;
-                }
-                else if (child->kind == 45 || child->kind == 26 || child->kind == 27)
-                {
-                    Uint8 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
-                    if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
-                        (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
-                        flags = 2;
-                    if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
-                        return false;
-                }
-            }
+            if (!AttackerFeedback(actors, channel, wing_start, actor, recipient))
+                return false;
             if (channel >= 2 && channel <= normal_channels)
             {
                 Uint16 flags = (actor->state.hitbox_state & 8) ? 3 : 1;
@@ -974,6 +1071,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
         SotnCombat_Overlap(PlayerBox(player, false), target))
         actor->hit_params = 0x80;
     if ((actor->state.hitbox_state & 1) &&
+        (!actors->bat_runtime || (actors->bat_runtime->player_hitbox_state & 1)) &&
         (actor->state.id == 3 || actor->state.id == 0xa || actor->state.id == 0xb ||
          actor->state.id == 0xd || actor->state.id == 7 || !player.invulnerable) &&
         SotnCombat_Overlap(PlayerBox(player, false), target))
@@ -1824,6 +1922,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
     if (actors == NULL || map.width == 0 || map.height == 0 || map.width > 1024 ||
         map.height > 1024)
         return SDL_SetError("Laboratory actors require a bounded room collision map");
+    if (!ActorFoodTextValid(actors))
+        return false;
     Uint32 hippogryph_scene = 0;
     if (actors->stage_id == 25)
     {
@@ -1847,6 +1947,8 @@ bool SotnActors_Enter(SotnActors *actors, const SotnActorLayout *layout, SotnCol
         SDL_free(tiles);
         return false;
     }
+    if (!ActorFoodTextClear(actors))
+        return false;
     SDL_free(actors->background_tiles);
     actors->background_tiles = NULL;
     actors->background = (SotnCollisionMap){0};
@@ -1947,6 +2049,8 @@ static bool CommitActor(SotnActors *actors, Uint32 i, Actor next)
 
 static bool BeginActorFrame(SotnActors *actors, SotnPlayerState player, bool frozen)
 {
+    if (!ActorFoodTextTick(actors))
+        return false;
     if (actors->character != NULL)
     {
         SotnCharacterState state = {0};
@@ -2394,6 +2498,22 @@ bool SotnActors_SetServices(SotnActors *s, SotnDataView executable, Uint64 ticks
     s->game_seconds = (Uint32)(ticks / 60);
     s->game_frame = (Uint8)(ticks % 60);
     s->service_ticks = (Uint32)ticks;
+    s->music_playing = music_playing;
+    return true;
+}
+
+bool SotnActors_SetEngineServices(SotnActors *s, SotnDataView executable, SotnPlaytime clock,
+                                  Uint32 engine_timer, bool music_playing)
+{
+    if (!s || !executable.bytes || executable.size < 0x22a10 + 2050 || clock.hours < 0 ||
+        clock.hours > 99999 || clock.minutes < 0 || clock.minutes >= 60 || clock.seconds < 0 ||
+        clock.seconds >= 60 || clock.frames < 0 || clock.frames >= 60)
+        return SDL_SetError("Native stage services require actual bounded status/engine clocks");
+    s->executable = executable;
+    s->game_seconds =
+        (Uint32)clock.hours * 3600U + (Uint32)clock.minutes * 60U + (Uint32)clock.seconds;
+    s->game_frame = (Uint8)clock.frames;
+    s->service_ticks = engine_timer;
     s->music_playing = music_playing;
     return true;
 }

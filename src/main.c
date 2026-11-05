@@ -11,6 +11,7 @@
 #include <sotn/save_icon.h>
 #include <sotn/stage.h>
 #include <sotn/stage_assets.h>
+#include <sotn/startup.h>
 #include <stdbool.h>
 
 /** @brief Application-owned SDL resources, released by SDL_AppQuit. */
@@ -22,6 +23,7 @@ typedef struct App
     SotnPresenter *presenter;
     LabPreview *laboratory;
     SotnLaboratory *game;
+    SotnStartup *startup;
     Uint8 preview_pixels[SOTN_SAVE_ICON_RGBA_SIZE];
     Uint32 preview_index;
     bool smoke_test;
@@ -151,6 +153,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
     bool inspect_lab = false;
     bool preview_lab = false;
     bool play_lab = false, play_menu = false, play_entrance = false;
+    bool cold_start = false;
     const char *castle_code = NULL;
     Uint16 castle_stage = 0;
     Uint32 castle_room = 0;
@@ -208,6 +211,10 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
         else if (SDL_strcmp(argv[i], "--preview-laboratory") == 0)
         {
             preview_lab = true;
+        }
+        else if (SDL_strcmp(argv[i], "--cold-start") == 0)
+        {
+            cold_start = true;
         }
         else if (SDL_strcmp(argv[i], "--play") == 0)
         {
@@ -316,7 +323,7 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             SDL_Log(
                 "Usage: sotn-native [--game-data DIR] [--validate-only | --preview-save-icons "
                 "| --inspect-laboratory | --inspect-stage CODE | --preview-laboratory | "
-                "--laboratory | --entrance] [--entrance-room 0..27] "
+                "--laboratory | --entrance | --cold-start] [--entrance-room 0..27] "
                 "[--laboratory-room 1|3|4|5|6|9|10|14|16|17|18|20|22|23|24|25] "
                 "[--laboratory-continue "
                 "SLOT] "
@@ -364,14 +371,14 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
                                (inspect_lab ? 1U : 0U) + (preview_lab ? 1U : 0U) +
                                (play_lab ? 1U : 0U) + (play_menu ? 1U : 0U) +
                                (play_entrance ? 1U : 0U) + (castle_code != NULL ? 1U : 0U) +
-                               (inspect_stage != NULL ? 1U : 0U);
+                               (inspect_stage != NULL ? 1U : 0U) + (cold_start ? 1U : 0U);
     if ((modes != 0 && game_directory == NULL) || modes > 1 ||
         (graphics_test && (game_directory != NULL || modes != 0)))
     {
         SDL_SetError(
             "Choose one display or inspection mode: --validate-only, --preview-save-icons, "
             "--inspect-laboratory, --inspect-stage CODE, --preview-laboratory, --laboratory, or "
-            "--play; "
+            "--play, or --cold-start; "
             "each requires "
             "--game-data; "
             "--graphics-test runs separately without game inputs");
@@ -420,6 +427,17 @@ SDL_AppResult SDL_AppInit(void **appstate, int argc, char **argv)
             return Fail("OpenGL presentation test failed");
         SDL_Log("SOTN_GRAPHICS_TEST: PASS");
         return SDL_APP_SUCCESS;
+    }
+    if (cold_start)
+    {
+        if (!SotnStartup_Open(app->game_data, game_directory, &app->startup) ||
+            !SotnStartup_EnableContinue(app->startup))
+            return Fail("Cannot initialize cold startup");
+        SDL_Log("Cold startup: original title and native saved-game Continue; original New "
+                "Game/prologue remain unavailable");
+        if (app->smoke_test)
+            SDL_Log("SOTN_SMOKE_TEST: START");
+        return SDL_APP_CONTINUE;
     }
     if (play_lab || play_menu || play_entrance || castle_code != NULL)
     {
@@ -499,6 +517,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
     {
         return SDL_APP_SUCCESS;
     }
+    if (app->startup != NULL && !SotnStartup_Event(app->startup, event))
+        return Fail("Cannot handle startup input");
     if (app->game != NULL && !SotnLaboratory_Event(app->game, event))
         return Fail("Cannot handle Laboratory input");
     if (app->laboratory != NULL && !LabPreview_Event(app->laboratory, event))
@@ -524,7 +544,19 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event)
 SDL_AppResult SDL_AppIterate(void *appstate)
 {
     App *app = appstate;
-    if (app->game != NULL)
+    if (app->startup != NULL)
+    {
+        SotnLaboratory *continued = NULL;
+        if (!SotnStartup_Iterate(app->startup) || !SotnStartup_TakeGame(app->startup, &continued))
+            return Fail("Cold startup stopped");
+        if (continued != NULL)
+        {
+            app->game = continued;
+            SotnStartup_Close(app->startup);
+            app->startup = NULL;
+        }
+    }
+    else if (app->game != NULL)
     {
         if (!SotnLaboratory_Iterate(app->game))
             return Fail("Laboratory development checkpoint stopped");
@@ -580,6 +612,7 @@ void SDL_AppQuit(void *appstate, SDL_AppResult result)
         SDL_DestroyRenderer(app->renderer);
         SDL_DestroyWindow(app->window);
         SotnLaboratory_Destroy(app->game);
+        SotnStartup_Close(app->startup);
         LabPreview_Destroy(app->laboratory);
         SotnGameData_Close(app->game_data);
         SDL_free(app);

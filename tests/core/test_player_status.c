@@ -41,10 +41,10 @@ static bool Snapshots(void)
                               .substep = cases[i].substep,
                               .status = SDL_MAX_UINT32,
                               .invincibility = (timers & 1) ? 1 : 0,
-                              .timers = {(timers & 2) ? 1 : 0},
+                              .subweapon_ticks = (timers & 2) ? 1 : 0,
                               .poison_ticks = (timers & 4) ? 1 : 0,
                               .curse_ticks = (timers & 8) ? 1 : 0,
-                              .dark = {.ticks = (timers & 16) ? 1 : 0}};
+                              .dark_ticks = (timers & 16) ? 1 : 0};
             const SotnPlayer before = *p;
             Uint32 expected = cases[i].status | ((timers & 1) ? 0x100U : 0U) |
                               ((timers & 2) ? 0x800U : 0U) | ((timers & 4) ? 0x28104000U : 0U) |

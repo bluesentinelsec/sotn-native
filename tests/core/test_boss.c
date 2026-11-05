@@ -147,6 +147,7 @@ static bool Encounter(Fixture *f)
                          .invulnerable = true};
     CHECK(Tick(s, f, p, 0));
     CHECK((s->boss_flags & 1) && s->slots[16].state.id == 0x40 && s->slots[24].state.id == 0x43);
+    CHECK(s->combat.cd_command == 0x90 && !s->combat.music_change);
     bool projectile = false, flight = false, ground = false;
     for (Uint32 t = 1; t < 600; ++t)
     {
@@ -228,6 +229,27 @@ static bool Encounter(Fixture *f)
     SotnActorLayout_Close(layout);
     return true;
 }
+static bool MusicTransitionVictory(Fixture *f)
+{
+    SotnActors *s = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(Open(f, &s, &layout));
+    s->game_seconds = 125;
+    s->boss_flags = 24;
+    s->music_playing = true;
+    Actor a = {.state = {.id = 0x3e, .step = 3, .generation = 1}};
+    CHECK(ActorBossEvent(s, &a) && a.state.step == 4 && s->combat.cd_command == 0x90 &&
+          !s->combat.music_change);
+    CHECK(ActorBossEvent(s, &a) && a.state.step == 5 && s->combat.cd_command == 0x90);
+    SDL_zero(s->combat);
+    s->music_playing = false;
+    a.state.step = 3;
+    CHECK(ActorBossEvent(s, &a) && a.state.step == 5 && !s->combat.cd_command &&
+          s->combat.music_change && s->combat.music == 0x31d);
+    SotnActors_Destroy(s);
+    SotnActorLayout_Close(layout);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
@@ -239,7 +261,7 @@ int main(void)
             Put16(f->main + 0x1ea12 + i * 4,
                   (Uint16)(Sint16)SDL_round(SDL_cos(i * SDL_PI_D / 2048) * 4096));
         }
-    const bool ok = f != NULL && Project(f) && Encounter(f);
+    const bool ok = f != NULL && Project(f) && Encounter(f) && MusicTransitionVictory(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

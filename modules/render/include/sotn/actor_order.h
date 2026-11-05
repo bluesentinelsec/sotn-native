@@ -15,12 +15,44 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_WOLF_IMAGE,   /**< Actual retained root image, index0..5. */
     SOTN_DRAW_WOLF_TARGET,  /**< Actual common environment begin0/restore1. */
     SOTN_DRAW_PLAYER_SMOKE, /**< Actual owned child index0..47. */
-    SOTN_DRAW_PLAYER_PARTICLE, /**< Actual owned child/tile, index0..767. */
+    SOTN_DRAW_PLAYER_PARTICLE, /**< Actual owned child times30 plus tile, index0..1439. */
     SOTN_DRAW_SPIRIT,          /**< Actual initialized spirit child index0..47. */
     SOTN_DRAW_SPIRIT_PORTAL,   /**< Actual initialized portal child index0..47, black row. */
     SOTN_DRAW_HELLFIRE_SPRITE, /**< Actual initialized projectile/trail child index0..47. */
     SOTN_DRAW_RISING_HEART,    /**< Actual child51 index0..47; no primitive lease. */
-    SOTN_DRAW_HEALING_NUMBER   /**< Actual child19 index times20 plus digit/tile index. */
+    SOTN_DRAW_SWORD,           /**< Actual weapon43 callback image/strike child index0..47. */
+    SOTN_DRAW_IMMUNITY_TEXT,  /**< Actual entity37 child*18+row; row1 is the actual medicine suffix.
+                               */
+    SOTN_DRAW_HEALING_NUMBER, /**< Actual child19 index times20 plus digit/tile index. */
+    SOTN_DRAW_AXE_SHADOW,     /**< Actual rowless entity49 child index0..47. */
+    SOTN_DRAW_FIRE_HIT,       /**< Actual rowless entity16 child index0..47. */
+    SOTN_DRAW_DARK_HIT,       /**< Actual rowless entity54 child index0..47. */
+    SOTN_DRAW_THUNDER_HIT,    /**< Actual entity30 child*6+GT4 row0..5. */
+    SOTN_DRAW_ICE_HIT,        /**< Actual entity33 child*24+G4 shard0..23. */
+    SOTN_DRAW_STONE_DISSOLVE, /**< Actual entity32 child*36+textured slice0..35. */
+    SOTN_DRAW_HOLY_HIT,       /**< Actual entity47 child*16+GT4 index0..15. */
+    SOTN_DRAW_PLAYER_CIRCLE,  /**< Actual entity38 child*32+GT4 index0..31. */
+    SOTN_DRAW_TELEPORT,       /**< Actual entity65 child*36+TILE/G4/GT4 index0..35. */
+    SOTN_DRAW_FAIRY_SPRITE,   /**< Actual familiar owner index0..3, original slots4..7. */
+    SOTN_DRAW_FAIRY_TILE,     /**< Actual DF owner index0..3 and leased tile index. */
+    SOTN_DRAW_FAIRY_LIGHT,    /**< Actual DD owner index0..3 and leased ten-row G4 index. */
+    SOTN_DRAW_FOOD_TEXT,      /**< Actual global lower-left text row index0..67. */
+    SOTN_DRAW_FOOD,           /**< Actual weapon21 child index1..15. */
+    SOTN_DRAW_NEUTRON,        /**< Actual weapon19 child index1..15. */
+    SOTN_DRAW_SIRE,           /**< Actual weapon18 parent/burst child index1..15. */
+    SOTN_DRAW_PENTAGRAM,      /**< Actual weapon17 child index1..15 and row0..24. */
+    SOTN_DRAW_MAGIC_MISSILE,  /**< Actual rowless weapon22 bow/arrow child index1..15. */
+    SOTN_DRAW_THROWN,         /**< Actual weapon16 root/trail/fire child index1..47. */
+    SOTN_DRAW_STAR,           /**< Actual weapon15 child index1..47. */
+    SOTN_DRAW_STAR_SPARK,     /**< Actual weapon15 TNT child index times32 plus leased TILE. */
+    SOTN_DRAW_KARMA,          /**< Actual weapon20 root/child index1..31. */
+    SOTN_DRAW_KARMA_QUAD,     /**< Actual root index times26 plus its real G4/GT4 lease. */
+    SOTN_DRAW_HAND_WEAPON,    /**< Actual ordinary weapon entity at shared slot16. */
+    SOTN_DRAW_HAND_TILE,      /**< Real optional weapon43 TILE row0..15. */
+    SOTN_DRAW_WEAPON_SECONDARY,      /**< Actual weapon secondary child index1..47. */
+    SOTN_DRAW_WEAPON_SECONDARY_LINE, /**< Secondary index times64 plus its LINE_G2 row. */
+    SOTN_DRAW_WEAPON_SECONDARY_QUAD, /**< Secondary index times32 plus its GT4 (up to17 rows). */
+    SOTN_DRAW_WEAPON_SPARKLE         /**< Weapon50 sparkle child index times80 plus its GT4 row. */
 } SotnActorDrawKind;
 /** @brief Bounded frame-local command; actor indexes the caller's immutable snapshot list. */
 typedef struct SotnActorDraw

@@ -178,6 +178,35 @@ static bool Playback(const char *directory)
         music = NULL;
     }
     CHECK(!SotnMusic_CreateSpeech(image, stream, 0x37a, &music) && music == NULL);
+    const Uint16 fairy_speech[] = {0x472, 0x473, 0x476, 0x479, 0x47a, 0x48a, 0x48e, 0x492};
+    for (Uint32 i = 0; i < SDL_arraysize(fairy_speech); ++i)
+    {
+        const size_t offset = 0x1d224 + (fairy_speech[i] - 0x300U) * 16;
+        SDL_memcpy(dra + offset, dra + speech, 16);
+        // Alternate exact-sector and fractional-sector endings in the same finite stream.
+        const Uint32 ticks = 16 - (i & 1U);
+        Put32(dra, offset + 4, ticks);
+        CHECK(SotnMusic_CreateSpeech(image, stream, fairy_speech[i], &music));
+        for (Uint32 tick = 0; tick < ticks; ++tick)
+        {
+            CHECK(SotnMusic_Playing(music));
+            CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+        }
+        CHECK(!SotnMusic_Playing(music));
+        for (Uint32 held = 0; held < 2; ++held)
+        {
+            CHECK(SotnMusic_Tick(music, pcm, SDL_arraysize(pcm)));
+            CHECK(!SotnMusic_Playing(music));
+            for (Uint32 sample = 0; sample < SDL_arraysize(pcm); ++sample)
+                CHECK(pcm[sample] == 0);
+        }
+        SotnMusic_Destroy(music);
+        music = NULL;
+    }
+    const Uint16 unrelated_speech[] = {0x471, 0x474, 0x475, 0x477, 0x478, 0x47b,
+                                       0x489, 0x48b, 0x48d, 0x48f, 0x491, 0x493};
+    for (Uint32 i = 0; i < SDL_arraysize(unrelated_speech); ++i)
+        CHECK(!SotnMusic_CreateSpeech(image, stream, unrelated_speech[i], &music) && !music);
     SotnStream_Close(stream);
     SDL_free(finite);
     raw[19] = raw[23] = 0;

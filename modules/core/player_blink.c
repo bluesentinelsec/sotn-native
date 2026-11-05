@@ -23,7 +23,14 @@ static bool Selected(Uint16 parameter)
     return parameter == 0x20 || parameter == 0x21 || parameter == 0x1b || parameter == 5 ||
            parameter == 0x5c || parameter == 0x23 || parameter == 0x24 || parameter == 0x25 ||
            parameter == 0x44 || parameter == 0x48 || parameter == 0x67 || parameter == 0x16 ||
-           parameter == 0x17 || parameter == 0x4e || parameter == 0x59;
+           parameter == 0x17 || parameter == 0x4e || parameter == 0x59 || parameter == 0x58 ||
+           parameter == 0x43 || parameter == 0x51 || parameter == 0x26 || parameter == 0x42 ||
+           parameter == 0x68 || parameter == 0x62 || parameter == 0x45 || parameter == 0x46 ||
+           parameter == 0x53 || parameter == 0x4f || parameter == 0x5a ||
+           (parameter >= 1 && parameter <= 4) || parameter == 0x14 || parameter == 0x15 ||
+           parameter == 0x49 || parameter == 0x4a || parameter == 0x4b || parameter == 0x4c ||
+           parameter == 0x4d || parameter == 0x50 || parameter == 0x5e || parameter == 0x5f ||
+           parameter == 0x40 || parameter == 0x47;
 }
 static bool Morph(Uint16 parameter)
 {
@@ -103,7 +110,7 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
         SotnPlayerEffectQuad *q = &e->quads[i];
         q->page = capture ? 0x118 : 0x18;
         Sint32 upper = 0, lower = 0;
-        const bool morph = Morph(parameter);
+        const bool morph = Morph(parameter) || parameter == 0x26;
         if (morph)
         {
             SotnMathTrig trig = {0};
@@ -131,7 +138,9 @@ static bool Geometry(SotnPlayerBlink *e, SotnPlayerBlinkShared *shared, SotnPlay
             !Fan(q, geometry, i, origin_x, origin_y, e->angle, width, height, texture_x, texture_y))
             return false;
         if (!capture && in.rotated &&
-            !SotnPlayerEffect_Rotate(in.executable, in.x, in.y, in.rotation, facing, q))
+            !SotnPlayerEffect_Rotate(in.executable,
+                                     Word(in.x + (facing ? -in.pivot_x : in.pivot_x)),
+                                     Word(in.y + in.pivot_y), in.rotation, facing, q))
             return false;
         if (!morph)
         {
@@ -203,11 +212,9 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         (next.parameter == 0x21 && next.phase != 0 && next.phase != 10 && next.phase != 11) ||
         (next.parameter == 0x23 && next.phase != 0 && next.phase != 12 && next.phase != 13) ||
         (next.parameter == 0x24 && next.phase != 0 && next.phase != 14 && next.phase != 15) ||
-        ((next.parameter == 0x1b || next.parameter == 0x25 || next.parameter == 5 ||
-          next.parameter == 0x44 || next.parameter == 0x48 || next.parameter == 0x67 ||
-          next.parameter == 0x16 || next.parameter == 0x17 || next.parameter == 0x4e ||
-          next.parameter == 0x59) &&
+        (!Morph(next.parameter) && next.parameter != 0x26 && next.parameter != 0x5c &&
          next.phase > 3) ||
+        (next.parameter == 0x26 && next.phase != 0 && (next.phase < 16 || next.phase > 18)) ||
         (next.parameter == 0x5c && next.phase > 4))
         return SDL_SetError("Player blink has an invalid selected controller cursor");
     const Uint16 parameter = next.parameter;
@@ -234,7 +241,10 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
          profile[7] != 0x700b && !(parameter == 0x16 && profile[7] == 0x7002) &&
          !(parameter == 0x17 && profile[7] == 0x7000) &&
          !(parameter == 0x4e && profile[7] == 0x7004) &&
-         !(parameter == 0x59 && profile[7] == 0x7005)))
+         !((parameter == 0x59 || parameter == 0x53 || parameter == 0x5a) && profile[7] == 0x7005) &&
+         !(parameter == 0x4f && profile[7] == 0x7006) &&
+         !(parameter == 0x46 && profile[7] == 0x7001) &&
+         !((parameter == 0x58 || parameter == 0x68 || parameter == 0x62) && profile[7] == 0x7007)))
         return SDL_SetError("Selected player blink profile has invalid color or duration fields");
     switch (next.phase)
     {
@@ -253,7 +263,8 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         next.speed = (Uint16)profile[9];
         next.brightness = next.amplitude = 0;
-        next.phase = parameter == 0x20   ? 8
+        next.phase = parameter == 0x26   ? 16
+                     : parameter == 0x20 ? 8
                      : parameter == 0x21 ? 10
                      : parameter == 0x23 ? 12
                      : parameter == 0x24 ? 14
@@ -269,7 +280,13 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
         }
         break;
     case 2:
-        if (profile[7] == 0x7004 || profile[7] == 0x7005)
+        if (profile[7] == 0x7007 || profile[7] == 0x7001)
+        {
+            next.hold = 8;
+            if (in.player_step != 10)
+                ++next.phase;
+        }
+        if (profile[7] == 0x7004 || profile[7] == 0x7005 || profile[7] == 0x7006)
         {
             next.hold = 8;
             if (profile[7] == 0x7004 ? (!in.water_waist || in.holy_symbol)
@@ -315,6 +332,16 @@ bool SotnPlayerBlink_Tick(SotnPlayerBlink *effect, SotnPlayerBlinkShared *shared
             next.removed = true;
             goto done;
         }
+        break;
+    case 16:
+        break;
+    case 17:
+        next.amplitude = (Sint16)(next.amplitude + 4);
+        next.wave = (Uint16)(next.wave + 256U);
+        if (next.amplitude > 96)
+            ++next.phase;
+        break;
+    case 18:
         break;
     case 4:
         // The original switch has no phase-four action; retained fan geometry still advances.

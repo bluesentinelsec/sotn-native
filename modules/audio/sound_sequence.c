@@ -167,7 +167,14 @@ static bool Event(void *context, SotnSequenceEvent event)
         return Note(s, event);
     if (event.kind == SOTN_SEQUENCE_STOP)
     {
-        SotnSound_StopSequence(s);
+        // SDK end-of-track releases its notes without closing the DRA SEQ access.
+        s->sequence.playing = false;
+        for (Uint16 i = 0; i < 16; ++i)
+            if (s->sequence_voices[i].sequence)
+            {
+                s->sequence_voices[i].claimed = false;
+                s->voices[i].key_off = 1;
+            }
         return true;
     }
     for (Uint16 i = 0; i < 16; ++i)
@@ -243,9 +250,14 @@ bool SotnSound_PlaySequence(SotnSound *s, Uint16 id)
     if (!SotnSequence_Open(s->sequence_data, (Uint8)(config[2] >> 4),
                            (Uint16)((config[2] & 15U) ? 0 : 1), &next))
         return false;
+    if (s->reverb.configured &&
+        !SoundReverb_SetDepth(&s->reverb, (Sint16)config[1], (Sint16)config[1]))
+        return false;
     SotnSound_StopSequence(s);
     s->sequence_volume = config[0];
+    s->reverb_restore_depth = config[1];
     s->sequence = next;
+    s->sequence_open = true;
     return true;
 }
 void SotnSound_StopSequence(SotnSound *s)
@@ -259,6 +271,11 @@ void SotnSound_StopSequence(SotnSound *s)
             s->sequence_voices[i].claimed = false;
             s->voices[i].key_off = 1;
         }
+    if (s->sequence_open)
+    {
+        SoundReleaseAll(s);
+        s->sequence_open = false;
+    }
 }
 bool SoundSequenceTick(SotnSound *s)
 {

@@ -40,9 +40,14 @@ command at the transition. The sound-mode mapping now follows the original
 0=pooled 12..19, 1=22/23, 2=release 22/23, 3=20/21 assignment. Full SPU/CD/reverb
 and hardware scheduling parity remain unproven.
 
+The [scripted player owner](player-script-control.md) now consumes Death's actual
+mode-1 theft request through state48, the red hit palette, shared smoke/Blink58
+and original animation/sound/recovery. Its controlled native/app checks remain
+separate from ordinary traversal evidence.
+
 The dialogue window is a native framebuffer adaptation using original private
 font/portrait artwork and script positions. Full original window animation,
-nameplates, sky swirl/lightning/palette changes, the special Alucard theft pose,
+nameplates, sky swirl/lightning/palette changes,
 Death's entrance glow, icon collapse deformation, and exact GPU priority/blending
 remain presentation/parity work. Do not call the opening or Entrance fully authentic.
 

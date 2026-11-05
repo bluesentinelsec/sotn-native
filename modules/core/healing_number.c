@@ -24,7 +24,7 @@ static Sint32 Shift(Sint32 value, Uint16 bits)
 bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView exe,
                             SotnPlayerFactorySource source, bool allocated)
 {
-    if (!number || number->removed || !number->number || number->phase > 11 ||
+    if (!number || number->removed || (!number->number && !number->damage) || number->phase > 11 ||
         number->extra_digits > 3 ||
         (number->phase && (!allocated || number->half_width < 0 || number->half_width > 8 ||
                            number->half_height < 1 || number->half_height > 10 ||
@@ -53,12 +53,13 @@ bool SotnHealingNumber_Tick(SotnHealingNumber *number, SotnDataView exe,
             const Uint16 digit = remaining % 10U;
             remaining /= 10;
             const Uint8 u = (Uint8)(32U + (digit ? digit - 1U : 9U) * 8U);
-            n.digits[i] = (SotnPlayerEffectQuad){.u = {u, (Uint8)(u + 8), u, (Uint8)(u + 8)},
-                                                 .v = {64, 64, 73, 73},
-                                                 .page = 0x1a,
-                                                 .palette = 0x1b8,
-                                                 .priority = 0x1b8,
-                                                 .draw_mode = n.extra_digits < i ? 8 : 0};
+            n.digits[i] =
+                (SotnPlayerEffectQuad){.u = {u, (Uint8)(u + 8), u, (Uint8)(u + 8)},
+                                       .v = {64, 64, 73, 73},
+                                       .page = 0x1a,
+                                       .palette = n.damage ? (n.number ? 0x1b2 : 0x1b4) : 0x1b8,
+                                       .priority = 0x1b8,
+                                       .draw_mode = n.extra_digits < i ? 8 : 0};
         }
         for (Uint16 i = 0; i < 16; ++i)
             n.tiles[i].hidden = true;

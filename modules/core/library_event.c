@@ -3,6 +3,11 @@
 #include "actors_internal.h"
 static void Music(SotnActors *s, Uint16 music)
 {
+    if (!music)
+    {
+        s->combat.cd_command = 0x90;
+        return;
+    }
     s->combat.music_change = true;
     s->combat.music = music;
 }

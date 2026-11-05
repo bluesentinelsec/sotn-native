@@ -1,7 +1,10 @@
 #ifndef SOTN_PLAYER_H
 #define SOTN_PLAYER_H
+#include <sotn/food.h>
+#include <sotn/medicine_effect.h>
 
 #include <sotn/animation.h>
+#include <sotn/axe_armor.h>
 #include <sotn/bat_command.h>
 #include <sotn/character.h>
 #include <sotn/collision.h>
@@ -9,6 +12,8 @@
 #include <sotn/player_afterimage.h>
 #include <sotn/player_blink.h>
 #include <sotn/player_factory.h>
+#include <sotn/player_smoke.h>
+#include <sotn/player_timers.h>
 #include <sotn/water_damage.h>
 #include <sotn/water_death.h>
 #include <sotn/wolf_runtime.h>
@@ -57,8 +62,10 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_BOSS_GRAB = 12,
     SOTN_PLAYER_KILL_WATER = 13,
     SOTN_PLAYER_UNMORPH_MIST = 14,
+    SOTN_PLAYER_SWORD_WARP = 15,
     SOTN_PLAYER_KILL = 16,
     SOTN_PLAYER_DEATH_HOLD = 17,
+    SOTN_PLAYER_TELEPORT = 18,
     SOTN_PLAYER_WOLF = 24,
     SOTN_PLAYER_UNMORPH_WOLF = 25,
     SOTN_PLAYER_DARK = 32,
@@ -66,21 +73,59 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SOUL = 37,
-    SOTN_PLAYER_SCRIPT = 49
+    SOTN_PLAYER_AXE_STAND = 40,
+    SOTN_PLAYER_AXE_WALK = 41,
+    SOTN_PLAYER_AXE_JUMP = 42,
+    SOTN_PLAYER_AXE_HIT = 43,
+    SOTN_PLAYER_SCRIPT_REACTION = 48,
+    SOTN_PLAYER_SCRIPT = 49,
+    SOTN_PLAYER_AXE_SCRIPT = 50
 } SotnPlayerStep;
+
+/** @brief Actual equipment-owned weapon45 cursor and this update's copied requests. */
+typedef struct SotnPlayerAxeArmor
+{
+    SotnAxeArmor cursor;
+    SotnAxeArmorEvents events;
+    SotnPlayerFactorySource source;
+    Sint16 rotation;
+    Uint8 opacity, draw_flags;
+    bool active, knock_right, entered, exited;
+} SotnPlayerAxeArmor;
+
+/** @brief Original simulated pad word and shared demo_timer, retained outside ordinary saves.
+ * Mode zero supplies buttons, one enters the scripted reaction, two holds the player.
+ * A zero timer resumes physical input; mode two still holds until its pad word changes. */
+typedef struct SotnPlayerSimulatedPad
+{
+    Uint16 buttons, mode;
+    Uint32 remaining;
+} SotnPlayerSimulatedPad;
+
+/** @brief One committed scripted-reaction factory source, captured before collision. */
+typedef struct SotnPlayerScriptReaction
+{
+    SotnPlayerFactorySource source;
+    bool started;
+} SotnPlayerScriptReaction;
 
 /** @brief Classify original selected dead-body states independently of physical/water cause. */
 bool SotnPlayerStep_IsDead(SotnPlayerStep step);
 
-/** @brief Original grab handshake used by Hippogryph; its release clears the state to NONE.
- * Other bosses' thrown-release state 4 and stone reactions are not integrated here. */
+/** @brief Original boss-owned grab commands and player-owned HELD acknowledgement. */
 typedef enum SotnPlayerGrabState
 {
     SOTN_GRAB_NONE = 0,
     SOTN_GRAB_START = 1,
     SOTN_GRAB_HELD = 2,
-    SOTN_GRAB_DAMAGE = 3
+    SOTN_GRAB_DAMAGE = 3,
+    SOTN_GRAB_RELEASE = 4
 } SotnPlayerGrabState;
+typedef enum SotnPlayerGrabReaction
+{
+    SOTN_GRAB_REACTION_NORMAL = 0,
+    SOTN_GRAB_REACTION_STONE = 2
+} SotnPlayerGrabReaction;
 
 /** @brief Transient boss-owned request and player-owned acknowledgement, never ordinary save data.
  */
@@ -89,6 +134,8 @@ typedef struct SotnPlayerGrab
     SotnPlayerGrabState state;
     Uint16 damage; /**< Original raw damage before physical defense and poison. */
     Sint32 source_x, source_velocity; /**< Whole-pixel source and signed 16.16 velocity. */
+    SotnPlayerGrabReaction reaction;  /**< START captures this separate retained reaction word. */
+    Sint32 release_velocity_x, release_velocity_y; /**< RELEASE only: actual boss-written16.16. */
 } SotnPlayerGrab;
 
 /** @brief Runtime supported hand-attack hitbox, in whole pixels relative to Alucard's origin. */
@@ -131,12 +178,32 @@ typedef struct SotnPlayerGravity
     SotnPlayerGravityBeam beams[SOTN_PLAYER_GRAVITY_BEAMS];
 } SotnPlayerGravity;
 
-/** @brief Selected original physical-death effect cursor; mask cells repeat every 16 pixels. */
+/** @brief Original hurt-controller factory intents, fulfilled through the shared native runtime. */
+typedef struct SotnPlayerHurt
+{
+    struct
+    {
+        SotnPlayerFactorySource source;
+        Uint32 blueprint;
+    } factories[9];
+    Uint16 damage_taken; /**< Retained kind-five/thrown-grab impact power, never saved. */
+    Uint8 count, shake;  /**< This update's ordered intents and original shared shake identity. */
+    bool knock_right;    /**< Retained original entityRoomIndex direction, independent of facing. */
+    bool shake_requested, started; /**< One-update actual calls/birth; cleared during freeze. */
+} SotnPlayerHurt;
+
+/** @brief Physical death controller/presentation and actual bound capture generation.
+ * Native drawing consumes resident texture pixels. The retained mask is only the existing
+ * unbound standalone presentation, not a substitute image or capture acknowledgement. */
 typedef struct SotnPlayerDeath
 {
     Uint8 phase, red, blue, mask[32];
     Uint16 timer, cursor;
     Sint16 rotation;
+    SotnPlayerFactorySource source;
+    Uint32 generation;
+    Uint16 variant, blend;
+    bool native, started, captured, color_blend;
 } SotnPlayerDeath;
 
 /** @brief Selected owned water-death controller and actual native capture acknowledgement. */
@@ -163,11 +230,14 @@ typedef struct SotnPlayerWaterPain
 typedef bool (*SotnPlayerDeathCapture)(void *context, Uint32 generation);
 /** @brief Decay and upload the actual retained image once, reporting real committed completion. */
 typedef bool (*SotnPlayerDeathDecay)(void *context, Uint32 generation, bool *finished);
+/** @brief Query actual entity32 slots16..63, including uninitialized children, not factories. */
+typedef bool (*SotnPlayerDissolvePresent)(void *context, bool *present);
 
 /** @brief Selected petrification presentation and directional escape cursor. */
 typedef struct SotnPlayerStone
 {
-    Uint16 palette, shakes, death_wait;
+    Uint16 palette, shakes;
+    Sint32 death_wait;
     Sint16 rotation, pivot;
     bool active, hidden, impact;
 } SotnPlayerStone;
@@ -187,6 +257,7 @@ typedef struct SotnPlayerMist
     Uint32 generation;
     Uint16 capture_sprite, capture_bank;
     bool active, restoring, started, request_restore, retire;
+    bool interrupted; /**< Original reset destroys a live Mist child without a return handshake. */
 } SotnPlayerMist;
 
 /** @brief Selected Bat controller requests for actual generation-owned transformation effects. */
@@ -232,6 +303,58 @@ typedef struct SotnPlayerHealing
     bool applied, effects;
 } SotnPlayerHealing;
 
+/** @brief Successful ordinary medicine request, consumed only after the player update succeeds. */
+typedef struct SotnPlayerMedicineUse
+{
+    Uint16 hand, item;
+    bool used;
+    /** Original isConsumable clear (Runesword143): ReduceWeapon leaves the hand unchanged. */
+    bool keep;
+} SotnPlayerMedicineUse;
+/** @brief Actual one-update Library Card use and retained original arrival acknowledgement. */
+typedef struct SotnPlayerTeleport
+{
+    Uint16 hand;
+    bool used, acknowledged;
+} SotnPlayerTeleport;
+
+/** @brief Actual contact, secondary-impact or boss-grab number at its original helper call. */
+typedef struct SotnPlayerDamageNumber
+{
+    SotnPlayerFactorySource source;
+    Uint16
+        amount; /**< Original number word before HP capping; stone/grab dodge can display zero. */
+    Uint8
+        response; /**< Hurt3/lethal4/stone7/8 display context; secondary dodge still shows hurt. */
+    bool applied;
+    bool neutral_hurt; /**< Accepted response3 also requests its original neutral Blink58. */
+    bool boss_grab; /**< Actual held-grab HandleDamage call; even guard/dodge displays a number. */
+    bool secondary_impact; /**< Actual func_80113D7C call; mutually exclusive with boss_grab. */
+} SotnPlayerDamageNumber;
+
+/** @brief Successful original response1; its red number is separate from deferred healing. */
+typedef struct SotnPlayerGuard
+{
+    SotnPlayerFactorySource source;
+    Uint16 effects, sound; /**< Guard voice precedes later ordinary control sounds. */
+    bool applied;
+} SotnPlayerGuard;
+
+/** @brief Successful response2, captured before control; silent and without HP/ailment work. */
+typedef struct SotnPlayerDodge
+{
+    SotnPlayerFactorySource source;
+    Uint16 effects;
+    bool applied;
+} SotnPlayerDodge;
+
+/** @brief This successful contact's original response0 immunity feedback, separate from healing. */
+typedef struct SotnPlayerImmunity
+{
+    SotnPlayerFactorySource source; /**< Captured before controller/collision movement. */
+    bool applied;
+} SotnPlayerImmunity;
+
 /** @brief This successful contact's immediate original response5, separate from deferred healing.
  */
 typedef struct SotnPlayerAbsorption
@@ -272,15 +395,46 @@ typedef struct SotnPlayerHeartGain
     Uint16 amount;
     bool requested; /**< Zero-damage stone contacts still call AddHearts(0). */
 } SotnPlayerHeartGain;
+/** @brief Transient native Fairy scene binding, retained draw words and recovery notification.
+ * Resource restoration remains distinct from leaving dead state17. Not ordinary save data. */
+typedef struct SotnPlayerFairyRescue
+{
+    SotnPlayerFactorySource source; /**< Captured before recovery collision, for actual Blink4A. */
+    Uint16 scene;
+    Sint16 rotation;
+    Uint8 blend; /**< Retained original entity blend; recovery clears color modulation only. */
+    bool bound, restored, recovered;
+} SotnPlayerFairyRescue;
 /** @brief Read-only copy of a player's current normal-movement state. */
 typedef struct SotnPlayerState
 {
     SotnPlayerWater water;
+    SotnPlayerMedicineUse medicine;
+    SotnPlayerMedicineUse
+        throwing; /**< Actual owned throwing-item hand use, consumed after player success. */
+    Uint16 throwing_grunt; /**< Successful casting voice, queued before shared birth sounds. */
+    SotnPlayerMedicineUse
+        food;            /**< Actual weapon21 hand use; consumption follows player success. */
+    Sint32 hammer_timer; /**< Separate DRA global, never one of the sixteen words or save data. */
     Uint16 water_breath_timer; /**< Original shared standing/crouching DRA counter; not saved. */
-    Sint32 x, y, velocity_x, velocity_y; /**< Signed 16.16 room-local pixels. */
-    Uint32 status;   /**< Original status bits for stage scripts and enemy observations. */
-    Uint32 contacts; /**< Original floor/ceiling/wall and slope flags. */
+    Uint16 player_timers[SOTN_PLAYER_TIMERS]; /**< Immutable copy of the actual player word bank. */
+    Sint32 x, y, velocity_x, velocity_y;      /**< Signed 16.16 room-local pixels. */
+    Uint32 status; /**< Original status bits for stage scripts and enemy observations. */
+    Uint32 received_damage_effects; /**< Actual g_Player.unk18; cleared by each full player prefix.
+                                     * Responses1/2/3/7/8 write effects; water/death/immune/absorb
+                                     * do not. */
+    SotnPlayerStep
+        control_step;       /**< Original prev_step captured immediately before state control. */
+    Uint16 control_substep; /**< Original prev_step_s, separate from final post-control substep. */
+    Uint32 contacts;        /**< Original floor/ceiling/wall and slope flags. */
+    Uint32 previous_contacts; /**< Actual pre-collision contact word retained by the player. */
+    SotnPlayerSmokeEnvironment smoke_environment; /**< Actual live wall/skid feedback. */
     SotnAnimation animation;
+    SotnPlayerSimulatedPad simulated_pad;
+    SotnPlayerScriptReaction script_reaction;
+    Uint16 palette;     /**< Current original player CLUT, including its high flag. */
+    Uint8 body_grey[4]; /**< Original draw colors, in GT4 vertex order. */
+    bool body_color_blend;
     SotnPlayerStep step;
     Uint16 substep;   /**< Original movement substate; standing 4 is seated. */
     bool sleep_event; /**< Original sleeping-letter factory requested this tick. */
@@ -292,13 +446,20 @@ typedef struct SotnPlayerState
     Uint16 sound; /**< Original one-shot sound request for the current tick, or zero. */
     SotnPlayerDeath death;
     SotnPlayerWaterDeath water_death;
+    SotnPlayerFairyRescue fairy_rescue;
     SotnPlayerWaterPain water_pain;
     Uint8 water_pain_timer;
     Uint16 defense_buff_minimum; /**< One-update actual Fury Plate minimum-duration request. */
+    bool hud_hp_hold; /**< Actual func_800FE8F0 request, committed by the native HUD owner. */
     SotnPlayerHeartGain heart_gain;
     SotnPlayerAbsorption absorption;
+    SotnPlayerImmunity immunity;
+    SotnPlayerGuard guard;
+    SotnPlayerDamageNumber damage_number;
+    SotnPlayerDodge dodge;
+    SotnPlayerAxeArmor axe_armor;
     bool looking_up, can_pause;
-    Uint32 random; /**< Owned physical-damage/weapon random state for ordinary saves. */
+    Uint32 random; /**< Physical-damage/raw-controller RNG, separate from native hand libc RNG. */
     Uint16 solid_width, solid_height; /**< Current original stage-object sensor extents. */
     SotnPlayerAttack shield; /**< Independent selected ordinary shield hitbox and sprite. */
     bool subweapon_starting; /**< Original selected subweapon-use timer is active. */
@@ -307,11 +468,16 @@ typedef struct SotnPlayerState
     Uint16 poison_ticks; /**< Transient original poison duration, 0..4095 simulation ticks. */
     Uint16 curse_ticks;  /**< Transient original curse duration; independent of ordinary saves. */
     Uint16 extra_sound;  /**< Second original sound request, after sound; zero selects none. */
+    Uint16 third_sound;  /**< Third original call for landing plus the final stone wiggle. */
     SotnPlayerGrab grab;
     Uint16 priority; /**< Current normal-form ordering-table priority. */
     SotnPlayerKick kick;
     SotnPlayerGravity gravity;
+    SotnPlayerHurt hurt;
     Uint16 mp, mp_spent; /**< Owned MP snapshot and this tick's ability cost for the session. */
+    /** dra/692E8.c func_8010A3F0: both hands run Muramasa's program and blood was absorbed since
+     * the last update; the session commits SotnCharacter_AddMuramasaBlood after success. */
+    bool muramasa_blood;
     SotnPlayerMist mist;
     SotnPlayerBat bat;
     SotnPlayerWolf wolf;
@@ -323,27 +489,154 @@ typedef struct SotnPlayerState
     Uint32 afterimage_generation;    /**< Actual common stage lease, zero for unbound components. */
     SotnPlayerMovementEffects movement_effects;
     SotnPlayerHealing healing;
+    SotnPlayerTeleport teleport;
     SotnPlayerDark dark;
     SotnPlayerSpirit spirit;
     SotnPlayerSoul soul;
     bool hellfire_started,
-        hellfire_hidden;             /**< Accepted cast intent and actual palette visibility. */
+        hellfire_hidden; /**< Accepted cast intent and actual palette visibility. */
+    Uint16 attack_mode;  /**< Actual unk46; shared ordinary weapons validate this after control. */
+    bool hand_owned;     /**< Actual native factory/callback owner is bound. */
+    Uint8 hand_retire;   /**< One-update actual request: one conditional shield, two slot16. */
+    Uint16 hand_grunt;   /**< Accepted ordinary hand's actual pre-birth casting voice. */
+    bool hand_used;      /**< Successful ordinary non-shield hand use; not a stock grant/cost. */
+    Uint16 tapped; /**< Actual padTapped, including original stone/death forced direction taps. */
     Uint16 buttons, hellfire_signal; /**< Current original controls and committed beam signal. */
-    Uint8 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
+    Uint16 spell_use_ticks; /**< Original timer12, independent of subweapon use/invincibility. */
 } SotnPlayerState;
 
 /** @brief Owned normal-Alucard simulation, borrowing room collision and DRA bytes. */
 typedef struct SotnPlayer SotnPlayer;
+/** @brief Reserve an actual sword-special/outline factory during the working player tick.
+ * Return true with allocated=false for original optional exhaustion. The native caller must
+ * roll back real reservations if a later player update fails; callbacks never grant readiness. */
+typedef bool (*SotnPlayerSwordFactory)(void *context, SotnPlayerFactorySource source, Uint32 packed,
+                                       Sint16 argument, bool *allocated);
+/** @brief Bind the actual shared factory and preceding slot16 occupancy for sword123.
+ * @param player Actual player. @param factory Actual reservation callback.
+ * @param context Retained native owner. @param weapon_present Actual shared slot16 identity.
+ * @return Success or SDL error. Controls remain unavailable until this owner is bound. */
+bool SotnPlayer_SetSwordContext(SotnPlayer *player, SotnPlayerSwordFactory factory, void *context,
+                                bool weapon_present);
+typedef bool (*SotnPlayerMedicineFactory)(void *context, SotnPlayerFactorySource source,
+                                          Uint32 packed, Uint16 item, bool *allocated);
+/** @brief Copy actual post-callback shield state for player control/status gates.
+ * This never grants a shield, produces an attack, or advances its animation. */
+bool SotnPlayer_CommitHandShield(SotnPlayer *, Uint16 phase, Uint16 hand);
+typedef bool (*SotnPlayerMedicineConsume)(void *context, Uint16 hand, Uint16 item,
+                                          Uint16 *equipped);
+/** @brief Bind actual medicine55 reservation/consumption and current entity39 slots32..63.
+ * Pending factory roots are not live entity39 occupancy. Callbacks must rebind after handoff.
+ * @param player Owned player. @param factory Actual shared-root reservation callback.
+ * @param consume Actual atomic equipped-item consumption callback, paired with factory.
+ * @param context Borrowed callback owner, retained until unbound or replaced.
+ * @param present Actual current child39 occupancy, independent of pending roots.
+ * @return Success, or SDL error without mutation; two NULL callbacks disable availability. */
+bool SotnPlayer_SetMedicineContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                   SotnPlayerMedicineConsume consume, void *context, bool present);
+/** @brief Bind actual weapon21 shared reservation and atomic hand consumption.
+ * Counts are original CheckChainLimit item/hand counts, excluding pending factory roots. */
+bool SotnPlayer_SetFoodContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                               SotnPlayerMedicineConsume consume, void *context, Uint8 left_count,
+                               Uint8 right_count);
+/** @brief Supply one real libc rand result at a successful ordinary/throwing-hand grunt call.
+ * Native callers must roll back that cursor if the enclosing player update fails. */
+typedef bool (*SotnPlayerThrowingRandom)(void *context, Uint16 *value);
+/** @brief Bind actual ordinary-hand factory and casting-grunt RNG ownership.
+ * Standalone callers retain their selected legacy frame interface until this is bound. */
+bool SotnPlayer_SetHandContext(SotnPlayer *, SotnPlayerMedicineFactory, SotnPlayerThrowingRandom,
+                               void *);
+/** @brief Bind actual weapon17/18/19 factories, consumption and current equipped item/hand counts.
+ */
+bool SotnPlayer_SetThrowingContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                   SotnPlayerMedicineConsume consume,
+                                   SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
+                                   Uint8 right_count);
+/** @brief Supply CheckChainLimit's live count of each hand's QCF special (entities16..63 whose
+ * equip id is that special with that hand's params bit), used for limited-chain specials.
+ * @return False with SDL_GetError() for counts beyond the shared slots. */
+bool SotnPlayer_SetSpecialChain(SotnPlayer *player, Uint8 left_count, Uint8 right_count);
+/** @brief Supply CheckChainLimit's live count of each hand's QCF special carrying the OTHER
+ * hand's params bit. Shotel (kind12) punches while either count reaches the special's limit.
+ * @return False with SDL_GetError() for counts beyond the shared slots. */
+bool SotnPlayer_SetSpecialCross(SotnPlayer *player, Uint8 left_count, Uint8 right_count);
+/** @brief Supply CheckChainLimit's live count of the equipped combo spell (children carrying its
+ * item with the combo hand's params). @return False with SDL_GetError() beyond the slots. */
+bool SotnPlayer_SetComboChain(SotnPlayer *player, Uint8 count);
+/** @brief Whether a both-buttons combo spell has an actual native owner; unsupported combos keep
+ * the ordinary left-hand attack (documented gap). */
+bool SotnPlayer_ComboSupported(Uint16 item);
+/** @brief The equipped combo (CheckWeaponCombo's D_8013AEE4): item plus bit31 for the right hand.
+ */
+Uint32 SotnPlayer_Combo(const SotnPlayer *player);
+/** @brief Compatibility entry for the selected Neutron owner. */
+bool SotnPlayer_SetNeutronContext(SotnPlayer *player, SotnPlayerMedicineFactory factory,
+                                  SotnPlayerMedicineConsume consume,
+                                  SotnPlayerThrowingRandom random, void *context, Uint8 left_count,
+                                  Uint8 right_count);
+/** @brief Commit slot-ordered food pickup/pose/simulated-pad/raw81 requests atomically. */
+bool SotnPlayer_CommitFood(SotnPlayer *player, const SotnFoodEvents *events, Uint16 count);
+/** @brief Commit actual entity39 resource requests after successful shared row work.
+ * Healing overwrites pending kind/amount even when dead; no HP write or revival occurs.
+ * Buff counters, actual character MP, audio and factories retain their separate native owners.
+ * @param player Owned player. @param events Borrowed committed rowless-child requests.
+ * @param mp_max Actual character owner's current maximum, including when dead.
+ * @return Success atomically, or SDL error without mutation for invalid resource requests. */
+bool SotnPlayer_CommitMedicine(SotnPlayer *player, const SotnMedicineEffectEvents *events,
+                               Uint16 mp_max);
+/** @brief Restore the actual separate DRA Hammer word after bootstrap, without ticking/saving.
+ * @param player Owned player. @param timer Actual retained0..64 global word.
+ * @return Success, or SDL error without mutation for invalid arguments. */
+bool SotnPlayer_RestoreHammer(SotnPlayer *player, Sint32 timer);
+typedef bool (*SotnPlayerTeleportFactory)(void *context, SotnPlayerFactorySource source,
+                                          Uint32 packed, bool *allocated);
+typedef bool (*SotnPlayerLibraryCardUse)(void *context, Uint16 hand, Uint16 *equipped);
+/** @brief Bind actual factory121, atomic equipped-item consumption and room world X.
+ * Callbacks are borrowed and must be rebound after native session replacement.
+ * They confer no other-castle stage/trigger availability. */
+bool SotnPlayer_SetTeleportContext(SotnPlayer *player, SotnPlayerTeleportFactory factory,
+                                   SotnPlayerLibraryCardUse use, void *context, Sint32 origin_x);
+/** @brief Select original incoming18/F5 after real native arrival initialization. */
+bool SotnPlayer_BeginTeleportArrival(SotnPlayer *player, Uint16 substep);
+/** @brief Commit actual child65 palette/terminal ACK after its shared stage-row commit. */
+bool SotnPlayer_CommitTeleport(SotnPlayer *player, Uint16 palette, bool acknowledged);
 
-/** @brief Bind real capture/decay owners for selected ordinary unfaded water death.
+/** @brief Bind actual weapon45 metadata/artwork container; enter owned armor on bootstrap.
+ * @param player Actual player. @param weapons Actual immutable WEAPON0.BIN runtime owner.
+ * @param bootstrap True only after full character restoration; suppresses equip WHAT/input hold.
+ * @return Success atomically, without grants or save changes. The native caller must validate
+ * and load weapon45 graphics; normal updates detect actual equipment changes before contacts. */
+bool SotnPlayer_SetAxeContext(SotnPlayer *player, SotnDataView weapons, bool bootstrap);
+
+/** @brief Bind real capture/decay owners for selected unfaded physical and water death.
  * @param player Actual simulation. @param capture Actual StoreImage owner.
  * @param decay Actual decay/LoadImage owner. @param context Retained owner context.
  * @return Success or SDL error. Both callbacks and context are required. Callbacks run inside
  * working player updates; the native caller must roll back its image/texture on late failure.
- * This binding grants no HP/relics or water damage availability. Scene-fade recovery remains
+ * A physical lethal result must be born with this binding to select native image ownership.
+ * This binding grants no HP/relics or damage availability. Scene-fade recovery remains
  * outside this selected ordinary context; no replacement fade timer is supplied. */
 bool SotnPlayer_SetDeathCapture(SotnPlayer *player, SotnPlayerDeathCapture capture,
                                 SotnPlayerDeathDecay decay, void *context);
+/** @brief Bind the actual native Fairy scene0/FFF before a full player update.
+ * @param player Actual player/capture owner. @param scene Committed native scene request.
+ * FFF requires an actual dead state and capture/decay/context binding. Returning to0 while
+ * in17 requires completed actual resource restoration. Does not tick, heal or change state.
+ * @return Success or SDL error before mutation. Native Fairy producer/lifecycle remains required.
+ */
+bool SotnPlayer_SetFairyScene(SotnPlayer *player, Uint16 scene);
+/** @brief Commit Fairy's actual full HP/MP write while retaining dead state17.
+ * @param player Actual bound FFF/state17 owner. @param hp_max Actual character maximum,
+ * matching the player. @param mp_max Actual character maximum,0..9999.
+ * Caller first commits actual player-entity cleanup and character resources atomically.
+ * Preserves pending healing, status/control, captures, timers and RNG. Once per rescue.
+ * @return Success or SDL error before mutation. This alone supplies no revival/availability. */
+bool SotnPlayer_CommitFairyResources(SotnPlayer *player, Uint16 hp_max, Uint16 mp_max);
+/** @brief Bind the actual shared child query used by a lethal already-stone contact.
+ * Factories and pending requests do not satisfy this query. A standalone player with no
+ * bound effect owner has no dissolve child and delegates to selected physical death. */
+bool SotnPlayer_SetStoneContext(SotnPlayer *player, SotnPlayerDissolvePresent present,
+                                void *context);
 /** @brief Apply an actual selected lethal-water result, leaving birth work to the player tick.
  * @param player Living unprotected owner at1HP, outside grabs/scripts/stone/Mist.
  * @param damage Actual kind6 lethal result after pending healing/contact/protection gates.
@@ -360,8 +653,14 @@ bool SotnPlayer_QueueContact(SotnPlayer *player, SotnPlayerContact contact);
  * @param player Owner with actual water-death capture/upload callbacks already bound.
  * @param timer Current original gameplay clock, distinct from saved play time.
  * @return Success or SDL error without mutation. Supply once per ordinary player update;
- * menus/frozen updates must not consume this boundary. Fury requires its actual buff owner. */
+ * menus and animation-only freeze must not consume this boundary. Bound dead FFF updates
+ * use the held actual gameplay clock with full player callbacks; the native engine frame
+ * remains distinct. Ordinary duplicate clocks still fail. Fury requires its actual buff owner. */
 bool SotnPlayer_SetDamageContext(SotnPlayer *player, Uint32 timer);
+/** @brief Bind the actual original stage ID for hurt-controller stage-specific collision branches.
+ * @param player Actual player owner. @param stage Original stage identifier,0..255.
+ * @return Success or SDL error. Advances no clock and grants no state, equipment or protection. */
+bool SotnPlayer_SetStageContext(SotnPlayer *player, Uint16 stage);
 /** @brief Restore the runtime-only DRA water voice timer after candidate bootstrap.
  * @param player Actual owner. @param timer Retained0..32 counter; never ordinary save data.
  * @return Success or SDL error without mutation or an extra simulation tick. */
@@ -386,6 +685,13 @@ bool SotnPlayer_SetAfterimageContext(SotnPlayer *player, Uint32 generation, Uint
  * request.
  * @return Success or SDL error without mutation. Advances no clock/cursor or effect readiness. */
 bool SotnPlayer_ResetAfterimages(SotnPlayer *player, Sint32 duration);
+/** @brief Commit actual entity32's ANIM_FRAME_LOAD flag after successful effect work.
+ * This skips artwork upload, retaining normal body drawing from actual resident pixels. */
+bool SotnPlayer_CommitDissolveFrame(SotnPlayer *player, bool frame_load);
+/** @brief Roll back this same common owner's dissolve presentation after native failure.
+ * Restores the captured frame word, afterimage displays/cursors and actual timer15 only;
+ * this is a no-tick transaction operation, never ordinary save/Continue restoration. */
+bool SotnPlayer_RollbackDissolve(SotnPlayer *player, const SotnPlayerState *before);
 
 typedef struct SotnSubweapons SotnSubweapons;
 
@@ -421,7 +727,8 @@ bool SotnPlayer_CommitWolfBody(SotnPlayer *player, const SotnWolfRuntime *body,
  * @note Supports standing, walking, crouching, falling, jumping and an active Leap
  * Stone's double jump after SotnPlayer_SetRelics supplies its persistent ownership.
  * The selected normal-Jump dive kick has its own attack and delayed rebound.
- * Empty-hand, Basilard/Gladius/Mace/Short sword, and ordinary Alucard sword/shield paths run.
+ * Empty-hand, Basilard/Gladius/Mace/Short sword, ordinary Alucard sword/shield and
+ * the factory-bound Alucard sword command path run.
  * Ordinary physical damage is supported separately by SotnPlayer_Damage. Other weapons,
  * transformations, and stage scripts are not implemented here.
  */
@@ -434,6 +741,16 @@ bool SotnPlayer_Create(SotnDataView dra, SotnCollisionMap map, Sint32 x, Sint32 
  * The next simulation tick retains animation, refreshes original protection and handles release.
  * No advancement occurs in this setter. Call false when the script interval expires. */
 bool SotnPlayer_SetScriptHold(SotnPlayer *player, bool hold);
+/** @brief Bind actual private SDK tables for scripted/guard timer presentation.
+ * @param player Borrowed owner. @param executable Borrowed verified US boot image, outliving
+ * player.
+ * @return Success or SDL error without mutation. Does not advance clocks or grant controls. */
+bool SotnPlayer_SetScriptContext(SotnPlayer *player, SotnDataView executable);
+/** @brief Write the original simulated-pad word and shared remaining interval.
+ * @param player Borrowed living owner. @param input Actual script request, modes0..2.
+ * @return Success or SDL error without mutation; mode1 requires the native presentation binding.
+ * No tick occurs here. Physical taps rebase once after the final simulated frame. */
+bool SotnPlayer_SetSimulatedPad(SotnPlayer *player, SotnPlayerSimulatedPad input);
 /** @brief Supply a stage chair's transient original seating hint for the next player update.
  * @param player Borrowed simulation. @param kind Zero disables, 1..4 choose original pose/facing.
  * @return Success or SDL error. Does not force a state; normal input/transitions retain control.
@@ -449,16 +766,19 @@ bool SotnPlayer_StageAlignX(SotnPlayer *player, Sint32 x);
  * @return Success or SDL error without mutation; does not advance movement or animation. */
 bool SotnPlayer_StageAlignY(SotnPlayer *player, Sint32 y);
 
-/** @brief Request Hippogryph's original normal-form grab, damage pulse or drop.
- * @param player Borrowed simulation. @param request START, DAMAGE or NONE; HELD is an
+/** @brief Request original grab entry, held damage, thrown release or clear-to-drop.
+ * @param player Borrowed simulation. @param request START, DAMAGE, RELEASE or NONE; HELD is an
  * acknowledgement produced by the player tick, not a caller command.
  * Raw attack power is 0..9999; defense/poison apply on the next player tick. Source coordinates
  * and velocity use the same bounds as ordinary physical contact and select lethal recoil.
  * @return Success or SDL error without mutation for an invalid request/transition.
  * START supersedes ordinary hit protection as in the US game. DAMAGE requires HELD and may
- * kill despite protection. NONE cancels a pending start or drops a held player into hit recovery.
- * This setter advances no time and borrows no boss pointer. Other grab reactions/releases remain
- * unsupported; the owning boss must clear the handshake when it stops holding the player. */
+ * kill despite protection. START captures NORMAL/STONE reaction; later commands retain it.
+ * RELEASE requires HELD, writes the supplied boss velocities (each bounded to16pixels/update)
+ * and retains power for the subsequent hurt15 impact, without immediate HP loss. Other commands
+ * require zero release velocities. NONE cancels a pending start or drops a held player.
+ * This setter advances no time and borrows no boss pointer. The actual boss producer must own
+ * its release motion and clear the handshake when it stops holding the player. */
 bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
 
 /** @brief Bind a borrowed subweapon service, alive until player closure; NULL disables casting.
@@ -561,6 +881,10 @@ bool SotnPlayer_SetEquipment(SotnPlayer *player, SotnDataView weapons, Uint16 le
  */
 bool SotnPlayer_ChangeRoom(SotnPlayer *player, SotnCollisionMap map, Sint32 offset_x,
                            Sint32 offset_y);
+/** @brief Discard native contacts sampled in the departed room after player control.
+ * The original next HitDetection runs against the destination. Call only after actual room
+ * entry succeeds, before accepting destination contacts. Healing, timers, HP and RNG hold. */
+bool SotnPlayer_ClearRoomContact(SotnPlayer *player);
 /** @brief Restore an original transient curse timer across a connected stage arrival.
  * @param player Borrowed living simulation. @param ticks Remaining simulation ticks, 0..1024.
  * @return Success or SDL error without mutation on invalid input. Does not reset motion/attacks.
@@ -671,11 +995,40 @@ void SotnPlayer_Close(SotnPlayer *player);
  * @param player Borrowed owner. @param ticks Original timer value, 0..32.
  * @return Success or SDL error without mutation. This grants no invincibility. */
 bool SotnPlayer_SetUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Commit original hand-weapon startup timer9 after a successful actual child update
+ * (weapon12's slash birth). @param player Borrowed player. @param ticks Original value, 0..32.
+ * @return Success or SDL error without mutation. */
+bool SotnPlayer_SetWeaponStartup(SotnPlayer *player, Uint8 ticks);
+/** @brief Commit original spell-use timer12 after a successful actual child update.
+ * @param player Borrowed player. @param ticks Original timer value, 0..32.
+ * @return Success or SDL error without mutation. Timer10 and damage-invincibility
+ * words retain their own producers; this operation does not advance any timer. */
+bool SotnPlayer_SetSpellUseTimer(SotnPlayer *player, Uint8 ticks);
+/** @brief Apply an actual weapon54 request: raise timer11 (Dark Metamorphosis) to a floor.
+ * @param player Owner. @param minimum Requested floor, 1..0x38. @return Success or SDL error.
+ * Only the timer changes; glow/palette owners belong to the Dark spell. */
+bool SotnPlayer_RaiseDarkTimer(SotnPlayer *player, Uint16 minimum);
+/** @brief Supply the actual slot16 entity's equipId before a player update.
+ * @param player Owner. @param item Live ordinary hand item in slot16, or zero.
+ * @return Success or SDL error. dra/6E42C.c reads it for Combat knife's alternation. */
+bool SotnPlayer_SetSlot16Item(SotnPlayer *player, Uint16 item);
+/** @brief Carry actual physical input from a startup/menu owner before first player control.
+ * @param player Actual initialized player. @param buttons Current full supported button word.
+ * @return Success or SDL error without mutation. Seeds pressed/previous/held and clears only
+ * the edge word, so a held confirmation cannot become a new jump/attack after loading.
+ * Advances no animation, afterimage, timer, resource or collision owner. */
+bool SotnPlayer_SeedInput(SotnPlayer *player, Uint16 buttons);
+/** @brief Commit original conditional DestroyEntityWeapon(true) for the owned ordinary shield.
+ * @param player Borrowed player. @return Success or SDL error without mutation.
+ * A live shield is retired without changing input, motion or timers. An absent shield leaves
+ * the independent normal weapon intact. Call only after its actual shared request succeeds. */
+bool SotnPlayer_ClearShield(SotnPlayer *player);
 /** @brief Queue actual blood contact healing for the following player update.
  * @param player Borrowed owner. @param amount Original first-request amount0/8/16.
  * @param contacts Actual consumed contacts this stage update,1..32.
  * @return Success or SDL error without mutation. An existing pending amount wins;
- * the original contact counter still advances with unsigned word wrap. This changes no HP,
+ * the original contact counter (g_Player.unk10) still advances, and each living update clears
+ * it after Muramasa's func_8010A3F0 check. This changes no HP,
  * grants no ability and writes no save; successful player ticks consume the request once. */
 bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 contacts);
 /** @brief Commit the actual Healing Mail HUD request after stage updates.
@@ -684,6 +1037,15 @@ bool SotnPlayer_QueueBloodHealing(SotnPlayer *player, Uint16 amount, Uint16 cont
  * successful living player update applies it once. Dead/frozen players retain it without
  * revival or a simulated tick. Actual equipment/counter qualification stays with the HUD. */
 bool SotnPlayer_QueueMailHealing(SotnPlayer *player);
+/** @brief Commit w_052's armed-shield hit after stage updates: kind1 eight-HP healing unless
+ * kind1 is already pending (the original overwrites any other kind), and func_8010E168(0,0x60)'s
+ * timer13 floor (raised only when the signed word is at or below it).
+ * @param player Actual owner. @return Success or SDL error without mutation. The next successful
+ * living player update applies the heal once; dead players retain it without revival. */
+bool SotnPlayer_CommitShieldHit(SotnPlayer *player, Uint16 protection);
+/** @brief Commit func_8010E168(0, protection)'s timer13 floor alone (Iron shield's guard hit;
+ * its BlinkWhite0x15 is a runtime factory). Fails for a missing player or a floor above 0x7FFF. */
+bool SotnPlayer_CommitProtection(SotnPlayer *player, Uint16 protection);
 
 /** @brief Actual shared factory reservation, called once at the original player boundary.
  * false availability is real exhaustion; success never implies child readiness. */

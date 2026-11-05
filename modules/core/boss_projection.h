@@ -34,6 +34,42 @@ typedef struct SotnProjectedPoint
  * this is a selected non-overflowing transform, not a general GTE implementation. */
 bool SotnBoss_ProjectIntro(SotnDataView executable, Sint32 anchor_x, Sint32 anchor_y,
                            Sint16 rotation, Sint16 x, Sint16 y, SotnProjectedPoint *out);
+/** @brief Selected weapon17 XYZ rotation, raw depth0..1280 and screen anchor. */
+typedef struct SotnTriangleTransform
+{
+    Sint16 x, y, z, depth;
+    Sint32 anchor_x, anchor_y;
+} SotnTriangleTransform;
+/** @brief Three local signed model coordinates, each axis within +/-32. */
+typedef struct SotnTriangleVertex
+{
+    Sint16 x, y, z;
+} SotnTriangleVertex;
+/** @brief Copied original screen coordinates, winding and AVSZ3 ordering depth. */
+typedef struct SotnTriangleProjection
+{
+    SotnProjectedPoint point[3];
+    Sint32 winding;
+    Uint16 ordering_depth;
+} SotnTriangleProjection;
+/** @brief Project a bounded weapon triangle using actual private SDK matrix pairs.
+ * Depth is the actual raw translation, without a book-camera offset. AVSZ3 retains
+ * its original341 factor. Zero winding must leave the caller's original packet
+ * coordinates unchanged; it supplies no valid original SDK output packet.
+ * @return Success or SDL error preserving output; not a general GTE emulator. */
+bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform transform,
+                          const SotnTriangleVertex vertices[3], SotnTriangleProjection *out);
+/** @brief w_026 Shaman shield star: RotMatrix(axis), TransMatrix(transfer), SetGeomScreen(screen)
+ * and SetGeomOffset(offset) followed by RotTransPers4 of four small vertices.
+ * @param executable Borrowed verified boot math tables. @param axis RotMatrix angles (XYZ order).
+ * @param transfer Translation vector. @param offset_x Screen offset X. @param offset_y Screen
+ * offset Y. @param screen Projection distance H. @param vertices Model vertices (|v| <= 1024).
+ * @param out Receives the four saturated screen points. @param otz Receives RotTransPers4's
+ * return (the last vertex's SZ>>2).
+ * @return Success or SDL error preserving outputs; bounded to this selected effect. */
+bool SotnShieldStar_Project(SotnDataView executable, const Sint16 axis[3], const Sint32 transfer[3],
+                            Sint16 offset_x, Sint16 offset_y, Uint16 screen,
+                            const Sint16 vertices[4][3], SotnProjectedPoint out[4], Sint32 *otz);
 /** @brief Original book transform; angles use 4096 units, depth is 0..768. */
 typedef struct SotnBookTransform
 {

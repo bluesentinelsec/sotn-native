@@ -1,3 +1,1183 @@
+Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
+on every equipment set and cast every shield spell (Leather203/Knight204/Iron205/AxeLord206/Goddess209/Shaman210/Alucard214/Alucart215) with Mablung or Shield rod on both buttons (held
+shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
+factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
+rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
+flashes, opens a nine-band card on retained program shieldAngles and releases FACTORY(55,8);
+Knight (w_009, 12 rows) slices ten horizontal RGB bands, 48x40 card, pink7, bright<4 fade;
+Alucart (w_058, 2 rows) holds 0x40, flashes (0x1FC) and shows the page-0x1E question mark;
+Axe Lord (w_011, 10 rows, 20 MP) resets its band angles, ends the freeze itself and creates the
+blueprint88 E9/F9 walker (raw-parent copy, least-used group, no parent enemyId, params without
+the hand bit) whose blueprint90 afterimages (32..63) keep equipId0; raw parents read only at birth.
+Goddess (w_025, 17 rows, 40 MP) keeps fifteen program angles, requests FACTORY(90,1) E9/F9 clouds
+(one row, 32..63, flag0x10000, six birth rands, raw parent read each aim; empty slot reads screen0)
+and pink15; spell/clouds keep screen position. Lab GT4 commands pack owner*32+row.
+Shaman (w_026, 14 rows) keeps program angles/green cycle/glass counter, rewrites palette0x112
+colour13 green each callback (read-modify g_Clut, committed after the pass), releases
+blueprint92's eight GTE stars (RotTransPers4, screen0x280; ChildRows: star1/trail4 rows) and
+pink6; stars read the raw spell's step, trails copy the raw star's row.
+Alucard (w_052, 23 rows incl. 11 G4 ribbons drawn untextured) arms its shield's program
+(D_8017ABBC/ABC0=0x1000): the raised family52 shield attacks (hitbox|2, cached attack), holds MP
+regeneration (D_80097BF8 -> HUD mp_hold), drains MP each 16th game update (native MP stops at 0),
+heals/hearts/BlinkWhite0x15/timer13 on hits (SotnPlayer_CommitShieldHit) and at timer/MP expiry
+rolls properties again and releases the 0x3A E1/F1 letters.
+Iron (w_010, family10, item7 now a guarding shield): a raised hit requests WFACTORY(56,0)'s E1
+thunder (raw slot16 must hold item7; palette0x8194, THUNDER_A, anim0xBA0) then guard_blink
+(BlinkWhite0x15 + protection0x60 via SotnPlayer_CommitProtection, no heal). Spell205 owns 33 GT4
+(spell_quads[33]; lab GT4 commands now pack owner*64+row), program iron_angles/angles2 (0xBBC/0xBDC),
+FACTORY(88,0/1) E9 swords: 18 rows, FakePrim screen centre (row0 x0/y0), delay0x20 then
+CAMERA_LOCKED (screen retention only before), equip 205, least-used group, culled offscreen.
+Other combos keep the left-hand attack (gap) until their spells exist.
+
+Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,
+additive) and back-forward special173: descriptor1 requests WFACTORY(0x4A, anim) on pose4 at player
+poseTimer7. The E1 orb (slots28..31) reads its raw slot16 parent only at birth, keeps equip id0,
+takes fixed hit-type4 attack1 words and func_80118894's group, grows/decelerates, bobs for 0x200
+updates shedding WFACTORY(0x40,0) sparkles every eighth, shrinks on countdown or hit (a hit on the
+growth's last update strands it in the original's unhandled step4). Sparkles lease one optional GT4
+before two rands; quads use the retained (pre-scroll) camera. Native combat now writes attacker
+hitFlags for hit-state-4 guards too (collision.h does so on overlap); guards only meet bit4 hitboxes.
+
+Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,
+weapon30 swing: DRA bank10, TRANSP|QUARTER) and QCF special177 (kind5, bp56, chain8, five MP;
+equipped 0x11 also refuses vram flag0x40). The circle (E1, 11 GT4) rolls one/six soldiers then
+scans fifteen CheckCollision ground points and creates WFACTORY2(0x3E) soldiers (free-factory
+limited, E2 spacing); shared D_8017A5F4 bands, tether, wave unk84. Soldiers (E2, 14 world GT4)
+wait for their raw circle's wave, rise, walk/shoot/throw/bomb (real UpdateAnim/frame props),
+blink out on hits (type1 three lives; attacker hitFlags now reach every secondary and slot16). Arrows/swords (E3) home via shared target marks and
+func_80118B18; bombs (E4) burst or roll with FACTORY(0x24,1) sparks. Unscanned points read
+zero natively (original uninitialized stack); soldiers lease rows at birth.
+
+Selected [Shotel](docs/player-shotel.md) now owns item28 (kind12, w_002-template weapon34
+swing, BLEND_TRANSP) and its QCF special176: a kind129 throw (StartThrow, blueprint56, chain1,
+never consumed, no MP) whose E1/F1 boomerang flies out (4.5 plus player speed, 0x1C updates,
+ROT(45) spin) and homes back (turn limit 0x200 +0x10). While any 176 lives with either hand's
+params (SetSpecialChain/SetSpecialCross), case12 punches: Shotel's factory, then 42+hand, item0's
+animation/kind/lock.
+
+Selected [Yasutsuna](docs/player-yasutsuna.md) now owns two-handed item165 through weapon53 as a
+kind129 throw (blueprint68, chain1, animation0x5D, never consumed; either button). Its E3/F3
+role3 root in17..31 stays at its factory origin (no forward offset; crouch +11 else -5), takes one
+mandatory GT4 and, only at parameter0, rolls properties (least-used increment, then group0 from
+the raw player parent) and requests WFACTORY(0x38,age+1) each callback: nine Katana role1
+slashes. The right hand's 0x8000 parameter bit is masked as w_053 does; hitbox X stays 0x12.
+
+Selected [Chakram/Vorpal blade/Crissaegrim](docs/player-weapon12.md) now own items133/163/164
+through weapon12 as secondary roots in17..31: role0 GT4 slashes (blueprints50/52, descriptors1/2,
+one mandatory row, program count D_8017BB28 in secondary_counter picks the shape, CLUT fade
+retirement, timer9 via startup_ticks/SotnPlayer_SetWeaponStartup), role1 the blueprint56 Chakram
+(rand speeds, accelerations, turn-limited homing) and role2 0x40 afterimages copying its palette.
+All never consumed; roots/Chakram carry their items for CheckChainLimit.
+
+Selected [Muramasa](docs/player-muramasa.md) now owns two-hand item141/kind29 through weapon56
+(Gurthang's callback, own tables; descriptor2 under timer11; attack>=0x1E requests the
+WFACTORY(56,0) Katana slash chain over tables 0xFCC/0xFA4, hand word 0x105C). func_8010A3F0 runs
+before healing: two-hand Muramasa holds timer11 at 0x20 and counts blood updates
+(`muramasa_blood`, committed after success); contacts clear each living update. Ordinary saves
+are now v10: the u32 counter at 3632 (v9 migrates to 0). CalcAttack adds SquareRoot0(counter) in
+its signed word; counters >=0x80000000 need SotnCharacter_BindExecutable. Case29: one crit rand,
+attack (halved by poison) below 11 takes the rand()&7 roll. Older "v9" notes describe the v10
+layout's other fields unchanged.
+
+Selected [Heaven sword](docs/player-heaven-sword.md) now owns kind129 item119 through weapon13 as
+a role0 secondary root (no rows): fly/stop, parabolic spin rise, turn-limited homing (step grows
+0x20, never overshoots) and hitbox retirement; even g_GameTimer WFACTORY(0x3A,0) afterimages in
+32..63 copy the raw parent's frame/childPalette/rotation with ENTITY_OPACITY fades. Never
+consumed; only the root counts for CheckChainLimit. Dual Heaven swords' combo202 (left hand,
+kind5, bp62 at <<14, chain1, five MP) runs w_013 role2/role3: the E2 sweep (screen words; no
+CAMERA_LOCKED, so callbacks use retained_camera = camera - room_shift + screen_shift) arcs from the
+hitbox, requests 0x46+(hand+1)<<14 strike swords (D_8017A5E0 params, counter advances without a
+free factory), blinks, snaps to its target and reserves its one LINE_G2 row on the update reaching
+0x34 (failure destroys; HeldRows, HAS_PRIMS). E3 strikes read the raw parent every update, launch
+after its step3 and copy item/enemyId then. Mutation sweeps must use ctest's exit code.
+
+Selected [Runesword](docs/player-runesword.md) now owns kind129 item143 through weapon14 hosted
+by the secondary owner as role0: blueprint50 E0/F0 roots in slots17..31 (own item, least-used
+group, 48 mandatory GT4s before RNG) fly/stop/drift/home and retire at the player's hitbox;
+four 0x72 hitboxes copy the raw parent's id/enemyId and retire when its slot empties. The throw
+is never consumed (`keep`); CheckChainLimit counts the root and initialized hitboxes. Trail
+corners are world pixels (DRAW_UNK02|UNK_100). Secondary DestroyEntityWeapon(true) now retires
+a raised slot16 shield (Moon rod too). SFX_RUNESWORD_ATTACK uses PlaySfxVolPan 0x50.
+
+Selected [Moon rod](docs/player-moon-rod.md) now owns item132 and kind5 QCF special172: blueprint72
+spawns five own-item E1/F1 crescents (player hitbox origin, least-used group, shield clear,
+timer10=4, hit flash) whose sparkles chain from them. QCF honours limited CheckChainLimit via
+per-hand special counts; kind5 starts only on the ground (substep0x45) and keeps the grunt.
+
+Selected [Icebrand](docs/player-icebrand.md) now owns item113/kind22 QCF special181 through weapon50:
+every pose1 requests FACTORY(0x61,descriptor) crystals; descriptor1 adds APPEAR_A/0x3A/0x40 at
+birth and 0x44 frost at pose1. Sparkles lease eighty actual rows (child rows now 80) but keep
+compact centre/UV/scratch state rebuilt at draw (SOTN_DRAW_WEAPON_SPARKLE); D_8017CBFC points live
+in a program-BSS union shared with the crystals. Frost re-anchors outside the window as original.
+
+Selected [Firebrand/Marsil](docs/player-firebrand-marsil.md) now own items111/117 and kind20/21
+QCF specials179/180 through weapon49 and five secondary roles: sparks (parent attack copy,
+func_80118894 group alone, orbit, ratan2 heading, ring request), the 16-wedge ring, puffs (private
+anchors, six rand calls), swirls (phase2 CAMERA_LOCKED, pillar on %7) and pillars. Raw parents
+may sit in slots16..47; E3..E5/F3..F5 are secondary kinds; bank2 frames at D_8017AA44.
+
+Selected [weapon51 swords](docs/player-weapon51-specials.md) now own two-handed Claymore98/
+Flamberge101/Zwei103/Obsidian107, Estoc95 (variant8 = D_8017AD58 past the table) and back-forward
+kind23 specials182..185. Descriptors1..3 glow colour11 of their palette through program-BSS
+words and real g_Clut writes, committed after the pass. Selected items pay HasEnoughMp(mp,1)
+after the factory (back-forward: only if MP covers it); cramped Estoc starts no attack.
+Blueprint54 replaces slot16 with the E1/F1 special (palette0x110+subType*2, pose1
+WFACTORY(0x3E,0)); its fan root copies the raw parent and chains nine-callback GT4 blades.
+
+Selected [Iron Fist/Fist of Tulkas](docs/player-fist-specials.md) now own items102/120,
+kind24 rushes186/187 and kind25 fireball188: kind24 holds D_80139824 0x80 in substep0x58
+(stand pose4->2; airborne Player_Jump hovers without transitions). Blueprint54 replaces slot16
+with the E1/F1 rush (own item, hand group, 16 mandatory GT4s, lifetime128); descriptor4 requests
+WFACTORY(0x3E,0) for the E2/F2 fireball, which copies its raw parent and retires after hitFlags.
+Room entry translates quad-backed secondaries (ring/rush) per GT4 vertex, never as row storage.
+
+Selected [Osafune/Masamune](docs/player-katana-warp.md) now own two-handed items139/140,
+back-forward192 (root10) and kind135 warps193/194: blueprint60 replaces slot16 with an E2/F2
+afterimage (factory-argument equip id) that slides out/back with SetSpeedX/DecelerateX, spawns
+roots0x28 (Masamune birth)/0x1E (pose6, pose8 timer1) copying its item and enemyId0, retires at
+pose15 and keeps screen position. Slash rows48/49 read past the table (row48 = live g_HandId);
+original-data quads use the opt-in GPU 11-bit wrap/span rule. Kind135 enters sword-warp.
+
+Selected [Thunderbrand](docs/player-thunderbrand.md) now owns item112/QCF special178 through
+weapon48: birth requests root0x38/branches0x3A,1..3/ring0x40 before properties, pose-BSS bolts at
+the first pose1 (0x10/0x20), kind19's forty-update pose0 hold (0x53..0x56 share 0x5C's handler).
+Secondaries gain role2 (E2/F2) and slots17..63: lightning LINE_G2x10 with anchors/lifts/halved
+extents, the GT4 ring (page0x1A, palette0x15F, THUNDER_B) and E2 row tags. Fire/Ice/Marsil stay
+unavailable.
+
+Selected [Katana](docs/player-katana.md) now owns two-handed item100/QCF special189
+through weapon53: descriptors1/3 blend a quarter; descriptor1 requests WFACTORY(56,0) before
+properties. Slash children own one mandatory GT4, roots0/10/20/30 (and 40..49) copy raw-parent
+properties/enemyId, roots request WFACTORY(0x38,age+param+1) every callback (nine chained
+children whose raw parent is the root's slot, even when reborn into it), CLUT schedules,
+nine-callback lifetime and entity-relative DRAW_UNK02 corners. Osafune/Masamune own kind135 warps;
+Yasutsuna has its own thrown owner (see its block).
+
+Selected [Rapier/Were bane](docs/player-lunge-weapons.md) now own items23/22 and QCF
+lunges191/190 through weapon38/39 and the shared weapon-secondary owner. Descriptor1 requests
+WFACTORY(0x38,0) on pose4's final update. Kind26 stops both velocities, holds pose6 on a
+forty-update D_80139824 and resumes substep0x50 at pose10/Down-Up tap/backward. Secondaries
+retire outside step_s0x5A, reserve 24/32 mandatory rows, keep a per-hand program-BSS
+countdown (0x640 at &7==7, 0x6F0 at zero) and Were bane's chain arrays; never saved.
+Muramasa now has its own owner (see its block); its counter is saved in v10.
+
+Selected [Holy sword](docs/player-holy-sword.md) now owns item115/QCF special196 through
+weapon55 and the first native weapon-secondary owner: descriptor1 queues 0x69D then
+WFACTORY(0x38,0) before properties; next-pass E1/F1 in slots17..31 reserves 64 mandatory
+LINE_G2 rows before 128 rand calls, copies the raw slot16 parent's equipId/enemyId after the
+least-used increment, shrinks its hitbox at frame1/timer1 and runs post-cull UpdateAnim.
+Kind28 stands still, holds pose0 ten updates (D_80139824), plays 0x6EF without grunt and
+charges five MP after the factory. Additive ABR1 lines; bank-2 table bounded at five entries.
+
+Selected [Gurthang](docs/player-gurthang.md) now owns item121/QCF special195 through
+weapon54: twelve optional LINE_G2 rows (28 birth rand calls) placed on trigger frames,
+Dark descriptor2 with doubled attack, a 0x38 timer11 floor committed after the player
+update and the FACTORY(61,0x11) outline. QCF resolution now precedes back-forward (grounded,
+chain0x80, MP after the factory). Muramasa shares the callback (see its block).
+
+Selected [weapon special inputs](docs/player-weapon-specials.md) now run the original
+back-forward recognizer after QCF and resolve the equipped unk17 item after curse/
+Alucard-sword QCF and before the actual factory. Basilard18's special174 uses weapon31
+descriptor1, kind8 (no casting grunt); Holy rod/Star flail specials170/171 are kind4. Kind0 airborne variant6 needs Down plus Left/
+Right. Other specials need their own states/callbacks; their items stay unavailable.
+
+Selected [plain weapons](docs/player-plain-weapons.md) now own Morningstar129/
+Mablung124/Holy rod130/Star flail131 and paired Takemitsu27/Nunchaku21/Red Rust26
+through actual weapon3/57/4/5/36/33/35 programs running w_002's callback from their own descriptors. Preserve each
+blend (additive; Red Rust transparent; Nunchaku none), Nunchaku's pose12 sound pair,
+Holy rod/Star flail ANIME_SWORD_B, Star flail's pose6/7 widening, specials170/171,
+Mablung descriptor3, Morningstar palette5 and live hand words in crossing palette
+copies. Red Rust rolls one character libc rand after its actual factory; &7==0 takes
+the curse failure branch without grunt. Great Sword127 (weapon51 descriptor0) uses DRA
+bank10; Combat knife20 lingers four updates in slot16 and alternates with special175 via
+the session-supplied slot16 item. Muramasa has its own owner. No
+pool/grants/savev9 change; supplied stock/protection/position/relic/arrival/seed/save
+fixtures are not acquisition/route/console evidence. All six Alucard gates remain open.
+
+Selected [basic fists](docs/player-basic-fists.md) now own Knuckle duster85/Jewel
+knuckles97 through actual weapon1 descriptors0/1, shared slot16 and four mandatory
+GT4 trail rows reserved before flags/properties; exhaustion omits the attack without
+RNG/retry. Preserve no sprite, per-row libc, camera-subtracted screen placement,
+SDK sqrt/atan2/trig follow-through, NULL palette table, four-vertex rebases and draw
+holds. Kind0 attacks use the original substep0x40 handler (pose7 combo, 0x24 stand-up). Iron Fist/Tulkas specials stay unavailable. No pool/grants/savev9 change;
+supplied stock/protection/position/occupancy/curse/save fixtures are not acquisition/
+route/console evidence. All six Alucard gates remain open.
+
+Selected [basic shields](docs/player-basic-shields.md) now own Leather5/Knight6/
+AxeLord8/Goddess11/Shaman12/Alucart167 through actual families8/9/11/25/26/58,
+shared slot16, private animation/hitbox tables, palette copies with the live hand
+word and native guarding. Only families52/58 cache/override attack1; basic shields keep hit-state4 attack255 and zero displayed/
+GetProps ATK under buffs/poison. Any hit-state4 guard kills blockable projectiles
+without DealDamage and otherwise rolls DealDamage, then discards it. Shield spells
+and other shield families stay unavailable. No pool/grants/savev9 change; supplied
+stock/protection/position/curse/save fixtures are not acquisition/route/console
+evidence. All six Alucard gates remain open.
+
+Selected [native MainGame tail](docs/main-loop-tail.md) now owns actual global
+map-word advancement and one trailing native libc-adapter call after status time.
+Preserve all paused/frozen/release/FFF/dead/GameOver calls, zero-count Rand, signed
+normalization/wrap, pre-tail map packet phase, no draw/failure/pending-stage ticks,
+atomic character HMS/RNG binding and no-tick connected/cold map-word transfer.
+Startup consumes the same tail after actual title/menu/render/audio preparation.
+No extra live pool/grants/savev9 fields. Fixed60 supplies256; native libc seed/LCG,
+stage/combat RNG and saved-RNG restoration remain explicit adapters, not BIOS boot/
+full sharing/raster/whole-pass parity. Source comparisons with supplied words/counts/
+flags/cursors and native clock/protection/arrival/save-room/Fairy-load/failure fixtures
+are not acquisition/routes/ordinary familiar activation/console evidence. All six
+Alucard and full cold New Game/prologue gates remain open.
+
+Selected [playtime/Badelaire](docs/player-playtime-badelaire.md) now owns actual
+four signed status words, original single carries/hour cap and125 variant3 shared
+hands. Preserve post-menu/map holds/closing-frame advance, frozen/release/FFF/dead/
+GameOver time, draw/failure/pending-stage holds and birth-hour attack retention.
+Native fixed60 supplies256, not actual SDK raster stalls. Keep engine/gameplay/HMS
+services separate; stage phases and Wolf Blink use engine, subweapon phases use game.
+Continue binds before gear/actor bootstrap; connected transfer keeps all four words
+without ticks or legacy aggregate-ceiling loss. Preserve v9 legacy99999-hour import,
+serialization ceiling without live mutation, signed pre-cap hour bonus and unbound
+raw gates. Selected global map cursor/end-MainGame native libc-adapter call now run;
+full BIOS/shared RNG/remaining timing stay open.
+No new pool/grants/save fields; supplied clock/equipment/protection/arrival/save-room/
+Fairy-load/failure fixtures are not acquisition/routes/ordinary activation/full-pass/
+SDK/console evidence. All Alucard and full cold New Game gates remain open.
+
+Selected [two-hand equipment](docs/player-two-hand-equipment.md) now owns ordinary
+Namakura84 selection, one-copy/both-word reservation, displaced returns, real menu
+confirmation and paired v9 restoration. Preserve selected-first return, one return
+for old paired weapons, spare decrement before capped return (255 reselects254),
+full169 order and virtual-empty exclusion without adding stock. Setter idempotence
+is distinct from actual menu confirmation. Original shop capacity still counts both
+words. Player/development bindings reject unpaired84 before grants; reread the first
+commit before binding the second hand. Existing shared16/properties/graphics/forms/
+rollback owners remain real; no extra pool/defaults/v9 fields. Explicit stock255,
+protection/arrival/position/save-room/failure fixtures and adapters are not acquisition,
+route/full-pass/console evidence. Other two-hand families,
+remaining equipment/familiars/sharing and Alucard/cold New Game remain incomplete.
+
+Selected [ordinary hands](docs/shared-ordinary-hands.md) now own actual shared16,
+factory48/empty42/43, normal casting-grunt then property RNG, groups1/2, native
+combat/rendering, Alucard-sword optional16 TILEs and shield phase4 knock-away.
+Preserve FFFF-before-hitbox versus negative-timer-after-hitbox ordering, actual
+unk48/preemption, original final shield drawFlags overwrite, double timer decrement,
+allocation-before-particle RNG/no retry, same-family BSS, no-tick room/shove and
+menu/map/frozen/draw holds. Alucard-shield displayed/GetProps ATK stays0; its
+SetWeaponProperties override/attack1 remain separate. Commit form/spell retirement
+after player success before the next real owner. Later effect rollback starts at
+the post-player boundary; full-pass rollback remains open. Explicit stock/relic/
+protection/position/occupancy/data/save-room fixtures are not acquisition/route/
+console evidence. Selected [weapon0 swords](docs/player-basic-swords.md) now add19
+owned one-hand items, real variants0/1/2 and actual palette-index/full384-word
+copies. Preserve negative attack caps, actual defense/elements, Mourneblade orb-before-immunity and
+existing deferred8HP contact. Selected Namakura two-hand and actual playtime/Badelaire now run. Secondary producers, shield spells, full equipment/sharing and
+Alucard/castle remain incomplete. No new grants/pool/v9 fields.
+
+Selected [Karma Coin](docs/player-karma-coin.md) now owns actual24 menu/hand use,
+stock/Duplicator, shared weapon20 factories/children/26-row lease, private sprites/
+G4/GT4 presentation and native physical/global damage with real Soul orbs. Preserve
+chain1 before curse, player-success stock/grunt, mandatory26 allocation before root
+RNG/shield callback and real failure retirement without retry. Birth sets neither
+word10 nor12. Preserve floor-first/top correction/early return, private pose sound
+volumes and actual coin-flip RNG. Tails owns word10=4/properties/internal UpdateAnim
+hitbox words; heads owns word12=4/fixed4/hit82/effect2/group without a property roll.
+Preserve high-only anchors, per-hand writable angles/closing-edge update order,
+signed counter remainders and whole-word wrap, real84 scheduling/low parameters/
+next-pass children, inherited raw bank/texture and parent existence every callback.
+Same-family/room retains data; actual program/Axe Armor/full-stage/Continue reload
+restores private data/BSS, never saves or transfers it. Native Wolf replacement
+releases real rows before later allocation. Preserve shared sound-volume order,
+Blink/clock/camera/shake, holds, real retirement and late-failure runtime/program/
+row/character/RNG/player rollback. No new pool/grants/savev9 changes. Supplied
+stock/relic/health/arrival/position/camera/RNG/pressure/failure/in-memory-save fixtures
+and adapters are not acquisition/routes/whole-pass/full sharing/console evidence.
+All Alucard/cold New Game gates stay open; ordinary Fairy UI remains disabled.
+
+Selected [weapon15 stars/TNT](docs/player-star-weapons.md) now owns75..79 actual
+menu/hand use, stock/Duplicator, shared roots/descendants/rows, private sprites/
+animation and native damage. Preserve kinds129/130, actual50/68, chain3/TNT1 before
+curse, player-success cost/grunt, timer10=4/conditional shield and raw AE/params.
+Buffalo58 uses32..63, born9 lifetime/no inherited rotation; empty-parent blank
+trail keeps wrapped priority65534. Flame80 uses25..31; common4/profile11 changes
+factory entityId EF/FF only. Real weapon15 BSS holds same-family/room, resets on
+actual program/Axe Armor/full-stage/Continue reload, never saves/transfers. TNT's
+optional32 leases precede64 RNG; failure omits only visual, fixed1 attack/group/
+SFX/word10/shield continue and never retry sparks. Preserve fuse absolute clock,
+hit-byte2/3/return, collision order, spark words/hide ordering,76's split ranges/
+low-byte increments/delay,78's scaled parameters and next-pass births. Properties
+increment least-used before raw-parent group overwrite. Actual Wolf replacement
+releases TNT rows; cleared body VX/VY/AE and group0 feed surviving real explosions.
+Use explicit weapon15 secondary17/19 API; resident sleep17 stays resident. Preserve
+raw-parent fields/no generation equality, private SDK, Blink/camera/shake/holds,
+real retirement and native late-failure runtime/BSS/row/RNG rollback. State3/
+scatter fixtures establish no ordinary producer. No new pool/grants/savev9 fields;
+pressure/stock/relic/pose/position/failure/save fixtures and adapters are not routes,
+whole-pass/full sharing/console evidence. Alucard/cold New Game gates stay open.
+
+Selected [weapon16 throwing items](docs/player-thrown-weapons.md) now owns actual
+80/81/82/134/135 menu/hand use, stock/Duplicator, shared roots/children/leases,
+private sprites/animation and native physical combat. Preserve actual kinds129/130,
+blueprints50/62/68/63 and chain3/3/2/3/4 before curse, player-success cost/grunt,
+conditional shield/word10=4, knife allocation before properties and next-pass
+trails58 in32..63/fire110 in25..31/common4-profile11 in32..63. Fire smoke changes
+factory entityId EF/FF only. Preserve raw-parent fields without generation equality,
+actual Wolf bank/body rotation/zero selfVX, private SDK/wrap/collision query order,
+all24 eight-Iron impact requests and profile9 dust. Actual per-hand weapon16 BSS
+holds through same-family menus/room cleanup; real program/Axe Armor/full-stage/
+Continue reloads reset it, never save or transfer it. Menus/draws/spirit freeze hold
+throwing/flame/profile11 owners; common smoke keeps its own original freeze flag.
+Room cleanup precedes new allocation and retires projectiles/profile11/profile9
+without a tick. Preserve real cull/Blink and native late-failure runtime/BSS/row/RNG
+rollback. No new pool/grants/savev9 changes. Supplied inventory/equipment/relic/
+protection/arrival/position/collision/failure/in-memory-save contexts and component
+adapters are not acquisition/routes/whole-pass/global-sharing/console evidence.
+US wet-smoke remains unsupported. All six Alucard gates and cold New Game/prologue
+remain open; ordinary Fairy UI stays disabled.
+
+Selected [cold title/Continue](docs/cold-start.md) now owns actual resident/SEL/title
+startup before any character,17 real SEL SPRTs, private512x240/4:3 rendering,
+four resident SPU banks/reverb and the explicit native filesystem Continue adapter.
+Preserve original callback/input/engine-clock/fade/lightning/libc order, real row
+retirement, draw holds and actual verified uploads. Native logo omission follows
+the PC branch; it is not MDEC completion. Valid existing v9 saves alone create
+gameplay; empty/corrupt/failed loads never fall back to a checkpoint. Prepare
+candidate banks1/3 from the retained SPU without an audio render, carry engine
+clock/held input, borrow then transfer the real save store once and ignore stale
+departing-window focus. Failure retains published startup/SPU/store/save bytes.
+No grants/savev9 change. Native filesystem labels are not original SEL UI; name
+entry/New Game/Richter prologue/forest/return-to-title and the cold-start gate
+remain open. Supplied save/focus/resource-failure fixtures and component adapters
+are not acquisition/routes/whole-pass/full audio/console evidence. All six Alucard
+gates remain open; ordinary Fairy UI stays disabled.
+
+Selected [Magic Missile25](docs/player-magic-missile.md) now owns actual menu/hand
+use, stock/Duplicator consumption, resident weapon22, shared50/56 roots/17..31
+bow/arrows, private animation/rendering and native physical2 combat. Preserve
+chain4 before curse using raw AE/params8000: rightF1 arrows retain params0 and
+count left; cold arrows retain AE0 until actual raw-parent copy. Keep next-pass
+birth, successful-root-only625, bow669/word10=4, conditional real shield removal
+only after native success, raw parent without generation equality, actual Wolf
+replacement fields/zero AE, no birth motion and only hitFlags1 impact. Impact
+retains attack until original animation retirement/dead cleanup. Preserve callback/
+real cull/animation ordering, full fractions/wrap, actual post-stage shove only
+for bow40000, independent arrow camera flag, slot/engine-clock Blink80, menu/
+freeze/draw holds, no-tick cleanup and real runtime/rows/character RNG rollback.
+No new pool/grants/savev9 fields. Supplied inventory/equipment/relic/protection/
+arrival/RNG/shove/failure/in-memory-save fixtures are not acquisition/routes/
+whole-pass/full sharing/console evidence. All six Alucard gates and cold start
+remain open; ordinary Fairy UI stays disabled.
+
+Selected [native ability timer commits](docs/player-timers.md) now retain separate
+original word10 (Bat Fire) and word12 (Neutron/Sire/Pentagram) birth requests.
+Preserve actual indices, original4 overwrite, status1000, the other timer's count,
+player-success/shared-owner commitment and ordinary countdown/menu/freeze/draw
+holds. Actual player-entity cleanup clears consumed requests, not live player
+words. Do not route weapon17/18/19 through the subweapon10 setter. No second timer
+bank, grants or savev9 change. Supplied stock/protection/timer/resource/arrival
+fixtures are not acquisition/routes/global timing/console evidence; all six
+Alucard gates and original cold-start gate remain open.
+
+Selected [Pentagram73/Bat74](docs/player-pentagrams.md) now owns actual menu/hand
+use, inventory/Duplicator consumption, resident weapon17, shared50 roots/17..31
+children,25 real rows, private GT4+24GT3 drawing and native global82 attacks.
+Preserve actual item/hand chain1 before curse, player-success cost/grunt before6E4,
+allocation before properties/RNG/effects,24 active callbacks, the transition's96
+rolls/no projection and153 total callbacks. Use actual per-hand weapon17 BSS,
+private SDK XYZ/GTE/AVSZ3 factor341, winding/degenerate retention and signed wrap;
+never substitute per-child scratch, a second quad triangle or another pool.
+Retain screen128/104 fractions, current shake once, clock palettes, menu/freeze/
+draw holds, common frozen flash tail, no-tick room/weapon retirement and actual
+factory/row/character/RNG rollback on late failure. Connected sessions retain BSS;
+ordinary saves do not serialize it. No grants/savev9 change. Supplied stock,
+equipment/protection/arrival/camera/RNG/failure/save-room contexts are not
+acquisition/routes/whole-pass/global-libc/full-contention/console evidence.
+All six Alucard gates remain open; ordinary Fairy UI stays disabled.
+
+Selected [Power of Sire72](docs/player-power-of-sire.md) now owns actual menu/hand
+use, inventory/Duplicator consumption, resident weapon18, shared50/56 roots and
+17..31 parents/bursts, private animation/rendering, native global82 pulses,
+flash5/6, shake3 and real profile12 particle leases. Preserve actual item/hand
+chain1 before curse, casting grunt before birth66A, birth property roll and seven
+later pulses only after successful actual root56 reservations. Keep old group
+counts until end recount. Bursts retain raw parent slots/AE72 without generation
+checks; read actual cold/replacement palette/texture, allocate before two RNG calls,
+use private SDK trig, real post-callback culling and no animation-end retirement.
+Preserve portrait screen retention, room-space burst motion, integer scale-only
+pivots, white815F, final14 callbacks and real20+sentinel/no-RNG/double-decrement
+profile12 retirement. Particle screen positions have no primitive camera translation.
+Menus/freeze/draws hold child cursors; preserve the common flash tail through freeze.
+Room cleanup adds no tick and actual late failures restore
+factories/rows/character RNG. No new pool/grants/savev9 fields. Supplied stock,
+protection/equipment/arrival/camera/RNG/failure/save-room fixtures are not acquisition,
+routes, whole-pass/global libc/full-contention/console evidence. All six Alucard
+milestone gates remain open; ordinary Fairy UI stays disabled.
+
+Selected [Neutron Bomb71](docs/player-neutron-bomb.md) now owns actual menu/hand
+input, inventory/Duplicator consumption, shared50 roots/17..31 children, one real
+GT4, private weapon19 sprites/animation/SDK transform and one native global82
+damage pulse. Preserve chain1 before curse: actual children already retain71 in
+factory AE at birth, including the early halo; pending roots are excluded.
+Preserve allocation-before-effects/properties, signed extent127..15..-1 before
+hide, delayed GetEquipProperties roll, first-least3..6 group and next-callback
+attack clear. Keep post-callback private animation, pose3/timer1 blend, pose5
+opacity/unlock, signed scale-before-SDK-rotation/fade and real animation retirement.
+Commit casting grunts before shared birth sounds, retaining earlier guard voice;
+failed player updates queue no grunt. Project current shake once on halo and sprite.
+Actual resident hand programs survive last-copy use; never infer weapon19 from an
+empty hand or confuse its E0/F0 with food21. Preserve KEEP04000000 screen retention,
+freeze/menu/draw holds, no-tick room retirement, Wolf replacement and actual late
+factory/row/character RNG rollback. No new pools/grants/savev9 fields. Explicit
+stock/equipment/protection/arrival/failure/save-room fixtures are not acquisition,
+routes, full shared contention/global libc ordering/whole-pass/console evidence.
+All six Alucard gates stay open; ordinary Fairy UI remains disabled.
+
+Selected [owned food](docs/player-food.md) now connects42 items29..70 to actual
+hand input, inventory/Duplicator consumption, shared50/56 roots/17..31 children,
+private weapon21 sprites and raw deferred healing. Preserve item/hand chain2 before
+curse, successful-player cost commit, extra GetEquipProperties RNG, signed wrap,
+catch-before-motion, Peanut7B/anim0 mouth and pose3/timer8, Toad sim20 and delayed
+raw81/power0/player-hitbox0, and independent Soul attack-child hitbox82. Meal Ticket
+pickups use real inventory/sound and ordered shared-row text replacement; exhaustion
+omits only text.
+Preserve304 ordinary/frozen text clocks, menu/release/draw holds, real offscreen
+retirement, no-tick rebases, actual menu weapon cleanup, resident artwork after the
+last copy and late-failure UI/row/inventory/RNG rollback. No new pool/grants/savev9
+fields. Explicit stock/HP/protection/position/arrival/failure and component adapters
+are not acquisition/routes/whole-pass/full contention/console evidence. All six
+Alucard gates remain open; ordinary Fairy UI stays disabled.
+
+Selected [inventory-menu audio](docs/laboratory-audio.md) now queues actual
+A7/A3/E entry andF/A4/A8 exit through the common sound ring. Preserve conditional
+RR8 releases with retained20/22 IDs, private-definition rekey/gain, unconditional
+A1/A2/A5/A6 clearing andA0 RR14/Init2. Stage22 gain retains parameters immediately;
+queue1 uses the current ID at execution, including private entry0 after clearing.
+Absent IDs queue nothing. Preserve duplicate-XA holds, ring wrap, post-script
+ordering, ordinary menu player/game holds and no-tick draws. Map and spell-freeze
+are separate owners. Pair/gain adapters and explicit native audio/card/load/arrival/
+protection fixtures are not acquisition/routes/fullSDKflush/console evidence.
+All six gates remain open; no new pool/grants/savesv9 or ordinary Fairy UI.
+
+Selected [direct-voice ownership](docs/laboratory-audio.md) now retains actual four
+12..19 effect identities/priorities, same-ID/free/strict-higher/equal arbitration and
+open-SEQ18/19 restriction. Equal replacement intentionally excludes group3 outside
+SEQ. Mirror actual rendered ENV words and reclaim direct/script leases BEFORE
+effects; decoder-active/ADSR-state flags are not SDK key-status substitutes.
+Preserve copied scripts and distinct group3 key-off12..15/playback14..17. Script
+notes use the held pre-effect status cache, first-even free test and one shared
+KeyOnRange fallback cursor, even across ranges; retain cursor/cache through mute.
+Retain20/21 and22/23 IDs/gain/pan, A1 ID-clear/RR14, mode2 RR8 and Init2 versus Init1
+reset boundaries.
+The selected SDK software key mask initializes zero; its note-on flush writes
+hardware directly and this owner only clears the mask. Other SDK key producers,
+full flush/NTSC timing, voice pressure/global controls/session sharing and all six
+milestone gates remain open. Pair/gain adapters, ENV/cursor fixtures and supplied
+native audio/card/protection/arrival/tone pressure are not ordinary acquisition/
+route/console evidence. No new voice/entity pool, grants, savesv9 or Fairy UI.
+
+Selected [common CD bootstrap](docs/familiar-cd-audio.md) now owns actual CD/SPU
+binding before any familiar load, private stage-profile requests, flag20 silence,
+real command4/read acknowledgements and no-card game-over audio. First bank2 load
+validates then rebinds the same CD to the prepared SPU before old-owner retirement,
+retaining current/saved decoders, queues, voices/DSP and physical effect-ring cursors
+without a tick. Save-room entry queues actual stopA; exit repeats stop until actual
+XA activity clears before the stage request. Never recreate a legacy decoder.
+Clock-room stop is not inferred from save-room evidence. Stage/card/resource/audio/
+edge fixtures and bounded instruction blocks are not ordinary acquisition/routes/
+full engine-room-fade/console evidence. Full cross-session audio/SPU continuity,
+remaining global controls/voice sharing and all six milestone gates stay open;
+no grants/pools/savesv9 change or ordinary Fairy UI.
+
+Selected [effect-ring ownership](docs/laboratory-audio.md) now preserves the original
+256 read/write slots, last matching effect, retained volume/pan and wrap-to-empty.
+Consume IDs before lookahead; preserve physical cursors and stale volume/pan words
+through ordinary updates and prepared SPU replacement, clearing them only at actual
+MuteSound initialization. No queue-capacity failure or replacement voice pool.
+Standalone controls/ambience retain their compatibility API; bound controls use the
+real CD sound ring. Explicit burst/arrival/protection fixtures and dispatch adapters
+are not ordinary producer/acquisition/route/console evidence. Global bootstrap,
+voice allocation/key timing, session continuity and all six milestone gates remain
+open; no grants, savesv9 changes or ordinary Fairy UI.
+
+Selected [bound game-over audio](docs/laboratory-game-over.md) now consumes actual
+death128 through separate Engine81/Init11 frames, acknowledgement-plus-XA gating,
+12/B cleanup, actual MuteSound metadata/transport retirement and managed33e. Queue
+emptiness is a separate flag. Keep rendering clocks held until the real resident
+resource/audio phases; never invent a ready/fade timer. Bound game-over audio keeps
+actual SPU command/render updates, no overlapping legacy decoders and no revival.
+Mute requires closed SEQ, cancels actual current/saved/in-flight CD transports and
+clears original queues/attachment/current metadata while retaining voices, DSP/RAM,
+registers, copied scripts, restore byte and original retained XA words. Controls
+never add a DSP/sample tick. Explicit card/load/lethal/HP1-water-result/audio fixtures
+are not ordinary acquisition/water routes/console evidence. Unbound bootstrap,
+full entity/GPU cleanup, session/title/whole-pass and all six gates remain open;
+no new pool/grants/v9 changes or Fairy UI.
+
+Selected [bound SPU/CD sound ring](docs/familiar-cd-audio.md) now queues actual
+7/E/F/A1/202/204 with XA/master controls. Preserve original duplicate-XA early
+return holding later SPU commands, script-update-before-command copying, resume
+waiting for the next script update, attached SEQ identities and pre-command lease
+span. Script gates follow the retained SEQ access after EOT until explicit close.
+Actual A1 clears RR low6 bits including exponential release on20/21. Original
+InitSoundVars2 clears the pause flag but keeps copied scripts and pending effects.
+Native unbound/standalone paths retain their existing selected APIs; bootstrap,
+game-over/global sound ordering/session and all six gates remain open. Explicit
+cursor/copy/register/SEQ-access/actualSFXqueue/card/arrival/protection/event/tone
+fixtures are not ordinary producers/acquisition/routes/console evidence. No new
+pool/grants/v9 change or ordinary Fairy UI.
+
+Selected [bound master fades](docs/familiar-cd-audio.md) now own original80..84,
+command10, actual final native gain, depth0, StopSeq and three-update all24 RR8
+release/cleanup. Preserve shared80/90 multipliers, signed counters, immediate single
+fade flag and actual CdFadeOut1 queue3/reset127, including no-playing reset. Original
+StopSeq closes an access retained after EOT and releases all24; EOT itself releases
+only SEQ notes. RR writes clear low6 bits without clearing envelope/decoder/RAM;
+current scripts/allocations clear, paused copies and pending effects survive.
+Native final mix applies master once after SPU/CD/legacy additions. Explicit
+arrival/card/load/protection/events/tone/SEQ-access fixtures are not ordinary
+routes/acquisition/console evidence. Bootstrap/gameover/globalring/CDwet/session/
+persistence/whole-pass and all six gates remain open; no Fairy UI/pools/grants/v9 change.
+
+Selected [CD/SPU depth ownership](docs/familiar-cd-audio.md) now binds the actual
+configured sound owner, applies mode0 depth127 before6 and restores the original
+current byte at6 completion. BSS restore0 is separate from SoundInit SDK depth10;
+actual SEQ changes the byte. Rebind prepared sound before retiring the old owner.
+Preserve command-update/CD/render order and pre-SEQ script lease span, including
+fourth-channel retirement when SEQ ends. Binding/depth requests never tick DSP.
+Explicit clock/tone/owner fixtures are not normal traversal or console evidence;
+normal unskipped service cadence remains separate. CD wet/unbound master/remaining global
+mix/order/session/persistence/whole-pass and all six gates remain open. No new
+pool/grants/v9 changes or ordinary Fairy UI.
+
+Selected [native SPU voice reverb](docs/spu-reverb.md) now owns private SDK Studio B
+coefficients, actual tone mask0x4 sends and the existing SPU RAM work area. Preserve
+half-rate/44.1kHz phase, signed-word depths, stereo IIR/comb/APF work, cursor wrap,
+write-disable reads and zero-depth processing. Validate actual VAB reservation before
+clearing/uploading; familiar preparation retains the live DSP and work RAM. Native
+SoundInit depth10 and selected private SEQ depths now apply. Audio updates continue
+through menu/spell freeze; draws/load preparation never tick it. Explicit tone/card/
+protection/reference fixtures are not ordinary effect/acquisition/route/console
+evidence. Remaining CD sends, other presets/unbound master/mixer/session continuity
+and all six milestone gates remain open. No new pool/grants/v9 changes or Fairy UI.
+
+Selected [bound stage CD routing](docs/familiar-cd-audio.md) now shares actual
+music/speech/stop/pause/restore and private-profile restart with the existing CD
+owner. Preserve pause-before-same-event-speech, single combined stop, original XA
+activity/both acknowledgement flags and immutable post-stage dialogue snapshots.
+Never create overlapping legacy decoders for that binding. Laboratory/Library90
+and shared dialogue92 retain original identities; Laboratory victory during active
+state3 increments to4 before5. Explicit audio events/activity/retained music words
+and card/protection fixtures are not encounter-route/acquisition/console evidence.
+Unbound bootstrap/game-over, CD reverb, other collapsed stage requests, full
+sound-ring sharing/session continuity/persistence/whole-pass and Fairy UI stay open.
+No grants/pools/v9 changes; all six milestone gates remain open.
+
+Selected [CD volume fades](docs/familiar-cd-audio.md) now bind native stage90..94
+to actual command8 and real decoding. Preserve the immediate separate fade flag,
+signed words, shared128/8/4/2/1 multiplier, possible gain increase after retarget,
+single-flag clearance and deferred stop2. Original xa_play_ck is pending fade OR
+playing identity, never decoder readiness; ordinary/frozen/FFF actor snapshots use
+that owner. Loop6 may reconstruct its retired decoder but never enables serial mix.
+Menu/spirit-freeze audio advances on actual engine clocks; draws hold. Supplied
+stage-event/card/protection/music fixtures are not ordinary script/acquisition/route
+or console evidence. Unbound master routing, general stage music/dialogue, CD reverb, persistence
+and whole sharing remain open; no grants/pools/v9 changes or ordinary Fairy UI.
+
+The [CD-command service](docs/familiar-cd-audio.md) now reconstructs selected
+managed mode1 continuation and mode0 command6 with actual private music transports.
+Preserve original playing identity, strict wrapping-clock expiry, metadata-only
+continuation without PCM/history reset, real loop Setloc/ReadN and pending12-to14/6
+ordering including255-entry overflow. Preserve mode/transport bookmarks and raw<40
+music's abandoned-position reset. Actual PCM exhaustion flushes its tail and holds
+silence until real seek/stop without changing command state or reading unrelated
+tracks. Adopted legacy loops and finite speech retain their own behavior. Changed
+global queued-base retargeting fails explicitly; general native stage/dialogue/CD
+session ownership, reverb and whole sharing remain unfinished. Wider301..532 service
+inputs are not additional controls. Explicit expiry-clock fixtures and private
+audio-service cadence checks are not stage-route/menu/acquisition/console evidence.
+No grants/pools/v9 changes; ordinary Fairy selection and all six gates remain open.
+
+Selected [engine/session familiar initialization](docs/familiar-lifecycle.md) now
+derives the actual active card, binds original mode0 after native bootstrap/64
+AluInit RNG calls, and transfers seven records/selection without a menu load.
+Retain cached overlay history/events/sound cursor/generation subject to original
+mode0 writes, replace entity generations and preserve departing owners on candidate
+failure. Cached-none creates no root; later actual menu reselection increments once.
+Flag20 engine entry omits new stage XA. Existing v9 bytes remain unchanged and do
+not persist familiar records; in-memory handoff is separate evidence. General CD
+bookmark/queue/dialogue/cutscene lifecycle, persistence, ordinary menu activation
+and whole-pass acceptance remain open. Supplied card/reward/arrival/save-room
+fixtures are not acquisition, uninterrupted-route or console evidence.
+
+Selected [connected-room familiar ownership](docs/familiar-lifecycle.md) now binds
+actual flag20000 retention, temporary-row retirement and old/new player screen
+displacement before the destination stage pass. Preserve fractions, root/wings
+generations/cursors, history/events/audio/progress, no extra callback or load count,
+and no duplicate destination camera shift. Ordinary Engine_3 does not call
+ServantInit; mode2 belongs to its separate special return. Initialized medicines
+retain their original handoff while cold children retire. Supplied edge/camera/card/
+item/health/protection fixtures are not uninterrupted-route/acquisition/console
+evidence. Remaining stage/session/persistence/general audio and whole-pass gates stay open.
+
+The [selected familiar load owner](docs/familiar-lifecycle.md) now binds owned
+0/3 through the native menu/load-boundary API: all four verified resources,
+detached resident graphics/SPU candidates, root4/wings5 and empty-CD preparation
+precede real retirement/publication. Preserve old owners on failure, complete
+namespace validation, actual player snapshots, decoder/resampler position and
+all live voices/scripts/queues. Same selection does not reload/increment; cached
+reselection increments once without replacing resources; deselection retains
+loaded cache/audio/history and unrelated shared effects. No grants, frame ticks,
+RNG or v9 change. Ordinary menu activation, room/stage/session binding, persistence,
+general audio/cutscene handling and whole-pass acceptance remain unfinished.
+The first UNCAPTURED death interruption can finish an expiring animation tick;
+retain actual captured textures and subsequent17 holds, without forcing prior
+uncaptured artwork equality. Supplied card/item/HP/protection/load-boundary fixtures
+are not ordinary selection, acquisition, route or console evidence. All six gates stay open.
+
+The [selected familiar retirement](docs/familiar-lifecycle.md) now validates the
+complete actual5..7 DD/DF namespace before clearing4..7 or translating rooms.
+Preserve every real row/sentinel/generation and reject absent-lease orphans before
+any sibling retires. Earlier row0-only translation prechecks allowed partial late-
+sibling retirement; the full validation fixes that failure. Clear retains overlay
+history/events/sound cursor/serial/binding and unrelated stage/common/shared rows;
+empty retained namespaces skip native provider queries. No clocks/RNG/audio/scene/
+resources/progression change. Actual card/resource initialization, deselection,
+room/stage/session lifecycle, persistence and whole-pass rollback remain required.
+Explicit leases/effects/owned-item/protection/lethal fixtures are not ordinary
+selection, acquisition, route or console evidence. All six Alucard gates stay open.
+
+The [bound native Fairy dispatch](docs/fairy-native-dispatch.md) now runs actual
+4..7 callbacks and a distinct full-player FFF engine branch: Life Apple spending,
+real effects/cleanup/resources, release-only frame and Blink4A. Preserve stable
+birth gates, held gameplay/shared8..63/recount/shake, continuing engine/HMS/
+audio time, captured death texture/generation and separate dead resource writes.
+Seven actual signed-word familiar records now belong to the character. Raw enemy
+rewards update the selected record transactionally, with player99/zero/no-selection
+holds, bit-length minimum1 and EXP9899 cap. Loads increment only on changed/reloaded
+selection, cap9999; ordinary character restore retains records. Existing v9 layout
+is unchanged and does not persist them. Ordinary card/resource initialization,
+room/stage/session lifecycle, persistence, full audio/cutscene bindings and whole-
+pass rollback remain required before enabling the Fairy menu. Supplied card/Apple/
+root-init/protection/lethal fixtures are not acquisition/selection/persistence/
+route/console evidence. All six Alucard gates remain open; no new grants or pool.
+
+The [bound Fairy rescue response](docs/player-fairy-rescue.md) now supplies gated
+17 interruption/hold/resource/recovery and a dedicated real Blink4A producer.
+Preserve numeric drawflag4 for BOTH physical/water interruption, resident captures/
+pivots/serials, full dead callbacks at the held actual gameplay clock, all16 word/
+pending-heal/dead-status holds even after HPMP restoration, distinct release-only
+frame and pre-collision factory origins. Keep hurt-owner guards separate. Clear
+active death presentation only on actual normal recovery; retain first-frame
+rotation and persistent entity blend until actual normal-reset/form owners clear
+it. No invented palette reset, generic revival or optional substitute effect.
+Production nativeFFF/Fairy selection/progression/item/lifecycle/whole-pass bindings,
+remaining stone/grab/Axe contexts and all six gates remain open.32 states have
+selected native producers plus gated17; supplied scene/resource/clock/contact/HP1
+and composed native loops are not ordinary activation/rescue/acquisition/routes/
+console evidence. No default grants/savev9/pool change.
+
+The [Fairy rescue-cleanup services](docs/familiar-rescue-cleanup.md) now retire actual
+shared factories8..15/children16..63/Wolf rows and native projectiles. Validate the
+whole committed runtime and every real row/generation/sentinel, reject stale/orphan
+ownership before mutation, require stage-mark acknowledgement and consume native
+capture/audio/notifications first. Preserve common8/environment rows, AluInit
+vectors/RNG, shared Blink locks/phases, global points/cursors/serials and attack-group
+counts until ordinary recount. No callbacks/clocks/healing. Source0x29 is decimal41
+STOPWATCH, never decimal29 Hellfire flash; clear freeze only with an actual clock.
+Retain projectile map/pause/serial/clocks/queued sounds. Native Fairy/FFF/player17,
+resource restore, Mist/other owners/full namespace/whole-session rollback remain
+required. Supplied directcleanup/effect/gear/protection/rawcontact/capturedphysical
+death contexts are not actual rescue/acquisition/routes/console evidence. No pool,
+grants/savev9 change;32/34 states and all six gates remain open.
+
+The [familiar inventory/translation services](docs/familiar-inventory-translation.md)
+now own actual unchecked bag-byte consumption, no-tick camera/player/room slot
+operations and finite Blink4A. Preserve Duplicator/equipped-copy independence,
+delayed0-to255 wrap and ordinary pickup cap; raw hand bytes already fit unchanged
+savev9. Body cap/order/reserved/version checks remain. Preserve independent entity
+camera/player flags, packet2-before200, subtraction of floored original player
+displacement, sentinel translation and real room20000 retirement after validating
+all sibling leases. No callback/RNG/audio/timer ticks. Blink4A is no revival owner.
+Actual gameplay/lifecycle inputs, transactions, progression and FFF/player17 remain
+required. Supplied flag/origin/inventory/image fixtures and bounded original engine
+fragments are not ordinary activation/acquisition/routes/console evidence. No
+pool/grants/save layout change;32/34 states and all six gates remain open.
+
+The [Fairy slot/effect/render runtime](docs/fairy-slot-runtime.md) now owns actual
+4..7 identities/generations, root/wings initialization, local-before-room event
+births, live DE/DC callbacks and real DD/DF stage leases. Preserve fresh original
+sound-step99, same3 retention/cache reset, actual parent generation and stable
+pass gates0/3/FFF; the latter is not full native FFF/player17. Preserve full
+fractional origins, first-empty5..7, optional failure and actual55/arg2ZERO roots.
+Manual hand restrictions/arguments remain separate. Validate all previous lease
+rows/generations, including the hidden sentinel, before any replacement; preserve
+unrelated stage/common/Bat/Wolf rows. Scene drawing uses real bank20, sorted
+priorities/clipping/shake once and selected untextured G4 DTD. No draw ticks.
+Inventory, whole-pass native commit/rollback, gameplay/card/resource lifecycle,
+camera/room, saved progression and rescue remain required. Supplied snapshots,
+level/load-count/init/gate/origin fixtures are not ordinary activation/acquisition/
+route/console evidence. No pool/grants/savev9 change; all six gates stay open.
+
+The [familiar CD audio service](docs/familiar-cd-audio.md) now owns original
+sound-ring/CD-queue256, immediate10/11 ACK-busy, actual decoder-backed start/read,
+pause/two-position restore and finite mode2's20-tick tail/strict expiry/stop phases.
+Preserve both queue overflow/clear rules, duplicate early return, gain changes12,
+third-save wrap, actual retained decoder/history/converter samples and actual
+engine clock. Decoder completion is not XA-playing or ACK. Native stage intro/
+loop retains its existing service; original CD mode0/1/hardware locations/latency/
+interpolation are not established. Read failure must never supply fake readiness.
+This does not yet bind the native Fairy event/4..7/selection/engine-session owners
+or complete rescue. Supplied DE/room/cutscene and decoder tests are not ordinary
+activation/acquisition/routes/console evidence. No grants/savev9/pool change.
+
+The [Fairy item effects/speech](docs/fairy-effects.md) now reconstruct DF's actual
+eleven profiles and DD's ten-G4 light, plus existing-decoder playback of eight
+original US XA clips. Preserve129/33 real-row requirements, sentinel ownership,
+allocation before RNG, whole-word particle versus fractional entity origins,
+128 one-per-update activation, raster high-word rebinding, signed wrap and exact
+birth/lifetime/retirement boundaries. DD's435 packets omit camera2: do not shift
+its birth fan twice. No new pool, completed leases/healing/rescue or CD ACK is
+implied. Actual native4..7/lifecycle/rows/FFF/player17/cleanup/progression remain
+required. Private origins/allocation/decoder checks are not activation/acquisition/
+route/console evidence. No grants/savev9 change; all six milestone gates stay open.
+
+The [Fairy control components](docs/fairy-controller.md) now reconstruct selected
+all US root/wings callbacks plus shared sound-state/49-record room-event components.
+Preserve screen/camera ownership, hint omission of ability selection, original intro/
+sound-step/pause requests, shoulder locks/animation-result gate and US non-Yousei
+boundaries. Actual CD queue/ACK/XA inputs are required; commands are not playback.
+Preserve room/servant cache keys, stage-alone hold, camera/condition-gated timers,
+delay-minus-one, first-empty5..7, one-shot consumption on exhaustion, repeating
+reloads and cache-only resets. Plans do not establish real slots or hint availability.
+Preserve original private
+tables/libc RNG, death-first selection, late potion urgency overwrite, pointer-based
+animation, source movement/SDK math, Hammer's omitted39 gate and item consumption
+despite optional failure. Preserve carried25/91-frame Life Apple counters and
+separate resource/FFF/release requests. Requests do not enable Fairy or rescue17.
+Native player snapshots now own actual transient damage effects and pre-control
+step/substep: clear on full successful player updates; write responses1/2/3/7/8,
+including zero-HP stone7; immune/absorb/water/death4/6 leave zero. Hold freeze/menu/
+draw/rebase, preserve failures. Actual events/CD-XA/native4..7/effect
+rows/FFF/player17/cleanup/progression remain required. FFF runs full player and
+only familiar4..7, never shared8..63; Spirit freeze3 is not a substitute. Private
+callback/attribute/raw-contact/HP1 fixtures are not native familiar, acquisition,
+route or console evidence. No pool/grants/savev9 change; all six gates stay open.
+
+The [familiar foundation](docs/familiar-foundation.md) now supplies verified US
+TT/FT/VAB resources, original shared animation, stage-bank20/resident FT+CLUT and
+existing bank2 sound binding. Preserve zero-load/single-jump/transfer/end-hold,
+signed timer wrap, retained16-bit offsets without properties and no-tick drawing.
+Preserve full256-word Fairy palette copy within the private overlay, unused null
+sprite indices as unavailable, validation before uploads, unchanged unrelated VRAM,
+clear-binding/resident retention and bank2 voices/scripts/queues/other-bank state.
+No native familiar lifecycle/slots/activation/combat/progression, Fairy item producer,
+Life Apple17 or Sword Brothers39 is established. Voice/sprite/facing/property checks
+are fixtures, not acquisition/routes/console evidence. No pool/default grants/
+savev9 change; all six milestone gates remain open.
+
+Selected [owned medicines](docs/player-medicines.md) now connects the17 equippable
+items144..162 excluding146/147 to ordinary input, actual55/rowless39, private
+schedules, real circle53/38/32 rows, outlines/Blinks/two-GT4 labels and resources.
+Preserve before-curse input, actual39 slots32..63 gate, root exhaustion without
+cost/replacement, successful-player consumption, Duplicator84 and spare semantics.
+Commit resources after real rows:4096to4095, cure words2, kind1 pending overwrite,
+Mail later overwrite and Ankh80 one50% bonus even with two. Bind full MP to both
+actual character/player, including dead; pending healing never revives death.
+Original menu forbids Life Apple146/Hammer147 hand equip/use; Fairy/state17 remain
+unfinished. Hammer's separate signed DRA word/protocol owns64, actual stone11
+shake1/forced taps, full-player decrement, freeze/menu/draw holds and post-bootstrap
+session retention, never saves. Preserve circle flags/SDK/angles/optional exhaustion,
+hidden suffix camera2 and no-tick room/shove boundaries. Prune all actual root
+records by20000 before destination allocation; retain initialized20000 circle/Pink,
+retire cold38/39. Other child cleanup/whole-native rollback and all six gates stay
+open. Owned gear/HP/MP/ailment/clock/factory/position fixtures are not acquisition,
+uninterrupted routes or console evidence. No pool/default grants/savev9 change.
+
+Selected [room callback/cleanup ownership](docs/player-room-ordering.md) now runs
+ordinary departing player/DRA/stage/HUD/audio before room lookup. Actual spell
+freeze/teleport warp preempt lookup; destination initialization adds no second
+player/shared effect/game-clock/audio frame. Prune actual32/33/65 and selected
+39/46/121 roots before new actor allocation; retain attached20000 Ice24 row indices,
+retire detached ice/dissolve/teleport and commit real row plans before runtime.
+Clear departed raw contacts only after successful entry; hold healing/all16 words/
+HP/RNG/frame. Preserve callback/cull-before-camera and ordinary offscreen retirement.
+Other cleanup/fade/engine timing/whole-native rollback and all six gates remain open.
+Explicit contact/effect/protection/edge/camera-history fixtures are not acquisition,
+uninterrupted routes or console evidence. No pool/default grants/savev9 change.
+
+Selected [Library Card](docs/player-library-card.md) now owns ordinary166 hand use,
+one actual consume, Duplicator84, player18/F4-F5 and actual Library travel/arrival.
+Preserve Card-before-curse ordering, grounded normal states, birth velocity, held
+healing/player words/input, padSim0/demo4, real eight-root pose8 retry and36-row
+retry-before-RNG. Consume only after player success; native failure restores actual
+reservations. Preserve marker31 versus actual departing stage,64-vector RNG before
+incoming121/high1, left arrival, global point retention and terminal ACK recovery.
+Actual FFFF/2 white engine tiles advance once per prepared engine frame, never on
+repeated draw. Retained DRA attack fields clear after callbacks on outgoing0/death;
+do not substitute temporary combat masks. Menus hold actual player/effect/game
+clocks. TOP/RTOP triggers/stages, wider sharing and all six milestone gates stay open.
+Owned gear/protection/failure/root fixtures are not acquisition/routes/console.
+No new pool/default grants/savev9 change or whole-stage atomicity claim.
+
+Selected [shared teleport effects](docs/teleport-effects.md) now own actual
+factory121/child65/36 rows, one32-point global and original96-call births. Preserve
+allocation retry before RNG, private gradient/UV words, raw packet delay/animation
+bytes, opaque particles, top-Y clamp and first-GT4-only hide bugs. Preserve actual
+TILE/G4/GT4 ordering, flags10000 frozen advances, release/menu/draw holds and no-tick
+rebases without translating shared points. Actual room transitions retire child65
+and nonretained pending121 roots before new actor allocations, without ACK/RNG.
+Other shared room cleanup and whole-stage atomicity remain unfinished.
+Terminal ACK/sound636/row retirement
+precedes later work; palette/warp outputs are intents until their real owners commit.
+Selected Library Card now supplies its player18/Library travel consumer. No other-
+castle route, pool/grants/savev9 change is established.
+All six Alucard gates stay open. Factory/protection/freeze contexts are not ordinary
+acquisition/routes/console evidence.
+
+Selected [grab control](docs/player-boss-grab.md) now accepts retained reaction0/2
+and actual boss-supplied release4 velocities. Preserve normal reset with retained
+stone animation/no entry8/voice, pulse4/8161/no normal voice, default DAMAGE's
+retained reaction, release2E/hurt15/6ED/raw impact word and no immediate HP loss.
+Release motion belongs to the boss, never inferred from facing. Preserve actual
+secondary wall damage and failed-animation pending requests. Current Hippogryph
+still clears to drop; throwing-boss/stone producers, dead release and broader
+contexts remain unfinished. Explicit grab/reaction/velocity/protection fixtures
+are not ordinary encounters, acquisition/routes/console evidence. No grants/v9 change.
+
+The [stone image owner](docs/stone-dissolve.md) preserves the separate common-death
+cursor/count across actual entity32 StoreImage, patterns and shards. Capture copies
+pixels only; actual physical/water capture alone resets common decay. Primary and
+secondary rectangles follow their own last committed upload, not later scratch
+mutations. [Common knockback](docs/player-hurt-motion.md) narrows center delta to
+signed16 before strict16/velocity/sign tests; surviving17/18 force sides, lethal
+17/18 recompute ordinary source direction. Preserve default grants/savev9 and all
+open gates. State17's real producer is Fairy Life Apple rescue, not a generic fade.
+
+Selected [physical/elemental death](docs/player-physical-death.md) now owns actual
+normal/fire/thunder/ice C0 births, shared flash/Blink/children, resident5120 capture
+and64 committed real uploads. Preserve element priority, original recoil/deceleration,
+birth flags/pivots, deferred BP51, high-parameter thunder/death ice delay, byte-color
+underflow, signed velocity/rotation and actual animation22 turn. Native capture
+uses the existing scratch/shared generation, never the unbound legacy CPU mask.
+Preserve frame8000 upload-skip, SDK body/Blink angles and pivots, no artwork reupload,
+pending dead healing and actual game over. Failed player updates restore real
+texture words/validity, scratch/generation and factory reservations; no whole-stage
+HP/clock/audio atomicity claim. Preserve optional allocation before RNG, frozen/
+draw holds and separate water/stone entries. Raw-contact/protection/prospective-clock
+fixtures are not ordinary lethal encounter/acquisition/routes/console evidence.
+Remaining damage/grab/Hammer/fade/full sharing and all six Alucard gates stay open.
+No pool/default grants/ordinary savev9 change.
+
+Selected [stone control](docs/player-petrification.md) now supplies actual queued
+entry text3, ordered landing0/39/smoke3-or7, shake1, ordinary/rare wiggle factories,
+forced directional taps and actual palette/SDK flags. Preserve the heavy helper's
+647 before644, third coincident644/608/6E7 call, source fractions, airborne
+protection4 without a ceiling clamp and unconditional rare protection4. Escape
+selects3B before the live comparison, including rare smoke3. Lethal already-stone
+checks actual child32 slots16..63/phase0, never pending factories; absent children
+delegate selected physical C0. Preserve new-lethal32 wait, death80/five forcedUp,
+hidden810D/3E/smoke3 and numeric entity flag4 rotation. Actual zero break sprite
+copies secondary then retires32/36 rows before motion; never fabricate shards or
+48 uploads on this branch. Raw-contact/protection/RNG/cleanup fixtures are not
+ordinary Medusa/acquisition/routes/console/room transfers. Stone grabs/Hammer,
+remaining death/fade/full sharing and all six Alucard gates remain open. No pool,
+default grants or savev9 change; no whole native HP/motion/audio rollback claim.
+
+The [shared stone dissolve owner](docs/stone-dissolve.md) now accepts actual
+factory39/child32 with36 real GT4 rows, previous-resident capture and private
+primary/secondary uploads. Preserve allocation retry before37 birth RNG, the one
+shared5120-byte scratch, eight-update patterns/forty calls, frame8000 upload-skip
+without body hiding, engine-clock modulo3/living or2/state16,48 committed decays,
+signed delay/motion and terminal retirement before resets. Preserve actual SDK
+geometry, no-tick holds/rebases, scoped room cleanup and real two-rectangle words/
+validity rollback after late upload failure. New water capture generations may
+reuse the scratch. Effect rollback is not whole-player HP/motion/audio atomicity.
+Supplied zero-petrification/factory/protection/HP1/lethal-result fixtures are not
+actual stone producers/death/acquisition/routes/console evidence. No new pool,
+grants/savev9 change; selected stone control now supplies the producer, while
+remaining stone contexts and all six Alucard gates remain open.
+
+The [shared stone-effect support](docs/stone-effect-support.md) now accepts actual
+text3, smoke3/7, particles3/8 and entity24high0 through the existing shared runtime.
+Preserve three-call smoke births, random2..5 index versus retained full parameters,
+private normal-size high0/two RNG versus Hellfire high1/one RNG, particle3 behavior2
+(NOT vectors),8/30 actual tiles plus sentinel,47/63 double lifetimes, hidden delay
+wrap, whole-word origins and live facing. Existing row-index capacity31/draw stride30
+are not new pools. Keep allocation-before-RNG and actual rendering/lease retirement.
+US status20000 smoke remains unsupported. These controlled factory owners do not
+by themselves establish dying-player,
+acquisition/routes/console evidence. No grants/savev9 change; all six Alucard gates
+remain open.
+
+Selected [HUD HP hold/secondary impacts](docs/player-hud-hp-hold.md) now owns actual
+DRA64-if-zero displayed-HP delay and actual save-room16 overwrite. Preserve
+same-frame63/15,65th/17th interpolation, original producer exclusions/full-HP
+healing, ordinary/frozen/release updates, menu/map/draw/GameOver holds and no-tick
+room retention/fresh-HUD reset. Commit notifications after player success, never
+replay them in freeze. Kind2 grab/secondary share prior-poison status and inclusive
+Talisman work; secondary sign-extends its retained16 before division and always
+notifies/displays guard/dodge/lethal results without contact guard/dodge effects.
+Preserve exclusive provenance, pre-minimum zero/negative words, wall644 before
+voice, actual Cloak/Fury and expiry-protection gates. No pool/grants/savev9 change.
+Supplied contact/status/gear/protection/arrival/heal fixtures are not producers,
+acquisition/routes/console evidence. All six Alucard gates remain open.
+
+Selected [held-grab damage feedback](docs/player-grab-damage.md) now owns actual
+normal held kind2 defense/prior-poison/Talisman/HP work, unconditional type0 numbers
+and surviving Blood Cloak/Fury requests. Preserve poison-expiry status, one inclusive
+roll for one/two accessories, pre-minimum signed-word dodge numbers and full lethal
+overkill. Grab guard/dodge keep held/palette4/sound6E7 without contact guard/dodge
+visuals. Preserve captured pre-pin fractions, old deferred healing priority, actual
+entity19/twenty rows, zero/full-word provenance, optional exhaustion and failed-player
+rollback. Cloak full suppression, longer Fury/512to511 and no-tick/hold boundaries
+remain. No pool/grants/savev9 change. Explicit gear/protection/position/attack/phase/
+timer/velocity/grab fixtures are not acquisition/ordinary encounter/routes/console.
+Thrown release/stone grabs/other producers/death/fade/full sharing and Alucard remain
+incomplete.
+
+Selected [surviving ice-hit effects](docs/player-ice-hit.md) now owns actual
+factory46/child33/twenty-four G4 rows,96 birth RNG and sound69D/61A. Preserve private
+point pointers/SDK sqrt-atan2-trig, live player high-word overwrite/captured fractions,
+status10000 versus step, airborne wall/substep5 and supplied physical-death16 delay.
+Preserve same-update random shard delays, signed byte motion/wrap, inverted color
+underflow, hidden-row updates and64-update retirement. No invented fade/artwork/pool.
+Preserve player-lock entity-only shoves, callback/cull before camera, per-shard
+flag2 versus room100 and no-tick holds. Selected original room-entry cleanup
+retains20000 shells and releases detached child33/actual rows; other cleanup owners
+remain unfinished. Freeze/menu/draw/release holds, allocation before RNG and late
+sibling/runtime/row/sound/RNG rollback remain required. Supplied raw-kind/protection/
+wall/status/death fixtures are not ordinary ice producers/acquisition/routes/console.
+No grants/savev9 change; remaining damage/death/fade/gear/familiars/full sharing and
+Alucard/castle remain incomplete.
+
+Selected [surviving thunder-hit effects](docs/player-thunder-hit.md) now owns actual
+factory45/four parameter0..3 children30, six GT4 rows each, sound69D/665 and
+Blink46/eight rows. Preserve actual slot order, allocation-before11 birth RNG,
+44-call full birth/eight sounds, six-row copy history/UV/CLUT/phase priority and
+captured fractions versus live pre-camera player motion. Preserve private SDK
+sine/cosine, signed wrap/shifts, airborne/stone/wall gates, phase/fade RNG order,
+terminal decrement before work and no invented RGB fade. Blink7001 holds on state10;
+its profile's7000 color divisor is not a geometry marker. Preserve optional US
+Blink retry, actual leases/retirement, callback/cull before camera, flag2 versus
+room100, frozen/menu/draw/release holds, no-tick rebases and late sibling/RNG/row/
+sound rollback. Native wall arcs retire during hurt, so native menus and Spirit
+are after arc retirement; active frozen holds are authored evidence. Supplied
+raw-kind/protection/wall/high-parameter/transform/clock/state fixtures are not
+ordinary thunder producers/acquisition/routes/console. No pool/grants/savev9 change;
+ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
+Selected [surviving fire-hit effects](docs/player-fire-hit.md) now owns actual
+sound690/Blink45/eight rows, BP17/high1 and delayed BP18/low child16 streams, plus
+real BP4/profile4 parent-bound eleven-row descendants. Preserve actual state10
+factory cancellation, captured fractions/facing versus live pre-camera high words/
+hitbox/VX,3 birth RNG/no birth motion, private finite animation after callback/cull
+and terminal next-callback motion/retirement. Scale-disabled bank5 words still
+wrap; use actual bank2/5/SDK/original UV/raw blending, no invented fade. Preserve
+real parent slot/generation and VX read after row allocation, not live player VX.
+Profile4 retains VX but moves Y only, has3 RNG calls per tile, signed delays,
+lifetime31 double decrement/no RGB fade and actual sentinel retirement. Preserve
+frozen/menu/draw/release holds, no-tick rebases, post-camera work, exhaustion before
+RNG and late particle/parent/runtime rollback. Native Spirit checks occur after
+fire retirement; active frozen holds are authored. Raw-kind/protection/wall/image/
+parent/high2 fixtures are not ordinary fire producers/acquisition/routes/console;
+alternate10000 and high2 have no selected native producer. No pool/grants/savev9
+change; thunder/ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
+Selected [surviving dark-hit effects](docs/player-dark-hit.md) now owns actual
+113/child54/rowless private bank14 sprites and Blink62/eight rows. Preserve actual
+origin7/state10 factory cancellation,96 upper bound/four-update schedule, captured
+fractions/facing, allocation-before3 RNG and one whole-word shared blend phase.
+Retain that actual DRA global after session bootstrap without savev9 fields.
+Preserve no birth motion, callback/cull before private animation, terminal next-
+callback retirement, SDK scale/original mirrored UVs and raw texture flags33:
+decreasing opacity does not enable a fade. Preserve frozen/menu/draw/release holds,
+no-tick rebases, post-camera translation and late sibling/global/RNG rollback.
+Nine bounded hurt intents do not expand the actual eight-root pool. Raw-kind/
+protection/wall/checkpoint/image fixtures are not ordinary dark producers,
+acquisition/routes/console evidence; active frozen children are authored evidence,
+separate from native Spirit-after-retirement. No pool/grants/savev9 change; fire/
+thunder/ice/death/fade/gear/familiars/sharing and Alucard remain incomplete.
+
+Selected [surviving holy-hit effects](docs/player-holy-hit.md) now owns actual
+119/child47/sixteen GT4 rows, one shared DRA point array and Blink68/eight rows.
+Preserve raw hitbox offsets, allocation-before64 RNG calls, sibling overwrite/slot
+order, delay/UV/final-Y semantics and status10000 retirement after tiles finish.
+Use pre-camera feedback, callback/cull before the camera pass, flag2 versus room
+flag100 packets, entity-only actual stage shoves and no ordinary movement following.
+Shared points never acquire camera translation. Preserve frozen flags, no-tick
+rebases, late rollback and offscreen retirement after real birth RNG. Native menus
+are checked after hit retirement; do not fake the host's pause gate or an active
+holy/Spirit combination. Raw/kind/protection/wall/image fixtures are not ordinary
+holy producers/acquisition/routes/console evidence. No pool/grants/savev9 change;
+remaining elemental/death/fade/equipment/familiars/sharing and Alucard stay incomplete.
+
+Selected [cut-hit effects](docs/player-cut-effects.md) now owns actual cut Blink42,
+factory20/profile5, shared13/eight-row leases and ordered sound62E. Preserve earlier
+ailment/elemental priority, captured heavy-hit fractions/facing, original vector
+birth3calls per particle after allocation, retained actual AluInit vectors/64-call
+initialization, lifetime47/sentinel/damping/halving/thickness and death6 behavior.
+Preserve Blink's real allocation retry, skid-first root exhaustion, no unrelated
+replacement/RNG on skipped particles, frozen particle holds versus Blink updates,
+menu/draw/release holds, no-tick rebases and late rollback. Explicit Library arrival,
+Dhuron positioning/later protection and image/rotation fixtures are not acquisition,
+uninterrupted route or console evidence. Alternate10000 cut and other elemental/
+stone/death/fade/equipment/familiar/shared gates remain open. No pool/grants/savev9
+change; Alucard/castle remain incomplete.
+
+Selected [poison/curse effects](docs/player-ailment-effects.md) now owns actual
+new ailment Blink16/17 and shared text37 parameters1/2. Preserve curse text-before-
+Blink versus poison Blink-before-text, earlier old-ailment/motion roots, actual
+18-row wait/lease, private GT4 and sixteen grey TILEs. Preserve packed target120
+with original half-width fraction, sine cap order,96 hold, tink6AF once, final
+retirement Y increment, tile camera-flag loss and real offscreen retirement.
+Ordinary camera shifts only tile flag2; room entry shifts the flag100 GT4 once,
+never text extension coordinates/target. Preserve menu/draw holds, actual frozen
+effect advances/release hold, late rollback and optional exhaustion. Library
+arrival/seed spawn/actor positioning/later protection fixtures are not acquisition,
+uninterrupted route or console evidence. No pool/grants/savev9 change; remaining
+elemental/stone/death/fade/equipment/familiars/sharing and Alucard stay incomplete.
+
+Selected [hurt motion/palettes](docs/player-hurt-motion.md) now owns actual kind0/1
+promotion, selected2/3/4/5/7/16..18 births/recovery, timer8 and shared wall/ceiling/
+slope/skid effects. Preserve pre-DEF power50 versus actual loss2 promotion, heavy
+one-fraction Y shift, retained facing on upside-down interruption, direct2F cursor,
+signed wall48 expiry, ceiling24/rebound8, stage18/24/56 exceptions, original root
+order/fractions and optional exhaustion. Preserve real SDK pivots, shake2/3, wall644
+before secondary/death voice, secondary Talisman/HP/number/Cloak/Fury priority and
+no-tick rebases/holds. Actual effect-word palette/timer priority is separate from
+unowned elemental children; selected poison/curse text/Blinks now have actual owners. Raw-kind/poison/protection
+fixtures are not ordinary producer/acquisition/route/console evidence. No pool,
+default-grant or savev9 change. Remaining damage/stone/grab/death/fade/equipment/
+familiars/sharing and Alucard/castle remain incomplete. Preserve the explicit
+unsupported US status20000 smoke birth; never guess or bypass its parameter.
+
+Selected [player timer ownership](docs/player-timers.md) now unifies the actual16
+word counters, separate from HUD stat buffs. Preserve raw signed-word wrap/signed
+minimum, per-index actions/decrement/expiry, poison4/14/15 twelve-to-eleven birth,
+prior ailment masks,13-to14 sixteen-to-fifteen, timer6 fall gate and actual SDK colors.
+Named counters alias one bank; Dark snapshot copies11, weapon9/status400 and use10/
+status800 retain actual producers. Preserve both13/14 protection gates and longer
+hurt/landing protection. Normal stone clears actual0/1/2; Axe conversion retains
+ailments. Timer15 counts even unbound, but only its real leased owner enables
+presentation. Freeze/release/menu/map/draw/dead hold the pass; actual shared producers
+may still write their words. Preserve failure rollback, no-tick rebases, post-bootstrap
+ailment stage carry, actual native Dark palette-job clock and v9 Continue transients.
+No pool/grants/save change; timer storage alone supplies no impact/Blink/consumable
+producer. Selected hurt now owns its actual impact8 producer. Seed/
+protection/arrival/save-room fixtures are not acquisition/routes/console evidence.
+Milestone1 remains32/34 plus common/cross-owner gates; Alucard/castle are incomplete.
+
+Selected [Axe Lord Armor](docs/player-axe-armor.md) now owns actual body25/virtual216/
+weapon45, states40/41/42/43/50, shared slot16 child50/Spell11/group1/native combat,
+rowless shadow49 and private SDK multipart rendering. Preserve owned selection,
+32-input hold versus silent bootstrap, overlay-word lifetime, priorities/signed
+motion, kind17/18 sides versus converted kind1, zero-stone hurt/number, retained
+ailments/healing/Cloak and real normal-body death. Preserve angle/byte wrap,
+pivot20/512/896/48-recovery, raw-mode2/script palette holds, actual root exhaustion
+before RNG, captured facing/child fractions, slot/group cooldown and row retirement.
+Rendering restores actual hand banks; original Blink/outline Axe exclusions remain.
+Freeze/menu/map/draw holds and no-tick rebases remain; no pool/grants/savev9 change.
+Owned-item/position/protection/mode/arrival/save-room fixtures are not acquisition/
+route/console evidence. Current dispatch is32/34;17/39 and common/cross-owner gates
+keep milestone1 open. Earlier batch counts are historical; the checklist is current.
+
+Selected [neutral hurt feedback](docs/player-neutral-hurt.md) now owns accepted
+queued response3's neutral Blink58 and original red timer2six, plus selected
+hurt-exit protection12/timer4twelve/afterimage4. Preserve pre-reaction fractional
+origins, prior birth palette/redfive/normal expiry, full-parameter duplicate rules,
+real factory44/entity11/eight-row US retry/retirement and afterimage resets.
+Existing poison/curse allow neutral birth but suppress exit color/palette/timer15
+restoration; death/stone/grab/ongoing hurt/scripts hold that exit helper. Preserve
+longer protection, actual private SDK colors, successful-player commit/rollback,
+frozen effect updates, release/menu/map/draw holds and no-tick rebases. Number and
+Blink exhaustion stay independent; no pool/RNG/sound/grants/savesv9 change.
+This does not implement damage-kind promotion/motion or elemental reactions;
+milestone1/Alucard remain incomplete at26/34 states. Explicit protection/contact/
+pose/item/arrival fixtures are not acquisition/route/console evidence.
+
+Selected [queued contact numbers](docs/player-contact-numbers.md) now own actual
+response3/4/7/8 type0 producers through shared entity19/slots56..63/twenty rows.
+Preserve original uncapped requested points (through39996), unsigned-word/four-low-digit
+display, pre-reaction fractions, zero-stone blue and lethal overkill red.
+Same-hit stone escape retains its accepted response8 number. Prior green healing
+stays first; immune/guard keep existing producers, Talisman/water add no number.
+Preserve successful-player commit, failure rollback, no-tick rebases, real row
+leases/retirement, freeze effect updates and release/menu/map/draw holds. Full
+stage/Continue clears transients; game over holds the scene. No pool/RNG/grants/
+ordinary-savev9 changes. Controlled item/raw-contact/protection fixtures are not
+acquisition/Medusa/ordinary lethal route/console evidence. Remaining hurt/kinds/
+elemental/interrupt death/stone/grab/impact/MP producers/sharing and milestone1/
+Alucard remain incomplete at26/34 states.
+
+Selected [Ballroom Mask](docs/player-ballroom-mask.md) now applies actual head28's
+conditional raw-contact reduction after weakness/resistance/US stone immunity/
+immunity/absorption and before defense/poison/new stone/guard/hurt selection.
+Preserve attack-minus-truncated-fifth on effectsF980, raw strongest/first-equal
+queue priority, actual one-head ownership, existing-stone/environment/water
+fractions, Talisman's later roll and reduced surviving Blood Cloak/Fury boundaries.
+No new RNG/effect/pool/grants/savev9 fields. Bind actual equipment before consuming
+queued contacts, including menu changes; preserve healing, rollback, freeze/
+release/menu/map/draw holds. Explicit arrival/item/position/protection fixtures are
+not acquisition/routes/console evidence. Remaining hurt/elemental/interrupt death/
+stone/gear/familiars/sharing and milestone1/Alucard remain incomplete at26/34 states.
+
+Selected [Talisman dodge](docs/player-contact-talisman.md) now owns response2:
+actual accessory83 count, derived LCK, one inclusive roll before guard/hurt and
+actual shared factory115/entity46 pair/Blink58. Preserve earlier immunity/absorb/
+Cat-eye/stone/water priority, silent no-HP/recoil/ailment/number/cloak/Fury result,
+pre-controller fractional request and successful-player commit. Reuse actual
+high_jump_timer/timer3 recovery, not a second timer. Preserve live birth high words/
+facing, retained fractions, no birth movement, odd gameplay-clock signed motion,
+red/gray fade and Blink26 phase18 retirement, private9F/SDK/slot12 resident upload,
+real eight-row leases, optional visual exhaustion and shared afterimage resets.
+Frozen effects use held gameplay-clock parity; release/menu/map/draw holds and
+no-tick rebases remain. No pool/default grants/resources/savev9 changes. Owned
+selection/later protection fixtures are not acquisition/route/console evidence.
+Remaining hurt/elemental/interrupt death/stone/equipment/sharing and milestone1/
+Alucard remain incomplete at26/34 states.
+
+Selected [high-defense guard](docs/player-contact-guard.md) now owns surviving
+response1: signed nonpositive damage/DEF100, one HP/no recoil, separate voice6E7 before later control sounds, red
+number1, protection12 and timer3six. Preserve immunity/absorption/stone/water
+priority, poison/curse-bearing exclusion, existing ailments, prior deferred healing,
+Blood Cloak/Fury and pre-controller fractional origins. Use actual high_jump_timer
+alias in gravity.timer, prior status before ailment decrement, timer2/3/4 order,
+expiry normal8100 and same-pass 12-to11 protection/afterimage/color timing.
+Owned God'sGarb24/Nauglamir87 additive stats support actual selections; retained
+real Fury buff supplies the native controlled DEF102 path. Type0 red/blue numbers
+share real entity19/twenty rows with green healing. Keep optional exhaustion,
+freeze/release/menu/map/draw/no-tick and rollback boundaries. No pool/grants/savev9
+changes. CON/equipment/protection fixtures are not acquisition/routes/console
+proof. Remaining hurt/elemental and interrupted death/stone/equipment,
+sharing and milestone1/Alucard remain incomplete at26/34 states.
+
+Selected [contact immunity](docs/player-contact-immunity.md) now owns actual response0,
+factory47/entity37 parameter0 text, Blink43 then51, type0 zero number and protection12.
+Owned Coral44 uses private curse immunity; preserve US stone-element removal order,
+immunity before absorption/Cat-eye, prior deferred healing, existing ailments,
+pre-controller fractional sources and commit after player success. Preserve actual
+current/prior-frame ground wait, delayed eighteen-row text lease, hidden spare rows,
+private metadata/SDK sine, signed wrap, fifty-six display updates and real retirement.
+Zero19 uses the actual twenty-row owner with original blue palette/trails; green
+healing remains separate. Optional exhaustion omits visuals; US Blink retries remain.
+Initialized effects advance on frozen updates while protection holds; release-only/
+menu/map/draw and no-tick rebases retain their boundaries. No new pool/grants/savesv9.
+Equipment/arrival/Ectoplasm-position/post-contact-protection fixtures are not route/
+acquisition/console evidence. Guard/Talisman/hurt/elemental death/stone/other text,
+equipment/shared contention and milestone1/Alucard remain incomplete at26/34 states.
+
+Selected [Alucard sword command/recovery](docs/player-sword-warp.md) now owns actual
+QCF/virtual197/five-MP, state15, shared root54/slot16 and next-pass strike62,
+private weapon43 images/animation/combat, outlines20/21 and sixteen-update recovery.
+Preserve pre-collision requests, real reservation outcomes, single strike RNG,
+allocation-before-RNG, least-used counter increment before parent enemyId0 copy,
+retained group0 cooldown, whole fixed/word wrap, hidden810D and normal8100 palettes,
+pose5/14/19 gates and no birth motion. Retain virtual equipment/artwork through
+supported owned hand changes; restore the selected native overlay after drawing.
+Menu/map/freeze/draw holds and no-tick rebases remain; failed player updates undo
+actual reservations, failed shared ticks retain runtime/character RNG. No new pool,
+grants or savesv9 changes. Spawned/positioned targets, owned-equipment selections
+and malformed-image fixtures are not acquisition/route/console evidence. Osafune,
+ordinary slash sparkles, other weapon specials/full overlay contention and the
+remaining eight unhandled states/control branches keep milestone1 incomplete.
+
 Selected [contact absorption](docs/player-contact-absorption.md) now owns original
 immediate response5, silent Blink44 then48, green number and timer14 protection12.
 Owned circlets38..42 use actual private attributes; Cat-eye43 converts kind7 only
@@ -23,6 +1203,27 @@ hold. Preserve no-tick rebases, offscreen keep-alive and actual row retirement.
 No second pool, grants or savesv9 change. Explicit equipment/HP/MP/protection/pose
 fixtures are not acquisition/route/console evidence. Other number producers and
 damage/equipment/familiars/sharing/Alucard/castle parity remain incomplete.
+
+Selected [scripted input/reaction](docs/player-script-control.md) now binds Death's
+actual mode1 request to state48, normal reset, timer2/red palette, real BP0/Blink58
+and animation/WHAT/recovery. Preserve the single stage/Bat/Wolf input counter,
+raw mode2 hold, US physical-input rebase, timer4's private SDK colors/gameplay clock,
+timer15 boundary, optional shared exhaustion, pending US retries and failed-update
+rollback. Mist interruption destroys its actual generation without fake readiness
+or palette-job resets. Dead/frozen/menu/map/draw paths hold counters and never
+revive. Explicit room/relic/pose/palette/lethal/protection fixtures are not route/
+acquisition/console evidence. No default grants or savesv9 changes; milestone1 remains open.
+
+Selected [normal control corrections](docs/player-control-audit.md) preserve original
+timer6 ledge expiry, heavy-Jump versus attack landing, fast landing momentum,
+ordered standing/crouch hand cancels, Basilard holds, prior-child shield state,
+Jump's early return and low-speed Bat/return eight-pass collision. Preserve the US
+first-physical-frame tap rebase after selected simulated input, failure rollback,
+no-tick room rebases and menu/map/draw holds. Held shield startup is not a subweapon
+tap. The source-backed inventory has 34 original handled states versus 26 native
+dispatches; all remaining equipment/familiar/script/damage/death dependencies must
+close before milestone 1 is complete. Explicit equipment/pose/protection fixtures
+are not acquisition/route/console evidence. No default grants or savesv9 changes.
 
 Selected [Blood Cloak](docs/player-blood-cloak.md) now owns surviving selected queued
 contact refunds, actual shared factory99/child51, private sprite rendering and pickup
@@ -57,8 +1258,9 @@ Fury refreshes. Preserve all16 HUD decrements (including the switch default),
 new/Continue reset versus connected-stage retention after bootstrap and request
 commit only after player success. No second pool or ordinary-save fields. Preserve
 pre-cap bonuses, signed-word attack/DEF, computed original SDK root normalization,
-US stone immunity and no stale defense after expiry. Only Fury is a new live
-producer; masks/Give are not consumable/other-equipment availability. Explicit
+US stone immunity and no stale defense after expiry. Fury and selected owned
+medicines now supply live producers; masks/Give alone are not remaining consumable/
+other-equipment availability. Explicit
 equipment/pose/protection/clock/arrival fixtures and authored metadata copies are
 not acquisition/route/console evidence. Default grants/savesv9 and Alucard/castle
 incompleteness remain unchanged.
@@ -646,6 +1848,10 @@ restoration and cramped-space recovery. Q/Xbox LB toggles owned Mist; ordinary
 starts grant no new relics. Use the absolute simulation clock, freeze original MP
 recovery in transformed states, and retain generation ownership. Never substitute
 a timer for the actual visual phase-5 signal; normal return releases the real child.
+Mist's four birth rand calls stage the existing character libc cursor and commit
+after the effect succeeds; never advance the separate stage Random cursor.
+Later updates/menu/draw/no-tick rebases consume no birth calls. Full cross-owner
+libc/Gas Cloud birth ordering remains unfinished; no new RNG/save fields.
 Keep the original 16/24-tick entry/return lockouts, slope bit 0x8000 and flying
 bottom room window. Wolf, shared effect contention,
 restoration flashes, full raster/audio/parity and ordinary acquisition remain

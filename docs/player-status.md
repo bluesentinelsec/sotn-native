@@ -14,6 +14,11 @@ separate flags. The snapshot does not carry stale form/status bits from earlier
 states, mutate movement, advance timers or allocate resources. The collision
 owner still maintains its existing selected form word at its original update point.
 
+The later [Fairy input providers](fairy-controller.md) add the actual transient
+damage-effects word and original pre-control step/substep snapshot. These fields
+retain their separate write/clear/hold boundaries; they are not derived from the
+status mask or a retained reaction's elements. They enable no familiar controls.
+
 The native MP owner now sees the original recovery-freeze bit during physical hit
 and stone states. Normal recovery resumes regeneration on its existing absolute
 clock. The renderer sees walking's actual capture-clear bit and clears the owned

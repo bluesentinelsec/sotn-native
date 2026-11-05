@@ -217,15 +217,16 @@ int main(void)
             CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
         CHECK(effect.removed);
     }
-    for (Uint16 kind = 0; kind < 2; ++kind)
+    const Uint16 death_blinks[] = {0x4e, 0x59, 0x53, 0x4f, 0x5a};
+    for (Uint16 kind = 0; kind < SDL_arraysize(death_blinks); ++kind)
     {
-        const Uint16 parameter = kind ? 0x59 : 0x4e;
+        const Uint16 parameter = death_blinks[kind];
         Uint8 *p = dra + 0xd670 + (parameter & 0x3fU) * 20U;
         Put16(p + 6, 0x123);
         Put16(p + 8, 256);
         Put16(p + 10, 256);
         Put16(p + 12, 256);
-        Put16(p + 14, kind ? 0x7005 : 0x7004);
+        Put16(p + 14, !kind ? 0x7004 : parameter == 0x4f ? 0x7006 : 0x7005);
         Put16(p + 16, 0x31);
         Put16(p + 18, 512);
         effect = (SotnPlayerBlink){.parameter = parameter};
@@ -269,6 +270,63 @@ int main(void)
           !SDL_memcmp(&effect, &invalid_depth, sizeof(effect)) &&
           !SDL_memcmp(&shared, &invalid_shared, sizeof(shared)) &&
           !SDL_memcmp(&events, &invalid_events, sizeof(events)));
+    Uint8 *cut = dra + 0xd670 + 2U * 20U;
+    Put16(cut + 6, 0x123);
+    Put16(cut + 8, 256);
+    Put16(cut + 10, 256);
+    Put16(cut + 12, 256);
+    Put16(cut + 14, 16);
+    Put16(cut + 16, 0x31);
+    Put16(cut + 18, 512);
+    effect = (SotnPlayerBlink){.parameter = 0x42};
+    input.water_waist = 0;
+    input.allocation_failed = false;
+    input.rotated = false;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 1 &&
+          events.reset_afterimages);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 16 && effect.brightness == 256);
+    for (Uint16 i = 0; i < 16; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
+    Uint8 *holy = dra + 0xd670 + 0x28U * 20U;
+    SDL_memcpy(holy, cut, 20);
+    Put16(holy + 14, 0x7007);
+    effect = (SotnPlayerBlink){.parameter = 0x68};
+    input.player_step = 10;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 7 && !effect.removed);
+    input.player_step = 2;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
+    Uint8 *apple = dra + 0xd670 + 10U * 20U;
+    SDL_memcpy(apple, cut, 20);
+    Put16(apple + 14, 96);
+    effect = (SotnPlayerBlink){.parameter = 0x4a};
+    SDL_zero(shared);
+    input.allocation_failed = true;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && !effect.phase &&
+          !events.reset_afterimages);
+    input.allocation_failed = false;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 1 &&
+          events.reset_afterimages);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 96);
+    for (Uint16 i = 0; i < 95; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2);
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3);
+    for (Uint16 i = 0; i < 26; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
     SDL_free(dra);
     SDL_free(exe);
     return 0;

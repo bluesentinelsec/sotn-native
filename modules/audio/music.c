@@ -8,7 +8,8 @@
 typedef struct MusicTrack
 {
     Uint32 start, ticks;
-    Uint8 file, channel, volume;
+    Uint16 id;
+    Uint8 file, channel, volume, mode;
 } MusicTrack;
 
 struct SotnMusic
@@ -18,8 +19,8 @@ struct SotnMusic
     MusicTrack intro, loop;
     Uint32 sector, remaining;
     Sint32 history[2][2];
-    bool looping, once;
-    Uint64 source_frames;
+    bool looping, once, continuous;
+    Uint64 source_frames, frame_limit;
     bool flushed;
 };
 
@@ -38,8 +39,13 @@ static bool Track(SotnDataView dra, Uint32 id, Uint32 sectors, MusicTrack *out)
     if (start >= sectors || record[9] >= sectors - start || duration == 0 || duration > 432000 ||
         record[10] > 127 || Read32(record + 12) > 2)
         return SDL_SetError("Laboratory music start/duration/filter is invalid");
-    *out =
-        (MusicTrack){start + record[9], duration, record[8], (Uint8)(record[9] % 16), record[10]};
+    *out = (MusicTrack){.start = start + record[9],
+                        .ticks = duration,
+                        .id = (Uint16)id,
+                        .file = record[8],
+                        .channel = (Uint8)(record[9] % 16),
+                        .volume = record[10],
+                        .mode = (Uint8)Read32(record + 12)};
     return true;
 }
 
@@ -99,7 +105,8 @@ static bool Feed(SotnMusic *music)
         if (!SDL_PutAudioStreamData(music->converter, pcm, sizeof(pcm)))
             return false;
         music->source_frames += 2016;
-        if (music->once && music->source_frames >= (Uint64)music->intro.ticks * 630)
+        const Uint64 limit = music->once ? (Uint64)music->intro.ticks * 630 : music->frame_limit;
+        if (limit && music->source_frames >= limit)
         {
             /* Release SDL's resampling tail at the end of a finite XA clip. Otherwise a
              * clip ending exactly on a sector boundary requests another, unrelated sector. */
@@ -143,6 +150,73 @@ static bool Create(SotnDataView dra, SotnStream *stream, Uint32 intro, Uint32 lo
     return true;
 }
 
+bool SotnMusic_CreateXa(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (id <= 0x300 || id >= 0x533)
+        return SDL_SetError("XA command requires original US sound identity301..532");
+    MusicTrack track = {0};
+    if (!Track(dra, id - 0x300U, SotnStream_Sectors(stream), &track))
+        return false;
+    const bool once = track.mode == 2;
+    if (!once && id == 0x532)
+        return SDL_SetError("XA loop record exceeds the original US table");
+    SotnMusic *next = NULL;
+    if (!Create(dra, stream, id - 0x300U, id - 0x300U + (once ? 0U : 1U), once, &next))
+        return false;
+    if (!once && (next->intro.file != next->loop.file || next->intro.channel != next->loop.channel))
+    {
+        SotnMusic_Destroy(next);
+        return SDL_SetError("XA continuation changed the actual configured file/channel");
+    }
+    next->continuous = !once;
+    if (!once)
+        next->frame_limit =
+            ((Uint64)next->intro.ticks + (track.mode == 1 ? next->loop.ticks : 0U)) * 630;
+    *out = next;
+    return true;
+}
+bool SotnMusic_ContinueXa(SotnMusic *music)
+{
+    if (!music || !music->continuous ||
+        (music->looping ? music->loop.mode : music->intro.mode) != 1)
+        return SDL_SetError("XA metadata continuation requires its actual mode1 command transport");
+    music->looping = true;
+    music->remaining = music->loop.ticks;
+    return true;
+}
+bool SotnMusic_PrepareXaLoop(const SotnMusic *music, SotnMusic **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!music || !music->continuous)
+        return SDL_SetError("XA loop seek requires its actual continuous command transport");
+    SotnMusic *next = SDL_calloc(1, sizeof(*next));
+    if (!next)
+        return false;
+    *next = (SotnMusic){.stream = music->stream,
+                        .intro = music->intro,
+                        .loop = music->loop,
+                        .sector = music->loop.start,
+                        .remaining = music->loop.ticks,
+                        .frame_limit = (Uint64)music->loop.ticks * 630,
+                        .looping = true,
+                        .continuous = true};
+    const SDL_AudioSpec input = {.format = SDL_AUDIO_S16, .channels = 2, .freq = 37800};
+    const SDL_AudioSpec output = {.format = SDL_AUDIO_S16, .channels = 2, .freq = 44100};
+    next->converter = SDL_CreateAudioStream(&input, &output);
+    if (!next->converter)
+    {
+        SotnMusic_Destroy(next);
+        return false;
+    }
+    *out = next;
+    return true;
+}
+
 bool SotnMusic_Create(SotnDataView dra, SotnStream *stream, SotnMusic **out)
 {
     return Create(dra, stream, 46, 47, false, out);
@@ -162,7 +236,7 @@ bool SotnMusic_Tick(SotnMusic *music, Sint16 *pcm, size_t count)
         SDL_memset(pcm, 0, SOTN_SOUND_FRAMES * 2 * sizeof(*pcm));
         return true;
     }
-    if (music->remaining == 0)
+    if (music->remaining == 0 && !music->continuous)
     {
         music->looping = true;
         music->remaining = music->loop.ticks;
@@ -179,12 +253,26 @@ bool SotnMusic_Tick(SotnMusic *music, Sint16 *pcm, size_t count)
             return false;
         available = SDL_GetAudioStreamAvailable(music->converter);
     }
-    if (available < bytes || SDL_GetAudioStreamData(music->converter, pcm, bytes) != bytes)
+    int read_bytes = bytes;
+    if (music->continuous && music->flushed && available >= 0 && available < bytes)
+    {
+        // Real decoded PCM can end before the original strict command deadline. Release
+        // the resampler tail and hold silence until actual command6 replaces this transport;
+        // never scan unrelated sectors or change the command/playing state to fill a tick.
+        if (available % 4)
+            return SDL_SetError("XA command transport ended with an incomplete stereo frame");
+        SDL_memset(pcm, 0, (size_t)bytes);
+        read_bytes = available;
+    }
+    if (available < read_bytes || available < 0 ||
+        (read_bytes && SDL_GetAudioStreamData(music->converter, pcm, read_bytes) != read_bytes))
         return SDL_SetError("Music converter could not produce a complete simulation tick");
-    const Uint8 volume = music->looping ? music->loop.volume : music->intro.volume;
+    const Uint8 volume =
+        music->looping && !music->continuous ? music->loop.volume : music->intro.volume;
     for (Uint32 i = 0; i < SOTN_SOUND_FRAMES * 2; ++i)
         pcm[i] = (Sint16)((Sint32)pcm[i] * volume / 127);
-    --music->remaining;
+    if (music->remaining)
+        --music->remaining;
     return true;
 }
 
@@ -220,7 +308,8 @@ bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id
 bool SotnMusic_CreateSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out)
 {
     if ((id >= 0x369 && id <= 0x379) || (id >= 0x3a3 && id <= 0x3a8) || id == 0x3a9 ||
-        id == 0x3ad || id == 0x3b2 || id == 0x3b9)
+        id == 0x3ad || id == 0x3b2 || id == 0x3b9 || id == 0x472 || id == 0x473 || id == 0x476 ||
+        id == 0x479 || id == 0x47a || id == 0x48a || id == 0x48e || id == 0x492)
         return Create(dra, stream, id - 0x300U, id - 0x300U, true, out);
     return SotnMusic_CreateDeathSpeech(dra, stream, id, out);
 }
@@ -228,6 +317,30 @@ bool SotnMusic_CreateSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, Sot
 bool SotnMusic_Playing(const SotnMusic *music)
 {
     return music != NULL && (!music->once || music->remaining != 0);
+}
+
+bool SotnMusic_Get(const SotnMusic *music, SotnMusicState *out)
+{
+    if (!music || !out)
+        return SDL_SetError("XA cursor read requires actual playback and an output");
+    const MusicTrack track = music->looping ? music->loop : music->intro;
+    *out = (SotnMusicState){.sector = music->sector,
+                            .remaining = music->remaining,
+                            .duration = track.ticks,
+                            .start = track.start,
+                            .id = track.id,
+                            .volume = music->continuous ? music->intro.volume : track.volume,
+                            .mode = track.mode,
+                            .looping = music->looping,
+                            .once = music->once};
+    return true;
+}
+
+bool SotnMusic_Prepare(SotnMusic *music)
+{
+    if (!music)
+        return SDL_SetError("XA read requires actual native playback");
+    return music->source_frames || Feed(music);
 }
 
 bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMusic **out)

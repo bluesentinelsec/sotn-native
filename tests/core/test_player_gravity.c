@@ -179,8 +179,8 @@ static bool TestCeilings(Fixture *f)
         CHECK(SotnPlayer_Tick(f->p, 0));
     CHECK(SotnPlayer_GetState(f->p, &p) && p.gravity.upside_down);
     CHECK(SotnPlayer_Damage(f->p, 1, 200, 0) && SotnPlayer_GetState(f->p, &p));
-    CHECK(p.step == SOTN_PLAYER_HIT && !p.gravity.upside_down && !p.facing_left &&
-          p.velocity_y == -2 * 65536);
+    CHECK(p.step == SOTN_PLAYER_HIT && !p.gravity.upside_down && p.facing_left &&
+          p.velocity_y == 0); // Original hurt birth clamps vertical speed in this tight ceiling.
     return true;
 }
 

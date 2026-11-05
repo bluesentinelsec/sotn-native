@@ -136,7 +136,9 @@ static bool PriorityAndRollback(Fixture *f)
     p->attributes.weakness = 0;
     p->attributes.immunity = 0x8000;
     p->invincibility = 0;
-    CHECK(Contact(p, 3, 3, 0x8007) && p->hp == 46 && !p->absorption.applied && !p->invincibility);
+    CHECK(Contact(p, 3, 3, 0x8007) && p->hp == 46 && !p->absorption.applied &&
+          p->immunity.applied && p->invincibility == 12);
+    p->invincibility = 0;
     p->attributes.immunity = 0x200;
     CHECK(Contact(p, 4, 3, 0x8207) && p->hp == 49 && p->absorption.amount == 3 &&
           p->step != SOTN_PLAYER_STONE);

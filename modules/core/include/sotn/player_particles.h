@@ -3,7 +3,7 @@
 #include <sotn/game_math.h>
 #include <sotn/player_factory.h>
 /** @brief Selected original tile particles; the actual owner reserves count+one stage rows. */
-#define SOTN_PLAYER_PARTICLE_LIMIT 16
+#define SOTN_PLAYER_PARTICLE_LIMIT 30
 /** @brief Original fixed-point particle data and emitted signed-word tile position. */
 typedef struct SotnPlayerParticle
 {
@@ -25,7 +25,9 @@ typedef struct SotnPlayerParticleVectors
  * never at particle birth, room rebasing, menus or drawing. No rows/factories are allocated. */
 bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnDataView executable,
                                     Uint32 *random);
-/** @brief Selected entity-five profiles1/6/9/10/13, with no primitive pool or factory ownership. */
+/** @brief Selected entity-five profiles1/3/4/5/6/8/9/10/12/13, with no primitive pool or factory
+ * ownership.
+ */
 typedef struct SotnPlayerParticles
 {
     SotnPlayerParticle tiles[SOTN_PLAYER_PARTICLE_LIMIT];
@@ -40,9 +42,11 @@ typedef struct SotnPlayerParticlesInput
     SotnPlayerFactorySource
         source; /**< Owner projects the actual factory source into screen space. */
     Sint16 player_x, player_y;
+    Sint32
+        parent_velocity_x; /**< Actual parent entity velocity at profile4 birth, zero if absent. */
     Sint32 water_level;
     Uint16 parameter, player_priority, player_step;
-    bool allocated;
+    bool allocated, facing_left; /**< Current player facing for original profile8 birth. */
     const SotnPlayerParticleVectors *vectors; /**< Actual initialized owner, required by6 birth. */
 } SotnPlayerParticlesInput;
 /** @brief Read selected private profile capacity, including the original final sentinel row.

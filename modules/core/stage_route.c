@@ -29,6 +29,24 @@ bool SotnStageRoute_Read(SotnDataView dra, Uint16 source, Uint16 index, SotnStag
     return true;
 }
 
+bool SotnStageRoute_Teleport(SotnDataView dra, Uint8 mode, SotnStageRoute *out)
+{
+    if (!out || !dra.bytes || mode < 4 || mode > 6)
+        return SDL_SetError("Teleport route requires actual engine mode4/5/6");
+    const Uint16 index = (Uint16)(37U + mode - 4U);
+    const size_t at = 0x245cU + (size_t)index * 10U;
+    if (at > dra.size || dra.size - at < 10)
+        return SDL_SetError("Teleport route lost its private RoomTeleport record");
+    const Uint16 marker = Read16(dra.bytes + at + 6U);
+    SotnStageRoute route = {0};
+    if (!SotnStageRoute_Read(dra, marker, index, &route) || route.stage != (mode == 4   ? 43
+                                                                            : mode == 5 ? 11
+                                                                                        : 2))
+        return SDL_SetError("Teleport route does not match its original destination");
+    *out = route;
+    return true;
+}
+
 // dra/5087C.c:func_800F0CD8. Vertical rooms overlap at the transition; a world-grid
 // rebase alone loses the original upward 48-pixel and downward 24/48-pixel adjustments.
 static bool CrossingBounds(Sint32 x, Sint32 y, Uint32 width, Uint32 height)

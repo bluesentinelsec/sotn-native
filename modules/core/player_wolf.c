@@ -188,7 +188,7 @@ void SotnPlayer_WolfInput(SotnPlayer *p)
         return;
     if (p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down)
         p->animation.sprite = 0x9d;
-    p->dark.ticks = 0;
+    p->dark_ticks = 0;
     SotnPlayer_GravityCancel(p);
     const SotnWolfControllerFrame retained = p->wolf.controller;
     p->wolf = (SotnPlayerWolf){.controller = retained,
@@ -312,6 +312,7 @@ static void Transition(SotnPlayer *p)
     p->wolf.finish_flash = e.finish_flash;
     if (e.clear_weapon)
     {
+        p->hand_retire = 2;
         p->attack_mode = 0;
         p->attack = p->shield = (SotnPlayerAttack){0};
         p->shield_cursor = (SotnShield){0};
@@ -376,7 +377,8 @@ void SotnPlayer_WolfTick(SotnPlayer *p)
         Apply(p, f);
         p->wolf.commands = e;
         p->mp_spent = (Uint16)(p->mp_spent + e.mp_spent);
-        p->bat_input_hold = (Uint8)e.input_hold;
+        if (e.input_hold)
+            SotnPlayer_HoldInput(p, e.input_hold);
         if (e.return_requested)
         {
             p->tapped = SOTN_BUTTON_WOLF;

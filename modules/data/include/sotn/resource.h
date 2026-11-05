@@ -39,6 +39,34 @@ typedef enum SotnResourceId
     SOTN_RESOURCE_QUARTERS_AUDIO_BODY,     /**< US Olrox's Quarters samples. */
     SOTN_RESOURCE_OLROX_AUDIO_HEADER,      /**< US Olrox arena instruments. */
     SOTN_RESOURCE_OLROX_AUDIO_BODY,        /**< US Olrox arena samples. */
+    SOTN_RESOURCE_BAT_CODE,     /**< US familiar bat private overlay bytes; never host-executed. */
+    SOTN_RESOURCE_BAT_GRAPHICS, /**< US familiar bat FT texture data. */
+    SOTN_RESOURCE_BAT_AUDIO_HEADER, /**< US familiar bat instrument metadata. */
+    SOTN_RESOURCE_BAT_AUDIO_BODY,   /**< US familiar bat sample data. */
+    SOTN_RESOURCE_GHOST_CODE, /**< US familiar ghost private overlay bytes; never host-executed. */
+    SOTN_RESOURCE_GHOST_GRAPHICS,     /**< US familiar ghost FT texture data. */
+    SOTN_RESOURCE_GHOST_AUDIO_HEADER, /**< US familiar ghost instrument metadata. */
+    SOTN_RESOURCE_GHOST_AUDIO_BODY,   /**< US familiar ghost sample data. */
+    SOTN_RESOURCE_FAIRY_CODE, /**< US familiar fairy private overlay bytes; never host-executed. */
+    SOTN_RESOURCE_FAIRY_GRAPHICS,     /**< US familiar fairy FT texture data. */
+    SOTN_RESOURCE_FAIRY_AUDIO_HEADER, /**< US familiar fairy instrument metadata. */
+    SOTN_RESOURCE_FAIRY_AUDIO_BODY,   /**< US familiar fairy sample data. */
+    SOTN_RESOURCE_DEVIL_CODE, /**< US familiar devil private overlay bytes; never host-executed. */
+    SOTN_RESOURCE_DEVIL_GRAPHICS,     /**< US familiar devil FT texture data. */
+    SOTN_RESOURCE_DEVIL_AUDIO_HEADER, /**< US familiar devil instrument metadata. */
+    SOTN_RESOURCE_DEVIL_AUDIO_BODY,   /**< US familiar devil sample data. */
+    SOTN_RESOURCE_SWORD_CODE, /**< US familiar sword private overlay bytes; never host-executed. */
+    SOTN_RESOURCE_SWORD_GRAPHICS,      /**< US familiar sword FT texture data. */
+    SOTN_RESOURCE_SWORD_AUDIO_HEADER,  /**< US familiar sword instrument metadata. */
+    SOTN_RESOURCE_SWORD_AUDIO_BODY,    /**< US familiar sword sample data. */
+    SOTN_RESOURCE_TITLE_GRAPHICS_0,    /**< US BIN/F_TITLE0.BIN first title texture planes. */
+    SOTN_RESOURCE_TITLE_GRAPHICS_1,    /**< US BIN/F_TITLE1.BIN second title texture planes. */
+    SOTN_RESOURCE_PROLOGUE_GRAPHICS_0, /**< US BIN/F_PROLO0.BIN first prologue planes. */
+    SOTN_RESOURCE_PROLOGUE_GRAPHICS_1, /**< US BIN/F_PROLO1.BIN second prologue planes. */
+    SOTN_RESOURCE_SEL_CODE,            /**< US menu/title overlay bytes; never host-executed. */
+    SOTN_RESOURCE_SEL_GRAPHICS,        /**< US ST/SEL/F_SEL.BIN menu texture planes. */
+    SOTN_RESOURCE_SEL_AUDIO_HEADER,    /**< US resident menu/title instrument metadata. */
+    SOTN_RESOURCE_SEL_AUDIO_BODY,      /**< US resident menu/title samples. */
     SOTN_RESOURCE_COUNT
 } SotnResourceId;
 

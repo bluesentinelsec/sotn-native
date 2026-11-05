@@ -6,6 +6,39 @@
 
 /** @brief Owned streaming Laboratory music decoder and rate-conversion state. */
 typedef struct SotnMusic SotnMusic;
+/** @brief Actual current private XA record and decoder cursor; reading never advances playback. */
+typedef struct SotnMusicState
+{
+    Uint32 sector, remaining, duration, start;
+    Uint16 id;
+    Uint8 volume, mode;
+    bool looping, once;
+} SotnMusicState;
+/** @brief Copy the actual decoder/record snapshot, preserving output on invalid input. */
+bool SotnMusic_Get(const SotnMusic *music, SotnMusicState *out);
+/** @brief Configure a native XA read by decoding its first real matching sector if necessary.
+ * Does not consume a playback tick. A false result requires stopping after the data/I/O error.
+ * This native service is separate from original hardware CD-command timing. */
+bool SotnMusic_Prepare(SotnMusic *music);
+/** @brief Create an original US XA command transport from actual private metadata.
+ * @param id Original sound ID0x301..0x532. Modes0/1 retain continuous stream decoding;
+ * mode2 retains finite speech decoding. Caller owns original expiry and seek commands.
+ * @return Success or SDL error with NULL output; no playback tick or first-sector read.
+ * Original loop metadata must retain the configured file/channel. This service does
+ * not supply command acknowledgement or enable another stage/familiar control.
+ * Exhausted decoded PCM holds silence until the original owner seeks/stops;
+ * the mode1 continuation retains its cumulative intro/loop sample budget. */
+bool SotnMusic_CreateXa(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out);
+/** @brief Apply original mode1 metadata continuation without seeking or discarding PCM/history.
+ * @return Success or SDL error preserving the actual command transport on failure.
+ * Caller supplies the actual expiry boundary; no clock or audio sample advances here. */
+bool SotnMusic_ContinueXa(SotnMusic *music);
+/** @brief Prepare original command6's adjacent-record seek in a detached decoder.
+ * @param music Actual command transport, retained unchanged. @param out Owned new decoder.
+ * @return Success or SDL error with NULL output. Retains configured file/channel and
+ * original base/loop metadata; resets only the new transport to the real loop sector.
+ * ReadN still requires Prepare before native playback/acknowledgement. */
+bool SotnMusic_PrepareXaLoop(const SotnMusic *music, SotnMusic **out);
 
 /** @brief Start the original Laboratory track using private DRA music metadata.
  * @param dra Borrowed immutable US DRA image, alive until destruction.
@@ -37,7 +70,7 @@ bool SotnMusic_CreateEntranceQuiet(SotnDataView dra, SotnStream *stream, SotnMus
  * @return Success or SDL error. Both borrowed inputs must outlive playback.
  */
 bool SotnMusic_CreateDeathSpeech(SotnDataView dra, SotnStream *stream, Uint16 id, SotnMusic **out);
-/** @brief Play a selected original Death, Maria or Librarian XA speech clip once.
+/** @brief Play a selected original Death, Maria, Librarian or US Fairy XA speech clip once.
  * @param dra Borrowed private DRA. @param stream Borrowed verified XA container.
  * @param id Original selected dialogue ID. @param out Receives ownership or NULL.
  * @return Success or SDL error. Inputs must outlive playback. */

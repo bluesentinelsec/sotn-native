@@ -2,6 +2,28 @@
 
 A C17/SDL3 native-port project for personal and educational study of
 *Castlevania: Symphony of the Night*. **Game integration is in progress.**
+The [original player timer owner](docs/player-timers.md) preserves the sixteen word
+counters and their existing resource/effect boundaries.
+The [selected hurt owner](docs/player-hurt-motion.md) connects original damage-kind
+promotion, physical recovery, shared impact effects and palette counters.
+The [selected poison/curse presentation](docs/player-ailment-effects.md) now uses actual
+shared text/Blink actors, original trail tiles and camera/room rules.
+[Selected cut-hit feedback](docs/player-cut-effects.md) adds its actual shared
+particles, flash and sound. [Surviving holy hits](docs/player-holy-hit.md) now
+use their actual shared GT4/Blink owners. [Surviving dark hits](docs/player-dark-hit.md)
+add their actual timed sprite factory, shared blend phase and Blink62.
+[Surviving fire hits](docs/player-fire-hit.md) add both original sprite streams,
+Blink45 and real parent-bound particle descendants.
+[Surviving thunder hits](docs/player-thunder-hit.md) add four actual six-row
+history effects, ordered sounds and Blink46. [Surviving ice hits](docs/player-ice-hit.md)
+add the actual24 G4 shards, SDK geometry and room-entry row cleanup.
+[Shared stone effects](docs/stone-effect-support.md) now have selected original
+text/smoke/tile/sprite owners. [Selected stone control/capture](docs/player-petrification.md)
+now runs; remaining stone/familiar/death contexts stay open.
+[HUD HP-display timing](docs/player-hud-hp-hold.md) now connects original64-if-zero
+delays, actual save-room16 overwrite and signed secondary-impact results.
+[Held-grab damage feedback](docs/player-grab-damage.md) now connects original
+HP numbers, Talisman and surviving Cloak/Fury requests to the existing owners.
 The [Alucard milestone checklist](docs/alucard-status.md) consolidates current playable
 behavior, remaining work and the evidence required for completion.
 The project's executable now runs a limited combat checkpoint in the Alchemy
@@ -17,6 +39,11 @@ Ordinary saves retain explored cells and permanent Laboratory events; this remai
 [Selected subweapon attacks](docs/laboratory-subweapons.md) add heart spending and projectile combat.
 [Inventory and equipment](docs/character-inventory.md) connect owned pickups to combat stats;
 [character progression](docs/character-progression.md) awards EXP and level/resource gains.
+[Owned medicines](docs/player-medicines.md) now connects the17 equippable cures,
+stat/resistance potions and HP/MP medicines to actual shared effects and resources.
+Life Apple/Hammer still require the unfinished Fairy owner; no items are granted.
+[Owned Axe Lord Armor](docs/player-axe-armor.md) adds its original movement, attack,
+hurt recovery and private body/shadow rendering; ordinary starts grant no armor.
 [Exploration map](docs/castle-map.md): Tab/M or Xbox Back shows saved exploration.
 Other equipped weapons, complete damage/item/audio behavior, castle scripts, actor/effect
 support, stage scripts, and full-game progression remain incomplete. This is not yet an
@@ -49,8 +76,10 @@ boss-specific sensors and simulated control choices. Selected bat/return control
 now feed the selected stage combat path; full encounter and console parity remain unproven.
 
 [Native Continue flow](docs/native-session-flow.md): `--play` opens slot selection;
-game over returns there without restarting the process. Original title/new-game
-flow and full castle progression remain incomplete.
+game over returns there without restarting the process. Selected
+[`--cold-start --game-data DIR`](docs/cold-start.md) opens the original title before
+any gameplay session, then offers native saved-game Continue. New Game/prologue,
+original SEL menus and full castle progression remain incomplete.
 
 [Early castle progression](docs/early-castle-stages.md) connects selected Entrance,
 Laboratory, Marble Gallery and Outer Wall paths, with original opening equipment,
@@ -181,11 +210,18 @@ Owned [Fury Plate](docs/stat-buff-ownership.md) now supplies its original defens
 buff through actual HUD timers. Owned [Healing Mail](docs/hud-healing-resources.md)
 now heals while walking, with original deferred effects and gameplay-clock MP
 recovery. [Deferred healing numbers](docs/player-healing-numbers.md) now use actual
-shared slots and twenty-row leases for Mail, blood and orb healing. Other equipment,
-number producers and buff producers remain incomplete.
+shared slots and twenty-row leases for Mail, blood and orb healing.
+[Queued hurt/lethal/stone contacts](docs/player-contact-numbers.md) now share those
+leases and original red/blue numbers, including overkill and zero-damage stone.
+[Selected neutral hurt feedback](docs/player-neutral-hurt.md) now uses original
+red palette timing, shared Blink58 and protection/color recovery. Other damage
+reactions, equipment, number producers and buff producers remain incomplete.
 Owned [absorption circlets](docs/player-contact-absorption.md) now use original
 immediate contact healing, silent flashes/numbers and protection; Cat-eye retains
-its separate kind7 conversion. Full original damage reactions remain unfinished.
+its separate kind7 conversion. Owned [Talisman](docs/player-contact-talisman.md) now
+uses original luck-based contact dodge, shared visuals and recovery. Owned
+[Ballroom Mask](docs/player-ballroom-mask.md) now applies its conditional reduction
+before defense and poison. Full original damage reactions remain unfinished.
 Owned [Blood Cloak](docs/player-blood-cloak.md) now refunds surviving selected contact
 damage as hearts and uses the original shared rising-heart child and pickup sound.
 

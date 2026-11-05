@@ -5,28 +5,32 @@
 #include <sotn/scene_freeze.h>
 static bool Valid(const SotnSceneFreeze *f)
 {
-    return f && (f->request == 0 || f->request == 3);
+    return f && (f->request == 0 || f->request == 1 || f->request == 3 || f->request == 0xfff);
 }
 bool SotnSceneFreeze_BeginFrame(SotnSceneFreeze *f, SotnSceneFreezeFrame *out)
 {
     if (!Valid(f) || !out)
-        return SDL_SetError("Spell freeze requires its actual selected engine state/output");
-    *out = !f->active ? SOTN_SCENE_NORMAL : f->request ? SOTN_SCENE_FROZEN : SOTN_SCENE_RELEASE;
+        return SDL_SetError("Scene freeze requires its actual selected engine state/output");
+    *out = !f->active            ? SOTN_SCENE_NORMAL
+           : f->request == 0xfff ? SOTN_SCENE_FAIRY
+           : f->request          ? SOTN_SCENE_FROZEN
+                                 : SOTN_SCENE_RELEASE;
     if (*out == SOTN_SCENE_RELEASE)
         f->active = false;
     return true;
 }
 bool SotnSceneFreeze_Request(SotnSceneFreeze *f, Uint16 request)
 {
-    if (!Valid(f) || (request != 0 && request != 3) || (!request && !f->active))
-        return SDL_SetError("Spell freeze requires actual portal birth or active retirement");
+    if (!Valid(f) || (request != 0 && request != 1 && request != 3 && request != 0xfff) ||
+        (!request && !f->active))
+        return SDL_SetError("Scene freeze requires actual portal birth or active retirement");
     f->request = request;
     return true;
 }
 bool SotnSceneFreeze_EndFrame(SotnSceneFreeze *f, bool *out)
 {
     if (!Valid(f) || !out)
-        return SDL_SetError("Spell freeze requires its actual selected engine state/output");
+        return SDL_SetError("Scene freeze requires its actual selected engine state/output");
     *out = !f->active && f->request;
     if (*out)
         f->active = true;

@@ -126,8 +126,10 @@ finish:
 bool SotnHellfireTrail_Tick(SotnHellfireTrail *trail, SotnHellfireTrailInput in,
                             SotnHellfireTrailEvents *out)
 {
-    if (!trail || !out || trail->removed || trail->phase > 1 || (trail->parameter >> 8) != 1 ||
-        (!trail->phase && (in.player_priority > 509 || !in.random_ready || in.random > 32767)))
+    if (!trail || !out || trail->removed || trail->phase > 1 || (trail->parameter >> 8) > 1 ||
+        (!trail->phase &&
+         (in.player_priority > 509 || !in.random_ready || in.random > 32767 ||
+          (!(trail->parameter >> 8) && (!in.random_y_ready || in.random_y > 32767)))))
         return SDL_SetError("Hellfire trail requires its actual selected parameter/phase/RNG");
     SotnHellfireTrail t = *trail;
     SotnHellfireTrailEvents e = {0};
@@ -137,10 +139,20 @@ bool SotnHellfireTrail_Tick(SotnHellfireTrail *trail, SotnHellfireTrailInput in,
         t.flags = 0x08100000U;
         t.priority = (Uint16)(in.player_priority + 2U);
         t.velocity_y = -65536;
-        t.y = Fixed((Uint32)t.y + (Uint32)((Sint32)(in.random % 24U) - 12) * 65536U);
-        t.draw_flags = 3;
-        t.scale_x = t.scale_y = 128;
-        t.palette = 0x8170;
+        if (t.parameter >> 8)
+        {
+            t.y = Fixed((Uint32)t.y + (Uint32)((Sint32)(in.random % 24U) - 12) * 65536U);
+            t.draw_flags = 3;
+            t.scale_x = t.scale_y = 128;
+            t.palette = 0x8170;
+        }
+        else
+        {
+            t.x = Fixed((Uint32)t.x + (Uint32)((Sint32)(in.random & 63U) - 32) * 65536U);
+            t.y = Fixed((Uint32)t.y + (Uint32)((Sint32)(in.random_y & 63U) - 48) * 65536U);
+            t.palette = 0x8195;
+            t.blend_mode = 16;
+        }
         t.phase = 1;
         e.initialize = e.random_used = true;
         e.animation_offset = 0xd5fc;

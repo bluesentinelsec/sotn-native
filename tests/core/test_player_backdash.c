@@ -111,7 +111,8 @@ static bool Gates(Fixture *f)
     f->p->step = SOTN_PLAYER_JUMP;
     f->p->substep = 1;
     f->p->vy = 7 * 65536;
-    CHECK(Tick(f, 0) && f->p->step == SOTN_PLAYER_CROUCH && f->p->substep == 4 &&
+    // An ordinary heavy Jump landing uses the sliding recovery, like the original controller.
+    CHECK(Tick(f, 0) && f->p->step == SOTN_PLAYER_CROUCH && f->p->substep == 3 &&
           f->p->movement_effects.smoke && !f->p->movement_effects.smoke_blueprint &&
           f->p->sound == 0x647 && f->p->movement_effects.smoke_source.y == 135 * 65536);
     CHECK(Create(f));

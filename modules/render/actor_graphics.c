@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Adapted from sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5:
-// src/dra/4AEA4.c:LoadPendingGfx, 4A538.c bulk palettes, and 4B758.c multipart sprites.
+// src/dra/4AEA4.c:LoadPendingGfx, 4A538.c bulk palettes, 4B758.c multipart sprites
+// and weapon/shared.h:LoadWeaponPalette.
 #include <SDL3/SDL_error.h>
 #include <sotn/actor_graphics.h>
 #include <sotn/decompress.h>
+#include <sotn/hand_weapon.h>
 #include <sotn/stage_profile.h>
 
 #define VRAM_WORDS (1024U * 512U)
@@ -20,6 +22,9 @@ struct SotnActorGraphics
     SotnDataView dra, nz0;
     Uint16 sprite_banks, stage_id;
     SotnDataView weapon[2];
+    Uint8 weapon_family[2];
+    SotnDataView familiar;
+    Uint32 familiar_parts;
     Uint16 words[VRAM_WORDS];
     Uint8 valid[VRAM_WORDS];
     bool dopple_cached, dopple_death_cached;
@@ -352,74 +357,334 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
 {
     if (graphics == NULL || hand > 1)
         return SDL_SetError("Weapon graphics require a hand index of zero or one");
-    if (equipment.id == 0)
+    if (equipment.id == 0 || (equipment.kind == 131 && equipment.family == 255))
     {
         graphics->weapon[hand] = (SotnDataView){0};
+        graphics->weapon_family[hand] = 255;
         return true;
     }
     SotnDataView overlay = {0}, pointer = {0}, colors = {0};
     if (!SotnWeapon_Overlay(weapons, equipment, &overlay))
         return false;
-    const Uint32 address = equipment.family == 43   ? 0x8017b044U
+    const Uint32 address = equipment.family == 45   ? 0x8017a370U
+                           : equipment.family == 43 ? 0x8017b044U
                            : equipment.family == 37 ? 0x8017a7b8U
+                           : equipment.family == 1  ? 0x8017afecU
+                           : equipment.family == 3  ? 0x8017ac38U
+                           : equipment.family == 4  ? 0x8017b314U
+                           : equipment.family == 54 ? 0x8017af04U
+                           : equipment.family == 55 ? 0x8017b188U
+                           : equipment.family == 38 ? 0x8017ade0U
+                           : equipment.family == 53 ? 0x8017b264U
+                           : equipment.family == 48 ? 0x8017b038U
+                           : equipment.family == 49 ? 0x8017b144U
+                           : equipment.family == 50 ? 0x8017b068U
+                           : equipment.family == 6  ? 0x8017ac34U
+                           : equipment.family == 14 ? 0x8017a5b0U
+                           : equipment.family == 13 ? 0x8017a5fcU
+                           : equipment.family == 56 ? 0x8017b058U
+                           : equipment.family == 12 ? 0x8017aab0U
+                           : equipment.family == 39 ? 0x8017ade0U
+                           : equipment.family == 32 ? 0x8017a918U
+                           : equipment.family == 51 ? 0x8017aec4U
+                           : equipment.family == 5  ? 0x8017b314U
+                           : equipment.family == 7  ? 0x8017ac94U
+                           : equipment.family == 36 ? 0x8017a550U
+                           : equipment.family == 33 ? 0x8017ac4cU
+                           : equipment.family == 35 ? 0x8017a540U
+                           : equipment.family == 34 ? 0x8017a944U
+                           : equipment.family == 30 ? 0x8017a674U
+                           : equipment.family == 57 ? 0x8017b0acU
+                           : equipment.family == 8  ? 0x8017aab8U
+                           : equipment.family == 9  ? 0x8017aab8U
+                           : equipment.family == 10 ? 0x8017abfcU
+                           : equipment.family == 25 ? 0x8017aad8U
+                           : equipment.family == 58 ? 0x8017abc4U
+                           : equipment.family == 11 ? 0x8017ac34U
+                           : equipment.family == 26 ? 0x8017aae4U
                            : equipment.family == 52 ? 0x8017ac1cU
                            : equipment.family == 0  ? 0x8017b0bcU
                            : equipment.family == 31 ? 0x8017a90cU
+                           : equipment.family == 20 ? 0x8017ab98U
+                           : equipment.family == 22 ? 0x8017a808U
+                           : equipment.family == 21 ? 0x8017a784U
+                           : equipment.family == 17 ? 0x8017a3a0U
+                           : equipment.family == 18 ? 0x8017a730U
+                           : equipment.family == 19 ? 0x8017a548U
+                           : equipment.family == 15 ? 0x8017a7dcU
+                           : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
-    const Uint32 color_count = (equipment.family == 37 ? 5U : 7U) * 16;
-    if (!Resolve(overlay, 0x8017a000, address, 4, 4, &pointer) ||
+    if ((equipment.family == 0 && equipment.palette >= 5) ||
+        ((SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 1 ||
+          equipment.family == 3 || equipment.family == 4 || equipment.family == 5 ||
+          equipment.family == 7 || equipment.family == 54 || equipment.family == 32 ||
+          equipment.family == 51 || equipment.family == 33 || equipment.family == 35 ||
+          equipment.family == 36 || equipment.family == 55 || equipment.family == 57 ||
+          equipment.family == 38 || equipment.family == 39 || equipment.family == 53 ||
+          equipment.family == 48 || equipment.family == 49 || equipment.family == 50 ||
+          equipment.family == 6 || equipment.family == 14 || equipment.family == 13 ||
+          equipment.family == 56 || equipment.family == 12 || equipment.family == 34 ||
+          equipment.family == 30) &&
+         equipment.palette))
+        return SDL_SetError("Selected weapon requires its actual bounded private palette index");
+    const Uint32 color_count =
+        (SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 0 ||
+                 equipment.family == 1 || equipment.family == 3 || equipment.family == 4 ||
+                 equipment.family == 54 || equipment.family == 32 || equipment.family == 51 ||
+                 equipment.family == 5 || equipment.family == 7 || equipment.family == 33 ||
+                 equipment.family == 35 || equipment.family == 36 || equipment.family == 57 ||
+                 equipment.family == 55 || equipment.family == 38 || equipment.family == 39 ||
+                 equipment.family == 53 || equipment.family == 48 || equipment.family == 49 ||
+                 equipment.family == 50 || equipment.family == 6 || equipment.family == 14 ||
+                 equipment.family == 13 || equipment.family == 56 || equipment.family == 12 ||
+                 equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
+                 equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
+                 equipment.family == 16 || equipment.family == 15 || equipment.family == 34 ||
+                 equipment.family == 30
+             ? 24U
+         : equipment.family == 45 ? 2U
+         : equipment.family == 37 ? 5U
+                                  : 7U) *
+        16;
+    if (!Resolve(overlay, 0x8017a000,
+                 address + (equipment.family == 0 ? equipment.palette * 4U : 0), 4, 4, &pointer))
+        return false;
+    // Original LoadWeaponPalette returns without a CLUT write for a NULL table entry (weapon1).
+    const bool no_palette = equipment.family == 1 && Read32(pointer.bytes) == 0;
+    if (!no_palette &&
         !Resolve(overlay, 0x8017a000, Read32(pointer.bytes), color_count * 2, 2, &colors))
         return false;
+    Uint8 shield_colors[24U * 16U * 2U] = {0};
+    const Uint8 *upload_colors = colors.bytes;
+    const Uint32 hand_word = equipment.family == 8    ? 0x8017aac0U
+                             : equipment.family == 25 ? 0x8017aae0U
+                             : equipment.family == 58 ? 0x8017abc8U
+                             : equipment.family == 9  ? 0x8017aac0U
+                             : equipment.family == 10 ? 0x8017ac04U
+                             : equipment.family == 11 ? 0x8017ac3cU
+                             : equipment.family == 26 ? 0x8017aaecU
+                             : equipment.family == 52 ? 0x8017ac20U
+                             : equipment.family == 3  ? 0x8017ac3cU
+                             : equipment.family == 4  ? 0x8017b318U
+                             : equipment.family == 54 ? 0x8017af08U
+                             : equipment.family == 32 ? 0x8017a920U
+                             : equipment.family == 51 ? 0x8017aed0U
+                             : equipment.family == 5  ? 0x8017b318U
+                             : equipment.family == 7  ? 0x8017ac9cU
+                             : equipment.family == 36 ? 0x8017a558U
+                             : equipment.family == 33 ? 0x8017ac54U
+                             : equipment.family == 35 ? 0x8017a548U
+                             : equipment.family == 34 ? 0x8017a94cU
+                             : equipment.family == 30 ? 0x8017a67cU
+                             : equipment.family == 57 ? 0x8017b0b0U
+                             : equipment.family == 38 ? 0x8017ade8U
+                             : equipment.family == 53 ? 0x8017b268U
+                             : equipment.family == 48 ? 0x8017b04cU
+                             : equipment.family == 49 ? 0x8017b148U
+                             : equipment.family == 50 ? 0x8017b07cU
+                             : equipment.family == 6  ? 0x8017ac3cU
+                             : equipment.family == 14 ? 0x8017a5b8U
+                             : equipment.family == 13 ? 0x8017a604U
+                             : equipment.family == 56 ? 0x8017b05cU
+                             : equipment.family == 12 ? 0x8017aac8U
+                             : equipment.family == 39 ? 0x8017ade8U
+                                                      : 0;
+    if (hand_word && !no_palette)
+    {
+        // These original fixed-size copies can cross the live program's actual g_HandId word.
+        // Materialize that owned binding in the upload copy, never in immutable program/art.
+        SDL_memcpy(shield_colors, colors.bytes, sizeof(shield_colors));
+        const Uint32 source = Read32(pointer.bytes);
+        if (hand_word >= source && hand_word - source <= sizeof(shield_colors) - 4U)
+        {
+            const Uint32 at = hand_word - source;
+            shield_colors[at] = (Uint8)hand;
+            shield_colors[at + 1] = shield_colors[at + 2] = shield_colors[at + 3] = 0;
+        }
+        upload_colors = shield_colors;
+    }
     const size_t pixels = (size_t)equipment.family * 0x7000;
     if (pixels > weapons.size || 0x4000 > weapons.size - pixels)
         return SDL_SetError("Weapon texture is truncated");
     Upload(graphics, 576, 256 + hand * 128, 64, 128, weapons.bytes + pixels);
-    for (Uint32 i = 0; i < color_count; ++i)
+    for (Uint32 i = 0; i < (no_palette ? 0U : color_count); ++i)
     {
         const Uint32 index = 0x1100 + hand * 0x180 + i;
-        Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, colors.bytes + i * 2);
+        Upload(graphics, index & 255, 240 + (index - 0x1000) / 256, 1, 1, upload_colors + i * 2);
     }
     graphics->weapon[hand] = overlay;
+    graphics->weapon_family[hand] = equipment.family;
+    return true;
+}
+bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                     Uint16 value)
+{
+    if (!graphics || palette < 0x110 || palette >= 0x140 || color > 15)
+        return SDL_SetError("Weapon CLUT write must stay within the uploaded program rows");
+    const Uint32 index = palette * 16U + color;
+    const Uint8 bytes[2] = {(Uint8)value, (Uint8)(value >> 8)};
+    Upload(graphics, index & 255U, 240U + (index - 0x1000U) / 256U, 1, 1, bytes);
+    return true;
+}
+bool SotnActorGraphics_WeaponClut(const SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                  Uint16 *out)
+{
+    if (!graphics || !out || palette < 0x110 || palette >= 0x140 || color > 15)
+        return SDL_SetError("Weapon CLUT read must stay within the uploaded program rows");
+    const Uint32 index = palette * 16U + color;
+    const size_t at = (size_t)(240U + (index - 0x1000U) / 256U) * 1024U + (index & 255U);
+    if (!graphics->valid[at])
+        return SDL_SetError("Weapon CLUT read requires the uploaded program word");
+    *out = graphics->words[at];
+    return true;
+}
+bool SotnActorGraphics_ModifyWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                        Uint16 mask, Uint16 add)
+{
+    Uint16 word = 0;
+    if (!SotnActorGraphics_WeaponClut(graphics, palette, color, &word))
+        return false;
+    return SotnActorGraphics_SetWeaponClut(graphics, palette, color, (Uint16)((word & mask) + add));
+}
+bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
+                                     bool *bound)
+{
+    if (!graphics || hand > 1 || !family || !bound)
+        return SDL_SetError("Weapon binding requires an actual resident hand program");
+    *bound = graphics->weapon[hand].bytes != NULL;
+    *family = *bound ? graphics->weapon_family[hand] : 255;
     return true;
 }
 
-static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out)
+// count: explicit entry count for tables whose definitions precede them; zero infers it from the
+// first definition that follows the table.
+static bool MultipartFrameCounted(SotnDataView image, Uint32 base, Uint32 address, Uint32 count,
+                                  Uint16 frame, SotnDataView *out)
+{
+    SotnDataView table = {0}, first = {0};
+    if (!Resolve(image, base, address, 8, 4, &table))
+        return false;
+    const Uint32 first_address = Read32(table.bytes + 4);
+    if (!count && (first_address <= address || first_address % 4 != 0))
+        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
+    if (!count)
+        count = (first_address - address) / 4;
+    if (count > 1024 || frame >= count)
+        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
+    if (!Resolve(image, base, address, count * 4U, 4, &table) ||
+        !Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2, 2, &first))
+        return false;
+    const Uint16 parts = Read16(first.bytes);
+    if (parts & 0x8000)
+        return Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 6, 2, out);
+    if (parts > 128)
+        return SDL_SetError("Actor sprite does not use a bounded multipart definition");
+    return Resolve(image, base, Read32(table.bytes + (size_t)frame * 4), 2 + (size_t)parts * 22, 2,
+                   out);
+}
+static bool MultipartFrame(SotnDataView image, Uint32 base, Uint32 address, Uint16 frame,
+                           SotnDataView *out)
+{
+    return MultipartFrameCounted(image, base, address, 0, frame, out);
+}
+
+static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, SotnDataView *out,
+                  bool secondary)
 {
     sprite.frame = (Uint16)(sprite.frame & 0x7fffU);
     const bool stage = (sprite.animation_set & 0x8000) != 0;
     const Uint32 bank = sprite.animation_set & 0x7fff;
-    const bool weapon = !stage && (bank == 16 || bank == 18);
-    const SotnDataView image = weapon  ? graphics->weapon[bank == 18 ? 1 : 0]
+    const Uint16 hand = bank >= 18 ? 1 : 0;
+    // SetSpriteBank2 tables: weapon15 at0x8017a2b0, weapon55 Holy sword at0x8017b160, weapon49
+    // Firebrand/Marsil at0x8017aa44.
+    const Uint8 resident = graphics->weapon_family[hand];
+    if (secondary &&
+        (stage || (bank != 17 && bank != 19) ||
+         (resident != 15 && resident != 55 && resident != 49) || !graphics->weapon[hand].bytes))
+        return SDL_SetError(
+            "Secondary weapon sprite requires actual resident weapon15/49/55 bank17 or19");
+    if (stage && bank == 20)
+        return MultipartFrame(graphics->familiar, 0x80170000U, graphics->familiar_parts,
+                              sprite.frame, out);
+    const bool weapon = secondary || (!stage && (bank == 16 || bank == 18));
+    const SotnDataView image = weapon  ? graphics->weapon[hand]
                                : stage ? graphics->nz0
                                        : graphics->dra;
     const Uint32 base = weapon ? 0x8017a000U : stage ? 0x80180000U : 0x800a0000U;
-    SotnDataView table = {0}, first = {0};
+    SotnDataView table = {0};
     if (bank == 0 || (!weapon && bank >= (stage ? graphics->sprite_banks : 18U)) ||
         (!stage && (bank == 1 || bank == 13)))
         return SDL_SetError("Actor sprite bank is outside the supported multipart path");
-    const Uint32 table_address = weapon  ? base + 0x40
+    const Uint32 table_address = weapon  ? base + (!secondary       ? 0x40U
+                                                   : resident == 55 ? 0x1160U
+                                                   : resident == 49 ? 0xa44U
+                                                                    : 0x2b0U)
                                  : stage ? Read32(graphics->nz0.bytes + 20)
                                          : base + 0x3b70;
     if (!weapon &&
         !Resolve(image, base, table_address, (stage ? graphics->sprite_banks : 18U) * 4, 4, &table))
         return false;
     const Uint32 address = weapon ? table_address : Read32(table.bytes + bank * 4);
-    if (!Resolve(image, base, address, 8, 4, &table))
+    // Weapon55's SetSpriteBank2 table (NULL plus four frames) follows its own definitions.
+    return MultipartFrameCounted(image, base, address, secondary && resident == 55 ? 5 : 0,
+                                 sprite.frame, out);
+}
+
+bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView overlay,
+                                    SotnDataView textures, Uint32 parts, Uint32 palette)
+{
+    SotnDataView table = {0}, definition = {0}, colors = {0};
+    if (!graphics || !textures.bytes || textures.size != 0x6000 ||
+        !Resolve(overlay, 0x80170000U, parts, 8, 4, &table) ||
+        !Resolve(overlay, 0x80170000U, palette, 512, 2, &colors) ||
+        !MultipartFrame(overlay, 0x80170000U, parts, 1, &definition))
+        return SDL_SetError(
+            "Familiar graphics require actual private bank20, FT textures and CLUT");
+    const Uint32 count = (Read32(table.bytes + 4) - parts) / 4U;
+    if (!Resolve(overlay, 0x80170000U, parts, count * 4U, 4, &table))
         return false;
-    const Uint32 first_address = Read32(table.bytes + 4);
-    if (first_address <= address || first_address % 4 != 0 ||
-        (first_address - address) / 4 > 1024 || sprite.frame >= (first_address - address) / 4)
-        return SDL_SetError("Actor sprite frame exceeds its bounded pointer table");
-    if (!Resolve(image, base, address, first_address - address, 4, &table) ||
-        !Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 2, 2, &first))
+    for (Uint16 frame = 2; frame < count; ++frame)
+        if (Read32(table.bytes + frame * 4U) &&
+            !MultipartFrame(overlay, 0x80170000U, parts, frame, &definition))
+            return false;
+    Upload(graphics, 0x2c0, 0x100, 64, 128, textures.bytes);
+    Upload(graphics, 0x2c0, 0x180, 32, 128, textures.bytes + 0x4000);
+    Upload(graphics, 0, 0xf4, 256, 1, colors.bytes);
+    graphics->familiar = overlay;
+    graphics->familiar_parts = parts;
+    return true;
+}
+
+bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDataView overlay,
+                                       SotnDataView textures, Uint32 parts, Uint32 palette,
+                                       SotnActorGraphics **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!graphics || graphics->target_active)
+        return SDL_SetError(
+            "Familiar preparation requires its actual owner outside a render target");
+    SotnActorGraphics *candidate = SDL_malloc(sizeof(*candidate));
+    if (!candidate)
         return false;
-    const Uint16 parts = Read16(first.bytes);
-    if (parts & 0x8000)
-        return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4), 6, 2, out);
-    if (parts > 128)
-        return SDL_SetError("Actor sprite does not use a bounded multipart definition");
-    return Resolve(image, base, Read32(table.bytes + (size_t)sprite.frame * 4),
-                   2 + (size_t)parts * 22, 2, out);
+    *candidate = *graphics;
+    if (!SotnActorGraphics_LoadFamiliar(candidate, overlay, textures, parts, palette))
+    {
+        SDL_free(candidate);
+        return false;
+    }
+    *out = candidate;
+    return true;
+}
+
+void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics)
+{
+    if (graphics)
+    {
+        graphics->familiar = (SotnDataView){0};
+        graphics->familiar_parts = 0;
+    }
 }
 
 static Uint16 Blend(Uint16 back, Uint16 front, Uint32 mode)
@@ -585,6 +850,11 @@ static bool QuadEdgeInclusive(SotnTextureQuad q, Uint32 a, Uint32 b, Sint32 sign
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
                      bool write);
 static Sint64 FloorDivide(Sint64 value, Sint64 divisor);
+static Sint16 GeometryWord(Sint32 value)
+{
+    const Uint16 bits = (Uint16)(Uint32)value;
+    return (Sint16)(bits < 32768 ? bits : (Sint32)bits - 65536);
+}
 static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, const Uint8 *part,
                  Sint32 x, Sint32 y, SotnActorSurface surface, bool write,
                  const SotnSpriteTransform *transform, bool sdk_scale)
@@ -676,10 +946,10 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
                              .blue = transform->blue,
                              .palette = (Uint16)palette,
                              .blend = sprite.blend_mode != 0};
-        if (u1 < u0)
+        if (u1 < u0 && !transform->sdk_rotation && !transform->original_uv)
             for (Uint32 i = 0; i < 4; ++i)
                 ++q.u[i];
-        if (v1 < v0)
+        if (v1 < v0 && !transform->sdk_rotation && !transform->original_uv)
             for (Uint32 i = 0; i < 4; ++i)
                 ++q.v[i];
         const Sint32 xs[3] = {left_local, right_local, left_local};
@@ -688,8 +958,12 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
         {
             if (sdk_scale)
             {
-                q.x[i] = x + (Sint32)FloorDivide((Sint64)xs[i] * transform->scale_x, 256);
-                q.y[i] = y + (Sint32)FloorDivide((Sint64)ys[i] * transform->scale_y, 256);
+                const Sint32 px = sprite.facing_left ? -transform->pivot_x : transform->pivot_x;
+                q.x[i] =
+                    x + px + (Sint32)FloorDivide((Sint64)(xs[i] - px) * transform->scale_x, 256);
+                q.y[i] = y + transform->pivot_y +
+                         (Sint32)FloorDivide(
+                             (Sint64)(ys[i] - transform->pivot_y) * transform->scale_y, 256);
                 continue;
             }
             q.x[i] = x + (Sint32)SDL_round((xs[i] * transform->scale_x / 256.0) * cosine -
@@ -699,6 +973,42 @@ static bool Part(const SotnActorGraphics *graphics, SotnActorSprite sprite, cons
         }
         q.x[3] = q.x[1] + q.x[2] - q.x[0];
         q.y[3] = q.y[1] + q.y[2] - q.y[0];
+        if (transform->sdk_rotation)
+        {
+            SotnPlayerEffectQuad packet = {0};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                const Sint32 local_x = (v & 1U) ? right_local : left_local,
+                             local_y = (v & 2U) ? bottom_local : pivot_y;
+                packet.x[v] = GeometryWord(x + local_x);
+                packet.y[v] = GeometryWord(y + local_y);
+            }
+            const Sint32 px = x + (sprite.facing_left ? -transform->pivot_x : transform->pivot_x),
+                         py = y + transform->pivot_y;
+            if (px < SDL_MIN_SINT16 || px > SDL_MAX_SINT16 || py < SDL_MIN_SINT16 ||
+                py > SDL_MAX_SINT16)
+                return SDL_SetError("Player weapon rotation requires actual bounded SDK pivots");
+            // Original entity packets scale around the retained pivot before SDK rotation.
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                packet.x[v] = GeometryWord(
+                    px +
+                    (Sint32)FloorDivide(
+                        (Sint64)GeometryWord((Sint32)packet.x[v] - px) * transform->scale_x, 256));
+                packet.y[v] = GeometryWord(
+                    py +
+                    (Sint32)FloorDivide(
+                        (Sint64)GeometryWord((Sint32)packet.y[v] - py) * transform->scale_y, 256));
+            }
+            if (!SotnPlayerEffect_Rotate(transform->executable, (Sint16)px, (Sint16)py,
+                                         transform->rotation, sprite.facing_left, &packet))
+                return SDL_SetError("Player weapon rotation requires actual bounded SDK pivots");
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = packet.x[v];
+                q.y[v] = packet.y[v];
+            }
+        }
         Sint32 qleft = q.x[0], qright = q.x[0], qtop = q.y[0], qbottom = q.y[0];
         for (Uint32 i = 1; i < 4; ++i)
         {
@@ -869,14 +1179,15 @@ static bool PackedSheet(const SotnActorGraphics *g, SotnActorSprite sprite, Sotn
 }
 
 static bool Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x, Sint32 y,
-                 SotnActorSurface surface, const SotnSpriteTransform *transform, bool sdk_scale)
+                 SotnActorSurface surface, const SotnSpriteTransform *transform, bool sdk_scale,
+                 bool secondary)
 {
     if (!graphics || !ValidSurface(surface))
         return SDL_SetError("Actor drawing requires initialized graphics and a complete surface");
     if ((sprite.frame & 0x7fff) == 0 || sprite.animation_set == 0)
         return true;
     SotnDataView definition = {0};
-    if (!Frame(graphics, sprite, &definition))
+    if (!Frame(graphics, sprite, &definition, secondary))
         return false;
     const Uint32 parts = Read16(definition.bytes);
     if ((parts & 0x8000) && sdk_scale)
@@ -901,18 +1212,77 @@ void SotnActorGraphics_Destroy(SotnActorGraphics *graphics)
     SDL_free(graphics);
 }
 
+// GPU vertex words are signed 11-bit; a triangle spanning more than 1023x511 is not drawn.
+static Sint32 Gpu11(Sint32 v)
+{
+    return (Sint32)(((Uint32)v + 1024U) & 2047U) - 1024;
+}
+static bool GpuSpan(const SotnTextureQuad *q, Uint32 a, Uint32 b, Uint32 c)
+{
+    const Sint32 l = SDL_min(q->x[a], SDL_min(q->x[b], q->x[c])),
+                 r = SDL_max(q->x[a], SDL_max(q->x[b], q->x[c])),
+                 t = SDL_min(q->y[a], SDL_min(q->y[b], q->y[c])),
+                 d = SDL_max(q->y[a], SDL_max(q->y[b], q->y[c]));
+    return r - l <= 1023 && d - t <= 511;
+}
+// Original garbage geometry (beyond the native +-2048 bound) follows the GPU instead of failing:
+// wrap to 11 bits and keep only the triangles the GPU would accept.
+static bool GpuWrap(SotnTextureQuad *q, bool *empty)
+{
+    *empty = false;
+    bool outside = false;
+    for (Uint32 i = 0; i < (q->triangle ? 3U : 4U); ++i)
+        outside |= q->x[i] < -2048 || q->x[i] > 2048 || q->y[i] < -2048 || q->y[i] > 2048;
+    if (!outside)
+        return true;
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        q->x[i] = Gpu11(q->x[i]);
+        q->y[i] = Gpu11(q->y[i]);
+    }
+    const bool first = GpuSpan(q, 0, 1, 2), second = !q->triangle && GpuSpan(q, 1, 3, 2);
+    if (!first && !second)
+        *empty = true;
+    else if (!first)
+    {
+        // Keep (1,3,2) as a GT3.
+        const Uint32 order[3] = {1, 3, 2};
+        SotnTextureQuad t = *q;
+        for (Uint32 i = 0; i < 3; ++i)
+        {
+            t.x[i] = q->x[order[i]];
+            t.y[i] = q->y[order[i]];
+            t.u[i] = q->u[order[i]];
+            t.v[i] = q->v[order[i]];
+            t.vertex_red[i] = q->vertex_red[order[i]];
+            t.vertex_green[i] = q->vertex_green[order[i]];
+            t.vertex_blue[i] = q->vertex_blue[order[i]];
+        }
+        t.triangle = true;
+        *q = t;
+    }
+    else if (!second)
+        q->triangle = true;
+    return true;
+}
 static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnActorSurface surface,
                      bool write)
 {
     Uint16 *frame = surface.pixels;
+    bool empty = false;
+    if (q.gpu_wrap && !GpuWrap(&q, &empty))
+        return false;
+    if (empty)
+        return true;
     if ((!q.untextured && graphics == NULL) || !ValidSurface(surface) || q.page > 0x1ff ||
-        (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)))
+        (!q.untextured && (((q.page >> 7) & 3) == 3 || q.palette >= 768)) ||
+        (q.dither && (!q.untextured || !q.gouraud)))
         return SDL_SetError("Projectile quad requires bounded texture attributes and a full frame");
     if (q.framebuffer && (q.untextured || !graphics || !graphics->framebuffer_valid ||
                           (q.page != 0x100 && q.page != 0x104)))
         return SDL_SetError("Framebuffer quad requires a captured frame and original direct page");
     Sint32 left = 2048, right = -2048, top = 2048, bottom = -2048;
-    for (Uint32 i = 0; i < 4; ++i)
+    for (Uint32 i = 0; i < (q.triangle ? 3U : 4U); ++i)
     {
         if (!q.untextured && (q.u[i] > 256 || q.v[i] > 256))
             return SDL_SetError("Projectile quad UV exceeds its texture page");
@@ -931,7 +1301,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
                 Uint32 shade[3] = {q.red, q.green, q.blue};
                 bool inside = false;
                 // PS1 quad order is the triangles (0,1,2) and (1,3,2).
-                for (Uint32 triangle = 0; triangle < 2 && !inside; ++triangle)
+                for (Uint32 triangle = 0; triangle < (q.triangle ? 1U : 2U) && !inside; ++triangle)
                 {
                     const Uint32 ia = triangle ? 1 : 0, ib = triangle ? 3 : 1, ic = 2;
                     const Sint64 ax = q.x[ib] - q.x[ia], ay = q.y[ib] - q.y[ia];
@@ -971,7 +1341,16 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
                     continue;
                 Uint16 color = 0;
                 if (q.untextured)
-                    color = (Uint16)((shade[0] / 8) | (shade[1] / 8) << 5 | (shade[2] / 8) << 10);
+                {
+                    // PS1 DTD's hardware4x4 pattern, applied to interpolated8-bit G4 colors
+                    // before5-bit conversion. This is independent of game artwork or palettes.
+                    static const Sint8 offsets[4][4] = {
+                        {-4, 0, -3, 1}, {2, -2, 3, -1}, {-3, 1, -4, 0}, {3, -1, 2, -2}};
+                    const Sint32 offset = q.dither ? offsets[y & 3][x & 3] : 0;
+                    for (Uint16 channel = 0; channel < 3; ++channel)
+                        color |= (Uint16)(SDL_clamp(((Sint32)shade[channel] + offset) / 8, 0, 31)
+                                          << (channel * 5U));
+                }
                 else
                 {
                     if (u < 0 || u >= 256 || v < 0 || v >= (q.framebuffer ? 240 : 256))
@@ -1010,7 +1389,7 @@ static bool QuadDraw(const SotnActorGraphics *graphics, SotnTextureQuad q, SotnA
 bool SotnActorGraphics_Draw(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sint32 x,
                             Sint32 y, Uint16 *frame, size_t count)
 {
-    return Draw(graphics, sprite, x, y, FrameSurface(frame, count), NULL, false);
+    return Draw(graphics, sprite, x, y, FrameSurface(frame, count), NULL, false, false);
 }
 bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorSprite sprite,
                                    Sint32 x, Sint32 y, Sint16 angle, Uint16 *frame, size_t count)
@@ -1018,7 +1397,7 @@ bool SotnActorGraphics_DrawRotated(const SotnActorGraphics *graphics, SotnActorS
     const SotnSpriteTransform transform = {
         .rotation = angle, .scale_x = 256, .scale_y = 256, .opacity = 128};
     return Draw(graphics, sprite, x, y, FrameSurface(frame, count),
-                (angle & 4095) == 0 ? NULL : &transform, false);
+                (angle & 4095) == 0 ? NULL : &transform, false, false);
 }
 bool SotnActorGraphics_CaptureFrame(SotnActorGraphics *graphics, const Uint16 *frame, size_t count)
 {
@@ -1114,8 +1493,9 @@ bool SotnActorGraphics_QuadSurface(const SotnActorGraphics *g, SotnTextureQuad q
     return QuadDraw(g, quad, surface, true);
 }
 
-bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
-                                    Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+static bool PlayerPolygon(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                          Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface, bool triangle,
+                          bool gpu_wrap)
 {
     if (!g || !p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 ||
         offset_y < -2048 || offset_y > 2048)
@@ -1124,6 +1504,8 @@ bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayer
         return true;
     SotnTextureQuad q = {.page = (Uint16)(p->page + (p->draw_mode & 0x60U)),
                          .palette = p->palette,
+                         .triangle = triangle,
+                         .gpu_wrap = gpu_wrap,
                          .blend = (p->draw_mode & 1U) != 0,
                          .modulate = (p->draw_mode & 4U) != 0,
                          .gouraud = (p->draw_mode & 4U) != 0};
@@ -1140,18 +1522,81 @@ bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayer
     return SotnActorGraphics_QuadSurface(g, q, surface);
 }
 
+bool SotnActorGraphics_PlayerEffect(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                    Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, false, false);
+}
+bool SotnActorGraphics_PlayerEffectGpu(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                       Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, false, true);
+}
+bool SotnActorGraphics_PlayerTriangle(const SotnActorGraphics *g, const SotnPlayerEffectQuad *p,
+                                      Sint32 offset_x, Sint32 offset_y, SotnActorSurface surface)
+{
+    return PlayerPolygon(g, p, offset_x, offset_y, surface, true, false);
+}
+
+bool SotnActorGraphics_PlayerColorEffect(const SotnPlayerEffectQuad *p, Sint32 offset_x,
+                                         Sint32 offset_y, SotnActorSurface surface)
+{
+    if (!p || !ValidSurface(surface) || offset_x < -2048 || offset_x > 2048 || offset_y < -2048 ||
+        offset_y > 2048)
+        return SDL_SetError("Color G4 requires its actual packet and bounded normal raster");
+    if (p->draw_mode & 8U)
+        return true;
+    if (!(p->draw_mode & 4U))
+        return SDL_SetError("Selected color G4 requires its original DRAW_COLORS context");
+    SotnTextureQuad q = {.page = (Uint16)(p->draw_mode & 0x60U),
+                         .untextured = true,
+                         .gouraud = true,
+                         .dither = (p->draw_mode & 0x400U) != 0,
+                         .blend = (p->draw_mode & 1U) != 0};
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q.x[v] = p->x[v] + offset_x;
+        q.y[v] = p->y[v] + offset_y;
+        q.vertex_red[v] = p->red[v];
+        q.vertex_green[v] = p->green[v];
+        q.vertex_blue[v] = p->blue[v];
+    }
+    return QuadDraw(NULL, q, surface, true);
+}
+
+static bool DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x, Sint32 y,
+                        SotnSpriteTransform transform, SotnActorSurface surface, bool secondary)
+{
+    if (transform.scale_x == 0 || transform.scale_y == 0 ||
+        (!transform.sdk_rotation && (transform.scale_x < -1024 || transform.scale_x > 1024 ||
+                                     transform.scale_y < -1024 || transform.scale_y > 1024)) ||
+        transform.opacity > 255 ||
+        (transform.sdk_scale &&
+         (transform.rotation || transform.sdk_rotation || transform.pivot_x < -512 ||
+          transform.pivot_x > 512 || transform.pivot_y < -512 || transform.pivot_y > 512)) ||
+        (transform.sdk_rotation &&
+         (!transform.executable.bytes || transform.pivot_x < -512 || transform.pivot_x > 512 ||
+          transform.pivot_y < -512 || transform.pivot_y > 512)))
+        return SDL_SetError("Actor transform exceeds the bounded original scales or SDK pivots");
+    if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
+        transform.opacity == 128 && !transform.tint && !transform.sdk_rotation &&
+        !transform.original_uv && !transform.sdk_scale)
+        return Draw(g, sprite, x, y, surface, NULL, false, secondary);
+    return Draw(g, sprite, x, y, surface, &transform, transform.sdk_scale, secondary);
+}
+
 bool SotnActorGraphics_DrawSurface(const SotnActorGraphics *g, SotnActorSprite sprite, Sint32 x,
                                    Sint32 y, SotnSpriteTransform transform,
                                    SotnActorSurface surface)
 {
-    if (transform.scale_x == 0 || transform.scale_y == 0 || transform.scale_x < -1024 ||
-        transform.scale_x > 1024 || transform.scale_y < -1024 || transform.scale_y > 1024 ||
-        transform.opacity > 255)
-        return SDL_SetError("Actor transform exceeds the bounded original scales or color");
-    if (transform.rotation == 0 && transform.scale_x == 256 && transform.scale_y == 256 &&
-        transform.opacity == 128 && !transform.tint)
-        return Draw(g, sprite, x, y, surface, NULL, false);
-    return Draw(g, sprite, x, y, surface, &transform, false);
+    return DrawSurface(g, sprite, x, y, transform, surface, false);
+}
+bool SotnActorGraphics_DrawSecondaryWeaponSurface(const SotnActorGraphics *g,
+                                                  SotnActorSprite sprite, Sint32 x, Sint32 y,
+                                                  SotnSpriteTransform transform,
+                                                  SotnActorSurface surface)
+{
+    return DrawSurface(g, sprite, x, y, transform, surface, true);
 }
 
 bool SotnActorGraphics_Line(SotnColorLine line, Uint16 *frame, size_t count)
@@ -1198,7 +1643,7 @@ bool SotnActorGraphics_LoadDopplePose(SotnActorGraphics *g, SotnActorSprite spri
     if (!(sprite.frame & 0x7fffU))
         return true;
     SotnDataView definition = {0}, sheet = {0};
-    if (!Frame(g, sprite, &definition) || !(Read16(definition.bytes) & 0x8000U) ||
+    if (!Frame(g, sprite, &definition, false) || !(Read16(definition.bytes) & 0x8000U) ||
         !PackedImage(g, sprite, definition, &sheet))
         return SDL_SetError("BO4 display cache requires a backed packed body/bat pose");
     const Uint32 x = Read16(g->dra.bytes + 0x21d8);
@@ -1245,7 +1690,7 @@ bool SotnActorGraphics_UpdateDoppleBat(SotnActorGraphics *g, Uint16 frame, Sint1
         return SDL_SetError("BO4 bat pivot requires a bounded pose and original offset table");
     SotnDataView definition = {0}, sheet = {0};
     const SotnActorSprite sprite = {.animation_set = 0x8002, .frame = frame};
-    if (!Frame(g, sprite, &definition) || !PackedImage(g, sprite, definition, &sheet))
+    if (!Frame(g, sprite, &definition, false) || !PackedImage(g, sprite, definition, &sheet))
         return false;
     const Sint32 pivot = Signed16(g->nz0.bytes + 0x11e8 + pose * 2U) + offset;
     if (pivot < -1024 || pivot > 1024)
@@ -1374,6 +1819,18 @@ bool SotnActorGraphics_UploadPlayer(SotnActorGraphics *g, const SotnAlucardSprit
     UploadPlayerSlot(g, sprite, slot_x, slot_y);
     return true;
 }
+bool SotnActorGraphics_UploadTalisman(SotnActorGraphics *g, const SotnAlucardSprite *sprite)
+{
+    Uint32 sx = 0, sy = 0;
+    if (!PlayerSlot(g, sprite, &sx, &sy) || g->dra.size < 0x21ecU)
+        return SDL_SetError("Talisman upload requires its actual packed player display metadata");
+    const Uint16 tx = Read16(g->dra.bytes + 0x21e8U), ty = Read16(g->dra.bytes + 0x21eaU) & 511U;
+    if (tx != sx + 32U || ty != sy + 128U || sprite->width > 124 || sprite->height > 122 ||
+        tx + sprite->width / 4U >= 1024U || ty + sprite->height + 4U > 512U)
+        return SDL_SetError("Talisman display slot escapes its original UV128 artwork bounds");
+    UploadPlayerSlot(g, sprite, tx, ty);
+    return true;
+}
 static bool DeathRectangle(const SotnActorGraphics *g, Uint16 *x, Uint16 *y)
 {
     if (!g || !g->dra.bytes || g->dra.size < 0xe138)
@@ -1414,6 +1871,63 @@ bool SotnActorGraphics_LoadDeathImage(SotnActorGraphics *g, const SotnDeathImage
     if (!DeathRectangle(g, &x, &y))
         return false;
     Upload(g, x, y, 32, 80, image->pixels);
+    return true;
+}
+static bool DissolveRectangles(const SotnActorGraphics *g, Uint16 x[2], Uint16 y[2])
+{
+    if (!DeathRectangle(g, &x[0], &y[0]) || g->dra.size < 0xe140)
+        return SDL_SetError("Dissolve requires both actual private display rectangles");
+    x[1] = Read16(g->dra.bytes + 0xe138);
+    y[1] = Read16(g->dra.bytes + 0xe13a);
+    if (Read16(g->dra.bytes + 0xe13c) != 32 || Read16(g->dra.bytes + 0xe13e) != 80 ||
+        x[1] != x[0] + 32U || y[1] != y[0] || x[1] > 1024 - 32 || y[1] > 512 - 80)
+        return SDL_SetError("Dissolve rectangles lost their original adjacent32x80 bounds");
+    return true;
+}
+bool SotnActorGraphics_SaveDissolve(const SotnActorGraphics *g, SotnDissolveTextures *out)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!out || !DissolveRectangles(g, x, y))
+        return SDL_SetError("Dissolve rollback requires actual texture memory and an output");
+    for (Uint16 rect = 0; rect < 2; ++rect)
+    {
+        out->x[rect] = x[rect];
+        out->y[rect] = y[rect];
+        for (Uint16 row = 0; row < 80; ++row)
+            for (Uint16 column = 0; column < 32; ++column)
+            {
+                const size_t source = (size_t)(y[rect] + row) * 1024U + x[rect] + column,
+                             at = (size_t)row * 32U + column;
+                out->words[rect][at] = g->words[source];
+                out->valid[rect][at] = g->valid[source];
+            }
+    }
+    return true;
+}
+bool SotnActorGraphics_RestoreDissolve(SotnActorGraphics *g, const SotnDissolveTextures *snapshot)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!snapshot || !DissolveRectangles(g, x, y) || SDL_memcmp(x, snapshot->x, sizeof(x)) ||
+        SDL_memcmp(y, snapshot->y, sizeof(y)))
+        return SDL_SetError("Dissolve rollback lost its actual original rectangle ownership");
+    for (Uint16 rect = 0; rect < 2; ++rect)
+        for (Uint16 row = 0; row < 80; ++row)
+            for (Uint16 column = 0; column < 32; ++column)
+            {
+                const size_t target = (size_t)(y[rect] + row) * 1024U + x[rect] + column,
+                             at = (size_t)row * 32U + column;
+                g->words[target] = snapshot->words[rect][at];
+                g->valid[target] = snapshot->valid[rect][at];
+            }
+    return true;
+}
+bool SotnActorGraphics_LoadDissolve(SotnActorGraphics *g, const SotnDeathImage *image,
+                                    bool secondary)
+{
+    Uint16 x[2] = {0}, y[2] = {0};
+    if (!image || !image->captured || image->remaining > 64 || !DissolveRectangles(g, x, y))
+        return SDL_SetError("Dissolve upload requires its actual captured image/rectangle owner");
+    Upload(g, x[secondary], y[secondary], 32, 80, image->pixels);
     return true;
 }
 // dra/4B758.c packed sprite branch; PlayerDraw slots retain private UVs/flip and palette identity.
@@ -1711,5 +2225,87 @@ bool SotnActorGraphics_DrawScaled(const SotnActorGraphics *g, SotnActorSprite sp
         return SDL_SetError("Exact SDK sprite scale must be within 1..1024");
     const SotnSpriteTransform t = {
         .scale_x = (Sint16)scale_x, .scale_y = (Sint16)scale_y, .opacity = 128};
-    return Draw(g, sprite, x, y, surface, &t, true);
+    return Draw(g, sprite, x, y, surface, &t, true, false);
+}
+
+bool SotnActorGraphics_DrawScaledOriginal(const SotnActorGraphics *g, SotnActorSprite sprite,
+                                          Sint32 x, Sint32 y, Uint16 scale_x, Uint16 scale_y,
+                                          SotnActorSurface surface)
+{
+    if (!scale_x || scale_x > 1024 || !scale_y || scale_y > 1024)
+        return SDL_SetError("Original scaled sprite requires bounded SDK scales");
+    const SotnSpriteTransform t = {.scale_x = (Sint16)scale_x,
+                                   .scale_y = (Sint16)scale_y,
+                                   .opacity = 128,
+                                   .original_uv = true};
+    return Draw(g, sprite, x, y, surface, &t, true, false);
+}
+
+bool SotnActorGraphics_CreateTitle(SotnDataView dra, SotnDataView first, SotnDataView second,
+                                   SotnActorGraphics **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    SotnDataView columns = {0}, colors = {0};
+    if (!first.bytes || first.size != 0x40000 || !second.bytes || second.size != 0x40000 ||
+        !Resolve(dra, 0x800a0000U, 0x800ac958U, 64, 2, &columns) ||
+        !Resolve(dra, 0x800a0000U, 0x800a04ccU, 32, 2, &colors))
+        return SDL_SetError("Title graphics require actual bounded title planes and resident data");
+    for (Uint16 i = 0; i < 32; ++i)
+        if (Read16(columns.bytes + i * 2U) != 512U + (i / 4U) * 64U + (i & 1U) * 32U)
+            return SDL_SetError("Title texture columns disagree with original loader geometry");
+    SotnActorGraphics *g = SDL_calloc(1, sizeof(*g));
+    if (!g)
+        return false;
+    g->dra = dra;
+    g->stage_id = 69;
+    // Original LoadStageTileset's two32-transfer planes, followed by SIM_13's palette.
+    RawTiles(g, first, 0);
+    RawTiles(g, second, 256);
+    Upload(g, 896, 384, 16, 1, colors.bytes);
+    *out = g;
+    return true;
+}
+
+bool SotnActorGraphics_TitleSprite(const SotnActorGraphics *g, const SotnTitleSprite *p,
+                                   SotnActorSurface surface)
+{
+    if (!g || g->stage_id != 69 || !p || !surface.pixels || surface.width != 512 ||
+        surface.height != 240 || surface.count < (size_t)512 * 240 || p->clut >= 768 ||
+        p->priority > 511 || (p->draw_mode & ~0x1dU) || ((p->page >> 7) & 3U) == 3)
+        return SDL_SetError("Title SPRT requires its actual texture owner and512x240 display");
+    if ((p->draw_mode & 8U) || !p->width || !p->height)
+        return true;
+    const Sint32 left = SDL_max(0, p->x), top = SDL_max(0, p->y),
+                 right = SDL_min(512, (Sint32)p->x + p->width),
+                 bottom = SDL_min(240, (Sint32)p->y + p->height);
+    // Validate every visible texture/palette read before writing any display pixel.
+    for (Uint16 pass = 0; pass < 2; ++pass)
+        for (Sint32 y = top; y < bottom; ++y)
+            for (Sint32 x = left; x < right; ++x)
+            {
+                Uint16 color = 0;
+                if (!Texel(g, p->page, p->clut, (Uint8)(p->u + x - p->x), (Uint8)(p->v + y - p->y),
+                           &color))
+                    return false;
+                if (!pass || !color)
+                    continue;
+                if (p->draw_mode & 4U)
+                {
+                    Uint16 modulated = color & 0x8000U;
+                    const Uint8 tint[3] = {p->red[0], p->green[0], p->blue[0]};
+                    for (Uint16 channel = 0; channel < 3; ++channel)
+                        modulated |= (Uint16)(SDL_min(31U, ((color >> (channel * 5U)) & 31U) *
+                                                               tint[channel] / 128U)
+                                              << (channel * 5U));
+                    color = modulated;
+                }
+                const size_t index = (size_t)y * 512U + (size_t)x;
+                surface.pixels[index] =
+                    (p->draw_mode & 1U) && (color & 0x8000U)
+                        ? Blend(surface.pixels[index], color, (p->page >> 5) & 3U)
+                        : color;
+            }
+    return true;
 }

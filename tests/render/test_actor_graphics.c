@@ -278,6 +278,35 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, hand, (SotnEquipment){0}));
         CHECK(!SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
     }
+    // Authored weapon0 palette2 and its last copied row must belong to the selected hand.
+    Uint8 *ordinary = fixture->weapons + 0x4000;
+    Put32(ordinary + 0x10c4, 0x8017b600);
+    Put16(ordinary + 0x1602, 0x03e0);
+    Put16(ordinary + 0x1600 + 23U * 32U + 2U, 0x7c00);
+    CHECK(SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                       (SotnEquipment){.id = 116, .family = 0, .palette = 2}));
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 1, (SotnEquipment){.id = 86, .family = 0}));
+    ClearFrame(fixture);
+    SotnActorSprite selected = {
+        .animation_set = 16, .frame = 1, .palette = 0x110, .texture_offset = 0x64};
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x03e0);
+    selected.palette = 0x127;
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x7c00);
+    const SotnActorSprite right = {
+        .animation_set = 18, .frame = 1, .palette = 0x128, .texture_offset = 0x66};
+    // The same weapon0 artwork is resident in either hand's texture range.
+    CHECK(SotnActorGraphics_Draw(graphics, right, 32, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 32] == 31);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 116, .family = 0, .palette = 5}));
+    Put32(ordinary + 0x10c0, 0x8017ce80);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 122, .family = 0, .palette = 1}));
+    CHECK(SotnActorGraphics_Draw(graphics, selected, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 0x7c00);
     Uint8 *short_sword = fixture->weapons + 37 * 0x7000 + 0x4000;
     SDL_memcpy(short_sword, fixture->weapons + 0x4000, 0x3000);
     // Exactly five palettes fit; a seven-palette read would exceed this synthetic overlay.
@@ -296,7 +325,153 @@ static bool TestWeapons(Fixture *fixture)
         CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame, SOTN_FRAME_PIXELS));
         CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
     }
+    // Weapon1's original CLUT table holds NULL: LoadWeaponPalette returns without any write,
+    // so the previous hand colors remain while the program and texture still bind.
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 0, (SotnEquipment){.id = 86, .family = 0}));
+    Uint8 *fist = fixture->weapons + 0x7000U + 0x4000U;
+    SDL_memcpy(fist, fixture->weapons + 0x4000, 0x3000);
+    Put32(fist + 0xfec, 0);
+    fixture->weapons[0x7000U] = 0x11;
+    CHECK(
+        SotnActorGraphics_LoadWeapon(graphics, weapons, 0, (SotnEquipment){.id = 85, .family = 1}));
+    Uint8 fist_family = 0;
+    bool fist_bound = false;
+    CHECK(SotnActorGraphics_WeaponBinding(graphics, 0, &fist_family, &fist_bound) && fist_bound &&
+          fist_family == 1);
+    ClearFrame(fixture);
+    const SotnActorSprite retained = {
+        .animation_set = 16, .frame = 1, .palette = 0x110, .texture_offset = 0x64};
+    CHECK(SotnActorGraphics_Draw(graphics, retained, 16, 16, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == 31);
+    CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                        (SotnEquipment){.id = 85, .family = 1, .palette = 1}));
+    // Original shield palette copies always span 24 rows. Knight shield9's copy crosses its live
+    // g_HandId word (color 14 of row 21), so the upload carries the bound hand, not the authored
+    // bytes; Alucard shield52's copy ends before its hand word and keeps the authored color.
+    // Takemitsu36's authored table places its live hand word (0x8017a558) at the same color.
+    const Uint16 shield_ids[] = {6, 16, 27}, shield_families[] = {9, 52, 36};
+    const Uint32 shield_tables[] = {0xab8, 0xc1c, 0x550},
+                 shield_sources[] = {0x8017a804, 0x8017a808, 0x8017a558U - 700U};
+    for (Uint32 k = 0; k < SDL_arraysize(shield_ids); ++k)
+    {
+        Uint8 *shield = fixture->weapons + shield_families[k] * 0x7000U + 0x4000U;
+        SDL_memcpy(shield, fixture->weapons + 0x4000, 0x3000);
+        Put32(shield + shield_tables[k], shield_sources[k]);
+        Uint8 *word = shield + (shield_sources[k] - 0x8017a000U) + 700U;
+        Put16(word, 0x7c00);
+        Put16(word + 2, 0x03e0);
+        fixture->weapons[shield_families[k] * 0x7000U] = 0xee;
+        fixture->weapons[shield_families[k] * 0x7000U + 1] = 0xee;
+        for (Uint32 hand = 0; hand < 2; ++hand)
+        {
+            CHECK(SotnActorGraphics_LoadWeapon(
+                graphics, weapons, hand,
+                (SotnEquipment){.id = shield_ids[k], .family = (Uint8)shield_families[k]}));
+            CHECK(word[0] == 0x00 && word[1] == 0x7c && word[2] == 0xe0 && word[3] == 0x03);
+            ClearFrame(fixture);
+            const SotnActorSprite sprite = {.animation_set = (Uint16)(hand == 0 ? 16 : 18),
+                                            .frame = 1,
+                                            .palette = (Uint16)((hand == 0 ? 0x110 : 0x128) + 21),
+                                            .texture_offset = (Uint16)(hand == 0 ? 0x64 : 0x66)};
+            CHECK(SotnActorGraphics_Draw(graphics, sprite, 16, 16, fixture->frame,
+                                         SOTN_FRAME_PIXELS));
+            // The bound left hand is zero, which the texture treats as transparent.
+            const Uint16 expected = shield_families[k] == 52 ? 0x7c00 : hand ? 1 : 7;
+            CHECK(fixture->frame[16 * SOTN_FRAME_WIDTH + 16] == expected);
+        }
+        CHECK(!SotnActorGraphics_LoadWeapon(graphics, weapons, 0,
+                                            (SotnEquipment){.id = shield_ids[k],
+                                                            .family = (Uint8)shield_families[k],
+                                                            .palette = 1}));
+    }
     SotnActorGraphics_Destroy(graphics);
+    return true;
+}
+
+static bool TestSecondaryWeapon(Fixture *f)
+{
+    MakeFixture(f);
+    // Authored common17 retains its own blue sprite; weapon15's secondary table is red.
+    Put32(f->dra + 0x3b70 + 17U * 4U, 0x800a0100);
+    Uint8 *o = f->weapons + 15U * 0x7000 + 0x4000;
+    Put32(o + 0x2b4, 0x8017a2b8);
+    Put16(o + 0x2b8, 1);
+    Uint8 *p = o + 0x2ba;
+    Put16(p + 6, 4);
+    Put16(p + 8, 1);
+    Put16(p + 18, 4);
+    Put16(p + 20, 1);
+    Put32(o + 0x7dc, 0x8017a800);
+    Put16(o + 0x802, 31);
+    f->weapons[15U * 0x7000] = 0x11;
+    f->weapons[15U * 0x7000 + 1] = 0x11;
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    const SotnActorSurface surface = {.pixels = f->frame,
+                                      .count = SOTN_FRAME_PIXELS,
+                                      .width = SOTN_FRAME_WIDTH,
+                                      .height = SOTN_FRAME_HEIGHT};
+    const SotnSpriteTransform transform = {.scale_x = 256, .scale_y = 256, .opacity = 128};
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnActorSprite sprite = {.animation_set = (Uint16)(17 + hand * 2U),
+                                  .frame = 1,
+                                  .palette = (Uint16)(0x110 + hand * 24U),
+                                  .texture_offset = (Uint16)(100 + hand * 2U)};
+        ClearFrame(f);
+        CHECK(
+            !SotnActorGraphics_DrawSecondaryWeaponSurface(g, sprite, 16, 16, transform, surface) &&
+            f->frame[16 * 256 + 16] == 7);
+        CHECK(SotnActorGraphics_LoadWeapon(g, (SotnDataView){f->weapons, sizeof(f->weapons)}, hand,
+                                           (SotnEquipment){.id = 75, .family = 15}));
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_DrawSecondaryWeaponSurface(g, sprite, 16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 31);
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_Draw(g, (SotnActorSprite){.animation_set = 17, .frame = 1}, 1, 1,
+                                     f->frame, SOTN_FRAME_PIXELS) &&
+              f->frame[0] == 0x7c00);
+    }
+    ClearFrame(f);
+    CHECK(!SotnActorGraphics_DrawSecondaryWeaponSurface(
+              g, (SotnActorSprite){.animation_set = 16, .frame = 1}, 16, 16, transform, surface) &&
+          f->frame[16 * 256 + 16] == 7);
+    // Weapon55's SetSpriteBank2 table lives at0x8017b160, not weapon15's0x8017a2b0.
+    Uint8 *holy = f->weapons + 55U * 0x7000 + 0x4000;
+    // Like the original, its definitions precede the five-entry table (NULL plus frames1..4).
+    SDL_memcpy(holy + 0x10e0, o + 0x2b8, 2 + 22);
+    Put32(holy + 0x1164, 0x8017b0e0);
+    Put32(holy + 0x2b4, 0x8017b240); // A wrong weapon15-offset table would draw blank.
+    Put32(holy + 0x1188, 0x8017a800);
+    Put16(holy + 0x800 + (7U * 16U + 1U) * 2U, 22);
+    // Texture0x65 selects the right128 texels of the hand's resident weapon texture.
+    f->weapons[55U * 0x7000 + 64] = 0x11;
+    f->weapons[55U * 0x7000 + 65] = 0x11;
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        CHECK(SotnActorGraphics_LoadWeapon(g, (SotnDataView){f->weapons, sizeof(f->weapons)}, hand,
+                                           (SotnEquipment){.id = 115, .family = 55}));
+        ClearFrame(f);
+        CHECK(SotnActorGraphics_DrawSecondaryWeaponSurface(
+                  g,
+                  (SotnActorSprite){.animation_set = (Uint16)(17 + hand * 2U),
+                                    .frame = 1,
+                                    .palette = (Uint16)(0x117 + hand * 24U),
+                                    .texture_offset = (Uint16)(0x65 + hand * 2U)},
+                  16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 22);
+        ClearFrame(f);
+        CHECK(!SotnActorGraphics_DrawSecondaryWeaponSurface(
+                  g,
+                  (SotnActorSprite){.animation_set = (Uint16)(17 + hand * 2U),
+                                    .frame = 5,
+                                    .palette = (Uint16)(0x117 + hand * 24U),
+                                    .texture_offset = (Uint16)(0x65 + hand * 2U)},
+                  16, 16, transform, surface) &&
+              f->frame[16 * 256 + 16] == 7);
+    }
+    SotnActorGraphics_Destroy(g);
     return true;
 }
 
@@ -351,6 +526,24 @@ static bool TestQuad(Fixture *fixture)
     q.x[3] = 4;
     q.x[0] = SDL_MAX_SINT32;
     CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    ClearFrame(fixture);
+    q = (SotnTextureQuad){.triangle = true,
+                          .x = {0, 4, 0, SDL_MAX_SINT32},
+                          .y = {0, 0, 4, SDL_MIN_SINT32},
+                          .u = {4, 4, 4, 65535},
+                          .v = {64, 64, 64, 65535},
+                          .page = 2,
+                          .palette = 512};
+    CHECK(SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS));
+    Uint16 drawn = 0;
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            drawn += fixture->frame[y * SOTN_FRAME_WIDTH + x] == 31;
+    CHECK(drawn == 6 && fixture->frame[0] == 31 && fixture->frame[2 * SOTN_FRAME_WIDTH + 2] == 7);
+    // A real GT3 ignores the unused fourth slot, including its invalid quad attributes.
+    q.triangle = false;
+    CHECK(!SotnActorGraphics_Quad(graphics, q, fixture->frame, SOTN_FRAME_PIXELS) &&
+          fixture->frame[0] == 31);
     SotnActorGraphics_Destroy(graphics);
     return true;
 }
@@ -389,6 +582,42 @@ static bool TestColorQuad(Fixture *f)
     CHECK(!SotnActorGraphics_Quad(NULL, q, NULL, SOTN_FRAME_PIXELS));
     q.untextured = false;
     CHECK(!SotnActorGraphics_Quad(NULL, q, f->frame, SOTN_FRAME_PIXELS));
+    return true;
+}
+static bool TestColorDither(Fixture *f)
+{
+    ClearFrame(f);
+    const SotnActorSurface surface = {f->frame, SOTN_FRAME_PIXELS, SOTN_FRAME_WIDTH,
+                                      SOTN_FRAME_HEIGHT};
+    SotnPlayerEffectQuad q = {.x = {0, 4, 0, 4},
+                              .y = {0, 0, 4, 4},
+                              .red = {63, 63, 63, 63},
+                              .green = {255, 255, 255, 255},
+                              .blue = {0, 0, 0, 0},
+                              .draw_mode = 0x404};
+    const Uint8 red[4][4] = {{7, 7, 7, 8}, {8, 7, 8, 7}, {7, 8, 7, 7}, {8, 7, 8, 7}};
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(red[y][x] | 31U << 5));
+    // DTD follows the raster, including translated geometry; it is not tied to the quad origin.
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 3, 1, surface));
+    for (Uint16 y = 1; y < 5; ++y)
+        for (Uint16 x = 3; x < 7; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(red[y & 3U][x & 3U] | 31U << 5));
+    q.draw_mode = 4;
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    for (Uint16 y = 0; y < 4; ++y)
+        for (Uint16 x = 0; x < 4; ++x)
+            CHECK(f->frame[y * SOTN_FRAME_WIDTH + x] == (Uint16)(7U | 31U << 5));
+    q.draw_mode = 8;
+    q.x[0] = 32767;
+    CHECK(SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    q.draw_mode = 0x404;
+    CHECK(!SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
+    q.x[0] = 0;
+    q.draw_mode = 0;
+    CHECK(!SotnActorGraphics_PlayerColorEffect(&q, 0, 0, surface));
     return true;
 }
 
@@ -473,10 +702,59 @@ static bool TestSdkScale(Fixture *f)
     CHECK(!SotnActorGraphics_DrawScaled(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
                                         0, 64, dst));
     CHECK(f->frame[19 * 256 + 19] == 31);
+    ClearFrame(f);
+    CHECK(SotnActorGraphics_DrawScaledOriginal(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false},
+                                               20, 20, 64, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31 && f->frame[20 * 256 + 20] == 7);
+    CHECK(!SotnActorGraphics_DrawScaledOriginal(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false},
+                                                20, 20, 1025, 64, dst));
+    CHECK(f->frame[19 * 256 + 19] == 31);
+    // Scale-only entities use integer flooring around the retained entity pivot,
+    // without an identity SDK rotation or floating-point rounding.
+    ClearFrame(f);
+    SotnSpriteTransform scale = {.scale_x = 128,
+                                 .scale_y = 256,
+                                 .pivot_x = 1,
+                                 .opacity = 128,
+                                 .sdk_scale = true,
+                                 .original_uv = true};
+    CHECK(SotnActorGraphics_DrawSurface(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                        scale, dst));
+    CHECK(f->frame[19 * 256 + 19] == 7 && f->frame[19 * 256 + 20] == 31 &&
+          f->frame[19 * 256 + 21] == 31 && f->frame[19 * 256 + 22] == 7);
+    scale.rotation = 1;
+    CHECK(!SotnActorGraphics_DrawSurface(g, (SotnActorSprite){0x8001, 1, 512, 0, 0, false}, 20, 20,
+                                         scale, dst));
+    CHECK(f->frame[19 * 256 + 20] == 31);
     SotnActorGraphics_Destroy(g);
     return true;
 }
 
+static bool TestSdkRotationFailure(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g) && SotnActorGraphics_LoadBank(g, 0));
+    const SotnActorSprite sprite = {0x8001, 1, 512, 0, 0, true};
+    Uint16 before[SOTN_FRAME_PIXELS];
+    SDL_memset(f->frame, 0x21, sizeof(f->frame));
+    SDL_memcpy(before, f->frame, sizeof(before));
+    Uint8 truncated_sdk[1] = {0};
+    SotnSpriteTransform t = {
+        .scale_x = 256, .scale_y = 256, .opacity = 128, .pivot_y = 20, .sdk_rotation = true};
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.executable = (SotnDataView){truncated_sdk, sizeof(truncated_sdk)};
+    // Even an identity transform must validate the real SDK before writing pixels.
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.pivot_y = 513;
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    t.pivot_y = 20;
+    t.scale_x = 512;
+    CHECK(!SotnActorGraphics_DrawTransform(g, sprite, 20, 20, t, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(!SDL_memcmp(before, f->frame, sizeof(before)));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
 static bool TestRotation(Fixture *fixture)
 {
     MakeFixture(fixture);
@@ -975,11 +1253,30 @@ static bool TestActorOrder(void)
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_BAT_ECHO, .primitive = 1024}));
     CHECK(count == 2);
-    const Uint8 player_kinds[] = {SOTN_DRAW_WOLF_PACKET,     SOTN_DRAW_WOLF_IMAGE,
-                                  SOTN_DRAW_WOLF_TARGET,     SOTN_DRAW_PLAYER_SMOKE,
-                                  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
-                                  SOTN_DRAW_SPIRIT_PORTAL,   SOTN_DRAW_HELLFIRE_SPRITE};
-    const Uint16 limits[] = {60, 6, 2, 48, 768, 48, 48, 48};
+    // Weapon secondaries: child index1..47, index*64 plus LINE_G2 row and index*16 plus GT4
+    // (index0 is weapon1's slot16 punch rush).
+    count = 0;
+    const SotnActorDraw valid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 47},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3071},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 0},
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 3071}};
+    const SotnActorDraw invalid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 48},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3072},
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 3072}};
+    for (Uint16 k = 0; k < SDL_arraysize(valid); ++k)
+        CHECK(SotnActorOrder_Add(items, 4, &count, valid[k]));
+    count = 0;
+    for (Uint16 k = 0; k < SDL_arraysize(invalid); ++k)
+        CHECK(!SotnActorOrder_Add(items, 4, &count, invalid[k]) && !count);
+    const Uint8 player_kinds[] = {
+        SOTN_DRAW_WOLF_PACKET,   SOTN_DRAW_WOLF_IMAGE,      SOTN_DRAW_WOLF_TARGET,
+        SOTN_DRAW_PLAYER_SMOKE,  SOTN_DRAW_PLAYER_PARTICLE, SOTN_DRAW_SPIRIT,
+        SOTN_DRAW_SPIRIT_PORTAL, SOTN_DRAW_HELLFIRE_SPRITE, SOTN_DRAW_HOLY_HIT,
+        SOTN_DRAW_DARK_HIT,      SOTN_DRAW_FIRE_HIT,        SOTN_DRAW_THUNDER_HIT,
+        SOTN_DRAW_ICE_HIT,       SOTN_DRAW_STONE_DISSOLVE,  SOTN_DRAW_PLAYER_CIRCLE};
+    const Uint16 limits[] = {60, 6, 2, 48, 1440, 48, 48, 48, 768, 48, 48, 288, 1152, 1728, 1536};
     for (Uint16 i = 0; i < SDL_arraysize(player_kinds); ++i)
     {
         count = 0;
@@ -1000,6 +1297,15 @@ static bool TestActorOrder(void)
                               (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 799}));
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_HEALING_NUMBER, .primitive = 960}));
+    count = 0;
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 846}));
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 863}));
+    CHECK(SotnActorOrder_Add(items, 4, &count,
+                             (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 847}));
+    CHECK(!SotnActorOrder_Add(items, 4, &count,
+                              (SotnActorDraw){.kind = SOTN_DRAW_IMMUNITY_TEXT, .primitive = 864}));
     count = 0;
     CHECK(!SotnActorOrder_Add(items, 4, &count,
                               (SotnActorDraw){.kind = SOTN_DRAW_PRIMITIVE, .primitive = 384}));
@@ -1365,20 +1671,197 @@ static bool TestWolfCapture(Fixture *f)
     SotnActorGraphics_Destroy(g);
     return true;
 }
+static bool TestFamiliar(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    Uint8 overlay[0x400] = {0}, with_hole[0x400] = {0}, malformed[0x400] = {0},
+          textures[0x6000] = {0};
+    Put32(overlay + 0x24, 0x80170028);
+    Put16(overlay + 0x28, 1);
+    Uint8 *part = overlay + 0x2a;
+    Put16(part + 6, 4);
+    Put16(part + 8, 1);
+    Put16(part + 18, 4);
+    Put16(part + 20, 1);
+    for (Uint16 i = 1; i < 5; ++i)
+        Put16(overlay + 0x100 + i * 2U, i == 1 ? 31 : i == 2 ? 0x3e0 : i == 3 ? 0x7c00 : 0x7fff);
+    textures[0] = 0x21;
+    textures[1] = 0x43;
+    const SotnDataView image = {overlay, sizeof(overlay)}, art = {textures, sizeof(textures)};
+    const SotnActorSprite sprite = {
+        .animation_set = 0x8014, .frame = 1, .palette = 0x140, .texture_offset = 0x6c};
+    SotnActorGraphics *candidate = NULL;
+    CHECK(SotnActorGraphics_PrepareFamiliar(g, image, art, 0x80170020, 0x80170100, &candidate) &&
+          candidate && !SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          SotnActorGraphics_Draw(candidate, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          f->frame[10 * 256 + 10] == 31);
+    SotnActorGraphics_Destroy(g);
+    g = candidate;
+    candidate = NULL;
+    CHECK(SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    SotnActorSurface target = {0};
+    CHECK(SotnActorGraphics_BeginTarget(
+              g, (SotnActorTarget){.width = 1, .height = 1, .clear = true}, &target) &&
+          !SotnActorGraphics_PrepareFamiliar(g, image, art, 0x80170020, 0x80170100, &candidate) &&
+          !candidate && SotnActorGraphics_EndTarget(g, false));
+    CHECK(SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170100) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS));
+    CHECK(f->frame[10 * 256 + 10] == 31 && f->frame[10 * 256 + 11] == 0x3e0 &&
+          f->frame[10 * 256 + 12] == 0x7c00 && f->frame[10 * 256 + 13] == 0x7fff);
+    Uint16 *expected = SDL_malloc(sizeof(f->frame));
+    CHECK(expected);
+    SDL_memcpy(expected, f->frame, sizeof(f->frame));
+    SDL_memcpy(with_hole, overlay, sizeof(with_hole));
+    SDL_memmove(with_hole + 0x2c, with_hole + 0x28, 24);
+    Put32(with_hole + 0x24, 0x8017002c);
+    Put32(with_hole + 0x28, 0);
+    CHECK(SotnActorGraphics_LoadFamiliar(g, (SotnDataView){with_hole, sizeof(with_hole)}, art,
+                                         0x80170020, 0x80170100) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SotnActorSprite unavailable = sprite;
+    unavailable.frame = 2;
+    CHECK(!SotnActorGraphics_Draw(g, unavailable, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SDL_memcpy(malformed, with_hole, sizeof(malformed));
+    Put32(malformed + 0x28, 0x8017ffff);
+    textures[0] = 0x55;
+    CHECK(!SotnActorGraphics_PrepareFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
+                                             0x80170020, 0x80170100, &candidate) &&
+          !candidate &&
+          !SotnActorGraphics_PrepareFamiliar(g, image,
+                                             (SotnDataView){textures, sizeof(textures) - 1U},
+                                             0x80170020, 0x80170100, &candidate) &&
+          !candidate &&
+          !SotnActorGraphics_LoadFamiliar(g, (SotnDataView){malformed, sizeof(malformed)}, art,
+                                          0x80170020, 0x80170100) &&
+          !SotnActorGraphics_LoadFamiliar(g, image, art, 0x80170020, 0x80170300) &&
+          SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    SotnActorGraphics_ClearFamiliar(g);
+    CHECK(!SotnActorGraphics_Draw(g, sprite, 10, 10, f->frame, SOTN_FRAME_PIXELS) &&
+          !SDL_memcmp(expected, f->frame, sizeof(f->frame)));
+    const SotnTextureQuad sample = {
+        .x = {0, 1, 0, 1}, .y = {0, 0, 1, 1}, .page = 0x1b, .palette = 0x140};
+    CHECK(SotnActorGraphics_Quad(g, sample, f->frame, SOTN_FRAME_PIXELS) && f->frame[0] == 31);
+    SotnActorGraphics_Destroy(g);
+    SDL_free(expected);
+    return true;
+}
+static bool TestTitleTextures(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0xca00), *planes = SDL_malloc(0x80000);
+    Uint16 *pixels = SDL_calloc(512U * 240U, 2), *before = SDL_malloc(512U * 240U * 2U);
+    SotnActorGraphics *g = NULL;
+    CHECK(dra && planes && pixels && before);
+    for (Uint16 i = 0; i < 32; ++i)
+        Put16(dra + 0xc958 + i * 2U, (Uint16)(512U + (i / 4U) * 64U + (i & 1U) * 32U));
+    SDL_memset(planes, 0x11, 0x80000);
+    const SotnDataView resident = {dra, 0xca00}, first = {planes, 0x40000},
+                       second = {planes + 0x40000, 0x40000};
+    CHECK(SotnActorGraphics_CreateTitle(resident, first, second, &g));
+    SotnTitleSprite p = {
+        .x = 508, .y = 238, .page = 8, .clut = 0, .width = 8, .height = 8, .u = 255, .v = 255};
+    const SotnActorSurface target = {pixels, 512U * 240U, 512, 240};
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target));
+    Uint32 written = 0;
+    for (Uint32 i = 0; i < 512U * 240U; ++i)
+        written += (Uint32)(pixels[i] != 0);
+    CHECK(written == 8 && pixels[239U * 512U + 511U] == 0x1111 && !pixels[238U * 512U + 507U]);
+    p.draw_mode = 4;
+    p.red[0] = 255;
+    p.green[0] = 128;
+    p.blue[0] = 0;
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target) && pixels[239U * 512U + 511U] == 0x11f);
+    SDL_memcpy(before, pixels, 512U * 240U * 2U);
+    p.clut = 0x100;
+    CHECK(!SotnActorGraphics_TitleSprite(g, &p, target) &&
+          !SDL_memcmp(before, pixels, 512U * 240U * 2U));
+    p.clut = 0;
+    p.draw_mode = 8;
+    CHECK(SotnActorGraphics_TitleSprite(g, &p, target) &&
+          !SDL_memcmp(before, pixels, 512U * 240U * 2U));
+    SotnActorGraphics_Destroy(g);
+    g = NULL;
+    Put16(dra + 0xc958, 0);
+    CHECK(!SotnActorGraphics_CreateTitle(resident, first, second, &g) && !g);
+    CHECK(!SotnActorGraphics_CreateTitle(resident, (SotnDataView){planes, 0x3ffff}, second, &g) &&
+          !g);
+    SDL_free(before);
+    SDL_free(pixels);
+    SDL_free(planes);
+    SDL_free(dra);
+    return true;
+}
+
+// Original-data packets past the native bound follow the GPU: over-span triangles are dropped
+// silently, while the ordinary player-effect path keeps failing fast.
+static bool TestGpuWrap(Fixture *f)
+{
+    MakeFixture(f);
+    SotnActorGraphics *g = NULL;
+    CHECK(Create(f, &g));
+    const SotnActorSurface surface = {.pixels = f->frame,
+                                      .count = SOTN_FRAME_PIXELS,
+                                      .width = SOTN_FRAME_WIDTH,
+                                      .height = SOTN_FRAME_HEIGHT};
+    ClearFrame(f);
+    const SotnPlayerEffectQuad q = {
+        .x = {3072, 3071, 3072, 3071}, .y = {0, 0, 4, 4}, .page = 0x19, .palette = 0x110};
+    CHECK(!SotnActorGraphics_PlayerEffect(g, &q, 0, 0, surface) && f->frame[0] == 7);
+    CHECK(SotnActorGraphics_PlayerEffectGpu(g, &q, 0, 0, surface));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        CHECK(f->frame[i] == 7);
+    // Untextured opt-in quads: 2049 wraps to1 and draws; a2047-pixel span is dropped.
+    SotnTextureQuad u = {
+        .x = {2049, 5, 1, 5}, .y = {0, 0, 4, 4}, .untextured = true, .red = 248, .gpu_wrap = true};
+    CHECK(SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS) &&
+          f->frame[SOTN_FRAME_WIDTH + 1] == 31 && f->frame[2 * SOTN_FRAME_WIDTH] == 7);
+    ClearFrame(f);
+    const Sint32 spread[4] = {3072, 3071, 3072, 3071};
+    SDL_memcpy(u.x, spread, sizeof(spread));
+    CHECK(SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS));
+    for (Uint32 i = 0; i < SOTN_FRAME_PIXELS; ++i)
+        CHECK(f->frame[i] == 7);
+    u.gpu_wrap = false;
+    CHECK(!SotnActorGraphics_Quad(NULL, u, f->frame, SOTN_FRAME_PIXELS));
+    // Weapon51 glow writes stay within the uploaded program rows (palettes0x110..0x13F).
+    CHECK(SotnActorGraphics_SetWeaponClut(g, 0x112, 11, 0x8042) &&
+          SotnActorGraphics_SetWeaponClut(g, 0x13f, 15, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x10f, 11, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x140, 0, 0) &&
+          !SotnActorGraphics_SetWeaponClut(g, 0x112, 16, 0) &&
+          !SotnActorGraphics_SetWeaponClut(NULL, 0x112, 11, 0));
+    // Weapon26's green cycle keeps red/blue/mask bits and replaces green (0xFC1F + green<<5).
+    Uint16 word = 0;
+    CHECK(SotnActorGraphics_ModifyWeaponClut(g, 0x112, 11, 0xfc1f, 5 << 5) &&
+          SotnActorGraphics_WeaponClut(g, 0x112, 11, &word) && word == 0x80a2 &&
+          SotnActorGraphics_ModifyWeaponClut(g, 0x112, 11, 0, 0x1234) &&
+          SotnActorGraphics_WeaponClut(g, 0x112, 11, &word) && word == 0x1234 &&
+          !SotnActorGraphics_ModifyWeaponClut(g, 0x140, 0, 0, 0) &&
+          !SotnActorGraphics_WeaponClut(g, 0x112, 11, NULL));
+    SotnActorGraphics_Destroy(g);
+    return true;
+}
+
 int main(void)
 {
     Fixture *fixture = SDL_calloc(1, sizeof(*fixture));
     if (fixture == NULL)
         return 1;
     const bool passed =
-        TestActorOrder() && StageBankBounds(fixture) && TestRopeCache(fixture) &&
-        TestTransformFlags(fixture) && TestSdkScale(fixture) && TestRotation(fixture) &&
-        TestColorQuad(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
+        TestTitleTextures() && TestActorOrder() && StageBankBounds(fixture) &&
+        TestRopeCache(fixture) && TestTransformFlags(fixture) && TestSdkScale(fixture) &&
+        TestSdkRotationFailure(fixture) && TestRotation(fixture) && TestColorQuad(fixture) &&
+        TestColorDither(fixture) && TestQuad(fixture) && TestSprites(fixture) &&
         TestFailures(fixture) && TestDepthsAndOrdering(fixture) && TestWeapons(fixture) &&
-        TestDialogue(fixture) && DefaultBo4Bank(fixture) && PackedSheets(fixture) &&
-        TestColorLine(fixture) && TestPaletteBlend(fixture) && TestPaletteRedShift(fixture) &&
-        TestFramebuffer(fixture) && TestTargets(fixture) && TestTargetSequence(fixture) &&
-        ClearedBo0Atlas(fixture) && TestWolfCapture(fixture);
+        TestSecondaryWeapon(fixture) && TestDialogue(fixture) && DefaultBo4Bank(fixture) &&
+        PackedSheets(fixture) && TestColorLine(fixture) && TestPaletteBlend(fixture) &&
+        TestPaletteRedShift(fixture) && TestFramebuffer(fixture) && TestTargets(fixture) &&
+        TestTargetSequence(fixture) && ClearedBo0Atlas(fixture) && TestWolfCapture(fixture) &&
+        TestFamiliar(fixture) && TestGpuWrap(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

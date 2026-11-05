@@ -14,6 +14,7 @@ struct SotnPresenter
     GLuint vertex_array;
     int width;
     int height;
+    int display_width, display_height;
 };
 
 static bool CheckGl(SotnPresenter *presenter, const char *operation)
@@ -245,7 +246,9 @@ static bool DrawFrame(SotnPresenter *presenter, bool swap)
         return true;
     }
     SDL_Rect box = {0};
-    if (!SotnRender_FitImage(width, height, presenter->width, presenter->height, &box))
+    if (!SotnRender_FitImage(
+            width, height, presenter->display_width ? presenter->display_width : presenter->width,
+            presenter->display_height ? presenter->display_height : presenter->height, &box))
         return false;
     SotnGlApi *gl = &presenter->gl;
     gl->ClearColor(17.0f / 255.0f, 22.0f / 255.0f, 38.0f / 255.0f, 1.0f);
@@ -261,6 +264,17 @@ static bool DrawFrame(SotnPresenter *presenter, bool swap)
         return false;
     }
     return !swap || SDL_GL_SwapWindow(presenter->window);
+}
+
+bool SotnPresenter_SetDisplaySize(SotnPresenter *presenter, int width, int height)
+{
+    if (!presenter || width < 0 || height < 0 || width > 16384 || height > 16384 ||
+        (!width != !height))
+        return SDL_SetError(
+            "Presentation display dimensions must both be zero or positive and bounded");
+    presenter->display_width = width;
+    presenter->display_height = height;
+    return true;
 }
 
 bool SotnPresenter_Draw(SotnPresenter *presenter)
@@ -341,4 +355,9 @@ bool SotnPresenter_SelfTest(void)
             return SDL_SetError("OpenGL self-test failed: %s", detail);
     }
     return true;
+}
+
+Uint32 SotnPresenter_WindowID(const SotnPresenter *presenter)
+{
+    return presenter ? SDL_GetWindowID(presenter->window) : 0;
 }

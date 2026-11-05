@@ -42,7 +42,8 @@ The [water-death controller](water-damage-death.md), [flashes](water-blink-effec
 and [particles](player-death-particles.md) now connect through that native owner.
 Selected [ordinary water HP/contact ownership](player-water-contact.md) now runs;
 global-fade recovery remains unwired.
-The existing physical-death presentation is a separate selected path,
+The later [physical/elemental death owner](player-physical-death.md) now uses actual
+resident capture and64 uploads with its original C0 effects. It is a separate path,
 not a substitute for water death. Ordinary starts, grants and version-nine saves
 remain unchanged by these capture APIs. Alucard, the castle, full shared effects
 and console parity remain incomplete.

@@ -11,6 +11,21 @@ typedef struct SotnSoundSources
 
 /** @brief Owned sound simulation with bounded SPU memory, voices, and scripts. */
 typedef struct SotnSound SotnSound;
+/** @brief Actual command-update snapshot retained until the corresponding sample render. */
+typedef struct SotnSoundFrame
+{
+    const SotnSound *owner;
+    Uint8 first_script, end_script;
+} SotnSoundFrame;
+/** @brief Prepare a detached familiar-bank candidate, retaining actual voices/scripts/SEQ state.
+ * @param sound Actual main-thread SPU owner. @param header Borrowed verified familiar VAB header.
+ * @param body Borrowed verified body. @param out Owned candidate or NULL on failure.
+ * @return Success or SDL error without live mutation. Copies actual RAM/voice/script/queue
+ * cursors, then validates/loads bank2 only in the candidate. Caller commits all native owners
+ * before pointer replacement; destroy unused candidates normally. No voices, clocks or input
+ * streams advance, and borrowed sources must remain live. This alone enables no familiar. */
+bool SotnSound_PrepareFamiliarBank(const SotnSound *sound, SotnDataView header, SotnDataView body,
+                                   SotnSound **out);
 
 /** @brief Stereo 44.1 kHz sample frames per development simulation tick. */
 enum
@@ -25,6 +40,43 @@ enum
  * @note Supports selected direct/scripted sound effects. CD music, reverb, and full
  * hardware/audio scheduling parity are not implemented by this component. */
 bool SotnSound_Create(SotnSoundSources sources, SotnSound **out);
+/** @brief Load the four actual startup banks embedded in the verified US resident overlay.
+ * @param dra Borrowed immutable DRA, retained until sound destruction. @param out Owned sound,
+ * NULL on failure. @return Success or SDL error after validating/copying all four real banks.
+ * Matches LoadVabData's bank/header order without a player or gameplay stage. This does not
+ * attach resident SEQs, run CD/SDK control, open playback or enable startup by itself. */
+bool SotnSound_CreateResident(SotnDataView dra, SotnSound **out);
+
+/** @brief Prepare actual player/stage VAB replacements in the existing resident SPU snapshot.
+ * @param source Actual initialized owner, retained on failure and until candidate publication.
+ * @param player_header Borrowed verified player VAB. @param player_body Its actual samples.
+ * @param stage_header Borrowed verified stage VAB. @param stage_body Its actual samples.
+ * @param out Owned candidate, NULL on failure. @return Success or SDL error.
+ * Preserves bank0/2, voices, DSP/reverb RAM, ring cursors, scripts and controls without a tick.
+ * No additional playing voices or capacity is created; the caller commits before retiring source.
+ */
+bool SotnSound_PrepareStageBanks(const SotnSound *source, SotnDataView player_header,
+                                 SotnDataView player_body, SotnDataView stage_header,
+                                 SotnDataView stage_body, SotnSound **out);
+
+/** @brief Initialize original Studio B voice reverb from the actual private US SDK profile.
+ * @param sound Actual owner, configured once before playback. @param executable Verified MAIN.
+ * @return Success or SDL error without mutation. Clears only the real work area in the existing
+ * SPU RAM after validating every loaded VAB; subsequent uploads retain that reservation.
+ * Enables the original per-tone send and44.1kHz/half-rate processor. CD sends, other presets,
+ * master commands and hardware/console timing remain separate owners. */
+bool SotnSound_ConfigureReverb(SotnSound *sound, SotnDataView executable);
+/** @brief Apply original signed SDK depth conversion to the configured actual voice-reverb owner.
+ * @return Success or SDL error without mutation when no configured owner exists. No clocks tick. */
+bool SotnSound_SetReverbDepth(SotnSound *sound, Sint16 left, Sint16 right);
+/** @brief Bind an actual familiar VAB to existing bank2 and its original SPU RAM address.
+ * @param sound Owned initialized sound simulation. @param header Verified private VAB header.
+ * @param body Verified private sample body; copied to resident RAM only after full validation.
+ * @return Success, or SDL error without changing sound state on malformed metadata/samples.
+ * The caller retains header bytes until replacement/destruction. Existing voices, scripts,
+ * queues and other banks remain live; this operation adds no voices or bank capacity.
+ * This binding alone enables no familiar or scene/audio handshake. */
+bool SotnSound_SetFamiliarBank(SotnSound *sound, SotnDataView header, SotnDataView body);
 /** @brief Attach verified immutable Librarian SEQ and original SDK pitch tables; no playback yet.
  * @param sound Borrowed initialized sound owner. @param executable Borrowed private boot image.
  * @param data Borrowed version-one Library SEQ. Both views must outlive sound destruction.
@@ -42,14 +94,17 @@ bool SotnSound_SetStageSequence(SotnSound *sound, SotnDataView executable, SotnD
  * @return Success or SDL error. Voices share the original bounded hardware pool with effects.
  * Full reverb/hardware timing parity remains incomplete. */
 bool SotnSound_PlaySequence(SotnSound *sound, Uint16 id);
-/** @brief Release only sequence-owned voices and stop its cursor; other effects remain active.
- * @param sound Borrowed initialized owner or NULL. */
+/** @brief Original StopSeq: close an open SEQ and release all24 voices with RR8.
+ * @param sound Borrowed initialized owner or NULL. A natural end leaves the access open;
+ * explicit close clears current script/allocation state but retains paused script copies.
+ * Without an open access, only retained sequence notes receive key-off. */
 void SotnSound_StopSequence(SotnSound *sound);
 
 /** @brief Queue an original sound-effect ID for the next simulation tick.
  * @param sound Borrowed owned simulation. @param id Original US effect0x601..0x8e0,
  * ambience release0xA1 or script pause/resume0xE/0xF.
- * @return Success, or false with SDL_GetError() for invalid input or a full 256-event queue.
+ * @return Success, or false with SDL_GetError() for invalid input. Effects use the original
+ * 256-entry read/write ring: 256 unconsumed writes wrap to empty; the last duplicate wins.
  * @note Queue also accepts original commands0xE/0xF for script pause/resume. They preserve playing
  * voices, direct effects and stage music. They run in queue order on the next Tick. Script mode5
  * remains live; copied cursors restore with original allocation/overwrite rules. These commands do
@@ -59,14 +114,14 @@ bool SotnSound_Queue(SotnSound *sound, Uint16 id);
 /** @brief Queue an original effect with explicit volume and signed stereo distance.
  * @param sound Borrowed simulation. @param id Original effect ID, 0x601..0x8e0.
  * @param volume Original 0..127 multiplier. @param pan Original distance, -8..8.
- * @return Success or SDL error; the queue is unchanged on invalid input or exhaustion.
+ * @return Success or SDL error; the queue is unchanged on invalid input.
  * Pan coefficients remain in the private DRA image. */
 bool SotnSound_QueueVolumePan(SotnSound *sound, Uint16 id, Uint16 volume, Sint8 pan);
 
 /** @brief Queue original channels 22/23 gain without restarting their loop or envelope.
  * @param sound Borrowed simulation. @param volume Original multiplier 0..127.
- * @param pan Original signed distance -8..8. @return Success or SDL error on invalid input
- * or queue exhaustion. A valid update with no active ambience has no effect. */
+ * @param pan Original signed distance -8..8. @return Success or SDL error on invalid
+ * bounds. A valid update with no active ambience has no effect. */
 bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
 
 /** @brief Advance scripts/voices and render one tick of signed native-endian stereo PCM.
@@ -76,6 +131,19 @@ bool SotnSound_QueueAmbienceVolume(SotnSound *sound, Uint16 volume, Sint8 pan);
  * @return Success, or false with SDL_GetError(); stop the session after a data failure.
  * @note No device access, allocations, or filesystem reads occur in this method. */
 bool SotnSound_Tick(SotnSound *sound, Sint16 *pcm, size_t count);
+/** @brief Update actual commands/scripts/SEQ once, retaining the pre-command script lease span.
+ * @param sound Actual sound owner. @param out Frame for exactly one subsequent RenderFrame.
+ * @return Success or SDL error, preserving output on failure. No PCM/sample clock advances.
+ * The script gate follows open SEQ access after playback ends until explicit StopSeq.
+ * Native callers run CD commands between this phase and rendering; this supplies no controls. */
+bool SotnSound_UpdateCommands(SotnSound *sound, SotnSoundFrame *out);
+/** @brief Render one actual stereo frame after its successful command update.
+ * @param sound Same actual owner. @param frame Corresponding command snapshot, consumed once.
+ * @param pcm Output sample buffer. @param count At least SOTN_SOUND_FRAMES*2.
+ * @return Success or SDL error before mutation for invalid owner/span/buffer.
+ * Advances actual voices/DSP and mirrors their envelope registers. Allocation retirement
+ * samples those registers before effects on the following command update. */
+bool SotnSound_RenderFrame(SotnSound *sound, SotnSoundFrame frame, Sint16 *pcm, size_t count);
 /** @brief Release sound state without freeing borrowed image/header bytes.
  * @param sound Owned sound simulation, or NULL. */
 void SotnSound_Destroy(SotnSound *sound);

@@ -4,6 +4,13 @@
 #include "player_internal.h"
 #include <sotn/combat.h>
 
+bool SotnPlayer_ClearRoomContact(SotnPlayer *p)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    p->queued_contact = (SotnPlayerContact){0};
+    return true;
+}
 bool SotnPlayer_QueueContact(SotnPlayer *p, SotnPlayerContact contact)
 {
     if (!p || contact.attack > 9999 || contact.source_x < -512 || contact.source_x > 16896 ||
@@ -20,11 +27,21 @@ bool SotnPlayer_SetDamageContext(SotnPlayer *p, Uint32 timer)
             "Fury Plate damage requires its unintegrated original defense-buff owner");
     if (!p || !p->death_capture || !p->death_decay || !p->death_context ||
         (p->damage_pending && p->damage_clock != timer) ||
-        (!p->damage_pending && p->damage_ticked && p->damage_last_clock == timer))
+        (!p->damage_pending && p->damage_ticked && p->damage_last_clock == timer &&
+         !(p->fairy_rescue.bound && p->fairy_rescue.scene == 0xfff &&
+           SotnPlayerStep_IsDead(p->step))))
         return SDL_SetError(
             "Damage context requires actual capture owners and a new gameplay clock");
+    p->timer_status = SotnPlayer_Status(p);
     p->damage_clock = timer;
     p->damage_context = p->damage_pending = true;
+    return true;
+}
+bool SotnPlayer_SetStageContext(SotnPlayer *p, Uint16 stage)
+{
+    if (!p || stage > 255)
+        return SDL_SetError("Player stage context requires its actual original stage ID");
+    p->stage_id = stage;
     return true;
 }
 bool SotnPlayer_SetStatBuffContext(SotnPlayer *p, const SotnStatBuffs *buffs,
@@ -61,7 +78,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     }
     if (!p->hp)
     {
-        if (p->step != SOTN_PLAYER_STONE || !p->invincibility)
+        if (p->step != SOTN_PLAYER_STONE || !SotnPlayer_Protected(p))
             return SDL_SetError("Zero-health damage dispatch lost its protected stone owner");
         if (p->water_damage.pain_timer)
             --p->water_damage.pain_timer;
@@ -79,7 +96,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                    .waist = p->water.waist,
                                    .hit_params = contact.parameters,
                                    .holy_symbol = (p->relics[SOTN_RELIC_HOLY_SYMBOL] & 3U) == 3,
-                                   .invincible = p->invincibility != 0,
+                                   .invincible = SotnPlayer_Protected(p),
                                    .grabbed = p->grab.state != SOTN_GRAB_NONE || p->script_hold ||
                                               p->step == SOTN_PLAYER_SCRIPT,
                                    .fury_plate = p->armor == 22 && p->stat_buffs != NULL},
@@ -113,6 +130,7 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     {
         // Elemental absorption wins before Cat-eye; its minimum-one prepass must not double.
         const Uint16 amount = power.absorb ? power.attack : (Uint16)SDL_max(1, power.attack * 2U);
+        p->hud_hp_hold |= p->hp != p->hp_max;
         p->hp = (Uint16)SDL_min(p->hp_max, (Uint32)p->hp + amount);
         p->absorption = (SotnPlayerAbsorption){.source = {.x = p->x.value,
                                                           .y = p->y.value,
@@ -120,11 +138,24 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
                                                           .facing_left = p->facing_left},
                                                .amount = amount,
                                                .applied = true};
-        p->invincibility = (Uint16)SDL_max(p->invincibility, 12);
+        SotnPlayer_Protect(p, 12);
         return true;
     }
     if (power.immune)
+    {
+        p->immunity = (SotnPlayerImmunity){.source = {.x = p->x.value,
+                                                      .y = p->y.value,
+                                                      .priority = 148,
+                                                      .facing_left = p->facing_left},
+                                           .applied = true};
+        SotnPlayer_Protect(p, 12);
         return true;
+    }
+    // HandleDamage's head-slot check follows absorption/immunity and precedes
+    // defense, poison and reaction selection. There is one actual head slot.
+    if (p->head == 28 && (power.effects & 0xf980U))
+        power.attack = (Uint16)(power.attack - power.attack / 5U);
+    const bool axe = p->axe_armor.active;
     const SotnPlayerStep previous = p->step;
     const Uint16 previous_hp = p->hp;
     const SotnPlayerFactorySource source = {
@@ -134,35 +165,119 @@ bool SotnPlayer_ContactTick(SotnPlayer *p, bool *born)
     // callers. Inside the player dispatcher, its common animation tail owns that update once.
     p->contact_dispatch = true;
     bool ok = false;
+    Uint16 number_amount = 0;
     if (stone)
     {
-        const Uint16 amount =
+        number_amount =
             previous == SOTN_PLAYER_STONE
                 ? (Uint16)(p->hp_max / 8U)
-                : (Uint16)SDL_clamp((Sint32)power.attack - (Sint32)attributes.defense * 2, 0, 9999);
-        ok = SotnPlayer_Petrify(p, amount, contact.source_x, contact.source_velocity);
+                : (Uint16)SDL_max(0, (Sint32)power.attack - (Sint32)attributes.defense * 2);
+        ok = axe ? SotnPlayer_AxeContactDamage(p, (Uint16)SDL_min(number_amount, 9999),
+                                               contact.source_x, contact.source_velocity, 1, true,
+                                               power.effects)
+                 : SotnPlayer_Petrify(p, (Uint16)SDL_min(number_amount, 9999), contact.source_x,
+                                      contact.source_velocity);
     }
     else
     {
         Uint16 amount = 0;
         if (!((water.hit_params & 31U) >= 16
-                  ? SotnCombat_EnvironmentalContact(power, p->hp_max, p->poison_ticks != 0, &amount)
-                  : SotnCombat_NormalContact(power, attributes.defense, p->poison_ticks != 0,
-                                             &amount)))
+                  ? SotnCombat_EnvironmentalContact(power, p->hp_max,
+                                                    (p->timer_status & 0x4000U) != 0, &amount)
+                  : SotnCombat_NormalContact(power, attributes.defense,
+                                             (p->timer_status & 0x4000U) != 0, &amount)))
             return false;
-        ok = (power.effects & 0x100U)
-                 ? SotnPlayer_CurseDamage(p, amount, contact.source_x, contact.source_velocity)
-             : (power.effects & 0x80U)
-                 ? SotnPlayer_PoisonDamage(p, amount, contact.source_x, contact.source_velocity)
-                 : SotnPlayer_Damage(p, amount, contact.source_x, contact.source_velocity);
+        // The selected reaction helpers cap HP loss at9999. The original number
+        // receives the full requested points, including poison/weakness overkill.
+        const Sint32 requested =
+            ((Sint32)power.attack - attributes.defense) * ((p->timer_status & 0x4000U) ? 2 : 1);
+        number_amount = (water.hit_params & 31U) >= 16 ? amount : (Uint16)SDL_max(1, requested);
+        // Exactly one libc roll for one or two actual accessories; equality succeeds,
+        // including luck zero. Earlier immunity/absorption/stone/water never roll.
+        if (p->talismans && (Uint32)attributes.total[3] * p->talismans >=
+                                (SotnCombat_Random(&p->damage_random) & 511U))
+        {
+            if (!p->script_executable.bytes)
+                return SDL_SetError(
+                    "Talisman recovery requires its actual SDK/palette timer owner");
+            p->dodge =
+                (SotnPlayerDodge){.source = source, .effects = power.effects, .applied = true};
+            p->received_damage_effects = power.effects;
+            p->gravity.timer = 0x8166;
+            SotnPlayer_Protect(p, 12);
+            p->timers[3] = 6;
+            p->contact_dispatch = false;
+            return true;
+        }
+        const bool guard =
+            attributes.defense >= 100 && !(power.effects & 0x180U) &&
+            ((water.hit_params & 31U) >= 16 ? p->hp_max < 8 : power.attack <= attributes.defense);
+        if (guard && p->hp > 1 && !axe)
+        {
+            if (!p->script_executable.bytes)
+                return SDL_SetError("Guard recovery requires its actual SDK/palette timer owner");
+            --p->hp;
+            p->guard = (SotnPlayerGuard){
+                .source = source, .effects = power.effects, .sound = 0x6e7, .applied = true};
+            p->received_damage_effects = power.effects;
+            p->gravity.timer = 0x8166; // Original high_jump_timer is also timer3's palette word.
+            SotnPlayer_Protect(p, 12);
+            p->timers[3] = 6;
+            ok = true;
+        }
+        else
+        {
+            Uint16 kind = (Uint16)(water.hit_params & 31U);
+            const Sint32 taken =
+                kind >= 16 ? (p->hp_max / 8) * ((p->timer_status & 0x4000U) ? 2 : 1) : requested;
+            if (taken <= 0)
+                kind = 2;
+            else if (kind < 2)
+                kind = (Uint32)taken * 2U >= p->hp_max           ? 4
+                       : (Uint32)power.attack * 50U >= p->hp_max ? 3
+                                                                 : 2;
+            ok = axe ? SotnPlayer_AxeContactDamage(p, amount, contact.source_x,
+                                                   contact.source_velocity, guard ? 1 : kind, false,
+                                                   power.effects)
+                     : SotnPlayer_ContactDamage(p, amount, contact.source_x,
+                                                contact.source_velocity, kind, power.effects);
+        }
     }
     p->contact_dispatch = false;
+    if (ok && p->hp)
+        p->hud_hp_hold = true;
+    if (ok && !p->guard.applied &&
+        (p->hp < previous_hp || (axe && stone) ||
+         (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
+    {
+        Uint8 response = 3;
+        if (stone && !axe)
+            response = previous == SOTN_PLAYER_STONE ? 8 : 7;
+        if (!p->hp && response != 7)
+            response = 4;
+        if (response == 3 || response == 7 || response == 8)
+            p->received_damage_effects = power.effects;
+        const bool neutral = response == 3 && !axe && !(power.effects & 0xfbc0U);
+        p->damage_number = (SotnPlayerDamageNumber){.source = source,
+                                                    .amount = number_amount,
+                                                    .response = response,
+                                                    .applied = true,
+                                                    .neutral_hurt = neutral};
+        if (neutral)
+        {
+            // AlucardHandleDamage runs after the common timer pass: retain this
+            // frame's palette; the following six timer2 passes own its red/normal work.
+            p->damage_palette = 0x8166;
+            p->timers[2] = 6;
+        }
+    }
     if (ok && p->hp && p->cape == 54 && p->hearts < p->hearts_max &&
-        (p->hp < previous_hp ||
+        (p->hp < previous_hp || (axe && stone) ||
          (stone && p->step == SOTN_PLAYER_STONE && previous != SOTN_PLAYER_HIT)))
         p->heart_gain = (SotnPlayerHeartGain){
             .source = source, .amount = (Uint16)(previous_hp - p->hp), .requested = true};
-    if (ok && p->hp && previous != SOTN_PLAYER_HIT && p->armor == 22 && p->stat_buffs)
+    if (ok && p->hp && (previous != SOTN_PLAYER_HIT || p->guard.applied) && p->armor == 22 &&
+        p->stat_buffs)
         p->defense_buff_minimum = 512;
     *born = ok && p->step != previous;
     return ok;

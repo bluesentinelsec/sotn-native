@@ -156,8 +156,10 @@ static bool Contacts(Fixture *f)
     p->invincibility = 0; // Independent immunity fixture, outside absorption's protection window.
     p->attributes.immunity = 0x8000;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 3, .parameters = 0x8001}) &&
-          Tick(p, 40) && p->hp == 11 && !p->water_pain.events.response);
+          Tick(p, 40) && p->hp == 11 && !p->water_pain.events.response && p->immunity.applied &&
+          p->invincibility == 12);
     p->attributes.immunity = 0;
+    p->invincibility = 0; // Subsequent independent fixture, outside immunity protection.
     p->poison_ticks = 2;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 3, .parameters = 1}) &&
           Tick(p, 50) && p->hp == 7 && p->poison_ticks == 1);
@@ -183,14 +185,14 @@ static bool DeathAndRollback(Fixture *f)
           p->water_death.started && p->sound == 0x6f6 && !p->water_pain.events.response);
     p->curse_ticks = 10;
     p->poison_ticks = 10;
-    p->dark.ticks = 10;
+    p->dark_ticks = 10;
     p->spell_use_ticks = 10;
-    p->timers[0] = 10;
+    p->subweapon_ticks = 10;
     CHECK(SotnPlayer_QueueBloodHealing(p, 8, 1));
     const Uint16 pressed = p->previous_buttons;
     CHECK(Tick(p, 11) && p->healing.pending == 8 && !p->hp && p->curse_ticks == 10 &&
-          p->poison_ticks == 10 && p->dark.ticks == 10 && p->spell_use_ticks == 10 &&
-          p->timers[0] == 10 && p->previous_buttons == pressed);
+          p->poison_ticks == 10 && p->dark_ticks == 10 && p->spell_use_ticks == 10 &&
+          p->subweapon_ticks == 10 && p->previous_buttons == pressed);
     CHECK(SotnPlayer_TickSpellFreeze(p, 0, true) && !p->water_death.started &&
           !p->water_pain.events.response);
     for (Uint32 clock = 12; clock < 220 && p->death.phase != 128; ++clock)
@@ -237,6 +239,7 @@ static bool BloodCloak(Fixture *f)
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
           Tick(p, 4) && !p->heart_gain.requested && p->hp == 41);
     p->attributes.immunity = 0;
+    p->invincibility = 0; // Subsequent independent fixture, outside immunity protection.
     p->attributes.absorption = 0x8000;
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 4, .parameters = 0x8001}) &&
           Tick(p, 5) && !p->heart_gain.requested && p->hp == 45);
@@ -257,12 +260,18 @@ static bool BloodCloak(Fixture *f)
     p->invincibility = 0;
     for (Uint16 id = 0x31; id <= 0x34; ++id)
         P32(f->dra + 0x101b8 + id * 4U, 0x801bffff);
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x801bffff);
+    P32(f->dra + 0x101b8 + 0x40U * 4U, 0x801bffff);
     CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
           SotnPlayer_SetDamageContext(p, 21));
     const SotnPlayer before = *p;
     CHECK(!SotnPlayer_Tick(p, 0) && !SDL_memcmp(&before, p, sizeof(*p)));
     for (Uint16 id = 0x31; id <= 0x34; ++id)
         P32(f->dra + 0x101b8 + id * 4U, 0x800a0100);
+    for (Uint16 id = 0x2e; id <= 0x30; ++id)
+        P32(f->dra + 0x101b8 + id * 4U, 0x800a0100);
+    P32(f->dra + 0x101b8 + 0x40U * 4U, 0x800a0100);
     CHECK(SotnPlayer_Tick(p, 0) && p->hp == 35 && p->heart_gain.requested &&
           p->heart_gain.amount == 1);
     p->step = SOTN_PLAYER_STAND;
@@ -278,13 +287,57 @@ static bool BloodCloak(Fixture *f)
     SotnPlayer_Close(p);
     return true;
 }
+static bool ReactionKinds(Fixture *f)
+{
+    const struct
+    {
+        Uint16 attack, defense, parameters, loss, substep;
+    } cases[] = {{3, 0, 1, 3, 6},     {4, 3, 1, 1, 1},   {100, 1, 0x20, 99, 1},
+                 {100, 0, 1, 100, 2}, {10, 99, 3, 1, 6}, {1, 0, 17, 25, 1}};
+    for (Uint16 i = 0; i < SDL_arraysize(cases); ++i)
+    {
+        SotnPlayer *p = NULL;
+        CHECK(Create(f, &p));
+        p->hp = p->hp_max = 200;
+        p->attributes.defense = cases[i].defense;
+        CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = cases[i].attack,
+                                                             .parameters = cases[i].parameters,
+                                                             .source_x = 120}) &&
+              Tick(p, 1) && p->hp == 200 - cases[i].loss && p->step == SOTN_PLAYER_HIT &&
+              p->substep == cases[i].substep);
+        if (cases[i].parameters == 17)
+            CHECK(p->vx > 0); // Kind17 overrides the actual source on the right.
+        SotnPlayer_Close(p);
+    }
+    return true;
+}
+static bool RoomContact(Fixture *f)
+{
+    SotnPlayer *p = NULL;
+    CHECK(Create(f, &p));
+    p->damage_random = 17;
+    p->timers[12] = 7;
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 99, .parameters = 1}) &&
+          SotnPlayer_QueueBloodHealing(p, 8, 1));
+    const SotnPlayer before = *p;
+    CHECK(SotnPlayer_ClearRoomContact(p) && !p->queued_contact.attack &&
+          !p->queued_contact.parameters && p->hp == before.hp &&
+          p->damage_random == before.damage_random && p->frame_number == before.frame_number &&
+          !SDL_memcmp(p->timers, before.timers, sizeof(p->timers)) &&
+          !SDL_memcmp(&p->healing, &before.healing, sizeof(p->healing)));
+    CHECK(SotnPlayer_QueueContact(p, (SotnPlayerContact){.attack = 2, .parameters = 1}) &&
+          Tick(p, 10) && p->hp == 16 && p->healing.applied && p->healing.applied_amount == 8 &&
+          !p->healing.pending);
+    SotnPlayer_Close(p);
+    return true;
+}
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (!f)
         return 1;
-    bool ok =
-        Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) && BloodCloak(f);
+    bool ok = Water(f) && Contacts(f) && StoneAndProtection(f) && DeathAndRollback(f) &&
+              BloodCloak(f) && ReactionKinds(f) && RoomContact(f);
     SDL_free(f);
     return ok ? 0 : 1;
 }

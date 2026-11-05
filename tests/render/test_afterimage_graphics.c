@@ -109,6 +109,31 @@ int main(void)
     CHECK(!SotnActorGraphics_Afterimage(g, &image, d, 0, 0, &q) &&
           !SDL_memcmp(&q, &before, sizeof(q)));
     CHECK(!SotnActorGraphics_Afterimage(NULL, &image, d, 0, 0, &q));
+    // Authored display slots prove that frame9F uploads share real VRAM and preserve
+    // the normal display, source pixels and successful prior data on malformed metadata.
+    Put16(dra + 0x21b8, 513);
+    Put16(dra + 0x21ba, 257);
+    Put16(dra + 0x21e8, 545);
+    Put16(dra + 0x21ea, 385);
+    image.pixels = (SotnDataView){pixels, sizeof(pixels)};
+    CHECK(SotnActorGraphics_UploadPlayer(g, &image));
+    image.pixels = (SotnDataView){alternate, sizeof(alternate)};
+    CHECK(SotnActorGraphics_UploadTalisman(g, &image));
+    q = (SotnPlayerEffectQuad){.x = {0, 4, 0, 4},
+                               .y = {0, 0, 2, 2},
+                               .u = {132, 136, 132, 136},
+                               .v = {129, 129, 131, 131},
+                               .page = 0x18,
+                               .palette = 0x100};
+    CHECK(SotnActorGraphics_PlayerEffect(g, &q, 0, 0, surface) && raster[0] == 0x3e0);
+    Put16(dra + 0x21e8, 546);
+    CHECK(!SotnActorGraphics_UploadTalisman(g, &image) &&
+          SotnActorGraphics_PlayerEffect(g, &q, 0, 0, surface) && raster[0] == 0x3e0);
+    q.u[0] = q.u[2] = 4;
+    q.u[1] = q.u[3] = 8;
+    q.v[0] = q.v[1] = 1;
+    q.v[2] = q.v[3] = 3;
+    CHECK(SotnActorGraphics_PlayerEffect(g, &q, 0, 0, surface) && raster[0] == 0x83e0);
     CHECK(pixels[0] == 0x21 && pixels[3] == 0);
     SotnActorGraphics_Destroy(g);
     SDL_free(common);

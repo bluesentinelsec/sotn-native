@@ -75,6 +75,9 @@ SOTN_FORMAT_SOURCES += modules/core/collision.c \
   tests/core/test_stage.c
 SOTN_FORMAT_SOURCES += modules/game/laboratory.c modules/game/input.c modules/game/input.h \
   modules/game/include/sotn/laboratory.h
+SOTN_FORMAT_SOURCES += modules/core/title_screen.c modules/core/include/sotn/title_screen.h \
+  tests/core/test_title_screen.c modules/game/startup.c modules/game/startup_internal.h \
+  modules/game/include/sotn/startup.h
 
 SOTN_FORMAT_SOURCES += modules/data/stream.c modules/data/include/sotn/stream.h \
   modules/audio/music.c modules/audio/include/sotn/music.h tests/audio/test_music.c tests/data/test_stream.c
@@ -142,6 +145,29 @@ SOTN_FORMAT_SOURCES += modules/core/boss_projection.c \
 	  modules/core/include/sotn/camera.h \
 	  modules/core/actor_camera.c \
 	  modules/core/world.c modules/core/include/sotn/world.h
+
+SOTN_FORMAT_SOURCES += modules/core/teleport_effect.c modules/core/include/sotn/teleport_effect.h \
+	  tests/core/test_teleport_effect.c tests/core/test_library_card.c
+
+SOTN_FORMAT_SOURCES += modules/core/player_medicine.c modules/core/medicine_effect.c \
+	  modules/core/player_circle.c modules/core/include/sotn/medicine_effect.h \
+	  modules/core/include/sotn/player_circle.h tests/core/test_player_medicine.c \
+	  tests/core/test_player_circle.c
+
+SOTN_FORMAT_SOURCES += modules/audio/cd_audio.c modules/audio/include/sotn/cd_audio.h tests/audio/test_cd_audio.c
+SOTN_FORMAT_SOURCES += modules/core/fairy_runtime.c modules/core/include/sotn/fairy_runtime.h
+SOTN_FORMAT_SOURCES += modules/core/familiar_stats.c modules/core/include/sotn/familiar_stats.h
+SOTN_FORMAT_SOURCES += modules/core/fairy_effects.c modules/core/include/sotn/fairy_effects.h \
+	  tests/core/test_fairy_effects.c
+SOTN_FORMAT_SOURCES += modules/core/familiar_events.c modules/core/include/sotn/familiar_events.h \
+	  tests/core/test_familiar_events.c
+SOTN_FORMAT_SOURCES += modules/core/fairy.c modules/core/include/sotn/fairy.h tests/core/test_fairy.c
+SOTN_FORMAT_SOURCES += modules/core/familiar_animation.c \
+	  modules/core/include/sotn/familiar_animation.h tests/core/test_familiar_animation.c
+
+SOTN_FORMAT_SOURCES += modules/core/main_loop.c modules/core/include/sotn/main_loop.h tests/core/test_main_loop.c
+SOTN_FORMAT_SOURCES += modules/core/playtime.c modules/core/include/sotn/playtime.h \
+	  tests/core/test_playtime.c
 
 .PHONY: dev debug debug-build release release-build configure build run test sanitizer package web android ios fmt clean
 configure:

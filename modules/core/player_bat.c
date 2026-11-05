@@ -118,7 +118,7 @@ void SotnPlayer_BatInput(SotnPlayer *p)
                                 : p->mist_motion.settle_y;
     if (p->step == SOTN_PLAYER_HIGH_JUMP && p->gravity.upside_down)
         p->animation.sprite = 0x9d;
-    p->dark.ticks = 0;
+    p->dark_ticks = 0;
     SotnPlayer_GravityCancel(p);
     p->bat = (SotnPlayerBat){.active = true, .hidden = p->mist.active, .settle_y = settling};
     p->wolf.active = false;
@@ -199,7 +199,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
         {
             p->tapped = SOTN_BUTTON_BAT;
             (void)Finished(p);
-            p->bat_input_hold = 32;
+            SotnPlayer_HoldInput(p, 32);
             if (p->bat_commands.wall_impact)
                 p->sound = 0x644;
         }
@@ -254,6 +254,7 @@ void SotnPlayer_BatTick(SotnPlayer *p)
                 if (!Generation(p))
                     return;
                 p->bat.started = true;
+                p->hand_retire = 2;
                 p->bat.signal = 1;
                 p->attack_mode = 0;
                 p->attack = p->shield = (SotnPlayerAttack){0};

@@ -29,10 +29,17 @@ typedef struct SotnPlayerBlinkShared
 /** @brief One real selected BlinkWhite controller and its eight owned primitives.
  * Initialize parameter to 0x20/0x21 (Bat), 0x23/0x24 (Wolf), 5 (Fire) or 0x5C (Wing Smash).
  * Retain until removed; special flashes allocate their own real children.
- * Parameters 0x16/0x17 restore original poison/curse glows after casting.
+ * Parameters 0x16/0x17 own poison/curse glows and their casting restoration.
  * Parameters 0x4E/0x59 support original water-pain/death flashes; requests remain with the owner.
  * Parameters 0x44/0x48 support original blood-healing flashes; 0x67 is the spirit fan.
- * Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
+ * Parameters 0x43/0x51 are the original immunity fan pair.
+ * Parameters 0x42/0x68/0x62 are the original cut/holy/dark hit fans.
+ * Parameters 0x45/0x46 are the original fire/thunder fans; thunder holds on state10.
+ * Parameters 0x53/0x4F/0x5A supply physical/fire/ice death fans and hold on animationC0.
+ * Parameter 0x4A supplies the finite Life Apple recovery fan; its producer owns actual recovery.
+ * Parameter 0x26 supplies entity46 stripes; its actual owner controls motion/retirement.
+ * Parameter 0x58 is the neutral hurt/scripted reaction fan; its 0x7007 hold tests original Hit
+ * state10. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
 typedef struct SotnPlayerBlink
 {
     SotnPlayerEffectQuad quads[8];
@@ -48,6 +55,7 @@ typedef struct SotnPlayerBlinkInput
     SotnPlayerImage image;
     SotnWolfCaptureBounds wolf_bounds;
     Sint16 x, y, rotation;
+    Sint16 pivot_x, pivot_y; /**< Actual retained entity pivots for normal-body SDK rotation. */
     Uint16 priority, player_step, player_substep;
     Uint16 poison_ticks, curse_ticks; /**< Actual ailment timer0/1, held through scene freeze. */
     Uint16 water_waist, player_animation; /**< Actual preceding depth and current animation ID. */

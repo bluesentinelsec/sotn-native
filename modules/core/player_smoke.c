@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7879C.c:EntitySmokePuff profiles0/1/5 and alu_anim.c:UpdateAnim,
+// Selected dra/7879C.c:EntitySmokePuff profiles0/1/3/4/5/6/7/8/9/10 and alu_anim.c:UpdateAnim,
 // sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Tables stay private.
 #include <SDL3/SDL_error.h>
+#include <sotn/collision.h>
+#include <sotn/combat.h>
 #include <sotn/player_smoke.h>
 static Uint16 Read16(const Uint8 *p)
 {
@@ -41,29 +43,75 @@ static bool Animate(SotnPlayerSmoke *s, SotnDataView dra)
 bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFactorySource source,
                           Uint16 parameter, Uint16 priority, Uint32 contacts, Uint32 status)
 {
+    return SotnPlayerSmoke_TickOwned(smoke, dra, source, parameter, priority, contacts, status,
+                                     NULL);
+}
+bool SotnPlayerSmoke_TickOwned(SotnPlayerSmoke *smoke, SotnDataView dra,
+                               SotnPlayerFactorySource source, Uint16 parameter, Uint16 priority,
+                               Uint32 contacts, Uint32 status,
+                               const SotnPlayerSmokeEnvironment *environment)
+{
+    return SotnPlayerSmoke_TickShared(smoke, dra, source, parameter, priority, contacts, status,
+                                      environment, NULL);
+}
+bool SotnPlayerSmoke_TickShared(SotnPlayerSmoke *smoke, SotnDataView dra,
+                                SotnPlayerFactorySource source, Uint16 parameter, Uint16 priority,
+                                Uint32 contacts, Uint32 status,
+                                const SotnPlayerSmokeEnvironment *environment, Uint32 *random)
+{
     const Uint16 high = parameter >> 8, low = parameter & 255U;
+    const bool wall = high == 4 || high == 8, scattered = high == 3 || high == 7 || high == 9;
     if (!smoke || smoke->phase > 1 || smoke->pose >= 24 || smoke->remaining < -1 ||
-        smoke->removed || priority > 509 || (high != 0 && high != 1 && high != 5) || low > 5 ||
-        (high == 5 && low > 2) || !dra.bytes || dra.size < 0xd5e0)
+        smoke->removed || priority > 509 ||
+        (high != 0 && high != 1 && high != 3 && high != 4 && high != 5 && high != 6 && high != 7 &&
+         high != 8 && high != 9 && high != 10) ||
+        (!scattered && low > 5) || (high == 5 && low > 2) || (high == 8 && low > 3) || !dra.bytes ||
+        dra.size < (wall ? (high == 4 ? 0xd5eeU : 0xd5faU) : 0xd5e0U))
         return SDL_SetError(
-            "Player smoke requires selected private ground/slide/walking snapshots");
+            "Player smoke requires selected private puff tables and bounded child metadata");
     if (!smoke->phase && (status & 0x20000U))
         return SDL_SetError("US smoke birth uses an unwritten parameter for player status0x20000");
     if (smoke->phase && smoke->parameter != parameter)
         return SDL_SetError("Player smoke changed its actual retained parameter");
+    if (!smoke->phase && (wall || high == 6) &&
+        (!environment || (wall && !environment->wall_owned)))
+        return SDL_SetError(
+            "Player wall/skid smoke requires actual live player/collision ownership");
+    if (!smoke->phase && scattered && !random)
+        return SDL_SetError("Scattered smoke requires its actual shared birth RNG owner");
+    Uint32 rng = random ? *random : 0;
     SotnPlayerSmoke next = *smoke;
     if (!next.phase)
     {
         const bool slide = high == 1, walking = high == 5;
-        Sint32 offset =
-            walking ? -6 : Word(Read16(dra.bytes + 0xd54c + low * 2U)) + (slide ? -8 : 6);
+        Uint16 selected = low;
+        Sint32 offset;
+        if (scattered)
+        {
+            offset = (Sint32)(SotnCombat_Random(&rng) % (high == 3   ? 30U
+                                                         : high == 9 ? 16U
+                                                                     : 60U)) -
+                     (high == 3   ? 14
+                      : high == 9 ? 8
+                                  : 30);
+            selected = (Uint16)((SotnCombat_Random(&rng) & 3U) + 2U);
+            source.y = Fixed((Uint32)source.y -
+                             ((high == 9 ? 20U : 0U) + SotnCombat_Random(&rng) % 4U) * 65536U);
+        }
+        else
+            offset = walking ? -6 : Word(Read16(dra.bytes + 0xd54c + low * 2U)) + (slide ? -8 : 6);
         if (slide && (contacts & 0x8000U))
             offset /= 2;
-        if (source.facing_left)
+        if (high == 6)
+            offset = environment->velocity_x > 0 ? 24 : -24;
+        else if (source.facing_left)
             offset = -offset;
+        if (high == 10)
+            offset =
+                (Word(Read16(dra.bytes + 0xd54c + low * 2U)) - 2) * (source.facing_left ? -1 : 1);
         next.x = Fixed((Uint32)source.x + (Uint32)offset * 65536U);
         next.y = Fixed((Uint32)source.y + 24U * 65536U);
-        const Uint16 index = slide ? 1 : low;
+        const Uint16 index = slide ? 1 : selected;
         const Uint16 velocity_index = walking ? (Uint16)(4U - low * 2U) : index;
         const Uint8 *velocity = dra.bytes + 0xd558 + velocity_index * 4U;
         const Uint32 bits = (Uint32)Read16(velocity) | (Uint32)Read16(velocity + 2) << 16;
@@ -74,6 +122,38 @@ bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFa
         next.parameter = parameter;
         next.facing_left = source.facing_left;
         next.phase = 1;
+        if (high == 10)
+            next.y = Fixed((Uint32)next.y - 6U * 65536U);
+        if (wall)
+        {
+            const Uint32 table = high == 4 ? 0xd5e0U : 0xd5f0U;
+            const Uint16 count = high == 4 ? 14 : 10;
+            for (Uint16 i = 0; i < count; ++i)
+                if (dra.bytes[table + i] >= 14)
+                    return SDL_SetError("Player smoke has an invalid private wall sensor index");
+            Uint16 i = (Uint16)(low * 2U);
+            while (i < count &&
+                   !(environment->wall[dra.bytes[table + i]].effects & SOTN_EFFECT_BLOCK))
+                ++i;
+            if (i == count)
+            {
+                next.removed = true;
+                *smoke = next;
+                return true;
+            }
+            const Uint16 sensor = dra.bytes[table + i];
+            const Uint16 x =
+                (Uint16)((Uint16)((Uint32)environment->x >> 16) + environment->wall[sensor].x);
+            const Uint16 y =
+                (Uint16)((Uint16)((Uint32)environment->y >> 16) + environment->wall[sensor].y);
+            next.x = Fixed((Uint32)x << 16 | ((Uint32)source.x & 65535U));
+            next.y = Fixed((Uint32)y << 16 | ((Uint32)source.y & 65535U));
+            next.velocity_x = 0;
+            if (high == 4)
+                next.velocity_y = -16384;
+            next.scale = (Uint16)(Read16(dra.bytes + 0xd570 + (high == 4 ? 1U : low) * 2U) +
+                                  (high == 4 ? 64U : 32U));
+        }
     }
     else
     {
@@ -89,6 +169,8 @@ bool SotnPlayerSmoke_Tick(SotnPlayerSmoke *smoke, SotnDataView dra, SotnPlayerFa
     if (!Animate(&next, dra))
         return false;
     *smoke = next;
+    if (random)
+        *random = rng;
     return true;
 }
 bool SotnPlayerSmoke_Rebase(SotnPlayerSmoke *s, Sint16 x, Sint16 y)

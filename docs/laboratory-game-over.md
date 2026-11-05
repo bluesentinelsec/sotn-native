@@ -5,7 +5,10 @@ path instead of returning an application error. The player stops accepting
 movement/attack actions, launches away from the hit, runs animation 0xC0,
 changes tint/rotation, and dissolves over the original 64-tick mask sequence.
 Recovery immunity prevents repeated damage; dying players cannot collect prizes.
-Elemental deaths and all related primitives remain incomplete.
+The later [native physical/elemental owner](player-physical-death.md) replaces the
+actual app's CPU mask with original normal/fire/thunder/ice effects, resident
+capture and64 actual uploads. The older selected standalone mask and evidence
+below do not establish those owners; remaining interrupted/fade contexts stay open.
 
 The scene then replaces stage music with the original US game-over track and
 shows the original game-over artwork. The captured scene falls away in columns,
@@ -41,3 +44,52 @@ These are exercised-path checks, not complete original-game parity.
 
 The application now returns to the [native Continue shell](native-session-flow.md)
 after the fade, rather than exiting. Original title/card menus remain incomplete.
+
+
+When the actual shared CD owner is bound, native physical/water death128 now enters
+its original selected audio lifecycle. The first engine frame queues81, and the
+following Init frame queues11. The wait uses actual pause/restore acknowledgement
+and XA activity (pending fade or playing identity). Queue-empty remains a separate
+snapshot. On success it queues12/B; the following MuteSound retires actual current,
+saved or in-flight transports and resets original metadata. The next resource phase
+queues original US33e through real configuration, ReadN and playback ownership.
+The existing game-over artwork is already verified/resident; its presentation clocks
+stay held through these phases and start while command4 is still configuring. No
+replacement fade/readiness timer or legacy music decoder is introduced.
+
+Bound game-over frames continue actual SPU command, voice/DSP and device updates.
+Player/game/stage clocks keep their existing holds and HP stays zero. Drawing does
+not advance audio or presentation. Mute runs after actual SEQ closure, retains live
+voice/envelope/register/DSP/RAM state, copied scripts and the original reverb restore
+byte, and clears the original command/effect queues, current script/SEQ metadata and
+abandoned bookmarks. It resets master127/multiplier32 without a sample tick. The
+ordinary native starts now bind the common CD owner before any Fairy load.
+The retained unbound compatibility branch is not the ordinary bootstrap path.
+
+Authored tests cover closed-SEQ validation, failed preconditions without mutation,
+actual81/11/B/12/16 work, retained SPU/copy owners, pending-effect/attachment reset,
+active/in-flight CD cancellation and a subsequent real33e read. Four private-data
+command contexts compare1,040 updates,36 requests,12 mute boundaries and both full
+256-entry queues against original instructions, including live/copied script words,
+SEQ access/attachment/volume, pending-effect buffer clearing and actual SDK RR/master
+MMIO. These command-only checks use explicit CD/SDK playback/key-latch adapters and
+do not advance DSP or SDK SEQ scheduling. Separate32 complete original engine/handler
+calls verify successive81/11, acknowledgement/fade/playing gates independent of queue
+count, following12/B and Mute, and four resource-load gates before33e. Capture,
+entity/GPU cleanup, loader, sound and mute callees are explicit adapters in that check.
+
+The actual Debug/ASan native checks each cover physical, water and silent-music deaths through
+resident capture/decay and game-over completion. Each passes1,226 SPU/device frames,
+984 presentation updates, three metadata resets retaining complete SPU state and
+1,418,757 nonzero game-over PCM samples. An actual old BGM bookmark/speech context
+restores before shutdown. The silent context reaches the source acknowledgement gate
+with a nonempty CD queue. Producer frames are checked directly; five repeated draws
+per context hold clocks, and actual Start input finishes the reveal/fade. Card/load,
+protection, lethal contact, HP1/water-result and stage-audio fixtures remain separate
+from ordinary acquisition, water routes and console evidence. All six final CD/rescue/actual-app regressions pass with normal exits and no
+sanitizer errors; exact-head platform results accompany the PR.
+
+This owns selected audio transitions, now also reached by common native bootstrap
+without a Fairy card or bank2 load. Original
+whole-scene/entity/GPU cleanup, original shared RNG/raster/SDK timing, session/title
+continuity and the remaining [milestone gates](alucard-status.md) remain unfinished.

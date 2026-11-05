@@ -43,19 +43,21 @@ owner retains its own evidence boundary.
 
 | Original response | Current native boundary | Remaining work |
 | --- | --- | --- |
-| 0, immunity | Element prepass suppresses HP loss | Original text/Blink43+51, zero number and helper timing |
-| 1, high-defense guard | Ordinary minimum-one damage remains selected | Distinct guard outcome, palette/timers, voice and number |
-| 2, Talisman dodge | No live Talisman producer | Actual count/LCK/RNG selection, effects and recovery |
-| 3, hurt | [Queued contact owner](player-water-contact.md) delegates to selected physical/ailment helpers | Original kind promotion0/1→2/3/4, distinct kinds2/3/4/5/16..18, collision/recovery and all dependent effects |
+| 0, immunity | [Actual response0, text37/Blink43+51/zero number/protection12](player-contact-immunity.md) | Remaining immunity encounter/equipment/shared-contention breadth |
+| 1, high-defense guard | [Surviving one-HP guard, palette/timers, voice and red number](player-contact-guard.md) | Remaining guard encounter/equipment/interrupt contention breadth |
+| 2, Talisman dodge | [Actual equipped count/LCK/one roll, shared entity46/Blink58 and timer recovery](player-contact-talisman.md) | Remaining equipment/encounter/interrupt and shared-contention breadth |
+| 3, hurt | [Queued contact owner](player-water-contact.md), selected physical/ailment helpers and [neutral palette/Blink/recovery](player-neutral-hurt.md) | Original kind promotion0/1→2/3/4, distinct kinds2/3/4/5/16..18, collision/recovery and all dependent effects |
 | 4, lethal | [Selected physical death](laboratory-game-over.md) | Full original elemental deaths, capture/effect/fade branches and numbers |
 | 5, absorption | This selected owner, actual circlet attributes and Cat-eye kind 7 | Ordinary acquisition/encounter breadth and all-ability contention acceptance |
 | 6, lethal water | [Native water death](player-water-death.md) | Global fade recovery and remaining presentation/timing boundaries |
 | 7/8, stone/new or existing | [Selected petrification](player-petrification.md) | Statue variants, children/fragments, full lethal branches and numbers |
 | 9, water pain | [Ordinary water contact](player-water-contact.md) | Remaining dependent effects/timing and broader original contexts |
 
-Ballroom Mask's conditional reduction and remaining special equipment also need
-actual owners. This batch does not replace the selected physical-damage adapter
-or implement ordinary damage/guard number types. Full damage/ailments/death,
+[Selected Ballroom Mask](player-ballroom-mask.md) now applies its original
+conditional reduction after absorption and before defense/poison/stone/reaction
+selection. Remaining special equipment still needs actual owners. This batch does
+not replace the selected physical-damage adapter or close the remaining injury reactions. [Queued contact numbers](player-contact-numbers.md)
+now serve selected hurt/lethal/stone results through their actual shared owner. Full damage/ailments/death,
 equipment/familiars/sharing, Alucard, castle and console parity remain unfinished.
 
 ## Validation and evidence

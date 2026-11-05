@@ -114,7 +114,7 @@ static bool Simulation(Fixture *f)
     CHECK(!SotnSound_Queue(a, 0x600) && !SotnSound_Queue(a, 0x8e1));
     for (Uint32 i = 0; i < 256; i++)
         CHECK(SotnSound_Queue(a, 0x601));
-    CHECK(!SotnSound_Queue(a, 0x601));
+    CHECK(!a->queued && a->queue_read == a->queue_write && SotnSound_Queue(a, 0x601));
     CHECK(SotnSound_Tick(a, first, SDL_arraysize(first)));
     CHECK(!SotnSound_Tick(a, first, 1));
     Put32(f->dra, 0x21ed0, 0xfffffff0);
@@ -122,6 +122,167 @@ static bool Simulation(Fixture *f)
     CHECK(!SotnSound_Tick(a, first, SDL_arraysize(first)));
     SotnSound_Destroy(a);
     SotnSound_Destroy(b);
+    return true;
+}
+
+static bool EffectRing(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    // Two distinct authored scripts make retained request order observable.
+    const size_t first = 0x1f554 + 2U * 7U;
+    SDL_memcpy(f->dra + first + 7, f->dra + first, 7);
+    f->dra[first + 7 + 1] = 1;
+    Put32(f->dra, 0x21ed4, 0x800a1000);
+    SotnSound *sound = NULL;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_Create(sources, &sound));
+    CHECK(SotnSound_QueueVolumePan(sound, 0x602, 11, -8) &&
+          SotnSound_QueueVolumePan(sound, 0x603, 90, -3) &&
+          SotnSound_QueueVolumePan(sound, 0x602, 70, 5) && SotnSound_UpdateCommands(sound, &frame));
+    CHECK(sound->scripts[0].id == 0x603 && sound->scripts[0].volume == (126U * 90U >> 7) &&
+          sound->scripts[0].pan == -3 && sound->scripts[1].id == 0x602 &&
+          sound->scripts[1].volume == (126U * 70U >> 7) && sound->scripts[1].pan == 5 &&
+          !sound->queued && sound->queue_read == 3 && sound->queue_write == 3 &&
+          !sound->queue[0].id && !sound->queue[1].id && !sound->queue[2].id);
+    SotnSound_Destroy(sound);
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint16 i = 0; i < 256; ++i)
+        CHECK(SotnSound_Queue(sound, 0x602));
+    CHECK(!sound->queued && !sound->queue_read && !sound->queue_write &&
+          SotnSound_UpdateCommands(sound, &frame) && !sound->scripts[0].id &&
+          sound->queue[0].id == 0x602 && sound->queue[255].id == 0x602 &&
+          SotnSound_QueueVolumePan(sound, 0x603, 30, -7) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].id == 0x603 &&
+          sound->scripts[0].pan == -7 && sound->queue_read == 1 && sound->queue_write == 1);
+    // Drain to index255, then look ahead across the physical end of the ring.
+    for (Uint16 i = 0; i < 254; ++i)
+        CHECK(SotnSound_Queue(sound, 0x601));
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->queue_read == 255 &&
+          sound->queue_write == 255);
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    CHECK(SotnSound_QueueVolumePan(sound, 0x602, 12, -8) && SotnSound_Queue(sound, 0x603) &&
+          SotnSound_QueueVolumePan(sound, 0x602, 100, 8) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->scripts[0].id == 0x603 &&
+          sound->scripts[1].id == 0x602 && sound->scripts[1].pan == 8 &&
+          sound->scripts[1].volume == (126U * 100U >> 7) && sound->queue_read == 2 &&
+          sound->queue_write == 2 && !sound->queued && !sound->queue[255].id);
+    const Uint8 writer = sound->queue_write;
+    CHECK(!SotnSound_QueueVolumePan(sound, 0x602, 128, 0) &&
+          !SotnSound_QueueVolumePan(sound, 0x602, 127, 9) && sound->queue_write == writer);
+    SotnSound_Destroy(sound);
+    return true;
+}
+
+static bool DirectSharing(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    // Authored direct events with distinct original IDs and priorities.
+    const Uint16 ids[] = {0x601, 0x603, 0x604, 0x605, 0x606, 0x607, 0x608, 0x609};
+    for (Uint32 i = 1; i < SDL_arraysize(ids); ++i)
+        SDL_memcpy(f->dra + 0x1f554 + (ids[i] - 0x600U) * 7U, f->dra + 0x1f55b, 7);
+    const Uint8 priorities[] = {5, 1, 5, 5, 5};
+    for (Uint32 i = 0; i < SDL_arraysize(priorities); ++i)
+        f->dra[0x1f554 + (ids[i] - 0x600U) * 7U + 6] = priorities[i];
+    SotnSound *sound = NULL;
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnSound_Queue(sound, ids[i]));
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(sound->effect_ids[i] == ids[i] && sound->registers[12 + i * 2].volumex &&
+              sound->registers[12 + i * 2].volumex == sound->voices[12 + i * 2].env_vol);
+    CHECK(SotnSound_Queue(sound, 0x606) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x606 &&
+          sound->effect_ids[2] == 0x604 && sound->effect_ids[3] == 0x605);
+    CHECK(SotnSound_Queue(sound, 0x604) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x606 &&
+          sound->effect_ids[2] == 0x604);
+    SotnSound_Destroy(sound);
+    for (Uint32 i = 0; i < 4; ++i)
+        f->dra[0x1f554 + (ids[i] - 0x600U) * 7U + 6] = i == 3 ? 5 : 10;
+    CHECK(SotnSound_Create(sources, &sound));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(SotnSound_Queue(sound, ids[i]));
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && SotnSound_Queue(sound, 0x606) &&
+          SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->effect_ids[3] == 0x605);
+    // Open-access fixture: same-ID lookup in groups0..2 does not bypass group3 priority.
+    sound->sequence_open = true;
+    CHECK(SotnSound_Queue(sound, 0x603) && SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+          sound->effect_ids[0] == 0x601 && sound->effect_ids[1] == 0x603 &&
+          sound->effect_ids[2] == 0x604 && sound->effect_ids[3] == 0x603);
+    sound->voices[18].active = sound->voices[19].active = 0;
+    CHECK(sound->registers[18].volumex && SotnSound_Queue(sound, 0x606) &&
+          SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->effect_ids[3] == 0x603);
+    // Conversely, zero actual envelope words free the lease before this effect pass,
+    // even when the supplied decoder-active flag is still set.
+    sound->registers[18].volumex = sound->registers[19].volumex = 0;
+    sound->voices[18].active = 1;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_Queue(sound, 0x606) && SotnSound_UpdateCommands(sound, &frame) &&
+          sound->effect_ids[3] == 0x606 && sound->effect_ids[0] == 0x601);
+    f->dra[0x1f554 + 7U * 7U + 4] = 3;
+    f->dra[0x1f554 + 8U * 7U + 4] = 1;
+    f->dra[0x1f554 + 9U * 7U + 4] = 2;
+    CHECK(SotnSound_QueueVolumePan(sound, 0x607, 64, -3) && SotnSound_Queue(sound, 0x608) &&
+          SotnSound_UpdateCommands(sound, &frame) && sound->ambience_id20 == 0x607 &&
+          sound->ambience_volume20 == 64 && sound->ambience_pan20 == -3 &&
+          sound->ambience_id == 0x608 && sound->ambience_volume22 == 127 && !sound->ambience_pan22);
+    sound->registers[22].adsr[1] |= 63;
+    CHECK(SotnSound_Queue(sound, 0x609) && SotnSound_UpdateCommands(sound, &frame) &&
+          !sound->ambience_id && (sound->registers[22].adsr[1] & 63U) == 8 &&
+          (sound->registers[23].adsr[1] & 63U) == 8);
+    CHECK(SotnSound_Queue(sound, 0xa1) && SotnSound_UpdateCommands(sound, &frame) &&
+          !sound->ambience_id20 && (sound->registers[20].adsr[1] & 63U) == 14 &&
+          sound->ambience_volume20 == 64 && sound->ambience_pan20 == -3);
+    SoundReleaseAll(sound);
+    CHECK(!sound->ambience_id20 && !sound->effect_ids[0] && !sound->effect_ids[1] &&
+          !sound->effect_ids[2] && !sound->effect_ids[3] && sound->ambience_volume20 == 64 &&
+          sound->ambience_pan20 == -3 && sound->ambience_volume22 == 127);
+    SoundResetStopped(sound);
+    CHECK(!sound->ambience_volume20 && !sound->ambience_pan20 && !sound->ambience_volume22 &&
+          !sound->ambience_pan22);
+    SotnSound_Destroy(sound);
+    return true;
+}
+
+static bool ScriptVoiceRange(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_Create(sources, &sound));
+    sound->scripts[0] = (SoundScript){.id = 0x602, .address = 0x800a1000, .volume = 127};
+    sound->scripts[1] = (SoundScript){.id = 0x603, .address = 0x800a1000, .volume = 127};
+    sound->registers[0].volumex = sound->registers[3].volumex = 123;
+    sound->registers[4].volumex = sound->registers[6].volumex = 123;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[2].active &&
+          sound->voices[0].active && !sound->voices[4].active && sound->key_status[0] == 2 &&
+          !sound->key_status[2] && sound->key_status[3] == 2 && !sound->registers[0].volumex &&
+          !sound->script_voice_cursor);
+    // Group0 chose its second pair, wrapping the shared cursor to0. Busy group1
+    // then used that same global cursor outside its own range.
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    sound->scripts[2] = (SoundScript){.id = 0x604, .address = 0x800a1000, .volume = 127};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[8].active &&
+          sound->script_voice_cursor == 10);
+    SDL_memset(sound->scripts, 0, sizeof(sound->scripts));
+    sound->scripts[0] = (SoundScript){.id = 0x605, .address = 0x800a1000, .volume = 127};
+    sound->registers[0].volumex = sound->registers[2].volumex = 123;
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && sound->voices[10].active &&
+          sound->script_voice_cursor == 10);
+    SoundReleaseAll(sound);
+    SoundResetStopped(sound);
+    CHECK(sound->script_voice_cursor == 10 && sound->key_status[0] == 2);
+    // The fourth range also retains that cursor when both of its own pairs are busy.
+    sound->sequence_open = true;
+    sound->scripts[3] = (SoundScript){.id = 0x606, .address = 0x800a1000, .volume = 127};
+    sound->registers[14].volumex = sound->registers[16].volumex = 123;
+    sound->registers[10].pitch = 777;
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && frame.first_script == 3 &&
+          sound->registers[10].pitch != 777 && sound->script_voice_cursor == 10 &&
+          sound->key_status[14] == 2 && sound->key_status[16] == 2);
+    SotnSound_Destroy(sound);
     return true;
 }
 
@@ -250,7 +411,7 @@ static bool MovingAmbience(Fixture *f)
     CHECK(audible > 100);
     for (Uint32 i = 0; i < 256; ++i)
         CHECK(SotnSound_QueueAmbienceVolume(a, 64, 0));
-    CHECK(!SotnSound_QueueAmbienceVolume(a, 64, 0));
+    CHECK(!a->queued && a->queue_read == a->queue_write && SotnSound_QueueAmbienceVolume(a, 64, 0));
     CHECK(SotnSound_Tick(a, one, SDL_arraysize(one)));
     SotnSound_Destroy(a);
     SotnSound_Destroy(b);
@@ -357,6 +518,7 @@ static bool ScriptPauseQueue(Fixture *f)
     {
         s->voices[i].env_state = ADSR_OFF;
         s->voices[i].env_vol = 0;
+        s->registers[i].volumex = 0;
     }
     CHECK(SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) && !s->scripts[0].allocation_id);
     SotnSound_Destroy(s);
@@ -366,12 +528,15 @@ static bool ScriptPauseQueue(Fixture *f)
     s->scripts[0] = (SoundScript){.allocation_id = 1, .priority = 2};
     s->scripts[1] = (SoundScript){.allocation_id = 2, .priority = 1};
     s->scripts[2] = (SoundScript){.allocation_id = 3, .priority = 2};
+    // Actual SDK key-status words retain these ended cursor leases before allocation.
+    s->registers[0].volumex = s->registers[4].volumex = s->registers[8].volumex = 1;
     CHECK(SotnSound_Queue(s, 0x602) && SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) &&
           s->scripts[1].id == 0x602 && !s->scripts[0].id && !s->scripts[2].id);
     SotnSound_Destroy(s);
     CHECK(SotnSound_Create(source, &s));
     /* Authored engine selection fixture; no SEQ/hardware parity is implied. */
     s->sequence.playing = true;
+    s->sequence_open = true;
     CHECK(SotnSound_Queue(s, 0x602) && SotnSound_Tick(s, pcm, SDL_arraysize(pcm)) &&
           s->scripts[3].id == 0x602 && !s->scripts[0].id &&
           (s->voices[14].active || s->voices[16].active));
@@ -382,14 +547,314 @@ static bool ScriptPauseQueue(Fixture *f)
     SotnSound_Destroy(s);
     return true;
 }
+static bool FamiliarBank(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    Put32(f->dra, 0x1d1d0, 0x4000);
+    SotnSound *sound = NULL, *before = SDL_malloc(sizeof(*before));
+    CHECK(before && SotnSound_Create(sources, &sound) && SotnSound_Queue(sound, 0x601));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)));
+    *before = *sound;
+    SotnSound *candidate = NULL;
+    CHECK(SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                        &candidate) &&
+          candidate && !SDL_memcmp(sound, before, sizeof(*sound)) && candidate->banks[2].loaded &&
+          !sound->banks[2].loaded);
+    Sint16 candidate_pcm[SOTN_SOUND_FRAMES * 2] = {0};
+    for (Uint16 tick = 0; tick < 8; ++tick)
+        CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) &&
+              SotnSound_Tick(candidate, candidate_pcm, SDL_arraysize(candidate_pcm)) &&
+              !SDL_memcmp(pcm, candidate_pcm, sizeof(pcm)));
+    SotnSound_Destroy(sound);
+    sound = candidate;
+    candidate = NULL;
+    *before = *sound;
+    CHECK(SotnSound_SetFamiliarBank(sound, sources.player_header, sources.player_body) &&
+          sound->banks[2].loaded && sound->banks[2].address == 0x4000 &&
+          sound->banks[2].samples[1] == 0x4000 &&
+          !SDL_memcmp(sound->ram + 0x4000, f->body, sizeof(f->body)) &&
+          !SDL_memcmp(sound->ram, before->ram, 0x4000) &&
+          !SDL_memcmp(sound->ram + 0x4020, before->ram + 0x4020, sizeof(sound->ram) - 0x4020) &&
+          !SDL_memcmp(sound->voices, before->voices, sizeof(sound->voices)) &&
+          !SDL_memcmp(sound->registers, before->registers, sizeof(sound->registers)) &&
+          !SDL_memcmp(sound->scripts, before->scripts, sizeof(sound->scripts)) &&
+          !SDL_memcmp(sound->queue, before->queue, sizeof(sound->queue)));
+    for (Uint16 id = 0; id < 4; ++id)
+        if (id != 2)
+            CHECK(!SDL_memcmp(&sound->banks[id], &before->banks[id], sizeof(SoundBank)));
+    Uint8 malformed[sizeof(f->header)] = {0};
+    SDL_memcpy(malformed, f->header, sizeof(malformed));
+    Put16(malformed, 2594, 6);
+    *before = *sound;
+    CHECK(!SotnSound_PrepareFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
+                                         sources.player_body, &candidate) &&
+          !candidate && !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_PrepareFamiliarBank(sound, sources.player_header, (SotnDataView){0},
+                                         &candidate) &&
+          !candidate && !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_SetFamiliarBank(sound, (SotnDataView){malformed, sizeof(malformed)},
+                                     sources.player_body) &&
+          !SDL_memcmp(sound, before, sizeof(*sound)) &&
+          !SotnSound_SetFamiliarBank(sound, sources.player_header, (SotnDataView){0}) &&
+          !SDL_memcmp(sound, before, sizeof(*sound)));
+    CHECK(SoundKey(sound, 14, 2, 0, 0, 60, 127, 64) &&
+          sound->registers[14].start_addr == 0x4000 / 8 && sound->voices[14].active);
+    SotnSound_Destroy(sound);
+    SDL_free(before);
+    return true;
+}
+static void ReverbCoefficients(Uint8 bytes[64])
+{
+    // Authored impulse profile, unrelated to the game's private Studio B coefficients.
+    const Uint16 values[32] = {1, 1, 16384, 32767, 0, 0, 0,  8192, 16384, 16384, 2,
+                               3, 2, 3,     2,     3, 2, 3,  4,    5,     2,     3,
+                               2, 3, 4,     5,     8, 9, 12, 13,   32767, 32767};
+    for (Uint32 i = 0; i < 32; ++i)
+        Put16(bytes, i * 2, values[i]);
+}
+static bool ReverbProcessor(void)
+{
+    Uint8 coefficients[64];
+    ReverbCoefficients(coefficients);
+    const Uint32 base = SOTN_SPU_RAM_SIZE - 4096;
+    Uint8 *ram = SDL_malloc(SOTN_SPU_RAM_SIZE), *before = SDL_malloc(SOTN_SPU_RAM_SIZE);
+    CHECK(ram && before);
+    SDL_memset(ram, 0x5a, SOTN_SPU_RAM_SIZE);
+    SDL_memset(ram + base, 0, SOTN_SPU_RAM_SIZE - base);
+    SotnReverb r = {0};
+    CHECK(SoundReverb_Configure(&r, base, (SotnDataView){coefficients, 64}) &&
+          SoundReverb_SetDepth(&r, 127, -127) && r.depth[0] == 32767 && r.depth[1] == -32767);
+    CHECK(SoundReverb_SetDepth(&r, 128, -128) && r.depth[0] == -32511 && r.depth[1] == 32511);
+    CHECK(SoundReverb_SetDepth(&r, 127, 127));
+    const SotnReverb held = r;
+    CHECK(!SoundReverb_Configure(&r, base + 1, (SotnDataView){coefficients, 64}) &&
+          !SDL_memcmp(&r, &held, sizeof(r)));
+    Put16(coefficients, 20, 0xffff);
+    CHECK(!SoundReverb_Configure(&r, base, (SotnDataView){coefficients, 64}) &&
+          !SDL_memcmp(&r, &held, sizeof(r)));
+    ReverbCoefficients(coefficients);
+    Uint32 audible = 0;
+    for (Uint32 i = 0; i < 20000; ++i)
+    {
+        if (i == 1000)
+            CHECK(SoundReverb_SetDepth(&r, 0, 0));
+        Sint32 output[2];
+        SoundReverb_Tick(&r, ram, i ? 0 : 32767, i ? 0 : -32768, output);
+        if (i < 1000)
+            audible += output[0] != 0 || output[1] != 0;
+        else
+            CHECK(!output[0] && !output[1]);
+    }
+    CHECK(audible && !r.phase && r.cursor == base + 20000 % 4096);
+    for (Uint32 i = 0; i < base; ++i)
+        CHECK(ram[i] == 0x5a);
+    SDL_memcpy(before, ram, SOTN_SPU_RAM_SIZE);
+    const Uint32 cursor = r.cursor;
+    r.enabled = false;
+    for (Uint32 i = 0; i < 16; ++i)
+    {
+        Sint32 output[2];
+        SoundReverb_Tick(&r, ram, 32767, -32768, output);
+    }
+    CHECK(!SDL_memcmp(before, ram, SOTN_SPU_RAM_SIZE) && r.cursor == cursor + 16 && !r.phase);
+    SDL_free(before);
+    SDL_free(ram);
+    return true;
+}
+static bool ReverbOwner(Fixture *f)
+{
+    SotnSoundSources sources = MakeFixture(f);
+    f->header[2081] = 4;
+    Put32(f->dra, 0x1d1d0, 0x4000);
+    SotnSound *sound = NULL, *candidate = NULL, *held = SDL_malloc(sizeof(*held));
+    Uint8 *image = SDL_calloc(1, 0x24000);
+    CHECK(held && image && SotnSound_Create(sources, &sound));
+    const Uint32 base = SOTN_SPU_RAM_SIZE - 4096;
+    const size_t record = 0x23db8 + 3 * 68;
+    Put32(image, 0x23d68 + 3 * 4, base / 8);
+    ReverbCoefficients(image + record + 4);
+    SDL_memset(sound->ram + base, 0xa5, 4096);
+    *held = *sound;
+    CHECK(!SotnSound_ConfigureReverb(sound, (SotnDataView){image, record + 67}) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
+          sound->reverb.configured && sound->reverb.enabled && sound->reverb.cursor == base &&
+          !sound->reverb.phase && sound->reverb.depth[0] == 2580 &&
+          !SDL_memcmp(sound->ram, held->ram, base));
+    for (Uint32 i = base; i < SOTN_SPU_RAM_SIZE; ++i)
+        CHECK(!sound->ram[i]);
+    *held = *sound;
+    CHECK(!SotnSound_ConfigureReverb(sound, (SotnDataView){image, 0x24000}) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SoundKey(sound, 14, 1, 0, 0, 60, 127, 64) && sound->reverb_voices == (1U << 14));
+    *held = *sound;
+    held->reverb.configured = false; // Independent dry rendering of the same actual voice state.
+    Uint32 different = 0;
+    for (Uint32 i = 0; i < 16; ++i)
+    {
+        Sint16 wet[SOTN_SOUND_FRAMES * 2], dry[SOTN_SOUND_FRAMES * 2];
+        CHECK(SotnSound_Tick(sound, wet, SDL_arraysize(wet)) &&
+              SotnSound_Tick(held, dry, SDL_arraysize(dry)));
+        for (Uint32 j = 0; j < SDL_arraysize(wet); ++j)
+            different += wet[j] != dry[j];
+    }
+    CHECK(different && sound->reverb.cursor == base + (16 * SOTN_SOUND_FRAMES) % 4096 &&
+          !sound->reverb.phase &&
+          SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                        &candidate) &&
+          !SDL_memcmp(&sound->reverb, &candidate->reverb, sizeof(sound->reverb)) &&
+          !SDL_memcmp(sound->ram + base, candidate->ram + base, 4096));
+    SotnSound_Destroy(candidate);
+    candidate = NULL;
+    Put32(f->dra, 0x1d1d0, base);
+    *held = *sound;
+    CHECK(!SotnSound_PrepareFamiliarBank(sound, sources.player_header, sources.player_body,
+                                         &candidate) &&
+          !candidate && !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SoundKey(sound, 14, 0, 0, 0, 60, 127, 64) && !sound->reverb_voices);
+    SotnSound_Destroy(sound);
+    SDL_free(held);
+    SDL_free(image);
+    return true;
+}
+static bool FramePhases(Fixture *f)
+{
+    SotnSoundSources sources = MakeFixture(f);
+    SotnSound *sound = NULL, *held = SDL_malloc(sizeof(*held));
+    Uint8 *image = SDL_calloc(1, 0x24000);
+    CHECK(held && image && SotnSound_Create(sources, &sound));
+    Uint8 seq[19] = {'p', 'Q', 'E', 'S', 0, 0, 0, 1, 0, 60, 7, 0xa1, 0x20, 4, 2, 0, 0xff, 0x2f, 0};
+    CHECK(SotnSound_SetStageSequence(sound, (SotnDataView){image, 0x24000},
+                                     (SotnDataView){seq, sizeof(seq)}, 0x202) &&
+          SotnSound_PlaySequence(sound, 0x202));
+    for (Uint32 i = 0; i < 24; ++i)
+        sound->voices[i].env_state = ADSR_OFF; // Previously played voices have finished.
+    sound->scripts[0].allocation_id = 0x601;
+    sound->scripts[0].priority = 7;
+    sound->scripts[3].allocation_id = 0x602;
+    sound->scripts[3].priority = 8;
+    SotnSoundFrame frame = {0};
+    CHECK(SotnSound_UpdateCommands(sound, &frame) && frame.owner == sound &&
+          frame.first_script == 3 && frame.end_script == 4 && !sound->sequence.playing);
+    // EOT retains the original DRA SEQ access and fourth-channel gate until StopSeq.
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    *held = *sound;
+    SotnSoundFrame wrong = frame;
+    wrong.owner = held;
+    CHECK(!SotnSound_RenderFrame(sound, wrong, pcm, SDL_arraysize(pcm)) &&
+          !SDL_memcmp(sound, held, sizeof(*held)) && !SotnSound_RenderFrame(sound, frame, pcm, 1) &&
+          !SDL_memcmp(sound, held, sizeof(*held)));
+    CHECK(SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)) &&
+          sound->scripts[0].allocation_id == 0x601 && sound->scripts[0].priority == 7 &&
+          !sound->scripts[3].allocation_id && !sound->scripts[3].priority);
+    CHECK(SotnSound_Tick(sound, pcm, SDL_arraysize(pcm)) && sound->sequence_open &&
+          sound->scripts[0].allocation_id == 0x601 && sound->scripts[0].priority == 7);
+    SotnSound_StopSequence(sound);
+    CHECK(!sound->sequence_open && !sound->scripts[0].allocation_id &&
+          SotnSound_UpdateCommands(sound, &frame) && !frame.first_script && frame.end_script == 3 &&
+          SotnSound_RenderFrame(sound, frame, pcm, SDL_arraysize(pcm)));
+    SotnSound_Destroy(sound);
+    SDL_free(held);
+    SDL_free(image);
+    return true;
+}
+static bool ResidentBanks(Fixture *fixture)
+{
+    (void)MakeFixture(fixture);
+    Uint8 *image = SDL_calloc(1, 0x119870), *before = SDL_malloc(0x119870);
+    CHECK(image && before);
+    SDL_memcpy(image, fixture->dra, sizeof(fixture->dra));
+    const Uint32 headers[4] = {0x1107c, 0x1407c, 0x1807c, 0x1607c},
+                 bodies[4] = {0x9b6a0, 0xdd350, 0x109c80, 0xeb4e0};
+    const Uint32 addresses[4] = {0x1000, 0x43000, 0x52000, 0x62000};
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        SDL_memcpy(image + headers[i], fixture->header, sizeof(fixture->header));
+        SDL_memcpy(image + bodies[i], fixture->body, sizeof(fixture->body));
+        image[bodies[i] + 2] = (Uint8)(i + 1);
+        Put32(image, 0x1d1c8 + i * 4U, addresses[i]);
+    }
+    SDL_memcpy(before, image, 0x119870);
+    SotnSound *sound = NULL;
+    CHECK(SotnSound_CreateResident((SotnDataView){image, 0x119870}, &sound) && sound &&
+          !SDL_memcmp(image, before, 0x119870));
+    for (Uint16 i = 0; i < 4; ++i)
+        CHECK(sound->banks[i].loaded && sound->banks[i].header.bytes == image + headers[i] &&
+              sound->banks[i].sample_count == 1 && sound->banks[i].samples[1] == addresses[i] &&
+              sound->ram[addresses[i] + 2] == i + 1);
+    SotnSound_Destroy(sound);
+    sound = NULL;
+    // Bank3 is the fourth real upload, despite its earlier header location.
+    Put32(image, headers[3], 0);
+    CHECK(!SotnSound_CreateResident((SotnDataView){image, 0x119870}, &sound) && !sound);
+    Put32(image, headers[3], 0x56414270);
+    CHECK(!SotnSound_CreateResident((SotnDataView){image, 0x11986f}, &sound) && !sound &&
+          !SotnSound_CreateResident((SotnDataView){image, 0x119870}, NULL));
+    SDL_free(before);
+    SDL_free(image);
+    return true;
+}
+
+static bool StagePreparation(Fixture *f)
+{
+    const SotnSoundSources sources = MakeFixture(f);
+    SotnSound *source = NULL, *next = NULL, *before = SDL_malloc(sizeof(*before)),
+              *masked = SDL_malloc(sizeof(*masked));
+    CHECK(before && masked && SotnSound_Create(sources, &source));
+    Sint16 pcm[SOTN_SOUND_FRAMES * 2];
+    CHECK(SotnSound_Queue(source, 0x601) && SotnSound_Tick(source, pcm, SDL_arraysize(pcm)) &&
+          SotnSound_Queue(source, 0xe));
+    // Retained DSP and reverb work must survive preparation without one sample or command tick.
+    source->reverb.configured = true;
+    source->reverb.base = 0x70000;
+    source->reverb.cursor = 0x70102;
+    source->reverb.previous[0] = 1234;
+    source->ram[0x70102] = 71;
+    SDL_memcpy(before, source, sizeof(*before));
+    Uint8 player[32], stage[32], invalid[3104] = {0};
+    SDL_memset(player, 0x25, sizeof(player));
+    SDL_memset(stage, 0x37, sizeof(stage));
+    CHECK(!SotnSound_PrepareStageBanks(
+              source, sources.player_header, (SotnDataView){player, sizeof(player)},
+              (SotnDataView){invalid, sizeof(invalid)}, sources.stage_body, &next) &&
+          !next && !SDL_memcmp(before, source, sizeof(*before)));
+    CHECK(SotnSound_PrepareStageBanks(source, sources.player_header,
+                                      (SotnDataView){player, sizeof(player)}, sources.stage_header,
+                                      (SotnDataView){stage, sizeof(stage)}, &next) &&
+          next && next != source && !SDL_memcmp(before, source, sizeof(*before)) &&
+          !SDL_memcmp(next->ram + 0x2000, player, sizeof(player)) &&
+          !SDL_memcmp(next->ram + 0x3000, stage, sizeof(stage)) &&
+          next->banks[1].header.bytes == sources.player_header.bytes &&
+          next->banks[3].header.bytes == sources.stage_header.bytes);
+    SDL_memcpy(masked, next, sizeof(*masked));
+    SDL_memcpy(masked->ram + 0x2000, before->ram + 0x2000, sizeof(player));
+    SDL_memcpy(masked->ram + 0x3000, before->ram + 0x3000, sizeof(stage));
+    SDL_memcpy(&masked->banks[1], &before->banks[1], sizeof(masked->banks[1]));
+    SDL_memcpy(&masked->banks[3], &before->banks[3], sizeof(masked->banks[3]));
+    CHECK(!SDL_memcmp(masked, before, sizeof(*before)));
+    SDL_free(masked);
+    masked = NULL;
+    CHECK(!SotnSound_PrepareStageBanks(NULL, sources.player_header, sources.player_body,
+                                       sources.stage_header, sources.stage_body, &masked) &&
+          !masked);
+    // The invalid call clears only its out parameter, never the prepared candidate.
+    SotnSound_Destroy(next);
+    SotnSound_Destroy(source);
+    SDL_free(before);
+    return true;
+}
+
 int main(void)
 {
     Fixture *f = SDL_calloc(1, sizeof(*f));
     if (f == NULL)
         return 1;
-    const bool passed = Decode() && Simulation(f) && Ambience(f) && VolumePan(f) &&
-                        MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
-                        ScriptPauseQueue(f);
+    const bool passed = ResidentBanks(f) && StagePreparation(f) && Decode() && Simulation(f) &&
+                        EffectRing(f) && DirectSharing(f) && ScriptVoiceRange(f) && Ambience(f) &&
+                        VolumePan(f) && MovingAmbience(f) && Failures(f) && ScriptPauseState() &&
+                        ScriptPauseQueue(f) && FamiliarBank(f) && ReverbProcessor() &&
+                        ReverbOwner(f) && FramePhases(f);
     SDL_free(f);
     if (!passed)
         return 1;

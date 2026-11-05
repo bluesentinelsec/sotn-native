@@ -104,11 +104,13 @@ static bool Playback(Fixture *f)
           s->registers[0].right == 163);
     for (Uint16 i = 0; i < 200 && s->sequence.playing; ++i)
         CHECK(SotnSound_Tick(s, pcm, SDL_arraysize(pcm)));
-    CHECK(!s->sequence.playing && s->registers[0].pitch == 4096 && s->voices[0].key_off);
+    CHECK(!s->sequence.playing && s->sequence_open && s->registers[0].pitch == 4096 &&
+          s->voices[0].key_off);
     CHECK(SotnSound_PlaySequence(s, 0x202) && SotnSound_Tick(s, pcm, SDL_arraysize(pcm)));
     CHECK(SoundKey(s, 20, 3, 0, 0, 60, 127, 64));
     SotnSound_StopSequence(s);
-    CHECK(!s->sequence.playing && !s->voices[20].key_off);
+    CHECK(!s->sequence.playing && !s->sequence_open && s->voices[20].key_off &&
+          (s->registers[20].adsr[1] & 63U) == 8);
     for (Uint16 i = 0; i < 16; ++i)
         if (s->sequence_voices[i].sequence)
             CHECK(s->voices[i].key_off);
@@ -135,7 +137,7 @@ static bool Pool(Fixture *f)
     // A direct effect key invalidates only the sequence note on its hardware voice.
     CHECK(SoundKey(s, 7, 3, 0, 0, 60, 127, 64) && !s->sequence_voices[7].sequence);
     SotnSound_StopSequence(s);
-    CHECK(!s->voices[7].key_off);
+    CHECK(s->voices[7].key_off && !s->sequence_open);
     f->dra[0x1d1e8] = 0x20;
     CHECK(!SotnSound_PlaySequence(s, 0x202));
     SotnSound_Destroy(s);

@@ -25,7 +25,11 @@ Sequence voices share the original selected sixteen-voice allocation range with
 fixed effects. Tone note ranges, priority/envelope/age selection, original pitch
 rounding, tone/program/channel/sequence gain and stereo pan remain explicit.
 A direct effect key retires the previous sequence binding on that hardware voice;
-stopping a sequence releases only its current notes. The retirement service retains the SDK's original fifteen-bin intersection in a
+a natural event-stream end releases only its current notes. The original SEQ
+access remains open after that end. Explicit StopSeq closes it, applies RR8/key-off
+to all24 voices and clears current scripts/allocation identities while retaining
+paused copies and pending effects. See [bound master fades](familiar-cd-audio.md).
+The retirement service retains the SDK's original fifteen-bin intersection in a
 sixteen-bin envelope history, including its skipped final bin. Release clears the
 allocation claim while retaining the identity for subsequent channel updates.
 Envelope sampling occurs once per service tick; exact hardware flush/steal timing,

@@ -97,7 +97,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 9);
+    Put32(record + 8, 10);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -119,6 +119,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     SDL_memcpy(record + 3616, state.character.spells, SOTN_SPELLS);
     record[3624] = state.world.game_clear;
     Put32(record + 3628, state.world.cutscenes_seen);
+    Put32(record + 3632, state.character.muramasa_blood);
     Put32(record + SOTN_SAVE_BYTES - 4, Checksum(record, SOTN_SAVE_BYTES - 4));
     SDL_memcpy(bytes, record, sizeof(record));
     return true;
@@ -175,7 +176,7 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         return SDL_SetError("Save is not a native record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
     if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 &&
-        version != 6 && version != 7 && version != 8 && version != 9)
+        version != 6 && version != 7 && version != 8 && version != 9 && version != 10)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
     const size_t expected = version >= 4   ? SOTN_SAVE_BYTES
@@ -202,7 +203,8 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         {
             if (!Zeroes(bytes, 3442, 3448) || !Zeroes(bytes, 3478, 3480) ||
                 !Zeroes(bytes,
-                        version >= 9   ? 3632U
+                        version >= 10  ? 3636U
+                        : version >= 9 ? 3632U
                         : version >= 8 ? 3625U
                                        : 3612U,
                         4092) ||
@@ -218,6 +220,9 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                 state.world.game_clear = bytes[3624];
                 if (version >= 9)
                     state.world.cutscenes_seen = Read32(bytes + 3628);
+                // v10 adds Muramasa's g_Status.D_80097C40; v9 and earlier migrate to zero.
+                if (version >= 10)
+                    state.character.muramasa_blood = Read32(bytes + 3632);
             }
         }
         else

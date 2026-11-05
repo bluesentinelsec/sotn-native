@@ -516,6 +516,115 @@ static bool TestWolfContact(Fixture *f)
     return true;
 }
 
+static bool TestSwordContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnBatRuntime runtime = {.sword_mask = 6};
+    runtime.children[1] = (SotnBatRuntimeChild){.source = {.x = 160 * 65536, .y = 140 * 65536},
+                                                .kind = 0xe2,
+                                                .generation = 11,
+                                                .initialized = true,
+                                                .state.sword.attack = {.power = 3,
+                                                                       .width = 32,
+                                                                       .height = 32,
+                                                                       .equipment = 197,
+                                                                       .hit_type = 2,
+                                                                       .invincibility_frames = 8,
+                                                                       .active = true}};
+    runtime.children[2] = runtime.children[1];
+    runtime.children[2].kind = 0xf2;
+    runtime.children[2].generation = 12;
+    CHECK(SotnActors_SetBatRuntime(actors, &runtime));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9);
+    // Both hands' strikes retain the actual parent's original enemyId0 cooldown.
+    ++runtime.children[1].generation;
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        CHECK(SotnActors_Tick(actors, player, 0, 0));
+        CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 9);
+    }
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 6);
+    // Original group1 (left hand) is independent of the retained group0 interval.
+    player.x = 160 * 65536;
+    player.attack = (SotnPlayerAttack){.power = 1,
+                                       .width = 32,
+                                       .height = 32,
+                                       .hit_type = 2,
+                                       .invincibility_frames = 8,
+                                       .active = true};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 5);
+    CHECK(SotnActors_SetBatRuntime(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
+// collision.h writes the attacker's hitFlags on overlap before the hit-state-4 guard: Shield
+// rod's orb learns of the contact (and shrinks) while the enemy keeps its HP.
+static bool TestGuardContact(Fixture *f)
+{
+    const SotnCollisionMap map = MakeCombatFixture(f);
+    // The enemy's hitboxState gains bit4, which a hit-state-4 attacker requires to overlap.
+    Put16(f->dra, 0x234, 7);
+    SotnActors *actors = NULL;
+    SotnActorLayout *layout = NULL;
+    CHECK(SotnActors_Create((SotnDataView){f->dra, sizeof(f->dra)},
+                            (SotnDataView){f->nz0, sizeof(f->nz0)}, &actors));
+    CHECK(SotnActorLayout_Open((SotnDataView){f->nz0, sizeof(f->nz0)}, 0, &layout));
+    CHECK(SotnActors_Enter(actors, layout, map, 0, 0));
+    const SotnPlayerState player = {.x = 10 * 65536, .y = 140 * 65536};
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    SotnActorState enemy = {0};
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 12);
+    SotnBatRuntime runtime = {.secondary_mask = 2};
+    SotnBatRuntimeChild *orb = &runtime.children[1];
+    *orb = (SotnBatRuntimeChild){.source = {.x = 160 * 65536, .y = 140 * 65536},
+                                 .kind = 0xe1,
+                                 .parameter = 0x100,
+                                 .generation = 9,
+                                 .group = 3,
+                                 .initialized = true,
+                                 .weapon_secondary = true};
+    orb->state.secondary.family = 7;
+    orb->state.secondary.parent_slot = 16;
+    orb->state.secondary.motion = (SotnWeaponSecondary){.x = 160 * 65536,
+                                                        .y = 140 * 65536,
+                                                        .flags = 0x08100000U,
+                                                        .parameter = 0x100,
+                                                        .phase = 2,
+                                                        .role = 1,
+                                                        .allocated = true,
+                                                        .hitbox_state = 4};
+    orb->state.secondary.attack = (SotnPlayerAttack){.power = 1,
+                                                     .width = 32,
+                                                     .height = 32,
+                                                     .hit_type = 4,
+                                                     .hit_effect = 1,
+                                                     .invincibility_frames = 4,
+                                                     .active = true};
+    CHECK(SotnBatRuntime_SecondaryValid(orb, 1) && SotnActors_SetBatRuntime(actors, &runtime));
+    CHECK(SotnActors_Tick(actors, player, 0, 0));
+    CHECK(SotnActors_Get(actors, 3, &enemy) && enemy.hit_points == 12 &&
+          orb->state.secondary.motion.hit_flags == 1);
+    Put16(f->dra, 0x234, 3);
+    CHECK(SotnActors_SetBatRuntime(actors, NULL));
+    SotnActors_Destroy(actors);
+    SotnActorLayout_Close(layout);
+    return true;
+}
+
 static bool TestBatFireContact(Fixture *f)
 {
     const SotnCollisionMap map = MakeCombatFixture(f);
@@ -643,8 +752,9 @@ int main(void)
     const bool passed =
         TestBehaviors(fixture) && TestCombat(fixture) && TestEquipmentPickup(fixture) &&
         TestExperienceReward(fixture) && TestKickContact(fixture) && TestGasContact(fixture) &&
-        TestWingContact(fixture) && TestWolfContact(fixture) && TestBatFireContact(fixture) &&
-        TestEchoContact(fixture) && TestFailures(fixture);
+        TestWingContact(fixture) && TestWolfContact(fixture) && TestSwordContact(fixture) &&
+        TestBatFireContact(fixture) && TestEchoContact(fixture) && TestGuardContact(fixture) &&
+        TestFailures(fixture);
     SDL_free(fixture);
     if (!passed)
         return 1;

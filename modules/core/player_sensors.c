@@ -715,6 +715,8 @@ static void CollideStep(SotnPlayer *player)
     }
     CheckWallRight(player);
     CheckWallLeft(player);
+    if (!player->failed)
+        player->wall_snapshot_owned = true;
     if (((player->contact & 4) && player->vx > 0) || ((player->contact & 8) && player->vx < 0))
         player->x.parts.low = 0;
     if ((player->contact & 0x8000) || !(player->floor[1].effects & SOTN_EFFECT_SOLID) ||
@@ -726,6 +728,7 @@ static void CollideStep(SotnPlayer *player)
 void SotnPlayer_Collide(SotnPlayer *p)
 {
     if (p->vx > -2 * 65536 && p->vx < 2 * 65536 && p->step != SOTN_PLAYER_HIGH_JUMP &&
+        p->step != SOTN_PLAYER_BAT && p->step != SOTN_PLAYER_UNMORPH_BAT &&
         p->step != SOTN_PLAYER_WOLF && p->step != SOTN_PLAYER_UNMORPH_WOLF)
     {
         CollideStep(p);

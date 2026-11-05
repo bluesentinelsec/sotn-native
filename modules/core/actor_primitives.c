@@ -91,14 +91,122 @@ bool SotnActors_PrimitiveSlots(const SotnActors *s, SotnPrimitiveSlots *out)
     *out = slots;
     return true;
 }
+static bool FairyLease(const SotnFairyEffectLease *lease, SotnPrimitiveSlots *rows)
+{
+    if (!lease || !rows || !lease->generation || lease->slot < 5 || lease->slot > 7 ||
+        (lease->identity != 0xdd && lease->identity != 0xdf) ||
+        (lease->identity == 0xdd ? lease->count != SOTN_FAIRY_APPLE_ROWS
+                                 : lease->count < 2 || lease->count > SOTN_FAIRY_ITEM_ROWS))
+        return SDL_SetError("Fairy effect lease requires its actual DD/DF slot/generation/rows");
+    SotnPrimitiveSlots used = {0};
+    for (Uint16 i = 0; i < lease->count; ++i)
+    {
+        const Uint16 id = lease->rows[i];
+        if (id >= SOTN_PRIMITIVE_SLOTS || (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))))
+            return SDL_SetError("Fairy effect lease contains a duplicate or out-of-range row");
+        used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
+    *rows = used;
+    return true;
+}
+static Uint16 FairyTag(const SotnFairyEffectLease *lease)
+{
+    return (Uint16)(0x8000U | (Uint16)(lease->slot << 8) | lease->identity);
+}
+bool SotnActors_CommitFairyEffect(SotnActors *s, const SotnFairyEffectLease *before,
+                                  const SotnFairyEffectLease *after)
+{
+    if (!s || (!before && !after) || (before && after && before->slot != after->slot))
+        return SDL_SetError("Fairy effect commit requires one actual event slot and stage pool");
+    SotnPrimitiveSlots old_rows = {0}, next_rows = {0};
+    if ((before && !FairyLease(before, &old_rows)) || (after && !FairyLease(after, &next_rows)))
+        return false;
+    const Uint16 slot = before ? before->slot : after->slot;
+    if (before && after && before->generation == after->generation &&
+        (before->identity != after->identity || before->count != after->count ||
+         SDL_memcmp(before->rows, after->rows, before->count * sizeof(*before->rows))))
+        return SDL_SetError("A live Fairy generation cannot resize or replace its actual lease");
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+    {
+        const ActorPrimitive *p = &s->primitives[id];
+        const bool old = (old_rows.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) != 0;
+        const bool next = (next_rows.occupied[id / 64U] & ((Uint64)1 << (id % 64U))) != 0;
+        const bool own = (p->ability_kind & 0xff00U) == (0x8000U | slot << 8) &&
+                         ((p->ability_kind & 255U) == 0xdd || (p->ability_kind & 255U) == 0xdf);
+        if ((old &&
+             (!before || p->owner != before->generation || p->ability_kind != FairyTag(before))) ||
+            (own && !old) || (next && p->owner && !old))
+            return SDL_SetError(
+                "Fairy effect lease is stale, incomplete or collides with a real row");
+    }
+    if (before)
+        for (Uint16 i = 0; i < before->count; ++i)
+            s->primitives[before->rows[i]] = (ActorPrimitive){0};
+    if (after)
+        for (Uint16 i = 0; i < after->count; ++i)
+            s->primitives[after->rows[i]] =
+                (ActorPrimitive){.owner = after->generation, .ability_kind = FairyTag(after)};
+    return true;
+}
+bool SotnActors_FairyEffectRow(const SotnActors *s, const SotnFairyEffectLease *lease, Uint16 index)
+{
+    SotnPrimitiveSlots used = {0};
+    if (!s || !FairyLease(lease, &used) || index >= lease->count)
+        return SDL_SetError("Fairy row read requires its actual event lease and bounded index");
+    const ActorPrimitive *p = &s->primitives[lease->rows[index]];
+    if (p->owner != lease->generation || p->ability_kind != FairyTag(lease))
+        return SDL_SetError("Fairy row read lost its actual event generation");
+    return true;
+}
+bool SotnActors_ValidateFairyEffects(const SotnActors *s, const SotnFairyEffectLease leases[3])
+{
+    if (!s || !leases)
+        return SDL_SetError("Fairy namespace validation requires its actual pool and three leases");
+    SotnPrimitiveSlots rows[3] = {0};
+    for (Uint16 i = 0; i < 3; ++i)
+        if (leases[i].count && (leases[i].slot != i + 5U || !FairyLease(&leases[i], &rows[i])))
+            return SDL_SetError("Fairy namespace lease lost its actual5..7 slot or bounded rows");
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+    {
+        const ActorPrimitive *p = &s->primitives[id];
+        const Uint16 slot = (Uint16)(p->ability_kind >> 8);
+        const Uint16 identity = p->ability_kind & 255U;
+        const bool own = slot >= 0x85 && slot <= 0x87 && (identity == 0xdd || identity == 0xdf);
+        Uint16 matches = 0;
+        for (Uint16 i = 0; i < 3; ++i)
+            if (rows[i].occupied[id / 64U] & ((Uint64)1 << (id % 64U)))
+            {
+                if (++matches > 1 || p->owner != leases[i].generation ||
+                    p->ability_kind != FairyTag(&leases[i]))
+                    return SDL_SetError(
+                        "Fairy namespace contains overlapping or stale actual rows");
+            }
+        if (own && !matches)
+            return SDL_SetError("Fairy namespace contains an unclaimed actual DD/DF row");
+    }
+    return true;
+}
+bool SotnActors_ReleaseFairyEffects(SotnActors *s, const SotnFairyEffectLease leases[3])
+{
+    if (!SotnActors_ValidateFairyEffects(s, leases))
+        return false;
+    for (Uint16 i = 0; i < 3; ++i)
+        for (Uint16 row = 0; row < leases[i].count; ++row)
+            s->primitives[leases[i].rows[row]] = (ActorPrimitive){0};
+    return true;
+}
 static bool EchoValid(const SotnBatEcho *echo)
 {
     return echo && echo->phase && echo->phase <= 3 && !echo->removed && echo->priority <= 509;
 }
 static bool BatPrimitiveKind(Uint16 kind)
 {
-    return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 52 ||
-           kind == 61 || kind == 63 || kind == 25 || kind == 28 || kind == 29;
+    return kind == 5 || kind == 11 || kind == 19 || kind == 31 || kind == 35 || kind == 37 ||
+           kind == 46 || kind == 52 || kind == 61 || kind == 63 || kind == 25 || kind == 28 ||
+           kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
+           kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
+           kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3 || kind == 0xe4 ||
+           kind == 0xf4 || kind == 0xe8 || kind == 0xf8 || kind == 0xe9 || kind == 0xf9;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -115,6 +223,7 @@ static bool PlanRows(const SotnActors *s, SotnPrimitiveSlots *used, const Uint16
         if (id >= SOTN_PRIMITIVE_SLOTS || (used->occupied[id / 64U] & ((Uint64)1 << (id % 64U))) ||
             (s->primitives[id].owner &&
              ((!BatPrimitiveKind(s->primitives[id].ability_kind) &&
+               s->primitives[id].ability_kind != SOTN_FOOD_TEXT_TAG &&
                !(include_wolf && WolfPrimitiveKind(s->primitives[id].ability_kind))) ||
               (replace_kind && s->primitives[id].ability_kind != replace_kind))))
             return SDL_SetError("Player effect reservation collides with a live primitive owner");
@@ -165,10 +274,13 @@ bool SotnActors_CommitBatEcho(SotnActors *s, Uint32 generation, const Uint16 *in
         WriteEcho(s, generation, indices, echo);
     return true;
 }
-bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
+static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool apply)
 {
     if (!s || !r)
         return SDL_SetError("Bat primitive commit requires its actual session and runtime owner");
+    SotnFoodTextPlan food = r->food_text;
+    if (food.changed ? !ActorFoodTextPlanCheck(s, &food) : !SotnActors_GetFoodTextPlan(s, &food))
+        return false;
     for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
         if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
         {
@@ -184,8 +296,44 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         const SotnBatRuntimeChild *c = &r->children[i];
         if (!SotnBatRuntime_HellfireChildValid(c, i))
             return SDL_SetError("Hellfire primitive commit lost its actual child lifecycle");
+        if (!SotnBatRuntime_TalismanValid(c, i))
+            return SDL_SetError("Talisman commit lost its actual child/lifetime/rows");
+        if (!SotnBatRuntime_ImmunityTextValid(c))
+            return SDL_SetError("Immunity text lost its actual child/profile/row ownership");
+        if (!SotnBatRuntime_DissolveValid(c))
+            return SDL_SetError("Dissolve commit lost its actual thirty-six-row ownership");
+        if (!SotnBatRuntime_MedicineValid(c))
+            return SDL_SetError("Medicine commit lost its actual rowless child/cursor ownership");
+        if (!SotnBatRuntime_CircleValid(c))
+            return SDL_SetError("Player circle commit lost its actual thirty-two-row ownership");
+        if (!SotnBatRuntime_TeleportValid(c))
+            return SDL_SetError("Teleport commit lost its actual thirty-six-row ownership");
+        if (!SotnBatRuntime_IceHitValid(c))
+            return SDL_SetError("Ice hit lost its actual twenty-four-row child ownership");
+        if (!SotnBatRuntime_ThunderHitValid(c))
+            return SDL_SetError("Thunder hit lost its actual six-row child ownership");
+        if (!SotnBatRuntime_FireHitValid(c))
+            return SDL_SetError("Fire effects lost their actual shared child/parent ownership");
+        if (!SotnBatRuntime_DarkHitValid(c))
+            return SDL_SetError("Dark hit lost its actual rowless child ownership");
+        if (!SotnBatRuntime_HolyHitValid(c))
+            return SDL_SetError("Holy hit lost its actual child/global/row ownership");
         if (!SotnBatRuntime_HealingNumberValid(c, i))
             return SDL_SetError("Healing number commit lost its actual child/lifetime/rows");
+        if (!SotnBatRuntime_SwordChildValid(c, i))
+            return SDL_SetError("Sword commit lost its actual child/lifetime/slot ownership");
+        if (!SotnBatRuntime_MagicMissileValid(c, i))
+            return SDL_SetError("Magic Missile commit lost its actual bow/arrow ownership");
+        if (!SotnBatRuntime_StarValid(c, i))
+            return SDL_SetError("Weapon15 commit lost actual role/row ownership");
+        if (!SotnBatRuntime_ThrownValid(c, i))
+            return SDL_SetError("Weapon16 commit lost its actual role/row/parent ownership");
+        if (!SotnBatRuntime_PentagramValid(c, i))
+            return SDL_SetError("Pentagram commit lost its actual twenty-five-row lifecycle");
+        if (!SotnBatRuntime_SireValid(c, i))
+            return SDL_SetError("Sire commit lost its actual child/lifecycle ownership");
+        if (!SotnBatRuntime_NeutronValid(c, i))
+            return SDL_SetError("Neutron commit lost its actual child/lifetime/row ownership");
         if ((c->kind == 61 &&
              (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
               c->state.spirit.motion.removed ||
@@ -204,23 +352,45 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
             (c->state.outline.parameter != c->parameter || c->state.outline.removed ||
              !c->state.outline.phase || c->state.outline.phase > 3))
             return SDL_SetError("Player outline commit lost its actual child/profile lifecycle");
-        if (((c->kind == 5 || c->kind == 11 || c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-              c->kind == 31 || c->kind == 35) &&
+        if (((c->kind == 5 || c->kind == 11 || c->kind == 46 || c->kind == 25 || c->kind == 28 ||
+              c->kind == 29 || c->kind == 31 || c->kind == 35) &&
              c->initialized && !c->primitive_count) ||
             (c->kind == 52 && c->initialized && r->echo_generation != c->generation))
             return SDL_SetError("Bat primitive commit lost a retained child reservation");
-        if (c->primitive_count && (!c->generation || !c->initialized ||
-                                   !((c->kind == 5 && c->state.particles.phase == 1 &&
-                                      !c->state.particles.removed && c->state.particles.count &&
-                                      c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
-                                      c->primitive_count == c->state.particles.count + 1U) ||
-                                     (c->kind == 11 && c->primitive_count == 8) ||
-                                     ((c->kind == 25 || c->kind == 28 || c->kind == 29 ||
-                                       c->kind == 31 || c->kind == 35) &&
-                                      c->primitive_count == 1) ||
-                                     (c->kind == 61 && c->primitive_count == 16) ||
-                                     (c->kind == 19 && c->primitive_count == 20) ||
-                                     (c->kind == 63 && c->primitive_count == 9))))
+        if (c->primitive_count &&
+            (!c->generation || !c->initialized ||
+             !((c->kind == 5 && c->state.particles.phase == 1 && !c->state.particles.removed &&
+                c->state.particles.count &&
+                c->state.particles.count <= SOTN_PLAYER_PARTICLE_LIMIT &&
+                c->primitive_count == c->state.particles.count + 1U) ||
+               ((c->kind == 11 || c->kind == 46) && c->primitive_count == 8) ||
+               ((c->kind == 25 || c->kind == 28 || c->kind == 29 || c->kind == 31 ||
+                 c->kind == 35) &&
+                c->primitive_count == 1) ||
+               (c->kind == 61 && c->primitive_count == 16) ||
+               (c->hand_weapon && c->state.hand.family == 43 && c->primitive_count == 16) ||
+               (c->hand_weapon && c->state.hand.family == 1 &&
+                c->primitive_count == SOTN_HAND_WEAPON_FIST_ROWS) ||
+               (c->hand_weapon && (c->state.hand.family == 54 || c->state.hand.family == 56) &&
+                c->primitive_count == SOTN_HAND_WEAPON_GURTHANG_ROWS) ||
+               (c->weapon_secondary &&
+                c->primitive_count ==
+                    SotnWeaponSecondary_HeldRows(c->state.secondary.family, c->kind & 15U,
+                                                 c->parameter, c->state.secondary.motion.phase)) ||
+               (c->kind == 19 && c->primitive_count == 20) ||
+               (c->kind == 37 && c->primitive_count == 18) ||
+               (c->kind == 47 && c->primitive_count == 16) ||
+               (c->kind == 30 && c->primitive_count == 6) ||
+               (c->kind == 32 && c->primitive_count == SOTN_STONE_DISSOLVE_ROWS) ||
+               (c->kind == 65 && c->primitive_count == SOTN_TELEPORT_ROWS) ||
+               (c->kind == 38 && c->primitive_count == SOTN_PLAYER_CIRCLE_ROWS) ||
+               (c->kind == 33 && c->primitive_count == 24) ||
+               (c->kind == 63 && c->primitive_count == 9) ||
+               (c->neutron && c->primitive_count == 1) ||
+               (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
+               (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
+               (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
+               (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))
@@ -264,8 +434,14 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         (w->root_reserved && !PlanRows(s, &used, w->root_rows, 6, 0, true)) ||
         (w->environment_reserved && !PlanRows(s, &used, w->environment_rows, 2, 0, true)))
         return SDL_SetError("Shared primitive commit has an invalid actual Wolf reservation");
+    if (food.lease.count &&
+        !PlanRows(s, &used, food.lease.rows, food.lease.count, 0, r->wolf_bound))
+        return false;
+    if (!apply)
+        return true;
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
         if (BatPrimitiveKind(s->primitives[i].ability_kind) ||
+            (food.changed && s->primitives[i].ability_kind == SOTN_FOOD_TEXT_TAG) ||
             (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind)))
             s->primitives[i] = (ActorPrimitive){0};
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
@@ -289,10 +465,96 @@ bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
         for (Uint16 i = 0; i < 6; ++i)
             s->primitives[r->afterimage_rows[i]] = (ActorPrimitive){
                 .owner = r->common_generation, .ability_kind = SOTN_PLAYER_AFTERIMAGE_TAG};
+    if (food.changed)
+        ActorFoodTextPlanApply(s, &food);
     for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
         if (r->target_marks[i / 64U] & ((Uint64)1 << (i % 64U)))
             s->slots[i].state.flags |= 0x80000U;
     return true;
+}
+bool SotnActors_CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r)
+{
+    return CommitBatPrimitives(s, r, true);
+}
+static bool MatchPlayerRows(const SotnActors *s, SotnPrimitiveSlots *claimed, const Uint16 *rows,
+                            Uint16 count, Uint16 kind, Uint32 generation)
+{
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const Uint16 row = rows[i];
+        if (!generation || row >= SOTN_PRIMITIVE_SLOTS ||
+            (claimed->occupied[row / 64U] & ((Uint64)1 << (row % 64U))) ||
+            s->primitives[row].owner != generation || s->primitives[row].ability_kind != kind)
+            return SDL_SetError("Player cleanup lost an actual row's identity/generation");
+        claimed->occupied[row / 64U] |= (Uint64)1 << (row % 64U);
+    }
+    return true;
+}
+bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
+{
+    if (!CommitBatPrimitives(s, r, false))
+        return false;
+    if (r->target_marks[0] || r->target_marks[1])
+        return SDL_SetError("Player cleanup requires acknowledgement of actual stage target marks");
+    SotnPrimitiveSlots claimed = {0};
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        if (!MatchPlayerRows(s, &claimed, r->children[i].primitives, r->children[i].primitive_count,
+                             r->children[i].kind, r->children[i].generation))
+            return false;
+    const SotnWolfRuntime *w = &r->wolf;
+    if ((r->echo_generation &&
+         !MatchPlayerRows(s, &claimed, r->echo_primitives, SOTN_BAT_ECHO_PRIMITIVES, 52,
+                          r->echo_generation)) ||
+        (w->root_reserved &&
+         !MatchPlayerRows(s, &claimed, w->root_rows, 6, 56, w->children[0].generation)) ||
+        (w->environment_reserved &&
+         !MatchPlayerRows(s, &claimed, w->environment_rows, 2, SOTN_WOLF_ENVIRONMENT_TAG,
+                          w->environment_generation)) ||
+        (r->common_generation &&
+         !MatchPlayerRows(s, &claimed, r->afterimage_rows, 6, SOTN_PLAYER_AFTERIMAGE_TAG,
+                          r->common_generation)))
+        return false;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if ((BatPrimitiveKind(s->primitives[i].ability_kind) ||
+             (r->wolf_bound && WolfPrimitiveKind(s->primitives[i].ability_kind))) &&
+            !(claimed.occupied[i / 64U] & ((Uint64)1 << (i % 64U))))
+            return SDL_SetError("Player cleanup found an actual row missing from its owner");
+    SotnBatRuntime *next = SDL_malloc(sizeof(*next));
+    if (!next)
+        return SDL_OutOfMemory();
+    *next = *r;
+    SDL_zero(next->factories);
+    SDL_zero(next->children);
+    SDL_zero(next->wolf.children);
+    SDL_zero(next->wolf.body.parts);
+    next->wolf.generation = 0;
+    next->wolf.root_reserved = false;
+    SDL_zero(next->wolf.root_rows);
+    next->echo_generation = 0;
+    SDL_zero(next->echo);
+    SDL_zero(next->echo_primitives);
+    next->wing_mask = next->wolf_mask = 0;
+    next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
+        0;
+    next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
+        next->thrown_mask = next->star_mask = next->karma_mask = next->secondary_mask = 0;
+    next->magic_clear_shield = false;
+    next->hand_attack = false;
+    next->hand_shield = 0;
+    // These are consumed callback notifications, not original retained global counters.
+    SDL_zero(next->medicine);
+    SDL_zero(next->wolf_events);
+    SDL_zero(next->wolf_attacks);
+    SDL_zero(next->captures);
+    next->capture_count = next->sound_count = next->wolf_shake_count = 0;
+    next->use_ticks = next->spell_use_ticks = next->startup_ticks = 0;
+    next->soul_attack = next->echo_attack = next->hellfire_upload = false;
+    next->dissolve_frame_load = next->afterimage_reset = next->freeze_changed = false;
+    const bool ok = CommitBatPrimitives(s, next, true);
+    if (ok)
+        *r = *next;
+    SDL_free(next);
+    return ok;
 }
 bool SotnActors_CommitWolfPrimitives(SotnActors *s, const SotnWolfRuntime *r)
 {

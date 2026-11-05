@@ -21,7 +21,7 @@ static void Put32(Uint8 *p, Uint32 v)
 }
 int main(void)
 {
-    Uint8 *dra = SDL_calloc(1, 0xe138), *stage = SDL_malloc(0x40000),
+    Uint8 *dra = SDL_calloc(1, 0xe140), *stage = SDL_malloc(0x40000),
           *common = SDL_calloc(1, 0x42000);
     Uint8 overlay[0x80] = {0};
     CHECK(dra && stage && common);
@@ -33,8 +33,11 @@ int main(void)
     Put16(dra + 0xe130, 600);
     Put16(dra + 0xe134, 32);
     Put16(dra + 0xe136, 80);
+    Put16(dra + 0xe138, 632);
+    Put16(dra + 0xe13c, 32);
+    Put16(dra + 0xe13e, 80);
     SotnActorGraphics *g = NULL;
-    CHECK(SotnActorGraphics_Create((SotnDataView){dra, 0xe138},
+    CHECK(SotnActorGraphics_Create((SotnDataView){dra, 0xe140},
                                    (SotnDataView){overlay, sizeof(overlay)},
                                    (SotnTileSources){{stage, 0x40000}, {common, 0x42000}}, &g));
     SotnDeathImage image = {0}, check = {0};
@@ -42,6 +45,46 @@ int main(void)
     for (size_t i = 0; i < sizeof(image.pixels); ++i)
         CHECK(image.pixels[i] == 0xba);
     const SotnDeathImage original = image;
+    SotnDissolveTextures *snapshot = SDL_malloc(sizeof(*snapshot));
+    CHECK(snapshot && SotnActorGraphics_SaveDissolve(g, snapshot));
+    SotnDeathImage changed = original;
+    SDL_memset(changed.pixels, 0x56, sizeof(changed.pixels));
+    CHECK(SotnActorGraphics_LoadDissolve(g, &changed, true) &&
+          SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(check.pixels, original.pixels, sizeof(check.pixels)));
+    Put16(dra + 0xe130, 632);
+    CHECK(SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(check.pixels, changed.pixels, sizeof(check.pixels)));
+    Put16(dra + 0xe130, 600);
+    CHECK(SotnActorGraphics_LoadDissolve(g, &changed, false) &&
+          SotnActorGraphics_RestoreDissolve(g, snapshot) &&
+          SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(check.pixels, original.pixels, sizeof(check.pixels)));
+    Put16(dra + 0xe130, 632);
+    CHECK(SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(check.pixels, original.pixels, sizeof(check.pixels)));
+    Put16(dra + 0xe130, 0);
+    Put16(dra + 0xe138, 32);
+    CHECK(SotnActorGraphics_SaveDissolve(g, snapshot) &&
+          SotnActorGraphics_LoadDissolve(g, &changed, true));
+    Put16(dra + 0xe130, 32);
+    CHECK(SotnActorGraphics_StoreDeathImage(g, &check));
+    Put16(dra + 0xe130, 0);
+    CHECK(SotnActorGraphics_RestoreDissolve(g, snapshot));
+    Put16(dra + 0xe130, 32);
+    const SotnDeathImage held = check;
+    CHECK(!SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(&held, &check, sizeof(check)));
+    Put16(dra + 0xe130, 600);
+    Put16(dra + 0xe138, 632);
+    CHECK(SotnActorGraphics_SaveDissolve(g, snapshot));
+    Put16(dra + 0xe13c, 31);
+    CHECK(!SotnActorGraphics_LoadDissolve(g, &changed, true) &&
+          !SotnActorGraphics_RestoreDissolve(g, snapshot));
+    Put16(dra + 0xe13c, 32);
+    CHECK(SotnActorGraphics_StoreDeathImage(g, &check) &&
+          !SDL_memcmp(check.pixels, original.pixels, sizeof(check.pixels)));
+    SDL_free(snapshot);
     CHECK(SotnDeathImage_Tick(&image) && SotnActorGraphics_LoadDeathImage(g, &image) &&
           SotnActorGraphics_StoreDeathImage(g, &check) &&
           !SDL_memcmp(image.pixels, check.pixels, sizeof(image.pixels)));

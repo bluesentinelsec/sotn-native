@@ -92,9 +92,13 @@ static bool Casting(Fixture *f)
         const Sint32 x = s.x;
         CHECK(SotnPlayer_ChangeRoom(f->p, f->map, 16, 0) &&
               f->p->dark.source.x == before.source.x + 16 * 65536 &&
-              f->p->dark.ticks == before.ticks);
-        CHECK(SotnPlayer_ChangeRoom(f->p, f->map, -16, 0) &&
-              !SDL_memcmp(&before, &f->p->dark, sizeof(before)));
+              f->p->dark_ticks == before.ticks);
+        CHECK(SotnPlayer_ChangeRoom(f->p, f->map, -16, 0) && SotnPlayer_GetState(f->p, &s) &&
+              s.dark.started == before.started && s.dark.ticks == before.ticks &&
+              s.dark.source.x == before.source.x && s.dark.source.y == before.source.y &&
+              s.dark.source.flags == before.source.flags &&
+              s.dark.source.priority == before.source.priority &&
+              s.dark.source.facing_left == before.source.facing_left);
         Uint16 t = 0;
         while (f->p->step == SOTN_PLAYER_DARK && t < 16)
         {
@@ -102,16 +106,16 @@ static bool Casting(Fixture *f)
                   !f->p->mp_spent && f->p->x.value == x);
             ++t;
         }
-        CHECK(t < 16 && f->p->step == SOTN_PLAYER_STAND && f->p->dark.ticks == 1048 - t &&
+        CHECK(t < 16 && f->p->step == SOTN_PLAYER_STAND && f->p->dark_ticks == 1048 - t &&
               (SotnPlayer_Status(f->p) & 0x2000000U));
-        f->p->dark.ticks = 1;
-        CHECK(SotnPlayer_Tick(f->p, 0) && !f->p->dark.ticks &&
+        f->p->dark_ticks = 1;
+        CHECK(SotnPlayer_Tick(f->p, 0) && !f->p->dark_ticks &&
               !(SotnPlayer_Status(f->p) & 0x2000000U));
     }
     CHECK(Create(f, true));
     f->p->mp = 9;
     CHECK(Command(f, false, true) && f->p->step != SOTN_PLAYER_DARK && f->p->mp == 9 &&
-          !f->p->dark.ticks);
+          !f->p->dark_ticks);
     CHECK(Create(f, false) && Command(f, false, true) && f->p->step != SOTN_PLAYER_DARK &&
           f->p->mp == 20);
     CHECK(Create(f, true));
@@ -123,8 +127,8 @@ static bool Casting(Fixture *f)
         CHECK(SotnPlayer_Tick(f->p, 0));
     CHECK(SotnPlayer_Tick(f->p, SOTN_BUTTON_RIGHT) && f->p->step == SOTN_PLAYER_WALK);
     CHECK(Create(f, true));
-    f->p->dark.ticks = 99;
-    CHECK(SotnPlayer_Damage(f->p, 1, 120, 0) && f->p->dark.ticks == 99 && f->p->hp == 69);
+    f->p->dark_ticks = 99;
+    CHECK(SotnPlayer_Damage(f->p, 1, 120, 0) && f->p->dark_ticks == 99 && f->p->hp == 69);
     CHECK(Create(f, true) && Command(f, false, false));
     const SotnPlayer before = *f->p;
     Put32(f->dra + 0x101b8 + 0xba * 4U, 0x800b1000);
@@ -145,12 +149,12 @@ static bool FormCancellation(void)
             SotnPlayer *p = SDL_calloc(1, sizeof(*p));
             CHECK(p);
             p->mp = 20;
-            p->dark.ticks = 99;
+            p->dark_ticks = 99;
             p->bat_context = p->mist_context = p->wolf_context = true;
             p->buttons = p->tapped = buttons[i];
             p->relics[relics[i]] = enabled ? 3 : 1;
             handlers[i](p);
-            CHECK(!p->failed && p->dark.ticks == (enabled ? 0 : 99) &&
+            CHECK(!p->failed && p->dark_ticks == (enabled ? 0 : 99) &&
                   p->step == (enabled ? steps[i] : SOTN_PLAYER_STAND));
             SDL_free(p);
         }

@@ -35,6 +35,9 @@ now runs; Bat/Wolf remain unfinished.
 Reaching an
 unsupported external stage/boundary fails with a clear message. Movement
 support does not establish parity for the full original player state machine.
+The [control inventory](player-control-audit.md) records every original dispatch
+state and the selected ledge-fall, landing, hand-cancel, shield, input-release and
+Bat collision corrections. The complete control milestone remains open.
 
 The camera centers/clamps to the current room. The clock advances at 60 ticks
 per second, independent of presentation, with at most eight catch-up ticks;

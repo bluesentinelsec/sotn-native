@@ -2,9 +2,11 @@
 #define SOTN_ACTORS_H
 
 #include <sotn/actor_layout.h>
+#include <sotn/actor_primitive.h>
 #include <sotn/bat_runtime.h>
 #include <sotn/camera.h>
 #include <sotn/dialogue.h>
+#include <sotn/fairy_effects.h>
 #include <sotn/gas_cloud.h>
 #include <sotn/palette.h>
 #include <sotn/player.h>
@@ -27,6 +29,7 @@ enum
 typedef struct SotnActorControl
 {
     Uint16 buttons, timer;
+    Uint16 mode;          /**< Original padSim high word; zero buttons, one reaction, two hold. */
     bool hold;            /**< Original simulated-pad mode 2: freeze normal-form player control. */
     bool block_stopwatch; /**< Original pauseEnemies gate, not a generic actor freeze. */
     bool pause_disabled;  /**< Original cutscene pause gate, also used by the native map menu. */
@@ -61,6 +64,17 @@ typedef struct SotnActorMotion
  * executed. */
 bool SotnActors_SetServices(SotnActors *actors, SotnDataView executable, Uint64 ticks,
                             bool music_playing);
+/** @brief Native services with actual main-loop HMS words and independent engine phase.
+ * Legacy raw callers retain SetServices' aggregate adapter. This validates all inputs
+ * before committing SDK/audio/HMS/phase bindings and performs no actor update.
+ * @param actors Borrowed stage owner.
+ * @param executable Borrowed resident SDK tables; must outlive actors.
+ * @param clock Bounded native status words, hours0..99999 and other words0..59.
+ * @param engine_timer Actual wrapping g_Timer, independent of playtime/gameplay.
+ * @param music_playing Actual audio activity snapshot.
+ * @return Success or SDL error, preserving all service bindings on failure. */
+bool SotnActors_SetEngineServices(SotnActors *actors, SotnDataView executable, SotnPlaytime clock,
+                                  Uint32 engine_timer, bool music_playing);
 /** @brief Borrow the scene camera for original room-lock actors; NULL selects a room fallback.
  * @param actors Borrowed simulation. @param camera Borrowed writable scene-owned state.
  * @return Success or SDL error. The camera must outlive the actors. */
@@ -144,32 +158,16 @@ typedef struct SotnActorState
                                          zero/default selectors. */
 } SotnActorState;
 
-/** @brief Copied stage primitive, owned by its actor; positions are room-local 16.16 pixels. */
-typedef struct SotnActorPrimitive
-{
-    Sint32 x, y;
-    Uint16 width, height, page, palette;
-    Uint8 u[4], v[4], red, green, blue;
-    bool active, textured, blend, modulate;
-    bool framebuffer;  /**< Sample the ordered RGB555 framebuffer snapshot, not stage artwork. */
-    bool screen_space; /**< Projected screen coordinates; camera is already applied. */
-    bool camera_fixed; /**< Original DRAW_ABSPOS/DRAW_MENU: omit shared camera-shake offsets. */
-    bool priority_set; /**< Use this primitive's original ordering-table priority. */
-    Uint16 priority;
-    bool line; /**< Two-color line through offset vertices 0 and 1. */
-    Uint8 line_red, line_green, line_blue, line_blend_mode;
-    bool gouraud;
-    Uint8 vertex_red[4], vertex_green[4], vertex_blue[4];
-    bool quad; /**< Use explicit pixel offsets from x/y for a textured or colored quadrilateral. */
-    Sint16 offset_x[4], offset_y[4];
-    bool clip; /**< Ordered draw-environment change; bounds are screen pixels, right/bottom
-                  exclusive. */
-    Sint16 clip_left, clip_top, clip_right, clip_bottom;
-    Uint8 target; /**< Ordered target: 0 normal, 1/2 strict begin/restore,
-                      3/4 original replaceable environment begin/restore. */
-    Sint16 target_offset_x, target_offset_y;
-    bool target_clear;
-} SotnActorPrimitive;
+/** @brief Commit weapon21's pickup text to real shared primitive rows.
+ * Replaces the previous selected text lease; exhaustion omits only presentation.
+ * No inventory, sound, player use or extra stage tick is supplied by this service. */
+bool SotnActors_ShowFoodText(SotnActors *actors, Uint16 item);
+/** @brief Read the current selected bottom-corner row count without advancing its clock. */
+Uint16 SotnActors_FoodTextRows(const SotnActors *actors);
+/** @brief Copy one current generation-owned absolute text packet; no render or tick occurs. */
+bool SotnActors_GetFoodText(const SotnActors *actors, Uint16 index, SotnActorPrimitive *out);
+/** @brief Snapshot the actual global text lease for the shared player/stage row transaction. */
+bool SotnActors_GetFoodTextPlan(const SotnActors *actors, SotnFoodTextPlan *out);
 /** @brief Report whether live owned packets contain active offscreen environment commands.
  * @param actors Borrowed owner or NULL. @return True when a simulation frame needs its target
  * side effects rendered before actor state can advance; false for no commands or NULL. */
@@ -184,12 +182,48 @@ bool SotnActors_GetPrimitive(const SotnActors *actors, Uint32 slot, Uint32 index
  * @param actors Borrowed pool owner. @param out Receives all 1024 occupied bits.
  * @return Success or SDL error, leaving output unchanged on failure. */
 bool SotnActors_PrimitiveSlots(const SotnActors *actors, SotnPrimitiveSlots *out);
+/** @brief Atomically replace one actual Fairy event's shared row lease.
+ * @param actors Real stage pool. @param before Actual previous lease, NULL for birth.
+ * @param after Real next lease, NULL for retirement. At least one must be non-NULL.
+ * Both leases refer to the same original slot5..7. DD requires ten rows; DF includes its
+ * sentinel. Every previous row/generation must match the actual pool before replacement.
+ * @return Success or SDL error preserving the whole pool on stale/colliding/malformed plans.
+ * Reserves no extra pool and supplies no event creation, clocks, effect callback or rendering. */
+bool SotnActors_CommitFairyEffect(SotnActors *actors, const SotnFairyEffectLease *before,
+                                  const SotnFairyEffectLease *after);
+/** @brief Check one real leased event row before drawing its actual retained component packet.
+ * @return Success or SDL error for stale generation, invalid index or a mismatching real row. */
+bool SotnActors_FairyEffectRow(const SotnActors *actors, const SotnFairyEffectLease *lease,
+                               Uint16 index);
+/** @brief Validate the complete original Fairy5..7 row namespace, including absent leases.
+ * @param actors Actual shared pool. @param leases Three entries indexed by slot minus5.
+ * Zero count means no owned rows. Rejects stale sentinels, overlaps and unclaimed DD/DF rows.
+ * @return Success or SDL error; no pool or runtime mutation, allocation or clock advance. */
+bool SotnActors_ValidateFairyEffects(const SotnActors *actors,
+                                     const SotnFairyEffectLease leases[3]);
+/** @brief Retire all actual Fairy5..7 rows only after complete namespace validation.
+ * @param actors Actual shared pool. @param leases Three actual entries indexed by slot minus5.
+ * @return Success or SDL error preserving the whole pool on failure. Other owners retain rows.
+ * Caller separately clears actual entities; this performs no audio or overlay-history reset. */
+bool SotnActors_ReleaseFairyEffects(SotnActors *actors, const SotnFairyEffectLease leases[3]);
 /** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
  * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
  * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.
  * Retires previous selected Bat rows only; stage-owned rows and ordinary progress survive.
  * Full shared Mist/other-ability allocation remains incomplete. */
 bool SotnActors_CommitBatPrimitives(SotnActors *actors, const SotnBatRuntime *runtime);
+/** @brief Retire the shared runtime's actual player entities8..63 and their real rows.
+ * @param actors Actual stage pool. @param runtime Actual committed shared runtime.
+ * Validates the complete previous identities/generations, including particle sentinels,
+ * before mutation; unacknowledged target marks must be committed/acknowledged first.
+ * Caller consumes pending captures/audio/native notifications before this operation.
+ * Preserves stage/Fairy rows, common player eight rows, global vectors/phases/cursors,
+ * serials, attack-group counters and Wolf's retained capture/environment ownership.
+ * Clears entity-local records and consumed callback views without ticking any controller.
+ * @return Success or SDL error preserving runtime and pool on invalid ownership/allocation.
+ * Other native owners (Mist, subweapons, player/capture/engine/audio) remain caller-owned.
+ * This performs no healing, scene transition, revival or familiar activation. */
+bool SotnActors_ClearPlayerRuntime(SotnActors *actors, SotnBatRuntime *runtime);
 /** @brief Commit the actual Wolf root/common-environment row plan to the stage pool.
  * @param actors Actual stage primitive owner. @param runtime Borrowed current body owner.
  * @return Success or SDL error, without pool mutation on invalid/overlapping/stale reservations.
@@ -232,7 +266,7 @@ typedef struct SotnActorCombat
     bool ambience_change; /**< Original channel 22/23 gain update without key-on. */
     Uint16 ambience_volume;
     Sint8 ambience_pan;
-    Uint16 cd_command; /**< Original XA pause/resume command, zero when unchanged. */
+    Uint16 cd_command; /**< Original XA control/fade command, zero when unchanged. */
     Uint16 voice;
     bool voice_change;
     bool voice_stop; /**< Stop XA speech independently of the sequence owner. */
@@ -248,6 +282,8 @@ typedef struct SotnActorCombat
  * @param out Optional presentation snapshot. @return Success or SDL error.
  */
 bool SotnActors_Dialogue(SotnActors *actors, bool voice_playing, SotnDialogueState *out);
+/** @brief Read committed dialogue presentation without changing actual XA feedback. */
+bool SotnActors_GetDialogue(const SotnActors *actors, SotnDialogueState *out);
 
 /** @brief Feed completion of native XA pause/resume into the shared dialogue waits.
  * @param actors Borrowed owner. @param busy A CD transition is still in progress.

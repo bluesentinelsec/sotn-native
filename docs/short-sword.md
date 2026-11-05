@@ -4,7 +4,12 @@ The Short sword collected in the upper Entrance can now be equipped through the
 ordinary equipment menu after Death removes Alucard's opening gear. Its original
 family-37 overlay supplies standing, crouching and airborne attack frames,
 hitboxes, sound requests and artwork for either hand. Inventory ownership and
-ordinary v6 saves retain the equipped item without a new save format.
+ordinary v9 saves retain the equipped item without a new save format.
+
+The [shared ordinary hand owner](shared-ordinary-hands.md) now supplies its actual
+factory48/slot16 callback, character property RNG, hand group and native rendering.
+Its per-hand previous-pose BSS follows actual program lifetime and stays out of
+ordinary saves.
 
 The weapon's five palettes are checked and loaded as five palettes; adjacent
 animation bytes are not treated as extra colors. Jewel sword/Stone sword special

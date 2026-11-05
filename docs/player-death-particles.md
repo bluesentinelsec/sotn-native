@@ -49,6 +49,11 @@ Original private vector inputs, profiles, artwork and traces stay excluded from
 public source and packages. Water damage/death, full effects/equipment, Alucard,
 the castle and console parity remain incomplete.
 
+The later [native physical/elemental death owner](player-physical-death.md) supplies
+actual normal C0 factory49/high5 with retained AluInit vectors; selected water death
+keeps its separate high6 entry. Earlier supplied factory evidence above remains
+separate from those player producers.
+
 Provenance: selected `dra/692E8.c:AluInit` and
 `dra/7E4BC.c:func_8011E4BC`, pinned `sotn-decomp`
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5` (AGPL-3.0-or-later).

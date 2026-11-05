@@ -128,6 +128,22 @@ static bool Metadata(Fixture *f)
     CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, -1, &frame) && frame.sprite == 0);
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 32, 1, &frame));
     CHECK(!SotnWeapon_ReadFrame((SotnDataView){0}, equipment, 0x41, 0, 1, &frame));
+    // An authored second descriptor must affect the legacy raw-frame view too.
+    SDL_memcpy(f->weapons + 0x508c, f->weapons + 0x506c, 16);
+    Put32(f->weapons + 0x5090, 0x8017b400);
+    f->weapons[0x5404] = 249;
+    f->weapons[0x5405] = 3;
+    f->weapons[0x5406] = 13;
+    f->weapons[0x5407] = 6;
+    equipment.variant = 2;
+    CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, 1, &frame) && frame.x == -7 &&
+          frame.y == 3 && frame.width == 13 && frame.height == 6 && frame.sprite == 1);
+    equipment.variant = 5;
+    const SotnWeaponFrame retained = frame;
+    CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 4, 1, &frame) &&
+          !SDL_memcmp(&retained, &frame, sizeof(frame)));
+    equipment.variant = 0;
+    frame = (SotnWeaponFrame){0};
     Put32(f->weapons + 0x506c, 0xfffffffc);
     CHECK(!SotnWeapon_ReadFrame(weapons, equipment, 0x41, 0, 1, &frame));
     CHECK(frame.sprite == 0);
@@ -304,7 +320,9 @@ static bool Curse(Fixture *f)
     for (Uint16 i = 0; i < 400; ++i)
         CHECK(SotnPlayer_Tick(player, i % 24 == 0 ? SOTN_BUTTON_LEFT : 0));
     CHECK(SotnPlayer_GetState(player, &state) && state.step == SOTN_PLAYER_STAND &&
-          !state.stone.active && state.can_pause && state.curse_ticks != 0);
+          !state.stone.active && state.can_pause && state.curse_ticks == 0);
+    // Original stone entry clears poison/curse words; reapply this separate curse fixture.
+    CHECK(SotnPlayer_RestoreCurse(player, 1024));
     CHECK(SotnPlayer_Tick(player, 0));
     CHECK(SotnPlayer_Tick(player, SOTN_BUTTON_LEFT_HAND));
     CHECK(SotnPlayer_GetState(player, &state) && state.animation.id == 0xb5 &&
@@ -395,6 +413,9 @@ static bool Poison(Fixture *f)
     CHECK(SotnPlayer_GetState(p, &state) && state.poison_ticks == 0 && state.hp == 69);
     stats.total[1] = 0;
     CHECK(SotnPlayer_SetCharacter(p, &profile, stats));
+    // Let the original poison-expiry protection finish before testing a new failed hit.
+    for (Uint16 i = 0; i < 12; ++i)
+        CHECK(SotnPlayer_Tick(p, 0));
     for (Uint16 i = 0x2e; i <= 0x34; ++i)
         Put32(f->dra + 0x101b8 + i * 4U, 0xfffffffc);
     CHECK(!SotnPlayer_PoisonDamage(p, 1, 96, 0));

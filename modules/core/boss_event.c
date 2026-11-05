@@ -18,6 +18,11 @@ bool ActorBossBox(SotnActors *s, Actor *a, size_t offset, Uint32 count, size_t l
 }
 static void Music(SotnActors *s, Uint16 music)
 {
+    if (!music)
+    {
+        s->combat.cd_command = 0x90;
+        return;
+    }
     s->combat.music_change = true;
     s->combat.music = music;
 }
@@ -92,7 +97,7 @@ static bool Manager(SotnActors *s, Actor *a)
                 return false;
             if (s->music_playing)
                 Music(s, 0);
-            a->state.step = 5;
+            ++a->state.step;
         }
         break;
     case 4:
@@ -102,7 +107,7 @@ static bool Manager(SotnActors *s, Actor *a)
                 return false;
             if (s->music_playing)
                 Music(s, 0);
-            a->state.step = 5;
+            ++a->state.step;
         }
         break;
     case 5: {

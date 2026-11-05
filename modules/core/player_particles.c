@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/7E4BC.c:func_8011E4BC profiles1/6/9/10/13 and 692E8.c:AluInit, sotn-decomp
-// 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Profile tables remain private.
+// Selected dra/7E4BC.c:func_8011E4BC profiles1/3/4/5/6/8/9/10/11/12/13 and 692E8.c:AluInit,
+// sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Profile tables remain private.
 #include <sotn/combat.h>
 #include <sotn/player_particles.h>
 static Uint16 Read16(const Uint8 *p)
@@ -29,6 +29,10 @@ static Sint32 Shift(Sint32 value, Uint16 bits)
     const Sint64 scale = (Sint64)1 << bits;
     return (Sint32)(value >= 0 ? value / scale : -((-(Sint64)value + scale - 1) / scale));
 }
+static bool VectorProfile(Uint16 type)
+{
+    return type == 5 || type == 6;
+}
 bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnDataView executable,
                                     Uint32 *random)
 {
@@ -54,16 +58,22 @@ bool SotnPlayerParticleVectors_Init(SotnPlayerParticleVectors *vectors, SotnData
 static bool Profile(SotnDataView dra, Uint16 parameter, const Uint8 **out)
 {
     const Uint16 type = parameter >> 8;
-    if (!out || !dra.bytes || (type != 1 && type != 6 && type != 9 && type != 10 && type != 13) ||
+    if (!out || !dra.bytes ||
+        (type != 1 && type != 3 && type != 4 && !VectorProfile(type) && type != 8 && type != 9 &&
+         type != 10 && type != 11 && type != 12 && type != 13) ||
         dra.size < 0xdbd4)
-        return SDL_SetError("Player particles require a selected private profile1/6/9/10/13");
+        return SDL_SetError(
+            "Player particles require a selected private profile1/3/4/5/6/8/9/10/11/12/13");
     const Uint32 pointer = Read32(dra.bytes + 0xdb98 + type * 4U);
     if (pointer < 0x800a0000 || pointer % 4 || pointer - 0x800a0000U > dra.size ||
         dra.size - (pointer - 0x800a0000U) < 16)
         return SDL_SetError("Player particle profile points outside its private image");
     const Uint8 *p = dra.bytes + (size_t)(pointer - 0x800a0000U);
     if (!p[0] || p[0] > SOTN_PLAYER_PARTICLE_LIMIT || !p[4] || !p[5] ||
-        Read16(p + 10) != (type == 6 ? 4 : type))
+        Read16(p + 10) != (type == 3                   ? 2
+                           : VectorProfile(type)       ? 4
+                           : (type == 4 || type == 11) ? 3
+                                                       : type))
         return SDL_SetError("Player particle profile has invalid count, geometry or behavior");
     *out = p;
     return true;
@@ -94,8 +104,10 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
     SotnPlayerParticles next = *particles;
     Uint32 rng = *random;
     const Uint16 type = in.parameter >> 8;
-    if (type == 6 && next.phase && (!next.lifetime || next.lifetime > 47))
-        return SDL_SetError("Death particles lost their actual bounded lifetime");
+    if (VectorProfile(type) && next.phase && (!next.lifetime || next.lifetime > 47))
+        return SDL_SetError("Vector particles lost their actual bounded lifetime");
+    if ((type == 4 || type == 11) && next.phase && (!next.lifetime || next.lifetime > 31))
+        return SDL_SetError("Fire particles lost their actual bounded lifetime");
     if (!next.phase)
     {
         if (!in.allocated)
@@ -103,8 +115,8 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
             next.removed = true;
             goto done;
         }
-        if (type == 6 && (!in.vectors || !in.vectors->initialized))
-            return SDL_SetError("Death particles require actual initialized AluInit vectors");
+        if (VectorProfile(type) && (!in.vectors || !in.vectors->initialized))
+            return SDL_SetError("Vector particles require actual initialized AluInit vectors");
         const Sint32 priority = (Sint32)in.player_priority + Word(Read16(profile + 6));
         if (priority < 0 || priority > 511)
             return SDL_SetError("Player particle profile priority escapes the original table");
@@ -112,7 +124,12 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         next.parameter = in.parameter;
         next.priority = (Uint16)priority;
         next.flags = Read32(profile + 12);
-        next.lifetime = type == 13 ? 256 : type == 10 ? 63 : type == 6 ? 47 : 0;
+        next.lifetime = type == 13                              ? 256
+                        : type == 8 || type == 10 || type == 12 ? 63
+                        : type == 3                             ? 47
+                        : (type == 4 || type == 11)             ? 31
+                        : VectorProfile(type)                   ? 47
+                                                                : 0;
         for (Uint16 i = 0; i < next.count; ++i)
         {
             SotnPlayerParticle *t = &next.tiles[i];
@@ -126,7 +143,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
                                       .width = profile[4],
                                       .height = profile[5],
                                       .draw_mode = Read16(profile + 8)};
-            if (type == 6)
+            if (VectorProfile(type))
             {
                 t->x = Word((Sint32)Pixel(in.source.x) + (Sint32)(SotnCombat_Random(&rng) & 31U) -
                             16) *
@@ -140,6 +157,34 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
                 t->screen_x = Pixel(t->x);
                 t->screen_y = Pixel(t->y);
             }
+            else if (type == 4 || type == 11)
+            {
+                t->x =
+                    Word(Pixel(in.source.x) + (Sint32)(SotnCombat_Random(&rng) & 15U) - 7) * 65536;
+                t->y = Word(Pixel(in.source.y) - (Sint32)(SotnCombat_Random(&rng) & 31U)) * 65536;
+                t->velocity_y = -49152 - (Sint32)(SotnCombat_Random(&rng) & 32767U);
+                t->velocity_x = in.parent_velocity_x;
+                t->timer = (Uint16)(i * 2U + 15U);
+                t->screen_x = Pixel(t->x);
+                t->screen_y = Pixel(t->y);
+            }
+            else if (type == 3 || type == 8)
+            {
+                const Uint16 first = SotnCombat_Random(&rng);
+                const Sint32 velocity =
+                    type == 8 ? (Sint32)first * 4 - 65536 : (Sint32)first - 16384;
+                t->velocity_y = -(Sint32)(SotnCombat_Random(&rng) & 16383U);
+                t->x = Fixed((Uint32)t->x + (Uint32)velocity * (type == 8 ? 35U : 19U) +
+                             (type == 8 ? (in.facing_left ? 12U : (Uint32)-12) * 65536U : 0));
+                t->velocity_x = type == 8 ? Shift(velocity, 2) : velocity;
+                const Uint16 third = SotnCombat_Random(&rng);
+                t->y = Word(Pixel(in.source.y) +
+                            (type == 8 ? -(Sint32)(third & 31U) : (Sint32)(third & 7U) - 3)) *
+                       65536;
+                t->timer = (Uint16)((SotnCombat_Random(&rng) & (type == 8 ? 31U : 15U)) + 16U);
+                t->screen_x = Pixel(t->x);
+                t->screen_y = Pixel(t->y);
+            }
             else if (type == 10)
             {
                 t->x = (Sint32)in.player_x * 65536;
@@ -147,6 +192,13 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
                 t->screen_x = in.player_x;
                 t->screen_y = in.player_y;
                 t->velocity_y = -(Sint32)(i * i * 4096U + 16384U);
+                t->timer = 63;
+            }
+            else if (type == 12)
+            {
+                const Sint32 index = i < 10 ? i : i - 10;
+                const Sint32 velocity = index * index * 6144 + 8192;
+                t->velocity_y = i < 10 ? -velocity : velocity;
                 t->timer = 63;
             }
             else if (type == 13)
@@ -170,14 +222,15 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         next.removed = true;
         goto done;
     }
-    // Original cases10/13 fall through into the second lifetime decrement.
-    if ((type == 10 || type == 13) &&
+    // Original cases3/4/8/10/11/12/13 fall through into the second lifetime decrement.
+    if ((type == 3 || type == 4 || type == 11 || type == 8 || type == 10 || type == 12 ||
+         type == 13) &&
         (!next.lifetime || --next.lifetime == 0 || --next.lifetime == 0))
     {
         next.removed = true;
         goto done;
     }
-    if (type == 6 && (!next.lifetime || --next.lifetime == 0))
+    if (VectorProfile(type) && (!next.lifetime || --next.lifetime == 0))
     {
         next.removed = true;
         goto done;
@@ -187,7 +240,7 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         SotnPlayerParticle *t = &next.tiles[i];
         t->x = Fixed((Uint32)(Sint32)t->screen_x * 65536U | ((Uint32)t->x & 65535U));
         t->y = Fixed((Uint32)(Sint32)t->screen_y * 65536U | ((Uint32)t->y & 65535U));
-        if (type == 6)
+        if (VectorProfile(type))
         {
             t->x = Fixed((Uint32)t->x + (Uint32)t->velocity_x);
             t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
@@ -204,7 +257,16 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
             t->width = t->height =
                 (Uint8)(3U - (next.lifetime < 9 ? 1U : 0U) - (next.lifetime < 4 ? 1U : 0U));
         }
-        else if (type == 10)
+        else if (type == 3 || type == 8)
+        {
+            t->timer = (Uint16)(t->timer - 1U);
+            if (!t->timer)
+                t->draw_mode |= 8U;
+            t->x = Fixed((Uint32)t->x + (Uint32)t->velocity_x);
+            t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
+            t->velocity_y = Fixed((Uint32)t->velocity_y + 5120U);
+        }
+        else if (type == 4 || type == 11 || type == 10 || type == 12)
         {
             t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
             t->timer = (Uint16)Word((Sint32)t->timer - 1);

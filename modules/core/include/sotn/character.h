@@ -1,6 +1,9 @@
 #ifndef SOTN_CHARACTER_H
 #define SOTN_CHARACTER_H
+#include <sotn/equipment.h>
+#include <sotn/familiar_stats.h>
 #include <sotn/game_data.h>
+#include <sotn/playtime.h>
 #include <sotn/stat_buffs.h>
 
 enum
@@ -31,6 +34,9 @@ typedef struct SotnCharacterState
     Uint32 spells_learned; /**< Original known-spell mask; casting remains a separate service. */
     Uint8 spells[SOTN_SPELLS]; /**< Acquisition order, original 0x80-known encoding. */
     Uint8 laboratory_items[2]; /**< Original NZ0 persistent item indices, not transient candles. */
+    /** Original g_Status.D_80097C40: frames on which an equipped Muramasa absorbed blood. Its
+     * square root adds to Muramasa's attack; it saturates at 0xFFFFFFFF and persists in v10. */
+    Uint32 muramasa_blood;
 } SotnCharacterState;
 /** @brief Decoded private equipment record; text views expire with the source DRA image. */
 typedef struct SotnItem
@@ -38,6 +44,7 @@ typedef struct SotnItem
     SotnDataView name, description;
     Sint16 attack, defense, bonus[4];
     Uint16 id, type, weakness, resistance, immunity, absorption, icon, palette;
+    Uint8 category; /**< Original hand itemCategory; zero for body records. */
     bool body, supported;
     bool
         name_ascii; /**< Relic names use bounded ASCII; equipment uses the private font encoding. */
@@ -52,6 +59,79 @@ typedef struct SotnCharacterStats
 } SotnCharacterStats;
 /** @brief Owned character borrowing immutable DRA bytes until Destroy. */
 typedef struct SotnCharacter SotnCharacter;
+/** @brief Copy the actual seven familiar records and selected identity; either output may be NULL.
+ * Selection0 means none. This read never grants a card or advances progression. */
+bool SotnCharacter_GetFamiliars(const SotnCharacter *character, SotnFamiliarProgress *progress,
+                                Uint16 *selected);
+/** @brief Restore all seven validated records, retaining current selection and ordinary character.
+ * This is a separate progression boundary; existing v9 save records remain unchanged. */
+bool SotnCharacter_RestoreFamiliars(SotnCharacter *character, const SotnFamiliarProgress *progress);
+/** @brief Restore actual familiar records and selection atomically at an engine/session boundary.
+ * @param character Actual destination owner. @param progress Actual validated seven records.
+ * @param selected Original identity0..7, bound separately to an owned card and native runtime.
+ * @return Success or SDL error preserving destination on failure. Does not increment loads,
+ * grant a card, change ordinary character/resources/RNG or initialize an entity.
+ * Menu changes use SelectFamiliar instead. Existing v9 saves remain unchanged. */
+bool SotnCharacter_RestoreFamiliarState(SotnCharacter *character,
+                                        const SotnFamiliarProgress *progress, Uint16 selected);
+/** @brief Commit an actual successful native menu selection/load, after resource binding.
+ * @param character Actual owner. @param selected Original identity0..7.
+ * @param reloaded True only when actual overlay loading completed, including a reload of the
+ * same identity. Changed nonzero selections and reloads increment original load count once.
+ * Ordinary rooms and unchanged menu selection do not increment. Grants no card/resources. */
+bool SotnCharacter_SelectFamiliar(SotnCharacter *character, Uint16 selected, bool reloaded);
+/** @brief Resolve actual virtual197 strike properties using live original stats and RNG.
+ * @param character Borrowed character at the actual retained strike birth.
+ * @param poison Actual player status.
+ * @param random Owned copied libc RNG, committed by the shared runtime after success.
+ * @param out Receives virtual equipment with final attack/critical values.
+ * @return Success or SDL error preserving RNG/output. The caller validates the actual parent
+ * generation and its retained virtual197; changing hands does not replace that identity.
+ * Applies signed-word body/buff bonuses before caps, then poison, without granting an item. */
+bool SotnCharacter_SwordProperties(const SotnCharacter *character, bool poison, Uint32 *random,
+                                   SotnEquipment *out);
+/** @brief Retained selected throwing-item properties at their actual activation callbacks. */
+bool SotnCharacter_ThrowingProperties(const SotnCharacter *, Uint16 item, bool poison,
+                                      Uint32 *random, SotnEquipment *out);
+/** @brief Actual selected ordinary-hand GetEquipProperties with its working libc RNG cursor. */
+bool SotnCharacter_HandProperties(const SotnCharacter *, Uint16 item, bool poison, Uint32 *random,
+                                  SotnEquipment *out);
+/** @brief Resolve actual arrow/explosion properties from selected raw parent0/24/25,
+ * weapon15 items75..79 or weapon16 items80..82/134/135.
+ * Uses the character's current attributes and supplied libc cursor transactionally.
+ * This sealed component service enables no equipment selection, grant or hand control. */
+bool SotnCharacter_MagicMissileProperties(const SotnCharacter *, Uint16 item, bool poison,
+                                          Uint32 *random, SotnEquipment *out);
+/** @brief Retained72 properties at birth and each successful actual burst reservation. */
+bool SotnCharacter_SireProperties(const SotnCharacter *, bool poison, Uint32 *random,
+                                  SotnEquipment *out);
+/** @brief Resolve retained Neutron71 ATK/critical properties at the real activation callback.
+ * Uses live stats/body buffs and copied libc RNG, even after the last hand copy is consumed. */
+bool SotnCharacter_NeutronProperties(const SotnCharacter *character, bool poison, Uint32 *random,
+                                     SotnEquipment *out);
+/** @brief Bind the actual main-loop status-clock snapshot before the next control.
+ * Retains the source hours word for Badelaire's pre-cap signed attack. This ephemeral
+ * context is not an ordinary-save field; unbound callers cannot equip/use125.
+ * @param character Actual character, preserved on failure.
+ * @param clock Actual copied main-loop status words; signed values remain unnormalized.
+ * @return Success or SDL error. Recalculates derived stats only on first bind/hour change. */
+bool SotnCharacter_SetPlaytime(SotnCharacter *character, SotnPlaytime clock);
+/** @brief Commit actual MainGame tail time and its existing owned libc cursor atomically.
+ * @param character Actual owner, preserved on failure.
+ * @param clock Copied committed main-loop status words.
+ * @param random Copied cursor after the actual trailing rand call.
+ * @return Success or SDL error. Bootstrap/restore still use SetPlaytime without a RNG tick.
+ * Adds no pool, item/resource grant, or ordinary-save field. */
+bool SotnCharacter_CommitMainLoop(SotnCharacter *character, SotnPlaytime clock, Uint32 random);
+/** @brief Borrow the verified SDK image for Muramasa's signed-range SquareRoot0.
+ * @param character Owner, preserved on failure. @param executable Borrowed SLUS image that
+ * outlives the character. @return Success or SDL error. Counters below 0x80000000 need none. */
+bool SotnCharacter_BindExecutable(SotnCharacter *character, SotnDataView executable);
+/** @brief Commit dra/692E8.c func_8010A3F0's increment of g_Status.D_80097C40 after a
+ * successful player update (both hands' programs are Muramasa's and it absorbed blood).
+ * @param character Owner, preserved on failure. @return Success or SDL error. Saturates at
+ * 0xFFFFFFFF; recalculates attack, which adds SquareRoot0 of the counter to Muramasa. */
+bool SotnCharacter_AddMuramasaBlood(SotnCharacter *character);
 /** @brief Recalculate derived stats from an actual stat-buff owner's active-word snapshot.
  * @param character Actual character. @param mask Derived sixteen-word mask; words12..15 have no
  * selected stat effect. The caller retains actual timers separately, never in ordinary saves.
@@ -87,6 +167,10 @@ bool SotnCharacter_Restore(SotnCharacter *character, const SotnCharacterState *s
  * @param character Borrowed character. @param body Item table. @param id Bounded item ID.
  * @return Success or false with SDL_GetError(); unsupported items can be owned, never misused. */
 bool SotnCharacter_Collect(SotnCharacter *character, bool body, Uint16 id);
+/** @brief Apply actual acquisition ordering to a staged progress transaction.
+ * The supplied progress and live character remain unchanged on failure. */
+bool SotnCharacter_PlanCollect(const SotnCharacter *character, SotnCharacterState *state, bool body,
+                               Uint16 id);
 /** @brief Exchange gold and unequipped equipment atomically using the shop's original limits.
  * @param character Owned progress. @param body Select item table. @param id Original item ID.
  * @param quantity Copies, 1..99. @param price Unit price, 0..999999.
@@ -104,6 +188,11 @@ bool SotnCharacter_LearnSpell(SotnCharacterState *state, Uint16 id);
  * @return Success or false with SDL_GetError(); incompatible/unowned/unsupported items do not
  * mutate state. */
 bool SotnCharacter_Equip(SotnCharacter *character, Uint32 slot, Uint16 id);
+/** @brief Actual native menu confirmation, including reselected spare decrement/return.
+ * Two-hand selection reserves both slots for one copy; displaced items return in original
+ * order through the inventory owner. Virtual empty rows retain the native adaptation.
+ * This is distinct from the idempotent equipment setter. All changes commit on success. */
+bool SotnCharacter_ConfirmEquipment(SotnCharacter *, Uint32 slot, Uint16 id);
 /** @brief Install the original first-Entrance equipment on a fresh character.
  * @param character Fresh owner before play; replaces the seven equipment slots atomically.
  * @return Success or SDL error. Resources and prologue-derived stats remain caller-owned.
@@ -119,6 +208,31 @@ bool SotnCharacter_DeathTheft(SotnCharacter *character);
  * @param out Decoded metadata, unchanged on failure. @return Success or false with SDL_GetError().
  */
 bool SotnCharacter_Item(const SotnCharacter *character, bool body, Uint16 id, SotnItem *out);
+/** @brief Consume actual equipped166 once; spare counts exclude equipped copies.
+ * Original Duplicator84 in either accessory preserves it. A last copy becomes empty and
+ * recalculates actual stats. Both character and output remain unchanged on failure. */
+bool SotnCharacter_UseLibraryCard(SotnCharacter *character, Uint16 hand, Uint16 *equipped);
+/** @brief Consume one actual equipped medicine144..162 (excluding146/147) or Card166 after player
+ * success. Spare counts exclude the equipped copy. Either actual Duplicator84 suppresses
+ * consumption. No default grants or inventory/hand selection are performed. Output commits
+ * atomically. */
+bool SotnCharacter_UseMedicine(SotnCharacter *character, Uint16 hand, Uint16 item,
+                               Uint16 *equipped);
+/** @brief Consume actual weapon21 food29..70 after successful player control.
+ * Spare stock, last-copy removal and actual Duplicator use the same original ReduceWeapon. */
+bool SotnCharacter_UseFood(SotnCharacter *character, Uint16 hand, Uint16 item, Uint16 *equipped);
+/** @brief Consume a selected owned throwing item after player success, preserving stock/Duplicator.
+ */
+bool SotnCharacter_UseThrowing(SotnCharacter *, Uint16 hand, Uint16 item, Uint16 *equipped);
+/** @brief Consume equipped Neutron Bomb71 after player success, preserving Duplicator rules. */
+bool SotnCharacter_UseNeutron(SotnCharacter *character, Uint16 hand, Uint16 *equipped);
+/** @brief Commit one original Fairy bag-byte decrement for actual mapped medicine144..162.
+ * Call after the real callback/player/native operations succeed, even if optional effects
+ * cannot allocate. Leaves equipment, acquisition order, stats, resources and RNG unchanged;
+ * Duplicator does not suppress this write. Preserves original0-to255 byte wrap when stock
+ * changes between the earlier ability check and actual use. Enables no familiar by itself.
+ * @return Success or SDL error without mutation for an invalid owner/item. */
+bool SotnCharacter_UseFamiliarItem(SotnCharacter *character, Uint16 item);
 /** @brief Award original level-adjusted enemy EXP and process all resulting level gains.
  * @param character Borrowed writable character. @param experience Enemy's original EXP reward.
  * @param enemy_level Original enemy level, 0..99. @param levels Receives levels gained.

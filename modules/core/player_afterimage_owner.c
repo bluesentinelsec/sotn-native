@@ -21,6 +21,29 @@ bool SotnPlayer_ResetAfterimages(SotnPlayer *p, Sint32 duration)
         return SDL_SetError("Afterimage reset requires its actual common player owner");
     return SotnPlayerAfterimage_Reset(&p->afterimage, true, duration, &p->afterimage_timer15);
 }
+bool SotnPlayer_CommitDissolveFrame(SotnPlayer *p, bool frame_load)
+{
+    if (!p || !p->afterimage_generation)
+        return SDL_SetError("Dissolve frame commit requires its actual common player owner");
+    if (frame_load)
+    {
+        if (!(p->animation.sprite & 0x7fffU) || (p->animation.sprite & 0x7fffU) >= 265)
+            return SDL_SetError("Dissolve frame commit lost its actual normal private sprite");
+        p->animation.sprite |= 0x8000U;
+    }
+    return true;
+}
+bool SotnPlayer_RollbackDissolve(SotnPlayer *p, const SotnPlayerState *before)
+{
+    if (!p || !before || !p->afterimage_generation ||
+        p->afterimage_generation != before->afterimage_generation ||
+        p->animation.id != before->animation.id)
+        return SDL_SetError("Dissolve rollback lost its actual unchanged common owner");
+    p->animation.sprite = before->animation.sprite;
+    p->afterimage = before->afterimage;
+    p->afterimage_timer15 = before->player_timers[15];
+    return true;
+}
 void SotnPlayer_AfterimageReset(SotnPlayer *p)
 {
     if (p->afterimage_generation && !SotnPlayer_ResetAfterimages(p, 1))
@@ -29,10 +52,16 @@ void SotnPlayer_AfterimageReset(SotnPlayer *p)
 bool SotnPlayer_AfterimageBegin(SotnPlayer *p)
 {
     if (!p->afterimage_generation)
+    {
+        // The player still owns timer15 when no scene/lease is bound; no display is enabled.
+        if (!SotnPlayerStep_IsDead(p->step) && p->step != SOTN_PLAYER_TELEPORT &&
+            p->afterimage_timer15)
+            --p->afterimage_timer15;
         return true;
+    }
     if (!p->afterimage_pending)
         return SDL_SetError("Afterimage player tick requires its next engine-clock context");
-    if (!SotnPlayerStep_IsDead(p->step) && p->afterimage_timer15)
+    if (!SotnPlayerStep_IsDead(p->step) && p->step != SOTN_PLAYER_TELEPORT && p->afterimage_timer15)
     {
         if (!SotnPlayerAfterimage_Reset(&p->afterimage, false, 0, &p->afterimage_timer15))
             return false;
@@ -53,26 +82,28 @@ bool SotnPlayer_AfterimageCapture(SotnPlayer *p)
     // Status is rebuilt before animation/collision, as in the original player update.
     if (SotnPlayer_Status(p) & 0x8000000U)
         SotnPlayer_AfterimageReset(p);
-    const bool recovering = p->previous_step == SOTN_PLAYER_HIT ||
-                            p->previous_step == SOTN_PLAYER_STONE ||
-                            p->previous_step == SOTN_PLAYER_BOSS_GRAB;
+    const bool recovering =
+        p->previous_step == SOTN_PLAYER_HIT || p->previous_step == SOTN_PLAYER_STONE ||
+        p->previous_step == SOTN_PLAYER_BOSS_GRAB ||
+        p->previous_step == SOTN_PLAYER_SCRIPT_REACTION || p->previous_step == SOTN_PLAYER_SCRIPT;
     if (recovering && NormalStep(p->step) && !p->poison_ticks && !p->curse_ticks)
         p->afterimage_timer15 = 4;
     if (p->failed)
         return false;
     if (p->step == SOTN_PLAYER_BOSS_GRAB || p->step == SOTN_PLAYER_STUCK)
         return true; // Original status40/10 bypasses both capture and display updates.
-    return SotnPlayerAfterimage_Capture(&p->afterimage, p->dra,
-                                        (SotnAfterimageInput){.x = p->x.value,
-                                                              .y = p->y.value,
-                                                              .velocity_y = p->vy,
-                                                              .pressed = p->buttons,
-                                                              .held = p->held,
-                                                              .tapped = p->tapped,
-                                                              .animation = p->animation.id,
-                                                              .sprite = p->animation.sprite,
-                                                              .palette = 0x8100,
-                                                              .facing_left = p->facing_left});
+    return SotnPlayerAfterimage_Capture(
+        &p->afterimage, p->dra,
+        (SotnAfterimageInput){.x = p->x.value,
+                              .y = p->y.value,
+                              .velocity_y = p->vy,
+                              .pressed = p->buttons,
+                              .held = p->held,
+                              .tapped = p->tapped,
+                              .animation = p->animation.id,
+                              .sprite = p->animation.sprite,
+                              .palette = p->palette ? p->palette : 0x8100,
+                              .facing_left = p->facing_left});
 }
 bool SotnPlayer_AfterimagePresent(SotnPlayer *p)
 {

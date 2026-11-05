@@ -32,7 +32,14 @@ Character-start palette job 22 initializes DRA's player/Mist source colors; raw
 common artwork contains placeholder rows. Current cape colors feed restoration
 without resetting live fades. Cloud primitives use additive texture pages,
 vertex modulation, original priorities and the active target/clip. Their four
-initial random values come from the existing saved actor RNG stream.
+initial random values now come from the character's existing saved libc RNG
+cursor, matching `EntityMist`'s four `rand()` calls. The session stages those
+calls and commits the cursor after the effect update succeeds. Later effect
+updates, menus, draws and no-tick rebases consume none of these calls. The
+separate stage `Random()` cursor stays untouched by this owner. Earlier native
+code incorrectly advanced that stage cursor with the libc formula; no save field
+or format changes are needed for the correction. Ordering across the remaining
+independent libc consumers, including Gas Cloud birth, is still unfinished.
 
 Camera motion and room rebases translate retained ring fractions even without a
 live child. Live anchors and quads move separately; cached capture geometry stays
@@ -60,6 +67,18 @@ remain untouched. Debug/sanitizer native traces agree, and both actual CMake app
 builds return normally after transformation through muted LLDB. Relics are
 explicit fixture grants, with ordinary development health/stats/MP; these checks
 do not establish ordinary acquisition or uninterrupted castle traversal.
+
+A later native observer reproduces the wrong-cursor failure before the RNG fix.
+Debug and ASan/UBSan each exercise two input-driven Mist generations with Gas
+Cloud disabled and again with it explicitly granted. At the actual effect
+boundary, each birth receives four character-libc results and commits the
+corresponding cursor; the stage cursor stays unchanged. Each run also checks 394
+later callbacks, an actual malformed-input failure followed by one successful
+retry, five draws, seven menu updates and two supplied no-tick room translations.
+These tests grant Mist/Power of Mist and contact protection; they inject no
+health, MP, pose, clock, seed or save state. They establish this selected owner,
+not global libc call ordering or whole-session rollback. All 222 public groups
+pass in Debug, Release and macOS ASan/UBSan after the correction.
 
 Another component comparison covers 2,880 original restoration snapshots across
 actual visual phases, sensor growth, terrain, contact and velocity conditions.

@@ -1,12 +1,13 @@
 #ifndef SOTN_SOUND_INTERNAL_H
 #define SOTN_SOUND_INTERNAL_H
+#include "reverb.h"
 #include "voice.h"
 #include <sotn/sequence.h>
 #include <sotn/sound.h>
 typedef struct SoundBank
 {
     SotnDataView header;
-    Uint32 address, samples[256], sizes[256];
+    Uint32 address, body_size, samples[256], sizes[256];
     Uint16 programs[128], sample_count;
     bool loaded;
 } SoundBank;
@@ -33,11 +34,16 @@ struct SotnSound
     SoundSeqVoice sequence_voices[16];
     Uint8 sequence_volume, sequence_flush;
     Uint16 sequence_id;
+    bool sequence_open; /**< Original SEQ access remains open after its event cursor ends. */
     Uint16 sequence_silence[16];
     Uint8 ram[SOTN_SPU_RAM_SIZE];
     SoundBank banks[4];
     SotnVoice voices[24];
     SotnVoiceRegisters registers[24];
+    SotnReverb reverb;
+    Uint32 reverb_voices;
+    Uint8
+        reverb_restore_depth; /**< Original BSS g_ReverbDepth; distinct from temporary SDK gain. */
     SoundScript scripts[4], script_backup[4];
     bool scripts_paused;
     struct
@@ -47,6 +53,11 @@ struct SotnSound
         bool ambience_volume;
     } queue[256];
     Uint16 queued, ambience_id;
+    Uint8 queue_read, queue_write;
+    Uint16 effect_ids[4], ambience_id20, ambience_volume20, ambience_volume22;
+    Sint16 ambience_pan20, ambience_pan22;
+    Uint8 key_status[24];
+    Uint16 script_voice_cursor; /**< Original KeyOnRange fallback, retained through mute. */
     Uint8 priority[4];
 };
 
@@ -58,6 +69,18 @@ void SoundPauseScripts(SotnSound *sound);
  * voices.
  * @param sound Non-NULL actual owner. Preserves original unreserved restore/overwrite behavior. */
 void SoundResumeScripts(SotnSound *sound);
+/** @brief Original SetReleaseRate2/InitSoundVars2 on all24 live hardware voices.
+ * Preserves envelopes, decoder/RAM state, pending effects and paused script copies. */
+void SoundReleaseAll(SotnSound *sound);
+/** @brief Actual SDK RR-only write/key-off for the selected hardware mask. */
+void SoundReleaseVoices(SotnSound *sound, Uint32 mask, Uint8 rate);
+/** @brief Original A1: RR14/key-off20/21 and clear current ID, retaining gain/distance. */
+void SoundReleaseAmbience20(SotnSound *sound);
+/** @brief Bound original commands1/A0..A8 on retained20/22 identities and real voices. */
+bool SoundAmbienceControl(SotnSound *sound, Uint16 command);
+/** @brief Original InitSoundVars1 metadata after actual StopSeq/CD shutdown.
+ * Retains live envelopes, DSP/RAM and copied scripts; clears pending effects/SEQ attachment. */
+void SoundResetStopped(SotnSound *sound);
 
 /** @brief Start one validated voice, invalidating any previous sequence owner. */
 bool SoundKey(SotnSound *sound, Uint32 voice, Uint8 bank, Uint8 program, Uint8 tone, Uint8 note,
