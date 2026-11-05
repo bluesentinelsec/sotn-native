@@ -169,13 +169,14 @@ static bool AppendFactory(SotnHandWeaponEvents *e, Uint32 request)
 }
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
-    return family == 8 || family == 9 || family == 11 || family == 25 || family == 26 ||
-           family == 52 || family == 58;
+    return family == 8 || family == 9 || family == 10 || family == 11 || family == 25 ||
+           family == 26 || family == 52 || family == 58;
 }
 // w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
 {
     return family == 8 || family == 9     ? 0xa40
+           : family == 10                 ? 0xb68
            : family == 11                 ? 0xb94
            : family == 25 || family == 26 ? 0xa60
                                           : 0xb84;
@@ -292,6 +293,15 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
         w->hit_flags = 0;
     }
     const Uint16 crouch = in.step == 2 && in.substep != in.step;
+    // w_010 (Iron shield): a raised hit requests WFACTORY(56,0)'s thunder, then
+    // func_8010E168(0,0x60) (BlinkWhite0x15 from the shield and protection0x60).
+    if (in.family == 10 && (w->phase == 1 || w->phase == 2) && w->hit_flags)
+    {
+        if (!AppendFactory(e, ((in.hand + 1U) << 12) | 56U))
+            return false;
+        e->guard_blink = true;
+        w->hit_flags = 0;
+    }
     switch (w->phase)
     {
     case 0:

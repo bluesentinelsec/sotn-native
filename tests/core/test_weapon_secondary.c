@@ -5412,6 +5412,582 @@ static bool GoddessCloudTest(Uint16 hand)
 // blueprint88 E9/F9 walker in17..31 (the spell's item, func_80118894's least-used group, no
 // parent copy, params without the hand bit); its blueprint90 afterimages (32..63) take no
 // property roll and keep equipId0.
+// The w_010 spoke: ((rcos/rsin >> 4) * radius) >> 8 from a whole-pixel centre.
+static Sint16 IronModelSpoke(Sint16 centre, Sint32 trig, Sint32 radius, bool subtract)
+{
+    const Sint32 a = trig >= 0 ? trig >> 4 : -((-trig + 15) >> 4);
+    const Sint32 m = a * radius, d = m >= 0 ? m >> 8 : -((-m + 255) >> 8);
+    return (Sint16)(subtract ? centre - d : centre + d);
+}
+static Uint8 IronModelGlow(SotnDataView exe, Sint16 angle, Sint16 bright)
+{
+    SotnMathTrig t = {0};
+    (void)SotnMath_Trig(exe, angle, &t);
+    return (Uint8)(((t.sine + 0x1000) >> 6) * bright / 256);
+}
+static void IronTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        Put16(o + 0xbbc + i * 2U, (Uint16)(i * 0x300U));
+        Put16(o + 0xbdc + i * 2U, (Uint16)(0x100U + i * 0x250U));
+    }
+    for (Uint16 i = 0; i < 6; ++i)
+    {
+        Put16(o + 0xba0 + i * 4U, 2);
+        Put16(o + 0xba2 + i * 4U, (Uint16)(0xc3f + i));
+    }
+    Put16(o + 0xbb8, 0xffff);
+}
+// w_010 EntityWeaponShieldSpell against an exact model: birth rows, the step timeline (22/8/16
+// growth-hold-flash, 30 opening, 30 closing with the two swords, 32 dimming, 0x40 hold, 18
+// spreading, 28 fading), every update's spoke geometry and the copies' retained-angle colours.
+static bool IronSpellTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    IronTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    for (Uint16 k = 0; k < 5; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 2, starved = k == 3, failed = k == 4;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = (100 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .camera_x = 99,
+                                       .camera_y = 77,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 10,
+                                       .role = 8,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = !failed,
+                                       .free_factories = (Uint8)(starved ? 1 : 8)};
+        Sint16 angles[16] = {0};
+        for (Uint16 i = 0; i < 16; ++i)
+            angles[i] = (Sint16)(i * 0x300);
+        Uint32 rng = 5;
+        Uint16 tick = 0, transitions[10] = {0}, sounds = 0, heard[4] = {0};
+        Uint8 phase = 0;
+        bool born = false;
+        while (!s.removed && tick < 400)
+        {
+            in.engine_timer = tick;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+            if (failed)
+            {
+                CHECK(s.removed && !e.freeze_set && !program.iron_loaded == false);
+                break;
+            }
+            if (!born)
+            {
+                born = true;
+                CHECK(e.freeze_set && e.clear_shield && e.sounds[0] == 0x641 && s.phase == 1 &&
+                      s.spell_half_w == 2 && !s.spell_half_h && s.spell_step == 0xc0 &&
+                      s.spell_bright == 0x100 && s.spell_child_palette == (hand ? 0x129 : 0x111) &&
+                      s.flags == 0x04810000U && s.priority == 146);
+                for (Uint16 i = 0; i < 16; ++i)
+                {
+                    SotnMathTrig a = {0}, b = {0};
+                    CHECK(SotnMath_Trig(x_exe, (Sint16)((i + 1) * 0x100), &a) &&
+                          SotnMath_Trig(x_exe, (Sint16)(i * 0x100), &b));
+                    const SotnPlayerEffectQuad *q = &s.spell_quads[1 + i * 2];
+                    const Sint32 flip = left ? -1 : 1;
+                    CHECK(q->u[0] == 0xc0 && q->u[2] == 0xc0 &&
+                          q->u[1] ==
+                              (Uint8)(IronModelSpoke(0, a.cosine, 0x3e, false) * flip + 0xc0) &&
+                          q->u[3] ==
+                              (Uint8)(IronModelSpoke(0, b.cosine, 0x3e, false) * flip + 0xc0) &&
+                          q->v[1] ==
+                              (Uint8)(s.spell_v1 + 0x40 - IronModelSpoke(0, a.sine, 0x3e, false)) &&
+                          q->v[3] ==
+                              (Uint8)(s.spell_v1 + 0x40 - IronModelSpoke(0, b.sine, 0x3e, false)) &&
+                          q->priority == 0x1b8 && q->draw_mode == 0x08 &&
+                          q->palette == s.spell_child_palette);
+                    const SotnPlayerEffectQuad *c = &s.spell_quads[2 + i * 2];
+                    CHECK(c->priority == 0x1ba && c->palette == 0x15f && c->draw_mode == 0x35 &&
+                          c->u[1] == q->u[1] && c->v[3] == q->v[3]);
+                }
+            }
+            if (s.phase != phase)
+            {
+                transitions[s.phase] = tick;
+                phase = s.phase;
+            }
+            if (e.sounds[0] == 0x66a)
+                CHECK(s.phase == 4 && transitions[4] == tick && !s.frame);
+            if (e.sounds[0] == 0x636)
+                CHECK(s.phase == 9 && transitions[9] == tick);
+            if (e.sounds[0] && sounds < 4)
+                heard[sounds] = e.sounds[0];
+            sounds += e.sounds[0] != 0;
+            if (e.factory_count || e.freeze_clear)
+            {
+                CHECK(e.freeze_clear && s.phase == 6 && e.factory_count == (starved ? 1 : 2) &&
+                      e.factories[0] == (88U | (hand + 1U) << 14) &&
+                      (starved || e.factories[1] == (88U | (hand + 1U) << 14 | 1U << 16)));
+            }
+            if (s.removed)
+                break;
+            // Geometry and the copies' colours from the model angles.
+            const Sint16 x = (Sint16)((s.x >> 16) - 30), y = (Sint16)((s.y >> 16) - 10);
+            for (Uint16 i = 0; i < 16; ++i)
+            {
+                SotnMathTrig a = {0}, b = {0};
+                CHECK(SotnMath_Trig(x_exe, (Sint16)((i + 1) * 0x100), &a) &&
+                      SotnMath_Trig(x_exe, (Sint16)(i * 0x100), &b));
+                const SotnPlayerEffectQuad *q = &s.spell_quads[1 + i * 2],
+                                           *c = &s.spell_quads[2 + i * 2];
+                CHECK(q->x[0] == IronModelSpoke(x, a.cosine, s.spell_half_h, false) &&
+                      q->y[0] == IronModelSpoke(y, a.sine, s.spell_half_h, true) &&
+                      q->x[1] == IronModelSpoke(x, a.cosine, s.spell_half_w, false) &&
+                      q->y[1] == IronModelSpoke(y, a.sine, s.spell_half_w, true) &&
+                      q->x[2] == IronModelSpoke(x, b.cosine, s.spell_half_h, false) &&
+                      q->x[3] == IronModelSpoke(x, b.cosine, s.spell_half_w, false) &&
+                      q->y[3] == IronModelSpoke(y, b.sine, s.spell_half_w, true));
+                CHECK(c->draw_mode == 0x35 && c->priority == 0x1ba && c->palette == 0x15f &&
+                      !c->red[2] && !c->blue[3] && !c->red[0] && !c->blue[1] &&
+                      c->red[3] == IronModelGlow(x_exe, angles[i], s.spell_bright) &&
+                      c->green[3] == c->red[3] &&
+                      c->red[1] == IronModelGlow(x_exe, angles[(i + 1) % 16], s.spell_bright) &&
+                      c->x[0] == q->x[0] && c->u[1] == q->u[1]);
+                angles[i] = (Sint16)(angles[i] + 0xc0);
+            }
+            for (Uint16 i = 0; i < 16; ++i)
+                CHECK(program.iron_angles[i] == angles[i] &&
+                      program.iron_angles2[i] == (Sint16)(0x100 + i * 0x250));
+            // Bands stay hidden until the flash ends and again once the spread completes.
+            CHECK(((s.spell_quads[1].draw_mode & 8U) != 0) == (s.phase < 4 || s.phase == 9));
+            ++tick;
+        }
+        if (failed)
+            continue;
+        // Birth is update0; each phase's first update follows.
+        const Uint16 expected[10] = {0, 0, 22, 30, 46, 76, 106, 138, 202, 220};
+        for (Uint16 ph = 2; ph < 10; ++ph)
+            CHECK(transitions[ph] == expected[ph]);
+        CHECK(s.removed && tick == 220 + 28 && sounds == 3 && heard[0] == 0x641 &&
+              heard[1] == 0x66a && heard[2] == 0x636);
+    }
+    return true;
+}
+// w_010 func_ptr_80170024 against an exact model: birth copies and rows, the 0x20 delay (then
+// CAMERA_LOCKED without KEEP_ALIVE), the drifting centre, opening radius, spin, scrape sound,
+// interpolated slices and shieldAngles2 colours.
+static bool IronSwordTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    IronTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    const Uint16 hit = 2;
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 hand = k & 1U, upper = (k >> 1) & 1U;
+        const bool left = (k & 4U) != 0;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(upper << 8),
+                                 .x = (140 + 30) * 65536 + 0x4321,
+                                 .y = (90 + 10) * 65536 + 0x1111};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .camera_x = 70,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 10,
+                                       .role = 9,
+                                       .allocated = true,
+                                       .parent_exists = true,
+                                       .parent_facing_left = left,
+                                       .parent_child_palette = (Uint16)(hand ? 0x129 : 0x111),
+                                       .parent_band = (Uint8)(hand ? 0x80 : 0)};
+        Uint32 rng = 3, check = 3;
+        (void)SotnCombat_Random(&check);
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              e.properties && e.sounds[0] == 0x69d && s.facing_left == left &&
+              s.spell_child_palette == (hand ? 0x129 : 0x111) + 1U + upper &&
+              s.spell_v1 == (hand ? 0x80 : 0) && s.flags == 0x04800000U && s.hitbox_width == 0x10 &&
+              s.hitbox_height == 0x10 && s.iron_delay == 0x20 && s.spell_step == 0x80 &&
+              s.iron_vx == (left ? -0x24000 : 0x24000));
+        const bool reverse = ((left ? 1U : 0U) ^ upper) & 1U;
+        CHECK(s.iron_step == (reverse ? 0x100 : -0x100) && s.iron_angle == (reverse ? 0 : 0x800) &&
+              s.rotate == (reverse ? 0x600 : 0x200));
+        const SotnPlayerEffectQuad *blade = &s.spell_quads[1];
+        CHECK(blade->u[0] == 0 && blade->u[1] == 0x7f && blade->v[0] == s.spell_v1 + 0x30 &&
+              blade->v[2] == s.spell_v1 + 0x4f && blade->priority == 0x1bc && !blade->draw_mode &&
+              blade->palette == s.spell_child_palette);
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            const SotnPlayerEffectQuad *c = &s.spell_quads[2 + i];
+            CHECK(c->u[0] == i * 8 && c->u[1] == (i + 1) * 8 - 1 && c->priority == 0x1be &&
+                  c->palette == 0x15f && c->draw_mode == 0x35);
+        }
+        Sint32 cx = (140) * 65536 + 0x4321, cy = 90 * 65536 + 0x1111;
+        Sint16 radius = 0, angle = s.iron_angle, rotate = s.rotate, bright = 0x100;
+        Sint16 angles2[16] = {0};
+        for (Uint16 i = 0; i < 16; ++i)
+            angles2[i] = (Sint16)(0x100 + i * 0x250);
+        Uint16 scrapes = 0;
+        for (Uint16 t = 0; t < 120; ++t)
+        {
+            // Model this update (the birth update already coloured from the initial angles).
+            if (t)
+            {
+                bright = (Sint16)SDL_max(bright - 8, 0);
+                if (t <= 0x20)
+                    ;
+                else
+                {
+                    if (radius < 0x280)
+                        radius = (Sint16)(radius + 0x18);
+                    rotate = (Sint16)(rotate + s.iron_step * 7 / 4);
+                    angle = (Sint16)(angle + s.iron_step);
+                    cx += s.iron_vx;
+                }
+            }
+            SotnMathTrig a = {0};
+            CHECK(SotnMath_Trig(x_exe, angle, &a));
+            const Sint32 sx = cx + a.cosine * radius, sy = cy - a.sine * radius;
+            CHECK(s.x == sx + 30 * 65536 && s.y == sy + 10 * 65536 && s.rotate == rotate &&
+                  s.iron_radius == radius && s.spell_bright == bright &&
+                  s.flags == (t >= 0x20 ? 0x08800000U : 0x04800000U) &&
+                  s.spell_quads[0].x[0] == (Sint16)(cx >> 16));
+            Sint16 px[4] = {0}, py[4] = {0};
+            const Uint16 corner[4] = {0x787, 0x79, 0x879, 0xf87};
+            for (Uint16 c = 0; c < 4; ++c)
+            {
+                SotnMathTrig ct = {0};
+                CHECK(SotnMath_Trig(x_exe, (Sint16)((Uint16)rotate + corner[c]), &ct));
+                px[c] = IronModelSpoke((Sint16)(sx >> 16), ct.cosine, 0x42, false);
+                py[c] = IronModelSpoke((Sint16)(sy >> 16), ct.sine, 0x42, true);
+                CHECK(s.spell_quads[1].x[c] == px[c] && s.spell_quads[1].y[c] == py[c]);
+            }
+            for (Uint16 i = 0; i < 16; ++i)
+            {
+                const SotnPlayerEffectQuad *c = &s.spell_quads[2 + i];
+                CHECK(c->x[0] == (Sint16)(px[0] + (px[1] - px[0]) * i / 16) &&
+                      c->x[1] == (Sint16)(px[0] + (px[1] - px[0]) * (i + 1) / 16) &&
+                      c->x[3] == (Sint16)(px[2] + (px[3] - px[2]) * (i + 1) / 16) &&
+                      c->y[2] == (Sint16)(py[2] + (py[3] - py[2]) * i / 16) &&
+                      c->red[0] == IronModelGlow(x_exe, angles2[i], bright) &&
+                      c->red[1] == IronModelGlow(x_exe, angles2[(i + 1) % 16], bright));
+                angles2[i] = (Sint16)(angles2[i] + 0x80);
+                CHECK(program.iron_angles2[i] == angles2[i]);
+            }
+            const Sint16 previous = s.iron_angle;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.properties);
+            const bool flip = t + 1 > 0x20 && ((previous ^ s.iron_angle) & 0x1000) && upper;
+            CHECK(e.sounds[0] == (flip ? 0x689 : 0));
+            scrapes += flip;
+        }
+        CHECK(scrapes == (upper ? 5 : 0));
+        in.parent_exists = false;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed);
+    }
+    // Thunder: the high words follow the player, fractions stay; birth copies and THUNDER_A.
+    {
+        static Uint8 to[0x3000];
+        IronTables(to);
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.x = 5 * 65536 + 0x1234, .y = 6 * 65536 + 0x5678};
+        SotnWeaponSecondaryInput in = {.overlay = {to, sizeof(to)},
+                                       .x = 150 * 65536 + 0xaaaa,
+                                       .y = 140 * 65536 + 0xbbbb,
+                                       .family = 10,
+                                       .role = 1,
+                                       .parent_exists = true,
+                                       .parent_bank = 0x8012,
+                                       .parent_texture = 0x66,
+                                       .parent_priority = 146};
+        Uint32 rng = 1;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.sounds[0] == 0x664 &&
+              s.x == 150 * 65536 + 0x1234 && s.y == 140 * 65536 + 0x5678 && s.bank == 0x8012 &&
+              s.texture == 0x66 && s.priority == 150 && s.palette == 0x8194 &&
+              s.flags == 0x160000U && s.phase == 1);
+        Uint16 updates = 1;
+        while (!s.removed && updates < 40)
+        {
+            CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){to, sizeof(to)}, 10));
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.sounds[0]);
+            ++updates;
+        }
+        // Birth, six frames of two updates, then the END's negative poseTimer retires it.
+        CHECK(s.removed && updates == 14);
+        SotnWeaponSecondary gone = {.phase = 1};
+        in.parent_exists = false;
+        CHECK(SotnWeaponSecondary_Tick(&gone, &program, in, &rng, &e) && gone.removed);
+    }
+    return true;
+}
+// Iron shield's spell205 through the shared runtime: blueprint86's E8 takes its 33 real rows,
+// freezes the scene, releases blueprint88's two E9 swords (18 rows each, item205 copied from the
+// raw parent, least-used group, no enemyId copy) as the freeze ends; the swords retire with
+// their parent and every row is released.
+static bool IronRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    Uint8 *o = weapons + 10U * 0x7000U + 0x4000U;
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        Put16(o + 0xbbc + i * 2U, (Uint16)(i * 0x300U));
+        Put16(o + 0xbdc + i * 2U, (Uint16)(i * 0x300U));
+    }
+    FamilyDefinition(dra, 7, 9, 10, 128, 0, 0, 0);
+    FamilyDefinition(dra, 205, 1, 10, 5, 0, 20, 0);
+    Uint8 *record = dra + 0x500 + 205 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[2][6] = {{8, 1, 0xc1, 0, 6, 0}, {9, 1, 0xc1, 0, 6, 0}};
+    for (Uint16 b = 0; b < 2; ++b)
+        SDL_memcpy(dra + 0xd1d4 + (86U + b * 2U) * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    const Uint8 blink[6] = {11, 1, 0x81, 0, 0, 0};
+    SDL_memcpy(dra + 0xd1d4 + 44U * 6U, blink, 6);
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {hand ? 57 : 10, hand ? 10 : 57},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536,
+                                         .y = 135 * 65536,
+                                         .priority = 148,
+                                         .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 205,
+                                     &allocated) &&
+          allocated);
+    Uint16 spell = 0, spell_slot = 0, swords = 0, freezes = 0, released = 0, sword_kinds = 0;
+    Uint8 groups[2] = {0};
+    Sint32 delay_screen[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    Uint16 retained = 0;
+    for (Uint16 t = 0; t < 700; ++t)
+    {
+        in.game_timer = t;
+        in.engine_timer = t;
+        // Every eighth update the camera moves right by two after the callbacks.
+        in.screen_shift_x = (Sint16)(t % 8 == 7 ? -2 : 0);
+        in.camera_x += t % 8 == 7 ? 2 : 0;
+        in.freeze = r->freeze;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        freezes += r->freeze_changed && r->freeze == 1;
+        released += r->freeze_changed && r->freeze == 0;
+        bool live = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 10 || !c->initialized)
+                continue;
+            live = true;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            if ((c->kind & 15U) == 8)
+            {
+                CHECK(c->kind == (hand ? 0xf8 : 0xe8) && c->primitive_count == 33 &&
+                      c->state.secondary.item == 205 && c->state.secondary.own_item);
+                ++spell;
+                spell_slot = i;
+            }
+            else
+            {
+                const Uint16 n = (c->parameter >> 8) & 1U;
+                CHECK(c->kind == (hand ? 0xf9 : 0xe9) && c->primitive_count == 18 &&
+                      c->state.secondary.parent_slot == spell_slot + 16U &&
+                      c->state.secondary.item == 205 && !c->state.secondary.own_item &&
+                      c->group >= 3 && c->group <= 6 && w->properties.id == 205 &&
+                      c->state.secondary.attack.active &&
+                      w->spell_child_palette == (hand ? 0x129U : 0x111U) + 1U + n);
+                groups[n] = c->group;
+                // Its v band is the raw parent spell's unk7D.
+                CHECK(w->spell_v1 == r->children[spell_slot].state.secondary.motion.spell_v1);
+                // Before its delay ends (no CAMERA_LOCKED) it keeps its screen position.
+                const Sint32 screen = (w->x >> 16) - in.camera_x;
+                if (w->iron_delay && w->iron_delay < 0x1f && delay_screen[i])
+                {
+                    CHECK(screen == delay_screen[i]);
+                    retained += in.screen_shift_x != 0;
+                }
+                delay_screen[i] = w->iron_delay ? screen : 0;
+                sword_kinds |= (Uint16)(1U << n);
+                ++swords;
+            }
+        }
+        if (!live && spell && t > 10)
+            break;
+    }
+    // Both swords take distinct least-used groups. Once their delay drops KEEP_ALIVE, a sword
+    // whose wide orbit leaves the screen is culled early (as in the original).
+    CHECK(spell > 150 && swords > 100 && sword_kinds == 3 && groups[0] != groups[1] &&
+          freezes == 1 && released == 1 && retained > 0);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+// Iron shield's raised hit: slot16 requests WFACTORY(56,0)'s thunder then func_8010E168(0,0x60)
+// (BlinkWhite0x15 and protection0x60, no healing); the E1 thunder follows the player with the
+// shield's bank and palette0x194, plays its six frames and retires (or retires at once when
+// slot16 stops holding item7).
+static bool IronThunderRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    Uint8 *o = weapons + 10U * 0x7000U + 0x4000U;
+    Put16(o + 0x400, 2);
+    Put16(o + 0x402, 0x3e);
+    Put16(o + 0x404, 0);
+    Put16(o + 0x406, 0);
+    for (Uint16 i = 0; i < 14; ++i)
+        Put32(o + 0xb68 + i * 4U, 0x8017a400);
+    for (Uint16 i = 0; i < 6; ++i)
+    {
+        Put16(o + 0xba0 + i * 4U, 2);
+        Put16(o + 0xba2 + i * 4U, (Uint16)(0x3f + i));
+    }
+    Put16(o + 0xbb8, 0xffff);
+    FamilyDefinition(dra, 7, 9, 10, 128, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 7 * 52;
+    record[18] = 0x63;
+    record[21] = 0;
+    const Uint8 blueprints[3][6] = {
+        {0, 1, 0xc1, 0, 0x23, 0}, {1, 1, 0xc1, 0, 6, 0}, {11, 1, 0x81, 0, 0, 0}};
+    const Uint16 ids[3] = {48, 56, 44};
+    for (Uint16 b = 0; b < 3; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    Uint8 *q = dra + 0xd670 + 0x15U * 20U;
+    Put16(q + 6, 0x100);
+    for (Uint16 k = 8; k <= 12; k += 2)
+        Put16(q + k, 256);
+    Put16(q + 14, 0x7002);
+    Put16(q + 16, 0x31);
+    Put16(q + 18, 512);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {10, 10},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536 + 0x1234,
+                                         .y = 135 * 65536 + 0x5678,
+                                         .priority = 148,
+                                         .buttons = SOTN_BUTTON_LEFT_HAND}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x1030, 7, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && r->children[0].hand_weapon &&
+          r->children[0].state.hand.family == 10 && r->children[0].state.hand.motion.phase == 1 &&
+          !r->shield_protection && SotnActors_CommitBatPrimitives(actors, r));
+    // A raised hit: the thunder factory precedes the BlinkWhite0x15 factory.
+    r->children[0].state.hand.motion.hit_flags = 1;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && r->shield_protection == 0x60 &&
+          !r->shield_heal && !r->children[0].state.hand.motion.hit_flags &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 order[2] = {0}, made = 0;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (r->factories[i].cursor.entity_id && made < 2)
+            order[made++] = r->factories[i].cursor.blueprint;
+    CHECK(made == 2 && order[0] == 56 && order[1] == 44);
+    Uint16 frames = 0, thunder = 0;
+    for (Uint16 t = 0; t < 30; ++t)
+    {
+        in.player.x += 65536;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        bool live = false;
+        for (Uint16 i = 1; i < 16; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 10 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && c->kind == 0xe1 &&
+                  c->state.secondary.parent_slot == 16 && !c->state.secondary.item &&
+                  !c->primitive_count && !c->state.secondary.attack.active &&
+                  w->palette == 0x8194 && w->bank == 0x8010 && w->texture == 0x64 &&
+                  w->priority == r->children[0].state.hand.motion.priority + 4U &&
+                  w->flags == 0x160000U && (w->x >> 16) == (in.player.x >> 16) &&
+                  w->frame >= 0x3f && w->frame <= 0x44);
+            frames |= (Uint16)(1U << (w->frame - 0x3f));
+            live = true;
+            ++thunder;
+        }
+        if (!live && thunder)
+            break;
+    }
+    CHECK(frames == 0x3f && thunder >= 12 && thunder <= 14);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 static bool AxeLordRuntime(Uint16 hand)
 {
     Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
@@ -6442,11 +7018,13 @@ int main(void)
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && RodOrbTest() &&
-                   RodSparkleTest() && RodRuntime() && MuramasaSlash() && Twelve() &&
-                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
-                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
-                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
-                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   RodSparkleTest() && RodRuntime() && IronRuntime(0) && IronRuntime(1) &&
+                   IronThunderRuntime() && IronSpellTest() && IronSwordTest() && MuramasaSlash() &&
+                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
+                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
+                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
+                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
+                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&

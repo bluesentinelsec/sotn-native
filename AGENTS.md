@@ -1,5 +1,5 @@
 Selected [shield combos](docs/player-shield-combos.md) now resolve CheckWeaponCombo (D_8013AEE4)
-on every equipment set and cast every shield spell (Leather203/Knight204/AxeLord206/Goddess209/Shaman210/Alucard214/Alucart215) with Mablung on both buttons (held
+on every equipment set and cast every shield spell (Leather203/Knight204/Iron205/AxeLord206/Goddess209/Shaman210/Alucard214/Alucart215) with Mablung or Shield rod on both buttons (held
 shield counts): combo hand, CheckChainLimit on the spell's live children, MP before, <<14
 factory bits (plain factory, E0/F0 offset), MP after, kind5. The w_008 E8 spell (11 GT4, screen
 rows) sets unk28=1 (freeze1 = spirits' freeze plus BlinkWhite0x47/0x40 flagged0x10000), grows,
@@ -21,6 +21,12 @@ Alucard (w_052, 23 rows incl. 11 G4 ribbons drawn untextured) arms its shield's 
 regeneration (D_80097BF8 -> HUD mp_hold), drains MP each 16th game update (native MP stops at 0),
 heals/hearts/BlinkWhite0x15/timer13 on hits (SotnPlayer_CommitShieldHit) and at timer/MP expiry
 rolls properties again and releases the 0x3A E1/F1 letters.
+Iron (w_010, family10, item7 now a guarding shield): a raised hit requests WFACTORY(56,0)'s E1
+thunder (raw slot16 must hold item7; palette0x8194, THUNDER_A, anim0xBA0) then guard_blink
+(BlinkWhite0x15 + protection0x60 via SotnPlayer_CommitProtection, no heal). Spell205 owns 33 GT4
+(spell_quads[33]; lab GT4 commands now pack owner*64+row), program iron_angles/angles2 (0xBBC/0xBDC),
+FACTORY(88,0/1) E9 swords: 18 rows, FakePrim screen centre (row0 x0/y0), delay0x20 then
+CAMERA_LOCKED (screen retention only before), equip 205, least-used group, culled offscreen.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,

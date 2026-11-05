@@ -24,8 +24,8 @@ A combo spell:
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
 Only combos with an actual native owner are selected. Every shield spell now has one, with
-Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Axe Lord
-shield's 206, Goddess shield's 209, Shaman shield's 210, Alucard shield's 214 and Alucart
+Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
+shield's 205, Axe Lord shield's 206, Goddess shield's 209, Shaman shield's 210, Alucard shield's 214 and Alucart
 shield's 215. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
@@ -63,6 +63,32 @@ Alucart shield's spell (item215, w_058) is the joke one. It has two rows:
 2. While the original's unused unk86/unk92 accumulations continue, the page-0x1E question mark
    appears above the player (current facing and position) for 0x28 updates.
 3. The freeze ends with no pink effect.
+
+## Iron shield spell (item205) and its swords
+
+Blueprint86 creates the family10 E8/F8 spell with 33 GT4s. Row0 is the shield glow. Rows 1..32
+are sixteen band/copy pairs on a disc: each band spans two adjacent 1/16 spokes of the shield
+image (UVs around 0xC0 with radius 0x3E, mirrored when facing left), and each copy is an
+additive white slice. It retires a raised shield, plays ANIME_SWORD_C, freezes the scene and
+drifts back while the shield image grows to full scale. Like the card spells it holds, then
+flashes the glow while the image shrinks. MAGIC_WEAPON_APPEAR_B unhides the disc, which opens to
+radius 0x3E. Its inner radius then closes, releasing `FACTORY(88,0)` and `FACTORY(88,1)` (each
+skipped silently without a free factory entity) and ending the freeze. The copies dim to black,
+hold for 0x40 updates, brighten to 0x120, spread (TELEPORT_BANG_B, the bands hide) and fade out.
+Each update the copies take their corner colours from the program's retained shieldAngles
+(overlay data at 0x8017ABBC), which advance by 0xC0. Copies are forced visible from birth, as
+the original's colour pass rewrites their drawMode every update.
+
+The swords (`func_ptr_80170024`, E9/F9 in slots17..31) retire once their raw parent spell's slot
+empties. At birth they copy its facing, child palette (plus one and their index) and v band, take
+eighteen GT4s (failure retires them) and copy its equip id205 through SetWeaponProperties
+(least-used group, no enemyId copy). Row0 is the original FakePrim: a screen-space centre
+drifting 2.25 pixels per update toward the facing once a 0x20-update delay ends, which also
+makes the sword CAMERA_LOCKED and drops KEEP_ALIVE. The blade (row1) and its sixteen white slices
+then circle that centre on a radius opening by 0x18 to 0x280 while spinning, and the second sword
+plays WEAPON_SCRAPE_ECHO each half turn. Slice colours follow the program's shieldAngles2 as the
+swords fade. Their chain count keeps the combo blocked while either lives; a sword whose orbit
+leaves the screen is culled.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -224,6 +250,18 @@ Public tests cover:
   flash priority, accumulations and question-mark display are covered too. Axe Lord's angle
   reset, phase lengths, band slicing and same-update freeze release plus walker factory are
   covered as well.
+- **Iron:** the guard's raised-hit thunder and BlinkWhite/protection order (no healing), the
+  thunder's birth copies, player-following high words, THUNDER_A and END retirement, slot16 item
+  checks; the spell's birth rows, its phase timeline and sounds, every update's spoke geometry
+  and retained-angle copy colours, one or two sword factories, and freeze set/clear; the swords'
+  birth copies, delay, CAMERA_LOCKED switch, screen retention before it, centre drift, radius,
+  spin, scrape sound, slices and shieldAngles2 colours, chain counting, groups and row release.
+  59 of 63 Iron mutations are caught: three are equivalent and one (slot16's item7 check) is
+  covered by the private comparison. That comparison runs complete `w_010` callbacks: 2,992
+  spell, 2,584 sword and 105 thunder callbacks, with 141,728 row comparisons. Debug and ASan traces
+  are byte-identical. Native Debug/ASan protocols cast spell205 with Mablung in both hand
+  arrangements, measure spell and sword pixels, check the freeze, chain and MP, and deliver a
+  supplied hit to a raised Iron shield for the thunder and protection.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.

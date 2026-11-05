@@ -4485,6 +4485,14 @@ bool SotnPlayer_CommitShieldHit(SotnPlayer *p, Uint16 protection)
         p->timers[SOTN_PLAYER_TIMER_INVINCIBLE] = protection;
     return true;
 }
+bool SotnPlayer_CommitProtection(SotnPlayer *p, Uint16 protection)
+{
+    if (!p || protection > 0x7fff)
+        return SDL_SetError("Protection requires its actual owner and the original bounded floor");
+    if ((Sint16)p->timers[SOTN_PLAYER_TIMER_INVINCIBLE] <= (Sint16)protection)
+        p->timers[SOTN_PLAYER_TIMER_INVINCIBLE] = protection;
+    return true;
+}
 bool SotnPlayer_SetSpiritContext(SotnPlayer *p, bool enabled)
 {
     if (!p || (enabled && (!p->dra.bytes || p->dra.size < 0x101b8U + 0xf2U * 4U)))

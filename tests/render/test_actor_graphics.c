@@ -1259,12 +1259,12 @@ static bool TestActorOrder(void)
     const SotnActorDraw valid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 47},
                                    {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3071},
                                    {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 0},
-                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 1535}};
+                                   {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 3071}};
     const SotnActorDraw invalid[] = {{.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 0},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY, .primitive = 48},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 63},
                                      {.kind = SOTN_DRAW_WEAPON_SECONDARY_LINE, .primitive = 3072},
-                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 1536}};
+                                     {.kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD, .primitive = 3072}};
     for (Uint16 k = 0; k < SDL_arraysize(valid); ++k)
         CHECK(SotnActorOrder_Add(items, 4, &count, valid[k]));
     count = 0;

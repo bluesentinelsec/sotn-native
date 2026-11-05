@@ -172,7 +172,8 @@ static bool BasicShields(void)
     // only weapon58 (like 52) caches the property attack and overrides it to one.
     const Uint16 families[] = {9, 11, 26, 8, 25, 58},
                  tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
-    CHECK(!SotnHandWeapon_IsShieldFamily(10) && !SotnHandWeapon_IsShieldFamily(255));
+    CHECK(SotnHandWeapon_IsShieldFamily(10) && !SotnHandWeapon_IsShieldFamily(23) &&
+          !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -1477,6 +1478,53 @@ static bool GuardProperties(void *context, Uint32 *random, SotnEquipment *out)
     *out = (SotnEquipment){.id = 16, .attack = 20, .hit_type = 4, .element = 64};
     return true;
 }
+// w_010 (Iron shield): a raised hit (step1/2) requests WFACTORY(56,0)'s thunder and
+// func_8010E168(0,0x60), clearing hitFlags; lowering or birth ignores it.
+static bool IronGuard(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    // The fixture authors family52's table at0xB84; w_010's sits at0xB68 (hitboxes 0x48 below).
+    SDL_memmove(o + 0xb68 - 0x48, o + 0xb84 - 0x48, 0x48);
+    SDL_memmove(o + 0xb68, o + 0xb84, 14 * 4);
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .scale_y = 256,
+                                  .family = 10,
+                                  .hand = hand,
+                                  .held = true};
+        SotnHandWeapon w = {.hit_flags = 1};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 1 && !e.factory &&
+              !e.guard_blink && w.hit_flags == 1);
+        w.hit_flags = 3;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) &&
+              e.factory == (56U | (hand + 1U) << 12) && e.guard_blink && !w.hit_flags);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.factory && !e.guard_blink);
+        // A hit while following the player's animation (step2) counts too.
+        w.phase = 2;
+        w.hit_flags = 1;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.guard_blink &&
+              e.factory == (56U | (hand + 1U) << 12) && !w.hit_flags);
+        in.held = false;
+        w.hit_flags = 1;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 3 && !e.factory &&
+              !e.guard_blink && w.hit_flags == 1);
+    }
+    return true;
+}
 static bool AlucardArmed(void)
 {
     Uint8 o[0x1200] = {0};
@@ -1699,7 +1747,7 @@ int main(void)
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
                    HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
                    Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
-                   AlucardArmed() && AlucardRuntime()
+                   IronGuard() && AlucardArmed() && AlucardRuntime()
                ? 0
                : 1;
 }

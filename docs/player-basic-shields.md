@@ -6,9 +6,13 @@ Axe Lord shield8 (family11), Goddess shield11 (family25), Shaman shield12 (famil
 and Alucart shield167 (family58, descriptor1). Their ordinary callbacks match Alucard
 shield16's family52 callback after symbol normalization; Leather reuses Knight's
 table layout, Goddess Shaman's and Alucart Alucard shield's. Each reads its own
-private animation, hitbox and palette tables. Their shield-rod spells are separate
-and unavailable. Iron, Herald, Dark, Medusa, Skull and Fire shields add on-hit or
-item behaviors and remain unsupported; metadata alone never enables them.
+private animation, hitbox and palette tables. Their both-buttons spells are covered in
+[shield combos](player-shield-combos.md). Iron shield7 (family10) now also guards: on a raised
+hit it requests WFACTORY(56,0)'s thunder, then func_8010E168(0,0x60) (BlinkWhite0x15 and
+protection0x60, without healing), and clears hitFlags. The thunder follows the player with the
+shield's bank, palette0x194, four priorities in front, plays THUNDER_A and its six frames, and
+retires early once slot16 stops holding item7. Herald, Dark, Medusa, Skull and Fire shields add
+other on-hit or item behaviors and remain unsupported; metadata alone never enables them.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and

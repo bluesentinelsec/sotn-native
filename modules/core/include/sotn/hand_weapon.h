@@ -47,6 +47,10 @@ typedef struct SotnHandWeaponProgram
             /** Weapon26: D_8017AA98/AA9A green cycle and D_8017CC3C glass-shard counter. */
             Sint16 shaman_green, shaman_direction;
             Sint32 shaman_counter;
+            /** Weapon10: the spell's shieldAngles and the swords' shieldAngles2 (overlay data at
+             * 0x8017ABBC/ABDC, loaded at first use and retained). */
+            Sint16 iron_angles[16], iron_angles2[16];
+            bool iron_loaded;
         };
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
@@ -114,6 +118,8 @@ typedef struct SotnHandWeaponEvents
      * every sixteenth g_GameTimer, and on a raised hit func_8010E168(0,0x60) (BlinkWhite0x15 and
      * timer13), kind1 eight-HP healing unless kind1 is pending, and AddHearts(1). */
     bool mp_hold, mp_drain, shield_hit;
+    /** Weapon10 (Iron shield) hit: func_8010E168(0,0x60) after this callback's factories. */
+    bool guard_blink;
     bool properties;
     /** Weapon51 glow: one g_Clut word written and uploaded this callback (clut set). */
     bool clut;

@@ -1043,6 +1043,9 @@ bool SotnPlayer_QueueMailHealing(SotnPlayer *player);
  * @param player Actual owner. @return Success or SDL error without mutation. The next successful
  * living player update applies the heal once; dead players retain it without revival. */
 bool SotnPlayer_CommitShieldHit(SotnPlayer *player, Uint16 protection);
+/** @brief Commit func_8010E168(0, protection)'s timer13 floor alone (Iron shield's guard hit;
+ * its BlinkWhite0x15 is a runtime factory). Fails for a missing player or a floor above 0x7FFF. */
+bool SotnPlayer_CommitProtection(SotnPlayer *player, Uint16 protection);
 
 /** @brief Actual shared factory reservation, called once at the original player boundary.
  * false availability is real exhaustion; success never implies child readiness. */

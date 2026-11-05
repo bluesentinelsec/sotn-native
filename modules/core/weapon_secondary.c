@@ -78,7 +78,10 @@ static bool Program(Uint16 family, Layout *out)
     else if (family == 30)
         *out = (Layout){.rows = 11};
     else if (SotnWeaponSecondary_ShieldSpell(family))
-        *out = (Layout){.rows = family == 9    ? 12
+        *out = (Layout){.timeline = family == 10 ? 0xba0U : 0U,
+                        .timeline_count = family == 10 ? 7 : 0,
+                        .rows = family == 9    ? 12
+                                : family == 10 ? 33
                                 : family == 58 ? 2
                                 : family == 11 ? 10
                                 : family == 25 ? 17
@@ -92,13 +95,14 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
-    return family == 8 || family == 9 || family == 58 || family == 11 || family == 25 ||
-           family == 26 || family == 52;
+    return family == 8 || family == 9 || family == 10 || family == 58 || family == 11 ||
+           family == 25 || family == 26 || family == 52;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
     return family == 8    ? 203
            : family == 9  ? 204
+           : family == 10 ? 205
            : family == 58 ? 215
            : family == 11 ? 206
            : family == 25 ? 209
@@ -110,6 +114,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
 {
     return item == 203   ? 8
            : item == 204 ? 9
+           : item == 205 ? 10
            : item == 215 ? 58
            : item == 206 ? 11
            : item == 209 ? 25
@@ -153,6 +158,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
+    // Weapon10 (Iron shield): its guard's thunder (role1), spell (role8) and swords (role9).
+    if (family == 10)
+        return role == 1 || role == 8 || role == 9;
     // Shield programs (Leather8/Knight9/Alucart58): role8 is the both-buttons spell.
     // Axe Lord's spell (role8) also creates its vector9 walker/afterimages (role9); Goddess's
     // its vector9 clouds.
@@ -200,12 +208,14 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 1 ? 11 : role == 2 ? 14 : 0;
     if (SotnWeaponSecondary_ShieldSpell(family))
         return role == 8                      ? (family == 9    ? 12
+                                                 : family == 10 ? 33
                                                  : family == 58 ? 2
                                                  : family == 11 ? 10
                                                  : family == 25 ? 17
                                                  : family == 26 ? 14
                                                  : family == 52 ? 23
                                                                 : 11)
+               : family == 10                 ? (role == 9 ? 18 : 0)
                : family == 25 || family == 26 ? 1
                : family == 52                 ? 11
                                               : 0;
@@ -2508,6 +2518,458 @@ static bool RodSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint
                         Word(Pixel(s->y) - in.retained_camera_y), &done))
         return false;
     s->removed = done;
+    return true;
+}
+static void SpellColors(SotnPlayerEffectQuad *q, Uint8 v);
+// ((rcos/rsin >> 4) * radius) >> 8 from a whole-pixel centre, as w_010's spokes compute it.
+static Sint16 IronSpoke(Sint16 centre, Sint32 trig, Sint32 radius, bool subtract)
+{
+    const Sint32 d = Asr(Asr(trig, 4) * radius, 8);
+    return Word(subtract ? centre - d : centre + d);
+}
+static Uint8 IronGlow(SotnDataView exe, Sint16 angle, Sint16 bright, bool *ok)
+{
+    SotnMathTrig t = {0};
+    *ok = SotnMath_Trig(exe, angle, &t);
+    return (Uint8)(((t.sine + 0x1000) >> 6) * bright / 256);
+}
+static bool IronAngles(SotnHandWeaponProgram *p, SotnDataView o)
+{
+    const Uint8 *a = NULL, *b = NULL;
+    if (p->iron_loaded)
+        return true;
+    if (!View(o, 0xbbc, 32, &a) || !View(o, 0xbdc, 32, &b))
+        return SDL_SetError("Weapon10 requires its private shieldAngles tables");
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        p->iron_angles[i] = Word(Read16(a + i * 2U));
+        p->iron_angles2[i] = Word(Read16(b + i * 2U));
+    }
+    p->iron_loaded = true;
+    return true;
+}
+// w_010 func_ptr_80170004: the Iron shield guard's thunder. Every update it retires once its raw
+// slot16 parent is gone or no longer holds item7; it follows the player's whole position, takes
+// the parent's bank/unk5A, palette0x194 four priorities in front and plays anim_thunder once.
+static bool IronThunder(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                        SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    s->x = (Sint32)(((Uint32)in.x & 0xffff0000U) | ((Uint32)s->x & 0xffffU));
+    s->y = (Sint32)(((Uint32)in.y & 0xffff0000U) | ((Uint32)s->y & 0xffffU));
+    if (!s->phase)
+    {
+        s->role = 1;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->palette = 0x8194;
+        s->priority = (Uint16)(in.parent_priority + 4U);
+        s->texture = in.parent_texture;
+        s->flags = 0x160000U;
+        e->sounds[0] = 0x664;
+        s->phase = 1;
+    }
+    else if (s->remaining < 0)
+        s->removed = true;
+    return true;
+}
+// w_010 EntityWeaponShieldSpell: Iron shield's spell205. Thirty-three GT4s: the growing white glow
+// and sixteen band/copy pairs on a disc. Like the card spells it retires the raised shield, freezes
+// the scene and drifts back while the shield image grows and flashes out; the disc then opens,
+// releases FACTORY(88,0/1)'s two swords, ends the freeze, dims, brightens, spreads and fades. Each
+// update the copies re-colour from the program's retained shieldAngles. Rows are screen pixels.
+static bool IronSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                      SotnWeaponSecondaryEvents *e)
+{
+    if (!IronAngles(p, in.overlay))
+        return false;
+    bool hide = false;
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->spell_child_palette = in.hand ? 0x129 : 0x111;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->flags = 0x04810000U;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0x80 + 0x4f;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = (Uint16)(s->priority - 4U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        s->spell_half_h = 0;
+        s->spell_half_w = 2;
+        s->spell_wave_x = 0;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnMathTrig a = {0}, b = {0};
+            if (!SotnMath_Trig(in.executable, (Sint16)((i + 1U) * 0x100U), &a) ||
+                !SotnMath_Trig(in.executable, (Sint16)(i * 0x100U), &b))
+                return false;
+            const Sint32 flip = s->facing_left ? -1 : 1;
+            q = &s->spell_quads[1 + i * 2U];
+            *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
+            q->u[0] = q->u[2] = 0xc0;
+            q->v[0] = q->v[2] = (Uint8)(s->spell_v1 + 0x40);
+            q->u[1] = (Uint8)((Asr(Asr(a.cosine, 4) * 0x3e, 8) * flip) + 0xc0);
+            q->v[1] = (Uint8)(s->spell_v1 + (0x40 - Asr(Asr(a.sine, 4) * 0x3e, 8)));
+            q->u[3] = (Uint8)((Asr(Asr(b.cosine, 4) * 0x3e, 8) * flip) + 0xc0);
+            q->v[3] = (Uint8)(s->spell_v1 + (0x40 - Asr(Asr(b.sine, 4) * 0x3e, 8)));
+            SpellColors(q, 0x80);
+            q->priority = 0x1b8;
+            q->draw_mode = 0x08;
+            SotnPlayerEffectQuad *c = &s->spell_quads[2 + i * 2U];
+            *c = *q;
+            c->palette = 0x15f;
+            c->priority = 0x1ba;
+            c->draw_mode |= 0x20 | 0x10 | 0x04 | 0x01;
+        }
+        s->spell_step = 0xc0;
+        s->spell_bright = 0x100;
+        e->clear_shield = true;
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 0x28 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 8;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+        {
+            s->spell_timer = 0x10;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        s->spell_quads[0].priority = !(s->spell_timer & 1) ? 0x1bc : (Uint16)(s->priority - 2U);
+        s->scale_x = Word(s->scale_x - 0x10);
+        if (s->scale_x <= 0)
+            s->scale_x = 0;
+        s->scale_y = s->scale_x;
+        if (--s->spell_timer == 0)
+        {
+            s->frame = 0;
+            for (Uint16 i = 1; i < 33; ++i)
+                s->spell_quads[i].draw_mode &= 0xfff7U;
+            e->sounds[0] = 0x66a;
+            s->phase = 4;
+        }
+        break;
+    case 4: {
+        s->spell_glow = Word(s->spell_glow + 8);
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        if (q->blue[3] > 8)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        s->spell_half_w = Word(s->spell_half_w + 2);
+        s->spell_half_h = Word(s->spell_half_h + 2);
+        if (s->spell_half_w >= 0x3e)
+        {
+            s->spell_half_w = 0x3e;
+            q->draw_mode |= 8;
+            s->phase = 5;
+        }
+        break;
+    }
+    case 5:
+        s->spell_half_h = Word(s->spell_half_h - 2);
+        if (s->spell_half_h <= 0)
+        {
+            s->spell_half_h = 0;
+            // FACTORY(88,0) and (88,1): the two swords, with the combo's <<14 hand bits; each
+            // CreateEntFactoryFromEntity fails silently without a free factory entity.
+            for (Uint32 n = 0; n < 2 && in.free_factories > e->factory_count; ++n)
+            {
+                e->factories[e->factory_count] = (88U + ((in.hand + 1U) << 14)) | n << 16;
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count++] = s->y;
+            }
+            e->freeze_clear = true;
+            s->phase = 6;
+        }
+        break;
+    case 6:
+        s->spell_bright = Word(s->spell_bright - 8);
+        if (s->spell_bright <= 0)
+        {
+            s->spell_bright = 0;
+            s->phase = 7;
+            s->spell_timer = 0x40;
+        }
+        break;
+    case 7:
+        if (--s->spell_timer == 0)
+            s->phase = 8;
+        break;
+    case 8:
+        s->spell_bright = Word(s->spell_bright + 12);
+        if (s->spell_bright > 0x120)
+            s->spell_bright = 0x120;
+        s->spell_half_h = Word(s->spell_half_h + 3);
+        if (s->spell_half_h >= 0x36)
+        {
+            s->spell_half_h = 0x36;
+            hide = true;
+            e->sounds[0] = 0x636;
+            s->phase = 9;
+        }
+        break;
+    default:
+        s->spell_bright = Word(s->spell_bright - 8);
+        if (s->spell_bright < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    if (q->blue[3] > 8)
+    {
+        if (in.engine_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode &= 0xfff7U;
+    }
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnMathTrig a = {0}, b = {0}, c = {0}, d = {0};
+        const Sint16 offset = s->spell_wave_x;
+        if (!SotnMath_Trig(in.executable, (Sint16)((i + 1U) * 0x100U + (Uint16)offset), &a) ||
+            !SotnMath_Trig(in.executable, (Sint16)((i + 1U) * 0x100U), &b) ||
+            !SotnMath_Trig(in.executable, (Sint16)(i * 0x100U + (Uint16)offset), &c) ||
+            !SotnMath_Trig(in.executable, (Sint16)(i * 0x100U), &d))
+            return false;
+        q = &s->spell_quads[1 + i * 2U];
+        q->x[0] = IronSpoke(x, a.cosine, s->spell_half_h, false);
+        q->y[0] = IronSpoke(y, a.sine, s->spell_half_h, true);
+        q->x[1] = IronSpoke(x, b.cosine, s->spell_half_w, false);
+        q->y[1] = IronSpoke(y, b.sine, s->spell_half_w, true);
+        q->x[2] = IronSpoke(x, c.cosine, s->spell_half_h, false);
+        q->y[2] = IronSpoke(y, c.sine, s->spell_half_h, true);
+        q->x[3] = IronSpoke(x, d.cosine, s->spell_half_w, false);
+        q->y[3] = IronSpoke(y, d.sine, s->spell_half_w, true);
+        if (hide)
+            q->draw_mode |= 8;
+        SotnPlayerEffectQuad *copy = &s->spell_quads[2 + i * 2U];
+        *copy = *q;
+        bool ok = true;
+        copy->red[2] = copy->green[2] = copy->blue[2] = copy->blue[3] = 0;
+        copy->green[3] = copy->red[3] =
+            IronGlow(in.executable, p->iron_angles[i], s->spell_bright, &ok);
+        if (!ok)
+            return false;
+        copy->red[0] = copy->green[0] = copy->blue[0] = copy->blue[1] = 0;
+        copy->green[1] = copy->red[1] =
+            IronGlow(in.executable, p->iron_angles[(i + 1) % 16], s->spell_bright, &ok);
+        if (!ok)
+            return false;
+        p->iron_angles[i] = Word(p->iron_angles[i] + s->spell_step);
+        copy->palette = 0x15f;
+        copy->priority = 0x1ba;
+        copy->draw_mode = 0x20 | 0x10 | 0x04 | 0x01;
+    }
+    return true;
+}
+// w_010 func_ptr_80170024: one of the spell's two swords (params bit8: the second). Its raw parent
+// spell's facing, child palette and v band are copied at birth; it retires once that slot empties.
+// Row0 is the original FakePrim centre (screen, drifting at 2.25 after a 0x20 delay that makes the
+// sword CAMERA_LOCKED); the blade (row1) and sixteen white slices (rows2..17) circle that centre on
+// an opening radius, recoloured from the program's shieldAngles2 as they fade.
+static bool IronSword(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                      Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    if (!IronAngles(p, in.overlay))
+        return false;
+    const Uint16 upper = (Uint16)((s->parameter & 0x7f00U) >> 8);
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    switch (s->phase)
+    {
+    case 0: {
+        s->facing_left = in.parent_facing_left;
+        s->spell_child_palette = (Uint16)(in.parent_child_palette + 1U + upper);
+        s->spell_v1 = in.parent_band;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 9;
+        s->allocated = true;
+        s->flags = 0x04800000U;
+        s->iron_cx = (Sint32)((Uint32)s->x - ((Uint32)in.retained_camera_x << 16));
+        s->iron_cy = (Sint32)((Uint32)s->y - ((Uint32)in.retained_camera_y << 16));
+        s->iron_vx = s->facing_left ? -0x24000 : 0x24000;
+        s->spell_quads[0] = (SotnPlayerEffectQuad){.draw_mode = 0x08};
+        SotnPlayerEffectQuad *q = &s->spell_quads[1];
+        *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
+        q->u[0] = q->u[2] = 0;
+        q->u[1] = q->u[3] = 0x7f;
+        q->v[0] = q->v[1] = (Uint8)(s->spell_v1 + 0x30);
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x4f);
+        SpellColors(q, 0x80);
+        q->priority = 0x1bc;
+        q->draw_mode = 0;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad *c = &s->spell_quads[2 + i];
+            *c = s->spell_quads[1 + i];
+            c->u[0] = c->u[2] = (Uint8)(i * 128 / 16);
+            c->u[1] = c->u[3] = (Uint8)((i + 1) * 128 / 16 - 1);
+            c->palette = 0x15f;
+            c->priority = 0x1be;
+            c->draw_mode |= 0x20 | 0x10 | 0x04 | 0x01;
+        }
+        s->spell_step = 0x80;
+        s->spell_bright = 0x100;
+        if (!((s->facing_left ^ upper) & 1U))
+        {
+            s->iron_step = -0x100;
+            s->iron_angle = 0x800;
+            s->rotate = 0x200;
+        }
+        else
+        {
+            s->iron_step = 0x100;
+            s->iron_angle = 0;
+            s->rotate = 0x600;
+        }
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 0x10;
+        s->iron_delay = 0x20;
+        e->sounds[0] = 0x69d;
+        s->phase = 1;
+        break;
+    }
+    default:
+        s->spell_bright = Word(s->spell_bright - 8);
+        if (s->spell_bright < 0)
+            s->spell_bright = 0;
+        if (s->iron_delay)
+        {
+            if (--s->iron_delay == 0)
+            {
+                s->flags |= 0x08000000U;
+                s->flags &= ~0x04000000U;
+            }
+        }
+        else
+        {
+            if (s->iron_radius < 0x280)
+                s->iron_radius = Word(s->iron_radius + 0x18);
+            s->rotate = Word(s->rotate + s->iron_step * 7 / 4);
+            const Sint16 previous = s->iron_angle;
+            s->iron_angle = Word(s->iron_angle + s->iron_step);
+            if (((previous ^ s->iron_angle) & 0x1000) && (s->parameter & 0x100U))
+                e->sounds[0] = 0x689;
+            s->iron_cx = (Sint32)((Uint32)s->iron_cx + (Uint32)s->iron_vx);
+        }
+        break;
+    }
+    // The FakePrim keeps its centre's whole pixels in x0/y0 (the original rewrites the high
+    // words from them before each move).
+    s->spell_quads[0].x[0] = Pixel(s->iron_cx);
+    s->spell_quads[0].y[0] = Pixel(s->iron_cy);
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(in.executable, s->iron_angle, &t))
+        return false;
+    const Sint32 sx = (Sint32)((Uint32)s->iron_cx + (Uint32)t.cosine * (Uint32)s->iron_radius),
+                 sy = (Sint32)((Uint32)s->iron_cy - (Uint32)t.sine * (Uint32)s->iron_radius);
+    s->x = (Sint32)((Uint32)sx + ((Uint32)in.retained_camera_x << 16));
+    s->y = (Sint32)((Uint32)sy + ((Uint32)in.retained_camera_y << 16));
+    s->iron_count = Word(s->iron_count + 1);
+    const Sint16 x = Pixel(sx), y = Pixel(sy);
+    Sint16 cx[4] = {0}, cy[4] = {0};
+    const Uint16 corner[4] = {0x787, 0x79, 0x879, 0xf87};
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        SotnMathTrig c = {0};
+        if (!SotnMath_Trig(in.executable, (Sint16)((Uint16)s->rotate + corner[k]), &c))
+            return false;
+        cx[k] = IronSpoke(x, c.cosine, 0x42, false);
+        cy[k] = IronSpoke(y, c.sine, 0x42, true);
+    }
+    SotnPlayerEffectQuad *q = &s->spell_quads[1];
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        q->x[k] = cx[k];
+        q->y[k] = cy[k];
+    }
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        q = &s->spell_quads[2 + i];
+        q->x[0] = Word(cx[0] + (cx[1] - cx[0]) * i / 16);
+        q->x[1] = Word(cx[0] + (cx[1] - cx[0]) * (i + 1) / 16);
+        q->x[2] = Word(cx[2] + (cx[3] - cx[2]) * i / 16);
+        q->x[3] = Word(cx[2] + (cx[3] - cx[2]) * (i + 1) / 16);
+        q->y[0] = Word(cy[0] + (cy[1] - cy[0]) * i / 16);
+        q->y[1] = Word(cy[0] + (cy[1] - cy[0]) * (i + 1) / 16);
+        q->y[2] = Word(cy[2] + (cy[3] - cy[2]) * i / 16);
+        q->y[3] = Word(cy[2] + (cy[3] - cy[2]) * (i + 1) / 16);
+        bool ok = true;
+        q->red[0] = q->green[0] = q->blue[0] = q->red[2] = q->green[2] = q->blue[2] =
+            IronGlow(in.executable, p->iron_angles2[i], s->spell_bright, &ok);
+        if (!ok)
+            return false;
+        q->red[1] = q->green[1] = q->blue[1] = q->red[3] = q->green[3] = q->blue[3] =
+            IronGlow(in.executable, p->iron_angles2[(i + 1) % 16], s->spell_bright, &ok);
+        if (!ok)
+            return false;
+        p->iron_angles2[i] = Word(p->iron_angles2[i] + s->spell_step);
+    }
     return true;
 }
 // w_013 func_ptr_80170004: an afterimage copying the root's frame, palette cycle and rotation,
@@ -5909,6 +6371,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 13 && in.role == 2                      ? 4
                         : in.family == 13 && in.role == 3                      ? 3
                         : in.family == 7 && in.role == 1                       ? 4
+                        : in.family == 10 && in.role == 8                      ? 9
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -5960,6 +6423,14 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 14)
     {
         if (!(in.role == 0 ? Rune(&s, in, &rng, &e) : RuneHitbox(&s, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 10)
+    {
+        if (!(in.role == 1   ? IronThunder(&s, in, &e)
+              : in.role == 8 ? IronSpell(&s, &shared, in, &e)
+                             : IronSword(&s, &shared, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -6181,6 +6652,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
                           .timeline_count = state->timeline == 0x548 ? 3 : 13};
     if (!state ||
         (family != 55 && family != 1 && (family != 7 || state->role != 1) &&
+         (family != 10 || state->role != 1) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

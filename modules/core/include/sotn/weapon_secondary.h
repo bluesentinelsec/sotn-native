@@ -113,7 +113,7 @@ typedef struct SotnWeaponSecondary
          * childPalette and unk7C/7D rows. */
         struct
         {
-            SotnPlayerEffectQuad spell_quads[23];
+            SotnPlayerEffectQuad spell_quads[33];
             Sint16 spell_timer, spell_glow, spell_half_w, spell_half_h, spell_step;
             /** Weapon25 clouds (E9): ext.shield unk96 spin and unk98 orbit angle. */
             Sint16 cloud_spin, cloud_angle;
@@ -121,6 +121,11 @@ typedef struct SotnWeaponSecondary
              * offsets, unk96 spin step and unk9A depth. */
             Sint16 star_axis[3], star_offset_x, star_offset_y, star_spin, star_depth;
             Sint16 spell_bright, spell_wave_x, spell_wave_y;
+            /** Weapon10 swords (E9): the FakePrim row0 centre posX/posY (screen 16.16) and
+             * velocityX, ext.shield unk9A radius, unk9C angle, unk9E step, unk98 count, unkA0
+             * delay. */
+            Sint32 iron_cx, iron_cy, iron_vx;
+            Sint16 iron_radius, iron_angle, iron_step, iron_count, iron_delay;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;
@@ -232,6 +237,8 @@ typedef struct SotnWeaponSecondaryInput
     /** Weapon13 combo children (not CAMERA_LOCKED): the camera their screen words use, the
      * actual camera less this pass's retained-screen shift (the pre-scroll camera). */
     Sint32 retained_camera_x, retained_camera_y;
+    /** Weapon10 swords: the raw parent spell's ext.shield.unk7D v band (read at birth). */
+    Uint8 parent_band;
     Uint32 engine_timer; /**< Actual g_Timer (shield spells' flicker, unlike g_GameTimer). */
 } SotnWeaponSecondaryInput;
 
