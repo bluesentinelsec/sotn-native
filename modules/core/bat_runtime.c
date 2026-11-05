@@ -906,6 +906,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 9                 ? 23
            : item == 10                ? 24
            : item == 13                ? 27
+           : item == 14                ? 28
            : SotnWeaponSecondary_ShieldSpellFamily(item)
                ? SotnWeaponSecondary_ShieldSpellFamily(item)
            : item == 27  ? 36
@@ -1050,6 +1051,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // swords.
     if (family == 10)
         return (bp == 56 && param == 0) || (bp == 88 && param <= 1);
+    // Weapon28: Skull's spell requests FACTORY(88)'s beam.
+    if (family == 28)
+        return bp == 88 && param == 0;
     // Weapon27: Medusa's spell requests FACTORY(98)'s lasers, each laser FACTORY(100)'s hit
     // points.
     if (family == 27)
@@ -1145,6 +1149,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon25: the spell carries the hand bit, its clouds params1.
     if (family == 11 || family == 25 || family == 10)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
+    // Weapon28: the spell and beam carry the hand bit.
+    if (family == 28)
+        return !(parameter & 0x7fffU);
     // Weapon27: the spell and hit points carry the hand bit; the lasers their index0/1.
     if (family == 27)
         return !(parameter & 0x7f00U) && (parameter & 0xffU) <= 1;
@@ -1257,6 +1264,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 24                                           ? 3
                                    : family == 27 && (c->kind & 15U) == 8                   ? 5
                                    : family == 27                                           ? 1
+                                   : family == 28 && (c->kind & 15U) == 8                   ? 8
+                                   : family == 28                                           ? 3
                                    : (family == 12 || family == 34) && (c->kind & 15U) == 1 ? 2
                                    : family == 30 && (c->kind & 15U) == 1                   ? 4
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
@@ -4224,9 +4233,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             Uint8 parent_group = 0;
             SotnEquipment parent_properties = {0};
             Uint16 parent_hitbox_state = 0;
-            // Weapon13's strike swords copy the raw parent's equipId/enemyId when they launch.
+            // Weapon13's strike swords copy the raw parent's equipId/enemyId when they launch;
+            // weapon28's beam copies the raw parent's equipId before every SetWeaponProperties.
             const bool strike = family == 13 && (c->kind & 15U) == 3;
-            if ((cold || strike) && !c->state.secondary.own_item)
+            const bool beam = family == 28 && (c->kind & 15U) == 9;
+            if ((cold || strike || beam) && !c->state.secondary.own_item)
             {
                 // A chained child born into its retired root's slot points at itself and reads
                 // its own freshly cleared words.
@@ -4277,6 +4288,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 23 ? 9
                                  : family == 24 ? 10
                                  : family == 27 ? 13
+                                 : family == 28 ? 14
                                  : family == 56 ? 141
                                  : family == 12 ? 133
                                  : family == 34 ? 28
@@ -4566,6 +4578,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     secondary_in.target = targets.slots[w->dawn_slot];
                 }
             }
+            // Weapon28's beam reads its raw parent spell's presence, v band and child palette at
+            // birth and its X every update (an empty slot reads screen X0).
+            if (family == 28 && (c->kind & 15U) == 9)
+            {
+                const SotnBatRuntimeChild *root = &r.children[c->state.secondary.parent_slot - 16U];
+                const bool own = root->weapon_secondary && root->state.secondary.family == 28 &&
+                                 (root->kind & 15U) == 8;
+                if (root->kind && !own)
+                    return SDL_SetError("Skull shield beam raw parent is not its spell");
+                secondary_in.parent_exists = root->kind != 0;
+                secondary_in.parent_x =
+                    own ? root->state.secondary.motion.x
+                        : (Sint32)((Uint32)(in.camera_x - in.room_shift_x + in.screen_shift_x)
+                                   << 16);
+                if (own)
+                {
+                    secondary_in.parent_band = root->state.secondary.motion.spell_v1;
+                    secondary_in.parent_child_palette =
+                        root->state.secondary.motion.spell_child_palette;
+                }
+            }
             // Weapon27's lasers read their retained target slot's current words.
             if (family == 27 && (c->kind & 15U) == 9 && w->laser_bound)
             {
@@ -4852,9 +4885,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     // Weapon11's walker keeps func_80118894's least-used group (no parent copy).
                     // Weapon10's swords call SetWeaponProperties without an enemyId copy too.
                     // Weapon24's rocks and weapon27's hit points too.
-                    c->group = family == 11 || family == 10 || family == 24 || family == 27
-                                   ? (Uint8)group
-                                   : parent_group;
+                    c->group =
+                        family == 11 || family == 10 || family == 24 || family == 27 || family == 28
+                            ? (Uint8)group
+                            : parent_group;
                     c->state.secondary.item = item;
                 }
             }
@@ -4863,7 +4897,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon13's combo sweep and strike swords lack it too.
             if (((SotnWeaponSecondary_ShieldSpell(family) &&
                   ((c->kind & 15U) == 8 || family == 25 || family == 26 || family == 52 ||
-                   family == 23 || family == 24 || family == 27)) ||
+                   family == 23 || family == 24 || family == 27 || family == 28)) ||
                  sweep || strike ||
                  // Weapon10's swords until their delay makes them CAMERA_LOCKED.
                  (family == 10 && (c->kind & 15U) == 9 && !(w->flags & 0x08000000U))) &&

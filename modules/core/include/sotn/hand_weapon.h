@@ -54,6 +54,8 @@ typedef struct SotnHandWeaponProgram
             /** Weapon23: the swirl's sixteen rotated model vectors (overlay BSS D_8017AC90's
              * targets, rewritten by each swirl's birth). */
             Sint16 herald_vectors[16][3];
+            /** Weapon28: D_8017AB18/AB1A, the spell's red ramp and its direction parity. */
+            Sint16 skull_ramp, skull_parity;
         };
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */

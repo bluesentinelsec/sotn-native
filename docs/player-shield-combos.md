@@ -26,8 +26,8 @@ Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 Only combos with an actual native owner are selected. These shield spells have one, with
 Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
 shield's 205, Axe Lord shield's 206, Herald shield's 207, Dark shield's 208, Goddess shield's
-209, Shaman shield's 210, Medusa shield's 211, Alucard shield's 214 and Alucart shield's 215.
-Skull and Fire shields' spells (212, 213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
+209, Shaman shield's 210, Medusa shield's 211, Skull shield's 212, Alucard shield's 214 and
+Alucart shield's 215. Fire shield's spell (213) does not yet. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
 ## Leather shield spell (item203)
@@ -181,6 +181,28 @@ SetWeaponProperties rolls item0's (empty-hand) properties with a 6x6 hitbox and 
 it lives six updates. Hits count, and a sixth would clear the laser's target, but a hit point can
 record at most five in its life, so that release never happens in play (the private comparison
 exercises it with a seeded count). Lasers and hit points keep screen positions.
+
+## Skull shield spell (item212) and its beam
+
+Skull shield's spell (w_028, forty MP) takes thirteen GT4s: the glow, the skull image, a copy behind
+it on palette+2 and ten white slices. It grows, flashes out with WEAPON_APPEAR and opens the image
+to scale/8 half extents (its palette alternates on every second g_Timer); then it dims and holds
+160 updates. At the hold's 64th update it requests `FACTORY(88)` (skipped without a free factory
+entity), ends the freeze and recoils 3.5 back, decelerating by 22/128 and trembling (one pixel on
+alternate g_Timer, then on alternate pairs) until the hold ends. It brightens past 0x120, hides the
+image and its copy, and slides the slices apart for 24 updates as they fade. Slice colours and
+waves come from the program's retained `D_8017AB1C` angles (ten used). Every callback that draws
+also runs `func_C8000_8017B3D4`: a program ramp (`D_8017AB18`/`AB1A`) ping-pongs over 0..31 into
+colour 11's red bits of palette 0x113/0x12B, uploaded after the pass like Shaman's green cycle.
+
+The beam (`func_ptr_80170024`, E9/F9 in 17..31) retires at birth unless its raw parent slot holds
+an entity, takes three GT4s, copies the spell's v band and child palette plus three, and sits 24
+ahead of its raw parent's X every update (an empty slot reads screen X 0). A black mask grows by two
+to 32, then gives way to the skull and a beam to the screen edge with FIREBALL_SHOT_A. For 0x40
+updates it copies the raw parent's equip id and calls SetWeaponProperties every update (least-used
+group, re-picked each time) with a hitbox reaching from its position to the screen edge; once the
+spell's slot empties that copy is zero, so it rolls item0's properties. Then it shrinks away. The
+beam fires level with the spell, so floor-level enemies below a risen spell are missed.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -403,6 +425,22 @@ Public tests cover:
   func_80118B18); Debug and ASan traces are byte-identical. Native Debug/ASan protocols cast
   spell211 in both hand arrangements (spell/laser pixels, animations, lasers locking targets, an
   enemy defeated), raise the guarding Medusa shield and fall back to a swing below thirty MP.
+- **Skull:** the plain guard's own table. The spell's birth rows (glow, image, palette+2 copy,
+  slices), phase timeline, sounds, the FACTORY(88) request with the freeze's end, the recoil's
+  speed/deceleration and tremble, image geometry and alternating palette, the image copy's
+  visibility, slice colours from the ten retained angles, the final glow blue and the phase-8
+  height growth, and the red ramp's palette request each callback. The beam's gates, band and
+  palette, the three rows' UVs, the mask growth and FIREBALL_SHOT_A, sixty-four property rolls
+  with the hitbox reaching the screen edge, the shrink and X following the raw parent. The
+  runtime casts the spell: one beam with the spell's band, item212 and least-used groups, a
+  palette word every spell callback, one freeze. 60 of 65 Skull mutations are caught; three are
+  equivalent (the always-zero opening wave and an unrequested factory parameter) and two do not
+  compile. The private comparison runs complete `w_028` callbacks: 3,580 spell and 692 beam
+  callbacks with 48,372 row comparisons and every g_Clut write and upload; Debug and ASan traces
+  are byte-identical. It caught a native glow-row pointer slip and the beam's per-update equipId
+  re-read (an emptied spell slot rolls item0), both fixed. Native Debug/ASan protocols cast
+  spell212 in both hand arrangements (spell/beam pixels, sixty-three attack passes, palette
+  writes, freeze), raise the guarding Skull shield and fall back to a swing below forty MP.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.
