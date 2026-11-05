@@ -70,6 +70,13 @@ bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform transfo
 bool SotnShieldStar_Project(SotnDataView executable, const Sint16 axis[3], const Sint32 transfer[3],
                             Sint16 offset_x, Sint16 offset_y, Uint16 screen,
                             const Sint16 vertices[4][3], SotnProjectedPoint out[4], Sint32 *otz);
+/** @brief RotMatrix(axis) applied by RotTrans to one small model vector, less the translation
+ * (MVMVA with sf=1 adds TR<<12 before its arithmetic shift, so the translation separates).
+ * @param executable Borrowed verified boot math tables. @param axis RotMatrix angles (XYZ order).
+ * @param vertex Model vector (|v| <= 1024). @param out Receives the rotated MAC words.
+ * @return Success or SDL error preserving the output; bounded to selected shield effects. */
+bool SotnShieldStar_Rotate(SotnDataView executable, const Sint16 axis[3], const Sint16 vertex[3],
+                           Sint32 out[3]);
 /** @brief Original book transform; angles use 4096 units, depth is 0..768. */
 typedef struct SotnBookTransform
 {

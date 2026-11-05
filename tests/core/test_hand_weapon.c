@@ -172,8 +172,8 @@ static bool BasicShields(void)
     // only weapon58 (like 52) caches the property attack and overrides it to one.
     const Uint16 families[] = {9, 11, 26, 8, 25, 58},
                  tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
-    CHECK(SotnHandWeapon_IsShieldFamily(10) && !SotnHandWeapon_IsShieldFamily(23) &&
-          !SotnHandWeapon_IsShieldFamily(255));
+    CHECK(SotnHandWeapon_IsShieldFamily(10) && SotnHandWeapon_IsShieldFamily(23) &&
+          !SotnHandWeapon_IsShieldFamily(24) && !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -1525,6 +1525,82 @@ static bool IronGuard(void)
     }
     return true;
 }
+// w_023 (Herald shield): a raised (step1/2) hitFlags3 with no cooldown adds a heart and starts
+// unk84's 0x20 cooldown, decremented on the same update and every later one; hitFlags1 stays
+// set and grants nothing; a hitFlags3 during the cooldown waits for it to expire.
+static bool HeraldGuard(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    SDL_memmove(o + 0xb20 - 0x48, o + 0xb84 - 0x48, 0x48 + 14 * 4);
+    // Family52's table must not be read for family23.
+    SDL_memset(o + 0xb84, 0xff, 14 * 4);
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                                  .properties = Properties,
+                                  .priority = 148,
+                                  .animation = 0x41,
+                                  .remaining = 1,
+                                  .attack_mode = 0x8002,
+                                  .scale_y = 256,
+                                  .family = 23,
+                                  .hand = hand,
+                                  .held = true};
+        SotnHandWeapon w = {.hit_flags = 3};
+        SotnHandWeaponProgram program = {0};
+        SotnHandWeaponEvents e = {0};
+        Uint32 rng = 9;
+        // Birth (step0) runs before the check falls through to step1: no heart yet.
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 1 && !e.hearts &&
+              w.hit_flags == 3 && !w.guard_cooldown && !e.factory);
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.hearts && !w.hit_flags &&
+              w.guard_cooldown == 0x1f && !e.guard_blink && !e.shield_hit);
+        w.hit_flags = 1;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.hearts && w.hit_flags == 1 &&
+              w.guard_cooldown == 0x1e);
+        w.hit_flags = 3;
+        for (Uint16 n = 0; n < 0x1e; ++n)
+        {
+            e = (SotnHandWeaponEvents){0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.hearts &&
+                  w.hit_flags == 3 && w.guard_cooldown == 0x1d - n);
+        }
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.hearts && !w.hit_flags &&
+              w.guard_cooldown == 0x1f);
+        // A plain hit (hitFlags1) with no cooldown adds nothing and stays recorded.
+        while (w.guard_cooldown)
+        {
+            e = (SotnHandWeaponEvents){0};
+            CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e));
+        }
+        w.hit_flags = 1;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.hearts && w.hit_flags == 1 &&
+              !w.guard_cooldown);
+        // Following the player's animation (step2) counts; lowering (step3) does not, but the
+        // cooldown still counts down.
+        w.phase = 2;
+        w.guard_cooldown = 0;
+        w.hit_flags = 3;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && e.hearts &&
+              w.guard_cooldown == 0x1f);
+        in.held = false;
+        w.guard_cooldown = 0;
+        w.hit_flags = 3;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.phase == 3 && !e.hearts &&
+              w.hit_flags == 3);
+        w.guard_cooldown = 5;
+        e = (SotnHandWeaponEvents){0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && w.guard_cooldown == 4);
+    }
+    return true;
+}
 static bool AlucardArmed(void)
 {
     Uint8 o[0x1200] = {0};
@@ -1620,6 +1696,99 @@ static bool AlucardArmed(void)
 // and drains the character's MP on every sixteenth game update; a delivered hit becomes one
 // BlinkWhite0x15 factory, the timer13 floor, a kind1 heal request and one heart; at expiry it
 // releases blueprint0x3A's E1/F1 letters (eleven rows in32..63), which retire on their own.
+// Herald shield in the runtime: a raised block (hitFlags3) adds a heart with the rising heart
+// (child51) and HEART_PICKUP; a block during the cooldown keeps its hitFlags, so its heart arrives
+// when the cooldown ends (as in the original); at the maximum AddHearts does nothing at all.
+static bool HeraldRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(53, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Definition(dra, 9, 23, 0);
+    Uint8 *shield = dra + 0x500 + 9U * 52U;
+    shield[14] = 9;
+    shield[17] = 128;
+    shield[18] = 0x63;
+    shield[21] = 0;
+    Put16(shield + 40, 4);
+    const Uint8 blueprints[2][6] = {{0, 1, 0xc1, 0, 0x23, 0}, {51, 1, 0xc1, 0, 0, 0}};
+    const Uint16 ids[2] = {48, 99};
+    for (Uint16 b = 0; b < 2; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    Uint8 *o = weapons + 23U * 0x7000 + 0x4000;
+    Resources(o);
+    SDL_memmove(o + 0xb20 - 0x48, o + 0xb84 - 0x48, 0x48 + 14 * 4);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    CHECK(SotnCharacter_Collect(character, false, 9) &&
+          SotnCharacter_Equip(character, SOTN_EQUIP_RIGHT, 9));
+    SotnCharacterState progress = {0};
+    CHECK(SotnCharacter_Get(character, &progress, NULL));
+    progress.hearts = 5;
+    CHECK(SotnCharacter_Restore(character, &progress));
+    static Uint8 exe[0x24000];
+    FistMath(exe);
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 53U * 0x7000},
+                              .weapon_family = {23, 23},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x8002,
+                                         .buttons = SOTN_BUTTON_RIGHT_HAND,
+                                         .animation = {.id = 0x41, .pose = 3, .remaining = 1}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x802030, 9, &allocated) && allocated &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          r->children[0].hand_weapon && r->children[0].state.hand.family == 23);
+    Uint16 gains = 0, sounds = 0, risen = 0, hearts_live = 0;
+    for (Uint16 t = 1; t < 200; ++t)
+    {
+        if (t == 150)
+        {
+            CHECK(SotnCharacter_Get(character, &progress, NULL));
+            progress.hearts = progress.hearts_max;
+            CHECK(SotnCharacter_Restore(character, &progress));
+        }
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        const Uint16 hearts = progress.hearts;
+        if (t == 5 || t == 10 || t == 160)
+            CHECK(SotnBatRuntime_Hit(r, 0, r->children[0].generation, 3));
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        CHECK(SotnCharacter_Get(character, &progress, NULL));
+        gains += (Uint16)(progress.hearts - hearts);
+        CHECK(progress.hearts == hearts + (t == 5 || t == 37 ? 1 : 0));
+        for (Uint16 k = 0; k < r->sound_count; ++k)
+            sounds += r->sounds[k] == 0x67a;
+        // Rising-heart births (each lives up to 128 updates).
+        Uint16 live = 0;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            live += r->children[i].kind == 51 && r->children[i].initialized;
+        risen += live > hearts_live ? (Uint16)(live - hearts_live) : 0;
+        hearts_live = live;
+    }
+    CHECK(gains == 2 && sounds == 2 && risen == 2);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 static bool AlucardRuntime(void)
 {
     Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(53, 0x7000);
@@ -1635,10 +1804,13 @@ static bool AlucardRuntime(void)
     shield[18] = 0x63;
     shield[21] = 0;
     Put16(shield + 40, 4);
-    const Uint8 blueprints[3][6] = {
-        {0, 1, 0xc1, 0, 0x23, 0}, {11, 1, 0x81, 0, 0, 0}, {1, 1, 0xc1, 0, 0, 0}};
-    const Uint16 ids[3] = {48, 44, 58};
-    for (Uint16 b = 0; b < 3; ++b)
+    // Blueprint99 is AddHearts' rising heart (child51, slots32..63).
+    const Uint8 blueprints[4][6] = {{0, 1, 0xc1, 0, 0x23, 0},
+                                    {11, 1, 0x81, 0, 0, 0},
+                                    {1, 1, 0xc1, 0, 0, 0},
+                                    {51, 1, 0xc1, 0, 0, 0}};
+    const Uint16 ids[4] = {48, 44, 58, 99};
+    for (Uint16 b = 0; b < 4; ++b)
         SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
     dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
     dra[0xd4b8] = 32;
@@ -1661,7 +1833,11 @@ static bool AlucardRuntime(void)
     progress.mp = progress.mp_max = 30;
     progress.hearts = 5;
     CHECK(SotnCharacter_Restore(character, &progress));
+    // The rising heart's private sway uses the SDK tables.
+    static Uint8 exe[0x24000];
+    FistMath(exe);
     SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
                               .weapons = {weapons, 53U * 0x7000},
                               .weapon_family = {52, 52},
                               .weapon_bound = {true, true},
@@ -1681,7 +1857,8 @@ static bool AlucardRuntime(void)
           r->children[0].hand_weapon && !r->shield_mp_hold);
     r->hand_program[1].alucard_active = 1;
     r->hand_program[1].alucard_timer = 0x30;
-    Uint16 holds = 0, drained = 0, letters = 0, letter_rows = 0, heals = 0, blinks = 0;
+    Uint16 holds = 0, drained = 0, letters = 0, letter_rows = 0, heals = 0, blinks = 0,
+           hearts_risen = 0;
     for (Uint16 t = 1; t < 400; ++t)
     {
         in.game_timer = t;
@@ -1704,6 +1881,16 @@ static bool AlucardRuntime(void)
         for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
             blinks += r->factories[i].cursor.entity_id && r->factories[i].cursor.blueprint == 44 &&
                       r->factories[i].cursor.parameter == 0x1500 && t == 5;
+        // AddHearts(1) below the maximum: the rising heart (child51) and SFX_HEART_PICKUP.
+        if (t == 5)
+        {
+            bool sound = false;
+            for (Uint16 k = 0; k < r->sound_count; ++k)
+                sound |= r->sounds[k] == 0x67a;
+            CHECK(sound);
+        }
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            hearts_risen += r->children[i].kind == 51 && r->children[i].initialized && t == 7;
         for (Uint16 i = 16; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         {
             const SotnBatRuntimeChild *c = &r->children[i];
@@ -1730,8 +1917,8 @@ static bool AlucardRuntime(void)
               !r->hand_program[1].alucard_active);
     }
     // Thirty-one raised updates hold regeneration and drain on every sixteenth game update.
-    CHECK(heals == 1 && blinks == 1 && holds >= 0x30 && drained >= 2 && drained <= 4 &&
-          !r->hand_program[1].alucard_active && letters > 0x60 && letter_rows > 20);
+    CHECK(heals == 1 && blinks == 1 && hearts_risen == 1 && holds >= 0x30 && drained >= 2 &&
+          drained <= 4 && !r->hand_program[1].alucard_active && letters > 0x60 && letter_rows > 20);
     for (Uint16 i = 16; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
     SotnCharacter_Destroy(character);
@@ -1747,7 +1934,8 @@ int main(void)
     return Run() && BasicShields() && BasicFists() && PlainWeapons() && Gurthang() && Muramasa() &&
                    HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
                    Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
-                   IronGuard() && AlucardArmed() && AlucardRuntime()
+                   IronGuard() && HeraldGuard() && HeraldRuntime() && AlucardArmed() &&
+                   AlucardRuntime()
                ? 0
                : 1;
 }

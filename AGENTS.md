@@ -27,6 +27,12 @@ thunder (raw slot16 must hold item7; palette0x8194, THUNDER_A, anim0xBA0) then g
 (spell_quads[33]; lab GT4 commands now pack owner*64+row), program iron_angles/angles2 (0xBBC/0xBDC),
 FACTORY(88,0/1) E9 swords: 18 rows, FakePrim screen centre (row0 x0/y0), delay0x20 then
 CAMERA_LOCKED (screen retention only before), equip 205, least-used group, culled offscreen.
+Herald (w_023, family23, item9): a raised hitFlags3 block with unk84==0 calls AddHearts(1)
+(shared helper: below max only, rising heart FACTORY(99,0) + HEART_PICKUP; Alucard shield's hit
+uses it too) and sets the 0x20 cooldown, decremented every update. Spell207 (18 GT4, s32 program
+angles 0xB70) requests FACTORY(94)'s 24 E10/F10 sprites (params0..23 wait params*4; params0
+wraps to 65536, kept) and FACTORY(90)'s four-GT4 E9 swirl (RotTrans vectors in program BSS,
+RotTransPers4 x0/x1/x3/x2) before pink9; pink now follows a spell's factories. All screen words.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,

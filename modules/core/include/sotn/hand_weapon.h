@@ -51,6 +51,9 @@ typedef struct SotnHandWeaponProgram
              * 0x8017ABBC/ABDC, loaded at first use and retained). */
             Sint16 iron_angles[16], iron_angles2[16];
             bool iron_loaded;
+            /** Weapon23: the swirl's sixteen rotated model vectors (overlay BSS D_8017AC90's
+             * targets, rewritten by each swirl's birth). */
+            Sint16 herald_vectors[16][3];
         };
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
@@ -72,6 +75,9 @@ typedef struct SotnHandWeapon
     Uint16 hitbox_state;
     Uint8 hitbox_width, hitbox_height, phase, draw_flags, blend;
     Uint8 hit_flags; /**< Actual collision hitFlags recorded since the last callback. */
+    /** Weapon23 (Herald shield): ext.shield.unk84, the heart cooldown after a blocked
+     * projectile. */
+    Uint8 guard_cooldown;
     bool facing_left, removed, allocated;
 } SotnHandWeapon;
 /** @brief Actual GetEquipProperties adapter. It receives a working RNG cursor.
@@ -120,6 +126,8 @@ typedef struct SotnHandWeaponEvents
     bool mp_hold, mp_drain, shield_hit;
     /** Weapon10 (Iron shield) hit: func_8010E168(0,0x60) after this callback's factories. */
     bool guard_blink;
+    /** Weapon23 (Herald shield): a blocked projectile's AddHearts(1). */
+    bool hearts;
     bool properties;
     /** Weapon51 glow: one g_Clut word written and uploaded this callback (clut set). */
     bool clut;

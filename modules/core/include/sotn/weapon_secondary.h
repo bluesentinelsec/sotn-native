@@ -126,6 +126,10 @@ typedef struct SotnWeaponSecondary
              * delay. */
             Sint32 iron_cx, iron_cy, iron_vx;
             Sint16 iron_radius, iron_angle, iron_step, iron_count, iron_delay;
+            /** Weapon23 swirl (E9) and sprites (E10): unk7E angle; the sprites' cached screen X
+             * (ext.weapon.lifetime). Both keep spell_timer (unk80), spell_velocity_y; the swirl
+             * star_depth (unk9A) and spell_bright (unk9C). */
+            Sint16 herald_angle, herald_x;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;
@@ -290,7 +294,8 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family);
 /** @brief The shield program of a native combo spell item, or zero. */
 Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item);
 /** @brief Whether a resident program owns the given child callback role (0..5, shield spells'
- * 8 and weapon11's 9; role0 is weapon14/13's factory-born thrown EntityWeaponAttack). */
+ * 8, their children's 9 and weapon23's 10; role0 is weapon14/13's factory-born thrown
+ * EntityWeaponAttack). */
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one role's child; zero if unsupported. */
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);

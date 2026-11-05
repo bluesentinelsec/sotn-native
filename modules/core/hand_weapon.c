@@ -169,8 +169,8 @@ static bool AppendFactory(SotnHandWeaponEvents *e, Uint32 request)
 }
 bool SotnHandWeapon_IsShieldFamily(Uint16 family)
 {
-    return family == 8 || family == 9 || family == 10 || family == 11 || family == 25 ||
-           family == 26 || family == 52 || family == 58;
+    return family == 8 || family == 9 || family == 10 || family == 11 || family == 23 ||
+           family == 25 || family == 26 || family == 52 || family == 58;
 }
 // w_008/w_009 share one layout, as do w_025/w_026 and w_052/w_058.
 static Uint16 ShieldAnimationTable(Uint16 family)
@@ -178,6 +178,7 @@ static Uint16 ShieldAnimationTable(Uint16 family)
     return family == 8 || family == 9     ? 0xa40
            : family == 10                 ? 0xb68
            : family == 11                 ? 0xb94
+           : family == 23                 ? 0xb20
            : family == 25 || family == 26 ? 0xa60
                                           : 0xb84;
 }
@@ -301,6 +302,19 @@ static bool Shield(SotnHandWeapon *w, SotnHandWeaponProgram *program, SotnHandWe
             return false;
         e->guard_blink = true;
         w->hit_flags = 0;
+    }
+    // w_023 (Herald shield): a raised block of a projectile (hitFlags3) adds a heart, then waits
+    // out unk84's 0x20 cooldown, which counts down on every update; other hitFlags stay set.
+    if (in.family == 23)
+    {
+        if ((w->phase == 1 || w->phase == 2) && !w->guard_cooldown && w->hit_flags == 3)
+        {
+            e->hearts = true;
+            w->hit_flags = 0;
+            w->guard_cooldown = 0x20;
+        }
+        if (w->guard_cooldown)
+            --w->guard_cooldown;
     }
     switch (w->phase)
     {

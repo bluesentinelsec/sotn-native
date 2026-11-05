@@ -27,7 +27,7 @@ static bool Resolve(SotnDataView image, Uint32 base, Uint64 address, size_t coun
 
 bool SotnEquipment_IsBasicShield(Uint16 id)
 {
-    return id == 5 || id == 6 || id == 7 || id == 8 || id == 11 || id == 12 || id == 167;
+    return id == 5 || id == 6 || id == 7 || id == 8 || id == 9 || id == 11 || id == 12 || id == 167;
 }
 // Actual weapon program for each selected ordinary shield.
 static Uint8 ShieldFamily(Uint16 id)
@@ -36,6 +36,7 @@ static Uint8 ShieldFamily(Uint16 id)
            : id == 6   ? 9
            : id == 7   ? 10
            : id == 8   ? 11
+           : id == 9   ? 23
            : id == 11  ? 25
            : id == 12  ? 26
            : id == 167 ? 58
@@ -84,6 +85,8 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){10, 9, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 205: // Iron shield's both-buttons spell (twenty MP)
         return (PlainSpec){1, 10, 5, 0xba, 0, 0, 0, 20, 86, 1};
+    case 207: // Herald shield's both-buttons spell (ten MP)
+        return (PlainSpec){10, 23, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 206: // Axe Lord shield's both-buttons spell (twenty MP)
         return (PlainSpec){1, 11, 5, 0xba, 0, 0, 0, 20, 86, 1};
     case 209: // Goddess shield's both-buttons spell (forty MP)

@@ -7011,6 +7011,636 @@ static bool AlucardLettersTest(Uint16 hand)
     return true;
 }
 
+// Authored w_023 tables: the spell's s32 angles D_8017AB70, the swirl UVs D_8017ABB0, its model
+// vector pointers D_8017AC50 (permuted as the original lists them) and SVECTORs, and the sprites'
+// D_8017AB58 timeline.
+static const Uint8 HeraldOrder[4] = {0, 1, 3, 2};
+static void HeraldTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 16; ++i)
+        Put32(o + 0xb70 + i * 4U, (Uint32)(i * 0x1c0U + 0x30U));
+    for (Uint16 i = 0; i < 32; ++i)
+        o[0xbb0 + i] = (Uint8)(i * 7U + 3U);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        const Uint16 j = (Uint16)((i & ~3U) | HeraldOrder[i & 3U]);
+        Put32(o + 0xc50 + i * 4U, 0x8017abd0U + j * 8U);
+        Put16(o + 0xbd0 + i * 8U, (Uint16)(Sint16)(i * 7 - 50));
+        Put16(o + 0xbd2 + i * 8U, (Uint16)(Sint16)(i * 3 - 20));
+        Put16(o + 0xbd4 + i * 8U, (Uint16)(Sint16)(40 - i * 5));
+    }
+    for (Uint16 i = 0; i < 5; ++i)
+    {
+        Put16(o + 0xb58 + i * 4U, (Uint16)(i == 4 ? 3 : 2));
+        Put16(o + 0xb5a + i * 4U, (Uint16)(0xc3f + i));
+    }
+}
+static Sint32 HeraldShift(Sint32 v, Uint16 n)
+{
+    return v >= 0 ? v >> n : -((-v + (1 << n) - 1) >> n);
+}
+static Sint16 HeraldWave(SotnDataView exe, Sint32 angle, Sint16 amplitude)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, (Sint16)angle, &t))
+        return 0x7fff;
+    return (Sint16)(HeraldShift(t.sine, 5) * amplitude / 256);
+}
+static Uint8 HeraldBlue(SotnDataView exe, Sint32 angle, Sint16 bright)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, (Sint16)angle, &t))
+        return 0;
+    return (Uint8)(((t.sine + 0x1000) >> 6) * bright / 256);
+}
+// w_023 EntityWeaponShieldSpell against an exact model: birth rows (sideways image UVs, sixteen
+// white slices), the step timeline (22/8/16 growth-hold-flash, 22 opening, 26 dimming, 0x70 hold
+// with FACTORY(90) and pink9 at 0x30 and pink10 at its end, 51 brightening, 31 spreading), the
+// FACTORY(94) sprites, and every update's glow/image/slice geometry and retained-angle colours.
+static bool HeraldSpellTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    HeraldTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    for (Uint16 k = 0; k < 5; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 2, starved = k == 3, failed = k == 4;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = (100 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .camera_x = 99,
+                                       .camera_y = 77,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 23,
+                                       .role = 8,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .allocated = !failed,
+                                       .free_factories = (Uint8)(starved ? 0 : 8)};
+        Sint32 angles[16] = {0};
+        for (Uint16 i = 0; i < 16; ++i)
+            angles[i] = (Sint32)(i * 0x1c0 + 0x30);
+        Uint32 rng = 5;
+        // The g_Timer phase varies, so the opening's final flicker state differs per case.
+        const Uint32 phase_offset = k;
+        Uint16 tick = 0, transitions[9] = {0}, sounds = 0, heard[3] = {0}, swirl = 0, pinks = 0;
+        Uint8 phase = 0;
+        Sint16 bright = 0x100;
+        while (!s.removed && tick < 400)
+        {
+            in.engine_timer = tick + phase_offset;
+            const Sint16 before_glow = s.spell_glow;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+            if (failed)
+            {
+                CHECK(s.removed && !e.freeze_set && !e.sounds[0]);
+                break;
+            }
+            CHECK(program.shield_angles_loaded);
+            if (!tick)
+            {
+                const Uint8 v1 = hand ? 0x80 : 0;
+                CHECK(e.freeze_set && e.clear_shield && e.sounds[0] == 0x641 && s.phase == 1 &&
+                      s.spell_step == 0x80 && s.spell_bright == 0x100 && !s.spell_wave_x &&
+                      !s.spell_wave_y && s.flags == 0x04810000U && s.priority == 146 &&
+                      s.frame == 0x3e && s.draw_flags == 3 && !s.scale_x &&
+                      s.palette == (hand ? 0x128 : 0x110) && s.bank == (hand ? 0x8012 : 0x8010) &&
+                      s.texture == (hand ? 0x66 : 0x64) &&
+                      s.velocity_x == (left ? 0x20000 : -0x20000) &&
+                      s.y == (100 + 10 - 8) * 65536 + 0x2468);
+                const SotnPlayerEffectQuad *g = &s.spell_quads[0], *q = &s.spell_quads[1];
+                CHECK(g->palette == 0x19f && g->page == 0x19 && g->u[0] == 0x80 &&
+                      g->u[3] == 0xcf && g->v[0] == (hand ? 0 : 0x80) &&
+                      g->v[3] == (Uint8)((hand ? 0 : 0x80) + 0x4f) && g->priority == 136 &&
+                      (g->draw_mode & 0xfff7U) == 0x75 && g->red[1] == 0x80 && g->blue[3] == 0x80);
+                CHECK(q->palette == (hand ? 0x129 : 0x111) && q->page == 0x19 && !q->u[0] &&
+                      !q->u[1] && q->u[2] == 0x7f && q->u[3] == 0x7f &&
+                      q->v[1] == (Uint8)(v1 + 0x38) && q->v[3] == q->v[1] &&
+                      q->v[0] == (Uint8)(v1 + 0x7f) && q->v[2] == q->v[0] && q->priority == 0x1b8 &&
+                      q->draw_mode == 0x08 && q->red[0] == 0x80);
+                for (Uint16 i = 0; i < 16; ++i)
+                {
+                    const SotnPlayerEffectQuad *c = &s.spell_quads[2 + i];
+                    CHECK(c->palette == 0x15f && c->priority == 0x1ba && c->draw_mode == 0x3d &&
+                          c->u[0] == i * 8 && c->u[1] == i * 8 && c->u[2] == i * 8 + 7 &&
+                          c->u[3] == i * 8 + 7 && c->v[0] == q->v[0] && c->v[1] == q->v[1] &&
+                          c->page == 0x19);
+                }
+            }
+            if (s.phase != phase)
+            {
+                transitions[s.phase] = tick;
+                phase = s.phase;
+            }
+            if (e.sounds[0] && sounds < 3)
+                heard[sounds] = e.sounds[0];
+            sounds += e.sounds[0] != 0;
+            if (e.sounds[0] == 0x6b1)
+                CHECK(s.phase == 4 && transitions[4] == tick && !s.frame && !s.spell_timer);
+            // FACTORY(94) when the opening completes; FACTORY(90) with pink9 at the hold's 0x30.
+            if (e.factory_count)
+            {
+                CHECK(!starved && e.factory_count == 1 && e.factory_x[0] == s.x &&
+                      e.factory_y[0] == s.y);
+                if (s.phase == 5)
+                    CHECK(e.factories[0] == (94U | (hand + 1U) << 14) && tick == 68 && !e.pink);
+                else
+                    CHECK(e.factories[0] == (90U | (hand + 1U) << 14) && s.phase == 6 &&
+                          tick == 143 && e.pink == 9 && s.spell_timer == 0x31);
+                swirl += s.phase == 6;
+            }
+            if (e.pink)
+            {
+                CHECK((e.pink == 9 && tick == 143) ||
+                      (e.pink == 10 && tick == 206 && s.phase == 7));
+                ++pinks;
+            }
+            CHECK(!e.freeze_clear || s.removed);
+            if (s.removed)
+            {
+                CHECK(e.freeze_clear && tick == 288 && s.phase == 8);
+                break;
+            }
+            // Scalars: phase 4 opens the image; phases 5..8 dim, hold, brighten and fade it.
+            if ((s.phase == 4 && transitions[4] != tick) ||
+                (s.phase == 5 && transitions[5] == tick))
+                CHECK(s.spell_glow == before_glow + 8 && s.spell_half_w == s.scale_x * 36 / 256 &&
+                      s.spell_half_h == s.scale_x * 64 / 256);
+            if (s.phase >= 5)
+                CHECK(s.spell_half_w == 36 && s.spell_half_h == 64);
+            const bool entered = transitions[s.phase] == tick;
+            if ((s.phase == 5 && !entered) || (s.phase == 6 && entered))
+                bright = (Sint16)SDL_max(bright - 10, 0);
+            else if ((s.phase == 7 && !entered) || (s.phase == 8 && entered))
+                bright = (Sint16)(bright + 6);
+            else if (s.phase == 8)
+                bright = (Sint16)(bright - 10);
+            CHECK(s.spell_bright == bright);
+            CHECK(s.spell_wave_x == s.spell_wave_y &&
+                  s.spell_wave_x == (s.phase == 8 ? (tick - 257) * 3 : 0));
+            // Geometry from the model angles (screen words use the retained camera).
+            const Sint16 x = (Sint16)((s.x >> 16) - 30), y = (Sint16)((s.y >> 16) - 10);
+            const SotnPlayerEffectQuad *g = &s.spell_quads[0], *q = &s.spell_quads[1];
+            CHECK(g->x[0] == x - s.spell_glow && g->x[2] == g->x[0] &&
+                  g->x[1] == x + s.spell_glow - 1 && g->x[3] == g->x[1] &&
+                  g->y[0] == y - s.spell_glow && g->y[1] == g->y[0] &&
+                  g->y[2] == y + s.spell_glow - 1 && g->y[3] == g->y[2]);
+            // The glow flickers on g_Timer while its blue word is above 8; the opening hides it.
+            if (s.phase < 5 && g->blue[3] > 8)
+                CHECK(((g->draw_mode & 8U) != 0) == (((tick + phase_offset) & 1U) != 0));
+            // Phase3 flickers the glow's priority between 0x1B8 and the spell's less two.
+            if (s.phase == 3 && transitions[3] != tick)
+                CHECK(g->priority == ((s.spell_timer + 1) & 1 ? 146 - 2 : 0x1b8));
+            if (s.phase >= 5)
+                CHECK((g->draw_mode & 8U) && g->blue[3] == 4 && g->red[0] == 0x28);
+            const Sint16 top = (Sint16)(y - s.spell_half_h), bottom = (Sint16)(y + s.spell_half_h);
+            const Sint16 back = (Sint16)(left ? x + s.spell_half_w - 1 : x - s.spell_half_w),
+                         front = (Sint16)(left ? x - s.spell_half_w + 1 : x + s.spell_half_w);
+            CHECK(q->y[0] == top && q->y[1] == top && q->y[2] == bottom - 1 &&
+                  q->y[3] == bottom - 1 && q->x[0] == back && q->x[2] == back &&
+                  q->x[1] == front - 1 && q->x[3] == front - 1);
+            CHECK(((q->draw_mode & 8U) != 0) == (s.phase < 4 || s.phase == 8));
+            for (Uint16 i = 0; i < 16; ++i)
+            {
+                const SotnPlayerEffectQuad *c = &s.spell_quads[2 + i];
+                const Sint32 a = angles[i], n = angles[(i + 1) % 16], w = angles[(i + 6) % 16];
+                const Sint16 bx0 = HeraldWave(x_exe, a, s.spell_wave_x),
+                             bx1 = HeraldWave(x_exe, n, s.spell_wave_x),
+                             by0 = HeraldWave(x_exe, w, s.spell_wave_y),
+                             by1 = HeraldWave(x_exe, n, s.spell_wave_y);
+                const Sint16 span = (Sint16)(bottom - top);
+                CHECK(c->x[0] == back + bx0 && c->x[1] == front + bx0 - 1 &&
+                      c->x[2] == back + bx1 && c->x[3] == front + bx1 - 1 &&
+                      c->y[0] == top + span * i / 16 - by0 &&
+                      c->y[2] == top + span * (i + 1) / 16 - by0 &&
+                      c->y[1] == top + span * i / 16 - by1 &&
+                      c->y[3] == top + span * (i + 1) / 16 - by1);
+                CHECK(c->blue[0] == HeraldBlue(x_exe, a, s.spell_bright) &&
+                      c->blue[1] == c->blue[0] &&
+                      c->blue[2] == HeraldBlue(x_exe, n, s.spell_bright) &&
+                      c->blue[3] == c->blue[2] && !c->red[0] && !c->green[1] && !c->red[3] &&
+                      !c->green[2]);
+                CHECK(((c->draw_mode & 8U) != 0) == (s.phase < 4));
+                angles[i] += 0x80;
+            }
+            for (Uint16 i = 0; i < 16; ++i)
+                CHECK(program.shield_angles[i] == angles[i]);
+            ++tick;
+        }
+        if (failed)
+            continue;
+        const Uint16 expected[9] = {0, 0, 22, 30, 46, 68, 94, 206, 257};
+        for (Uint16 ph = 2; ph < 9; ++ph)
+            CHECK(transitions[ph] == expected[ph]);
+        CHECK(s.removed && sounds == 2 && heard[0] == 0x641 && heard[1] == 0x6b1 &&
+              swirl == (starved ? 0 : 1) && pinks == 2);
+    }
+    return true;
+}
+// w_023 func_ptr_80170024 against an exact model: birth (four rows, hand palette/UV band, the
+// program's sixteen vectors rotated by RotMatrix(0x80,0,0xC0), 0x48 lower), brighten/hold/dim with
+// its rise, the spin and per-face RotTransPers4 (x0,x1,x3,x2) visibility, and the top-of-screen
+// retirement while brightening.
+static bool HeraldSwirlTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    MatrixPairs(exe);
+    HeraldTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    {
+        // A zero RotMatrix is the identity (cosine 4096, sine 0 in the authored table).
+        const Sint16 zero[3] = {0}, model[3] = {5, -7, 9};
+        Sint32 out[3] = {0};
+        CHECK(SotnShieldStar_Rotate(x_exe, zero, model, out) && out[0] == 5 && out[1] == -7 &&
+              out[2] == 9);
+    }
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool high = k == 2, failed = k == 3;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .flags = 0x10000,
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = ((high ? -60 : 100) + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .camera_x = 99,
+                                       .camera_y = 77,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = hand,
+                                       .family = 23,
+                                       .role = 9,
+                                       .priority = 148,
+                                       .allocated = !failed};
+        Uint32 rng = 5;
+        Uint16 tick = 0, shown = 0, transitions[4] = {0};
+        Sint16 angle = 0, bright = 0;
+        Uint8 phase = 0;
+        while (!s.removed && tick < 200)
+        {
+            const Sint32 y = s.y;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 &&
+                  !e.factory_count && !e.sounds[0]);
+            if (failed)
+            {
+                CHECK(s.removed);
+                break;
+            }
+            if (!tick)
+            {
+                CHECK(s.phase == 1 && s.flags == 0x04810000U && s.star_depth == 0x140 &&
+                      s.spell_velocity_y == -0xe000 && s.y == y + 0x480000 && !s.spell_bright);
+                for (Uint16 i = 0; i < 4; ++i)
+                {
+                    const SotnPlayerEffectQuad *q = &s.spell_quads[i];
+                    CHECK(q->palette == (hand ? 0x12b : 0x113) && q->page == 0x19 &&
+                          q->priority == 0x1bc * ((q->draw_mode & 8U) == 0) &&
+                          (q->draw_mode & 0xfff7U) == 0x35);
+                    for (Uint16 v = 0; v < 4; ++v)
+                        CHECK(q->u[v] == (Uint8)(i * 56 + v * 14 + 3) &&
+                              q->v[v] == (Uint8)(i * 56 + v * 14 + 10 + (hand ? 0x80 : 0)));
+                }
+                const Sint16 axis[3] = {0x80, 0, 0xc0};
+                for (Uint16 i = 0; i < 16; ++i)
+                {
+                    const Uint16 j = (Uint16)((i & ~3U) | HeraldOrder[i & 3U]);
+                    const Sint16 model[3] = {(Sint16)(j * 7 - 50), (Sint16)(j * 3 - 20),
+                                             (Sint16)(40 - j * 5)};
+                    Sint32 out[3] = {0};
+                    CHECK(SotnShieldStar_Rotate(x_exe, axis, model, out) &&
+                          program.herald_vectors[i][0] == (Sint16)out[0] &&
+                          program.herald_vectors[i][1] == (Sint16)(out[1] - 0x18) &&
+                          program.herald_vectors[i][2] == (Sint16)out[2]);
+                }
+            }
+            if (s.phase != phase)
+            {
+                transitions[s.phase] = tick;
+                phase = s.phase;
+            }
+            if (high && tick)
+            {
+                // Its screen Y starts above 0x10: the first brightening update retires it.
+                CHECK(s.removed && tick == 1 && s.y == y);
+                break;
+            }
+            if (s.removed)
+                break;
+            if (tick)
+            {
+                CHECK(s.y == (Sint32)((Uint32)y - 0xe000U));
+                bright = (Sint16)(s.phase == 3 && transitions[3] != tick   ? bright - 10
+                                  : s.phase <= 1 || transitions[2] == tick ? bright + 10
+                                                                           : bright);
+            }
+            CHECK(s.spell_bright == bright);
+            angle = (Sint16)(angle + 0x40);
+            CHECK(s.herald_angle == angle);
+            const Sint16 axis[3] = {0, angle, 0};
+            const Sint32 transfer[3] = {0, 0, 0x140};
+            for (Uint16 i = 0; i < 4; ++i)
+            {
+                Sint16 vertices[4][3] = {{0}};
+                for (Uint16 v = 0; v < 4; ++v)
+                    for (Uint16 c = 0; c < 3; ++c)
+                        vertices[v][c] = program.herald_vectors[i * 4 + v][c];
+                SotnProjectedPoint point[4] = {{0}};
+                Sint32 otz = 0;
+                CHECK(SotnShieldStar_Project(x_exe, axis, transfer, (Sint16)((s.x >> 16) - 30),
+                                             (Sint16)((s.y >> 16) - 10), 0x200, vertices, point,
+                                             &otz));
+                const SotnPlayerEffectQuad *q = &s.spell_quads[i];
+                CHECK(q->x[0] == point[0].x && q->y[1] == point[1].y && q->x[3] == point[2].x &&
+                      q->y[3] == point[2].y && q->x[2] == point[3].x && q->y[2] == point[3].y);
+                const bool show = otz > 0 && otz <= 0x1be;
+                CHECK(((q->draw_mode & 8U) == 0) == show);
+                if (show)
+                    CHECK(q->priority == 0x1bc && q->red[0] == (Uint8)bright &&
+                          q->blue[3] == (Uint8)bright);
+                shown += show;
+            }
+            ++tick;
+        }
+        if (failed || high)
+            continue;
+        // 25 brightening updates (to 0xFA), 0x20 holding, 25 dimming (below 9).
+        CHECK(transitions[2] == 25 && transitions[3] == 57 && tick == 82 && shown > 50);
+    }
+    return true;
+}
+// w_023 func_ptr_80170028 against an exact model: birth copies the raw parent's palette and unk5A,
+// FLAG_UNK_100000/KEEP_ALIVE, one rand for its pose (poseTimer2), and waits params*4 with no
+// animSet (params0: 65536 updates); then it copies the parent's animSet and for 0x40 updates
+// rises and sways about its cached screen X with priority and scale from its angle.
+static bool HeraldSpriteTest(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    HeraldTables(o);
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        const Uint16 index = k == 0 ? 3 : k == 1 ? 23 : 0;
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(0x8000U | index),
+                                 .flags = 0x10000,
+                                 .x = (120 + 30) * 65536 + 0x1357,
+                                 .y = (100 + 10) * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .camera_x = 99,
+                                       .camera_y = 77,
+                                       .retained_camera_x = 30,
+                                       .retained_camera_y = 10,
+                                       .hand = 1,
+                                       .family = 23,
+                                       .role = 10,
+                                       .priority = 148,
+                                       .parent_palette = 0x128,
+                                       .parent_texture = 0x66,
+                                       .parent_bank = 0x8012};
+        Uint32 rng = 77, check = 77;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        const Uint16 pose = (Uint16)((SotnCombat_Random(&check) & 0x7fffU) % 5U);
+        CHECK(rng == check && s.phase == 1 && s.pose == pose && s.remaining == 2 &&
+              s.palette == 0x128 && s.texture == 0x66 && !s.bank && s.flags == 0x04110000U &&
+              s.draw_flags == 3 && !s.scale_x && !s.scale_y &&
+              s.y == (100 + 10 + 40) * 65536 + 0x2468 && s.spell_velocity_y == -0x18000 &&
+              s.herald_x == 120 && s.herald_angle == 0x400 && s.spell_timer == (Sint16)(index * 4));
+        CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 23) &&
+              s.remaining == 1 && s.frame == 0x3f + pose);
+        const Uint32 wait = index ? index * 4U : 65536U;
+        for (Uint32 n = 1; n < wait; ++n)
+        {
+            in.parent_bank = (Uint16)(0x8000U + n);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 && !s.bank &&
+                  rng == check);
+        }
+        in.parent_bank = 0x8012;
+        in.parent_palette = 0x999;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 2 &&
+              s.bank == 0x8012 && s.spell_timer == 0x40 && s.palette == 0x128);
+        Sint16 angle = 0x400;
+        Sint32 y = s.y;
+        for (Uint16 n = 0; n < 0x40; ++n)
+        {
+            in.retained_camera_x = (Sint32)(30 + n);
+            const Sint32 x = s.x;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (n == 0x3f)
+            {
+                CHECK(s.removed && s.y == y && s.x == x);
+                break;
+            }
+            angle = (Sint16)((angle + 0x80) & 0xfff);
+            y = (Sint32)((Uint32)y - 0x18000U);
+            SotnMathTrig t = {0};
+            CHECK(SotnMath_Trig(x_exe, angle, &t));
+            CHECK(!s.removed && s.y == y && s.herald_angle == angle &&
+                  (s.x >> 16) == 120 + HeraldShift(t.cosine * 2, 8) + 30 + n &&
+                  (s.x & 0xffff) == (x & 0xffff) && s.priority == (angle < 0x800 ? 0x1b4 : 0x1bc) &&
+                  s.scale_x == (Sint16)(-HeraldShift(t.sine, 5) + 0xc0) && s.scale_y == s.scale_x);
+        }
+    }
+    return true;
+}
+// Herald shield's spell207 in the runtime: E8/F8 spell (eighteen rows), FACTORY(94)'s twenty-four
+// E10/F10 sprites (spawn index params, the spell's palette/unk5A at birth and animSet at the end
+// of each wait, slots63 down), FACTORY(90)'s E9/F9 swirl (four rows) created before pink9's
+// factory, the freeze set and released once. The params0 sprite outlives the spell, waiting.
+static bool HeraldRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    MatrixPairs(exe);
+    HeraldTables(weapons + 23U * 0x7000U + 0x4000U);
+    FamilyDefinition(dra, 9, 9, 23, 128, 0, 0, 0);
+    FamilyDefinition(dra, 207, 10, 23, 5, 0, 10, 0);
+    Uint8 *record = dra + 0x500 + 207 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[5][6] = {{8, 1, 0xc1, 0, 6, 0},
+                                    {10, 24, 0xd8, 0, 0, 0},
+                                    {9, 1, 0xc1, 0, 0, 0},
+                                    {11, 1, 0x81, 0, 0, 0},
+                                    {39, 1, 0x81, 0, 0, 0}};
+    const Uint16 ids[5] = {86, 94, 90, 44, 55};
+    for (Uint16 b = 0; b < 5; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {hand ? 57 : 23, hand ? 23 : 57},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536,
+                                         .y = 135 * 65536,
+                                         .priority = 148,
+                                         .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 207,
+                                     &allocated) &&
+          allocated);
+    Uint16 spell_slot = 0, spell_ticks = 0, freezes = 0, released = 0, most_sprites = 0,
+           swirl_ticks = 0, shown = 0, ordered = 0, waiting = 0;
+    Uint32 indices = 0;
+    Uint16 t = 0;
+    Sint32 wait_screen[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    Uint16 retained = 0;
+    for (; t < 700; ++t)
+    {
+        in.game_timer = t;
+        in.engine_timer = t;
+        // Every eighth update the camera moves right by two after the callbacks.
+        in.screen_shift_x = (Sint16)(t % 8 == 7 ? -2 : 0);
+        in.camera_x += t % 8 == 7 ? 2 : 0;
+        in.freeze = r->freeze;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        freezes += r->freeze_changed && r->freeze == 1;
+        released += r->freeze_changed && r->freeze == 0;
+        // The swirl's factory precedes pink9's in the factory table.
+        Sint16 swirl_factory = -1, pink_factory = -1;
+        for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        {
+            const SotnPlayerFactory *f = &r->factories[i].cursor;
+            if (f->entity_id && f->blueprint == 90 && swirl_factory < 0)
+                swirl_factory = (Sint16)i;
+            if (f->entity_id && f->blueprint == 55 && pink_factory < 0)
+                pink_factory = (Sint16)i;
+        }
+        if (swirl_factory >= 0 && pink_factory >= 0)
+            ordered += swirl_factory < pink_factory;
+        Uint16 sprites = 0;
+        bool spell = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 23 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && (w->flags & 0x10000U));
+            if ((c->kind & 15U) == 8)
+            {
+                CHECK(c->kind == (hand ? 0xf8 : 0xe8) && c->primitive_count == 18 &&
+                      c->state.secondary.item == 207 && c->state.secondary.own_item);
+                spell = true;
+                spell_slot = i;
+                ++spell_ticks;
+                continue;
+            }
+            CHECK(c->state.secondary.parent_slot == spell_slot + 16U && !c->state.secondary.item &&
+                  !c->state.secondary.attack.active && !c->group);
+            if ((c->kind & 15U) == 9)
+            {
+                CHECK(c->kind == (hand ? 0xf9 : 0xe9) && c->primitive_count == 4 &&
+                      w->spell_quads[0].palette == (hand ? 0x12b : 0x113));
+                ++swirl_ticks;
+                for (Uint16 q = 0; q < 4; ++q)
+                    shown += !(w->spell_quads[q].draw_mode & 8U);
+                continue;
+            }
+            CHECK(c->kind == (hand ? 0xfa : 0xea) && !c->primitive_count &&
+                  w->palette == (hand ? 0x128 : 0x110) && w->texture == (hand ? 0x66 : 0x64) &&
+                  i >= 16 && (c->parameter & 0xffU) <= 23 &&
+                  w->bank == (w->phase == 2 ? (hand ? 0x8012 : 0x8010) : 0));
+            indices |= 1U << (c->parameter & 0xffU);
+            ++sprites;
+            // Waiting sprites keep their screen position across camera moves.
+            const Sint32 screen = (w->x >> 16) - in.camera_x;
+            if (w->phase == 1 && wait_screen[i])
+            {
+                CHECK(screen == wait_screen[i]);
+                retained += in.screen_shift_x != 0;
+            }
+            wait_screen[i] = w->phase == 1 ? screen : 0;
+        }
+        most_sprites = (Uint16)SDL_max(most_sprites, sprites);
+        if (!spell && spell_ticks && sprites <= 1 && t > 300)
+            break;
+    }
+    CHECK(spell_ticks > 250 && most_sprites == 24 && indices == 0xffffffU && swirl_ticks > 70 &&
+          shown > 50 && ordered > 0 && freezes == 1 && released == 1 && retained > 10);
+    // Only the params0 sprite remains, still waiting: its countdown wrapped below zero.
+    for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+    {
+        SotnBatRuntimeChild *c = &r->children[i];
+        if (!c->weapon_secondary)
+            continue;
+        CHECK((c->kind & 15U) == 10 && !(c->parameter & 0xffU) &&
+              c->state.secondary.motion.phase == 1 && c->state.secondary.motion.spell_timer < 0 &&
+              !c->primitive_count);
+        ++waiting;
+        // Fast-forward its wait: the empty raw parent slot gives animSet0, then 0x40 updates.
+        c->state.secondary.motion.spell_timer = 1;
+    }
+    CHECK(waiting == 1);
+    for (Uint16 n = 0; n <= 0x40; ++n)
+    {
+        in.freeze = r->freeze;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            if (r->children[i].weapon_secondary)
+                CHECK(n < 0x40 && !r->children[i].state.secondary.motion.bank &&
+                      r->children[i].state.secondary.motion.phase == 2);
+    }
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -7019,12 +7649,13 @@ int main(void)
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && RodOrbTest() &&
                    RodSparkleTest() && RodRuntime() && IronRuntime(0) && IronRuntime(1) &&
-                   IronThunderRuntime() && IronSpellTest() && IronSwordTest() && MuramasaSlash() &&
-                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
-                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
-                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
-                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
+                   HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
+                   HeraldRuntime(0) && HeraldRuntime(1) && MuramasaSlash() && Twelve() &&
+                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
+                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
+                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
+                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&

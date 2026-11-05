@@ -24,10 +24,10 @@ performs actual confirmation, including spare decrement before a capped return.
 Programmatic equipment setting remains idempotent. Virtual empty rows stay out of
 physical first-empty searches without receiving stock. No default grants or v9
 fields are added; remaining two-hand families and equipment effects stay open.
-Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Axe Lord8, Goddess11,
-Shaman12 and Alucart167
-through the same owner; other shield families stay unavailable. Every owned shield's both-buttons [combo spell](player-shield-combos.md) now runs with
-Mablung.
+Selected [basic shields](player-basic-shields.md) add Leather5, Knight6, Iron7, Axe Lord8,
+Herald9, Goddess11, Shaman12 and Alucart167 through the same owner; Iron and Herald add their
+guard effects. Dark, Medusa, Skull and Fire shields stay unavailable. Every owned shield's
+both-buttons [combo spell](player-shield-combos.md) runs with Mablung or Shield rod.
 Selected [basic fists](player-basic-fists.md) add Knuckle duster85 and Jewel knuckles97;
 [Iron Fist and Fist of Tulkas](player-fist-specials.md) add their punch rushes and fireball.
 Selected [plain weapons](player-plain-weapons.md) add Morningstar, Mablung, Takemitsu,

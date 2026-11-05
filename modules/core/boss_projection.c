@@ -173,6 +173,23 @@ bool SotnShieldStar_Project(SotnDataView executable, const Sint16 axis[3], const
     *otz = depth >> 2;
     return true;
 }
+bool SotnShieldStar_Rotate(SotnDataView executable, const Sint16 axis[3], const Sint16 vertex[3],
+                           Sint32 out[3])
+{
+    if (!axis || !vertex || !out)
+        return SDL_SetError("Shield vector rotation requires its actual transform and output");
+    for (Uint16 k = 0; k < 3; ++k)
+        if (vertex[k] < -1024 || vertex[k] > 1024)
+            return SDL_SetError("Shield vector exceeds its bounded model");
+    Sint32 m[3][3] = {0};
+    if (!MatrixXYZ(executable, axis[0], axis[1], axis[2], m))
+        return false;
+    for (Uint16 row = 0; row < 3; ++row)
+        out[row] = ActorShift((Sint64)m[row][0] * vertex[0] + (Sint64)m[row][1] * vertex[1] +
+                                  (Sint64)m[row][2] * vertex[2],
+                              12);
+    return true;
+}
 bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform t,
                           const SotnTriangleVertex vertices[3], SotnTriangleProjection *out)
 {

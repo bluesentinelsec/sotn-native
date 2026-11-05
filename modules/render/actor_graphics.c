@@ -398,6 +398,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 8  ? 0x8017aab8U
                            : equipment.family == 9  ? 0x8017aab8U
                            : equipment.family == 10 ? 0x8017abfcU
+                           : equipment.family == 23 ? 0x8017ace8U
                            : equipment.family == 25 ? 0x8017aad8U
                            : equipment.family == 58 ? 0x8017abc4U
                            : equipment.family == 11 ? 0x8017ac34U
@@ -461,6 +462,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                              : equipment.family == 58 ? 0x8017abc8U
                              : equipment.family == 9  ? 0x8017aac0U
                              : equipment.family == 10 ? 0x8017ac04U
+                             : equipment.family == 23 ? 0x8017acf0U
                              : equipment.family == 11 ? 0x8017ac3cU
                              : equipment.family == 26 ? 0x8017aaecU
                              : equipment.family == 52 ? 0x8017ac20U
