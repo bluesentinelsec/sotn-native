@@ -121,6 +121,17 @@ typedef struct SotnWeaponSecondary
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;
         };
+        /** Weapon13 combo202 sweep (E2) and strike swords (E3): ext.heavenSword unk90/94 screen
+         * centre (16.16), s32 unk84 radius, unk98 swish volume, the strike's velocityY, angle
+         * unk7C, the sweep's unk82 timer (the strike's unk80 countdown), unk80 strike count, the
+         * xPos/unk8A screen target (the strikes' childPalette/unk8A) and the sweep's late
+         * LINE_G2 row in screen pixels. Neither entity is CAMERA_LOCKED. */
+        struct
+        {
+            SotnWeaponSecondaryRow heaven_line;
+            Sint32 heaven_cx, heaven_cy, heaven_radius, heaven_volume, heaven_vy;
+            Sint16 heaven_angle, heaven_timer, heaven_count, heaven_target_x, heaven_target_y;
+        };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
@@ -210,6 +221,13 @@ typedef struct SotnWeaponSecondaryInput
     Uint8 parent_phase;
     Sint16 parent_offset_x;
     SotnPlayerEffectQuad parent_quad;
+    /** Weapon13 strike swords: the raw parent sweep's palette, zPriority and xPos/unk8A screen
+     * target (parent_phase is its step). */
+    Uint16 parent_palette, parent_priority;
+    Sint16 parent_target_x, parent_target_y;
+    /** Weapon13 combo children (not CAMERA_LOCKED): the camera their screen words use, the
+     * actual camera less this pass's retained-screen shift (the pre-scroll camera). */
+    Sint32 retained_camera_x, retained_camera_y;
     Uint32 engine_timer; /**< Actual g_Timer (shield spells' flicker, unlike g_GameTimer). */
 } SotnWeaponSecondaryInput;
 
@@ -261,12 +279,17 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family);
 /** @brief The shield program of a native combo spell item, or zero. */
 Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item);
 /** @brief Whether a resident program owns the given child callback role (0..5, shield spells'
- * 8 and weapon11's 9; role0 is only weapon14's factory-born thrown EntityWeaponAttack). */
+ * 8 and weapon11's 9; role0 is weapon14/13's factory-born thrown EntityWeaponAttack). */
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one role's child; zero if unsupported. */
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one child given its actual params (weapon26's trails take four). */
 Uint8 SotnWeaponSecondary_ChildRows(Uint16 family, Uint16 role, Uint16 parameter);
+/** @brief Rows a child currently holds: its birth rows, or weapon13's sweep row after its late
+ * AllocPrimitives at step4. */
+Uint8 SotnWeaponSecondary_HeldRows(Uint16 family, Uint16 role, Uint16 parameter, Uint8 phase);
+/** @brief Whether a both-buttons combo item has a native spell (shield spells, Heaven202). */
+bool SotnWeaponSecondary_ComboSpell(Uint16 item);
 /** @brief Number of mandatory rows (LINE_G2, or weapon53's one GT4) reserved before the first
  * callback; zero if none. */
 Uint8 SotnWeaponSecondary_Rows(Uint16 family);

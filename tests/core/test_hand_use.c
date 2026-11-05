@@ -162,6 +162,15 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 119 * 52 + 22] = 1;
     f->dra[0x500 + 143 * 52 + 19] = 50;
     f->dra[0x500 + 143 * 52 + 22] = 1;
+    // Heaven sword119's combo main/sub bits1 select dual202 (kind5, blueprint62, chain1, five
+    // MP) with the left hand.
+    TestCharacter_Put32(f->dra + 0x500 + 119 * 52 + 0x1c, 1);
+    TestCharacter_Put32(f->dra + 0x500 + 119 * 52 + 0x20, 1);
+    Item(f->dra, 202, 2, 13, 5, 0x66, 0, 0, 0);
+    f->dra[0x500 + 202 * 52 + 19] = 62;
+    f->dra[0x500 + 202 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 202 * 52 + 36, 5);
+    TestCharacter_Put32(f->dra + 0x500 + 202 * 52 + 0x1c, 1);
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
     // Mablung124 (combo main0x3FFE) with Leather shield5 (sub2) casts spell203 (sub2).
     Item(f->dra, 124, 1, 57, 1, 0x41, 3, 13, 0);
@@ -787,12 +796,50 @@ static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
                   f->p->attack_mode == 0x8002);
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
-    // Every shield spell (203..215 with a native owner) is selected; Heaven sword's dual202
-    // waits for its own owner.
+    // Every shield spell (203..215) and Heaven sword's dual202 have native owners; other combo
+    // items keep the left hand's attack.
     CHECK(SotnPlayer_ComboSupported(203) && SotnPlayer_ComboSupported(204) &&
           SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(209) &&
           SotnPlayer_ComboSupported(210) && SotnPlayer_ComboSupported(214) &&
-          SotnPlayer_ComboSupported(215) && !SotnPlayer_ComboSupported(202));
+          SotnPlayer_ComboSupported(215) && SotnPlayer_ComboSupported(202) &&
+          !SotnPlayer_ComboSupported(205) && !SotnPlayer_ComboSupported(201));
+    return true;
+}
+// Two Heaven swords: CheckWeaponCombo pairs the left main with the right sub, so dual202 casts
+// with the left hand (flag clear): blueprint62 at <<14, five MP, kind5's grounded stop. A live
+// sweep (chain1) or four MP leaves the left hand's ordinary Heaven throw.
+static bool HeavenCombo(Fixture *f)
+{
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        CHECK(Create(f, 119, 1, 2, true));
+        CHECK(SotnCharacter_Collect(f->character, false, 119) &&
+              SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, 119) &&
+              SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, 119,
+                                      119));
+        CHECK(SotnPlayer_Combo(f->p) == 202);
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, 0, 0));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(SotnPlayer_SetComboChain(f->p, k == 1));
+        if (k == 2)
+        {
+            SotnCharacterState progress = {0};
+            CHECK(SotnCharacter_Get(f->character, &progress, NULL));
+            progress.mp = 4;
+            CHECK(SotnCharacter_Restore(f->character, &progress));
+            f->p->mp = 4;
+        }
+        const Uint16 mp = f->p->mp;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND));
+        if (k == 0)
+            CHECK(f->item == 202 && f->packed == 0x403eU && f->p->mp == mp - 5 &&
+                  f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
+                  f->p->animation.id == 0x66);
+        else
+            CHECK(f->item == 119 && f->packed == 0x1032U && f->p->mp == mp &&
+                  f->p->animation.id == 0x5d);
+    }
     return true;
 }
 // 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,
@@ -956,9 +1003,9 @@ int main(void)
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && FistCombo(f) &&
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
-         Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
-         Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
+         HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) &&
+         Runesword(f, 165) && Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) &&
+         SwordOfDawn(f) && Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
          Combo(f, 12, 210, 10) && Combo(f, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)

@@ -43,8 +43,8 @@ Uint32 SotnPlayer_Combo(const SotnPlayer *p)
 }
 bool SotnPlayer_ComboSupported(Uint16 item)
 {
-    // Combo spells with an actual native owner (Leather203, Knight204, Alucart215).
-    return SotnWeaponSecondary_ShieldSpellFamily(item) != 0;
+    // Combo spells with an actual native owner (shield spells203..215, Heaven sword202).
+    return SotnWeaponSecondary_ComboSpell(item);
 }
 bool SotnPlayer_SetSpecialCross(SotnPlayer *p, Uint8 left_count, Uint8 right_count)
 {

@@ -1642,7 +1642,7 @@ static bool Heaven(void)
               !orphan.phase);
     }
     CHECK(SotnWeaponSecondary_SupportedRole(13, 0) && SotnWeaponSecondary_SupportedRole(13, 1) &&
-          !SotnWeaponSecondary_SupportedRole(13, 2) && !SotnWeaponSecondary_RoleRows(13, 0));
+          !SotnWeaponSecondary_RoleRows(13, 0) && !SotnWeaponSecondary_RoleRows(13, 1));
     return true;
 }
 
@@ -3130,6 +3130,296 @@ static bool RuneRuntime(void)
 
 // Blueprint50 creates the Heaven sword root (own item119, least-used group, no rows); its
 // WFACTORY(0x3A,0) afterimages land in slots32..63 naming it, and all retire once it returns.
+// w_013 func_ptr_80170008/8017000C: combo202's sweep circles out from the player's hitbox with
+// screen positions (no CAMERA_LOCKED), sheds strike swords on even timers past -0x400, blinks at
+// its target, then a late LINE_G2 row stretches and fades; strike swords wait for its step3,
+// count down 1..32, then fly at its target.
+static bool HeavenCombo(void)
+{
+    static Uint8 o[0x3000], exe[0x24000];
+    Math(exe);
+    for (Uint16 i = 0; i < 14; ++i)
+        Put16(o + 0x5e0 + i * 2U, (Uint16)(i < 8 ? i + 1U : 14U - i));
+    const SotnDataView x_exe = {exe, sizeof(exe)};
+    const Uint16 hit = 2;
+    SotnHandWeaponProgram program = {0};
+    CHECK(SotnWeaponSecondary_SupportedRole(13, 2) && SotnWeaponSecondary_SupportedRole(13, 3) &&
+          !SotnWeaponSecondary_SupportedRole(13, 4) && !SotnWeaponSecondary_RoleRows(13, 2) &&
+          SotnWeaponSecondary_HeldRows(13, 2, 0, 4) == 1 &&
+          !SotnWeaponSecondary_HeldRows(13, 2, 0, 3) &&
+          !SotnWeaponSecondary_HeldRows(13, 3, 0, 4) && SotnWeaponSecondary_ComboSpell(202) &&
+          SotnWeaponSecondary_ComboSpell(203) && !SotnWeaponSecondary_ComboSpell(201) &&
+          !SotnWeaponSecondary_ComboSpell(119));
+    for (Uint16 k = 0; k < 5; ++k)
+    {
+        const Uint16 hand = k == 4 ? 1 : 0;
+        const bool left = (k & 1U) != 0, crouch = k == 2, starved = k == 3;
+        const Sint32 cx = 40, cy = 16;
+        SotnWeaponSecondary s = {
+            .parameter = (Uint16)(hand << 15), .x = 100 * 65536 + 0x1234, .y = 80 * 65536 + 0x4321};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .x = (k == 4 ? 190 : 171) * 65536,
+                                       .y = 120 * 65536,
+                                       .camera_x = cx + 7,
+                                       .camera_y = cy - 3,
+                                       .retained_camera_x = cx,
+                                       .retained_camera_y = cy,
+                                       .hand = hand,
+                                       .family = 13,
+                                       .role = 2,
+                                       .priority = 148,
+                                       .facing_left = left,
+                                       .parent_hitbox_x = 5,
+                                       .parent_hitbox_y = -6,
+                                       .player_crouch_step = crouch,
+                                       .free_factories = 8,
+                                       .game_timer = 1};
+        Uint32 rng = 7, check = 7;
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              rng == check && e.properties && e.clear_shield && e.use_ticks == 4 && !e.sounds[0] &&
+              !e.factory_count && s.bank == 0x8010U + hand * 2U && s.texture == 0x64U + hand * 2U &&
+              s.palette == (hand ? 0x128 : 0x110) && s.frame == 6 && s.priority == 150 &&
+              s.flags == 0x04000000U && s.draw_flags == 4 && s.hitbox_width == 14 &&
+              s.hitbox_height == 14 && s.heaven_volume == 0x60 && s.heaven_angle == -0x200 &&
+              s.heaven_radius == 0x100 && s.role == 2);
+        const Sint16 sx = (Sint16)((k == 4 ? 190 : 171) - cx + (left ? -5 : 5)),
+                     sy = (Sint16)(120 - cy - 6 - (crouch ? 8 : 16));
+        CHECK(s.x == (sx + cx) * 65536 + 0x1234 && s.y == (sy + cy) * 65536 + 0x4321 &&
+              s.heaven_cx == sx * 65536 && s.heaven_cy == sy * 65536 &&
+              s.heaven_target_x == sx + (left ? -0x78 : 0x78) && s.heaven_target_y == sy);
+        // The sweep: angle -0x20 and radius +0x10 each update, seventy-three updates.
+        Sint16 angle = -0x200;
+        Sint32 radius = 0x100, volume = 0x60;
+        Uint16 count = 0, updates = 0;
+        while (s.phase == 1)
+        {
+            in.game_timer = 1U + updates;
+            in.free_factories = (Uint8)(updates % 5 == 3 ? 0 : 8);
+            const Sint16 rotate = s.rotate;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            SotnMathTrig t = {0};
+            CHECK(SotnMath_Trig(x_exe, angle, &t));
+            angle = (Sint16)(angle - 0x20);
+            radius += 0x10;
+            const Sint32 px = t.cosine * (left ? -radius : radius) + sx * 65536,
+                         py = -radius * t.sine + sy * 65536;
+            CHECK(s.rotate == (Sint16)(rotate + 0x100) && s.x == px + cx * 65536 &&
+                  s.y == py + cy * 65536 && s.heaven_angle == angle && s.heaven_radius == radius);
+            const bool strike = !(in.game_timer & 1U) && angle < -0x400;
+            CHECK(e.factory_count == (strike && in.free_factories ? 1 : 0));
+            if (e.factory_count)
+            {
+                const Uint16 offset = (Uint16)((count >> 1) % 14 < 8 ? (count >> 1) % 14 + 1U
+                                                                     : 14U - (count >> 1) % 14);
+                CHECK(e.factories[0] == (0x46U | (hand + 1U) << 14 | (Uint32)offset << 16) &&
+                      e.factory_x[0] == s.x && e.factory_y[0] == s.y);
+            }
+            count = (Uint16)(count + strike);
+            CHECK(s.heaven_count == (Sint16)count);
+            if (in.game_timer % 6U == 0)
+            {
+                CHECK(e.sounds[0] == 0x60a && e.volume_sound && e.volume == volume);
+                volume = volume >= 4 ? volume - 4 : 0;
+            }
+            else
+                CHECK(!e.sounds[0]);
+            CHECK(s.heaven_volume == volume);
+            ++updates;
+        }
+        // Strikes from updates17..71 on even timers: angle -0x400 itself (update15) is not below.
+        CHECK(updates == 73 && s.phase == 2 && s.heaven_timer == 8 && count == 28);
+        for (Uint16 t = 0; t < 8; ++t)
+        {
+            CHECK(s.draw_flags == 4 && SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            CHECK(s.phase == (t == 7 ? 3 : 2));
+        }
+        CHECK(s.draw_flags == 0x80 && !s.heaven_timer);
+        const Sint32 before_x = s.x;
+        for (Sint16 t = 1; t <= 0x34; ++t)
+        {
+            in.allocated = t == 0x34 && !starved;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.heaven_timer == t);
+            CHECK(e.sounds[0] == (t == 0x34 ? 0x66a : t < 0x20 && !(t & 3) ? 0x60b : 0));
+            if (t <= 0x10)
+                CHECK(s.x == before_x && s.hitbox_width == 14);
+            else
+                CHECK(((Uint32)s.x >> 16) == (Uint16)(s.heaven_target_x + cx) &&
+                      ((Uint32)s.y >> 16) == (Uint16)(sy + cy) &&
+                      (s.x & 0xffff) == (before_x & 0xffff) && s.hitbox_width == 0x12 &&
+                      s.hitbox_height == 4);
+            if (t < 0x34)
+                CHECK(s.draw_flags == (t > 0x30 ? 0 : 0x80) && s.phase == 3);
+        }
+        if (starved)
+        {
+            CHECK(s.removed && s.phase == 3);
+            continue;
+        }
+        const Sint16 tx = s.heaven_target_x;
+        CHECK(s.phase == 4 && s.draw_flags == 3 && s.scale_x == 0x100 && s.scale_y == 0x100 &&
+              s.palette == 0x815f && s.draw_mode == 0x31 && s.row_priority == 150 &&
+              s.flags == 0x04800000U && s.heaven_line.x[0] == tx && s.heaven_line.x[1] == tx &&
+              s.heaven_line.y[0] == sy && s.heaven_line.y[1] == sy &&
+              s.heaven_line.red[0] == 0xf0 && s.heaven_line.blue[1] == 0xf0 &&
+              s.heaven_line.green[0] == 0x80 && s.heaven_line.green[1] == 0x80 &&
+              !s.heaven_line.hidden);
+        // The slash: ends grow by sixteen to +-0x110, then blue fades by eight and green by
+        // four until green reaches eight.
+        Sint16 x0 = tx, x1 = tx, scale = 0x100;
+        Uint8 blue = 0xf0, green = 0x80;
+        Uint16 slash = 0;
+        while (!s.removed)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            ++slash;
+            if (x0 > -0x110)
+                x0 = (Sint16)(x0 - 0x10);
+            if (x1 < 0x110)
+                x1 = (Sint16)(x1 + 0x10);
+            if (x0 < 0 && x1 > 0x100)
+            {
+                if (blue > 8)
+                    blue = (Uint8)(blue - 8);
+                if (green <= 8)
+                {
+                    CHECK(s.removed);
+                    break;
+                }
+                green = (Uint8)(green - 4);
+            }
+            scale = (Sint16)(scale + 0x80);
+            const Sint16 hx = tx >= 0x101 ? (Sint16)(0x100 - tx) : tx < 0 ? (Sint16)-tx : 0;
+            CHECK(!s.removed && s.heaven_line.x[0] == x0 && s.heaven_line.x[1] == x1 &&
+                  s.heaven_line.blue[1] == (x0 < 0 && x1 > 0x100 ? blue : 0xf0) &&
+                  s.heaven_line.green[1] == green && s.scale_x == scale && s.scale_y == 0x20 &&
+                  s.frame == (scale >= 0x700 ? 0 : 6) && s.hitbox_width == 0xfe &&
+                  s.hitbox_height == 2 && s.hitbox_x == (left ? -hx : hx));
+            if (x0 < 0 && x1 > 0x100)
+                CHECK(s.heaven_line.red[0] == blue && s.heaven_line.blue[0] == blue &&
+                      s.heaven_line.red[1] == blue && s.heaven_line.green[0] == green);
+        }
+        CHECK(slash > 40 && green <= 8 && x0 <= -0x110);
+        if (!left && hand == 0 && !crouch)
+            CHECK(tx == 256 && x0 == -0x110);
+        // Hand1's target lies past the right edge: the slash hitbox clamps back to 0x100.
+        if (k == 4)
+            CHECK(tx == 275 && s.hitbox_x == 0x100 - 275);
+    }
+    // Strike swords: an empty raw parent retires them, birth copies the sweep, one rand picks
+    // the1..32 countdown that starts after the sweep reaches step3.
+    {
+        SotnWeaponSecondary orphan = {.parameter = 0x300};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .family = 13,
+                                       .role = 3};
+        Uint32 rng = 5;
+        CHECK(SotnWeaponSecondary_Tick(&orphan, &program, in, &rng, &e) && orphan.removed &&
+              !orphan.phase && rng == 5);
+    }
+    Sint16 longest = 0;
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const bool left = (k & 1U) != 0, level = k >= 4;
+        const Sint32 cx = 24, cy = 8;
+        SotnWeaponSecondary s = {
+            .parameter = 0x500, .x = (200 + cx) * 65536 + 0x8000, .y = (90 + cy) * 65536 + 0x4000};
+        SotnWeaponSecondaryEvents e = {0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x_exe,
+                                       .properties = Properties,
+                                       .context = (void *)&hit,
+                                       .camera_x = cx + 7,
+                                       .camera_y = cy - 3,
+                                       .retained_camera_x = cx,
+                                       .retained_camera_y = cy,
+                                       .family = 13,
+                                       .role = 3,
+                                       .parent_exists = true,
+                                       .parent_facing_left = left,
+                                       .parent_rotate = 0x700,
+                                       .parent_draw_flags = 4,
+                                       .parent_frame = 6,
+                                       .parent_bank = 0x8010,
+                                       .parent_texture = 0x64,
+                                       .parent_palette = 0x110,
+                                       .parent_priority = 150,
+                                       .parent_target_x = (Sint16)(level  ? (left ? 104 : 296)
+                                                                   : left ? 80
+                                                                          : 300),
+                                       .parent_target_y = (Sint16)(level ? 90 : 60),
+                                       .parent_phase = 1};
+        Uint32 rng = 11U + k * 7U, check = rng;
+        const Sint16 delay = (Sint16)((SotnCombat_Random(&check) & 0x1fU) + 1U);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.frame == 6 && s.bank == 0x8010 && s.texture == 0x64 &&
+              s.facing_left == left && s.priority == 150 && s.flags == 0x04000000U &&
+              s.palette == 0x115 && s.draw_flags == 0x84 && s.rotate == 0x700 &&
+              s.heaven_target_x == in.parent_target_x && s.heaven_target_y == in.parent_target_y &&
+              s.heaven_timer == delay && !e.properties && s.role == 3);
+        longest = SDL_max(longest, delay);
+        for (Uint16 t = 0; t < 5; ++t)
+        {
+            in.parent_phase = (Uint8)(t < 3 ? 1 : 2);
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1);
+        }
+        in.parent_phase = 3;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 2 &&
+              s.heaven_timer == delay);
+        in.parent_phase = 4;
+        for (Sint16 t = 1; t < delay; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 2 &&
+                  !e.properties && s.rotate == 0x700);
+        }
+        e = (SotnWeaponSecondaryEvents){0};
+        check = rng;
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 3 &&
+              e.properties && rng == check && !s.rotate && s.hitbox_width == 0x12 &&
+              s.hitbox_height == 4 && s.x == (200 + cx) * 65536 + 0x8000);
+        Sint16 heading = 0;
+        CHECK(
+            SotnMath_Atan2(x_exe, -(in.parent_target_y - 90), in.parent_target_x - 200, &heading));
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig(x_exe, heading, &t) && s.velocity_x == t.cosine * 0x100 &&
+              s.heaven_vy == -t.sine * 0x100);
+        Uint16 flight = 0;
+        Sint32 x = s.x, y = s.y;
+        while (!s.removed)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            x += s.velocity_x;
+            y += s.heaven_vy;
+            CHECK(s.x == x && s.y == y);
+            ++flight;
+            const Sint16 px = (Sint16)((x >> 16) - cx);
+            CHECK(s.removed == (left ? px < in.parent_target_x : px > in.parent_target_x));
+        }
+        // Level flights move sixteen pixels per update: they pass over the target column
+        // (6x16 = 96) and retire one update later.
+        CHECK(flight > 3 && flight < 16 && (!level || flight == 7));
+        // The empty slot retires a strike at any step.
+        in.parent_exists = false;
+        SotnWeaponSecondary late = {
+            .parameter = 0x200, .phase = 2, .heaven_timer = 3, .allocated = true};
+        CHECK(SotnWeaponSecondary_Tick(&late, &program, in, &rng, &e) && late.removed &&
+              late.heaven_timer == 3);
+    }
+    CHECK(longest > 16);
+    return true;
+}
 static bool HeavenRuntime(void)
 {
     Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
@@ -3214,6 +3504,165 @@ static bool HeavenRuntime(void)
     }
     // One afterimage per even g_GameTimer during the rise and homing, never every update.
     CHECK(root && images > 20 && faded == images && births * 2 <= ticks + 2 && births > 10);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
+// Combo202 through the shared runtime: blueprint62's E2 sweep (own item, least-used group, no
+// rows) sheds blueprint0x46 strike swords whose raw parent is its slot; they launch with its
+// item/enemyId, the sweep leases one real row only at step4, and both keep their screen
+// positions while the camera scrolls.
+static bool HeavenComboRuntime(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 202, 2, 13, 5, 0, 5, 0);
+    Uint8 *record = dra + 0x500 + 202 * 52;
+    record[18] = 0x66;
+    record[19] = 62;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[][6] = {{62, 2, 1, 0xc1, 0, 6}, {0x46, 3, 1, 0xc1, 0, 1}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 2] = 17;
+    dra[0xd4b9 + 2] = 47;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    for (Uint16 i = 0; i < 14; ++i)
+        Put16(weapons + 13U * 0x7000 + 0x4000 + 0x5e0 + i * 2U, (Uint16)(i < 8 ? i + 1U : 14U - i));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment combo = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 202, &combo) && combo.kind == 5 && combo.family == 13 &&
+          combo.blueprint == 62 && combo.chain_limit == 1);
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {13, 13},
+                              .weapon_bound = {true, true},
+                              .camera_x = 32,
+                              .camera_y = 16,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 160 * 65536,
+                                         .y = 120 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x66,
+                                                       .hitbox_x = 4,
+                                                       .hitbox_y = -18,
+                                                       .hitbox_width = 12,
+                                                       .hitbox_height = 30}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    CHECK(!SotnBatRuntime_RequestHand(r, source, 0x103eU, 202, &allocated));
+    CHECK(SotnBatRuntime_RequestHand(r, source, 0x403eU, 202, &allocated) && allocated);
+    Uint16 sweep = 0, waiting = 0, launched = 0, lined = 0, scrolls = 0, checked = 0;
+    Uint8 sweep_group = 0;
+    bool born[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    Sint32 strike_x[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    Uint8 sweep_phase = 0;
+    Uint16 retained = 0;
+    for (Uint16 t = 0; t < 600; ++t)
+    {
+        in.game_timer = t;
+        // Every eighth update the camera moves right by two after the callbacks.
+        in.screen_shift_x = (Sint16)(t % 8 == 7 ? -2 : 0);
+        in.camera_x += t % 8 == 7 ? 2 : 0;
+        scrolls += t % 8 == 7;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        bool live = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 13 || !c->initialized)
+            {
+                born[i] = false;
+                continue;
+            }
+            live = true;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i));
+            const Sint32 screen_x = (Sint32)(Sint16)((Uint32)w->x >> 16) - in.camera_x;
+            if (c->kind == 0xe2)
+            {
+                CHECK(i <= 15 && c->state.secondary.own_item && c->state.secondary.item == 202 &&
+                      c->group >= 3 && c->group <= 6 && !c->parameter &&
+                      c->primitive_count == (w->phase == 4 ? 1 : 0));
+                if (!sweep)
+                    CHECK(w->heaven_cx == (160 - 32 + 4) * 65536 &&
+                          w->heaven_cy == (120 - 16 - 18 - 16) * 65536);
+                sweep = i;
+                sweep_group = c->group;
+                sweep_phase = w->phase;
+                SotnBatRuntimeChild altered = *c;
+                altered.state.secondary.item = 119;
+                altered.state.secondary.motion.properties.id = 119;
+                CHECK(!SotnBatRuntime_SecondaryValid(&altered, i));
+                lined += w->phase == 4;
+                // The screen position follows the program's screen words, whatever the scroll.
+                if (w->phase == 1 && w->heaven_angle < -0x220)
+                {
+                    SotnMathTrig trig = {0};
+                    CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)},
+                                        (Sint16)(w->heaven_angle + 0x20), &trig));
+                    CHECK(w->x - in.camera_x * 65536 ==
+                          trig.cosine * w->heaven_radius + w->heaven_cx);
+                    ++checked;
+                }
+                if (w->phase == 3 && w->heaven_timer > 0x10)
+                    CHECK(screen_x == w->heaven_target_x);
+            }
+            else
+            {
+                CHECK(c->kind == 0xe3 && i <= 31 && c->state.secondary.parent_slot == sweep + 16U &&
+                      (c->parameter & 0x80ffU) == 0 && (c->parameter >> 8) >= 1 &&
+                      (c->parameter >> 8) <= 8 && !c->primitive_count &&
+                      w->palette == 0x110U + (c->parameter >> 8) && (w->draw_flags & 0x80U));
+                // Strikes leave their wait only once the raw parent sweep reaches step3.
+                CHECK(w->phase <= 1 || sweep_phase >= 3);
+                // In flight they move by their velocity plus the retained-screen shift.
+                if (w->phase == 3 && born[i] && strike_x[i])
+                {
+                    CHECK(w->x ==
+                          strike_x[i] + w->velocity_x + (in.screen_shift_x ? 2 * 65536 : 0));
+                    retained += in.screen_shift_x != 0;
+                }
+                strike_x[i] = w->x;
+                if (w->phase == 3)
+                {
+                    CHECK(c->state.secondary.item == 202 && c->group == sweep_group &&
+                          c->state.secondary.attack.active && w->hitbox_width == 0x12);
+                    launched += !born[i];
+                    born[i] = true;
+                }
+                else
+                {
+                    CHECK(!c->state.secondary.item && !c->group &&
+                          !c->state.secondary.attack.active);
+                    ++waiting;
+                }
+            }
+        }
+        if (!live && sweep && t > 10)
+            break;
+    }
+    CHECK(sweep && lined > 20 && launched >= 20 && waiting > 100 && checked > 60 && scrolls > 20 &&
+          retained > 0);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
     SotnCharacter_Destroy(character);
@@ -5662,9 +6111,10 @@ int main(void)
                    Ice() && Moon() && Runtime() && KatanaRuntime() && ThunderRuntime() &&
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
-                   HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime() &&
-                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
-                   ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
+                   HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && MuramasaSlash() &&
+                   Twelve() && TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) &&
+                   YasutsunaRuntime(1) && ShotelBoomerang() && ShotelRuntime(0) &&
+                   ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
                    DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
                    DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&

@@ -139,8 +139,11 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
         return role == 1 || role == 2;
     // Weapon14/13 blueprint50 roots run EntityWeaponAttack outside slot16; their E1 hitboxes or
     // afterimages follow them.
-    if (family == 14 || family == 13)
+    // Weapon13's both-buttons combo202 adds its sweep (role2) and strike swords (role3).
+    if (family == 14)
         return role <= 1;
+    if (family == 13)
+        return role <= 3;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -207,6 +210,16 @@ Uint8 SotnWeaponSecondary_ChildRows(Uint16 family, Uint16 role, Uint16 parameter
     if (family == 26 && role == 9)
         return (parameter & 0x7f00U) ? 4 : 1;
     return SotnWeaponSecondary_RoleRows(family, role);
+}
+Uint8 SotnWeaponSecondary_HeldRows(Uint16 family, Uint16 role, Uint16 parameter, Uint8 phase)
+{
+    return family == 13 && role == 2 && phase == 4
+               ? 1
+               : SotnWeaponSecondary_ChildRows(family, role, parameter);
+}
+bool SotnWeaponSecondary_ComboSpell(Uint16 item)
+{
+    return item == 202 || SotnWeaponSecondary_ShieldSpellFamily(item) != 0;
 }
 Uint8 SotnWeaponSecondary_Rows(Uint16 family)
 {
@@ -2084,6 +2097,249 @@ static bool Heaven(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *
         s->x = (Sint32)((Uint32)s->x + (Uint32)t.cosine * 64U);
         s->y = (Sint32)((Uint32)s->y - (Uint32)t.sine * 64U);
         return HeavenTrail(s, in, e);
+    }
+    }
+}
+// The combo sword's whole screen 16.16 position as world coordinates (no CAMERA_LOCKED).
+static Sint32 ScreenWorld(Sint32 screen, Sint32 camera)
+{
+    return (Sint32)((Uint32)screen + ((Uint32)camera << 16));
+}
+// w_013 func_ptr_80170008: combo202's sword sweeps an arc out from the player's hitbox, shedding
+// strike swords, then blinks at its target, flashes white and stretches into a screen-wide slash
+// with a LINE_G2 row allocated only then (failure destroys it).
+static bool HeavenSweep(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                        SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        s->role = 2;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->frame = 6;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->flags = 0x04000000U;
+        s->draw_flags = 4;
+        Sint16 y = Word(Word(Pixel(in.y) - in.retained_camera_y) + in.parent_hitbox_y - 8);
+        if (!in.player_crouch_step)
+            y = Word(y - 8);
+        const Sint16 px = Word(Pixel(in.x) - in.retained_camera_x),
+                     x = Word(s->facing_left ? px - in.parent_hitbox_x : px + in.parent_hitbox_x);
+        SetScreen(&s->x, x, in.retained_camera_x);
+        SetScreen(&s->y, y, in.retained_camera_y);
+        s->heaven_cx = (Sint32)((Uint32)(Uint16)x << 16);
+        s->heaven_cy = (Sint32)((Uint32)(Uint16)y << 16);
+        s->heaven_angle = -0x200;
+        s->heaven_radius = 0x100;
+        s->heaven_target_x = Word(s->facing_left ? x - 0x78 : x + 0x78);
+        s->heaven_target_y = y;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        s->hitbox_width = s->hitbox_height = 14;
+        s->heaven_volume = 0x60;
+        e->use_ticks = 4;
+        s->phase = 1;
+        return true;
+    }
+    case 1: {
+        s->rotate = Word(s->rotate + 0x100);
+        const Sint16 angle = s->heaven_angle;
+        s->heaven_angle = Word(s->heaven_angle - 0x20);
+        s->heaven_radius = (Sint32)((Uint32)s->heaven_radius + 0x10U);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        const Uint32 radius =
+            s->facing_left ? 0U - (Uint32)s->heaven_radius : (Uint32)s->heaven_radius;
+        s->x = ScreenWorld((Sint32)((Uint32)t.cosine * radius + (Uint32)s->heaven_cx),
+                           in.retained_camera_x);
+        s->y = ScreenWorld(
+            (Sint32)((0U - (Uint32)s->heaven_radius) * (Uint32)t.sine + (Uint32)s->heaven_cy),
+            in.retained_camera_y);
+        if (!(in.game_timer & 1U) && s->heaven_angle < -0x400)
+        {
+            // CreateEntFactoryFromEntity fails silently without a free factory entity; the
+            // counter advances either way.
+            const Uint8 *cycle = NULL;
+            if (!View(in.overlay, 0x5e0U + (Uint32)((s->heaven_count >> 1) % 14) * 2U, 2, &cycle))
+                return SDL_SetError("Weapon13 sweep requires its private palette cycle");
+            if (in.free_factories > e->factory_count &&
+                e->factory_count < SDL_arraysize(e->factories))
+            {
+                e->factories[e->factory_count] =
+                    (0x46U + ((in.hand + 1U) << 14)) + ((Uint32)Read16(cycle) << 16);
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count++] = s->y;
+            }
+            s->heaven_count = Word(s->heaven_count + 1);
+        }
+        if (in.game_timer % 6U == 0)
+        {
+            e->sounds[0] = 0x60a;
+            e->volume_sound = true;
+            e->volume = (Uint16)s->heaven_volume;
+            s->heaven_volume -= 4;
+            if (s->heaven_volume < 0)
+                s->heaven_volume = 0;
+        }
+        if (s->heaven_angle >= -0xb00)
+            return true;
+        s->heaven_timer = 8;
+        s->phase = 2;
+        return true;
+    }
+    case 2:
+        s->heaven_timer = Word(s->heaven_timer - 1);
+        if (!s->heaven_timer)
+        {
+            s->draw_flags = 0x80;
+            s->phase = 3;
+        }
+        return true;
+    case 3:
+        s->heaven_timer = Word(s->heaven_timer + 1);
+        if (s->heaven_timer < 0x20 && !(s->heaven_timer & 3))
+            e->sounds[0] = 0x60b;
+        if (s->heaven_timer > 0x10)
+        {
+            SetScreen(&s->x, s->heaven_target_x, in.retained_camera_x);
+            SetScreen(&s->y, s->heaven_target_y, in.retained_camera_y);
+            s->hitbox_width = 0x12;
+            s->hitbox_height = 4;
+        }
+        if (s->heaven_timer > 0x30)
+            s->draw_flags = 0;
+        if (s->heaven_timer == 0x34)
+        {
+            e->sounds[0] = 0x66a;
+            s->draw_flags = 3;
+            s->scale_x = s->scale_y = 0x100;
+            s->palette = 0x815f;
+            // The caller reserved the one LINE_G2 row before this update.
+            if (!in.allocated)
+            {
+                s->removed = true;
+                return true;
+            }
+            const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                         y = Word(Pixel(s->y) - in.retained_camera_y);
+            s->heaven_line = (SotnWeaponSecondaryRow){.x = {x, x},
+                                                      .y = {y, y},
+                                                      .red = {0xf0, 0xf0},
+                                                      .green = {0x80, 0x80},
+                                                      .blue = {0xf0, 0xf0}};
+            s->flags |= 0x800000U; // FLAG_HAS_PRIMS
+            s->row_priority = s->priority;
+            s->draw_mode = 0x31;
+            s->phase = 4;
+        }
+        return true;
+    default: {
+        SotnWeaponSecondaryRow *l = &s->heaven_line;
+        if (l->x[0] > -0x110)
+            l->x[0] = Word(l->x[0] - 0x10);
+        if (l->x[1] < 0x110)
+            l->x[1] = Word(l->x[1] + 0x10);
+        if (l->x[0] < 0 && l->x[1] > 0x100)
+        {
+            if (l->blue[1] > 8)
+                l->blue[1] = (Uint8)(l->blue[1] - 8);
+            if (l->green[1] > 8)
+                l->green[1] = (Uint8)(l->green[1] - 4);
+            else
+            {
+                s->removed = true;
+                return true;
+            }
+            l->red[0] = l->blue[0] = l->red[1] = l->blue[1];
+            l->green[0] = l->green[1];
+        }
+        s->scale_x = Word(s->scale_x + 0x80);
+        s->scale_y = 0x20;
+        if (s->scale_x >= 0x700)
+            s->frame = 0;
+        const Sint16 px = Word(Pixel(s->x) - in.retained_camera_x);
+        if (px >= 0x101)
+            s->hitbox_x = Word(0x100 - px);
+        if (px < 0)
+            s->hitbox_x = Word(-px);
+        if (s->facing_left)
+            s->hitbox_x = Word(-s->hitbox_x);
+        s->hitbox_width = 0xfe;
+        s->hitbox_height = 2;
+        return true;
+    }
+    }
+}
+// w_013 func_ptr_8017000C: a strike sword copies its raw parent sweep at birth, waits for the
+// sweep's step3, counts down 1..32 updates, then flies at the sweep's target, retiring past it.
+// Every update first retires it once the raw parent slot is empty.
+static bool HeavenStrike(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                         SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    switch (s->phase)
+    {
+    case 0:
+        s->role = 3;
+        s->allocated = true;
+        s->frame = in.parent_frame;
+        s->bank = in.parent_bank;
+        s->facing_left = in.parent_facing_left;
+        s->texture = in.parent_texture;
+        s->priority = in.parent_priority;
+        s->flags = 0x04000000U;
+        s->palette = (Uint16)(in.parent_palette + (s->parameter >> 8));
+        s->draw_flags = (Uint8)(in.parent_draw_flags | 0x80U);
+        s->rotate = in.parent_rotate;
+        s->heaven_target_x = in.parent_target_x;
+        s->heaven_target_y = in.parent_target_y;
+        s->heaven_timer = (Sint16)((Rand(rng) & 0x1fU) + 1U);
+        s->phase = 1;
+        return true;
+    case 1:
+        if (in.parent_phase == 3)
+            s->phase = 2;
+        return true;
+    case 2: {
+        s->heaven_timer = Word(s->heaven_timer - 1);
+        if (s->heaven_timer)
+            return true;
+        s->rotate = 0;
+        const Sint32 sx = Word(Pixel(s->x) - in.retained_camera_x),
+                     sy = Word(Pixel(s->y) - in.retained_camera_y);
+        Sint16 angle = 0;
+        if (!SotnMath_Atan2(in.executable, -(s->heaven_target_y - sy), s->heaven_target_x - sx,
+                            &angle))
+            return false;
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        s->velocity_x = (Sint32)((Uint32)t.cosine * 0x100U);
+        s->heaven_vy = (Sint32)((0U - (Uint32)t.sine) * 0x100U);
+        s->phase = 3;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = 0x12;
+        s->hitbox_height = 4;
+        return true;
+    }
+    default: {
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->heaven_vy);
+        const Sint16 px = Word(Pixel(s->x) - in.retained_camera_x);
+        if (s->facing_left ? px < s->heaven_target_x : px > s->heaven_target_x)
+            s->removed = true;
+        return true;
     }
     }
 }
@@ -5483,6 +5739,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
                         : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
+                        : in.family == 13 && in.role == 2                      ? 4
+                        : in.family == 13 && in.role == 3                      ? 3
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -5539,7 +5797,10 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     }
     if (in.family == 13)
     {
-        if (!(in.role == 0 ? Heaven(&s, in, &rng, &e) : HeavenImage(&s, in)))
+        if (!(in.role == 0   ? Heaven(&s, in, &rng, &e)
+              : in.role == 2 ? HeavenSweep(&s, in, &rng, &e)
+              : in.role == 3 ? HeavenStrike(&s, in, &rng, &e)
+                             : HeavenImage(&s, in)))
             return false;
         goto commit;
     }

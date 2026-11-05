@@ -68,8 +68,13 @@ Selected [Heaven sword](docs/player-heaven-sword.md) now owns kind129 item119 th
 a role0 secondary root (no rows): fly/stop, parabolic spin rise, turn-limited homing (step grows
 0x20, never overshoots) and hitbox retirement; even g_GameTimer WFACTORY(0x3A,0) afterimages in
 32..63 copy the raw parent's frame/childPalette/rotation with ENTITY_OPACITY fades. Never
-consumed; only the root counts for CheckChainLimit. Item202 (both-buttons CheckWeaponCombo)
-waits for the Shield rod combo owner. Mutation sweeps must use ctest's exit code.
+consumed; only the root counts for CheckChainLimit. Dual Heaven swords' combo202 (left hand,
+kind5, bp62 at <<14, chain1, five MP) runs w_013 role2/role3: the E2 sweep (screen words; no
+CAMERA_LOCKED, so callbacks use retained_camera = camera - room_shift + screen_shift) arcs from the
+hitbox, requests 0x46+(hand+1)<<14 strike swords (D_8017A5E0 params, counter advances without a
+free factory), blinks, snaps to its target and reserves its one LINE_G2 row on the update reaching
+0x34 (failure destroys; HeldRows, HAS_PRIMS). E3 strikes read the raw parent every update, launch
+after its step3 and copy item/enemyId then. Mutation sweeps must use ctest's exit code.
 
 Selected [Runesword](docs/player-runesword.md) now owns kind129 item143 through weapon14 hosted
 by the secondary owner as role0: blueprint50 E0/F0 roots in slots17..31 (own item, least-used

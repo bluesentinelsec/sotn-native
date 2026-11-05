@@ -4103,7 +4103,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 const Uint16 family = child->state.secondary.family, role = child->kind & 15U;
                 const bool slash = family == 53 || family == 56 || family == 51 ||
                                    (family == 12 && role == 0),
-                           ring = role == 2 || family == 1 || (family == 50 && role == 4),
+                           // Weapon30's soldiers draw their own dawn quads (and hide some);
+                           // weapon13's combo sweep owns one late LINE_G2 row.
+                    ring = (role == 2 && family != 30 && family != 13) || family == 1 ||
+                           (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
                 // Shield spells (E8) own eleven screen-space GT4s.
                 for (Uint16 q = SotnWeaponSecondary_ShieldSpell(family) ? child->primitive_count
@@ -4156,7 +4159,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                       ? 0
                                       : child->primitive_count;
                      row > 0; --row)
-                    if (!w->rows[row - 1U].hidden &&
+                    if (!(family == 13 ? w->heaven_line.hidden : w->rows[row - 1U].hidden) &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = w->row_priority,
@@ -5289,7 +5292,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             {
                 // Original drawMode0x331/0x339: semi-transparent LINE_G2 whose DR_MODE selects
                 // ABR from bits5..6 (additive for all selected secondaries).
-                const SotnWeaponSecondaryRow *q = &w->rows[row];
+                // Weapon13's combo sweep keeps its one row beside its motion words.
+                const SotnWeaponSecondaryRow *q =
+                    c->state.secondary.family == 13 ? &w->heaven_line : &w->rows[row];
                 const Sint32 ox = session->draw_target.offset_x + session->shake.x,
                              oy = session->draw_target.offset_y + session->shake.y;
                 const SotnColorLine line = {.x = {q->x[0] + ox, q->x[1] + ox},
