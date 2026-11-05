@@ -1357,6 +1357,8 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 .holy_symbol_enabled = (s->world.relics[14] & 3U) == 3,
                 .camera_x = s->camera.x,
                 .camera_y = s->camera.y,
+                .camera_left = s->camera.left,
+                .camera_right = s->camera.right,
                 .room_shift_x = (Sint16)s->blink_rebase_x,
                 .room_shift_y = (Sint16)s->blink_rebase_y,
                 .screen_shift_x = (Sint16)dx,
@@ -4088,6 +4090,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                    (family == 12 && role == 0),
                            ring = role == 2 || family == 1 || (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
+                // Weapon30's circle (eleven) and soldiers (fourteen) own entity-relative GT4s.
+                for (Uint16 q = family == 30 ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->dawn_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->dawn_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 16U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
                 // Weapon14's forty-eight trail GT4s share the compact-row command.
                 for (Uint16 q = rune ? child->primitive_count : 0; q > 0; --q)
                     if (!w->rune_hidden[q - 1U] &&
@@ -4114,7 +4125,9 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 16U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle || rune ? 0 : child->primitive_count;
+                for (Uint16 row = slash || ring || sparkle || rune || family == 30
+                                      ? 0
+                                      : child->primitive_count;
                      row > 0; --row)
                     if (!w->rows[row - 1U].hidden &&
                         !SotnActorOrder_Add(
@@ -5175,18 +5188,43 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool slash = c->state.secondary.family == 53 || c->state.secondary.family == 56 ||
                                c->state.secondary.family == 51 ||
                                (c->state.secondary.family == 12 && !(c->kind & 15U));
+            const bool dawn = c->state.secondary.family == 30;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
+                (!slash && !dawn && (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
-            SotnPlayerEffectQuad q = slash ? w->quad : w->quads[index];
-            // Weapon53/51 offsets follow the entity (DRAW_UNK02); ring and rush are screen-space.
-            for (Uint16 v = 0; slash && v < 4; ++v)
+            SotnPlayerEffectQuad q = slash  ? w->quad
+                                     : dawn ? w->dawn_quads[index]
+                                            : w->quads[index];
+            if (dawn && (c->kind & 15U) == 1 && index == 10 && w->dawn_line)
             {
-                q.x[v] = BlinkWord(q.x[v] + Pixel(w->x) - view_x);
-                q.y[v] = BlinkWord(q.y[v] + Pixel(w->y) - view_y);
+                // The circle's row10 tether is a LINE_G2 (ABR from drawMode bits5..6).
+                const Sint32 ox = session->draw_target.offset_x + session->shake.x + Pixel(w->x) -
+                                  view_x,
+                             oy = session->draw_target.offset_y + session->shake.y + Pixel(w->y) -
+                                  view_y;
+                const SotnColorLine line = {.x = {q.x[0] + ox, q.x[1] + ox},
+                                            .y = {q.y[0] + oy, q.y[1] + oy},
+                                            .red = {q.red[0], q.red[1]},
+                                            .green = {q.green[0], q.green[1]},
+                                            .blue = {q.blue[0], q.blue[1]},
+                                            .blend = (q.draw_mode & 1U) != 0,
+                                            .blend_mode = (Uint8)((q.draw_mode >> 5) & 3U)};
+                if (!SotnActorGraphics_LineSurface(line, session->draw_target.surface) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            // Weapon53/51 and weapon30's circle offsets follow the entity (DRAW_UNK02); weapon30's
+            // soldier rows are world pixels; ring and rush are screen-space.
+            const bool world = dawn && (c->kind & 15U) == 2;
+            for (Uint16 v = 0; (slash || dawn) && v < 4; ++v)
+            {
+                q.x[v] = BlinkWord(q.x[v] + (world ? 0 : Pixel(w->x)) - view_x);
+                q.y[v] = BlinkWord(q.y[v] + (world ? 0 : Pixel(w->y)) - view_y);
             }
             if (!DrawOriginalEffectQuad(session, &q) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
@@ -5226,7 +5264,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             }
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
                      c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
-                     c->state.secondary.family == 12 || c->state.secondary.family == 34)
+                     c->state.secondary.family == 12 || c->state.secondary.family == 34 ||
+                     c->state.secondary.family == 30)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.

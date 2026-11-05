@@ -3507,6 +3507,454 @@ static bool ShotelRuntime(Uint16 hand)
     return true;
 }
 
+// Authored weapon30 tables: scan order, soldier types, six private soldier timelines (two-update
+// frames with frame property1, END after six), frame properties, palettes, speeds and steps.
+static void DawnProgram(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 15; ++i)
+        o[0x608 + i] = (Uint8)i;
+    for (Uint16 i = 0; i < 16; ++i)
+        o[0x618 + i] = (Uint8)(i % 6);
+    for (Uint16 t = 0; t < 6; ++t)
+    {
+        Put32(o + 0x628 + t * 4U, 0x8017a700U + t * 0x20U);
+        for (Uint16 k = 0; k < 6; ++k)
+        {
+            Put16(o + 0x700 + t * 0x20U + k * 4U, 2);
+            Put16(o + 0x700 + t * 0x20U + k * 4U + 2, (Uint16)(1U << 9 | (5U + k)));
+        }
+        Put16(o + 0x700 + t * 0x20U + 24, 0xffff);
+        o[0x640 + t] = (Uint8)(2 * t);
+        o[0x650 + t] = 2;
+        Put16(o + 0x660 + t * 2U, (Uint16)(0x8120 + t));
+    }
+    const Uint8 steps[] = {3, 3, 2, 2, 5, 6};
+    SDL_memcpy(o + 0x658, steps, 6);
+    Put32(o + 0x648, 0xffff2000U);
+    Put32(o + 0x64c, 0xffff4000U);
+    const Sint8 props[] = {-3, 5, 12, 20};
+    SDL_memcpy(o + 0x554 + 4, props, 4);
+    Put16(o + 0x66c, 0xfff4);
+    Put16(o + 0x66e, 12);
+    for (Uint16 k = 0; k < 13; ++k)
+        Put16(o + 0x514 + k * 4U, 3), Put16(o + 0x516 + k * 4U, (Uint16)(1 + k));
+    Put16(o + 0x514 + 12 * 4U, 0xffff);
+    for (Uint16 k = 0; k < 3; ++k)
+        Put16(o + 0x548 + k * 4U, 2), Put16(o + 0x54a + k * 4U, (Uint16)(20 + k));
+    Put16(o + 0x548 + 2 * 4U, 0);
+    Put16(o + 0x54a + 2 * 4U, 0);
+}
+static Uint8 dawn_tiles[64 * 16 * 2], dawn_types[2] = {0, 3};
+static SotnCollisionMap DawnFloor(void)
+{
+    for (Uint16 y = 10; y < 16; ++y)
+        for (Uint16 x = 0; x < 64; ++x)
+            dawn_tiles[(y * 64U + x) * 2] = 1;
+    return (SotnCollisionMap){{dawn_tiles, sizeof(dawn_tiles)}, {dawn_types, 2}, 64, 16};
+}
+// w_030 func_ptr_80170004: one or six soldiers (first rand) before the rows, a second rand for
+// the first type; an eight-update rise; a fifteen-point ground scan placing soldier factories
+// (respecting free factories and live E2 spacing); bands, tether, waves and the flashing exit.
+static bool DawnCircleTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    DawnProgram(o);
+    Math(exe);
+    // Rolls: rand&7 neither0 nor4 (one soldier), 0 (six) and 4 (one; only &7 selects six).
+    for (Uint16 want = 0; want < 3; ++want)
+    {
+        Uint32 seed = 1;
+        for (;; ++seed)
+        {
+            Uint32 probe = seed;
+            const Uint16 roll = (SotnCombat_Random(&probe) & 0x7fffU) & 7U;
+            if (want == 0 ? roll != 0 && roll != 4 : roll == (want == 1 ? 0 : 4))
+                break;
+        }
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = 100 * 65536 + 0x1234,
+                                 .y = 128 * 65536 + 0x4321};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .x = 100 * 65536,
+                                       .y = 128 * 65536,
+                                       .hand = hand,
+                                       .family = 30,
+                                       .role = 1,
+                                       .priority = 148,
+                                       .facing_left = hand != 0,
+                                       .allocated = true,
+                                       .collision = DawnFloor(),
+                                       .free_factories = 8};
+        // A live E2 soldier of this hand within two pixels of point1 is skipped.
+        in.slot_kind[3] = hand ? 0xf2 : 0xe2;
+        in.slot_x[3] = (Sint16)(hand ? 95 : 109);
+        Uint32 rng = seed, check = seed;
+        const Sint16 six = ((SotnCombat_Random(&check) & 0x7fffU) & 7U) ? 1 : 6;
+        const Uint16 first = (SotnCombat_Random(&check) & 0x7fffU) & 15U;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.dawn_soldiers == six && six == (want == 1 ? 6 : 1) &&
+              s.dawn_type == first % 6 && e.use_ticks == 4 &&
+              s.dawn_quads[0].palette == (hand ? 0x128 : 0x110) &&
+              s.dawn_quads[0].v[0] == (hand ? 0xb8 : 0x38) && s.dawn_quads[0].red[2] == 0x80 &&
+              s.dawn_quads[0].draw_mode == 0x77 && s.dawn_quads[0].priority == 150 &&
+              s.dawn_quads[10].palette == 0x15f && s.dawn_quads[10].priority == 152 &&
+              s.dawn_quads[10].v[3] == (Uint8)((hand ? 0x80 : 0) + 0x38 + 79) &&
+              s.velocity_x == (hand ? -0x18000 : 0x18000) && s.dawn_birth_x == 100 &&
+              s.dawn_birth_y == 128 && s.dawn_quads[0].x[1] == 0 && s.dawn_quads[0].y[2] == 4);
+        for (Uint16 t = 0; t < 8; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                  s.dawn_half_w == SDL_min(t + 1, 8) && s.dawn_half_h == 4 * (t + 1));
+        }
+        CHECK(s.phase == 2 && rng == check && (s.x >> 16) == (hand ? 88 : 112) &&
+              Pixel(s.y) == 128 - 41 && e.sounds[0] == 0x635 && e.volume_sound &&
+              e.volume == 0x58 && e.factory_count == six && s.dawn_target);
+        for (Uint16 k = 0; k < e.factory_count; ++k)
+        {
+            // Point1 (one step forward) holds the live soldier and is skipped.
+            const Uint16 point = k == 0 ? 0 : (Uint16)(k + 1);
+            const Sint32 px = point < 8 ? (hand ? 100 - 7 * point : 100 + 7 * point)
+                                        : (hand ? 100 + 7 * (point - 7) : 100 - 7 * (point - 7));
+            CHECK(e.factories[k] == (0x3eU | (hand + 1U) << 12 |
+                                     (Uint32)((first + k) % 6U + (six == 6 ? 0x10U : 0U)) << 16) &&
+                  (e.factory_x[k] >> 16) == px && (e.factory_x[k] & 0xffff) == 0x1234 &&
+                  (e.factory_y[k] >> 16) == 160 - 0x19 &&
+                  (e.factory_y[k] & 0xffff) == (s.y & 0xffff));
+        }
+        CHECK(s.dawn_type == (Sint16)((first + six) % 6U) &&
+              s.dawn_target_x == (Sint16)(e.factory_x[six - 1] >> 16) &&
+              s.dawn_target_y == 160 - 0x19);
+        for (Uint16 t = 0; t < 8; ++t)
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        CHECK(s.phase == 3 && program.dawn_phase[9] == 0x199 * 9 &&
+              program.dawn_phase[1] == 0x199 + 0x80 && s.dawn_fade == 0xff);
+        Uint16 t = 0;
+        for (; s.phase == 3 && t < 200; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.dawn_line &&
+                  s.dawn_quads[10].red[1] == (Uint8)SDL_max(0xff - 8 * (t + 1), 0) &&
+                  s.dawn_band == SDL_min(4 * (t + 1), 0x120) &&
+                  s.dawn_wave == (t + 1 >= 10 ? 1 + (t + 1 - 10) / 4 : 0));
+        }
+        CHECK(s.phase == 4 && t == 72 && rng == check);
+        for (t = 0; !s.removed && t < 60; ++t)
+        {
+            in.game_timer = t;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (!s.removed)
+                CHECK(((s.dawn_quads[0].draw_mode & 8U) != 0) == (t & 1U) &&
+                      s.dawn_quads[0].red[0] == SDL_min(0x80 + 6 * (t + 1), 240) &&
+                      s.dawn_quads[0].blue[3] == SDL_max(0x80 - 6 * (t + 1), 10));
+        }
+        CHECK(s.removed && t == 37);
+    }
+    // Exhausted rows retire after the first roll; no free factory places nothing.
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 7, check = 7;
+        (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program,
+                                       (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                                  .executable = {exe, sizeof(exe)},
+                                                                  .family = 30,
+                                                                  .role = 1},
+                                       &rng, &e) &&
+              s.removed && rng == check);
+        s = (SotnWeaponSecondary){.y = 128 * 65536};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .y = 128 * 65536,
+                                       .family = 30,
+                                       .role = 1,
+                                       .allocated = true,
+                                       .collision = DawnFloor()};
+        for (Uint16 t = 0; t < 9; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        }
+        CHECK(s.phase == 2 && !e.factory_count && !s.dawn_target && e.sounds[0] == 0x635);
+    }
+    CHECK(SotnWeaponSecondary_SupportedRole(30, 4) && !SotnWeaponSecondary_SupportedRole(30, 5) &&
+          SotnWeaponSecondary_RoleRows(30, 1) == 11 && SotnWeaponSecondary_RoleRows(30, 2) == 14 &&
+          !SotnWeaponSecondary_RoleRows(30, 3));
+    return true;
+}
+// w_030 func_ptr_80170008: soldiers wait for their wave, roll once, take their rows and rise;
+// walkers walk on the floor and leave the room bounds, archers shoot at pose5, the sword
+// thrower requests two or three swords, the bomber its bomb at pose4; hits blink them out.
+static bool DawnSoldierTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    DawnProgram(o);
+    Math(exe);
+    for (Uint16 type = 0; type < 6; ++type)
+    {
+        SotnHandWeaponProgram program = {0};
+        SotnWeaponSecondary s = {.parameter = (Uint16)((type | (type == 3 ? 0x10 : 0)) << 8),
+                                 .x = 100 * 65536 + 0x77,
+                                 .y = 135 * 65536};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .hand = hand,
+                                       .family = 30,
+                                       .role = 2,
+                                       .priority = 148,
+                                       .allocated = true,
+                                       .collision = DawnFloor(),
+                                       .free_factories = 8,
+                                       .parent_wave = (Sint16)type,
+                                       .parent_facing_left = hand == 0,
+                                       .room_left = 0,
+                                       .room_right = 1024};
+        Uint32 rng = 41U + type, check = rng;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.phase && rng == check);
+        in.parent_wave = (Sint16)(type + 1);
+        const Uint16 random = (SotnCombat_Random(&check) & 0x7fffU) & 1U;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              e.shake == 4 && e.sounds[0] == 0x654 && s.bank == 10 &&
+              s.palette == (type == 3 ? 0x8123U : (Uint16)(0x8110U + 2U * type + random)) +
+                               (hand ? 0x18U : 0U) &&
+              s.texture == 0x64U + hand * 2U && s.facing_left == (hand != 0) &&
+              s.dawn_shots == 2 + random && s.dawn_lives == (type == 1 ? 3 : 0) &&
+              s.dawn_quads[0].palette == (hand ? 0x12a : 0x112) && s.dawn_quads[0].x[1] == 116 &&
+              s.dawn_quads[3].priority == 160 && s.frame == 5 && s.hitbox_width == 12 &&
+              s.hitbox_x == -3);
+        // The rise mask uses one row rand per update; smoke uses three on its slot's update.
+        Uint16 t = 0;
+        for (; s.phase == 1 && t < 100; ++t)
+        {
+            in.game_timer = 8U + t;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        }
+        const Uint8 steps[] = {3, 3, 2, 2, 5, 6};
+        CHECK(s.phase == steps[type] && e.group && s.hitbox_state == 2 &&
+              s.properties.attack == 4 && s.properties.element == 0x20 &&
+              Pixel(s.y) == 135 + (type == 5 ? 2 : 1) &&
+              s.velocity_x == (type == 0   ? (hand ? 0xe000 : -0xe000)
+                               : type == 1 ? (hand ? 0xc000 : -0xc000)
+                                           : 0));
+        if (type == 0)
+        {
+            // Walking: floor contact holds the feet at the floor; leaving the bounds blinks out.
+            const Sint32 x = s.x;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 3 &&
+                  s.x == x + s.velocity_x);
+            in.room_right = Pixel(s.x) - 1;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 7 &&
+                  s.dawn_blink == 0x18);
+        }
+        else if (type == 1)
+        {
+            // Three lives: a hit blinks back to walking, keeping the actual blink count.
+            s.hit_flags = 1;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 8 &&
+                  s.dawn_lives == 2 && (s.draw_flags & 0x80U));
+            for (t = 0; s.phase == 8 && t < 30; ++t)
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            CHECK(s.phase == 3 && t == 0x17 && !(s.draw_flags & 0x80U));
+        }
+        else
+        {
+            Uint16 requests = 0, bombs = 0;
+            for (t = 0; !s.removed && t < 600; ++t)
+            {
+                in.game_timer = 0x100U + t;
+                e = (SotnWeaponSecondaryEvents){0};
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+                for (Uint16 k = 0; k < e.factory_count; ++k)
+                {
+                    const Uint32 f = e.factories[k];
+                    CHECK(e.factory_x[k] == s.x && e.factory_y[k] == s.y);
+                    if (type == 2 || type == 3)
+                        CHECK(f == (0x46U | (hand + 1U) << 12 | (Uint32)(type - 2U) << 16) &&
+                              e.sounds[0] == 0x627 && s.pose == 5);
+                    else if (type == 4)
+                        CHECK(f == (0x46U | (hand + 1U) << 12 | 2U << 16));
+                    else
+                    {
+                        // The request is made at pose4/timer1; the post-callback UpdateAnim then
+                        // advances.
+                        CHECK(f == (0x6aU | (hand + 1U) << 12) && s.pose == 5);
+                        ++bombs;
+                    }
+                    ++requests;
+                }
+            }
+            CHECK(s.removed && (type == 5   ? bombs == 1
+                                : type == 4 ? requests >= 4 * 2
+                                            : requests == 2 + random));
+        }
+    }
+    return true;
+}
+// w_030 func_ptr_8017000C: arrows fly back at5.5 (five updates rewound), swords appear around
+// their thrower (D_8017A66C by the program's count), spin, then home on a selected target.
+static bool DawnArrowTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    DawnProgram(o);
+    Math(exe);
+    SotnHandWeaponProgram program = {.secondary_counter = 4};
+    for (Uint16 kind = 0; kind < 3; ++kind)
+    {
+        SotnWeaponSecondary s = {
+            // The right hand's swords carry factory index1: lifetime0x30 plus four per index.
+            .parameter = (Uint16)(kind << 8 | hand),
+            .x = 100 * 65536,
+            .y = 120 * 65536};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .hand = hand,
+                                       .family = 30,
+                                       .role = 3,
+                                       .priority = 148,
+                                       .parent_facing_left = hand != 0,
+                                       .target = {.identity = 7, .hitbox = 3, .x = 200, .y = 60}};
+        Uint32 rng = 9, check = 9;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.group &&
+              s.hitbox_state == 2 && s.hitbox_width == 8 && s.hitbox_height == 4 &&
+              s.frame == 0x64 && s.bank == 10);
+        if (kind < 2)
+        {
+            const Sint32 v = hand ? 0x58000 : -0x58000;
+            CHECK(rng == check && s.phase == 1 && s.velocity_x == v && s.x == 100 * 65536 + v * 5 &&
+                  Pixel(s.y) == 120 - (kind ? 4 : 16));
+            const Sint32 x = s.x;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.x == x + v);
+        }
+        else
+        {
+            const Uint16 a = (SotnCombat_Random(&check) & 0x7fffU) & 15U,
+                         b = (SotnCombat_Random(&check) & 0x7fffU) & 7U;
+            const Sint16 angle = (Sint16)(SotnCombat_Random(&check) & 0x7fffU);
+            CHECK(rng == check && s.phase == 3 && e.sounds[0] == 0x6ba &&
+                  program.secondary_counter == 5 && Pixel(s.y) == 120 - 28 - a &&
+                  Pixel(s.x) == 100 + 12 - 4 + b && !s.facing_left && s.dawn_side == !hand &&
+                  s.dawn_angle == angle && s.lifetime == 0x30 + 4 * hand && s.draw_flags == 4);
+            Uint16 t = 0;
+            for (; s.phase == 3 && t < 100; ++t)
+            {
+                e = (SotnWeaponSecondaryEvents){0};
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            }
+            CHECK(t == 0x30 + 4 * hand && e.select_target && e.sounds[0] == 0x627 &&
+                  s.dawn_limit == 0x20 && s.dawn_speed == 0x600 && s.phase == 1);
+            s.dawn_bound = true;
+            for (t = 0; t < 40; ++t)
+            {
+                const Sint16 limit = s.dawn_limit;
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                      s.rotate == (Sint16)(0x800 - s.dawn_angle));
+                CHECK(s.dawn_limit <= limit + 0x18);
+            }
+            // Locked on: the heading points at the target (up-right).
+            CHECK(s.dawn_angle > 0 && s.dawn_angle < 0x400);
+            in.target.identity = 0; // A retired target stops the steering.
+            const Sint16 locked = s.dawn_angle, grown = s.dawn_limit;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.dawn_angle == locked &&
+                  s.dawn_limit == grown + 0x18);
+        }
+        s.hit_flags = 1;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 2 &&
+              s.lifetime == 10);
+        Uint16 t = 0;
+        for (; !s.removed && t < 20; ++t)
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && (s.draw_flags & 0x80U));
+        CHECK(s.removed && t == 10);
+    }
+    return true;
+}
+// w_030 func_ptr_80170010: the bombs retire with their raw parent; they grow and spin with a
+// rising volume, burst (index0) or roll (index1) at the bomber's pose0x20, and shrink after a hit.
+static bool DawnBombTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    DawnProgram(o);
+    Math(exe);
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 index = 0; index < 2; ++index)
+    {
+        SotnWeaponSecondary s = {.parameter = index, .x = 100 * 65536, .y = 140 * 65536};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .hand = hand,
+                                       .family = 30,
+                                       .role = 4,
+                                       .priority = 148,
+                                       .free_factories = 8,
+                                       .parent_facing_left = hand == 0};
+        Uint32 rng = 3;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed);
+        s = (SotnWeaponSecondary){.parameter = index, .x = 100 * 65536, .y = 140 * 65536};
+        in.parent_exists = true;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 && e.group &&
+              s.properties.attack == 0x14 && s.scale_x == 0x20 && s.bank == 9 &&
+              s.timeline == (index ? 0x548 : 0x514) && Pixel(s.y) == 140 - 0x27 &&
+              s.velocity_x == (hand ? -0x38000 : 0x38000) && s.hitbox_width == 0 &&
+              s.priority == 156 && s.flags == 0x08100000U);
+        Uint16 t = 0, sounds = 0;
+        for (; t < 40; ++t)
+        {
+            in.game_timer = t;
+            const Sint16 volume = s.dawn_volume;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                  s.scale_x == SDL_min(0x20 + 2 * (t + 1), 0x100) &&
+                  s.rotate == (Sint16)(0x100 * (t + 1)) &&
+                  s.hitbox_width == (Uint8)((s.scale_x >> 6) * 3));
+            if (!(t & 7U))
+            {
+                CHECK(e.sounds[0] == 0x652 && e.volume == volume);
+                ++sounds;
+            }
+        }
+        CHECK(sounds == 5 && s.dawn_volume == 0x58);
+        in.parent_pose = 0x20;
+        s.remaining = 1;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.sounds[1] == 0x65e);
+        if (!index)
+        {
+            CHECK(s.removed);
+            continue;
+        }
+        CHECK(s.phase == 2 && s.blend == 0x50);
+        Uint16 sparks = 0;
+        for (t = 0; t < 32; ++t)
+        {
+            in.game_timer = t;
+            const Sint32 x = s.x;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.x == x + s.velocity_x);
+            for (Uint16 k = 0; k < e.factory_count; ++k)
+            {
+                CHECK(e.factories[k] == 0x10024U && !(t & 1U));
+                ++sparks;
+            }
+        }
+        CHECK(sparks > 0 && sparks < 16);
+        s.hit_flags = 1;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 3);
+        for (t = 0; !s.removed && t < 400; ++t)
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        CHECK(s.removed && !s.hitbox_state && !s.bank);
+    }
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -3515,7 +3963,9 @@ int main(void)
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenRuntime() && MuramasaSlash() && Twelve() && TwelveRuntime() &&
                    Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
-                   ShotelRuntime(0) && ShotelRuntime(1)
+                   ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
+                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
+                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1)
                ? 0
                : 1;
 }

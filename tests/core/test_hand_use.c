@@ -163,6 +163,12 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 143 * 52 + 19] = 50;
     f->dra[0x500 + 143 * 52 + 22] = 1;
     Item(f->dra, 130, 4, 4, 3, 0x4f, 0, 11, 170);
+    Item(f->dra, 17, 5, 30, 6, 0x68, 0, 13, 0);
+    f->dra[0x500 + 17 * 52 + 24] = 177; // QCF specialMove
+    Item(f->dra, 177, 1, 30, 5, 0xb8, 0, 0, 0);
+    f->dra[0x500 + 177 * 52 + 19] = 56;
+    f->dra[0x500 + 177 * 52 + 22] = 8;
+    Put16(f->dra + 0x500 + 177 * 52 + 36, 5);
     Item(f->dra, 28, 0, 34, 12, 0x92, 0, 13, 0);
     f->dra[0x500 + 28 * 52 + 24] = 176; // QCF specialMove
     Item(f->dra, 176, 1, 34, 129, 0x5d, 0, 0, 0);
@@ -187,9 +193,10 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
           SotnCharacter_Equip(f->character, SOTN_EQUIP_LEFT, item));
     CHECK(SotnPlayer_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->map, 256, 135, &f->p));
     const SotnDataView weapons = {f->weapons, sizeof(f->weapons)};
-    const Uint16 right =
-        item == 26 || item == 139 || item == 98 || item == 95 || item == 141 || item == 165 ? item
-                                                                                            : 0;
+    const Uint16 right = item == 26 || item == 139 || item == 98 || item == 95 || item == 141 ||
+                                 item == 165 || item == 17
+                             ? item
+                             : 0;
     // Two-hand Red Rust and fists require actual shared hand ownership before they bind.
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
     CHECK(item == 18 || item == 143 || item == 119 || item == 133 || item == 163 || item == 164 ||
@@ -692,6 +699,35 @@ static bool Runesword(Fixture *f, Uint16 item)
     }
     return true;
 }
+// 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,
+// five MP after the factory, grounded substep0x45). The QCF also refuses ground with vram flag
+// 0x40, falling back to the ordinary swing.
+static bool SwordOfDawn(Fixture *f)
+{
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        CHECK(Create(f, 17, 1, 2, true));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(SotnPlayer_SetSpecialChain(f->p, k == 2 ? 8 : 7, 0));
+        const Uint16 mp = f->p->mp;
+        CHECK(Tick(f, SOTN_BUTTON_DOWN) && Tick(f, SOTN_BUTTON_DOWN | SOTN_BUTTON_RIGHT) &&
+              Tick(f, SOTN_BUTTON_RIGHT));
+        if (k == 1)
+            f->p->contact |= 0x40;
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p) && p.hand_used && f->roll_count == 1);
+        if (k == 0)
+            CHECK(f->item == 177 && f->packed == 0x1038U && f->p->mp == mp - 5 &&
+                  f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
+                  f->p->animation.id == 0xb8 && f->p->step == SOTN_PLAYER_STAND);
+        else
+            CHECK(f->item == 17 && f->packed == 0x1030U && f->p->mp == mp &&
+                  f->p->attack_mode == 0x8007);
+    }
+    return true;
+}
 // 6E42C.c Shotel28 (kind12): its QCF special176 is a kind129 throw (blueprint56, grunt, the
 // throw animation, never consumed). While a176 lives with either hand's params, CheckChainLimit
 // refuses the special and case12 turns the swing into a punch: Shotel's factory, then the
@@ -825,7 +861,7 @@ int main(void)
          QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) && Punches(f) &&
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f);
+         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f);
     // Exhausted factories never reach the roll.
     if (ok)
     {

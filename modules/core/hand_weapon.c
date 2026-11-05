@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Ordinary weapon/w_000.c, w_001.c, w_002.c, w_003.c, w_004.c, w_005.c, w_009.c, w_011.c, w_026.c,
-// w_031.c, w_033.c, w_034.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
+// w_030.c, w_031.c, w_033.c, w_034.c, w_035.c, w_036.c, w_037.c, w_043.c, w_052.c, w_057.c and
 // dra/alu_anim.c, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. All original animation,
 // hitbox, palette and artwork tables remain private inputs.
 #include <sotn/combat.h>
@@ -583,6 +583,7 @@ static bool OrdinaryFamily(Uint16 family)
     case 55:
     case 32:
     case 33:
+    case 30:
     case 34:
     case 35:
     case 36:
@@ -662,6 +663,7 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                                   : in.family == 5  ? 0x12f4U
                                   : in.family == 33 ? 0xc3cU
                                   : in.family == 34 ? 0x934U
+                                  : in.family == 30 ? 0x5e4U
                                   : in.family == 35 ? 0x530U
                                   : in.family == 36 ? 0x540U
                                   : in.family == 57 ? 0x106cU
@@ -712,7 +714,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                 if (in.family != 255 && in.family != 1)
                 {
                     // w_051 draws from DRA sprite bank10 with no per-hand bank offset.
-                    w.bank = in.family == 51 ? 10 : (Uint16)(0x8010U + in.hand * 2U);
+                    w.bank =
+                        in.family == 51 || in.family == 30 ? 10 : (Uint16)(0x8010U + in.hand * 2U);
                     // w_051's special adds subType*2 instead of its descriptors' zero palette.
                     w.palette = (Uint16)(0x110U + in.hand * 24U +
                                          (in.special ? variant * 2U : Read16(d + 8)));
@@ -727,8 +730,8 @@ bool SotnHandWeapon_Tick(SotnHandWeapon *out, SotnHandWeaponProgram *program,
                     in.family == 57 || in.family == 53 || in.family == 48 || in.family == 49 ||
                     in.family == 50 || in.family == 6 || in.family == 56)
                     w.blend = 0x30;
-                // w_053 descriptors1/3 use BLEND_TRANSP|BLEND_QUARTER.
-                if (in.family == 53 && (variant == 1 || variant == 3))
+                // w_053 descriptors1/3 and w_030 use BLEND_TRANSP|BLEND_QUARTER.
+                if ((in.family == 53 && (variant == 1 || variant == 3)) || in.family == 30)
                     w.blend = 0x70;
                 else if (in.family == 35 || in.family == 34)
                     w.blend = 0x10; // w_035 Red Rust and w_034 Shotel: BLEND_TRANSP only.

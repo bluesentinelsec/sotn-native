@@ -1,9 +1,11 @@
 #ifndef SOTN_WEAPON_SECONDARY_H
 #define SOTN_WEAPON_SECONDARY_H
+#include <sotn/collision.h>
 #include <sotn/equipment.h>
 #include <sotn/game_data.h>
 #include <sotn/hand_weapon.h>
 #include <sotn/player_blink.h>
+#include <sotn/spell_target.h>
 
 /** Maximum original LINE_G2 rows owned by one selected weapon secondary. */
 #define SOTN_WEAPON_SECONDARY_ROWS 64
@@ -77,6 +79,30 @@ typedef struct SotnWeaponSecondary
             bool rune_hidden[48];           /**< Original DRAW_HIDE. */
             Sint16 rune_count;              /**< ext.weapon_014.unk9C: completed callbacks. */
         };
+        /** Weapon30 Sword of Dawn circle (E1) and soldiers (E2): up to fourteen GT4 rows whose
+         * vertices are offsets from the entity's whole pixels (DRAW_UNK02 follows the camera).
+         * Circle words: ext.weapon unk7E band, unk80/82 half extents, weapon_030.unk84 wave,
+         * childPalette tether fade, unk8A count, unk90 soldiers, unk92 next type, unk94/96 the
+         * player's birth screen Y/X, unk98/9A the tether's screen target, unk9C target flag.
+         * Soldier words: weapon_030 unk7C cooldown, unk7E blink, unk86 shots, unk88/9C rise
+         * rates, unk90/A0 rise offsets, unkA4 lives. */
+        struct
+        {
+            SotnPlayerEffectQuad dawn_quads[14];
+            bool dawn_line; /**< Circle row10 became the LINE_G2 tether. */
+            Sint16 dawn_band, dawn_half_w, dawn_half_h, dawn_wave, dawn_fade, dawn_count;
+            Sint16 dawn_soldiers, dawn_type, dawn_birth_y, dawn_birth_x, dawn_target_x,
+                dawn_target_y;
+            Sint32 dawn_target;
+            Sint16 dawn_cooldown, dawn_blink, dawn_shots, dawn_lives;
+            Sint32 dawn_rate1, dawn_rate2, dawn_rise1, dawn_rise2;
+            Sint32 dawn_velocity_y;
+            /** Weapon30 arrows/swords (E3): ext.weapon unk80 heading, unk82 side, unk98 turn
+             * limit, unk9A speed and the retained raw target slot (func_80118970's pointer). */
+            Sint16 dawn_angle, dawn_side, dawn_limit, dawn_speed, dawn_volume;
+            Uint16 dawn_slot;
+            bool dawn_bound;
+        };
     };
     /** Weapon53 GT4 slash. Vertices are offsets from the entity's whole-pixel position: the
      * original screen vertices carry DRAW_UNK02 and follow the camera like the entity. */
@@ -139,6 +165,25 @@ typedef struct SotnWeaponSecondaryInput
     Uint16 parent_frame, parent_bank, parent_texture, parent_child_palette;
     Uint32 game_timer;     /**< Actual wrapping g_GameTimer (weapon13/12 schedules). */
     Uint16 player_substep; /**< PLAYER.step_s (weapon12 slashes drop while crouched). */
+    /** Weapon30: current room collision for CheckCollision (screen plus camera). */
+    SotnCollisionMap collision;
+    /** Optional collision service replacing `collision` (component traces); NULL uses the map.
+     * Receives world pixels; must fill `out` and return false with SDL_GetError() on failure. */
+    bool (*query)(void *context, Sint32 x, Sint32 y, SotnCollider *out);
+    void *query_context;
+    /** Weapon30 circle: free factory entities at this callback (CreateEntFactoryFromEntity
+     * returns NULL beyond them) and the raw entityId/screen X of slots17..31. */
+    Uint8 free_factories;
+    Uint16 slot_kind[15];
+    Sint16 slot_x[15];
+    /** Weapon30 soldier: its raw parent circle's weapon_030.unk84 wave (zero once retired). */
+    Sint16 parent_wave;
+    /** Weapon30 walkers: g_Tilemap.x/width, the current camera bounds in world pixels. */
+    Sint32 room_left, room_right;
+    /** Weapon30 bomb: whether its raw parent soldier slot still holds an entity, and its pose. */
+    Uint16 parent_pose;
+    /** Weapon30 homing swords: the retained target slot's current stage words (screen). */
+    SotnSpellTarget target;
 } SotnWeaponSecondaryInput;
 
 /** @brief One-update requests; none is a completed native operation. */
@@ -160,6 +205,14 @@ typedef struct SotnWeaponSecondaryEvents
     Uint16 volume;
     /** Weapon12 slashes: g_Player.timers[9] (hand-weapon startup) request. */
     Uint8 startup_ticks;
+    /** Weapon30: factories created this callback, in order, each placed at its own world
+     * position (the factory entity's posX/posY high words were overwritten). */
+    Uint8 factory_count;
+    Uint32 factories[8];
+    Sint32 factory_x[8], factory_y[8];
+    Uint8 shake; /**< Weapon30 ShakeCamera request (0: none). */
+    /** Weapon30 homing swords: func_80118970 selects (and marks) a target now. */
+    bool select_target;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,

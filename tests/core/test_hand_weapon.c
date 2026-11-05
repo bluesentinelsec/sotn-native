@@ -235,11 +235,12 @@ static bool PlainWeapons(void)
     SDL_memcpy(o + 0x530, o + 0x106c, 16);
     SDL_memcpy(o + 0x934, o + 0x106c, 16);
     Put16(o + 0x934 + 8, 2);
+    SDL_memcpy(o + 0x5e4, o + 0x106c, 16);
     Put16(o + 0xc28 + 8, 5);
     SDL_memcpy(o + 0x12f4, o + 0x106c, 16);
     SDL_memcpy(o + 0x1304, o + 0x106c, 16);
-    const Uint16 families[] = {3, 36, 57, 2, 33, 35, 4, 5, 34},
-                 variants[] = {0, 0, 3, 0, 0, 0, 1, 1, 0};
+    const Uint16 families[] = {3, 36, 57, 2, 33, 35, 4, 5, 34, 30},
+                 variants[] = {0, 0, 3, 0, 0, 0, 1, 1, 0, 0};
     for (Uint16 k = 0; k < SDL_arraysize(families); ++k)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -263,10 +264,12 @@ static bool PlainWeapons(void)
                   e.properties &&
                   w.blend == (families[k] == 2 || families[k] == 33    ? 0
                               : families[k] == 35 || families[k] == 34 ? 0x10
+                              : families[k] == 30                      ? 0x70
                                                                        : 0x30) &&
                   e.sound == Read16Test(o + 0x106c + 10) &&
                   e.extra_sounds[0] == (families[k] == 4 || families[k] == 5 ? 0x640 : 0) &&
-                  !e.extra_sounds[1] && w.bank == 0x8010U + hand * 2U && w.priority == 98 &&
+                  !e.extra_sounds[1] && w.bank == (families[k] == 30 ? 10U : 0x8010U + hand * 2U) &&
+                  w.priority == 98 &&
                   w.palette == 0x110U + hand * 24U +
                                    (families[k] == 3    ? 5U
                                     : families[k] == 34 ? 2U

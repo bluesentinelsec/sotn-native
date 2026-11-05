@@ -1,3 +1,13 @@
+Selected [Sword of Dawn](docs/player-sword-of-dawn.md) now owns two-handed item17 (kind6,
+weapon30 swing: DRA bank10, TRANSP|QUARTER) and QCF special177 (kind5, bp56, chain8, five MP;
+equipped 0x11 also refuses vram flag0x40). The circle (E1, 11 GT4) rolls one/six soldiers then
+scans fifteen CheckCollision ground points and creates WFACTORY2(0x3E) soldiers (free-factory
+limited, E2 spacing); shared D_8017A5F4 bands, tether, wave unk84. Soldiers (E2, 14 world GT4)
+wait for their raw circle's wave, rise, walk/shoot/throw/bomb (real UpdateAnim/frame props),
+blink out on hits (type1 three lives). Arrows/swords (E3) home via shared target marks and
+func_80118B18; bombs (E4) burst or roll with FACTORY(0x24,1) sparks. Unscanned points read
+zero natively (original uninitialized stack); soldiers lease rows at birth.
+
 Selected [Shotel](docs/player-shotel.md) now owns item28 (kind12, w_002-template weapon34
 swing, BLEND_TRANSP) and its QCF special176: a kind129 throw (StartThrow, blueprint56, chain1,
 never consumed, no MP) whose E1/F1 boomerang flies out (4.5 plus player speed, 0x1C updates,

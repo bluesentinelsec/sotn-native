@@ -816,8 +816,10 @@ static bool StartAttack(SotnPlayer *player)
     // 6E42C.c block_32: a completed grounded QCF selects the equipped specialMove when its
     // chain limit and MP allow; otherwise block_38c's back-forward check follows.
     bool special_selected = false;
+    // Sword of Dawn (0x11) additionally refuses ground that also sets vram flag0x40.
     if (!knife_resolved && player->hand_factory && equipment.special_move && equipment.id != 123 &&
-        player->sword_command.phase == 255 && (player->contact & 1))
+        player->sword_command.phase == 255 && (player->contact & 1) &&
+        (equipment.id != 17 || (player->contact & 0x41) == 1))
     {
         SotnEquipment special = {0};
         Uint16 cost = 0;

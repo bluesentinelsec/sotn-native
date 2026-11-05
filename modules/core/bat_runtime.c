@@ -896,14 +896,15 @@ static Uint16 HandFamily(Uint16 item)
            : item == 127 || item == 95 || item == 98 || item == 101 || item == 103 || item == 107 ||
                    (item >= 182 && item <= 185)
                ? 51
-           : item == 21  ? 33
-           : item == 26  ? 35
-           : item == 28  ? 34
-           : item == 27  ? 36
-           : item == 124 ? 57
-           : item == 123 ? 43
-           : item == 128 ? 2
-                         : 256;
+           : item == 21                ? 33
+           : item == 26                ? 35
+           : item == 28                ? 34
+           : item == 17 || item == 177 ? 30
+           : item == 27                ? 36
+           : item == 124               ? 57
+           : item == 123               ? 43
+           : item == 128               ? 2
+                                       : 256;
 }
 static Uint16 HandVariant(Uint16 item)
 {
@@ -961,6 +962,7 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
     const Uint32 blueprint = item == 193 || item == 194                            ? 60U
                              : item == 186 || item == 187 || Weapon51Special(item) ? 54U
                              : item == 172                                         ? 72U
+                             : item == 177                                         ? 56U
                                                                                    : 48U;
     const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << 12) |
                                        ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
@@ -1046,6 +1048,11 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return bp == 0x3a && param == 0;
     if (family == 12)
         return bp == 0x40 && param == 0;
+    // Weapon30: the circle's soldiers0x3E (type, bit4 the six-soldier palette), the soldiers'
+    // arrows/swords0x46 (0..2) and bomb0x6A.
+    if (family == 30)
+        return (bp == 0x3e && ((param <= 5) || (param >= 0x10 && param <= 0x15))) ||
+               (bp == 0x46 && param <= 2) || (bp == 0x6a && param == 0);
     // Weapon56 (Muramasa) requests only its WFACTORY(56,0) root, like the default.
     return bp == 0x38 && (family == 53 ? param == 0 || param == 10 || param == 0x14 : param == 0);
 }
@@ -1080,6 +1087,12 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon13's root and afterimages, and Shotel's weapon34 boomerang, carry only the hand bit.
     if (family == 13 || family == 34)
         return !(parameter & 0x7fffU);
+    // Weapon30: the circle carries the hand bit; soldiers their type (bit4: six-soldier
+    // palette), arrows/swords0..2 and the bomb pair its low-byte index.
+    if (family == 30)
+        return (parameter & 0xfeU) == 0 &&
+               (((parameter >> 8) & 0x7fU) <= 5 ||
+                (((parameter >> 8) & 0x7fU) >= 0x10 && ((parameter >> 8) & 0x7fU) <= 0x15));
     // Weapon12's slashes carry descriptor1/2 and Crissaegrim's index0..3; the Chakram and its
     // afterimages carry only the hand bit.
     if (family == 12)
@@ -1122,6 +1135,9 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 14 ? 143 : 119) &&
                       !(c->parameter & 0xffU) && c->state.secondary.parent_slot == 16
+            : family == 30 && (c->kind & 15U) == 1
+                ? c->state.secondary.own_item && c->state.secondary.item == 177 &&
+                      !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 34 ? c->state.secondary.own_item && c->state.secondary.item == 176 &&
                                  !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 53 && (c->kind & 15U) == 3
@@ -1137,16 +1153,24 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 : c->state.secondary.own_item == rush) &&
            c->state.secondary.parent_slot >= 16 && c->state.secondary.parent_slot <= 47 &&
            SotnWeaponSecondary_Supported(family) &&
-           (c->initialized
+           // A weapon30 soldier waits in phase0 for its circle's wave, its rows not yet taken.
+           (c->initialized && family == 30 && (c->kind & 15U) == 2 && !w->phase
+                ? !c->group && !w->allocated &&
+                      c->primitive_count == SotnWeaponSecondary_RoleRows(family, 2)
+            : c->initialized
                 ? w->phase >= 1 &&
                       w->phase <= (family == 49 && (c->kind & 15U) == 4                     ? 2
                                    : family == 6 && (c->kind & 15U) == 1                    ? 4
                                    : (family == 14 || family == 13) && (c->kind & 15U) == 0 ? 3
                                    : (family == 12 || family == 34) && (c->kind & 15U) == 1 ? 2
+                                   : family == 30 && (c->kind & 15U) == 1                   ? 4
+                                   : family == 30 && (c->kind & 15U) == 2                   ? 8
+                                   : family == 30                                           ? 4
                                                                                             : 1) &&
                       w->allocated && c->group <= 10 &&
                       c->primitive_count == SotnWeaponSecondary_RoleRows(family, c->kind & 15U) &&
-                      w->properties.id == c->state.secondary.item
+                      // Weapon30 children set their attack words directly (no property roll).
+                      w->properties.id == (family == 30 ? 0 : c->state.secondary.item)
                 : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
@@ -2127,7 +2151,10 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     // Blueprint56 also creates Shotel's weapon34 E1/F1 boomerang (QCF special176) in17..31.
     const bool shotel = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                         (c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 176;
-    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna || shotel ||
+    // Blueprint56 from the QCF177 hand factory creates Sword of Dawn's weapon30 E1/F1 circle.
+    const bool dawn = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+                      (c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 177;
+    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna || shotel || dawn ||
                          (secondary_factory && ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
                                                 (c.kind >= 0xf1 && c.kind <= 0xf5)));
     if (crescent)
@@ -2176,6 +2203,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         c.state.secondary.family = 53;
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = 165;
+        c.state.secondary.own_item = true;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
+    if (dawn)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 30)))
+            return SDL_SetError("Sword of Dawn circle lost its actual blueprint56/program/item");
+        c.state.secondary.family = 30;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = 177;
         c.state.secondary.own_item = true;
         c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
                                                          .y = child.source.y,
@@ -3037,7 +3081,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon53's slash quad is entity-relative; the fireball and weapon49's other
             // children own no rows (their union words hold motion instead).
             const Uint16 family = c->state.secondary.family, role = c->kind & 15U;
-            if (family == 14 || family == 13 || family == 12 || family == 34)
+            if (family == 14 || family == 13 || family == 12 || family == 34 || family == 30)
             {
                 // Weapon14's trail corners are world pixels like the entity (DRAW_UNK_100 rows
                 // shift with it); its hitboxes own no rows.
@@ -3048,6 +3092,13 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     w->rune_x3[j] += in.room_shift_x;
                     w->rune_y3[j] += in.room_shift_y;
                 }
+                // Weapon30 soldier rows are world pixels; the circle's follow its entity.
+                for (Uint16 j = 0; family == 30 && role == 2 && j < 14; ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        w->dawn_quads[j].x[v] = Word(w->dawn_quads[j].x[v] + in.room_shift_x);
+                        w->dawn_quads[j].y[v] = Word(w->dawn_quads[j].y[v] + in.room_shift_y);
+                    }
                 if (family == 14 && role == 0)
                 {
                     w->rune_x0 += in.room_shift_x;
@@ -3525,7 +3576,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
               r.factories[i].cursor.blueprint != 0x5b && r.factories[i].cursor.blueprint != 0x5d &&
               r.factories[i].cursor.blueprint != 0x5f && r.factories[i].cursor.blueprint != 0x65 &&
               r.factories[i].cursor.blueprint != 0x44 && r.factories[i].cursor.blueprint != 0x61 &&
-              r.factories[i].cursor.blueprint != 0x72) ||
+              r.factories[i].cursor.blueprint != 0x72 && r.factories[i].cursor.blueprint != 0x3e &&
+              r.factories[i].cursor.blueprint != 0x46 && r.factories[i].cursor.blueprint != 0x6a) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -3968,6 +4020,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 56 ? 141
                                  : family == 12 ? 133
                                  : family == 34 ? 28
+                                 : family == 30 ? 17
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4004,54 +4057,112 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             HandPropertyContext context = {character, item, p.poison_ticks != 0};
             SotnWeaponSecondaryEvents events = {0};
-            if (!SotnWeaponSecondary_Tick(
-                    w, &r.hand_program[hand],
-                    (SotnWeaponSecondaryInput){.overlay = overlay,
-                                               .executable = in.executable,
-                                               .properties = HandProperties,
-                                               .context = &context,
-                                               .x = p.x,
-                                               .y = p.y,
-                                               .camera_x = in.camera_x,
-                                               .camera_y = in.camera_y,
-                                               .scale_y = 256,
-                                               .pivot_y = p.draw_pivot_y,
-                                               .hand = hand,
-                                               .family = family,
-                                               .priority = p.priority,
-                                               .animation = p.animation.id,
-                                               .attack_mode = p.attack_mode,
-                                               .substep = p.substep,
-                                               .role = (Uint16)(c->kind & 15U),
-                                               .crouch = (p.status & 0x20U) != 0,
-                                               .draw_flags = p.wolf.active ? p.wolf.draw_flags
-                                                             : p.rotated   ? 4
-                                                                           : 0,
-                                               .facing_left = p.facing_left,
-                                               .allocated = allocated,
-                                               .slot16_parameter =
-                                                   r.children[0].kind ? r.children[0].parameter : 0,
-                                               .parent_properties = parent_properties,
-                                               .parent_hitbox_state = parent_hitbox_state,
-                                               .parent_hitbox_x = p.animation.hitbox_x,
-                                               .parent_hitbox_y = p.animation.hitbox_y,
-                                               .player_velocity_x = p.velocity_x,
-                                               .player_hitbox_width = p.animation.hitbox_width,
-                                               .player_hitbox_height = p.animation.hitbox_height,
-                                               .player_crouch_step = p.step == SOTN_PLAYER_CROUCH,
-                                               .parent_exists = parent.parent_exists,
-                                               .parent_facing_left = parent.parent_facing_left,
-                                               .parent_x = parent.parent_x,
-                                               .parent_y = parent.parent_y,
-                                               .parent_rotate = parent.parent_rotate,
-                                               .parent_draw_flags = parent.parent_draw_flags,
-                                               .parent_frame = parent.parent_frame,
-                                               .parent_bank = parent.parent_bank,
-                                               .parent_texture = parent.parent_texture,
-                                               .parent_child_palette = parent.parent_child_palette,
-                                               .game_timer = in.game_timer,
-                                               .player_substep = p.substep},
-                    &progress.random, &events))
+            // Weapon30's circle reads free factory entities and the raw slots17..31 at its
+            // callback (CreateEntFactoryFromEntity and its E2/F2 spacing scan).
+            Uint8 free_factories = 0;
+            for (Uint16 j = 0; j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+                free_factories += !r.factories[j].cursor.entity_id;
+            SotnWeaponSecondaryInput secondary_in = {
+                .overlay = overlay,
+                .executable = in.executable,
+                .properties = HandProperties,
+                .context = &context,
+                .x = p.x,
+                .y = p.y,
+                .camera_x = in.camera_x,
+                .camera_y = in.camera_y,
+                .scale_y = 256,
+                .pivot_y = p.draw_pivot_y,
+                .hand = hand,
+                .family = family,
+                .priority = p.priority,
+                .animation = p.animation.id,
+                .attack_mode = p.attack_mode,
+                .substep = p.substep,
+                .role = (Uint16)(c->kind & 15U),
+                .crouch = (p.status & 0x20U) != 0,
+                .draw_flags = p.wolf.active ? p.wolf.draw_flags
+                              : p.rotated   ? 4
+                                            : 0,
+                .facing_left = p.facing_left,
+                .allocated = allocated,
+                .slot16_parameter = r.children[0].kind ? r.children[0].parameter : 0,
+                .parent_properties = parent_properties,
+                .parent_hitbox_state = parent_hitbox_state,
+                .parent_hitbox_x = p.animation.hitbox_x,
+                .parent_hitbox_y = p.animation.hitbox_y,
+                .player_velocity_x = p.velocity_x,
+                .player_hitbox_width = p.animation.hitbox_width,
+                .player_hitbox_height = p.animation.hitbox_height,
+                .player_crouch_step = p.step == SOTN_PLAYER_CROUCH,
+                .parent_exists = parent.parent_exists,
+                .parent_facing_left = parent.parent_facing_left,
+                .parent_x = parent.parent_x,
+                .parent_y = parent.parent_y,
+                .parent_rotate = parent.parent_rotate,
+                .parent_draw_flags = parent.parent_draw_flags,
+                .parent_frame = parent.parent_frame,
+                .parent_bank = parent.parent_bank,
+                .parent_texture = parent.parent_texture,
+                .parent_child_palette = parent.parent_child_palette,
+                .game_timer = in.game_timer,
+                .player_substep = p.substep,
+                .collision = in.food_collision,
+                .free_factories = free_factories,
+            };
+            // Weapon30 soldiers read their raw parent circle's wave and facing (a retired
+            // circle's emptied slot reads zero) and the current camera bounds.
+            if (family == 30 && (c->kind & 15U) == 2)
+            {
+                const Uint16 at = c->state.secondary.parent_slot;
+                const SotnBatRuntimeChild *root = &r.children[at - 16U];
+                if (root->weapon_secondary && root->state.secondary.family == 30 &&
+                    (root->kind & 15U) == 1)
+                {
+                    secondary_in.parent_wave = root->state.secondary.motion.dawn_wave;
+                    secondary_in.parent_facing_left = root->state.secondary.motion.facing_left;
+                }
+                // Other weapon30 children never write weapon_030.unk84 (zero); a foreign
+                // occupant's word is not reconstructed.
+                else if (root->kind &&
+                         !(root->weapon_secondary && root->state.secondary.family == 30))
+                    return SDL_SetError("Sword of Dawn soldier raw parent is not its circle");
+            }
+            // Arrows, swords and bombs read their raw parent soldier's facing (and the bombs its
+            // presence and pose); homing swords their retained target slot's current words.
+            if (family == 30 && (c->kind & 15U) >= 3)
+            {
+                const Uint16 at = c->state.secondary.parent_slot;
+                const SotnBatRuntimeChild *root = &r.children[at - 16U];
+                secondary_in.parent_exists = root->kind != 0;
+                if (root->weapon_secondary && root->state.secondary.family == 30)
+                {
+                    secondary_in.parent_facing_left = root->state.secondary.motion.facing_left;
+                    secondary_in.parent_pose = root->state.secondary.motion.pose;
+                }
+                else if (root->kind)
+                    return SDL_SetError("Sword of Dawn projectile raw parent is not its soldier");
+                if (w->dawn_bound)
+                {
+                    if (w->dawn_slot >= SOTN_SPELL_TARGETS)
+                        return SDL_SetError("Sword of Dawn sword lost its actual target slot");
+                    secondary_in.target = targets.slots[w->dawn_slot];
+                }
+            }
+            secondary_in.room_left = in.camera_left;
+            secondary_in.room_right = in.camera_right;
+            for (Uint16 j = 0; j < 15; ++j)
+            {
+                const SotnBatRuntimeChild *o = &r.children[1 + j];
+                // Only weapon-secondary occupants are compared: two-handed Sword of Dawn leaves
+                // no other E2/F2 producer, except a throw still flying from before the equip.
+                secondary_in.slot_kind[j] = o->weapon_secondary ? o->kind : 0;
+                secondary_in.slot_x[j] =
+                    o->weapon_secondary ? Word(Pixel(o->state.secondary.motion.x) - in.camera_x)
+                                        : 0;
+            }
+            if (!SotnWeaponSecondary_Tick(w, &r.hand_program[hand], secondary_in, &progress.random,
+                                          &events))
                 return false;
             for (Uint16 j = 0; j < SDL_arraysize(events.sounds); ++j)
             {
@@ -4072,6 +4183,59 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             r.magic_clear_shield |= events.clear_shield;
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
+            // Weapon30's circle creates its soldier factories in order, each moved to its own
+            // scanned point; the callback already respected the free factory count.
+            if (events.shake)
+            {
+                if (r.wolf_shake_count >= SDL_arraysize(r.wolf_shakes))
+                    return SDL_SetError(
+                        "Sword of Dawn exceeded the actual ordered shake request buffer");
+                r.wolf_shakes[r.wolf_shake_count++] = events.shake;
+            }
+            if (events.select_target)
+            {
+                // func_80118970 marks the first unmarked candidate, shared with the spirits.
+                Uint16 selected = SDL_MAX_UINT16;
+                if (!SotnSpellTarget_Select(targets.slots, &r.target_cursor, &selected))
+                    return false;
+                w->dawn_slot = selected;
+                w->dawn_bound = selected != SDL_MAX_UINT16;
+                if (selected != SDL_MAX_UINT16 && in.spirit_targets &&
+                    !(in.spirit_targets->slots[selected].flags & 0x80000U))
+                {
+                    if (!targets.generations[selected])
+                        return SDL_SetError("Sword of Dawn selected a target without a generation");
+                    r.target_marks[selected / 64U] |= (Uint64)1 << (selected % 64U);
+                    r.target_generations[selected] = targets.generations[selected];
+                    r.target_identities[selected] = targets.slots[selected].identity;
+                }
+            }
+            for (Uint16 f = 0; f < events.factory_count; ++f)
+            {
+                // The rolling bomb's sparks are DRA's FACTORY(0x24,1) (Hellfire's high1 trail).
+                const bool spark = family == 30 && events.factories[f] == 0x10024U;
+                if (!spark && !SecondaryRequest(family, hand, events.factories[f]))
+                    return SDL_SetError("Sword of Dawn requested an unselected factory");
+                Uint16 j = 0;
+                while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
+                    ++j;
+                if (j == SOTN_BAT_RUNTIME_FACTORIES)
+                    return SDL_SetError("Sword of Dawn soldier factory lost its free entity");
+                SotnPlayerFactory made = {0};
+                if (!SotnPlayerFactory_Begin(
+                        &made,
+                        (SotnPlayerFactorySource){.x = events.factory_x[f],
+                                                  .y = events.factory_y[f],
+                                                  .flags = w->flags,
+                                                  .priority = c->source.priority,
+                                                  .facing_left = w->facing_left},
+                        events.factories[f], 0))
+                    return false;
+                SDL_zero(r.factories[j]);
+                r.factories[j].cursor = made;
+                r.factories[j].secondary_factory = !spark;
+                r.factories[j].secondary_parent_slot = spark ? 0 : (Uint16)(i + 16U);
+            }
             if (events.chain)
             {
                 // A weapon53 root requests its next chained slash from its own entity.
@@ -4106,7 +4270,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     return SDL_SetError("Weapon secondary shared group count overflow");
                 ++r.groups[group];
                 c->group = (Uint8)group;
-                c->state.secondary.item = item;
+                // Weapon30 soldiers keep their factory's zero equip id.
+                if (family != 30)
+                    c->state.secondary.item = item;
             }
             if (events.properties)
             {

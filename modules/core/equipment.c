@@ -71,6 +71,10 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 0, 0, 195, 0, 0, 0};
     case 195:
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
+    case 17: // Sword of Dawn (two-handed): QCF special177 summons its soldiers (kind5, bp56)
+        return (PlainSpec){5, 30, 6, 0x68, 0, 0, 177, 0, 0, 0};
+    case 177:
+        return (PlainSpec){1, 30, 5, 0xb8, 0, 0, 0, 5, 56, 8};
     case 28: // Shotel: QCF special176 throws it (kind129, blueprint56, chain1, never consumed)
         return (PlainSpec){0, 34, 12, 0x92, 0, 0, 176, 0, 0, 0};
     case 176:
@@ -168,7 +172,7 @@ bool SotnEquipment_IsTwoHand(Uint16 id)
 {
     return id == 21 || id == 26 || id == 27 || id == 84 || id == 127 || id == 100 || id == 139 ||
            id == 140 || id == 95 || id == 98 || id == 101 || id == 103 || id == 107 || id == 141 ||
-           id == 165;
+           id == 165 || id == 17;
 }
 bool SotnEquipment_IsBasicFist(Uint16 id)
 {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Weapon func_ptr_80170004 secondaries: weapon/w_034.c, w_038.c, w_039.c, w_055.c and
+// Weapon func_ptr_80170004 secondaries: weapon/w_030.c, w_034.c, w_038.c, w_039.c, w_055.c and
 // weapon/shared.h, plus
 // dra/7879C.c
 // UpdateAnim, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Descriptor, timeline and
@@ -72,6 +72,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 1};
     else if (family == 34)
         *out = (Layout){.rows = 0};
+    else if (family == 30)
+        *out = (Layout){.rows = 11};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -81,7 +83,8 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
 {
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
-           family == 6 || family == 14 || family == 13 || family == 12 || family == 34;
+           family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
+           family == 30;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -106,6 +109,10 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
+    // Weapon30: role1 Sword of Dawn's circle, role2 its soldiers, role3 arrows/swords, role4
+    // the bombs.
+    if (family == 30)
+        return role >= 1 && role <= 4;
     // Weapon34's role1 is Shotel's thrown special176.
     if (family == 34)
         return role == 1;
@@ -132,6 +139,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 0 ? 1 : 0;
     if (family == 34)
         return 0;
+    if (family == 30)
+        return role == 1 ? 11 : role == 2 ? 14 : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -2284,6 +2293,892 @@ static bool Chakram(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 
     return true;
 }
 
+static bool Query(SotnWeaponSecondaryInput in, Sint16 x, Sint16 y, SotnCollider *out)
+{
+    // CheckCollision takes screen pixels and adds the current camera.
+    if (in.query)
+        return in.query(in.query_context, (Sint32)x + in.camera_x, (Sint32)y + in.camera_y, out);
+    return SotnCollision_Query(&in.collision, (Sint32)x + in.camera_x, (Sint32)y + in.camera_y,
+                               out);
+}
+// w_030 func_ptr_80170004: Sword of Dawn's QCF177 circle. One rand picks one or six soldiers
+// before the eleven mandatory GT4s; a second picks the first soldier type. It rises for eight
+// updates, scans fifteen ground points around the player's birth spot and creates its soldier
+// factories there, then shows cosine bands (phases shared by the program), a fading tether to
+// the last placement and drives the soldiers' emergence wave before flashing out.
+static bool DawnCircle(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                       SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    const Uint8 v = in.hand ? 0x80 : 0;
+    const Uint16 clut = in.hand ? 0x128 : 0x110;
+    bool flag = false;
+    const Uint8 *order = NULL, *types = NULL;
+    if (!View(in.overlay, 0x608, 16, &order) || !View(in.overlay, 0x618, 16, &types))
+        return false;
+    switch (s->phase)
+    {
+    case 0: {
+        s->dawn_soldiers = (Rand(rng) & 7U) ? 1 : 6;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        SotnPlayerEffectQuad *q = &s->dawn_quads[0];
+        *q = (SotnPlayerEffectQuad){0};
+        q->u[0] = q->u[2] = 0x70;
+        q->u[1] = q->u[3] = 0x7f;
+        q->v[0] = q->v[1] = (Uint8)(v + 0x38);
+        q->v[2] = q->v[3] = (Uint8)(v + 0x7f);
+        for (Uint16 k = 0; k < 4; ++k)
+            q->red[k] = q->green[k] = q->blue[k] = 0x80;
+        q->palette = clut;
+        q->page = 0x19;
+        q->priority = (Uint16)(in.priority + 2U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x02 | 0x01;
+        for (Uint16 i = 0; i < 10; ++i)
+        {
+            q = &s->dawn_quads[1 + i];
+            *q = (SotnPlayerEffectQuad){0};
+            q->u[0] = q->u[2] = 0x70;
+            q->u[1] = q->u[3] = 0x7f;
+            q->v[0] = q->v[1] = (Uint8)(0x38U + v + i * 8U);
+            q->v[2] = q->v[3] = (Uint8)(0x38U + v + (i + 1U) * 8U - 1U);
+            q->draw_mode = 0x20 | 0x10 | 0x04 | 0x02 | 0x01;
+            q->page = 0x19;
+            q->priority = (Uint16)(in.priority + 4U);
+            q->palette = 0x15f;
+        }
+        s->dawn_line = false;
+        s->facing_left = in.facing_left;
+        s->flags = 0x08800000U;
+        s->velocity_x = s->facing_left ? -0x18000 : 0x18000;
+        s->dawn_velocity_y = -0x52000;
+        s->lifetime = 8;
+        s->dawn_half_w = s->dawn_half_h = 0;
+        s->dawn_type = types[Rand(rng) & 15U];
+        s->dawn_birth_y = Word(Pixel(in.y) - in.camera_y);
+        s->dawn_birth_x = Word(Pixel(in.x) - in.camera_x);
+        e->use_ticks = 4;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        if (++s->dawn_half_w > 8)
+            s->dawn_half_w = 8;
+        // The original clamps unk80 twice; unk82 grows unclamped.
+        s->dawn_half_h = Word(s->dawn_half_h + 4);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->dawn_velocity_y);
+        s->lifetime = Word(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            Sint32 buffer[16] = {0};
+            // The original leaves unscanned points' stack words uninitialized; a sixth soldier
+            // with no free point reads point0 (D_8017A608[15] is the zero pad).
+            Sint16 xs[16] = {0}, ys[16] = {0};
+            Sint16 x = s->dawn_birth_x, y = Word(s->dawn_birth_y + 0x19);
+            SotnCollider c = {0};
+            for (Uint16 i = 0; i < 15; ++i)
+            {
+                if (i == 8)
+                {
+                    x = s->dawn_birth_x;
+                    y = Word(s->dawn_birth_y + 0x19);
+                }
+                if (i >= 8)
+                    x = Word(x + (s->facing_left ? 7 : -7));
+                if (!Query(in, x, Word(y + 7), &c))
+                    return false;
+                if (c.effects & SOTN_EFFECT_SOLID)
+                {
+                    y = Word(y + 7 + c.top);
+                    if (!Query(in, x, Word(y - 1), &c))
+                        return false;
+                    if ((c.effects & (SOTN_EFFECT_SLOPE_FLOOR | SOTN_EFFECT_SOLID)) ==
+                        SOTN_EFFECT_SOLID)
+                        buffer[i] = 2;
+                    else if (c.effects & SOTN_EFFECT_SOLID)
+                        y = Word(y + c.top - 1);
+                    xs[i] = x;
+                    ys[i] = y;
+                }
+                else
+                    buffer[i] = 1;
+                if (i < 8)
+                    x = Word(x + (s->facing_left ? -7 : 7));
+            }
+            const Uint16 id = in.hand ? 0xf2 : 0xe2;
+            Uint8 free = in.free_factories;
+            for (Sint16 j = 0; j < s->dawn_soldiers; ++j)
+            {
+                Uint16 i = 0;
+                for (; i < 15; ++i)
+                {
+                    if (buffer[order[i]])
+                        continue;
+                    Uint16 k = 0;
+                    for (; k < 15; ++k)
+                    {
+                        const Sint32 d = (Sint32)in.slot_x[k] - xs[order[i]];
+                        if (in.slot_kind[k] == id && (d < 0 ? -d : d) < 3)
+                            break;
+                    }
+                    if (k == 15)
+                        break;
+                }
+                const Uint32 param = (Uint16)(s->dawn_type + (s->dawn_soldiers == 6 ? 0x10 : 0));
+                if (!free)
+                    continue;
+                --free;
+                const Uint8 at = order[i];
+                if (e->factory_count >= SDL_arraysize(e->factories))
+                    return SDL_SetError("Sword of Dawn exceeded its original soldier requests");
+                e->factories[e->factory_count] = (0x3eU + ((in.hand + 1U) << 12)) | param << 16;
+                s->dawn_target = 1;
+                s->dawn_target_x = xs[at];
+                s->dawn_target_y = Word(ys[at] - 0x19);
+                e->factory_x[e->factory_count] =
+                    (Sint32)(((Uint32)(Uint16)Word(xs[at] + in.camera_x) << 16) |
+                             ((Uint32)s->x & 0xffffU));
+                e->factory_y[e->factory_count] =
+                    (Sint32)(((Uint32)(Uint16)Word(s->dawn_target_y + in.camera_y) << 16) |
+                             ((Uint32)s->y & 0xffffU));
+                ++e->factory_count;
+                buffer[at] = 1;
+                s->dawn_type = (Sint16)((s->dawn_type + 1) % 6);
+            }
+            s->lifetime = 8;
+            e->sounds[0] = 0x635;
+            e->volume_sound = true;
+            e->volume = 0x58;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        s->lifetime = Word(s->lifetime - 1);
+        if (!s->lifetime)
+        {
+            for (Uint16 i = 0; i < 10; ++i)
+                p->dawn_phase[i] = (Sint16)(0x199 * i);
+            s->dawn_fade = 0xff;
+            s->dawn_count = 0;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        s->dawn_band = Word(s->dawn_band + 4);
+        if (s->dawn_band > 0x120)
+            s->dawn_band = 0x120;
+        flag = true;
+        s->dawn_count = Word(s->dawn_count + 1);
+        s->dawn_fade = Word(s->dawn_fade - 8);
+        if (s->dawn_fade < 0)
+            s->dawn_fade = 0;
+        if (s->dawn_count >= 10)
+            s->dawn_wave = (Sint16)(1 + (s->dawn_count - 10) / 4);
+        if (s->dawn_wave >= 7 && s->dawn_band == 0x120)
+            s->phase = 4;
+        break;
+    default: {
+        SotnPlayerEffectQuad *q = &s->dawn_quads[0];
+        q->green[3] = (Uint8)(q->green[3] - 6);
+        if (q->green[3] < 10)
+            q->green[3] = 10;
+        q->red[3] = (Uint8)(q->red[3] + 6);
+        if (q->red[3] > 240)
+            q->red[3] = 240;
+        q->red[0] = q->red[1] = q->red[2] = q->red[3];
+        q->blue[0] = q->blue[1] = q->blue[2] = q->blue[3] = q->green[0] = q->green[1] =
+            q->green[2] = q->green[3];
+        if (in.game_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode = (Uint16)(q->draw_mode & 0xfff7U);
+        s->dawn_band = Word(s->dawn_band - 8);
+        if (s->dawn_band < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    }
+    SotnPlayerEffectQuad *q = &s->dawn_quads[0];
+    q->x[0] = q->x[2] = Word(-s->dawn_half_w);
+    q->x[1] = q->x[3] = s->dawn_half_w;
+    q->y[0] = q->y[1] = Word(-4 - s->dawn_half_h);
+    q->y[2] = q->y[3] = Word(4 + s->dawn_half_h);
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        q = &s->dawn_quads[1 + i];
+        q->x[0] = q->x[2] = -8;
+        q->x[1] = q->x[3] = 8;
+        q->y[0] = q->y[1] = (Sint16)(i * 8 - 0x24);
+        q->y[2] = q->y[3] = (Sint16)((i + 1) * 8 - 0x24);
+        SotnMathTrig a = {0}, b = {0};
+        if (!SotnMath_Trig(in.executable, p->dawn_phase[i], &a) ||
+            !SotnMath_Trig(in.executable, p->dawn_phase[i + 1], &b))
+            return false;
+        q->red[0] = q->red[1] = (Uint8)((((a.cosine + 0x1000) >> 6) * s->dawn_band) / 0x100);
+        q->red[2] = q->red[3] = (Uint8)((((b.cosine + 0x1000) >> 6) * s->dawn_band) / 0x100);
+        p->dawn_phase[i] = Word(p->dawn_phase[i] + 0x80);
+    }
+    if (flag && s->dawn_target)
+    {
+        const Sint16 x = Word(Pixel(s->x) - in.camera_x), y = Word(Pixel(s->y) - in.camera_y);
+        const Sint32 t = s->dawn_count > 10 ? 10 : s->dawn_count;
+        q = &s->dawn_quads[10];
+        q->x[0] = q->y[0] = 0;
+        q->x[1] = Word(((Sint32)s->dawn_target_x - x) * t / 10);
+        q->y[1] = Word((25 + (Sint32)s->dawn_target_y - y) * t / 10);
+        q->red[0] = (Uint8)(s->dawn_fade / 2);
+        q->red[1] = (Uint8)s->dawn_fade;
+        q->priority = (Uint16)(in.priority + 6U);
+        q->draw_mode = 0x20 | 0x10 | 0x02 | 0x01;
+        s->dawn_line = true;
+    }
+    return true;
+}
+
+// dra/alu_anim.c UpdateAnim over a private AnimationFrame list with frame properties.
+static bool DawnAnimate(SotnWeaponSecondary *s, SotnDataView overlay)
+{
+    const Uint8 *a = NULL, *props = NULL;
+    if (s->remaining == -1)
+        ;
+    else if (s->remaining == 0)
+    {
+        if (!View(overlay, s->timeline + s->pose * 4U, 4, &a))
+            return false;
+        s->remaining = (Sint16)Read16(a);
+    }
+    else if (--s->remaining == 0)
+    {
+        ++s->pose;
+        if (!View(overlay, s->timeline + s->pose * 4U, 4, &a))
+            return false;
+        const Uint16 duration = Read16(a);
+        if (duration == 0)
+        {
+            s->pose = Read16(a + 2);
+            if (!View(overlay, s->timeline + s->pose * 4U, 4, &a))
+                return false;
+            s->remaining = (Sint16)Read16(a);
+        }
+        else if (duration == 0xffff)
+        {
+            --s->pose;
+            s->remaining = -1;
+        }
+        else if (duration == 0xfffe)
+            return SDL_SetError("Sword of Dawn soldier animation has no anims table");
+        else
+            s->remaining = (Sint16)duration;
+    }
+    if (!View(overlay, s->timeline + s->pose * 4U, 4, &a))
+        return false;
+    const Uint16 pose = Read16(a + 2);
+    if (!View(overlay, 0x554U + ((pose >> 9) & 0x7fU) * 4U, 4, &props))
+        return false;
+    s->hitbox_x = (Sint8)props[0];
+    s->hitbox_y = (Sint8)props[1];
+    s->hitbox_width = props[2];
+    s->hitbox_height = props[3];
+    s->frame = pose & 0x1ffU;
+    return true;
+}
+static void DawnFactory(SotnWeaponSecondary *s, SotnWeaponSecondaryEvents *e, Uint8 *free,
+                        Uint32 packed)
+{
+    // CreateEntFactoryFromEntity returns NULL beyond the free factory entities.
+    if (!*free || e->factory_count >= SDL_arraysize(e->factories))
+        return;
+    --*free;
+    e->factories[e->factory_count] = packed;
+    e->factory_x[e->factory_count] = s->x;
+    e->factory_y[e->factory_count] = s->y;
+    ++e->factory_count;
+}
+static Sint32 DawnSlope(Sint32 v, Sint32 n)
+{
+    const Sint32 m = (Sint32)((Uint32)v * (Uint32)n);
+    return m < 0 ? Asr(m + 0xf, 4) : Asr(m, 4);
+}
+// w_030 func_ptr_80170008: one summoned soldier (type0..5 from params bits8..11, bit12 the
+// six-soldier palette). It waits for its circle's wave, rolls once, takes fourteen GT4s (rise
+// mask and smoke), shakes the camera and rises; then it walks (types0/1), shoots arrows
+// (2/3), throws homing swords (4) or a bomb (5) and blinks out. Hits blink it away (type1 has
+// three lives). Rows are world pixels: the original DRAW_UNK02 screen vertices follow the camera.
+static bool DawnSoldier(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                        SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 type = (s->parameter & 0xf00U) >> 8;
+    const bool alt = (s->parameter & 0x1000U) != 0;
+    bool stop = false;
+    Uint8 free = in.free_factories;
+    const Sint16 sx = Word(Pixel(s->x) - in.camera_x);
+    const Uint8 *table = NULL;
+    if (type > 5 || !View(in.overlay, 0x628, 24, &table))
+        return SDL_SetError("Sword of Dawn soldier requires its actual type table");
+    if (s->phase < 7 && s->hit_flags)
+    {
+        s->hit_flags = 0;
+        s->dawn_blink = 0x18;
+        s->phase = 7;
+        if ((s->dawn_lives = Word(s->dawn_lives - 1)) > 0)
+            s->phase = 8;
+    }
+    switch (s->phase)
+    {
+    case 0: {
+        if (in.parent_wave != type + 1)
+            return true;
+        const Uint16 random = Rand(rng) & 1U;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        const Uint8 *add = NULL, *alts = NULL, *shots = NULL;
+        if (!View(in.overlay, 0x640 + type, 1, &add) ||
+            !View(in.overlay, 0x660 + type * 2U, 2, &alts) ||
+            !View(in.overlay, 0x650 + type, 1, &shots))
+            return false;
+        s->role = 2;
+        s->allocated = true;
+        Uint8 left = 0;
+        Uint16 clut = 0x110;
+        s->palette = (Uint16)(add[0] + (random | 0x8110U));
+        if (alt)
+            s->palette = Read16(alts);
+        s->texture = 0x64;
+        if (in.hand)
+        {
+            left = 0x80;
+            clut = 0x128;
+            s->palette = (Uint16)(s->palette + 0x18U);
+            s->texture = (Uint16)(s->texture + 2U);
+        }
+        SotnPlayerEffectQuad *q = &s->dawn_quads[0];
+        *q = (SotnPlayerEffectQuad){0};
+        q->u[0] = q->u[2] = 0xe0;
+        q->u[1] = q->u[3] = 0xff;
+        q->v[0] = q->v[1] = left;
+        q->v[2] = q->v[3] = (Uint8)(left + 0x5f);
+        q->x[0] = q->x[2] = Word(Pixel(s->x) - 0x10);
+        q->x[1] = q->x[3] = Word(Pixel(s->x) + 0x10);
+        q->page = 0x19;
+        q->palette = (Uint16)(clut + 2U);
+        q->priority = (Uint16)(in.priority + 10U);
+        q->draw_mode = 0x02;
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            q = &s->dawn_quads[1 + i];
+            *q = (SotnPlayerEffectQuad){0};
+            q->u[0] = q->u[2] = 0xe0;
+            q->u[1] = q->u[3] = 0xff;
+            q->v[0] = q->v[1] = (Uint8)(left + 0x60);
+            q->v[2] = q->v[3] = (Uint8)(left + 0x7f);
+            q->page = 0x19;
+            q->palette = (Uint16)(clut + 2U);
+            q->priority = (Uint16)(in.priority + 12U);
+            q->draw_mode = 0x08;
+            // Unplaced rows sit at screen zero, which then follows the camera like the world.
+            for (Uint16 k = 0; k < 4; ++k)
+            {
+                q->x[k] = Word(in.camera_x);
+                q->y[k] = Word(in.camera_y);
+            }
+        }
+        for (Uint16 i = 9; i < 14; ++i)
+            s->dawn_quads[i] = (SotnPlayerEffectQuad){.draw_mode = 0x08};
+        s->flags = 0x08800000U;
+        s->bank = 10;
+        const Uint32 anim = Read32(table + type * 4U);
+        if (anim < 0x8017a000U || anim >= 0x8017d000U)
+            return SDL_SetError("Sword of Dawn soldier animation points outside its program");
+        s->timeline = (Uint16)(anim - 0x8017a000U);
+        s->pose = 0;
+        s->remaining = 0;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->facing_left = !in.parent_facing_left;
+        s->dawn_shots = (Sint16)(shots[0] + random);
+        s->dawn_rise1 = s->dawn_rise2 = -0x1000;
+        s->dawn_rate1 = s->dawn_rate2 = -0x100;
+        if (type == 1)
+            s->dawn_lives = 3;
+        e->shake = 4;
+        e->sounds[0] = 0x654;
+        s->phase = 1;
+        break;
+    }
+    case 1: {
+        stop = true;
+        s->dawn_rate1 += 0x18;
+        s->dawn_rate2 += 0x10;
+        if (s->dawn_rate1 > 0x60)
+            s->dawn_rate1 = 0x60;
+        if (s->dawn_rate2 > 0x80)
+            s->dawn_rate2 = 0x80;
+        s->dawn_rise1 += s->dawn_rate1;
+        s->dawn_rise2 += s->dawn_rate2;
+        if (s->dawn_rise1 > 0)
+            s->dawn_rise1 = 0;
+        if (s->dawn_rise2 > 0)
+            s->dawn_rise2 = 0;
+        if (!(s->dawn_rise1 | s->dawn_rise2))
+        {
+            s->properties = (SotnEquipment){.attack = 4,
+                                            .element = 0x20,
+                                            .hit_type = 2,
+                                            .invincibility = 4,
+                                            .stun = 4,
+                                            .hit_effect = 1};
+            s->hitbox_state = 2;
+            e->group = true;
+            s->y = (Sint32)((Uint32)s->y + 0x10000U * (type == 5 ? 2U : 1U));
+            const Uint8 *step = NULL, *speed = NULL;
+            if (!View(in.overlay, 0x658 + type, 1, &step) ||
+                !View(in.overlay, 0x648 + (type & 1U) * 4U, 4, &speed))
+                return false;
+            s->phase = step[0];
+            if (type < 2)
+            {
+                const Sint32 v = (Sint32)Read32(speed);
+                s->velocity_x = s->facing_left ? -v : v;
+            }
+        }
+        break;
+    }
+    case 2:
+        if (s->remaining == 1 && s->pose == 2)
+            e->sounds[0] = 0x6c9;
+        if (s->remaining == 1 && s->pose == 5)
+        {
+            e->sounds[0] = 0x627;
+            DawnFactory(s, e, &free, 0x46U + ((in.hand + 1U) << 12) + ((Uint32)(type - 2U) << 16));
+        }
+        if (s->remaining < 0)
+        {
+            s->pose = 0;
+            s->remaining = 0;
+            if ((s->dawn_shots = Word(s->dawn_shots - 1)) == 0)
+            {
+                s->dawn_blink = 0x18;
+                s->phase = 7;
+            }
+        }
+        break;
+    case 3:
+    case 4: {
+        SotnCollider c = {0};
+        if (s->phase == 3)
+        {
+            const Sint32 world = (Sint32)sx + in.camera_x;
+            if (world < in.room_left || in.room_right < world)
+            {
+                s->dawn_blink = 0x18;
+                s->hit_flags = 0;
+                s->phase = 7;
+                return true;
+            }
+            s->y = (Sint32)((Uint32)s->y + 0x40000U);
+            if (!Query(in, sx, Word(Pixel(s->y) - in.camera_y + 0x18), &c))
+                return false;
+            if (c.effects & SOTN_EFFECT_SOLID)
+            {
+                s->y = (Sint32)((Uint32)s->y + (Uint32)c.top * 65536U);
+                Sint32 v = s->velocity_x;
+                const Uint32 effect = c.effects & 0xf000U;
+                if (v > 0)
+                {
+                    if (effect == 0x8000)
+                        v = DawnSlope(v, 0xa);
+                    if (effect == (0x8000 | 0x1000))
+                        v = DawnSlope(v, 0xd);
+                }
+                else
+                {
+                    if (effect == (0x8000 | 0x4000))
+                        v = DawnSlope(v, 0xa);
+                    if (effect == (0x8000 | 0x4000 | 0x1000))
+                        v = DawnSlope(v, 0xd);
+                }
+                s->x = (Sint32)((Uint32)s->x + (Uint32)v);
+            }
+            else
+            {
+                s->phase = 4;
+                s->dawn_velocity_y = 0;
+            }
+        }
+        else
+        {
+            s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+            s->y = (Sint32)((Uint32)s->y + (Uint32)s->dawn_velocity_y);
+            s->dawn_velocity_y += 0x2800;
+            if (s->dawn_velocity_y > 0x80000)
+                s->dawn_velocity_y = 0x80000;
+            if (!Query(in, Word(Pixel(s->x) - in.camera_x), Word(Pixel(s->y) - in.camera_y + 0x19),
+                       &c))
+                return false;
+            if (c.effects & SOTN_EFFECT_SOLID)
+            {
+                s->dawn_blink = 0x18;
+                s->phase = 3;
+            }
+        }
+        const Sint16 px = Word(Pixel(s->x) - in.camera_x + (s->velocity_x < 0 ? -8 : 8)),
+                     py = Word(Pixel(s->y) - in.camera_y);
+        if (!Query(in, px, Word(py + 10), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SIDE)
+        {
+            s->dawn_blink = 0x18;
+            s->phase = 7;
+        }
+        if (!Query(in, px, Word(py - 6), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SIDE)
+        {
+            s->dawn_blink = 0x18;
+            s->phase = 7;
+        }
+        break;
+    }
+    case 5:
+        if (!s->dawn_cooldown)
+        {
+            if ((s->dawn_shots = Word(s->dawn_shots - 1)) < 0)
+            {
+                s->dawn_blink = 0x18;
+                s->phase = 7;
+                break;
+            }
+            const Uint16 extra = Rand(rng) & 1U;
+            for (Uint16 i = 0; i < extra + 2U; ++i)
+                DawnFactory(s, e, &free, 0x46U | ((in.hand + 1U) << 12) | 2U << 16);
+            s->dawn_cooldown = (Sint16)((Rand(rng) & 0x1fU) + 0x50);
+            if (!s->dawn_shots)
+                s->dawn_cooldown = 0x60;
+        }
+        s->dawn_cooldown = Word(s->dawn_cooldown - 1);
+        break;
+    case 6:
+        if (s->pose == 4 && s->remaining == 1)
+            DawnFactory(s, e, &free, 0x6aU | ((in.hand + 1U) << 12));
+        if (s->remaining < 0)
+        {
+            s->dawn_blink = 0x18;
+            s->phase = 7;
+        }
+        break;
+    default:
+        stop = true;
+        s->draw_flags |= 0x80;
+        if ((s->dawn_blink = Word(s->dawn_blink - 1)) == 0)
+        {
+            if (s->phase == 7)
+            {
+                s->removed = true;
+                return true;
+            }
+            s->phase = 3;
+            s->draw_flags &= 0x7f;
+        }
+        break;
+    }
+    // Rows: rise mask (row0) and eight smoke puffs, in world pixels.
+    const Sint16 ex = Pixel(s->x), ey = Pixel(s->y);
+    SotnPlayerEffectQuad *q = &s->dawn_quads[0];
+    const Sint32 rise = (in.game_timer & 1U) ? s->dawn_rise1 : s->dawn_rise2;
+    q->y[0] = q->y[1] = Word(ey + 0x19 + Asr(rise * 6, 8));
+    q->y[2] = q->y[3] = Word(ey + 0x19);
+    q->x[0] = Word(ex - 0x10 - (Sint32)(Rand(rng) & 0xfU));
+    if (!(in.game_timer & 7U))
+    {
+        q->x[2] = Word(q->x[2] - 1);
+        q->x[3] = Word(q->x[3] + 1);
+    }
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        q = &s->dawn_quads[1 + i];
+        if ((in.game_timer & 7U) == i)
+        {
+            const Sint32 small = Rand(rng) & 7U, large = small + 0xa;
+            const Sint32 rx = Rand(rng) % 32U, ry = Rand(rng) % 24U;
+            q->x[0] = q->x[2] = Word(ex + rx - 0x1a - small);
+            q->y[1] = q->y[0] = Word(ey - ry - large + 0x19);
+            q->x[1] = q->x[3] = Word(q->x[0] + large * 2);
+            q->y[2] = q->y[3] = Word(q->y[0] + large * 2);
+            if (s->dawn_rise1 >= -0x480)
+                q->y[0] = q->y[1] = q->y[2] = q->y[3] = Word(0x180 + in.camera_y);
+            else
+                q->draw_mode = 0x02;
+        }
+        if (in.game_timer & 1U)
+            for (Uint16 k = 0; k < 4; ++k)
+                q->y[k] = Word(q->y[k] - 1);
+        q->draw_mode = ((i ^ in.game_timer) & 1U) ? 0x02 : 0x08;
+    }
+    if (!stop && !DawnAnimate(s, in.overlay))
+        return false;
+    return true;
+}
+
+static void DawnAttack(SotnWeaponSecondary *s, Sint16 attack, SotnWeaponSecondaryEvents *e)
+{
+    s->properties = (SotnEquipment){.attack = attack,
+                                    .element = 0x20,
+                                    .hit_type = 2,
+                                    .invincibility = 4,
+                                    .stun = 4,
+                                    .hit_effect = 1};
+    s->hitbox_state = 2;
+    e->group = true;
+}
+// dra/7879C.c func_80118B18: the heading to a retained target (or a screen-edge point), offset
+// negative when the target is gone, untouchable or flagged, or the child is off screen.
+static bool DawnHeading(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Sint16 *out)
+{
+    const Sint16 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y);
+    Sint16 tx = s->dawn_side ? -32 : 288, ty = 112;
+    if (s->dawn_bound)
+    {
+        tx = in.target.x;
+        ty = in.target.y;
+    }
+    Sint16 angle = 0;
+    if (!SotnMath_Atan2(in.executable, -(Sint32)Word(ty - sy), Word(tx - sx), &angle))
+        return false;
+    angle = (Sint16)(angle & 0xfff);
+    Sint32 offset = 0;
+    if (s->dawn_bound)
+    {
+        if (!in.target.identity)
+            offset = 0x1000;
+        if (!in.target.hitbox)
+            offset = 0x2000;
+        if (in.target.flags & 0x200000U)
+            offset = 0x3000;
+    }
+    if (sx > 288)
+        offset = 0x4000;
+    if (sx < -32)
+        offset = 0x5000;
+    if (sy > 240)
+        offset = 0x6000;
+    if (sy < 0)
+        offset = 0x7000;
+    *out = Word(angle - offset);
+    return true;
+}
+// w_030 func_ptr_8017000C: archers' arrows (params0/1) fly back at5.5; the sword thrower's
+// swords (params2) appear around it, spin, then home on a func_80118970 target. Hits blink
+// them out after ten updates.
+static bool DawnArrow(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                      Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 kind = (s->parameter >> 8) & 0x7fU;
+    switch (s->phase)
+    {
+    case 0: {
+        s->role = 3;
+        s->allocated = true;
+        s->palette = (Uint16)(0x110U + in.hand * 0x18U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->flags = 0x08000000U;
+        s->bank = 10;
+        s->frame = 0x64;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->facing_left = in.parent_facing_left;
+        if (kind == 1)
+            s->y = (Sint32)((Uint32)s->y - 0x40000U);
+        if (kind == 0)
+            s->y = (Sint32)((Uint32)s->y - 0x100000U);
+        if (kind == 2)
+        {
+            const Uint8 *offsets = NULL;
+            if (!View(in.overlay, 0x66c + (Uint32)(p->secondary_counter % 3) * 2U, 2, &offsets))
+                return false;
+            s->y = (Sint32)((Uint32)s->y - (Uint32)(28 + (Rand(rng) & 15U)) * 65536U);
+            s->x = (Sint32)((Uint32)s->x + (Uint32)(Sint32)(Sint16)Read16(offsets) * 65536U);
+            s->x = (Sint32)((Uint32)s->x + (Uint32)(-4 + (Sint32)(Rand(rng) & 7U)) * 65536U);
+            s->dawn_side = s->facing_left ? 0 : 1;
+            s->facing_left = false;
+            s->draw_flags = 4;
+            s->phase = 2;
+            e->sounds[0] = 0x6ba;
+            s->dawn_angle = (Sint16)Rand(rng);
+            s->lifetime = (Sint16)((s->parameter & 0xffU) * 4U + 0x30U);
+            p->secondary_counter = (Sint32)((Uint32)p->secondary_counter + 1U);
+        }
+        else
+        {
+            s->velocity_x = s->facing_left ? 0x58000 : -0x58000;
+            s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x * 5U);
+        }
+        DawnAttack(s, 4, e);
+        s->hitbox_width = 8;
+        s->hitbox_height = 4;
+        ++s->phase;
+        break;
+    }
+    case 1:
+        if (kind == 2)
+        {
+            Sint16 result = 0;
+            if (!DawnHeading(s, in, &result))
+                return false;
+            if (result >= 0)
+            {
+                Sint16 angle = (Sint16)(s->dawn_angle & 0xfff);
+                const Sint16 diff = Word(angle - result < 0 ? result - angle : angle - result);
+                if (s->dawn_limit > diff)
+                    s->dawn_limit = diff;
+                if (angle < result)
+                    angle = Word(diff < 0x800 ? angle + s->dawn_limit : angle - s->dawn_limit);
+                else
+                    angle = Word(diff < 0x800 ? angle - s->dawn_limit : angle + s->dawn_limit);
+                s->dawn_angle = (Sint16)(angle & 0xfff);
+            }
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, s->dawn_angle, &t))
+                return false;
+            s->velocity_x = Asr(t.cosine * s->dawn_speed, 5);
+            s->dawn_limit = Word(s->dawn_limit + 0x18);
+            s->rotate = Word(-s->dawn_angle + 0x800);
+            s->dawn_velocity_y = -Asr(t.sine * s->dawn_speed, 5);
+        }
+        if (s->hit_flags)
+        {
+            s->lifetime = 10;
+            ++s->phase;
+        }
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->dawn_velocity_y);
+        return true;
+    case 2:
+        s->draw_flags |= 0x80;
+        if ((s->lifetime = Word(s->lifetime - 1)) == 0)
+            s->removed = true;
+        return true;
+    default:
+        s->dawn_angle = Word(s->dawn_angle + 0x100);
+        s->rotate = Word(-s->dawn_angle + 0x800);
+        if ((s->lifetime = Word(s->lifetime - 1)) == 0)
+        {
+            e->select_target = true;
+            s->dawn_limit = 0x20;
+            s->dawn_speed = 0x600;
+            e->sounds[0] = 0x627;
+            s->phase = 1;
+        }
+        break;
+    }
+    return true;
+}
+// w_030 func_ptr_80170010: the bomber's two blueprint0x6A bombs (DRA bank9) grow and spin with a
+// rising EXPLODE_FAST_A until the bomber's pose0x20; index0 then bursts, index1 rolls away
+// subtractively, scattering FACTORY(0x24,1) sparks, and shrinks after a hit. Each retires when
+// its raw parent slot empties.
+static bool DawnBomb(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                     SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    const bool roller = (s->parameter & 0xffU) != 0;
+    switch (s->phase)
+    {
+    case 0:
+        s->role = 4;
+        s->allocated = true;
+        s->bank = 9;
+        s->flags = 0x08100000U;
+        s->draw_flags = 7;
+        s->scale_x = s->scale_y = 0x20;
+        s->timeline = roller ? 0x548 : 0x514;
+        s->pose = 0;
+        s->remaining = 0;
+        s->priority = (Uint16)(in.priority + 8U);
+        s->facing_left = !in.parent_facing_left;
+        s->velocity_x = s->facing_left ? -0x38000 : 0x38000;
+        DawnAttack(s, 0x14, e);
+        s->y = (Sint32)((Uint32)s->y - 0x270000U);
+        s->dawn_volume = 0x30;
+        s->phase = 1;
+        break;
+    case 1:
+        if (!(in.game_timer & 7U))
+        {
+            e->sounds[0] = 0x652;
+            e->volume_sound = true;
+            e->volume = (Uint16)s->dawn_volume;
+            s->dawn_volume = Word(s->dawn_volume + 8);
+            if (s->dawn_volume > 0x7f)
+                s->dawn_volume = 0x7f;
+        }
+        s->rotate = Word(s->rotate + 0x100);
+        s->scale_x = Word(s->scale_x + 2);
+        if (s->scale_x > 0x100)
+            s->scale_x = 0x100;
+        s->scale_y = s->scale_x;
+        if (in.parent_pose == 0x20 && s->remaining == 1)
+        {
+            e->sounds[1] = 0x65e;
+            if (roller)
+            {
+                s->blend = 0x50;
+                s->phase = 2;
+                break;
+            }
+            s->removed = true;
+            return true;
+        }
+        break;
+    case 2:
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        if (!(in.game_timer & 3U))
+            s->rotate = Word(s->rotate + 0x400);
+        if (!(in.game_timer & 1U) && (Rand(rng) & 1U))
+        {
+            Uint8 free = in.free_factories;
+            DawnFactory(s, e, &free, 0x24U | 1U << 16);
+        }
+        if (s->hit_flags)
+            s->phase = 3;
+        break;
+    default:
+        if (s->phase == 3)
+        {
+            s->scale_x = Word(s->scale_x - 16);
+            s->scale_y = s->scale_x;
+            if (s->scale_x < 0x40)
+            {
+                s->hitbox_state = 0;
+                s->bank = 0;
+                s->lifetime = 0x80;
+                s->phase = 4;
+            }
+        }
+        if ((s->lifetime = Word(s->lifetime - 1)) == 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Uint8 size = (Uint8)((s->scale_x >> 6) * 3);
+    s->hitbox_width = s->hitbox_height = size;
+    return true;
+}
+
 // w_034 func_ptr_80170004: Shotel's QCF176 boomerang (blueprint56, own item). It spins by
 // ROT(45) every update, flies out decelerating for 0x1C updates, then homes on the player's
 // hitbox with a turn limit growing by 0x10 from 0x200 and retires inside half the summed
@@ -2397,6 +3292,9 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 6 && in.role == 1                       ? 4
                         : (in.family == 14 || in.family == 13) && in.role == 0 ? 3
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
+                        : in.family == 30 && in.role == 1                      ? 4
+                        : in.family == 30 && in.role == 2                      ? 8
+                        : in.family == 30 && in.role >= 3                      ? 4
                                                                                : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
@@ -2449,6 +3347,15 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         if (!(in.role == 0   ? Vorpal(&s, &shared, in, &rng, &e)
               : in.role == 1 ? Chakram(&s, in, &rng, &e)
                              : HeavenImage(&s, in)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 30)
+    {
+        if (!(in.role == 1   ? DawnCircle(&s, &shared, in, &rng, &e)
+              : in.role == 2 ? DawnSoldier(&s, in, &rng, &e)
+              : in.role == 3 ? DawnArrow(&s, &shared, in, &rng, &e)
+                             : DawnBomb(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -2581,14 +3488,19 @@ commit:
 bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overlay, Uint16 family)
 {
     Layout layout = {0};
-    if (state && family == 49)
+    if (state && (family == 49 || family == 30))
         layout = (Layout){0};
     else if (!Program(family, &layout))
         return SDL_SetError("Weapon secondary animation requires its actual private timeline");
     // Weapon49 children choose their private timeline at birth (sparks9, puffs/pillar14 words).
     if (state && family == 49)
         layout = (Layout){.timeline = state->timeline, .timeline_count = state->role == 1 ? 9 : 14};
-    if (!state || (family != 55 && family != 1 && (family != 49 || !layout.timeline)) ||
+    // Weapon30's bombs: D_8017A514 (thirteen frames) or the roller's D_8017A548 (three).
+    if (state && family == 30 && state->role == 4)
+        layout = (Layout){.timeline = state->timeline,
+                          .timeline_count = state->timeline == 0x548 ? 3 : 13};
+    if (!state ||
+        (family != 55 && family != 1 && ((family != 49 && family != 30) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||
         overlay.size < layout.timeline + layout.timeline_count * 4U)

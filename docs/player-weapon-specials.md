@@ -69,6 +69,9 @@ Selected virtual items:
 - Shotel28's QCF special176: a kind129 throw (blueprint56 boomerang) through the thrown-item
   path; while it lives, Shotel's swing becomes a punch (see [Shotel](player-shotel.md)).
 
+- Sword of Dawn17's QCF special177: kind5 summoning circle and skeleton squad (see
+  [Sword of Dawn](player-sword-of-dawn.md)).
+
 The other virtual specials (rods,
 Sword of Dawn and others) need their own player states and callbacks. Their owning items
 stay unavailable, so no input path silently degrades to an ordinary attack.

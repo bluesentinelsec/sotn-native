@@ -27,6 +27,8 @@ typedef struct SotnHandWeaponProgram
         {
             Sint16 ice_x[80], ice_y[80];
         };
+        /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
+        Sint16 dawn_phase[10];
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */
     /** Weapon51 program BSS shared by its attack and special: the glow colour's _r/_g/_b,
