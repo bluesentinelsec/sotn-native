@@ -69,13 +69,13 @@ int main(void)
     Uint32 random = 7;
     CHECK(SotnCharacter_Item(c, false, 125, &meta) && !meta.supported &&
           !SotnCharacter_Equip(c, 0, 125) &&
-          !SotnCharacter_HandProperties(c, 125, false, &random, &props) && random == 7);
+          !SotnCharacter_HandProperties(c, 125, 0, false, &random, &props) && random == 7);
     clock = (SotnPlaytime){.hours = 1, .minutes = 2, .seconds = 3, .frames = 4};
     CHECK(SotnCharacter_SetPlaytime(c, clock) && SotnCharacter_Item(c, false, 125, &meta) &&
           meta.supported && SotnCharacter_Equip(c, 0, 125));
     SotnCharacterStats stats = {0};
     CHECK(SotnCharacter_Get(c, NULL, &stats) && stats.attack[0] == 10 &&
-          SotnCharacter_HandProperties(c, 125, true, &random, &props) && props.attack == 5);
+          SotnCharacter_HandProperties(c, 125, 0, true, &random, &props) && props.attack == 5);
     clock.hours = 32767;
     CHECK(SotnCharacter_SetPlaytime(c, clock) && SotnCharacter_Get(c, NULL, &stats) &&
           !stats.attack[0]);

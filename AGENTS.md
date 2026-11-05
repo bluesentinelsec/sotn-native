@@ -57,6 +57,12 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Alucart set](docs/player-alucart-set.md): Alucart sword168 runs w_043 descriptor1 (no
+special), Alucart mail89 is plain armor; IsAlucart (sword+shield167 in hands, mail in armor) adds
+LCK30 before the cap and renames the inventory header. CalcAttack's Shield rod4 +5 beside a
+category9 shield now applies to stats and each swing: SotnCharacter_HandProperties takes the hand.
+Sword Familiar126, Sun/Moonstone and Vlad-relic stat bonuses remain unimplemented.
+
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,
 additive) and back-forward special173: descriptor1 requests WFACTORY(0x4A, anim) on pose4 at player
 poseTimer7. The E1 orb (slots28..31) reads its raw slot16 parent only at birth, keeps equip id0,

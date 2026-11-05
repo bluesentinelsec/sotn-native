@@ -138,6 +138,39 @@ int main(void)
     CHECK(!SotnCharacter_SpendMP(c, (Uint16)(s.mp + 1)) && !SotnCharacter_SpendMP(c, 10000) &&
           !SotnCharacter_SpendMP(NULL, 0));
     CHECK(SotnCharacter_SpendMP(c, 0) && SotnCharacter_Get(c, &s, NULL) && s.mp == previous_mp - 4);
+    // Original IsAlucart: Alucart sword168 and shield167 in the hands with Alucart mail89 in the
+    // armor slot add LCK30 to the equipment bonus (before its 99 cap); any piece missing, or the
+    // sword in both hands, adds nothing.
+    CHECK(SotnCharacter_Collect(c, false, 168) && SotnCharacter_Collect(c, false, 168) &&
+          SotnCharacter_Collect(c, false, 167) && SotnCharacter_Collect(c, true, 89));
+    SotnCharacterStats plain = {0}, alucart = {0};
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 168) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 167) && SotnCharacter_Get(c, &s, &plain));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 89) && SotnCharacter_Get(c, &s, &alucart));
+    CHECK(alucart.bonus[3] == plain.bonus[3] + 30 && alucart.total[3] == plain.total[3] + 30 &&
+          alucart.total[0] == plain.total[0] && alucart.bonus[0] == plain.bonus[0]);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 168) && SotnCharacter_Get(c, &s, &alucart) &&
+          alucart.bonus[3] == plain.bonus[3]);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 167) && SotnCharacter_Get(c, &s, &alucart) &&
+          alucart.bonus[3] == plain.bonus[3] + 30);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0) && SotnCharacter_Get(c, &s, &alucart) &&
+          alucart.bonus[3] == plain.bonus[3]);
+    // Original CalcAttack: Shield rod4 gains five beside any shield (category9) in the other hand.
+    bytes[0x1000 + 4 * 52 + 14] = 4;
+    bytes[0x1000 + 4 * 52 + 8] = 7;
+    bytes[0x1000 + 5 * 52 + 14] = 9;
+    bytes[0x1000 + 167 * 52 + 14] = 9;
+    SotnCharacterStats rod = {0}, guarded = {0};
+    CHECK(SotnCharacter_Collect(c, false, 4) && SotnCharacter_Collect(c, false, 4) &&
+          SotnCharacter_Collect(c, false, 5));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 4) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 0) && SotnCharacter_Get(c, &s, &rod));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 5) && SotnCharacter_Get(c, &s, &guarded) &&
+          guarded.attack[0] == rod.attack[0] + 5);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 4) && SotnCharacter_Get(c, &s, &guarded) &&
+          guarded.attack[0] == rod.attack[0] && guarded.attack[1] == rod.attack[0]);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 167) && SotnCharacter_Get(c, &s, &guarded) &&
+          guarded.attack[1] == rod.attack[0] + 5);
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

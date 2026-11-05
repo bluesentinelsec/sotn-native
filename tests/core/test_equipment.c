@@ -56,6 +56,10 @@ static SotnCollisionMap MakeFixture(Fixture *f)
     Uint8 *sword = f->dra + 0x300 + 123 * 52;
     SDL_memcpy(sword, f->dra + 0x300 + 86 * 52, 52);
     sword[15] = 43;
+    // Alucart sword168: w_043's descriptor1 (no special move).
+    Uint8 *alucart = f->dra + 0x300 + 168 * 52;
+    SDL_memcpy(alucart, sword, 52);
+    alucart[20] = 1;
     Uint8 *short_sword = f->dra + 0x300 + 19 * 52;
     SDL_memcpy(short_sword, sword, 52);
     short_sword[15] = 37;
@@ -152,6 +156,11 @@ static bool Metadata(Fixture *f)
     CHECK(SotnWeapon_ReadFrame(weapons, equipment, 0x6f, 4, 1, &frame) && frame.width == 12 &&
           frame.sprite == 1);
     CHECK(SotnEquipment_Read(dra, 86, &equipment));
+    CHECK(SotnEquipment_Read(dra, 168, &equipment) && equipment.family == 43 &&
+          equipment.variant == 1);
+    f->dra[0x300 + 168 * 52 + 20] = 0;
+    CHECK(!SotnEquipment_Read(dra, 168, &equipment));
+    f->dra[0x300 + 168 * 52 + 20] = 1;
     CHECK(SotnEquipment_Read(dra, 123, &equipment) && equipment.family == 43);
     SotnDataView overlay = {0};
     CHECK(SotnWeapon_Overlay(weapons, equipment, &overlay) && overlay.size == 0x3000);

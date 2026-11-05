@@ -62,9 +62,10 @@ int main(void)
     CHECK(Attack(c, 0x7fffffffU, &attack) && attack == 0);
     Uint32 random = 3;
     SotnEquipment props = {0};
-    CHECK(Attack(c, 144, &attack) && SotnCharacter_HandProperties(c, 141, false, &random, &props) &&
+    CHECK(Attack(c, 144, &attack) &&
+          SotnCharacter_HandProperties(c, 141, 0, false, &random, &props) &&
           props.attack == base + 12 &&
-          SotnCharacter_HandProperties(c, 141, true, &random, &props) &&
+          SotnCharacter_HandProperties(c, 141, 0, true, &random, &props) &&
           props.attack == (base + 12) / 2);
     // Each committed update adds one, saturating at0xFFFFFFFF.
     CHECK(Attack(c, 120, &attack) && SotnCharacter_AddMuramasaBlood(c) &&

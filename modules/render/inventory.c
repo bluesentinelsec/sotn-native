@@ -134,7 +134,11 @@ bool SotnInventoryRenderer_Draw(SotnInventoryRenderer *r, SotnInventoryMenu menu
         return false;
     SDL_memset(r->frame, 0, sizeof(r->frame));
     Panel(r, 0, 8, 384, 18);
-    Text(r, "ALUCARD", 16, 13, 0x7fff);
+    // Original IsAlucart: Alucart sword168 and shield167 in hand with Alucart mail89 rename him.
+    const bool alucart = (state.equipment[0] == 168 || state.equipment[1] == 168) &&
+                         (state.equipment[0] == 167 || state.equipment[1] == 167) &&
+                         state.equipment[3] == 89;
+    Text(r, alucart ? "ALUCART" : "ALUCARD", 16, 13, 0x7fff);
     if (menu.phase == SOTN_MENU_MAIN)
     {
         Panel(r, 0, 28, 232, 192);

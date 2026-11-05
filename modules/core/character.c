@@ -78,7 +78,7 @@ static bool BodySupported(Uint16 id)
            id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
            id == 48 || id == 49 || id == 51 || id == 54 || id == 57 || id == 60 ||
            (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 84 ||
-           id == 85 || id == 80;
+           id == 85 || id == 80 || id == 89;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -105,8 +105,9 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                     id == 25 || id == 80 || id == 81 || id == 82 || id == 134 || id == 135 ||
                     id == 143 || id == 119 || id == 133 || id == 163 || id == 164 || id == 165 ||
                     (id != 125 && SotnEquipment_IsSword0(id)) || SotnEquipment_IsBasicFist(id) ||
-                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 128 || id == 166 ||
-                    (id >= 29 && id <= 79) || (id >= 144 && id <= 162 && id != 146 && id != 147))};
+                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 168 || id == 128 ||
+                    id == 166 || (id >= 29 && id <= 79) ||
+                    (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
         if (item.type > 3)
@@ -299,6 +300,11 @@ static bool Calculate(SotnCharacter *c)
     if ((items[0].category == 5 || items[1].category == 5) &&
         c->state.equipment[0] != c->state.equipment[1])
         return SDL_SetError("Two-hand equipment lost its paired actual slots");
+    // IsAlucart: Alucart sword168 and shield167 in the hands with Alucart mail89 add LCK30.
+    if ((c->state.equipment[0] == 168 || c->state.equipment[1] == 168) &&
+        (c->state.equipment[0] == 167 || c->state.equipment[1] == 167) &&
+        c->state.equipment[3] == 89)
+        bonus[3] += 30;
     for (Uint32 i = 0; i < 4; ++i)
     {
         if ((i == 0 && (c->stat_buff_mask & (1U << SOTN_BUFF_STRENGTH))) ||
@@ -322,7 +328,9 @@ static bool Calculate(SotnCharacter *c)
                            (items[i].attack <= result.total[0] ? result.total[0]
                                                                : result.total[0] / 2) +
                            (items[i].id == 125 ? Word(c->playtime.hours) : 0) +
-                           (items[i].id == 141 ? Word(muramasa) : 0)),
+                           (items[i].id == 141 ? Word(muramasa) : 0) +
+                           // Shield rod4 beside a shield (category9) gains five.
+                           (items[i].id == 4 && items[1 - i].category == 9 ? 5 : 0)),
                       0, 999);
     SotnItem empty = {0};
     if (!SotnItem_Read(c->dra, false, 0, &empty))
@@ -351,8 +359,8 @@ static bool Calculate(SotnCharacter *c)
     c->stats = result;
     return true;
 }
-static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bool poison,
-                                     Uint32 *random, SotnEquipment *out)
+static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, Uint16 other,
+                                     bool poison, Uint32 *random, SotnEquipment *out)
 {
     if (!c || !random || !out)
         return SDL_SetError("Retained weapon properties require actual character and copied RNG");
@@ -385,6 +393,15 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
             return false;
         attack = Word(attack + Word(root));
     }
+    // CalcAttack's Shield rod4 term: five more beside a shield (category9) in the other hand.
+    if (e.id == 4)
+    {
+        SotnItem beside = {0};
+        if (!SotnItem_Read(c->dra, false, other, &beside))
+            return false;
+        if (beside.category == 9)
+            attack = Word(attack + 5);
+    }
     if (c->stat_buff_mask & (1U << SOTN_BUFF_ATTACK))
         attack = Word(attack + 20);
     const bool no_attack =
@@ -397,17 +414,18 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, bo
     *out = e;
     return true;
 }
-bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, bool poison, Uint32 *random,
-                                  SotnEquipment *out)
+bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, Uint16 hand, bool poison,
+                                  Uint32 *random, SotnEquipment *out)
 {
-    if (!c || (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 174 &&
-               item != 19 && !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
-               !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 128 && item != 143 &&
-               item != 133 && item != 163 && item != 164 && item != 165 && item != 119))
+    if (!c || hand > 1 ||
+        (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 174 && item != 19 &&
+         !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
+         !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 168 && item != 128 &&
+         item != 143 && item != 133 && item != 163 && item != 164 && item != 165 && item != 119))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, c->state.equipment[1U - hand], poison, random, out);
 }
 bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *random,
                                    SotnEquipment *out)
@@ -417,7 +435,7 @@ bool SotnCharacter_SwordProperties(const SotnCharacter *c, bool poison, Uint32 *
     SotnEquipment e = {0};
     Uint16 mp = 0;
     return SotnEquipment_ReadSwordSpecial(c->dra, 123, &e, &mp) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, 0, poison, random, out);
 }
 bool SotnCharacter_ThrowingProperties(const SotnCharacter *c, Uint16 item, bool poison,
                                       Uint32 *random, SotnEquipment *out)
@@ -426,7 +444,7 @@ bool SotnCharacter_ThrowingProperties(const SotnCharacter *c, Uint16 item, bool 
         return SDL_InvalidParamError("character");
     SotnEquipment e = {0};
     return SotnEquipment_ReadThrowing(c->dra, item, &e) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, 0, poison, random, out);
 }
 
 bool SotnCharacter_NeutronProperties(const SotnCharacter *c, bool poison, Uint32 *random,
@@ -436,7 +454,7 @@ bool SotnCharacter_NeutronProperties(const SotnCharacter *c, bool poison, Uint32
         return SDL_InvalidParamError("character");
     SotnEquipment e = {0};
     return SotnEquipment_ReadNeutron(c->dra, &e) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, 0, poison, random, out);
 }
 
 bool SotnCharacter_MagicMissileProperties(const SotnCharacter *c, Uint16 item, bool poison,
@@ -448,7 +466,7 @@ bool SotnCharacter_MagicMissileProperties(const SotnCharacter *c, Uint16 item, b
     SotnEquipment e = {0};
     return (item != 0 ? SotnEquipment_ReadThrowing(c->dra, item, &e)
                       : SotnEquipment_Read(c->dra, 0, &e)) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, 0, poison, random, out);
 }
 bool SotnCharacter_SireProperties(const SotnCharacter *c, bool poison, Uint32 *random,
                                   SotnEquipment *out)
@@ -457,7 +475,7 @@ bool SotnCharacter_SireProperties(const SotnCharacter *c, bool poison, Uint32 *r
         return SDL_InvalidParamError("character");
     SotnEquipment e = {0};
     return SotnEquipment_ReadThrowing(c->dra, 72, &e) &&
-           RetainedWeaponProperties(c, e, poison, random, out);
+           RetainedWeaponProperties(c, e, 0, poison, random, out);
 }
 
 bool SotnCharacter_SetPlaytime(SotnCharacter *c, SotnPlaytime clock)

@@ -4453,8 +4453,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     .frame = item.sprite,
                     .palette = (Uint16)(right ? 0x128 : 0x110),
                     .texture_offset = (Uint16)(right ? 0x66 : 0x64),
-                    .blend_mode =
-                        (Uint16)(item.equipment == 86 || item.equipment == 123 ? 0x30 : 0),
+                    .blend_mode = (Uint16)(item.equipment == 86 || item.equipment == 123 ||
+                                                   item.equipment == 168
+                                               ? 0x30
+                                               : 0),
                     .facing_left = player.facing_left};
                 if (!SotnActorGraphics_Draw(session->actor_graphics, weapon,
                                             Pixel(player.x) - view_x, Pixel(player.y) - view_y,
