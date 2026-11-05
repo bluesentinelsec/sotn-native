@@ -88,6 +88,7 @@ static bool Program(Uint16 family, Layout *out)
                                 : family == 10 ? 33
                                 : family == 23 ? 18
                                 : family == 24 ? 18
+                                : family == 27 ? 1
                                 : family == 58 ? 2
                                 : family == 11 ? 10
                                 : family == 25 ? 17
@@ -102,7 +103,8 @@ static bool Program(Uint16 family, Layout *out)
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
     return family == 8 || family == 9 || family == 10 || family == 23 || family == 24 ||
-           family == 58 || family == 11 || family == 25 || family == 26 || family == 52;
+           family == 27 || family == 58 || family == 11 || family == 25 || family == 26 ||
+           family == 52;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
@@ -111,6 +113,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
            : family == 10 ? 205
            : family == 23 ? 207
            : family == 24 ? 208
+           : family == 27 ? 211
            : family == 58 ? 215
            : family == 11 ? 206
            : family == 25 ? 209
@@ -125,6 +128,7 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
            : item == 205 ? 10
            : item == 207 ? 23
            : item == 208 ? 24
+           : item == 211 ? 27
            : item == 215 ? 58
            : item == 206 ? 11
            : item == 209 ? 25
@@ -177,6 +181,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon24 (Dark shield): its spell (role8) and rising rocks (role9).
     if (family == 24)
         return role == 8 || role == 9;
+    // Weapon27 (Medusa shield): its spell (role8), lasers (role9) and hit points (role10).
+    if (family == 27)
+        return role == 8 || role == 9 || role == 10;
     // Shield programs (Leather8/Knight9/Alucart58): role8 is the both-buttons spell.
     // Axe Lord's spell (role8) also creates its vector9 walker/afterimages (role9); Goddess's
     // its vector9 clouds.
@@ -227,6 +234,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                                                  : family == 10 ? 33
                                                  : family == 23 ? 18
                                                  : family == 24 ? 18
+                                                 : family == 27 ? 1
                                                  : family == 58 ? 2
                                                  : family == 11 ? 10
                                                  : family == 25 ? 17
@@ -236,6 +244,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
                : family == 10                 ? (role == 9 ? 18 : 0)
                : family == 23                 ? (role == 9 ? 4 : 0)
                : family == 24                 ? (role == 9 ? 1 : 0)
+               : family == 27                 ? (role == 9 ? 18 : 0)
                : family == 25 || family == 26 ? 1
                : family == 52                 ? 11
                                               : 0;
@@ -3908,13 +3917,14 @@ static void DawnAttack(SotnWeaponSecondary *s, Sint16 attack, SotnWeaponSecondar
     s->hitbox_state = 2;
     e->group = true;
 }
-// dra/7879C.c func_80118B18: the heading to a retained target (or a screen-edge point), offset
-// negative when the target is gone, untouchable or flagged, or the child is off screen.
-static bool DawnHeading(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Sint16 *out)
+// dra/7879C.c func_80118B18: the heading from a child's screen position to a retained target (or
+// the screen-edge point on the side), offset negative when the target is gone, untouchable or
+// flagged, or the child is off screen.
+static bool TargetHeading(SotnWeaponSecondaryInput in, Sint16 sx, Sint16 sy, bool bound, bool side,
+                          Sint16 *out)
 {
-    const Sint16 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y);
-    Sint16 tx = s->dawn_side ? -32 : 288, ty = 112;
-    if (s->dawn_bound)
+    Sint16 tx = side ? -32 : 288, ty = 112;
+    if (bound)
     {
         tx = in.target.x;
         ty = in.target.y;
@@ -3924,7 +3934,7 @@ static bool DawnHeading(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Sin
         return false;
     angle = (Sint16)(angle & 0xfff);
     Sint32 offset = 0;
-    if (s->dawn_bound)
+    if (bound)
     {
         if (!in.target.identity)
             offset = 0x1000;
@@ -3943,6 +3953,11 @@ static bool DawnHeading(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Sin
         offset = 0x7000;
     *out = Word(angle - offset);
     return true;
+}
+static bool DawnHeading(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Sint16 *out)
+{
+    return TargetHeading(in, Word(Pixel(s->x) - in.camera_x), Word(Pixel(s->y) - in.camera_y),
+                         s->dawn_bound, s->dawn_side != 0, out);
 }
 // w_030 func_ptr_8017000C: archers' arrows (params0/1) fly back at5.5; the sword thrower's
 // swords (params2) appear around it, spin, then home on a func_80118970 target. Hits blink
@@ -5440,6 +5455,374 @@ static bool DarkRock(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32
     {
         q->x[1] = q->x[3] = Word(x - s->spell_half_w);
         q->x[0] = q->x[2] = Word(x + s->spell_half_w - 1);
+    }
+    return true;
+}
+// w_027 EntityWeaponShieldSpell: Medusa shield's both-buttons spell (item211, one mandatory GT4,
+// the glow). It retires a raised shield, plays ANIME_SWORD_C, freezes the scene and drifts back
+// while the shield image grows (fixed priority0x1B6); at full size it plays D_8017AC8C (the
+// Medusa head opening its eyes, FLAG_UNK_100000) for eight updates, then D_8017ACB4 while the
+// glow spreads and fades. When the glow reaches 160 it requests FACTORY(98)'s two lasers, ends
+// the freeze, holds eighty updates (D_8017AC8C again at the 64th left) and shrinks away.
+static bool MedusaSpell(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                        SotnWeaponSecondaryEvents *e)
+{
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    switch (s->phase)
+    {
+    case 0:
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->spell_child_palette = in.hand ? 0x137 : 0x11f;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->flags = 0x04810000U;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->priority = 0x1b6;
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0x80 + 0x4f;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = 0x1b4;
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->clear_shield = true;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 40 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 8;
+            s->timeline = 0xc8c;
+            s->remaining = 0;
+            s->pose = 0;
+            s->flags |= 0x100000U;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+        {
+            s->timeline = 0xcb4;
+            s->remaining = 0;
+            s->pose = 0;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        s->spell_glow = Word(s->spell_glow + 8);
+        if (q->blue[3] > 8)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        if (s->spell_glow >= 160)
+        {
+            q->blue[3] = 6;
+            q->draw_mode |= 8;
+            // FACTORY(98)'s two lasers with the combo's <<14 hand bits (dropped without a free
+            // factory entity).
+            if (in.free_factories > e->factory_count)
+            {
+                e->factories[e->factory_count] = 98U | ((in.hand + 1U) << 14);
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count++] = s->y;
+            }
+            s->spell_timer = 80;
+            e->freeze_clear = true;
+            s->phase = 4;
+        }
+        break;
+    case 4:
+        if (s->spell_timer == 64)
+        {
+            s->timeline = 0xc8c;
+            s->remaining = 0;
+            s->pose = 0;
+        }
+        if (--s->spell_timer == 0)
+            s->phase = 5;
+        break;
+    default:
+        s->scale_x = Word(s->scale_x - 12);
+        s->scale_y = s->scale_x;
+        if (s->scale_x < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    if (q->blue[3] > 8)
+    {
+        if (in.engine_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode &= 0xfff7U;
+    }
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    return true;
+}
+static bool MedusaEdge(SotnDataView exe, Sint16 heading, Sint16 width, Sint16 *dx, Sint16 *dy)
+{
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(exe, heading, &t))
+        return false;
+    *dx = (Sint16)Asr(Asr(t.cosine, 4) * width, 8);
+    *dy = (Sint16)Asr(Asr(t.sine, 4) * width, 8);
+    return true;
+}
+// w_027 func_ptr_80170024 (FACTORY(98), role9): one of two lasers. It takes eighteen GT4s (failure
+// retires it), steps 6 or 14 ahead, aims back-up (params0) or higher (params1), marks a target
+// (func_80118970) and plays BIBLE_SCRAPE. Each update it turns toward its target (func_80118B18,
+// limited by a turn step that tightens then relaxes), swings on an SDK square-root wave damped by
+// a decaying unkA0, moves three units per step of that speed, plays BIBLE_SCRAPE once per wave
+// period on screen, requests FACTORY(100)'s hit child on even g_Timer and lays a ribbon of up to
+// eighteen segments whose width follows the swing. It retires far off screen. Screen words.
+static bool MedusaLaser(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                        SotnWeaponSecondaryEvents *e)
+{
+    Sint16 lift = 0;
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 9;
+        s->allocated = true;
+        s->laser_palette = in.hand ? 0x129 : 0x111;
+        s->laser_band = in.hand ? 0x80 : 0;
+        s->flags |= 0x04800000U;
+        const Sint16 step = (s->parameter & 0xffU) ? 14 : 6;
+        SetScreen(&s->x, Word(Pixel(s->x) - in.retained_camera_x + (s->facing_left ? -step : step)),
+                  in.retained_camera_x);
+        s->laser_heading = s->facing_left ? (Sint16)(((s->parameter & 0xffU) << 9) + 0x100U)
+                                          : (Sint16)(0x700 - (Sint16)((s->parameter & 0xffU) << 9));
+        s->laser_turn = 0x50;
+        s->laser_phase = 0x400;
+        s->laser_step = -0x58;
+        s->laser_swing = 0;
+        e->select_target = true;
+        s->laser_length = 1;
+        const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                     y = Word(Pixel(s->y) - in.retained_camera_y);
+        SotnMathTrig a = {0}, b = {0};
+        if (!SotnMath_Trig(in.executable, (Sint16)(s->laser_heading + 0x400), &a) ||
+            !SotnMath_Trig(in.executable, (Sint16)(s->laser_heading - 0x400), &b))
+            return false;
+        for (Uint16 i = 0; i < 18; ++i)
+        {
+            SotnPlayerEffectQuad *q = &s->laser_quads[i];
+            *q = (SotnPlayerEffectQuad){.palette = s->laser_palette, .page = 0x19};
+            SpellColors(q, 0x80);
+            q->x[0] = Word(x + Asr(a.cosine, 9));
+            q->y[0] = Word(y - Asr(a.sine, 9));
+            q->x[2] = Word(x + Asr(b.cosine, 9));
+            q->y[2] = Word(y - Asr(b.sine, 9));
+            q->priority = 0x1bc;
+            q->draw_mode = 0x20 | 0x10 | 0x08 | 0x01;
+        }
+        s->laser_damping = 0x300;
+        s->laser_timer = 0;
+        e->sounds[0] = 0x6b2;
+        s->phase = 1;
+        break;
+    }
+    default: {
+        const Sint16 sx = Word(Pixel(s->x) - in.retained_camera_x),
+                     sy = Word(Pixel(s->y) - in.retained_camera_y);
+        if ((s->laser_phase & 0x800) && !(s->laser_previous & 0x800) && sx >= -0x120 &&
+            sx <= 0x120 && sy >= 0 && sy <= 0x100)
+            e->sounds[0] = 0x6b2;
+        s->laser_previous = s->laser_phase;
+        Sint16 aim = 0;
+        if (!TargetHeading(in, sx, sy, s->laser_bound, s->facing_left, &aim))
+            return false;
+        if (aim >= 0)
+        {
+            const Sint32 heading = s->laser_heading & 0xfff;
+            const Sint16 right = (Sint16)heading;
+            const Sint16 gap = (Sint16)SDL_abs(right - aim);
+            if (gap < s->laser_turn)
+                s->laser_turn = gap;
+            if ((right < aim && gap >= 0x800) || (right >= aim && gap < 0x800))
+                s->laser_heading = (Sint16)((heading - s->laser_turn) & 0xfff);
+            else
+                s->laser_heading = (Sint16)((s->laser_turn + heading) & 0xfff);
+        }
+        s->laser_phase = Word(s->laser_phase + s->laser_step);
+        SotnMathTrig w = {0}, h = {0};
+        if (!SotnMath_Trig(in.executable, s->laser_phase, &w) ||
+            !SotnMath_Trig(in.executable, s->laser_heading, &h))
+            return false;
+        Uint32 root = 0;
+        if (!SotnMath_Sqrt0(in.executable, (Uint32)(0x01000000 - (Sint32)w.sine * (Sint32)w.sine),
+                            &root))
+            return false;
+        Sint16 speed = (Sint16)root;
+        s->laser_swing = (Sint32)((Uint32)s->laser_swing - (Uint32)Asr((Sint32)w.sine * 4096, 8));
+        // MIPS mult keeps the product's low word.
+        speed =
+            (Sint16)(speed - (Sint32)((Uint32)s->laser_damping * (Uint32)s->laser_swing) / 0x10000);
+        if (--s->laser_damping < 0)
+            s->laser_damping = 0;
+        const Sint32 dx = Asr((Sint32)h.cosine * speed, 7) * 3,
+                     dy = -Asr((Sint32)h.sine * speed, 7) * 3;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)dx);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)dy);
+        lift = (Sint16)-Asr(s->laser_swing, 15);
+        s->laser_turn = (Sint16)SDL_min(s->laser_turn + 8, 0x100);
+        if (++s->laser_length > 0x80)
+            s->laser_length = 0x80;
+        break;
+    }
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.retained_camera_x),
+                 y = Word(Pixel(s->y) - in.retained_camera_y);
+    if (x < -0x200 || x > 0x200 || y < -0xc0 || y > 0x1a0)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!(in.engine_timer & 1U) && in.free_factories > e->factory_count)
+    {
+        e->factories[e->factory_count] = 100U | ((in.hand + 1U) << 14);
+        e->factory_x[e->factory_count] = s->x;
+        e->factory_y[e->factory_count++] = s->y;
+    }
+    Sint16 width = 0;
+    if (s->laser_swing > 0)
+    {
+        width = (Sint16)(8 - (s->laser_swing >> 16));
+        if (width < 0)
+            width = 1;
+    }
+    else
+    {
+        width = (Sint16)(8 - Asr(s->laser_swing, 0x13));
+        if (width > 16)
+            width = 16;
+    }
+    Sint16 ax = 0, ay = 0, bx = 0, by = 0;
+    if (!MedusaEdge(in.executable, (Sint16)(s->laser_heading + 0x400), width, &ax, &ay) ||
+        !MedusaEdge(in.executable, (Sint16)(s->laser_heading - 0x400), width, &bx, &by))
+        return false;
+    SotnPlayerEffectQuad *q = &s->laser_quads[0];
+    if (s->laser_length < 0x13)
+    {
+        Sint16 left = q->x[0], top = q->y[0], right = q->x[2], bottom = q->y[2];
+        for (Sint16 i = 0; i < s->laser_length; ++i)
+        {
+            q = &s->laser_quads[i];
+            if (i == s->laser_length - 1)
+            {
+                q->x[0] = left;
+                q->y[0] = top;
+                q->x[2] = right;
+                q->y[2] = bottom;
+                q->x[1] = Word(x + ax);
+                q->y[1] = Word(lift + (y - ay));
+                q->x[3] = Word(x + bx);
+                q->y[3] = Word(lift + (y - by));
+                q->draw_mode &= 0xfff7U;
+            }
+            left = q->x[1];
+            top = q->y[1];
+            right = q->x[3];
+            bottom = q->y[3];
+        }
+    }
+    else
+    {
+        for (Uint16 i = 0; i < 17; ++i)
+            s->laser_quads[i] = s->laser_quads[i + 1];
+        q = &s->laser_quads[17];
+        q->x[0] = q->x[1];
+        q->y[0] = q->y[1];
+        q->x[2] = q->x[3];
+        q->y[2] = q->y[3];
+        q->x[1] = Word(x + ax);
+        q->y[1] = Word(lift + (y - ay));
+        q->x[3] = Word(x + bx);
+        q->y[3] = Word(lift + (y - by));
+    }
+    const Sint16 count = s->laser_length >= 0x13 ? 0x12 : s->laser_length;
+    for (Sint16 i = 0; i < count; ++i)
+    {
+        q = &s->laser_quads[i];
+        q->u[0] = q->u[2] = (Uint8)(((i * 3) << 5) / count);
+        q->u[1] = q->u[3] = (Uint8)(((i + 1) * 0x60) / count - 1);
+        q->v[0] = q->v[1] = (Uint8)(s->laser_band + 0x30);
+        q->v[2] = q->v[3] = (Uint8)(s->laser_band + 0x3f);
+    }
+    return true;
+}
+// w_027 func_ptr_80170028 (FACTORY(100), role10): a laser's six-update hit point. It retires once
+// its raw parent laser's slot empties; at birth it rolls SetWeaponProperties for the laser's equip
+// id (the factory argument, zero) with a 6x6 hitbox. Each hit counts; at six it clears the raw
+// parent laser's target. Screen words.
+static bool MedusaHit(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                      SotnWeaponSecondaryEvents *e)
+{
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (!s->phase)
+    {
+        s->role = 10;
+        s->allocated = true;
+        if (!Properties(s, in, rng, e))
+            return false;
+        s->hitbox_width = s->hitbox_height = 6;
+        s->laser_timer = 6;
+        s->phase = 1;
+    }
+    else if (--s->laser_timer == 0)
+    {
+        s->removed = true;
+        return true;
+    }
+    if (s->hit_flags)
+    {
+        if (++s->laser_hits >= 6)
+            e->clear_parent_target = true;
+        s->hit_flags = 0;
     }
     return true;
 }
@@ -7236,6 +7619,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 23                                      ? 3
                         : in.family == 24 && in.role == 8                      ? 8
                         : in.family == 24                                      ? 3
+                        : in.family == 27 && in.role == 8                      ? 5
+                        : in.family == 27                                      ? 1
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -7303,6 +7688,14 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         if (!(in.role == 8   ? HeraldSpell(&s, &shared, in, &e)
               : in.role == 9 ? HeraldSwirl(&s, &shared, in)
                              : HeraldSprite(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 27)
+    {
+        if (!(in.role == 8   ? MedusaSpell(&s, in, &e)
+              : in.role == 9 ? MedusaLaser(&s, in, &e)
+                             : MedusaHit(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -7524,6 +7917,10 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 11 && state->role == 9)
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0xbe8 ? 3 : 7};
+    // Weapon27's spell: D_8017AC8C (nine frames, looping) or D_8017ACB4 (two, looping).
+    if (state && family == 27 && state->role == 8)
+        layout = (Layout){.timeline = state->timeline,
+                          .timeline_count = state->timeline == 0xcb4 ? 3 : 10};
     // Weapon30's bombs: D_8017A514 (thirteen frames) or the roller's D_8017A548 (three).
     if (state && family == 30 && state->role == 4)
         layout = (Layout){.timeline = state->timeline,
@@ -7531,6 +7928,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (!state ||
         (family != 55 && family != 1 && (family != 7 || state->role != 1) &&
          (family != 10 || state->role != 1) && (family != 23 || state->role != 10) &&
+         (family != 27 || state->role != 8 || !layout.timeline) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

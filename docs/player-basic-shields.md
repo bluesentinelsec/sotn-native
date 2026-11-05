@@ -23,8 +23,10 @@ hit now uses the same helper (it previously skipped the heart effect and sound).
 one of `D_8017ACF8`'s four (duration, offset) sequences, before SetWeaponProperties's roll; each
 later update not ending the shield (knock-away included) steps that sequence from the hand's base
 palette, and the sequence's 0xFFFF end applies its offset, restarts at entry0 on the next update
-and rolls again. Medusa, Skull and Fire shields add other on-hit or item behaviors and remain
-unsupported; metadata alone never enables them.
+and rolls again. Medusa shield13 (family27) runs the plain template. Dark and Medusa records give
+hit state 6 (guard plus attack bits): the guard-only branch requires exactly 4, so, as in the
+original, these raised shields also strike enemies with their own attack. Skull and Fire shields
+add other on-hit or item behaviors and remain unsupported; metadata alone never enables them.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and

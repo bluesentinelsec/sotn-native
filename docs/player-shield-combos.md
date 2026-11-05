@@ -26,8 +26,8 @@ Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 Only combos with an actual native owner are selected. These shield spells have one, with
 Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
 shield's 205, Axe Lord shield's 206, Herald shield's 207, Dark shield's 208, Goddess shield's
-209, Shaman shield's 210, Alucard shield's 214 and Alucart shield's 215. Medusa, Skull and Fire
-shields' spells (211..213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
+209, Shaman shield's 210, Medusa shield's 211, Alucard shield's 214 and Alucart shield's 215.
+Skull and Fire shields' spells (212, 213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
 ## Leather shield spell (item203)
@@ -153,6 +153,34 @@ the spell's equip id through SetWeaponProperties (least-used group, no parent en
 0x40 hitbox, so every rock strikes. It creeps up at a sixteenth of its speed until the raw parent
 passes step5, trembles for a rolled 10..57 updates, plays START_SLAM_A and launches, stretching
 while above screen Y 0x80 and retiring above -0x40. Spell and rocks keep screen positions.
+
+## Medusa shield spell (item211), its lasers and hit points
+
+Medusa shield's spell (w_027, thirty MP) takes one GT4 (the glow) and keeps the fixed priority
+0x1B6. It retires a raised shield, plays ANIME_SWORD_C, freezes the scene and drifts back while
+the shield image grows; at full size it sets FLAG_UNK_100000 and plays `D_8017AC8C` (the head
+opening its eyes) for eight updates, then `D_8017ACB4` while the glow spreads by eight and fades.
+At glow 160 it hides the glow, requests `FACTORY(98)` (two lasers; skipped without a free
+factory entity) and ends the freeze; it holds eighty updates (`D_8017AC8C` again with 64 left) and
+shrinks away by twelve. Native animation uses the spell's own timeline word.
+
+Each laser (`func_ptr_80170024`, E9/F9 in 17..31, params0/1) takes eighteen GT4s (failure retires
+it), steps 6 or 14 ahead, aims back-up or higher by its index and facing, requests a target with
+func_80118970 (the shared spell-target selector, marked as for the spirits) and plays
+BIBLE_SCRAPE. Every update it turns toward that target with func_80118B18 (or the screen-edge
+point on its facing side when it has none), limited by a step that tightens to the remaining gap
+and relaxes by eight to 0x100; it swings on an SDK SquareRoot0 wave whose speed is damped by a
+decaying 0x300 counter, moving three units per step of that speed, and plays BIBLE_SCRAPE once
+per wave period while on screen. On even g_Timer it requests `FACTORY(100)`. Its ribbon grows to
+eighteen segments and then slides, each new segment's width following the swing. It retires far
+off screen; a laser homing on a live target can circle it until something releases it.
+
+Each hit point (`func_ptr_80170028`, E10/F10 in 17..47) retires once its raw parent laser's slot
+empties. The laser's equip id is its factory argument (zero), so the hit point's
+SetWeaponProperties rolls item0's (empty-hand) properties with a 6x6 hitbox and least-used group;
+it lives six updates. Hits count, and a sixth would clear the laser's target, but a hit point can
+record at most five in its life, so that release never happens in play (the private comparison
+exercises it with a seeded count). Lasers and hit points keep screen positions.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -359,6 +387,22 @@ Public tests cover:
   ASan traces are byte-identical. Native Debug/ASan protocols cast spell208 in both hand
   arrangements (spell, darkness, rock pixels; enemies defeated; lockout each spell pass), watch a
   raised Dark shield cycle fifteen palettes and fall back to a swing below thirty MP.
+- **Medusa:** the plain guard's own table. The spell's birth row and fixed priority, phase
+  timeline, both animations and their switches, glow growth/spread/fade, the FACTORY(98) request
+  with the freeze's end, the hold and the shrink. The laser against a model of the original
+  arithmetic: row gate, offsets and aims, rows, the target request and scrape, turning with its
+  limit, the SquareRoot0 swing with damping (to zero), movement, the scrape's screen bounds,
+  FACTORY(100) on even g_Timer, the growing and sliding ribbon (both width clamps) with its UVs,
+  and retirement bounds. The hit point's parent gate, properties, life, hit counting and the
+  (seeded) sixth-hit release. The runtime casts the spell: two lasers with item0, hit points with
+  item0 properties and least-used groups, one freeze. 70 of 75 Medusa mutations are caught by the
+  public tests; of the rest, two runtime target paths are caught by the native protocol, one
+  shrink bound is equivalent, the sixth-hit release is unreachable in play and one is a defensive
+  foreign-occupant check. The private comparison runs complete `w_027` callbacks: 1,188 spell,
+  3,914 laser and 46 hit-point callbacks with 71,412 row comparisons (real DRA UpdateAnim and
+  func_80118B18); Debug and ASan traces are byte-identical. Native Debug/ASan protocols cast
+  spell211 in both hand arrangements (spell/laser pixels, animations, lasers locking targets, an
+  enemy defeated), raise the guarding Medusa shield and fall back to a swing below thirty MP.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.

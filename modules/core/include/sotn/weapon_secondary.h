@@ -138,6 +138,22 @@ typedef struct SotnWeaponSecondary
             Uint8 spell_v0, spell_v1;
             Sint32 spell_velocity_y;
         };
+        /** Weapon27 lasers (E9) and their hit children (E10). laser_quads overlays the shield
+         * spells' spell_quads storage (same type and offset), so the shield-spell draw path reads
+         * them. ext.medshieldlaser: unk86 heading, unk96 turn limit, s32 unk98 swing, unk9C
+         * phase, unk9E step, unkA0 damping, unkA4 previous phase, unk94 length, unk7D band,
+         * childPalette and the func_80118970 target (a retained slot). Hit children: unk80
+         * lifetime and unkA2 hit count. */
+        struct
+        {
+            SotnPlayerEffectQuad laser_quads[18];
+            Sint32 laser_swing;
+            Sint16 laser_heading, laser_turn, laser_phase, laser_step, laser_damping,
+                laser_previous, laser_length, laser_timer, laser_hits;
+            Uint16 laser_palette, laser_slot;
+            Uint8 laser_band;
+            bool laser_bound;
+        };
         /** Weapon13 combo202 sweep (E2) and strike swords (E3): ext.heavenSword unk90/94 screen
          * centre (16.16), s32 unk84 radius, unk98 swish volume, the strike's velocityY, angle
          * unk7C, the sweep's unk82 timer (the strike's unk80 countdown), unk80 strike count, the
@@ -283,6 +299,8 @@ typedef struct SotnWeaponSecondaryEvents
     Uint8 pink;
     /** Weapon52's spell: BlinkWhite FACTORY(44, blink) from the spell entity; zero when absent. */
     Uint8 blink;
+    /** Weapon27 hit child: its hits cleared the raw parent laser's target (unkA2 reached 6). */
+    bool clear_parent_target;
     /** Weapon24's spell: g_Player.unk20 (the transform lockout) set to this; zero when absent. */
     Uint8 lockout;
     /** Weapon26: one g_Clut word becomes (word & clut_mask) + clut_add, then uploads. */

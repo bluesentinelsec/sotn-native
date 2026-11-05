@@ -39,6 +39,11 @@ lockout, native mist_lockout via SotnPlayer_SetTransformLockout) every callback;
 subtractive TILEs; FACTORY(96) rocks + freeze end + own SetWeaponProperties 0x7F hitbox for three
 callbacks at opening update32; rocks (E9, 1 GT4, 4 rands, least-used group, 0x40 hitbox) read the
 raw spell's step each update (excluded from the generic parent_phase override).
+Medusa (w_027, family27, item13: plain guard; Dark/Medusa hit state6 also attacks). Spell211 (one
+glow row, spell timeline word 0xC8C/0xCB4) requests FACTORY(98)'s two E9 lasers (18 rows, own
+laser_slot/laser_bound from func_80118970, TargetHeading = func_80118B18, SquareRoot0 swing), which
+request FACTORY(100)'s E10 hit points (item0 properties, 6x6, six updates; sixth-hit release
+unreachable). laser_quads overlays spell_quads. Oracle adapts SquareRoot0's COP2 LZC.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,

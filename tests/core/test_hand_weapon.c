@@ -173,8 +173,8 @@ static bool BasicShields(void)
     const Uint16 families[] = {9, 11, 26, 8, 25, 58},
                  tables[] = {0xa40, 0xb94, 0xa60, 0xa40, 0xa60, 0xb84};
     CHECK(SotnHandWeapon_IsShieldFamily(10) && SotnHandWeapon_IsShieldFamily(23) &&
-          SotnHandWeapon_IsShieldFamily(24) && !SotnHandWeapon_IsShieldFamily(27) &&
-          !SotnHandWeapon_IsShieldFamily(255));
+          SotnHandWeapon_IsShieldFamily(24) && SotnHandWeapon_IsShieldFamily(27) &&
+          !SotnHandWeapon_IsShieldFamily(28) && !SotnHandWeapon_IsShieldFamily(255));
     for (Uint16 i = 0; i < SDL_arraysize(families); ++i)
         for (Uint16 hand = 0; hand < 2; ++hand)
         {
@@ -1681,6 +1681,34 @@ static bool DarkGuard(void)
     }
     return true;
 }
+// w_027 (Medusa shield) runs the plain template from its own table at 0xC54.
+static bool MedusaGuard(void)
+{
+    Uint8 o[0x1200] = {0};
+    Resources(o);
+    SDL_memmove(o + 0xc54 - 0x48, o + 0xb84 - 0x48, 0x48 + 14 * 4);
+    SDL_memset(o + 0xb84, 0xff, 14 * 4);
+    SotnHandWeaponInput in = {.overlay = {o, sizeof(o)},
+                              .properties = Properties,
+                              .priority = 148,
+                              .animation = 0x41,
+                              .remaining = 1,
+                              .attack_mode = 0x8002,
+                              .scale_y = 256,
+                              .family = 27,
+                              .hand = 1,
+                              .held = true};
+    SotnHandWeapon w = {.hit_flags = 3};
+    SotnHandWeaponProgram program = {0};
+    Uint32 rng = 9;
+    for (Uint16 tick = 0; tick < 20; ++tick)
+    {
+        SotnHandWeaponEvents e = {0};
+        CHECK(SotnHandWeapon_Tick(&w, &program, in, &rng, &e) && !e.hearts && !e.factory &&
+              !e.guard_blink && w.palette == 0x128 && w.frame);
+    }
+    return true;
+}
 static bool AlucardArmed(void)
 {
     Uint8 o[0x1200] = {0};
@@ -2015,7 +2043,7 @@ int main(void)
                    HolySword() && Lunges() && ShieldRod() && Katana() && Thunderbrand() &&
                    Weapon49() && Weapon50() && Weapon51() && KnifeAndGreatSword() && Ownership() &&
                    IronGuard() && HeraldGuard() && HeraldRuntime() && DarkGuard() &&
-                   AlucardArmed() && AlucardRuntime()
+                   MedusaGuard() && AlucardArmed() && AlucardRuntime()
                ? 0
                : 1;
 }
