@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Weapon func_ptr_80170004 secondaries: weapon/w_008.c, w_009.c, w_058.c, w_030.c, w_034.c,
-// w_038.c, w_039.c, w_055.c and weapon/shared.h, plus dra/7879C.c UpdateAnim, sotn-decomp
+// Weapon func_ptr_80170004 secondaries: weapon/w_008.c, w_009.c, w_011.c, w_058.c, w_030.c,
+// w_034.c, w_038.c, w_039.c, w_055.c and weapon/shared.h, plus dra/7879C.c UpdateAnim, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Descriptor, timeline and artwork tables remain private
 // inputs.
 #include <sotn/combat.h>
@@ -74,7 +74,7 @@ static bool Program(Uint16 family, Layout *out)
     else if (family == 30)
         *out = (Layout){.rows = 11};
     else if (SotnWeaponSecondary_ShieldSpell(family))
-        *out = (Layout){.rows = family == 9 ? 12 : family == 58 ? 2 : 11};
+        *out = (Layout){.rows = family == 9 ? 12 : family == 58 ? 2 : family == 11 ? 10 : 11};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -82,15 +82,15 @@ static bool Program(Uint16 family, Layout *out)
 
 bool SotnWeaponSecondary_ShieldSpell(Uint16 family)
 {
-    return family == 8 || family == 9 || family == 58;
+    return family == 8 || family == 9 || family == 58 || family == 11;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family)
 {
-    return family == 8 ? 203 : family == 9 ? 204 : family == 58 ? 215 : 0;
+    return family == 8 ? 203 : family == 9 ? 204 : family == 58 ? 215 : family == 11 ? 206 : 0;
 }
 Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item)
 {
-    return item == 203 ? 8 : item == 204 ? 9 : item == 215 ? 58 : 0;
+    return item == 203 ? 8 : item == 204 ? 9 : item == 215 ? 58 : item == 206 ? 11 : 0;
 }
 bool SotnWeaponSecondary_Supported(Uint16 family)
 {
@@ -123,6 +123,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     if (family == 12)
         return role <= 2;
     // Shield programs (Leather8/Knight9/Alucart58): role8 is the both-buttons spell.
+    // Axe Lord's spell (role8) also creates its vector9 walker/afterimages (role9).
+    if (family == 11)
+        return role == 8 || role == 9;
     if (SotnWeaponSecondary_ShieldSpell(family))
         return role == 8;
     // Weapon30: role1 Sword of Dawn's circle, role2 its soldiers, role3 arrows/swords, role4
@@ -158,7 +161,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
     if (family == 30)
         return role == 1 ? 11 : role == 2 ? 14 : 0;
     if (SotnWeaponSecondary_ShieldSpell(family))
-        return role == 8 ? (family == 9 ? 12 : family == 58 ? 2 : 11) : 0;
+        return role == 8 ? (family == 9 ? 12 : family == 58 ? 2 : family == 11 ? 10 : 11) : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -3653,6 +3656,432 @@ static bool AlucartSpell(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
     return true;
 }
 
+// w_011 EntityWeaponShieldSpell: Axe Lord shield's both-buttons spell (item206, ten mandatory
+// GT4s). Birth resets the program's sixteen band angles to (i<<9)*2; the shield grows, flashes
+// out with MAGIC_WEAPON_APPEAR_A, eight green/blue bands narrow onto a 16-wide card, then the
+// spell hides, ends the freeze itself and creates the blueprint88 armor walker before fading.
+static bool AxeLordSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                         SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        for (Uint16 i = 0; i < 16; ++i)
+            p->shield_angles[i] = (Sint32)((Uint32)i << 10);
+        p->shield_angles_loaded = true;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 8;
+        s->allocated = true;
+        s->bank = in.hand ? 0x8012 : 0x8010;
+        s->palette = in.hand ? 0x128 : 0x110;
+        s->spell_child_palette = in.hand ? 0x129 : 0x111;
+        s->texture = in.hand ? 0x66 : 0x64;
+        s->spell_v0 = in.hand ? 0 : 0x80;
+        s->spell_v1 = in.hand ? 0x80 : 0;
+        s->y = (Sint32)((Uint32)s->y - 0x80000U);
+        s->flags = 0x04810000U;
+        s->priority = (Uint16)(in.priority - 2U);
+        s->facing_left = in.facing_left;
+        s->frame = 0x3e;
+        s->draw_flags = 3;
+        s->scale_x = s->scale_y = 0;
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        *q = (SotnPlayerEffectQuad){.palette = 0x19f, .page = 0x19};
+        q->u[0] = q->u[2] = 0x80;
+        q->u[1] = q->u[3] = 0x80 + 0x4f;
+        q->v[0] = q->v[1] = s->spell_v0;
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v0 + 0x4f);
+        s->spell_glow = 0;
+        SpellColors(q, 0x80);
+        q->priority = (Uint16)(s->priority - 4U);
+        q->draw_mode = 0x40 | 0x20 | 0x10 | 0x04 | 0x01;
+        q = &s->spell_quads[1];
+        *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
+        q->u[0] = q->u[2] = 0;
+        q->u[1] = q->u[3] = 0x1f;
+        q->v[0] = q->v[1] = (Uint8)(s->spell_v1 + 0x30);
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x6f);
+        SpellColors(q, 0x80);
+        q->priority = 0x1bc;
+        q->draw_mode = 0x08;
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            q = &s->spell_quads[2 + i];
+            *q = s->spell_quads[1 + i];
+            q->v[0] = q->v[1] = (Uint8)(s->spell_v1 + 0x30 + i * 64 / 8);
+            q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x30 + (i + 1) * 64 / 8 - 1);
+            q->palette = 0x15f;
+            q->priority = 0x1be;
+            q->draw_mode |= 0x20 | 0x10 | 0x04 | 0x01;
+        }
+        s->spell_wave_x = 0x120;
+        s->spell_wave_y = 0;
+        s->spell_half_w = 0x10;
+        s->spell_half_h = 0;
+        s->spell_step = 0x40;
+        s->spell_bright = 0x100;
+        s->velocity_x = s->facing_left ? 0x20000 : -0x20000;
+        s->spell_velocity_y = 0;
+        e->clear_shield = true;
+        e->sounds[0] = 0x641;
+        e->freeze_set = true;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->velocity_x = s->velocity_x < 0 ? SDL_min(s->velocity_x + 0x1000, 0)
+                                          : SDL_max(s->velocity_x - 0x1000, 0);
+        s->spell_velocity_y -= 0x2800;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->spell_velocity_y);
+        s->scale_x = Word(s->scale_x + 12);
+        s->scale_y = s->scale_x;
+        s->spell_glow = (Sint16)(s->scale_x * 0x28 / 256);
+        if (s->scale_x >= 0x100)
+        {
+            s->spell_glow = 0x28;
+            s->scale_y = s->scale_x = 0x100;
+            s->spell_timer = 8;
+            s->phase = 2;
+        }
+        break;
+    case 2:
+        if (--s->spell_timer == 0)
+        {
+            s->spell_timer = 0x10;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        s->spell_quads[0].priority = !(s->spell_timer & 1) ? 0x1bc : (Uint16)(s->priority - 2U);
+        s->scale_x = Word(s->scale_x - 0x10);
+        if (s->scale_x <= 0)
+            s->scale_x = 0;
+        s->scale_y = s->scale_x;
+        if (--s->spell_timer == 0)
+        {
+            s->frame = 0;
+            for (Uint16 i = 2; i < 10; ++i)
+                s->spell_quads[i].draw_mode &= 0xfff7U;
+            s->spell_timer = 0x20;
+            e->sounds[0] = 0x669;
+            s->phase = 4;
+        }
+        break;
+    case 4: {
+        s->spell_glow = Word(s->spell_glow + 8);
+        SotnPlayerEffectQuad *q = &s->spell_quads[0];
+        if (q->blue[3] > 8)
+            q->blue[3] = (Uint8)(q->blue[3] - 4);
+        SpellColors(q, q->blue[3]);
+        s->scale_x = Word(s->scale_x + 0x10);
+        if (s->scale_x >= 0x100)
+            s->scale_x = 0x100;
+        s->spell_half_h = (Sint16)(s->scale_x * 32 / 256);
+        s->spell_wave_x = Word(s->spell_wave_x - 12);
+        if (s->spell_wave_x <= 0)
+        {
+            s->spell_wave_x = 0;
+            s->spell_quads[1].draw_mode &= 0xfff7U;
+            s->phase = 5;
+        }
+        break;
+    }
+    case 5:
+        s->spell_bright = Word(s->spell_bright - 0x10);
+        if (s->spell_bright < 0)
+        {
+            s->spell_quads[0].draw_mode |= 8;
+            s->spell_bright = 0;
+            s->spell_quads[1].draw_mode |= 8;
+            // Blueprint88: the shield program's vector9 walker, factory-created with <<14 bits.
+            if (in.free_factories && e->factory_count < SDL_arraysize(e->factories))
+            {
+                e->factories[e->factory_count] = 88U + ((in.hand + 1U) << 14);
+                e->factory_x[e->factory_count] = s->x;
+                e->factory_y[e->factory_count] = s->y;
+                ++e->factory_count;
+            }
+            e->freeze_clear = true;
+            s->phase = 6;
+        }
+        break;
+    case 6:
+        s->spell_bright = Word(s->spell_bright + 8);
+        if (s->spell_bright >= 0x80)
+        {
+            s->spell_timer = 4;
+            s->phase = 7;
+        }
+        break;
+    default:
+        if (--s->spell_timer == 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 x = Word(Pixel(s->x) - in.camera_x), y = Word(Pixel(s->y) - in.camera_y);
+    SotnPlayerEffectQuad *q = &s->spell_quads[0];
+    if (q->blue[3] > 8)
+    {
+        if (in.engine_timer & 1U)
+            q->draw_mode |= 8;
+        else
+            q->draw_mode &= 0xfff7U;
+    }
+    q->x[0] = q->x[2] = Word(x - s->spell_glow);
+    q->x[1] = q->x[3] = Word(x + s->spell_glow - 1);
+    q->y[0] = q->y[1] = Word(y - s->spell_glow);
+    q->y[2] = q->y[3] = Word(y + s->spell_glow - 1);
+    q = &s->spell_quads[1];
+    Sint16 top = q->y[0] = q->y[1] = Word(y - s->spell_half_h);
+    Sint16 bottom = q->y[2] = q->y[3] = Word(y + s->spell_half_h - 1);
+    Sint16 back = 0, front = 0;
+    if (!s->facing_left)
+    {
+        back = q->x[0] = q->x[2] = Word(x - s->spell_half_w);
+        front = q->x[1] = q->x[3] = Word(x + s->spell_half_w - 1);
+    }
+    else
+    {
+        front = q->x[1] = q->x[3] = Word(x - s->spell_half_w);
+        back = q->x[0] = q->x[2] = Word(x + s->spell_half_w - 1);
+    }
+    front = Word(front + 1);
+    bottom = Word(bottom + 1);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        q = &s->spell_quads[2 + i];
+        Sint32 sine[4] = {0};
+        const Uint16 at[4] = {i, (Uint16)((i + 1) % 8), (Uint16)((i + 6) % 8),
+                              (Uint16)((i + 7) % 8)};
+        for (Uint16 k = 0; k < 4; ++k)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, (Sint16)p->shield_angles[at[k]], &t))
+                return false;
+            sine[k] = t.sine;
+        }
+        Sint16 base = (Sint16)(Asr(sine[0], 5) * s->spell_wave_x / 256);
+        q->x[0] = Word(back + base);
+        q->x[1] = Word(front + base - 1);
+        base = (Sint16)(Asr(sine[1], 5) * s->spell_wave_x / 256);
+        q->x[2] = Word(back + base);
+        q->x[3] = Word(front + base - 1);
+        q->y[0] = q->y[1] = Word(top + ((bottom - top) * i) / 8);
+        q->y[2] = q->y[3] = Word(top + ((bottom - top) * (i + 1)) / 8);
+        base = (Sint16)(Asr(sine[2], 5) * s->spell_wave_y / 256);
+        q->y[0] = Word(q->y[0] + base);
+        q->y[2] = Word(q->y[2] + base);
+        base = (Sint16)(Asr(sine[3], 5) * s->spell_wave_y / 256);
+        q->y[1] = Word(q->y[1] + base);
+        q->y[3] = Word(q->y[3] + base);
+        const Uint8 c0 = (Uint8)(((sine[0] + 0x1000) >> 6) * s->spell_bright / 256),
+                    c1 = (Uint8)(((sine[1] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->green[0] = q->blue[0] = q->green[1] = q->blue[1] = c0;
+        q->red[0] = q->red[1] = 0;
+        // The original writes b3 twice; the second (next angle) value remains.
+        q->green[2] = q->blue[2] = q->green[3] = q->blue[3] = c1;
+        q->red[2] = q->red[3] = 0;
+        p->shield_angles[i] = (Sint32)((Uint32)p->shield_angles[i] + (Uint32)s->spell_step);
+    }
+    return true;
+}
+// Blueprint90 (FACTORY(90,1) with <<14 hand bits): one fading afterimage of the walker.
+static void Afterimage(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
+                       SotnWeaponSecondaryEvents *e)
+{
+    if (e->factory_count >= SDL_arraysize(e->factories))
+        return;
+    e->factories[e->factory_count] = (90U + ((in.hand + 1U) << 14)) | 1U << 16;
+    e->factory_x[e->factory_count] = s->x;
+    e->factory_y[e->factory_count] = s->y;
+    ++e->factory_count;
+}
+// w_011 func_ptr_80170024 (vector9): blueprint88's armor walker (params0) and blueprint90's
+// fading afterimages (params1). Both retire when their raw parent slot has emptied at birth and
+// copy its sprite bank, texture, palette and facing. The walker rolls SetWeaponProperties for the
+// parent's item, falls and walks (CheckCollision probes, slope speed1.25, STOMP_SOFT_A every ten
+// updates, an afterimage every fourth g_Timer/own count) and on a wall or hit plays CANDLE_HIT,
+// its final animation and leaves one last afterimage; afterimages fade by two for0x18 updates.
+static bool AxeLordWalker(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                          SotnWeaponSecondaryEvents *e)
+{
+    SotnCollider c = {0};
+    bool other = false;
+    switch (s->phase)
+    {
+    case 0:
+        if (!in.parent_exists)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 9;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->texture = in.parent_texture;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->palette = in.parent_child_palette;
+        s->facing_left = in.parent_facing_left;
+        if (s->parameter & 0x7f00U)
+        {
+            s->flags = 0x08000000U;
+            s->frame = in.parent_frame;
+            s->draw_flags = 8;
+            s->blend = 0x10;
+            s->opacity = 0x80;
+            s->remaining = 0x18;
+            s->priority = (Uint16)(s->priority - 2U);
+            s->phase = 4;
+        }
+        else
+        {
+            s->timeline = 0xbcc;
+            s->pose = 0;
+            s->remaining = 0;
+            s->flags = 0x08100000U;
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->hitbox_width = 8;
+            s->hitbox_height = 20;
+            s->velocity_x = s->facing_left ? -0x10000 : 0x10000;
+            s->phase = 1;
+        }
+        break;
+    case 1: {
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->dawn_velocity_y);
+        s->dawn_velocity_y += 0x2000;
+        if (s->dawn_velocity_y > 0x60000)
+            s->dawn_velocity_y = 0x60000;
+        const Sint16 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y);
+        const Sint16 side = s->velocity_x < 0 ? -8 : 8;
+        if (!Query(in, sx, Word(sy + 25), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            s->y = (Sint32)((Uint32)s->y + (Uint32)c.top * 65536U);
+            e->sounds[0] = 0x64b;
+            s->phase = 2;
+            break;
+        }
+        if (!(c.effects & 0x8000U))
+        {
+            if (!Query(in, Word(sx + side), Word(sy + 22), &c))
+                return false;
+            if ((c.effects & SOTN_EFFECT_SOLID) && !(c.effects & 0x8000U))
+            {
+                other = true;
+                break;
+            }
+            if (!Query(in, Word(sx + side), Word(sy + 8), &c))
+                return false;
+            if ((c.effects & SOTN_EFFECT_SOLID) && !(c.effects & 0x8000U))
+            {
+                other = true;
+                break;
+            }
+        }
+        if (!Query(in, Word(sx + side), Word(sy - 8), &c))
+            return false;
+        if ((c.effects & SOTN_EFFECT_SOLID) || s->hit_flags)
+        {
+            other = true;
+            break;
+        }
+        if (!(in.engine_timer % 4U) && in.free_factories)
+            Afterimage(s, in, e);
+        break;
+    }
+    case 2: {
+        s->velocity_x = s->facing_left ? -0x28000 : 0x28000;
+        if (!(s->dawn_count % 10))
+            e->sounds[0] = 0x64b;
+        Sint16 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y);
+        const Sint16 side = s->velocity_x < 0 ? -8 : 8;
+        if (!Query(in, sx, Word(sy + 25), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+            s->y = (Sint32)((Uint32)s->y + (Uint32)c.top * 65536U);
+        else
+        {
+            s->phase = 1;
+            s->dawn_velocity_y = 0;
+        }
+        sy = Word(Pixel(s->y) - in.camera_y);
+        if (!(c.effects & 0x8000U))
+        {
+            if (!Query(in, Word(sx + side), Word(sy + 22), &c))
+                return false;
+            if ((c.effects & SOTN_EFFECT_SOLID) && !(c.effects & 0x8000U))
+            {
+                other = true;
+                break;
+            }
+            if (!Query(in, Word(sx + side), Word(sy + 8), &c))
+                return false;
+            if ((c.effects & SOTN_EFFECT_SOLID) && !(c.effects & 0x8000U))
+            {
+                other = true;
+                break;
+            }
+        }
+        if ((((c.effects & 0xc000U) == 0xc000U) && s->facing_left) ||
+            (((c.effects & 0xc000U) == 0x8000U) && !s->facing_left))
+        {
+            if (!(c.effects & (SOTN_EFFECT_SOLID_FROM_ABOVE | SOTN_EFFECT_SOLID_FROM_BELOW)))
+                s->velocity_x = s->facing_left ? -0x14000 : 0x14000;
+            // The original's 0x100/0x200 speed tests never match the 0x40/0x80 mask.
+        }
+        if (!Query(in, Word(sx + side), Word(sy - 8), &c))
+            return false;
+        if (!(c.effects & SOTN_EFFECT_SOLID) && !s->hit_flags)
+        {
+            if (!(s->dawn_count % 4) && in.free_factories)
+                Afterimage(s, in, e);
+            s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        }
+        else
+            other = true;
+        break;
+    }
+    case 3:
+        if (s->remaining < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    default:
+        s->opacity = (Uint8)(s->opacity - 2);
+        if (--s->remaining < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    if (other)
+    {
+        e->sounds[1] = 0x634;
+        s->phase = 3;
+        s->timeline = 0xbe8;
+        s->remaining = 0;
+        s->pose = 0;
+        if (in.free_factories)
+            Afterimage(s, in, e);
+    }
+    s->dawn_count = Word(s->dawn_count + 1);
+    return true;
+}
+
 // w_034 func_ptr_80170004: Shotel's QCF176 boomerang (blueprint56, own item). It spins by
 // ROT(45) every update, flies out decelerating for 0x1C updates, then homes on the player's
 // hitbox with a turn limit growing by 0x10 from 0x200 and retires inside half the summed
@@ -3756,7 +4185,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                               SotnWeaponSecondaryEvents *events)
 {
     Layout layout = {0};
-    if (!state || !program || !random || !events || in.hand > 1 || in.role > 8 ||
+    if (!state || !program || !random || !events || in.hand > 1 || in.role > 9 ||
         !Program(in.family, &layout) ||
         !SotnWeaponSecondary_SupportedRole(
             in.family,
@@ -3770,6 +4199,8 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 30 && in.role == 2                      ? 8
                         : in.family == 30 && in.role >= 3                      ? 4
                         : in.family == 58                                      ? 6
+                        : in.family == 11 && in.role == 9                      ? 4
+                        : in.family == 11                                      ? 7
                         : in.family == 8 || in.family == 9                     ? 7
                                                                                : 1) ||
         state->remaining < -1)
@@ -3823,6 +4254,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         if (!(in.role == 0   ? Vorpal(&s, &shared, in, &rng, &e)
               : in.role == 1 ? Chakram(&s, in, &rng, &e)
                              : HeavenImage(&s, in)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 11)
+    {
+        if (!(in.role == 9 ? AxeLordWalker(&s, in, &rng, &e) : AxeLordSpell(&s, &shared, in, &e)))
             return false;
         goto commit;
     }
@@ -3976,19 +4413,24 @@ commit:
 bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overlay, Uint16 family)
 {
     Layout layout = {0};
-    if (state && (family == 49 || family == 30))
+    if (state && (family == 49 || family == 30 || family == 11))
         layout = (Layout){0};
     else if (!Program(family, &layout))
         return SDL_SetError("Weapon secondary animation requires its actual private timeline");
     // Weapon49 children choose their private timeline at birth (sparks9, puffs/pillar14 words).
     if (state && family == 49)
         layout = (Layout){.timeline = state->timeline, .timeline_count = state->role == 1 ? 9 : 14};
+    // Weapon11's walker: D_8017ABCC (seven, looping) or its final D_8017ABE8 (three).
+    if (state && family == 11 && state->role == 9)
+        layout = (Layout){.timeline = state->timeline,
+                          .timeline_count = state->timeline == 0xbe8 ? 3 : 7};
     // Weapon30's bombs: D_8017A514 (thirteen frames) or the roller's D_8017A548 (three).
     if (state && family == 30 && state->role == 4)
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0x548 ? 3 : 13};
     if (!state ||
-        (family != 55 && family != 1 && ((family != 49 && family != 30) || !layout.timeline)) ||
+        (family != 55 && family != 1 &&
+         ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||
         overlay.size < layout.timeline + layout.timeline_count * 4U)

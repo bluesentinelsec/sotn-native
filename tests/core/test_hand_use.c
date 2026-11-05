@@ -173,6 +173,14 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     f->dra[0x500 + 203 * 52 + 22] = 1;
     Put16(f->dra + 0x500 + 203 * 52 + 36, 10);
     TestCharacter_Put32(f->dra + 0x500 + 203 * 52 + 0x1c, 2);
+    // Axe Lord shield8 (sub0x10) casts spell206 (category1) for twenty MP.
+    Item(f->dra, 8, 9, 11, 128, 0x63, 0, 0, 0);
+    TestCharacter_Put32(f->dra + 0x500 + 8 * 52 + 0x1c, 0x10);
+    Item(f->dra, 206, 1, 11, 5, 0xba, 0, 0, 0);
+    f->dra[0x500 + 206 * 52 + 19] = 86;
+    f->dra[0x500 + 206 * 52 + 22] = 1;
+    Put16(f->dra + 0x500 + 206 * 52 + 36, 20);
+    TestCharacter_Put32(f->dra + 0x500 + 206 * 52 + 0x1c, 0x10);
     Item(f->dra, 17, 5, 30, 6, 0x68, 0, 13, 0);
     f->dra[0x500 + 17 * 52 + 24] = 177; // QCF specialMove
     Item(f->dra, 177, 1, 30, 5, 0xb8, 0, 0, 0);
@@ -712,17 +720,17 @@ static bool Runesword(Fixture *f, Uint16 item)
 // 6E42C.c both buttons: Mablung124 + Leather5 resolve CheckWeaponCombo to spell203 on the
 // shield's hand; the spell's factory takes <<14 hand bits, ten MP and kind5's grounded stop.
 // A live spell (chain1) or too little MP leaves the left hand's ordinary swing.
-static bool Combo(Fixture *f)
+static bool Combo(Fixture *f, Uint16 shield, Uint16 spell, Uint16 cost)
 {
     for (Uint16 k = 0; k < 4; ++k)
     {
-        const Uint16 left = k == 3 ? 5 : 124, right = k == 3 ? 124 : 5;
+        const Uint16 left = k == 3 ? shield : 124, right = k == 3 ? 124 : shield;
         CHECK(Create(f, left, 1, 2, true));
         CHECK(SotnCharacter_Collect(f->character, false, right) &&
               SotnCharacter_Equip(f->character, SOTN_EQUIP_RIGHT, right) &&
               SotnPlayer_SetEquipment(f->p, (SotnDataView){f->weapons, sizeof(f->weapons)}, left,
                                       right));
-        CHECK(SotnPlayer_Combo(f->p) == (k == 3 ? 0xcbU : 0x800000cbU));
+        CHECK(SotnPlayer_Combo(f->p) == (k == 3 ? spell : 0x80000000U | spell));
         for (Uint16 i = 0; i < 8; ++i)
             CHECK(Tick(f, 0));
         CHECK(SotnPlayer_SetComboChain(f->p, k == 1));
@@ -730,23 +738,24 @@ static bool Combo(Fixture *f)
         {
             SotnCharacterState progress = {0};
             CHECK(SotnCharacter_Get(f->character, &progress, NULL));
-            progress.mp = 9;
+            progress.mp = (Uint16)(cost - 1U);
             CHECK(SotnCharacter_Restore(f->character, &progress));
-            f->p->mp = 9;
+            f->p->mp = (Uint16)(cost - 1U);
         }
         const Uint16 mp = f->p->mp;
         CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND));
         if (k == 0 || k == 3)
-            CHECK(f->item == 203 && f->packed == (k == 3 ? 0x4056U : 0x808056U) &&
-                  f->p->mp == mp - 10 && f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
+            CHECK(f->item == spell && f->packed == (k == 3 ? 0x4056U : 0x808056U) &&
+                  f->p->mp == mp - cost && f->p->substep == 0x45 && f->p->attack_mode == 0x8006 &&
                   f->p->animation.id == 0xba);
         else
             CHECK(f->item == 124 && f->packed == 0x31030U && f->p->mp == mp &&
                   f->p->attack_mode == 0x8002);
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
-    // Leather203 and Knight204 have native spells; Goddess209 not yet.
+    // Leather203, Knight204, AxeLord206 and Alucart215 have native spells; Goddess209 not yet.
     CHECK(SotnPlayer_ComboSupported(203) && SotnPlayer_ComboSupported(204) &&
+          SotnPlayer_ComboSupported(206) && SotnPlayer_ComboSupported(215) &&
           !SotnPlayer_ComboSupported(209));
     return true;
 }
@@ -913,7 +922,7 @@ int main(void)
          Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) && Runesword(f, 119) &&
          Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
          Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
-         Combo(f);
+         Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

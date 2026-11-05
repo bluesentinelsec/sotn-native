@@ -4114,6 +4114,418 @@ static bool AlucartSpellTest(Uint16 hand)
     return true;
 }
 
+// w_011 EntityWeaponShieldSpell: Axe Lord's ten rows. Birth resets the program's band angles to
+// (i<<9)*2; the image grows, holds, flashes out with MAGIC_WEAPON_APPEAR_A, eight green bands
+// narrow, then the spell hides, ends the freeze and creates the blueprint88 walker on the same
+// update before its four-update tail.
+static bool AxeLordSpellTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    SotnHandWeaponProgram program = {0};
+    for (Uint16 i = 0; i < 16; ++i)
+        program.shield_angles[i] = 0x7777;
+    SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15), .x = 128 * 65536, .y = 120 * 65536};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .hand = hand,
+                                   .family = 11,
+                                   .role = 8,
+                                   .priority = 148,
+                                   .facing_left = hand != 0,
+                                   .allocated = true,
+                                   .free_factories = 4};
+    Uint32 rng = 5;
+    SotnWeaponSecondaryEvents e = {0};
+    {
+        SotnWeaponSecondary cold = {0};
+        SotnWeaponSecondaryInput none = in;
+        none.allocated = false;
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, none, &rng, &e) && cold.removed &&
+              !e.freeze_set && !e.sounds[0] && program.shield_angles[15] == 15 << 10);
+    }
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && s.phase == 1 &&
+          e.clear_shield && e.sounds[0] == 0x641 && e.freeze_set && !e.factory_count &&
+          s.bank == (hand ? 0x8012 : 0x8010) && s.palette == (hand ? 0x128 : 0x110) &&
+          s.frame == 0x3e && Pixel(s.y) == 112 && s.flags == 0x04810000U && s.priority == 146 &&
+          s.velocity_x == (hand ? 0x20000 : -0x20000) && s.spell_quads[0].palette == 0x19f &&
+          s.spell_quads[0].draw_mode == 0x75 && s.spell_quads[0].v[0] == (hand ? 0 : 0x80) &&
+          s.spell_quads[1].palette == (hand ? 0x129 : 0x111) && s.spell_quads[1].draw_mode == 8 &&
+          s.spell_quads[1].v[0] == (hand ? 0xb0 : 0x30) &&
+          s.spell_quads[9].v[0] == (Uint8)((hand ? 0xb0 : 0x30) + 56) &&
+          s.spell_quads[9].v[2] == (Uint8)((hand ? 0xb0 : 0x30) + 63) &&
+          s.spell_quads[9].palette == 0x15f && s.spell_quads[9].priority == 0x1be &&
+          s.spell_quads[9].draw_mode == 0x3d && program.shield_angles[0] == 0x40 &&
+          program.shield_angles[7] == (7 << 10) + 0x40 && program.shield_angles[8] == 8 << 10 &&
+          SotnWeaponSecondary_RoleRows(11, 8) == 10 && SotnWeaponSecondary_Rows(11) == 10 &&
+          SotnWeaponSecondary_ShieldSpellItem(11) == 206 &&
+          SotnWeaponSecondary_ShieldSpellFamily(206) == 11 &&
+          SotnWeaponSecondary_SupportedRole(11, 9) && !SotnWeaponSecondary_RoleRows(11, 9));
+    Uint16 t = 0, counts[8] = {0}, appear = 0, walkers = 0;
+    for (; !s.removed && t < 400; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && !e.pink);
+        ++counts[phase];
+        if (e.sounds[0] == 0x669)
+        {
+            CHECK(phase == 3 && !s.frame && !(s.spell_quads[2].draw_mode & 8U) &&
+                  !(s.spell_quads[9].draw_mode & 8U) && (s.spell_quads[1].draw_mode & 8U));
+            ++appear;
+        }
+        // Eight bands slice the 64-row card evenly (wave_y stays zero).
+        if (phase == 4 && s.phase == 5)
+            CHECK(!s.spell_wave_x && !(s.spell_quads[1].draw_mode & 8U) && s.spell_half_h == 32 &&
+                  s.spell_quads[1].y[2] - s.spell_quads[1].y[0] == 63 &&
+                  s.spell_quads[5].y[0] - s.spell_quads[2].y[0] == 24 &&
+                  s.spell_quads[9].y[2] - s.spell_quads[1].y[0] == 64 && !s.spell_wave_y);
+        if (phase >= 4 && phase < 7)
+            CHECK(!s.spell_quads[4].red[0] &&
+                  s.spell_quads[4].green[0] == s.spell_quads[4].blue[0]);
+        if (e.factory_count)
+        {
+            CHECK(phase == 5 && s.phase == 6 && e.freeze_clear && e.factory_count == 1 &&
+                  e.factories[0] == 88U + ((hand + 1U) << 14) && e.factory_x[0] == s.x &&
+                  e.factory_y[0] == s.y &&
+                  // The flash glow still flickers with g_Timer (its blue3 stays above eight).
+                  ((s.spell_quads[0].draw_mode & 8U) != 0) == ((t & 1U) != 0) &&
+                  (s.spell_quads[1].draw_mode & 8U) && !s.spell_bright);
+            ++walkers;
+        }
+        else
+            CHECK(!e.freeze_clear);
+    }
+    // Growth22, hold8, flash16, narrowing24, darkening17, brightening16, tail4.
+    CHECK(s.removed && appear == 1 && walkers == 1 && counts[1] == 22 && counts[2] == 8 &&
+          counts[3] == 16 && counts[4] == 24 && counts[5] == 17 && counts[6] == 16 &&
+          counts[7] == 4);
+    return true;
+}
+
+static Uint8 axe_tiles[64 * 16 * 2], axe_types[2] = {0, 3};
+// A floor at world y1000 (a fall long enough to reach the 6.0 velocity cap).
+static bool DeepFloor(void *context, Sint32 x, Sint32 y, SotnCollider *out)
+{
+    (void)context;
+    (void)x;
+    *out = (SotnCollider){0};
+    if (y >= 1000)
+    {
+        out->effects = SOTN_EFFECT_SOLID;
+        out->top = 1000 - y;
+    }
+    return true;
+}
+static bool AxeAnimation(Uint8 *o)
+{
+    // D_8017ABCC loops its seven frames; D_8017ABE8 ends after two.
+    for (Uint16 i = 0; i < 6; ++i)
+        Put32(o + 0xbcc + i * 4U, 3U | (Uint32)(i + 1U) << 16);
+    Put32(o + 0xbcc + 24, 0);
+    Put32(o + 0xbe8, 2U | 9U << 16);
+    Put32(o + 0xbec, 2U | 10U << 16);
+    Put32(o + 0xbf0, 0xffffU);
+    return true;
+}
+// w_011 func_ptr_80170024: the walker (params0) copies its raw parent's bank/texture/palette/
+// facing, rolls properties, falls to the floor (STOMP_SOFT_A), walks 2.5 px per update with a
+// stomp every ten and an afterimage every four counts, and on a wall plays CANDLE_HIT, its final
+// animation and one last afterimage. Afterimages (params1) fade by two for0x18 updates.
+static bool AxeLordWalkerTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    AxeAnimation(o);
+    for (Uint16 y = 0; y < 16; ++y)
+        for (Uint16 x = 0; x < 64; ++x)
+            axe_tiles[(y * 64U + x) * 2] = (Uint8)(y >= 10 || x == 4 || x == 40);
+    const Uint16 hit = 1;
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondaryInput in = {
+        .overlay = {o, sizeof(o)},
+        .executable = {exe, sizeof(exe)},
+        .hand = hand,
+        .family = 11,
+        .role = 9,
+        .priority = 148,
+        .context = (void *)&hit,
+        .properties = Properties,
+        .collision = {{axe_tiles, sizeof(axe_tiles)}, {axe_types, 2}, 64, 16},
+        .free_factories = 4,
+        .parent_bank = (Uint16)(hand ? 0x8012 : 0x8010),
+        .parent_texture = (Uint16)(hand ? 0x66 : 0x64),
+        .parent_child_palette = (Uint16)(hand ? 0x128 : 0x110),
+        .parent_frame = 0x22,
+        .parent_facing_left = hand != 0};
+    Uint32 rng = 9, check = 9;
+    SotnWeaponSecondaryEvents e = {0};
+    {
+        SotnWeaponSecondary orphan = {.parameter = (Uint16)(hand << 15)};
+        CHECK(SotnWeaponSecondary_Tick(&orphan, &program, in, &rng, &e) && orphan.removed &&
+              rng == check && !e.properties);
+    }
+    in.parent_exists = true;
+    SotnWeaponSecondary s = {
+        .parameter = (Uint16)(hand << 15), .x = 300 * 65536 + 0x55, .y = 100 * 65536};
+    (void)SotnCombat_Random(&check);
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check && s.phase == 1 &&
+          e.properties && s.bank == in.parent_bank && s.texture == in.parent_texture &&
+          s.palette == in.parent_child_palette && s.facing_left == (hand != 0) &&
+          s.priority == 150 && s.flags == 0x08100000U && s.timeline == 0xbcc &&
+          s.hitbox_width == 8 && s.hitbox_height == 20 && s.hitbox_state == 1 &&
+          s.velocity_x == (hand ? -0x10000 : 0x10000) && !e.factory_count);
+    Uint16 t = 0, stomps = 0, images = 0, landed = 0;
+    // Walking afterimages are created before the step (walking moves after the wall probe).
+    for (; s.phase != 3 && t < 400; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        const Sint16 count = s.dawn_count;
+        const Sint32 x0 = s.x;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              SotnWeaponSecondary_Animate(&s, in.overlay, 11));
+        stomps += e.sounds[0] == 0x64b;
+        if (phase == 1 && s.phase == 2)
+        {
+            CHECK(Pixel(s.y) == 135 && e.sounds[0] == 0x64b && !landed);
+            ++landed;
+        }
+        if (phase == 2 && s.phase == 2)
+            CHECK(s.velocity_x == (hand ? -0x28000 : 0x28000) &&
+                  (e.sounds[0] == 0x64b) == !(count % 10) &&
+                  e.factory_count == (count % 4 ? 0 : 1));
+        // Falling afterimages follow g_Timer; landing breaks before them.
+        if (phase == 1 && s.phase == 1)
+            CHECK(e.factory_count == (t % 4 ? 0 : 1));
+        for (Uint8 f = 0; f < e.factory_count; ++f)
+            CHECK(e.factories[f] == ((90U + ((hand + 1U) << 14)) | 1U << 16) &&
+                  e.factory_x[f] == (phase == 2 ? x0 : s.x) && ++images);
+    }
+    // The wall column (x64..79 or x640..655) stops it eight pixels before.
+    CHECK(s.phase == 3 && e.sounds[1] == 0x634 && s.timeline == 0xbe8 && !s.pose &&
+          e.factory_count && landed == 1 && stomps > 4 && images > 20 &&
+          (hand ? Pixel(s.x) - 8 <= 80 && Pixel(s.x) - 8 > 77
+                : Pixel(s.x) + 8 >= 640 && Pixel(s.x) + 8 < 643));
+    for (t = 0; !s.removed && t < 20; ++t)
+    {
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.sounds[0] &&
+              !e.factory_count && (s.removed || SotnWeaponSecondary_Animate(&s, in.overlay, 11)));
+    }
+    // Animation births2, then2, then the end marker; retirement follows the next callback.
+    CHECK(s.removed && t == 5);
+    // A hit also stops it (CANDLE_HIT, final animation, one last afterimage).
+    {
+        SotnWeaponSecondary w = {.parameter = 0, .x = 300 * 65536, .y = 135 * 65536};
+        in.parent_facing_left = false;
+        CHECK(SotnWeaponSecondary_Tick(&w, &program, in, &rng, &e));
+        CHECK(SotnWeaponSecondary_Tick(&w, &program, in, &rng, &e) && w.phase == 2);
+        w.hit_flags = 1;
+        e = (SotnWeaponSecondaryEvents){0};
+        const Sint32 x = w.x;
+        CHECK(SotnWeaponSecondary_Tick(&w, &program, in, &rng, &e) && w.phase == 3 && w.x == x &&
+              e.sounds[1] == 0x634 && e.factory_count == 1);
+    }
+    // A long fall: gravity 1/8 per update up to the 6.0 cap; a hit while falling also stops it.
+    {
+        SotnWeaponSecondaryInput deep = in;
+        deep.collision = (SotnCollisionMap){0};
+        deep.query = DeepFloor;
+        SotnWeaponSecondary w = {.parameter = 0, .x = 300 * 65536, .y = 20 * 65536};
+        CHECK(SotnWeaponSecondary_Tick(&w, &program, deep, &rng, &e));
+        for (Sint32 k = 1; w.phase == 1 && k < 200; ++k)
+        {
+            CHECK(SotnWeaponSecondary_Tick(&w, &program, deep, &rng, &e));
+            CHECK(w.phase != 1 || w.dawn_velocity_y == SDL_min(0x2000 * k, 0x60000));
+        }
+        CHECK(w.phase == 2 && Pixel(w.y) == 1000 - 25);
+        SotnWeaponSecondary h = {.parameter = 0, .x = 300 * 65536, .y = 20 * 65536};
+        CHECK(SotnWeaponSecondary_Tick(&h, &program, deep, &rng, &e) && h.phase == 1);
+        h.hit_flags = 1;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&h, &program, deep, &rng, &e) && h.phase == 3 &&
+              e.sounds[1] == 0x634 && e.factory_count == 1);
+    }
+    // Afterimage: the raw parent's frame, transparent, fading by two until poseTimer passes zero.
+    SotnWeaponSecondary a = {.parameter = (Uint16)((hand << 15) | 0x100), .x = 200 * 65536};
+    check = rng;
+    CHECK(SotnWeaponSecondary_Tick(&a, &program, in, &rng, &e) && rng == check && a.phase == 4 &&
+          a.frame == 0x22 && a.flags == 0x08000000U && a.draw_flags == 8 && a.blend == 0x10 &&
+          a.opacity == 0x80 && a.remaining == 0x18 && a.priority == 148 && !a.hitbox_state);
+    for (t = 0; !a.removed && t < 40; ++t)
+    {
+        CHECK(SotnWeaponSecondary_Tick(&a, &program, in, &rng, &e));
+        CHECK(a.removed || a.opacity == 0x80 - 2 * (t + 1));
+    }
+    CHECK(a.removed && t == 25);
+    return true;
+}
+
+// Runtime: Mablung/Axe Lord's blueprint86 E8/F8 spell (ten rows) creates, at its release, the
+// blueprint88 E9/F9 walker in17..31 (the spell's item, func_80118894's least-used group, no
+// parent copy, params without the hand bit); its blueprint90 afterimages (32..63) take no
+// property roll and keep equipId0.
+static bool AxeLordRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    AxeAnimation(weapons + 11U * 0x7000U + 0x4000U);
+    for (Uint16 y = 0; y < 16; ++y)
+        for (Uint16 x = 0; x < 64; ++x)
+            axe_tiles[(y * 64U + x) * 2] = (Uint8)(y >= 10 || x == 40);
+    FamilyDefinition(dra, 8, 9, 11, 128, 0, 0, 0);
+    FamilyDefinition(dra, 206, 1, 11, 5, 0, 20, 0);
+    // The other hand's Shotel (QCF176 boomerangs, blueprint56 in17..31) later takes the
+    // retired walker's slot while its afterimages still fade.
+    FamilyDefinition(dra, 28, 0, 34, 12, 0, 0, 176);
+    FamilyDefinition(dra, 176, 1, 34, 129, 0, 0, 0);
+    dra[0x500 + 176 * 52 + 18] = 0x5d;
+    dra[0x500 + 176 * 52 + 19] = 56;
+    dra[0x500 + 176 * 52 + 21] = 0;
+    dra[0x500 + 176 * 52 + 22] = 1;
+    const Uint8 boomerang[6] = {1, 1, 0xc1, 0, 0x06, 0};
+    SDL_memcpy(dra + 0xd1d4 + 56U * 6U, boomerang, 6);
+    Uint8 *record = dra + 0x500 + 206 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[3][6] = {
+        {8, 1, 0xc1, 0, 6, 0}, {9, 1, 0xc1, 0, 6, 0}, {9, 1, 0xc1, 0, 0, 0}};
+    for (Uint16 b = 0; b < 3; ++b)
+        SDL_memcpy(dra + 0xd1d4 + (86U + b * 2U) * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    // Freeze1's BlinkWhite0x47/0x40 (blueprint44) use authored profiles.
+    const Uint8 blink[6] = {11, 1, 0x81, 0, 0, 0};
+    SDL_memcpy(dra + 0xd1d4 + 44U * 6U, blink, 6);
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = {exe, sizeof(exe)},
+        .weapons = {weapons, 56U * 0x7000},
+        .weapon_family = {hand ? 34 : 11, hand ? 11 : 34},
+        .weapon_bound = {true, true},
+        .food_collision = {{axe_tiles, sizeof(axe_tiles)}, {axe_types, 2}, 64, 16},
+        .player = {.hp = 70,
+                   .hp_max = 70,
+                   .x = 200 * 65536,
+                   .y = 135 * 65536,
+                   .priority = 148,
+                   .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 206,
+                                     &allocated) &&
+          allocated);
+    Uint16 spell = 0, walker = 0, images = 0, image_slot = 0, freezes = 0, walker_slot = 0,
+           foreign = 0;
+    bool thrown = false;
+    Uint16 shifted = 0;
+    for (Uint16 t = 0; t < 600; ++t)
+    {
+        in.engine_timer = t;
+        // After its freeze the spell keeps its screen position while the camera moves.
+        Uint16 spell_slot = 0;
+        for (Uint16 i = 1; i < 16; ++i)
+            if (r->children[i].weapon_secondary && (r->children[i].kind & 15U) == 8 &&
+                r->children[i].state.secondary.motion.phase == 6)
+                spell_slot = i;
+        const Sint32 before = spell_slot ? r->children[spell_slot].state.secondary.motion.x : 0;
+        in.screen_shift_x = (Sint16)(spell_slot ? -3 : 0);
+        if (walker && !thrown && !r->children[walker_slot].kind)
+        {
+            const Uint16 other = (Uint16)!hand;
+            const Uint32 packed = 56U | (other + 1U) << 12 | (other ? 0x80U << 16 : 0U);
+            for (Uint16 k = 0; k < 2; ++k)
+                CHECK(SotnBatRuntime_RequestThrown(r, source, packed, 176, &allocated) &&
+                      allocated);
+            thrown = true;
+        }
+        // Afterimages read their raw parent only at birth: a foreign occupant is no error.
+        foreign += thrown && r->children[walker_slot].weapon_secondary &&
+                   r->children[walker_slot].state.secondary.family == 34 && images &&
+                   r->children[image_slot].kind;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        freezes += r->freeze_changed;
+        if (spell_slot && r->children[spell_slot].state.secondary.motion.phase == 6)
+        {
+            CHECK(r->children[spell_slot].state.secondary.motion.x == before + 3 * 65536);
+            ++shifted;
+        }
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 11 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            // Afterimages keep the factory's equipId0 (CheckChainLimit never counts them).
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) &&
+                  c->state.secondary.item ==
+                      ((c->kind & 15U) == 9 && (c->parameter & 0x7f00U) ? 0 : 206));
+            if ((c->kind & 15U) == 8)
+            {
+                CHECK(i <= 15 && c->kind == (hand ? 0xf8 : 0xe8) && c->primitive_count == 10 &&
+                      c->state.secondary.own_item && !w->properties.id);
+                ++spell;
+            }
+            else if (!(c->parameter & 0x7f00U))
+            {
+                CHECK(i <= 15 && c->kind == (hand ? 0xf9 : 0xe9) && !c->primitive_count &&
+                      !c->parameter && !c->state.secondary.own_item && c->group >= 3 &&
+                      c->group <= 6 && w->properties.id == 206 && w->hitbox_width == 8 &&
+                      c->state.secondary.attack.active && w->facing_left == (hand == 0) &&
+                      w->palette == (hand ? 0x128 : 0x110) && w->bank == (hand ? 0x8012 : 0x8010));
+                ++walker;
+                walker_slot = i;
+            }
+            else
+            {
+                CHECK(i >= 16 && c->kind == (hand ? 0xf9 : 0xe9) && c->parameter == 0x100 &&
+                      !w->properties.id && !c->state.secondary.attack.active && w->draw_flags == 8);
+                ++images;
+                image_slot = i;
+            }
+        }
+    }
+    // The walker crosses to the wall column and retires after its final animation.
+    CHECK(spell > 100 && walker > 20 && images > walker && image_slot && freezes >= 2 &&
+          foreign > 0 && shifted > 10);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -4127,7 +4539,9 @@ int main(void)
                    DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
-                   AlucartSpellTest(1)
+                   AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&
+                   AxeLordWalkerTest(0) && AxeLordWalkerTest(1) && AxeLordRuntime(0) &&
+                   AxeLordRuntime(1)
                ? 0
                : 1;
 }

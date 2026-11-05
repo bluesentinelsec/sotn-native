@@ -152,7 +152,9 @@ typedef struct SotnWeaponSecondaryInput
     Sint32 camera_x, camera_y; /**< Actual camera; rows are screen-space. */
     Sint16 scale_y, pivot_y;
     Uint16 hand, family, priority, animation, attack_mode;
-    Uint16 role; /**< Child callback: 1 func_ptr_80170004 (E1/F1), 2 func_ptr_80170008 (E2/F2). */
+    /** Child callback: 1 func_ptr_80170004 (E1/F1), 2 func_ptr_80170008 (E2/F2), ..., 8 the
+     * shield spell (E8/F8), 9 weapon11's walker/afterimages (E9/F9). */
+    Uint16 role;
     Uint16 substep; /**< Actual player step_s; weapon38/39 retire outside0x5A. */
     Uint8 draw_flags;
     bool facing_left;
@@ -174,7 +176,8 @@ typedef struct SotnWeaponSecondaryInput
     Sint32 parent_x, parent_y;
     Sint16 parent_rotate;
     Uint8 parent_draw_flags;
-    /** Weapon13 afterimages copy the raw parent's frame, animSet, unk5A and childPalette. */
+    /** Weapon13 afterimages copy the raw parent's frame, animSet, unk5A and childPalette;
+     * weapon11's walker/afterimages read its palette here at birth. */
     Uint16 parent_frame, parent_bank, parent_texture, parent_child_palette;
     Uint32 game_timer;     /**< Actual wrapping g_GameTimer (weapon13/12 schedules). */
     Uint16 player_substep; /**< PLAYER.step_s (weapon12 slashes drop while crouched). */
@@ -242,8 +245,8 @@ bool SotnWeaponSecondary_ShieldSpell(Uint16 family);
 Uint16 SotnWeaponSecondary_ShieldSpellItem(Uint16 family);
 /** @brief The shield program of a native combo spell item, or zero. */
 Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item);
-/** @brief Whether a resident program owns the given child callback role (0..5; role0 is only
- * weapon14's factory-born thrown EntityWeaponAttack). */
+/** @brief Whether a resident program owns the given child callback role (0..5, shield spells'
+ * 8 and weapon11's 9; role0 is only weapon14's factory-born thrown EntityWeaponAttack). */
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one role's child; zero if unsupported. */
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);

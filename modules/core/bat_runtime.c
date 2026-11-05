@@ -1030,8 +1030,14 @@ bool SotnBatRuntime_HandValid(const SotnBatRuntimeChild *c, Uint16 index)
 static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
 {
     const Uint32 bp = request & 0xfffU, param = request >> 16;
-    if (!SotnWeaponSecondary_Supported(family) || (request & 0xf000U) != ((Uint32)hand + 1U) << 12)
+    // Shield-spell children use the combo factory's <<14 hand bits.
+    if (!SotnWeaponSecondary_Supported(family) ||
+        (request & 0xf000U) != ((Uint32)hand + 1U)
+                                   << (SotnWeaponSecondary_ShieldSpell(family) ? 14 : 12))
         return false;
+    // Weapon11: the spell's blueprint88 walker and the walker's blueprint90 afterimages.
+    if (family == 11)
+        return (bp == 88 && param == 0) || (bp == 90 && param == 1);
     if (family == 48)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
@@ -1091,6 +1097,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon14's root carries only the hand bit; its four hitboxes count 0..3 on it.
     if (family == 14)
         return (parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 3;
+    // Weapon11: the spell carries the hand bit; its walker params0, afterimages params1.
+    if (family == 11)
+        return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
     // Weapon13's root and afterimages, and Shotel's weapon34 boomerang, carry only the hand bit.
     if (family == 13 || family == 34 || SotnWeaponSecondary_ShieldSpell(family))
         return !(parameter & 0x7fffU);
@@ -1142,7 +1151,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 14 ? 143 : 119) &&
                       !(c->parameter & 0xffU) && c->state.secondary.parent_slot == 16
-            : SotnWeaponSecondary_ShieldSpell(family)
+            : SotnWeaponSecondary_ShieldSpell(family) && (c->kind & 15U) == 8
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == SotnWeaponSecondary_ShieldSpellItem(family) &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
@@ -1178,14 +1187,19 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
                                    : family == 30                                           ? 4
                                    : family == 58                                           ? 6
+                                   : family == 11 && (c->kind & 15U) == 9                   ? 4
+                                   : family == 11                                           ? 7
                                    : family == 8 || family == 9                             ? 7
                                                                                             : 1) &&
                       w->allocated && c->group <= 10 &&
                       c->primitive_count == SotnWeaponSecondary_RoleRows(family, c->kind & 15U) &&
-                      // Weapon30 children set their attack words directly (no property roll).
-                      w->properties.id == (family == 30 || SotnWeaponSecondary_ShieldSpell(family)
-                                               ? 0
-                                               : c->state.secondary.item)
+                      // Weapon30 children and shield spells set no property roll (weapon11's
+                      // afterimages keep the factory's equipId0 and roll none either).
+                      w->properties.id ==
+                          (family == 30 ||
+                                   (SotnWeaponSecondary_ShieldSpell(family) && (c->kind & 15U) == 8)
+                               ? 0
+                               : c->state.secondary.item)
                 : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
@@ -1304,7 +1318,7 @@ static bool ChildKind(Uint16 kind)
            kind == 63 || kind == 65 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 ||
            kind == 0xee || kind == 0xfe || (kind >= 0xe1 && kind <= 0xe5) ||
            (kind >= 0xf1 && kind <= 0xf5) || (kind >= 24 && kind <= 29) || kind == 0xe8 ||
-           kind == 0xf8;
+           kind == 0xf8 || kind == 0xe9 || kind == 0xf9;
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -2174,10 +2188,11 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     const bool spell = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                        (c.kind == 0xe8 || c.kind == 0xf8) &&
                        SotnWeaponSecondary_ShieldSpellFamily(child.argument_low) != 0;
-    c.weapon_secondary =
-        rush || crescent || rune || vorpal || yasutsuna || shotel || dawn || spell ||
-        (secondary_factory &&
-         ((c.kind >= 0xe1 && c.kind <= 0xe5) || (c.kind >= 0xf1 && c.kind <= 0xf5)));
+    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna || shotel || dawn ||
+                         spell ||
+                         (secondary_factory &&
+                          ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
+                           (c.kind >= 0xf1 && c.kind <= 0xf5) || c.kind == 0xe9 || c.kind == 0xf9));
     if (crescent)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
@@ -3618,7 +3633,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
               r.factories[i].cursor.blueprint != 0x5f && r.factories[i].cursor.blueprint != 0x65 &&
               r.factories[i].cursor.blueprint != 0x44 && r.factories[i].cursor.blueprint != 0x61 &&
               r.factories[i].cursor.blueprint != 0x72 && r.factories[i].cursor.blueprint != 0x3e &&
-              r.factories[i].cursor.blueprint != 0x46 && r.factories[i].cursor.blueprint != 0x6a) ||
+              r.factories[i].cursor.blueprint != 0x46 && r.factories[i].cursor.blueprint != 0x6a &&
+              r.factories[i].cursor.blueprint != 88 && r.factories[i].cursor.blueprint != 90) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -4065,6 +4081,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 8  ? 5
                                  : family == 9  ? 6
                                  : family == 58 ? 167
+                                 : family == 11 ? 8
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4072,14 +4089,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon14 hitboxes and weapon13/12 afterimages read their raw parent slot's live
             // words.
             SotnWeaponSecondaryInput parent = {0};
+            // Weapon11's walker/afterimages read theirs only at birth (a later occupant is
+            // foreign).
             if (((family == 14 || family == 13) && (c->kind & 15U) == 1) ||
-                (family == 12 && (c->kind & 15U) == 2))
+                (family == 12 && (c->kind & 15U) == 2) ||
+                (family == 11 && (c->kind & 15U) == 9 && !w->phase))
             {
                 const Uint16 at = c->state.secondary.parent_slot;
                 const SotnBatRuntimeChild *root = &r.children[at - 16U];
                 if (root->kind &&
                     (!root->weapon_secondary || root->state.secondary.family != family ||
-                     (root->kind & 15U) != (family == 12 ? 1U : 0U) ||
+                     (family != 11 && (root->kind & 15U) != (family == 12 ? 1U : 0U)) ||
                      !SotnBatRuntime_SecondaryValid(root, (Uint16)(at - 16U))))
                     return SDL_SetError("Thrown sword child raw parent is not its selected root");
                 if (root->kind)
@@ -4096,7 +4116,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .parent_bank = m->bank,
                         .parent_texture = m->texture,
                         .parent_child_palette =
-                            family == 12 ? m->palette : (Uint16)m->child_palette};
+                            family == 12 || family == 11 ? m->palette : (Uint16)m->child_palette};
                 }
             }
             HandPropertyContext context = {character, item, p.poison_ticks != 0};
@@ -4398,9 +4418,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     if (r.groups[group] == 255)
                         return SDL_SetError("Weapon secondary shared group count overflow");
                     ++r.groups[group];
-                    c->group = parent_group;
+                    // Weapon11's walker keeps func_80118894's least-used group (no parent copy).
+                    c->group = family == 11 ? (Uint8)group : parent_group;
                     c->state.secondary.item = item;
                 }
+            }
+            // Shield spells lack CAMERA_LOCKED: like the warp they keep their screen position
+            // after the camera work (Axe Lord's outlives its freeze by twenty updates).
+            if (SotnWeaponSecondary_ShieldSpell(family) && (c->kind & 15U) == 8 && !w->removed)
+            {
+                w->x = FixedShift(w->x, Word(in.room_shift_x - in.screen_shift_x));
+                w->y = FixedShift(w->y, Word(in.room_shift_y - in.screen_shift_y));
             }
             c->source.x = w->x;
             c->source.y = w->y;
