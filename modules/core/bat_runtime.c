@@ -903,6 +903,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 202               ? 13
            : item == 4 || item == 173  ? 7
            : item == 7                 ? 10
+           : item == 9                 ? 23
            : SotnWeaponSecondary_ShieldSpellFamily(item)
                ? SotnWeaponSecondary_ShieldSpellFamily(item)
            : item == 27  ? 36
@@ -1047,6 +1048,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // swords.
     if (family == 10)
         return (bp == 56 && param == 0) || (bp == 88 && param <= 1);
+    // Weapon23: Herald's spell requests FACTORY(94)'s sprites and FACTORY(90)'s swirl.
+    if (family == 23)
+        return (bp == 94 || bp == 90) && param == 0;
     // Weapon11: the spell's blueprint88 walker and the walker's blueprint90 afterimages.
     if (family == 11)
         return (bp == 88 && param == 0) || (bp == 90 && param == 1);
@@ -1132,6 +1136,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon25: the spell carries the hand bit, its clouds params1.
     if (family == 11 || family == 25 || family == 10)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
+    // Weapon23: the spell and swirl carry the hand bit; the sprites their spawn index0..23.
+    if (family == 23)
+        return !(parameter & 0x7f00U) && (parameter & 0xffU) <= 23;
     // Weapon7's orb carries its animation index0..6 (no hand bit); its sparkles zero.
     if (family == 7)
         return !(parameter & 0x80ffU) && (parameter >> 8) <= 6;
@@ -1228,6 +1235,9 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 13 && (c->kind & 15U) == 3                   ? 3
                                    : family == 7 && (c->kind & 15U) == 1                    ? 4
                                    : family == 10 && (c->kind & 15U) == 8                   ? 9
+                                   : family == 23 && (c->kind & 15U) == 8                   ? 8
+                                   : family == 23 && (c->kind & 15U) == 9                   ? 3
+                                   : family == 23                                           ? 2
                                    : (family == 12 || family == 34) && (c->kind & 15U) == 1 ? 2
                                    : family == 30 && (c->kind & 15U) == 1                   ? 4
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
@@ -1330,6 +1340,15 @@ static bool Sound(SotnBatRuntime *r, Uint16 sound)
     r->sounds[r->sound_count++] = sound;
     return true;
 }
+// DRA AddHearts(1): below the maximum, one heart (capped), then the player's
+// FACTORY(BP_SMALL_RISING_HEART,0) rising heart and SFX_HEART_PICKUP; at the maximum nothing.
+static bool AddHearts(SotnBatRuntime *r, SotnPlayerState p, SotnCharacterState *progress)
+{
+    if (progress->hearts >= progress->hearts_max)
+        return true;
+    progress->hearts = (Uint16)SDL_min(progress->hearts_max, progress->hearts + 1U);
+    return Request(r, p, 99, 0) && Sound(r, 0x67a);
+}
 static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterStats stats,
                   Uint16 id, SotnPlayerAttack *attack)
 {
@@ -1371,7 +1390,7 @@ static bool ChildKind(Uint16 kind)
            kind == 63 || kind == 65 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 ||
            kind == 0xee || kind == 0xfe || (kind >= 0xe1 && kind <= 0xe5) ||
            (kind >= 0xf1 && kind <= 0xf5) || (kind >= 24 && kind <= 29) || kind == 0xe8 ||
-           kind == 0xf8 || kind == 0xe9 || kind == 0xf9;
+           kind == 0xf8 || kind == 0xe9 || kind == 0xf9 || kind == 0xea || kind == 0xfa;
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -2244,11 +2263,11 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     // Blueprint62 from Heaven sword's both-buttons combo202 creates the E2/F2 sweep in17..31.
     const bool sweep = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                        (c.kind == 0xe2 || c.kind == 0xf2) && child.argument_low == 202;
-    c.weapon_secondary = rush || crescent || rune || vorpal || yasutsuna || shotel || dawn ||
-                         spell || sweep ||
-                         (secondary_factory &&
-                          ((c.kind >= 0xe1 && c.kind <= 0xe5) ||
-                           (c.kind >= 0xf1 && c.kind <= 0xf5) || c.kind == 0xe9 || c.kind == 0xf9));
+    c.weapon_secondary =
+        rush || crescent || rune || vorpal || yasutsuna || shotel || dawn || spell || sweep ||
+        (secondary_factory &&
+         ((c.kind >= 0xe1 && c.kind <= 0xe5) || (c.kind >= 0xf1 && c.kind <= 0xf5) ||
+          c.kind == 0xe9 || c.kind == 0xf9 || c.kind == 0xea || c.kind == 0xfa));
     if (crescent)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
@@ -3709,7 +3728,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
               r.factories[i].cursor.blueprint != 0x72 && r.factories[i].cursor.blueprint != 0x3e &&
               r.factories[i].cursor.blueprint != 0x46 && r.factories[i].cursor.blueprint != 0x6a &&
               r.factories[i].cursor.blueprint != 88 && r.factories[i].cursor.blueprint != 90 &&
-              r.factories[i].cursor.blueprint != 92 && r.factories[i].cursor.blueprint != 0x4a) ||
+              r.factories[i].cursor.blueprint != 92 && r.factories[i].cursor.blueprint != 0x4a &&
+              r.factories[i].cursor.blueprint != 94) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -3985,8 +4005,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 }
                 r.shield_protection = 0x60;
                 r.shield_heal = true;
-                progress.hearts = (Uint16)SDL_min(progress.hearts_max, progress.hearts + 1U);
+                if (!AddHearts(&r, p, &progress))
+                    return false;
             }
+            // Weapon23 (Herald shield): a blocked projectile's AddHearts(1).
+            if (events.hearts && !AddHearts(&r, p, &progress))
+                return false;
             // Current selected Short sword uses variant zero. Other weapon37 producers
             // require their real secondary owners before the menu can expose them.
             // Ordered WFACTORY requests from the actual weapon entity; a full factory table
@@ -4226,6 +4250,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 13 ? 119
                                  : family == 7  ? 4
                                  : family == 10 ? 7
+                                 : family == 23 ? 9
                                  : family == 56 ? 141
                                  : family == 12 ? 133
                                  : family == 34 ? 28
@@ -4411,6 +4436,27 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     secondary_in.parent_band = root->state.secondary.motion.spell_v1;
                 }
             }
+            // Weapon23's sprites copy their raw parent's palette and unk5A at birth and its animSet
+            // when their wait ends (params0 waits 65536 updates; a later spell may occupy it).
+            if (family == 23 && (c->kind & 15U) == 10)
+            {
+                const Uint16 at = c->state.secondary.parent_slot;
+                const SotnBatRuntimeChild *root = &r.children[at - 16U];
+                if (root->kind && !root->weapon_secondary && !root->hand_weapon)
+                    return SDL_SetError("Herald shield sprite raw parent has no native animSet");
+                const SotnWeaponSecondary *ws = &root->state.secondary.motion;
+                const SotnHandWeapon *wh = &root->state.hand.motion;
+                secondary_in.parent_exists = root->kind != 0;
+                secondary_in.parent_palette = !root->kind              ? 0
+                                              : root->weapon_secondary ? ws->palette
+                                                                       : wh->palette;
+                secondary_in.parent_texture = !root->kind              ? 0
+                                              : root->weapon_secondary ? ws->texture
+                                                                       : wh->texture;
+                secondary_in.parent_bank = !root->kind              ? 0
+                                           : root->weapon_secondary ? ws->bank
+                                                                    : wh->bank;
+            }
             // Weapon7's orb reads its raw slot16 parent at birth (facing, bank, unk5A, palette).
             if (family == 7 && (c->kind & 15U) == 1 && cold)
             {
@@ -4584,28 +4630,6 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.clut[r.clut_count].mask = events.clut_mask;
                 r.clut[r.clut_count++].value = events.clut_add;
             }
-            if (events.pink)
-            {
-                // FACTORY(55, n) from the spell: the EntityPlayerPinkEffect profile n.
-                Uint16 j = 0;
-                while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
-                    ++j;
-                if (j < SOTN_BAT_RUNTIME_FACTORIES)
-                {
-                    SotnPlayerFactory made = {0};
-                    if (!SotnPlayerFactory_Begin(
-                            &made,
-                            (SotnPlayerFactorySource){.x = w->x,
-                                                      .y = w->y,
-                                                      .flags = w->flags,
-                                                      .priority = c->source.priority,
-                                                      .facing_left = w->facing_left},
-                            55U | (Uint32)events.pink << 16, 0))
-                        return false;
-                    SDL_zero(r.factories[j]);
-                    r.factories[j].cursor = made;
-                }
-            }
             if (events.select_target)
             {
                 // func_80118970 marks the first unmarked candidate, shared with the spirits.
@@ -4649,6 +4673,29 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.factories[j].cursor = made;
                 r.factories[j].secondary_factory = !spark;
                 r.factories[j].secondary_parent_slot = spark ? 0 : (Uint16)(i + 16U);
+            }
+            if (events.pink)
+            {
+                // FACTORY(55, n) from the spell: the EntityPlayerPinkEffect profile n, after the
+                // spell's factories (Herald's swirl precedes its pink9 in the same update).
+                Uint16 j = 0;
+                while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
+                    ++j;
+                if (j < SOTN_BAT_RUNTIME_FACTORIES)
+                {
+                    SotnPlayerFactory made = {0};
+                    if (!SotnPlayerFactory_Begin(
+                            &made,
+                            (SotnPlayerFactorySource){.x = w->x,
+                                                      .y = w->y,
+                                                      .flags = w->flags,
+                                                      .priority = c->source.priority,
+                                                      .facing_left = w->facing_left},
+                            55U | (Uint32)events.pink << 16, 0))
+                        return false;
+                    SDL_zero(r.factories[j]);
+                    r.factories[j].cursor = made;
+                }
             }
             if (events.chain)
             {
@@ -4731,7 +4778,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // after the camera work (Axe Lord's outlives its freeze by twenty updates).
             // Weapon13's combo sweep and strike swords lack it too.
             if (((SotnWeaponSecondary_ShieldSpell(family) &&
-                  ((c->kind & 15U) == 8 || family == 25 || family == 26 || family == 52)) ||
+                  ((c->kind & 15U) == 8 || family == 25 || family == 26 || family == 52 ||
+                   family == 23)) ||
                  sweep || strike ||
                  // Weapon10's swords until their delay makes them CAMERA_LOCKED.
                  (family == 10 && (c->kind & 15U) == 9 && !(w->flags & 0x08000000U))) &&

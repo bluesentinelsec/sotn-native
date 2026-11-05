@@ -11,8 +11,16 @@ private animation, hitbox and palette tables. Their both-buttons spells are cove
 hit it requests WFACTORY(56,0)'s thunder, then func_8010E168(0,0x60) (BlinkWhite0x15 and
 protection0x60, without healing), and clears hitFlags. The thunder follows the player with the
 shield's bank, palette0x194, four priorities in front, plays THUNDER_A and its six frames, and
-retires early once slot16 stops holding item7. Herald, Dark, Medusa, Skull and Fire shields add
-other on-hit or item behaviors and remain unsupported; metadata alone never enables them.
+retires early once slot16 stops holding item7. Herald shield9 (family23) guards too: when its
+raised shield (steps1/2) blocks a projectile (actual collision hitFlags3) with its `unk84`
+cooldown at zero, it calls AddHearts(1), clears hitFlags and sets the cooldown to 0x20. The
+cooldown counts down on every update, including the one that set it. Recorded hitFlags stay
+set until a heart consumes them: a block during the cooldown therefore yields its heart when the
+cooldown ends, and a plain hit (hitFlags1) adds nothing. AddHearts, below the maximum only, adds the heart, then
+requests the player's rising heart (FACTORY(99,0)) and HEART_PICKUP; the Alucard shield's armed
+hit now uses the same helper (it previously skipped the heart effect and sound). Dark, Medusa,
+Skull and Fire shields add other on-hit or item behaviors and remain unsupported; metadata
+alone never enables them.
 
 Owned selection uses the ordinary inventory menu and either hand. Definitions
 validate the actual shield category9, family, kind128, animation99, blueprint48 and

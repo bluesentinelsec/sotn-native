@@ -23,10 +23,11 @@ A combo spell:
 
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
-Only combos with an actual native owner are selected. Every shield spell now has one, with
+Only combos with an actual native owner are selected. These shield spells have one, with
 Mablung or [Shield rod](player-shield-rod.md): Leather shield's 203, Knight shield's 204, Iron
-shield's 205, Axe Lord shield's 206, Goddess shield's 209, Shaman shield's 210, Alucard shield's 214 and Alucart
-shield's 215. Dual Heaven swords' 202 now has its own owner too: see
+shield's 205, Axe Lord shield's 206, Herald shield's 207, Goddess shield's 209, Shaman shield's
+210, Alucard shield's 214 and Alucart shield's 215. Dark, Medusa, Skull and Fire shields' spells
+(208, 211..213) do not yet. Dual Heaven swords' 202 now has its own owner too: see
 [Heaven sword](player-heaven-sword.md#both-buttons-combo202).
 
 ## Leather shield spell (item203)
@@ -89,6 +90,41 @@ then circle that centre on a radius opening by 0x18 to 0x280 while spinning, and
 plays WEAPON_SCRAPE_ECHO each half turn. Slice colours follow the program's shieldAngles2 as the
 swords fade. Their chain count keeps the combo blocked while either lives; a sword whose orbit
 leaves the screen is culled.
+
+## Herald shield spell (item207), its swirl and sprites
+
+Herald shield's spell (w_023, ten MP) takes eighteen GT4s: the glow, the shield image laid on its
+side (u runs down the screen, v across it) and sixteen additive white slices of it. Like the card
+spells it retires a raised shield, plays ANIME_SWORD_C, freezes the scene, drifts back while the
+shield image grows, holds and flashes out with TRANSFORM_3X. The image then opens to 36x64 half
+extents while the glow fades; when it is full size the glow hides and the spell requests
+`FACTORY(94)` (skipped without a free factory entity). The slices dim to black, and after 0x30
+of the next 0x70 updates the spell requests `FACTORY(90)` and then the `FACTORY(55,9)` pink
+effect in the same update; `FACTORY(55,10)` follows at 0x70. The slices brighten past 0x130
+(the image hides), then wave apart as they fade, and the spell ends the freeze. Slice blues and
+waves come from the program's retained `D_8017AB70` angles (s32 overlay data), which advance by
+0x80 each update.
+
+The swirl (`func_ptr_80170024`, E9/F9, four GT4s) starts 0x48 below the spell. Its birth rotates
+the program's sixteen model vectors by `RotMatrix(0x80,0,0xC0)` with `RotTrans` into overlay BSS
+(`D_8017AC90`'s targets; native program words). It rises 7/8 pixel per update, brightens by ten
+to 0xFA, holds 0x20 updates and dims below nine, retiring early if it starts the brightening
+above screen Y 0x10. Each update it spins (`RotMatrix(0,unk7E,0)`, depth 0x140, H 0x200) and
+projects each face with `RotTransPers4` into x0, x1, x3 and x2; a face shows only while its OTZ
+is in 1..0x1BE.
+
+`FACTORY(94)` creates twenty-four sprites (`func_ptr_80170028`, E10/F10, slots 63 downward, params
+0..23). Each copies its raw parent's palette and unk5A at birth, starts `D_8017AB58` at a random
+pose (one rand call) and waits params*4 updates with no animSet; then it copies the parent's
+animSet and for 0x40 updates rises 1.5 pixels per update, swaying about its birth screen X in
+front of and behind the spell (priorities 0x1B4/0x1BC) as its scale pulses. The params-0 sprite's
+signed countdown starts at zero and wraps, so it waits 65536 updates before it can appear: an
+original quirk kept natively (it holds a slot meanwhile). The swirl and sprites inherit the
+spell's freeze flag through their factories, so they run during the freeze. None of them attacks.
+
+All three keep screen positions (none is CAMERA_LOCKED): native callbacks use the camera before
+the pass's retained-screen shift. The pink request now follows a spell's factory requests, which
+reproduces Herald's swirl-then-pink order; no other spell requests both in one update.
 
 ## Axe Lord shield spell (item206) and its walker
 
@@ -262,6 +298,23 @@ Public tests cover:
   are byte-identical. Native Debug/ASan protocols cast spell205 with Mablung in both hand
   arrangements, measure spell and sword pixels, check the freeze, chain and MP, and deliver a
   supplied hit to a raised Iron shield for the thunder and protection.
+- **Herald:** the guard's hitFlags3 rule, cooldown (counted every update, stale blocks granted
+  when it ends), table offsets and the runtime heart with its rising heart and HEART_PICKUP (none
+  at the maximum; the Alucard shield's hit gains them too). The spell's birth rows, phase
+  timeline, sounds, FACTORY(94)/(90) and pink9/10 requests, every update's glow/image/slice
+  geometry and retained-angle blues; the swirl's rotated program vectors, rise, timing, top
+  retirement and per-face projection; the sprites' birth copies, rand pose, waits (including the
+  params-0 wrap), animSet copy, sway, scale and priority. The runtime casts the spell through the
+  actual factories: twenty-four sprites with distinct indices, the swirl before pink9, screen
+  retention while the camera scrolls, one freeze and release, and the waiting params-0 sprite
+  after the spell. 80 of 82 Herald mutations are caught; two are equivalent (the swirl's dimming
+  bound, which steps by ten to zero, and an OTZ limit its depths never approach). The private
+  comparison runs complete `w_023` callbacks: 3,472 spell, 338 swirl and 646 sprite callbacks
+  (with the real DRA UpdateAnim and COP2 model), 63,528 row comparisons; Debug and ASan traces
+  are byte-identical. Native Debug/ASan protocols cast spell207 with Mablung in both hand
+  arrangements (spell, swirl and sprite pixels, freeze, the waiting sprite), deliver supplied
+  blocks to a raised Herald shield (hearts, cooldown, rising heart, none at the maximum) and
+  fall back to a swing below ten MP.
 - **Walker:** orphan retirement, the raw-parent copy and property roll, falling to the 6.0 cap,
   landing, stomp/afterimage cadences, walls and hits while falling or walking, the final
   animation and the afterimage fade.
