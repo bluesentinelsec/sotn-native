@@ -3959,7 +3959,9 @@ static bool DawnBombTest(Uint16 hand)
 // plays ANIME_SWORD_C and enters freeze1; the image grows (12/update), holds, flashes out with
 // TRANSFORM_3X, the wave card opens and darkens, the pink FACTORY(55,8) follows, and the spell
 // ends the freeze and retires. shieldAngles load once from the program and keep stepping.
-static bool LeatherSpellTest(Uint16 hand)
+// w_009 Knight (knight): ten horizontal bands in twelve rows, a 48x40 card, pink7 and a fade that
+// steps the angle increment.
+static bool LeatherSpellTest(Uint16 hand, bool knight)
 {
     static Uint8 o[0x1400], exe[0x24000];
     Math(exe);
@@ -3971,7 +3973,7 @@ static bool LeatherSpellTest(Uint16 hand)
     SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
                                    .executable = {exe, sizeof(exe)},
                                    .hand = hand,
-                                   .family = 8,
+                                   .family = knight ? 9 : 8,
                                    .role = 8,
                                    .priority = 148,
                                    .facing_left = hand != 0,
@@ -3996,11 +3998,18 @@ static bool LeatherSpellTest(Uint16 hand)
           s.spell_quads[0].palette == 0x19f && s.spell_quads[0].draw_mode == 0x75 &&
           s.spell_quads[0].v[0] == (hand ? 0 : 0x80) && s.spell_quads[0].priority == 142 &&
           s.spell_quads[1].palette == (hand ? 0x129 : 0x111) && s.spell_quads[1].draw_mode == 8 &&
-          s.spell_quads[1].v[0] == (hand ? 0xb0 : 0x30) && s.spell_quads[10].u[1] == 71 &&
-          s.spell_quads[10].palette == 0x15f && s.spell_quads[10].draw_mode == 0x3d &&
-          s.spell_quads[10].priority == 0x1be && program.shield_angles[0] == 0x40 &&
-          program.shield_angles[8] == 0x1040 && program.shield_angles[9] == 0x1200);
-    Uint16 t = 0, pink = 0, flashes = 0, brightening = 0;
+          s.spell_quads[1].v[0] == (hand ? 0xb0 : 0x30) &&
+          s.spell_quads[1].v[2] == (Uint8)((hand ? 0x80 : 0) + (knight ? 0x7f : 0x67)) &&
+          s.spell_quads[2].v[0] ==
+              (knight ? (Uint8)((hand ? 0xb0 : 0x30)) : (hand ? 0xb0 : 0x30)) &&
+          s.spell_quads[3].v[0] == (Uint8)((hand ? 0xb0 : 0x30) + (knight ? 8 : 0)) &&
+          s.spell_quads[10].u[1] == (knight ? 0x5f : 71) && s.spell_quads[10].palette == 0x15f &&
+          s.spell_quads[10].draw_mode == 0x3d && s.spell_quads[10].priority == 0x1be &&
+          s.spell_quads[knight ? 11 : 10].v[2] ==
+              (Uint8)((hand ? 0xb0 : 0x30) + (knight ? 79 : 0x37)) &&
+          program.shield_angles[0] == 0x40 && program.shield_angles[8] == 0x1040 &&
+          program.shield_angles[9] == (knight ? 0x1240 : 0x1200));
+    Uint16 t = 0, pink = 0, flashes = 0, brightening = 0, fading = 0;
     Sint32 vx = s.velocity_x;
     for (; !s.removed && t < 400; ++t)
     {
@@ -4016,6 +4025,10 @@ static bool LeatherSpellTest(Uint16 hand)
         }
         // The darkened card brightens 0x10 per update: nineteen updates past0x120.
         brightening += phase == 6;
+        fading += phase == 7;
+        // The card reaches its full half size (Knight48x40, Leather36x28) as phase4 ends.
+        if (phase == 4 && s.phase == 5)
+            CHECK(s.spell_half_w == (knight ? 48 : 36) && s.spell_half_h == (knight ? 40 : 28));
         if (e.sounds[0] == 0x6b1)
         {
             CHECK(phase == 3 && s.phase == 4 && !s.frame && !(s.spell_quads[1].draw_mode & 8U) &&
@@ -4024,17 +4037,20 @@ static bool LeatherSpellTest(Uint16 hand)
         }
         if (e.pink)
         {
-            CHECK(e.pink == 8 && phase == 6 && s.phase == 7 && s.spell_bright > 0x120 &&
-                  (s.spell_quads[1].draw_mode & 8U));
+            CHECK(e.pink == (knight ? 7 : 8) && phase == 6 && s.phase == 7 &&
+                  s.spell_bright > 0x120 && (s.spell_quads[1].draw_mode & 8U));
             ++pink;
         }
         if (s.removed)
-            CHECK(e.freeze_clear && phase == 7 && s.spell_wave_y > 0xc0);
+            CHECK(e.freeze_clear && phase == 7 &&
+                  (knight ? s.spell_bright < 4 && s.spell_step > 0x40 : s.spell_wave_y > 0xc0));
     }
+    // Knight fades 0x130 by eight to below four: thirty-eight updates.
     CHECK(s.removed && pink == 1 && flashes == 1 && brightening == 19 &&
-          program.shield_angles[0] == (Sint32)(0x40 * (t + 0U)));
+          (!knight || fading == 38) &&
+          (knight || program.shield_angles[0] == (Sint32)(0x40 * (t + 0U))));
     CHECK(SotnWeaponSecondary_SupportedRole(8, 8) && !SotnWeaponSecondary_SupportedRole(8, 1) &&
-          SotnWeaponSecondary_RoleRows(8, 8) == 11);
+          SotnWeaponSecondary_RoleRows(8, 8) == 11 && SotnWeaponSecondary_RoleRows(9, 8) == 12);
     return true;
 }
 
@@ -4048,8 +4064,9 @@ int main(void)
                    Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
                    ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
                    DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) && LeatherSpellTest(0) &&
-                   LeatherSpellTest(1)
+                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
+                   LeatherSpellTest(0, true) && LeatherSpellTest(1, true)
                ? 0
                : 1;
 }

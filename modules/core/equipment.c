@@ -73,6 +73,8 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 54, 1, 0x41, 1, 0, 0, 0, 0, 0};
     case 203: // Leather shield's both-buttons spell (Shield rod/Mablung combo, kind5)
         return (PlainSpec){10, 8, 5, 0xba, 0, 0, 0, 10, 86, 1};
+    case 204: // Knight shield's both-buttons spell
+        return (PlainSpec){10, 9, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 17: // Sword of Dawn (two-handed): QCF special177 summons its soldiers (kind5, bp56)
         return (PlainSpec){5, 30, 6, 0x68, 0, 0, 177, 0, 0, 0};
     case 177:

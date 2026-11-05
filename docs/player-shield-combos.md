@@ -1,4 +1,4 @@
-# Selected weapon combos and the Leather shield spell
+# Selected weapon combos and the Leather/Knight shield spells
 
 Pressing both attack buttons can cast a combo spell. CheckWeaponCombo (`menu.c`) runs with each
 weapon load and records `D_8013AEE4`: the combo item, plus bit 31 when the right hand owns it.
@@ -23,8 +23,8 @@ A combo spell:
 
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
-Only combos with an actual native owner are selected. Currently that is Leather shield's 203,
-with Mablung (or a Shield rod, once owned). Other combos keep the ordinary left-hand attack, a
+Only combos with an actual native owner are selected. Currently those are Leather shield's 203
+and Knight shield's 204, with Mablung (or a Shield rod, once owned). Other combos keep the ordinary left-hand attack, a
 documented gap until their spells exist.
 
 ## Leather shield spell (item203)
@@ -48,6 +48,13 @@ The spell's sequence:
 3. The card darkens, brightens past 0x120 and releases the `FACTORY(55, 8)` pink medicine effect.
 4. The spell clears the freeze and retires.
 
+Knight shield's spell (item204, w_009) is the same program shape. It differs in these ways:
+- twelve rows, slicing the card into ten horizontal bands with their own red/green/blue phases;
+- a card of 48x40 half extents;
+- pink profile 7;
+- a fade that lowers brightness by 8 and steps the angle increment by 4 until brightness is
+  below 4.
+
 Rows are screen pixels, because the original drawMode lacks DRAW_UNK02. The entity is
 screen-fixed, but the camera is static for its whole frozen life.
 
@@ -56,17 +63,18 @@ screen-fixed, but the camera is static for its whole frozen life.
 Public tests cover:
 - **Selection:** combo resolution and hand selection (both arrangements), `<<14` factories, ten
   MP and kind 5, plus refusal by a live spell or too little MP.
-- **Spell:** birth, freeze set and clear, growth timing, flash, card brightening, the pink factory,
-  retained angles and row exhaustion.
+- **Spell:** birth, freeze set and clear, growth timing, flash, card sizes and brightening, the
+  pink factory, retained angles and row exhaustion, for both Leather and Knight.
 - **Scene freeze:** the scene freeze now accepts request 1.
 
-Fifteen targeted mutations are caught.
+Twenty-two targeted mutations are caught. Two more are equivalent: Knight's `i*80/10` slice
+equals `i*8`, and its fade steps by 8 from 0x130, so thresholds 4 and 8 trigger together.
 
-The private original-instruction comparison runs 3,140 complete w_008 spell callbacks, comparing
-34,320 GT4 rows across 20 contexts. These include a second cast that continues the retained
+The private original-instruction comparison runs 6,360 complete w_008/w_009 spell callbacks,
+comparing 72,720 GT4 rows across 40 contexts. These include a second cast that continues the retained
 angles. Debug and ASan traces are byte-identical.
 
-Native Debug/ASan protocols equip Mablung and Leather shield through the menu in both
+Native Debug/ASan protocols equip Mablung with Leather or Knight shield through the menu in both
 arrangements. They check:
 - the actual combo word, ten MP and the spell's pixels;
 - about 196 frozen frames, both Blinks and the pink effect;
@@ -75,6 +83,6 @@ arrangements. They check:
 Too little MP keeps the left-hand swing. Supplied stock, protection and MP contexts are not
 acquisition, route or console evidence.
 
-Adapted AGPL-3.0-or-later algorithms: `weapon/w_008.c`, `dra/menu.c` (CheckWeaponCombo),
+Adapted AGPL-3.0-or-later algorithms: `weapon/w_008.c`, `weapon/w_009.c`, `dra/menu.c` (CheckWeaponCombo),
 `dra/6E42C.c`, `dra/6DF70.c` and `dra/7879C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

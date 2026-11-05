@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Weapon func_ptr_80170004 secondaries: weapon/w_008.c, w_030.c, w_034.c, w_038.c, w_039.c, w_055.c
-// and weapon/shared.h, plus dra/7879C.c UpdateAnim, sotn-decomp
+// Weapon func_ptr_80170004 secondaries: weapon/w_008.c, w_009.c, w_030.c, w_034.c, w_038.c,
+// w_039.c, w_055.c and weapon/shared.h, plus dra/7879C.c UpdateAnim, sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Descriptor, timeline and artwork tables remain private
 // inputs.
 #include <sotn/combat.h>
@@ -73,8 +73,8 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.rows = 0};
     else if (family == 30)
         *out = (Layout){.rows = 11};
-    else if (family == 8)
-        *out = (Layout){.rows = 11};
+    else if (family == 8 || family == 9)
+        *out = (Layout){.rows = family == 9 ? 12 : 11};
     else
         return SDL_SetError("Weapon secondary requires a selected actual resident program");
     return true;
@@ -85,7 +85,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
-           family == 30 || family == 8;
+           family == 30 || family == 8 || family == 9;
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -110,8 +110,8 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
-    // Weapon8 (Leather shield): role8 is its both-buttons spell (EntityWeaponShieldSpell).
-    if (family == 8)
+    // Weapon8/9 (Leather/Knight shields): role8 is the both-buttons spell (ShieldSpell).
+    if (family == 8 || family == 9)
         return role == 8;
     // Weapon30: role1 Sword of Dawn's circle, role2 its soldiers, role3 arrows/swords, role4
     // the bombs.
@@ -145,8 +145,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return 0;
     if (family == 30)
         return role == 1 ? 11 : role == 2 ? 14 : 0;
-    if (family == 8)
-        return role == 8 ? 11 : 0;
+    if (family == 8 || family == 9)
+        return role == 8 ? (family == 9 ? 12 : 11) : 0;
     if (role == 2)
         return family == 1 ? 0 : family == 51 ? 1 : 16;
     return SotnWeaponSecondary_Rows(family);
@@ -3190,14 +3190,18 @@ static void SpellColors(SotnPlayerEffectQuad *q, Uint8 v)
     for (Uint16 k = 0; k < 4; ++k)
         q->red[k] = q->green[k] = q->blue[k] = v;
 }
-// w_008 EntityWeaponShieldSpell: Leather shield's both-buttons spell (item203, blueprint86 E8).
-// Eleven mandatory GT4s precede everything. It retires a raised shield, plays ANIME_SWORD_C and
-// enters the spell freeze (unk28=1); the shield image grows while drifting back and up, flashes
-// out, a card of nine wave bands (shieldAngles, retained program data) opens, releases the
-// FACTORY(55,8) pink effect and fades before the freeze ends. Rows are screen pixels.
-static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
-                         SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e)
+// w_008/w_009 EntityWeaponShieldSpell: Leather (item203) and Knight (item204) shields'
+// both-buttons spells (blueprint86 E8). Their mandatory GT4s (eleven/twelve) precede everything.
+// Each retires a raised shield, plays ANIME_SWORD_C and enters the spell freeze (unk28=1); the
+// shield image grows while drifting back and up, flashes out, and a card of wave bands opens on
+// the program's retained angle table, releases the FACTORY(55,8|7) pink effect and fades before
+// the freeze ends. Leather slices nine vertical bands; Knight ten horizontal ones with their own
+// colour phases. Rows are screen pixels.
+static bool ShieldCardSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                            SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e)
 {
+    const bool knight = in.family == 9;
+    const Uint16 bands = knight ? 10 : 9;
     if (!p->shield_angles_loaded)
     {
         const Uint8 *a = NULL;
@@ -3243,19 +3247,27 @@ static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
         q = &s->spell_quads[1];
         *q = (SotnPlayerEffectQuad){.palette = s->spell_child_palette, .page = 0x19};
         q->u[0] = q->u[2] = 0;
-        q->u[1] = q->u[3] = 0x47;
+        q->u[1] = q->u[3] = knight ? 0x5f : 0x47;
         q->v[0] = q->v[1] = (Uint8)(s->spell_v1 + 0x30);
-        q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x67);
+        q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + (knight ? 0x7f : 0x67));
         s->spell_half_w = s->spell_half_h = 0;
         SpellColors(q, 0x80);
         q->priority = 0x1bc;
         q->draw_mode = 0x08;
-        for (Uint16 i = 0; i < 9; ++i)
+        for (Uint16 i = 0; i < bands; ++i)
         {
             q = &s->spell_quads[2 + i];
             *q = s->spell_quads[1 + i];
-            q->u[0] = q->u[2] = (Uint8)(i * 72 / 9);
-            q->u[1] = q->u[3] = (Uint8)((i + 1) * 72 / 9 - 1);
+            if (knight)
+            {
+                q->v[0] = q->v[1] = (Uint8)(s->spell_v1 + 0x30 + i * 80 / 10);
+                q->v[2] = q->v[3] = (Uint8)(s->spell_v1 + 0x30 + (i + 1) * 80 / 10 - 1);
+            }
+            else
+            {
+                q->u[0] = q->u[2] = (Uint8)(i * 72 / 9);
+                q->u[1] = q->u[3] = (Uint8)((i + 1) * 72 / 9 - 1);
+            }
             q->palette = 0x15f;
             q->priority = 0x1be;
             q->draw_mode |= 0x20 | 0x10 | 0x04 | 0x01;
@@ -3304,7 +3316,7 @@ static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
         if (--s->spell_timer == 0)
         {
             s->frame = 0;
-            for (Uint16 i = 1; i < 11; ++i)
+            for (Uint16 i = 1; i < 2U + bands; ++i)
                 s->spell_quads[i].draw_mode &= 0xfff7U;
             s->spell_timer = 0x20;
             e->sounds[0] = 0x6b1;
@@ -3316,8 +3328,8 @@ static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
         s->scale_x = Word(s->scale_x + 16);
         if (s->scale_x >= 0x100)
             s->scale_x = 0x100;
-        s->spell_half_w = (Sint16)(s->scale_x * 36 / 256);
-        s->spell_half_h = (Sint16)(s->scale_x * 28 / 256);
+        s->spell_half_w = (Sint16)(s->scale_x * (knight ? 48 : 36) / 256);
+        s->spell_half_h = (Sint16)(s->scale_x * (knight ? 40 : 28) / 256);
         SotnPlayerEffectQuad *q = &s->spell_quads[0];
         if (q->blue[3] > 8)
             q->blue[3] = (Uint8)(q->blue[3] - 4);
@@ -3339,11 +3351,26 @@ static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
         if (s->spell_bright > 0x120)
         {
             s->spell_quads[1].draw_mode |= 8;
-            e->pink = 8;
+            e->pink = knight ? 7 : 8;
             s->phase = 7;
         }
         break;
     default:
+        if (knight)
+        {
+            s->spell_bright = Word(s->spell_bright - 8);
+            if (s->spell_half_h > 2)
+                s->spell_half_h = Word(s->spell_half_h - 1);
+            s->spell_wave_x = Word(s->spell_wave_x + 6);
+            s->spell_step = Word(s->spell_step + 4);
+            if (s->spell_bright < 4)
+            {
+                e->freeze_clear = true;
+                s->removed = true;
+                return true;
+            }
+            break;
+        }
         if (s->spell_half_w > 2)
             s->spell_half_h = Word(s->spell_half_h - 2);
         if (s->spell_bright > 8)
@@ -3386,7 +3413,50 @@ static bool LeatherSpell(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
     }
     front = Word(front + 1);
     bottom = Word(bottom + 1);
-    for (Uint16 i = 0; i < 9; ++i)
+    for (Uint16 i = 0; knight && i < 10; ++i)
+    {
+        q = &s->spell_quads[2 + i];
+        Sint32 sine[10] = {0};
+        const Uint16 at[10] = {i,
+                               (Uint16)((i + 1) % 10),
+                               (Uint16)((i + 6) % 10),
+                               (Uint16)((i + 7) % 10),
+                               (Uint16)((i + 4) % 10),
+                               (Uint16)((i + 8) % 10),
+                               (Uint16)((i + 5) % 10),
+                               (Uint16)((i + 9) % 10),
+                               0,
+                               0};
+        for (Uint16 k = 0; k < 8; ++k)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, (Sint16)p->shield_angles[at[k]], &t))
+                return false;
+            sine[k] = t.sine;
+        }
+        Sint16 base = (Sint16)(Asr(sine[0], 5) * s->spell_wave_x / 256);
+        q->x[0] = Word(back + base);
+        q->x[1] = Word(front + base - 1);
+        base = (Sint16)(Asr(sine[1], 5) * s->spell_wave_x / 256);
+        q->x[2] = Word(back + base);
+        q->x[3] = Word(front + base - 1);
+        q->y[0] = q->y[1] = Word(top + ((bottom - top) * i) / 10);
+        q->y[2] = q->y[3] = Word(top + ((bottom - top) * (i + 1)) / 10);
+        base = (Sint16)(Asr(sine[2], 5) * s->spell_wave_y / 256);
+        q->y[0] = Word(q->y[0] + base);
+        q->y[2] = Word(q->y[2] + base);
+        base = (Sint16)(Asr(sine[3], 5) * s->spell_wave_y / 256);
+        q->y[1] = Word(q->y[1] + base);
+        q->y[3] = Word(q->y[3] + base);
+        q->red[0] = q->red[1] = (Uint8)(((sine[0] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->green[0] = q->green[1] = (Uint8)(((sine[4] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->blue[0] = q->blue[1] = (Uint8)(((sine[5] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->red[2] = q->red[3] = (Uint8)(((sine[1] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->green[2] = q->green[3] = (Uint8)(((sine[6] + 0x1000) >> 6) * s->spell_bright / 256);
+        q->blue[2] = q->blue[3] = (Uint8)(((sine[7] + 0x1000) >> 6) * s->spell_bright / 256);
+        p->shield_angles[i] = (Sint32)((Uint32)p->shield_angles[i] + (Uint32)s->spell_step);
+    }
+    for (Uint16 i = 0; !knight && i < 9; ++i)
     {
         q = &s->spell_quads[2 + i];
         SotnMathTrig t = {0};
@@ -3539,7 +3609,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
                         : in.family == 30 && in.role >= 3                      ? 4
-                        : in.family == 8                                       ? 7
+                        : in.family == 8 || in.family == 9                     ? 7
                                                                                : 1) ||
         state->remaining < -1)
         return SDL_SetError("Weapon secondary requires its actual live bounded child");
@@ -3595,9 +3665,9 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
             return false;
         goto commit;
     }
-    if (in.family == 8)
+    if (in.family == 8 || in.family == 9)
     {
-        if (!LeatherSpell(&s, &shared, in, &e))
+        if (!ShieldCardSpell(&s, &shared, in, &e))
             return false;
         goto commit;
     }

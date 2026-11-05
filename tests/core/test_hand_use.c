@@ -745,6 +745,9 @@ static bool Combo(Fixture *f)
                   f->p->attack_mode == 0x8002);
     }
     CHECK(!SotnPlayer_SetComboChain(f->p, 49));
+    // Leather203 and Knight204 have native spells; Goddess209 not yet.
+    CHECK(SotnPlayer_ComboSupported(203) && SotnPlayer_ComboSupported(204) &&
+          !SotnPlayer_ComboSupported(209));
     return true;
 }
 // 6E42C.c Sword of Dawn17 (two-handed kind6): its QCF special177 is kind5 (blueprint56, chain8,

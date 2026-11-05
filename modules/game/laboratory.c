@@ -4101,7 +4101,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                            ring = role == 2 || family == 1 || (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
                 // Shield spells (E8) own eleven screen-space GT4s.
-                for (Uint16 q = family == 8 ? child->primitive_count : 0; q > 0; --q)
+                for (Uint16 q = family == 8 || family == 9 ? child->primitive_count : 0; q > 0; --q)
                     if (!(w->spell_quads[q - 1U].draw_mode & 8U) &&
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
@@ -4144,7 +4144,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 16U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle || rune || family == 30 || family == 8
+                for (Uint16 row = slash || ring || sparkle || rune || family == 30 || family == 8 ||
+                                          family == 9
                                       ? 0
                                       : child->primitive_count;
                      row > 0; --row)
@@ -5208,7 +5209,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                c->state.secondary.family == 51 ||
                                (c->state.secondary.family == 12 && !(c->kind & 15U));
             const bool dawn = c->state.secondary.family == 30,
-                       spell = c->state.secondary.family == 8;
+                       spell = c->state.secondary.family == 8 || c->state.secondary.family == 9;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
                 (!slash && !dawn && !spell && (c->kind & 15U) != 2 &&
                  c->state.secondary.family != 1 &&
@@ -5287,7 +5288,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             else if (c->state.secondary.family == 49 || c->state.secondary.family == 6 ||
                      c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 || c->state.secondary.family == 34 ||
-                     c->state.secondary.family == 30 || c->state.secondary.family == 8)
+                     c->state.secondary.family == 30 || c->state.secondary.family == 8 ||
+                     c->state.secondary.family == 9)
             {
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.

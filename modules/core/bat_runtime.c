@@ -901,6 +901,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 28                ? 34
            : item == 17 || item == 177 ? 30
            : item == 203               ? 8
+           : item == 204               ? 9
            : item == 27                ? 36
            : item == 124               ? 57
            : item == 123               ? 43
@@ -964,12 +965,13 @@ bool SotnBatRuntime_RequestHand(SotnBatRuntime *r, SotnPlayerFactorySource sourc
                              : item == 186 || item == 187 || Weapon51Special(item) ? 54U
                              : item == 172                                         ? 72U
                              : item == 177                                         ? 56U
-                             : item == 203                                         ? 86U
+                             : item == 203 || item == 204                          ? 86U
                                                                                    : 48U;
     // Both-buttons combo spells (203) carry their hand bits at <<14.
-    const Uint32 expected = item ? blueprint | ((Uint32)(hand + 1U) << (item == 203 ? 14 : 12)) |
-                                       ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
-                                 : (42U + hand) | ((Uint32)hand << 23);
+    const Uint32 expected =
+        item ? blueprint | ((Uint32)(hand + 1U) << (item == 203 || item == 204 ? 14 : 12)) |
+                   ((Uint32)HandVariant(item) << 16) | ((Uint32)hand << 23)
+             : (42U + hand) | ((Uint32)hand << 23);
     if (!r || !allocated || HandFamily(item) > 255 ||
         (packed != expected && (packed != 0x10039 || item)))
         return SDL_SetError("Ordinary hand lost its actual item/factory/parameter identity");
@@ -1088,7 +1090,7 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     if (family == 14)
         return (parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 3;
     // Weapon13's root and afterimages, and Shotel's weapon34 boomerang, carry only the hand bit.
-    if (family == 13 || family == 34 || family == 8)
+    if (family == 13 || family == 34 || family == 8 || family == 9)
         return !(parameter & 0x7fffU);
     // Weapon30: the circle carries the hand bit; soldiers their type (bit4: six-soldier
     // palette), arrows/swords0..2 and the bomb pair its low-byte index.
@@ -1138,8 +1140,9 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 14 ? 143 : 119) &&
                       !(c->parameter & 0xffU) && c->state.secondary.parent_slot == 16
-            : family == 8 ? c->state.secondary.own_item && c->state.secondary.item == 203 &&
-                                !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
+            : family == 8 || family == 9
+                ? c->state.secondary.own_item && c->state.secondary.item == 195U + family &&
+                      !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 30 && (c->kind & 15U) == 1
                 ? c->state.secondary.own_item && c->state.secondary.item == 177 &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
@@ -1171,13 +1174,13 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 30 && (c->kind & 15U) == 1                   ? 4
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
                                    : family == 30                                           ? 4
-                                   : family == 8                                            ? 7
+                                   : family == 8 || family == 9                             ? 7
                                                                                             : 1) &&
                       w->allocated && c->group <= 10 &&
                       c->primitive_count == SotnWeaponSecondary_RoleRows(family, c->kind & 15U) &&
                       // Weapon30 children set their attack words directly (no property roll).
                       w->properties.id ==
-                          (family == 30 || family == 8 ? 0 : c->state.secondary.item)
+                          (family == 30 || family == 8 || family == 9 ? 0 : c->state.secondary.item)
                 : !w->phase && !c->group && !c->primitive_count);
 }
 typedef struct HandPropertyContext
@@ -2164,7 +2167,8 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                       (c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 177;
     // Blueprint86 from a both-buttons combo creates the shield program's E8/F8 spell in17..31.
     const bool spell = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
-                       (c.kind == 0xe8 || c.kind == 0xf8) && child.argument_low == 203;
+                       (c.kind == 0xe8 || c.kind == 0xf8) &&
+                       (child.argument_low == 203 || child.argument_low == 204);
     c.weapon_secondary =
         rush || crescent || rune || vorpal || yasutsuna || shotel || dawn || spell ||
         (secondary_factory &&
@@ -2227,9 +2231,10 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
         if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
-            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 8)))
+            (input && (!input->weapon_bound[hand] ||
+                       input->weapon_family[hand] != child.argument_low - 195U)))
             return SDL_SetError("Shield spell lost its actual blueprint86/program/item ownership");
-        c.state.secondary.family = 8;
+        c.state.secondary.family = (Uint16)(child.argument_low - 195U);
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = child.argument_low;
         c.state.secondary.own_item = true;
@@ -3111,7 +3116,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // children own no rows (their union words hold motion instead).
             const Uint16 family = c->state.secondary.family, role = c->kind & 15U;
             if (family == 14 || family == 13 || family == 12 || family == 34 || family == 30 ||
-                family == 8)
+                family == 8 || family == 9)
             {
                 // Weapon14's trail corners are world pixels like the entity (DRAW_UNK_100 rows
                 // shift with it); its hitboxes own no rows.
@@ -4052,6 +4057,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 34 ? 28
                                  : family == 30 ? 17
                                  : family == 8  ? 5
+                                 : family == 9  ? 6
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))

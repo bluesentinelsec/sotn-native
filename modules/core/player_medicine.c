@@ -42,8 +42,8 @@ Uint32 SotnPlayer_Combo(const SotnPlayer *p)
 }
 bool SotnPlayer_ComboSupported(Uint16 item)
 {
-    // Combo spells with an actual native owner (Leather shield's203).
-    return item == 203;
+    // Combo spells with an actual native owner (Leather203, Knight204).
+    return item == 203 || item == 204;
 }
 bool SotnPlayer_SetSpecialCross(SotnPlayer *p, Uint8 left_count, Uint8 right_count)
 {
