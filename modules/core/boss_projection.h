@@ -59,6 +59,17 @@ typedef struct SotnTriangleProjection
  * @return Success or SDL error preserving output; not a general GTE emulator. */
 bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform transform,
                           const SotnTriangleVertex vertices[3], SotnTriangleProjection *out);
+/** @brief w_026 Shaman shield star: RotMatrix(axis), TransMatrix(transfer), SetGeomScreen(screen)
+ * and SetGeomOffset(offset) followed by RotTransPers4 of four small vertices.
+ * @param executable Borrowed verified boot math tables. @param axis RotMatrix angles (XYZ order).
+ * @param transfer Translation vector. @param offset_x Screen offset X. @param offset_y Screen
+ * offset Y. @param screen Projection distance H. @param vertices Model vertices (|v| <= 1024).
+ * @param out Receives the four saturated screen points. @param otz Receives RotTransPers4's
+ * return (the last vertex's SZ>>2).
+ * @return Success or SDL error preserving outputs; bounded to this selected effect. */
+bool SotnShieldStar_Project(SotnDataView executable, const Sint16 axis[3], const Sint32 transfer[3],
+                            Sint16 offset_x, Sint16 offset_y, Uint16 screen,
+                            const Sint16 vertices[4][3], SotnProjectedPoint out[4], Sint32 *otz);
 /** @brief Original book transform; angles use 4096 units, depth is 0..768. */
 typedef struct SotnBookTransform
 {

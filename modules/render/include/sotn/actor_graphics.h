@@ -234,6 +234,17 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
  * @return Success, or false with SDL_GetError() and unchanged memory outside those rows. */
 bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
                                      Uint16 value);
+/** @brief Read-modify one weapon-program g_Clut word: (word & mask) + add, as weapon26's green
+ * cycle rewrites g_Clut and LoadImage uploads it. The current word must already be uploaded.
+ * @param graphics Owned graphics. @param palette Palette 0x110..0x13F. @param color Colour 0..15.
+ * @param mask Bits kept from the current word. @param add Value added (16-bit wrap).
+ * @return Success, or false with SDL_GetError() and unchanged memory. */
+bool SotnActorGraphics_ModifyWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                        Uint16 mask, Uint16 add);
+/** @brief Read one uploaded weapon-program g_Clut word (palette 0x110..0x13F, colour 0..15).
+ * @return Success, or false with SDL_GetError() when the word was never uploaded. */
+bool SotnActorGraphics_WeaponClut(const SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                  Uint16 *out);
 /** @brief Copy the actual successfully loaded program binding, retained after last-copy use. */
 bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
                                      bool *bound);

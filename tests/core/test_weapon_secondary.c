@@ -3,6 +3,7 @@
 // LINE_G2 rows before RNG, raw-parent properties/group, hitbox shrink, post-callback UpdateAnim,
 // blueprint56 runtime ownership, shared rows, holds, rebases and failure atomicity.
 #include "actors_internal.h"
+#include "boss_projection.h"
 #include "character_fixture.h"
 #include <sotn/bat_runtime.h>
 #include <sotn/combat.h>
@@ -4939,6 +4940,439 @@ static bool GoddessRuntime(Uint16 hand, bool orphan)
     return true;
 }
 
+// w_026 EntityWeaponShieldSpell: Shaman's fourteen rows. Its twelve band angles, green cycle and
+// glass-shard counter are program words loaded once. The shield grows, holds and flashes out;
+// blueprint92 releases the stars with GLASS_SHARDS, repeated every 22 counts through phase7; the
+// card darkens, waits 0x30, brightens past 0x120 for pink6 and the bands spread and fade before
+// the spell ends the freeze. Every callback bounces the green cycle and rewrites palette 0x112's
+// colour13 green.
+// Shaman's band colours from the angles before the callback: band i reads angles i+4/8 (red/
+// green/blue) and i+1/5/9 (lower corners) as the loop steps earlier bands by the step.
+static bool ShamanBands(const SotnWeaponSecondary *s, const Sint32 *before, Uint8 *exe)
+{
+    Sint32 a[12] = {0};
+    SDL_memcpy(a, before, sizeof(a));
+    const Uint16 offsets[6] = {0, 4, 8, 1, 5, 9};
+    for (Uint16 i = 0; i < 12; ++i)
+    {
+        Uint8 c[6] = {0};
+        for (Uint16 k = 0; k < 6; ++k)
+        {
+            SotnMathTrig t = {0};
+            CHECK(
+                SotnMath_Trig((SotnDataView){exe, 0x24000}, (Sint16)a[(i + offsets[k]) % 12], &t));
+            c[k] = (Uint8)(((t.sine + 0x1000) >> 6) * s->spell_bright / 256);
+        }
+        const SotnPlayerEffectQuad *q = &s->spell_quads[2 + i];
+        CHECK(q->red[0] == c[0] && q->green[0] == c[1] && q->blue[0] == c[2] && q->red[3] == c[3] &&
+              q->green[3] == c[4] && q->blue[3] == c[5]);
+        a[i] += s->spell_step;
+    }
+    return true;
+}
+static bool ShamanSpellTest(Uint16 hand)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    Put16(o + 0xa98, 3);
+    Put16(o + 0xa9a, 1);
+    for (Uint16 i = 0; i < 12; ++i)
+        Put32(o + 0xa9c + i * 4U, i * 0x155U);
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15), .x = 128 * 65536, .y = 120 * 65536};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .hand = hand,
+                                   .family = 26,
+                                   .role = 8,
+                                   .priority = 148,
+                                   .facing_left = hand != 0,
+                                   .allocated = true,
+                                   .free_factories = 4};
+    Uint32 rng = 5;
+    SotnWeaponSecondaryEvents e = {0};
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5 && s.phase == 1 &&
+          e.clear_shield && e.sounds[0] == 0x641 && e.freeze_set && !e.factory_count &&
+          s.spell_quads[0].priority == 136 && s.spell_quads[1].u[1] == 0 &&
+          s.spell_quads[1].u[2] == 0x5f && s.spell_quads[1].v[0] == (hand ? 0xff : 0x7f) &&
+          s.spell_quads[1].v[1] == (hand ? 0xc8 : 0x48) && s.spell_quads[13].u[0] == 88 &&
+          s.spell_quads[13].u[3] == 95 && s.spell_quads[13].palette == 0x15f &&
+          s.spell_quads[13].priority == 0x1ba && s.spell_quads[13].draw_mode == 0x3d &&
+          program.shield_angles[11] == 11 * 0x155 + 0x80 && program.shaman_green == 4 &&
+          program.shaman_direction == 1 && e.clut && e.clut_palette == (hand ? 0x12a : 0x112) &&
+          e.clut_color == 13 && e.clut_mask == 0xfc1f && e.clut_add == 4 << 5 &&
+          SotnWeaponSecondary_RoleRows(26, 8) == 14 && SotnWeaponSecondary_Rows(26) == 14 &&
+          SotnWeaponSecondary_ChildRows(26, 9, 3) == 1 &&
+          SotnWeaponSecondary_ChildRows(26, 9, 0x100) == 4 &&
+          SotnWeaponSecondary_ChildRows(25, 9, 0x100) == 1 &&
+          SotnWeaponSecondary_ShieldSpellItem(26) == 210 &&
+          SotnWeaponSecondary_ShieldSpellFamily(210) == 26);
+    Uint16 t = 0, counts[9] = {0}, stars = 0, shards = 0, pink = 0;
+    Sint16 green = program.shaman_green, direction = program.shaman_direction;
+    for (; !s.removed && t < 600; ++t)
+    {
+        in.engine_timer = t;
+        const Uint8 phase = s.phase;
+        const Sint32 counter = program.shaman_counter;
+        const Sint16 wave = s.spell_wave_y, wave_x = s.spell_wave_x;
+        Sint32 angles[12] = {0};
+        SDL_memcpy(angles, program.shield_angles, sizeof(angles));
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 5);
+        CHECK(s.removed || ShamanBands(&s, angles, exe));
+        ++counts[phase];
+        // The green cycle bounces 0..0x1F; even direction words descend.
+        if (!s.removed)
+        {
+            if (direction & 1)
+            {
+                if (++green >= 0x20)
+                    green = 0x1f, ++direction;
+            }
+            else if (--green < 0)
+                green = 0, ++direction;
+            CHECK(program.shaman_green == green && program.shaman_direction == direction &&
+                  e.clut && e.clut_add == (Uint16)(green << 5));
+        }
+        // GLASS_SHARDS: at the stars' release, then on every 22nd count through phase7.
+        const bool shard =
+            (phase == 3 && s.phase == 4) || (phase >= 4 && phase <= 7 && !(counter % 22));
+        CHECK((e.sounds[0] == 0x6b0) == shard);
+        shards += shard;
+        if (phase >= 4)
+            CHECK(program.shaman_counter == (phase == 3 ? 0 : counter + 1));
+        if (e.factory_count)
+        {
+            CHECK(phase == 3 && s.phase == 4 && e.factory_count == 1 &&
+                  e.factories[0] == 92U + ((hand + 1U) << 14) && program.shaman_counter == 0 &&
+                  !(s.spell_quads[1].draw_mode & 8U) && !(s.spell_quads[13].draw_mode & 8U));
+            ++stars;
+        }
+        if (phase == 4 && s.phase == 5)
+            CHECK(s.spell_half_w == 28 && s.spell_half_h == 48 &&
+                  (s.spell_quads[0].draw_mode & 8U) && s.spell_quads[0].blue[3] == 4 &&
+                  s.spell_quads[1].y[2] - s.spell_quads[1].y[0] == 95 &&
+                  s.spell_quads[7].y[0] - s.spell_quads[2].y[0] == 40);
+        // Bands carry independent red/green/blue phases a third of the circle apart.
+        if (phase == 5 && s.spell_bright > 0x80)
+            CHECK(s.spell_quads[2].red[0] != s.spell_quads[2].green[0] ||
+                  s.spell_quads[2].green[0] != s.spell_quads[2].blue[0]);
+        if (phase == 8)
+            CHECK(s.removed || (s.spell_wave_y == wave + 2 && s.spell_wave_x == wave_x + 2));
+        if (e.pink)
+        {
+            CHECK(e.pink == 6 && phase == 7 && s.spell_bright > 0x120 &&
+                  (s.spell_quads[1].draw_mode & 8U));
+            ++pink;
+        }
+        CHECK(e.freeze_clear == s.removed);
+    }
+    // Growth22, hold8, flash16, opening22, darkening26, wait0x30, brightening73, spread37.
+    CHECK(s.removed && stars == 1 && pink == 1 && shards > 6 && counts[1] == 22 && counts[2] == 8 &&
+          counts[3] == 16 && counts[4] == 22 && counts[5] == 26 && counts[6] == 0x30 &&
+          counts[7] == 73 && counts[8] == 37);
+    return true;
+}
+// Floating-point SDK matrix pairs for the star tests (sine, cosine at 4096 per turn).
+static void MatrixPairs(Uint8 *exe)
+{
+    for (Uint32 i = 0; i < 4096; ++i)
+    {
+        const double a = (double)i * 2.0 * SDL_PI_D / 4096.0;
+        Put16(exe + 0x1ea10 + i * 4, (Uint16)(Sint16)SDL_lround(SDL_sin(a) * 4096.0));
+        Put16(exe + 0x1ea12 + i * 4, (Uint16)(Sint16)SDL_lround(SDL_cos(a) * 4096.0));
+    }
+}
+static bool StarExpected(const SotnWeaponSecondary *s, Uint8 *exe, Sint16 sx, Sint16 sy)
+{
+    const Sint16 ox = s->star_offset_x, oy = s->star_offset_y;
+    const Sint16 v[4][3] = {{(Sint16)(8 + ox), (Sint16)(-28 + oy), 0},
+                            {(Sint16)(56 + ox), (Sint16)(-28 + oy), 0},
+                            {(Sint16)(8 + ox), (Sint16)(28 + oy), 0},
+                            {(Sint16)(56 + ox), (Sint16)(28 + oy), 0}};
+    const Sint32 transfer[3] = {0, 0x10, 0x180};
+    SotnProjectedPoint point[4] = {{0}};
+    Sint32 otz = 0;
+    CHECK(SotnShieldStar_Project((SotnDataView){exe, 0x24000}, s->star_axis, transfer, sx, sy,
+                                 0x280, v, point, &otz));
+    for (Uint16 k = 0; k < 4; ++k)
+        CHECK(s->spell_quads[0].x[k] == point[k].x && s->spell_quads[0].y[k] == point[k].y);
+    const Uint16 angle = (Uint16)s->star_axis[1] & 0xfffU;
+    const bool shown = otz > 0 && otz <= 0x1be;
+    CHECK(
+        ((s->spell_quads[0].draw_mode & 8U) == 0) == shown &&
+        (!shown || s->spell_quads[0].priority == (angle > 0x900 && angle < 0xf00 ? 0x1be : 0x1b4)));
+    return true;
+}
+// w_026 func_ptr_80170024 stars (params0..7): one GT4 then a rand%15 delay, the overlay UVs,
+// a FACTORY(90,1) trail, a Y spin of 0x28 per update from index<<9, offsets shrinking by six after
+// the delay, release on the raw parent's step8 with a rand&15 delay, then flight until the Y
+// offset passes -0x80. RotTransPers4 places it around its birth point.
+static bool ShamanStarTest(Uint16 hand, Uint16 index)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    Math(exe);
+    MatrixPairs(exe);
+    const Uint8 uv[8] = {80, 0, 127, 0, 80, 55, 127, 55};
+    SDL_memcpy(o + 0xadc, uv, 8);
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .hand = hand,
+                                   .family = 26,
+                                   .role = 9,
+                                   .priority = 148,
+                                   .camera_x = 20,
+                                   .camera_y = 4,
+                                   .free_factories = 4,
+                                   .parent_exists = true,
+                                   .parent_phase = 4};
+    // The projection itself: an identity rotation at depth0x200 with screen0x280 scales by 1.25
+    // around the offset, and OTZ is the last vertex's depth over four.
+    {
+        const Sint16 axis[3] = {0, 0, 0},
+                     v[4][3] = {{40, 30, 0}, {-40, 30, 0}, {40, -30, 0}, {0, 0, 0}};
+        const Sint32 transfer[3] = {0, 0x10, 0x200};
+        SotnProjectedPoint point[4] = {{0}};
+        Sint32 otz = 0;
+        CHECK(SotnShieldStar_Project((SotnDataView){exe, sizeof(exe)}, axis, transfer, 100, 50,
+                                     0x280, v, point, &otz) &&
+              otz == 0x80 && point[0].x == 150 && point[1].x == 50 && point[0].y == 107 &&
+              point[2].y == 32 && point[3].x == 100 && point[3].y == 70);
+    }
+    Uint32 rng = 31, check = 31;
+    SotnWeaponSecondaryEvents e = {0};
+    {
+        SotnWeaponSecondary cold = {.parameter = index};
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, in, &rng, &e) && cold.removed &&
+              rng == check);
+    }
+    in.allocated = true;
+    SotnWeaponSecondary s = {
+        .parameter = index, .x = 150 * 65536, .y = 100 * 65536, .flags = 0x10000};
+    const Uint16 delay = (Uint16)((SotnCombat_Random(&check) & 0x7fffU) % 15U);
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check && s.phase == 1 &&
+          s.spell_timer == delay && s.star_axis[0] == -0x100 &&
+          s.star_axis[1] == (Sint16)(index << 9) && s.star_offset_x == 0xa0 &&
+          s.star_offset_y == 0x60 && s.flags == 0x04810000U &&
+          s.spell_quads[0].palette == (hand ? 0x12a : 0x112) && s.spell_quads[0].u[1] == 127 &&
+          s.spell_quads[0].v[2] == (hand ? 0x80 + 55 : 55) && s.spell_quads[0].draw_mode == 0x71 &&
+          e.factory_count == 1 && e.factories[0] == ((90U + ((hand + 1U) << 14)) | 1U << 16) &&
+          e.factory_x[0] == s.x);
+    Uint16 t = 0, shown = 0, front = 0;
+    for (; s.phase == 1 && t < 200; ++t)
+    {
+        const Sint16 axis = s.star_axis[1], ox = s.star_offset_x;
+        const Sint16 timer = s.spell_timer;
+        in.parent_phase = (Uint8)(t < 60 ? 4 : 8);
+        check = rng;
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !e.factory_count);
+        CHECK(s.star_axis[1] == (Sint16)(axis + 0x28));
+        if (timer)
+            CHECK(s.star_offset_x == ox && (s.phase == 2 || s.spell_timer == timer - 1));
+        else
+            CHECK(s.star_offset_x == SDL_max(ox - 6, 0));
+        if (s.phase == 2)
+            CHECK(s.spell_timer == (Sint16)((SotnCombat_Random(&check) & 0x7fffU) & 15U) &&
+                  rng == check && t == 60);
+        else
+            CHECK(rng == check);
+        shown += !(s.spell_quads[0].draw_mode & 8U);
+        front += s.spell_quads[0].priority == 0x1be;
+        // The original constants: vertices 8/56 x -28/28 plus the offsets, transfer
+        // (0, 0x10, 0x180), screen 0x280 at the birth point; OTZ picks visibility and the angle
+        // the front/back priority.
+        CHECK(StarExpected(&s, exe, 130, 96));
+    }
+    CHECK(s.phase == 2 && shown > 50 && front > 5 && front < shown && !s.star_offset_x &&
+          !s.star_offset_y);
+    for (t = 0; !s.removed && t < 200; ++t)
+    {
+        const Sint16 ox = s.star_offset_x, oy = s.star_offset_y, timer = s.spell_timer;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        // It retires exactly when Y passes below -0x80.
+        if (s.removed)
+            CHECK(!timer && oy - 6 < -0x80);
+        else if (!timer)
+            CHECK(s.star_offset_x == ox + 6 && s.star_offset_y == oy - 6 &&
+                  s.star_offset_y >= -0x80 && StarExpected(&s, exe, 130, 96));
+    }
+    // Y falls from0 by six until below -0x80: twenty-two steps after the delay.
+    CHECK(s.removed);
+    return true;
+}
+// w_026 func_ptr_80170024 trails (params1): four hidden GT4s at birth; each update row
+// (count>>1)%4 copies the raw parent star's row while its X offset is positive, else hides; an
+// empty parent slot retires the trail.
+static bool ShamanTrailTest(void)
+{
+    static Uint8 o[0x1400], exe[0x24000];
+    SotnHandWeaponProgram program = {0};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .executable = {exe, sizeof(exe)},
+                                   .family = 26,
+                                   .role = 9,
+                                   .parent_exists = true,
+                                   .parent_offset_x = 10};
+    Uint32 rng = 3;
+    SotnWeaponSecondaryEvents e = {0};
+    SotnWeaponSecondary s = {.parameter = 0x100, .flags = 0x10000};
+    {
+        SotnWeaponSecondary cold = s;
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, in, &rng, &e) && cold.removed);
+        SotnWeaponSecondaryInput gone = in;
+        gone.allocated = true;
+        gone.parent_exists = false;
+        cold = s;
+        CHECK(SotnWeaponSecondary_Tick(&cold, &program, gone, &rng, &e) && cold.removed);
+    }
+    in.allocated = true;
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+          s.flags == 0x04810000U && (s.spell_quads[3].draw_mode & 8U) && rng == 3);
+    for (Uint16 t = 1; t < 20; ++t)
+    {
+        in.parent_quad = (SotnPlayerEffectQuad){.x = {(Sint16)t}, .priority = 0x1b4};
+        in.parent_offset_x = (Sint16)(t < 12 ? 10 : 0);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+        const Uint16 row = (Uint16)((t >> 1) % 4U);
+        CHECK(t < 12 ? s.spell_quads[row].x[0] == (Sint16)t && !(s.spell_quads[row].draw_mode & 8U)
+                     : (s.spell_quads[row].draw_mode & 8U) != 0);
+    }
+    in.parent_exists = false;
+    CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed);
+    return true;
+}
+
+// Runtime: Mablung/Shaman's blueprint86 spell (fourteen rows) releases blueprint92's eight E9/F9
+// stars (one row, params0..7, slots17..31), each with a blueprint90 trail of four rows (32..63,
+// params1). Every spell callback queues one read-modify palette word; stars leave after the
+// spell's step8 and trails retire with their stars.
+static bool ShamanRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    MatrixPairs(exe);
+    FamilyDefinition(dra, 12, 9, 26, 128, 0, 0, 0);
+    FamilyDefinition(dra, 210, 10, 26, 5, 0, 10, 0);
+    Uint8 *record = dra + 0x500 + 210 * 52;
+    record[18] = 0xba;
+    record[19] = 86;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[5][6] = {{8, 1, 0xc1, 0, 6, 0},
+                                    {9, 8, 0xc8, 0, 6, 0},
+                                    {9, 1, 0xc1, 0, 0, 0},
+                                    {11, 1, 0x81, 0, 0, 0},
+                                    {39, 1, 0x81, 0, 0, 0}};
+    const Uint16 ids[5] = {86, 92, 90, 44, 55};
+    for (Uint16 b = 0; b < 5; ++b)
+        SDL_memcpy(dra + 0xd1d4 + ids[b] * 6U, blueprints[b], 6);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *q = dra + 0xd670 + (i ? 0x47U : 0x40U) * 20U;
+        Put16(q + 6, 0x100);
+        for (Uint16 k = 8; k <= 12; k += 2)
+            Put16(q + k, 256);
+        Put16(q + 14, 0x7002);
+        Put16(q + 16, 0x31);
+        Put16(q + 18, 512);
+    }
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {26, 26},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 200 * 65536,
+                                         .y = 135 * 65536,
+                                         .priority = 148,
+                                         .facing_left = hand == 0}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand == 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestHand(r, source, 86U | (hand + 1U) << 14 | (Uint32)hand << 23, 210,
+                                     &allocated) &&
+          allocated);
+    Uint16 most_stars = 0, most_trails = 0, copies = 0, cluts = 0, spell_ticks = 0;
+    for (Uint16 t = 0; t < 900; ++t)
+    {
+        in.engine_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        Uint16 stars = 0, trails = 0;
+        bool spell = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 26 || !c->initialized)
+                continue;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && (w->flags & 0x10000U));
+            if ((c->kind & 15U) == 8)
+            {
+                spell = true;
+                CHECK(c->primitive_count == 14 && c->state.secondary.item == 210);
+                continue;
+            }
+            CHECK(c->kind == (hand ? 0xf9 : 0xe9) && !c->state.secondary.item &&
+                  !c->state.secondary.attack.active);
+            if (c->parameter & 0x7f00U)
+            {
+                CHECK(i >= 16 && c->parameter == 0x100 && c->primitive_count == 4);
+                ++trails;
+                const SotnBatRuntimeChild *star =
+                    &r->children[c->state.secondary.parent_slot - 16U];
+                for (Uint16 k = 0; k < 4; ++k)
+                    copies += star->weapon_secondary && !(w->spell_quads[k].draw_mode & 8U) &&
+                              !SDL_memcmp(&w->spell_quads[k],
+                                          &star->state.secondary.motion.spell_quads[0],
+                                          sizeof(SotnPlayerEffectQuad));
+            }
+            else
+            {
+                CHECK(i <= 15 && c->parameter <= 7 && c->primitive_count == 1);
+                ++stars;
+            }
+        }
+        if (spell)
+        {
+            ++spell_ticks;
+            CHECK(r->clut_count == 1 && r->clut[0].palette == (hand ? 0x12a : 0x112) &&
+                  r->clut[0].color == 13 && r->clut[0].mask == 0xfc1f);
+            ++cluts;
+        }
+        else
+            CHECK(!r->clut_count);
+        most_stars = SDL_max(most_stars, stars);
+        most_trails = SDL_max(most_trails, trails);
+    }
+    CHECK(most_stars == 8 && most_trails == 8 && copies > 100 && cluts == spell_ticks &&
+          spell_ticks > 250);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+
 int main(void)
 {
     return Module() && Lunge() && Slash() && Thunder() && Warp() && Fist() && Fan() && Brand() &&
@@ -4956,7 +5390,10 @@ int main(void)
                    AxeLordWalkerTest(0) && AxeLordWalkerTest(1) && AxeLordRuntime(0) &&
                    AxeLordRuntime(1) && GoddessSpellTest(0) && GoddessSpellTest(1) &&
                    GoddessCloudTest(0) && GoddessCloudTest(1) && GoddessRuntime(0, false) &&
-                   GoddessRuntime(1, false) && GoddessRuntime(0, true) && GoddessRuntime(1, true)
+                   GoddessRuntime(1, false) && GoddessRuntime(0, true) && GoddessRuntime(1, true) &&
+                   ShamanSpellTest(0) && ShamanSpellTest(1) && ShamanStarTest(0, 3) &&
+                   ShamanStarTest(1, 3) && ShamanStarTest(0, 2) && ShamanTrailTest() &&
+                   ShamanRuntime(0) && ShamanRuntime(1)
                ? 0
                : 1;
 }

@@ -25,6 +25,7 @@ target_include_directories(sotn-hand-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-hand-weapon-tests PRIVATE sotn-core)
 add_test(NAME ordinary-hand-weapon-controller COMMAND sotn-hand-weapon-tests)
 add_executable(sotn-weapon-secondary-tests test_weapon_secondary.c character_fixture.h)
+target_include_directories(sotn-weapon-secondary-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
 sotn_configure_c_target(sotn-weapon-secondary-tests)
 target_include_directories(sotn-weapon-secondary-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
 target_link_libraries(sotn-weapon-secondary-tests PRIVATE sotn-core)

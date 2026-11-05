@@ -1834,6 +1834,14 @@ static bool TestGpuWrap(Fixture *f)
           !SotnActorGraphics_SetWeaponClut(g, 0x140, 0, 0) &&
           !SotnActorGraphics_SetWeaponClut(g, 0x112, 16, 0) &&
           !SotnActorGraphics_SetWeaponClut(NULL, 0x112, 11, 0));
+    // Weapon26's green cycle keeps red/blue/mask bits and replaces green (0xFC1F + green<<5).
+    Uint16 word = 0;
+    CHECK(SotnActorGraphics_ModifyWeaponClut(g, 0x112, 11, 0xfc1f, 5 << 5) &&
+          SotnActorGraphics_WeaponClut(g, 0x112, 11, &word) && word == 0x80a2 &&
+          SotnActorGraphics_ModifyWeaponClut(g, 0x112, 11, 0, 0x1234) &&
+          SotnActorGraphics_WeaponClut(g, 0x112, 11, &word) && word == 0x1234 &&
+          !SotnActorGraphics_ModifyWeaponClut(g, 0x140, 0, 0, 0) &&
+          !SotnActorGraphics_WeaponClut(g, 0x112, 11, NULL));
     SotnActorGraphics_Destroy(g);
     return true;
 }

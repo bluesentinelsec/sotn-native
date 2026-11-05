@@ -1,4 +1,4 @@
-# Selected weapon combos and the Leather/Knight/Alucart/Axe Lord/Goddess shield spells
+# Selected weapon combos and the Leather/Knight/Alucart/Axe Lord/Goddess/Shaman shield spells
 
 Pressing both attack buttons can cast a combo spell. CheckWeaponCombo (`menu.c`) runs with each
 weapon load and records `D_8013AEE4`: the combo item, plus bit 31 when the right hand owns it.
@@ -24,7 +24,8 @@ A combo spell:
 Kind 5 stops a grounded player in substep 0x45 with the casting grunt.
 
 Only combos with an actual native owner are selected. Currently those are Leather shield's 203,
-Knight shield's 204, Axe Lord shield's 206, Goddess shield's 209 and Alucart shield's 215, with Mablung (or a Shield
+Knight shield's 204, Axe Lord shield's 206, Goddess shield's 209, Shaman shield's 210 and Alucart
+shield's 215, with Mablung (or a Shield
 rod, once owned). Other combos keep the ordinary left-hand attack, a documented gap until their
 spells exist.
 
@@ -125,6 +126,41 @@ CAMERA_LOCKED, so both keep their screen position when the camera moves. The lab
 commands now pack `owner*32 + row`, because the spell's seventeenth row overflowed the old stride
 of 16.
 
+## Shaman shield spell (item210) and its stars
+
+Shaman shield's spell (w_026) costs ten MP and takes fourteen rows. Its twelve band angles, a
+green cycle (`D_8017AA98`/`AA9A`) and a glass-shard counter (`D_8017CC3C`) are program words. The
+first two are loaded once from overlay data. The sequence:
+1. The shield grows, holds and flashes out.
+2. The card and twelve vertical bands open. Each band's red, green and blue use angles a third
+   of the circle apart.
+3. Blueprint92 releases eight stars with GLASS_SHARDS. The sound repeats every 22 counter steps
+   through phase 7.
+4. The card darkens, waits 0x30 updates and brightens past 0x120 for `FACTORY(55, 6)`.
+5. The bands spread (both waves) and fade, then the spell ends the freeze.
+
+Every spell callback bounces the green cycle 0..0x1F. It rewrites the green bits of palette 0x112
+(0x12A for the right hand) colour 13, as `(word & 0xFC1F) + (green << 5)` in `g_Clut`, and uploads
+the weapon rows. The edit persists until a palette reload. Native code queues the read-modify word
+and commits it after the pass.
+
+Each star is the program's vector9 as an E9/F9 child in slots 17..31, with params 0..7 and one
+GT4. It rolls a delay of 0..14 and requests its `FACTORY(90,1)` trail. Its orbit:
+- It turns around Y by 0x28 per update from `index << 9`.
+- `RotMatrix`, `TransMatrix` (0, 0x10, 0x180), `SetGeomScreen(0x280)` and `RotTransPers4`
+  place it around its birth point. It shows for 0 < OTZ <= 0x1BE, in front (priority 0x1BE) for
+  angles 0x901..0xEFF.
+- Its offsets shrink by six to zero after the delay.
+
+When the raw parent spell reaches step 8, the star waits `rand & 15` and flies off until its Y
+offset passes -0x80.
+
+Each trail (params 0x100, four GT4s in 32..63) copies its raw parent star's row into row
+`(count >> 1) % 4` while the star's X offset is positive, and retires when the star's slot
+empties. The star's projection uses PSY-Z-derived SDK matrix and divider math, scoped to this
+effect. A foreign occupant of a raw parent slot reads as step 0 with offset 0 here. Stars and
+trails run during the freeze and keep their screen position.
+
 Rows are screen pixels, because the original drawMode lacks DRAW_UNK02. The entity is
 screen-fixed, but the camera is static for its whole frozen life.
 
@@ -145,12 +181,18 @@ Public tests cover:
   band seams, card sizes and spread. For the cloud: birth placement and the six rolls (including
   the zero-spin case), growth, aims and corners recomputed from the original constants, its timer,
   and parent-loss fades.
+- **Shaman:** the program loads, green bounce and palette events, the GLASS_SHARDS cadence, the
+  star release, phase lengths, RGB bands and the spread. For the star: its delay roll, UVs, trail
+  request, spin, shrink, release, fly-off and projected bounds. For the trail: row selection,
+  copy and hide, and parent-loss retirement. Read-modify palette words are covered too.
 - **Runtime:** the spell, E9/F9 walker (spell item, least-used group, params0) and afterimages
   (32..63, equipId0, no roll) through the actual factories. Another hand's Shotel boomerangs take
   the retired walker's slot while its afterimages fade. Camera moves after the freeze keep the
   spell's screen position. Goddess's clouds run through the actual factories (one row, flag
   0x10000, no roll or attack). They keep their screen position, and fade once the spell's slot is
-  emptied mid-flight.
+  emptied mid-flight. Shaman's eight stars and eight four-row trails run through blueprint92 and
+  FACTORY(90,1); trails copy their stars' rows and one palette word is queued per spell
+  callback.
 - **Scene freeze:** the scene freeze now accepts request 1.
 
 Twenty-nine targeted mutations are caught. Two more are equivalent: Knight's `i*80/10` slice
@@ -160,23 +202,35 @@ angle that multiplies the always-zero `unk94`, so it is equivalent. Of forty-nin
 mutations, forty-five are caught. Two are equivalent: no phase-2 timer value is a multiple of 9,
 and the fade reaches 2 either way. One does not compile, because it leaves a variable unused. The
 last changes the empty-slot birth origin, which native play cannot reach (clouds are born only
-while the spell lives); the private comparison covers it.
+while the spell lives); the private comparison covers it. Of sixty-four Shaman mutations,
+sixty-three are caught. The remaining one moves the fly-off bound by one, but the star's Y offset
+moves in steps of six from multiples of six, so -127 and -128 are never reached. (The OTZ
+visibility shift is also invisible: the star's depth stays 0x180 +/- 216, always inside the test.)
 
-The private original-instruction comparison runs 15,500 complete w_008/w_009/w_058/w_011/w_025
-spell callbacks, comparing 173,096 GT4 rows across 100 contexts. These include a second cast that
-continues the retained angles, plus w_011's twelve walker factories and w_025's eighty cloud
-factories (both omitted without a free factory). A third comparison runs 4,525 complete w_025
-cloud callbacks across 40 contexts with 1,049 real `ratan2` aims and 4,485 rows. Its contexts
-include an empty parent at birth and parents retiring mid-flight. A second comparison runs 2,748 complete w_011 `func_ptr_80170024` callbacks: 1,808
-walker and 940 afterimage. It uses the real DRA UpdateAnim as the post-callback (1,768 calls),
-4,516 synthetic-world CheckCollision probes and 298 afterimage factories, with origins compared.
+The private original-instruction comparisons run complete original callbacks:
+- **Spells:** 19,552 w_008/w_009/w_058/w_011/w_025/w_026 callbacks across 120 contexts, comparing
+  229,544 GT4 rows. Contexts include a second cast that continues the retained angles. They also
+  cover w_011's twelve walker factories, w_025's eighty cloud factories and w_026's twelve star
+  factories (each omitted without a free factory). Shaman's green cycle and glass counter match
+  through 4,032 real `LoadImage` uploads.
+- **Axe Lord walker:** 2,748 w_011 `func_ptr_80170024` callbacks (1,808 walker, 940 afterimage).
+  The real DRA UpdateAnim runs as the post-callback (1,768 calls), with 4,516 synthetic-world
+  CheckCollision probes and 298 afterimage factories whose origins are compared.
+- **Goddess clouds:** 4,525 w_025 callbacks across 40 contexts, with 1,049 real `ratan2` aims and
+  4,485 rows. Contexts include an empty parent at birth and parents retiring mid-flight.
+- **Shaman stars:** 2,175 star and 488 trail w_026 callbacks. They run the real SLUS
+  `RotMatrix`/`TransMatrix`/`RotTransPers4` code, with a private PSY-Z COP2 register model
+  executing 4,302 GTE commands.
+
 Debug and ASan traces are byte-identical.
 
-Native Debug/ASan protocols equip Mablung with Leather, Knight, Alucart, Axe Lord or Goddess
-shield through the menu in both arrangements. They check:
+Native Debug/ASan protocols equip Mablung with Leather, Knight, Alucart, Axe Lord, Goddess or
+Shaman shield through the menu in both arrangements. They check:
 - the actual combo word, ten (twenty, forty) MP and the spell's pixels;
 - about 196 frozen frames (88 for Axe Lord, 288 for Goddess), both Blinks and the pink effect;
 - up to seven Goddess clouds, which draw pixels and move during the freeze;
+- Shaman's eight stars and eight trails, whose projected rows draw and move during its 253 frozen
+  updates;
 - release without a Mablung swing;
 - Alucart's question-mark pixels;
 - Axe Lord's walker in Laboratory room 5. It holds its actual group, hitbox and active 206
@@ -186,7 +240,7 @@ Too little MP keeps the left-hand swing. Supplied stock, protection and MP conte
 acquisition, route or console evidence.
 
 Adapted AGPL-3.0-or-later algorithms: `weapon/w_008.c`, `weapon/w_009.c`, `weapon/w_011.c`,
-`weapon/w_025.c`,
+`weapon/w_025.c`, `weapon/w_026.c`,
 `weapon/w_058.c`, `dra/menu.c` (CheckWeaponCombo),
 `dra/6E42C.c`, `dra/6DF70.c` and `dra/7879C.c` at sotn-decomp
 `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`.

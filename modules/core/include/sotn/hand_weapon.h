@@ -34,6 +34,9 @@ typedef struct SotnHandWeaponProgram
         {
             Sint32 shield_angles[16];
             bool shield_angles_loaded;
+            /** Weapon26: D_8017AA98/AA9A green cycle and D_8017CC3C glass-shard counter. */
+            Sint16 shaman_green, shaman_direction;
+            Sint32 shaman_counter;
         };
     };
     Sint32 previous_pose; /**< Weapon48 D_8017C3B4: the player pose seen last callback. */

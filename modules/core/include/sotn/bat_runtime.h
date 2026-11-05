@@ -267,12 +267,13 @@ typedef struct SotnBatRuntime
     Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
     Uint64 secondary_mask; /**< Active weapon func_ptr_80170004 attacks by actual slot. */
     bool hand_attack;      /**< Actual shared slot16 ordinary-hand attack. */
-    /** Weapon51 glow g_Clut words written this pass, in callback order (the session commits
-     * them to its palette store after a successful pass). */
+    /** Weapon51 glow and weapon26 green-cycle g_Clut words written this pass, in callback order
+     * (the session commits them to its palette store after a successful pass): each word
+     * becomes (word & mask) + value. */
     Uint8 clut_count;
     struct
     {
-        Uint16 palette, color, value;
+        Uint16 palette, color, mask, value;
     } clut[4];
     Uint8
         hand_shield; /**< Original retained unk48 word, updated by actual callbacks/replacement. */

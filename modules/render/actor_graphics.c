@@ -520,6 +520,26 @@ bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette
     Upload(graphics, index & 255U, 240U + (index - 0x1000U) / 256U, 1, 1, bytes);
     return true;
 }
+bool SotnActorGraphics_WeaponClut(const SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                  Uint16 *out)
+{
+    if (!graphics || !out || palette < 0x110 || palette >= 0x140 || color > 15)
+        return SDL_SetError("Weapon CLUT read must stay within the uploaded program rows");
+    const Uint32 index = palette * 16U + color;
+    const size_t at = (size_t)(240U + (index - 0x1000U) / 256U) * 1024U + (index & 255U);
+    if (!graphics->valid[at])
+        return SDL_SetError("Weapon CLUT read requires the uploaded program word");
+    *out = graphics->words[at];
+    return true;
+}
+bool SotnActorGraphics_ModifyWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
+                                        Uint16 mask, Uint16 add)
+{
+    Uint16 word = 0;
+    if (!SotnActorGraphics_WeaponClut(graphics, palette, color, &word))
+        return false;
+    return SotnActorGraphics_SetWeaponClut(graphics, palette, color, (Uint16)((word & mask) + add));
+}
 bool SotnActorGraphics_WeaponBinding(const SotnActorGraphics *graphics, Uint16 hand, Uint8 *family,
                                      bool *bound)
 {

@@ -79,6 +79,8 @@ static PlainSpec PlainWeapon(Uint16 id)
         return (PlainSpec){1, 11, 5, 0xba, 0, 0, 0, 20, 86, 1};
     case 209: // Goddess shield's both-buttons spell (forty MP)
         return (PlainSpec){10, 25, 5, 0xba, 0, 0, 0, 40, 86, 1};
+    case 210: // Shaman shield's both-buttons spell
+        return (PlainSpec){10, 26, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 215: // Alucart shield's both-buttons spell
         return (PlainSpec){10, 58, 5, 0xba, 0, 0, 0, 10, 86, 1};
     case 17: // Sword of Dawn (two-handed): QCF special177 summons its soldiers (kind5, bp56)

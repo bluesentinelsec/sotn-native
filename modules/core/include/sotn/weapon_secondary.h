@@ -113,6 +113,9 @@ typedef struct SotnWeaponSecondary
             Sint16 spell_timer, spell_glow, spell_half_w, spell_half_h, spell_step;
             /** Weapon25 clouds (E9): ext.shield unk96 spin and unk98 orbit angle. */
             Sint16 cloud_spin, cloud_angle;
+            /** Weapon26 stars (E9): ext.shamanshieldstar unk7C/7E/82 rotation, unk9C/9E
+             * offsets, unk96 spin step and unk9A depth. */
+            Sint16 star_axis[3], star_offset_x, star_offset_y, star_spin, star_depth;
             Sint16 spell_bright, spell_wave_x, spell_wave_y;
             Uint16 spell_child_palette;
             Uint8 spell_v0, spell_v1;
@@ -202,6 +205,11 @@ typedef struct SotnWeaponSecondaryInput
     Uint16 parent_pose;
     /** Weapon30 homing swords: the retained target slot's current stage words (screen). */
     SotnSpellTarget target;
+    /** Weapon26 stars: the raw parent spell's step; trails: the raw parent star's row and
+     * unk9C offset. */
+    Uint8 parent_phase;
+    Sint16 parent_offset_x;
+    SotnPlayerEffectQuad parent_quad;
     Uint32 engine_timer; /**< Actual g_Timer (shield spells' flicker, unlike g_GameTimer). */
 } SotnWeaponSecondaryInput;
 
@@ -236,6 +244,9 @@ typedef struct SotnWeaponSecondaryEvents
     bool freeze_set, freeze_clear;
     /** Shield spells: FACTORY(55, n) pink medicine effect profile, zero when absent. */
     Uint8 pink;
+    /** Weapon26: one g_Clut word becomes (word & clut_mask) + clut_add, then uploads. */
+    bool clut;
+    Uint16 clut_palette, clut_color, clut_mask, clut_add;
 } SotnWeaponSecondaryEvents;
 
 /** @brief Identify selected secondary programs (Holy sword55, Rapier38, Were bane39, Katana53,
@@ -252,6 +263,8 @@ Uint16 SotnWeaponSecondary_ShieldSpellFamily(Uint16 item);
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role);
 /** @brief Mandatory rows for one role's child; zero if unsupported. */
 Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role);
+/** @brief Mandatory rows for one child given its actual params (weapon26's trails take four). */
+Uint8 SotnWeaponSecondary_ChildRows(Uint16 family, Uint16 role, Uint16 parameter);
 /** @brief Number of mandatory rows (LINE_G2, or weapon53's one GT4) reserved before the first
  * callback; zero if none. */
 Uint8 SotnWeaponSecondary_Rows(Uint16 family);

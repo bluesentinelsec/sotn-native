@@ -1376,11 +1376,12 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
                 .entering = entering}) ||
         !SotnActors_CommitBatPrimitives(s->actors, &s->bat_runtime))
         return false;
-    // Weapon51's glow uploads its g_Clut word once the pass has committed.
+    // Weapon51's glow and weapon26's green cycle upload their g_Clut words once the pass has
+    // committed (weapon51's mask0 replaces the whole word).
     for (Uint16 i = 0; i < s->bat_runtime.clut_count; ++i)
-        if (!SotnActorGraphics_SetWeaponClut(s->actor_graphics, s->bat_runtime.clut[i].palette,
-                                             s->bat_runtime.clut[i].color,
-                                             s->bat_runtime.clut[i].value))
+        if (!SotnActorGraphics_ModifyWeaponClut(
+                s->actor_graphics, s->bat_runtime.clut[i].palette, s->bat_runtime.clut[i].color,
+                s->bat_runtime.clut[i].mask, s->bat_runtime.clut[i].value))
             return false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (s->bat_runtime.children[i].kind == 46 && s->bat_runtime.children[i].initialized)

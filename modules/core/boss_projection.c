@@ -137,6 +137,42 @@ static bool MatrixXYZ(SotnDataView executable, Sint16 ax, Sint16 ay, Sint16 az, 
     SDL_memcpy(m, matrix, sizeof(matrix));
     return true;
 }
+bool SotnShieldStar_Project(SotnDataView executable, const Sint16 axis[3], const Sint32 transfer[3],
+                            Sint16 offset_x, Sint16 offset_y, Uint16 screen,
+                            const Sint16 vertices[4][3], SotnProjectedPoint out[4], Sint32 *otz)
+{
+    if (!axis || !transfer || !vertices || !out || !otz || !screen)
+        return SDL_SetError("Shield star projection requires its actual transform and outputs");
+    for (Uint16 i = 0; i < 3; ++i)
+        if (transfer[i] < -32768 || transfer[i] > 32767)
+            return SDL_SetError("Shield star transfer exceeds its selected bounds");
+    for (Uint16 i = 0; i < 4; ++i)
+        for (Uint16 k = 0; k < 3; ++k)
+            if (vertices[i][k] < -1024 || vertices[i][k] > 1024)
+                return SDL_SetError("Shield star vertex exceeds its bounded model");
+    Sint32 m[3][3] = {0};
+    if (!MatrixXYZ(executable, axis[0], axis[1], axis[2], m))
+        return false;
+    SotnProjectedPoint result[4] = {0};
+    Sint32 depth = 0;
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        Sint32 mac[3] = {0};
+        for (Uint16 row = 0; row < 3; ++row)
+            mac[row] = transfer[row] + ActorShift((Sint64)m[row][0] * vertices[i][0] +
+                                                      (Sint64)m[row][1] * vertices[i][1] +
+                                                      (Sint64)m[row][2] * vertices[i][2],
+                                                  12);
+        // RTPS: SZ saturates to 0..0xFFFF; IR1/IR2 saturate inside Coordinate.
+        depth = SDL_clamp(mac[2], 0, 65535);
+        const Uint32 ratio = Divide((Uint32)depth, screen);
+        result[i] = (SotnProjectedPoint){Coordinate(offset_x, mac[0], ratio),
+                                         Coordinate(offset_y, mac[1], ratio)};
+    }
+    SDL_memcpy(out, result, sizeof(result));
+    *otz = depth >> 2;
+    return true;
+}
 bool SotnTriangle_Project(SotnDataView executable, SotnTriangleTransform t,
                           const SotnTriangleVertex vertices[3], SotnTriangleProjection *out)
 {
