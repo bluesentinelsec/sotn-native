@@ -30,6 +30,7 @@ static const Uint32 DIVE_GLIDE = 0x80170220U;  // D_us_80170220 (15)
 static const Uint16 SFX_SWEEP = 0x672;         // SFX_NOISE_SWEEP_DOWN_A
 static const Uint16 SFX_WING = 0x6c6;          // SFX_BOSS_WING_FLAP
 static const Uint16 SFX_GIFT = 0x63f;          // SFX_ANIME_SWORD_A
+static const Uint16 SFX_SWITCH = 0x69d;        // SFX_MAGIC_SWITCH
 static const Uint32 CAMERA_LOCKED = 0x08000000U;
 static const Uint32 KEEP_ALIVE = 0x04000000U;
 
@@ -439,13 +440,13 @@ static bool Ready(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, bool
         s->camera_y = in.tilemap_y;
         ++s->step;
     }
-    else if (s->identity == SOTN_SWORD_GIFT)
+    else if (s->identity == SOTN_SWORD_GIFT || s->identity == SOTN_SWORD_BROTHERS)
     {
         s->flags = 0x04820000U;
         ++s->step;
     }
     else
-        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+        return SDL_SetError("Sword familiar state %#x has no initialization", s->identity);
     s->kind = s->identity;
     r->entrance_cancel = false;
     return true;
@@ -693,7 +694,12 @@ static bool Default(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, So
         return true;
     }
     if (in.brothers)
-        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+    {
+        // g_Player.unk70: the Sword Brothers spell takes over from any state.
+        s->identity = SOTN_SWORD_BROTHERS;
+        s->step = 0;
+        return true;
+    }
     r->bob = (r->bob + 16) & 0xfff;
     Sint32 cosine = 0;
     if (!Trig(in.executable, r->bob, NULL, &cosine))
@@ -906,7 +912,12 @@ static bool Circle(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, Sot
     if (!CheckLevel(r, s, &in, e))
         return false;
     if (in.brothers)
-        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+    {
+        // g_Player.unk70: the Sword Brothers spell takes over from any state.
+        s->identity = SOTN_SWORD_BROTHERS;
+        s->step = 0;
+        return true;
+    }
     Sint32 *c = r->circle, hold = 0;
     r->position[0] = Long((Uint32)(Pixel(s->x) - 128) << 5);
     r->position[1] = Long((Uint32)(Pixel(s->y) - 128) << 5);
@@ -1045,7 +1056,12 @@ static bool Dive(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnS
     if (!CheckLevel(r, s, &in, e))
         return false;
     if (in.brothers)
-        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+    {
+        // g_Player.unk70: the Sword Brothers spell takes over from any state.
+        s->identity = SOTN_SWORD_BROTHERS;
+        s->step = 0;
+        return true;
+    }
     Sint32 *d = r->dive, hold = 0;
     r->position[0] = Long((Uint32)(Pixel(s->x) - 0x80) << 5);
     r->position[1] = Long((Uint32)(Pixel(s->y) - 0x80) << 5);
@@ -1182,6 +1198,216 @@ static bool Dive(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnS
     if (s->step < 5 || r->position[2] < -0x200 || r->position[2] > 0x200)
         return true;
     return Slash(r, s, in, e);
+}
+// func_us_8017280C(self, model, 1): row0 becomes the flat billboard of the sword's artwork and
+// every other row hides.
+static void Billboard(SotnSwordRuntime *r, Sint16 model)
+{
+    SotnPlayerEffectQuad *q = &r->model[0];
+    q->page = 0x1b;
+    q->palette = 0x140;
+    q->u[0] = q->u[2] = model ? 0x60 : 0x30;
+    q->u[1] = q->u[3] = model ? 0x8f : 0x5f;
+    q->v[0] = q->v[1] = 0;
+    q->v[2] = q->v[3] = 0x70;
+    q->draw_mode = 0x108;
+    for (Uint16 i = 1; i < SOTN_SWORD_MODEL_ROWS; ++i)
+        r->model[i].draw_mode |= 8;
+}
+// func_us_801758C8: Sword Brothers. The sword rises to the screen centre, turns into a flat
+// billboard, spins while copying itself into up to 64 rows, releases its DF attack and spins the
+// copies out in a growing ring before the model returns.
+static bool Brothers(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
+                     bool *removed)
+{
+    if (!CheckLevel(r, s, &in, e))
+        return false;
+    Sint32 *b = r->brothers, sine = 0, cosine = 0;
+    r->position[0] = Long((Uint32)(Pixel(s->x) - 0x80) << 5);
+    r->position[1] = Long((Uint32)(Pixel(s->y) - 0x80) << 5);
+    switch (s->step)
+    {
+    case 0:
+        if (!Ready(r, s, in, removed))
+            return false;
+        break;
+    case 1:
+        b[0] = 0;
+        b[1] = -0x1000;
+        b[2] = -0xc00;
+        if (!Sound(e, SFX_GIFT))
+            return false;
+        ++s->step;
+        // fallthrough
+    case 2: {
+        b[3] = Sub(b[0], r->position[0]);
+        b[4] = Sub(b[1], r->position[1]);
+        b[5] = Sub(b[2], r->position[2]);
+        if (!SotnMath_Atan2Vector(in.executable, b[4], b[3], &s->heading))
+            return false;
+        s->heading = (Sint16)(s->heading & 0xfff);
+        s->yaw = SotnFairy_StepAngle(s->heading, s->yaw_previous, 0x180);
+        s->yaw_previous = s->yaw;
+        if (!Trig(in.executable, s->yaw, &sine, &cosine))
+            return false;
+        b[7] = (Sint32)Asr(Long((Uint32)cosine << 7), 12);
+        b[8] = (Sint32)Asr(Long((Uint32)sine << 7), 12);
+        r->rotation[2] = Word(s->yaw - 0x400);
+        b[3] = Abs(b[3]);
+        b[4] = Abs(b[4]);
+        b[6] = SDL_max(b[3], b[4]);
+        if (!SotnMath_Atan2Vector(in.executable, b[5], b[6], &s->pitch_target))
+            return false;
+        s->pitch_target = (Sint16)(s->pitch_target & 0xfff);
+        s->pitch = SotnFairy_StepAngle(s->pitch_target, s->pitch_previous, 0x40);
+        s->pitch_previous = s->pitch;
+        if (!Trig(in.executable, s->pitch, &sine, NULL))
+            return false;
+        b[9] = (Sint32)Asr(Long((Uint32)sine << 7), 12);
+        r->rotation[0] = s->pitch;
+        for (Uint16 i = 0; i < 3; ++i)
+            r->position[i] = Add(r->position[i], b[7 + i]);
+        b[3] = Sub(b[0], r->position[0]);
+        b[4] = Sub(b[1], r->position[1]);
+        b[5] = Sub(b[2], r->position[2]);
+        const Uint32 sum =
+            (Uint32)b[3] * (Uint32)b[3] + (Uint32)b[4] * (Uint32)b[4] + (Uint32)b[5] * (Uint32)b[5];
+        Uint32 root = 0;
+        if (!SotnMath_Sqrt0(in.executable, sum, &root))
+            return false;
+        b[10] = Long(root);
+        if (b[10] < 0x100) // FIX(1/256)
+        {
+            r->position[0] = 0;
+            r->position[1] = -0x1000;
+            r->position[2] = -0xc00;
+            ++s->step;
+        }
+        break;
+    }
+    case 3:
+        Billboard(r, s->model);
+        r->model_ready = false;
+        r->rotation[0] = s->pitch_previous = 0;
+        r->rotation[2] = 0;
+        s->yaw_previous = 0x400;
+        if (!Sound(e, SFX_GIFT))
+            return false;
+        ++s->step;
+        // fallthrough
+    case 4:
+        r->position[1] = Add(r->position[1], 0x100);
+        if (r->position[1] >= 0)
+        {
+            const Uint8 *p = NULL;
+            r->position[1] = 0;
+            b[11] = 0;
+            if (!View(in.overlay, VOICES + 8U, 2, &p) || !Sound(e, (Uint16)Read16(p)))
+                return false;
+            e->pause_write = true;
+            e->pause_allowed = r->pause_allowed = false;
+            ++s->step;
+        }
+        break;
+    case 5:
+        if (++b[11] > 70)
+            ++s->step;
+        break;
+    case 6:
+        s->yaw_previous = (Sint16)((s->yaw_previous + 0x40) & 0xfff);
+        r->rotation[2] = Word(s->yaw_previous - 0x400);
+        r->position[2] = Add(r->position[2], 0x60);
+        if (r->position[2] >= 0)
+        {
+            r->position[2] = 0;
+            b[12] = 0;
+            ++s->step;
+        }
+        break;
+    case 7: {
+        s->yaw_previous = (Sint16)((s->yaw_previous + 0x40) & 0xfff);
+        r->rotation[2] = Word(s->yaw_previous - 0x400);
+        if (s->yaw_previous == 0xc00)
+        {
+            b[11] = 0;
+            ++s->step;
+        }
+        // The packet after the last copy becomes another copy of the billboard.
+        if (b[12] < 0 || b[12] + 1 >= SOTN_SWORD_MODEL_ROWS)
+            return SDL_SetError("Sword Brothers copies exceed the sword's actual rows");
+        SotnPlayerEffectQuad *q = &r->model[b[12] + 1];
+        *q = r->model[0];
+        q->palette = 0x142;
+        q->draw_mode = 0x175;
+        for (Uint16 v = 0; v < 4; ++v)
+            q->red[v] = q->green[v] = q->blue[v] = 0x80;
+        ++b[12];
+        break;
+    }
+    case 8:
+        if (++b[11] > 15)
+        {
+            b[11] = 0;
+            e->pause_write = true;
+            e->pause_allowed = r->pause_allowed = true;
+            e->brothers_hitbox = true;
+            if (!Sound(e, SFX_SWITCH))
+                return false;
+            ++s->step;
+        }
+        break;
+    case 9: {
+        const SotnPlayerEffectQuad *base = &r->model[0];
+        Sint32 angle = b[11] * 32;
+        Sint16 x[4], y[4];
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            x[v] = Word(base->x[v] - 128);
+            y[v] = Word(base->y[v] - 128);
+        }
+        for (Uint16 i = 0; i < 64; ++i)
+        {
+            Sint32 ring_sine = 0, ring_cosine = 0;
+            if (!Trig(in.executable, angle, &sine, &cosine) ||
+                !Trig(in.executable, angle + 0xc00, &ring_sine, &ring_cosine))
+                return false;
+            b[3] = (Sint32)Asr((Sint64)ring_cosine * (b[11] * 16), 12) + 128;
+            b[4] = (Sint32)Asr((Sint64)ring_sine * (b[11] * 16), 12) + 128;
+            SotnPlayerEffectQuad *q = &r->model[1 + i];
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q->x[v] = Word(b[3] + (Sint32)Asr((Sint64)cosine * x[v] - (Sint64)sine * y[v], 12));
+                q->y[v] = Word(b[4] + (Sint32)Asr((Sint64)sine * x[v] + (Sint64)cosine * y[v], 12));
+            }
+            angle = (angle + 64) & 0xfff;
+        }
+        if (++b[11] > 15)
+        {
+            b[11] = 0;
+            ++s->step;
+        }
+        break;
+    }
+    case 10:
+        if (++b[11] > 30)
+        {
+            if (!Faces(r, s->model, s->variant, in.overlay))
+                return false;
+            r->model_ready = true;
+            s->identity = SOTN_SWORD_DEFAULT;
+            s->step = 0;
+        }
+        break;
+    default:
+        return SDL_SetError("Sword Brothers reached an unknown step");
+    }
+    if (!RoomEvents(r, s, in))
+        return false;
+    s->x =
+        Long((Uint32)(Word(r->position[0] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->x & 0xffffU));
+    s->y =
+        Long((Uint32)(Word(r->position[1] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->y & 0xffffU));
+    return Render(r, s->model, in, true);
 }
 // func_us_80176270: the level-50 farewell. Two fast passes through the screen, then the card
 // turns off and slots4..7 are destroyed.
@@ -1448,6 +1674,10 @@ bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwo
         if (!Gift(&r, s, in, &e, &removed))
             return false;
         break;
+    case SOTN_SWORD_BROTHERS:
+        if (!Brothers(&r, s, in, &e, &removed))
+            return false;
+        break;
     case SOTN_SWORD_TRAIL:
         if (!Trail(&r, s, in, &removed))
             return false;
@@ -1601,7 +1831,7 @@ bool SotnSwordRuntime_Leases(const SotnSwordRuntime *runtime, SotnSwordLease out
         const Sint16 part =
             (s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE ||
              s->identity == SOTN_SWORD_CIRCLE || s->identity == SOTN_SWORD_DIVE ||
-             s->identity == SOTN_SWORD_GIFT)
+             s->identity == SOTN_SWORD_GIFT || s->identity == SOTN_SWORD_BROTHERS)
                 ? (s->kind ? 0 : -1)
             : s->identity == SOTN_SWORD_TRAIL ? (s->step ? 1 : -1)
             : s->identity == SOTN_SWORD_HALO  ? (s->step ? 2 : -1)

@@ -514,14 +514,17 @@ static bool EventsTest(void)
     CHECK(Run(r, in, &e) &&
           (r->slots[1].identity == SOTN_SWORD_TRAIL || r->slots[3].identity == SOTN_SWORD_TRAIL) &&
           r->level_seen == 96);
-    // A missing stage snapshot, Sword Brothers and the level-50 gift fail explicitly without
-    // mutation.
+    // A missing stage snapshot fails explicitly without mutation; the Sword Brothers pulse
+    // (g_Player.unk70) switches the default sword to D4 before it moves.
     SotnSwordRuntime before = *r;
     in.targets = NULL;
     CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
     in.targets = no_targets;
     in.brothers = true;
-    CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) &&
+          r->slots[0].identity == SOTN_SWORD_BROTHERS && !r->slots[0].step &&
+          r->slots[0].x == before.slots[0].x && r->bob == before.bob);
+    *r = before;
     in.brothers = false;
     in.castle_flag = 1;
     CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_GIFT &&
@@ -876,14 +879,15 @@ static bool CircleTest(void)
     t[20].hitbox_state = 0;
     CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_DEFAULT &&
           !r->slots[0].follow);
-    // The model stays leased while attacking; Sword Brothers still fails explicitly.
+    // The model stays leased while attacking; the Sword Brothers pulse interrupts the attack.
     *r = at8;
     SotnSwordLease leases[3] = {0};
     CHECK(SotnSwordRuntime_Leases(r, leases) && leases[0].count == 96 &&
           leases[0].generation == r->slots[0].generation);
     in.brothers = true;
-    const SotnSwordRuntime held = *r;
-    CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(&held, r, sizeof(held)));
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) &&
+          r->slots[0].identity == SOTN_SWORD_BROTHERS && !r->slots[0].step && !e.hitbox_count &&
+          SotnSwordRuntime_Leases(r, leases) && leases[0].count == 96);
     SDL_free(r);
     return true;
 }
@@ -1030,12 +1034,97 @@ static bool GiftTest(void)
     SDL_free(r);
     return true;
 }
+// Sword Brothers (D4): rise to the screen centre, billboard, descend, hold, spin while copying,
+// release the DF attack, spin the copies out in a ring, then the model returns.
+static bool BrothersTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(r != NULL);
+    SotnSwordInput in = Input(75, 2, 4, 0);
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && Run(r, in, &e) && Run(r, in, &e));
+    in.brothers = true;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_BROTHERS);
+    in.brothers = false;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step == 1 &&
+          r->slots[0].flags == 0x04820000U);
+    Uint16 guard = 0, copies = 0, rings = 0, holds = 0, hitboxes = 0, descent = 0, waits = 0,
+           settle = 0;
+    bool descended = false, billboard = false, restored = false;
+    while (r->slots[0].identity == SOTN_SWORD_BROTHERS && ++guard < 800)
+    {
+        const Uint16 step = r->slots[0].step;
+        const SotnSwordSlot before = r->slots[0];
+        const SotnPlayerEffectQuad base = r->model[0];
+        CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e));
+        const SotnSwordSlot *s = &r->slots[0];
+        hitboxes += e.brothers_hitbox;
+        if (step == 1)
+            CHECK(e.sound_count && e.sounds[0] == 0x63f && r->brothers[1] == -0x1000 &&
+                  r->brothers[2] == -0xc00);
+        if (step == 1 || step == 2)
+        {
+            SotnMathTrig yaw = {0};
+            CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, s->yaw, &yaw) &&
+                  r->brothers[7] == (yaw.cosine * 128) >> 12 &&
+                  r->brothers[8] == (yaw.sine * 128) >> 12);
+        }
+        descent += step == 3 || step == 4;
+        waits += step == 8;
+        settle += step == 10;
+        if (step == 2 && s->step == 3)
+            CHECK(r->position[0] == 0 && r->position[1] == -0x1000 && r->position[2] == -0xc00 &&
+                  r->brothers[10] < 0x100);
+        if (step == 3)
+        {
+            billboard = !r->model_ready && r->model[0].u[1] == 0x8f && r->model[0].v[2] == 0x70 &&
+                        (r->model[1].draw_mode & 8) && s->yaw_previous == 0x400;
+            CHECK(billboard && e.sounds[0] == 0x63f);
+        }
+        if (step == 4 && s->step == 5)
+        {
+            descended = !r->position[1] && e.pause_write && !e.pause_allowed &&
+                        e.sounds[e.sound_count - 1] == 0x704;
+            CHECK(descended);
+        }
+        holds += step == 5;
+        if (step == 7)
+        {
+            ++copies;
+            const SotnPlayerEffectQuad *q = &r->model[r->brothers[12]];
+            CHECK(q->palette == 0x142 && q->draw_mode == 0x175 && q->red[3] == 0x80 &&
+                  q->x[0] == base.x[0]);
+        }
+        if (step == 8 && s->step == 9)
+            CHECK(e.brothers_hitbox && e.pause_write && e.pause_allowed &&
+                  e.sounds[e.sound_count - 1] == 0x69d);
+        if (step == 9)
+        {
+            // Copy i: rotated by angle0+i*64 around the ring point at radius counter*16.
+            const Sint32 counter = r->brothers[11] ? r->brothers[11] - 1 : 15, angle = counter * 32;
+            SotnMathTrig t = {0}, ring = {0};
+            CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, angle + 5 * 64, &t) &&
+                  SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, angle + 5 * 64 + 0xc00, &ring));
+            const Sint32 cx = ((ring.cosine * (counter * 16)) >> 12) + 128, x0 = base.x[0] - 128,
+                         y0 = base.y[0] - 128;
+            CHECK(r->model[6].x[0] == (Sint16)(cx + ((t.cosine * x0 - t.sine * y0) >> 12)));
+            ++rings;
+        }
+        if (step == 10 && s->identity == SOTN_SWORD_DEFAULT)
+            restored = r->model_ready && !s->step && before.identity == SOTN_SWORD_BROTHERS;
+    }
+    CHECK(descent == 16 && waits == 16 && settle == 31);
+    CHECK(guard < 800 && billboard && descended && holds == 71 && copies == 64 && rings == 16 &&
+          hitboxes == 1 && restored && r->slots[0].identity == SOTN_SWORD_DEFAULT);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     Fixture();
     return InitTest() && EntranceTest() && FollowTest() && EventsTest() && EntranceBandsTest() &&
                    LifecycleTest() && LeaseTest() && SearchTest() && CircleTest() && DiveTest() &&
-                   GiftTest()
+                   GiftTest() && BrothersTest()
                ? 0
                : 1;
 }

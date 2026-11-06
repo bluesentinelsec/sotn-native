@@ -52,8 +52,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [owned load-boundary API](familiar-lifecycle.md) now provide real resource/root,
   item, cleanup, restoration and release/recovery producers for17. Ordinary card
   menu activation, saved progression, general audio/cutscene and whole-pass gates
-  still prevent ordinary17 availability. Sword Brothers39 and the common/cross-owner
-  gates remain open; Life Apple rescue17 was previously labeled global-fade.
+  still prevent ordinary17 availability. [Sword Brothers39](sword-familiar.md#sword-brothers)
+  now runs with the Sword summoned; the common/cross-owner gates remain open; Life Apple rescue17 was previously labeled global-fade.
   Other-castle triggers/native TOP/RTOP remain unavailable; all-six-substate
   component comparisons do not establish those routes.
 - [ ] **Damage, ailments and death:** finish remaining original damage kinds,
@@ -147,7 +147,7 @@ needs a source-backed inventory of its remaining branches and an evidence record
   connects their marks, voices and one-update DE hitboxes to native combat and familiar EXP. The
   relic menu switches the Sword Card; its level-50 gift and farewell run, and the gift (the
   Sword Familiar, item 126) is an ordinary weapon whose attack adds the Sword's level. Sword
-  Brothers remains.
+  Brothers runs with its D4 ring and global DF attack.
   The [selected load/retirement owner](familiar-lifecycle.md) now provides owned0/3
   resource initialization, root/wings, cached reselection, actual item/rescue producers
   and deselection through a native load-boundary API. Detached graphics/SPU/CD
@@ -182,8 +182,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character
   records already receive actual raw enemy rewards and menu load counts, and ordinary v11
-  saves persist them. Other familiar owners
-  and Sword Brothers39 remain unavailable. Supplied resource/card/item/health/clock
+  saves persist them. The Sword familiar, including Sword Brothers39, now runs; other
+  familiar owners remain unavailable. Supplied resource/card/item/health/clock
   fixtures remain separate from ordinary selection, acquisition, routes and console proof.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/
   attack-group sharing across all supported producers, remaining palette/flash/

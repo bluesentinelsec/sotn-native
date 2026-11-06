@@ -1008,7 +1008,11 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
     }
     SDL_memcpy(factories, s->bat_runtime.factories, sizeof(factories));
     const SotnBatRuntimeChild *slot16 = &s->bat_runtime.children[0];
-    if (!SotnPlayer_SetSlot16Item(s->player, slot16->hand_weapon ? slot16->state.hand.item : 0))
+    Uint16 servant = 0;
+    // CheckSwordBrothersInput gates on g_Servant == FAM_ACTIVE_SWORD.
+    if (!SotnPlayer_SetSlot16Item(s->player, slot16->hand_weapon ? slot16->state.hand.item : 0) ||
+        !SotnCharacter_GetFamiliars(s->character, NULL, &servant) ||
+        !SotnPlayer_SetSwordBrothersContext(s->player, servant == 5))
         return false;
     if (SotnPlayer_Tick(s->player, buttons))
     {
@@ -2319,6 +2323,7 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
             break;
         SotnSwordInput in = SwordInput(s, SotnResource_View(s->fairy_resources[0]), p,
                                        progress.records[FAMILIAR_SWORD.record], camera_x, camera_y);
+        in.brothers = p.sword_brothers.pulse; // g_Player.unk70 from this update's player
         in.cutscene = in.sound.cutscene = control.pause_disabled;
         in.enemies = enemies;
         in.targets = targets;
@@ -2348,6 +2353,20 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
         }
         for (Uint16 i = 0; ok && i < events.sound_count; ++i)
             ok = SotnSound_Queue(s->sound, events.sounds[i]);
+        // Sword Brothers' DF: GetFreeEntity(0x11, 0x2F) at the sword, spell7 (global attack).
+        if (ok && events.brothers_hitbox)
+        {
+            const SotnSwordSlot *self = &next->slots[slot - 4U];
+            bool spawned = false;
+            ok = SotnBatRuntime_SpawnFamiliarHitbox(
+                &s->bat_runtime, other,
+                (SotnPlayerFactorySource){
+                    .x = FairyFixed((Uint32)self->x + (Uint32)camera_x * 65536U),
+                    .y = FairyFixed((Uint32)self->y + (Uint32)camera_y * 65536U),
+                    .priority = self->priority,
+                    .facing_left = self->facing_left},
+                0, 7, (Uint16)progress.records[FAMILIAR_SWORD.record].level, &spawned);
+        }
         for (Uint16 i = 0; ok && i < events.hitbox_count; ++i)
         {
             const SotnSwordHitbox *h = &events.hitboxes[i];

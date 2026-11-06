@@ -21,6 +21,14 @@ static void Put16(Uint8 *p, Uint16 value)
 // cut element, attack5/10.
 static void Spells(void)
 {
+    // g_SpellDefs[7], Sword Brothers: invincibility20, stun8, global hitbox0x82, attack20.
+    Uint8 *b = dra + 0x8410 + 7 * 28U;
+    b[13] = 0x14;
+    Put16(b + 14, 8);
+    Put16(b + 16, 0x82);
+    Put16(b + 18, 0x81);
+    Put16(b + 22, 0x40);
+    Put16(b + 24, 20);
     for (Uint16 id = 19; id <= 20; ++id)
     {
         Uint8 *s = dra + 0x8410 + id * 28U;
@@ -118,6 +126,29 @@ static bool HitboxTest(void)
     dying.player.step = SOTN_PLAYER_DEATH_HOLD;
     CHECK(SotnBatRuntime_Tick(&dead, character, dying) && !dead.familiar_mask &&
           !dead.children[1].state.familiar.attack.active);
+    // Sword Brothers' DF: spell7's global attack, no hitbox size, alive nine updates.
+    SDL_zerop(r);
+    CHECK(!SotnBatRuntime_SpawnFamiliarHitbox(r, 0, tip, 1, 7, 30, &allocated) &&
+          SotnBatRuntime_SpawnFamiliarHitbox(r, 0, tip, 0, 7, 30, &allocated) && allocated &&
+          r->children[1].kind == 0xdf && r->children[1].familiar_hitbox);
+    CHECK(SotnCharacter_Get(character, &c, &stats));
+    random = c.random;
+    const Uint16 brothers_roll = SotnCombat_Random(&random);
+    Uint32 brothers = 20 + (stats.total[2] * 2U + brothers_roll % 12U) / 10U;
+    brothers += brothers / 2U; // Mojo Mail is still equipped
+    Uint16 alive = 0;
+    for (Uint16 t = 0; t < 12; ++t)
+    {
+        CHECK(SotnBatRuntime_Tick(r, character, Input()));
+        if (r->children[1].kind)
+        {
+            const SotnPlayerAttack global = r->children[1].state.familiar.attack;
+            CHECK(global.hit_type == 0x82 && !global.width && !global.height && global.active &&
+                  global.power == brothers * 2 && global.stun_frames == 8 && r->familiar_mask == 2);
+            ++alive;
+        }
+    }
+    CHECK(alive == 9 && !r->familiar_mask);
     SotnCharacter_Destroy(character);
     SDL_free(saved);
     SDL_free(r);

@@ -861,9 +861,11 @@ bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *r, Uint64 other_occupied
                                         SotnPlayerFactorySource source, Uint16 parameter,
                                         Uint16 spell, Uint16 level, bool *allocated)
 {
-    if (!r || !allocated || parameter > 1 || (spell != 19 && spell != 20) || !level || level > 99 ||
+    if (!r || !allocated || parameter > (spell == 7 ? 0 : 1) ||
+        (spell != 19 && spell != 20 && spell != 7) || !level || level > 99 ||
         r->serial == SDL_MAX_UINT32)
-        return SDL_SetError("Familiar hitbox requires tip0/1, spell19/20 and level1..99");
+        return SDL_SetError("Familiar hitbox requires tip0/1 with spell19/20, or spell7, and "
+                            "level1..99");
     const Uint64 occupied = SotnBatRuntime_Occupied(r) | other_occupied;
     for (Uint16 slot = 0x11; slot < 0x2f; ++slot)
         if (!(occupied & ((Uint64)1 << slot)))
@@ -871,7 +873,8 @@ bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *r, Uint64 other_occupied
             SotnBatRuntimeChild *c = &r->children[slot - 16U];
             *c = (SotnBatRuntimeChild){.source = source,
                                        .generation = ++r->serial,
-                                       .kind = SOTN_SWORD_HITBOX,
+                                       .kind = spell == 7 ? SOTN_SWORD_BROTHERS_HITBOX
+                                                          : SOTN_SWORD_HITBOX,
                                        .parameter = parameter,
                                        .familiar_hitbox = true};
             SDL_zero(c->state);
@@ -885,13 +888,17 @@ bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *r, Uint64 other_occupied
 }
 bool SotnBatRuntime_FamiliarHitboxValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
-    return c && c->familiar_hitbox && c->kind == SOTN_SWORD_HITBOX && index >= 1 && index < 31 &&
-           c->generation && c->parameter <= 1 &&
-           (c->state.familiar.spell == 19 || c->state.familiar.spell == 20) &&
+    const bool brothers = c && c->kind == SOTN_SWORD_BROTHERS_HITBOX;
+    return c && c->familiar_hitbox && (brothers || c->kind == SOTN_SWORD_HITBOX) && index >= 1 &&
+           index < 31 && c->generation && c->parameter <= (brothers ? 0 : 1) &&
+           (brothers ? c->state.familiar.spell == 7
+                     : c->state.familiar.spell == 19 || c->state.familiar.spell == 20) &&
            c->state.familiar.level >= 1 && c->state.familiar.level <= 99 && !c->primitive_count &&
+           c->state.familiar.age <= (brothers ? 8 : 0) &&
            (!c->initialized ||
             (c->group >= (index < 16 ? 3 : 7) && c->group < (index < 16 ? 7 : 11) &&
-             c->state.familiar.attack.width == 4 && c->state.familiar.attack.height == 4));
+             c->state.familiar.attack.width == (brothers ? 0 : 4) &&
+             c->state.familiar.attack.height == (brothers ? 0 : 4)));
 }
 // Weapon51's back-forward specials182..185 replace slot16 with its E1/F1 hand child.
 static bool Weapon51Special(Uint16 item)
@@ -1438,7 +1445,7 @@ static bool Spell(SotnDataView dra, SotnCharacterState *profile, SotnCharacterSt
         return SDL_SetError("Bat attack requires its private spell definition");
     const Uint8 *s = dra.bytes + at;
     const Uint16 base = Read16(s + 24);
-    if (base > 900 || Read16(s + 16) != (id == 5 ? 0x82U : 2U) || Read16(s + 20) > 255)
+    if (base > 900 || Read16(s + 16) != (id == 5 || id == 7 ? 0x82U : 2U) || Read16(s + 20) > 255)
         return SDL_SetError("Bat attack has invalid spell attack metadata");
     Uint32 power = base + (stats.total[2] * 2U + SotnCombat_Random(&profile->random) % 12U) / 10U;
     if (profile->equipment[SOTN_EQUIP_ARMOR] == 21)
@@ -1476,7 +1483,7 @@ static bool ChildKind(Uint16 kind)
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
     if (c->familiar_hitbox)
-        return c->initialized ? 0x0c020000U : 0x04000000U;
+        return c->initialized && c->kind == SOTN_SWORD_HITBOX ? 0x0c020000U : 0x04000000U;
     if (!c->initialized)
         return c->source.flags;
     if (c->hand_weapon)
@@ -3598,6 +3605,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     if (p.dark.started &&
         (!Flash(&r, in.dra, 11) || !RequestSource(&r, p.dark.source, 0x110028U, 0)))
         return false;
+    // PerformSwordBrothers: FACTORY(BP_RIPPLE_OUTLINE, 23), without a flash.
+    if (p.sword_brothers.started && !RequestSource(&r, p.sword_brothers.source, 0x170028U, 0))
+        return false;
     if (p.spirit.started && ((p.spirit.spell != 1 && p.spirit.spell != 3) ||
                              p.spirit.blueprint != (p.spirit.spell == 1 ? 117U : 0x10075U)))
         return SDL_SetError("Spirit cast lost its original spell/root factory parameter");
@@ -3987,11 +3997,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         c->draw_count = 0;
         if (c->familiar_hitbox)
         {
-            // func_us_80177480: the first update takes GetServantStats' spell attack and a 4x4
-            // hitbox for one hit detection; the next update destroys it. The pass validation
-            // above already checked its identity.
-            if (c->initialized)
+            // func_us_80177480 (DE): the first update takes GetServantStats' spell attack and a
+            // 4x4 hitbox for one hit detection; the next update destroys it. func_us_80177590
+            // (DF) keeps its global attack until its counter passes 8. The pass validation above
+            // already checked their identity.
+            if (c->initialized && (c->kind == SOTN_SWORD_HITBOX || ++c->state.familiar.age > 8))
                 *c = (SotnBatRuntimeChild){0};
+            else if (c->initialized)
+                r.familiar_mask |= (Uint64)1 << i;
             else
             {
                 SotnPlayerAttack attack = {0};
@@ -4003,7 +4016,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     return SDL_SetError("Familiar hitbox attack exceeds its original word");
                 attack.power = (Uint16)power;
                 attack.offset_x = 0;
-                attack.width = attack.height = 4;
+                // DE takes a 4x4 hitbox; DF keeps DestroyEntity's zero size (its attack is global).
+                attack.width = attack.height = c->kind == SOTN_SWORD_HITBOX ? 4 : 0;
                 // func_80118894: the least-used group, 3..6 below slot32, else 7..10.
                 Uint16 group = i < 16 ? 3 : 7;
                 for (Uint16 g = (Uint16)(group + 1U); g < (i < 16 ? 7 : 11); ++g)
