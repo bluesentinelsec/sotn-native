@@ -2365,12 +2365,41 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
         {
             s->sword_runtime = *next;
             c.random = events.random;
-            ok = SotnCharacter_Restore(s->character, &c) && CommitSwordEvents(s, &events);
+            ok =
+                SotnCharacter_Restore(s->character, &c) && CommitSwordEvents(s, &events) &&
+                (!events.gift_item || SotnCharacter_Collect(s->character, false, events.gift_item));
+        }
+        // The farewell turned the card off (found only) and cleared g_Servant; the overlay stays.
+        if (ok && events.dismiss)
+        {
+            if (s->world.relics[FAMILIAR_SWORD.card] == 3)
+                s->world.relics[FAMILIAR_SWORD.card] = 1;
+            ok = SotnCharacter_SelectFamiliar(s->character, 0, false);
+            s->dirty = true;
         }
     }
     SDL_free(next);
     SDL_free(targets);
     return ok;
+}
+// dra/menu.c MENU_STEP_EXIT_10/11: on leaving the menu the active card's familiar switches
+// (loads+1, menu-switch init) or, if unchanged, reinitializes as MENU_SAME_SERVANT.
+static bool CloseMenuFamiliar(SotnLaboratory *s)
+{
+    Uint16 wanted = 0, previous = 0;
+    if (!SotnCharacter_GetFamiliars(s->character, NULL, &previous))
+        return false;
+    for (Uint16 id = 0; id < SOTN_RELICS; ++id)
+    {
+        SotnItem relic = {0};
+        if (!SotnRelic_Read(s->dra, id, &relic))
+            return false;
+        if (relic.type && (s->world.relics[id] & 2U))
+            wanted = relic.type;
+    }
+    if (!wanted && !previous)
+        return true;
+    return LoadFamiliar(s, wanted, false, 0);
 }
 static bool CommitHandRetirement(SotnLaboratory *s, SotnPlayerState p)
 {
@@ -3356,6 +3385,8 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
             (sound != 0 && !SotnSound_Queue(session->sound, sound)))
             return false;
         const bool is_open = session->menu.phase != SOTN_MENU_CLOSED;
+        if (was_open && !is_open && !CloseMenuFamiliar(session))
+            return false;
         if (session->fairy_cd && was_open != is_open)
         {
             const Uint16 enter[] = {0xa7, 0xa3, 0xe}, leave[] = {0xf, 0xa4, 0xa8};

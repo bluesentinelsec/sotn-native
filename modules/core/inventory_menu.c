@@ -140,8 +140,20 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
         const Uint16 id = m->relic_cursor < 23 ? m->relic_cursor : (Uint16)(m->relic_cursor + 2);
         if ((tapped & SOTN_BUTTON_JUMP) && (world->relics[id] & 1))
         {
+            SotnCharacterState state = {0};
+            bool returned = true;
             if (SotnRelic_Toggle(world, dra, id))
             {
+                // Activating the Sword Card returns an equipped Sword Familiar to the bag.
+                if (id == SOTN_RELIC_SWORD_CARD && (world->relics[id] & 2U))
+                {
+                    returned = SotnCharacter_Get(c, &state, NULL);
+                    for (Uint16 hand = 0; returned && hand < 2; ++hand)
+                        if (state.equipment[hand] == 126)
+                            returned = SotnCharacter_Equip(c, hand, 0);
+                    if (!returned)
+                        return false;
+                }
                 *changed = true;
                 *sound = 0x6ad;
                 m->message[0] = '\0';

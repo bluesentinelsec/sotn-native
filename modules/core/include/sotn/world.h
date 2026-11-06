@@ -60,7 +60,8 @@ typedef enum SotnRelicId
     SOTN_RELIC_LEAP = 13,
     SOTN_RELIC_HOLY_SYMBOL = 14,
     SOTN_RELIC_SCROLL = 15,
-    SOTN_RELIC_JEWEL = 16
+    SOTN_RELIC_JEWEL = 16,
+    SOTN_RELIC_SWORD_CARD = 22 /**< Familiar card for the Sword (servant5, stats record4). */
 } SotnRelicId;
 /** @brief Original US permanent stage flag indices, not private table contents. */
 typedef enum SotnWorldFlag

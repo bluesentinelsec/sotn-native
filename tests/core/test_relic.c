@@ -40,7 +40,7 @@ int main(void)
     {
         const bool supported = id == 0 || id == 1 || id == 2 || id == 3 || id == 4 || id == 5 ||
                                id == 6 || id == 7 || id == 8 || id == 9 || id == 10 || id == 12 ||
-                               id == 13 || id == 14 || id == 16;
+                               id == 13 || id == 14 || id == 16 || id == 22;
         CHECK(SotnRelic_CanToggle(id) == supported);
         for (Uint8 bits = 0; bits < 4; ++bits)
         {
@@ -58,6 +58,26 @@ int main(void)
         world.relics[id] = 0;
     }
     CHECK(!SotnRelic_CanToggle(30) && !SotnRelic_CanToggle(SDL_MAX_UINT16));
+    // The Sword Card (servant5) switches every other card off, active or not; switching it off
+    // leaves the others off. Other familiar cards stay unavailable.
+    Put32(bytes + 0x200 + 22 * 16 + 12, 5);
+    Put32(bytes + 0x200 + 20 * 16 + 12, 3);
+    CHECK(SotnRelic_Read(dra, 22, &item) && item.type == 5 && item.supported &&
+          SotnRelic_Read(dra, 20, &item) && item.type == 3 && !item.supported);
+    world.relics[20] = 3;
+    world.relics[18] = 3;
+    world.relics[22] = 1;
+    world.relics[12] = 3;
+    CHECK(SotnRelic_Toggle(&world, dra, 22) && world.relics[22] == 3 && world.relics[20] == 1 &&
+          world.relics[18] == 1 && world.relics[12] == 3);
+    CHECK(SotnRelic_Toggle(&world, dra, 22) && world.relics[22] == 1 && world.relics[20] == 1);
+    CHECK(!SotnRelic_Toggle(&world, dra, 20) && !SotnRelic_Toggle(&world, dra, 18));
+    Put32(bytes + 0x200 + 22 * 16 + 12, 3);
+    CHECK(!SotnRelic_Toggle(&world, dra, 22) && world.relics[22] == 1);
+    Put32(bytes + 0x200 + 22 * 16 + 12, 0);
+    Put32(bytes + 0x200 + 20 * 16 + 12, 0);
+    world.relics[20] = world.relics[18] = world.relics[22] = world.relics[12] = 0;
+    CHECK(SotnRelic_Read(dra, SOTN_RELIC_CUBE, &item));
     CHECK(!SotnRelic_Toggle(&world, dra, 30) && !SotnRelic_Toggle(NULL, dra, 12));
     world.relics[12] = 3;
     const SotnWorldState before_toggle = world;

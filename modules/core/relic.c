@@ -44,7 +44,7 @@ bool SotnRelic_Read(SotnDataView dra, Uint16 id, SotnItem *out)
                       .icon = icon,
                       .palette = palette,
                       .type = (Uint16)familiar,
-                      .supported = familiar == 0,
+                      .supported = familiar == 0 || familiar == 5,
                       .name_ascii = true};
     return true;
 }
@@ -65,7 +65,7 @@ bool SotnRelic_CanToggle(Uint16 id)
            id == SOTN_RELIC_LEAP || id == SOTN_RELIC_JEWEL || id == SOTN_RELIC_MIST ||
            id == SOTN_RELIC_POWER_MIST || id == SOTN_RELIC_GAS_CLOUD || id == SOTN_RELIC_WOLF ||
            id == SOTN_RELIC_POWER_WOLF || id == SOTN_RELIC_SKILL_WOLF ||
-           id == SOTN_RELIC_HOLY_SYMBOL;
+           id == SOTN_RELIC_HOLY_SYMBOL || id == SOTN_RELIC_SWORD_CARD;
 }
 
 bool SotnRelic_Toggle(SotnWorldState *world, SotnDataView dra, Uint16 id)
@@ -75,8 +75,21 @@ bool SotnRelic_Toggle(SotnWorldState *world, SotnDataView dra, Uint16 id)
         return SDL_SetError("Relic switch requires owned progress and a valid private definition");
     if (world->relics[id] != 1 && world->relics[id] != 3)
         return SDL_SetError("Only a found relic with valid active bits can be switched");
-    if (!SotnRelic_CanToggle(id) || relic.type != 0)
+    if (!SotnRelic_CanToggle(id) || (relic.type != 0 && relic.type != 5))
         return SDL_SetError("This relic's active behavior is not integrated yet");
-    world->relics[id] ^= 2;
+    SotnWorldState next = *world;
+    next.relics[id] ^= 2;
+    // dra/menu.c: a familiar card switches every other card off; at most one servant is active.
+    for (Uint16 other = 0; relic.type && other < SOTN_RELICS; ++other)
+    {
+        SotnItem card = {0};
+        if (other == id)
+            continue;
+        if (!SotnRelic_Read(dra, other, &card))
+            return false;
+        if (card.type)
+            next.relics[other] = (Uint8)(next.relics[other] & 0xfdU);
+    }
+    *world = next;
     return true;
 }
