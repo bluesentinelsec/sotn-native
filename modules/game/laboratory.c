@@ -4481,7 +4481,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                            // weapon13's combo sweep owns one late LINE_G2 row.
                     ring = (role == 2 && family != 30 && family != 13) || family == 1 ||
                            (family == 50 && role == 4),
-                           sparkle = family == 50 && role == 1, rune = family == 14 && role == 0;
+                           sparkle = family == 50 && role == 1, rune = family == 14 && role == 0,
+                           jewel = family == 37 && role == 1;
+                // Weapon37's eight sparkles (of sixteen rows) are screen-space GT4s.
+                for (Uint16 q = jewel ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->jewel_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->jewel_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 64U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
                 // Shield spells (E8) own eleven screen-space GT4s.
                 for (Uint16 q = SotnWeaponSecondary_ShieldSpell(family) ? child->primitive_count
                                                                         : 0;
@@ -4528,7 +4538,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 64U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle || rune || family == 30 ||
+                for (Uint16 row = slash || ring || sparkle || rune || jewel || family == 30 ||
                                           SotnWeaponSecondary_ShieldSpell(family)
                                       ? 0
                                       : child->primitive_count;
@@ -5612,9 +5622,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                c->state.secondary.family == 51 ||
                                (c->state.secondary.family == 12 && !(c->kind & 15U));
             const bool dawn = c->state.secondary.family == 30,
-                       spell = SotnWeaponSecondary_ShieldSpell(c->state.secondary.family);
+                       spell = SotnWeaponSecondary_ShieldSpell(c->state.secondary.family),
+                       jewel = c->state.secondary.family == 37 && (c->kind & 15U) == 1;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && !dawn && !spell && (c->kind & 15U) != 2 &&
+                (!slash && !dawn && !spell && !jewel && (c->kind & 15U) != 2 &&
                  c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
@@ -5623,6 +5634,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             SotnPlayerEffectQuad q = slash   ? w->quad
                                      : dawn  ? w->dawn_quads[index]
                                      : spell ? w->spell_quads[index]
+                                     : jewel ? w->jewel_quads[index]
                                              : w->quads[index];
             if (dawn && (c->kind & 15U) == 1 && index == 10 && w->dawn_line)
             {
@@ -5722,8 +5734,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      c->state.secondary.family == 7 || c->state.secondary.family == 14 ||
                      c->state.secondary.family == 13 || c->state.secondary.family == 12 ||
                      c->state.secondary.family == 34 || c->state.secondary.family == 30 ||
+                     c->state.secondary.family == 37 ||
                      SotnWeaponSecondary_ShieldSpell(c->state.secondary.family))
             {
+                // w_037 coins draw DRA bank3 (the gold coin) with their parts' palettes.
                 // w_049 sparks draw DRA bank9 rotated (ENTITY_ROTATE); puffs and pillars use
                 // its SetSpriteBank2 frames with SDK X/Y scale; w_006 crescents use bank1.
                 const Sint32 x =

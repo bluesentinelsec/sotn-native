@@ -50,6 +50,14 @@ typedef struct SotnWeaponSecondary
             Uint8 quad_timer[16], quad_phase[16]; /**< Weapon1 punch r0/r1 scratch bytes. */
             Sint32 quad_velocity_y;               /**< Weapon7 sparkle velocityY. */
         };
+        /** Weapon37 jewel sparkles (E1): sixteen screen-space GT4 rows (eight used) and the
+         * original prim scratch bytes g0 (phase), g1 (delay), b0 (frame) and b1 (counter). */
+        struct
+        {
+            SotnPlayerEffectQuad jewel_quads[16];
+            Uint8 jewel_g0[16], jewel_g1[16], jewel_b0[16], jewel_b1[16];
+            Sint16 jewel_timer; /**< ext.timer.t: thirty-two updates. */
+        };
         /** Weapon50 E1 sparkles: eighty GT4 rows kept as centre, UVs and the original prim
          * scratch bytes g0/g1/g2/b0/b1 (rebuilt into packets at draw time). */
         struct
@@ -315,6 +323,7 @@ typedef struct SotnWeaponSecondaryEvents
     Uint32 factories[8];
     Sint32 factory_x[8], factory_y[8];
     Uint8 shake; /**< Weapon30 ShakeCamera request (0: none). */
+    Uint8 gold;  /**< Weapon37 coins: g_Status.gold += 1 per pickup (capped at 999999). */
     /** Weapon30 homing swords: func_80118970 selects (and marks) a target now. */
     bool select_target;
     /** Shield spells: g_unkGraphicsStruct.unk28 (1 enters the spell freeze, 0 leaves it). */

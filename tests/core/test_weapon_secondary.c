@@ -3715,6 +3715,335 @@ static bool RodSparkleTest(void)
     }
     return true;
 }
+// w_037 func_ptr_80170004/80170008: the Jewel sword's sparkles and their gold coins. Synthetic
+// UV frames, pose rows (reach/line), sparkle palettes and the coin timeline.
+static void JewelTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 6 * 8; ++i)
+        o[0x6e4 + i] = (Uint8)(0x20 + i);
+    const Sint16 rows[7][4] = {{24, -14, 64, 0}, {20, 2, 64, 0},    {18, 14, 48, 34},
+                               {24, -16, 64, 0}, {24, -14, -63, 9}, {24, 4, 48, 34},
+                               {-7, 5, 33, -21}};
+    for (Uint16 r = 0; r < 7; ++r)
+        for (Uint16 k = 0; k < 4; ++k)
+            Put16(o + 0x714 + r * 8U + k * 2U, (Uint16)rows[r][k]);
+    for (Uint16 i = 0; i < 6; ++i)
+        Put16(o + 0x74c + i * 2U, (Uint16)(0x1b0 + i * 2U));
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        Put16(o + 0x798 + i * 4U, (Uint16)(4 + i));
+        Put16(o + 0x79a + i * 4U, (Uint16)(0x14 + i));
+    }
+}
+// D_107000_8017A758 from the special's rand()&31.
+static bool JewelMarked(Uint16 roll, Uint16 i)
+{
+    if (!roll)
+        return true;
+    bool marked = !(roll & 3U) && !(i % 3);
+    return marked || ((roll & 3U) == 3 ? !(i % 9) : !(i % 5));
+}
+static bool JewelSparkleTest(void)
+{
+    static Uint8 o[0x1000];
+    JewelTables(o);
+    CHECK(SotnWeaponSecondary_Supported(37) && SotnWeaponSecondary_SupportedRole(37, 1) &&
+          SotnWeaponSecondary_SupportedRole(37, 2) && !SotnWeaponSecondary_SupportedRole(37, 0) &&
+          !SotnWeaponSecondary_SupportedRole(37, 3) && SotnWeaponSecondary_RoleRows(37, 1) == 16 &&
+          !SotnWeaponSecondary_RoleRows(37, 2));
+    SotnHandWeaponProgram program = {0};
+    // Exhaustion: the special's coin roll precedes the failed allocation; the plain sword has none.
+    for (Uint16 special = 0; special < 2; ++special)
+    {
+        SotnWeaponSecondary s = {.parameter = (Uint16)(special << 8)};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 9, check = 9;
+        if (special)
+            (void)SotnCombat_Random(&check);
+        CHECK(SotnWeaponSecondary_Tick(
+                  &s, &program,
+                  (SotnWeaponSecondaryInput){
+                      .overlay = {o, sizeof(o)}, .family = 37, .role = 1, .animation = 0xa7},
+                  &rng, &e) &&
+              s.removed && rng == check && !e.factory_count && !program.jewel_counter);
+    }
+    // Cases: plain; the special's four roll classes (0, &3==0, &3==3, &3 1/2); a rotated left
+    // plain swing.
+    Sint32 counter = 0;
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const bool special = k >= 1 && k <= 4, left = k == 2 || k == 5;
+        const Uint16 hand = k & 1U, row = (Uint16)(k + 1U) % 7U;
+        Uint32 seed = 77U + k;
+        Uint16 roll = 0;
+        for (; special; ++seed)
+        {
+            Uint32 probe = seed;
+            roll = (Uint16)(SotnCombat_Random(&probe) & 31U);
+            if (k == 1   ? roll == 0
+                : k == 2 ? roll && !(roll & 3U)
+                : k == 3 ? (roll & 3U) == 3
+                         : (roll & 3U) == 1 || (roll & 3U) == 2)
+                break;
+        }
+        SotnWeaponSecondary s = {.parameter = (Uint16)((special ? 0x100U : 0U) | hand << 15),
+                                 .x = 7 * 65536 + 0x1357,
+                                 .y = 3 * 65536 + 0x2468};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .x = 300 * 65536 + 0x4444,
+                                       .y = 200 * 65536,
+                                       .camera_x = 180,
+                                       .camera_y = 60,
+                                       .hand = hand,
+                                       .family = 37,
+                                       .role = 1,
+                                       .priority = 0x94,
+                                       .animation = (Uint16)(0xa7 + row),
+                                       .draw_flags = (Uint8)(k == 5 ? 2 : 0),
+                                       .facing_left = left,
+                                       .allocated = true};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = seed, check = seed;
+        if (special)
+            (void)SotnCombat_Random(&check);
+        const Uint8 *t = o + 0x714 + row * 8U;
+        const Sint16 reach_x = (Sint16)Read16Test(t), reach_y = (Sint16)Read16Test(t + 2),
+                     line_x = (Sint16)Read16Test(t + 4), line_y = (Sint16)Read16Test(t + 6);
+        const Sint16 x = (Sint16)(120 + (left ? -reach_x : reach_x)),
+                     y = (Sint16)(140 + reach_y - (k == 5 ? 3 : 0)),
+                     base_x = (Sint16)(left ? -(line_x / 2) : line_x / 2),
+                     base_y = (Sint16)(line_y / 2);
+        Sint16 sx[8] = {0}, sy[8] = {0};
+        Uint16 modes[8] = {0};
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            const Sint16 lx = (Sint16)(base_x * i / 8 + x), ly = (Sint16)(base_y * i / 8 + y);
+            sy[i] = (Sint16)(ly + (SotnCombat_Random(&check) & 0x7fffU) % 10U);
+            sx[i] = (Sint16)(lx + (SotnCombat_Random(&check) & 0x7fffU) % 4U);
+            modes[i] = (SotnCombat_Random(&check) & 1U) ? 0x379 : 0x339;
+        }
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              !e.factory_count && s.phase == 1 && s.role == 1 && s.flags == 0x00860000U &&
+              s.x == (x + 180) * 65536 + 0x1357 && s.y == (y + 60) * 65536 + 0x2468 &&
+              program.jewel_counter == counter + 8);
+        for (Uint16 i = 0; i < 16; ++i)
+            CHECK(program.jewel_pattern[i] == (special && JewelMarked(roll, i) ? 1 : 0));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(program.jewel_x[i] == sx[i] && program.jewel_y[i] == sy[i] &&
+                  s.jewel_quads[i].palette == 0x1b0 + ((Uint32)(counter + i) % 6U) * 2U &&
+                  s.jewel_quads[i].page == 0x1a && s.jewel_quads[i].priority == 0x98 &&
+                  s.jewel_quads[i].draw_mode == modes[i] && s.jewel_g0[i] == (i ? 0 : 1) &&
+                  s.jewel_g1[i] == i);
+        counter += 8;
+        // Sparkle i waits i+1 callbacks, shows six frames (two updates each) rising a pixel per
+        // update, then hides; a marked one leaves a coin from its last position.
+        Uint16 coins = 0;
+        for (Uint16 u = 1; u <= 32; ++u)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            if (u == 32)
+            {
+                CHECK(s.removed && !e.factory_count);
+                break;
+            }
+            Uint16 requests = 0;
+            for (Uint16 i = 0; i < 8; ++i)
+            {
+                const SotnPlayerEffectQuad *q = &s.jewel_quads[i];
+                if (u <= i)
+                    CHECK(q->draw_mode == modes[i]);
+                else if (u <= i + 12U)
+                {
+                    const Uint16 b = (Uint16)((u - i - 1U) / 2U), size = b >= 3 ? 4 : 6;
+                    const Sint16 cy = (Sint16)(sy[i] - (Sint16)(u - i - 1U));
+                    CHECK(q->x[0] == sx[i] - size && q->x[3] == sx[i] + size &&
+                          q->y[1] == cy - size && q->y[2] == cy + size && q->u[0] == 0x20 + b * 8 &&
+                          q->v[3] == 0x20 + b * 8 + 7 && q->draw_mode == (modes[i] & ~8U) &&
+                          program.jewel_y[i] == cy - 1);
+                }
+                else if (u == i + 13U)
+                {
+                    CHECK((q->draw_mode & 8U) && program.jewel_y[i] == sy[i] - 13);
+                    if (program.jewel_pattern[i])
+                    {
+                        CHECK(e.factory_count == 1 &&
+                              e.factories[0] == (0x40U | (hand + 1U) << 12) &&
+                              e.factory_x[0] == (sx[i] + 180) * 65536 + 0x1357 &&
+                              e.factory_y[0] == (sy[i] - 12 + 60) * 65536 + 0x2468);
+                        ++requests;
+                    }
+                }
+            }
+            CHECK(e.factory_count == requests && s.x == (x + 180) * 65536 + 0x1357);
+            coins += requests;
+        }
+        Uint16 marked = 0;
+        for (Uint16 i = 0; i < 8; ++i)
+            marked += program.jewel_pattern[i] != 0;
+        CHECK(coins == marked && (special ? coins > 0 : !coins));
+    }
+    return true;
+}
+typedef struct CoinRoom
+{
+    Sint32 floor, ceiling, left, right;
+    Uint16 queries;
+} CoinRoom;
+static bool CoinQuery(void *context, Sint32 x, Sint32 y, SotnCollider *out)
+{
+    CoinRoom *r = context;
+    ++r->queries;
+    *out = (SotnCollider){0};
+    if (y >= r->floor)
+        out->top = r->floor - y;
+    if (y < r->ceiling)
+        out->bottom = r->ceiling - y;
+    if (x >= r->right)
+        out->left = r->right - 1 - x;
+    if (x < r->left)
+        out->right = r->left - x;
+    if (y >= r->floor || y < r->ceiling || x >= r->right || x < r->left)
+        out->effects = SOTN_EFFECT_SOLID;
+    return true;
+}
+static bool JewelCoinTest(void)
+{
+    static Uint8 o[0x1000];
+    JewelTables(o);
+    SotnHandWeaponProgram program = {0};
+    CoinRoom room = {.floor = 400, .ceiling = 100, .left = 150, .right = 330};
+    SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                   .x = 600 * 65536,
+                                   .y = 600 * 65536,
+                                   .camera_x = 100,
+                                   .camera_y = 50,
+                                   .family = 37,
+                                   .role = 2,
+                                   .priority = 0x94,
+                                   .query = CoinQuery,
+                                   .query_context = &room};
+    {
+        // A coin born inside a solid tile is destroyed before its rand calls.
+        SotnWeaponSecondary s = {.x = 200 * 65536, .y = 450 * 65536};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 4;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed && rng == 4 &&
+              room.queries == 1 && !e.gold && !e.sounds[0]);
+    }
+    // Pickup bounds: |dx| < 0xB and |dy| < 0x1B, from either side.
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Sint32 dx = k < 4 ? (k & 1 ? 11 : 10) : 0, dy = k < 4 ? 0 : (k & 1 ? 27 : 26),
+                     sign = k & 2 ? -1 : 1;
+        SotnWeaponSecondary s = {
+            .x = 200 * 65536, .y = 300 * 65536, .phase = 2, .role = 2, .lifetime = 0x40};
+        in.x = s.x + sign * dx * 65536;
+        in.y = s.y + sign * dy * 65536;
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 6;
+        const bool near = !(k & 1);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed == near &&
+              e.gold == near && e.sounds[0] == (near ? 0x6a9 : 0) && rng == 6);
+    }
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        // k0 right, ceiling then right wall, landing, blink and expiry; k1 left, left wall;
+        // k2 the player stands where it lands; k3 the player overlaps it at birth.
+        const bool left = k == 1;
+        SotnWeaponSecondary s = {.x = (k == 1 ? 160 : 320) * 65536 + 0x8000,
+                                 .y = 104 * 65536 + 0x1000,
+                                 .facing_left = left};
+        in.x = k == 3 ? s.x + 10 * 65536 : 600 * 65536;
+        in.y = k == 3 ? s.y - 26 * 65536 : 600 * 65536;
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 31U + k, check = rng;
+        const Sint32 speed = (Sint32)(SotnCombat_Random(&check) & 0x7fffU) + 0x4000;
+        Sint32 vx = left ? -speed : speed,
+               vy = -((Sint32)(SotnCombat_Random(&check) & 0x7fffU) + 0x10000);
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+        if (k == 3)
+        {
+            CHECK(s.removed && e.gold == 1 && e.sounds[0] == 0x6a9);
+            continue;
+        }
+        CHECK(!s.removed && s.phase == 1 && s.role == 2 && s.allocated && s.timeline == 0x798 &&
+              s.bank == 3 && s.priority == 0x96 && s.flags == 0x08100000U && s.velocity_x == vx &&
+              s.velocity_y == vy && !e.gold && !e.sounds[0]);
+        CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 37) &&
+              s.frame == 0x14 && s.remaining == 4);
+        Sint32 x = s.x, y = s.y;
+        bool ceiling = false, wall = false;
+        Uint16 updates = 0;
+        while (s.phase == 1 && updates < 400)
+        {
+            x += vx;
+            y += vy;
+            vy += 0x2400;
+            SotnCollider c = {0};
+            Sint32 px = x >> 16, py = y >> 16;
+            CHECK(CoinQuery(&room, px, py - 1, &c));
+            if (c.effects)
+            {
+                y = (Sint32)(((Uint32)(py + c.bottom) << 16) | ((Uint32)y & 0xffffU));
+                py = y >> 16;
+                vy = 0x10000;
+                ceiling = true;
+            }
+            CHECK(CoinQuery(&room, px + 4, py, &c));
+            if (c.effects)
+            {
+                x = (Sint32)(((Uint32)(px + c.left) << 16) | ((Uint32)x & 0xffffU));
+                px = x >> 16;
+                vx = -vx;
+                wall = true;
+            }
+            CHECK(CoinQuery(&room, px - 4, py, &c));
+            if (c.effects)
+            {
+                x = (Sint32)(((Uint32)(px + c.right) << 16) | ((Uint32)x & 0xffffU));
+                px = x >> 16;
+                vx = -vx;
+                wall = true;
+            }
+            CHECK(CoinQuery(&room, px, py + 7, &c));
+            const bool land = c.effects != 0;
+            if (land)
+                y = (Sint32)(((Uint32)(py + c.top) << 16) | ((Uint32)y & 0xffffU));
+            if (k == 2 && land)
+            {
+                in.x = x + 3 * 65536;
+                in.y = y - 20 * 65536;
+            }
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            ++updates;
+            if (k == 2 && land)
+            {
+                // Landing sound, then the pickup sound and one gold in the same update.
+                CHECK(s.removed && e.gold == 1 && e.sounds[0] == 0x6a9 && e.sounds[1] == 0x6a9);
+                break;
+            }
+            CHECK(s.x == x && s.y == y && s.velocity_x == vx && s.velocity_y == vy &&
+                  s.phase == (land ? 2 : 1) && e.sounds[0] == (land ? 0x6a9 : 0) && !e.gold);
+        }
+        CHECK(ceiling && wall && updates < 400);
+        if (k == 2)
+            continue;
+        CHECK((y >> 16) + 7 == room.floor && s.lifetime == 0x50 && !s.draw_flags);
+        // Resting: blink from 0x10, destroyed when the timer reaches zero.
+        for (Uint16 t = 0x50; t > 0; --t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check && !e.gold &&
+                  !e.sounds[0] && s.x == x && s.y == y);
+            CHECK(t == 1 ? s.removed
+                         : !s.removed && s.lifetime == t - 1 &&
+                               s.draw_flags == (t <= 0x10 ? 0x80 : 0));
+        }
+    }
+    return true;
+}
 // Shield rod special173 through the shared runtime: slot16's descriptor1 requests the 0x4A orb
 // (slots28..31, raw parent slot16, no equip id, least-used group, hit type4) whose 0x40 sparkles
 // (slots32..63) each lease one row before their two rand calls; all retire with their rows.
@@ -3836,6 +4165,166 @@ static bool RodRuntime(void)
     }
     // One sparkle every eighth countdown, each living twelve updates: at most two at once.
     CHECK(orb && sparkle_births == 67 && live_max == 2 && sparkles == 67 * 12 && ticks < 900);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
+// The Jewel sword's special198 through the shared runtime: slot16's pose1 requests 0x3A
+// (descriptor-1 = 1) whose sparkles lease sixteen rows, roll the coin pattern and request 0x40
+// coins; each coin bounces, lands and pays one gold when the player touches it.
+static SotnCollisionMap DawnFloor(void);
+static bool JewelRuntime(bool full)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 198, 1, 37, 15, 2, 5, 0);
+    dra[0x500 + 198 * 52 + 18] = 0xa7;
+    const Uint8 blueprints[][6] = {
+        {48, 0, 1, 0xc1, 0, 0x23}, {0x3a, 1, 1, 0xc1, 0, 0}, {0x40, 2, 1, 0xc1, 0, 0}};
+    for (Uint16 i = 0; i < 3; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    // Sparkles and coins share slots32..63: a coin's raw parent can sit above47.
+    // A full table: blueprint0x40's delay keeps the occupying coin factories pending.
+    dra[0xd1d4 + 0x40 * 6 + 5] = full ? 250 : 0;
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 6] = dra[0xd4b9 + 6] = 16;
+    Uint8 *o = weapons + 37U * 0x7000 + 0x4000;
+    Program(o);
+    for (Uint16 d = 0; d < 4; ++d)
+    {
+        SDL_memcpy(o + 0x6a4 + d * 16U, o + 0x10ac, 16);
+        o[0x6a4 + d * 16U + 12] = 0xa7;
+    }
+    JewelTables(o);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnCharacterState progress = {0};
+    CHECK(SotnCharacter_Get(character, &progress, NULL));
+    const Uint32 gold = progress.gold;
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {37, 37},
+                              .weapon_bound = {true, true},
+                              .camera_x = 20,
+                              .camera_y = 8,
+                              .food_collision = DawnFloor(),
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 130 * 65536,
+                                         .priority = 148,
+                                         .attack_mode = 0x8002,
+                                         .animation = {.id = 0xa7, .pose = 1, .remaining = 3}}};
+    const SotnPlayerFactorySource source = {.x = in.player.x, .y = in.player.y, .priority = 148};
+    bool allocated = false;
+    SDL_ClearError();
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestHand(r, source, 0x21030, 198, &allocated) && allocated);
+    CHECK(SotnBatRuntime_Tick(r, character, in));
+    CHECK(r->children[0].hand_weapon && SotnActors_CommitBatPrimitives(actors, r));
+    Uint16 pending = 0;
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (r->factories[i].secondary_factory)
+        {
+            ++pending;
+            CHECK(r->factories[i].cursor.blueprint == 0x3a &&
+                  r->factories[i].cursor.parameter == 0x100 &&
+                  r->factories[i].secondary_parent_slot == 16);
+        }
+    CHECK(pending == 1);
+    Uint16 sparkles = 0, coins = 0, coin_births = 0, ticks = 0;
+    bool born[SOTN_BAT_RUNTIME_SLOTS] = {0}, landed = false;
+    // A coin that leaves before its rest expires was picked up: one gold each.
+    Sint16 resting[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    Uint16 pickups = 0;
+    for (Uint16 t = 0; t < 400; ++t)
+    {
+        if (t == 3)
+            in.player.attack_mode = 0;
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        bool any = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || c->state.secondary.family != 37 || !c->initialized)
+            {
+                pickups += resting[i] != 1 && resting[i] != 0;
+                born[i] = false;
+                resting[i] = 0;
+                continue;
+            }
+            any = true;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            resting[i] = c->kind == 0xe2 ? (Sint16)(w->phase == 2 ? w->lifetime : -1) : 0;
+            CHECK(SotnBatRuntime_SecondaryValid(c, i) && !c->state.secondary.item && !c->group &&
+                  !c->state.secondary.attack.active);
+            if (c->kind == 0xe1)
+            {
+                CHECK(i >= 16 && c->state.secondary.parent_slot == 16 && c->parameter == 0x100 &&
+                      c->primitive_count == 16 && w->jewel_quads[0].priority == 152);
+                sparkles += !born[i];
+            }
+            else
+            {
+                CHECK(c->kind == 0xe2 && i >= 16 && c->parameter == 0 && !c->primitive_count &&
+                      c->state.secondary.parent_slot >= 32 && w->priority == 150 && w->bank == 3);
+                coins += !born[i];
+                ++coin_births;
+                // A resting coin; the player steps onto it.
+                if (w->phase == 2 && !landed)
+                {
+                    landed = true;
+                    in.player.x = w->x;
+                    in.player.y = w->y - 10 * 65536;
+                }
+            }
+            born[i] = true;
+        }
+        // Once the sparkles exist, occupy every free factory with a pending coin factory:
+        // their coin requests are then dropped, as a NULL CreateEntFactoryFromEntity is.
+        for (Uint16 j = 0; full && sparkles && j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+            if (!r->factories[j].cursor.entity_id)
+            {
+                CHECK(SotnPlayerFactory_Begin(&r->factories[j].cursor, source, 0x1040, 0));
+                r->factories[j].secondary_factory = true;
+                r->factories[j].secondary_parent_slot = 16;
+            }
+        if (!any && t > 40)
+            break;
+    }
+    CHECK(SotnCharacter_Get(character, &progress, NULL));
+    if (full)
+    {
+        Uint16 pending_coins = 0;
+        for (Uint16 j = 0; j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+            pending_coins += r->factories[j].cursor.blueprint == 0x40;
+        CHECK(sparkles == 1 && !coins && !landed && progress.gold == gold &&
+              pending_coins == SOTN_BAT_RUNTIME_FACTORIES);
+        for (Uint16 j = 0; j < SOTN_BAT_RUNTIME_FACTORIES; ++j)
+            SDL_zero(r->factories[j]);
+    }
+    else
+        CHECK(sparkles == 1 && coins > 0 && landed && pickups && progress.gold == gold + pickups &&
+              ticks < 400 && coin_births);
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
     for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
@@ -9660,7 +10149,8 @@ int main(void)
                    WarpRuntime() && FistRuntime() && FanRuntime() && BrandRuntime() &&
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && RodOrbTest() &&
-                   RodSparkleTest() && RodRuntime() && IronRuntime(0) && IronRuntime(1) &&
+                   RodSparkleTest() && RodRuntime() && JewelSparkleTest() && JewelCoinTest() &&
+                   JewelRuntime(false) && JewelRuntime(true) && IronRuntime(0) && IronRuntime(1) &&
                    IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
                    HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
                    HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&

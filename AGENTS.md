@@ -57,6 +57,15 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Jewel/Stone swords](docs/player-jewel-stone-swords.md) now own items109/114 and QCF
+special198 (five MP) through w_037 variants1..3. Variants1/2 request WFACTORY(0x3A,variant-1) on
+the first pose1: E1 sparkles (slots32..63) roll the special's rand()&31 coin pattern BEFORE
+sixteen mandatory GT4s, place eight sparkles from D_8017A714 (pattern/points/palette counter are
+shared program state) and request WFACTORY(64,0) coins from marked ones. E2 coins (rowless,
+parent slot up to 63, full factory table drops them) bounce on four CheckCollision probes, rest
+0x50 and pay one gold (cap 999999, committed with the successful runtime tick). Stone has no extra
+petrification effect: native combat has no element-specific enemy flash for any weapon.
+
 The [Sword familiar component](docs/sword-familiar.md) (tt_004, card22, servant5, stats4) owns
 ServantInit (48-word CLUT row0xF4), default follow, menu-switch entrance (speech 0x4FB..0x4FF),
 the GTE model (own matrix, CompMatrix (0,0,6500), RTPS (128,128)/H1000, NCLIP, OTZ priorities),

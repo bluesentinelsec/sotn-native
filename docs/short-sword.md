@@ -12,9 +12,9 @@ Its per-hand previous-pose BSS follows actual program lifetime and stays out of
 ordinary saves.
 
 The weapon's five palettes are checked and loaded as five palettes; adjacent
-animation bytes are not treated as extra colors. Jewel sword/Stone sword special
-behavior from the same overlay remains unavailable. This integration grants no
-weapon or stats during ordinary travel or Continue.
+animation bytes are not treated as extra colors. The [Jewel sword, its special and
+the Stone sword](player-jewel-stone-swords.md) share this overlay. This integration
+grants no weapon or stats during ordinary travel or Continue.
 
 Public synthetic tests cover metadata rejection, active attack variants in both
 hands, ownership/equip/restore, and both-hand rendering with a bounded five-palette

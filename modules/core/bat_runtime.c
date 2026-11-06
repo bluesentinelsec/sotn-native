@@ -907,17 +907,17 @@ static bool Weapon51Special(Uint16 item)
 }
 static Uint16 HandFamily(Uint16 item)
 {
-    return !item                          ? 255
-           : item == 5                    ? 8
-           : item == 6                    ? 9
-           : item == 8                    ? 11
-           : item == 11                   ? 25
-           : item == 12                   ? 26
-           : item == 167                  ? 58
-           : item == 16                   ? 52
-           : item == 18 || item == 174    ? 31
-           : item == 19                   ? 37
-           : SotnEquipment_IsSword0(item) ? 0
+    return !item                                                     ? 255
+           : item == 5                                               ? 8
+           : item == 6                                               ? 9
+           : item == 8                                               ? 11
+           : item == 11                                              ? 25
+           : item == 12                                              ? 26
+           : item == 167                                             ? 58
+           : item == 16                                              ? 52
+           : item == 18 || item == 174                               ? 31
+           : item == 19 || item == 109 || item == 114 || item == 198 ? 37
+           : SotnEquipment_IsSword0(item)                            ? 0
            : item == 85 || item == 97 || item == 102 || item == 120 || item == 186 || item == 187 ||
                    item == 188
                ? 1
@@ -966,6 +966,7 @@ static Uint16 HandVariant(Uint16 item)
         return item == 125 ? 3 : item >= 116 ? 2 : item >= 104 ? 1 : 0;
     switch (item)
     {
+    case 109: // Jewel sword: weapon37 descriptor1
     case 97:
     case 167:
     case 168:
@@ -993,6 +994,7 @@ static Uint16 HandVariant(Uint16 item)
     case 184:
     case 117:
     case 126: // Sword Familiar: weapon43 descriptor2 (green tiles)
+    case 198: // Jewel sword's special: weapon37 descriptor2 (coin sparkles)
         return 2;
     case 124:
     case 192:
@@ -1000,6 +1002,7 @@ static Uint16 HandVariant(Uint16 item)
     case 107:
     case 185:
     case 180:
+    case 114: // Stone sword: weapon37 descriptor3
         return 3;
     case 140:
     case 188:
@@ -1132,6 +1135,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
                (bp == 0x40 && param == 0);
+    // Weapon37: the Jewel sword's sparkles 0x3A (param = descriptor - 1) and their coins 0x40.
+    if (family == 37)
+        return (bp == 0x3a && param <= 1) || (bp == 0x40 && param == 0);
     // Weapon1 descriptor4 (Tulkas's QCF) and weapon51's special request blueprint62.
     if (family == 1 || family == 51)
         return bp == 0x3e && param == 0;
@@ -1179,6 +1185,12 @@ bool SotnBatRuntime_WarpValid(const SotnBatRuntimeChild *c, Uint16 index)
            (c->initialized ? w->phase != 0 : !w->phase);
 }
 // Weapon53 chains carry their own slash index (below its48-entry table); others use zero.
+// The highest raw parent slot a weapon secondary may hold: weapon37's coins come from sparkles in
+// blueprint0x3A's slots32..63; every other parent sits in16..47.
+static Uint16 SecondaryParentMax(Uint16 family)
+{
+    return family == 37 ? 63 : 47;
+}
 static bool SecondaryParameter(Uint16 family, Uint16 parameter)
 {
     const Uint16 n = parameter >> 8;
@@ -1199,7 +1211,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
         return (parameter & 0x7fffU) == 0x100 ||
                ((parameter & 0x7f00U) == 0 && (parameter & 0xffU) <= 7);
     // Weapon25: the spell carries the hand bit, its clouds params1.
-    if (family == 11 || family == 25 || family == 10)
+    // Weapon37: the Jewel sword's sparkles carry descriptor-1 (special1) on the hand bit; the
+    // coins only the hand bit.
+    if (family == 11 || family == 25 || family == 10 || family == 37)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
     // Weapon29: the afterimages, spell and hit points carry the hand bit; the dragons their
     // index0..2.
@@ -1298,7 +1312,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                              (c->state.secondary.item == 164 &&
                                               (c->parameter & 0x7f00U) == 0x200))
                 : c->state.secondary.own_item == rush) &&
-           c->state.secondary.parent_slot >= 16 && c->state.secondary.parent_slot <= 47 &&
+           c->state.secondary.parent_slot >= 16 &&
+           c->state.secondary.parent_slot <= SecondaryParentMax(family) &&
            SotnWeaponSecondary_Supported(family) &&
            // A weapon30 soldier waits in phase0 for its circle's wave, its rows not yet taken.
            (c->initialized && family == 30 && (c->kind & 15U) == 2 && !w->phase
@@ -1328,6 +1343,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 30 && (c->kind & 15U) == 2                   ? 8
                                    : family == 30                                           ? 4
                                    : family == 58                                           ? 6
+                                   : family == 37 && (c->kind & 15U) == 2                   ? 2
                                    : family == 11 && (c->kind & 15U) == 9                   ? 4
                                    : family == 25 && (c->kind & 15U) == 9                   ? 3
                                    : family == 26 && (c->kind & 15U) == 9                   ? 2
@@ -2529,7 +2545,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             c.sire || child.slot < 17 || child.slot > 63 ||
             !SotnWeaponSecondary_SupportedRole(family, c.kind & 15U) || child.argument_low ||
             child.argument_high || !SecondaryParameter(family, child.parameter) ||
-            secondary_parent_slot < 16 || secondary_parent_slot > 47 ||
+            secondary_parent_slot < 16 || secondary_parent_slot > SecondaryParentMax(family) ||
             !SotnWeaponSecondary_Supported(family))
             return SDL_SetError("Weapon secondary lost its actual blueprint56/slot/program owner");
         c.state.secondary.family = family;
@@ -3357,6 +3373,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     w->ice_cy[j] = Word(w->ice_cy[j] + in.screen_shift_y);
                 }
             }
+            else if (family == 37)
+            {
+                // Weapon37 sparkles: sixteen DRAW_UNK_100 GT4s (their program-BSS points stay);
+                // coins own no rows.
+                for (Uint16 j = 0; role == 1 && j < 16; ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        w->jewel_quads[j].x[v] = Word(w->jewel_quads[j].x[v] + in.screen_shift_x);
+                        w->jewel_quads[j].y[v] = Word(w->jewel_quads[j].y[v] + in.screen_shift_y);
+                    }
+            }
             else if (role == 2   ? family == 48 || family == 49 || family == 50
                      : role == 4 ? family == 50
                                  : family == 1)
@@ -3832,7 +3859,12 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
              r.factories[i].thrown_particles || r.factories[i].star_factory ||
              r.factories[i].karma_factory || r.factories[i].secondary_parent_slot < 16 ||
-             r.factories[i].secondary_parent_slot > 47 || r.factories[i].cursor.argument ||
+             r.factories[i].secondary_parent_slot >
+                 (in.weapon_bound[r.factories[i].cursor.entity_modifier == 0xf0]
+                      ? SecondaryParentMax(
+                            in.weapon_family[r.factories[i].cursor.entity_modifier == 0xf0])
+                      : 47) ||
+             r.factories[i].cursor.argument ||
              (r.factories[i].cursor.entity_modifier != 0xe0 &&
               r.factories[i].cursor.entity_modifier != 0xf0)))
             return SDL_SetError("Weapon secondary factory lost its actual blueprint56 owner");
@@ -3924,6 +3956,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     SotnDeathImage dissolve_image = in.dissolve_image ? *in.dissolve_image : (SotnDeathImage){0};
     const Uint32 previous_random = progress.random;
     const Uint16 previous_mp = progress.mp, previous_hearts = progress.hearts;
+    const Uint32 previous_gold = progress.gold;
     bool inventory_changed = false;
     r.shield_mp_hold = r.shield_heal = false;
     r.shield_protection = 0;
@@ -4150,8 +4183,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon23 (Herald shield): a blocked projectile's AddHearts(1).
             if (events.hearts && !AddHearts(&r, p, &progress))
                 return false;
-            // Current selected Short sword uses variant zero. Other weapon37 producers
-            // require their real secondary owners before the menu can expose them.
+            // Weapon37's Jewel sword (variant1) and special198 (variant2) request their sparkles.
             // Ordered WFACTORY requests from the actual weapon entity; a full factory table
             // silently drops a request, as CreateEntFactoryFromEntity returning NULL does.
             for (Uint16 k = 0; k <= SDL_arraysize(events.more_factories); ++k)
@@ -4407,6 +4439,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 25 ? 11
                                  : family == 26 ? 12
                                  : family == 52 ? 16
+                                 : family == 37 ? 109
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4860,6 +4893,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 SDL_zero(r.factories[j]);
                 r.factories[j].cursor = made;
             }
+            // Weapon37's coins: g_Status.gold = CLAMP_MAX(gold + 1, MAX_GOLD).
+            if (events.gold)
+                progress.gold = SDL_min(progress.gold + 1U, 999999U);
             // Weapon26's green cycle: one read-modify g_Clut word, committed after the pass.
             if (events.clut)
             {
@@ -4906,6 +4942,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 Uint16 j = 0;
                 while (j < SOTN_BAT_RUNTIME_FACTORIES && r.factories[j].cursor.entity_id)
                     ++j;
+                // The Jewel sword's coin CreateEntFactoryFromEntity simply returns NULL.
+                if (j == SOTN_BAT_RUNTIME_FACTORIES && family == 37)
+                    continue;
                 if (j == SOTN_BAT_RUNTIME_FACTORIES)
                     return SDL_SetError("Sword of Dawn soldier factory lost its free entity");
                 SotnPlayerFactory made = {0};
@@ -7174,7 +7213,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
     }
     if ((inventory_changed || progress.random != previous_random || progress.mp != previous_mp ||
-         progress.hearts != previous_hearts) &&
+         progress.hearts != previous_hearts || progress.gold != previous_gold) &&
         !SotnCharacter_Restore(character, &progress))
         return false;
     *runtime = r;
