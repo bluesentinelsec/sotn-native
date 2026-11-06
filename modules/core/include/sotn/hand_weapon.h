@@ -27,6 +27,14 @@ typedef struct SotnHandWeaponProgram
         {
             Sint16 ice_x[80], ice_y[80];
         };
+        /** Weapon37: the D_107000_8017BBE8 sparkle points (eight used), the writable
+         * D_107000_8017A758 coin pattern and the D_107000_8017BD28 palette counter. */
+        struct
+        {
+            Sint16 jewel_x[8], jewel_y[8];
+            Sint32 jewel_pattern[16];
+            Sint32 jewel_counter;
+        };
         /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
         Sint16 dawn_phase[10];
         /** Weapon52 (Alucard shield): the spell's armed flag/timer D_8017ABBC/ABC0 (overlay

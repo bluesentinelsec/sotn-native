@@ -73,6 +73,9 @@ static bool Program(Uint16 family, Layout *out)
         *out = (Layout){.timeline = 0xb44, .timeline_count = 5, .rows = 0};
     else if (family == 12)
         *out = (Layout){.rows = 1};
+    // Weapon37: the Jewel sword's sparkles take sixteen GT4s (eight used); coins take none.
+    else if (family == 37)
+        *out = (Layout){.rows = 16};
     else if (family == 34)
         *out = (Layout){.rows = 0};
     else if (family == 30)
@@ -147,7 +150,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
-           family == 30 || family == 7 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 30 || family == 7 || family == 37 || SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -174,6 +177,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
         return role <= 3;
     // Weapon7: Shield rod special173's orb (role1) and its sparkles (role2).
     if (family == 7)
+        return role == 1 || role == 2;
+    // Weapon37: the Jewel sword's sparkles (role1) and their gold coins (role2).
+    if (family == 37)
         return role == 1 || role == 2;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
@@ -238,6 +244,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 2 ? 1 : 0;
     if (family == 12)
         return role == 0 ? 1 : 0;
+    if (family == 37)
+        return role == 1 ? 16 : 0;
     if (family == 34)
         return 0;
     if (family == 30)
@@ -1834,6 +1842,233 @@ static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uin
     return true;
 }
 
+static bool Query(SotnWeaponSecondaryInput in, Sint16 x, Sint16 y, SotnCollider *out);
+// w_037 func_107000_8017ADF8: one sparkle frame (b0) around (x, y); every second update advances
+// the frame and frame6 ends it.
+static bool JewelPlace(SotnDataView o, SotnPlayerEffectQuad *q, Uint8 *b0, Uint8 *b1, Sint16 x,
+                       Sint16 y, bool *ended)
+{
+    const Uint8 *uv = NULL;
+    if (*b0 > 6 || !View(o, 0x6e4U + (Uint32)*b0 * 8U, 8, &uv))
+        return SDL_SetError("Jewel sparkle frame is outside its private UV table");
+    *ended = *b0 == 6;
+    if (*ended)
+        return true;
+    const Sint16 size = *b0 >= 3 ? 4 : 6;
+    q->x[0] = q->x[2] = Word(x - size);
+    q->x[1] = q->x[3] = Word(x + size);
+    q->y[0] = q->y[1] = Word(y - size);
+    q->y[2] = q->y[3] = Word(y + size);
+    for (Uint16 v = 0; v < 4; ++v)
+    {
+        q->u[v] = uv[v * 2];
+        q->v[v] = uv[v * 2 + 1];
+    }
+    if (!(++*b1 & 1))
+        ++*b0;
+    return true;
+}
+// w_037 func_ptr_80170004: the Jewel sword's sparkles. The special (params1) first rolls which
+// of them leave a coin; eight sparkles then start along the swing's private reach, one update
+// apart, rise and fade over thirty-two updates.
+static bool JewelSparkle(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                         SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    if (!s->phase)
+    {
+        for (Uint16 i = 0; i < 16; ++i)
+            p->jewel_pattern[i] = 0;
+        if ((s->parameter >> 8) & 0x7fU)
+        {
+            const Uint16 roll = Rand(rng) & 31U;
+            for (Uint16 i = 0; i < 16; ++i)
+                if (!roll || (!(roll & 3U) && !(i % 3)) ||
+                    (roll && ((roll & 3U) == 3 ? !(i % 9) : !(i % 5))))
+                    p->jewel_pattern[i] = 1;
+        }
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        s->flags = 0x00860000U;
+        // func_107000_8017B0AC: the player's position plus the pose row's reach, half the
+        // reach as the sparkle line.
+        const Sint32 row = (Sint32)in.animation - 0xa7;
+        const Uint8 *t = NULL;
+        if (row < 0 || row > 6 || !View(in.overlay, 0x714U + (Uint32)row * 8U, 8, &t))
+            return SDL_SetError("Jewel sparkles require a w_037 swing pose");
+        const Sint16 reach_x = (Sint16)Read16(t), reach_y = (Sint16)Read16(t + 2),
+                     line_x = (Sint16)Read16(t + 4), line_y = (Sint16)Read16(t + 6);
+        const Sint16 px = Word(Pixel(in.x) - in.camera_x), py = Word(Pixel(in.y) - in.camera_y);
+        Sint16 x = Word(in.facing_left ? px - reach_x : px + reach_x);
+        Sint16 y = Word(py + reach_y);
+        const Sint16 base_x = (Sint16)(in.facing_left ? -(line_x / 2) : line_x / 2),
+                     base_y = (Sint16)(line_y / 2);
+        if (in.draw_flags & 2U)
+            y = Word(y - (in.animation > 0x42 && in.animation < 0x45 ? 1 : 3));
+        SetScreen(&s->x, x, in.camera_x);
+        SetScreen(&s->y, y, in.camera_y);
+        for (Uint16 i = 0; i < 8; ++i)
+        {
+            const Sint16 lx = Word(base_x * i / 8 + x), ly = Word(base_y * i / 8 + y);
+            const Sint16 sy = Word(ly + Rand(rng) % 10U), sx = Word(lx + Rand(rng) % 4U);
+            p->jewel_x[i] = sx;
+            p->jewel_y[i] = sy;
+            const Uint8 *clut = NULL;
+            const Uint32 index = (Uint32)p->jewel_counter % 6U;
+            if (p->jewel_counter < 0 || !View(in.overlay, 0x74cU + index * 2U, 2, &clut))
+                return SDL_SetError("Jewel sparkle palette cursor is invalid");
+            s->jewel_quads[i] = (SotnPlayerEffectQuad){.palette = Read16(clut),
+                                                       .page = 0x1a,
+                                                       .priority = (Uint16)(in.priority + 4U),
+                                                       .draw_mode = 0x339};
+            s->jewel_g0[i] = s->jewel_b0[i] = s->jewel_b1[i] = 0;
+            s->jewel_g1[i] = (Uint8)(i + 1U);
+            if (Rand(rng) & 1U)
+                s->jewel_quads[i].draw_mode = 0x379;
+            ++p->jewel_counter;
+        }
+        s->jewel_timer = 32;
+        s->phase = 1;
+    }
+    else if (--s->jewel_timer == 0)
+    {
+        s->removed = true;
+        return true;
+    }
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->jewel_quads[i];
+        if (s->jewel_g0[i] == 0)
+        {
+            if (--s->jewel_g1[i] == 0)
+                ++s->jewel_g0[i];
+        }
+        else if (s->jewel_g0[i] == 1)
+        {
+            const Sint16 x = p->jewel_x[i], y = p->jewel_y[i];
+            bool ended = false;
+            if (!JewelPlace(in.overlay, q, &s->jewel_b0[i], &s->jewel_b1[i], x, y, &ended))
+                return false;
+            --p->jewel_y[i];
+            if (ended)
+            {
+                q->draw_mode |= 8;
+                // A marked sparkle leaves a coin from its own last position.
+                if (p->jewel_pattern[i])
+                {
+                    if (e->factory_count >= SDL_arraysize(e->factories))
+                        return SDL_SetError("Jewel sparkles exceeded their coin requests");
+                    Sint32 cx = s->x, cy = s->y;
+                    SetScreen(&cx, x, in.camera_x);
+                    SetScreen(&cy, y, in.camera_y);
+                    e->factory_x[e->factory_count] = cx;
+                    e->factory_y[e->factory_count] = cy;
+                    e->factories[e->factory_count++] = 0x40U | (((Uint32)in.hand + 1U) << 12);
+                }
+                ++s->jewel_g0[i];
+            }
+            else
+                q->draw_mode = (Uint16)(q->draw_mode & 0xfff7U);
+        }
+    }
+    return true;
+}
+// w_037 func_ptr_80170008: a gold coin that bounces off the room, rests for 0x50 updates
+// (blinking for the last 0x10) and pays one gold when the player touches it.
+static bool JewelCoin(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                      SotnWeaponSecondaryEvents *e)
+{
+    SotnCollider c = {0};
+    Sint16 x = Word(Pixel(s->x) - in.camera_x), y = Word(Pixel(s->y) - in.camera_y);
+    switch (s->phase)
+    {
+    case 0: {
+        if (!Query(in, x, y, &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        s->timeline = 0x798;
+        s->bank = 3;
+        s->pose = 0;
+        s->remaining = 0;
+        s->priority = (Uint16)(in.priority + 2U);
+        s->flags = 0x08100000U;
+        const Sint32 speed = (Sint32)Rand(rng) + 0x4000;
+        s->velocity_x = s->facing_left ? -speed : speed;
+        s->velocity_y = -((Sint32)Rand(rng) + 0x10000);
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_y = (Sint32)((Uint32)s->velocity_y + 0x2400U);
+        x = Word(Pixel(s->x) - in.camera_x);
+        y = Word(Pixel(s->y) - in.camera_y);
+        if (!Query(in, x, Word(y - 1), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            y = Word(y + c.bottom);
+            SetScreen(&s->y, y, in.camera_y);
+            s->velocity_y = 0x10000;
+        }
+        if (!Query(in, Word(x + 4), y, &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            x = Word(x + c.left);
+            SetScreen(&s->x, x, in.camera_x);
+            s->velocity_x = -s->velocity_x;
+        }
+        if (!Query(in, Word(x - 4), y, &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            x = Word(x + c.right);
+            SetScreen(&s->x, x, in.camera_x);
+            s->velocity_x = -s->velocity_x;
+        }
+        if (!Query(in, x, Word(y + 7), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            y = Word(y + c.top);
+            SetScreen(&s->y, y, in.camera_y);
+            s->lifetime = 0x50;
+            e->sounds[0] = 0x6a9;
+            s->phase = 2;
+        }
+        break;
+    default:
+        if (s->lifetime == 0x10)
+            s->draw_flags = 0x80; // ENTITY_BLINK
+        if (--s->lifetime == 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 dx = Word(Word(Pixel(in.x) - in.camera_x) - Word(Pixel(s->x) - in.camera_x)),
+                 dy = Word(Word(Pixel(in.y) - in.camera_y) - Word(Pixel(s->y) - in.camera_y));
+    if (SDL_abs(dx) < 0xb && SDL_abs(dy) < 0x1b)
+    {
+        e->gold = 1;
+        e->sounds[e->sounds[0] ? 1 : 0] = 0x6a9;
+        s->removed = true;
+    }
+    return true;
+}
 // w_014 blade line at the entity's rotation: its point 47 pixels out and its hilt 8 pixels out.
 static bool RuneCorners(SotnDataView exe, Sint16 angle, Sint16 x, Sint16 y, bool left, Sint16 *x1,
                         Sint16 *y1, Sint16 *x3, Sint16 *y3)
@@ -8457,6 +8692,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 13 && in.role == 2                      ? 4
                         : in.family == 13 && in.role == 3                      ? 3
                         : in.family == 7 && in.role == 1                       ? 4
+                        : in.family == 37 && in.role == 2                      ? 2
                         : in.family == 10 && in.role == 8                      ? 9
                         : in.family == 23 && in.role == 8                      ? 8
                         : in.family == 23                                      ? 3
@@ -8512,6 +8748,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 6)
     {
         if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 37)
+    {
+        if (!(in.role == 1 ? JewelSparkle(&s, &shared, in, &rng, &e) : JewelCoin(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -8785,6 +9027,9 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 27 && state->role == 8)
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0xcb4 ? 3 : 10};
+    // Weapon37's coins: D_107000_8017A798 (seven frames, looping).
+    if (state && family == 37 && state->role == 2)
+        layout = (Layout){.timeline = state->timeline, .timeline_count = 8};
     // Weapon30's bombs: D_8017A514 (thirteen frames) or the roller's D_8017A548 (three).
     if (state && family == 30 && state->role == 4)
         layout = (Layout){.timeline = state->timeline,
@@ -8794,6 +9039,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
          (family != 10 || state->role != 1) && (family != 23 || state->role != 10) &&
          (family != 27 || state->role != 8 || !layout.timeline) &&
          (family != 29 || state->role != 8 || !layout.timeline) &&
+         (family != 37 || state->role != 2 || !layout.timeline) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||
