@@ -66,8 +66,12 @@ record, TT/FT/SD files, events): FT pages like every servant, only 48 CLUT words
 One overlay is resident; switching familiars replaces it (fresh history, sound cursor 99). Real
 stage-pool leases (model96/trail16/halo4, tag 0x9000|part<<8|slot) are checked before each
 AllocPrimitives callback and committed after it; draws are GT4 rows at their own priorities. The
-relic menu does not offer card22 yet; live targets (CheckAllEntitiesValid), Sword Brothers and
-the level-50 gift fail explicitly. Oracle SquareRoot12 needs the LZC adapter at 0x8001721C.
+relic menu does not offer card22 yet. The component now runs func_us_80173AA0 (stage64..191,
+mark 0x80000 on the first unmarked, else round-robin D_us_80178B88; no HP>0 check, raw slot
+follow), the circle D2 (<70) and dive D3 (>=70) with libc rand, voices (D_us_80170090) and two
+DE hitboxes per slash from slots17..46 (GetFreeEntity(0x11,0x2F), tips, spell19/20); the session
+still stops explicitly when an attack starts (marks/DE/voices unconnected). Sword Brothers and
+the level-50 gift fail explicitly. Oracle square roots need LZC adapters 0x8001721C/0x80016EEC.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue

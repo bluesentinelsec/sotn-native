@@ -1,6 +1,7 @@
 #include "actors_internal.h"
 #include <SDL3/SDL.h>
 #include <sotn/actors.h>
+#include <sotn/combat.h>
 #include <sotn/sword_familiar.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -84,6 +85,11 @@ static void Fixture(void)
         Vertex(0x148 + i * 8U, (Sint16)((i % 4) * 20 - 30), (Sint16)(80 + i * 10), 0);
     Vertex(0x1c8, 0, 125, 0);
     Vertex(0x1d0, 0, 195, 0);
+    for (Uint16 i = 0; i < 7; ++i)
+        Put16(overlay + 0x90 + i * 2U, (Uint16)(0x700 + i)); // voices
+    Put32(overlay + 0x218, 3);                               // circle hold
+    Put32(overlay + 0x21c, 5);                               // dive hold
+    Put32(overlay + 0x220, 4);                               // dive glide
     for (Uint16 i = 0; i < 16; ++i)
         Put16(overlay + 0x40 + i * 2U, (Uint16)(0x1000 + i));
     for (Uint16 i = 0; i < 32; ++i)
@@ -213,6 +219,7 @@ static bool ProjectionCheck(const SotnSwordRuntime *r, Sint32 base)
     return true;
 }
 static SotnWorldState world;
+static SotnSwordTarget no_targets[SOTN_SWORD_TARGETS];
 static SotnSwordInput Input(Sint32 level, Sint32 loads, Uint8 castle, Uint16 room_flags)
 {
     return (SotnSwordInput){
@@ -220,6 +227,7 @@ static SotnSwordInput Input(Sint32 level, Sint32 loads, Uint8 castle, Uint16 roo
         .executable = {exe, sizeof(exe)},
         .player = {.x = 120 * 65536, .y = 150 * 65536, .priority = 0x94, .collision = 1},
         .stats = {level, (level - 1) * 100, loads},
+        .targets = no_targets,
         .room_flags = room_flags,
         .stage = 2,
         .castle_flag = castle,
@@ -502,11 +510,12 @@ static bool EventsTest(void)
     CHECK(Run(r, in, &e) &&
           (r->slots[1].identity == SOTN_SWORD_TRAIL || r->slots[3].identity == SOTN_SWORD_TRAIL) &&
           r->level_seen == 96);
-    // Targets, Sword Brothers and the level-50 gift fail explicitly without mutation.
+    // A missing stage snapshot, Sword Brothers and the level-50 gift fail explicitly without
+    // mutation.
     SotnSwordRuntime before = *r;
-    in.target = true;
+    in.targets = NULL;
     CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
-    in.target = false;
+    in.targets = no_targets;
     in.brothers = true;
     CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
     in.brothers = false;
@@ -698,11 +707,264 @@ static bool LeaseTest(void)
     SDL_free(r);
     return true;
 }
+// Default -> attack: the first live unmarked target is marked; marked ones rotate by cursor.
+static bool SearchTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r)), *idle = SDL_malloc(sizeof(*idle));
+    CHECK(r && idle);
+    SotnSwordInput in = Input(30, 1, 4, 0);
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && Run(r, in, &e) && r->slots[0].step == 1);
+    *idle = *r;
+    static SotnSwordTarget t[SOTN_SWORD_TARGETS];
+    SDL_zeroa(t);
+    t[0] = (SotnSwordTarget){1, 0, 0, 100, 100, 5};        // no hitbox
+    t[1] = (SotnSwordTarget){1, 1, 0x200000, 100, 100, 5}; // excluded flag
+    t[2] = (SotnSwordTarget){1, 1, 0, -17, 100, 5};
+    t[3] = (SotnSwordTarget){1, 1, 0, 273, 100, 5};
+    t[4] = (SotnSwordTarget){1, 1, 0, 100, 241, 5};
+    t[5] = (SotnSwordTarget){1, 1, 0, 100, -1, 5};
+    t[6] = (SotnSwordTarget){1, 1, 0, 100, 100, 0x7000};
+    t[7] = (SotnSwordTarget){0, 1, 0, 100, 100, 5}; // empty slot
+    t[8] = (SotnSwordTarget){1, 1, 0, -16, 0, 0};   // the search itself ignores HP <= 0
+    t[9] = (SotnSwordTarget){1, 1, 0, 272, 240, 5};
+    in.targets = t;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && e.mark == 9 &&
+          r->slots[0].identity == SOTN_SWORD_CIRCLE && !r->slots[0].step &&
+          r->slots[0].follow == 9 && !r->target_cursor);
+    // The far screen edge (272,240) is still eligible.
+    *r = *idle;
+    const SotnSwordTarget first = t[8];
+    t[8] = (SotnSwordTarget){0};
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && e.mark == 10);
+    t[8] = first;
+    // A cutscene holds the search.
+    *r = *idle;
+    in.cutscene = true;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !e.mark &&
+          r->slots[0].identity == SOTN_SWORD_DEFAULT);
+    in.cutscene = false;
+    // Only marked targets: the next one from the cursor, wrapping, without a new mark.
+    t[8].flags = 0x80000;
+    t[9] = (SotnSwordTarget){0};
+    t[100] = (SotnSwordTarget){1, 1, 0x80000, 50, 50, 5};
+    const Sint32 cursors[3][3] = {{101, 9, 9}, {100, 101, 101}, {9, 101, 101}};
+    for (Uint16 k = 0; k < 3; ++k)
+    {
+        *r = *idle;
+        r->target_cursor = cursors[k][0];
+        CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !e.mark &&
+              r->slots[0].follow == cursors[k][1] && r->target_cursor == cursors[k][2] % 128);
+    }
+    // Level 70 and above dives.
+    *r = *idle;
+    in.stats = (SotnFamiliarStats){75, 7400, 1};
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_DIVE);
+    SDL_free(idle);
+    SDL_free(r);
+    return true;
+}
+// The circle: two rands pick a point, it turns, flies there, waits, sweeps twice slashing, waits,
+// then keeps or drops its target.
+static bool CircleTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(r != NULL);
+    SotnSwordInput in = Input(30, 1, 4, 0);
+    static SotnSwordTarget t[SOTN_SWORD_TARGETS];
+    SDL_zeroa(t);
+    t[20] = (SotnSwordTarget){1, 1, 0, 180, 120, 5};
+    in.targets = t;
+    in.tilemap_x = 0x900;
+    in.tilemap_y = 0x204;
+    in.random = 0x13572468U;
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && Run(r, in, &e) &&
+          SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_CIRCLE);
+    t[20].flags |= 0x80000;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step == 1 &&
+          r->slots[0].flags == 0x0c820000U && r->slots[0].camera_x == 0x900 &&
+          r->slots[0].camera_y == 0x204 && !e.random_calls);
+    Uint32 random = in.random;
+    const Uint16 r1 = SotnCombat_Random(&random), r2 = SotnCombat_Random(&random);
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && e.random_calls == 2 && e.random == random &&
+          r->circle[4] == (Sint32)(r1 % 128 + 64 + 0x900) &&
+          r->circle[5] == (Sint32)(r2 % 128 + 64 + 0x204) && r->slots[0].swing &&
+          r->slots[0].step == 2);
+    in.random = e.random;
+    Uint16 slashes = 0, sweeps = 0, guard = 0;
+    Sint16 angle = 0;
+    bool voiced = false;
+    while (r->slots[0].step != 8 && ++guard < 2000)
+    {
+        const Uint16 step = r->slots[0].step;
+        const SotnSwordSlot before = r->slots[0];
+        if (step == 4 && r->circle[1] == 3)
+        {
+            // Force a voice: the swing's first rand()%16 is zero, which plays table[1].
+            Uint32 pick = 1;
+            for (;; ++pick)
+            {
+                Uint32 st = pick;
+                if (SotnCombat_Random(&st) % 16 == 0)
+                    break;
+            }
+            in.random = pick;
+        }
+        const Uint32 seed = in.random;
+        CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e));
+        in.random = e.random;
+        const SotnSwordSlot *s = &r->slots[0];
+        if (step == 2)
+            CHECK(s->yaw == SotnFairy_StepAngle(s->heading, before.yaw_previous, 32));
+        if (step == 3)
+        {
+            const Sint32 tx = r->circle[4] - 0x900, ty = r->circle[5] - 0x204;
+            CHECK(s->velocity_x == (Sint32)(((Sint64)tx * 65536 - before.x) >> 4));
+            const Sint32 dx = tx - (s->x >> 16), dy = ty - (s->y >> 16);
+            CHECK((s->step == 4) == (dx * dx + dy * dy <= 3));
+        }
+        if (step == 4 && s->step == 5)
+        {
+            CHECK(e.sound_count >= 1 && e.sounds[0] == 0x672 && r->circle[1] == 4);
+            angle = r->rotation[2];
+        }
+        if (step == 5 || step == 6)
+        {
+            CHECK(r->rotation[2] == ((angle + 128) & 0xfff));
+            angle = r->rotation[2];
+            sweeps += s->step != step;
+        }
+        if (s->step >= 5 && s->step < 7)
+        {
+            CHECK(e.hitbox_count == 2);
+            for (Uint16 i = 0; i < 2; ++i)
+                CHECK(e.hitboxes[i].parameter == i && e.hitboxes[i].spell == 19 &&
+                      e.hitboxes[i].x == r->tips[i].x && e.hitboxes[i].y == r->tips[i].y &&
+                      e.hitboxes[i].priority == s->priority);
+            // One voice roll per swing: rand()%16 below 2 picks table[1] (0) or [0] (1).
+            if (before.swing)
+            {
+                Uint32 state = seed;
+                const Uint16 roll = SotnCombat_Random(&state) % 16, sweep = step == 4;
+                CHECK(e.random_calls == 1 && !s->swing && e.sound_count == sweep + (roll < 2) &&
+                      (roll >= 2 || e.sounds[sweep] == (roll ? 0x700 : 0x701)));
+                voiced = roll == 0 && e.sounds[1] == 0x701;
+            }
+            else
+                CHECK(!e.random_calls);
+            ++slashes;
+        }
+        else
+            CHECK(!e.hitbox_count);
+    }
+    CHECK(guard < 2000 && slashes == 64 && sweeps == 2 && r->circle[1] == 4 && voiced);
+    // Step 8 keeps a valid target (back to 1), drops on a cutscene or with no target left.
+    const SotnSwordRuntime at8 = *r;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step == 1 &&
+          r->slots[0].identity == SOTN_SWORD_CIRCLE);
+    *r = at8;
+    in.cutscene = true;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_DEFAULT &&
+          !r->slots[0].step && r->slots[0].follow == 21);
+    in.cutscene = false;
+    // HP 0 fails CheckEntityValid but not the search: the marked target is found again.
+    *r = at8;
+    t[20].hit_points = 0;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step == 1 &&
+          r->target_cursor == 21 && r->slots[0].follow == 21);
+    *r = at8;
+    t[20].hitbox_state = 0;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_DEFAULT &&
+          !r->slots[0].follow);
+    // The model stays leased while attacking; Sword Brothers still fails explicitly.
+    *r = at8;
+    SotnSwordLease leases[3] = {0};
+    CHECK(SotnSwordRuntime_Leases(r, leases) && leases[0].count == 96 &&
+          leases[0].generation == r->slots[0].generation);
+    in.brothers = true;
+    const SotnSwordRuntime held = *r;
+    CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(&held, r, sizeof(held)));
+    SDL_free(r);
+    return true;
+}
+// The dive: two birth rands, a rise behind the player, a hold, then dives through the target
+// whose blade slashes only near depth zero.
+static bool DiveTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(r != NULL);
+    SotnSwordInput in = Input(75, 1, 4, 0);
+    static SotnSwordTarget t[SOTN_SWORD_TARGETS];
+    SDL_zeroa(t);
+    t[3] = (SotnSwordTarget){1, 1, 0, 200, 100, 5};
+    in.targets = t;
+    in.tilemap_x = 0x300;
+    in.tilemap_y = 0x100;
+    in.random = 0x2468aceU;
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && Run(r, in, &e) &&
+          SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_DIVE);
+    t[3].flags |= 0x80000;
+    Uint32 random = in.random;
+    const Uint16 r1 = SotnCombat_Random(&random), r2 = SotnCombat_Random(&random);
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && e.random_calls == 2 &&
+          r->dive[7] == r1 - 0x4000 && r->dive[9] == r2 - 0x4000 && r->slots[0].step == 1 &&
+          r->dive[10] == (0x300 - 0x80) * 32 && r->dive[11] == (0x100 - 0x80) * 32);
+    in.random = e.random;
+    // Case 1 falls through into the first steering update.
+    in.player.facing_left = true;
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step >= 2 &&
+          r->dive[0] == 0x800 + r->dive[10] && r->dive[1] == -0x400 + r->dive[11] &&
+          r->dive[2] == -0x400);
+    Uint16 slashes = 0, wings = 0, guard = 0;
+    bool glided = false, homed = false;
+    while (++guard < 1500 && !(glided && r->slots[0].step == 1))
+    {
+        const Uint16 step = r->slots[0].step;
+        if (step == 5)
+            r->dive[7] = 0; // A zero planar speed counts as rightward.
+        CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e));
+        in.random = e.random;
+        const SotnSwordSlot *s = &r->slots[0];
+        CHECK(s->identity == SOTN_SWORD_DIVE);
+        if (step == 2)
+        {
+            SotnMathTrig trig = {0};
+            CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, s->yaw, &trig) &&
+                  r->dive[7] == (trig.cosine * 160) >> 12 &&
+                  r->dive[8] == (trig.sine * 160) >> 12 && (s->step == 3) == (r->dive[12] < 0x200));
+        }
+        if (step == 5)
+            CHECK(r->dive[0] == 0x800 + r->dive[10]);
+        CHECK((s->x >> 16) == (Sint16)(r->position[0] / 32 + 128) &&
+              (s->y >> 16) == (Sint16)(r->position[1] / 32 + 128));
+        const bool near = r->position[2] >= -0x200 && r->position[2] <= 0x200;
+        CHECK(e.hitbox_count == (s->step >= 5 && near ? 2 : 0));
+        if (e.hitbox_count)
+            CHECK(e.hitboxes[0].spell == 20 && e.hitboxes[1].parameter == 1);
+        slashes += e.hitbox_count != 0;
+        if (step == 5)
+        {
+            CHECK(e.sound_count >= 1 && e.sounds[0] == 0x6c6);
+            ++wings;
+        }
+        if (step == 9)
+        {
+            homed = true;
+            CHECK(r->dive[0] == ((200 - 0x80) << 5) + r->dive[10] && !r->dive[2]);
+        }
+        glided |= step == 10;
+    }
+    CHECK(guard < 1500 && glided && homed && wings == 1 && slashes);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     Fixture();
     return InitTest() && EntranceTest() && FollowTest() && EventsTest() && EntranceBandsTest() &&
-                   LifecycleTest() && LeaseTest()
+                   LifecycleTest() && LeaseTest() && SearchTest() && CircleTest() && DiveTest()
                ? 0
                : 1;
 }
