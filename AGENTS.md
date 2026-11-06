@@ -61,7 +61,8 @@ Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy the
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
 (no config menu). Crystal cloak52's 0x410 PAL_UNK_OP3 rotation (SotnAlucard_CrystalTick, reset
 without a copy on change, one pass per TickCape update like Twilight) alternates its colours and
-transparency. Joseph's cloak remains unsupported.
+transparency. Joseph's cloak55 copies g_JosephsCloakColors (0x411) at the default zero settings
+(four 0x8000 blacks) until a configuration menu exists.
 
 Selected [Brilliant mail/Staurolite](docs/player-subweapon-gear.md): SotnSubweapons_Power is
 func_800FE3C4's explicit-subweapon attack (Brilliant mail20 +10, then US Staurolite61 x2/x3 for

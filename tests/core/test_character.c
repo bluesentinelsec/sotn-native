@@ -209,6 +209,9 @@ int main(void)
           SotnCharacter_Get(c, &s, &lone) && SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 50) &&
           SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 53) && SotnCharacter_Get(c, &s, &caped) &&
           s.equipment[4] == 53 && caped.bonus[1] == lone.bonus[1] + 8);
+    bytes[0x4000 + 55 * 32 + 28] = 2;
+    CHECK(SotnCharacter_Collect(c, true, 55) && SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 55) &&
+          SotnCharacter_Get(c, &s, &caped) && s.equipment[4] == 55);
     CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 48));
     // Second additive batch: Mirror cuirass13's stone immunity, Circlet37's INT, Ring of
     // Pales62's bonuses.
