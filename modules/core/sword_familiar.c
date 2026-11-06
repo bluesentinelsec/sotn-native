@@ -3,6 +3,7 @@
 // the menu-switch entrance, the GTE-projected 3D model, the blade trail and level-90 halo, the
 // room-event entity and the narrative sound cursor. Private model/UV/CLUT/event tables are read
 // from the user's TT_004 image; none are reproduced here.
+#include <sotn/combat.h>
 #include <sotn/game_math.h>
 #include <sotn/sword_familiar.h>
 
@@ -22,6 +23,12 @@ static const Uint32 HALO = 0x80170148U;
 static const Uint32 TIPS = 0x801701c8U;
 static const Uint32 SERVANT_CLUT = 0x80170040U;
 static const Uint32 SWORD_CLUT = 0x801701d8U;
+static const Uint32 VOICES = 0x80170090U;      // D_us_80170090: seven slash/voice effects
+static const Uint32 CIRCLE_HOLD = 0x80170218U; // D_us_80170218 (30)
+static const Uint32 DIVE_HOLD = 0x8017021cU;   // D_us_8017021C (60)
+static const Uint32 DIVE_GLIDE = 0x80170220U;  // D_us_80170220 (15)
+static const Uint16 SFX_SWEEP = 0x672;         // SFX_NOISE_SWEEP_DOWN_A
+static const Uint16 SFX_WING = 0x6c6;          // SFX_BOSS_WING_FLAP
 static const Uint32 CAMERA_LOCKED = 0x08000000U;
 static const Uint32 KEEP_ALIVE = 0x04000000U;
 
@@ -81,6 +88,38 @@ static bool Trig(SotnDataView exe, Sint32 angle, Sint32 *sine, Sint32 *cosine)
         *sine = t.sine;
     if (cosine)
         *cosine = t.cosine;
+    return true;
+}
+static Sint32 Abs(Sint32 v)
+{
+    return v < 0 ? Long(0U - (Uint32)v) : v;
+}
+static Sint32 Add(Sint32 a, Sint32 b)
+{
+    return Long((Uint32)a + (Uint32)b);
+}
+static Sint32 Sub(Sint32 a, Sint32 b)
+{
+    return Long((Uint32)a - (Uint32)b);
+}
+static Uint16 Rand(SotnSwordEvents *e)
+{
+    ++e->random_calls;
+    return SotnCombat_Random(&e->random);
+}
+static bool Sound(SotnSwordEvents *e, Uint16 id)
+{
+    if (e->sound_count >= SDL_arraysize(e->sounds))
+        return SDL_SetError("Sword familiar callback exceeded its original sound requests");
+    e->sounds[e->sound_count++] = id;
+    return true;
+}
+static bool OverlayWord(SotnDataView o, Uint32 address, Sint32 *out)
+{
+    const Uint8 *p = NULL;
+    if (!View(o, address, 4, &p))
+        return false;
+    *out = Read32(p);
     return true;
 }
 
@@ -231,7 +270,7 @@ bool SotnSwordRuntime_Init(SotnSwordRuntime *runtime, SotnSwordInput in, Uint16 
     if (!runtime || !out || (mode != 0 && mode != 1 && mode != 3) || !Stats(in.stats))
         return SDL_SetError("Sword familiar init requires its actual owner, mode and stats");
     SotnSwordRuntime r = *runtime;
-    SotnSwordEvents e = {0};
+    SotnSwordEvents e = {.random = in.random};
     if (!r.initialized)
     {
         if (!SotnFamiliarEvents_Init(&r.events, in.event_source))
@@ -384,8 +423,15 @@ static bool Ready(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, bool
         s->flags = 0x0c820000U;
         ++s->step;
     }
+    else if (s->identity == SOTN_SWORD_CIRCLE || s->identity == SOTN_SWORD_DIVE)
+    {
+        s->flags = 0x0c820000U;
+        s->camera_x = in.tilemap_x;
+        s->camera_y = in.tilemap_y;
+        ++s->step;
+    }
     else
-        return SDL_SetError("Sword familiar attack/gift states are not integrated");
+        return SDL_SetError("Sword familiar's Sword Brothers/gift states are not integrated");
     s->kind = s->identity;
     r->entrance_cancel = false;
     return true;
@@ -560,6 +606,64 @@ static bool Model(SotnSwordRuntime *r, const SotnSwordSlot *s, SotnSwordInput in
     r->position[1] = Long((Uint32)(Pixel(s->y) - 128) << 5);
     return Render(r, s->model, in, leased);
 }
+// func_us_80173AA0: the first live unmarked target (marking it), else the next marked one
+// after the round-robin cursor, else none.
+static bool Search(SotnSwordRuntime *r, SotnSwordInput in, SotnSwordEvents *e, Uint16 *out)
+{
+    if (!in.targets)
+        return SDL_SetError("Sword familiar target search requires the actual stage snapshot");
+    bool marked[SOTN_SWORD_TARGETS] = {0};
+    Uint16 count = 0;
+    for (Uint16 i = 0; i < SOTN_SWORD_TARGETS; ++i)
+    {
+        const SotnSwordTarget *t = &in.targets[i];
+        if (t->id && t->hitbox_state && !(t->flags & 0x200000U) && t->x >= -16 && t->x <= 272 &&
+            t->y <= 240 && t->y >= 0 && t->hit_points < 0x7000)
+        {
+            if (t->flags & 0x80000U)
+            {
+                marked[i] = true;
+                ++count;
+            }
+            else
+            {
+                if (e->mark)
+                    return SDL_SetError("Sword familiar callback marked a second target");
+                e->mark = (Uint16)(i + 1U);
+                *out = (Uint16)(i + 1U);
+                return true;
+            }
+        }
+    }
+    *out = 0;
+    if (count)
+    {
+        Sint32 index = r->target_cursor % SOTN_SWORD_TARGETS;
+        for (Uint16 i = 0; i < SOTN_SWORD_TARGETS; ++i)
+        {
+            if (index < 0)
+                return SDL_SetError("Sword familiar target cursor is negative");
+            if (marked[index])
+            {
+                r->target_cursor = (index + 1) % SOTN_SWORD_TARGETS;
+                *out = (Uint16)(index + 1);
+                return true;
+            }
+            index = (index + 1) % SOTN_SWORD_TARGETS;
+        }
+    }
+    return true;
+}
+// CheckEntityValid (US): hitbox, on screen and 0 < HP < 0x7000; the raw slot keeps no identity.
+static bool Valid(SotnSwordInput in, Uint16 follow, bool *out)
+{
+    if (!follow || follow > SOTN_SWORD_TARGETS || !in.targets)
+        return SDL_SetError("Sword familiar attack lost its original target pointer");
+    const SotnSwordTarget *t = &in.targets[follow - 1U];
+    *out = t->hitbox_state && t->x >= -16 && t->x <= 272 && t->y <= 240 && t->y >= 0 &&
+           t->hit_points < 0x7000 && t->hit_points > 0;
+    return true;
+}
 // UpdateServantDefault: follow the player (or a flag20 room side) with a bobbing height.
 static bool Default(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
                     bool *removed)
@@ -612,8 +716,18 @@ static bool Default(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, So
         Sint32 distance = 0;
         if (!Follow(r, s, in, tx, ty, limits, shifts, &distance))
             return false;
-        if (!in.cutscene && in.target)
-            return SDL_SetError("Sword familiar attacks are not integrated");
+        if (!in.cutscene)
+        {
+            Sint32 row[3] = {0};
+            if (!Search(r, in, e, &s->follow) || !Level(in.overlay, r->stats.level, row))
+                return false;
+            if (s->follow)
+            {
+                // Level 70 and above dives; below, it circles.
+                s->identity = row[0] ? SOTN_SWORD_DIVE : SOTN_SWORD_CIRCLE;
+                s->step = 0;
+            }
+        }
         break;
     }
     }
@@ -715,6 +829,345 @@ static bool Entrance(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, S
     if (*removed)
         SDL_zero(*s);
     return RoomEvents(r, s, in) && Model(r, s, in, !*removed);
+}
+// The slash: at most one voice roll per swing, then func_us_801724E8's two DE hitboxes at the
+// projected tips (GetFreeEntity's exhaustion belongs to the session).
+static bool Slash(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e)
+{
+    if (s->swing)
+    {
+        const Uint16 roll = Rand(e) % 16;
+        if (roll < 2)
+        {
+            const Uint8 *p = NULL;
+            if (!View(in.overlay, VOICES + (roll ? 0U : 2U), 2, &p) || !Sound(e, (Uint16)Read16(p)))
+                return false;
+        }
+        s->swing = 0;
+    }
+    Sint32 row[3] = {0};
+    if (!Level(in.overlay, r->stats.level, row))
+        return false;
+    for (Uint16 i = 0; i < 2; ++i)
+        e->hitboxes[e->hitbox_count++] = (SotnSwordHitbox){.parameter = i,
+                                                           .spell = row[0] ? 20 : 19,
+                                                           .x = r->tips[i].x,
+                                                           .y = r->tips[i].y,
+                                                           .priority = s->priority,
+                                                           .facing_left = s->facing_left};
+    return true;
+}
+// CalculateDistance: SquareRoot12 of the squared whole-pixel distance, with the 32-bit wrap.
+static bool Distance(SotnSwordInput in, const SotnSwordSlot *s, Sint32 x, Sint32 y, Sint32 *out)
+{
+    const Uint32 dx = (Uint32)x - (Uint32)(Sint32)Pixel(s->x),
+                 dy = (Uint32)y - (Uint32)(Sint32)Pixel(s->y);
+    Uint32 root = 0;
+    if (!SotnMath_Sqrt12(in.executable, (dx * dx + dy * dy) << 12, &root))
+        return false;
+    *out = Long(root) >> 12;
+    return true;
+}
+// Whether the attack keeps its target: the old one if still valid, else a fresh search.
+static bool Retarget(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
+                     bool *keep)
+{
+    bool valid = false;
+    if (!Valid(in, s->follow, &valid))
+        return false;
+    if (!valid && !Search(r, in, e, &s->follow))
+        return false;
+    *keep = (valid || s->follow) && !in.cutscene;
+    if (!*keep)
+    {
+        s->identity = SOTN_SWORD_DEFAULT;
+        s->step = 0;
+    }
+    return true;
+}
+// func_us_801746BC: below level 70 the sword flies to a random point and spins twice.
+static bool Circle(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
+                   bool *removed)
+{
+    if (!CheckLevel(r, s, in))
+        return false;
+    if (in.brothers)
+        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+    Sint32 *c = r->circle, hold = 0;
+    r->position[0] = Long((Uint32)(Pixel(s->x) - 128) << 5);
+    r->position[1] = Long((Uint32)(Pixel(s->y) - 128) << 5);
+    s->camera_x = in.tilemap_x;
+    s->camera_y = in.tilemap_y;
+    switch (s->step)
+    {
+    case 0:
+        if (!Ready(r, s, in, removed))
+            return false;
+        break;
+    case 1:
+        s->swing = 1;
+        c[4] = Long(Rand(e) % 128U + 64U + s->camera_x);
+        c[5] = Long(Rand(e) % 128U + 64U + s->camera_y);
+        ++s->step;
+        break;
+    case 2:
+        c[2] = Sub(Long((Uint32)c[4] - s->camera_x), Pixel(s->x));
+        c[3] = Sub(Long((Uint32)c[5] - s->camera_y), Pixel(s->y));
+        if (!SotnMath_Atan2Vector(in.executable, c[3], c[2], &s->heading))
+            return false;
+        s->heading = (Sint16)(s->heading & 0xfff);
+        s->yaw = SotnFairy_StepAngle(s->heading, s->yaw_previous, 32);
+        s->yaw_previous = s->yaw;
+        if (s->heading == s->yaw)
+            ++s->step;
+        r->rotation[2] = Word(s->yaw - 0x400);
+        break;
+    case 3: {
+        const Sint32 tx = Long((Uint32)c[4] - s->camera_x), ty = Long((Uint32)c[5] - s->camera_y);
+        s->velocity_x = (Sint32)Asr(Sub(Long((Uint32)tx << 16), s->x), 4);
+        s->velocity_y = (Sint32)Asr(Sub(Long((Uint32)ty << 16), s->y), 4);
+        s->x = Add(s->x, s->velocity_x);
+        s->y = Add(s->y, s->velocity_y);
+        Sint32 distance = 0;
+        if (!Distance(in, s, tx, ty, &distance))
+            return false;
+        if (distance < 2)
+        {
+            c[1] = 0;
+            c[0] = r->rotation[2] & 0xfff;
+            ++s->step;
+        }
+        break;
+    }
+    case 4:
+        if (!OverlayWord(in.overlay, CIRCLE_HOLD, &hold))
+            return false;
+        if (++c[1] > hold)
+        {
+            if (!Sound(e, SFX_SWEEP))
+                return false;
+            ++s->step;
+        }
+        break;
+    case 5:
+    case 6:
+        r->rotation[2] = (Sint16)((r->rotation[2] + 128) & 0xfff);
+        if (r->rotation[2] == c[0])
+        {
+            c[1] = 0;
+            ++s->step;
+        }
+        break;
+    case 7:
+        if (!OverlayWord(in.overlay, CIRCLE_HOLD, &hold))
+            return false;
+        if (++c[1] > hold)
+            ++s->step;
+        break;
+    case 8: {
+        bool keep = false;
+        if (!Retarget(r, s, in, e, &keep))
+            return false;
+        if (keep)
+            s->step = 1;
+        break;
+    }
+    default:
+        return SDL_SetError("Sword familiar circle attack reached an unknown step");
+    }
+    if (!RoomEvents(r, s, in) || !Model(r, s, in, true))
+        return false;
+    return s->step < 5 || s->step >= 7 || Slash(r, s, in, e);
+}
+// One dive steering update toward d[0..2]: heading/yaw, the planar speed, pitch and depth speed.
+static bool Steer(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, Sint16 yaw_step,
+                  Sint32 speed, Sint16 pitch_step, Sint32 depth_speed)
+{
+    Sint32 *d = r->dive, sine = 0, cosine = 0;
+    d[3] = Sub(Sub(d[0], d[10]), r->position[0]);
+    d[4] = Sub(Sub(d[1], d[11]), r->position[1]);
+    d[5] = Sub(d[2], r->position[2]);
+    if (!SotnMath_Atan2Vector(in.executable, d[4], d[3], &s->heading))
+        return false;
+    s->heading = (Sint16)(s->heading & 0xfff);
+    s->yaw = SotnFairy_StepAngle(s->heading, s->yaw_previous, yaw_step);
+    s->yaw_previous = s->yaw;
+    if (!Trig(in.executable, s->yaw, &sine, &cosine))
+        return false;
+    d[7] = (Sint32)Asr((Sint64)cosine * speed, 12);
+    d[8] = (Sint32)Asr((Sint64)sine * speed, 12);
+    r->rotation[2] = Word(s->yaw - 0x400);
+    d[3] = Abs(d[3]);
+    d[4] = Abs(d[4]);
+    d[6] = SDL_max(d[3], d[4]);
+    if (!SotnMath_Atan2Vector(in.executable, d[5], d[6], &s->pitch_target))
+        return false;
+    s->pitch_target = (Sint16)(s->pitch_target & 0xfff);
+    s->pitch = SotnFairy_StepAngle(s->pitch_target, s->pitch_previous, pitch_step);
+    s->pitch_previous = s->pitch;
+    if (!Trig(in.executable, s->pitch, &sine, NULL))
+        return false;
+    d[9] = (Sint32)Asr((Sint64)sine * depth_speed, 12);
+    r->rotation[0] = s->pitch;
+    for (Uint16 i = 0; i < 3; ++i)
+        r->position[i] = Add(r->position[i], d[7 + i]);
+    d[3] = Sub(Sub(d[0], d[10]), r->position[0]);
+    d[4] = Sub(Sub(d[1], d[11]), r->position[1]);
+    d[5] = Sub(d[2], r->position[2]);
+    // SquareRoot0(SQ(dx) + SQ(dy) + SQ(dz)) with the original 32-bit products and sum.
+    const Uint32 sum =
+        (Uint32)d[3] * (Uint32)d[3] + (Uint32)d[4] * (Uint32)d[4] + (Uint32)d[5] * (Uint32)d[5];
+    Uint32 root = 0;
+    if (!SotnMath_Sqrt0(in.executable, sum, &root))
+        return false;
+    d[12] = Long(root);
+    return true;
+}
+// func_us_80174B6C: from level 70 the sword rises behind the player, dives through its target in
+// 3D and glides past it.
+static bool Dive(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
+                 bool *removed)
+{
+    if (!CheckLevel(r, s, in))
+        return false;
+    if (in.brothers)
+        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
+    Sint32 *d = r->dive, hold = 0;
+    r->position[0] = Long((Uint32)(Pixel(s->x) - 0x80) << 5);
+    r->position[1] = Long((Uint32)(Pixel(s->y) - 0x80) << 5);
+    s->camera_x = in.tilemap_x;
+    s->camera_y = in.tilemap_y;
+    d[10] = Long((s->camera_x - 0x80U) << 5);
+    d[11] = Long((s->camera_y - 0x80U) << 5);
+    switch (s->step)
+    {
+    case 0:
+        if (!Ready(r, s, in, removed))
+            return false;
+        d[7] = (Sint32)Rand(e) - 0x4000;
+        d[9] = (Sint32)Rand(e) - 0x4000;
+        break;
+    case 1:
+        d[0] = Add(in.player.facing_left ? 0x800 : -0x800, d[10]);
+        d[1] = Add(-0x400, d[11]);
+        d[2] = -0x400;
+        ++s->step;
+        // fallthrough
+    case 2:
+        if (!Steer(r, s, in, 0x80, 160, 0x40, 0xa0))
+            return false;
+        if (d[12] < 0x200)
+            ++s->step;
+        break;
+    case 3:
+        d[7] = (Sint32)Asr(Sub(Sub(d[0], d[10]), r->position[0]), 4);
+        d[8] = (Sint32)Asr(Sub(Sub(d[1], d[11]), r->position[1]), 4);
+        d[9] = (Sint32)Asr(Sub(d[2], r->position[2]), 4);
+        for (Uint16 i = 0; i < 3; ++i)
+            r->position[i] = Add(r->position[i], d[7 + i]);
+        s->yaw = SotnFairy_StepAngle(0x400, s->yaw_previous, 32);
+        s->yaw_previous = s->yaw;
+        r->rotation[2] = Word(s->yaw - 0x400);
+        s->pitch = SotnFairy_StepAngle(0, s->pitch_previous, 32);
+        s->pitch_previous = s->pitch;
+        r->rotation[0] = s->pitch;
+        if (s->yaw == 0x400 && !s->pitch)
+        {
+            d[13] = 0;
+            ++s->step;
+        }
+        break;
+    case 4:
+        if (!OverlayWord(in.overlay, DIVE_HOLD, &hold))
+            return false;
+        if (++d[13] > hold)
+            ++s->step;
+        break;
+    case 5: {
+        bool keep = false;
+        if (!Retarget(r, s, in, e, &keep))
+            return false;
+        if (!keep)
+            break;
+        d[0] = Add(d[7] >= 0 ? 0x800 : -0x800, d[10]);
+        d[1] = Add(-0x800, d[11]);
+        d[2] = d[9] >= 0 ? 0x800 : -0x800;
+        if (!Sound(e, SFX_WING))
+            return false;
+        ++s->step;
+    }
+        // fallthrough
+    case 6:
+        if (!Steer(r, s, in, 0x80, 192, 0x80, 192))
+            return false;
+        if (d[12] < 0x200)
+        {
+            d[13] = 0;
+            ++s->step;
+        }
+        break;
+    case 7:
+    case 10: {
+        for (Uint16 i = 0; i < 3; ++i)
+            r->position[i] = Add(r->position[i], d[7 + i]);
+        if (!SotnMath_Atan2Vector(in.executable, d[8], d[7], &s->heading))
+            return false;
+        s->heading = (Sint16)(s->heading & 0xfff);
+        s->yaw = SotnFairy_StepAngle(s->heading, s->yaw_previous, 0x80);
+        s->yaw_previous = s->yaw;
+        r->rotation[2] = Word(s->yaw - 0x400);
+        d[5] = d[9];
+        d[3] = Abs(d[7]);
+        d[4] = Abs(d[8]);
+        d[6] = SDL_max(d[3], d[4]);
+        if (!SotnMath_Atan2Vector(in.executable, d[5], d[6], &s->pitch_target))
+            return false;
+        s->pitch_target = (Sint16)(s->pitch_target & 0xfff);
+        s->pitch = SotnFairy_StepAngle(s->pitch_target, s->pitch_previous, 0x80);
+        s->pitch_previous = s->pitch;
+        r->rotation[0] = s->pitch;
+        if (!OverlayWord(in.overlay, DIVE_GLIDE, &hold))
+            return false;
+        if (++d[13] > hold)
+            s->step = s->step == 10 ? 1 : (Uint16)(s->step + 1U);
+        break;
+    }
+    case 8: {
+        bool keep = false;
+        if (!Retarget(r, s, in, e, &keep))
+            return false;
+        if (!keep)
+            break;
+        s->swing = 1;
+        ++s->step;
+    }
+        // fallthrough
+    case 9: {
+        const SotnSwordTarget *t = &in.targets[s->follow - 1U];
+        d[0] = Add(Long((Uint32)(t->x - 0x80) << 5), d[10]);
+        d[1] = Add(Long((Uint32)(t->y - 0x80) << 5), d[11]);
+        d[2] = 0;
+        if (!Steer(r, s, in, 0x80, 192, 0x80, 192))
+            return false;
+        if (d[12] < 0x200)
+            ++s->step;
+        break;
+    }
+    default:
+        return SDL_SetError("Sword familiar dive attack reached an unknown step");
+    }
+    if (!RoomEvents(r, s, in))
+        return false;
+    // posX.i.hi = vx / 32 + 128 keeps the fraction; the projection uses the globals directly.
+    s->x =
+        Long((Uint32)(Word(r->position[0] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->x & 0xffffU));
+    s->y =
+        Long((Uint32)(Word(r->position[1] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->y & 0xffffU));
+    if (!Render(r, s->model, in, true))
+        return false;
+    if (s->step < 5 || r->position[2] < -0x200 || r->position[2] > 0x200)
+        return true;
+    return Slash(r, s, in, e);
 }
 // func_us_80176BF8: sixteen additive bands trailing the projected blade edge.
 static bool Trail(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, bool *removed)
@@ -862,7 +1315,7 @@ bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwo
     if (!runtime || !out || slot < 4 || slot > 7 || !runtime->initialized || !Stats(in.stats))
         return SDL_SetError("Sword familiar callback requires its actual owner and slot4..7");
     SotnSwordRuntime r = *runtime;
-    SotnSwordEvents e = {0};
+    SotnSwordEvents e = {.random = in.random};
     SotnSwordSlot *s = &r.slots[slot - 4U];
     bool removed = false;
     switch (s->identity)
@@ -876,6 +1329,14 @@ bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwo
         break;
     case SOTN_SWORD_ENTRANCE:
         if (!Entrance(&r, s, in, &e, &removed))
+            return false;
+        break;
+    case SOTN_SWORD_CIRCLE:
+        if (!Circle(&r, s, in, &e, &removed))
+            return false;
+        break;
+    case SOTN_SWORD_DIVE:
+        if (!Dive(&r, s, in, &e, &removed))
             return false;
         break;
     case SOTN_SWORD_TRAIL:
@@ -1029,7 +1490,8 @@ bool SotnSwordRuntime_Leases(const SotnSwordRuntime *runtime, SotnSwordLease out
     {
         const SotnSwordSlot *s = &runtime->slots[i];
         const Sint16 part =
-            (s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE)
+            (s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE ||
+             s->identity == SOTN_SWORD_CIRCLE || s->identity == SOTN_SWORD_DIVE)
                 ? (s->kind ? 0 : -1)
             : s->identity == SOTN_SWORD_TRAIL ? (s->step ? 1 : -1)
             : s->identity == SOTN_SWORD_HALO  ? (s->step ? 2 : -1)

@@ -1775,6 +1775,26 @@ static bool FamiliarEnemies(SotnLaboratory *s, Sint32 camera_x, Sint32 camera_y,
     *out = enemies;
     return true;
 }
+// Screen-space stage slots64..191 for the Sword's target search; empty slots read zero, as
+// DestroyEntity leaves them.
+static bool SwordTargets(SotnLaboratory *s, Sint32 camera_x, Sint32 camera_y,
+                         SotnSwordTarget out[SOTN_SWORD_TARGETS])
+{
+    for (Uint16 i = 0; i < SOTN_SWORD_TARGETS; ++i)
+    {
+        SotnActorState actor = {0};
+        if (!SotnActors_Get(s->actors, i, &actor))
+            return false;
+        out[i] = !actor.id ? (SotnSwordTarget){0}
+                           : (SotnSwordTarget){.id = actor.id,
+                                               .hitbox_state = actor.hitbox_state,
+                                               .flags = actor.flags,
+                                               .x = (Sint16)(Pixel(actor.x) - camera_x),
+                                               .y = (Sint16)(Pixel(actor.y) - camera_y),
+                                               .hit_points = actor.hit_points};
+    }
+    return true;
+}
 // Every live Sword part holds exactly its actual committed row lease.
 static bool ValidateSword(const SotnLaboratory *s)
 {
@@ -2268,26 +2288,27 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
     if (gate != 0 && gate != 3)
         return SDL_SetError("Sword familiar callbacks require an ordinary or frozen pass");
     SotnSwordRuntime *next = SDL_malloc(sizeof(*next));
-    if (!next)
-        return false;
-    bool ok = true;
+    SotnSwordTarget *targets = SDL_malloc(sizeof(*targets) * SOTN_SWORD_TARGETS);
+    bool ok = next && targets;
     for (Uint16 slot = 4; ok && slot < 8; ++slot)
     {
         const SotnSwordSlot *old = &s->sword_runtime.slots[slot - 4U];
         if (!old->identity || (gate == 3 && !(old->flags & 0x10000U)))
             continue;
         SotnPlayerState p = {0};
+        SotnCharacterState c = {0};
         SotnFamiliarProgress progress = {0};
         Uint16 selected = 0;
         SotnCdAudioState cd = {0};
         SotnActorControl control = {0};
         bool enemies = false, allocated = false;
         const Uint16 request = SotnSwordRuntime_RowRequest(&s->sword_runtime, slot);
-        ok = SotnPlayer_GetState(s->player, &p) &&
+        ok = SotnPlayer_GetState(s->player, &p) && SotnCharacter_Get(s->character, &c, NULL) &&
              SotnCharacter_GetFamiliars(s->character, &progress, &selected) &&
              SotnActors_GetControl(s->actors, &control) && s->fairy_cd &&
              SotnCdAudio_Get(s->fairy_cd, &cd) &&
              FamiliarEnemies(s, camera_x, camera_y, &enemies) &&
+             SwordTargets(s, camera_x, camera_y, targets) &&
              (!request || SotnActors_FreeRows(s->actors, request, &allocated));
         if (ok && (selected != FAMILIAR_SWORD.identity ||
                    (s->world.relics[FAMILIAR_SWORD.card] & 3U) != 3))
@@ -2297,21 +2318,34 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
         SotnSwordInput in = SwordInput(s, SotnResource_View(s->fairy_resources[0]), p,
                                        progress.records[FAMILIAR_SWORD.record], camera_x, camera_y);
         in.cutscene = in.sound.cutscene = control.pause_disabled;
-        in.enemies = in.target = enemies;
+        in.enemies = enemies;
+        in.targets = targets;
+        in.tilemap_x = (Uint32)(s->room.foreground.left * 256 + camera_x);
+        in.tilemap_y = (Uint32)(s->room.foreground.top * 256 + camera_y);
+        in.random = c.random;
         in.allocated = allocated;
         in.sound.cd_queue_empty = cd.queue_empty;
         in.sound.command_acknowledged = cd.acknowledged;
         in.sound.xa_playing = cd.xa_active;
         SotnSwordEvents events = {0};
         *next = s->sword_runtime;
-        ok = SotnSwordRuntime_UpdateSlot(next, slot, in, &events) && CommitSwordRows(s, next);
+        ok = SotnSwordRuntime_UpdateSlot(next, slot, in, &events);
+        // Target marks, the attacks' hitbox entities and their voices need native stage and
+        // shared-slot owners that are not connected yet; stop before any of them is lost.
+        if (ok && (events.mark || events.hitbox_count || events.sound_count ||
+                   next->slots[slot - 4U].identity == SOTN_SWORD_CIRCLE ||
+                   next->slots[slot - 4U].identity == SOTN_SWORD_DIVE))
+            ok = SDL_SetError("Sword familiar attacks are not integrated in the session yet");
+        ok = ok && CommitSwordRows(s, next);
         if (ok)
         {
             s->sword_runtime = *next;
-            ok = CommitSwordEvents(s, &events);
+            c.random = events.random;
+            ok = SotnCharacter_Restore(s->character, &c) && CommitSwordEvents(s, &events);
         }
     }
     SDL_free(next);
+    SDL_free(targets);
     return ok;
 }
 static bool CommitHandRetirement(SotnLaboratory *s, SotnPlayerState p)

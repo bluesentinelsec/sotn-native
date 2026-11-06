@@ -11,7 +11,8 @@ enum
     SOTN_SWORD_MODEL_ROWS = 96,
     SOTN_SWORD_TRAIL_ROWS = 16,
     SOTN_SWORD_HALO_ROWS = 4,
-    SOTN_SWORD_CLUT_WORDS = 48
+    SOTN_SWORD_CLUT_WORDS = 48,
+    SOTN_SWORD_TARGETS = 128 /**< Stage entity slots64..191 scanned by the target search. */
 };
 /** Original Sword familiar entity identities (SERVANT_ID 1..13). */
 enum
@@ -25,7 +26,8 @@ enum
     SOTN_SWORD_TRAIL = 0xda,
     SOTN_SWORD_HALO = 0xdb,
     SOTN_SWORD_EVENT = 0xdc,
-    SOTN_SWORD_SOUND = 0xdd
+    SOTN_SWORD_SOUND = 0xdd,
+    SOTN_SWORD_HITBOX = 0xde /**< One-update attack hitbox in the player's slots17..46. */
 };
 /** @brief One original packed screen SXY word. */
 typedef struct SotnSwordPoint
@@ -43,6 +45,9 @@ typedef struct SotnSwordSlot
     Uint32 flags;
     bool facing_left;
     Sint16 model, variant, heading, yaw, yaw_previous, pitch_target, pitch, pitch_previous;
+    Uint32 camera_x, camera_y; /**< ext posX/posY: world camera origin at the attack's update. */
+    Sint16 swing;              /**< ext unk98: the next slash may roll a voice. */
+    Uint16 follow; /**< ext follow: stage target index plus one (raw slot, no generation). */
     SotnFamiliarSfx sound;
 } SotnSwordSlot;
 /** @brief Actual tt_004 overlay state: four slots, their primitive rows and the overlay globals
@@ -63,20 +68,43 @@ typedef struct SotnSwordRuntime
     Sint32 level_seen, bob, entrance_bob, halo_phase, halo_phase2, sound_step;
     bool model_ready, edge_fresh, halo_fresh, entrance_cancel, near_player, pause_allowed;
     SotnFamiliarEvents events;
+    Sint32 circle[6]; /**< D_us_80178568..7C: circle attack angle, counter, deltas, target. */
+    Sint32 dive[14];  /**< D_us_80178580..B4: dive target, deltas, velocity, origin, distance. */
+    Sint32 target_cursor; /**< D_us_80178B88: round-robin over already-marked targets. */
     Uint32 generation;
     bool initialized;
 } SotnSwordRuntime;
+/** @brief Current screen-space stage entity (original slot64+index) seen by the target search. */
+typedef struct SotnSwordTarget
+{
+    Uint16 id, hitbox_state;
+    Uint32 flags; /**< Original entity flags; FLAG_UNK_80000 marks an earlier pick. */
+    Sint16 x, y;  /**< posX/posY whole screen pixels. */
+    Sint16 hit_points;
+} SotnSwordTarget;
+/** @brief One func_us_801724E8 request: a DE hitbox entity from slots17..46 (GetFreeEntity).
+ * Its first update reads the projected tip, takes spell 19/20 through GetServantStats and keeps
+ * a 4x4 hitbox for one hit detection; its second update destroys it. */
+typedef struct SotnSwordHitbox
+{
+    Uint16 parameter, spell;
+    Sint16 x, y; /**< D_us_801786C0[parameter], the projected blade tip. */
+    Uint16 priority;
+    bool facing_left;
+} SotnSwordHitbox;
 /** @brief Current actual snapshots for one Sword callback. */
 typedef struct SotnSwordInput
 {
-    SotnDataView overlay;    /**< Actual TT_004 image at 0x80170000. */
-    SotnDataView executable; /**< Private SDK trigonometry/square-root tables. */
-    SotnFairyPlayer player;  /**< Original screen-space player entity snapshot. */
-    SotnFamiliarStats stats; /**< GetServantStats: g_Status.statsFamiliars[4]. */
+    SotnDataView overlay;           /**< Actual TT_004 image at 0x80170000. */
+    SotnDataView executable;        /**< Private SDK trigonometry/square-root tables. */
+    SotnFairyPlayer player;         /**< Original screen-space player entity snapshot. */
+    const SotnSwordTarget *targets; /**< SOTN_SWORD_TARGETS stage snapshots, borrowed. */
+    Uint32 tilemap_x, tilemap_y;    /**< g_Tilemap left/top*256 plus whole scroll. */
+    Uint32 random;                  /**< Original libc rand() state before the callback. */
+    SotnFamiliarStats stats;        /**< GetServantStats: g_Status.statsFamiliars[4]. */
     Uint16 room_flags, stage;
     Uint8 castle_flag; /**< g_CastleFlags[SWORD_FAMILIAR]. */
     bool cutscene, enemies, global_flash;
-    bool target;    /**< func_us_80173AA0 found a live target (attacks are not integrated). */
     bool brothers;  /**< g_Player.unk70: Sword Brothers (not integrated). */
     bool allocated; /**< The requested row lease is available this callback. */
     SotnFamiliarEventSource event_source;
@@ -99,6 +127,11 @@ typedef struct SotnSwordEvents
     Uint8 castle_flag;
     bool castle_flag_write, pause_write, pause_allowed;
     bool clut_upload; /**< ServantInit's 48-word LoadImage at row0xF4. */
+    Uint16 mark;      /**< Target index plus one that receives FLAG_UNK_80000, or zero. */
+    Uint16 sounds[2], sound_count;     /**< PlaySfx requests in order. */
+    SotnSwordHitbox hitboxes[2];       /**< DE requests in order. */
+    Uint16 hitbox_count, random_calls; /**< rand() calls this callback consumed. */
+    Uint32 random;                     /**< libc rand() state after the callback. */
 } SotnSwordEvents;
 /** @brief Read ServantInit's g_ServantClut (16) and g_SwordClut (32) words for row0xF4.
  * @return Success or SDL error for a malformed private overlay. */
@@ -111,8 +144,8 @@ bool SotnSword_Clut(SotnDataView overlay, Uint16 out[SOTN_SWORD_CLUT_WORDS]);
 bool SotnSwordRuntime_Init(SotnSwordRuntime *runtime, SotnSwordInput input, Uint16 mode,
                            SotnSwordEvents *out);
 /** @brief Run one actual slot4..7 callback in original slot order.
- * @return Success or SDL error preserving runtime/output. States not yet integrated (attacks,
- * Sword Brothers, the level-50 gift and its item) fail explicitly instead of degrading. */
+ * @return Success or SDL error preserving runtime/output. The circle (D2) and dive (D3) attacks
+ * run; Sword Brothers and the level-50 gift and its item fail explicitly instead of degrading. */
 bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwordInput input,
                                  SotnSwordEvents *out);
 /** @brief Apply original camera/player or room-entry translation to entities and their rows.

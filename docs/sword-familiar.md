@@ -6,11 +6,13 @@ now has a native component (`modules/core/sword_familiar.c`) for its idle side. 
 trail, the level-90 halo, the room-event entity and the narrative sound cursor. Its private model,
 UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 
-The native session now owns it through the familiar load boundary (see [Session
-integration](#session-integration)). The relic menu does not offer the Sword Card yet. Familiar
-levels persist in v11 saves ([native saves](native-saves.md)). Attacks, Sword Brothers, the
+The native session owns it through the familiar load boundary (see [Session
+integration](#session-integration)). The component also reconstructs the target search and both
+attacks; the session does not connect them yet. The relic menu does not offer the Sword Card yet.
+Familiar levels persist in v11 saves ([native saves](native-saves.md)). Sword Brothers, the
 level-50 gift and the Sword Familiar item follow in later batches. Until then those states fail
-explicitly instead of degrading, so a selected Sword stops the game once an enemy is on screen.
+explicitly instead of degrading. A selected Sword therefore still stops the game when it starts an
+attack.
 
 ## Behaviour
 
@@ -27,8 +29,30 @@ explicitly instead of degrading, so a selected Sword stops the game once an enem
   the player, bobbing with `rcos`. In flag-20 rooms it follows a fixed screen side instead. Speed
   depends on distance: a quarter of the gap above 256 px, then 1/16, 1/32 and 1/64 below 16 px. It
   yaws toward its heading (step 8) and pitches with its model depth (step 0x20), and the depth drifts
-  by `rsin(pitch)*0x60`. A live target, Sword Brothers or the level-50 gift currently fail
-  explicitly.
+  by `rsin(pitch)*0x60`. Outside cutscenes it searches for a target every update and attacks one
+  if found. Sword Brothers and the level-50 gift currently fail explicitly.
+- **Target search** (`func_us_80173AA0`) scans stage slots 64..191. It picks the first entity that
+  has a hitbox, lacks flag 0x200000, sits on screen (x −16..272, y 0..240) and has HP below
+  0x7000, provided it is not yet marked; it marks that entity with flag 0x80000. If every
+  candidate is marked, it takes the next one after a round-robin cursor. The search does not check
+  HP above zero; the attacks' later `CheckEntityValid` does. The target is a raw slot: a new
+  entity in that slot inherits the attack.
+- **Circle attack (D2, below level 70)**: two `rand()` calls pick a point 64..191 pixels into the
+  screen. The sword turns toward it (step 32), flies there at 1/16 of the gap until within 2
+  pixels, then holds for 30 updates. It plays `0x672` and spins twice (128 per update), slashing
+  every update, then holds 30 more. Finally it keeps a valid target (or finds another) and starts
+  over, or returns to the default sword on a cutscene or with no target.
+- **Dive (D3, level 70 and above)**: two birth `rand()` calls. It rises half a screen-unit behind
+  the player's facing and settles (60 updates). Then, with `0x6C6`, it flies in 3D past a
+  corner, glides 15 updates, homes on the target's screen position, glides again and repeats,
+  re-checking the target before each pass. It slashes only while its depth is within ±0x200.
+  Steering uses `ratan2`, `rcos`/`rsin` speeds of 5/128 or 3/64, pitch steps, and `SquareRoot0`
+  of the 3D distance (below 0x200 to arrive).
+- **Slashes**: the first slash of each swing rolls `rand()%16`; 0 or 1 plays a voice from the
+  overlay's table. Every slash then requests two DE hitbox entities from slots 17..46
+  (`GetFreeEntity(0x11, 0x2F)`). Each takes the projected blade tip, a 4×4 hitbox and spell 19
+  (circle) or 20 (dive) through `GetServantStats`, hits for one hit detection and is destroyed on
+  its next update.
 - **Entrance**: approaches the player more slowly and plays its greeting once within 32 px. The
   greeting is XA 0x4FB on the first summon, 0x4FE after the level-50 gift, 0x4FC below level 50,
   otherwise 0x4FF. Pause is disabled until the speech ends. Player movement, enemies, cutscenes,
@@ -77,9 +101,12 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   - the screen-space player and the record-4 stats;
   - the room's 0x20/0x40 flags, the cutscene and global-flash flags, and enemy presence;
   - real CD acknowledgements.
-- **Targets**: `func_us_80173AA0` finds a target exactly when `CheckAllEntitiesValid` finds an
-  enemy, so the session passes that predicate. The component then stops explicitly until attacks
-  exist. Sword Brothers stays false because no native spell sets `g_Player.unk70`.
+- **Targets**: the session snapshots stage slots 64..191 in screen space; empty slots read zero,
+  as `DestroyEntity` leaves them. It passes the character's libc `rand()` state and the tilemap
+  origin. The search's mark, the DE hitboxes and the attack voices need stage-flag and
+  shared-slot owners that are not connected yet, so the session stops explicitly when an attack
+  starts instead of losing them. Sword Brothers stays false because no native spell sets
+  `g_Player.unk70`.
 - **Translation**: camera scrolls move camera-locked entities and their DRAW_UNK02 rows. Room entry
   retires non-0x20000 entities and moves the rest, with DRAW_UNK_100 rows, by the original player
   displacement. It then releases the rows of retired owners.
@@ -123,9 +150,25 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   These are explicit card and selection fixtures in an enemy-free room. They are not menu
   activation, attack or route evidence. The probe's save-room variant stops explicitly when the
   next room shows enemies.
+- Public attack tests cover:
+  - search eligibility edges, the round-robin cursor with wrap, cutscene holds and D2/D3 choice;
+  - the circle's rand point, turn step, 1/16 approach and 2-pixel arrival, hold and sweep sound;
+  - its 64 slash updates with tip hitboxes, spell 19 and one voice roll per swing (table order);
+  - re-targeting through HP 0, cutscene and no-target exits, and the leased model;
+  - the dive's birth rands, its fall-through rise, speed scaling, 0x200 arrival, the wing sound,
+    homing, depth-gated slashes with spell 20 and its position write-back.
+  27 of 28 attack mutations are caught; the survivor is equivalent (the attack setup's camera
+  origin is set again before every update).
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
-  trail, halo, event entity and `ProcessSfxState` in lockstep with the native component. It uses
-  SLUS `rsin`/`rcos`/`ratan2`/`SquareRoot12`/`CompMatrix` (SquareRoot12's leading-zero count
-  adapted) and the private PSY-Z COP2 registers. It covers 8 contexts and 5,135 callbacks with
-  263,040 row comparisons and 353,538 COP2 commands. Every slot, global and row matches, including
-  the CLUT upload, speech and castle-flag writes. Debug and ASan traces are byte-identical.
+  trail, halo, event entity, `ProcessSfxState`, the target search, both attacks and each DE
+  hitbox's first update in lockstep with the native component. It uses SLUS
+  `rsin`/`rcos`/`ratan2`/`SquareRoot12`/`SquareRoot0`/`CompMatrix` (the square roots' leading-zero
+  count adapted), the libc `rand()` and the private PSY-Z COP2 registers. It covers 12 contexts and
+  13,636 callbacks, including:
+  - 3,372 attack updates and 1,206 hitbox entities;
+  - 6 target marks, 19 voices and 35 `rand()` calls;
+  - 692,240 row comparisons.
+  Every slot, global, row, mark, cursor, sound, rand state and hitbox matches. The hitbox
+  comparison covers position, parameter, spell, layer and facing. The attack contexts include
+  targets that move, die, start marked or stay ineligible, and a cutscene interruption. Debug and
+  ASan traces are byte-identical.
