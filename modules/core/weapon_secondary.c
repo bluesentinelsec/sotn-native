@@ -82,8 +82,8 @@ static bool Program(Uint16 family, Layout *out)
     // Weapon47 (Dynamite): the root's thirty-two optional rows; its flames play D_14D000_8017A528.
     else if (family == 47)
         *out = (Layout){.timeline = 0x528, .timeline_count = 8, .rows = 32};
-    // Weapon40 (Monster vial 1): rowless vial, monster, fireballs and burst.
-    else if (family == 40 || family == 41)
+    // Weapon40/42 (Monster vials 1/3): rowless vial, monster, fireballs/arrows and burst.
+    else if (family == 40 || family == 41 || family == 42)
         *out = (Layout){.rows = 0};
     else if (family == 34)
         *out = (Layout){.rows = 0};
@@ -160,7 +160,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
            family == 30 || family == 7 || family == 37 || family == 46 || family == 47 ||
-           family == 40 || family == 41 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 40 || family == 41 || family == 42 || SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -204,6 +204,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon41: Monster vial 2's vial (role0) and bat (role1).
     if (family == 41)
         return role <= 1;
+    // Weapon42: Monster vial 3's vial (role0), archer (1), arrows (2) and burst (3).
+    if (family == 42)
+        return role <= 3;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -273,7 +276,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 1 ? 32 : 1;
     if (family == 47)
         return role == 0 ? 32 : 0;
-    if (family == 40 || family == 41)
+    if (family == 40 || family == 41 || family == 42)
         return 0;
     if (family == 34)
         return 0;
@@ -1937,9 +1940,10 @@ static bool VialFactory(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in,
     e->factories[e->factory_count++] = packed;
     return true;
 }
-// w_040 EntityWeaponAttack (blueprint50 E0/F0, Monster vial 1): the vial arcs at one of four
-// D_11C000_8017A85C speeds (program cursor D_11C000_8017B540), bounces off walls and ceilings and
-// breaks on the floor: GLASS_BREAK_A and WFACTORY(56,0), the monster.
+// w_040/w_042 EntityWeaponAttack (blueprint50 E0/F0, Monster vials 1/3): the vial arcs at one of
+// four speeds (D_11C000_8017A85C / D_12A000_8017A6F4; program cursor D_11C000_8017B540 /
+// D_12A000_8017B5F0), bounces off walls and ceilings and breaks on the floor: GLASS_BREAK_A and
+// WFACTORY(56,0), the monster.
 static bool VialRoot(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
                      SotnWeaponSecondaryEvents *e)
 {
@@ -1955,14 +1959,16 @@ static bool VialRoot(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeapo
         s->priority = (Uint16)(in.priority + 2U);
         s->facing_left = in.facing_left;
         s->flags = 0x08100000U;
-        s->timeline = 0x804;
+        s->timeline = in.family == 42 ? 0x6b4 : 0x804;
         s->pose = 0;
         s->remaining = 0;
         SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) - 4), in.camera_y);
         p->secondary_counter %= 4;
         const Uint8 *speed = NULL;
         if (p->secondary_counter < 0 ||
-            !View(in.overlay, 0x85cU + (Uint32)p->secondary_counter * 4U, 4, &speed))
+            !View(in.overlay,
+                  (in.family == 42 ? 0x6f4U : 0x85cU) + (Uint32)p->secondary_counter * 4U, 4,
+                  &speed))
             return SDL_SetError("Monster vial speed cursor left its private table");
         const Sint32 v = (Sint32)Read32(speed);
         s->velocity_x = s->facing_left ? -v : v;
@@ -1982,7 +1988,7 @@ static bool VialRoot(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeapo
         if (c.effects & SOTN_EFFECT_SOLID)
         {
             SetScreen(&s->y, Word(y + c.top), in.camera_y);
-            s->timeline = 0x7dc;
+            s->timeline = in.family == 42 ? 0x684 : 0x7dc;
             s->remaining = 0;
             s->pose = 0;
             s->blend = 0x30;
@@ -2283,6 +2289,146 @@ static bool VialFire(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32
     }
     return AnimateProps(s, in.overlay, 0x844);
 }
+// w_042 func_ptr_80170004 (WFACTORY(56) E1/F1): the archer grows from its raw parent vial,
+// takes properties from the raw parent's current equip id and looses WFACTORY(0x3E, n) arrows on
+// the last update of poses 6/0xC/0x12 (n counts only factories that were free), then requests
+// WFACTORY(70) at scale0x40 and shrinks away from pose1 of D_12A000_8017A6BC.
+static bool VialArcher(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                       SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0:
+        s->role = 1;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->texture = in.parent_texture;
+        s->palette = in.parent_palette;
+        s->facing_left = !s->facing_left;
+        s->flags = 0x08000000U;
+        s->priority = (Uint16)(in.parent_priority - 2U);
+        s->timeline = 0x604;
+        s->draw_flags |= 3;
+        s->scale_x = s->scale_y = 0;
+        s->pivot_y = 0x14;
+        SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) - 0x14), in.camera_y);
+        s->phase = 1;
+        break;
+    case 1:
+        s->scale_x = Word(s->scale_x + 4);
+        if (s->scale_x >= 0x100)
+        {
+            s->scale_x = 0x100;
+            s->timeline = 0x620;
+            s->pose = 0;
+            s->remaining = 0;
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->phase = 2;
+        }
+        s->scale_y = s->scale_x;
+        break;
+    case 2:
+        if (s->remaining == 1 && (s->pose == 6 || s->pose == 0xc || s->pose == 0x12) &&
+            VialFactory(s, in, e,
+                        0x3eU | ((Uint32)(in.hand + 1U) << 12) |
+                            ((Uint32)(Uint16)s->vial_arrows << 16)))
+            s->vial_arrows = Word(s->vial_arrows + 1);
+        if (s->remaining < 0)
+        {
+            s->timeline = 0x6bc;
+            s->pose = 0;
+            s->remaining = 0;
+            s->phase = 3;
+        }
+        break;
+    default:
+        if (s->scale_x == 0x40)
+            (void)VialFactory(s, in, e, 70U | ((Uint32)(in.hand + 1U) << 12));
+        if (s->pose != 0)
+            s->scale_x = Word(s->scale_x - 4);
+        if (s->scale_x < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->scale_y = s->scale_x;
+        break;
+    }
+    if (!AnimateProps(s, in.overlay, 0x6dc))
+        return false;
+    VialFlash(in, e, 8);
+    return true;
+}
+// w_042 func_ptr_80170008 (WFACTORY(0x3E, n) E2/F2): arrow n leaves the archer at
+// D_12A000_8017A740/74C[n], spins and falls; a hit swaps it for DRA animSet2's D_12A000_8017A704
+// spark (palette0x8170), which drifts up and retires at END.
+static bool VialArrow(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                      SotnWeaponSecondaryEvents *e)
+{
+    const Uint32 n = (Uint32)((s->parameter & 0x7f00U) >> 8);
+    switch (s->phase)
+    {
+    case 0: {
+        if (!in.parent_exists)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 2;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->texture = in.parent_texture;
+        s->palette = in.parent_palette;
+        s->flags = 0x08000000U;
+        s->draw_flags = 4;
+        s->priority = (Uint16)(in.parent_priority - 2U);
+        SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) - 0x10), in.camera_y);
+        SetScreen(&s->x, Word(Word(Pixel(s->x) - in.camera_x) + (s->facing_left ? 8 : -8)),
+                  in.camera_x);
+        const Uint8 *vx = NULL, *vy = NULL;
+        if (!View(in.overlay, 0x740U + n * 4U, 4, &vx) ||
+            !View(in.overlay, 0x74cU + n * 4U, 4, &vy))
+            return SDL_SetError("Monster vial 3 arrow index left its private tables");
+        const Sint32 v = (Sint32)Read32(vx);
+        s->velocity_x = s->facing_left ? -v : v;
+        s->arrow_vy = (Sint32)Read32(vy);
+        s->timeline = 0x6ac;
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->sounds[0] = 0x628;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->rotate = Word(s->rotate - 0x60);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->arrow_vy);
+        s->arrow_vy += 0x2800;
+        if (s->hit_flags)
+        {
+            s->bank = 2;
+            s->palette = 0x8170;
+            s->timeline = 0x704;
+            s->texture = 0;
+            s->remaining = 0;
+            s->pose = 0;
+            s->draw_flags = 0;
+            s->arrow_vy = -0x8000;
+            s->phase = 2;
+        }
+        break;
+    default:
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->arrow_vy);
+        if (s->remaining < 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    return AnimateProps(s, in.overlay, 0x6dc);
+}
 // w_040 func_ptr_8017000C (WFACTORY(70) E3/F3): the monster's parting burst, additive, retired
 // at its END.
 static bool VialBurst(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
@@ -2296,7 +2442,7 @@ static bool VialBurst(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in)
         s->palette = in.parent_palette;
         s->flags = 0x08100000U;
         s->priority = (Uint16)(in.parent_priority + 2U);
-        s->timeline = 0x7dc;
+        s->timeline = in.family == 42 ? 0x684 : 0x7dc;
         s->blend = 0x30;
         SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) + 0x10), in.camera_y);
         s->phase = 1;
@@ -9660,12 +9806,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     Layout layout = {0};
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 10 ||
         !Program(in.family, &layout) ||
-        !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ||
-                                                              in.family == 13 || in.family == 12 ||
-                                                              in.family == 46 || in.family == 47 ||
-                                                              in.family == 40 || in.family == 41
-                                                          ? in.role
-                                                          : 1) ||
+        !SotnWeaponSecondary_SupportedRole(
+            in.family, in.role || in.family == 14 || in.family == 13 || in.family == 12 ||
+                               in.family == 46 || in.family == 47 || in.family == 40 ||
+                               in.family == 41 || in.family == 42
+                           ? in.role
+                           : 1) ||
         state->removed ||
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
@@ -9678,16 +9824,19 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 47 && in.role == 0                      ? 5
                         : in.family == 40 && in.role <= 1                      ? (in.role ? 3 : 2)
                         : in.family == 41                                      ? (in.role ? 4 : 2)
-                        : in.family == 10 && in.role == 8                      ? 9
-                        : in.family == 23 && in.role == 8                      ? 8
-                        : in.family == 23                                      ? 3
-                        : in.family == 24 && in.role == 8                      ? 8
-                        : in.family == 24                                      ? 3
-                        : in.family == 27 && in.role == 8                      ? 5
-                        : in.family == 27                                      ? 1
-                        : in.family == 28 && in.role == 8                      ? 8
-                        : in.family == 28                                      ? 3
-                        : in.family == 29 && in.role == 8                      ? 6
+                        : in.family == 42                 ? (in.role == 1   ? 3
+                                                             : in.role == 3 ? 1
+                                                                            : 2)
+                        : in.family == 10 && in.role == 8 ? 9
+                        : in.family == 23 && in.role == 8 ? 8
+                        : in.family == 23                 ? 3
+                        : in.family == 24 && in.role == 8 ? 8
+                        : in.family == 24                 ? 3
+                        : in.family == 27 && in.role == 8 ? 5
+                        : in.family == 27                 ? 1
+                        : in.family == 28 && in.role == 8 ? 8
+                        : in.family == 28                 ? 3
+                        : in.family == 29 && in.role == 8 ? 6
                         : (in.family == 12 || in.family == 34) && in.role == 1 ? 2
                         : in.family == 30 && in.role == 1                      ? 4
                         : in.family == 30 && in.role == 2                      ? 8
@@ -9739,6 +9888,15 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 41)
     {
         if (!(in.role ? BatVialBat(&s, in, &rng, &e) : BatVialRoot(&s, &shared, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 42)
+    {
+        if (!(in.role == 0   ? VialRoot(&s, &shared, in, &e)
+              : in.role == 1 ? VialArcher(&s, in, &rng, &e)
+              : in.role == 2 ? VialArrow(&s, in, &rng, &e)
+                             : VialBurst(&s, in)))
             return false;
         goto commit;
     }
@@ -10043,6 +10201,10 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 40 && (state->role == 0 || state->role == 3))
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0x804 ? 2 : 10};
+    // Weapon42's vial (D_12A000_8017A6B4 then the break D_12A000_8017A684) and burst (the break).
+    if (state && family == 42 && (state->role == 0 || state->role == 3))
+        layout = (Layout){.timeline = state->timeline,
+                          .timeline_count = state->timeline == 0x6b4 ? 2 : 10};
     // Weapon41's vial: D_123000_8017A504, then the break D_123000_8017A4DC.
     if (state && family == 41 && state->role == 0)
         layout = (Layout){.timeline = state->timeline,
@@ -10066,6 +10228,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
          (family != 47 || state->role != 1) &&
          (family != 40 || (state->role != 0 && state->role != 3)) &&
          (family != 41 || state->role != 0) &&
+         (family != 42 || (state->role != 0 && state->role != 3)) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

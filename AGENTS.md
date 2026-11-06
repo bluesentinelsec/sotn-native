@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Monster vial 3](docs/player-monster-vial-3.md) now owns consumable kind130 item3 through
+w_042: Monster vial 1's vial with its own tables (cursor D_12A000_8017B5F0) breaks into the
+WFACTORY(56) E1 archer (raw-parent current equipId, own group), which requests WFACTORY(0x3E,n)
+E2 arrows on poses 6/0xC/0x12 (n = unk7E advances only for a created factory; it aliases the
+union velocityY word) and the 70 burst. Arrows (params&0x7F00 index, own arrow_vy) spin -0x60 and
+turn into DRA animSet2's palette0x8170 spark on their first hit. Colour8 flash.
+
 Selected [Monster vial 2](docs/player-monster-vial-2.md) now owns consumable kind130 item2 through
 w_041: the E0 vial (D_123000_8017B204 speed/rise cursors, rand lifetime, no collision) breaks in the
 air into the WFACTORY(56) E1 bat (raw-parent current equipId properties, own group), whose

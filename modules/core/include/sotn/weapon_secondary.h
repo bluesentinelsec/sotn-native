@@ -79,6 +79,13 @@ typedef struct SotnWeaponSecondary
             bool bat_bound, bat_side;
             Sint32 bat_vy;
         };
+        /** Weapon42 (Monster vial 3): the archer's ext.weapon.unk7E arrow count (advanced only
+         * by free factories) and the arrow's velocityY (the shared union word is not its own). */
+        struct
+        {
+            Sint16 vial_arrows;
+            Sint32 arrow_vy;
+        };
         /** Weapon47 (Dynamite): thirty-two optional rows kept in world pixels (DRAW_UNK02
          * follows camera scroll), first TILEs whose x1/x2/x3 words are the original fuse-spark
          * scratch, then GT4 explosion rays; ext.weapon_047.unk7C fuse, unk84 radius, unk88 v. */
