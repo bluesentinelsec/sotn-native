@@ -39,7 +39,9 @@ typedef struct SotnPlayerBlinkShared
  * Parameter 0x4A supplies the finite Life Apple recovery fan; its producer owns actual recovery.
  * Parameter 0x26 supplies entity46 stripes; its actual owner controls motion/retirement.
  * Parameter 0x58 is the neutral hurt/scripted reaction fan; its 0x7007 hold tests original Hit
- * state10. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children. */
+ * state10. Parameter 0x52 is Agunea's fan; its 0x7003 hold lasts while any entity17 lives in
+ * slots32..47. Parameters 0x1B/0x25 include original automatic finishing flashes, not new children.
+ */
 typedef struct SotnPlayerBlink
 {
     SotnPlayerEffectQuad quads[8];
@@ -65,6 +67,7 @@ typedef struct SotnPlayerBlinkInput
     bool wolf_form; /**< Actual bank15. Entry23 before signal2 uses the saved ordinary/Bat image. */
     bool allocation_failed; /**< Real eight-row exhaustion at phase zero; the US child retries. */
     bool holy_symbol;       /**< Actual found-and-active relic snapshot, not a default grant. */
+    Uint8 agunea; /**< Live E_SUBWPN_AGUNEA (entity 0x11) count in slots32..47 at this point. */
 } SotnPlayerBlinkInput;
 
 /** @brief Original side effects for the player owner; zero signal means no new handshake. */

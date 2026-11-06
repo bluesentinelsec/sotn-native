@@ -522,7 +522,8 @@ static bool AttackerFeedback(SotnActors *actors, Uint32 channel, Uint32 wing_sta
             if ((actor->hit_params == 3 && (recipient->state.flags & 0x8000)) ||
                 (actor->hit_params == 4 && (recipient->state.flags & 0x4000)))
                 flags = 2;
-            if (!SotnBatRuntime_Hit(actors->bat_runtime, index, child->generation, flags))
+            if (!SotnBatRuntime_HitTarget(actors->bat_runtime, index, child->generation, flags,
+                                          actor->slot))
                 return false;
         }
     }
@@ -2321,12 +2322,13 @@ bool SotnActors_Get(const SotnActors *actors, Uint32 slot, SotnActorState *out)
     return true;
 }
 
+SDL_COMPILE_TIME_ASSERT(stage_targets, SOTN_STAGE_TARGETS == SOTN_STAGE_ACTOR_SLOTS);
 bool SotnActors_SpiritTargets(const SotnActors *s, SotnSpiritTargetSnapshot *out)
 {
     if (!s || !s->entered || !out)
         return SDL_SetError("Spirit targets require the actual entered stage and output");
     SotnSpiritTargetSnapshot next = {0};
-    for (Uint16 i = 0; i < SOTN_SPELL_TARGETS; ++i)
+    for (Uint16 i = 0; i < SOTN_STAGE_TARGETS; ++i)
     {
         const SotnActorState a = s->slots[i].state;
         const Sint32 x = Pixel(a.x) - s->camera_x, y = Pixel(a.y) - s->camera_y;

@@ -3,10 +3,14 @@
 #include <sotn/actor_order.h>
 #include <sotn/actors.h>
 #include <sotn/player_particles.h>
+#include <sotn/subweapon_entity.h>
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
-        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_SUBWEAPON_LINE ||
+        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_SUBWEAPON_QUAD ||
+        (item.kind == SOTN_DRAW_SUBWEAPON_QUAD &&
+         (item.primitive < 16 * 64 || item.primitive >= 48 * 64 ||
+          item.primitive % 64U >= SOTN_AGUNEA_BOLT_ROWS)) ||
         (item.kind == SOTN_DRAW_SUBWEAPON_LINE &&
          (item.primitive < 16 * 16 || item.primitive >= 32 * 16)) ||
         (item.kind == SOTN_DRAW_SUBWEAPON_TILE &&

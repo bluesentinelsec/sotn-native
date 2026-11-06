@@ -1127,9 +1127,9 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti): func_800FE3C4's
-// heart
-// check, CheckSubwpnChainLimit over slots32..47, heart spending, then the actual factory.
+// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea):
+// func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
+// actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
                          Uint16 *animation)
 {
@@ -1138,7 +1138,8 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     if (!s || !handled || !used || !animation || !SotnCharacter_Get(s->character, &progress, NULL))
         return SDL_SetError("Shared subweapon use requires its session and outputs");
     *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
-               progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE;
+               progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
+               progress.subweapon == SOTN_SUBWEAPON_AGUNEA;
     *used = false;
     *animation = 0;
     if (!*handled)
@@ -4704,6 +4705,28 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                         .primitive = (Uint16)(owner * 16U + j - 1U),
                                         .kind = SOTN_DRAW_SUBWEAPON_LINE}))
                     return false;
+            // Agunea's additive LINE_G2 from its throw point to the bolt.
+            if (child->subweapon && child->initialized &&
+                child->state.subweapon.motion.id == SOTN_SUBWEAPON_AGUNEA &&
+                !(child->state.subweapon.motion.agunea.draw_mode & 8U) &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = child->state.subweapon.motion.agunea.priority,
+                                    .primitive = (Uint16)(owner * 16U),
+                                    .kind = SOTN_DRAW_SUBWEAPON_LINE}))
+                return false;
+            // The lightning's drawn GT4 rows 1..end (row0 stays hidden).
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_AGUNEA_BOLT
+                                ? child->state.subweapon.motion.bolt.end
+                                : 0;
+                 j > 0; --j)
+                if (!SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                        .primitive = (Uint16)(owner * 64U + j),
+                                        .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                    return false;
             // Vibhuti's twelve opaque ash TILEs (world pixels); DRAW_HIDE rows are skipped.
             for (Uint16 j = child->subweapon && child->initialized &&
                                     child->state.subweapon.motion.id == SOTN_SUBWEAPON_VIBHUTI
@@ -5573,14 +5596,69 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_SUBWEAPON_QUAD)
+        {
+            const Uint16 index = command.primitive / 64U, row = command.primitive % 64U;
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
+            if (index >= SOTN_BAT_RUNTIME_SLOTS || !c->subweapon || !c->initialized ||
+                c->state.subweapon.motion.id != SOTN_AGUNEA_BOLT ||
+                !SotnBatRuntime_SubweaponValid(c, index) || !row ||
+                row > c->state.subweapon.motion.bolt.end)
+                return SDL_SetError("Agunea lightning draw lost its actual row ownership");
+            const SotnAguneaBolt *b = &c->state.subweapon.motion.bolt;
+            // Page 0x1A columns 0x90.. cycle every six rows; DRAW_COLORS modulates one grey.
+            const Uint8 u = (Uint8)((row % 6U) * 16U + 0x90U);
+            SotnPlayerEffectQuad q = {.u = {u, u, (Uint8)(u + 16U), (Uint8)(u + 16U)},
+                                      .v = {0xd0, 0xc0, 0xd0, 0xc0},
+                                      .red = {b->grey, b->grey, b->grey, b->grey},
+                                      .green = {b->grey, b->grey, b->grey, b->grey},
+                                      .blue = {b->grey, b->grey, b->grey, b->grey},
+                                      .page = 0x1a,
+                                      .palette = b->white ? 0x15f : 0x194,
+                                      .priority = c->state.subweapon.motion.priority,
+                                      .draw_mode = 6};
+            for (Uint16 v = 0; v < 4; ++v)
+            {
+                q.x[v] = BlinkWord((Sint64)b->x[row][v] - view_x);
+                q.y[v] = BlinkWord((Sint64)b->y[row][v] - view_y);
+            }
+            if (!DrawOriginalEffectQuad(session, &q) ||
+                !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_SUBWEAPON_LINE)
         {
             const Uint16 index = command.primitive / 16U, row = command.primitive % 16U;
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
+            const bool agunea = c->state.subweapon.motion.id == SOTN_SUBWEAPON_AGUNEA;
             if (index >= SOTN_BAT_RUNTIME_SLOTS || !c->subweapon || !c->initialized ||
-                c->state.subweapon.motion.id != SOTN_SUBWEAPON_REBOUND_STONE ||
+                (c->state.subweapon.motion.id != SOTN_SUBWEAPON_REBOUND_STONE &&
+                 !(agunea && !row)) ||
                 !SotnBatRuntime_SubweaponValid(c, index))
                 return SDL_SetError("Subweapon LINE_G2 draw lost its actual row ownership");
+            if (agunea)
+            {
+                const SotnAgunea *a = &c->state.subweapon.motion.agunea;
+                const Sint32 ox = session->draw_target.offset_x + session->shake.x - view_x,
+                             oy = session->draw_target.offset_y + session->shake.y - view_y;
+                // drawMode0x331: additive (ABR1), black at the throw point.
+                const SotnColorLine line = {.x = {a->start_x + ox, a->end_x + ox},
+                                            .y = {a->start_y + oy, a->end_y + oy},
+                                            .red = {0, a->red},
+                                            .green = {0, a->green},
+                                            .blue = {0, a->blue},
+                                            .blend = true,
+                                            .blend_mode = (Uint8)((a->draw_mode >> 5) & 3U)};
+                if (!(a->draw_mode & 8U) &&
+                    !SotnActorGraphics_LineSurface(line, session->draw_target.surface))
+                    return false;
+                if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             const SotnReboundLine *l = &c->state.subweapon.motion.stone.lines[row];
             const Sint32 ox = session->draw_target.offset_x + session->shake.x - view_x,
                          oy = session->draw_target.offset_y + session->shake.y - view_y;

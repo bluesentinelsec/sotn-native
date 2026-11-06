@@ -444,11 +444,13 @@ static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint);
 bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                      Uint32 packed, Sint16 argument, bool *allocated)
 {
-    // Vibhuti's blueprint26 and Rebound Stone's blueprint24 factories are owned here so far.
+    // Vibhuti's blueprint26, Rebound Stone's blueprint24 and Agunea's blueprint22 factories are
+    // owned here so far.
     if (!r || !allocated ||
         !((packed == SOTN_VIBHUTI_BLUEPRINT && argument == SOTN_SUBWEAPON_VIBHUTI << 9) ||
           (packed == SOTN_REBOUND_STONE_BLUEPRINT && argument == SOTN_SUBWEAPON_REBOUND_STONE
-                                                                     << 9)))
+                                                                     << 9) ||
+          (packed == SOTN_AGUNEA_BLUEPRINT && argument == SOTN_SUBWEAPON_AGUNEA << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -469,26 +471,42 @@ static Uint16 SubweaponEntity(Uint16 id)
 {
     return id == SOTN_SUBWEAPON_VIBHUTI         ? SOTN_VIBHUTI_ENTITY
            : id == SOTN_SUBWEAPON_REBOUND_STONE ? SOTN_REBOUND_STONE_ENTITY
+           : id == SOTN_SUBWEAPON_AGUNEA        ? SOTN_AGUNEA_ENTITY
+           : id == SOTN_AGUNEA_BOLT             ? SOTN_AGUNEA_BOLT_ENTITY
                                                 : 0;
+}
+static bool SubweaponKind(Uint16 kind)
+{
+    return kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY ||
+           kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY;
 }
 bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->subweapon)
-        return c->kind != SOTN_VIBHUTI_ENTITY && c->kind != SOTN_REBOUND_STONE_ENTITY;
+        return !SubweaponKind(c->kind);
     const SotnSubweaponEntity *e = &c->state.subweapon.motion;
-    const bool stone = e->id == SOTN_SUBWEAPON_REBOUND_STONE;
-    return index >= 16 && index <= 31 && SotnSubweaponEntity_Rows(e->id) &&
+    const bool stone = e->id == SOTN_SUBWEAPON_REBOUND_STONE,
+               agunea = e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e->id == SOTN_AGUNEA_BOLT;
+    // The lightning (kind0 range 32..63) never rolls properties: no group, no attack.
+    return index >= 16 && index <= (bolt ? 47 : 31) && SotnSubweaponEntity_Rows(e->id) &&
            c->kind == SubweaponEntity(e->id) && c->generation && !c->bat_generation &&
            !c->parameter && !c->draw_count && !e->removed && c->state.subweapon.hit_flags <= 3 &&
-           (c->initialized
-                ? (stone ? (e->step == 1 || e->step == 2) && e->stone.life >= 1 &&
-                               e->stone.life <= 0x40 && e->stone.bounces >= 0 &&
-                               e->stone.bounces <= 15
-                         : e->step == 1 && e->timer && e->timer <= 0x80) &&
-                      c->primitive_count == SotnSubweaponEntity_Rows(e->id) && c->group >= 7 &&
-                      c->group <= 10 && c->state.subweapon.attack.equipment == 0
-                : !e->step && !c->primitive_count && !c->group &&
-                      !c->state.subweapon.attack.active);
+           c->state.subweapon.hit_target < SOTN_STAGE_TARGETS &&
+           (bolt ? c->state.subweapon.parent >= 32 && c->state.subweapon.parent <= 47
+                 : !c->state.subweapon.parent) &&
+           (c->initialized ? (stone    ? (e->step == 1 || e->step == 2) && e->stone.life >= 1 &&
+                                             e->stone.life <= 0x40 && e->stone.bounces >= 0 &&
+                                             e->stone.bounces <= 15
+                              : agunea ? e->step >= 1 && e->step <= 4
+                              : bolt   ? e->step >= 1 && e->step <= 3 && e->bolt.grey >= 16 &&
+                                             e->bolt.end < SOTN_AGUNEA_BOLT_ROWS
+                                       : e->step == 1 && e->timer && e->timer <= 0x80) &&
+                                 c->primitive_count == SotnSubweaponEntity_Rows(e->id) &&
+                                 (bolt ? !c->group && !c->state.subweapon.attack.active
+                                       : c->group >= 7 && c->group <= 10 &&
+                                             c->state.subweapon.attack.equipment == 0)
+                           : !e->step && !c->primitive_count && !c->group &&
+                                 !c->state.subweapon.attack.active);
 }
 Uint16 SotnBatRuntime_SubweaponCount(const SotnBatRuntime *r, Uint16 id)
 {
@@ -509,6 +527,8 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
             r->children[i] = (SotnBatRuntimeChild){0};
     PruneRoomFactory(r, SOTN_VIBHUTI_BLUEPRINT);
     PruneRoomFactory(r, SOTN_REBOUND_STONE_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_AGUNEA_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_AGUNEA_BOLT_BLUEPRINT);
     r->subweapon_mask = 0;
     return true;
 }
@@ -1631,7 +1651,7 @@ static bool ChildKind(Uint16 kind)
            kind == 0xee || kind == 0xfe || (kind >= 0xe1 && kind <= 0xe5) ||
            (kind >= 0xf1 && kind <= 0xf5) || (kind >= 24 && kind <= 29) || kind == 0xe8 ||
            kind == 0xf8 || kind == 0xe9 || kind == 0xf9 || kind == 0xea || kind == 0xfa ||
-           kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY;
+           SubweaponKind(kind);
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -2388,7 +2408,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                   bool thrown_factory, bool thrown_particles, Uint16 thrown_parent_slot,
                   bool star_factory, Uint16 star_parent_slot, bool karma_factory,
                   Uint16 karma_parent_slot, bool secondary_factory, Uint16 secondary_parent_slot,
-                  const SotnBatRuntimeInput *input)
+                  Uint16 subweapon_parent_slot, const SotnBatRuntimeInput *input)
 {
     if (child.slot < 16 || child.slot >= 64 || child.replace || !child.entity_id ||
         !ChildKind(child.entity_id) || r->children[child.slot - 16U].kind ||
@@ -2414,16 +2434,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
-    // E_SUBWPN_VIBHUTI/E_SUBWPN_REBOUND_STONE: ext.subweaponId (0xB0) is the factory argument's
-    // high bits.
-    c.subweapon = c.kind == SOTN_VIBHUTI_ENTITY || c.kind == SOTN_REBOUND_STONE_ENTITY;
+    // E_SUBWPN_VIBHUTI/REBOUND_STONE/AGUNEA: ext.subweaponId (0xB0) is the factory argument's
+    // high bits. E_SUBWPN_AGUNEA_HIT_ENEMY (subweaponId zero) keeps its raw factory parent.
+    c.subweapon = SubweaponKind(c.kind);
+    if ((c.kind == SOTN_AGUNEA_BOLT_ENTITY) != (subweapon_parent_slot != 0))
+        return SDL_SetError("Agunea lightning requires its actual blueprint23 bolt parent");
     if (c.subweapon)
     {
-        const Uint16 id =
-            c.kind == SOTN_VIBHUTI_ENTITY ? SOTN_SUBWEAPON_VIBHUTI : SOTN_SUBWEAPON_REBOUND_STONE;
-        if (generation || child.slot < 32 || child.slot > 47 || child.parameter ||
-            child.argument_low || child.argument_high != id)
+        const bool bolt = c.kind == SOTN_AGUNEA_BOLT_ENTITY;
+        const Uint16 id = c.kind == SOTN_VIBHUTI_ENTITY         ? SOTN_SUBWEAPON_VIBHUTI
+                          : c.kind == SOTN_REBOUND_STONE_ENTITY ? SOTN_SUBWEAPON_REBOUND_STONE
+                          : c.kind == SOTN_AGUNEA_ENTITY        ? SOTN_SUBWEAPON_AGUNEA
+                                                                : SOTN_AGUNEA_BOLT;
+        if (generation || child.slot < 32 || child.slot > (bolt ? 63 : 47) || child.parameter ||
+            child.argument_low || child.argument_high != (bolt ? 0 : id) ||
+            (bolt && (subweapon_parent_slot < 32 || subweapon_parent_slot > 47)))
             return SDL_SetError("Subweapon lost its actual slot/parameter/subweapon id");
+        c.state.subweapon.parent = subweapon_parent_slot;
         c.state.subweapon.motion = (SotnSubweaponEntity){.x = child.source.x,
                                                          .y = child.source.y,
                                                          .flags = child.source.flags,
@@ -3023,7 +3050,7 @@ static bool RequestNumber(SotnBatRuntime *r, Uint64 other_occupied, SotnPlayerFa
         {
             if (!Spawn(r, (SotnPlayerFactoryChild){.slot = slot, .entity_id = 19, .source = source},
                        0, 0, 0, false, 0, false, 0, false, false, 0, false, 0, false, 0, false, 0,
-                       NULL))
+                       0, NULL))
                 return false;
             r->children[slot - 16U].state.healing_number.number = amount;
             r->children[slot - 16U].state.healing_number.damage = damage;
@@ -3273,7 +3300,9 @@ static bool SubweaponProperties(void *context, Uint32 *random)
     return true;
 }
 // A subweapon's CreateEntFactoryFromEntity: the first free factory slot, none if all are busy.
-static bool SubweaponFactory(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint16 packed)
+// Agunea's blueprint23 lightning keeps the bolt's slot as its raw ext.factory.parent.
+static bool SubweaponFactory(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint32 packed,
+                             Uint16 slot)
 {
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
         if (!r->factories[i].cursor.entity_id)
@@ -3283,6 +3312,7 @@ static bool SubweaponFactory(SotnBatRuntime *r, SotnPlayerFactorySource source, 
                 return false;
             SDL_zero(r->factories[i]);
             r->factories[i].cursor = f;
+            r->factories[i].subweapon_parent_slot = packed == SOTN_AGUNEA_BOLT_BLUEPRINT ? slot : 0;
             return true;
         }
     return true;
@@ -3558,6 +3588,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 l->y0 += in.room_shift_y;
                 l->y1 += in.room_shift_y;
             }
+            if (e->id == SOTN_SUBWEAPON_AGUNEA)
+            {
+                e->agunea.start_x += in.room_shift_x;
+                e->agunea.end_x += in.room_shift_x;
+                e->agunea.start_y += in.room_shift_y;
+                e->agunea.end_y += in.room_shift_y;
+            }
+            for (Uint16 j = 0; e->id == SOTN_AGUNEA_BOLT && j < SOTN_AGUNEA_BOLT_ROWS; ++j)
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    e->bolt.x[j][v] = Word(e->bolt.x[j][v] + in.room_shift_x);
+                    e->bolt.y[j][v] = Word(e->bolt.y[j][v] + in.room_shift_y);
+                }
         }
         else if (c->neutron)
         {
@@ -4234,7 +4277,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                        r.factories[i].thrown_parent_slot, r.factories[i].star_factory,
                        r.factories[i].star_parent_slot, r.factories[i].karma_factory,
                        r.factories[i].karma_parent_slot, r.factories[i].secondary_factory,
-                       r.factories[i].secondary_parent_slot, &in))
+                       r.factories[i].secondary_parent_slot, r.factories[i].subweapon_parent_slot,
+                       &in))
                 return false;
         }
     }
@@ -6154,8 +6198,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         else if (c->subweapon)
         {
-            // Vibhuti's func_800EDB58 takes contiguous rows, Rebound Stone's AllocPrimitives the
-            // first free ones; both callbacks then call func_8011A290 at their own RNG point.
+            // Vibhuti's func_800EDB58 takes contiguous rows, the others AllocPrimitives' first
+            // free ones; every callback but the lightning's calls func_8011A290 at its own point.
             SotnSubweaponEntity *e = &c->state.subweapon.motion;
             const Uint16 rows = SotnSubweaponEntity_Rows(e->id);
             bool allocated = c->primitive_count != 0;
@@ -6169,6 +6213,11 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     return false;
                 c->primitive_count = allocated ? (Uint8)rows : 0;
             }
+            // The lightning reads its raw parent slot as it stands at this point of the pass.
+            const SotnBatRuntimeChild *parent =
+                e->id == SOTN_AGUNEA_BOLT ? &r.children[c->state.subweapon.parent - 16U] : NULL;
+            const bool agunea_parent =
+                parent && parent->subweapon && parent->kind == SOTN_AGUNEA_ENTITY;
             SubweaponPropertyContext properties = {&r, c,    in.dra, &progress, stats.total[2],
                                                    i,  false};
             SotnSubweaponEvents events = {0};
@@ -6184,27 +6233,44 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                         .player_priority = p.priority,
                         .player_facing_left = p.facing_left,
                         .hit_flags = c->state.subweapon.hit_flags,
-                        .allocated = allocated},
+                        .allocated = allocated,
+                        .hit_target = c->state.subweapon.hit_target,
+                        .targets = in.spirit_targets ? targets.slots : NULL,
+                        .player_x = p.x,
+                        .player_y = p.y,
+                        .player_hitbox_y = p.animation.hitbox_y,
+                        .player_status = p.status,
+                        .buttons = p.buttons,
+                        .hearts = progress.hearts,
+                        .bolt_cost = SotnSubweapon_Cost(progress, 5),
+                        .parent_entity = (Uint16)(agunea_parent ? SOTN_AGUNEA_ENTITY
+                                                  : parent      ? parent->kind
+                                                                : 0),
+                        .parent_x = agunea_parent ? Pixel(parent->state.subweapon.motion.x) : 0,
+                        .parent_y = agunea_parent ? Pixel(parent->state.subweapon.motion.y) : 0},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
+            if (events.hearts_spent > progress.hearts)
+                return SDL_SetError("Agunea spent more hearts than the character holds");
+            progress.hearts = (Uint16)(progress.hearts - events.hearts_spent);
             if (events.sound && !Sound(&r, events.sound))
                 return false;
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
             if (events.disable_attack)
                 c->state.subweapon.attack.active = false;
-            if (events.factory &&
-                !SubweaponFactory(&r,
-                                  (SotnPlayerFactorySource){.x = events.factory_x,
-                                                            .y = events.factory_y,
-                                                            .flags = e->flags,
-                                                            .priority = e->priority,
-                                                            .facing_left = e->facing_left},
-                                  events.factory_packed))
-                return false;
+            for (Uint16 k = 0; k < events.factories; ++k)
+                if (!SubweaponFactory(&r,
+                                      (SotnPlayerFactorySource){.x = events.factory_x,
+                                                                .y = events.factory_y,
+                                                                .flags = e->flags,
+                                                                .priority = e->priority,
+                                                                .facing_left = e->facing_left},
+                                      events.factory_packed[k], (Uint16)(i + 16U)))
+                    return false;
             SotnPlayerAttack *a = &c->state.subweapon.attack;
-            a->offset_x = 0;
+            a->offset_x = e->hitbox_x;
             a->offset_y = e->hitbox_y;
             a->width = e->hitbox_width;
             a->height = e->hitbox_height;
@@ -6223,6 +6289,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     e->particles[j].x = FixedShift(e->particles[j].x, dx);
                     e->particles[j].y = FixedShift(e->particles[j].y, dy);
                 }
+            // Agunea's line (no DRAW_UNK02) and the lightning's hidden row0 keep screen positions.
+            if (!removed && e->id == SOTN_SUBWEAPON_AGUNEA)
+            {
+                e->agunea.start_x += dx;
+                e->agunea.end_x += dx;
+                e->agunea.start_y += dy;
+                e->agunea.end_y += dy;
+            }
+            for (Uint16 v = 0; !removed && e->id == SOTN_AGUNEA_BOLT && v < 4; ++v)
+            {
+                e->bolt.x[0][v] = Word(e->bolt.x[0][v] + dx);
+                e->bolt.y[0][v] = Word(e->bolt.y[0][v] + dy);
+            }
             c->source = (SotnPlayerFactorySource){.x = e->x,
                                                   .y = e->y,
                                                   .flags = e->flags,
@@ -6850,6 +6929,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->initialized = allocated;
                 SotnPlayerBlinkEvents events = {0};
                 const Uint16 parameter = c->state.blink.parameter;
+                Uint8 agunea = 0;
+                for (Uint16 j = 16; j < 32; ++j)
+                    agunea += r.children[j].kind == SOTN_AGUNEA_ENTITY;
                 if (!SotnPlayerBlink_Tick(
                         &c->state.blink, &r.shared,
                         (SotnPlayerBlinkInput){
@@ -6880,7 +6962,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                             .facing_left = p.facing_left,
                             .rotated = p.rotated,
                             .image_present = p.animation_bank == 15 || in.image.width != 0,
-                            .allocation_failed = !allocated},
+                            .allocation_failed = !allocated,
+                            .agunea = agunea},
                         &events))
                     return false;
                 r.afterimage_reset = r.afterimage_reset || events.reset_afterimages;
@@ -7714,6 +7797,11 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *r, Uint16 index,
 
 bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags)
 {
+    return SotnBatRuntime_HitTarget(r, i, generation, flags, 0);
+}
+bool SotnBatRuntime_HitTarget(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 flags,
+                              Uint16 target)
+{
     const bool star = r && i < 48 && r->children[i].star && r->children[i].state.star.attack.active;
     const bool magic = r && i < 48 && r->children[i].magic &&
                        (r->children[i].kind == 0xe1 || r->children[i].kind == 0xf1);
@@ -7727,7 +7815,10 @@ bool SotnBatRuntime_Hit(SotnBatRuntime *r, Uint16 i, Uint32 generation, Uint8 fl
         if (!flags || flags > 3 || !generation || r->children[i].generation != generation ||
             !r->children[i].initialized)
             return SDL_SetError("Subweapon feedback requires its actual live child generation");
+        if (target >= SOTN_STAGE_TARGETS)
+            return SDL_SetError("Subweapon feedback requires the actual overlapping stage slot");
         r->children[i].state.subweapon.hit_flags = flags;
+        r->children[i].state.subweapon.hit_target = target;
         return true;
     }
     const bool hand = r && i < 48 && r->children[i].hand_weapon;

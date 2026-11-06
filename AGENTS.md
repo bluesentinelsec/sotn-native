@@ -68,8 +68,16 @@ before func_8011A290's roll/group7..10, then 24 particle rolls; cycling 4x4 hitb
 (subweapon7, entity20, bp24 origin2): sixteen first-free LINE_G2 rows, PLAYER-facing angle roll
 BEFORE func_8011A290 (SotnSubweaponInput.properties runs it inside each callback), embed hold,
 six-step probes/slope reflection table, factory10 profile0 tinks (particle behavior0), screen-window
-or fifteen-bounce exit, 0x40 fade clearing the hitbox at 0x20, additive trail. Other subweapons
-still use the old service until moved.
+or fifteen-bounce exit, 0x40 fade clearing the hitbox at 0x20, additive trail.
+[Agunea](docs/player-agunea.md) (subweapon9, entity17, bp22): transform/0x10000 destroy first,
+one LINE_G2 row (0x331, both ends screen-anchored), FACTORY(44,0x52) blink (hold0x7003 counts
+entity17 in32..47), 6px flight, SotnBatRuntime_HitTarget records unkB8's stage slot; bound it
+follows the raw slot in the 192-slot target view (empty reads (0,0)) and, with Up+Square held,
+every12th update jitters (2 rolls) and requests FACTORY(23) lightning (raw parent slot via
+factory subweapon_parent_slot) + BP61/2 outlines + THUNDER_B, first free then five hearts
+(spent from runtime progress). Lightning (entity18, key SOTN_AGUNEA_BOLT, subweaponId0, no
+hitbox/group) grows 40 GT4 rows (page0x1A/palette0x194, row0 screen-anchored) by ratan2, flashes
+0x15F, fades. Other subweapons still use the old service until moved.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
