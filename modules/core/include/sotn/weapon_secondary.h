@@ -69,6 +69,16 @@ typedef struct SotnWeaponSecondary
             Sint16 knuckle_pivot_x, knuckle_pivot_y;
             Sint32 arc_start, arc_tail, arc_end, arc_step, arc_radius, arc_bright;
         };
+        /** Weapon41 (Monster vial 2) bat: ext.weapon.unk80 heading, unk82 turn limit (only
+         * shrinks), unk7E side for func_80118B18, its retained ext.weapon.some_ent target slot
+         * and velocityY (the shared union word is not its own). */
+        struct
+        {
+            Sint16 bat_angle, bat_turn;
+            Uint16 bat_slot;
+            bool bat_bound, bat_side;
+            Sint32 bat_vy;
+        };
         /** Weapon47 (Dynamite): thirty-two optional rows kept in world pixels (DRAW_UNK02
          * follows camera scroll), first TILEs whose x1/x2/x3 words are the original fuse-spark
          * scratch, then GT4 explosion rays; ext.weapon_047.unk7C fuse, unk84 radius, unk88 v. */
@@ -347,6 +357,10 @@ typedef struct SotnWeaponSecondaryEvents
     Sint32 factory_x[8], factory_y[8];
     Uint8 shake; /**< Weapon30 ShakeCamera request (0: none). */
     Uint8 gold;  /**< Weapon37 coins: g_Status.gold += 1 per pickup (capped at 999999). */
+    /** Weapon41's bat: func_123000_8017A994 picks a target within select_tolerance of
+     * select_heading (ratan2 from the bat's screen position). */
+    bool select_angle;
+    Sint16 select_heading, select_tolerance;
     /** Weapon47's root: LoadImage of the program's 4x16 D_14D000_8017A4A8 words into the hand's
      * weapon texture (x0x260, y0x100 or 0x180). */
     bool load_image;

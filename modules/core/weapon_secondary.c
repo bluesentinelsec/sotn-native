@@ -83,7 +83,7 @@ static bool Program(Uint16 family, Layout *out)
     else if (family == 47)
         *out = (Layout){.timeline = 0x528, .timeline_count = 8, .rows = 32};
     // Weapon40 (Monster vial 1): rowless vial, monster, fireballs and burst.
-    else if (family == 40)
+    else if (family == 40 || family == 41)
         *out = (Layout){.rows = 0};
     else if (family == 34)
         *out = (Layout){.rows = 0};
@@ -160,7 +160,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
            family == 30 || family == 7 || family == 37 || family == 46 || family == 47 ||
-           family == 40 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 40 || family == 41 || SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -201,6 +201,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon40: Monster vial 1's vial (role0), monster (1), fireballs (2) and burst (3).
     if (family == 40)
         return role <= 3;
+    // Weapon41: Monster vial 2's vial (role0) and bat (role1).
+    if (family == 41)
+        return role <= 1;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -270,7 +273,7 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 1 ? 32 : 1;
     if (family == 47)
         return role == 0 ? 32 : 0;
-    if (family == 40)
+    if (family == 40 || family == 41)
         return 0;
     if (family == 34)
         return 0;
@@ -1873,6 +1876,8 @@ static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uin
 }
 
 static bool Query(SotnWeaponSecondaryInput in, Sint16 x, Sint16 y, SotnCollider *out);
+static bool TargetHeading(SotnWeaponSecondaryInput in, Sint16 sx, Sint16 sy, bool bound, bool side,
+                          Sint16 *out);
 // dra UpdateAnim(frameProps, NULL) over a private AnimationFrame list: advances the pose, then
 // copies the current frame's hitbox (FrameProperty at props + (frame >> 9) * 4) and frame.
 static bool AnimateProps(SotnWeaponSecondary *s, SotnDataView overlay, Uint32 props_offset)
@@ -2022,6 +2027,153 @@ static void VialFlash(SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e,
     e->clut_color = color;
     e->clut_mask = 0;
     e->clut_add = ((in.game_timer >> 1) % 2U) ? 0x039c : 0x199d;
+}
+// w_041 EntityWeaponAttack (blueprint50 E0/F0, Monster vial 2): the vial flies at one of four
+// D_123000_8017A53C speeds and three D_123000_8017A54C rises (program cursor D_123000_8017B204)
+// for (rand()&15)+24 updates, then breaks in the air: GLASS_BREAK_A and WFACTORY(56,0), the bat.
+static bool BatVialRoot(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                        SotnWeaponSecondaryInput in, Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0: {
+        s->role = 0;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->palette = (Uint16)(0x110U + in.hand * 0x18U);
+        s->texture = (Uint16)(0x64U + in.hand * 2U);
+        s->priority = (Uint16)(in.priority + 2U);
+        s->facing_left = in.facing_left;
+        s->flags = 0x08100000U;
+        s->timeline = 0x504;
+        s->pose = 0;
+        s->remaining = 0;
+        SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) - 4), in.camera_y);
+        p->secondary_counter %= 4;
+        const Uint8 *speed = NULL, *rise = NULL;
+        if (p->secondary_counter < 0 ||
+            !View(in.overlay, 0x53cU + (Uint32)p->secondary_counter * 4U, 4, &speed))
+            return SDL_SetError("Monster vial 2 speed cursor left its private table");
+        const Sint32 v = (Sint32)Read32(speed);
+        s->velocity_x = s->facing_left ? -v : v;
+        p->secondary_counter = (Sint32)((Uint32)p->secondary_counter + 1U);
+        if (!View(in.overlay, 0x54cU + (Uint32)(p->secondary_counter % 3) * 4U, 4, &rise))
+            return SDL_SetError("Monster vial 2 rise cursor left its private table");
+        s->velocity_y = (Sint32)Read32(rise);
+        s->lifetime = (Sint16)((Rand(rng) & 15U) + 24U);
+        e->use_ticks = 4;
+        s->phase = 1;
+        break;
+    }
+    case 1:
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->velocity_y += 0x2800;
+        if (--s->lifetime == 0)
+        {
+            s->timeline = 0x4dc;
+            s->remaining = 0;
+            s->pose = 0;
+            s->blend = 0x30;
+            e->sounds[0] = 0x619;
+            e->volume_sound = true;
+            e->volume = 0x50;
+            (void)VialFactory(s, in, e, 56U | ((Uint32)(in.hand + 1U) << 12));
+            s->phase = 2;
+        }
+        break;
+    default:
+        if (s->remaining < 0)
+            s->removed = true;
+        break;
+    }
+    return true;
+}
+// w_041 func_ptr_80170004 (WFACTORY(56) E1/F1): the bat grows from its raw parent vial, takes
+// properties from the raw parent's current equip id, waits eight updates, picks a target within
+// 0x280 of its heading (func_123000_8017A994) and flies at 1.5 with a turn limit that only
+// shrinks (func_80118B18 homing).
+static bool BatVialBat(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                       SotnWeaponSecondaryEvents *e)
+{
+    switch (s->phase)
+    {
+    case 0:
+        s->role = 1;
+        s->allocated = true;
+        s->bank = in.parent_bank;
+        s->texture = in.parent_texture;
+        s->palette = in.parent_palette;
+        s->facing_left = !s->facing_left;
+        s->flags = 0x08000000U;
+        s->priority = (Uint16)(in.parent_priority - 2U);
+        s->timeline = 0x4a4;
+        s->draw_flags |= 3;
+        s->scale_x = s->scale_y = 0;
+        s->phase = 1;
+        break;
+    case 1:
+        s->scale_x = Word(s->scale_x + 4);
+        if (s->scale_x >= 0x100)
+        {
+            s->scale_x = 0x100;
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->lifetime = 8;
+            s->phase = 2;
+        }
+        s->scale_y = s->scale_x;
+        break;
+    case 2:
+        if (--s->lifetime == 0)
+        {
+            s->bat_angle = s->facing_left ? 0 : 0x800;
+            s->bat_side = !s->facing_left;
+            e->select_angle = true;
+            e->select_heading = s->bat_angle;
+            e->select_tolerance = 0x280;
+            e->sounds[0] = 0x69b;
+            e->sounds[1] = 0x64e;
+            s->lifetime = 0x16;
+            s->bat_turn = 0x80;
+            s->phase = 3;
+        }
+        break;
+    case 3: {
+        Sint16 result = 0;
+        if (!TargetHeading(in, Word(Pixel(s->x) - in.camera_x), Word(Pixel(s->y) - in.camera_y),
+                           s->bat_bound, s->bat_side, &result))
+            return false;
+        if (result >= 0)
+        {
+            Sint16 angle = (Sint16)(s->bat_angle & 0xfff);
+            const Sint16 diff = Word(SDL_abs(angle - result));
+            if (s->bat_turn > diff)
+                s->bat_turn = diff;
+            if (angle < result)
+                angle = Word(diff < 0x800 ? angle + s->bat_turn : angle - s->bat_turn);
+            else
+                angle = Word(diff < 0x800 ? angle - s->bat_turn : angle + s->bat_turn);
+            s->bat_angle = (Sint16)(angle & 0xfff);
+        }
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, s->bat_angle, &t))
+            return false;
+        s->velocity_x = t.cosine * 24;
+        s->bat_vy = -t.sine * 24;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->bat_vy);
+        break;
+    }
+    default:
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->bat_vy);
+        break;
+    }
+    if (!AnimateProps(s, in.overlay, 0x50c))
+        return false;
+    VialFlash(in, e, 8);
+    return true;
 }
 // w_040 func_ptr_80170004 (WFACTORY(56) E1/F1): the monster grows from its raw parent vial,
 // takes properties from the raw parent's current equip id, breathes WFACTORY(62) fire on poses
@@ -9508,11 +9660,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     Layout layout = {0};
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 10 ||
         !Program(in.family, &layout) ||
-        !SotnWeaponSecondary_SupportedRole(
-            in.family, in.role || in.family == 14 || in.family == 13 || in.family == 12 ||
-                               in.family == 46 || in.family == 47 || in.family == 40
-                           ? in.role
-                           : 1) ||
+        !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ||
+                                                              in.family == 13 || in.family == 12 ||
+                                                              in.family == 46 || in.family == 47 ||
+                                                              in.family == 40 || in.family == 41
+                                                          ? in.role
+                                                          : 1) ||
         state->removed ||
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
@@ -9524,6 +9677,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 46 && in.role == 1                      ? 2
                         : in.family == 47 && in.role == 0                      ? 5
                         : in.family == 40 && in.role <= 1                      ? (in.role ? 3 : 2)
+                        : in.family == 41                                      ? (in.role ? 4 : 2)
                         : in.family == 10 && in.role == 8                      ? 9
                         : in.family == 23 && in.role == 8                      ? 8
                         : in.family == 23                                      ? 3
@@ -9579,6 +9733,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 6)
     {
         if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 41)
+    {
+        if (!(in.role ? BatVialBat(&s, in, &rng, &e) : BatVialRoot(&s, &shared, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -9883,6 +10043,10 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 40 && (state->role == 0 || state->role == 3))
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0x804 ? 2 : 10};
+    // Weapon41's vial: D_123000_8017A504, then the break D_123000_8017A4DC.
+    if (state && family == 41 && state->role == 0)
+        layout = (Layout){.timeline = state->timeline,
+                          .timeline_count = state->timeline == 0x504 ? 2 : 10};
     // Weapon47's flames: D_14D000_8017A528 (seven frames, END).
     if (state && family == 47 && state->role == 1)
         layout = (Layout){.timeline = 0x528, .timeline_count = 8};
@@ -9901,6 +10065,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
          (family != 37 || state->role != 2 || !layout.timeline) &&
          (family != 47 || state->role != 1) &&
          (family != 40 || (state->role != 0 && state->role != 3)) &&
+         (family != 41 || state->role != 0) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

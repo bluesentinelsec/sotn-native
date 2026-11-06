@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <sotn/game_math.h>
 #include <sotn/spell_target.h>
 #include <sotn/spirit_spell.h>
 #define CHECK(v)                                                                                   \
@@ -49,6 +50,93 @@ static bool Targets(void)
     const SotnSpellTarget before = slots[8];
     CHECK(!SotnSpellTarget_Select(slots, &cursor, &selected) && cursor == 128 && selected == 17 &&
           !SDL_memcmp(&before, &slots[8], sizeof(before)));
+    return true;
+}
+// w_041 func_123000_8017A994: candidates within the heading window, the first unmarked one
+// marked; otherwise the program cursor walks the marked ones in the window.
+static Sint16 TargetAngle(SotnDataView exe, SotnSpellTarget t, Sint16 x, Sint16 y)
+{
+    Sint16 angle = 0;
+    if (!SotnMath_Atan2(exe, -(Sint32)(Sint16)(t.y - y), (Sint16)(t.x - x), &angle))
+        return -1;
+    return (Sint16)(angle & 0xfff);
+}
+static bool InWindow(Sint16 heading, Sint16 angle, Sint16 tolerance)
+{
+    const Sint16 diff = (Sint16)SDL_abs(heading - angle);
+    return diff < 0x800 ? diff <= tolerance : 0x1000 - diff <= tolerance;
+}
+static bool AngleTargets(SotnDataView exe)
+{
+    SotnSpellTarget slots[128] = {0};
+    Sint32 cursor = 5;
+    Uint16 selected = 99;
+    CHECK(SotnSpellTarget_SelectAngle(slots, exe, 100, 120, 0, 0x280, &cursor, &selected) &&
+          selected == SDL_MAX_UINT16 && cursor == 5);
+    // Ring of candidates around (100,120); some non-candidates in the window.
+    for (Uint16 i = 0; i < 128; ++i)
+    {
+        const Sint16 dx = (Sint16)((i % 16) * 9 - 70), dy = (Sint16)((i / 16) * 13 - 50);
+        slots[i] = (SotnSpellTarget){
+            .identity = 1, .hitbox = 2, .hp = 10, .x = (Sint16)(100 + dx), .y = (Sint16)(120 + dy)};
+    }
+    slots[3].hitbox = 0;
+    slots[4].flags = 0x200000;
+    slots[5].hp = 0x7000;
+    for (Uint16 h = 0; h < 4; ++h)
+    {
+        const Sint16 heading = (Sint16)(h * 0x400 + (h == 3 ? 0x380 : 0));
+        SotnSpellTarget copy[128];
+        SDL_memcpy(copy, slots, sizeof(copy));
+        Uint16 want = SDL_MAX_UINT16;
+        for (Uint16 i = 0; i < 128 && want == SDL_MAX_UINT16; ++i)
+        {
+            const SotnSpellTarget t = copy[i];
+            if (!t.identity || !t.hitbox || (t.flags & 0x200000U) || t.hp >= 0x7000)
+                continue;
+            const Sint16 a = TargetAngle(exe, t, 100, 120);
+            CHECK(a >= 0);
+            if (InWindow(heading, a, 0x280))
+                want = i;
+        }
+        cursor = 7;
+        CHECK(
+            SotnSpellTarget_SelectAngle(copy, exe, 100, 120, heading, 0x280, &cursor, &selected) &&
+            selected == want && want != SDL_MAX_UINT16 && copy[want].flags == 0x80000U &&
+            cursor == 7);
+        // Everything marked: the cursor walks the marked candidates in the window.
+        for (Uint16 i = 0; i < 128; ++i)
+            copy[i].flags |= 0x80000U;
+        Uint16 next = SDL_MAX_UINT16;
+        for (Uint16 k = 0; k < 128 && next == SDL_MAX_UINT16; ++k)
+        {
+            const Uint16 at = (Uint16)((120 + k) % 128);
+            const SotnSpellTarget t = copy[at];
+            if (t.identity && t.hitbox && !(t.flags & 0x200000U) && t.hp < 0x7000 &&
+                InWindow(heading, TargetAngle(exe, t, 100, 120), 0x280))
+                next = at;
+        }
+        cursor = 120 + 128;
+        CHECK(
+            SotnSpellTarget_SelectAngle(copy, exe, 100, 120, heading, 0x280, &cursor, &selected) &&
+            selected == next && cursor == (next + 1) % 128);
+    }
+    // A target behind the window, an empty window and a negative cursor.
+    SotnSpellTarget one[128] = {0};
+    one[9] = (SotnSpellTarget){.identity = 1, .hitbox = 2, .hp = 1, .x = 40, .y = 120};
+    cursor = 0;
+    CHECK(SotnSpellTarget_SelectAngle(one, exe, 100, 120, 0, 0x280, &cursor, &selected) &&
+          selected == SDL_MAX_UINT16 && !one[9].flags);
+    CHECK(SotnSpellTarget_SelectAngle(one, exe, 100, 120, 0x800, 0x280, &cursor, &selected) &&
+          selected == 9 && one[9].flags == 0x80000U);
+    // Only flag0x80000 marks: an unrelated flag0x8000 candidate is still unmarked.
+    SotnSpellTarget other[128] = {0};
+    other[11] =
+        (SotnSpellTarget){.flags = 0x8000, .identity = 1, .hitbox = 2, .hp = 1, .x = 40, .y = 120};
+    CHECK(SotnSpellTarget_SelectAngle(other, exe, 100, 120, 0x800, 0x280, &cursor, &selected) &&
+          selected == 11 && other[11].flags == 0x88000U);
+    cursor = -1;
+    CHECK(!SotnSpellTarget_SelectAngle(one, exe, 100, 120, 0x800, 0x280, &cursor, &selected));
     return true;
 }
 static bool Motion(SotnDataView dra, SotnDataView exe)
@@ -182,7 +270,8 @@ int main(void)
         Put16(exe + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
         Put16(exe + 0x22a10 + i * 2U, (Uint16)(i / 2U));
     }
-    bool ok = Targets() && Motion((SotnDataView){dra, 0x11000}, (SotnDataView){exe, 0x24000}) &&
+    bool ok = Targets() && AngleTargets((SotnDataView){exe, 0x24000}) &&
+              Motion((SotnDataView){dra, 0x11000}, (SotnDataView){exe, 0x24000}) &&
               Portal((SotnDataView){dra, 0x11000}, (SotnDataView){exe, 0x24000});
     SDL_free(dra);
     SDL_free(exe);

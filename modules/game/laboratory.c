@@ -1106,7 +1106,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
                    item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
-                   item == 176 || item == 136 || item == 137 || item == 138 || item == 1
+                   item == 176 || item == 136 || item == 137 || item == 138 || item == 1 ||
+                   item == 2
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1164,7 +1165,8 @@ static bool BindFood(SotnLaboratory *s)
                     (c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 ||
                      ((c->state.secondary.family == 53 || c->state.secondary.family == 46 ||
-                       c->state.secondary.family == 47 || c->state.secondary.family == 40) &&
+                       c->state.secondary.family == 47 || c->state.secondary.family == 40 ||
+                       c->state.secondary.family == 41) &&
                       c->state.secondary.own_item))
                 ? c->state.secondary.item
                 : 0;
@@ -5802,7 +5804,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      c->state.secondary.family == 13 || c->state.secondary.family == 12 ||
                      c->state.secondary.family == 34 || c->state.secondary.family == 30 ||
                      c->state.secondary.family == 37 || c->state.secondary.family == 47 ||
-                     c->state.secondary.family == 40 ||
+                     c->state.secondary.family == 40 || c->state.secondary.family == 41 ||
                      SotnWeaponSecondary_ShieldSpell(c->state.secondary.family))
             {
                 // w_037 coins draw DRA bank3 (the gold coin) with their parts' palettes.

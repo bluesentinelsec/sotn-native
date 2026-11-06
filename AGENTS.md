@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Monster vial 2](docs/player-monster-vial-2.md) now owns consumable kind130 item2 through
+w_041: the E0 vial (D_123000_8017B204 speed/rise cursors, rand lifetime, no collision) breaks in the
+air into the WFACTORY(56) E1 bat (raw-parent current equipId properties, own group), whose
+select_angle event runs SotnSpellTarget_SelectAngle (func_123000_8017A994: heading window, shared
+FLAG_UNK_80000 marks, program cursor vial_cursor = D_123000_8017B200) in the runtime; it homes via
+TargetHeading with a turn limit that only shrinks and flies until culled. Colour8 flash.
+
 Selected [Monster vial 1](docs/player-monster-vial-1.md) now owns consumable kind130 item1 (chain8)
 through w_040: the E0 vial (D_11C000_8017B540 speed cursor) breaks into WFACTORY(56) E1 monster
 (grows, SetWeaponProperties from its raw parent's CURRENT equipId: the emptied vial slot gives the
