@@ -2297,7 +2297,9 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
         !SotnActors_GetProgress(session->actors, &progress))
         return false;
     SotnCharacterState character = {0};
-    if (!SotnCharacter_Get(session->character, &character, NULL))
+    SotnFamiliarProgress familiars = {0};
+    if (!SotnCharacter_Get(session->character, &character, NULL) ||
+        !SotnCharacter_GetFamiliars(session->character, &familiars, NULL))
         return false;
     Uint64 playtime_ticks = 0;
     if (!SotnPlaytime_Ticks(session->playtime, &playtime_ticks))
@@ -2310,7 +2312,8 @@ static bool SaveState(SotnLaboratory *session, SotnSaveState *out)
                            .ticks = playtime_ticks,
                            .player_random = player.random,
                            .actor_random = progress.random,
-                           .combat_random = progress.combat_random};
+                           .combat_random = progress.combat_random,
+                           .familiars = familiars};
     return true;
 }
 
@@ -6184,7 +6187,9 @@ static bool RestoreCharacterAt(SotnLaboratory *session, SotnSaveState state,
     if (retained)
         clock = *retained;
     if (!SotnCharacter_SetPlaytime(session->character, clock) ||
-        !SotnCharacter_Restore(session->character, c) || !ApplyCharacter(session) ||
+        !SotnCharacter_Restore(session->character, c) ||
+        !SotnCharacter_RestoreFamiliars(session->character, &state.familiars) ||
+        !ApplyCharacter(session) ||
         !SotnPlayer_Restore(session->player, c->hp, state.player_random))
         return false;
     session->playtime = clock;

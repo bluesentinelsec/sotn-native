@@ -57,6 +57,10 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
+3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
+restores them before InitializeFamiliar. Older "v9/v10" notes describe v11's other fields.
+
 Selected [Alucart set](docs/player-alucart-set.md): Alucart sword168 runs w_043 descriptor1 (no
 special), Alucart mail89 is plain armor; IsAlucart (sword+shield167 in hands, mail in armor) adds
 LCK30 before the cap and renames the inventory header. CalcAttack's Shield rod4 +5 beside a

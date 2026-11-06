@@ -173,8 +173,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   **Ordinary relic-menu activation remains disabled.** Saved familiar records, remaining
   general audio/cutscene lifecycle, whole-pass rollback and
   integrated acceptance must finish before enabling it. Seven signed-word character
-  records already receive actual raw enemy rewards and menu load counts; the existing
-  v9 snapshot remains unchanged and does not persist them. Other familiar owners
+  records already receive actual raw enemy rewards and menu load counts, and ordinary v11
+  saves persist them. Other familiar owners
   and Sword Brothers39 remain unavailable. Supplied resource/card/item/health/clock
   fixtures remain separate from ordinary selection, acquisition, routes and console proof.
 - [ ] **Shared runtime and presentation:** finish real factory/entity/primitive/

@@ -42,7 +42,8 @@ static bool Valid(SotnSaveState state)
     const bool save_room = SotnStageProfile_SaveRoom(state.stage, state.room);
     if (!save_room || state.character.hp == 0 || state.ticks > 99999ULL * 3600 * 60)
         return SDL_SetError("Save requires a living character in a supported native save room");
-    return SotnCharacter_Validate(&state.character) && SotnWorld_Validate(&state.world);
+    return SotnCharacter_Validate(&state.character) && SotnWorld_Validate(&state.world) &&
+           SotnFamiliarProgress_Validate(&state.familiars);
 }
 static void WriteCharacter(Uint8 *p, const SotnCharacterState *s)
 {
@@ -97,7 +98,7 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
         return false;
     Uint8 record[SOTN_SAVE_BYTES] = {0};
     SDL_memcpy(record, "SOTNNSAV", 8);
-    Put32(record + 8, 10);
+    Put32(record + 8, 11);
     Put32(record + 12, SOTN_SAVE_BYTES);
     Put32(record + 16, 0x67);
     Put32(record + 20, state.room);
@@ -120,6 +121,13 @@ bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity)
     record[3624] = state.world.game_clear;
     Put32(record + 3628, state.world.cutscenes_seen);
     Put32(record + 3632, state.character.muramasa_blood);
+    // v11: the seven g_Status.statsFamiliars records (level, EXP, menu loads).
+    for (Uint32 i = 0; i < SOTN_FAMILIAR_COUNT; ++i)
+    {
+        Put32(record + 3636 + i * 12U, (Uint32)state.familiars.records[i].level);
+        Put32(record + 3640 + i * 12U, (Uint32)state.familiars.records[i].experience);
+        Put32(record + 3644 + i * 12U, (Uint32)state.familiars.records[i].loads);
+    }
     Put32(record + SOTN_SAVE_BYTES - 4, Checksum(record, SOTN_SAVE_BYTES - 4));
     SDL_memcpy(bytes, record, sizeof(record));
     return true;
@@ -162,6 +170,8 @@ static bool Legacy(const Uint8 *p, Uint32 version, SotnSaveState *out)
             if (state.character.laboratory_items[i / 8] & (1U << (i & 7)))
                 state.world.flags[0x100 + (0xf8 + i) / 8] |= (Uint8)(1U << ((0xf8 + i) & 7));
     }
+    if (!SotnFamiliarProgress_Init(&state.familiars))
+        return false;
     if (!Valid(state))
         return false;
     *out = state;
@@ -176,7 +186,8 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         return SDL_SetError("Save is not a native record; PS1 memory cards are unsupported");
     const Uint32 version = Read32(bytes + 8);
     if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 &&
-        version != 6 && version != 7 && version != 8 && version != 9 && version != 10)
+        version != 6 && version != 7 && version != 8 && version != 9 && version != 10 &&
+        version != 11)
         return SDL_SetError("Save version %u is unsupported; explicit migration is required",
                             version);
     const size_t expected = version >= 4   ? SOTN_SAVE_BYTES
@@ -203,10 +214,11 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         {
             if (!Zeroes(bytes, 3442, 3448) || !Zeroes(bytes, 3478, 3480) ||
                 !Zeroes(bytes,
-                        version >= 10  ? 3636U
-                        : version >= 9 ? 3632U
-                        : version >= 8 ? 3625U
-                                       : 3612U,
+                        version >= 11   ? 3636U + SOTN_FAMILIAR_COUNT * 12U
+                        : version >= 10 ? 3636U
+                        : version >= 9  ? 3632U
+                        : version >= 8  ? 3625U
+                                        : 3612U,
                         4092) ||
                 (version >= 9 && !Zeroes(bytes, 3625, 3628)))
                 return SDL_SetError("Saved world contains unsupported reserved state");
@@ -223,6 +235,13 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
                 // v10 adds Muramasa's g_Status.D_80097C40; v9 and earlier migrate to zero.
                 if (version >= 10)
                     state.character.muramasa_blood = Read32(bytes + 3632);
+                // v11 adds the familiar records; v10 and earlier migrate to fresh records.
+                if (version >= 11)
+                    for (Uint32 i = 0; i < SOTN_FAMILIAR_COUNT; ++i)
+                        state.familiars.records[i] =
+                            (SotnFamiliarStats){(Sint32)Read32(bytes + 3636 + i * 12U),
+                                                (Sint32)Read32(bytes + 3640 + i * 12U),
+                                                (Sint32)Read32(bytes + 3644 + i * 12U)};
             }
         }
         else
@@ -241,6 +260,8 @@ bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out)
         if (version >= 6)
             SDL_memcpy(state.world.relics, bytes + 3448, SOTN_RELICS);
     }
+    if (version < 11 && !SotnFamiliarProgress_Init(&state.familiars))
+        return false;
     if (version < 6)
     {
         state.world.relics[SOTN_RELIC_CUBE] = 3;

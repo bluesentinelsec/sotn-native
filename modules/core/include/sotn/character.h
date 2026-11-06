@@ -64,14 +64,14 @@ typedef struct SotnCharacter SotnCharacter;
 bool SotnCharacter_GetFamiliars(const SotnCharacter *character, SotnFamiliarProgress *progress,
                                 Uint16 *selected);
 /** @brief Restore all seven validated records, retaining current selection and ordinary character.
- * This is a separate progression boundary; existing v9 save records remain unchanged. */
+ * This is a separate progression boundary; Continue restores v11 saved records through it. */
 bool SotnCharacter_RestoreFamiliars(SotnCharacter *character, const SotnFamiliarProgress *progress);
 /** @brief Restore actual familiar records and selection atomically at an engine/session boundary.
  * @param character Actual destination owner. @param progress Actual validated seven records.
  * @param selected Original identity0..7, bound separately to an owned card and native runtime.
  * @return Success or SDL error preserving destination on failure. Does not increment loads,
  * grant a card, change ordinary character/resources/RNG or initialize an entity.
- * Menu changes use SelectFamiliar instead. Existing v9 saves remain unchanged. */
+ * Menu changes use SelectFamiliar instead. Ordinary v11 saves persist the records. */
 bool SotnCharacter_RestoreFamiliarState(SotnCharacter *character,
                                         const SotnFamiliarProgress *progress, Uint16 selected);
 /** @brief Commit an actual successful native menu selection/load, after resource binding.

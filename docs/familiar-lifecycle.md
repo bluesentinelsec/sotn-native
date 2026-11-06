@@ -66,9 +66,9 @@ increments once. Failed candidate construction preserves the departing owners.
 Audio is prepared for the actual destination stage; full CD bookmark/queue continuity
 and general dialogue/cutscene sharing remain unfinished.
 
-Fresh boot/Continue uses active saved card bits and default familiar records when the
-legacy format supplies none. Existing v9 bytes and reserved-zero checks remain unchanged:
-they still do not persist familiar records. In-memory stage handoff is separate from
+Fresh boot/Continue uses active saved card bits and the saved familiar records: ordinary v11
+saves persist all seven records ([native saves](native-saves.md)), and v10 or older records
+migrate to the default level-1 records. In-memory stage handoff is separate from
 ordinary save/Continue progression. Native checks cover two actual session commits
 between Laboratory/Marble Gallery, all21 record words, an actual raw-reward API update,
 no extra load/callback/game-clock advance, cached-none/reselection, real rendering and

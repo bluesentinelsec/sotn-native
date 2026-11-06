@@ -5,7 +5,7 @@
 #include <sotn/character.h>
 #include <sotn/world.h>
 
-/** @brief Version-ten ordinary native save, without transient actors or asset bytes. */
+/** @brief Version-eleven ordinary native save, without transient actors or asset bytes. */
 typedef struct SotnSaveState
 {
     SotnCharacterState character;
@@ -14,6 +14,8 @@ typedef struct SotnSaveState
     Uint16 stage; /**< Original stage identity; legacy records migrate explicitly to Laboratory. */
     Uint64 ticks;
     Uint32 player_random, actor_random, combat_random;
+    /** Original g_Status.statsFamiliars (v11); earlier records migrate to level1/EXP0/loads0. */
+    SotnFamiliarProgress familiars;
 } SotnSaveState;
 
 enum
@@ -31,8 +33,9 @@ enum
 bool SotnSave_Encode(SotnSaveState state, Uint8 *bytes, size_t capacity);
 /** @brief Validate size, version, region, checksum, reserved fields, and supported state.
  * @param bytes Borrowed record. @param size SOTN_SAVE_BYTES, SOTN_SAVE_V3_BYTES, or
- * SOTN_SAVE_LEGACY_BYTES for explicit v1..v9 migration (v9 and earlier
- * restore Muramasa's blood counter as zero).
+ * SOTN_SAVE_LEGACY_BYTES for explicit v1..v10 migration (v9 and earlier
+ * restore Muramasa's blood counter as zero; v10 and earlier initialize the seven familiar
+ * records to level1/EXP0/loads0).
  * @param out Receives copied state, unchanged on failure. @return Success, or false with
  * SDL_GetError(). Unknown versions require explicit migration and are rejected. */
 bool SotnSave_Decode(const Uint8 *bytes, size_t size, SotnSaveState *out);

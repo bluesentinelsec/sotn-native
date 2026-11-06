@@ -23,7 +23,7 @@ supported state bounds. Failed loads leave output and files unchanged. Unknown
 versions require explicit migration; application VERSION does not determine save
 compatibility. The checksum detects corruption, not malicious modification.
 
-## Version 10
+## Version 11
 
 New writes use a 4096-byte little-endian record. Native struct layout, padding,
 host pointers, artwork, and runtime tables are never serialized.
@@ -33,7 +33,7 @@ completion-word/skip behavior remains separate integration work.
 | Offset | Value |
 | --- | --- |
 | 0 | Eight-byte magic `SOTNNSAV` |
-| 8 | 32-bit format version, 10 |
+| 8 | 32-bit format version, 11 |
 | 12 | 32-bit record length, 4096 |
 | 16 | 32-bit supported US reference marker |
 | 20 | 32-bit stage-local save-room ID |
@@ -65,7 +65,8 @@ completion-word/skip behavior remains separate integration work.
 | 3625–3627 | Reserved zero bytes |
 | 3628 | 32-bit original cutscene-completion word |
 | 3632 | 32-bit Muramasa blood counter (original `g_Status.D_80097C40`) |
-| 3636–4091 | Reserved zero bytes |
+| 3636–3719 | Seven familiar records (original `g_Status.statsFamiliars`): 32-bit level, EXP and menu load count each, in identity order 1..7 |
+| 3720–4091 | Reserved zero bytes |
 | 4092 | IEEE CRC-32 over bytes 0–4091 |
 
 Inventory excludes equipped copies. Counts, equipment/resource/stat bounds, order
@@ -90,6 +91,14 @@ execution state are recreated. Saving requires a living character in Laboratory
 rooms 23/24/25, first Entrance rooms 25/26/27, later Entrance rooms 22/23/24, Marble Gallery rooms 31/32, Outer Wall rooms 14/17, or Library room 14. This is an ordinary checkpoint save, not a save state.
 
 ## Explicit migration
+
+Version 10 retains every field above except the familiar records; its bytes 3636–4091 must
+remain zero, and migration initializes all seven records to level 1, EXP 0 and load count 0,
+as a fresh game does. The original keeps those records in the memory-card status block, so v11
+stores them to keep familiar levels (the Sword familiar's level-50 weapon and its attack
+bonus depend on them) across Continue. Records must keep the original level = EXP/100 + 1,
+EXP 0..9899 and loads 0..9999. Continue restores them before the familiar owner initializes,
+which then keeps them with the active card's selection.
 
 Version 9 retains every field above except the Muramasa counter; its bytes 3632–4091
 must remain zero, and migration restores the counter as zero. The original keeps the
@@ -118,7 +127,7 @@ at 3444, with zero padding at 3443. Version 7 migrates those fields to original
 event 6 and converts seconds to HHMMSS without modifying the source file. Other
 event records remain zero because those formats never stored them. Version 6
 retains its relic bytes at 3448–3477; versions 4/5 require that region to be zero.
-The retired fields must be zero in new v7/v8/v9/v10 records. Existing slot paths and the
+The retired fields must be zero in new v7..v11 records. Existing slot paths and the
 4096-byte file size remain unchanged.
 
 
@@ -146,13 +155,13 @@ stats 6, empty body equipment/inventory with identity order, zero EXP/character
 RNG, and no permanent pickup/world progress. Version 1 supplies zero gameplay RNGs.
 
 Reading a legacy save never changes its file. The next successful ordinary save
-writes v10 through the checked replacement path. Unknown formats fail explicitly.
+writes v11 through the checked replacement path. Unknown formats fail explicitly.
 Native Android/iOS use SDL's sandbox preference path. Browser durable persistence
 still requires an adapter and reload tests. PS1 memory-card import/export, further
 stages, relic ability/menu integration, complete castle scripts, and full-game saves remain separate.
 
 Public tests use a build-local directory and synthetic state. They check independent
-v3/v4/v5/v6/v7/v8/v9/v10 checksums, stage/save-room roundtrips, all nine legacy migrations, malformed character
+v3/v4/v5/v6/v7/v8/v9/v10/v11 checksums, familiar-record bounds and v10 migration, stage/save-room roundtrips, all nine legacy migrations, malformed character
 and world state, reserved fields, length/version/checksum failures, fifteen slots,
 retained corrupt files, and safe replacement/failed rename. Private native LLDB
 checks use isolated local slots, never the user's real save bank. Private captures
