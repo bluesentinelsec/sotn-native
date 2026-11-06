@@ -798,7 +798,9 @@ static bool ApplyCharacter(SotnLaboratory *session)
                                                    : SotnResource_View(session->common).bytes;
         for (Uint32 i = 0; i < 4; ++i)
             colors[i] = (Uint16)(base[0x4000c + i * 2] | (Uint16)base[0x4000d + i * 2] << 8);
-        if (!SotnAlucard_CapePalette(session->dra, state.equipment[4], colors))
+        // The Crystal cloak52 queues a rotation job (0x410) whose first pass runs in TickCape.
+        if (state.equipment[4] != 52 &&
+            !SotnAlucard_CapePalette(session->dra, state.equipment[4], colors))
             return false;
         if (!session->palette_ready)
             SDL_memcpy(session->player_common, SotnResource_View(session->common).bytes,
@@ -889,14 +891,17 @@ static bool RestoreStatBuffs(SotnLaboratory *s, const SotnStatBuffs *retained)
 }
 static bool TickCape(SotnLaboratory *session)
 {
-    if (session->cape != 56)
+    if (session->cape != 56 && session->cape != 52)
         return true;
     Uint16 colors[4] = {0};
     for (Uint32 i = 0; i < 4; ++i)
         colors[i] = (Uint16)(session->player_common[0x4000c + i * 2] |
                              (Uint16)session->player_common[0x4000d + i * 2] << 8);
-    if (!SotnAlucard_TwilightTick(session->dra, colors, &session->cape_glow_target,
-                                  &session->cape_glow_delay))
+    if (!(session->cape == 52
+              ? SotnAlucard_CrystalTick(session->dra, colors, &session->cape_glow_target,
+                                        &session->cape_glow_delay)
+              : SotnAlucard_TwilightTick(session->dra, colors, &session->cape_glow_target,
+                                         &session->cape_glow_delay)))
         return false;
     for (Uint32 i = 0; i < 4; ++i)
     {

@@ -234,6 +234,39 @@ bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4])
     return true;
 }
 
+// dra/4A538.c:PAL_UNK_OP3 (palette rotation): each pass copies one source, then waits
+// (op >> 16) - 1 passes and advances, returning to the first source at the -1 terminator.
+bool SotnAlucard_CrystalTick(SotnDataView dra, Uint16 colors[4], Uint16 *cursor, Uint8 *delay)
+{
+    if (dra.bytes == NULL || dra.size < 0x3c10 || colors == NULL || cursor == NULL || delay == NULL)
+        return SDL_SetError("Crystal cloak palette requires bounded private data and a cursor");
+    const Uint32 address = Read32(dra.bytes + 0x3bb8 + 0x10 * 4U);
+    if (address < 0x800a0000 || address % 4 || address - 0x800a0000 > dra.size - 44)
+        return SDL_SetError("Crystal cloak palette operation is outside private DRA");
+    const Uint8 *op = dra.bytes + address - 0x800a0000;
+    const Uint32 kind = Read32(op), interval = kind >> 16;
+    Uint32 sources = 0;
+    while (sources < 8 && Read32(op + 12 + sources * 4U) != SDL_MAX_UINT32)
+        ++sources;
+    if ((kind & 0xffffU) != 3 || !interval || interval > 256 || Read32(op + 4) != 0x1006 ||
+        Read32(op + 8) != 4 || sources < 1 || sources == 8 || *cursor >= sources ||
+        *delay >= interval)
+        return SDL_SetError("Crystal cloak palette does not match its original rotation");
+    if (*delay)
+    {
+        --*delay;
+        return true;
+    }
+    const Uint32 source = Read32(op + 12 + *cursor * 4U);
+    if (source < 0x800a0000 || source % 2 || source - 0x800a0000 > dra.size - 8)
+        return SDL_SetError("Crystal cloak colors are outside private DRA");
+    for (Uint32 i = 0; i < 4; ++i)
+        colors[i] = Read16(dra.bytes + source - 0x800a0000 + i * 2U);
+    *delay = (Uint8)(interval - 1U);
+    *cursor = (Uint16)(*cursor + 1U == sources ? 0 : *cursor + 1U);
+    return true;
+}
+
 // dra/4A538.c:PAL_GLOW_ANIM, with the original one-component-step convergence.
 bool SotnAlucard_TwilightTick(SotnDataView dra, Uint16 colors[4], Uint16 *target, Uint8 *delay)
 {

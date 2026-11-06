@@ -112,6 +112,36 @@ int main(void)
     TestCharacter_Put32(dra + 0x3710, 0xfffffff0);
     const Uint16 retained = colors[0];
     CHECK(!SotnAlucard_TwilightTick(image, colors, &target, &delay) && colors[0] == retained);
+    // Crystal cloak 0x410 (PAL_UNK_OP3): each pass copies one source, waits (op >> 16) - 1
+    // passes, and wraps at the -1 terminator.
+    TestCharacter_Put32(dra + 0x3bb8 + 0x10 * 4, 0x800a3900);
+    TestCharacter_Put32(dra + 0x3900, 0x20003);
+    TestCharacter_Put32(dra + 0x3904, 0x1006);
+    TestCharacter_Put32(dra + 0x3908, 4);
+    TestCharacter_Put32(dra + 0x390c, 0x800a3a00);
+    TestCharacter_Put32(dra + 0x3910, 0x800a3a10);
+    TestCharacter_Put32(dra + 0x3914, SDL_MAX_UINT32);
+    for (Uint32 i = 0; i < 4; ++i)
+    {
+        dra[0x3a00 + i * 2] = (Uint8)(10 + i);
+        dra[0x3a01 + i * 2] = 0;
+        dra[0x3a10 + i * 2] = (Uint8)(20 + i);
+        dra[0x3a11 + i * 2] = 0;
+    }
+    Uint16 cursor = 0, cape[4] = {0};
+    delay = 0;
+    CHECK(SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[0] == 10 && cape[3] == 13 &&
+          cursor == 1 && delay == 1);
+    CHECK(SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[0] == 10 && delay == 0);
+    CHECK(SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[0] == 20 && cape[2] == 22 &&
+          cursor == 0 && delay == 1);
+    CHECK(SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && delay == 0);
+    CHECK(SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[1] == 11 && cursor == 1);
+    cursor = 2;
+    CHECK(!SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[1] == 11);
+    cursor = 0;
+    TestCharacter_Put32(dra + 0x3900, 0x20004);
+    CHECK(!SotnAlucard_CrystalTick(image, cape, &cursor, &delay) && cape[1] == 11);
     SotnInventoryRenderer_Destroy(r);
     SotnCharacter_Destroy(c);
     SDL_free(dra);
