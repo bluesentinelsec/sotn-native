@@ -5038,6 +5038,464 @@ static bool DynamiteRuntime(Uint16 hand)
     SDL_free(dra);
     return true;
 }
+// w_040: Monster vial 1's vial, monster, fireballs and burst with synthetic timelines (anim_0
+// loop, a 22-pose attack, fireball loop, ten-pose break, the one-pose vial and shrink loop),
+// frame-property hitboxes and the four throw speeds.
+static void VialTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        Put16(o + 0x724 + i * 4U, 2);
+        Put16(o + 0x726 + i * 4U, (Uint16)(6 + i) | 1U << 9);
+    }
+    Put16(o + 0x724 + 8 * 4U, 0);
+    Put16(o + 0x726 + 8 * 4U, 0);
+    for (Uint16 i = 0; i < 22; ++i)
+    {
+        Put16(o + 0x748 + i * 4U, (Uint16)(2 + i % 3));
+        Put16(o + 0x74a + i * 4U, (Uint16)((1 + i) | (i % 5) << 9));
+    }
+    Put16(o + 0x748 + 22 * 4U, 0xffff);
+    for (Uint16 i = 0; i < 8; ++i)
+    {
+        Put16(o + 0x7b8 + i * 4U, 1);
+        Put16(o + 0x7ba + i * 4U, (Uint16)(0x112 + i) | 3U << 9);
+    }
+    Put16(o + 0x7b8 + 8 * 4U, 0);
+    Put16(o + 0x7ba + 8 * 4U, 0);
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0x7dc + i * 4U, (Uint16)(1 + i % 2));
+        Put16(o + 0x7de + i * 4U, (Uint16)(0x1b + i) | 5U << 9);
+    }
+    Put16(o + 0x7dc + 9 * 4U, 0xffff);
+    Put16(o + 0x804, 128);
+    Put16(o + 0x806, 0x1a);
+    Put16(o + 0x808, 0xffff);
+    for (Uint16 i = 0; i < 13; ++i)
+    {
+        Put16(o + 0x80c + i * 4U, 2);
+        Put16(o + 0x80e + i * 4U, (Uint16)((0xe - i % 9) | (i % 4) << 9));
+    }
+    Put16(o + 0x80c + 13 * 4U, 0);
+    Put16(o + 0x80e + 13 * 4U, 5);
+    const Sint8 props[6][4] = {{0, 0, 0, 0},  {0, 1, 5, 17}, {-2, 7, 10, 11},
+                               {4, 1, 10, 4}, {0, 0, 3, 3},  {-63, -63, 0, 0}};
+    SDL_memcpy(o + 0x844, props, sizeof(props));
+    const Uint32 speeds[4] = {0xe000, 0x10000, 0xc000, 0x12000};
+    for (Uint16 i = 0; i < 4; ++i)
+        Put32(o + 0x85c + i * 4U, speeds[i]);
+}
+static bool VialRootTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    VialTables(o);
+    CHECK(SotnWeaponSecondary_Supported(40) && SotnWeaponSecondary_SupportedRole(40, 0) &&
+          SotnWeaponSecondary_SupportedRole(40, 3) && !SotnWeaponSecondary_SupportedRole(40, 4) &&
+          !SotnWeaponSecondary_RoleRows(40, 0) && !SotnWeaponSecondary_RoleRows(40, 1));
+    DynamiteRoom room = {.floor = 200, .left = 20, .right = 400, .ceiling = -1000};
+    SotnHandWeaponProgram program = {.secondary_counter = 6};
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 4, wall = k == 2 || k == 4, ceiling = k == 3,
+                   full = k == 5;
+        room.right = k == 2 ? 240 : 400;
+        room.left = k == 4 ? 180 : 20;
+        room.ceiling = ceiling ? 120 : -1000;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = 200 * 65536 + 0x1234,
+                                 .y = 140 * 65536 + 0x0f0f};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .hand = hand,
+                                       .family = 40,
+                                       .priority = 0x94,
+                                       .facing_left = left,
+                                       .free_factories = full ? 0 : 3,
+                                       .query = DynamiteQuery,
+                                       .query_context = &room};
+        // D_11C000_8017B540 %= 4 picks the speed, then advances.
+        const Sint32 cursor = program.secondary_counter % 4;
+        const Sint32 speed = (Sint32)Read16Test(o + 0x85c + (Uint32)cursor * 4U) |
+                             (Sint32)Read16Test(o + 0x85e + (Uint32)cursor * 4U) << 16;
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 7;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 7 && s.phase == 1 &&
+              s.bank == 0x8010U + hand * 2U && s.palette == 0x110U + hand * 0x18U &&
+              s.texture == 0x64U + hand * 2U && s.priority == 0x96 && s.flags == 0x08100000U &&
+              s.timeline == 0x804 && s.facing_left == left && s.y == 136 * 65536 + 0x0f0f &&
+              s.velocity_x == (left ? -speed : speed) && s.velocity_y == -0x28000 &&
+              e.use_ticks == 4 && program.secondary_counter == cursor + 1);
+        CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 40) && s.frame == 0x1a);
+        Uint16 updates = 0, bounces = 0, roofs = 0;
+        while (s.phase == 1 && updates < 300)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 7);
+            ++updates;
+            CHECK(s.velocity_y == before.velocity_y + 0x2800 || s.phase == 2 ||
+                  s.velocity_y == 0x10000);
+            if (s.phase == 2)
+            {
+                // Floor: top correction, the break animation, glass and the monster factory.
+                CHECK((s.y >> 16) == room.floor && s.timeline == 0x7dc && !s.pose && !s.remaining &&
+                      s.blend == 0x30 && e.sounds[0] == 0x619 && e.volume_sound &&
+                      e.volume == 0x50 && e.factory_count == !full &&
+                      (full || (e.factories[0] == (56U | (hand + 1U) << 12) &&
+                                e.factory_x[0] == s.x && e.factory_y[0] == s.y)));
+                break;
+            }
+            if ((before.velocity_x > 0) != (s.velocity_x > 0) && s.velocity_x)
+            {
+                CHECK(s.velocity_x == before.velocity_x / -2 &&
+                      (s.x >> 16) == (before.velocity_x < 0 ? room.left + 4 : room.right - 5));
+                ++bounces;
+            }
+            if (s.velocity_y == 0x10000 && before.velocity_y < 0)
+            {
+                CHECK((s.y >> 16) == room.ceiling + 9 && s.velocity_x == before.velocity_x / 2);
+                ++roofs;
+            }
+        }
+        CHECK(s.phase == 2 && (bounces > 0) == wall && (roofs > 0) == ceiling);
+        // The break plays to its END; the next callback retires the vial.
+        Uint16 frames = 0;
+        while (!s.removed && frames < 40)
+        {
+            CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 40));
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            ++frames;
+        }
+        CHECK(s.removed && frames == 14);
+    }
+    return true;
+}
+static bool VialMonsterTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    VialTables(o);
+    SotnHandWeaponProgram program = {0};
+    Uint16 hit = 2;
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool full = k == 2;
+        SotnWeaponSecondary s = {
+            .x = 150 * 65536 + 0x111, .y = 190 * 65536 + 0x222, .facing_left = (k >> 1) != 0};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .camera_x = 20,
+                                       .camera_y = 8,
+                                       .hand = hand,
+                                       .family = 40,
+                                       .role = 1,
+                                       .parent_exists = true,
+                                       .parent_bank = (Uint16)(0x8010U + hand * 2U),
+                                       .parent_texture = (Uint16)(0x64U + hand * 2U),
+                                       .parent_palette = (Uint16)(0x110U + hand * 0x18U),
+                                       .parent_priority = 0x96,
+                                       .free_factories = full ? 0 : 3};
+        const bool left = !s.facing_left;
+        Uint32 rng = 50U + k, check = rng;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.facing_left == left && s.bank == in.parent_bank &&
+              s.texture == in.parent_texture && s.palette == in.parent_palette &&
+              s.priority == 0x94 && s.flags == 0x08000000U && (s.draw_flags & 3U) == 3 &&
+              !s.scale_x && !s.scale_y && s.pivot_y == 0x16 && s.y == 168 * 65536 + 0x222 &&
+              s.timeline == 0x724 && s.frame == 6 && s.hitbox_y == 1 && s.hitbox_height == 17 &&
+              e.clut && e.clut_palette == 0x110U + hand * 0x18U && e.clut_color == 10 &&
+              !e.clut_mask && e.clut_add == 0x199d);
+        // Growth: scale +4 to 0x100 (64 updates), then properties and the attack animation.
+        Uint16 grow = 1;
+        while (s.phase == 1)
+        {
+            in.game_timer = grow;
+            e = (SotnWeaponSecondaryEvents){0};
+            const Sint16 scale = s.scale_x;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            ++grow;
+            CHECK(e.clut && e.clut_add == ((in.game_timer >> 1) % 2U ? 0x039c : 0x199d));
+            if (s.phase == 2)
+            {
+                (void)SotnCombat_Random(&check);
+                CHECK(scale == 0xfc && s.scale_x == 0x100 && s.scale_y == 0x100 &&
+                      s.timeline == 0x748 && e.properties && s.hitbox_state == 2 && s.frame == 1 &&
+                      !s.hitbox_x && s.hitbox_width == 0);
+                break;
+            }
+            CHECK(s.scale_x == scale + 4 && s.scale_y == s.scale_x && !e.properties);
+        }
+        CHECK(grow == 65 && rng == check);
+        // Attack: fireballs on poses 0xB/0xF/0x13 when their last update starts (EXPLODE_B only
+        // for a created factory), the pain cry at END.
+        Uint16 fires = 0, explode = 0, updates = 0;
+        while (s.phase == 2 && updates < 200)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            ++updates;
+            const bool fire = before.remaining == 1 &&
+                              (before.pose == 0xb || before.pose == 0xf || before.pose == 0x13);
+            CHECK(e.factory_count == (fire && !full) &&
+                  (!e.factory_count || e.factories[0] == (62U | (hand + 1U) << 12)));
+            fires += fire;
+            explode += e.sounds[0] == 0x655;
+            if (s.phase == 3)
+                CHECK(before.remaining < 0 && s.timeline == 0x80c &&
+                      (e.sounds[0] == 0x6e7 || e.sounds[1] == 0x6e7));
+            // Frame-property hitboxes follow the pose.
+            const Uint8 *props =
+                o + 0x844 + ((Read16Test(o + s.timeline + s.pose * 4U + 2U) >> 9) & 0x7fU) * 4U;
+            CHECK(s.hitbox_x == (Sint8)props[0] && s.hitbox_y == (Sint8)props[1] &&
+                  s.hitbox_width == props[2] && s.hitbox_height == props[3]);
+        }
+        CHECK(s.phase == 3 && fires == 3 && explode == (full ? 0 : 3));
+        // Shrink: the burst at scale0x40, -4 per update from pose5, retirement below zero.
+        Uint16 bursts = 0, shrink = 0;
+        while (!s.removed && shrink < 400)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            ++shrink;
+            bursts += e.factory_count;
+            CHECK(e.factory_count == (before.scale_x == 0x40 && !full));
+            if (s.removed)
+            {
+                CHECK(before.scale_x - (before.pose >= 5 ? 4 : 0) < 0 && !e.clut);
+                break;
+            }
+            CHECK(s.scale_x == before.scale_x - (before.pose >= 5 ? 4 : 0) && e.clut);
+        }
+        CHECK(s.removed && bursts == !full);
+    }
+    return true;
+}
+static bool VialChildrenTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    VialTables(o);
+    SotnHandWeaponProgram program = {0};
+    Uint16 hit = 2;
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        CHECK(SotnWeaponSecondary_Tick(
+                  &s, &program,
+                  (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)}, .family = 40, .role = 2},
+                  &rng, &e) &&
+              s.removed && rng == 3 && !e.properties);
+    }
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        const bool left = k & 1U;
+        SotnWeaponSecondary s = {
+            .x = 100 * 65536 + 0x55, .y = 90 * 65536 + 0x66, .facing_left = left};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .hand = (Uint16)(k >> 1),
+                                       .family = 40,
+                                       .role = 2,
+                                       .parent_exists = true,
+                                       .parent_bank = 0x8012,
+                                       .parent_texture = 0x66,
+                                       .parent_palette = 0x128,
+                                       .parent_priority = 0x90};
+        Uint32 rng = 11U + k, check = rng;
+        (void)SotnCombat_Random(&check);
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.bank == 0x8012 && s.texture == 0x66 && s.palette == 0x128 &&
+              s.priority == 0x8e && s.flags == 0x08000000U && e.properties &&
+              s.x == (100 + (left ? 0x18 : -0x18)) * 65536 + 0x55 && s.y == 80 * 65536 + 0x66 &&
+              s.velocity_x == (left ? 0x28000 : -0x28000) && s.timeline == 0x7b8 &&
+              s.frame == 0x112 && s.hitbox_x == 4 && s.hitbox_width == 10);
+        for (Uint16 t = 0; t < 5; ++t)
+        {
+            const Sint32 x = s.x;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && !s.removed &&
+                  s.x == x + s.velocity_x && s.frame == 0x112 + ((t + 1) % 8));
+        }
+        s.hit_flags = 1;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.removed);
+        // The burst: its parent's sprite words, +2 priority, additive, END retirement.
+        SotnWeaponSecondary b = {.x = 100 * 65536, .y = 90 * 65536};
+        in.role = 3;
+        CHECK(SotnWeaponSecondary_Tick(&b, &program, in, &rng, &e) && b.phase == 1 &&
+              b.bank == 0x8012 && b.priority == 0x92 && b.flags == 0x08100000U &&
+              b.timeline == 0x7dc && b.blend == 0x30 && b.y == 106 * 65536);
+        Uint16 frames = 0;
+        while (!b.removed && frames < 40)
+        {
+            CHECK(SotnWeaponSecondary_Animate(&b, (SotnDataView){o, sizeof(o)}, 40));
+            CHECK(SotnWeaponSecondary_Tick(&b, &program, in, &rng, &e));
+            ++frames;
+        }
+        CHECK(b.removed && frames == 14);
+    }
+    return true;
+}
+// Monster vial 1 through the shared runtime: blueprint50's vial (own item1) breaks into the
+// WFACTORY(56) monster (17..31, raw parent the vial), which breathes three WFACTORY(62)
+// fireballs and requests the WFACTORY(70) burst (17..47); the monster's properties read its
+// emptied raw parent slot (item0) and keep func_80118894's group; every monster callback
+// writes its palette word; all retire.
+static bool VialRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 1, 8, 40, 130, 0, 0, 0);
+    dra[0x500 + 18] = 0x24; // Empty hand item0 (the monster's properties).
+    Uint8 *record = dra + 0x500 + 1 * 52;
+    record[18] = 0x60;
+    record[19] = 50;
+    record[21] = 0;
+    record[22] = 8;
+    record[25] = 1;
+    const Uint8 blueprints[][6] = {{50, 0, 1, 0xc1, 0, 0x26},
+                                   {56, 1, 1, 0xc1, 0, 6},
+                                   {62, 2, 1, 0xc1, 0, 6},
+                                   {70, 3, 1, 0xc1, 0, 1}};
+    for (Uint16 i = 0; i < 4; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 2] = 17;
+    dra[0xd4b9 + 2] = 47;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    VialTables(weapons + 40U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment vial = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 1, &vial) && vial.kind == 130 && vial.family == 40 &&
+          vial.blueprint == 50 && vial.chain_limit == 8 && vial.consumable &&
+          vial.animation == 0x60);
+    record[22] = 1;
+    CHECK(!SotnEquipment_Read(actors->dra, 1, &vial));
+    record[22] = 8;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {40, 40},
+                              .weapon_bound = {true, true},
+                              .food_collision = DawnFloor(),
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 130 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x60}}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand != 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestThrown(
+              r, source, 50U | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16, 1, &allocated) &&
+          allocated);
+    Uint16 counts[4] = {0}, flashes = 0, ticks = 0, first_root = 0;
+    Uint16 inherited = 0, empty = 0;
+    bool born[SOTN_BAT_RUNTIME_SLOTS] = {0}, second = false;
+    Uint8 rolled[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    for (Uint16 t = 0; t < 900; ++t)
+    {
+        in.game_timer = t;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        bool any = false, monster_alive = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || !c->initialized)
+            {
+                born[i] = false;
+                continue;
+            }
+            any = true;
+            const Uint16 role = c->kind & 15U;
+            CHECK(c->state.secondary.family == 40 && SotnBatRuntime_SecondaryValid(c, i) &&
+                  (c->kind >= 0xf0) == (hand != 0) && !c->primitive_count);
+            counts[role] += !born[i];
+            born[i] = true;
+            if (!role)
+            {
+                CHECK(i <= 15 && c->state.secondary.own_item && c->state.secondary.item == 1 &&
+                      !c->group);
+                if (!first_root)
+                    first_root = i;
+            }
+            else if (role == 1)
+            {
+                CHECK(i <= 15);
+                monster_alive = true;
+                // At its growth's end it copies its raw parent slot's current equip id: the
+                // first monster finds the second vial reborn in its emptied slot (item1); the
+                // second finds its own vial's slot empty (the empty hand). Its group is its own.
+                if (c->state.secondary.motion.phase == 2 && !rolled[i])
+                {
+                    rolled[i] = 1;
+                    const SotnBatRuntimeChild *p =
+                        &r->children[c->state.secondary.parent_slot - 16U];
+                    const Uint16 expect =
+                        p->weapon_secondary && p->state.secondary.own_item ? 1 : 0;
+                    CHECK(c->state.secondary.item == expect && c->group >= 3 && c->group <= 6 &&
+                          c->state.secondary.attack.equipment == expect);
+                    inherited += expect == 1;
+                    empty += expect == 0;
+                }
+            }
+            else
+                CHECK(role == 3 || (c->group >= 3 && c->group <= 6));
+        }
+        flashes += monster_alive && r->clut_count >= 1 && r->clut[0].color == 10 &&
+                   r->clut[0].palette == 0x110U + hand * 0x18U;
+        // A second vial thrown while the first monster grows is born into the first vial's
+        // emptied slot.
+        for (Uint16 i = 1; !second && first_root && i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            if ((r->children[i].kind & 15U) == 1 && r->children[i].weapon_secondary &&
+                r->children[i].state.secondary.motion.scale_x == 0xc0 &&
+                !r->children[first_root].kind)
+            {
+                bool again = false;
+                CHECK(
+                    SotnBatRuntime_RequestThrown(
+                        r, source, 50U | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16, 1, &again) &&
+                    again);
+                second = true;
+            }
+        if (!any && t > 3)
+            break;
+    }
+    CHECK(counts[0] == 2 && counts[1] == 2 && counts[2] == 6 && counts[3] == 2 && second &&
+          inherited == 1 && empty == 1 && flashes > 100 && ticks < 900);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // The Jewel sword's special198 through the shared runtime: slot16's pose1 requests 0x3A
 // (descriptor-1 = 1) whose sparkles lease sixteen rows, roll the coin pattern and request 0x40
 // coins; each coin bounces, lands and pays one gold when the player touches it.
@@ -11016,8 +11474,9 @@ int main(void)
                    BlueKnucklesTest() && KnuckleRuntime(136, 0) && KnuckleRuntime(136, 1) &&
                    KnuckleRuntime(137, 0) && KnuckleRuntime(137, 1) && DynamiteTest() &&
                    DynamiteFlameTest() && DynamiteRuntime(0) && DynamiteRuntime(1) &&
-                   IronRuntime(0) && IronRuntime(1) && IronThunderRuntime() && IronSpellTest() &&
-                   IronSwordTest() && HeraldSpellTest() && HeraldSwirlTest() &&
+                   VialRootTest() && VialMonsterTest() && VialChildrenTest() && VialRuntime(0) &&
+                   VialRuntime(1) && IronRuntime(0) && IronRuntime(1) && IronThunderRuntime() &&
+                   IronSpellTest() && IronSwordTest() && HeraldSpellTest() && HeraldSwirlTest() &&
                    HeraldSpriteTest() && HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() &&
                    DarkRockTest() && DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() &&
                    MedusaLaserTest() && MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) &&

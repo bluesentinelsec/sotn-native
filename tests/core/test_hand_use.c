@@ -166,6 +166,11 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 136, 0, 46, 134, 0xd2, 0, 0, 0);
     f->dra[0x500 + 136 * 52 + 19] = 50;
     f->dra[0x500 + 136 * 52 + 22] = 1;
+    // Kind130 Monster vial 1 (blueprint50, weapon40, chain8) is consumed.
+    Item(f->dra, 1, 8, 40, 130, 0x60, 0, 0, 0);
+    f->dra[0x500 + 1 * 52 + 19] = 50;
+    f->dra[0x500 + 1 * 52 + 22] = 8;
+    f->dra[0x500 + 1 * 52 + 25] = 1;
     // Kind130 Dynamite138 (blueprint50, weapon47) is consumed.
     Item(f->dra, 138, 8, 47, 130, 0x60, 0, 0, 0);
     f->dra[0x500 + 138 * 52 + 19] = 50;
@@ -316,7 +321,7 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     // Runesword143 binds through its kind129 throwing owner, not the ordinary hand context.
     // Alucard shield16 binds without it too (its family52 owner predates the shared hand).
     CHECK(item == 16 || item == 18 || item == 143 || item == 119 || item == 133 || item == 163 ||
-          item == 164 || item == 165 || item == 136 || item == 137 || item == 138 ||
+          item == 164 || item == 165 || item == 136 || item == 137 || item == 138 || item == 1 ||
           !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
@@ -815,7 +820,7 @@ static bool Runesword(Fixture *f, Uint16 item)
                           : item == 164              ? 0x1034U | 2U << 16
                           : item == 165              ? 0x1044U
                                                      : 0x1032U;
-    const Uint8 limit = item == 133 ? 2 : item == 163 || item == 164 ? 3 : 1;
+    const Uint8 limit = item == 133 ? 2 : item == 163 || item == 164 ? 3 : item == 1 ? 8 : 1;
     for (Uint16 k = 0; k < 2; ++k)
     {
         CHECK(Create(f, item, 1, 2, true));
@@ -834,11 +839,12 @@ static bool Runesword(Fixture *f, Uint16 item)
                   f->p->afterimage_timer15 != 0x20);
         else
             CHECK(f->factories == 1 && f->item == item && f->packed == packed &&
-                  f->roll_count == 1 && p.throwing.used && p.throwing.keep == (item != 138) &&
-                  f->consumed == (item == 138) && p.throwing_grunt == 0x6f2 &&
-                  f->p->animation.id == (item == 133 || item == 138 ? 0x60
-                                         : kind134                  ? 0xd2
-                                                                    : 0x5d) &&
+                  f->roll_count == 1 && p.throwing.used &&
+                  p.throwing.keep == (item != 138 && item != 1) &&
+                  f->consumed == (item == 138 || item == 1) && p.throwing_grunt == 0x6f2 &&
+                  f->p->animation.id == (item == 133 || item == 138 || item == 1 ? 0x60
+                                         : kind134                               ? 0xd2
+                                                                                 : 0x5d) &&
                   f->p->equipment[0] == item && (f->p->afterimage_timer15 == 0x20) == kind134);
     }
     return true;
@@ -1121,14 +1127,15 @@ int main(void)
          Roll(f, 7, false) && BackForward(f) && KindFourSpecial(f) && ShieldRodUse(f) &&
          FistCombo(f) && QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) &&
          Punches(f) && Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) &&
-         Runesword(f, 136) && Runesword(f, 137) && Runesword(f, 138) && Runesword(f, 119) &&
-         HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) &&
-         Runesword(f, 165) && Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) &&
-         SwordOfDawn(f) && Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
-         Combo(f, 12, 210, 10) && Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) &&
-         Combo(f, 10, 208, 30) && Combo(f, 13, 211, 30) && Combo(f, 14, 212, 40) &&
-         Combo(f, 15, 213, 50) && ShieldRodAttack(f) && Combo(f, 16, 214, 20) &&
-         ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
+         Runesword(f, 136) && Runesword(f, 137) && Runesword(f, 138) && Runesword(f, 1) &&
+         Runesword(f, 119) && HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) &&
+         Runesword(f, 164) && Runesword(f, 165) && Muramasa(f) && CombatKnife(f) &&
+         AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) && Combo(f, 5, 203, 10) &&
+         Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) && Combo(f, 12, 210, 10) &&
+         Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) && Combo(f, 10, 208, 30) &&
+         Combo(f, 13, 211, 30) && Combo(f, 14, 212, 40) && Combo(f, 15, 213, 50) &&
+         ShieldRodAttack(f) && Combo(f, 16, 214, 20) && ComboWith(f, 4, 5, 203, 10) &&
+         ComboWith(f, 4, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

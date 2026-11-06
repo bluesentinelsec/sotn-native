@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Monster vial 1](docs/player-monster-vial-1.md) now owns consumable kind130 item1 (chain8)
+through w_040: the E0 vial (D_11C000_8017B540 speed cursor) breaks into WFACTORY(56) E1 monster
+(grows, SetWeaponProperties from its raw parent's CURRENT equipId: the emptied vial slot gives the
+empty hand's properties, own least-used group), WFACTORY(62) E2 fireballs (raw-parent check) and
+WFACTORY(70) E3 burst. Monster/fireballs run UpdateAnim with frame-property hitboxes in-callback
+(AnimateProps); the monster flashes colour10 every callback (r.clut now holds sixteen writes).
+
 Selected [Dynamite](docs/player-dynamite.md) now owns consumable kind130 item138 through w_047:
 the blueprint50 E0 root LoadImages D_14D000_8017A4A8 into the hand's weapon texture (session
 commit), rolls rand()&7 BEFORE AllocPrimitives(TILE,32) (a declined roll releases the rows reserved

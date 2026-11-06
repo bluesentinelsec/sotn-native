@@ -285,7 +285,7 @@ typedef struct SotnBatRuntime
     struct
     {
         Uint16 palette, color, mask, value;
-    } clut[4];
+    } clut[16];
     Uint8
         hand_shield; /**< Original retained unk48 word, updated by actual callbacks/replacement. */
     /** Weapon52's armed shield this pass: D_80097BF8 MP-regeneration hold, a kind1 eight-HP

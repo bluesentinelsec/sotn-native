@@ -1106,7 +1106,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
                    item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
-                   item == 176 || item == 136 || item == 137 || item == 138
+                   item == 176 || item == 136 || item == 137 || item == 138 || item == 1
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1164,7 +1164,7 @@ static bool BindFood(SotnLaboratory *s)
                     (c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 ||
                      ((c->state.secondary.family == 53 || c->state.secondary.family == 46 ||
-                       c->state.secondary.family == 47) &&
+                       c->state.secondary.family == 47 || c->state.secondary.family == 40) &&
                       c->state.secondary.own_item))
                 ? c->state.secondary.item
                 : 0;
@@ -5802,6 +5802,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      c->state.secondary.family == 13 || c->state.secondary.family == 12 ||
                      c->state.secondary.family == 34 || c->state.secondary.family == 30 ||
                      c->state.secondary.family == 37 || c->state.secondary.family == 47 ||
+                     c->state.secondary.family == 40 ||
                      SotnWeaponSecondary_ShieldSpell(c->state.secondary.family))
             {
                 // w_037 coins draw DRA bank3 (the gold coin) with their parts' palettes.
@@ -5817,20 +5818,22 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                 .texture_offset = w->texture,
                                                 .blend_mode = w->blend,
                                                 .facing_left = w->facing_left};
-                const SotnSpriteTransform t = {.rotation = (w->draw_flags & 4U) ? w->rotate : 0,
-                                               .scale_x = (w->draw_flags & 1U) ? w->scale_x : 256,
-                                               .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
-                                               // Weapon13 afterimages shade by entity opacity;
-                                               // ENTITY_MASK_R/G/B hold their channel at 128
-                                               // (weapon29's afterimages fade to red).
-                                               .opacity = (w->draw_flags & 8U) ? w->opacity : 128,
-                                               .tint =
-                                                   (w->draw_flags & 8U) && (w->draw_flags & 0x70U),
-                                               .red = (w->draw_flags & 0x10U) ? 128 : w->opacity,
-                                               .green = (w->draw_flags & 0x20U) ? 128 : w->opacity,
-                                               .blue = (w->draw_flags & 0x40U) ? 128 : w->opacity,
-                                               .executable = session->executable,
-                                               .sdk_rotation = true};
+                const SotnSpriteTransform t = {
+                    .rotation = (w->draw_flags & 4U) ? w->rotate : 0,
+                    .scale_x = (w->draw_flags & 1U) ? w->scale_x : 256,
+                    .scale_y = (w->draw_flags & 2U) ? w->scale_y : 256,
+                    // Weapon40's monster scales about rotPivotY.
+                    .pivot_y = c->state.secondary.family == 40 ? w->pivot_y : 0,
+                    // Weapon13 afterimages shade by entity opacity;
+                    // ENTITY_MASK_R/G/B hold their channel at 128
+                    // (weapon29's afterimages fade to red).
+                    .opacity = (w->draw_flags & 8U) ? w->opacity : 128,
+                    .tint = (w->draw_flags & 8U) && (w->draw_flags & 0x70U),
+                    .red = (w->draw_flags & 0x10U) ? 128 : w->opacity,
+                    .green = (w->draw_flags & 0x20U) ? 128 : w->opacity,
+                    .blue = (w->draw_flags & 0x40U) ? 128 : w->opacity,
+                    .executable = session->executable,
+                    .sdk_rotation = true};
                 const Uint16 bank = (Uint16)(w->bank & 0x7fffU);
                 // A zero ENTITY_SCALEX/Y collapses the sprite to nothing (shield spells' birth).
                 const bool collapsed =
