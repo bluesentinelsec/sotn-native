@@ -195,6 +195,14 @@ bool SotnActors_ReleaseFairyEffects(SotnActors *s, const SotnFairyEffectLease le
             s->primitives[leases[i].rows[row]] = (ActorPrimitive){0};
     return true;
 }
+bool SotnActors_MarkFamiliarTarget(SotnActors *s, Uint16 slot, Uint32 generation, Uint16 id)
+{
+    if (!s || slot >= SOTN_SWORD_TARGETS || !generation || !id ||
+        s->slots[slot].state.generation != generation || s->slots[slot].state.id != id)
+        return SDL_SetError("Familiar target mark lost its actual stage identity");
+    s->slots[slot].state.flags |= 0x80000U;
+    return true;
+}
 static Uint16 SwordTag(const SotnSwordLease *lease)
 {
     return (Uint16)(0x9000U | (Uint16)(lease->part << 8) | lease->slot);

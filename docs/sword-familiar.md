@@ -7,12 +7,12 @@ trail, the level-90 halo, the room-event entity and the narrative sound cursor. 
 UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 
 The native session owns it through the familiar load boundary (see [Session
-integration](#session-integration)). The component also reconstructs the target search and both
-attacks; the session does not connect them yet. The relic menu does not offer the Sword Card yet.
-Familiar levels persist in v11 saves ([native saves](native-saves.md)). Sword Brothers, the
-level-50 gift and the Sword Familiar item follow in later batches. Until then those states fail
-explicitly instead of degrading. A selected Sword therefore still stops the game when it starts an
-attack.
+integration](#session-integration)), including its target search and both attacks against real
+enemies. The relic menu does not offer the Sword Card yet. Familiar levels persist in v11 saves
+([native saves](native-saves.md)). Sword Brothers, the level-50 gift and the Sword Familiar item
+follow in later batches. Until then those states fail explicitly instead of degrading. In
+particular, a Sword reaching level 50 stops the game, which is why the menu toggle waits for the
+gift.
 
 ## Behaviour
 
@@ -102,11 +102,25 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   - the room's 0x20/0x40 flags, the cutscene and global-flash flags, and enemy presence;
   - real CD acknowledgements.
 - **Targets**: the session snapshots stage slots 64..191 in screen space; empty slots read zero,
-  as `DestroyEntity` leaves them. It passes the character's libc `rand()` state and the tilemap
-  origin. The search's mark, the DE hitboxes and the attack voices need stage-flag and
-  shared-slot owners that are not connected yet, so the session stops explicitly when an attack
-  starts instead of losing them. Sword Brothers stays false because no native spell sets
-  `g_Player.unk70`.
+  as `DestroyEntity` leaves them. It also passes the character's libc `rand()` state and the
+  tilemap origin. After each callback it commits the following, in order:
+  - the search's FLAG_UNK_80000 mark on the stage actor, checked against the snapshot's
+    generation and identity;
+  - the attack voices, through the sound queue;
+  - the DE requests.
+
+  Sword Brothers stays false because no native spell sets `g_Player.unk70`.
+- **Hitboxes**: each DE request takes the first free shared slot in 17..46, counting other
+  owners such as Gas Cloud and Mist. It stores the blade tip in room space (tip plus the Sword's
+  camera), its parameter, spell and the familiar's level. A full range creates nothing, as in the
+  original. In the same pass's slot order, its first update runs `GetServantStats`:
+  - `GetSpellDef` rolls `rand()` for the INT bonus and adds Mojo Mail's half;
+  - the attack is scaled by `level*4/95+1`;
+  - `func_80118894` assigns the least-used group (3..6 below slot 32, else 7..10);
+  - it takes a 4×4 hitbox.
+
+  Native combat then treats it like the other spell children, for exactly one hit detection; its
+  next update destroys it. Death clears its attack, and spell freezes hold it.
 - **Translation**: camera scrolls move camera-locked entities and their DRAW_UNK02 rows. Room entry
   retires non-0x20000 entities and moves the rest, with DRAW_UNK_100 rows, by the original player
   displacement. It then releases the rows of retired owners.
@@ -159,6 +173,17 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
     homing, depth-gated slashes with spell 20 and its position write-back.
   27 of 28 attack mutations are caught; the survivor is equivalent (the attack setup's camera
   origin is set again before every update).
+- Public hitbox tests cover:
+  - first-free placement after other owners, exhaustion and invalid requests;
+  - the first update's slot-order `rand()`, INT bonus, Mojo Mail and level scaling (×3, ×5);
+  - the 4×4 hitbox, spell fields and least-used groups (3..6 and 7..10);
+  - freeze holds, destruction and group release, death clearing and corrupted-child holds.
+  The mutation sweep caught every non-equivalent mutant.
+- A private session probe runs Laboratory room 10 (explicit card, selection, level and protection
+  fixtures). Over 1,500 frames at level 1 the circle attack runs 1,497 updates and places 768 live
+  DE hitboxes. Enemies take damage, die and award the familiar EXP (0→4). At level 75 the Sword
+  dives instead (317 updates, 102 diving hitboxes). This is not menu activation, acquisition or
+  route evidence.
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
   trail, halo, event entity, `ProcessSfxState`, the target search, both attacks and each DE
   hitbox's first update in lockstep with the native component. It uses SLUS

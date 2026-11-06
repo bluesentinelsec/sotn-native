@@ -220,6 +220,9 @@ bool SotnActors_CommitSwordRows(SotnActors *actors, SotnSwordLease leases[3],
 bool SotnActors_SwordRow(const SotnActors *actors, const SotnSwordLease *lease, Uint16 index);
 /** @brief Count free real rows for an original AllocPrimitives request (no mutation). */
 bool SotnActors_FreeRows(const SotnActors *actors, Uint16 count, bool *available);
+/** @brief Commit a familiar target search's FLAG_UNK_80000 mark on stage slot0..127.
+ * @param generation/@param id The snapshot's actual identity; a mismatch fails without writes. */
+bool SotnActors_MarkFamiliarTarget(SotnActors *actors, Uint16 slot, Uint32 generation, Uint16 id);
 /** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
  * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
  * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.

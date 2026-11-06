@@ -1322,3 +1322,7 @@ target_include_directories(sotn-star-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}
 target_link_libraries(sotn-star-weapon-tests PRIVATE sotn-core)
 add_test(NAME star-weapon-controller COMMAND sotn-star-weapon-tests)
 set_tests_properties(star-weapon-controller PROPERTIES TIMEOUT 20)
+add_executable(sotn-familiar-hitbox-tests test_familiar_hitbox.c)
+sotn_configure_c_target(sotn-familiar-hitbox-tests)
+target_link_libraries(sotn-familiar-hitbox-tests PRIVATE sotn-core)
+add_test(NAME familiar-hitbox COMMAND sotn-familiar-hitbox-tests)
