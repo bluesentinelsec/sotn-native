@@ -307,6 +307,30 @@ int main(void)
     for (Uint16 i = 0; i < 26; ++i)
         CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     CHECK(effect.removed);
+    // Agunea's 0x52 fan holds 0x7003 while any entity17 lives in slots32..47.
+    Uint8 *agunea = dra + 0xd670 + 0x12U * 20U;
+    SDL_memcpy(agunea, cut, 20);
+    Put16(agunea + 14, 0x7003);
+    effect = (SotnPlayerBlink){.parameter = 0x52};
+    input.player_step = 0;
+    input.agunea = 1;
+    for (Uint16 i = 0; i < 27; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.phase == 2 && effect.hold == 0x7003);
+    for (Uint16 i = 0; i < 100; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 2 &&
+              effect.hold == 7);
+    input.agunea = 0;
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.phase == 3 &&
+          effect.hold == 19 && effect.brightness == 256);
+    CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events) && effect.brightness == 246);
+    for (Uint16 i = 0; i < 25; ++i)
+        CHECK(SotnPlayerBlink_Tick(&effect, &shared, input, &events));
+    CHECK(effect.removed);
+    // Other hold profiles stay rejected for this parameter.
+    Put16(agunea + 14, 0x7004);
+    effect = (SotnPlayerBlink){.parameter = 0x52};
+    CHECK(!SotnPlayerBlink_Tick(&effect, &shared, input, &events));
     Uint8 *apple = dra + 0xd670 + 10U * 20U;
     SDL_memcpy(apple, cut, 20);
     Put16(apple + 14, 96);

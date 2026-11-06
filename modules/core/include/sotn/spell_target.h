@@ -3,6 +3,8 @@
 #include <SDL3/SDL_stdinc.h>
 #include <sotn/game_data.h>
 #define SOTN_SPELL_TARGETS 128
+/** Every original stage slot 64..255; selectors only scan the first SOTN_SPELL_TARGETS. */
+#define SOTN_STAGE_TARGETS 192
 /** @brief Copied actual original stage slot, in screen coordinates; contains no asset data. */
 typedef struct SotnSpellTarget
 {

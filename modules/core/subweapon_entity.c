@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// dra/84B88.c:EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone and rebound_stone.h,
+// dra/84B88.c:EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
+// EntityAguneaHitEnemy and rebound_stone.h,
 // sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // SDK trigonometry and collision tables remain private runtime inputs.
 #include <sotn/combat.h>
@@ -286,8 +287,8 @@ static bool Stone(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
             --s->embed;
         if (bounced)
         {
-            out->factory = true;
-            out->factory_packed = SOTN_REBOUND_STONE_SPARKS;
+            out->factories = 1;
+            out->factory_packed[0] = SOTN_REBOUND_STONE_SPARKS;
             out->factory_x = e->x;
             out->factory_y = e->y;
             out->sound = 0x6a4; // SFX_UI_SUBWEAPON_TINK
@@ -343,29 +344,302 @@ static bool Stone(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
     *random = cursor;
     return true;
 }
+// The retained raw stage pointer: DestroyEntity zeroes an emptied slot, so it reads (0, 0).
+static bool Target(SotnSubweaponInput in, Uint16 slot, SotnSpellTarget *out)
+{
+    if (!in.targets || slot >= SOTN_STAGE_TARGETS)
+        return SDL_SetError("Agunea requires the actual stage view of its retained target slot");
+    *out = in.targets[slot];
+    if (!out->identity)
+        *out = (SotnSpellTarget){0};
+    return true;
+}
+static void Fade(Uint8 *channel)
+{
+    if (*channel >= 4)
+        *channel = (Uint8)(*channel - 4U);
+}
+// EntitySubwpnAgunea. A hit binds the bolt to the enemy collision wrote to unkB8; while Up and
+// Square stay held it strikes it every twelfth update (the first strike free, later ones five
+// hearts) and sits on it with its live hitbox.
+static bool Agunea(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                   SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnAgunea *a = &next.agunea;
+    Uint32 cursor = *random;
+    SotnSpellTarget t = {0};
+    switch (e->step)
+    {
+    case 0: {
+        next.flags = 0x0c800000U; // FLAG_POS_CAMERA_LOCKED | KEEP_ALIVE_OFFCAMERA | HAS_PRIMS
+        next.facing_left = in.player_facing_left;
+        if (!in.properties(in.context, &cursor))
+            return false;
+        next.hitbox_width = next.hitbox_height = 4;
+        next.hitbox_x = 4;
+        next.hitbox_y = 0;
+        const Sint32 x = Pixel(in.player_x), y = Pixel(in.player_y) + in.player_hitbox_y - 8;
+        next.x = WithPixel(next.x, x);
+        next.y = WithPixel(next.y, y);
+        a->start_x = x;
+        a->start_y = y;
+        a->priority = (Uint16)(in.player_priority + 2U);
+        a->draw_mode = 0x331; // DRAW_UNK_200 | DRAW_UNK_100 | TPAGE2 | TPAGE | TRANSP: ABR1
+        a->red = 0x60;
+        a->green = 0;
+        a->blue = 0x80;
+        next.velocity_x = next.facing_left ? -0x60000 : 0x60000; // SetSpeedX(FIX(6))
+        out->sound = 0x60c;                                      // SFX_WEAPON_SWISH_C
+        out->factories = 1;
+        out->factory_packed[0] = SOTN_AGUNEA_FLASH;
+        out->factory_x = next.x;
+        out->factory_y = next.y;
+        out->use_ticks = 4;
+        next.step = 1;
+        break;
+    }
+    case 1: {
+        next.x = Add(next.x, next.velocity_x);
+        const Sint16 sx = Word(Pixel(next.x) - in.screen_x), sy = Word(Pixel(next.y) - in.screen_y);
+        if (sx < -0x40 || sx > 0x140 || sy < -0x20 || sy > 0x120)
+            next.step = 2;
+        if (in.hit_flags)
+        {
+            a->target = in.hit_target;
+            next.step = 3;
+        }
+        break;
+    }
+    case 4:
+        if (!Target(in, a->target, &t))
+            return false;
+        next.x = WithPixel(next.x, t.x + in.screen_x);
+        next.y = WithPixel(next.y, t.y + in.screen_y);
+        a->counter = Word(a->counter + 1);
+        if (a->counter < 16)
+            break;
+        SDL_FALLTHROUGH;
+    case 2:
+        if (a->red < 5)
+        {
+            next.removed = true;
+            *e = next;
+            return true;
+        }
+        break;
+    case 3: {
+        if ((in.buttons & SOTN_AGUNEA_HELD) != SOTN_AGUNEA_HELD)
+            next.step = 4;
+        if (!Target(in, a->target, &t))
+            return false;
+        // Both exits return before the primitive update.
+        if (!t.identity || (a->counter && (t.hp > 0x7000 || !t.hp || (t.flags & 0x100U))))
+        {
+            next.step = 2;
+            *e = next;
+            return true;
+        }
+        const Sint32 x = t.x + in.screen_x, y = t.y + in.screen_y;
+        if (a->counter % 12 == 0)
+        {
+            next.x = WithPixel(next.x, x + (Sint32)(SotnCombat_Random(&cursor) & 0xfU) - 8);
+            next.y = WithPixel(next.y, y + (Sint32)(SotnCombat_Random(&cursor) & 0xfU) - 8);
+            bool strike = !a->struck;
+            if (strike)
+                a->struck = true;
+            else if (in.hearts >= in.bolt_cost)
+            {
+                out->hearts_spent = in.bolt_cost;
+                strike = true;
+            }
+            else
+                next.step = 4;
+            if (strike)
+            {
+                out->factories = 2;
+                out->factory_packed[0] = SOTN_AGUNEA_BOLT_BLUEPRINT;
+                out->factory_packed[1] = SOTN_AGUNEA_OUTLINE;
+                out->factory_x = next.x;
+                out->factory_y = next.y;
+                out->sound = 0x665; // SFX_THUNDER_B
+            }
+        }
+        next.x = WithPixel(next.x, x);
+        next.y = WithPixel(next.y, y);
+        a->counter = Word(a->counter + 1);
+        break;
+    }
+    }
+    Fade(&a->red);
+    Fade(&a->green);
+    Fade(&a->blue);
+    if (a->blue < 5)
+        a->draw_mode |= 8U;
+    a->end_x = Pixel(next.x);
+    a->end_y = Pixel(next.y);
+    *e = next;
+    *random = cursor;
+    return true;
+}
+static Sint16 Abs(Sint16 v)
+{
+    return (Sint16)(v < 0 ? -v : v);
+}
+// EntityAguneaHitEnemy: a forty-row lightning chain grown two segments per update from the
+// player toward its raw parent bolt, flashed white, then faded.
+static bool Bolt(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random)
+{
+    SotnSubweaponEntity next = *e;
+    SotnAguneaBolt *b = &next.bolt;
+    Uint32 cursor = *random;
+    const Sint32 px = Pixel(in.player_x), py = Pixel(in.player_y) + in.player_hitbox_y - 8;
+    next.x = WithPixel(next.x, px);
+    next.y = WithPixel(next.y, py);
+    if (in.parent_entity != SOTN_AGUNEA_ENTITY)
+    {
+        if (!next.step)
+        {
+            next.removed = true;
+            *e = next;
+            return true;
+        }
+        next.step = 3;
+    }
+    switch (next.step)
+    {
+    case 0:
+        next.flags = 0x04800000U; // FLAG_KEEP_ALIVE_OFFCAMERA | FLAG_HAS_PRIMS
+        next.facing_left = in.player_facing_left;
+        // The original's facing adjustment (unk84 + 0x800) is discarded.
+        b->angle = (Sint16)(((Sint32)(SotnCombat_Random(&cursor) & 0x3ffU) - 0x200) & 0xfff);
+        b->x[0][0] = b->x[0][1] = b->x[0][2] = b->x[0][3] = Word(px);
+        b->y[0][0] = b->y[0][2] = Word(py);
+        b->y[0][3] = Word(py - 16);
+        b->grey = 0x80;
+        b->count = 0;
+        b->end = 0;
+        next.step = 1;
+        break;
+    case 1:
+        for (Uint16 i = 0; i < 2; ++i)
+        {
+            Sint16 angle = b->angle;
+            const Uint8 end = b->end;
+            const Sint16 dx = Word(in.parent_x - b->x[end][2]),
+                         dy = Word(in.parent_y - b->y[end][2]);
+            if (Abs(dx) < 8 && Abs(dy) < 8)
+            {
+                next.step = 2;
+                break;
+            }
+            const bool near = Abs(dx) < 0x40 && Abs(dy) < 0x40;
+            if (!b->count)
+            {
+                b->count = near ? 2 : 4;
+                Sint16 heading = 0;
+                if (!SotnMath_Atan2(in.executable, -(Sint32)dy, dx, &heading))
+                    return false;
+                Sint16 turn = Word(heading - angle);
+                if (turn > 0x800)
+                    turn = Word(0x1000 - turn);
+                if (turn < -0x800)
+                    turn = Word(0x1000 + turn);
+                b->turn = (Sint16)(near ? turn / 2 : turn / 4);
+            }
+            angle = Word(angle + b->turn);
+            if (!near)
+                angle = Word(angle + 0x180 - (Sint32)((SotnCombat_Random(&cursor) & 3U) << 8));
+            angle = (Sint16)(angle & 0xfff);
+            if (end + 1 >= SOTN_AGUNEA_BOLT_ROWS)
+            {
+                next.step = 2;
+                break;
+            }
+            const Uint8 n = (Uint8)(end + 1);
+            b->x[n][0] = b->x[end][2];
+            b->y[n][0] = b->y[end][2];
+            b->x[n][1] = b->x[end][3];
+            b->y[n][1] = b->y[end][3];
+            b->angle = angle;
+            b->end = n;
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, angle, &t))
+                return false;
+            b->x[n][2] = Word(b->x[n][0] + Asr(t.cosine * 12, 12));
+            b->y[n][2] = Word(b->y[n][0] - Asr(t.sine * 12, 12));
+            if (!SotnMath_Trig(in.executable, Word(angle - 0x400), &t))
+                return false;
+            b->x[n][3] = Word(b->x[n][2] + Asr(t.cosine * 16, 12));
+            b->y[n][3] = Word(b->y[n][2] - Asr(t.sine * 16, 12));
+            b->count = Word(b->count - 1);
+        }
+        break;
+    case 2:
+        if (!b->flashed)
+        {
+            b->white = b->flashed = true;
+            break;
+        }
+        b->white = b->flashed = false;
+        b->grey = 0x60;
+        next.step = 3;
+        break;
+    default:
+        // PrimDecreaseBrightness(prim, 4) on every row: they all share one grey, clamped at 16.
+        if (b->grey - 4 < 16)
+        {
+            b->grey = 16;
+            next.removed = true;
+        }
+        else
+            b->grey = (Uint8)(b->grey - 4U);
+        break;
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
     return id == SOTN_SUBWEAPON_VIBHUTI         ? SOTN_VIBHUTI_ROWS
            : id == SOTN_SUBWEAPON_REBOUND_STONE ? SOTN_REBOUND_STONE_LINES
+           : id == SOTN_SUBWEAPON_AGUNEA        ? SOTN_AGUNEA_ROWS
+           : id == SOTN_AGUNEA_BOLT             ? SOTN_AGUNEA_BOLT_ROWS
                                                 : 0;
 }
 bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
                               SotnSubweaponEvents *events)
 {
     const bool vibhuti = e && e->id == SOTN_SUBWEAPON_VIBHUTI,
-               stone = e && e->id == SOTN_SUBWEAPON_REBOUND_STONE;
-    if (!e || !random || !events || e->removed || (!vibhuti && !stone) || !in.properties ||
+               stone = e && e->id == SOTN_SUBWEAPON_REBOUND_STONE,
+               agunea = e && e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e && e->id == SOTN_AGUNEA_BOLT;
+    if (!e || !random || !events || e->removed || (!vibhuti && !stone && !agunea && !bolt) ||
+        (!in.properties && !bolt) ||
         (vibhuti && (e->step > 1 || (e->step && (!e->timer || e->timer > 0x80)))) ||
         (stone && (e->step > 2 || (e->step && (e->stone.life < 1 || e->stone.life > 0x40 ||
                                                e->stone.bounces < 0 || e->stone.bounces > 15)))) ||
-        in.hit_flags > 3)
+        (agunea && (e->step > 4 || e->agunea.target >= SOTN_STAGE_TARGETS)) ||
+        (bolt &&
+         (e->step > 3 || e->bolt.end >= SOTN_AGUNEA_BOLT_ROWS || (e->step && e->bolt.grey < 16))) ||
+        in.hit_flags > 3 || in.hit_target >= SOTN_STAGE_TARGETS)
         return SDL_SetError("Subweapon callback requires its actual live entity and outputs");
     *events = (SotnSubweaponEvents){0};
+    // E_SUBWPN_AGUNEA retires during any transformation (and status 0x10000) before allocating.
+    if (agunea && (in.player_status & 0x10007U))
+    {
+        e->removed = true;
+        return true;
+    }
     if (!e->step && !in.allocated)
     {
         e->removed = true; // Row allocation failure: DestroyEntity before any RNG.
         return true;
     }
+    if (agunea)
+        return Agunea(e, in, random, events);
+    if (bolt)
+        return Bolt(e, in, random);
     if (stone)
         return Stone(e, in, random, events);
     if (e->step)

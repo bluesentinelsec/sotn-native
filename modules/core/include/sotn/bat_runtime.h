@@ -49,8 +49,8 @@ enum
 /** @brief Actual stage target view before this frame's stage update; no ownership transfers. */
 typedef struct SotnSpiritTargetSnapshot
 {
-    SotnSpellTarget slots[SOTN_SPELL_TARGETS];
-    Uint32 generations[SOTN_SPELL_TARGETS];
+    SotnSpellTarget slots[SOTN_STAGE_TARGETS]; /**< Selectors scan the first128 (64..191). */
+    Uint32 generations[SOTN_STAGE_TARGETS];
 } SotnSpiritTargetSnapshot;
 /** @brief One completed portal capture intent, fulfilled by the native ordered-frame owner. */
 typedef struct SotnSpiritCapture
@@ -97,6 +97,8 @@ typedef struct SotnBatRuntimeChild
             SotnSubweaponEntity motion;
             SotnPlayerAttack attack; /**< func_8011A290's properties, rolled at birth. */
             Uint8 hit_flags;
+            Uint16 hit_target; /**< Stage slot minus 64 that collision last wrote to unkB8. */
+            Uint16 parent;     /**< Agunea lightning's raw factory parent slot (32..47). */
         } subweapon;
         struct
         {
@@ -242,6 +244,7 @@ typedef struct SotnBatRuntime
             karma_factory;
         bool secondary_factory;       /**< Weapon WFACTORY(0x38) from the actual slot16 program. */
         Uint16 secondary_parent_slot; /**< Raw ext.weapon.parent: slot16 or a secondary. */
+        Uint16 subweapon_parent_slot; /**< Agunea's blueprint23 source slot, else zero. */
     } factories[SOTN_BAT_RUNTIME_FACTORIES];
     SotnBatRuntimeChild children[SOTN_BAT_RUNTIME_SLOTS];
     SotnPlayerBlinkShared shared;
@@ -578,6 +581,10 @@ bool SotnBatRuntime_Visual(const SotnBatRuntime *runtime, Uint16 index,
  * @param generation Observed child identity. @param flags Original contact word, 1..3.
  * @return Success or SDL error without mutation on stale/unsupported ownership. */
 bool SotnBatRuntime_Hit(SotnBatRuntime *runtime, Uint16 index, Uint32 generation, Uint8 flags);
+/** @brief SotnBatRuntime_Hit that also records the overlapping stage slot (minus 64) collision
+ * writes to the attacker's unkB8; Agunea binds to it. */
+bool SotnBatRuntime_HitTarget(SotnBatRuntime *runtime, Uint16 index, Uint32 generation, Uint8 flags,
+                              Uint16 target);
 
 /** @brief Reserve an actual shared factory for root33/circle37 or original finishing flashes.
  * @param runtime Actual shared owner. @param source Current player source.

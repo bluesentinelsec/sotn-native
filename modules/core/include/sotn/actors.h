@@ -402,7 +402,7 @@ bool SotnActors_SetCharacter(SotnActors *actors, SotnCharacter *character);
  * @return Success or SDL error. All children share one original group-four cooldown;
  * changing generations never resets an enemy's existing cooldown. */
 bool SotnActors_SetGasCloud(SotnActors *actors, const SotnGasCloud *cloud);
-/** @brief Copy original target slots64..191 at the stage's retained pre-update camera.
+/** @brief Copy original stage slots64..255 at the stage's retained pre-update camera.
  * @param actors Borrowed entered owner. @param out Receives copied identities/hitboxes/HP/flags,
  * screen origins and actual generations. @return Success or SDL error without changing output.
  * Unsupported/inactive actors retain their actual supported hitbox/identity availability; no
