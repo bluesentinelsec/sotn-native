@@ -24,7 +24,7 @@ typedef enum SotnSceneFreezeFrame
 bool SotnSceneFreeze_BeginFrame(SotnSceneFreeze *freeze, SotnSceneFreezeFrame *out);
 /** @brief Apply actual portal birth(3), Fairy hold(FFF) or retirement(0), without changing this
  * frame's mode.
- * @param freeze Actual engine owner. @param request Selected original request0/3/FFF.
+ * @param freeze Actual engine owner. @param request Selected original request0/1/2/3/FFF.
  * @return Success or SDL error preserving state. No capture, allocation or readiness is implied. */
 bool SotnSceneFreeze_Request(SotnSceneFreeze *freeze, Uint16 request);
 /** @brief Select engine five at the END of the ordinary birth frame.

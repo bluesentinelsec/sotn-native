@@ -82,6 +82,9 @@ static bool Program(Uint16 family, Layout *out)
     // Weapon47 (Dynamite): the root's thirty-two optional rows; its flames play D_14D000_8017A528.
     else if (family == 47)
         *out = (Layout){.timeline = 0x528, .timeline_count = 8, .rows = 32};
+    // Weapon44 (Heart Refresh): seventeen mandatory GT4s.
+    else if (family == 44)
+        *out = (Layout){.rows = 17};
     // Weapon40/42 (Monster vials 1/3): rowless vial, monster, fireballs/arrows and burst.
     else if (family == 40 || family == 41 || family == 42)
         *out = (Layout){.rows = 0};
@@ -160,7 +163,8 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
            family == 30 || family == 7 || family == 37 || family == 46 || family == 47 ||
-           family == 40 || family == 41 || family == 42 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 40 || family == 41 || family == 42 || family == 44 ||
+           SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -207,6 +211,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon42: Monster vial 3's vial (role0), archer (1), arrows (2) and burst (3).
     if (family == 42)
         return role <= 3;
+    // Weapon44: Heart Refresh's EntityWeaponAttack (role0) alone.
+    if (family == 44)
+        return role == 0;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -278,6 +285,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 0 ? 32 : 0;
     if (family == 40 || family == 41 || family == 42)
         return 0;
+    if (family == 44)
+        return 17;
     if (family == 34)
         return 0;
     if (family == 30)
@@ -2428,6 +2437,192 @@ static bool VialArrow(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint3
         break;
     }
     return AnimateProps(s, in.overlay, 0x6dc);
+}
+// w_044 EntityWeaponAttack (blueprint50 E0/F0, Heart Refresh): sixteen screen-space wave bands
+// over the hand's weapon texture swell in under the quiet spell freeze (unk28 = 2), settle,
+// flash, show the heart image, then the heart grows (+500 hearts, TELEPORT_BANG_B) and everything
+// fades. The program's D_138000_8017A260 angles advance on every update of every use.
+static bool HeartRefresh(SotnWeaponSecondary *s, SotnHandWeaponProgram *p,
+                         SotnWeaponSecondaryInput in, SotnWeaponSecondaryEvents *e)
+{
+    if (!p->refresh_loaded)
+    {
+        const Uint8 *a = NULL;
+        if (!View(in.overlay, 0x260, 64, &a))
+            return SDL_SetError("Heart Refresh requires its private wave angle table");
+        for (Uint16 i = 0; i < 16; ++i)
+            p->refresh_angles[i] = (Sint32)Read32(a + i * 4U);
+        p->refresh_loaded = true;
+    }
+    const Uint16 clut = (Uint16)(0x110U + in.hand * 0x18U);
+    const Uint8 v = (Uint8)(in.hand ? 0x80 : 0);
+    bool heart = false;
+    switch (s->phase)
+    {
+    case 0:
+        s->role = 0;
+        s->allocated = true;
+        for (Uint16 i = 0; i < 16; ++i)
+        {
+            SotnPlayerEffectQuad *q = &s->refresh_quads[i];
+            *q = (SotnPlayerEffectQuad){0};
+            if (i < 8)
+            {
+                q->u[1] = q->u[3] = (Uint8)((7 - i) * 8 + 0x40);
+                q->u[0] = q->u[2] = (Uint8)(q->u[1] + 7);
+            }
+            else
+            {
+                q->u[0] = q->u[2] = (Uint8)((i - 8) * 8 + 0x40);
+                q->u[1] = q->u[3] = (Uint8)(q->u[0] + 7);
+            }
+            if (i == 0 || i == 15)
+            {
+                q->u[0] = q->u[2] = 0x7a;
+                q->u[1] = q->u[3] = 0x7c;
+            }
+            q->v[0] = q->v[1] = (Uint8)(v + 0x48);
+            q->v[2] = q->v[3] = (Uint8)(v + 0x7f);
+            q->draw_mode = 0x20 | 0x10 | 0x04 | 0x01;
+            q->priority = 0x1bc;
+            q->palette = clut;
+            q->page = 0x19;
+        }
+        SotnPlayerEffectQuad *h = &s->refresh_quads[16];
+        *h = (SotnPlayerEffectQuad){0};
+        h->u[0] = h->u[2] = 0;
+        h->u[1] = h->u[3] = 0x37;
+        h->v[0] = h->v[1] = (Uint8)(v + 0x48);
+        h->v[2] = h->v[3] = (Uint8)(v + 0x7f);
+        for (Uint16 k = 0; k < 4; ++k)
+            h->red[k] = h->green[k] = h->blue[k] = 0x80;
+        h->draw_mode = 0x20 | 0x10 | 0x08 | 0x04 | 0x01;
+        h->priority = 0x1be;
+        h->palette = (Uint16)(clut + 1U);
+        h->page = 0x19;
+        s->flags = 0x04810000U;
+        s->refresh_step = 0x40;
+        s->refresh_wave = 0x180;
+        s->refresh_glow = 0;
+        s->refresh_height = 0x40;
+        s->refresh_top = 64;
+        e->sounds[0] = 0x6b1;
+        e->freeze_quiet = true;
+        s->phase = 1;
+        break;
+    case 1:
+        s->refresh_glow = Word(SDL_min(s->refresh_glow + 4, 0x100));
+        s->refresh_wave = Word(s->refresh_wave - 4);
+        if (s->refresh_wave < 0x40)
+            s->phase = 2;
+        break;
+    case 2:
+        s->refresh_glow = Word(SDL_min(s->refresh_glow + 4, 0x100));
+        s->refresh_wave = Word(s->refresh_wave - 1);
+        if (s->refresh_wave < 0)
+        {
+            s->refresh_wave = 0;
+            e->flash = 2;
+            for (Uint16 i = 0; i < 16; ++i)
+            {
+                SotnPlayerEffectQuad *q = &s->refresh_quads[i];
+                q->u[0] = q->u[2] = (Uint8)(i * 8);
+                q->u[1] = q->u[3] = (Uint8)(q->u[0] + 8);
+                q->v[0] = q->v[1] = v;
+                q->v[2] = q->v[3] = (Uint8)(v + 0x47);
+                q->draw_mode = 0;
+            }
+            // The original's following `i == 15` test sees i == 16 and never trims row16.
+            s->refresh_height = Word(s->refresh_height + 8);
+            s->refresh_top = Word(s->refresh_top - 8);
+            s->lifetime = 32;
+            s->phase = 3;
+        }
+        break;
+    case 3:
+        if (--s->lifetime == 0)
+        {
+            s->scale_x = 0;
+            s->scale_y = 0x80;
+            s->refresh_speed = 0xa;
+            s->phase = 4;
+        }
+        break;
+    case 4:
+        heart = true;
+        s->scale_x = Word(s->scale_x + s->refresh_speed);
+        s->refresh_speed = Word(s->refresh_speed + 2);
+        if (s->scale_x > 0x200)
+        {
+            s->scale_y = Word(s->scale_y - 1);
+            if (s->scale_x > 0x380)
+            {
+                e->refresh_hearts = 500;
+                e->sounds[0] = 0x636;
+                s->phase = 5;
+            }
+        }
+        break;
+    default:
+        heart = true;
+        s->scale_x = Word(s->scale_x + s->refresh_speed);
+        s->refresh_speed = Word(s->refresh_speed + 2);
+        s->scale_y = Word(s->scale_y - 1);
+        if (s->scale_y < 0)
+            s->scale_y = 0;
+        for (Uint16 i = 0; i < 16; ++i)
+            s->refresh_quads[i].draw_mode = 0x20 | 0x10 | 0x04 | 0x01;
+        s->refresh_glow = Word(s->refresh_glow - 3);
+        s->refresh_wave = Word(s->refresh_wave + 6);
+        if (s->refresh_glow < 0)
+        {
+            s->refresh_glow = 0;
+            e->freeze_clear = true;
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Sint16 top = s->refresh_top, bottom = Word(s->refresh_top + s->refresh_height);
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->refresh_quads[i];
+        SotnMathTrig a = {0}, b = {0};
+        if (!SotnMath_Trig(in.executable, (Sint16)p->refresh_angles[i], &a) ||
+            !SotnMath_Trig(in.executable, (Sint16)p->refresh_angles[(i + 1) % 16], &b))
+            return false;
+        const Sint16 wa = (Sint16)(Asr(a.sine, 5) * s->refresh_wave / 256),
+                     wb = (Sint16)(Asr(b.sine, 5) * s->refresh_wave / 256);
+        q->y[0] = Word(top + wa);
+        q->y[2] = Word(bottom + wa);
+        q->y[1] = Word(top + wb);
+        q->y[3] = Word(bottom + wb);
+        q->x[0] = q->x[2] = (Sint16)(64 + 128 * i / 16);
+        q->x[1] = q->x[3] = (Sint16)(64 + 128 * (i + 1) / 16);
+        const Uint8 ca = (Uint8)(Asr(a.sine + 0x1000, 6) * s->refresh_glow / 256),
+                    cb = (Uint8)(Asr(b.sine + 0x1000, 6) * s->refresh_glow / 256);
+        q->red[0] = q->green[0] = q->blue[0] = q->red[2] = q->green[2] = q->blue[2] = ca;
+        q->red[1] = q->green[1] = q->blue[1] = q->red[3] = q->green[3] = q->blue[3] = cb;
+        p->refresh_angles[i] = (Sint32)((Uint32)p->refresh_angles[i] + (Uint32)s->refresh_step);
+    }
+    SotnPlayerEffectQuad *h = &s->refresh_quads[16];
+    h->draw_mode |= 8;
+    if (heart)
+    {
+        // rcos/rsin of ROT(135/45/225/315) around (0x80, 0x68).
+        static const Sint16 corner[4] = {0x600, 0x200, 0xa00, 0xe00};
+        for (Uint16 k = 0; k < 4; ++k)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, corner[k], &t))
+                return false;
+            h->x[k] = Word(Asr(Asr(t.cosine, 8) * s->scale_x, 8) + 0x80);
+            h->y[k] = Word(-Asr(Asr(t.sine, 8) * s->scale_x, 8) + 0x68);
+            h->red[k] = h->green[k] = h->blue[k] = (Uint8)s->scale_y;
+        }
+        h->draw_mode = (Uint16)(h->draw_mode & 0xfff7U);
+    }
+    return true;
 }
 // w_040 func_ptr_8017000C (WFACTORY(70) E3/F3): the monster's parting burst, additive, retired
 // at its END.
@@ -9809,7 +10004,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         !SotnWeaponSecondary_SupportedRole(
             in.family, in.role || in.family == 14 || in.family == 13 || in.family == 12 ||
                                in.family == 46 || in.family == 47 || in.family == 40 ||
-                               in.family == 41 || in.family == 42
+                               in.family == 41 || in.family == 42 || in.family == 44
                            ? in.role
                            : 1) ||
         state->removed ||
@@ -9824,6 +10019,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 47 && in.role == 0                      ? 5
                         : in.family == 40 && in.role <= 1                      ? (in.role ? 3 : 2)
                         : in.family == 41                                      ? (in.role ? 4 : 2)
+                        : in.family == 44                                      ? 5
                         : in.family == 42                 ? (in.role == 1   ? 3
                                                              : in.role == 3 ? 1
                                                                             : 2)
@@ -9888,6 +10084,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 41)
     {
         if (!(in.role ? BatVialBat(&s, in, &rng, &e) : BatVialRoot(&s, &shared, in, &rng, &e)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 44)
+    {
+        if (!HeartRefresh(&s, &shared, in, &e))
             return false;
         goto commit;
     }

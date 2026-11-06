@@ -421,7 +421,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
     if (!r || !allocated ||
         (!ThrownItem(item) && item != 143 && item != 119 && item != 133 && item != 163 &&
          item != 164 && item != 165 && item != 176 && item != 136 && item != 137 && item != 138 &&
-         item != 1 && item != 2 && item != 3) ||
+         item != 1 && item != 2 && item != 3 && item != 142) ||
         (hand != 1 && hand != 2) || packed != (blueprint | hand << 12 | parameter << 16))
         return SDL_SetError(
             "Weapon16/Runesword reservation requires its actual owned item/blueprint/hand");
@@ -1241,6 +1241,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon47: Dynamite's root carries the hand bit; its flames none (weapon40 likewise).
     if (family == 47 || family == 40 || family == 41)
         return !(parameter & 0x7fffU);
+    // Weapon44's Heart Refresh carries the hand bit alone.
+    if (family == 44)
+        return !(parameter & 0x7fffU);
     // Weapon42's arrows carry their index0..2 on the hand bit; its other children none.
     if (family == 42)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 2;
@@ -1332,12 +1335,14 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 34 ? c->state.secondary.own_item && c->state.secondary.item == 176 &&
                                  !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
-            : (family == 47 || family == 40 || family == 41 || family == 42) && (c->kind & 15U) == 0
+            : (family == 47 || family == 40 || family == 41 || family == 42 || family == 44) &&
+                    (c->kind & 15U) == 0
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 47   ? 138
                                                   : family == 40 ? 1
                                                   : family == 41 ? 2
-                                                                 : 3) &&
+                                                  : family == 42 ? 3
+                                                                 : 142) &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 46 && ((c->kind & 15U) == 1 || !(c->parameter & 0x7fffU))
                 ? c->state.secondary.own_item &&
@@ -1393,6 +1398,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 41 && (c->kind & 15U) == 0                   ? 2
                                    : family == 41 && (c->kind & 15U) == 1                   ? 4
                                    : family == 42 && (c->kind & 15U) == 1                   ? 3
+                                   : family == 44                                           ? 5
                                    : family == 42 && (c->kind & 15U) != 3                   ? 2
                                    : family == 11 && (c->kind & 15U) == 9                   ? 4
                                    : family == 25 && (c->kind & 15U) == 9                   ? 3
@@ -1416,7 +1422,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                        : family == 47 && (c->kind & 15U) == 0
                            ? !w->properties.id || w->properties.id == 138
                        // Monster vial 1's vial rolls none.
-                       : (family == 40 || family == 41 || family == 42) && (c->kind & 15U) == 0
+                       : (family == 40 || family == 41 || family == 42 || family == 44) &&
+                               (c->kind & 15U) == 0
                            ? !w->properties.id
                            : w->properties.id ==
                                  (family == 30 || (SotnWeaponSecondary_ShieldSpell(family) &&
@@ -2415,7 +2422,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
         (((c.kind == 0xe0 || c.kind == 0xf0) &&
           (child.argument_low == 136 || child.argument_low == 138 || child.argument_low == 1 ||
-           child.argument_low == 2 || child.argument_low == 3)) ||
+           child.argument_low == 2 || child.argument_low == 3 || child.argument_low == 142)) ||
          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 137));
     // Blueprint68 creates Yasutsuna's weapon53 E3/F3 slash in17..31.
     const bool yasutsuna = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
@@ -2483,11 +2490,12 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
         // Kind130 Dynamite138's blueprint50 root runs weapon47.
-        const Uint16 family = child.argument_low == 138 ? 47
-                              : child.argument_low == 1 ? 40
-                              : child.argument_low == 2 ? 41
-                              : child.argument_low == 3 ? 42
-                                                        : 46;
+        const Uint16 family = child.argument_low == 138   ? 47
+                              : child.argument_low == 1   ? 40
+                              : child.argument_low == 2   ? 41
+                              : child.argument_low == 3   ? 42
+                              : child.argument_low == 142 ? 44
+                                                          : 46;
         if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
             (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != family)))
             return SDL_SetError(
@@ -3141,10 +3149,10 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
 }
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
-    if (!runtime || !character || (in.freeze != 0 && in.freeze != 1 && in.freeze != 3) ||
-        in.camera_x < 0 || in.camera_x > 16384 || in.camera_y < 0 || in.camera_y > 16384 ||
-        in.wolf_command_camera_x < 0 || in.wolf_command_camera_x > 16384 ||
-        in.wolf_command_camera_y < 0 || in.wolf_command_camera_y > 16384)
+    if (!runtime || !character || in.freeze > 3 || in.camera_x < 0 || in.camera_x > 16384 ||
+        in.camera_y < 0 || in.camera_y > 16384 || in.wolf_command_camera_x < 0 ||
+        in.wolf_command_camera_x > 16384 || in.wolf_command_camera_y < 0 ||
+        in.wolf_command_camera_y > 16384)
         return SDL_SetError(
             "Bat runtime requires actual owned progress and bounded camera context");
     if (((in.player.wolf.started || in.player.wolf.return_started || in.player.wolf.finish_flash) &&
@@ -4569,6 +4577,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 40 ? 1
                                  : family == 41 ? 2
                                  : family == 42 ? 3
+                                 : family == 44 ? 142
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -5015,11 +5024,14 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             // Shield spells: g_unkGraphicsStruct.unk28. Entering freeze1 makes the engine's
             // func_8010E0D0 create BlinkWhite0x47 and0x40 from the player, flagged0x10000.
-            if (events.freeze_set || events.freeze_clear)
+            // Weapon44's unk28 = 2 enters the same engine freeze without BlinkWhite births.
+            if (events.freeze_set || events.freeze_quiet || events.freeze_clear)
             {
                 r.freeze_changed = true;
-                r.freeze = events.freeze_set ? 1 : 0;
+                r.freeze = events.freeze_set ? 1 : events.freeze_quiet ? 2 : 0;
             }
+            if (events.flash && !Flash(&r, in.dra, events.flash))
+                return false;
             // Weapon52's spell: BlinkWhite FACTORY(44, n) from the spell entity.
             if (events.blink)
             {
@@ -5062,6 +5074,10 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 SDL_zero(r.factories[j]);
                 r.factories[j].cursor = made;
             }
+            // Weapon44: g_Status.hearts += 500, then clamped to heartsMax.
+            if (events.refresh_hearts)
+                progress.hearts = (Uint16)SDL_min((Uint32)progress.hearts + events.refresh_hearts,
+                                                  (Uint32)progress.hearts_max);
             // Weapon37's coins: g_Status.gold = CLAMP_MAX(gold + 1, MAX_GOLD).
             if (events.gold)
                 progress.gold = SDL_min(progress.gold + 1U, 999999U);

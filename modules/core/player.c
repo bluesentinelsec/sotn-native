@@ -542,11 +542,16 @@ static bool ThrowKind(Uint8 kind)
 {
     return kind == 129 || kind == 130 || kind == 134;
 }
+// Kind131 Heart Refresh142 (weapon44) shares the throwing owner but none of its grunt.
+static bool RefreshItem(SotnEquipment equipment)
+{
+    return equipment.kind == 131 && equipment.family == 44;
+}
 // 6E42C.c cases129/130/132: the food/throwing factory, successful-player cost commit, casting
 // grunt (throws only) and the item animation. Returns false when the factory is exhausted.
 static bool StartThrow(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
 {
-    const bool throwing = ThrowKind(equipment.kind);
+    const bool refresh = RefreshItem(equipment), throwing = ThrowKind(equipment.kind) || refresh;
     const SotnPlayerMedicineFactory factory =
         throwing ? player->throwing_factory : player->food_factory;
     void *context = throwing ? player->throwing_context : player->food_context;
@@ -580,6 +585,14 @@ static bool StartThrow(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
         !SotnPlayerAfterimage_Reset(&player->afterimage, true, 0x20, &player->afterimage_timer15))
     {
         player->failed = true;
+        return true;
+    }
+    if (refresh)
+    {
+        // Case131 animates only a standing player (0xBE plus the ledge variant).
+        player->throwing = use;
+        if (player->substep < 0x40 && player->step == SOTN_PLAYER_STAND)
+            Animate(player, (Uint16)(equipment.animation + ((player->contact & 0x20) != 0)));
         return true;
     }
     if (throwing)
@@ -699,6 +712,11 @@ static bool StartAttack(SotnPlayer *player)
         (!player->throwing_factory || !player->throwing_consume || !player->throwing_random ||
          !equipment.chain_limit || player->throwing_count[hand] >= equipment.chain_limit))
         return false;
+    // CheckChainLimit with Heart Refresh's chain0 refuses while any live entity of this hand
+    // carries item142.
+    if (RefreshItem(equipment) &&
+        (!player->throwing_factory || !player->throwing_consume || player->throwing_count[hand]))
+        return false;
     if (equipment.id == 166)
     {
         if (!player->teleport_factory || !player->library_card_use ||
@@ -745,16 +763,17 @@ static bool StartAttack(SotnPlayer *player)
     }
     if (player->curse_ticks && equipment.id != 0)
     {
+        const bool thrower = ThrowKind(equipment.kind) || RefreshItem(equipment);
         if ((equipment.kind == 132 && player->food_factory) ||
-            (ThrowKind(equipment.kind) && player->throwing_factory) || player->hand_factory)
+            (thrower && player->throwing_factory) || player->hand_factory)
         {
-            const SotnPlayerMedicineFactory factory =
-                ThrowKind(equipment.kind) ? player->throwing_factory
-                : equipment.kind == 132   ? player->food_factory
-                                          : player->hand_factory;
-            void *context = ThrowKind(equipment.kind) ? player->throwing_context
-                            : equipment.kind == 132   ? player->food_context
-                                                      : player->hand_context;
+            const SotnPlayerMedicineFactory factory = thrower ? player->throwing_factory
+                                                      : equipment.kind == 132
+                                                          ? player->food_factory
+                                                          : player->hand_factory;
+            void *context = thrower                 ? player->throwing_context
+                            : equipment.kind == 132 ? player->food_context
+                                                    : player->hand_context;
             bool allocated = false;
             SotnPlayerState captured = {0};
             if (!SotnPlayer_GetState(player, &captured) ||
@@ -772,7 +791,7 @@ static bool StartAttack(SotnPlayer *player)
         HandFailure(player);
         return true;
     }
-    if (equipment.kind == 132 || ThrowKind(equipment.kind))
+    if (equipment.kind == 132 || ThrowKind(equipment.kind) || RefreshItem(equipment))
         return StartThrow(player, equipment, hand);
     if (equipment.kind == 128)
     {

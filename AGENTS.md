@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Heart Refresh](docs/player-heart-refresh.md) now owns kind131 item142 through w_044:
+chain0 refuses a second live use per hand; blueprint50, consumption after success, no grunt,
+stand-only animation0xBE. Seventeen screen GT4s over the hand's weapon texture run under
+unk28 = 2 (spell freeze without BlinkWhite births; scene freeze/runtime accept request 2), with
+the program's D_138000_8017A260 angles advancing every pass across uses until reload,
+func_80118C28(2), and hearts += 500 capped at heartsMax.
+
 Selected [Monster vial 3](docs/player-monster-vial-3.md) now owns consumable kind130 item3 through
 w_042: Monster vial 1's vial with its own tables (cursor D_12A000_8017B5F0) breaks into the
 WFACTORY(56) E1 archer (raw-parent current equipId, own group), which requests WFACTORY(0x3E,n)

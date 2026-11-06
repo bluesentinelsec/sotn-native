@@ -252,7 +252,8 @@ static bool FreezeEdges(void)
     CHECK(SotnSceneFreeze_BeginFrame(&f, &frame) && frame == SOTN_SCENE_NORMAL);
     const SotnSceneFreeze before = f;
     CHECK(!SotnSceneFreeze_Request(&f, 0) && !SDL_memcmp(&f, &before, sizeof(f)));
-    CHECK(!SotnSceneFreeze_Request(&f, 2) && !SDL_memcmp(&f, &before, sizeof(f)));
+    // Requests1/2/3 are the shield-spell, Heart Refresh and spirit freezes; 4 is no request.
+    CHECK(!SotnSceneFreeze_Request(&f, 4) && !SDL_memcmp(&f, &before, sizeof(f)));
     // Shield spells request freeze1 (g_unkGraphicsStruct.unk28 = 1), entered like the spirits.
     {
         SotnSceneFreeze spell = before;

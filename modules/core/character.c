@@ -105,7 +105,7 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                     id == 114 || id == 24 || id == 25 || id == 80 || id == 81 || id == 82 ||
                     id == 134 || id == 135 || id == 143 || id == 119 || id == 133 || id == 163 ||
                     id == 164 || id == 165 || id == 136 || id == 137 || id == 138 || id == 1 ||
-                    id == 2 || id == 3 || (id != 125 && SotnEquipment_IsSword0(id)) ||
+                    id == 2 || id == 3 || id == 142 || (id != 125 && SotnEquipment_IsSword0(id)) ||
                     SotnEquipment_IsBasicFist(id) || SotnEquipment_IsPlainWeapon(id) || id == 123 ||
                     id == 168 || id == 126 || id == 128 || id == 166 || (id >= 29 && id <= 79) ||
                     (id >= 144 && id <= 162 && id != 146 && id != 147))};
@@ -428,7 +428,7 @@ bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, Uint16 ha
          !SotnEquipment_IsBasicFist(item) && !SotnEquipment_IsPlainWeapon(item) && item != 123 &&
          item != 168 && item != 126 && item != 128 && item != 143 && item != 133 && item != 163 &&
          item != 164 && item != 165 && item != 119 && item != 136 && item != 137 && item != 138 &&
-         item != 1 && item != 2 && item != 3))
+         item != 1 && item != 2 && item != 3 && item != 142))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&
@@ -859,7 +859,7 @@ static bool UseHandConsumable(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16
          : kind == 130
              ? item != 24 && item != 25 && (item < 75 || item > 79) && item != 80 && item != 81 &&
                    item != 82 && item != 134 && item != 135 && item != 138 && item != 1 &&
-                   item != 2 && item != 3 && (item < 71 || item > 74)
+                   item != 2 && item != 3 && item != 142 && (item < 71 || item > 74)
              : item != 166 && (item < 144 || item > 162 || item == 146 || item == 147)))
         return SDL_SetError("Consumption requires its actual supported equipped hand item");
     SotnEquipment medicine = {0};
@@ -885,6 +885,7 @@ bool SotnCharacter_UseFood(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *e
 {
     return UseHandConsumable(c, hand, item, equipped, 132);
 }
+// Kind131 Heart Refresh142 shares the throwing owner's consumption.
 bool SotnCharacter_UseThrowing(SotnCharacter *c, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
     return UseHandConsumable(c, hand, item, equipped, 130);
