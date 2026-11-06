@@ -200,6 +200,17 @@ int main(void)
           (mailed.resistance & 0x2000U) && mailed.bonus[0] == lone.bonus[0] + 30 &&
           mailed.bonus[3] == lone.bonus[3] + 5);
     CHECK(SotnCharacter_Equip(c, 5, 57) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0));
+    // CalcDefense: Walk armor19 adds the explored-room counter / 60.
+    SotnCharacterStats walking = {0};
+    CHECK(SotnCharacter_Collect(c, true, 19) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 19) &&
+          SotnCharacter_Get(c, &s, &lone));
+    CHECK(!SotnCharacter_SetRooms(c, 8193));
+    CHECK(SotnCharacter_SetRooms(c, 179) && SotnCharacter_Get(c, &s, &walking) &&
+          walking.defense == lone.defense + 2);
+    CHECK(SotnCharacter_SetRooms(c, 180) && SotnCharacter_Get(c, &s, &walking) &&
+          walking.defense == lone.defense + 3);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0) && SotnCharacter_Get(c, &s, &walking) &&
+          SotnCharacter_SetRooms(c, 0));
     // Original CalcAttack: the Sword Familiar126 adds the Sword familiar's (record4) level.
     bytes[0x1000 + 126 * 52 + 14] = 1;
     bytes[0x1000 + 126 * 52 + 8] = 0;

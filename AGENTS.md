@@ -65,8 +65,9 @@ body items are supported; Staurolite has no live target until the cross/subweapo
 Selected [CalcDefense terms](docs/player-defense-terms.md): Shield rod4 beside a category9 shield
 adds two defense; a held Medusa13/Fire15 shield adds stone0x200/fire0x8000 immunity (US prepass:
 stone contacts lose petrification but still damage; fire contacts take the immunity response). Additive-only body records 11/12/16/18/74/81/86 are supported. A make_all
-oracle (4,000 contexts) matches defense and all four element masks. Other unsupported body items
-keep special owners pending.
+oracle (4,000 contexts) matches defense and all four element masks. Walk armor19 adds the world's
+explored-room counter (g_RoomCount = SotnWorldState.rooms, synced every update) / 60. Other
+unsupported body items keep special owners pending.
 
 Selected [stat bonuses](docs/player-stat-bonuses.md): UpdateEquipStatBonuses' Sunstone59 (hours
 6..17 of timerHours % 24, signed remainder) or Moonstone58 adds five to every stat per accessory
