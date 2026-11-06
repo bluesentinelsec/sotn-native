@@ -57,6 +57,12 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [CalcDefense terms](docs/player-defense-terms.md): Shield rod4 beside a category9 shield
+adds two defense; a held Medusa13/Fire15 shield adds stone0x200/fire0x8000 immunity (US prepass:
+stone contacts lose petrification but still damage; fire contacts take the immunity response). Additive-only body records 11/12/16/18/74/81/86 are supported. A make_all
+oracle (4,000 contexts) matches defense and all four element masks. Other unsupported body items
+keep special owners pending.
+
 Selected [stat bonuses](docs/player-stat-bonuses.md): UpdateEquipStatBonuses' Sunstone59 (hours
 6..17 of timerHours % 24, signed remainder) or Moonstone58 adds five to every stat per accessory
 copy; both need the bound playtime owner (like Badelaire). Active Rib/Eye/Tooth/Ring of Vlad
