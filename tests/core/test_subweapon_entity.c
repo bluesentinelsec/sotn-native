@@ -768,7 +768,7 @@ static bool Bolt(SotnDataView executable)
     {
         in.parent_x = 2000;
         in.parent_y = 126;
-        Uint32 roll = held;
+        Uint32 cursor = held;
         Sint16 angle = born.bolt.angle, turn = 0;
         Sint32 x2 = born.bolt.x[0][2], y2 = born.bolt.y[0][2];
         for (Uint16 k = 0; k < 2; ++k)
@@ -785,7 +785,8 @@ static bool Bolt(SotnDataView executable)
                     t = 0x1000 + t;
                 turn = (Sint16)(t / 4);
             }
-            const Sint32 a = angle + turn + 0x180 - (Sint32)((SotnCombat_Random(&roll) & 3U) << 8);
+            const Sint32 a =
+                angle + turn + 0x180 - (Sint32)((SotnCombat_Random(&cursor) & 3U) << 8);
             angle = (Sint16)(a & 0xfff);
             SotnMathTrig t = {0};
             CHECK(SotnMath_Trig(executable, angle, &t));
@@ -797,7 +798,7 @@ static bool Bolt(SotnDataView executable)
         SotnMathTrig w = {0};
         CHECK(SotnSubweaponEntity_Tick(&e, in, &again, &ev) && e.bolt.end == 2 &&
               e.bolt.turn == turn && e.bolt.count == 2 && e.bolt.angle == angle &&
-              e.bolt.x[2][2] == x2 && e.bolt.y[2][2] == y2 && again == roll &&
+              e.bolt.x[2][2] == x2 && e.bolt.y[2][2] == y2 && again == cursor &&
               SotnMath_Trig(executable, angle - 0x400, &w) &&
               e.bolt.x[2][3] == x2 + Floor(w.cosine * 16, 12) &&
               e.bolt.y[2][3] == y2 - Floor(w.sine * 16, 12));
