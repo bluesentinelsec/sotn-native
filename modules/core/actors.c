@@ -633,8 +633,9 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                        actors->bat_runtime->sire_mask || actors->bat_runtime->pentagram_mask ||
                        actors->bat_runtime->magic_mask || actors->bat_runtime->thrown_mask ||
                        actors->bat_runtime->star_mask || actors->bat_runtime->karma_mask ||
-                       actors->bat_runtime->secondary_mask || actors->bat_runtime->echo_attack ||
-                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->secondary_mask || actors->bat_runtime->familiar_mask ||
+                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
+                       actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -661,6 +662,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_magic = (runtime->magic_mask & ((Uint64)1 << index)) != 0;
             const bool selected_karma = (runtime->karma_mask & ((Uint64)1 << index)) != 0;
             const bool selected_secondary = (runtime->secondary_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_familiar = (runtime->familiar_mask & ((Uint64)1 << index)) != 0;
             const bool selected_star = (runtime->star_mask & ((Uint64)1 << index)) != 0;
             const bool selected_thrown = (runtime->thrown_mask & ((Uint64)1 << index)) != 0;
             const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
@@ -672,7 +674,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
                 !selected_hand && !selected_axe && !selected_neutron && !selected_sire &&
                 !selected_pentagram && !selected_magic && !selected_thrown && !selected_star &&
-                !selected_karma && !selected_secondary)
+                !selected_karma && !selected_secondary && !selected_familiar)
                 continue;
             if (selected_wolf)
             {
@@ -747,12 +749,17 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     (selected_sword &&
                      ((child->kind != 0xe2 && child->kind != 0xf2) || child->group != 0)) ||
                     (selected_echo && (child->kind != 52 || child->group < 7 || child->group > 10 ||
-                                       runtime->echo_generation != child->generation)))
+                                       runtime->echo_generation != child->generation)) ||
+                    (selected_familiar &&
+                     (!SotnBatRuntime_FamiliarHitboxValid(child, (Uint16)index) ||
+                      !child->initialized || child->group < 3 ||
+                      !child->state.familiar.attack.active)))
                     return SDL_SetError("Bat attack lost its actual child or original group");
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_hand        ? child->state.hand.attack
+                source.attack = selected_familiar    ? child->state.familiar.attack
+                                : selected_hand      ? child->state.hand.attack
                                 : selected_secondary ? child->state.secondary.attack
                                 : selected_karma     ? child->state.karma.attack
                                 : selected_star      ? child->state.star.attack

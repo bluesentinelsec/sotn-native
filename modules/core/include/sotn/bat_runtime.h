@@ -72,6 +72,7 @@ typedef struct SotnBatRuntimeChild
         thrown_particle_parent, karma, hand_weapon;
     bool weapon_secondary; /**< Blueprint56 E1/F1 func_ptr_80170004 of a resident program. */
     bool weapon_warp;      /**< Weapon53 kind135 slot16 E2/F2 warp afterimage (blueprint60). */
+    bool familiar_hitbox;  /**< The Sword familiar's one-update DE hitbox (func_us_80177480). */
     union {
         struct
         {
@@ -89,6 +90,11 @@ typedef struct SotnBatRuntimeChild
             bool own_item;
         } secondary;
         SotnWeaponWarp warp;
+        struct
+        {
+            SotnPlayerAttack attack;
+            Uint16 spell, level; /**< GetServantStats spell19/20 and the familiar's level. */
+        } familiar;
         struct
         {
             SotnKarmaCoin motion;
@@ -266,6 +272,7 @@ typedef struct SotnBatRuntime
     Uint64 fire_mask, spirit_mask, hellfire_mask, sword_mask, axe_mask;
     Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
     Uint64 secondary_mask; /**< Active weapon func_ptr_80170004 attacks by actual slot. */
+    Uint64 familiar_mask;  /**< Initialized familiar DE hitboxes by actual slot. */
     bool hand_attack;      /**< Actual shared slot16 ordinary-hand attack. */
     /** Weapon51 glow and weapon26 green-cycle g_Clut words written this pass, in callback order
      * (the session commits them to its palette store after a successful pass): each word
@@ -311,6 +318,20 @@ typedef struct SotnBatRuntime
     bool afterimage_reset;    /**< Actual BlinkWhite reset emitted after player presentation. */
 } SotnBatRuntime;
 
+/** @brief The Sword familiar's func_us_801724E8: GetFreeEntity(0x11, 0x2F) and a DE entity.
+ * @param runtime Actual shared owner. @param other_occupied Other owners' actual slots.
+ * @param source Room-space whole-pixel origin (the projected blade tip), layer and facing.
+ * @param parameter Tip index0/1. @param spell Spell19 (circle) or20 (dive).
+ * @param level The familiar's level1..99 for GetServantStats' scaling.
+ * @param allocated False when slots17..46 are full; the original then creates nothing.
+ * The entity's first update in this pass's slot order rolls GetSpellDef (INT, rand, Mojo Mail),
+ * scales by level*4/95+1, takes a least-used group and a 4x4 hitbox for one hit detection; its
+ * next update destroys it. @return Success or SDL error for invalid requests. */
+bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *runtime, Uint64 other_occupied,
+                                        SotnPlayerFactorySource source, Uint16 parameter,
+                                        Uint16 spell, Uint16 level, bool *allocated);
+/** @brief Validate one familiar DE hitbox child: identity, slot range, spell, level and group. */
+bool SotnBatRuntime_FamiliarHitboxValid(const SotnBatRuntimeChild *child, Uint16 index);
 /** @brief Reserve actual ordinary bp48 or unarmed bp42/43 factories. */
 bool SotnBatRuntime_RequestHand(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
                                 Uint16 item, bool *allocated);

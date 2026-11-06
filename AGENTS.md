@@ -69,9 +69,11 @@ AllocPrimitives callback and committed after it; draws are GT4 rows at their own
 relic menu does not offer card22 yet. The component now runs func_us_80173AA0 (stage64..191,
 mark 0x80000 on the first unmarked, else round-robin D_us_80178B88; no HP>0 check, raw slot
 follow), the circle D2 (<70) and dive D3 (>=70) with libc rand, voices (D_us_80170090) and two
-DE hitboxes per slash from slots17..46 (GetFreeEntity(0x11,0x2F), tips, spell19/20); the session
-still stops explicitly when an attack starts (marks/DE/voices unconnected). Sword Brothers and
-the level-50 gift fail explicitly. Oracle square roots need LZC adapters 0x8001721C/0x80016EEC.
+DE hitboxes per slash from slots17..46 (GetFreeEntity(0x11,0x2F), tips, spell19/20). The session
+commits the marks (generation-checked), voices and DE children (SotnBatRuntime familiar_hitbox:
+first update in slot order = Spell() INT/rand/Mojo * (level*4/95+1), least-used group, 4x4,
+familiar_mask in combat; destroyed next update). Sword Brothers and the level-50 gift fail
+explicitly, so the menu toggle waits for the gift. Square-root oracles: LZC 0x8001721C/0x80016EEC.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue

@@ -1778,13 +1778,14 @@ static bool FamiliarEnemies(SotnLaboratory *s, Sint32 camera_x, Sint32 camera_y,
 // Screen-space stage slots64..191 for the Sword's target search; empty slots read zero, as
 // DestroyEntity leaves them.
 static bool SwordTargets(SotnLaboratory *s, Sint32 camera_x, Sint32 camera_y,
-                         SotnSwordTarget out[SOTN_SWORD_TARGETS])
+                         SotnSwordTarget out[SOTN_SWORD_TARGETS], Uint32 generations[])
 {
     for (Uint16 i = 0; i < SOTN_SWORD_TARGETS; ++i)
     {
         SotnActorState actor = {0};
         if (!SotnActors_Get(s->actors, i, &actor))
             return false;
+        generations[i] = actor.id ? actor.generation : 0;
         out[i] = !actor.id ? (SotnSwordTarget){0}
                            : (SotnSwordTarget){.id = actor.id,
                                                .hitbox_state = actor.hitbox_state,
@@ -2289,6 +2290,7 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
         return SDL_SetError("Sword familiar callbacks require an ordinary or frozen pass");
     SotnSwordRuntime *next = SDL_malloc(sizeof(*next));
     SotnSwordTarget *targets = SDL_malloc(sizeof(*targets) * SOTN_SWORD_TARGETS);
+    Uint32 generations[SOTN_SWORD_TARGETS] = {0};
     bool ok = next && targets;
     for (Uint16 slot = 4; ok && slot < 8; ++slot)
     {
@@ -2308,7 +2310,7 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
              SotnActors_GetControl(s->actors, &control) && s->fairy_cd &&
              SotnCdAudio_Get(s->fairy_cd, &cd) &&
              FamiliarEnemies(s, camera_x, camera_y, &enemies) &&
-             SwordTargets(s, camera_x, camera_y, targets) &&
+             SwordTargets(s, camera_x, camera_y, targets, generations) &&
              (!request || SotnActors_FreeRows(s->actors, request, &allocated));
         if (ok && (selected != FAMILIAR_SWORD.identity ||
                    (s->world.relics[FAMILIAR_SWORD.card] & 3U) != 3))
@@ -2330,13 +2332,35 @@ static bool TickSword(SotnLaboratory *s, Uint16 gate, Sint32 camera_x, Sint32 ca
         SotnSwordEvents events = {0};
         *next = s->sword_runtime;
         ok = SotnSwordRuntime_UpdateSlot(next, slot, in, &events);
-        // Target marks, the attacks' hitbox entities and their voices need native stage and
-        // shared-slot owners that are not connected yet; stop before any of them is lost.
-        if (ok && (events.mark || events.hitbox_count || events.sound_count ||
-                   next->slots[slot - 4U].identity == SOTN_SWORD_CIRCLE ||
-                   next->slots[slot - 4U].identity == SOTN_SWORD_DIVE))
-            ok = SDL_SetError("Sword familiar attacks are not integrated in the session yet");
         ok = ok && CommitSwordRows(s, next);
+        if (!ok)
+            break;
+        // The callback's original side effects, in order: the search's flag write, its voices
+        // and func_us_801724E8's DE entities in the shared slots17..46.
+        Uint64 other = s->mist_present ? (Uint64)1 << 16 : 0;
+        if ((events.mark && !SotnActors_MarkFamiliarTarget(s->actors, (Uint16)(events.mark - 1U),
+                                                           generations[events.mark - 1U],
+                                                           targets[events.mark - 1U].id)) ||
+            !SotnGasCloud_Occupied(&s->gas_cloud, &other))
+        {
+            ok = false;
+            break;
+        }
+        for (Uint16 i = 0; ok && i < events.sound_count; ++i)
+            ok = SotnSound_Queue(s->sound, events.sounds[i]);
+        for (Uint16 i = 0; ok && i < events.hitbox_count; ++i)
+        {
+            const SotnSwordHitbox *h = &events.hitboxes[i];
+            bool spawned = false;
+            ok = SotnBatRuntime_SpawnFamiliarHitbox(
+                &s->bat_runtime, other,
+                (SotnPlayerFactorySource){.x = FairyFixed((Uint32)(h->x + camera_x) << 16),
+                                          .y = FairyFixed((Uint32)(h->y + camera_y) << 16),
+                                          .priority = h->priority,
+                                          .facing_left = h->facing_left},
+                h->parameter, h->spell, (Uint16)progress.records[FAMILIAR_SWORD.record].level,
+                &spawned);
+        }
         if (ok)
         {
             s->sword_runtime = *next;

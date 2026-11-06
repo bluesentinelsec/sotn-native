@@ -7,6 +7,7 @@
 // private.
 #include "bat_runtime_internal.h"
 #include <sotn/combat.h>
+#include <sotn/sword_familiar.h>
 
 static Sint16 Word(Sint32 value)
 {
@@ -856,6 +857,42 @@ bool SotnBatRuntime_RequestFamiliarMedicine(SotnBatRuntime *r, SotnPlayerFactory
     *allocated = false;
     return true;
 }
+bool SotnBatRuntime_SpawnFamiliarHitbox(SotnBatRuntime *r, Uint64 other_occupied,
+                                        SotnPlayerFactorySource source, Uint16 parameter,
+                                        Uint16 spell, Uint16 level, bool *allocated)
+{
+    if (!r || !allocated || parameter > 1 || (spell != 19 && spell != 20) || !level || level > 99 ||
+        r->serial == SDL_MAX_UINT32)
+        return SDL_SetError("Familiar hitbox requires tip0/1, spell19/20 and level1..99");
+    const Uint64 occupied = SotnBatRuntime_Occupied(r) | other_occupied;
+    for (Uint16 slot = 0x11; slot < 0x2f; ++slot)
+        if (!(occupied & ((Uint64)1 << slot)))
+        {
+            SotnBatRuntimeChild *c = &r->children[slot - 16U];
+            *c = (SotnBatRuntimeChild){.source = source,
+                                       .generation = ++r->serial,
+                                       .kind = SOTN_SWORD_HITBOX,
+                                       .parameter = parameter,
+                                       .familiar_hitbox = true};
+            SDL_zero(c->state);
+            c->state.familiar.spell = spell;
+            c->state.familiar.level = level;
+            *allocated = true;
+            return true;
+        }
+    *allocated = false;
+    return true;
+}
+bool SotnBatRuntime_FamiliarHitboxValid(const SotnBatRuntimeChild *c, Uint16 index)
+{
+    return c && c->familiar_hitbox && c->kind == SOTN_SWORD_HITBOX && index >= 1 && index < 31 &&
+           c->generation && c->parameter <= 1 &&
+           (c->state.familiar.spell == 19 || c->state.familiar.spell == 20) &&
+           c->state.familiar.level >= 1 && c->state.familiar.level <= 99 && !c->primitive_count &&
+           (!c->initialized ||
+            (c->group >= (index < 16 ? 3 : 7) && c->group < (index < 16 ? 7 : 11) &&
+             c->state.familiar.attack.width == 4 && c->state.familiar.attack.height == 4));
+}
 // Weapon51's back-forward specials182..185 replace slot16 with its E1/F1 hand child.
 static bool Weapon51Special(Uint16 item)
 {
@@ -1437,6 +1474,8 @@ static bool ChildKind(Uint16 kind)
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
+    if (c->familiar_hitbox)
+        return c->initialized ? 0x0c020000U : 0x04000000U;
     if (!c->initialized)
         return c->source.flags;
     if (c->hand_weapon)
@@ -3027,7 +3066,9 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         const SotnBatRuntimeChild *c = &r.children[i];
         if ((c->kind == 45 &&
              (i < 16 || i >= 32 || (c->initialized && (c->group < 7 || c->group > 10)))) ||
-            (c->kind && (!c->generation || !ChildKind(c->kind))) ||
+            (c->kind &&
+             (!c->generation || !(c->familiar_hitbox ? SotnBatRuntime_FamiliarHitboxValid(c, i)
+                                                     : ChildKind(c->kind)))) ||
             (c->kind == 52 &&
              (i != 31 || (c->initialized && (r.echo_generation != c->generation ||
                                              (c->group && (c->group < 7 || c->group > 10)))))) ||
@@ -3882,7 +3923,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
     r.wing_mask = 0;
     r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
         r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask = r.karma_mask =
-            r.secondary_mask = 0;
+            r.secondary_mask = r.familiar_mask = 0;
     const bool previous_echo_attack = r.echo_attack;
     r.soul_attack = false;
     r.hand_attack = false;
@@ -3937,10 +3978,46 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 r.neutron_mask |= (Uint64)1 << i;
             if (c->initialized && c->hand_weapon)
                 r.hand_attack = c->state.hand.attack.active;
+            if (c->initialized && c->familiar_hitbox && c->state.familiar.attack.active)
+                r.familiar_mask |= (Uint64)1 << i;
             continue;
         }
         bool removed = false;
         c->draw_count = 0;
+        if (c->familiar_hitbox)
+        {
+            // func_us_80177480: the first update takes GetServantStats' spell attack and a 4x4
+            // hitbox for one hit detection; the next update destroys it. The pass validation
+            // above already checked its identity.
+            if (c->initialized)
+                *c = (SotnBatRuntimeChild){0};
+            else
+            {
+                SotnPlayerAttack attack = {0};
+                if (!Spell(in.dra, &progress, stats, c->state.familiar.spell, &attack))
+                    return false;
+                // GetServantStats: attack = spell.attack * (level * 4 / 95 + 1), an s16.
+                const Uint32 power = attack.power * (c->state.familiar.level * 4U / 95U + 1U);
+                if (power > 0x7fff)
+                    return SDL_SetError("Familiar hitbox attack exceeds its original word");
+                attack.power = (Uint16)power;
+                attack.offset_x = 0;
+                attack.width = attack.height = 4;
+                // func_80118894: the least-used group, 3..6 below slot32, else 7..10.
+                Uint16 group = i < 16 ? 3 : 7;
+                for (Uint16 g = (Uint16)(group + 1U); g < (i < 16 ? 7 : 11); ++g)
+                    if (r.groups[g] < r.groups[group])
+                        group = g;
+                if (r.groups[group] == 255)
+                    return SDL_SetError("Familiar hitbox shared group count overflow");
+                ++r.groups[group];
+                c->group = (Uint8)group;
+                c->state.familiar.attack = attack;
+                c->initialized = true;
+                r.familiar_mask |= (Uint64)1 << i;
+            }
+            continue;
+        }
         if (c->hand_weapon)
         {
             const Uint16 hand = c->kind >= 0xf0, family = c->state.hand.family;
@@ -7017,7 +7094,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
              r.children[i].kind == 27 || r.children[i].kind == 61 || r.children[i].kind == 52 ||
              r.children[i].kind == 53 || r.children[i].neutron || r.children[i].sire ||
              r.children[i].pentagram || r.children[i].magic || r.children[i].thrown ||
-             r.children[i].star || r.children[i].karma || r.children[i].weapon_secondary) &&
+             r.children[i].star || r.children[i].karma || r.children[i].weapon_secondary ||
+             r.children[i].familiar_hitbox) &&
             r.children[i].group > 2 && r.children[i].group < 11)
             ++r.groups[r.children[i].group];
     if (r.children[0].kind == 50 && r.children[0].initialized)
@@ -7031,7 +7109,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         r.wing_mask = r.wolf_mask = 0;
         r.fire_mask = r.spirit_mask = r.hellfire_mask = r.sword_mask = r.axe_mask = r.neutron_mask =
             r.sire_mask = r.pentagram_mask = r.magic_mask = r.thrown_mask = r.star_mask =
-                r.karma_mask = r.secondary_mask = 0;
+                r.karma_mask = r.secondary_mask = r.familiar_mask = 0;
         r.soul_attack = r.echo_attack = false;
         r.hand_attack = false;
         for (Uint16 i = 0; i < 14; ++i)
@@ -7046,6 +7124,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.hand.motion.hitbox_state = 0;
                 c->state.hand.attack.active = false;
             }
+            else if (c->familiar_hitbox)
+                c->state.familiar.attack.active = false;
             else if (c->weapon_secondary)
             {
                 c->state.secondary.motion.hitbox_state = 0;
