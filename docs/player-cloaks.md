@@ -1,4 +1,4 @@
-# Selected Reverse, Royal and Crystal cloaks
+# Selected Reverse, Royal, Crystal and Joseph's cloaks
 
 The Reverse cloak (body item 50) and the Royal cloak (body item 53) are now supported. Defaults,
 grants and saves are unchanged.
@@ -15,8 +15,13 @@ for the supported capes (`SotnAlucard_CapePalette`). Their records otherwise car
 bonus.
 
 The native port has no configuration menu yet, so the lining setting keeps its default (off) and
-the Reverse cloak always uses 0x40B. Joseph's cloak (colours from the configuration menu) stays
-unsupported until that menu exists.
+the Reverse cloak always uses 0x40B.
+
+Joseph's cloak (body item 55) queues 0x411, a plain copy of `g_JosephsCloakColors`.
+`ApplyJosephsCloakPalette` builds those four colours from the configured `cloakColors`, which
+default to zero, giving four `ALPHA_MASK` blacks (0x8000). DRA's static `g_JosephsCloakColors`
+already holds exactly those defaults, so the native copy reads them directly. Custom colours wait
+for the configuration menu.
 
 ## Crystal cloak
 
@@ -33,7 +38,7 @@ lasts until the cape changes, which clears it like `func_800EA538(6)`.
 
 ## Evidence
 
-- Public tests cover equipping both cloaks in the cape slot and the Royal cloak's CON bonus.
+- Public tests cover equipping the cloaks in the cape slot and the Royal cloak's CON bonus.
 - A public test covers the Crystal rotation's copy, countdown, advance, wrap and its rejection of
   a malformed cursor or operation kind.
 - A private MIPS oracle runs DRA's real `g_CapePaletteDefs` lookup (52 → 0x410),
@@ -41,7 +46,7 @@ lasts until the cape changes, which clears it like `func_800EA538(6)`.
   match the native rotation on every pass, and the oracle catches a deliberate mutation.
 - A private native LLDB probe in a real Laboratory session equips each cloak. The live player
   palette's four cape colours match each cloak's original operation, the two differ, and a
-  rendered frame shows the colours. With the Crystal cloak, consecutive updates alternate between
+  rendered frame shows the colours. Joseph's cloak gives four 0x8000 blacks. With the Crystal cloak, consecutive updates alternate between
   its two colour sets. These fixtures supply the items; they are not acquisition, route or
   console evidence.
 
