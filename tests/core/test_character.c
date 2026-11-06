@@ -172,6 +172,34 @@ int main(void)
           guarded.attack[0] == rod.attack[0] && guarded.attack[1] == rod.attack[0]);
     CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 167) && SotnCharacter_Get(c, &s, &guarded) &&
           guarded.attack[1] == rod.attack[0] + 5);
+    // CalcDefense: Shield rod beside a shield adds two defense; held Medusa13/Fire15 shields
+    // grant stone/fire immunity.
+    SotnItem shield = {0};
+    SotnCharacterStats lone = {0}, paired = {0};
+    CHECK(SotnItem_Read(dra, false, 5, &shield));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 4) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 0) && SotnCharacter_Get(c, &s, &lone));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 5) && SotnCharacter_Get(c, &s, &paired) &&
+          paired.defense == lone.defense + 2 + shield.defense);
+    CHECK(SotnCharacter_Collect(c, false, 13) && SotnCharacter_Collect(c, false, 15) &&
+          !(paired.immunity & 0x8200U));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 13) && SotnCharacter_Get(c, &s, &paired) &&
+          (paired.immunity & 0x200U) && !(paired.immunity & 0x8000U));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 15) && SotnCharacter_Get(c, &s, &paired) &&
+          (paired.immunity & 0x8000U) && !(paired.immunity & 0x200U));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 0));
+    // Additive-only body records: Ice mail12's resistance and the Ring of Varda74's bonuses.
+    bytes[0x4000 + 12 * 32 + 19] = 0x20;
+    bytes[0x4000 + 74 * 32 + 28] = 3;
+    bytes[0x4000 + 74 * 32 + 12] = 30;
+    bytes[0x4000 + 74 * 32 + 15] = 5;
+    SotnCharacterStats mailed = {0};
+    CHECK(SotnCharacter_Collect(c, true, 12) && SotnCharacter_Collect(c, true, 74) &&
+          SotnCharacter_Get(c, &s, &lone) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 12) &&
+          SotnCharacter_Equip(c, 5, 74) && SotnCharacter_Get(c, &s, &mailed) &&
+          (mailed.resistance & 0x2000U) && mailed.bonus[0] == lone.bonus[0] + 30 &&
+          mailed.bonus[3] == lone.bonus[3] + 5);
+    CHECK(SotnCharacter_Equip(c, 5, 57) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0));
     // Original CalcAttack: the Sword Familiar126 adds the Sword familiar's (record4) level.
     bytes[0x1000 + 126 * 52 + 14] = 1;
     bytes[0x1000 + 126 * 52 + 8] = 0;

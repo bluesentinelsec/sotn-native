@@ -80,7 +80,10 @@ static bool BodySupported(Uint16 id)
            id <= 9 || (id >= 26 && id <= 33) || id == 35 || id == 36 || id == 46 || id == 47 ||
            id == 48 || id == 49 || id == 51 || id == 54 || id == 57 || id == 60 ||
            (id >= 63 && id <= 73) || id == 76 || id == 77 || id == 79 || id == 82 || id == 84 ||
-           id == 85 || id == 80 || id == 89;
+           id == 85 || id == 80 || id == 89 ||
+           // Additive-only records: Lightning/Ice mail, Dark armor, Holy mail, Rings of
+           // Varda/Feanor and the Covenant stone.
+           id == 11 || id == 12 || id == 16 || id == 18 || id == 74 || id == 81 || id == 86;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -301,6 +304,15 @@ static bool Calculate(SotnCharacter *c)
             result.absorption |= items[i].absorption;
         }
     }
+    // CalcDefense: Shield rod4 beside a shield (category9) adds two; a held Medusa13/Fire15
+    // shield grants stone/fire immunity.
+    for (Uint32 i = 0; i < 2; ++i)
+        if (items[i].id == 4 && items[1 - i].category == 9)
+            defense += 2;
+    if (c->state.equipment[0] == 13 || c->state.equipment[1] == 13)
+        result.immunity |= 0x200;
+    if (c->state.equipment[0] == 15 || c->state.equipment[1] == 15)
+        result.immunity |= 0x8000;
     if ((items[0].category == 5 || items[1].category == 5) &&
         c->state.equipment[0] != c->state.equipment[1])
         return SDL_SetError("Two-hand equipment lost its paired actual slots");
