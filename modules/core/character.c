@@ -16,6 +16,8 @@ struct SotnCharacter
     Uint16 stat_buff_mask;
     /** Active Vlad relics (bit0 Heart25, bit1 Tooth26, bit2 Rib27, bit3 Ring28, bit4 Eye29). */
     Uint8 vlad_mask;
+    /** g_RoomCount: the world's explored-room counter (Walk armor's defense). */
+    Uint16 rooms;
     SotnPlaytime playtime;
     bool playtime_bound;
     SotnDataView executable; /**< Borrowed SDK image for Muramasa's signed-range SquareRoot0. */
@@ -85,7 +87,9 @@ static bool BodySupported(Uint16 id)
            // Varda/Feanor and the Covenant stone.
            id == 11 || id == 12 || id == 16 || id == 18 || id == 74 || id == 81 || id == 86 ||
            // Brilliant mail20 and Staurolite61 raise subweapon attack (SotnSubweapons_Power).
-           id == 20 || id == 61;
+           id == 20 || id == 61 ||
+           // Walk armor19 adds the explored-room count / 60 to defense.
+           id == 19;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
@@ -378,6 +382,9 @@ static bool Calculate(SotnCharacter *c)
         Word(empty.attack + attack +
              (empty.attack <= result.total[0] ? result.total[0] : result.total[0] / 2)),
         0, 999);
+    // CalcDefense: Walk armor19 adds g_RoomCount / 60 before the DEF buff.
+    if (c->state.equipment[3] == 19)
+        defense += c->rooms / 60;
     if (c->stat_buff_mask & (1U << SOTN_BUFF_DEFENSE))
         defense += 20;
     if (c->stat_buff_mask & (1U << SOTN_BUFF_FIRE))
@@ -565,6 +572,19 @@ bool SotnCharacter_CommitMainLoop(SotnCharacter *c, SotnPlaytime clock, Uint32 r
     if (!SotnCharacter_SetPlaytime(&next, clock))
         return false;
     next.state.random = random;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_SetRooms(SotnCharacter *c, Uint16 rooms)
+{
+    if (!c || rooms > 8192)
+        return SDL_SetError("Room count requires a character and the world's bounded counter");
+    if (c->rooms == rooms)
+        return true;
+    SotnCharacter next = *c;
+    next.rooms = rooms;
+    if (!Calculate(&next))
+        return false;
     *c = next;
     return true;
 }

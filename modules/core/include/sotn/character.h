@@ -147,6 +147,11 @@ bool SotnCharacter_SetStatBuffMask(SotnCharacter *character, Uint16 mask);
  * Ring28, bit4 Eye29 of the world's relic active bits.
  * @return Success or SDL error preserving character/stats. Grants no relic. */
 bool SotnCharacter_SetVladRelics(SotnCharacter *character, Uint8 mask);
+/** @brief Recalculate derived stats from the world's explored-room counter (g_RoomCount), which
+ * Walk armor adds to defense as rooms / 60.
+ * @param character Actual character. @param rooms Counter, at most 8192.
+ * @return Success or SDL error preserving character/stats. */
+bool SotnCharacter_SetRooms(SotnCharacter *character, Uint16 rooms);
 /** @brief Read a bounded original item definition and encoded name/description.
  * @param dra Borrowed image. @param body Select body versus hand table.
  * @param id Original item ID within that table. @param out Unchanged on failure.

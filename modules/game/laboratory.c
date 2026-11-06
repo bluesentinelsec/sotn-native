@@ -757,6 +757,7 @@ static bool ApplyCharacter(SotnLaboratory *session)
     for (Uint32 i = 0; i < 5; ++i)
         vlad |= (Uint8)((session->world.relics[25 + i] & 2U) ? 1U << i : 0U);
     if (!SotnCharacter_SetVladRelics(session->character, vlad) ||
+        !SotnCharacter_SetRooms(session->character, session->world.rooms) ||
         !SotnCharacter_Get(session->character, &state, &stats))
         return false;
     SotnPlayerState current = {0};
