@@ -79,6 +79,9 @@ static bool Program(Uint16 family, Layout *out)
     // Weapon46: Holbein dagger's slash takes one GT4; Blue knuckles' arc thirty-two G4s.
     else if (family == 46)
         *out = (Layout){.rows = 32};
+    // Weapon47 (Dynamite): the root's thirty-two optional rows; its flames play D_14D000_8017A528.
+    else if (family == 47)
+        *out = (Layout){.timeline = 0x528, .timeline_count = 8, .rows = 32};
     else if (family == 34)
         *out = (Layout){.rows = 0};
     else if (family == 30)
@@ -153,7 +156,7 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
-           family == 30 || family == 7 || family == 37 || family == 46 ||
+           family == 30 || family == 7 || family == 37 || family == 46 || family == 47 ||
            SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
@@ -188,6 +191,9 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon46: Holbein dagger's EntityWeaponAttack slashes (role0) and Blue knuckles' arc
     // (role1).
     if (family == 46)
+        return role <= 1;
+    // Weapon47: Dynamite's EntityWeaponAttack root (role0) and its explosion flames (role1).
+    if (family == 47)
         return role <= 1;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
@@ -256,6 +262,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 1 ? 16 : 0;
     if (family == 46)
         return role == 1 ? 32 : 1;
+    if (family == 47)
+        return role == 0 ? 32 : 0;
     if (family == 34)
         return 0;
     if (family == 30)
@@ -296,6 +304,10 @@ Uint8 SotnWeaponSecondary_ChildRows(Uint16 family, Uint16 role, Uint16 parameter
 }
 Uint8 SotnWeaponSecondary_HeldRows(Uint16 family, Uint16 role, Uint16 parameter, Uint8 phase)
 {
+    // Dynamite's root holds its rows through the sparking fuse (1) and explosion (2); a dud fuse
+    // (5) and its blink (4) hold none.
+    if (family == 47 && role == 0 && phase)
+        return phase == 1 || phase == 2 ? 32 : 0;
     return family == 13 && role == 2 && phase == 4
                ? 1
                : SotnWeaponSecondary_ChildRows(family, role, parameter);
@@ -1853,6 +1865,292 @@ static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uin
 }
 
 static bool Query(SotnWeaponSecondaryInput in, Sint16 x, Sint16 y, SotnCollider *out);
+// Appends one ordered PlaySfx request.
+static bool DynamiteSound(SotnWeaponSecondaryEvents *e, Uint16 sound)
+{
+    if (e->sounds[1])
+        return SDL_SetError("Dynamite exceeded its per-update sound requests");
+    e->sounds[e->sounds[0] ? 1 : 0] = sound;
+    return true;
+}
+// w_047 EntityWeaponAttack (blueprint50 E0/F0, Dynamite138): the thrown stick patches its texture,
+// rolls rand()&7 for thirty-two optional fuse-spark TILEs, arcs and bounces off the room for
+// 0x80 updates, then (with sparks) explodes: its TILEs become GT4 rays that grow, fade and
+// request 0x3A flames while bright, and its hitbox grows to 0x60. A dud blinks out instead.
+static bool Dynamite(SotnWeaponSecondary *s, SotnHandWeaponProgram *p, SotnWeaponSecondaryInput in,
+                     Uint32 *rng, SotnWeaponSecondaryEvents *e)
+{
+    SotnPlayerEffectQuad *q = s->dyn_quads;
+    if (!s->phase)
+    {
+        s->role = 0;
+        s->allocated = true;
+        s->bank = (Uint16)(0x8010U + in.hand * 2U);
+        s->texture = (Uint16)(0x65U + in.hand * 2U);
+        s->palette = (Uint16)(0x110U + in.hand * 0x18U);
+        s->dyn_v = in.hand ? 0x80 : 0;
+        e->load_image = true;
+        s->facing_left = in.facing_left;
+        s->priority = (Uint16)(in.priority - 6U);
+        s->flags = 0x08000000U;
+        s->dyn_prims = (Rand(rng) & 7U) && in.allocated;
+        s->dyn_gt4 = false;
+        for (Uint16 i = 0; i < 32; ++i)
+            q[i] = (SotnPlayerEffectQuad){0};
+        if (s->dyn_prims)
+        {
+            s->flags |= 0x00800000U;
+            for (Uint16 i = 0; i < 32; ++i)
+            {
+                q[i].red[0] = 0x80;
+                q[i].green[0] = 0x40;
+                q[i].u[0] = q[i].v[0] = 1;
+                q[i].x[1] = (Sint16)(Rand(rng) & 15U);
+                q[i].x[3] = (Sint16)(Rand(rng) & 15U);
+                q[i].priority = (Uint16)(s->priority - 4U);
+                q[i].draw_mode = 0x3b;
+            }
+        }
+        s->dyn_vy = -0x28000;
+        const Sint32 speed = (Sint32)Rand(rng) + 0x18000;
+        s->velocity_x = s->facing_left ? -speed : speed;
+        const Sint16 y = Word(Word(Word(Pixel(in.y) - in.camera_y) + in.parent_hitbox_y) - 8 -
+                              (in.player_crouch_step ? 0 : 6));
+        SetScreen(&s->y, y, in.camera_y);
+        e->clear_shield = true;
+        e->sounds[0] = 0x60c;
+        s->dyn_fuse = 0x80;
+        p->secondary_counter = 0;
+        e->use_ticks = 4;
+        s->phase = s->dyn_prims ? 1 : 5;
+        return true;
+    }
+    switch (s->phase)
+    {
+    case 1:
+    case 5: {
+        s->frame = 1;
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->dyn_vy);
+        if (s->dyn_vy < 0x70000)
+            s->dyn_vy += 0x2000;
+        if (s->hit_flags)
+        {
+            s->velocity_x = s->velocity_x * 2 / 3;
+            s->hit_flags = 0;
+            return true;
+        }
+        SotnCollider c = {0};
+        Sint16 x = Word(Pixel(s->x) - in.camera_x), y = Word(Pixel(s->y) - in.camera_y);
+        const Sint16 ox = s->velocity_x < 0 ? -4 : 4;
+        if (!Query(in, Word(x + ox), y, &c))
+            return false;
+        if (c.effects & 2U)
+        {
+            x = Word(x + (ox < 0 ? c.tile_right : c.tile_left));
+            SetScreen(&s->x, x, in.camera_x);
+            s->velocity_x = -(s->velocity_x / 2);
+        }
+        if (!Query(in, x, Word(y - 4), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            y = Word(y + c.bottom + 1);
+            SetScreen(&s->y, y, in.camera_y);
+            s->dyn_vy = 0x10000;
+            s->velocity_x /= 2;
+        }
+        if (!Query(in, x, Word(y + 4), &c))
+            return false;
+        if (c.effects & SOTN_EFFECT_SOLID)
+        {
+            if (!p->secondary_counter)
+            {
+                if (!DynamiteSound(e, 0x64b))
+                    return false;
+                p->secondary_counter = (Sint32)((Uint32)p->secondary_counter + 1U);
+            }
+            y = Word(y + c.top);
+            SetScreen(&s->y, y, in.camera_y);
+            s->velocity_x = s->dyn_vy = 0;
+        }
+        if (--s->dyn_fuse == 0)
+        {
+            s->dyn_fuse = 0x28;
+            if (s->dyn_prims)
+            {
+                e->shake = 6;
+                s->phase = 2;
+                for (Uint16 i = 0; i < 32; ++i)
+                    q[i].draw_mode |= 8;
+                for (Uint16 i = 0; i < 32; ++i)
+                {
+                    SotnMathTrig a = {0}, b = {0};
+                    if (!SotnMath_Trig(in.executable, (Sint32)i << 7, &a) ||
+                        !SotnMath_Trig(in.executable, (Sint32)(i + 1U) << 7, &b))
+                        return false;
+                    const Uint8 base = (Uint8)(s->dyn_v + 0x40U);
+                    q[i].u[0] = (Uint8)(Asr(Asr(a.cosine, 4) * 64, 8) + 0xc0);
+                    q[i].v[0] = (Uint8)(base - Asr(Asr(a.sine, 4) * 64, 8));
+                    if (q[i].u[0] < 4)
+                        q[i].u[0] = 0xff;
+                    q[i].u[1] = (Uint8)(Asr(Asr(b.cosine, 4) * 64, 8) + 0xc0);
+                    q[i].v[1] = (Uint8)(base - Asr(Asr(b.sine, 4) * 64, 8));
+                    if (q[i].u[1] < 4)
+                        q[i].u[1] = 0xff;
+                    if (s->dyn_v)
+                    {
+                        if (q[i].v[1] < 4)
+                            q[i].v[1] = 0xff;
+                        if (q[i].v[0] < 4)
+                            q[i].v[0] = 0xff;
+                    }
+                    q[i].u[2] = q[i].u[3] = 0xc0;
+                    q[i].v[2] = q[i].v[3] = base;
+                    for (Uint16 v = 0; v < 4; ++v)
+                        q[i].red[v] = q[i].green[v] = q[i].blue[v] = v < 2 ? 0 : 0xff;
+                    q[i].palette = 0x159;
+                    q[i].page = 0x19;
+                    q[i].priority = (Uint16)(in.priority + 8U);
+                }
+                s->dyn_gt4 = true;
+                if (!DynamiteSound(e, 0x654))
+                    return false;
+                s->hitbox_width = s->hitbox_height = 4;
+                if (!Properties(s, in, rng, e))
+                    return false;
+                e->group = true;
+                return true;
+            }
+            s->phase = 4;
+            s->dyn_fuse = 0x18;
+        }
+        else if (s->dyn_prims)
+        {
+            if (!(in.game_timer & 7U) && !DynamiteSound(e, 0x6a3))
+                return false;
+            const Uint8 *ox_table = NULL, *oy_table = NULL;
+            if (!View(in.overlay, 0x468, 64, &ox_table) || !View(in.overlay, 0x488, 64, &oy_table))
+                return SDL_SetError("Dynamite fuse sparks require their private offsets");
+            const Sint16 fx = Word(Pixel(s->x) - in.camera_x), fy = Word(Pixel(s->y) - in.camera_y);
+            for (Uint16 i = 0; i < 32; ++i)
+            {
+                if (!q[i].x[3])
+                {
+                    const Uint16 k = (Uint16)q[i].x[1];
+                    if (k > 31)
+                        return SDL_SetError("Dynamite fuse spark index left its private table");
+                    const Sint32 dx = (Sint16)Read16(ox_table + k * 2U) * q[i].x[2] / 15,
+                                 dy = (Sint16)Read16(oy_table + k * 2U) * q[i].x[2] / 15;
+                    const Sint16 x0 = Word(s->facing_left ? fx - 8 - dx : fx + 8 + dx);
+                    q[i].x[0] = Word(x0 + in.camera_x);
+                    q[i].y[0] = Word(Word(fy + dy) + in.camera_y);
+                    q[i].x[2] = Word(q[i].x[2] + 1);
+                    if (q[i].x[2] > 15)
+                    {
+                        q[i].x[2] = 0;
+                        q[i].x[1] = (Sint16)(Rand(rng) & 15U);
+                    }
+                    q[i].draw_mode &= 0xfff7U;
+                }
+                else
+                    q[i].x[3] = Word(q[i].x[3] - 1);
+            }
+        }
+        break;
+    }
+    case 2: {
+        if (s->hitbox_width < 0x60)
+        {
+            s->hitbox_width = (Uint8)(s->hitbox_width + 6U);
+            s->hitbox_height = (Uint8)(s->hitbox_height + 6U);
+        }
+        s->frame = 0;
+        if (s->dyn_radius < 0x8000)
+            s->dyn_radius += 0x480;
+        const Sint32 radius = s->dyn_radius >> 8;
+        if (q[0].blue[3] > 0x58)
+        {
+            if (e->factory_count >= SDL_arraysize(e->factories))
+                return SDL_SetError("Dynamite exceeded its flame requests");
+            e->factory_x[e->factory_count] = s->x;
+            e->factory_y[e->factory_count] = s->y;
+            e->factories[e->factory_count++] = ((Uint32)(in.hand + 1U) << 12) + 0x3aU;
+        }
+        if (q[0].blue[3] < 5)
+        {
+            s->removed = true;
+            return true;
+        }
+        const Sint16 wx = Pixel(s->x), wy = Pixel(s->y);
+        for (Uint16 i = 0; i < 32; ++i)
+        {
+            SotnMathTrig a = {0}, b = {0};
+            if (!SotnMath_Trig(in.executable, (Sint32)i << 7, &a) ||
+                !SotnMath_Trig(in.executable, (Sint32)(i + 1U) << 7, &b))
+                return false;
+            q[i].x[0] = Word(wx + Asr(Asr(a.cosine, 8) * radius, 4));
+            q[i].y[0] = Word(wy - Asr(Asr(a.sine, 8) * radius, 4));
+            q[i].x[1] = Word(wx + Asr(Asr(b.cosine, 8) * radius, 4));
+            q[i].y[1] = Word(wy - Asr(Asr(b.sine, 8) * radius, 4));
+            q[i].x[2] = q[i].x[3] = wx;
+            q[i].y[2] = q[i].y[3] = wy;
+            q[i].draw_mode = 0x37;
+            if (q[i].blue[3] >= 4)
+                q[i].blue[3] = (Uint8)(q[i].blue[3] - 4U);
+            q[i].red[2] = q[i].green[2] = q[i].blue[2] = q[i].red[3] = q[i].green[3] = q[i].blue[3];
+        }
+        break;
+    }
+    case 4:
+        s->draw_flags |= 0x80;
+        if (--s->dyn_fuse == 0)
+            s->removed = true;
+        break;
+    default:
+        break;
+    }
+    return true;
+}
+// w_047 func_ptr_80170004 (blueprint0x3A E1/F1): an explosion flame that leaves its raw parent's
+// position at a random upward angle and retires at its animation's END.
+static bool DynamiteFlame(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng)
+{
+    if (s->phase)
+    {
+        s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y);
+        s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x);
+        if (s->remaining < 0)
+            s->removed = true;
+        return true;
+    }
+    if (!in.parent_exists)
+    {
+        s->removed = true;
+        return true;
+    }
+    s->role = 1;
+    s->allocated = true;
+    s->bank = (Uint16)(0x8011U + in.hand * 2U);
+    s->texture = (Uint16)(0x64U + in.hand * 2U);
+    s->palette = in.hand ? 0x129 : 0x111;
+    s->timeline = 0x528;
+    s->flags = 0x08100000U;
+    s->priority = (Uint16)(in.priority + 2U);
+    const Sint16 speed = (Sint16)(Rand(rng) % 1535U + 0x100U);
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(in.executable, speed, &t))
+        return false;
+    s->velocity_x = (Sint32)((Uint32)t.cosine << 7);
+    s->velocity_y = -(Sint32)((Uint32)t.sine << 7);
+    s->x = (Sint32)((Uint32)s->x + (Uint32)s->velocity_x * 2U);
+    s->y = (Sint32)((Uint32)s->y + (Uint32)s->velocity_y * 2U);
+    s->blend = 0x30;
+    if (Rand(rng) & 1U)
+        s->blend = 0x70;
+    s->phase = 1;
+    return true;
+}
 // w_046 EntityWeaponAttack (blueprint50 E0/F0, Holbein dagger136): one GT4 slash spun around
 // the live player from D_146000_8017AAD8[params] (uv flips, colour, radius, angle). The params0
 // root rolls properties (15x20 hitbox) and requests WFACTORY(0x32,1)/(0x32,2) at its fourth and
@@ -8924,7 +9222,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
         !Program(in.family, &layout) ||
         !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ||
                                                               in.family == 13 || in.family == 12 ||
-                                                              in.family == 46
+                                                              in.family == 46 || in.family == 47
                                                           ? in.role
                                                           : 1) ||
         state->removed ||
@@ -8936,6 +9234,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 7 && in.role == 1                       ? 4
                         : in.family == 37 && in.role == 2                      ? 2
                         : in.family == 46 && in.role == 1                      ? 2
+                        : in.family == 47 && in.role == 0                      ? 5
                         : in.family == 10 && in.role == 8                      ? 9
                         : in.family == 23 && in.role == 8                      ? 8
                         : in.family == 23                                      ? 3
@@ -8991,6 +9290,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 6)
     {
         if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 47)
+    {
+        if (!(in.role == 1 ? DynamiteFlame(&s, in, &rng) : Dynamite(&s, &shared, in, &rng, &e)))
             return false;
         goto commit;
     }
@@ -9276,6 +9581,9 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
     if (state && family == 27 && state->role == 8)
         layout = (Layout){.timeline = state->timeline,
                           .timeline_count = state->timeline == 0xcb4 ? 3 : 10};
+    // Weapon47's flames: D_14D000_8017A528 (seven frames, END).
+    if (state && family == 47 && state->role == 1)
+        layout = (Layout){.timeline = 0x528, .timeline_count = 8};
     // Weapon37's coins: D_107000_8017A798 (seven frames, looping).
     if (state && family == 37 && state->role == 2)
         layout = (Layout){.timeline = state->timeline, .timeline_count = 8};
@@ -9289,6 +9597,7 @@ bool SotnWeaponSecondary_Animate(SotnWeaponSecondary *state, SotnDataView overla
          (family != 27 || state->role != 8 || !layout.timeline) &&
          (family != 29 || state->role != 8 || !layout.timeline) &&
          (family != 37 || state->role != 2 || !layout.timeline) &&
+         (family != 47 || state->role != 1) &&
          ((family != 49 && family != 30 && family != 11) || !layout.timeline)) ||
         state->removed || !state->phase || state->pose >= layout.timeline_count ||
         state->remaining < -1 || !overlay.bytes ||

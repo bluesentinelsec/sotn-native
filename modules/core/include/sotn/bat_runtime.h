@@ -279,6 +279,9 @@ typedef struct SotnBatRuntime
      * (the session commits them to its palette store after a successful pass): each word
      * becomes (word & mask) + value. */
     Uint8 clut_count;
+    /** Weapon47 (Dynamite) LoadImage requests this pass, by hand bit (1 left, 2 right): the
+     * session uploads the program's 4x16 words into that hand's weapon texture. */
+    Uint8 weapon_image;
     struct
     {
         Uint16 palette, color, mask, value;

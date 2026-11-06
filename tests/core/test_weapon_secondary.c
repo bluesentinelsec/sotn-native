@@ -4555,6 +4555,489 @@ static bool KnuckleRuntime(Uint16 item, Uint16 hand)
     SDL_free(dra);
     return true;
 }
+// w_047 EntityWeaponAttack / func_ptr_80170004: Dynamite's stick, fuse sparks, explosion and
+// flames with synthetic spark offsets, texture words and a seven-frame flame timeline.
+static void DynamiteTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 32; ++i)
+    {
+        Put16(o + 0x468 + i * 2U, (Uint16)(-(Sint16)(i % 9) - 1));
+        Put16(o + 0x488 + i * 2U, (Uint16)(-(Sint16)(20 + i % 7)));
+    }
+    for (Uint16 i = 0; i < 128; ++i)
+        o[0x4a8 + i] = (Uint8)(i * 7);
+    for (Uint16 i = 0; i < 7; ++i)
+    {
+        Put16(o + 0x528 + i * 4U, 2);
+        Put16(o + 0x52a + i * 4U, (Uint16)(1 + i));
+    }
+    Put16(o + 0x528 + 7 * 4U, 0xffff);
+}
+typedef struct DynamiteRoom
+{
+    Sint32 floor, left, right, ceiling;
+} DynamiteRoom;
+static bool DynamiteQuery(void *context, Sint32 x, Sint32 y, SotnCollider *out)
+{
+    const DynamiteRoom *r = context;
+    *out = (SotnCollider){0};
+    if (y >= r->floor)
+    {
+        out->effects |= SOTN_EFFECT_SOLID;
+        out->top = r->floor - y;
+    }
+    if (y < r->ceiling)
+    {
+        out->effects |= SOTN_EFFECT_SOLID;
+        out->bottom = r->ceiling - y;
+    }
+    if (x >= r->right)
+    {
+        out->effects |= 2U;
+        out->tile_left = r->right - 1 - x;
+    }
+    if (x < r->left)
+    {
+        out->effects |= 2U;
+        out->tile_right = r->left - x;
+    }
+    return true;
+}
+static bool DynamiteTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    DynamiteTables(o);
+    const SotnDataView x = {exe, sizeof(exe)};
+    CHECK(SotnWeaponSecondary_Supported(47) && SotnWeaponSecondary_SupportedRole(47, 0) &&
+          SotnWeaponSecondary_SupportedRole(47, 1) && !SotnWeaponSecondary_SupportedRole(47, 2) &&
+          SotnWeaponSecondary_RoleRows(47, 0) == 32 && !SotnWeaponSecondary_RoleRows(47, 1) &&
+          SotnWeaponSecondary_HeldRows(47, 0, 0, 0) == 32 &&
+          SotnWeaponSecondary_HeldRows(47, 0, 0, 1) == 32 &&
+          SotnWeaponSecondary_HeldRows(47, 0, 0, 2) == 32 &&
+          !SotnWeaponSecondary_HeldRows(47, 0, 0, 4) && !SotnWeaponSecondary_HeldRows(47, 0, 0, 5));
+    Uint16 hit = 2;
+    DynamiteRoom room = {.floor = 200, .left = 20, .right = 400, .ceiling = -1000};
+    // Cases: sparks (rand&7 != 0) or a dud (zero), a failed allocation, hands, facing, crouch,
+    // a wall bounce and a contact slowing the flight.
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool dud_roll = k == 2 || k == 5, fail = k == 3, left = k == 4 || k == 6,
+                   crouch = k >= 6, wall = k == 1 || k == 4 || k == 6, contact = k == 7,
+                   ceiling = k == 0, deep = k == 4;
+        // Case0's spark roll is 4 (&7 non-zero though &3 is zero).
+        Uint32 seed = 41U + k;
+        for (;; ++seed)
+        {
+            Uint32 probe = seed;
+            const Uint32 roll = SotnCombat_Random(&probe) & 0x7fffU & 7U;
+            if ((roll == 0) == dud_roll && (k || roll == 4))
+                break;
+        }
+        const bool sparks = !dud_roll && !fail;
+        room.right = k == 1 ? 260 : 400;
+        room.left = k == 6 ? 140 : 20;
+        room.ceiling = ceiling ? 120 : -1000;
+        room.floor = deep ? 5000 : 200;
+        SotnHandWeaponProgram program = {.secondary_counter = 5};
+        SotnWeaponSecondary s = {
+            .parameter = (Uint16)(hand << 15), .x = 200 * 65536 + 0x1234, .y = 3 * 65536 + 0x4321};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x,
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .x = 200 * 65536,
+                                       .y = 150 * 65536,
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .hand = hand,
+                                       .family = 47,
+                                       .priority = 0x94,
+                                       .parent_hitbox_y = -9,
+                                       .player_crouch_step = crouch,
+                                       .facing_left = left,
+                                       .allocated = !fail,
+                                       .query = DynamiteQuery,
+                                       .query_context = &room};
+        Uint32 rng = seed, check = seed;
+        (void)SotnCombat_Random(&check);
+        Sint16 x1[32] = {0}, x3[32] = {0};
+        for (Uint16 i = 0; sparks && i < 32; ++i)
+        {
+            x1[i] = (Sint16)(SotnCombat_Random(&check) & 0x7fffU & 15U);
+            x3[i] = (Sint16)(SotnCombat_Random(&check) & 0x7fffU & 15U);
+        }
+        const Sint32 speed = (Sint32)(SotnCombat_Random(&check) & 0x7fffU) + 0x18000;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+        const Sint32 y0 = 150 - 10 - 9 - 8 - (crouch ? 0 : 6) + 10;
+        CHECK(s.phase == (sparks ? 1 : 5) && s.dyn_prims == sparks && !s.dyn_gt4 &&
+              s.bank == 0x8010U + hand * 2U && s.texture == 0x65U + hand * 2U &&
+              s.palette == 0x110U + hand * 0x18U && s.dyn_v == (hand ? 0x80 : 0) &&
+              s.priority == 0x8e && s.flags == (sparks ? 0x08800000U : 0x08000000U) &&
+              e.load_image && e.clear_shield && e.sounds[0] == 0x60c && e.use_ticks == 4 &&
+              !e.properties && s.dyn_vy == -0x28000 && s.velocity_x == (left ? -speed : speed) &&
+              s.x == 200 * 65536 + 0x1234 && s.y == y0 * 65536 + 0x4321 && s.dyn_fuse == 0x80 &&
+              !program.secondary_counter);
+        for (Uint16 i = 0; i < 32; ++i)
+            CHECK(sparks ? s.dyn_quads[i].x[1] == x1[i] && s.dyn_quads[i].x[3] == x3[i] &&
+                               !s.dyn_quads[i].x[2] && s.dyn_quads[i].red[0] == 0x80 &&
+                               s.dyn_quads[i].green[0] == 0x40 && s.dyn_quads[i].u[0] == 1 &&
+                               s.dyn_quads[i].priority == 0x8a && s.dyn_quads[i].draw_mode == 0x3b
+                         : !s.dyn_quads[i].draw_mode && !s.dyn_quads[i].x[1]);
+        // Flight: gravity 1/8 up to 7.0, a floor landing with one stomp, the fuse's 0x80th
+        // update explodes (sparks) or starts the dud blink.
+        Uint16 updates = 0, stomps = 0, scrapes = 0, bounces = 0, roofs = 0;
+        Sint32 max_vy = -0x28000;
+        for (Uint32 t = 1; s.phase == 1 || s.phase == 5; ++t)
+        {
+            const SotnWeaponSecondary before = s;
+            in.game_timer = t;
+            s.hit_flags = (Uint8)(contact && t == 5);
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            if (contact && t == 5)
+            {
+                CHECK(s.velocity_x == before.velocity_x * 2 / 3 && !s.hit_flags &&
+                      s.dyn_fuse == before.dyn_fuse);
+                continue;
+            }
+            ++updates;
+            for (Uint16 j = 0; j < 2; ++j)
+            {
+                stomps += e.sounds[j] == 0x64b;
+                scrapes += e.sounds[j] == 0x6a3;
+            }
+            // A wall halves and reverses velocityX; the ceiling sets velocityY 1.0 and halves X.
+            const bool bounce = (before.velocity_x > 0) != (s.velocity_x > 0) && s.velocity_x;
+            const bool roof = before.dyn_vy < 0 && s.dyn_vy == 0x10000;
+            if (bounce && !roof)
+                CHECK(s.velocity_x == -(before.velocity_x / 2) &&
+                      (s.x >> 16) == (before.velocity_x < 0 ? room.left + 4 : room.right - 5));
+            if (roof)
+            {
+                CHECK((s.y >> 16) == room.ceiling + 5 && s.velocity_x == before.velocity_x / 2);
+                ++roofs;
+            }
+            bounces += bounce;
+            max_vy = SDL_max(max_vy, s.dyn_vy);
+            CHECK(s.frame == 1 || s.phase == 2);
+            if (s.phase == 2 || s.phase == 4)
+            {
+                // The explosion's SetWeaponProperties rolls once.
+                if (s.phase == 2)
+                    (void)SotnCombat_Random(&check);
+                CHECK(rng == check);
+                break;
+            }
+            // Sparks whose countdown ended move along their offsets, others count down.
+            for (Uint16 i = 0; sparks && i < 32; ++i)
+            {
+                const SotnPlayerEffectQuad *bq = &before.dyn_quads[i], *q = &s.dyn_quads[i];
+                if (bq->x[3])
+                {
+                    CHECK(q->x[3] == bq->x[3] - 1 && q->x[2] == bq->x[2] &&
+                          q->draw_mode == bq->draw_mode);
+                    continue;
+                }
+                const Sint32 dx = (Sint16)Read16Test(o + 0x468 + bq->x[1] * 2U) * bq->x[2] / 15,
+                             dy = (Sint16)Read16Test(o + 0x488 + bq->x[1] * 2U) * bq->x[2] / 15,
+                             fx = s.x >> 16, fy = s.y >> 16;
+                CHECK(q->x[0] == (Sint16)(left ? fx - 8 - dx : fx + 8 + dx) &&
+                      q->y[0] == (Sint16)(fy + dy) && !(q->draw_mode & 8U) &&
+                      q->x[2] == (bq->x[2] == 15 ? 0 : bq->x[2] + 1));
+                if (bq->x[2] == 15)
+                    x1[i] = (Sint16)(SotnCombat_Random(&check) & 0x7fffU & 15U);
+                CHECK(q->x[1] == (bq->x[2] == 15 ? x1[i] : bq->x[1]));
+            }
+            CHECK(rng == check);
+        }
+        CHECK(updates == 0x80 && stomps == (deep ? 0 : 1) &&
+              program.secondary_counter == (deep ? 0 : 1) &&
+              scrapes == (sparks ? (contact ? 16 : 15) : 0) && (bounces > 0) == wall &&
+              (roofs > 0) == ceiling && (!deep || max_vy == 0x70000));
+        if (!sparks)
+        {
+            // Dud: blink for0x18 updates, then retire.
+            CHECK(s.phase == 4 && s.dyn_fuse == 0x18 && !e.shake && !e.properties);
+            for (Uint16 t = 0; t < 0x18; ++t)
+            {
+                CHECK(!s.removed);
+                CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) &&
+                      (s.draw_flags & 0x80U));
+            }
+            CHECK(s.removed);
+            continue;
+        }
+        // Explosion: GT4 rays from cos/sin(i<<7), hitbox4, properties then func_80118894.
+        CHECK(s.phase == 2 && s.dyn_gt4 && e.shake == 6 &&
+              (e.sounds[0] == 0x654 || e.sounds[1] == 0x654) && e.properties && e.group &&
+              s.hitbox_width == 4 && s.hitbox_height == 4 && s.dyn_fuse == 0x28);
+        for (Uint16 i = 0; i < 32; ++i)
+        {
+            const SotnPlayerEffectQuad *q = &s.dyn_quads[i];
+            SotnMathTrig a = {0};
+            CHECK(SotnMath_Trig(x, (Sint32)i << 7, &a));
+            const Sint32 cs = a.cosine >= 0 ? a.cosine / 16 : -((-a.cosine + 15) / 16),
+                         sn = a.sine >= 0 ? a.sine / 16 : -((-a.sine + 15) / 16);
+            Uint8 u = (Uint8)(Floor256(cs * 64) + 0xc0),
+                  v = (Uint8)((hand ? 0x80 : 0) + 0x40 - Floor256(sn * 64));
+            if (u < 4)
+                u = 0xff;
+            if (hand && v < 4)
+                v = 0xff;
+            CHECK(q->u[0] == u && q->v[0] == v && q->u[2] == 0xc0 &&
+                  q->v[3] == (hand ? 0xc0 : 0x40) && q->palette == 0x159 && q->page == 0x19 &&
+                  q->priority == 0x9c && !q->red[0] && q->blue[3] == 0xff && (q->draw_mode & 8U));
+        }
+        Uint16 flames = 0, frames = 0;
+        for (;;)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            const bool flame = before.dyn_quads[0].blue[3] > 0x58;
+            CHECK(e.factory_count == flame &&
+                  (!flame || e.factories[0] == ((hand + 1U) << 12) + 0x3aU));
+            flames += flame;
+            if (before.dyn_quads[0].blue[3] < 5)
+            {
+                CHECK(s.removed);
+                break;
+            }
+            ++frames;
+            const Sint32 radius = SDL_min(before.dyn_radius + 0x480, 0x8000 + 0x47f) >> 8;
+            CHECK(s.dyn_radius == (before.dyn_radius < 0x8000 ? before.dyn_radius + 0x480
+                                                              : before.dyn_radius) &&
+                  s.hitbox_width == (before.hitbox_width < 0x60 ? before.hitbox_width + 6
+                                                                : before.hitbox_width) &&
+                  !s.frame && s.dyn_quads[5].draw_mode == 0x37 &&
+                  s.dyn_quads[5].blue[3] == before.dyn_quads[5].blue[3] - 4 &&
+                  s.dyn_quads[5].red[2] == s.dyn_quads[5].blue[3] &&
+                  s.dyn_quads[5].x[2] == (Sint16)(s.x >> 16));
+            SotnMathTrig a = {0};
+            CHECK(SotnMath_Trig(x, 9 << 7, &a));
+            const Sint32 cs = a.cosine >= 0 ? a.cosine / 256 : -((-a.cosine + 255) / 256);
+            CHECK(s.dyn_quads[9].x[0] ==
+                  (Sint16)((s.x >> 16) + (cs * (s.dyn_radius >> 8) >= 0
+                                              ? cs * (s.dyn_radius >> 8) / 16
+                                              : -((-cs * (s.dyn_radius >> 8) + 15) / 16))));
+            (void)radius;
+        }
+        CHECK(flames == 42 && frames == 63);
+    }
+    return true;
+}
+static bool DynamiteFlameTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    DynamiteTables(o);
+    SotnHandWeaponProgram program = {0};
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 3;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program,
+                                       (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                                  .executable = {exe, sizeof(exe)},
+                                                                  .family = 47,
+                                                                  .role = 1},
+                                       &rng, &e) &&
+              s.removed && rng == 3);
+    }
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        SotnWeaponSecondary s = {.x = 100 * 65536 + 0x111, .y = 80 * 65536 + 0x222};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .hand = hand,
+                                       .family = 47,
+                                       .role = 1,
+                                       .priority = 0x90,
+                                       .parent_exists = true};
+        Uint32 rng = 900U + k * 77U, check = rng;
+        const Sint16 speed = (Sint16)((SotnCombat_Random(&check) & 0x7fffU) % 1535U + 0x100U);
+        const bool quarter = (SotnCombat_Random(&check) & 0x7fffU) & 1U;
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, speed, &t));
+        const Sint32 vx = t.cosine * 128, vy = -t.sine * 128;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.bank == 0x8011U + hand * 2U && s.texture == 0x64U + hand * 2U &&
+              s.palette == (hand ? 0x129 : 0x111) && s.timeline == 0x528 &&
+              s.flags == 0x08100000U && s.priority == 0x92 && s.velocity_x == vx && s.dyn_vy == 0 &&
+              s.blend == (quarter ? 0x70 : 0x30) && s.x == 100 * 65536 + 0x111 + vx * 2 &&
+              s.y == 80 * 65536 + 0x222 + vy * 2);
+        CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 47) && s.frame == 1 &&
+              s.remaining == 2);
+        Uint16 updates = 0;
+        while (!s.removed && updates < 40)
+        {
+            const Sint32 px = s.x, py = s.y;
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            ++updates;
+            if (s.removed)
+                break;
+            CHECK(s.x == px + vx && s.y == py + vy);
+            CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 47));
+        }
+        // Seven two-update frames (birth's Animate starts the first), END on the fourteenth
+        // later Animate; the fifteenth callback retires.
+        CHECK(s.removed && updates == 15);
+    }
+    return true;
+}
+// Kind130 Dynamite through the shared runtime: blueprint50 creates the E0 root (own item138) in
+// 17..31 with its LoadImage request; it leases thirty-two rows only for its sparks (a dud
+// releases them), explodes after0x80 updates and requests 0x3A flames in32..63 naming it.
+static SotnCollisionMap DawnFloor(void);
+static bool DynamiteRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 138, 8, 47, 130, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 138 * 52;
+    record[18] = 0x60;
+    record[19] = 50;
+    record[21] = 0;
+    record[22] = 1;
+    record[25] = 1;
+    const Uint8 blueprints[][6] = {{50, 0, 1, 0xc1, 0, 0x26}, {0x3a, 1, 1, 0xc1, 0, 0}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    DynamiteTables(weapons + 47U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment dynamite = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 138, &dynamite) && dynamite.kind == 130 &&
+          dynamite.family == 47 && dynamite.blueprint == 50 && dynamite.chain_limit == 1 &&
+          dynamite.consumable && dynamite.animation == 0x60);
+    record[25] = 0;
+    CHECK(!SotnEquipment_Read(actors->dra, 138, &dynamite));
+    record[25] = 1;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {47, 47},
+                              .weapon_bound = {true, true},
+                              .food_collision = DawnFloor(),
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 130 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x60}}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand != 0};
+    const Uint32 packed = 50U | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16;
+    Uint16 explosions = 0, duds = 0, culled = 0;
+    for (Uint16 k = 0; k < 16 && !(explosions >= 2 && duds); ++k)
+    {
+        // The second explosion is culled offscreen just after it starts: flames requested
+        // before then find their raw parent slot empty and destroy themselves at birth.
+        const bool cull = explosions == 1;
+        bool gone = false;
+        Uint16 late = 0;
+        bool allocated = false;
+        CHECK(SotnBatRuntime_RequestThrown(r, source, packed, 138, &allocated) && allocated);
+        Uint16 root = 0, flames = 0, rows = 0, image = 0, ticks = 0;
+        Uint8 phase = 0;
+        bool born[SOTN_BAT_RUNTIME_SLOTS] = {0};
+        for (Uint16 t = 0; t < 400; ++t)
+        {
+            in.game_timer = t;
+            CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+                  SotnBatRuntime_Tick(r, character, in) &&
+                  SotnActors_CommitBatPrimitives(actors, r));
+            ++ticks;
+            image += (r->weapon_image >> hand) & 1U;
+            bool any = false, root_alive = false;
+            for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            {
+                const SotnBatRuntimeChild *c = &r->children[i];
+                if (!c->weapon_secondary || !c->initialized)
+                {
+                    born[i] = false;
+                    continue;
+                }
+                any = true;
+                CHECK(c->state.secondary.family == 47 && SotnBatRuntime_SecondaryValid(c, i) &&
+                      (c->kind >= 0xf0) == (hand != 0));
+                const SotnWeaponSecondary *w = &c->state.secondary.motion;
+                if (!(c->kind & 15U))
+                {
+                    CHECK(i >= 1 && i <= 15 && c->state.secondary.own_item &&
+                          c->state.secondary.item == 138 &&
+                          c->primitive_count == (w->phase == 1 || w->phase == 2 ? 32 : 0));
+                    root = i;
+                    root_alive = true;
+                    // After its first flame request (on screen), the stick leaves the screen.
+                    if (cull && w->phase == 2 && w->dyn_radius)
+                        r->children[i].state.secondary.motion.x += 400 * 65536;
+                    rows = SDL_max(rows, c->primitive_count);
+                    phase = SDL_max(phase, w->phase);
+                    if (w->phase == 2)
+                        CHECK(c->group >= 3 && c->group <= 6 &&
+                              c->state.secondary.attack.equipment == 138);
+                }
+                else
+                {
+                    CHECK(i >= 16 && !c->state.secondary.own_item &&
+                          c->state.secondary.parent_slot == root + 16U && !c->primitive_count &&
+                          w->bank == 0x8011U + hand * 2U);
+                    flames += !born[i];
+                    late += gone && !born[i];
+                }
+                born[i] = true;
+            }
+            gone |= root && !root_alive;
+            if (!any && t > 3)
+                break;
+        }
+        CHECK(root && image == 1 && ticks < 400);
+        if (phase == 2 && cull)
+        {
+            CHECK(rows == 32 && gone && !flames && !late);
+            ++culled;
+            ++explosions;
+        }
+        else if (phase == 2)
+        {
+            CHECK(rows == 32 && flames == 42);
+            ++explosions;
+        }
+        else
+        {
+            CHECK(phase == 5 && !rows && !flames);
+            ++duds;
+        }
+        for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+            CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            CHECK(!actors->primitives[i].owner);
+    }
+    CHECK(explosions >= 2 && culled == 1);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // The Jewel sword's special198 through the shared runtime: slot16's pose1 requests 0x3A
 // (descriptor-1 = 1) whose sparkles lease sixteen rows, roll the coin pattern and request 0x40
 // coins; each coin bounces, lands and pays one gold when the player touches it.
@@ -10531,19 +11014,20 @@ int main(void)
                    RodSparkleTest() && RodRuntime() && JewelSparkleTest() && JewelCoinTest() &&
                    JewelRuntime(false) && JewelRuntime(true) && HolbeinTest() &&
                    BlueKnucklesTest() && KnuckleRuntime(136, 0) && KnuckleRuntime(136, 1) &&
-                   KnuckleRuntime(137, 0) && KnuckleRuntime(137, 1) && IronRuntime(0) &&
-                   IronRuntime(1) && IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
-                   HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
-                   HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&
-                   DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() && MedusaLaserTest() &&
-                   MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) && SkullSpellTest() &&
-                   SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) && FireImageTest() &&
-                   FireSpellTest() && FireDragonTest() && FireHitTest() && FireRuntime(0) &&
-                   FireRuntime(1) && MuramasaSlash() && Twelve() && TwelveRuntime() &&
-                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
-                   ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
-                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   KnuckleRuntime(137, 0) && KnuckleRuntime(137, 1) && DynamiteTest() &&
+                   DynamiteFlameTest() && DynamiteRuntime(0) && DynamiteRuntime(1) &&
+                   IronRuntime(0) && IronRuntime(1) && IronThunderRuntime() && IronSpellTest() &&
+                   IronSwordTest() && HeraldSpellTest() && HeraldSwirlTest() &&
+                   HeraldSpriteTest() && HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() &&
+                   DarkRockTest() && DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() &&
+                   MedusaLaserTest() && MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) &&
+                   SkullSpellTest() && SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) &&
+                   FireImageTest() && FireSpellTest() && FireDragonTest() && FireHitTest() &&
+                   FireRuntime(0) && FireRuntime(1) && MuramasaSlash() && Twelve() &&
+                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
+                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
+                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
+                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&

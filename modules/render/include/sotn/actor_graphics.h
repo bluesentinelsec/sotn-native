@@ -245,6 +245,14 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
  * @param graphics Owned graphics. @param palette Palette 0x110..0x13F (the uploaded 256x3 rows).
  * @param color Colour 0..15. @param value 15-bit colour plus mask bit.
  * @return Success, or false with SDL_GetError() and unchanged memory outside those rows. */
+/**
+ * @brief Dynamite's (weapon47) LoadImage: copy the resident program's 4x16 D_14D000_8017A4A8
+ * words into the hand's weapon texture at x0x260, y0x100 (left) or 0x180 (right).
+ * @param graphics Owned VRAM; its weapon program for @p hand must be weapon47.
+ * @param hand Zero (left) or one (right).
+ * @return Success or false with SDL_GetError() when the hand lacks the loaded program.
+ */
+bool SotnActorGraphics_LoadDynamiteImage(SotnActorGraphics *graphics, Uint32 hand);
 bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
                                      Uint16 value);
 /** @brief Read-modify one weapon-program g_Clut word: (word & mask) + add, as weapon26's green

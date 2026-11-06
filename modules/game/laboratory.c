@@ -1106,7 +1106,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
                    item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
-                   item == 176 || item == 136 || item == 137
+                   item == 176 || item == 136 || item == 137 || item == 138
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1163,7 +1163,8 @@ static bool BindFood(SotnLaboratory *s)
             : c->weapon_secondary &&
                     (c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 ||
-                     ((c->state.secondary.family == 53 || c->state.secondary.family == 46) &&
+                     ((c->state.secondary.family == 53 || c->state.secondary.family == 46 ||
+                       c->state.secondary.family == 47) &&
                       c->state.secondary.own_item))
                 ? c->state.secondary.item
                 : 0;
@@ -1388,6 +1389,11 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
         return false;
     // Weapon51's glow and weapon26's green cycle upload their g_Clut words once the pass has
     // committed (weapon51's mask0 replaces the whole word).
+    // Dynamite's LoadImage patches its hand's weapon texture once the pass has committed.
+    for (Uint32 hand = 0; hand < 2; ++hand)
+        if ((s->bat_runtime.weapon_image >> hand) & 1U &&
+            !SotnActorGraphics_LoadDynamiteImage(s->actor_graphics, hand))
+            return false;
     for (Uint16 i = 0; i < s->bat_runtime.clut_count; ++i)
         if (!SotnActorGraphics_ModifyWeaponClut(
                 s->actor_graphics, s->bat_runtime.clut[i].palette, s->bat_runtime.clut[i].color,
@@ -4484,7 +4490,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     ring = (role == 2 && family != 30 && family != 13) || family == 1 ||
                            (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0,
-                           jewel = family == 37 && role == 1, knuckle = family == 46;
+                           jewel = family == 37 && role == 1, knuckle = family == 46,
+                           dynamite = family == 47 && role == 0;
+                // Weapon47's fuse TILEs or explosion GT4s, world pixels.
+                for (Uint16 q = dynamite ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->dyn_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->dyn_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 64U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
                 // Weapon46: Holbein dagger's slash GT4 or Blue knuckles' thirty-two arc G4s,
                 // screen-space.
                 for (Uint16 q = knuckle ? child->primitive_count : 0; q > 0; --q)
@@ -4551,7 +4567,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
                 for (Uint16 row = slash || ring || sparkle || rune || jewel || knuckle ||
-                                          family == 30 || SotnWeaponSecondary_ShieldSpell(family)
+                                          dynamite || family == 30 ||
+                                          SotnWeaponSecondary_ShieldSpell(family)
                                       ? 0
                                       : child->primitive_count;
                      row > 0; --row)
@@ -5636,20 +5653,47 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
             const bool dawn = c->state.secondary.family == 30,
                        spell = SotnWeaponSecondary_ShieldSpell(c->state.secondary.family),
                        jewel = c->state.secondary.family == 37 && (c->kind & 15U) == 1,
-                       knuckle = c->state.secondary.family == 46;
+                       knuckle = c->state.secondary.family == 46,
+                       dynamite = c->state.secondary.family == 47 && !(c->kind & 15U);
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && !dawn && !spell && !jewel && !knuckle && (c->kind & 15U) != 2 &&
-                 c->state.secondary.family != 1 &&
+                (!slash && !dawn && !spell && !jewel && !knuckle && !dynamite &&
+                 (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
-            SotnPlayerEffectQuad q = slash     ? w->quad
-                                     : dawn    ? w->dawn_quads[index]
-                                     : spell   ? w->spell_quads[index]
-                                     : jewel   ? w->jewel_quads[index]
-                                     : knuckle ? w->knuckle_quads[index]
-                                               : w->quads[index];
+            SotnPlayerEffectQuad q = slash      ? w->quad
+                                     : dawn     ? w->dawn_quads[index]
+                                     : spell    ? w->spell_quads[index]
+                                     : jewel    ? w->jewel_quads[index]
+                                     : knuckle  ? w->knuckle_quads[index]
+                                     : dynamite ? w->dyn_quads[index]
+                                                : w->quads[index];
+            // Dynamite's rows are world pixels: 1x1 fuse TILEs (u0/v0 extents, flat colour) until
+            // the explosion converts them to GT4 rays.
+            if (dynamite)
+            {
+                SotnPlayerEffectQuad screen = q;
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    const Sint32 x = w->dyn_gt4 ? q.x[v] : q.x[0] + (v & 1U ? q.u[0] : 0),
+                                 y = w->dyn_gt4 ? q.y[v] : q.y[0] + (v & 2U ? q.v[0] : 0);
+                    screen.x[v] = BlinkWord(x - view_x);
+                    screen.y[v] = BlinkWord(y - view_y);
+                    if (!w->dyn_gt4)
+                    {
+                        screen.red[v] = q.red[0];
+                        screen.green[v] = q.green[0];
+                        screen.blue[v] = q.blue[0];
+                    }
+                }
+                if (!(w->dyn_gt4 ? DrawOriginalEffectQuad(session, &screen)
+                                 : DrawIceQuad(session, &screen)) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             // Blue knuckles' arc rows are untextured G4s (prim->type = PRIM_G4).
             if (knuckle && (c->kind & 15U) == 1)
             {
@@ -5757,7 +5801,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                      c->state.secondary.family == 7 || c->state.secondary.family == 14 ||
                      c->state.secondary.family == 13 || c->state.secondary.family == 12 ||
                      c->state.secondary.family == 34 || c->state.secondary.family == 30 ||
-                     c->state.secondary.family == 37 ||
+                     c->state.secondary.family == 37 || c->state.secondary.family == 47 ||
                      SotnWeaponSecondary_ShieldSpell(c->state.secondary.family))
             {
                 // w_037 coins draw DRA bank3 (the gold coin) with their parts' palettes.

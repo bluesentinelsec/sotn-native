@@ -385,6 +385,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 56 ? 0x8017b058U
                            : equipment.family == 12 ? 0x8017aab0U
                            : equipment.family == 46 ? 0x8017ac50U
+                           : equipment.family == 47 ? 0x8017a548U
                            : equipment.family == 39 ? 0x8017ade0U
                            : equipment.family == 32 ? 0x8017a918U
                            : equipment.family == 51 ? 0x8017aec4U
@@ -431,7 +432,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
           equipment.family == 48 || equipment.family == 49 || equipment.family == 50 ||
           equipment.family == 6 || equipment.family == 14 || equipment.family == 13 ||
           equipment.family == 56 || equipment.family == 12 || equipment.family == 34 ||
-          equipment.family == 30 || equipment.family == 46) &&
+          equipment.family == 30 || equipment.family == 46 || equipment.family == 47) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
@@ -447,7 +448,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
                  equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
                  equipment.family == 16 || equipment.family == 15 || equipment.family == 34 ||
-                 equipment.family == 30 || equipment.family == 46
+                 equipment.family == 30 || equipment.family == 46 || equipment.family == 47
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -502,6 +503,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                              : equipment.family == 56 ? 0x8017b05cU
                              : equipment.family == 12 ? 0x8017aac8U
                              : equipment.family == 46 ? 0x8017ac60U
+                             : equipment.family == 47 ? 0x8017a550U
                              : equipment.family == 39 ? 0x8017ade8U
                                                       : 0;
     if (hand_word && !no_palette)
@@ -529,6 +531,14 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
     }
     graphics->weapon[hand] = overlay;
     graphics->weapon_family[hand] = equipment.family;
+    return true;
+}
+bool SotnActorGraphics_LoadDynamiteImage(SotnActorGraphics *graphics, Uint32 hand)
+{
+    if (!graphics || hand > 1 || graphics->weapon_family[hand] != 47 ||
+        !graphics->weapon[hand].bytes || graphics->weapon[hand].size < 0x4a8U + 128U)
+        return SDL_SetError("Dynamite LoadImage requires the hand's resident weapon47 program");
+    Upload(graphics, 0x260, 0x100U + hand * 0x80U, 4, 16, graphics->weapon[hand].bytes + 0x4a8);
     return true;
 }
 bool SotnActorGraphics_SetWeaponClut(SotnActorGraphics *graphics, Uint16 palette, Uint16 color,
@@ -611,13 +621,13 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
     const Uint32 bank = sprite.animation_set & 0x7fff;
     const Uint16 hand = bank >= 18 ? 1 : 0;
     // SetSpriteBank2 tables: weapon15 at0x8017a2b0, weapon55 Holy sword at0x8017b160, weapon49
-    // Firebrand/Marsil at0x8017aa44.
+    // Firebrand/Marsil at0x8017aa44, weapon47 Dynamite's flames at0x8017a0d4.
     const Uint8 resident = graphics->weapon_family[hand];
-    if (secondary &&
-        (stage || (bank != 17 && bank != 19) ||
-         (resident != 15 && resident != 55 && resident != 49) || !graphics->weapon[hand].bytes))
+    if (secondary && (stage || (bank != 17 && bank != 19) ||
+                      (resident != 15 && resident != 55 && resident != 49 && resident != 47) ||
+                      !graphics->weapon[hand].bytes))
         return SDL_SetError(
-            "Secondary weapon sprite requires actual resident weapon15/49/55 bank17 or19");
+            "Secondary weapon sprite requires actual resident weapon15/47/49/55 bank17 or19");
     if (stage && bank == 20)
         return MultipartFrame(graphics->familiar, 0x80170000U, graphics->familiar_parts,
                               sprite.frame, out);
@@ -633,6 +643,7 @@ static bool Frame(const SotnActorGraphics *graphics, SotnActorSprite sprite, Sot
     const Uint32 table_address = weapon  ? base + (!secondary       ? 0x40U
                                                    : resident == 55 ? 0x1160U
                                                    : resident == 49 ? 0xa44U
+                                                   : resident == 47 ? 0xd4U
                                                                     : 0x2b0U)
                                  : stage ? Read32(graphics->nz0.bytes + 20)
                                          : base + 0x3b70;
