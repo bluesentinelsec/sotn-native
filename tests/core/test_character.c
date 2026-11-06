@@ -210,6 +210,26 @@ int main(void)
           SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 53) && SotnCharacter_Get(c, &s, &caped) &&
           s.equipment[4] == 53 && caped.bonus[1] == lone.bonus[1] + 8);
     CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 48));
+    // Second additive batch: Mirror cuirass13's stone immunity, Circlet37's INT, Ring of
+    // Pales62's bonuses.
+    bytes[0x4000 + 13 * 32 + 20] = 0x00;
+    bytes[0x4000 + 13 * 32 + 21] = 0x02;
+    bytes[0x4000 + 37 * 32 + 28] = 0;
+    bytes[0x4000 + 37 * 32 + 14] = 5;
+    bytes[0x4000 + 62 * 32 + 28] = 3;
+    bytes[0x4000 + 62 * 32 + 12] = 1;
+    SotnCharacterStats extra = {0};
+    CHECK(SotnCharacter_Collect(c, true, 13));
+    CHECK(SotnCharacter_Collect(c, true, 37));
+    CHECK(SotnCharacter_Collect(c, true, 62));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_HEAD, 26) && SotnCharacter_Get(c, &s, &lone));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 13));
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_HEAD, 37));
+    CHECK(SotnCharacter_Equip(c, 6, 62));
+    CHECK(SotnCharacter_Get(c, &s, &extra) && (extra.immunity & 0x200U) &&
+          extra.bonus[2] == lone.bonus[2] + 5 && extra.bonus[0] == lone.bonus[0] + 1);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_HEAD, 26) && SotnCharacter_Equip(c, 6, 57));
     // CalcDefense: Walk armor19 adds the explored-room counter / 60.
     SotnCharacterStats walking = {0};
     CHECK(SotnCharacter_Collect(c, true, 19) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 19) &&

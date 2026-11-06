@@ -40,6 +40,13 @@ Feanor (81) and the Covenant stone (86) are now supported. Their records carry o
 The existing owner already reads all of these. The original references none of them in code (DRA
 or stages), so equipping them changes stats and elements only.
 
+A second batch is now supported on the same basis: Fire mail (10), Mirror cuirass (13),
+Dracula tunic (23), Holy glasses (34), Circlet (37) and Ring of Pales (62). DRA references these
+only in debug inventory grants and Library shop tables. The one exception is the Holy glasses,
+which BO6 reads during the Richter fight, a stage not yet integrated. In the native port they
+therefore change stats and elements only. Mirror cuirass's stone immunity takes the same US
+prepass as the Medusa shield.
+
 The other unsupported body items have special behavior (cape palettes, item drops, enemy HP
 display, sprite scale and the like) and stay unsupported until their owners exist.
 
@@ -50,7 +57,8 @@ display, sprite scale and the like) and stay unsupported until their owners exis
 - A private MIPS oracle runs DRA's real `make_all` on 4,000 sampled contexts: shields, Shield
   rod pairs, the new armors and accessories, the Alucart set, hours, Vlad masks and base stats.
   It matches every stat bonus and total, both hands' attack, defense and all four element masks;
-  the contexts also sample Walk armor with `g_RoomCount` up to 8192.
+  the contexts also sample Walk armor with `g_RoomCount` up to 8192, the second additive batch's
+  armors and head items, and every supported accessory.
   Debug and ASan traces are byte-identical. The oracle found the missing Fire shield immunity
   and catches a deliberate mutation of the Shield rod term.
 - A mutation sweep catches all nine mutants of the new terms, and all four Walk armor mutants.
@@ -58,7 +66,7 @@ display, sprite scale and the like) and stay unsupported until their owners exis
   equipment menu. The player's attributes gain stone immunity from the Medusa shield and fire
   immunity from the Fire shield. Shield rod and Ice mail raise defense, and Ice mail's resistance
   reaches the player. A second probe shows the session's explored-room counter raising Walk
-  armor's defense by rooms / 60. These fixtures supply items, stock and explored rooms; they are
+  armor's defense by rooms / 60, and Mirror cuirass alone gives stone immunity. These fixtures supply items, stock and explored rooms; they are
   not acquisition, route or console evidence.
 
 Adapted from `src/dra/menu.c` at sotn-decomp `7bc54d8157b6bed77e6bd15e5db9461a734fe1e5`, under
