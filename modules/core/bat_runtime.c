@@ -421,7 +421,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
     if (!r || !allocated ||
         (!ThrownItem(item) && item != 143 && item != 119 && item != 133 && item != 163 &&
          item != 164 && item != 165 && item != 176 && item != 136 && item != 137 && item != 138 &&
-         item != 1 && item != 2) ||
+         item != 1 && item != 2 && item != 3) ||
         (hand != 1 && hand != 2) || packed != (blueprint | hand << 12 | parameter << 16))
         return SDL_SetError(
             "Weapon16/Runesword reservation requires its actual owned item/blueprint/hand");
@@ -1147,6 +1147,10 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
     // Weapon41: Monster vial 2's vial requests its bat (56).
     if (family == 41)
         return bp == 56 && param == 0;
+    // Weapon42: Monster vial 3's vial requests its archer (56), the archer its arrows
+    // (0x3E, counted0..2) and burst (70).
+    if (family == 42)
+        return ((bp == 56 || bp == 70) && param == 0) || (bp == 62 && param <= 2);
     // Weapon47: Dynamite's explosion requests its 0x3A flames.
     if (family == 47)
         return bp == 0x3a && param == 0;
@@ -1237,6 +1241,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon47: Dynamite's root carries the hand bit; its flames none (weapon40 likewise).
     if (family == 47 || family == 40 || family == 41)
         return !(parameter & 0x7fffU);
+    // Weapon42's arrows carry their index0..2 on the hand bit; its other children none.
+    if (family == 42)
+        return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 2;
     if (family == 11 || family == 25 || family == 10 || family == 37)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
     // Weapon29: the afterimages, spell and hit points carry the hand bit; the dragons their
@@ -1325,11 +1332,12 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 34 ? c->state.secondary.own_item && c->state.secondary.item == 176 &&
                                  !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
-            : (family == 47 || family == 40 || family == 41) && (c->kind & 15U) == 0
+            : (family == 47 || family == 40 || family == 41 || family == 42) && (c->kind & 15U) == 0
                 ? c->state.secondary.own_item &&
                       c->state.secondary.item == (family == 47   ? 138
                                                   : family == 40 ? 1
-                                                                 : 2) &&
+                                                  : family == 41 ? 2
+                                                                 : 3) &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 46 && ((c->kind & 15U) == 1 || !(c->parameter & 0x7fffU))
                 ? c->state.secondary.own_item &&
@@ -1384,6 +1392,8 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 40 && (c->kind & 15U) == 1                   ? 3
                                    : family == 41 && (c->kind & 15U) == 0                   ? 2
                                    : family == 41 && (c->kind & 15U) == 1                   ? 4
+                                   : family == 42 && (c->kind & 15U) == 1                   ? 3
+                                   : family == 42 && (c->kind & 15U) != 3                   ? 2
                                    : family == 11 && (c->kind & 15U) == 9                   ? 4
                                    : family == 25 && (c->kind & 15U) == 9                   ? 3
                                    : family == 26 && (c->kind & 15U) == 9                   ? 2
@@ -1406,7 +1416,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                        : family == 47 && (c->kind & 15U) == 0
                            ? !w->properties.id || w->properties.id == 138
                        // Monster vial 1's vial rolls none.
-                       : (family == 40 || family == 41) && (c->kind & 15U) == 0
+                       : (family == 40 || family == 41 || family == 42) && (c->kind & 15U) == 0
                            ? !w->properties.id
                            : w->properties.id ==
                                  (family == 30 || (SotnWeaponSecondary_ShieldSpell(family) &&
@@ -2401,11 +2411,12 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 133));
     // Kind134: blueprint50 creates Holbein dagger's weapon46 E0/F0 root, blueprint56 Blue
     // knuckles' E1/F1 arc, both in17..31.
-    const bool knuckle = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
-                         (((c.kind == 0xe0 || c.kind == 0xf0) &&
-                           (child.argument_low == 136 || child.argument_low == 138 ||
-                            child.argument_low == 1 || child.argument_low == 2)) ||
-                          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 137));
+    const bool knuckle =
+        !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+        (((c.kind == 0xe0 || c.kind == 0xf0) &&
+          (child.argument_low == 136 || child.argument_low == 138 || child.argument_low == 1 ||
+           child.argument_low == 2 || child.argument_low == 3)) ||
+         ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 137));
     // Blueprint68 creates Yasutsuna's weapon53 E3/F3 slash in17..31.
     const bool yasutsuna = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                            (c.kind == 0xe3 || c.kind == 0xf3) && child.argument_low == 165;
@@ -2475,6 +2486,7 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         const Uint16 family = child.argument_low == 138 ? 47
                               : child.argument_low == 1 ? 40
                               : child.argument_low == 2 ? 41
+                              : child.argument_low == 3 ? 42
                                                         : 46;
         if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
             (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != family)))
@@ -4483,7 +4495,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             // Weapon40's monster and fireballs copy the raw parent's current equipId before their
             // SetWeaponProperties (an emptied slot reads zero: the empty hand's properties).
             const bool vial = (family == 40 && ((c->kind & 15U) == 1 || (c->kind & 15U) == 2)) ||
-                              (family == 41 && (c->kind & 15U) == 1);
+                              (family == 41 && (c->kind & 15U) == 1) ||
+                              (family == 42 && ((c->kind & 15U) == 1 || (c->kind & 15U) == 2));
             if ((cold || strike || beam || vial) && !c->state.secondary.own_item)
             {
                 // A chained child born into its retired root's slot points at itself and reads
@@ -4555,6 +4568,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 47 ? 138
                                  : family == 40 ? 1
                                  : family == 41 ? 2
+                                 : family == 42 ? 3
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))
@@ -4609,7 +4623,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             }
             // Weapon40's monster, fireballs and burst copy their raw parent's animSet, unk5A,
             // palette and zPriority at birth; the fireballs need its entityId.
-            if ((family == 40 || family == 41) && (c->kind & 15U) && !w->phase)
+            if ((family == 40 || family == 41 || family == 42) && (c->kind & 15U) && !w->phase)
             {
                 const SotnBatRuntimeChild *root = &r.children[c->state.secondary.parent_slot - 16U];
                 parent.parent_exists = root->kind != 0;
@@ -5238,7 +5252,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     // Weapon10's swords call SetWeaponProperties without an enemyId copy too.
                     // Weapon24's rocks and weapon27's hit points too.
                     c->group = family == 11 || family == 10 || family == 24 || family == 27 ||
-                                       family == 28 || family == 29 || family == 40 || family == 41
+                                       family == 28 || family == 29 || family == 40 ||
+                                       family == 41 || family == 42
                                    ? (Uint8)group
                                    : parent_group;
                     c->state.secondary.item = item;
