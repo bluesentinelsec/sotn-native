@@ -59,11 +59,11 @@ static bool Profile(SotnDataView dra, Uint16 parameter, const Uint8 **out)
 {
     const Uint16 type = parameter >> 8;
     if (!out || !dra.bytes ||
-        (type != 1 && type != 3 && type != 4 && !VectorProfile(type) && type != 8 && type != 9 &&
-         type != 10 && type != 11 && type != 12 && type != 13) ||
+        (type != 0 && type != 1 && type != 3 && type != 4 && !VectorProfile(type) && type != 8 &&
+         type != 9 && type != 10 && type != 11 && type != 12 && type != 13) ||
         dra.size < 0xdbd4)
         return SDL_SetError(
-            "Player particles require a selected private profile1/3/4/5/6/8/9/10/11/12/13");
+            "Player particles require a selected private profile0/1/3/4/5/6/8/9/10/11/12/13");
     const Uint32 pointer = Read32(dra.bytes + 0xdb98 + type * 4U);
     if (pointer < 0x800a0000 || pointer % 4 || pointer - 0x800a0000U > dra.size ||
         dra.size - (pointer - 0x800a0000U) < 16)
@@ -201,6 +201,17 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
                 t->velocity_y = i < 10 ? -velocity : velocity;
                 t->timer = 63;
             }
+            else if (type == 0)
+            {
+                // Rebound Stone's tink: rand() & 0x7FFF is both the angle and the speed shift.
+                const Uint16 angle = (Uint16)(SotnCombat_Random(&rng) & 32767U);
+                SotnMathTrig trig = {0};
+                if (!SotnMath_Trig(in.executable, angle, &trig))
+                    return false;
+                const Sint32 scale = (angle & 1U) ? 8 : 4;
+                t->velocity_x = (Sint32)trig.cosine * scale;
+                t->velocity_y = -((Sint32)trig.sine * scale);
+            }
             else if (type == 13)
             {
                 const Sint32 speed = (Sint32)(SotnCombat_Random(&rng) & 32767U) - 16384;
@@ -275,6 +286,19 @@ bool SotnPlayerParticles_Tick(SotnPlayerParticles *particles, SotnDataView dra,
         }
         else if (type == 13 && t->timer)
             --t->timer;
+        else if (type == 0)
+        {
+            t->y = Fixed((Uint32)t->y + (Uint32)t->velocity_y);
+            t->x = Fixed((Uint32)t->x + (Uint32)t->velocity_x);
+            t->red = (Uint8)(t->red - 6U);
+            t->green = (Uint8)(t->green - 6U);
+            t->blue = (Uint8)(t->blue - 6U);
+            if (t->red < 8)
+            {
+                next.removed = true;
+                goto done;
+            }
+        }
         else
         {
             const Uint8 fade = type == 13 ? 1 : 3;

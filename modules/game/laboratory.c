@@ -1127,7 +1127,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (Vibhuti so far): func_800FE3C4's heart
+// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti): func_800FE3C4's
+// heart
 // check, CheckSubwpnChainLimit over slots32..47, heart spending, then the actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
                          Uint16 *animation)
@@ -1136,7 +1137,8 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     SotnCharacterState progress = {0};
     if (!s || !handled || !used || !animation || !SotnCharacter_Get(s->character, &progress, NULL))
         return SDL_SetError("Shared subweapon use requires its session and outputs");
-    *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI;
+    *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
+               progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE;
     *used = false;
     *animation = 0;
     if (!*handled)
@@ -4689,8 +4691,24 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                 .kind = SOTN_DRAW_STAR_SPARK}))
                             return false;
             }
+            // Rebound Stone's sixteen additive LINE_G2 trail rows (world pixels).
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_SUBWEAPON_REBOUND_STONE
+                                ? SOTN_REBOUND_STONE_LINES
+                                : 0;
+                 j > 0; --j)
+                if (!(child->state.subweapon.motion.stone.lines[j - 1U].draw_mode & 8U) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                        .primitive = (Uint16)(owner * 16U + j - 1U),
+                                        .kind = SOTN_DRAW_SUBWEAPON_LINE}))
+                    return false;
             // Vibhuti's twelve opaque ash TILEs (world pixels); DRAW_HIDE rows are skipped.
-            for (Uint16 j = child->subweapon && child->initialized ? SOTN_VIBHUTI_PARTICLES : 0;
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_SUBWEAPON_VIBHUTI
+                                ? SOTN_VIBHUTI_PARTICLES
+                                : 0;
                  j > 0; --j)
                 if (!(child->state.subweapon.motion.particles[j - 1U].draw_mode & 8U) &&
                     !SotnActorOrder_Add(
@@ -5555,13 +5573,41 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                 return false;
             continue;
         }
+        if (command.kind == SOTN_DRAW_SUBWEAPON_LINE)
+        {
+            const Uint16 index = command.primitive / 16U, row = command.primitive % 16U;
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
+            if (index >= SOTN_BAT_RUNTIME_SLOTS || !c->subweapon || !c->initialized ||
+                c->state.subweapon.motion.id != SOTN_SUBWEAPON_REBOUND_STONE ||
+                !SotnBatRuntime_SubweaponValid(c, index))
+                return SDL_SetError("Subweapon LINE_G2 draw lost its actual row ownership");
+            const SotnReboundLine *l = &c->state.subweapon.motion.stone.lines[row];
+            const Sint32 ox = session->draw_target.offset_x + session->shake.x - view_x,
+                         oy = session->draw_target.offset_y + session->shake.y - view_y;
+            // drawMode0x33: semi-transparent with ABR1 (additive); both ends share one grey.
+            const SotnColorLine line = {.x = {l->x0 + ox, l->x1 + ox},
+                                        .y = {l->y0 + oy, l->y1 + oy},
+                                        .red = {l->grey, l->grey},
+                                        .green = {l->grey, l->grey},
+                                        .blue = {l->grey, l->grey},
+                                        .blend = (l->draw_mode & 1U) != 0,
+                                        .blend_mode = (Uint8)((l->draw_mode >> 5) & 3U)};
+            if (!(l->draw_mode & 8U) &&
+                !SotnActorGraphics_LineSurface(line, session->draw_target.surface))
+                return false;
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
         if (command.kind == SOTN_DRAW_SUBWEAPON_TILE)
         {
             const Uint16 index = command.primitive / 16U, tile = command.primitive % 16U;
             if (index >= SOTN_BAT_RUNTIME_SLOTS || tile >= SOTN_VIBHUTI_PARTICLES)
                 return SDL_SetError("Subweapon TILE draw exceeds its actual rows");
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
-            if (!c->subweapon || !c->initialized || !SotnBatRuntime_SubweaponValid(c, index))
+            if (!c->subweapon || !c->initialized || !SotnBatRuntime_SubweaponValid(c, index) ||
+                c->state.subweapon.motion.id != SOTN_SUBWEAPON_VIBHUTI)
                 return SDL_SetError("Subweapon TILE draw lost its actual row ownership");
             const SotnVibhutiParticle *t = &c->state.subweapon.motion.particles[tile];
             const Sint32 x = Pixel(t->x) - view_x + session->draw_target.offset_x +

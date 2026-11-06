@@ -444,9 +444,11 @@ static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint);
 bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                      Uint32 packed, Sint16 argument, bool *allocated)
 {
-    // Only Vibhuti's blueprint26 E_SUBWPN_VIBHUTI factory is owned here so far.
-    if (!r || !allocated || packed != SOTN_VIBHUTI_BLUEPRINT ||
-        argument != SOTN_SUBWEAPON_VIBHUTI << 9)
+    // Vibhuti's blueprint26 and Rebound Stone's blueprint24 factories are owned here so far.
+    if (!r || !allocated ||
+        !((packed == SOTN_VIBHUTI_BLUEPRINT && argument == SOTN_SUBWEAPON_VIBHUTI << 9) ||
+          (packed == SOTN_REBOUND_STONE_BLUEPRINT && argument == SOTN_SUBWEAPON_REBOUND_STONE
+                                                                     << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -462,19 +464,31 @@ bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource 
         }
     return true; // CreateEntFactoryFromEntity returns NULL; the hearts stay spent.
 }
+
+static Uint16 SubweaponEntity(Uint16 id)
+{
+    return id == SOTN_SUBWEAPON_VIBHUTI         ? SOTN_VIBHUTI_ENTITY
+           : id == SOTN_SUBWEAPON_REBOUND_STONE ? SOTN_REBOUND_STONE_ENTITY
+                                                : 0;
+}
 bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
     if (!c->subweapon)
-        return c->kind != SOTN_VIBHUTI_ENTITY;
+        return c->kind != SOTN_VIBHUTI_ENTITY && c->kind != SOTN_REBOUND_STONE_ENTITY;
     const SotnSubweaponEntity *e = &c->state.subweapon.motion;
-    return index >= 16 && index <= 31 && c->kind == SOTN_VIBHUTI_ENTITY && c->generation &&
-           !c->bat_generation && !c->parameter && !c->draw_count &&
-           e->id == SOTN_SUBWEAPON_VIBHUTI && !e->removed && c->state.subweapon.hit_flags <= 3 &&
-           (c->initialized ? e->step == 1 && e->timer && e->timer <= 0x80 &&
-                                 c->primitive_count == SOTN_VIBHUTI_ROWS && c->group >= 7 &&
-                                 c->group <= 10 && c->state.subweapon.attack.equipment == 0
-                           : !e->step && !c->primitive_count && !c->group &&
-                                 !c->state.subweapon.attack.active);
+    const bool stone = e->id == SOTN_SUBWEAPON_REBOUND_STONE;
+    return index >= 16 && index <= 31 && SotnSubweaponEntity_Rows(e->id) &&
+           c->kind == SubweaponEntity(e->id) && c->generation && !c->bat_generation &&
+           !c->parameter && !c->draw_count && !e->removed && c->state.subweapon.hit_flags <= 3 &&
+           (c->initialized
+                ? (stone ? (e->step == 1 || e->step == 2) && e->stone.life >= 1 &&
+                               e->stone.life <= 0x40 && e->stone.bounces >= 0 &&
+                               e->stone.bounces <= 15
+                         : e->step == 1 && e->timer && e->timer <= 0x80) &&
+                      c->primitive_count == SotnSubweaponEntity_Rows(e->id) && c->group >= 7 &&
+                      c->group <= 10 && c->state.subweapon.attack.equipment == 0
+                : !e->step && !c->primitive_count && !c->group &&
+                      !c->state.subweapon.attack.active);
 }
 Uint16 SotnBatRuntime_SubweaponCount(const SotnBatRuntime *r, Uint16 id)
 {
@@ -494,6 +508,7 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
         if (r->children[i].subweapon)
             r->children[i] = (SotnBatRuntimeChild){0};
     PruneRoomFactory(r, SOTN_VIBHUTI_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_REBOUND_STONE_BLUEPRINT);
     r->subweapon_mask = 0;
     return true;
 }
@@ -1616,7 +1631,7 @@ static bool ChildKind(Uint16 kind)
            kind == 0xee || kind == 0xfe || (kind >= 0xe1 && kind <= 0xe5) ||
            (kind >= 0xf1 && kind <= 0xf5) || (kind >= 24 && kind <= 29) || kind == 0xe8 ||
            kind == 0xf8 || kind == 0xe9 || kind == 0xf9 || kind == 0xea || kind == 0xfa ||
-           kind == SOTN_VIBHUTI_ENTITY;
+           kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY;
 }
 static Uint32 ChildFlags(const SotnBatRuntimeChild *c)
 {
@@ -2399,17 +2414,20 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Fire hit requires its independent actual player factory parent");
     // Zero the complete union storage before selecting a member larger than BlinkWhite.
     SDL_zero(c.state);
-    // E_SUBWPN_VIBHUTI: ext.subweaponId (0xB0) is the factory argument's high bits.
-    c.subweapon = c.kind == SOTN_VIBHUTI_ENTITY;
+    // E_SUBWPN_VIBHUTI/E_SUBWPN_REBOUND_STONE: ext.subweaponId (0xB0) is the factory argument's
+    // high bits.
+    c.subweapon = c.kind == SOTN_VIBHUTI_ENTITY || c.kind == SOTN_REBOUND_STONE_ENTITY;
     if (c.subweapon)
     {
+        const Uint16 id =
+            c.kind == SOTN_VIBHUTI_ENTITY ? SOTN_SUBWEAPON_VIBHUTI : SOTN_SUBWEAPON_REBOUND_STONE;
         if (generation || child.slot < 32 || child.slot > 47 || child.parameter ||
-            child.argument_low || child.argument_high != SOTN_SUBWEAPON_VIBHUTI)
-            return SDL_SetError("Vibhuti lost its actual slot/parameter/subweapon id");
+            child.argument_low || child.argument_high != id)
+            return SDL_SetError("Subweapon lost its actual slot/parameter/subweapon id");
         c.state.subweapon.motion = (SotnSubweaponEntity){.x = child.source.x,
                                                          .y = child.source.y,
                                                          .flags = child.source.flags,
-                                                         .id = SOTN_SUBWEAPON_VIBHUTI,
+                                                         .id = id,
                                                          .priority = child.source.priority,
                                                          .facing_left = child.source.facing_left};
     }
@@ -3222,6 +3240,53 @@ static bool TickWolf(SotnBatRuntime *r, SotnCharacterState *profile, SotnCharact
     p->wolf.hidden = p->wolf.palette == 0x810d;
     return true;
 }
+typedef struct SubweaponPropertyContext
+{
+    SotnBatRuntime *r;
+    SotnBatRuntimeChild *c;
+    SotnDataView dra;
+    const SotnCharacterState *profile;
+    Uint16 intelligence, index;
+    bool called;
+} SubweaponPropertyContext;
+// func_8011A290: func_800FE3C4's explicit-subweapon attack, then func_80118894's least-used group.
+static bool SubweaponProperties(void *context, Uint32 *random)
+{
+    SubweaponPropertyContext *x = context;
+    const Uint16 id = x ? x->c->state.subweapon.motion.id : 0;
+    SotnSubweaponDefinition d = {0};
+    if (!x || x->called || !SotnSubweapon_Read(x->dra, id, &d) ||
+        !SotnSubweapons_Power(id, d.attack.power, x->profile, x->intelligence, random,
+                              &d.attack.power))
+        return x && x->called ? SDL_SetError("Subweapon properties already rolled") : false;
+    const Uint16 first = x->index < 16 ? 3 : 7;
+    Uint16 group = first;
+    for (Uint16 g = (Uint16)(first + 1U); g < first + 4U; ++g)
+        if (x->r->groups[g] < x->r->groups[group])
+            group = g;
+    if (x->r->groups[group] == 255)
+        return SDL_SetError("Subweapon shared attack group overflow");
+    ++x->r->groups[group];
+    x->c->group = (Uint8)group;
+    x->c->state.subweapon.attack = d.attack;
+    x->called = true;
+    return true;
+}
+// A subweapon's CreateEntFactoryFromEntity: the first free factory slot, none if all are busy.
+static bool SubweaponFactory(SotnBatRuntime *r, SotnPlayerFactorySource source, Uint16 packed)
+{
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        if (!r->factories[i].cursor.entity_id)
+        {
+            SotnPlayerFactory f = {0};
+            if (!SotnPlayerFactory_Begin(&f, source, packed, 0))
+                return false;
+            SDL_zero(r->factories[i]);
+            r->factories[i].cursor = f;
+            return true;
+        }
+    return true;
+}
 bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, SotnBatRuntimeInput in)
 {
     if (!runtime || !character || in.freeze > 3 || in.camera_x < 0 || in.camera_x > 16384 ||
@@ -3356,7 +3421,8 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                   c->kind == 35) &&
                  c->primitive_count == 1) ||
                 (c->neutron && c->primitive_count == 1) ||
-                (c->subweapon && c->primitive_count == SOTN_VIBHUTI_ROWS) ||
+                (c->subweapon &&
+                 c->primitive_count == SotnSubweaponEntity_Rows(c->state.subweapon.motion.id)) ||
                 (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
                 (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                 (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
@@ -3478,10 +3544,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             SotnSubweaponEntity *e = &c->state.subweapon.motion;
             e->x = FixedShift(e->x, in.room_shift_x);
             e->y = FixedShift(e->y, in.room_shift_y);
-            for (Uint16 j = 0; j < SOTN_VIBHUTI_PARTICLES; ++j)
+            for (Uint16 j = 0; e->id == SOTN_SUBWEAPON_VIBHUTI && j < SOTN_VIBHUTI_PARTICLES; ++j)
             {
                 e->particles[j].x = FixedShift(e->particles[j].x, in.room_shift_x);
                 e->particles[j].y = FixedShift(e->particles[j].y, in.room_shift_y);
+            }
+            for (Uint16 j = 0;
+                 e->id == SOTN_SUBWEAPON_REBOUND_STONE && j < SOTN_REBOUND_STONE_LINES; ++j)
+            {
+                SotnReboundLine *l = &e->stone.lines[j];
+                l->x0 += in.room_shift_x;
+                l->x1 += in.room_shift_x;
+                l->y0 += in.room_shift_y;
+                l->y1 += in.room_shift_y;
             }
         }
         else if (c->neutron)
@@ -6079,42 +6154,37 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
         }
         else if (c->subweapon)
         {
-            // EntitySubwpnThrownVibhuti: func_800EDB58's thirteen contiguous TILEs, then
-            // func_8011A290 (func_800FE3C4's roll, func_80118894's group) before particle RNG.
+            // Vibhuti's func_800EDB58 takes contiguous rows, Rebound Stone's AllocPrimitives the
+            // first free ones; both callbacks then call func_8011A290 at their own RNG point.
             SotnSubweaponEntity *e = &c->state.subweapon.motion;
+            const Uint16 rows = SotnSubweaponEntity_Rows(e->id);
             bool allocated = c->primitive_count != 0;
             if (!e->step)
             {
-                if (!SotnPrimitiveSlots_ReserveContiguous(&in.primitive_slots, SOTN_VIBHUTI_ROWS,
-                                                          c->primitives, &allocated))
+                if (!(e->id == SOTN_SUBWEAPON_VIBHUTI
+                          ? SotnPrimitiveSlots_ReserveContiguous(&in.primitive_slots, rows,
+                                                                 c->primitives, &allocated)
+                          : SotnPrimitiveSlots_Reserve(&in.primitive_slots, rows, c->primitives,
+                                                       &allocated)))
                     return false;
-                c->primitive_count = allocated ? SOTN_VIBHUTI_ROWS : 0;
+                c->primitive_count = allocated ? (Uint8)rows : 0;
             }
-            if (!e->step && allocated)
-            {
-                SotnSubweaponDefinition definition = {0};
-                if (!SotnSubweapon_Read(in.dra, e->id, &definition) ||
-                    !SotnSubweapons_Power(e->id, definition.attack.power, &progress, stats.total[2],
-                                          &progress.random, &definition.attack.power))
-                    return false;
-                Uint16 group = 7;
-                for (Uint16 g = 8; g < 11; ++g)
-                    if (r.groups[g] < r.groups[group])
-                        group = g;
-                if (r.groups[group] == 255)
-                    return SDL_SetError("Subweapon shared attack group overflow");
-                ++r.groups[group];
-                c->group = (Uint8)group;
-                c->state.subweapon.attack = definition.attack;
-            }
+            SubweaponPropertyContext properties = {&r, c,    in.dra, &progress, stats.total[2],
+                                                   i,  false};
             SotnSubweaponEvents events = {0};
             if (!SotnSubweaponEntity_Tick(
                     e,
-                    (SotnSubweaponInput){.executable = in.executable,
-                                         .collision = in.food_collision,
-                                         .player_priority = p.priority,
-                                         .hit_flags = c->state.subweapon.hit_flags,
-                                         .allocated = allocated},
+                    (SotnSubweaponInput){
+                        .executable = in.executable,
+                        .collision = in.food_collision,
+                        .properties = SubweaponProperties,
+                        .context = &properties,
+                        .screen_x = in.camera_x - Word(in.room_shift_x - in.screen_shift_x),
+                        .screen_y = in.camera_y - Word(in.room_shift_y - in.screen_shift_y),
+                        .player_priority = p.priority,
+                        .player_facing_left = p.facing_left,
+                        .hit_flags = c->state.subweapon.hit_flags,
+                        .allocated = allocated},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
@@ -6122,19 +6192,32 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 return false;
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
+            if (events.disable_attack)
+                c->state.subweapon.attack.active = false;
+            if (events.factory &&
+                !SubweaponFactory(&r,
+                                  (SotnPlayerFactorySource){.x = events.factory_x,
+                                                            .y = events.factory_y,
+                                                            .flags = e->flags,
+                                                            .priority = e->priority,
+                                                            .facing_left = e->facing_left},
+                                  events.factory_packed))
+                return false;
             SotnPlayerAttack *a = &c->state.subweapon.attack;
             a->offset_x = 0;
             a->offset_y = e->hitbox_y;
             a->width = e->hitbox_width;
             a->height = e->hitbox_height;
-            // Without KEEP_ALIVE the entity dies when its hitbox particle leaves the screen.
+            // Without KEEP_ALIVE (Vibhuti) the entity dies when its hitbox leaves the screen.
             const Sint16 dx = Word(in.room_shift_x - in.screen_shift_x),
                          dy = Word(in.room_shift_y - in.screen_shift_y);
             const Sint16 x = Word(Pixel(e->x) - in.camera_x + dx),
                          y = Word(Pixel(e->y) - in.camera_y + dy);
-            removed = e->removed || x < -32 || x > 288 || y < -16 || y > 256;
-            // DRAW_HIDE rows lost DRAW_UNK02: they keep their screen position.
-            for (Uint16 j = 0; !removed && j < SOTN_VIBHUTI_PARTICLES; ++j)
+            removed = e->removed ||
+                      (!(e->flags & 0x04000000U) && (x < -32 || x > 288 || y < -16 || y > 256));
+            // Vibhuti's DRAW_HIDE rows lost DRAW_UNK02: they keep their screen position.
+            for (Uint16 j = 0;
+                 !removed && e->id == SOTN_SUBWEAPON_VIBHUTI && j < SOTN_VIBHUTI_PARTICLES; ++j)
                 if (!(e->particles[j].draw_mode & 2U))
                 {
                     e->particles[j].x = FixedShift(e->particles[j].x, dx);
@@ -6736,6 +6819,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                .water_level = p.water.feet,
                                                .facing_left = p.facing_left,
                                                .vectors = &r.particle_vectors,
+                                               .executable = in.executable,
                                                .allocated = allocated},
                     &progress.random))
                 return false;

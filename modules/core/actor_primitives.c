@@ -330,7 +330,7 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
            kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3 || kind == 0xe4 ||
            kind == 0xf4 || kind == 0xe8 || kind == 0xf8 || kind == 0xe9 || kind == 0xf9 ||
-           kind == SOTN_VIBHUTI_ENTITY;
+           kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -517,7 +517,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
                (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
-               (c->subweapon && c->primitive_count == SOTN_VIBHUTI_ROWS))))
+               (c->subweapon &&
+                c->primitive_count == SotnSubweaponEntity_Rows(c->state.subweapon.motion.id)))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))

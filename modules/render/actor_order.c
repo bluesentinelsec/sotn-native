@@ -6,7 +6,9 @@
 bool SotnActorOrder_Add(SotnActorDraw *items, size_t capacity, size_t *count, SotnActorDraw item)
 {
     if (items == NULL || count == NULL || *count >= capacity || item.priority > 511 ||
-        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_SUBWEAPON_TILE ||
+        item.actor >= SOTN_STAGE_ACTOR_SLOTS || item.kind > SOTN_DRAW_SUBWEAPON_LINE ||
+        (item.kind == SOTN_DRAW_SUBWEAPON_LINE &&
+         (item.primitive < 16 * 16 || item.primitive >= 32 * 16)) ||
         (item.kind == SOTN_DRAW_SUBWEAPON_TILE &&
          (item.primitive < 16 * 16 || item.primitive >= 32 * 16 ||
           item.primitive % 16U >= SOTN_VIBHUTI_PARTICLES)) ||

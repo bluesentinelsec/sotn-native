@@ -48,6 +48,7 @@ typedef struct SotnPlayerParticlesInput
     Uint16 parameter, player_priority, player_step;
     bool allocated, facing_left; /**< Current player facing for original profile8 birth. */
     const SotnPlayerParticleVectors *vectors; /**< Actual initialized owner, required by6 birth. */
+    SotnDataView executable; /**< Private SDK rcos/rsin, required by profile0 birth. */
 } SotnPlayerParticlesInput;
 /** @brief Read selected private profile capacity, including the original final sentinel row.
  * @param dra Borrowed private profile pointers/records. @param parameter Actual child parameter.
