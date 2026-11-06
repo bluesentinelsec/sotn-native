@@ -1107,7 +1107,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
                    item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
                    item == 176 || item == 136 || item == 137 || item == 138 || item == 1 ||
-                   item == 2 || item == 3
+                   item == 2 || item == 3 || item == 142
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1166,7 +1166,8 @@ static bool BindFood(SotnLaboratory *s)
                      c->state.secondary.family == 12 ||
                      ((c->state.secondary.family == 53 || c->state.secondary.family == 46 ||
                        c->state.secondary.family == 47 || c->state.secondary.family == 40 ||
-                       c->state.secondary.family == 41 || c->state.secondary.family == 42) &&
+                       c->state.secondary.family == 41 || c->state.secondary.family == 42 ||
+                       c->state.secondary.family == 44) &&
                       c->state.secondary.own_item))
                 ? c->state.secondary.item
                 : 0;
@@ -4493,7 +4494,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                            (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0,
                            jewel = family == 37 && role == 1, knuckle = family == 46,
-                           dynamite = family == 47 && role == 0;
+                           dynamite = family == 47 && role == 0, refresh = family == 44;
                 // Weapon47's fuse TILEs or explosion GT4s, world pixels.
                 for (Uint16 q = dynamite ? child->primitive_count : 0; q > 0; --q)
                     if (!(w->dyn_quads[q - 1U].draw_mode & 8U) &&
@@ -4510,6 +4511,15 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                         !SotnActorOrder_Add(
                             session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
                             (SotnActorDraw){.priority = w->knuckle_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 64U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
+                // Weapon44: Heart Refresh's sixteen bands and heart, screen-space GT4s.
+                for (Uint16 q = refresh ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->refresh_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->refresh_quads[q - 1U].priority,
                                             .primitive = (Uint16)(owner * 64U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
@@ -4569,7 +4579,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
                 for (Uint16 row = slash || ring || sparkle || rune || jewel || knuckle ||
-                                          dynamite || family == 30 ||
+                                          dynamite || refresh || family == 30 ||
                                           SotnWeaponSecondary_ShieldSpell(family)
                                       ? 0
                                       : child->primitive_count;
@@ -5656,9 +5666,10 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                        spell = SotnWeaponSecondary_ShieldSpell(c->state.secondary.family),
                        jewel = c->state.secondary.family == 37 && (c->kind & 15U) == 1,
                        knuckle = c->state.secondary.family == 46,
-                       dynamite = c->state.secondary.family == 47 && !(c->kind & 15U);
+                       dynamite = c->state.secondary.family == 47 && !(c->kind & 15U),
+                       refresh = c->state.secondary.family == 44;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && !dawn && !spell && !jewel && !knuckle && !dynamite &&
+                (!slash && !dawn && !spell && !jewel && !knuckle && !dynamite && !refresh &&
                  (c->kind & 15U) != 2 && c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
@@ -5670,6 +5681,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                      : jewel    ? w->jewel_quads[index]
                                      : knuckle  ? w->knuckle_quads[index]
                                      : dynamite ? w->dyn_quads[index]
+                                     : refresh  ? w->refresh_quads[index]
                                                 : w->quads[index];
             // Dynamite's rows are world pixels: 1x1 fuse TILEs (u0/v0 extents, flat colour) until
             // the explosion converts them to GT4 rays.

@@ -79,6 +79,15 @@ typedef struct SotnWeaponSecondary
             bool bat_bound, bat_side;
             Sint32 bat_vy;
         };
+        /** Weapon44 (Heart Refresh): seventeen screen-space GT4s (sixteen wave bands and the
+         * heart), ext.weapon unk90 brightness, unk94 wave amplitude, unk82 band height, unk8A
+         * angle step, unk7E growth speed and posY (the bands' screen top). */
+        struct
+        {
+            SotnPlayerEffectQuad refresh_quads[17];
+            Sint16 refresh_glow, refresh_wave, refresh_height, refresh_step, refresh_speed,
+                refresh_top;
+        };
         /** Weapon42 (Monster vial 3): the archer's ext.weapon.unk7E arrow count (advanced only
          * by free factories) and the arrow's velocityY (the shared union word is not its own). */
         struct
@@ -375,6 +384,13 @@ typedef struct SotnWeaponSecondaryEvents
     bool select_target;
     /** Shield spells: g_unkGraphicsStruct.unk28 (1 enters the spell freeze, 0 leaves it). */
     bool freeze_set, freeze_clear;
+    /** Weapon44 (Heart Refresh): unk28 = 2, the spell freeze without func_8010E0D0's BlinkWhite
+     * births. */
+    bool freeze_quiet;
+    /** Weapon44: g_Status.hearts += refresh_hearts, capped at heartsMax. */
+    Uint16 refresh_hearts;
+    /** Weapon44: func_80118C28 screen flash profile (0: none). */
+    Uint8 flash;
     /** Shield spells: FACTORY(55, n) pink medicine effect profile, zero when absent. */
     Uint8 pink;
     /** Weapon52's spell: BlinkWhite FACTORY(44, blink) from the spell entity; zero when absent. */

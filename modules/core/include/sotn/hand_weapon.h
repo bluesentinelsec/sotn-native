@@ -37,6 +37,13 @@ typedef struct SotnHandWeaponProgram
         };
         /** Weapon41 D_123000_8017B200: the bat's circular target cursor. */
         Sint32 vial_cursor;
+        /** Weapon44 (Heart Refresh) D_138000_8017A260: sixteen s32 wave angles in program data,
+         * read from the overlay once and advanced by every use until the program reloads. */
+        struct
+        {
+            Sint32 refresh_angles[16];
+            bool refresh_loaded;
+        };
         /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
         Sint16 dawn_phase[10];
         /** Weapon52 (Alucard shield): the spell's armed flag/timer D_8017ABBC/ABC0 (overlay

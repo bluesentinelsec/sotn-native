@@ -62,9 +62,9 @@ int main(void)
           stats.unarmed_attack == 11 && stats.defense == 4);
     CHECK(SotnCharacter_Equip(c, 0, 0));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.hand_count[86] == 1);
-    // Heart Refresh (item142) has no integrated hand behavior yet.
-    CHECK(SotnCharacter_Collect(c, false, 142));
-    CHECK(!SotnCharacter_Equip(c, 0, 142));
+    // The original menu never equips Life Apple (item146) in a hand.
+    CHECK(SotnCharacter_Collect(c, false, 146));
+    CHECK(!SotnCharacter_Equip(c, 0, 146));
     for (Uint32 i = 0; i < 120; ++i)
         CHECK(SotnCharacter_Collect(c, false, 128));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.hand_count[128] == 99);

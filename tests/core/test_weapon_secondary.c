@@ -5939,6 +5939,246 @@ static bool ArcherRuntime(Uint16 hand)
     SDL_free(dra);
     return true;
 }
+// w_044: Heart Refresh with its sixteen program wave angles (0x000..0xF00 at 0x260).
+static void RefreshTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 16; ++i)
+        Put32(o + 0x260 + i * 4U, i * 0x100U);
+}
+static bool RefreshTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    RefreshTables(o);
+    CHECK(SotnWeaponSecondary_Supported(44) && SotnWeaponSecondary_SupportedRole(44, 0) &&
+          !SotnWeaponSecondary_SupportedRole(44, 1) && SotnWeaponSecondary_RoleRows(44, 0) == 17);
+    SotnHandWeaponProgram program = {0};
+    Uint32 advances = 0;
+    for (Uint16 use = 0; use < 2; ++use)
+    {
+        const Uint16 hand = use;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15), .x = 90 * 65536};
+        const SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                             .executable = {exe, sizeof(exe)},
+                                             .hand = hand,
+                                             .family = 44};
+        const Uint8 v = hand ? 0x80 : 0;
+        const Uint16 clut = (Uint16)(0x110U + hand * 0x18U);
+        Uint32 rng = 9;
+        Uint16 counts[6] = {0}, flashes = 0, hearts = 0, frees = 0, total = 0;
+        while (!s.removed && total < 400)
+        {
+            // An unloaded program reads the overlay's angles first.
+            Sint32 before[16] = {0};
+            for (Uint16 i = 0; i < 16; ++i)
+                before[i] = program.refresh_loaded ? program.refresh_angles[i] : i * 0x100;
+            const SotnWeaponSecondary prior = s;
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == 9 &&
+                  !e.properties && !e.factory_count);
+            ++total;
+            if (s.removed)
+            {
+                // Glow below zero: unk28 = 0 and DestroyEntity before the band pass.
+                CHECK(prior.phase == 5 && prior.refresh_glow < 3 && e.freeze_clear &&
+                      !SDL_memcmp(before, program.refresh_angles, sizeof(before)));
+                break;
+            }
+            ++counts[prior.phase];
+            flashes += e.flash == 2;
+            hearts += e.refresh_hearts == 500;
+            frees += e.freeze_clear;
+            if (!prior.phase)
+            {
+                // The first use reads the overlay's angles; the second keeps the program's.
+                CHECK(use || before[5] == 0x500);
+                CHECK(e.sounds[0] == 0x6b1 && e.freeze_quiet && !e.freeze_set &&
+                      s.flags == 0x04810000U && s.refresh_step == 0x40 && s.refresh_wave == 0x180 &&
+                      !s.refresh_glow && s.refresh_height == 0x40 && s.refresh_top == 64 &&
+                      s.phase == 1);
+                const SotnPlayerEffectQuad *q = s.refresh_quads;
+                CHECK(q[0].u[0] == 0x7a && q[0].u[1] == 0x7c && q[15].u[0] == 0x7a &&
+                      q[3].u[1] == 0x60 && q[3].u[0] == 0x67 && q[9].u[0] == 0x48 &&
+                      q[9].u[1] == 0x4f && q[3].v[0] == v + 0x48 && q[3].v[2] == v + 0x7f &&
+                      q[3].draw_mode == 0x35 && q[3].priority == 0x1bc && q[3].palette == clut &&
+                      q[3].page == 0x19 && q[16].u[1] == 0x37 && q[16].draw_mode == 0x3d &&
+                      q[16].priority == 0x1be && q[16].palette == clut + 1U &&
+                      q[16].red[2] == 0x80);
+            }
+            else
+                CHECK(!e.sounds[0] || (e.sounds[0] == 0x636 && prior.phase == 4));
+            // Every band pass reads then advances the program angles by unk8A; band15's right
+            // edge reads angle0 already advanced by band0.
+            for (Uint16 i = 0; i < 16; ++i)
+            {
+                SotnMathTrig a = {0}, b = {0};
+                CHECK(SotnMath_Trig(in.executable, (Sint16)before[i], &a) &&
+                      SotnMath_Trig(in.executable,
+                                    (Sint16)(i == 15 ? before[0] + 0x40 : before[i + 1]), &b));
+                const Sint16 wa = (Sint16)((a.sine >> 5) * s.refresh_wave / 256);
+                const SotnPlayerEffectQuad *q = &s.refresh_quads[i];
+                CHECK(program.refresh_angles[i] == before[i] + 0x40 &&
+                      q->y[0] == s.refresh_top + wa &&
+                      q->y[2] == s.refresh_top + s.refresh_height + wa && q->x[0] == 64 + 8 * i &&
+                      q->x[1] == 72 + 8 * i &&
+                      q->red[0] == (Uint8)(((a.sine + 0x1000) >> 6) * s.refresh_glow / 256) &&
+                      q->blue[3] == (Uint8)(((b.sine + 0x1000) >> 6) * s.refresh_glow / 256));
+            }
+            ++advances;
+            if (prior.phase == 2 && s.phase == 3)
+            {
+                // The flash, the image rows, DRAW_DEFAULT and the 0x48 band from y56.
+                CHECK(e.flash == 2 && !s.refresh_wave && s.refresh_height == 0x48 &&
+                      s.refresh_top == 56 && s.lifetime == 32 && s.refresh_quads[4].u[0] == 32 &&
+                      s.refresh_quads[4].u[1] == 40 && s.refresh_quads[4].v[0] == v &&
+                      s.refresh_quads[4].v[2] == v + 0x47 && !s.refresh_quads[4].draw_mode &&
+                      s.refresh_quads[16].u[1] == 0x37);
+            }
+            else
+                CHECK(!e.flash);
+            // The heart quad shows only in phases 4/5, scaled about (0x80, 0x68).
+            const bool heart = prior.phase >= 4;
+            CHECK(((s.refresh_quads[16].draw_mode & 8U) == 0) == heart);
+            if (heart)
+            {
+                static const Sint16 corner[4] = {0x600, 0x200, 0xa00, 0xe00};
+                for (Uint16 k = 0; k < 4; ++k)
+                {
+                    SotnMathTrig t = {0};
+                    CHECK(SotnMath_Trig(in.executable, corner[k], &t) &&
+                          s.refresh_quads[16].x[k] == ((t.cosine >> 8) * s.scale_x >> 8) + 0x80 &&
+                          s.refresh_quads[16].y[k] == -((t.sine >> 8) * s.scale_x >> 8) + 0x68 &&
+                          s.refresh_quads[16].green[k] == (Uint8)s.scale_y);
+                }
+            }
+            if (prior.phase == 3 && s.phase == 4)
+                CHECK(!s.scale_x && s.scale_y == 0x80 && s.refresh_speed == 0xa);
+            if (prior.phase == 4)
+            {
+                // Growth by a rising speed; past 0x200 scaleY falls; past 0x380 the refill.
+                CHECK(s.scale_x == prior.scale_x + prior.refresh_speed &&
+                      s.refresh_speed == prior.refresh_speed + 2 &&
+                      s.scale_y == prior.scale_y - (s.scale_x > 0x200 ? 1 : 0) &&
+                      (e.refresh_hearts != 0) == (s.scale_x > 0x380) &&
+                      (s.phase == 5) == (s.scale_x > 0x380));
+            }
+            if (prior.phase == 5)
+                CHECK(s.refresh_quads[7].draw_mode == 0x35 &&
+                      s.refresh_wave == prior.refresh_wave + 6);
+            CHECK(s.refresh_glow <= 0x100);
+        }
+        CHECK(s.removed && counts[0] == 1 && counts[1] == 81 && counts[2] == 61 &&
+              counts[3] == 32 && counts[4] == 26 && counts[5] == 85 && flashes == 1 &&
+              hearts == 1 && frees == 0 && total == 287 && program.refresh_loaded);
+    }
+    CHECK(advances == 2 * 286 && program.refresh_angles[0] == 0x40 * 572);
+    return true;
+}
+// Heart Refresh through the shared runtime: the throw factory's E0/F0 root (own item142) leases
+// seventeen rows, enters the quiet freeze (no BlinkWhite births), runs frozen (flag0x10000),
+// flashes, adds 500 hearts capped at the maximum and releases the freeze when it retires.
+static bool RefreshRuntime(Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 142, 10, 44, 131, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + 142 * 52;
+    Put16(record + 8, 0);
+    Put16(record + 12, 0);
+    record[18] = 0xbe;
+    record[19] = 50;
+    record[21] = 0;
+    record[22] = 0;
+    record[25] = 1;
+    record[26] = 0;
+    Put16(record + 40, 0);
+    const Uint8 blueprint[5] = {0, 1, 0xc1, 0, 0x26};
+    SDL_memcpy(dra + 0xd1d4 + 50 * 6U, blueprint, 5);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    dra[0xcfb4 + 8] = 9; // func_80118C28(2): nine flash updates.
+    RefreshTables(weapons + 44U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment item = {0};
+    CHECK(SotnEquipment_Read(actors->dra, 142, &item) && item.kind == 131 && item.family == 44 &&
+          item.blueprint == 50 && !item.chain_limit && item.consumable && item.animation == 0xbe);
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnCharacterState state = {0};
+    CHECK(SotnCharacter_Get(character, &state, NULL));
+    state.hearts_max = 80;
+    state.hearts = 30;
+    CHECK(SotnCharacter_Restore(character, &state));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {44, 44},
+                              .weapon_bound = {true, true},
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 130 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0xbe}}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand != 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestThrown(
+              r, source, 50U | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16, 142, &allocated) &&
+          allocated);
+    Uint16 quiet = 0, released = 0, ticks = 0, flashes = 0, frozen_ticks = 0;
+    bool born = false, others = false;
+    for (Uint16 t = 0; t < 400; ++t)
+    {
+        in.game_timer = t;
+        in.freeze = r->freeze;
+        frozen_ticks += in.freeze == 2;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        quiet += r->freeze_changed && r->freeze == 2;
+        released += r->freeze_changed && r->freeze == 0;
+        // The flash's own tick already counts its first update down.
+        flashes += r->screen_flash_ticks == 8;
+        bool any = false;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->kind)
+                continue;
+            if (!c->weapon_secondary)
+            {
+                others = true;
+                continue;
+            }
+            if (!c->initialized)
+                continue;
+            any = born = true;
+            CHECK(c->state.secondary.family == 44 && SotnBatRuntime_SecondaryValid(c, i) &&
+                  c->kind == (hand ? 0xf0 : 0xe0) && c->primitive_count == 17 &&
+                  c->state.secondary.own_item && c->state.secondary.item == 142 && !c->group);
+        }
+        if (born && !any)
+            break;
+    }
+    CHECK(SotnCharacter_Get(character, &state, NULL));
+    CHECK(born && quiet == 1 && released == 1 && !others && flashes == 1 && frozen_ticks == 286 &&
+          state.hearts == 80 && ticks < 400);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].kind);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // w_041: Monster vial 2's vial and bat with synthetic timelines (a looping flap, the ten-pose
 // break, the one-pose vial), twelve frame-property hitboxes, four speeds and three rises.
 static void BatTables(Uint8 *o, Uint8 *exe)
@@ -12235,20 +12475,20 @@ int main(void)
                    DynamiteFlameTest() && DynamiteRuntime(0) && DynamiteRuntime(1) &&
                    VialRootTest() && VialMonsterTest() && VialChildrenTest() && BatRootTest() &&
                    BatTest() && BatRuntime(0, false) && BatRuntime(1, true) && VialRuntime(0) &&
-                   ArcherRootTest() && ArcherTest() && ArrowTest() && ArcherRuntime(0) &&
-                   ArcherRuntime(1) && VialRuntime(1) && IronRuntime(0) && IronRuntime(1) &&
-                   IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
-                   HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
-                   HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&
-                   DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() && MedusaLaserTest() &&
-                   MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) && SkullSpellTest() &&
-                   SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) && FireImageTest() &&
-                   FireSpellTest() && FireDragonTest() && FireHitTest() && FireRuntime(0) &&
-                   FireRuntime(1) && MuramasaSlash() && Twelve() && TwelveRuntime() &&
-                   Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) && ShotelBoomerang() &&
-                   ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) && DawnCircleTest(1) &&
-                   DawnSoldierTest(0) && DawnSoldierTest(1) && DawnArrowTest(0) &&
-                   DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
+                   ArcherRootTest() && ArcherTest() && ArrowTest() && RefreshTest() &&
+                   RefreshRuntime(0) && RefreshRuntime(1) && ArcherRuntime(0) && ArcherRuntime(1) &&
+                   VialRuntime(1) && IronRuntime(0) && IronRuntime(1) && IronThunderRuntime() &&
+                   IronSpellTest() && IronSwordTest() && HeraldSpellTest() && HeraldSwirlTest() &&
+                   HeraldSpriteTest() && HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() &&
+                   DarkRockTest() && DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() &&
+                   MedusaLaserTest() && MedusaHitTest() && MedusaRuntime(0) && MedusaRuntime(1) &&
+                   SkullSpellTest() && SkullBeamTest() && SkullRuntime(0) && SkullRuntime(1) &&
+                   FireImageTest() && FireSpellTest() && FireDragonTest() && FireHitTest() &&
+                   FireRuntime(0) && FireRuntime(1) && MuramasaSlash() && Twelve() &&
+                   TwelveRuntime() && Yasutsuna() && YasutsunaRuntime(0) && YasutsunaRuntime(1) &&
+                   ShotelBoomerang() && ShotelRuntime(0) && ShotelRuntime(1) && DawnCircleTest(0) &&
+                   DawnCircleTest(1) && DawnSoldierTest(0) && DawnSoldierTest(1) &&
+                   DawnArrowTest(0) && DawnArrowTest(1) && DawnBombTest(0) && DawnBombTest(1) &&
                    LeatherSpellTest(0, false) && LeatherSpellTest(1, false) &&
                    LeatherSpellTest(0, true) && LeatherSpellTest(1, true) && AlucartSpellTest(0) &&
                    AlucartSpellTest(1) && AxeLordSpellTest(0) && AxeLordSpellTest(1) &&

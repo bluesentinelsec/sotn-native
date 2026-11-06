@@ -5,7 +5,7 @@
 #include <sotn/scene_freeze.h>
 static bool Valid(const SotnSceneFreeze *f)
 {
-    return f && (f->request == 0 || f->request == 1 || f->request == 3 || f->request == 0xfff);
+    return f && (f->request <= 3 || f->request == 0xfff);
 }
 bool SotnSceneFreeze_BeginFrame(SotnSceneFreeze *f, SotnSceneFreezeFrame *out)
 {
@@ -21,8 +21,7 @@ bool SotnSceneFreeze_BeginFrame(SotnSceneFreeze *f, SotnSceneFreezeFrame *out)
 }
 bool SotnSceneFreeze_Request(SotnSceneFreeze *f, Uint16 request)
 {
-    if (!Valid(f) || (request != 0 && request != 1 && request != 3 && request != 0xfff) ||
-        (!request && !f->active))
+    if (!Valid(f) || (request > 3 && request != 0xfff) || (!request && !f->active))
         return SDL_SetError("Scene freeze requires actual portal birth or active retirement");
     f->request = request;
     return true;

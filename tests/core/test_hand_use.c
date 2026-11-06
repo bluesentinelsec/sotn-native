@@ -166,6 +166,12 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     Item(f->dra, 136, 0, 46, 134, 0xd2, 0, 0, 0);
     f->dra[0x500 + 136 * 52 + 19] = 50;
     f->dra[0x500 + 136 * 52 + 22] = 1;
+    // Kind131 Heart Refresh (blueprint50, weapon44, chain0, hit type0) is consumed.
+    Item(f->dra, 142, 10, 44, 131, 0xbe, 0, 0, 0);
+    f->dra[0x500 + 142 * 52 + 19] = 50;
+    f->dra[0x500 + 142 * 52 + 22] = 0;
+    f->dra[0x500 + 142 * 52 + 25] = 1;
+    Put16(f->dra + 0x500 + 142 * 52 + 40, 0);
     // Kind130 Monster vial 3 (blueprint50, weapon42, chain8) is consumed.
     Item(f->dra, 3, 8, 42, 130, 0x60, 0, 0, 0);
     f->dra[0x500 + 3 * 52 + 19] = 50;
@@ -332,7 +338,8 @@ static bool Create(Fixture *f, Uint16 item, Uint16 first, Uint16 second, bool al
     // Alucard shield16 binds without it too (its family52 owner predates the shared hand).
     CHECK(item == 16 || item == 18 || item == 143 || item == 119 || item == 133 || item == 163 ||
           item == 164 || item == 165 || item == 136 || item == 137 || item == 138 || item == 1 ||
-          item == 2 || item == 3 || !SotnPlayer_SetEquipment(f->p, weapons, item, right));
+          item == 2 || item == 3 || item == 142 ||
+          !SotnPlayer_SetEquipment(f->p, weapons, item, right));
     CHECK(SotnPlayer_SetHandContext(f->p, Factory, Random, f) &&
           SotnPlayer_SetSwordContext(f->p, Sword, f, false));
     CHECK(item != 26 || !SotnPlayer_SetEquipment(f->p, weapons, 26, 0));
@@ -864,6 +871,30 @@ static bool Runesword(Fixture *f, Uint16 item)
     }
     return true;
 }
+// 6E42C.c kind131 Heart Refresh142: CheckChainLimit's chain0 refuses while a live entity of the
+// hand carries 142; otherwise blueprint50 (hand bits, variant0), consumption after the player's
+// success, no casting grunt or roll, and case131's standing animation 0xBE.
+static bool HeartRefresh(Fixture *f)
+{
+    for (Uint16 k = 0; k < 2; ++k)
+    {
+        CHECK(Create(f, 142, 1, 2, true));
+        CHECK(SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, (Uint8)k, 0));
+        Put16(f->dra + 0xcf62, 0x6f2);
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        CHECK(Tick(f, SOTN_BUTTON_LEFT_HAND));
+        SotnPlayerState p = {0};
+        CHECK(SotnPlayer_GetState(f->p, &p));
+        if (k)
+            CHECK(!f->factories && !f->roll_count && !p.throwing.used && !f->consumed);
+        else
+            CHECK(f->factories == 1 && f->item == 142 && f->packed == 0x1032U && !f->roll_count &&
+                  p.throwing.used && !p.throwing.keep && f->consumed && !p.throwing_grunt &&
+                  f->p->animation.id == 0xbe && f->p->equipment[0] == 142);
+    }
+    return true;
+}
 // 6E42C.c both buttons: Mablung124 + Leather5 resolve CheckWeaponCombo to spell203 on the
 // shield's hand; the spell's factory takes <<14 hand bits, ten MP and kind5's grounded stop.
 // A live spell (chain1) or too little MP leaves the left hand's ordinary swing.
@@ -1143,10 +1174,10 @@ int main(void)
          FistCombo(f) && QuarterCircle(f) && HolySword(f) && Brand(f) && Warp(f) && Lunge(f) &&
          Punches(f) && Weapon51Specials(f) && MoonRod(f) && Runesword(f, 143) &&
          Runesword(f, 136) && Runesword(f, 137) && Runesword(f, 138) && Runesword(f, 1) &&
-         Runesword(f, 2) && Runesword(f, 3) && Runesword(f, 119) && HeavenCombo(f) &&
-         Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) && Runesword(f, 165) &&
-         Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) && SwordOfDawn(f) &&
-         Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
+         Runesword(f, 2) && Runesword(f, 3) && HeartRefresh(f) && Runesword(f, 119) &&
+         HeavenCombo(f) && Runesword(f, 133) && Runesword(f, 163) && Runesword(f, 164) &&
+         Runesword(f, 165) && Muramasa(f) && CombatKnife(f) && AirborneKindZero(f) && Shotel(f) &&
+         SwordOfDawn(f) && Combo(f, 5, 203, 10) && Combo(f, 8, 206, 20) && Combo(f, 11, 209, 40) &&
          Combo(f, 12, 210, 10) && Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) &&
          Combo(f, 10, 208, 30) && Combo(f, 13, 211, 30) && Combo(f, 14, 212, 40) &&
          Combo(f, 15, 213, 50) && ShieldRodAttack(f) && Combo(f, 16, 214, 20) &&
