@@ -688,6 +688,48 @@ bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDa
     return true;
 }
 
+bool SotnActorGraphics_LoadFamiliarClut(SotnActorGraphics *graphics, const Uint16 *clut,
+                                        Uint16 words)
+{
+    if (!graphics || graphics->target_active || !clut || !words || words > 256)
+        return SDL_SetError("Familiar CLUT upload requires its actual owner and 1..256 words");
+    Uint8 bytes[512] = {0};
+    for (Uint16 i = 0; i < words; ++i)
+    {
+        bytes[i * 2U] = (Uint8)clut[i];
+        bytes[i * 2U + 1U] = (Uint8)(clut[i] >> 8);
+    }
+    Upload(graphics, 0, 0xf4, words, 1, bytes);
+    return true;
+}
+bool SotnActorGraphics_PrepareFamiliarModel(const SotnActorGraphics *graphics,
+                                            SotnDataView textures, const Uint16 *clut, Uint16 words,
+                                            SotnActorGraphics **out)
+{
+    if (!out)
+        return SDL_InvalidParamError("out");
+    *out = NULL;
+    if (!graphics || graphics->target_active || !textures.bytes || textures.size != 0x6000 ||
+        !clut || !words || words > 256)
+        return SDL_SetError(
+            "Model familiar preparation requires its actual owner, FT textures and CLUT");
+    SotnActorGraphics *candidate = SDL_malloc(sizeof(*candidate));
+    if (!candidate)
+        return false;
+    *candidate = *graphics;
+    Upload(candidate, 0x2c0, 0x100, 64, 128, textures.bytes);
+    Upload(candidate, 0x2c0, 0x180, 32, 128, textures.bytes + 0x4000);
+    candidate->familiar = (SotnDataView){0};
+    candidate->familiar_parts = 0;
+    if (!SotnActorGraphics_LoadFamiliarClut(candidate, clut, words))
+    {
+        SDL_free(candidate);
+        return false;
+    }
+    *out = candidate;
+    return true;
+}
+
 void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics)
 {
     if (graphics)

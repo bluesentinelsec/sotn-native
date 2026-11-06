@@ -141,7 +141,9 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [shared cleanup](familiar-rescue-cleanup.md) and
   [FFF/player17 dispatch](fairy-native-dispatch.md) now connect their bound native owners.
   The [Sword familiar component](sword-familiar.md) reconstructs its init, entrance, follow,
-  GTE model, trail, halo, events and speech; it is not yet selectable or drawn.
+  GTE model, trail, halo, events and speech. The session now loads, ticks, translates and draws
+  it through the familiar load API (card22, record4, real row leases). The relic menu does not
+  offer it yet, and live targets stop it explicitly until its attacks exist.
   The [selected load/retirement owner](familiar-lifecycle.md) now provides owned0/3
   resource initialization, root/wings, cached reselection, actual item/rescue producers
   and deselection through a native load-boundary API. Detached graphics/SPU/CD

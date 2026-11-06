@@ -36,6 +36,7 @@ typedef enum SotnActorDrawKind
     SOTN_DRAW_FAIRY_SPRITE,   /**< Actual familiar owner index0..3, original slots4..7. */
     SOTN_DRAW_FAIRY_TILE,     /**< Actual DF owner index0..3 and leased tile index. */
     SOTN_DRAW_FAIRY_LIGHT,    /**< Actual DD owner index0..3 and leased ten-row G4 index. */
+    SOTN_DRAW_SWORD_FAMILIAR, /**< Actual Sword lease part0..2 (model/trail/halo) and row. */
     SOTN_DRAW_FOOD_TEXT,      /**< Actual global lower-left text row index0..67. */
     SOTN_DRAW_FOOD,           /**< Actual weapon21 child index1..15. */
     SOTN_DRAW_NEUTRON,        /**< Actual weapon19 child index1..15. */

@@ -6,11 +6,11 @@ now has a native component (`modules/core/sword_familiar.c`) for its idle side. 
 trail, the level-90 halo, the room-event entity and the narrative sound cursor. Its private model,
 UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 
-It is a component, like the earlier Fairy components: no native card selection, resource loading,
-primitive leases, drawing or room ownership uses it yet. Familiar levels already persist in v11
-saves ([native saves](native-saves.md)). Attacks, Sword Brothers, the level-50 gift and the
-Sword Familiar item follow in later batches; until then those states fail explicitly instead of
-degrading.
+The native session now owns it through the familiar load boundary (see [Session
+integration](#session-integration)). The relic menu does not offer the Sword Card yet. Familiar
+levels persist in v11 saves ([native saves](native-saves.md)). Attacks, Sword Brothers, the
+level-50 gift and the Sword Familiar item follow in later batches. Until then those states fail
+explicitly instead of degrading, so a selected Sword stops the game once an enemy is on screen.
 
 ## Behaviour
 
@@ -51,6 +51,42 @@ original's writes through the dead entity's zero `primIndex` into another owner'
 distance beyond about 724 px (`SquareRoot12` input above `INT32_MAX`) fails explicitly. Neither
 case arises in the traced play.
 
+## Session integration
+
+`SotnLaboratory_SelectFamiliar(session, 5)` and engine initialization now load the Sword like
+the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
+`TT_004`/`FT_004`/`SD_SWORD` resources and the event table at 0x801719E4.
+
+- **Loading**: the FT pages go to 0x2C0,0x100 and 0x2C0,0x180, like every familiar. The CLUT
+  upload writes only `ServantInit`'s 48 words to row 0xF4; the rest of the row keeps its colours.
+  The model draws from GT4 rows, so the Sword has no bank-20 sprite binding. The SPU bank and CD
+  owner follow the Fairy's detached-candidate path, and every failure preserves the live owners.
+- **Overlay residency**: one servant overlay is resident at a time. Selecting a different familiar
+  replaces the cached resources, and the newly loaded overlay's data starts fresh: the sound
+  cursor returns to 99 and the event history resets. Reselecting the cached familiar keeps its
+  resources and history. Deselecting retires slots 4..7 and their rows, but keeps the overlay.
+  Connected-stage handoffs carry the resident overlay's runtime, with its slots and rows retired.
+- **Row leases**: each callback that calls `AllocPrimitives` first checks the real stage pool:
+  96 rows for the model, 16 for the trail, 4 for the halo. A failed check retires the owner, as in
+  the original. After every callback the lease each part holds is committed atomically, tagged
+  by part and slot. Kept owners keep their rows, retired owners release theirs, and stale or
+  unclaimed rows fail before anything changes.
+- **Callbacks**: the ordinary pass runs slots 4..7 after the Fairy's. In the spell-freeze pass only
+  flag-0x10000 entities update, and the Sword has none. The session supplies the following, and
+  the callback's speech, pause and castle-flag 464 requests are committed after it:
+  - the screen-space player and the record-4 stats;
+  - the room's 0x20/0x40 flags, the cutscene and global-flash flags, and enemy presence;
+  - real CD acknowledgements.
+- **Targets**: `func_us_80173AA0` finds a target exactly when `CheckAllEntitiesValid` finds an
+  enemy, so the session passes that predicate. The component then stops explicitly until attacks
+  exist. Sword Brothers stays false because no native spell sets `g_Player.unk70`.
+- **Translation**: camera scrolls move camera-locked entities and their DRAW_UNK02 rows. Room entry
+  retires non-0x20000 entities and moves the rest, with DRAW_UNK_100 rows, by the original player
+  displacement. It then releases the rows of retired owners.
+- **Drawing**: the session adds visible model, trail and halo rows to the ordered draw list at their
+  own priorities. It draws them as textured GT4 packets (page 0x1B, palettes 0x140/0x141) with the
+  GPU's wrap rule for private-table packets.
+
 ## Evidence
 
 - Public tests (synthetic tables) cover:
@@ -63,6 +99,30 @@ case arises in the traced play.
   - room events, aura respawn on a level change, explicit failures, allocation failures,
     camera/room translation and clear.
   58 of 60 mutations are caught; one does not compile and one changes the unused `rotation[1]` term.
+- Public lease tests cover:
+  - the row requests and held parts;
+  - two-owner rejection;
+  - pool commits that keep, replace and release rows;
+  - stale-row and unclaimed-row holds;
+  - exhaustion and malformed requests.
+  17 of 18 mutations are caught. The survivor is equivalent: a model owner with kind 0 is always
+  at step 0.
+- A private native probe runs Laboratory room 16 through these steps:
+  1. A selection without the card holds.
+  2. Card 22 is granted, and the Sword is selected through the API.
+  3. Over 283 frames, the session runs 644 slot-4/5 callbacks with six real row reservations.
+     The visible model changes the frame, and blanking the 48 CLUT words changes it again.
+  4. Walking scrolls the camera, and the probe crosses into the neighbouring room. The model
+     lease stays unchanged throughout.
+  5. Deselecting retires every row.
+  6. Cached reselection increments the load count to 2 without new resources.
+  7. Switching to the Fairy replaces the overlay and retires all Sword rows. Switching back
+     reloads a fresh overlay (loads 3).
+  8. A stale row stops the next load.
+
+  These are explicit card and selection fixtures in an enemy-free room. They are not menu
+  activation, attack or route evidence. The probe's save-room variant stops explicitly when the
+  next room shows enemies.
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
   trail, halo, event entity and `ProcessSfxState` in lockstep with the native component. It uses
   SLUS `rsin`/`rcos`/`ratan2`/`SquareRoot12`/`CompMatrix` (SquareRoot12's leading-zero count

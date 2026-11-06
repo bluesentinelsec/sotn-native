@@ -61,8 +61,13 @@ The [Sword familiar component](docs/sword-familiar.md) (tt_004, card22, servant5
 ServantInit (48-word CLUT row0xF4), default follow, menu-switch entrance (speech 0x4FB..0x4FF),
 the GTE model (own matrix, CompMatrix (0,0,6500), RTPS (128,128)/H1000, NCLIP, OTZ priorities),
 blade trail (DA), level-90 halo (DB), events (table 0x801719E4, DC) and the DD sound cursor.
-Not yet selectable/drawn; targets, Sword Brothers and the level-50 gift fail explicitly. Oracle
-SquareRoot12 needs the LZC adapter at 0x8001721C (like SquareRoot0).
+SotnLaboratory_SelectFamiliar(5)/engine init now load it through a per-familiar profile (card,
+record, TT/FT/SD files, events): FT pages like every servant, only 48 CLUT words, no bank20 sprite.
+One overlay is resident; switching familiars replaces it (fresh history, sound cursor 99). Real
+stage-pool leases (model96/trail16/halo4, tag 0x9000|part<<8|slot) are checked before each
+AllocPrimitives callback and committed after it; draws are GT4 rows at their own priorities. The
+relic menu does not offer card22 yet; live targets (CheckAllEntitiesValid), Sword Brothers and
+the level-50 gift fail explicitly. Oracle SquareRoot12 needs the LZC adapter at 0x8001721C.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue

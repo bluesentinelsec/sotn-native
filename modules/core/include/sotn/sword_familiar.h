@@ -83,6 +83,15 @@ typedef struct SotnSwordInput
     SotnFamiliarEventInput room;
     SotnFamiliarSfxInput sound;
 } SotnSwordInput;
+/** @brief Real stage-pool rows held by one live Sword owner. Part0 is slot4's model (96 rows,
+ * held once its first initialization reserved them), part1 the DA trail (16) and part2 the DB
+ * halo (4). Count0 means no rows; the native pool owner fills rows. */
+typedef struct SotnSwordLease
+{
+    Uint32 generation;
+    Uint16 slot, part, count;
+    Uint16 rows[SOTN_SWORD_MODEL_ROWS];
+} SotnSwordLease;
 /** @brief Requests for native owners, committed after a successful callback. */
 typedef struct SotnSwordEvents
 {
@@ -112,6 +121,15 @@ bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwo
  * @param room Room entry: retire non-0x20000 slots first. No callback or clock advances. */
 bool SotnSwordRuntime_Translate(SotnSwordRuntime *runtime, Sint16 camera_x, Sint16 camera_y,
                                 Sint32 player_x, Sint32 player_y, bool room);
+/** @brief Rows the next callback of one slot reserves through AllocPrimitives, or zero.
+ * @param runtime Actual owner. @param slot Original slot4..7.
+ * @return 96 for an uninitialized model owner, 16/4 for a DA/DB at step0, else zero. The caller
+ * passes whether that many actual rows are free as SotnSwordInput::allocated. */
+Uint16 SotnSwordRuntime_RowRequest(const SotnSwordRuntime *runtime, Uint16 slot);
+/** @brief Report the row leases the runtime's live owners hold (rows left zero).
+ * @param runtime Actual owner. @param out Three parts indexed model/trail/halo.
+ * @return Success or SDL error when two live owners claim one part. */
+bool SotnSwordRuntime_Leases(const SotnSwordRuntime *runtime, SotnSwordLease out[3]);
 /** @brief Original ServantWorkClear: retire slots4..7 and their rows, keeping overlay globals. */
 bool SotnSwordRuntime_Clear(SotnSwordRuntime *runtime);
 #endif
