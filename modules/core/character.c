@@ -104,9 +104,10 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                  : (id == 0 || SotnEquipment_IsShield(id) || id == 18 || id == 19 || id == 109 ||
                     id == 114 || id == 24 || id == 25 || id == 80 || id == 81 || id == 82 ||
                     id == 134 || id == 135 || id == 143 || id == 119 || id == 133 || id == 163 ||
-                    id == 164 || id == 165 || (id != 125 && SotnEquipment_IsSword0(id)) ||
-                    SotnEquipment_IsBasicFist(id) || SotnEquipment_IsPlainWeapon(id) || id == 123 ||
-                    id == 168 || id == 126 || id == 128 || id == 166 || (id >= 29 && id <= 79) ||
+                    id == 164 || id == 165 || id == 136 || id == 137 ||
+                    (id != 125 && SotnEquipment_IsSword0(id)) || SotnEquipment_IsBasicFist(id) ||
+                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 168 || id == 126 ||
+                    id == 128 || id == 166 || (id >= 29 && id <= 79) ||
                     (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
@@ -426,7 +427,7 @@ bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, Uint16 ha
          item != 109 && item != 114 && item != 198 && !SotnEquipment_IsSword0(item) &&
          !SotnEquipment_IsBasicFist(item) && !SotnEquipment_IsPlainWeapon(item) && item != 123 &&
          item != 168 && item != 126 && item != 128 && item != 143 && item != 133 && item != 163 &&
-         item != 164 && item != 165 && item != 119))
+         item != 164 && item != 165 && item != 119 && item != 136 && item != 137))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&

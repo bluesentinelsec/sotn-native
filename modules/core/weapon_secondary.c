@@ -76,6 +76,9 @@ static bool Program(Uint16 family, Layout *out)
     // Weapon37: the Jewel sword's sparkles take sixteen GT4s (eight used); coins take none.
     else if (family == 37)
         *out = (Layout){.rows = 16};
+    // Weapon46: Holbein dagger's slash takes one GT4; Blue knuckles' arc thirty-two G4s.
+    else if (family == 46)
+        *out = (Layout){.rows = 32};
     else if (family == 34)
         *out = (Layout){.rows = 0};
     else if (family == 30)
@@ -150,7 +153,8 @@ bool SotnWeaponSecondary_Supported(Uint16 family)
     return family == 55 || family == 38 || family == 39 || family == 53 || family == 56 ||
            family == 48 || family == 1 || family == 51 || family == 49 || family == 50 ||
            family == 6 || family == 14 || family == 13 || family == 12 || family == 34 ||
-           family == 30 || family == 7 || family == 37 || SotnWeaponSecondary_ShieldSpell(family);
+           family == 30 || family == 7 || family == 37 || family == 46 ||
+           SotnWeaponSecondary_ShieldSpell(family);
 }
 bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
 {
@@ -181,6 +185,10 @@ bool SotnWeaponSecondary_SupportedRole(Uint16 family, Uint16 role)
     // Weapon37: the Jewel sword's sparkles (role1) and their gold coins (role2).
     if (family == 37)
         return role == 1 || role == 2;
+    // Weapon46: Holbein dagger's EntityWeaponAttack slashes (role0) and Blue knuckles' arc
+    // (role1).
+    if (family == 46)
+        return role <= 1;
     // Weapon12: role0 Vorpal/Crissaegrim slashes, role1 the Chakram, role2 its afterimages.
     if (family == 12)
         return role <= 2;
@@ -246,6 +254,8 @@ Uint8 SotnWeaponSecondary_RoleRows(Uint16 family, Uint16 role)
         return role == 0 ? 1 : 0;
     if (family == 37)
         return role == 1 ? 16 : 0;
+    if (family == 46)
+        return role == 1 ? 32 : 1;
     if (family == 34)
         return 0;
     if (family == 30)
@@ -1843,6 +1853,236 @@ static bool MoonSparkle(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uin
 }
 
 static bool Query(SotnWeaponSecondaryInput in, Sint16 x, Sint16 y, SotnCollider *out);
+// w_046 EntityWeaponAttack (blueprint50 E0/F0, Holbein dagger136): one GT4 slash spun around
+// the live player from D_146000_8017AAD8[params] (uv flips, colour, radius, angle). The params0
+// root rolls properties (15x20 hitbox) and requests WFACTORY(0x32,1)/(0x32,2) at its fourth and
+// seventh callbacks; every slash steps nine CLUTs and retires.
+static bool Holbein(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                    SotnWeaponSecondaryEvents *e)
+{
+    const Uint16 masked = (Uint16)((s->parameter >> 8) & 0x7fU);
+    const Uint8 *row = NULL;
+    if (masked > 12 || !View(in.overlay, 0xad8U + masked * 14U, 14, &row))
+        return SDL_SetError("Holbein slash parameters are outside D_146000_8017AAD8");
+    const Uint8 v = in.hand ? 0x80 : 0;
+    const Uint16 clut = in.hand ? 0x18 : 0;
+    SotnPlayerEffectQuad *q = &s->knuckle_quads[0];
+    if (!s->phase)
+    {
+        s->x = in.x;
+        s->y = in.y;
+        s->facing_left = in.facing_left;
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 0;
+        s->allocated = true;
+        *q = (SotnPlayerEffectQuad){0};
+        const bool flip_u = Read16(row) != 0, flip_v = Read16(row + 2) != 0;
+        q->u[0] = q->u[2] = flip_u ? 0x40 : 0;
+        q->u[1] = q->u[3] = flip_u ? 0 : 0x40;
+        q->v[0] = q->v[1] = flip_v ? (Uint8)(v | 0x40) : v;
+        q->v[2] = q->v[3] = flip_v ? v : (Uint8)(v | 0x40);
+        for (Uint16 k = 0; k < 4; ++k)
+        {
+            q->red[k] = row[10];
+            q->green[k] = row[11];
+            q->blue[k] = row[12];
+        }
+        q->page = 0x19;
+        q->priority = (Uint16)(in.priority + 2U);
+        q->draw_mode = 0x335;
+        s->flags = 0x00860000U;
+        if (!masked)
+        {
+            if (!Properties(s, in, rng, e))
+                return false;
+            s->hitbox_width = 15;
+            s->hitbox_height = 20;
+            s->hitbox_y = -5;
+        }
+        s->knuckle_x = s->facing_left ? -20 : 20;
+        s->knuckle_y = in.crouch ? 11 : -5;
+        SetScreen(&s->x, Word(Word(Pixel(s->x) - in.camera_x) + s->knuckle_x), in.camera_x);
+        SetScreen(&s->y, Word(Word(Pixel(s->y) - in.camera_y) + s->knuckle_y), in.camera_y);
+        e->clear_shield = true;
+        s->knuckle_sound = 0;
+        if (!masked)
+            e->sounds[0] = 0x60a;
+        s->rotate = (Sint16)Read16(row + 8);
+        s->knuckle_radius = (Sint16)Read16(row + 6);
+        s->knuckle_counter = 0;
+        e->startup_ticks = 4;
+        s->phase = 1;
+    }
+    if (!masked)
+    {
+        if (s->knuckle_counter == 3 || s->knuckle_counter == 6)
+        {
+            if (e->factory_count >= SDL_arraysize(e->factories))
+                return SDL_SetError("Holbein slash exceeded its factory requests");
+            e->factory_x[e->factory_count] = s->x;
+            e->factory_y[e->factory_count] = s->y;
+            e->factories[e->factory_count++] = 0x32U | ((Uint32)(in.hand + 1U) << 12) |
+                                               ((s->knuckle_counter == 3 ? 1U : 2U) << 16);
+        }
+        s->knuckle_sound = Word(s->knuckle_sound + 1);
+        if (s->knuckle_sound == 8)
+        {
+            e->sounds[0] = 0x60a;
+            e->volume_sound = true;
+            e->volume = 0x50;
+        }
+    }
+    const Uint8 *cluts = NULL;
+    if (s->knuckle_counter < 0 || s->knuckle_counter > 9 ||
+        !View(in.overlay, (Read16(row + 4) ? 0xac4U : 0xab0U) + (Uint32)s->knuckle_counter * 2U, 2,
+              &cluts))
+        return SDL_SetError("Holbein slash CLUT step is outside its private table");
+    q->palette = (Uint16)(clut + Read16(cluts));
+    s->knuckle_counter = Word(s->knuckle_counter + 1);
+    if (s->knuckle_counter >= 9)
+    {
+        s->removed = true;
+        return true;
+    }
+    const Sint32 radius = s->knuckle_radius;
+    const Sint16 bx = Word(Word(Pixel(in.x) - in.camera_x) + s->knuckle_x),
+                 by = Word(Word(Pixel(in.y) - in.camera_y) + s->knuckle_y);
+    Sint16 angle = Word(s->rotate + 0x600);
+    const Sint16 steps[4] = {0, -0x400, -0x800, 0x400};
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        angle = Word(angle + steps[k]);
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, angle, &t))
+            return false;
+        const Sint32 dx = Asr(Asr(t.cosine, 4) * radius, 8), dy = Asr(Asr(t.sine, 4) * radius, 8);
+        q->x[k] = Word(s->facing_left ? bx - dx : bx + dx);
+        q->y[k] = Word(by - dy);
+    }
+    return true;
+}
+// w_046 func_ptr_80170004 (blueprint56 E1/F1, Blue knuckles137): a thirty-two G4 arc swept
+// around the player from its crouch-dependent start to its end, then fading out; its hitbox
+// clears below half brightness.
+static bool BlueKnuckles(SotnWeaponSecondary *s, SotnWeaponSecondaryInput in, Uint32 *rng,
+                         SotnWeaponSecondaryEvents *e)
+{
+    const bool red = (s->parameter & 0x7f00U) != 0;
+    SetScreen(&s->x, Word(Pixel(in.x) - in.camera_x), in.camera_x);
+    SetScreen(&s->y, Word(Pixel(in.y) - in.camera_y), in.camera_y);
+    switch (s->phase)
+    {
+    case 0:
+        if (!in.allocated)
+        {
+            s->removed = true;
+            return true;
+        }
+        s->role = 1;
+        s->allocated = true;
+        s->flags = 0x00860000U;
+        for (Uint16 i = 0; i < 32; ++i)
+            s->knuckle_quads[i] =
+                (SotnPlayerEffectQuad){.priority = (Uint16)(in.priority + 4U), .draw_mode = 0x335};
+        if (!Properties(s, in, rng, e))
+            return false;
+        e->clear_shield = true;
+        if (in.crouch)
+        {
+            s->arc_start = s->arc_tail = -0x200;
+            s->arc_end = 0x280;
+            s->arc_radius = 0x2e;
+            s->arc_step = 0x80;
+            s->knuckle_pivot_x = -0x20;
+            s->knuckle_pivot_y = 4;
+            s->hitbox_x = 0xb;
+            s->hitbox_y = 2;
+            s->hitbox_width = red ? 0xc : 8;
+            s->hitbox_height = red ? 0x1c : 0x18;
+        }
+        else
+        {
+            s->arc_start = s->arc_tail = -0x500;
+            s->arc_end = 0x700;
+            s->arc_radius = 0x13;
+            s->arc_step = 0x200;
+            s->knuckle_pivot_y = -0x10;
+            s->hitbox_x = 8;
+            s->knuckle_pivot_x = 0;
+            s->hitbox_y = -0x13;
+            s->hitbox_width = red ? 0x13 : 0x10;
+            s->hitbox_height = red ? 0x1a : 0x16;
+        }
+        e->sounds[0] = 0x60c;
+        s->arc_bright = 0x100;
+        e->startup_ticks = 4;
+        s->phase = 1;
+        break;
+    case 1:
+        s->arc_start += s->arc_step;
+        if (s->arc_start >= s->arc_end)
+            s->phase = 2;
+        break;
+    default:
+        s->arc_bright -= 0x10;
+        s->arc_tail += s->arc_step / 4;
+        if (s->arc_tail >= s->arc_end)
+            s->arc_tail = s->arc_end;
+        if (s->arc_bright < 0x80)
+            s->hitbox_state = 0;
+        if (s->arc_bright <= 0)
+        {
+            s->removed = true;
+            return true;
+        }
+        break;
+    }
+    const Uint8 *glow = NULL, *shape = NULL;
+    if (!View(in.overlay, 0xc10, 64, &glow) || !View(in.overlay, red ? 0xbd0U : 0xb90U, 64, &shape))
+        return SDL_SetError("Blue knuckles arc requires its private glow/shape tables");
+    const Sint16 sx = Word(Pixel(s->x) - in.camera_x), sy = Word(Pixel(s->y) - in.camera_y);
+    const Sint32 px = sx + s->knuckle_pivot_x, py = sy + s->knuckle_pivot_y, start = s->arc_tail,
+                 span = (s->arc_start - s->arc_tail) / 16, radius = s->arc_radius,
+                 bright = s->arc_bright;
+    for (Uint16 i = 0; i < 32; ++i)
+    {
+        SotnPlayerEffectQuad *q = &s->knuckle_quads[i];
+        const Sint32 half = i >> 1;
+        const Sint32 next = (Sint32)Read32(glow + ((half + 1) % 16) * 4U) * bright / 256,
+                     here = (Sint32)Read32(glow + half * 4U) * bright / 256;
+        q->red[0] = (Uint8)(next * (red ? 0xc0 : 0x60) / 256);
+        q->green[0] = (Uint8)(next * 0x60 / 256);
+        q->blue[0] = (Uint8)(next * (red ? 0x60 : 0xc0) / 256);
+        q->red[2] = (Uint8)(here * (red ? 0xc0 : 0x60) / 256);
+        q->green[2] = (Uint8)(here * 0x60 / 256);
+        q->blue[2] = (Uint8)(here * (red ? 0x60 : 0xc0) / 256);
+        q->red[1] = q->green[1] = q->blue[1] = q->red[3] = q->green[3] = q->blue[3] = 0;
+        const Sint32 outer_next = (Sint32)Read32(shape + ((half + 1) % 16) * 4U),
+                     outer_here = (Sint32)Read32(shape + half * 4U);
+        const Sint32 r1 = (i & 1) ? radius + outer_next : radius - outer_next,
+                     r3 = (i & 1) ? radius + outer_here : radius - outer_here;
+        for (Uint16 k = 0; k < 2; ++k)
+        {
+            SotnMathTrig t = {0};
+            if (!SotnMath_Trig(in.executable, (Sint32)((half + 1 - k) * span + start), &t))
+                return false;
+            const Sint32 c = Asr(t.cosine, 4), n = Asr(t.sine, 4), outer = k ? r3 : r1;
+            q->x[k * 2] = Word(px + Asr(c * radius, 8));
+            q->y[k * 2] = Word(py - Asr(n * radius, 8));
+            q->x[k * 2 + 1] = Word(px + Asr(c * outer, 8));
+            q->y[k * 2 + 1] = Word(py - Asr(n * outer, 8));
+        }
+    }
+    if (s->facing_left)
+        for (Uint16 i = 0; i < 32; ++i)
+            for (Uint16 k = 0; k < 4; ++k)
+                s->knuckle_quads[i].x[k] = Word(sx * 2 - s->knuckle_quads[i].x[k]);
+    return true;
+}
 // w_037 func_107000_8017ADF8: one sparkle frame (b0) around (x, y); every second update advances
 // the frame and frame6 ends it.
 static bool JewelPlace(SotnDataView o, SotnPlayerEffectQuad *q, Uint8 *b0, Uint8 *b1, Sint16 x,
@@ -8682,9 +8922,11 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     Layout layout = {0};
     if (!state || !program || !random || !events || in.hand > 1 || in.role > 10 ||
         !Program(in.family, &layout) ||
-        !SotnWeaponSecondary_SupportedRole(
-            in.family,
-            in.role || in.family == 14 || in.family == 13 || in.family == 12 ? in.role : 1) ||
+        !SotnWeaponSecondary_SupportedRole(in.family, in.role || in.family == 14 ||
+                                                              in.family == 13 || in.family == 12 ||
+                                                              in.family == 46
+                                                          ? in.role
+                                                          : 1) ||
         state->removed ||
         state->phase > (in.family == 49 && in.role == 4                        ? 2
                         : in.family == 6 && in.role == 1                       ? 4
@@ -8693,6 +8935,7 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
                         : in.family == 13 && in.role == 3                      ? 3
                         : in.family == 7 && in.role == 1                       ? 4
                         : in.family == 37 && in.role == 2                      ? 2
+                        : in.family == 46 && in.role == 1                      ? 2
                         : in.family == 10 && in.role == 8                      ? 9
                         : in.family == 23 && in.role == 8                      ? 8
                         : in.family == 23                                      ? 3
@@ -8748,6 +8991,12 @@ bool SotnWeaponSecondary_Tick(SotnWeaponSecondary *state, SotnHandWeaponProgram 
     if (in.family == 6)
     {
         if (!(in.role == 1 ? Crescent(&s, in, &rng, &e) : MoonSparkle(&s, in, &rng)))
+            return false;
+        goto commit;
+    }
+    if (in.family == 46)
+    {
+        if (!(in.role == 1 ? BlueKnuckles(&s, in, &rng, &e) : Holbein(&s, in, &rng, &e)))
             return false;
         goto commit;
     }
