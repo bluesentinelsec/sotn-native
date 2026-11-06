@@ -35,6 +35,8 @@ typedef struct SotnHandWeaponProgram
             Sint32 jewel_pattern[16];
             Sint32 jewel_counter;
         };
+        /** Weapon41 D_123000_8017B200: the bat's circular target cursor. */
+        Sint32 vial_cursor;
         /** Weapon30 D_8017A5F4: the circle band phases shared by the program's circles. */
         Sint16 dawn_phase[10];
         /** Weapon52 (Alucard shield): the spell's armed flag/timer D_8017ABBC/ABC0 (overlay

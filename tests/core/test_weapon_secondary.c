@@ -5496,6 +5496,322 @@ static bool VialRuntime(Uint16 hand)
     SDL_free(dra);
     return true;
 }
+// w_041: Monster vial 2's vial and bat with synthetic timelines (a looping flap, the ten-pose
+// break, the one-pose vial), twelve frame-property hitboxes, four speeds and three rises.
+static void BatTables(Uint8 *o, Uint8 *exe)
+{
+    for (Uint16 i = 0; i < 13; ++i)
+    {
+        Put16(o + 0x4a4 + i * 4U, (Uint16)(1 + i % 4));
+        Put16(o + 0x4a6 + i * 4U, (Uint16)((1 + i) | ((1 + i % 11) << 9)));
+    }
+    Put16(o + 0x4a4 + 13 * 4U, 0);
+    Put16(o + 0x4a6 + 13 * 4U, 0);
+    for (Uint16 i = 0; i < 9; ++i)
+    {
+        Put16(o + 0x4dc + i * 4U, (Uint16)(1 + i % 2));
+        Put16(o + 0x4de + i * 4U, (Uint16)(0x10c + i) | 11U << 9);
+    }
+    Put16(o + 0x4dc + 9 * 4U, 0xffff);
+    Put16(o + 0x504, 128);
+    Put16(o + 0x506, 11);
+    Put16(o + 0x508, 0xffff);
+    for (Uint16 i = 0; i < 12; ++i)
+    {
+        o[0x50c + i * 4U] = (Uint8)(i % 3);
+        o[0x50d + i * 4U] = (Uint8)(Sint8)(i - 6);
+        o[0x50e + i * 4U] = (Uint8)(6 + i % 2);
+        o[0x50f + i * 4U] = (Uint8)(7 + i);
+    }
+    const Uint32 speeds[4] = {0xe000, 0x6000, 0x12000, 0xa000};
+    const Uint32 rises[3] = {0xfffcc000U, 0xfffd0000U, 0xfffc8000U};
+    for (Uint16 i = 0; i < 4; ++i)
+        Put32(o + 0x53c + i * 4U, speeds[i]);
+    for (Uint16 i = 0; i < 3; ++i)
+        Put32(o + 0x54c + i * 4U, rises[i]);
+    for (Uint16 i = 0; i < 1025; ++i)
+        Put16(exe + 0x22a10 + i * 2U, (Uint16)(i / 2U));
+}
+static bool BatRootTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    BatTables(o, exe);
+    CHECK(SotnWeaponSecondary_Supported(41) && SotnWeaponSecondary_SupportedRole(41, 0) &&
+          SotnWeaponSecondary_SupportedRole(41, 1) && !SotnWeaponSecondary_SupportedRole(41, 2));
+    SotnHandWeaponProgram program = {.secondary_counter = 5};
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool left = k == 1 || k == 4, full = k == 3;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(hand << 15),
+                                 .x = 200 * 65536 + 0x1234,
+                                 .y = 140 * 65536 + 0x0f0f};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = {exe, sizeof(exe)},
+                                       .camera_x = 30,
+                                       .camera_y = 10,
+                                       .hand = hand,
+                                       .family = 41,
+                                       .priority = 0x94,
+                                       .facing_left = left,
+                                       .free_factories = full ? 0 : 2};
+        // D_123000_8017B204 %= 4 picks the speed; the advanced cursor %3 picks the rise.
+        const Sint32 cursor = program.secondary_counter % 4;
+        const Sint32 speed = (Sint32)(Read16Test(o + 0x53c + (Uint32)cursor * 4U) |
+                                      (Uint32)Read16Test(o + 0x53e + (Uint32)cursor * 4U) << 16);
+        const Uint32 rise_at = 0x54cU + (Uint32)((cursor + 1) % 3) * 4U;
+        const Sint32 rise =
+            (Sint32)(Read16Test(o + rise_at) | (Uint32)Read16Test(o + rise_at + 2) << 16);
+        Uint32 rng = 33U + k, check = rng;
+        const Sint16 lifetime = (Sint16)(((SotnCombat_Random(&check) & 0x7fffU) & 15U) + 24U);
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.bank == 0x8010U + hand * 2U && s.palette == 0x110U + hand * 0x18U &&
+              s.texture == 0x64U + hand * 2U && s.priority == 0x96 && s.flags == 0x08100000U &&
+              s.timeline == 0x504 && s.y == 136 * 65536 + 0x0f0f &&
+              s.velocity_x == (left ? -speed : speed) && s.velocity_y == rise &&
+              s.lifetime == lifetime && e.use_ticks == 4 &&
+              program.secondary_counter == cursor + 1);
+        Uint16 updates = 0;
+        while (s.phase == 1)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            ++updates;
+            CHECK(s.x == before.x + before.velocity_x && s.y == before.y + before.velocity_y &&
+                  s.velocity_y == before.velocity_y + 0x2800 && s.lifetime == before.lifetime - 1);
+        }
+        // The air break: glass, the bat factory, the break animation.
+        CHECK(updates == lifetime && s.phase == 2 && s.timeline == 0x4dc && !s.pose &&
+              s.blend == 0x30 && e.sounds[0] == 0x619 && e.volume_sound && e.volume == 0x50 &&
+              e.factory_count == !full && (full || e.factories[0] == (56U | (hand + 1U) << 12)));
+        Uint16 frames = 0;
+        while (!s.removed && frames < 40)
+        {
+            CHECK(SotnWeaponSecondary_Animate(&s, (SotnDataView){o, sizeof(o)}, 41));
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e));
+            ++frames;
+        }
+        CHECK(s.removed && frames == 14);
+    }
+    return true;
+}
+static bool BatTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    BatTables(o, exe);
+    const SotnDataView x = {exe, sizeof(exe)};
+    SotnHandWeaponProgram program = {0};
+    Uint16 hit = 2;
+    for (Uint16 k = 0; k < 6; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool bound = k >= 2, face = (k >> 1) & 1U;
+        SotnWeaponSecondary s = {
+            .x = 150 * 65536 + 0x111, .y = 120 * 65536 + 0x222, .facing_left = face};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x,
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .camera_x = 20,
+                                       .camera_y = 8,
+                                       .hand = hand,
+                                       .family = 41,
+                                       .role = 1,
+                                       .parent_bank = (Uint16)(0x8010U + hand * 2U),
+                                       .parent_texture = (Uint16)(0x64U + hand * 2U),
+                                       .parent_palette = (Uint16)(0x110U + hand * 0x18U),
+                                       .parent_priority = 0x96};
+        Uint32 rng = 77U + k, check = rng;
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 1 &&
+              s.facing_left == !face && s.bank == in.parent_bank && s.priority == 0x94 &&
+              s.flags == 0x08000000U && (s.draw_flags & 3U) == 3 && !s.scale_x &&
+              s.timeline == 0x4a4 && s.frame == 1 && s.hitbox_y == -5 && e.clut &&
+              e.clut_color == 8 && e.clut_palette == 0x110U + hand * 0x18U);
+        while (s.phase == 1)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && e.clut);
+        }
+        (void)SotnCombat_Random(&check);
+        CHECK(s.scale_x == 0x100 && s.lifetime == 8 && e.properties && rng == check);
+        // Eight updates later: the angle window request, both bat sounds, the turn limit.
+        for (Uint16 t = 0; t < 7; ++t)
+        {
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 2 &&
+                  !e.select_angle);
+        }
+        e = (SotnWeaponSecondaryEvents){0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && s.phase == 3 &&
+              e.select_angle && e.select_heading == (s.facing_left ? 0 : 0x800) &&
+              e.select_tolerance == 0x280 && e.sounds[0] == 0x69b && e.sounds[1] == 0x64e &&
+              s.bat_turn == 0x80 && s.bat_angle == e.select_heading &&
+              s.bat_side == !s.facing_left && s.lifetime == 0x16);
+        // The runtime binds the selection; the target sits up and ahead.
+        s.bat_bound = bound;
+        s.bat_slot = 4;
+        in.target = (SotnSpellTarget){
+            .identity = 1,
+            .hitbox = 2,
+            .hp = 5,
+            .x = (Sint16)(s.facing_left ? 230 : 40),
+            .y = (Sint16)(k == 4 ? 230 : 60)}; // Case4 lies below: headings past 0x800.
+        Sint16 last_turn = s.bat_turn;
+        for (Uint16 t = 0; t < 40; ++t)
+        {
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            const Sint16 sx = (Sint16)((before.x >> 16) - 20), sy = (Sint16)((before.y >> 16) - 8);
+            const Sint16 tx = bound ? in.target.x : (before.bat_side ? -32 : 288),
+                         ty = bound ? in.target.y : 112;
+            Sint16 result = 0;
+            CHECK(SotnMath_Atan2(x, -(Sint32)(Sint16)(ty - sy), (Sint16)(tx - sx), &result));
+            result = (Sint16)(result & 0xfff);
+            Sint16 angle = (Sint16)(before.bat_angle & 0xfff), turn = before.bat_turn;
+            const Sint16 diff = (Sint16)SDL_abs(angle - result);
+            if (turn > diff)
+                turn = diff;
+            if (angle < result)
+                angle = (Sint16)(diff < 0x800 ? angle + turn : angle - turn);
+            else
+                angle = (Sint16)(diff < 0x800 ? angle - turn : angle + turn);
+            angle = (Sint16)(angle & 0xfff);
+            SotnMathTrig trig = {0};
+            CHECK(SotnMath_Trig(x, angle, &trig));
+            CHECK(s.bat_angle == angle && s.bat_turn == turn && s.bat_turn <= last_turn &&
+                  s.velocity_x == trig.cosine * 24 && s.bat_vy == -trig.sine * 24 &&
+                  s.x == before.x + s.velocity_x && s.y == before.y + s.bat_vy && e.clut);
+            last_turn = s.bat_turn;
+        }
+    }
+    return true;
+}
+// Monster vial 2 through the shared runtime: the vial (own item2) breaks in the air into the
+// WFACTORY(56) bat, which picks the stage target ahead within its window. An unmarked target
+// gains a committed shared mark; an already-marked one is found through the program's own
+// cursor (D_123000_8017B200) without a new mark. The bat then homes on its retained slot.
+static bool BatRuntime(Uint16 hand, bool premarked)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnSpiritTargetSnapshot *targets = SDL_calloc(1, sizeof(*targets));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r && targets);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, 2, 8, 41, 130, 0, 0, 0);
+    dra[0x500 + 18] = 0x24;
+    Uint8 *record = dra + 0x500 + 2 * 52;
+    record[18] = 0x60;
+    record[19] = 50;
+    record[21] = 0;
+    record[22] = 8;
+    record[25] = 1;
+    const Uint8 blueprints[][6] = {{50, 0, 1, 0xc1, 0, 0x26}, {56, 1, 1, 0xc1, 0, 6}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    BatTables(weapons + 41U * 0x7000 + 0x4000, exe);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {41, 41},
+                              .weapon_bound = {true, true},
+                              .spirit_targets = targets,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 130 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0x60}}};
+    r->hand_program[hand].vial_cursor = 100;
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand != 0};
+    bool allocated = false;
+    CHECK(SotnBatRuntime_RequestThrown(
+              r, source, 50U | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16, 2, &allocated) &&
+          allocated);
+    Uint16 bat = 0, ticks = 0;
+    bool placed = false, chose = false;
+    Sint16 first_angle = 0;
+    Uint16 turned = 0;
+    for (Uint16 t = 0; t < 200 && turned < 6; ++t)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in));
+        // The session commits a new mark to the stage, then acknowledges it.
+        const bool marked = (r->target_marks[1] >> 6) & 1U;
+        if (marked)
+            targets->slots[70].flags |= 0x80000U;
+        r->target_marks[0] = r->target_marks[1] = 0;
+        CHECK(SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || !c->initialized)
+                continue;
+            CHECK(c->state.secondary.family == 41 && SotnBatRuntime_SecondaryValid(c, i));
+            if ((c->kind & 15U) != 1)
+                continue;
+            bat = i;
+            const SotnWeaponSecondary *w = &c->state.secondary.motion;
+            // Before its choice, one stage target waits ahead of the bat (slot 70).
+            if (!placed && w->phase == 2)
+            {
+                const Sint16 bx = (Sint16)((w->x >> 16) - in.camera_x),
+                             by = (Sint16)((w->y >> 16) - in.camera_y);
+                targets->slots[70] =
+                    (SotnSpellTarget){.flags = premarked ? 0x80000U : 0U,
+                                      .identity = 5,
+                                      .hitbox = 3,
+                                      .hp = 9,
+                                      .x = (Sint16)(bx + (w->facing_left ? 60 : -60)),
+                                      .y = (Sint16)(by - 30)};
+                targets->generations[70] = 77;
+                placed = true;
+            }
+            // After its choice the bat turns toward its retained target (up and ahead).
+            if (w->phase == 3 && chose)
+            {
+                CHECK(w->bat_angle != first_angle || turned < 2);
+                ++turned;
+            }
+            if (w->phase == 3 && !chose)
+            {
+                first_angle = w->bat_angle;
+                CHECK(w->bat_bound && w->bat_slot == 70);
+                if (premarked)
+                    CHECK(!marked && r->hand_program[hand].vial_cursor == 71);
+                else
+                    CHECK(marked && r->target_generations[70] == 77 &&
+                          r->target_identities[70] == 5 &&
+                          r->hand_program[hand].vial_cursor == 100);
+                chose = true;
+            }
+        }
+    }
+    CHECK(bat && chose && turned == 6 && ticks < 200 && !r->target_cursor);
+    SotnCharacter_Destroy(character);
+    SDL_free(targets);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // The Jewel sword's special198 through the shared runtime: slot16's pose1 requests 0x3A
 // (descriptor-1 = 1) whose sparkles lease sixteen rows, roll the coin pattern and request 0x40
 // coins; each coin bounces, lands and pays one gold when the player touches it.
@@ -11474,7 +11790,8 @@ int main(void)
                    BlueKnucklesTest() && KnuckleRuntime(136, 0) && KnuckleRuntime(136, 1) &&
                    KnuckleRuntime(137, 0) && KnuckleRuntime(137, 1) && DynamiteTest() &&
                    DynamiteFlameTest() && DynamiteRuntime(0) && DynamiteRuntime(1) &&
-                   VialRootTest() && VialMonsterTest() && VialChildrenTest() && VialRuntime(0) &&
+                   VialRootTest() && VialMonsterTest() && VialChildrenTest() && BatRootTest() &&
+                   BatTest() && BatRuntime(0, false) && BatRuntime(1, true) && VialRuntime(0) &&
                    VialRuntime(1) && IronRuntime(0) && IronRuntime(1) && IronThunderRuntime() &&
                    IronSpellTest() && IronSwordTest() && HeraldSpellTest() && HeraldSwirlTest() &&
                    HeraldSpriteTest() && HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() &&

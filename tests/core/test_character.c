@@ -62,9 +62,9 @@ int main(void)
           stats.unarmed_attack == 11 && stats.defense == 4);
     CHECK(SotnCharacter_Equip(c, 0, 0));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.hand_count[86] == 1);
-    // Monster vial 2 (item2) has no integrated hand behavior yet.
-    CHECK(SotnCharacter_Collect(c, false, 2));
-    CHECK(!SotnCharacter_Equip(c, 0, 2));
+    // Monster vial 3 (item3) has no integrated hand behavior yet.
+    CHECK(SotnCharacter_Collect(c, false, 3));
+    CHECK(!SotnCharacter_Equip(c, 0, 3));
     for (Uint32 i = 0; i < 120; ++i)
         CHECK(SotnCharacter_Collect(c, false, 128));
     CHECK(SotnCharacter_Get(c, &s, NULL) && s.hand_count[128] == 99);
