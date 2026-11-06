@@ -66,16 +66,35 @@ static Uint16 Cost(SotnCharacterState profile, Uint16 cost)
         (Uint16)((profile.equipment[5] == 77 ? 1 : 0) + (profile.equipment[6] == 77 ? 1 : 0));
     return (Uint16)SDL_max(1, cost / (broaches + 1));
 }
+bool SotnSubweapons_Power(Uint16 id, Uint16 base, const SotnCharacterState *profile,
+                          Uint16 intelligence, Uint32 *random, Uint16 *power)
+{
+    if (!profile || !random || !power || id == 0 || id >= 13)
+        return SDL_SetError("Subweapon power requires a subweapon, profile, random and output");
+    Uint16 value = base;
+    // Brilliant mail20 in the armor slot adds ten to every subweapon.
+    if (profile->equipment[3] == 20)
+        value = (Uint16)(value + 10U);
+    // US: each Staurolite61 accessory doubles/triples the cross (4) and subweapon12.
+    if (id == 4 || id == 12)
+    {
+        const Uint16 count =
+            (Uint16)((profile->equipment[5] == 61 ? 1 : 0) + (profile->equipment[6] == 61 ? 1 : 0));
+        value = (Uint16)(value * (count + 1U));
+    }
+    *power = (Uint16)(value + (intelligence * 2 + SotnCombat_Random(random) % 12) / 10);
+    return true;
+}
 static bool InitializeAttack(SotnSubweapons *s, Uint16 id, SotnPlayerAttack *attack)
 {
     Uint16 cost = 0, chain = 0, animation = 0;
     SotnCharacterState profile = {0};
     SotnCharacterStats stats = {0};
     if (!Definition(s, id, attack, &cost, &chain, &animation) ||
-        !SotnCharacter_Get(s->character, &profile, &stats))
+        !SotnCharacter_Get(s->character, &profile, &stats) ||
+        !SotnSubweapons_Power(id, attack->power, &profile, stats.total[2], &profile.random,
+                              &attack->power))
         return false;
-    attack->power = (Uint16)(attack->power +
-                             (stats.total[2] * 2 + SotnCombat_Random(&profile.random) % 12) / 10);
     return SotnCharacter_Restore(s->character, &profile);
 }
 bool SotnSubweapons_Create(SotnDataView dra, SotnCharacter *character, SotnCollisionMap map,
