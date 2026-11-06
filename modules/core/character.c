@@ -83,7 +83,9 @@ static bool BodySupported(Uint16 id)
            id == 85 || id == 80 || id == 89 ||
            // Additive-only records: Lightning/Ice mail, Dark armor, Holy mail, Rings of
            // Varda/Feanor and the Covenant stone.
-           id == 11 || id == 12 || id == 16 || id == 18 || id == 74 || id == 81 || id == 86;
+           id == 11 || id == 12 || id == 16 || id == 18 || id == 74 || id == 81 || id == 86 ||
+           // Brilliant mail20 and Staurolite61 raise subweapon attack (SotnSubweapons_Power).
+           id == 20 || id == 61;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {

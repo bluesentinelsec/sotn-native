@@ -57,6 +57,11 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Brilliant mail/Staurolite](docs/player-subweapon-gear.md): SotnSubweapons_Power is
+func_800FE3C4's explicit-subweapon attack (Brilliant mail20 +10, then US Staurolite61 x2/x3 for
+the cross4/subweapon12, then one (INT*2 + rand%12)/10 roll), used by every subweapon birth. Both
+body items are supported; Staurolite has no live target until the cross/subweapon12 exist.
+
 Selected [CalcDefense terms](docs/player-defense-terms.md): Shield rod4 beside a category9 shield
 adds two defense; a held Medusa13/Fire15 shield adds stone0x200/fire0x8000 immunity (US prepass:
 stone contacts lose petrification but still damage; fire contacts take the immunity response). Additive-only body records 11/12/16/18/74/81/86 are supported. A make_all

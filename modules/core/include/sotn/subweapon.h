@@ -22,6 +22,14 @@ typedef struct SotnSubweapons SotnSubweapons;
  * @param dra Immutable private DRA, alive through destruction. @param character Borrowed profile.
  * @param map Borrowed current collision data. @param out Owned result, NULL on failure.
  * @return Success or false with SDL_GetError(). */
+/** @brief func_800FE3C4's attack for an explicit subweapon: Brilliant mail20 adds ten, each
+ * Staurolite61 accessory multiplies the cross (4) and subweapon12 (US), then
+ * (INT * 2 + rand() % 12) / 10 is added.
+ * @param id Subweapon 1..12. @param base Definition attack. @param profile Equipment words.
+ * @param intelligence Total INT. @param random Character libc cursor (advanced once).
+ * @param power Receives the 16-bit attack. @return Success or SDL error without mutation. */
+bool SotnSubweapons_Power(Uint16 id, Uint16 base, const SotnCharacterState *profile,
+                          Uint16 intelligence, Uint32 *random, Uint16 *power);
 bool SotnSubweapons_Create(SotnDataView dra, SotnCharacter *character, SotnCollisionMap map,
                            SotnSubweapons **out);
 /** @brief Request Up+attack: reserve capacity before consuming hearts or RNG.

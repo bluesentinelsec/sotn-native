@@ -1,4 +1,5 @@
 #include "character_fixture.h"
+#include <sotn/combat.h>
 #include <sotn/subweapon.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -204,6 +205,36 @@ int main(void)
           SotnSubweapons_SetPaused(s, false) && SotnSubweapons_Use(s, player, &used, &animation) &&
           used && SotnSubweapons_Get(s, 0, &p) && p.generation > retired_generation &&
           SotnSubweapons_ClearPlayerEntities(s) && !SotnSubweapons_Frozen(s));
+    // func_800FE3C4: Brilliant mail20 adds ten; each Staurolite61 multiplies the cross (4) and
+    // subweapon12 only; one libc roll adds (INT * 2 + rand() % 12) / 10.
+    {
+        SotnCharacterState gear = {0};
+        Uint32 cursor = 0x1234, expected = cursor;
+        const Uint16 roll = SotnCombat_Random(&expected) % 12;
+        Uint16 power = 0;
+        CHECK(!SotnSubweapons_Power(0, 7, &gear, 30, &cursor, &power) && cursor == 0x1234);
+        CHECK(SotnSubweapons_Power(1, 7, &gear, 30, &cursor, &power) && cursor == expected &&
+              power == 7 + (60 + roll) / 10);
+        gear.equipment[3] = 20;
+        cursor = 0x1234;
+        CHECK(SotnSubweapons_Power(1, 7, &gear, 30, &cursor, &power) &&
+              power == 17 + (60 + roll) / 10);
+        gear.equipment[5] = 61;
+        cursor = 0x1234;
+        CHECK(SotnSubweapons_Power(1, 7, &gear, 30, &cursor, &power) &&
+              power == 17 + (60 + roll) / 10);
+        cursor = 0x1234;
+        CHECK(SotnSubweapons_Power(4, 7, &gear, 30, &cursor, &power) &&
+              power == 34 + (60 + roll) / 10);
+        gear.equipment[6] = 61;
+        gear.equipment[3] = 0;
+        cursor = 0x1234;
+        CHECK(SotnSubweapons_Power(12, 7, &gear, 30, &cursor, &power) &&
+              power == 21 + (60 + roll) / 10);
+        cursor = 0x1234;
+        CHECK(SotnSubweapons_Power(3, 7, &gear, 30, &cursor, &power) &&
+              power == 7 + (60 + roll) / 10);
+    }
     SotnPlayer_Close(alucard);
     SotnSubweapons_Destroy(s);
     SotnCharacter_Destroy(character);
