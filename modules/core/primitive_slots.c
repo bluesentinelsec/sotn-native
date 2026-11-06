@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Original first-free linked allocation: dra/4DA70.c:AllocPrimitives, pinned sotn-decomp
+// Original first-free linked allocation: dra/4DA70.c:AllocPrimitives and the contiguous
+// func_800EDB58, pinned sotn-decomp
 // 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Storage remains with the actual pool owner.
 #include <sotn/primitive_slots.h>
 
@@ -37,5 +38,31 @@ bool SotnPrimitiveSlots_Release(SotnPrimitiveSlots *slots, Uint16 count, const U
         next.occupied[id / 64U] &= ~((Uint64)1 << (id % 64U));
     }
     *slots = next;
+    return true;
+}
+bool SotnPrimitiveSlots_ReserveContiguous(SotnPrimitiveSlots *slots, Uint16 count, Uint16 *indices,
+                                          bool *allocated)
+{
+    if (!slots || !indices || !allocated || !count || count > SOTN_PRIMITIVE_SLOTS)
+        return SDL_SetError("Primitive allocation requires a snapshot and bounded output storage");
+    // func_800EDB58: the first run of count free rows; an occupied row restarts the run.
+    Uint16 start = 0, run = 0;
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS && run < count; ++i)
+        if (slots->occupied[i / 64U] & ((Uint64)1 << (i % 64U)))
+        {
+            start = (Uint16)(i + 1U);
+            run = 0;
+        }
+        else
+            ++run;
+    *allocated = run == count;
+    if (!*allocated)
+        return true;
+    for (Uint16 i = 0; i < count; ++i)
+    {
+        const Uint16 id = (Uint16)(start + i);
+        indices[i] = id;
+        slots->occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
     return true;
 }

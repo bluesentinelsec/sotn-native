@@ -36,31 +36,44 @@ static bool Sound(SotnSubweapons *s, Uint16 id)
     s->sounds[s->sound_count++] = id;
     return true;
 }
+bool SotnSubweapon_Read(SotnDataView dra, Uint16 id, SotnSubweaponDefinition *out)
+{
+    if (!out || id >= 13 || dra.bytes == NULL || dra.size < 0x4a00 + 13 * 20)
+        return SDL_SetError("Subweapon definition is outside the private DRA table");
+    const Uint8 *p = dra.bytes + 0x4a00 + id * 20;
+    const Uint16 power = Read16(p), hearts = Read16(p + 2);
+    if (power > 999 || hearts > 9999 || p[6] > SOTN_SUBWEAPON_SLOTS || Read16(p + 18) > 255 ||
+        (id != 0 && p[6] == 0) || p[11] >= 123)
+        return SDL_SetError(
+            "Subweapon %u has invalid attack, heart cost, chain, blueprint or critical bounds", id);
+    *out = (SotnSubweaponDefinition){.attack = {.power = power,
+                                                .element = Read16(p + 4),
+                                                .invincibility_frames = p[7],
+                                                .stun_frames = Read16(p + 8),
+                                                .hit_type = Read16(p + 12),
+                                                .hit_effect = Read16(p + 14),
+                                                .critical_rate = (Uint8)Read16(p + 18),
+                                                .active = true},
+                                     .hearts = hearts,
+                                     .chain = p[6],
+                                     .animation = p[10],
+                                     .blueprint = p[11],
+                                     .crash = p[16]};
+    return true;
+}
 static bool Definition(SotnSubweapons *s, Uint16 id, SotnPlayerAttack *attack, Uint16 *cost,
                        Uint16 *chain, Uint16 *animation)
 {
-    if (id >= 13 || s->dra.bytes == NULL || s->dra.size < 0x4a00 + 13 * 20)
-        return SDL_SetError("Subweapon definition is outside the private DRA table");
-    const Uint8 *p = s->dra.bytes + 0x4a00 + id * 20;
-    const Uint16 power = Read16(p), hearts = Read16(p + 2);
-    if (power > 999 || hearts > 9999 || p[6] > SOTN_SUBWEAPON_SLOTS || Read16(p + 18) > 255 ||
-        (id != 0 && p[6] == 0))
-        return SDL_SetError(
-            "Subweapon %u has invalid attack, heart cost, chain, or critical bounds", id);
-    *attack = (SotnPlayerAttack){.power = power,
-                                 .element = Read16(p + 4),
-                                 .invincibility_frames = p[7],
-                                 .stun_frames = Read16(p + 8),
-                                 .hit_type = Read16(p + 12),
-                                 .hit_effect = Read16(p + 14),
-                                 .critical_rate = (Uint8)Read16(p + 18),
-                                 .active = true};
-    *cost = hearts;
-    *chain = p[6];
-    *animation = p[10];
+    SotnSubweaponDefinition d = {0};
+    if (!SotnSubweapon_Read(s->dra, id, &d))
+        return false;
+    *attack = d.attack;
+    *cost = d.hearts;
+    *chain = d.chain;
+    *animation = d.animation;
     return true;
 }
-static Uint16 Cost(SotnCharacterState profile, Uint16 cost)
+Uint16 SotnSubweapon_Cost(SotnCharacterState profile, Uint16 cost)
 {
     const Uint16 broaches =
         (Uint16)((profile.equipment[5] == 77 ? 1 : 0) + (profile.equipment[6] == 77 ? 1 : 0));
@@ -177,7 +190,7 @@ bool SotnSubweapons_Use(SotnSubweapons *s, SotnPlayerState player, bool *used, U
     SotnPlayerAttack attack = {0};
     if (!Definition(s, id, &attack, &cost, &chain, &anim))
         return false;
-    cost = Cost(profile, cost);
+    cost = SotnSubweapon_Cost(profile, cost);
     if (profile.hearts < cost || (id == 6 && s->frozen))
         return true;
     Uint32 active = 0, slot = SOTN_SUBWEAPON_SLOTS;

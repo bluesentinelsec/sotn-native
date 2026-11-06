@@ -32,6 +32,7 @@
 #include <sotn/spirit_spell.h>
 #include <sotn/star_weapon.h>
 #include <sotn/stone_dissolve.h>
+#include <sotn/subweapon_entity.h>
 #include <sotn/sword_warp.h>
 #include <sotn/talisman_effect.h>
 #include <sotn/teleport_effect.h>
@@ -73,6 +74,7 @@ typedef struct SotnBatRuntimeChild
     bool weapon_secondary; /**< Blueprint56 E1/F1 func_ptr_80170004 of a resident program. */
     bool weapon_warp;      /**< Weapon53 kind135 slot16 E2/F2 warp afterimage (blueprint60). */
     bool familiar_hitbox;  /**< The Sword familiar's one-update DE hitbox (func_us_80177480). */
+    bool subweapon;        /**< A DRA subweapon entity (slots32..47) with ext subweaponId. */
     union {
         struct
         {
@@ -90,6 +92,12 @@ typedef struct SotnBatRuntimeChild
             bool own_item;
         } secondary;
         SotnWeaponWarp warp;
+        struct
+        {
+            SotnSubweaponEntity motion;
+            SotnPlayerAttack attack; /**< func_8011A290's properties, rolled at birth. */
+            Uint8 hit_flags;
+        } subweapon;
         struct
         {
             SotnPlayerAttack attack;
@@ -274,6 +282,7 @@ typedef struct SotnBatRuntime
     Uint64 neutron_mask, sire_mask, pentagram_mask, magic_mask, thrown_mask, star_mask, karma_mask;
     Uint64 secondary_mask; /**< Active weapon func_ptr_80170004 attacks by actual slot. */
     Uint64 familiar_mask;  /**< Initialized familiar DE hitboxes by actual slot. */
+    Uint64 subweapon_mask; /**< Live subweapon hitboxes (nonzero size) by actual slot. */
     bool hand_attack;      /**< Actual shared slot16 ordinary-hand attack. */
     /** Weapon51 glow and weapon26 green-cycle g_Clut words written this pass, in callback order
      * (the session commits them to its palette store after a successful pass): each word
@@ -398,6 +407,21 @@ bool SotnBatRuntime_RequestMedicine(SotnBatRuntime *runtime, SotnPlayerFactorySo
 bool SotnBatRuntime_RequestFood(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
                                 Uint32 packed, Uint16 item, bool *allocated);
 /** @brief Reserve actual50 for owned71..74, or original57/profile1 curse feedback. */
+/** @brief Reserve func_8010EB5C's actual subweapon factory (CreateEntFactoryFromEntity).
+ * @param runtime Actual shared owner. @param source Player source at use.
+ * @param packed Definition blueprint. @param argument Subweapon id << 9 (ext subweaponId).
+ * @param allocated Receives the reservation outcome; the original ignores a missing factory.
+ * @return Success or SDL error for an unsupported subweapon/blueprint. */
+bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *runtime, SotnPlayerFactorySource source,
+                                     Uint32 packed, Sint16 argument, bool *allocated);
+/** @brief Validate one subweapon child's identity, rows, group and lifetime. */
+bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *child, Uint16 index);
+/** @brief Count CheckSubwpnChainLimit's live entities for one id in slots32..47.
+ * @param runtime Borrowed owner. @param id Subweapon id. @return Matching children. */
+Uint16 SotnBatRuntime_SubweaponCount(const SotnBatRuntime *runtime, Uint16 id);
+/** @brief Room entry: retire subweapon children/factories (no FLAG_UNK_20000).
+ * @param runtime Actual owner. @return Success or SDL error for invalid children. */
+bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *runtime);
 bool SotnBatRuntime_RequestThrowing(SotnBatRuntime *, SotnPlayerFactorySource, Uint32 packed,
                                     Uint16 item, bool *allocated);
 /** @brief Validate actual weapon17 parent, item and twenty-five-row lifecycle. */

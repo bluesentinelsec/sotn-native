@@ -651,17 +651,41 @@ static bool StartAttack(SotnPlayer *player)
         (player->tapped & (SOTN_BUTTON_LEFT_HAND | SOTN_BUTTON_RIGHT_HAND)) &&
         player->subweapon_ticks == 0)
     {
-        bool used = false;
+        bool used = false, handled = false;
         Uint16 animation = 0;
         SotnPlayerState state = {0};
         if (!SotnPlayer_GetState(player, &state) ||
-            !SotnSubweapons_Use(player->subweapons, state, &used, &animation))
+            (player->subweapon_use &&
+             !player->subweapon_use(player->subweapon_context,
+                                    (SotnPlayerFactorySource){.x = player->x.value,
+                                                              .y = player->y.value,
+                                                              .priority = state.priority,
+                                                              .facing_left = player->facing_left},
+                                    &handled, &used, &animation)) ||
+            (!handled && !SotnSubweapons_Use(player->subweapons, state, &used, &animation)))
         {
             player->failed = true;
             return true;
         }
         if (used)
         {
+            // func_8010EA54(8): one libc roll, a grunt below four, unless step_s >= 0x40.
+            if (handled && player->substep < 0x40)
+            {
+                Uint16 random = 0;
+                if (!player->throwing_random || !player->dra.bytes || player->dra.size < 0xcf68 ||
+                    !player->throwing_random(player->throwing_context, &random))
+                {
+                    player->failed = true;
+                    return true;
+                }
+                const Uint16 voice = random % 8U;
+                if (voice < 4)
+                {
+                    const Uint8 *p = player->dra.bytes + 0xcf60 + voice * 2U;
+                    player->throwing_grunt = (Uint16)(p[0] | (Uint16)p[1] << 8);
+                }
+            }
             player->subweapon_ticks = 4;
             if (player->step == SOTN_PLAYER_STAND && player->attack_mode == 0)
             {
@@ -4240,6 +4264,15 @@ bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service)
     if (player == NULL)
         return SDL_InvalidParamError("player");
     player->subweapons = service;
+    return true;
+}
+
+bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context)
+{
+    if (player == NULL)
+        return SDL_InvalidParamError("player");
+    player->subweapon_use = use;
+    player->subweapon_context = context;
     return true;
 }
 

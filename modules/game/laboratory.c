@@ -68,6 +68,7 @@ struct SotnLaboratory
     SotnPlayer *player;
     SotnMistEffect mist_effect;
     bool throwing_random_used;
+    bool subweapon_spent; /**< A shared-runtime subweapon spent hearts in this player update. */
     SotnGasCloud gas_cloud;
     SotnBatRuntime bat_runtime;
     SotnFairyRuntime fairy_runtime;
@@ -1008,6 +1009,7 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
         !SotnCharacter_Get(s->character, &progress, NULL))
         return false;
     s->throwing_random_used = false;
+    s->subweapon_spent = false;
     if (before.death.native || before.water_death.active)
     {
         textures = SDL_malloc(sizeof(*textures));
@@ -1027,7 +1029,7 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
         return false;
     if (SotnPlayer_Tick(s->player, buttons))
     {
-        s->throwing_random_used = false;
+        s->throwing_random_used = s->subweapon_spent = false;
         SDL_free(textures);
         return true;
     }
@@ -1035,16 +1037,17 @@ static bool TickPlayer(SotnLaboratory *s, Uint16 buttons)
     char detail[512] = {0};
     SDL_strlcpy(detail, SDL_GetError(), sizeof(detail));
     bool random_restored = true;
-    if (s->throwing_random_used)
+    if (s->throwing_random_used || s->subweapon_spent)
     {
         SotnCharacterState current = {0};
         random_restored = SotnCharacter_Get(s->character, &current, NULL);
         if (random_restored)
         {
             current.random = progress.random;
+            current.hearts = progress.hearts;
             random_restored = SotnCharacter_Restore(s->character, &current);
         }
-        s->throwing_random_used = false;
+        s->throwing_random_used = s->subweapon_spent = false;
     }
     s->death_image = death_image;
     s->death_image_generation = death_generation;
@@ -1123,6 +1126,45 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
+}
+// func_8010EB5C for subweapons the shared runtime owns (Vibhuti so far): func_800FE3C4's heart
+// check, CheckSubwpnChainLimit over slots32..47, heart spending, then the actual factory.
+static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
+                         Uint16 *animation)
+{
+    SotnLaboratory *s = context;
+    SotnCharacterState progress = {0};
+    if (!s || !handled || !used || !animation || !SotnCharacter_Get(s->character, &progress, NULL))
+        return SDL_SetError("Shared subweapon use requires its session and outputs");
+    *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI;
+    *used = false;
+    *animation = 0;
+    if (!*handled)
+        return true;
+    SotnSubweaponDefinition definition = {0};
+    if (!SotnSubweapon_Read(s->dra, progress.subweapon, &definition))
+        return false;
+    const Uint16 cost = SotnSubweapon_Cost(progress, definition.hearts);
+    if (progress.hearts < cost)
+        return true;
+    Uint64 other = s->mist_present ? (Uint64)1 << 16 : 0;
+    if (!SotnGasCloud_Occupied(&s->gas_cloud, &other))
+        return false;
+    const Uint64 occupied = SotnBatRuntime_Occupied(&s->bat_runtime) | other;
+    if (SotnBatRuntime_SubweaponCount(&s->bat_runtime, progress.subweapon) >= definition.chain ||
+        ((occupied >> 32) & 0xffffU) == 0xffffU)
+        return true;
+    progress.hearts = (Uint16)(progress.hearts - cost);
+    if (!SotnCharacter_Restore(s->character, &progress))
+        return false;
+    s->subweapon_spent = true;
+    bool allocated = false;
+    if (!SotnBatRuntime_RequestSubweapon(&s->bat_runtime, source, definition.blueprint,
+                                         (Sint16)(progress.subweapon << 9), &allocated))
+        return false;
+    *used = true;
+    *animation = definition.animation;
+    return true;
 }
 static bool UseThrowing(void *context, Uint16 hand, Uint16 item, Uint16 *equipped)
 {
@@ -2738,7 +2780,7 @@ static bool RetireSharedRoom(SotnLaboratory *s)
                    s->bat_runtime.children[i].neutron || s->bat_runtime.children[i].sire ||
                    s->bat_runtime.children[i].pentagram || s->bat_runtime.children[i].magic ||
                    s->bat_runtime.children[i].thrown || s->bat_runtime.children[i].star ||
-                   s->bat_runtime.children[i].karma ||
+                   s->bat_runtime.children[i].karma || s->bat_runtime.children[i].subweapon ||
                    s->bat_runtime.children[i].thrown_particle_parent ||
                    (s->bat_runtime.children[i].kind == 5 &&
                     (s->bat_runtime.children[i].parameter >> 8) == 12);
@@ -2757,7 +2799,8 @@ static bool RetireSharedRoom(SotnLaboratory *s)
         SotnBatRuntime_PruneSire(next) && SotnBatRuntime_PrunePentagram(next) &&
         SotnBatRuntime_PruneMagicMissile(next) && SotnBatRuntime_PruneThrown(next) &&
         SotnBatRuntime_PruneStar(next) && SotnBatRuntime_PruneKarma(next) &&
-        SotnBatRuntime_PruneRoomFactories(next) && SotnActors_CommitBatPrimitives(s->actors, next);
+        SotnBatRuntime_PruneSubweapons(next) && SotnBatRuntime_PruneRoomFactories(next) &&
+        SotnActors_CommitBatPrimitives(s->actors, next);
     if (committed)
         s->bat_runtime = *next;
     SDL_free(next);
@@ -3040,6 +3083,7 @@ static bool CreateSession(const SotnGameData *data, const char *directory, Sessi
         !SotnSubweapons_Create(session->dra, session->character, session->room.foreground.collision,
                                &session->subweapons) ||
         !SotnPlayer_SetSubweapons(session->player, session->subweapons) ||
+        !SotnPlayer_SetSubweaponContext(session->player, SubweaponUse, session) ||
         (start.arrival != NULL &&
          !SotnPlayer_SetArrivalFacing(session->player, (start.arrival->x & 255) >= 128)) ||
         (start.arrival == NULL && !SotnPlayer_Tick(session->player, 0)) ||
@@ -3499,6 +3543,7 @@ static bool StepFrame(SotnLaboratory *session, Uint16 buttons)
         !SotnPlayer_SetHandContext(session->player, HandFactory, ThrowingRandom, session) ||
         !SotnPlayer_SetMedicineContext(session->player, MedicineFactory, UseMedicine, session,
                                        SotnBatRuntime_MedicinePresent(&session->bat_runtime)) ||
+        !SotnPlayer_SetSubweaponContext(session->player, SubweaponUse, session) ||
         !BindFood(session) ||
         !SotnPlayer_SetTeleportContext(session->player, TeleportFactory, UseLibraryCard, session,
                                        session->room.left * 256) ||
@@ -4644,6 +4689,16 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                                 .kind = SOTN_DRAW_STAR_SPARK}))
                             return false;
             }
+            // Vibhuti's twelve opaque ash TILEs (world pixels); DRAW_HIDE rows are skipped.
+            for (Uint16 j = child->subweapon && child->initialized ? SOTN_VIBHUTI_PARTICLES : 0;
+                 j > 0; --j)
+                if (!(child->state.subweapon.motion.particles[j - 1U].draw_mode & 8U) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                        .primitive = (Uint16)(owner * 16U + j - 1U),
+                                        .kind = SOTN_DRAW_SUBWEAPON_TILE}))
+                    return false;
             if (child->thrown && child->initialized && child->state.thrown.motion.frame &&
                 child->state.thrown.motion.bank &&
                 !((child->state.thrown.motion.draw_flags & 0x80U) &&
@@ -5496,6 +5551,35 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                           .opacity = (n->draw_flags & 8U) ? n->opacity : 128},
                     session->draw_target.surface) ||
                 !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                           SOTN_FRAME_PIXELS))
+                return false;
+            continue;
+        }
+        if (command.kind == SOTN_DRAW_SUBWEAPON_TILE)
+        {
+            const Uint16 index = command.primitive / 16U, tile = command.primitive % 16U;
+            if (index >= SOTN_BAT_RUNTIME_SLOTS || tile >= SOTN_VIBHUTI_PARTICLES)
+                return SDL_SetError("Subweapon TILE draw exceeds its actual rows");
+            const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
+            if (!c->subweapon || !c->initialized || !SotnBatRuntime_SubweaponValid(c, index))
+                return SDL_SetError("Subweapon TILE draw lost its actual row ownership");
+            const SotnVibhutiParticle *t = &c->state.subweapon.motion.particles[tile];
+            const Sint32 x = Pixel(t->x) - view_x + session->draw_target.offset_x +
+                             session->shake.x,
+                         y = Pixel(t->y) - view_y + session->draw_target.offset_y +
+                             session->shake.y;
+            if (!(t->draw_mode & 8U) &&
+                !SotnActorGraphics_QuadSurface(
+                    session->actor_graphics,
+                    (SotnTextureQuad){.x = {x, x + t->width, x, x + t->width},
+                                      .y = {y, y, y + t->height, y + t->height},
+                                      .untextured = true,
+                                      .red = 255,
+                                      .green = 255,
+                                      .blue = 255},
+                    session->draw_target.surface))
+                return false;
+            if (!SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                            SOTN_FRAME_PIXELS))
                 return false;
             continue;

@@ -57,6 +57,16 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Vibhuti](docs/player-vibhuti.md): subweapon8 moved from the bounded subweapon service
+to the shared player runtime. func_8010EB5C (laboratory SubweaponUse via
+SotnPlayer_SetSubweaponContext): hearts/broach, CheckSubwpnChainLimit over slots32..47, hearts
+spent, FACTORY(26) with 8<<9 (missing factory keeps the spend), timer4, func_8010EA54(8) grunt
+roll; failed player updates restore hearts/roll/factory. Entity12 (SotnSubweaponEntity, flag
+`subweapon`): func_800EDB58's thirteen contiguous rows (SotnPrimitiveSlots_ReserveContiguous)
+before func_8011A290's roll/group7..10, then 24 particle rolls; cycling 4x4 hitbox on particles
+0..7, hidden rows keep screen position, offscreen cull, room prune. Other subweapons still use
+the old service until moved.
+
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
 (no config menu). Crystal cloak52's 0x410 PAL_UNK_OP3 rotation (SotnAlucard_CrystalTick, reset
