@@ -58,6 +58,17 @@ typedef struct SotnWeaponSecondary
             Uint8 jewel_g0[16], jewel_g1[16], jewel_b0[16], jewel_b1[16];
             Sint16 jewel_timer; /**< ext.timer.t: thirty-two updates. */
         };
+        /** Weapon46: Holbein dagger's slash (role0, row0: ext.weapon.unk7E counter, unk82/unk80
+         * offsets, factory.unk84 sound count, ext.timer.t radius) or Blue knuckles' arc (role1,
+         * thirty-two G4s: weapon_046.unk7C head, unk94 tail, unk90 end, unk84 step, unk80 radius,
+         * unk98 brightness and the entity's rotPivotX/Y). Screen-space rows. */
+        struct
+        {
+            SotnPlayerEffectQuad knuckle_quads[32];
+            Sint16 knuckle_counter, knuckle_x, knuckle_y, knuckle_sound, knuckle_radius;
+            Sint16 knuckle_pivot_x, knuckle_pivot_y;
+            Sint32 arc_start, arc_tail, arc_end, arc_step, arc_radius, arc_bright;
+        };
         /** Weapon50 E1 sparkles: eighty GT4 rows kept as centre, UVs and the original prim
          * scratch bytes g0/g1/g2/b0/b1 (rebuilt into packets at draw time). */
         struct

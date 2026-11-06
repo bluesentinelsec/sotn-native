@@ -405,13 +405,13 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
                                   Uint16 item, bool *allocated)
 {
     const Uint32 hand = (packed >> 12) & 15U;
-    const Uint32 blueprint = item == 81 || item == 134    ? 62U
-                             : item == 82                 ? 68U
-                             : item == 135                ? 63U
-                             : item == 133 || item == 176 ? 56U
-                             : item == 164                ? 52U
-                             : item == 165                ? 68U
-                                                          : 50U;
+    const Uint32 blueprint = item == 81 || item == 134                   ? 62U
+                             : item == 82                                ? 68U
+                             : item == 135                               ? 63U
+                             : item == 133 || item == 176 || item == 137 ? 56U
+                             : item == 164                               ? 52U
+                             : item == 165                               ? 68U
+                                                                         : 50U;
     const Uint32 parameter = (item == 134 || item == 163 ? 1U
                               : item == 164              ? 2U
                                                          : 0U) +
@@ -420,7 +420,7 @@ bool SotnBatRuntime_RequestThrown(SotnBatRuntime *r, SotnPlayerFactorySource sou
     // blade163 and Crissaegrim164 (weapon12, blueprints50/52) are thrown but never consumed.
     if (!r || !allocated ||
         (!ThrownItem(item) && item != 143 && item != 119 && item != 133 && item != 163 &&
-         item != 164 && item != 165 && item != 176) ||
+         item != 164 && item != 165 && item != 176 && item != 136 && item != 137) ||
         (hand != 1 && hand != 2) || packed != (blueprint | hand << 12 | parameter << 16))
         return SDL_SetError(
             "Weapon16/Runesword reservation requires its actual owned item/blueprint/hand");
@@ -917,6 +917,7 @@ static Uint16 HandFamily(Uint16 item)
            : item == 16                                              ? 52
            : item == 18 || item == 174                               ? 31
            : item == 19 || item == 109 || item == 114 || item == 198 ? 37
+           : item == 136 || item == 137                              ? 46
            : SotnEquipment_IsSword0(item)                            ? 0
            : item == 85 || item == 97 || item == 102 || item == 120 || item == 186 || item == 187 ||
                    item == 188
@@ -1135,6 +1136,9 @@ static bool SecondaryRequest(Uint16 family, Uint16 hand, Uint32 request)
         return (bp == 0x38 && (param == 0 || param == 0x10 || param == 0x20)) ||
                (bp == 0x3a && (param & 0xfU) >= 1 && (param & 0xfU) <= 3 && param >> 4 <= 2) ||
                (bp == 0x40 && param == 0);
+    // Weapon46: Holbein dagger's root requests its 0x32 slashes1/2.
+    if (family == 46)
+        return bp == 0x32 && (param == 1 || param == 2);
     // Weapon37: the Jewel sword's sparkles 0x3A (param = descriptor - 1) and their coins 0x40.
     if (family == 37)
         return (bp == 0x3a && param <= 1) || (bp == 0x40 && param == 0);
@@ -1213,6 +1217,9 @@ static bool SecondaryParameter(Uint16 family, Uint16 parameter)
     // Weapon25: the spell carries the hand bit, its clouds params1.
     // Weapon37: the Jewel sword's sparkles carry descriptor-1 (special1) on the hand bit; the
     // coins only the hand bit.
+    // Weapon46: Holbein dagger's root and Blue knuckles' arc carry the hand bit, the slashes1/2.
+    if (family == 46)
+        return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 2;
     if (family == 11 || family == 25 || family == 10 || family == 37)
         return !(parameter & 0xffU) && ((parameter >> 8) & 0x7fU) <= 1;
     // Weapon29: the afterimages, spell and hit points carry the hand bit; the dragons their
@@ -1301,6 +1308,10 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 34 ? c->state.secondary.own_item && c->state.secondary.item == 176 &&
                                  !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
+            : family == 46 && ((c->kind & 15U) == 1 || !(c->parameter & 0x7fffU))
+                ? c->state.secondary.own_item &&
+                      c->state.secondary.item == ((c->kind & 15U) == 1 ? 137 : 136) &&
+                      !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
             : family == 53 && (c->kind & 15U) == 3
                 ? c->state.secondary.own_item && c->state.secondary.item == 165 &&
                       !(c->parameter & 0x7fffU) && c->state.secondary.parent_slot == 16
@@ -1344,6 +1355,7 @@ bool SotnBatRuntime_SecondaryValid(const SotnBatRuntimeChild *c, Uint16 index)
                                    : family == 30                                           ? 4
                                    : family == 58                                           ? 6
                                    : family == 37 && (c->kind & 15U) == 2                   ? 2
+                                   : family == 46 && (c->kind & 15U) == 1                   ? 2
                                    : family == 11 && (c->kind & 15U) == 9                   ? 4
                                    : family == 25 && (c->kind & 15U) == 9                   ? 3
                                    : family == 26 && (c->kind & 15U) == 9                   ? 2
@@ -2353,6 +2365,11 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                         (((c.kind == 0xe0 || c.kind == 0xf0) &&
                           (child.argument_low == 163 || child.argument_low == 164)) ||
                          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 133));
+    // Kind134: blueprint50 creates Holbein dagger's weapon46 E0/F0 root, blueprint56 Blue
+    // knuckles' E1/F1 arc, both in17..31.
+    const bool knuckle = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
+                         (((c.kind == 0xe0 || c.kind == 0xf0) && child.argument_low == 136) ||
+                          ((c.kind == 0xe1 || c.kind == 0xf1) && child.argument_low == 137));
     // Blueprint68 creates Yasutsuna's weapon53 E3/F3 slash in17..31.
     const bool yasutsuna = !secondary_factory && child.slot >= 17 && child.slot <= 31 &&
                            (c.kind == 0xe3 || c.kind == 0xf3) && child.argument_low == 165;
@@ -2371,9 +2388,13 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
                        (c.kind == 0xe2 || c.kind == 0xf2) && child.argument_low == 202;
     c.weapon_secondary =
         rush || crescent || rune || vorpal || yasutsuna || shotel || dawn || spell || sweep ||
+        knuckle ||
         (secondary_factory &&
          ((c.kind >= 0xe1 && c.kind <= 0xe5) || (c.kind >= 0xf1 && c.kind <= 0xf5) ||
-          c.kind == 0xe9 || c.kind == 0xf9 || c.kind == 0xea || c.kind == 0xfa));
+          c.kind == 0xe9 || c.kind == 0xf9 || c.kind == 0xea || c.kind == 0xfa)) ||
+        // Holbein dagger's root requests its 0x32 slashes as E0/F0 (weapon46 role0).
+        (secondary_factory && (c.kind == 0xe0 || c.kind == 0xf0) && input &&
+         input->weapon_bound[c.kind >= 0xf0] && input->weapon_family[c.kind >= 0xf0] == 46);
     if (crescent)
     {
         const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
@@ -2401,6 +2422,23 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
             (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != family)))
             return SDL_SetError("Thrown sword lost its actual blueprint50/program/item ownership");
         c.state.secondary.family = family;
+        c.state.secondary.parent_slot = 16;
+        c.state.secondary.item = child.argument_low;
+        c.state.secondary.own_item = true;
+        c.state.secondary.motion = (SotnWeaponSecondary){.x = child.source.x,
+                                                         .y = child.source.y,
+                                                         .flags = child.source.flags,
+                                                         .parameter = child.parameter,
+                                                         .priority = child.source.priority,
+                                                         .facing_left = child.source.facing_left};
+    }
+    if (knuckle)
+    {
+        const Uint16 hand = c.kind >= 0xf0 ? 1 : 0;
+        if (generation || child.argument_high || child.parameter != (hand ? 0x8000U : 0U) ||
+            (input && (!input->weapon_bound[hand] || input->weapon_family[hand] != 46)))
+            return SDL_SetError("Weapon46 lost its actual blueprint50/56/program/item ownership");
+        c.state.secondary.family = 46;
         c.state.secondary.parent_slot = 16;
         c.state.secondary.item = child.argument_low;
         c.state.secondary.own_item = true;
@@ -3373,6 +3411,19 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                     w->ice_cy[j] = Word(w->ice_cy[j] + in.screen_shift_y);
                 }
             }
+            else if (family == 46)
+            {
+                // Weapon46's slash (one GT4) and arc (thirty-two G4s) are screen pixels rebuilt
+                // from the live player every callback.
+                for (Uint16 j = 0; j < (role == 1 ? 32 : 1); ++j)
+                    for (Uint16 v = 0; v < 4; ++v)
+                    {
+                        w->knuckle_quads[j].x[v] =
+                            Word(w->knuckle_quads[j].x[v] + in.screen_shift_x);
+                        w->knuckle_quads[j].y[v] =
+                            Word(w->knuckle_quads[j].y[v] + in.screen_shift_y);
+                    }
+            }
             else if (family == 37)
             {
                 // Weapon37 sparkles: sixteen DRAW_UNK_100 GT4s (their program-BSS points stay);
@@ -3853,7 +3904,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
               r.factories[i].cursor.blueprint != 92 && r.factories[i].cursor.blueprint != 0x4a &&
               r.factories[i].cursor.blueprint != 94 && r.factories[i].cursor.blueprint != 96 &&
               r.factories[i].cursor.blueprint != 98 && r.factories[i].cursor.blueprint != 100 &&
-              r.factories[i].cursor.blueprint != 102) ||
+              r.factories[i].cursor.blueprint != 102 && r.factories[i].cursor.blueprint != 0x32) ||
              r.factories[i].bat_generation || r.factories[i].sword_parent ||
              r.factories[i].fire_parent || r.factories[i].sire_factory ||
              r.factories[i].magic_factory || r.factories[i].thrown_factory ||
@@ -4440,6 +4491,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                  : family == 26 ? 12
                                  : family == 52 ? 16
                                  : family == 37 ? 109
+                                 : family == 46 ? 136
                                                 : 22;
             if (!SotnWeapon_Overlay(
                     in.weapons, (SotnEquipment){.id = owner, .family = (Uint8)family}, &overlay))

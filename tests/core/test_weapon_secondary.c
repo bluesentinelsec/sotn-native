@@ -4176,6 +4176,385 @@ static bool RodRuntime(void)
     SDL_free(dra);
     return true;
 }
+// w_046 EntityWeaponAttack / func_ptr_80170004: Holbein dagger's slashes and Blue knuckles' arc,
+// with synthetic CLUT steps, slash rows and arc shape/glow tables.
+static void KnuckleTables(Uint8 *o)
+{
+    for (Uint16 i = 0; i < 10; ++i)
+    {
+        Put16(o + 0xab0 + i * 2U, (Uint16)(0x150 + i));
+        Put16(o + 0xac4 + i * 2U, (Uint16)(0x160 + i * 2U));
+    }
+    for (Uint16 r = 0; r < 13; ++r)
+    {
+        Uint8 *row = o + 0xad8 + r * 14U;
+        Put16(row, (Uint16)(r & 1U));
+        Put16(row + 2, (Uint16)((r >> 1) & 1U));
+        Put16(row + 4, (Uint16)(r % 3 == 1));
+        Put16(row + 6, (Uint16)(0x18 + r * 3));
+        Put16(row + 8, (Uint16)(0x8e0 + r * 0x111));
+        row[10] = (Uint8)(0x40 + r);
+        row[11] = (Uint8)(0xc0 - r);
+        row[12] = (Uint8)(0x20 * (r % 5));
+    }
+    for (Uint16 i = 0; i < 16; ++i)
+    {
+        Put32(o + 0xb90 + i * 4U, (Uint32)(i * 3));
+        Put32(o + 0xbd0 + i * 4U, (Uint32)(16 - i));
+        Put32(o + 0xc10 + i * 4U, (Uint32)(0x40 + i * 12));
+    }
+}
+static bool HolbeinTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    KnuckleTables(o);
+    const SotnDataView x = {exe, sizeof(exe)};
+    CHECK(SotnWeaponSecondary_Supported(46) && SotnWeaponSecondary_SupportedRole(46, 0) &&
+          SotnWeaponSecondary_SupportedRole(46, 1) && !SotnWeaponSecondary_SupportedRole(46, 2) &&
+          SotnWeaponSecondary_RoleRows(46, 0) == 1 && SotnWeaponSecondary_RoleRows(46, 1) == 32);
+    SotnHandWeaponProgram program = {0};
+    Uint16 hit = 2;
+    // Exhaustion destroys every slash before properties.
+    {
+        SotnWeaponSecondary s = {0};
+        SotnWeaponSecondaryEvents e = {0};
+        Uint32 rng = 5;
+        CHECK(SotnWeaponSecondary_Tick(&s, &program,
+                                       (SotnWeaponSecondaryInput){.overlay = {o, sizeof(o)},
+                                                                  .executable = x,
+                                                                  .properties = Properties,
+                                                                  .context = &hit,
+                                                                  .family = 46},
+                                       &rng, &e) &&
+              s.removed && rng == 5 && !e.properties && !e.sounds[0] && !e.clear_shield);
+    }
+    for (Uint16 k = 0; k < 12; ++k)
+    {
+        const Uint16 hand = k & 1U, row = (Uint16)(k / 4U), crouch = (k >> 1) & 1U;
+        const bool left = k % 3 == 1;
+        SotnWeaponSecondary s = {.parameter = (Uint16)(row << 8 | (row ? 0 : hand << 15))};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x,
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .x = (180 + k) * 65536 + 0x1234,
+                                       .y = (120 - k) * 65536 + 0x4321,
+                                       .camera_x = 30,
+                                       .camera_y = 12,
+                                       .hand = hand,
+                                       .family = 46,
+                                       .priority = 0x94,
+                                       .facing_left = left,
+                                       .crouch = crouch != 0,
+                                       .allocated = true};
+        const Uint8 *r = o + 0xad8 + row * 14U;
+        const Sint16 ox = left ? -20 : 20, oy = crouch ? 11 : -5;
+        Uint32 rng = 9U + k, check = rng;
+        if (!row)
+            (void)SotnCombat_Random(&check);
+        Uint16 factories = 0, volume = 0;
+        for (Uint16 u = 0; u < 9; ++u)
+        {
+            // The slash follows the live player.
+            if (u == 4)
+            {
+                in.x += 7 * 65536;
+                in.y -= 3 * 65536;
+            }
+            SotnWeaponSecondaryEvents e = {0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check);
+            if (u == 0)
+            {
+                const SotnPlayerEffectQuad *q = &s.knuckle_quads[0];
+                const Uint8 v = hand ? 0x80 : 0;
+                CHECK(s.phase == 1 && s.flags == 0x00860000U && s.facing_left == left &&
+                      s.x == (180 + k + ox) * 65536 + 0x1234 &&
+                      s.y == (120 - (Sint32)k + oy) * 65536 + 0x4321 && e.clear_shield &&
+                      e.startup_ticks == 4 && e.properties == !row &&
+                      e.sounds[0] == (row ? 0 : 0x60a) && !e.volume_sound &&
+                      s.rotate == (Sint16)Read16Test(r + 8) &&
+                      s.knuckle_radius == (Sint16)Read16Test(r + 6) && q->page == 0x19 &&
+                      q->priority == 0x96 && q->draw_mode == 0x335 && q->red[3] == r[10] &&
+                      q->green[1] == r[11] && q->blue[2] == r[12] &&
+                      q->u[0] == (Read16Test(r) ? 0x40 : 0) &&
+                      q->u[1] == (Read16Test(r) ? 0 : 0x40) &&
+                      q->v[0] == (Read16Test(r + 2) ? (v | 0x40) : v) &&
+                      q->v[3] == (Read16Test(r + 2) ? v : (v | 0x40)));
+                if (!row)
+                    CHECK(s.hitbox_width == 15 && s.hitbox_height == 20 && s.hitbox_y == -5 &&
+                          s.hitbox_state == 2 && s.properties.attack == 35);
+                else
+                    CHECK(!s.hitbox_width && !s.hitbox_state && !s.properties.id);
+            }
+            if (u == 8)
+            {
+                CHECK(s.removed && !e.factory_count);
+                break;
+            }
+            // CLUT step u from either table, offset 0x18 for the right hand.
+            const Uint32 table = Read16Test(r + 4) ? 0xac4U : 0xab0U;
+            CHECK(!s.removed && s.knuckle_counter == u + 1 &&
+                  s.knuckle_quads[0].palette == (hand ? 0x18 : 0) + Read16Test(o + table + u * 2U));
+            if (!row && (u == 3 || u == 6))
+            {
+                CHECK(e.factory_count == 1 &&
+                      e.factories[0] == (0x32U | (hand + 1U) << 12 | (u == 3 ? 1U : 2U) << 16) &&
+                      e.factory_x[0] == s.x && e.factory_y[0] == s.y);
+                ++factories;
+            }
+            else
+                CHECK(!e.factory_count);
+            if (e.volume_sound)
+            {
+                CHECK(!row && u == 7 && e.sounds[0] == 0x60a && e.volume == 0x50);
+                ++volume;
+            }
+            // Corners: rotate+0x600, -0x400, -0x800, +0x400 at the table radius.
+            const Sint16 bx = (Sint16)((in.x >> 16) - 30 + ox),
+                         by = (Sint16)((in.y >> 16) - 12 + oy);
+            Sint16 angle = (Sint16)(s.rotate + 0x600);
+            const Sint16 steps[4] = {0, -0x400, -0x800, 0x400};
+            for (Uint16 c = 0; c < 4; ++c)
+            {
+                angle = (Sint16)(angle + steps[c]);
+                SotnMathTrig t = {0};
+                CHECK(SotnMath_Trig(x, angle, &t));
+                const Sint32 radius = s.knuckle_radius,
+                             dx = Floor256(
+                                 (t.cosine >= 0 ? t.cosine / 16 : -((-t.cosine + 15) / 16)) *
+                                 radius),
+                             dy = Floor256((t.sine >= 0 ? t.sine / 16 : -((-t.sine + 15) / 16)) *
+                                           radius);
+                CHECK(s.knuckle_quads[0].x[c] == (Sint16)(left ? bx - dx : bx + dx) &&
+                      s.knuckle_quads[0].y[c] == (Sint16)(by - dy));
+            }
+        }
+        CHECK(factories == (row ? 0 : 2) && volume == (row ? 0 : 1));
+    }
+    return true;
+}
+static bool BlueKnucklesTest(void)
+{
+    static Uint8 o[0x1000], exe[0x24000];
+    Math(exe);
+    KnuckleTables(o);
+    const SotnDataView x = {exe, sizeof(exe)};
+    SotnHandWeaponProgram program = {0};
+    Uint16 hit = 2;
+    for (Uint16 k = 0; k < 8; ++k)
+    {
+        const Uint16 hand = k & 1U;
+        const bool crouch = (k >> 1) & 1U, left = (k >> 2) & 1U, red = k == 3 || k == 6;
+        SotnWeaponSecondary s = {.parameter = (Uint16)((red ? 0x100U : 0U) | hand << 15),
+                                 .x = 9 * 65536 + 0x2468,
+                                 .y = 4 * 65536 + 0x1357,
+                                 .facing_left = left};
+        SotnWeaponSecondaryInput in = {.overlay = {o, sizeof(o)},
+                                       .executable = x,
+                                       .properties = Properties,
+                                       .context = &hit,
+                                       .x = 200 * 65536 + 0x8000,
+                                       .y = 150 * 65536,
+                                       .camera_x = 40,
+                                       .camera_y = 20,
+                                       .hand = hand,
+                                       .family = 46,
+                                       .role = 1,
+                                       .priority = 0x90,
+                                       .crouch = crouch,
+                                       .allocated = true};
+        Uint32 rng = 17U + k, check = rng;
+        (void)SotnCombat_Random(&check);
+        SotnWeaponSecondaryEvents e = {0};
+        CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+              s.phase == 1 && s.role == 1 && e.properties && e.clear_shield &&
+              e.sounds[0] == 0x60c && e.startup_ticks == 4 && s.flags == 0x00860000U &&
+              s.arc_bright == 0x100 && s.hitbox_state == 2 && s.x == 200 * 65536 + 0x2468 &&
+              s.y == 150 * 65536 + 0x1357);
+        CHECK(crouch
+                  ? s.arc_start == -0x200 && s.arc_end == 0x280 && s.arc_radius == 0x2e &&
+                        s.arc_step == 0x80 && s.knuckle_pivot_x == -0x20 &&
+                        s.knuckle_pivot_y == 4 && s.hitbox_x == 0xb && s.hitbox_y == 2 &&
+                        s.hitbox_width == (red ? 0xc : 8) && s.hitbox_height == (red ? 0x1c : 0x18)
+                  : s.arc_start == -0x500 && s.arc_end == 0x700 && s.arc_radius == 0x13 &&
+                        s.arc_step == 0x200 && !s.knuckle_pivot_x && s.knuckle_pivot_y == -0x10 &&
+                        s.hitbox_x == 8 && s.hitbox_y == -0x13 &&
+                        s.hitbox_width == (red ? 0x13 : 0x10) &&
+                        s.hitbox_height == (red ? 0x1a : 0x16));
+        Uint16 updates = 1, sweep = 0;
+        for (;;)
+        {
+            // The arc's rows: glow scaled by brightness, shape around the radius, mirrored left.
+            const Sint32 px = 200 - 40 + s.knuckle_pivot_x, py = 150 - 20 + s.knuckle_pivot_y,
+                         span = (s.arc_start - s.arc_tail) / 16;
+            for (Uint16 i = 0; i < 32; ++i)
+            {
+                const SotnPlayerEffectQuad *q = &s.knuckle_quads[i];
+                const Uint32 half = i >> 1;
+                const Sint32 next = (Sint32)(0x40 + ((half + 1) % 16) * 12) * s.arc_bright / 256,
+                             here = (Sint32)(0x40 + half * 12) * s.arc_bright / 256;
+                const Uint32 shape = red ? 0xbd0U : 0xb90U;
+                const Sint32 a = (Sint32)Read16Test(o + shape + ((half + 1) % 16) * 4U),
+                             b = (Sint32)Read16Test(o + shape + half * 4U);
+                const Sint32 r1 = (i & 1) ? s.arc_radius + a : s.arc_radius - a,
+                             r3 = (i & 1) ? s.arc_radius + b : s.arc_radius - b;
+                CHECK(q->priority == 0x94 && q->draw_mode == 0x335 &&
+                      q->red[0] == (Uint8)(next * (red ? 0xc0 : 0x60) / 256) &&
+                      q->blue[0] == (Uint8)(next * (red ? 0x60 : 0xc0) / 256) &&
+                      q->green[2] == (Uint8)(here * 0x60 / 256) && !q->red[1] && !q->blue[3]);
+                for (Uint16 c = 0; c < 2; ++c)
+                {
+                    SotnMathTrig t = {0};
+                    CHECK(SotnMath_Trig(x, (Sint32)((half + 1 - c) * span + s.arc_tail), &t));
+                    const Sint32 cs = t.cosine >= 0 ? t.cosine / 16 : -((-t.cosine + 15) / 16),
+                                 sn = t.sine >= 0 ? t.sine / 16 : -((-t.sine + 15) / 16);
+                    Sint32 xs[2] = {px + Floor256(cs * s.arc_radius),
+                                    px + Floor256(cs * (c ? r3 : r1))};
+                    if (left)
+                        for (Uint16 m = 0; m < 2; ++m)
+                            xs[m] = (200 - 40) * 2 - xs[m];
+                    CHECK(q->x[c * 2] == (Sint16)xs[0] && q->x[c * 2 + 1] == (Sint16)xs[1] &&
+                          q->y[c * 2] == (Sint16)(py - Floor256(sn * s.arc_radius)) &&
+                          q->y[c * 2 + 1] == (Sint16)(py - Floor256(sn * (c ? r3 : r1))));
+                }
+            }
+            const SotnWeaponSecondary before = s;
+            e = (SotnWeaponSecondaryEvents){0};
+            CHECK(SotnWeaponSecondary_Tick(&s, &program, in, &rng, &e) && rng == check &&
+                  !e.sounds[0] && !e.properties);
+            ++updates;
+            if (before.phase == 1)
+            {
+                CHECK(s.arc_start == before.arc_start + before.arc_step &&
+                      s.phase == (s.arc_start >= s.arc_end ? 2 : 1) && s.arc_bright == 0x100);
+                ++sweep;
+                continue;
+            }
+            const Sint32 tail = SDL_min(before.arc_tail + before.arc_step / 4, before.arc_end);
+            if (before.arc_bright - 0x10 <= 0)
+            {
+                CHECK(s.removed);
+                break;
+            }
+            CHECK(s.arc_bright == before.arc_bright - 0x10 && s.arc_tail == tail &&
+                  s.hitbox_state == (s.arc_bright < 0x80 ? 0 : 2));
+        }
+        // Sweep (start..end by step), then sixteen fading updates.
+        CHECK(sweep == (Uint16)((crouch ? 0x480 : 0xc00) / (crouch ? 0x80 : 0x200)) &&
+              updates == 1 + sweep + 16);
+    }
+    return true;
+}
+// Kind134 through the shared runtime: blueprint50 creates Holbein dagger's E0 root (own item136,
+// least-used group, one row), whose 0x32 slashes1/2 (no item, no attack) name it as raw parent;
+// blueprint56 creates Blue knuckles' E1 arc (own item137, thirty-two rows). All retire with
+// their rows.
+static bool KnuckleRuntime(Uint16 item, Uint16 hand)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000), *weapons = SDL_calloc(56, 0x7000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    static Uint8 exe[0x24000];
+    SotnCharacter *character = NULL;
+    CHECK(dra && weapons && actors && r);
+    TestCharacter_Fill(dra);
+    Math(exe);
+    FamilyDefinition(dra, item, item == 136 ? 0 : 3, 46, 134, 0, 0, 0);
+    Uint8 *record = dra + 0x500 + item * 52;
+    record[18] = 0xd2;
+    record[19] = item == 136 ? 50 : 56;
+    record[21] = 0;
+    record[22] = 1;
+    const Uint8 blueprints[][6] = {{50, 0, 1, 0xc1, 0, 0x26}, {56, 1, 1, 0xc1, 0, 0x06}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 5);
+    dra[0xd4b8 + 12] = 17;
+    dra[0xd4b9 + 12] = 31;
+    KnuckleTables(weapons + 46U * 0x7000 + 0x4000);
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnEquipment knuckle = {0};
+    CHECK(SotnEquipment_Read(actors->dra, item, &knuckle) && knuckle.kind == 134 &&
+          knuckle.family == 46 && knuckle.blueprint == record[19] && knuckle.chain_limit == 1 &&
+          !knuckle.consumable && knuckle.animation == 0xd2);
+    record[25] = 1;
+    CHECK(!SotnEquipment_Read(actors->dra, item, &knuckle));
+    record[25] = 0;
+    CHECK(SotnCharacter_Create(actors->dra, &character));
+    SotnBatRuntimeInput in = {.dra = actors->dra,
+                              .executable = {exe, sizeof(exe)},
+                              .weapons = {weapons, 56U * 0x7000},
+                              .weapon_family = {46, 46},
+                              .weapon_bound = {true, true},
+                              .camera_x = 16,
+                              .camera_y = 8,
+                              .player = {.hp = 70,
+                                         .hp_max = 70,
+                                         .x = 128 * 65536,
+                                         .y = 100 * 65536,
+                                         .priority = 148,
+                                         .animation = {.id = 0xd2}}};
+    const SotnPlayerFactorySource source = {
+        .x = in.player.x, .y = in.player.y, .priority = 148, .facing_left = hand != 0};
+    const Uint32 packed = record[19] | (hand + 1U) << 12 | (hand ? 128U : 0U) << 16;
+    bool allocated = false;
+    CHECK(!SotnBatRuntime_RequestThrown(r, source, packed ^ 1U, item, &allocated));
+    CHECK(SotnBatRuntime_RequestThrown(r, source, packed, item, &allocated) && allocated);
+    Uint16 root = 0, slashes = 0, live_max = 0, ticks = 0;
+    bool born[SOTN_BAT_RUNTIME_SLOTS] = {0};
+    for (Uint16 t = 0; t < 60; ++t)
+    {
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+        ++ticks;
+        Uint16 live = 0;
+        for (Uint16 i = 1; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (!c->weapon_secondary || !c->initialized)
+            {
+                born[i] = false;
+                continue;
+            }
+            CHECK(c->state.secondary.family == 46 && SotnBatRuntime_SecondaryValid(c, i) &&
+                  i >= 1 && i <= 15 && c->kind == (item == 136 ? 0xe0 : 0xe1) + hand * 0x10U);
+            ++live;
+            if (c->state.secondary.own_item)
+            {
+                CHECK(c->state.secondary.item == item && c->state.secondary.parent_slot == 16 &&
+                      c->parameter == (hand ? 0x8000U : 0U) && c->group >= 3 && c->group <= 6 &&
+                      c->primitive_count == (item == 136 ? 1 : 32) &&
+                      c->state.secondary.attack.equipment == item);
+                root = i;
+            }
+            else
+            {
+                CHECK(item == 136 && !c->state.secondary.item &&
+                      c->state.secondary.parent_slot == root + 16U &&
+                      (c->parameter == 0x100 || c->parameter == 0x200) && !c->group &&
+                      c->primitive_count == 1 && !c->state.secondary.attack.active);
+                slashes += !born[i];
+            }
+            born[i] = true;
+        }
+        live_max = SDL_max(live_max, live);
+        if (!live && t > 3)
+            break;
+    }
+    CHECK(root && slashes == (item == 136 ? 2 : 0) && live_max == (item == 136 ? 3 : 1) &&
+          ticks < 60);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].weapon_secondary && !r->children[i].primitive_count);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK(!actors->primitives[i].owner);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(weapons);
+    SDL_free(dra);
+    return true;
+}
 // The Jewel sword's special198 through the shared runtime: slot16's pose1 requests 0x3A
 // (descriptor-1 = 1) whose sparkles lease sixteen rows, roll the coin pattern and request 0x40
 // coins; each coin bounces, lands and pays one gold when the player touches it.
@@ -10150,8 +10529,10 @@ int main(void)
                    IceRuntime() && MoonRuntime() && Rune() && RuneRuntime() && Heaven() &&
                    HeavenCombo() && HeavenRuntime() && HeavenComboRuntime() && RodOrbTest() &&
                    RodSparkleTest() && RodRuntime() && JewelSparkleTest() && JewelCoinTest() &&
-                   JewelRuntime(false) && JewelRuntime(true) && IronRuntime(0) && IronRuntime(1) &&
-                   IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
+                   JewelRuntime(false) && JewelRuntime(true) && HolbeinTest() &&
+                   BlueKnucklesTest() && KnuckleRuntime(136, 0) && KnuckleRuntime(136, 1) &&
+                   KnuckleRuntime(137, 0) && KnuckleRuntime(137, 1) && IronRuntime(0) &&
+                   IronRuntime(1) && IronThunderRuntime() && IronSpellTest() && IronSwordTest() &&
                    HeraldSpellTest() && HeraldSwirlTest() && HeraldSpriteTest() &&
                    HeraldRuntime(0) && HeraldRuntime(1) && DarkSpellTest() && DarkRockTest() &&
                    DarkRuntime(0) && DarkRuntime(1) && MedusaSpellTest() && MedusaLaserTest() &&

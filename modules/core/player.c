@@ -537,11 +537,16 @@ static void HandFailure(SotnPlayer *player)
     }
 }
 
+// 6E42C.c cases129/130 (thrown items) and134 (Holbein dagger/Blue knuckles, never consumed).
+static bool ThrowKind(Uint8 kind)
+{
+    return kind == 129 || kind == 130 || kind == 134;
+}
 // 6E42C.c cases129/130/132: the food/throwing factory, successful-player cost commit, casting
 // grunt (throws only) and the item animation. Returns false when the factory is exhausted.
 static bool StartThrow(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
 {
-    const bool throwing = (equipment.kind == 129 || equipment.kind == 130);
+    const bool throwing = ThrowKind(equipment.kind);
     const SotnPlayerMedicineFactory factory =
         throwing ? player->throwing_factory : player->food_factory;
     void *context = throwing ? player->throwing_context : player->food_context;
@@ -570,6 +575,13 @@ static bool StartThrow(SotnPlayer *player, SotnEquipment equipment, Uint32 hand)
                                        .item = equipment.id,
                                        .used = true,
                                        .keep = throwing && !equipment.consumable};
+    // Case134 first calls func_8010DFF0(1, 0x20): reset the afterimages and hold timer15.
+    if (equipment.kind == 134 &&
+        !SotnPlayerAfterimage_Reset(&player->afterimage, true, 0x20, &player->afterimage_timer15))
+    {
+        player->failed = true;
+        return true;
+    }
     if (throwing)
     {
         Uint16 random = 0;
@@ -683,7 +695,7 @@ static bool StartAttack(SotnPlayer *player)
     if (equipment.kind == 132 &&
         (!player->food_factory || !player->food_consume || player->food_count[hand] >= 2))
         return false;
-    if ((equipment.kind == 129 || equipment.kind == 130) &&
+    if (ThrowKind(equipment.kind) &&
         (!player->throwing_factory || !player->throwing_consume || !player->throwing_random ||
          !equipment.chain_limit || player->throwing_count[hand] >= equipment.chain_limit))
         return false;
@@ -734,17 +746,15 @@ static bool StartAttack(SotnPlayer *player)
     if (player->curse_ticks && equipment.id != 0)
     {
         if ((equipment.kind == 132 && player->food_factory) ||
-            ((equipment.kind == 129 || equipment.kind == 130) && player->throwing_factory) ||
-            player->hand_factory)
+            (ThrowKind(equipment.kind) && player->throwing_factory) || player->hand_factory)
         {
             const SotnPlayerMedicineFactory factory =
-                (equipment.kind == 129 || equipment.kind == 130) ? player->throwing_factory
-                : equipment.kind == 132                          ? player->food_factory
-                                                                 : player->hand_factory;
-            void *context = (equipment.kind == 129 || equipment.kind == 130)
-                                ? player->throwing_context
-                            : equipment.kind == 132 ? player->food_context
-                                                    : player->hand_context;
+                ThrowKind(equipment.kind) ? player->throwing_factory
+                : equipment.kind == 132   ? player->food_factory
+                                          : player->hand_factory;
+            void *context = ThrowKind(equipment.kind) ? player->throwing_context
+                            : equipment.kind == 132   ? player->food_context
+                                                      : player->hand_context;
             bool allocated = false;
             SotnPlayerState captured = {0};
             if (!SotnPlayer_GetState(player, &captured) ||
@@ -762,7 +772,7 @@ static bool StartAttack(SotnPlayer *player)
         HandFailure(player);
         return true;
     }
-    if (equipment.kind == 132 || equipment.kind == 129 || equipment.kind == 130)
+    if (equipment.kind == 132 || ThrowKind(equipment.kind))
         return StartThrow(player, equipment, hand);
     if (equipment.kind == 128)
     {

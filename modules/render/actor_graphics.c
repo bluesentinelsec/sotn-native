@@ -384,6 +384,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 13 ? 0x8017a5fcU
                            : equipment.family == 56 ? 0x8017b058U
                            : equipment.family == 12 ? 0x8017aab0U
+                           : equipment.family == 46 ? 0x8017ac50U
                            : equipment.family == 39 ? 0x8017ade0U
                            : equipment.family == 32 ? 0x8017a918U
                            : equipment.family == 51 ? 0x8017aec4U
@@ -430,7 +431,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
           equipment.family == 48 || equipment.family == 49 || equipment.family == 50 ||
           equipment.family == 6 || equipment.family == 14 || equipment.family == 13 ||
           equipment.family == 56 || equipment.family == 12 || equipment.family == 34 ||
-          equipment.family == 30) &&
+          equipment.family == 30 || equipment.family == 46) &&
          equipment.palette))
         return SDL_SetError("Selected weapon requires its actual bounded private palette index");
     const Uint32 color_count =
@@ -446,7 +447,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                  equipment.family == 20 || equipment.family == 22 || equipment.family == 21 ||
                  equipment.family == 19 || equipment.family == 18 || equipment.family == 17 ||
                  equipment.family == 16 || equipment.family == 15 || equipment.family == 34 ||
-                 equipment.family == 30
+                 equipment.family == 30 || equipment.family == 46
              ? 24U
          : equipment.family == 45 ? 2U
          : equipment.family == 37 ? 5U
@@ -500,6 +501,7 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                              : equipment.family == 13 ? 0x8017a604U
                              : equipment.family == 56 ? 0x8017b05cU
                              : equipment.family == 12 ? 0x8017aac8U
+                             : equipment.family == 46 ? 0x8017ac60U
                              : equipment.family == 39 ? 0x8017ade8U
                                                       : 0;
     if (hand_word && !no_palette)

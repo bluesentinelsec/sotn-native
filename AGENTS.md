@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Holbein/Blue knuckles](docs/player-holbein-blue-knuckles.md) now own kind134 items136/137
+through w_046: func_8010DFF0(1,0x20) (afterimage reset, timer15) then the kind129 throw path (chain1,
+never consumed, animation0xD2). Holbein's blueprint50 E0 root (own item, one mandatory GT4, 15x20)
+requests WFACTORY(0x32,1/2) E0 slashes (no item; params up to 2) whose corners spin around the LIVE
+player; nine CLUT steps. Blue knuckles' blueprint56 E1 arc (32 mandatory untextured G4s) follows the
+player, sweeps, fades and clears its hitbox below 0x80. Palette table 0x8017AC50, hand word 0xAC60.
+
 Selected [Jewel/Stone swords](docs/player-jewel-stone-swords.md) now own items109/114 and QCF
 special198 (five MP) through w_037 variants1..3. Variants1/2 request WFACTORY(0x3A,variant-1) on
 the first pose1: E1 sparkles (slots32..63) roll the special's rand()&31 coin pattern BEFORE

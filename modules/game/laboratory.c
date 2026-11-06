@@ -1106,7 +1106,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestStar(&s->bat_runtime, source, packed, item, allocated)
            : item == 80 || item == 81 || item == 82 || item == 134 || item == 135 || item == 143 ||
                    item == 119 || item == 133 || item == 163 || item == 164 || item == 165 ||
-                   item == 176
+                   item == 176 || item == 136 || item == 137
                ? SotnBatRuntime_RequestThrown(&s->bat_runtime, source, packed, item, allocated)
            : item == 25
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
@@ -1158,11 +1158,13 @@ static bool BindFood(SotnLaboratory *s)
             // Runesword's root carries143 from birth; its hitboxes only after
             // their first callback copies the raw parent's equip id. Heaven
             // sword's root carries119; its afterimages never take an id. Weapon12's
-            // slashes and Chakram carry their own items from birth.
+            // slashes and Chakram carry their own items from birth, as do weapon46's
+            // Holbein root and Blue knuckles' arc (Holbein's slashes1/2 carry none).
             : c->weapon_secondary &&
                     (c->state.secondary.family == 14 || c->state.secondary.family == 13 ||
                      c->state.secondary.family == 12 ||
-                     (c->state.secondary.family == 53 && c->state.secondary.own_item))
+                     ((c->state.secondary.family == 53 || c->state.secondary.family == 46) &&
+                      c->state.secondary.own_item))
                 ? c->state.secondary.item
                 : 0;
         // CheckChainLimit reads raw AE and params, not the callback's hand family.
@@ -4482,7 +4484,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     ring = (role == 2 && family != 30 && family != 13) || family == 1 ||
                            (family == 50 && role == 4),
                            sparkle = family == 50 && role == 1, rune = family == 14 && role == 0,
-                           jewel = family == 37 && role == 1;
+                           jewel = family == 37 && role == 1, knuckle = family == 46;
+                // Weapon46: Holbein dagger's slash GT4 or Blue knuckles' thirty-two arc G4s,
+                // screen-space.
+                for (Uint16 q = knuckle ? child->primitive_count : 0; q > 0; --q)
+                    if (!(w->knuckle_quads[q - 1U].draw_mode & 8U) &&
+                        !SotnActorOrder_Add(
+                            session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                            (SotnActorDraw){.priority = w->knuckle_quads[q - 1U].priority,
+                                            .primitive = (Uint16)(owner * 64U + q - 1U),
+                                            .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
+                        return false;
                 // Weapon37's eight sparkles (of sixteen rows) are screen-space GT4s.
                 for (Uint16 q = jewel ? child->primitive_count : 0; q > 0; --q)
                     if (!(w->jewel_quads[q - 1U].draw_mode & 8U) &&
@@ -4538,8 +4550,8 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                             .primitive = (Uint16)(owner * 64U + q - 1U),
                                             .kind = SOTN_DRAW_WEAPON_SECONDARY_QUAD}))
                         return false;
-                for (Uint16 row = slash || ring || sparkle || rune || jewel || family == 30 ||
-                                          SotnWeaponSecondary_ShieldSpell(family)
+                for (Uint16 row = slash || ring || sparkle || rune || jewel || knuckle ||
+                                          family == 30 || SotnWeaponSecondary_ShieldSpell(family)
                                       ? 0
                                       : child->primitive_count;
                      row > 0; --row)
@@ -5623,19 +5635,30 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                (c->state.secondary.family == 12 && !(c->kind & 15U));
             const bool dawn = c->state.secondary.family == 30,
                        spell = SotnWeaponSecondary_ShieldSpell(c->state.secondary.family),
-                       jewel = c->state.secondary.family == 37 && (c->kind & 15U) == 1;
+                       jewel = c->state.secondary.family == 37 && (c->kind & 15U) == 1,
+                       knuckle = c->state.secondary.family == 46;
             if (!c->weapon_secondary || !c->initialized || index >= c->primitive_count ||
-                (!slash && !dawn && !spell && !jewel && (c->kind & 15U) != 2 &&
+                (!slash && !dawn && !spell && !jewel && !knuckle && (c->kind & 15U) != 2 &&
                  c->state.secondary.family != 1 &&
                  !(c->state.secondary.family == 50 && (c->kind & 15U) == 4)) ||
                 (slash && index) || !SotnBatRuntime_SecondaryValid(c, owner))
                 return SDL_SetError("Weapon secondary GT4 draw lost its actual child/row lease");
             const SotnWeaponSecondary *w = &c->state.secondary.motion;
-            SotnPlayerEffectQuad q = slash   ? w->quad
-                                     : dawn  ? w->dawn_quads[index]
-                                     : spell ? w->spell_quads[index]
-                                     : jewel ? w->jewel_quads[index]
-                                             : w->quads[index];
+            SotnPlayerEffectQuad q = slash     ? w->quad
+                                     : dawn    ? w->dawn_quads[index]
+                                     : spell   ? w->spell_quads[index]
+                                     : jewel   ? w->jewel_quads[index]
+                                     : knuckle ? w->knuckle_quads[index]
+                                               : w->quads[index];
+            // Blue knuckles' arc rows are untextured G4s (prim->type = PRIM_G4).
+            if (knuckle && (c->kind & 15U) == 1)
+            {
+                if (!DrawIceQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             if (dawn && (c->kind & 15U) == 1 && index == 10 && w->dawn_line)
             {
                 // The circle's row10 tether is a LINE_G2 (ABR from drawMode bits5..6).
