@@ -9,8 +9,9 @@ UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 The native session owns it end to end: the relic menu switches the Sword Card, and closing the
 menu summons it (see [Session integration](#session-integration)). It follows, attacks real
 enemies, levels up, gives its level-50 gift and leaves. Familiar levels persist in v11 saves
-([native saves](native-saves.md)), and castle flag 464 records the gift. Its gift, the [Sword Familiar](#sword-familiar-item), is an ordinary weapon. Sword Brothers
-follows in a later batch; it fails explicitly, but no native spell can start it yet.
+([native saves](native-saves.md)), and castle flag 464 records the gift. Its gift, the [Sword Familiar](#sword-familiar-item), is an ordinary weapon, and Alucard's
+[Sword Brothers](#sword-brothers) spell works with it. The whole original Sword familiar now runs
+natively.
 
 ## Behaviour
 
@@ -28,7 +29,7 @@ follows in a later batch; it fails explicitly, but no native spell can start it 
   depends on distance: a quarter of the gap above 256 px, then 1/16, 1/32 and 1/64 below 16 px. It
   yaws toward its heading (step 8) and pitches with its model depth (step 0x20), and the depth drifts
   by `rsin(pitch)*0x60`. Outside cutscenes it searches for a target every update and attacks one
-  if found. Sword Brothers and the level-50 gift currently fail explicitly.
+  if found. The level-50 gift and the Sword Brothers pulse take over from any default update.
 - **Target search** (`func_us_80173AA0`) scans stage slots 64..191. It picks the first entity that
   has a hitbox, lacks flag 0x200000, sits on screen (x −16..272, y 0..240) and has HP below
   0x7000, provided it is not yet marked; it marks that entity with flag 0x80000. If every
@@ -116,7 +117,7 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   - the attack voices, through the sound queue;
   - the DE requests.
 
-  Sword Brothers stays false because no native spell sets `g_Player.unk70`.
+  The player's Sword Brothers pulse (`g_Player.unk70`) of the same update feeds each callback.
 - **Menu and gift**: the relic menu switches the Sword Card (turning other cards off) and closing
   it loads the familiar: a switch (load count +1) summons the entrance, an unchanged selection
   reinitializes as `MENU_SAME_SERVANT`. The gift's item enters the hand inventory; the farewell's
@@ -140,6 +141,31 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
 - **Drawing**: the session adds visible model, trail and halo rows to the ordered draw list at their
   own priorities. It draws them as textured GT4 packets (page 0x1B, palettes 0x140/0x141) with the
   GPU's wrap rule for private-table packets.
+
+## Sword Brothers
+
+With the Sword summoned (`g_Servant == 5`), Alucard can cast Sword Brothers (spell 7, 30 MP). The
+command is: down, down-forward, forward, up-forward, then up held through its 64-update window,
+release, down, and finally an attack button while crouched.
+- **Player:** `PerformSwordBrothers` stops Alucard and runs Player_SpellSwordBrothers (step 39).
+  That step shares the Summon/Tetra handler: animation 0xF1, crouch recovery when it ends,
+  protection 16 per update and status 0x38000220. It also requests the ripple outline
+  `FACTORY(0x28, 23)` and sets the use-spell timer to 4.
+- **Pulse:** casting sets `g_Player.unk70` for that update, and the combo's 20-update completion
+  timer sets it once more. The player clears it at the start of every update.
+- **Sword (D4):** any Sword state switches to D4 on the pulse.
+  1. It plays `0x63F` and flies to (0, −1, −0.75) screen-units at `rcos/32` speed.
+  2. It snaps there and becomes a flat billboard of its artwork, then plays `0x63F` again.
+  3. It descends at 0x100 per update, plays voice 5 and locks pause.
+  4. It holds for 70 updates, then spins: 0x40 per update, rising 0x60 per update in depth.
+  5. During its last turn it copies the billboard into up to 64 further rows (palette 0x142,
+     additive, colour 0x80).
+  6. After 16 updates it unlocks pause, plays `0x69D` and requests its DF entity.
+  7. Over 16 updates it spins the copies out into a growing ring.
+  8. After 30 more updates its model returns and it resumes as the default sword.
+- **DF attack:** the DF takes the first free slot in 17..46. `GetServantStats` gives it spell 7's
+  attack, scaled by the Sword's level and assigned the least-used group. Spell 7's attack is
+  global (0x82): it hits every on-screen enemy, with no hitbox size, for nine updates.
 
 ## Sword Familiar item
 
@@ -228,6 +254,20 @@ sword's program (`w_043`):
   4. A re-summon greets with 0x4FE and sets the flag to 4 (load count 2).
   5. A v11 save and Continue bring the active Sword back as the engine-initialized default.
   6. Switching it off retires it.
+- Sword Brothers checks:
+  - Public tests cover D4's whole timeline: rise speed and arrival, billboard, the 16-update
+    descent with voice and pause lock, the 70-update hold, 64 copies and a ring copy computed
+    independently, the DF request, the holds and the model's return. They also cover the DF
+    child's global attack, level scaling and nine-update life. All 18 mutations are caught.
+  - The MIPS oracle runs D4 from rest and from the middle of a circle attack, plus each DF's
+    first update (spell 7). It compares 589 D4 updates, and every slot, global and row of the
+    copies and ring matches.
+  - A private probe in Laboratory room 10 casts Sword Brothers from actual pad input (explicit
+    card, MP and protection fixtures):
+    - the cast costs 30 MP and the player holds step 39 for 41 updates with the ripple outline;
+    - the Sword runs D4 for 296 updates;
+    - the DF hits on-screen enemies for nine updates;
+    - the Sword returns afterwards.
 - Sword Familiar item checks:
   - Public tests cover its equipment record (variant 2, palette 1), the green descriptor-2 swing in
     either hand and its attack following record 4's level.
@@ -240,11 +280,13 @@ sword's program (`w_043`):
     the card off and retires the familiar.
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
   trail, halo, event entity, `ProcessSfxState`, the target search, both attacks and each DE
-  hitbox's first update, the level-50 `AddToInventory` gift and the D5 farewell's dismissal
-  (`g_Servant`, card bits, cleared slots) in lockstep with the native component. It uses SLUS
+  hitbox's first update, the level-50 `AddToInventory` gift, the D5 farewell's dismissal
+  (`g_Servant`, card bits, cleared slots) and Sword Brothers (D4 and its DF) in lockstep with the
+  native component. It uses SLUS
   `rsin`/`rcos`/`ratan2`/`SquareRoot12`/`SquareRoot0`/`CompMatrix` (the square roots' leading-zero
-  count adapted), the libc `rand()` and the private PSY-Z COP2 registers. It covers 13 contexts and
-  13,907 callbacks, including 75 farewell updates, one gift and one dismissal, and:
+  count adapted), the libc `rand()` and the private PSY-Z COP2 registers. It covers 14 contexts and
+  14,747 callbacks, including 589 Sword Brothers updates, 75 farewell updates, one gift and one
+  dismissal, and:
   - 3,372 attack updates and 1,206 hitbox entities;
   - 6 target marks, 19 voices and 35 `rand()` calls;
   - 692,240 row comparisons.

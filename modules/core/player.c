@@ -1152,7 +1152,7 @@ static bool TickShield(SotnPlayer *player)
         player->step == SOTN_PLAYER_SWORD_WARP || player->step == SOTN_PLAYER_TELEPORT ||
         player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_SUMMON ||
         player->step == SOTN_PLAYER_TETRA || player->step == SOTN_PLAYER_HELLFIRE ||
-        player->step == SOTN_PLAYER_SOUL;
+        player->step == SOTN_PLAYER_SOUL || player->step == SOTN_PLAYER_SWORD_BROTHERS;
     const bool starting = player->shield_cursor.phase == 0;
     if (!SotnShield_Tick(player->weapons, player->animation.id, player->animation.pose,
                          player->step == SOTN_PLAYER_CROUCH, (player->buttons & button) != 0,
@@ -2658,7 +2658,8 @@ static void WaterDeathTick(SotnPlayer *p)
 }
 static void NormalSpellInput(SotnPlayer *p)
 {
-    if ((!p->dark_context && !p->spirit_context && !p->hellfire_factory && !p->soul_context) ||
+    if ((!p->dark_context && !p->spirit_context && !p->hellfire_factory && !p->soul_context &&
+         !p->sword_brothers_context) ||
         p->mp_spent)
         return;
     SotnSpellCommandFrame frame = {
@@ -2668,15 +2669,20 @@ static void NormalSpellInput(SotnPlayer *p)
         .attack_mode = p->attack_mode,
         .mp = p->mp,
         .available = (Uint8)((p->dark_context ? 1U : 0U) | (p->spirit_context ? 0xaU : 0U) |
-                             (p->hellfire_factory ? 4U : 0U) | (p->soul_context ? 0x20U : 0U)),
+                             (p->hellfire_factory ? 4U : 0U) | (p->soul_context ? 0x20U : 0U) |
+                             (p->sword_brothers_context ? 0x80U : 0U)),
         .facing_left = p->facing_left,
-        .cramped = p->tight_space != 0};
+        .cramped = p->tight_space != 0,
+        .sword_active = p->sword_brothers_context};
     SotnSpellCommandEvents events = {0};
     if (!SotnSpellCommands_Tick(&p->spell_commands, p->dra, &frame, &events))
     {
         p->failed = true;
         return;
     }
+    // "100sword set ok": the completed command's timer runs out and raises unk70 once more.
+    if (events.sword_notify)
+        p->sword_brothers.pulse = true;
     if (!events.cast)
         return;
     p->mp = frame.mp;
@@ -2686,6 +2692,7 @@ static void NormalSpellInput(SotnPlayer *p)
                : events.spell == 3 ? SOTN_PLAYER_TETRA
                : events.spell == 2 ? SOTN_PLAYER_HELLFIRE
                : events.spell == 5 ? SOTN_PLAYER_SOUL
+               : events.spell == 7 ? SOTN_PLAYER_SWORD_BROTHERS
                                    : SOTN_PLAYER_DARK);
     p->shield_cursor = (SotnShield){0};
     p->shield = (SotnPlayerAttack){0};
@@ -2700,6 +2707,20 @@ static void NormalSpellInput(SotnPlayer *p)
                                               .priority = 148,
                                               .facing_left = p->facing_left},
                                    .started = true};
+        return;
+    }
+    if (events.spell == 7)
+    {
+        // PerformSwordBrothers: animation 0xF1, FACTORY(BP_RIPPLE_OUTLINE, 23) and timer12 = 4;
+        // CheckSwordBrothersInput then sets g_Player.unk70.
+        Animate(p, 0xf1);
+        p->spell_use_ticks = 4;
+        p->sword_brothers = (SotnPlayerSwordBrothers){.source = {.x = p->x.value,
+                                                                 .y = p->y.value,
+                                                                 .priority = 148,
+                                                                 .facing_left = p->facing_left},
+                                                      .started = true,
+                                                      .pulse = true};
         return;
     }
     if (events.spell == 2)
@@ -2738,6 +2759,13 @@ bool SotnPlayer_SetSoulContext(SotnPlayer *p, bool enabled)
         return SDL_SetError("Soul Steal requires actual native factory/attack/orb/healing owners "
                             "and private metadata");
     p->soul_context = enabled;
+    return true;
+}
+bool SotnPlayer_SetSwordBrothersContext(SotnPlayer *p, bool active)
+{
+    if (!p)
+        return SDL_InvalidParamError("player");
+    p->sword_brothers_context = active;
     return true;
 }
 bool SotnPlayer_SetDarkContext(SotnPlayer *p, bool enabled)
@@ -2884,6 +2912,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
     next.spirit.started = false;
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
+    next.sword_brothers = (SotnPlayerSwordBrothers){0};
     next.water_death.started = false;
     next.death.started = false;
     next.fairy_rescue.recovered = false;
@@ -3081,6 +3110,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
             break;
         case SOTN_PLAYER_SUMMON:
         case SOTN_PLAYER_TETRA:
+        case SOTN_PLAYER_SWORD_BROTHERS:
             if (next.animation.remaining < 0)
                 Crouch(&next, 0, 0);
             break;
@@ -3176,7 +3206,7 @@ bool SotnPlayer_Tick(SotnPlayer *player, Uint16 buttons)
         next.animation_bank = 16;
     if (next.step == SOTN_PLAYER_DARK || next.step == SOTN_PLAYER_SUMMON ||
         next.step == SOTN_PLAYER_TETRA || next.step == SOTN_PLAYER_HELLFIRE ||
-        next.step == SOTN_PLAYER_SOUL)
+        next.step == SOTN_PLAYER_SOUL || next.step == SOTN_PLAYER_SWORD_BROTHERS)
         SotnPlayer_Protect(&next, 16);
     if (SotnPlayerStep_IsDead(next.step) || next.step == SOTN_PLAYER_SCRIPT_REACTION ||
         next.step == SOTN_PLAYER_SCRIPT || next.step == SOTN_PLAYER_TELEPORT)
@@ -3707,7 +3737,8 @@ Uint32 SotnPlayer_Status(const SotnPlayer *player)
     if (player->step == SOTN_PLAYER_DARK || player->step == SOTN_PLAYER_HELLFIRE ||
         player->step == SOTN_PLAYER_SOUL)
         status |= 0x38000200U;
-    if (player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA)
+    if (player->step == SOTN_PLAYER_SUMMON || player->step == SOTN_PLAYER_TETRA ||
+        player->step == SOTN_PLAYER_SWORD_BROTHERS)
         status |= 0x38000220U;
     if (player->spell_use_ticks)
         status |= 0x1000U;
@@ -3854,6 +3885,7 @@ bool SotnPlayer_GetState(const SotnPlayer *player, SotnPlayerState *out)
                  .ticks = player->dark_ticks},
         .spirit = player->spirit,
         .soul = player->soul,
+        .sword_brothers = player->sword_brothers,
         .spell_use_ticks = player->spell_use_ticks,
         .bat_commands = player->bat_commands,
         .animation_bank = player->animation_bank,
@@ -4519,6 +4551,7 @@ bool SotnPlayer_TickSpellFreeze(SotnPlayer *p, Uint16 buttons, bool animate)
     next.dark.started = next.spirit.started = false;
     next.hellfire_started = false;
     next.soul.started = next.soul.attack = false;
+    next.sword_brothers = (SotnPlayerSwordBrothers){0};
     next.water_death.started = false;
     next.death.started = false;
     next.teleport.used = false;

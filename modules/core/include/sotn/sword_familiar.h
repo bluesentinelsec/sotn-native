@@ -28,7 +28,8 @@ enum
     SOTN_SWORD_HALO = 0xdb,
     SOTN_SWORD_EVENT = 0xdc,
     SOTN_SWORD_SOUND = 0xdd,
-    SOTN_SWORD_HITBOX = 0xde /**< One-update attack hitbox in the player's slots17..46. */
+    SOTN_SWORD_HITBOX = 0xde,         /**< One-update attack hitbox in the player's slots17..46. */
+    SOTN_SWORD_BROTHERS_HITBOX = 0xdf /**< Sword Brothers' nine-update global attack entity. */
 };
 /** @brief One original packed screen SXY word. */
 typedef struct SotnSwordPoint
@@ -73,6 +74,7 @@ typedef struct SotnSwordRuntime
     Sint32 dive[14];  /**< D_us_80178580..B4: dive target, deltas, velocity, origin, distance. */
     Sint32 target_cursor; /**< D_us_80178B88: round-robin over already-marked targets. */
     Sint32 gift[12];      /**< D_us_801785EC..618: the farewell's targets, deltas and speed. */
+    Sint32 brothers[13];  /**< D_us_801785B8..E8: Sword Brothers targets, counters and copies. */
     Uint32 generation;
     bool initialized;
 } SotnSwordRuntime;
@@ -107,7 +109,7 @@ typedef struct SotnSwordInput
     Uint16 room_flags, stage;
     Uint8 castle_flag; /**< g_CastleFlags[SWORD_FAMILIAR]. */
     bool cutscene, enemies, global_flash;
-    bool brothers;  /**< g_Player.unk70: Sword Brothers (not integrated). */
+    bool brothers;  /**< g_Player.unk70: this update's Sword Brothers cast pulse. */
     bool allocated; /**< The requested row lease is available this callback. */
     SotnFamiliarEventSource event_source;
     SotnFamiliarEventInput room;
@@ -136,6 +138,7 @@ typedef struct SotnSwordEvents
     Uint32 random;                     /**< libc rand() state after the callback. */
     Uint16 gift_item; /**< AddToInventory(ITEM_SWORD_FAMILIAR, EQUIP_HAND) at level 50, or 0. */
     bool dismiss; /**< The farewell ended: card off (found only), g_Servant 0, slots4..7 gone. */
+    bool brothers_hitbox; /**< func_us_801724E8(self, 1, 0): Sword Brothers' DF attack entity. */
 } SotnSwordEvents;
 /** @brief Read ServantInit's g_ServantClut (16) and g_SwordClut (32) words for row0xF4.
  * @return Success or SDL error for a malformed private overlay. */
@@ -149,7 +152,7 @@ bool SotnSwordRuntime_Init(SotnSwordRuntime *runtime, SotnSwordInput input, Uint
                            SotnSwordEvents *out);
 /** @brief Run one actual slot4..7 callback in original slot order.
  * @return Success or SDL error preserving runtime/output. The circle (D2) and dive (D3) attacks
- * and the level-50 gift and farewell (D5) run; Sword Brothers fails explicitly. */
+ * the level-50 gift and farewell (D5) and Sword Brothers (D4) run. */
 bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwordInput input,
                                  SotnSwordEvents *out);
 /** @brief Apply original camera/player or room-entry translation to entities and their rows.

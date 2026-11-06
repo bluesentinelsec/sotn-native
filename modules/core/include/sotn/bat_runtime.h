@@ -93,7 +93,8 @@ typedef struct SotnBatRuntimeChild
         struct
         {
             SotnPlayerAttack attack;
-            Uint16 spell, level; /**< GetServantStats spell19/20 and the familiar's level. */
+            Uint16 spell, level; /**< GetServantStats spell19/20 (DE) or7 (DF), familiar level. */
+            Uint16 age;          /**< DF ext unk7c: updates after its first; it retires past8. */
         } familiar;
         struct
         {
@@ -321,7 +322,8 @@ typedef struct SotnBatRuntime
 /** @brief The Sword familiar's func_us_801724E8: GetFreeEntity(0x11, 0x2F) and a DE entity.
  * @param runtime Actual shared owner. @param other_occupied Other owners' actual slots.
  * @param source Room-space whole-pixel origin (the projected blade tip), layer and facing.
- * @param parameter Tip index0/1. @param spell Spell19 (circle) or20 (dive).
+ * @param parameter Tip index0/1 (DF: 0). @param spell Spell19 (circle) or20 (dive) for a DE,
+ * or7 for Sword Brothers' DF, whose global 0x82 attack hits for nine updates.
  * @param level The familiar's level1..99 for GetServantStats' scaling.
  * @param allocated False when slots17..46 are full; the original then creates nothing.
  * The entity's first update in this pass's slot order rolls GetSpellDef (INT, rand, Mojo Mail),

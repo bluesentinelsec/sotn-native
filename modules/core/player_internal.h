@@ -113,8 +113,9 @@ struct SotnPlayer
     void *sword_context;
     Sint32 sword_recovery;
     bool sword_weapon_present;
-    bool dark_context, spirit_context, soul_context;
+    bool dark_context, spirit_context, soul_context, sword_brothers_context;
     SotnPlayerSoul soul;
+    SotnPlayerSwordBrothers sword_brothers;
     SotnPlayerSpirit spirit;
     SotnPlayerHellfireFactory hellfire_factory;
     void *hellfire_context;

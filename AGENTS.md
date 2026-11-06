@@ -76,7 +76,9 @@ familiar_mask in combat; destroyed next update). Level 50 with castle flag464==0
 and sets 1 (read again the same update: D5 farewell, flag 2); D5 dismisses (card found-only,
 g_Servant0, slots cleared, overlay kept). The relic menu switches card22 (other cards off, item126
 unequip) and menu close loads/switches/same-reinits via LoadFamiliar. Item126 is an ordinary
-weapon (see the Alucart block); Sword Brothers fails explicitly. Square-root oracles: LZC 0x8001721C/0x80016EEC.
+weapon (see the Alucart block). Sword Brothers (spell7, step39 on the Summon handler, ripple
+outline 0x170028, unk70 pulse on cast and combo completion) drives D4 (billboard, 64 copies,
+ring) and its DF (spell7 global 0x82, zero size, nine updates). Square-root oracles: LZC 0x8001721C/0x80016EEC.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue

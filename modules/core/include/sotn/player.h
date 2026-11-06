@@ -73,6 +73,7 @@ typedef enum SotnPlayerStep
     SOTN_PLAYER_HELLFIRE = 34,
     SOTN_PLAYER_TETRA = 35,
     SOTN_PLAYER_SOUL = 37,
+    SOTN_PLAYER_SWORD_BROTHERS = 39, /**< Player_SpellSwordBrothers (PlayerStepSummonSpells). */
     SOTN_PLAYER_AXE_STAND = 40,
     SOTN_PLAYER_AXE_WALK = 41,
     SOTN_PLAYER_AXE_JUMP = 42,
@@ -381,6 +382,13 @@ typedef struct SotnPlayerSpirit
     bool started;
 } SotnPlayerSpirit;
 
+/** @brief Original Sword Brothers cast: FACTORY(BP_RIPPLE_OUTLINE, 23) on the cast update and
+ * g_Player.unk70, the one-update pulse the Sword familiar reads (cast or combo completion). */
+typedef struct SotnPlayerSwordBrothers
+{
+    SotnPlayerFactorySource source;
+    bool started, pulse;
+} SotnPlayerSwordBrothers;
 /** @brief Original Soul Steal cast/pose-seven requests, consumed by actual native owners. */
 typedef struct SotnPlayerSoul
 {
@@ -493,6 +501,7 @@ typedef struct SotnPlayerState
     SotnPlayerDark dark;
     SotnPlayerSpirit spirit;
     SotnPlayerSoul soul;
+    SotnPlayerSwordBrothers sword_brothers;
     bool hellfire_started,
         hellfire_hidden; /**< Accepted cast intent and actual palette visibility. */
     Uint16 attack_mode;  /**< Actual unk46; shared ordinary weapons validate this after control. */
@@ -1085,6 +1094,9 @@ bool SotnPlayer_SetSpiritContext(SotnPlayer *player, bool enabled);
  * @return Success or SDL error for a missing owner/private metadata. Defaults to disabled;
  * grants no MP, learning or spell readiness. Cannot detach during actual casting. */
 bool SotnPlayer_SetSoulContext(SotnPlayer *player, bool enabled);
+/** @brief Bind whether the Sword familiar is the active servant (g_Servant == 5), which gates
+ * the Sword Brothers command. @return Success or SDL error for a missing owner. */
+bool SotnPlayer_SetSwordBrothersContext(SotnPlayer *player, bool active);
 /** @brief Run original engine-five animation selection without a normal player update.
  * @param player Borrowed owner. @param buttons Current physical US buttons for next-frame edges.
  * @param animate False on the original release-only frame; true runs only BA/BB/BE/F0/F1.
