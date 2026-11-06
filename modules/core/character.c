@@ -105,8 +105,8 @@ bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
                     id == 25 || id == 80 || id == 81 || id == 82 || id == 134 || id == 135 ||
                     id == 143 || id == 119 || id == 133 || id == 163 || id == 164 || id == 165 ||
                     (id != 125 && SotnEquipment_IsSword0(id)) || SotnEquipment_IsBasicFist(id) ||
-                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 168 || id == 128 ||
-                    id == 166 || (id >= 29 && id <= 79) ||
+                    SotnEquipment_IsPlainWeapon(id) || id == 123 || id == 168 || id == 126 ||
+                    id == 128 || id == 166 || (id >= 29 && id <= 79) ||
                     (id >= 144 && id <= 162 && id != 146 && id != 147))};
     if (body)
     {
@@ -329,6 +329,8 @@ static bool Calculate(SotnCharacter *c)
                                                                : result.total[0] / 2) +
                            (items[i].id == 125 ? Word(c->playtime.hours) : 0) +
                            (items[i].id == 141 ? Word(muramasa) : 0) +
+                           // The Sword Familiar126 adds the Sword familiar's level.
+                           (items[i].id == 126 ? Word(c->familiars.records[4].level) : 0) +
                            // Shield rod4 beside a shield (category9) gains five.
                            (items[i].id == 4 && items[1 - i].category == 9 ? 5 : 0)),
                       0, 999);
@@ -393,6 +395,8 @@ static bool RetainedWeaponProperties(const SotnCharacter *c, SotnEquipment e, Ui
             return false;
         attack = Word(attack + Word(root));
     }
+    if (e.id == 126)
+        attack = Word(attack + Word(c->familiars.records[4].level));
     // CalcAttack's Shield rod4 term: five more beside a shield (category9) in the other hand.
     if (e.id == 4)
     {
@@ -420,8 +424,9 @@ bool SotnCharacter_HandProperties(const SotnCharacter *c, Uint16 item, Uint16 ha
     if (!c || hand > 1 ||
         (item != 0 && !SotnEquipment_IsShield(item) && item != 18 && item != 174 && item != 19 &&
          !SotnEquipment_IsSword0(item) && !SotnEquipment_IsBasicFist(item) &&
-         !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 168 && item != 128 &&
-         item != 143 && item != 133 && item != 163 && item != 164 && item != 165 && item != 119))
+         !SotnEquipment_IsPlainWeapon(item) && item != 123 && item != 168 && item != 126 &&
+         item != 128 && item != 143 && item != 133 && item != 163 && item != 164 && item != 165 &&
+         item != 119))
         return SDL_SetError("Ordinary properties require an actual integrated hand item");
     SotnEquipment e = {0};
     return SotnEquipment_Read(c->dra, item, &e) &&
@@ -609,8 +614,13 @@ bool SotnCharacter_RestoreFamiliarState(SotnCharacter *c, const SotnFamiliarProg
         return SDL_SetError("Familiar restoration requires its actual character and identity0..7");
     if (!SotnFamiliarProgress_Validate(p))
         return false;
-    c->familiars = *p;
-    c->familiar = selected;
+    // The Sword Familiar126's attack follows record4's level, so derived stats are recomputed.
+    SotnCharacter next = *c;
+    next.familiars = *p;
+    next.familiar = selected;
+    if (!Calculate(&next))
+        return false;
+    *c = next;
     return true;
 }
 bool SotnCharacter_SelectFamiliar(SotnCharacter *c, Uint16 selected, bool reloaded)

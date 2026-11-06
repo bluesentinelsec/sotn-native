@@ -947,11 +947,11 @@ static Uint16 HandFamily(Uint16 item)
            : item == 15                ? 29
            : SotnWeaponSecondary_ShieldSpellFamily(item)
                ? SotnWeaponSecondary_ShieldSpellFamily(item)
-           : item == 27                 ? 36
-           : item == 124                ? 57
-           : item == 123 || item == 168 ? 43
-           : item == 128                ? 2
-                                        : 256;
+           : item == 27                                ? 36
+           : item == 124                               ? 57
+           : item == 123 || item == 168 || item == 126 ? 43
+           : item == 128                               ? 2
+                                                       : 256;
 }
 static Uint16 HandVariant(Uint16 item)
 {
@@ -985,6 +985,7 @@ static Uint16 HandVariant(Uint16 item)
     case 103:
     case 184:
     case 117:
+    case 126: // Sword Familiar: weapon43 descriptor2 (green tiles)
         return 2;
     case 124:
     case 192:

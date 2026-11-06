@@ -13,7 +13,7 @@ returning to the main pause panel. Unfound relics show no name or icon and canno
 be activated. Found but unintegrated abilities remain visible and unavailable.
 The Sword Card is the first familiar card the menu switches. As in `dra/menu.c`, switching a card
 turns every other card off. Activating the Sword Card also returns an equipped Sword Familiar (item
-126) to the bag; native hands cannot equip that item yet, so this path is not reachable today.
+126) to the bag, and equipping that item in a hand turns the card off.
 When the menu closes, the active card's familiar loads ([Sword familiar](sword-familiar.md)):
 - a different selection switches familiars (load count +1, menu-switch initialization);
 - an unchanged one reinitializes as `MENU_SAME_SERVANT`;

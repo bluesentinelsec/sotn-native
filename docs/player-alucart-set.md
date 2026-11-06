@@ -29,9 +29,8 @@ term; earlier native builds omitted it. Hand properties therefore take the calli
 
 ## Scope
 
-The Sword Familiar126 (descriptor2, green sparkles) is not enabled: its attack adds the sword
-familiar's level, and equipping it interacts with the Sword Card relic and active servant, which
-have no native owner. Sun/Moonstone hour bonuses and the Vlad relics' stat bonuses in
+The Sword Familiar126 now has its own owner (see [Sword familiar](sword-familiar.md#sword-familiar-item)).
+Sun/Moonstone hour bonuses and the Vlad relics' stat bonuses in
 `UpdateEquipStatBonuses` likewise remain unimplemented; those items stay unsupported. Defaults,
 grants and v10 saves are unchanged. Supplied ownership and positioned-contact fixtures are not
 acquisition or route evidence.

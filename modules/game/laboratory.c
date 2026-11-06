@@ -4801,7 +4801,7 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     .palette = (Uint16)(right ? 0x128 : 0x110),
                     .texture_offset = (Uint16)(right ? 0x66 : 0x64),
                     .blend_mode = (Uint16)(item.equipment == 86 || item.equipment == 123 ||
-                                                   item.equipment == 168
+                                                   item.equipment == 168 || item.equipment == 126
                                                ? 0x30
                                                : 0),
                     .facing_left = player.facing_left};

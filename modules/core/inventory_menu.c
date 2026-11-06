@@ -184,8 +184,13 @@ bool SotnInventoryMenu_Tick(SotnInventoryMenu *m, SotnCharacter *c, Uint16 butto
         }
         if (tapped & SOTN_BUTTON_JUMP)
         {
-            if (SotnCharacter_ConfirmEquipment(c, m->slot, m->rows[m->item_cursor]))
+            const Uint16 chosen = m->rows[m->item_cursor];
+            if (SotnCharacter_ConfirmEquipment(c, m->slot, chosen))
             {
+                // dra/menu.c: equipping the Sword Familiar in a hand turns the Sword Card off;
+                // closing the menu then retires the familiar.
+                if (m->slot < 2 && chosen == 126 && world->relics[SOTN_RELIC_SWORD_CARD] == 3)
+                    world->relics[SOTN_RELIC_SWORD_CARD] = 1;
                 m->phase = SOTN_MENU_EQUIPMENT;
                 *changed = true;
                 *sound = 0x6ad;

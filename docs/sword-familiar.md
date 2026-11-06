@@ -9,9 +9,8 @@ UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 The native session owns it end to end: the relic menu switches the Sword Card, and closing the
 menu summons it (see [Session integration](#session-integration)). It follows, attacks real
 enemies, levels up, gives its level-50 gift and leaves. Familiar levels persist in v11 saves
-([native saves](native-saves.md)), and castle flag 464 records the gift. Sword Brothers and the
-Sword Familiar item's own weapon behaviour follow in later batches. Sword Brothers fails
-explicitly, but no native spell can start it yet. The item is owned but cannot be equipped yet.
+([native saves](native-saves.md)), and castle flag 464 records the gift. Its gift, the [Sword Familiar](#sword-familiar-item), is an ordinary weapon. Sword Brothers
+follows in a later batch; it fails explicitly, but no native spell can start it yet.
 
 ## Behaviour
 
@@ -142,6 +141,21 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   own priorities. It draws them as textured GT4 packets (page 0x1B, palettes 0x140/0x141) with the
   GPU's wrap rule for private-table packets.
 
+## Sword Familiar item
+
+The level-50 gift, item 126, is now an ordinary weapon in either hand. It shares the Alucard
+sword's program (`w_043`):
+- **Swing:** descriptor 2, with the same swing as the Alucard sword and sixteen green sparkle
+  tiles (0, 0x7F, 0x20) instead of blue.
+- **Palette:** its artwork uses palette 1, the second of `w_043`'s five `g_WeaponCluts` tables.
+- **Special:** it has none.
+- **Attack:** its base attack is 0. `CalcAttack` adds the Sword familiar's current level (record 4)
+  to each hand that holds it, in the displayed stats and on every swing. Restoring familiar
+  records (Continue) recomputes the stats.
+- **Card interaction:** equipping it in a hand while the Sword Card is active turns the card off,
+  and closing the menu retires the Sword. Activating the card returns an equipped Sword Familiar
+  to the bag.
+
 ## Evidence
 
 - Public tests (synthetic tables) cover:
@@ -214,6 +228,16 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   4. A re-summon greets with 0x4FE and sets the flag to 4 (load count 2).
   5. A v11 save and Continue bring the active Sword back as the engine-initialized default.
   6. Switching it off retires it.
+- Sword Familiar item checks:
+  - Public tests cover its equipment record (variant 2, palette 1), the green descriptor-2 swing in
+    either hand and its attack following record 4's level.
+  - The private `CalcAttack` oracle runs the original `UpdateEquipStatBonuses`, `CalcAttack` and
+    `GetEquipProperties` over 1,200 equipment/stat contexts. In 228 of them item 126 is in a hand,
+    with Sword familiar levels from 1 to 99, and every one matches.
+  - A private item probe equips it through the actual menu in each hand. It runs 162
+    descriptor-2 swings with green tiles and drawn artwork, kills a positioned enemy, and its
+    attack rises by 40 when the Sword's level does. With the Sword summoned, equipping it turns
+    the card off and retires the familiar.
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
   trail, halo, event entity, `ProcessSfxState`, the target search, both attacks and each DE
   hitbox's first update, the level-50 `AddToInventory` gift and the D5 farewell's dismissal
