@@ -171,6 +171,18 @@ int main(void)
           guarded.attack[0] == rod.attack[0] && guarded.attack[1] == rod.attack[0]);
     CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 167) && SotnCharacter_Get(c, &s, &guarded) &&
           guarded.attack[1] == rod.attack[0] + 5);
+    // Original CalcAttack: the Sword Familiar126 adds the Sword familiar's (record4) level.
+    bytes[0x1000 + 126 * 52 + 14] = 1;
+    bytes[0x1000 + 126 * 52 + 8] = 0;
+    SotnCharacterStats familiar = {0}, raised = {0};
+    SotnFamiliarProgress progress = {0};
+    CHECK(SotnCharacter_Collect(c, false, 126) && SotnCharacter_Equip(c, SOTN_EQUIP_LEFT, 126) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_RIGHT, 0) && SotnCharacter_Get(c, &s, &familiar) &&
+          SotnCharacter_GetFamiliars(c, &progress, NULL) && progress.records[4].level == 1);
+    progress.records[4] = (SotnFamiliarStats){62, 6150, 3};
+    progress.records[2] = (SotnFamiliarStats){9, 800, 1};
+    CHECK(SotnCharacter_RestoreFamiliars(c, &progress) && SotnCharacter_Get(c, &s, &raised) &&
+          raised.attack[0] == familiar.attack[0] + 61 && raised.attack[1] == familiar.attack[1]);
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

@@ -1269,6 +1269,35 @@ static bool Ownership(void)
                 actors->primitives[i].owner = 0;
         CHECK(SotnCharacter_Equip(character, hand, 0));
     }
+    // The Sword Familiar126 runs w_043's descriptor2: the same swing with green tiles.
+    Definition(dra, 126, 43, 0);
+    dra[0x500 + 126 * 52 + 16] = 1;
+    dra[0x500 + 126 * 52 + 20] = 2;
+    SDL_memcpy(weapons + 43U * 0x7000 + 0x4000 + 0x1034, weapons + 43U * 0x7000 + 0x4000 + 0x1014,
+               16);
+    for (Uint16 hand = 0; hand < 2; ++hand)
+    {
+        SDL_zero(*r);
+        CHECK(SotnCharacter_Collect(character, false, 126) &&
+              SotnCharacter_Equip(character, hand, 126));
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_RequestHand(
+                  r, source, 0x20030U | ((Uint32)(hand + 1U) << 12) | ((Uint32)hand << 23), 126,
+                  &allocated) &&
+              allocated && SotnBatRuntime_Tick(r, character, in) && r->hand_attack &&
+              r->children[0].parameter == (0x200U | (hand ? 0x8000U : 0U)) &&
+              r->children[0].state.hand.family == 43 && r->children[0].primitive_count == 16 &&
+              !r->children[0].state.hand.motion.tiles[0].red[0] &&
+              r->children[0].state.hand.motion.tiles[0].green[0] == 127 &&
+              r->children[0].state.hand.motion.tiles[0].blue[0] == 32 &&
+              SotnBatRuntime_HandValid(&r->children[0], 0) &&
+              SotnActors_CommitBatPrimitives(actors, r));
+        SDL_zero(*r);
+        for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+            if (actors->primitives[i].owner != 777)
+                actors->primitives[i].owner = 0;
+        CHECK(SotnCharacter_Equip(character, hand, 0));
+    }
     in = saved_in;
     for (Uint16 hand = 0; hand < 2; ++hand)
     {

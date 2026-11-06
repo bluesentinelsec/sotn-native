@@ -75,8 +75,8 @@ first update in slot order = Spell() INT/rand/Mojo * (level*4/95+1), least-used 
 familiar_mask in combat; destroyed next update). Level 50 with castle flag464==0 adds item126
 and sets 1 (read again the same update: D5 farewell, flag 2); D5 dismisses (card found-only,
 g_Servant0, slots cleared, overlay kept). The relic menu switches card22 (other cards off, item126
-unequip) and menu close loads/switches/same-reinits via LoadFamiliar. Item126 is owned but not
-equippable; Sword Brothers fails explicitly. Square-root oracles: LZC 0x8001721C/0x80016EEC.
+unequip) and menu close loads/switches/same-reinits via LoadFamiliar. Item126 is an ordinary
+weapon (see the Alucart block); Sword Brothers fails explicitly. Square-root oracles: LZC 0x8001721C/0x80016EEC.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
@@ -86,7 +86,9 @@ Selected [Alucart set](docs/player-alucart-set.md): Alucart sword168 runs w_043 
 special), Alucart mail89 is plain armor; IsAlucart (sword+shield167 in hands, mail in armor) adds
 LCK30 before the cap and renames the inventory header. CalcAttack's Shield rod4 +5 beside a
 category9 shield now applies to stats and each swing: SotnCharacter_HandProperties takes the hand.
-Sword Familiar126, Sun/Moonstone and Vlad-relic stat bonuses remain unimplemented.
+Sun/Moonstone and Vlad-relic stat bonuses remain unimplemented. The Sword Familiar126 runs w_043
+descriptor2 (green tiles, palette1 = g_WeaponCluts[1]) with ATK + record4 level (CalcAttack and
+swing properties; RestoreFamiliars recalculates); equipping it turns the Sword Card off.
 
 Selected [Shield rod](docs/player-shield-rod.md) now owns item4 (kind2, weapon7 descriptors 0xC28,
 additive) and back-forward special173: descriptor1 requests WFACTORY(0x4A, anim) on pose4 at player

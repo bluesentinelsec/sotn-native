@@ -419,7 +419,8 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                            : equipment.family == 15 ? 0x8017a7dcU
                            : equipment.family == 16 ? 0x8017a5ecU
                                                     : 0x8017abd4U;
-    if ((equipment.family == 0 && equipment.palette >= 5) ||
+    // w_000 and w_043 each keep five g_WeaponCluts entries selected by the item's palette.
+    if (((equipment.family == 0 || equipment.family == 43) && equipment.palette >= 5) ||
         ((SotnHandWeapon_IsShieldFamily(equipment.family) || equipment.family == 1 ||
           equipment.family == 3 || equipment.family == 4 || equipment.family == 5 ||
           equipment.family == 7 || equipment.family == 54 || equipment.family == 32 ||
@@ -452,7 +453,9 @@ bool SotnActorGraphics_LoadWeapon(SotnActorGraphics *graphics, SotnDataView weap
                                   : 7U) *
         16;
     if (!Resolve(overlay, 0x8017a000,
-                 address + (equipment.family == 0 ? equipment.palette * 4U : 0), 4, 4, &pointer))
+                 address +
+                     (equipment.family == 0 || equipment.family == 43 ? equipment.palette * 4U : 0),
+                 4, 4, &pointer))
         return false;
     // Original LoadWeaponPalette returns without a CLUT write for a NULL table entry (weapon1).
     const bool no_palette = equipment.family == 1 && Read32(pointer.bytes) == 0;

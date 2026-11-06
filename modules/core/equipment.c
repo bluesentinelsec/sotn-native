@@ -236,10 +236,11 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
         return SotnEquipment_ReadThrowing(dra, id, out);
     if (id >= 29 && id <= 70)
         return SotnEquipment_ReadFood(dra, id, out);
-    if (out == NULL || (id != 0 && !SotnEquipment_IsShield(id) && id != 18 && id != 19 &&
-                        id != 174 && !SotnEquipment_IsSword0(id) &&
-                        !SotnEquipment_IsBasicFist(id) && !SotnEquipment_IsPlainWeapon(id) &&
-                        id != 123 && id != 168 && id != 128 && id != 166 && (id < 144 || id > 162)))
+    if (out == NULL ||
+        (id != 0 && !SotnEquipment_IsShield(id) && id != 18 && id != 19 && id != 174 &&
+         !SotnEquipment_IsSword0(id) && !SotnEquipment_IsBasicFist(id) &&
+         !SotnEquipment_IsPlainWeapon(id) && id != 123 && id != 168 && id != 126 && id != 128 &&
+         id != 166 && (id < 144 || id > 162)))
         return SDL_SetError("This weapon checkpoint requires an integrated hand item");
     const bool sword0 = SotnEquipment_IsSword0(id);
     const bool basic_shield = SotnEquipment_IsBasicShield(id);
@@ -254,8 +255,9 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                                  : fist                                ? (id == 97 ? 1 : 0)
                                  : plain                               ? spec.variant
                                  : id == 167 || id == 174 || id == 168 ? 1
+                                 : id == 126                           ? 2
                                                                        : 0;
-    const Uint8 palette = id == 116 ? 2 : id == 122 ? 1 : 0;
+    const Uint8 palette = id == 116 ? 2 : id == 122 || id == 126 ? 1 : 0;
     const bool medicine = id == 166 || (id >= 144 && id <= 162);
     const Uint16 variant = id == 166 ? 20 : id >= 157 ? id - 143 : id >= 144 ? id - 144 : 0;
     const Uint8 *pointer = NULL, *record = NULL;
@@ -268,7 +270,8 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
                        record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
         (id == 19 && (record[15] != 37 || record[17] != 15 || record[18] != 0xa7)) ||
         (sword0 && (record[15] != 0 || record[17] != 1 || record[18] != 0x41)) ||
-        ((id == 123 || id == 168) && (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
+        ((id == 123 || id == 168 || id == 126) &&
+         (record[15] != 43 || record[17] != 1 || record[18] != 0x41)) ||
         (fist && (record[14] != 3 || record[15] != 1 || record[17] != 0 || record[18] != 0x24 ||
                   record[19] != 48 || record[22] != 128 || record[23] || record[24])) ||
         (plain &&
@@ -508,8 +511,8 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
          equipment.id != 143 && equipment.id != 119 && equipment.id != 133 && equipment.id != 163 &&
          equipment.id != 164 && equipment.id != 165 && !SotnEquipment_IsSword0(equipment.id) &&
          !SotnEquipment_IsBasicFist(equipment.id) && !SotnEquipment_IsPlainWeapon(equipment.id) &&
-         equipment.id != 123 && equipment.id != 168 && equipment.id != 197 && equipment.id != 216 &&
-         equipment.id != 128 && (equipment.id < 29 || equipment.id > 79)) ||
+         equipment.id != 123 && equipment.id != 168 && equipment.id != 126 && equipment.id != 197 &&
+         equipment.id != 216 && equipment.id != 128 && (equipment.id < 29 || equipment.id > 79)) ||
         equipment.family !=
             (equipment.id == 24                         ? 20
              : equipment.id >= 75 && equipment.id <= 79 ? 15
@@ -526,7 +529,9 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
              : SotnEquipment_IsPlainWeapon(equipment.id) ? PlainWeapon(equipment.id).family
              : equipment.id == 18 || equipment.id == 174 ? 31
              : equipment.id == 19                        ? 37
-             : equipment.id == 123 || equipment.id == 168 || equipment.id == 197 ? 43
+             : equipment.id == 123 || equipment.id == 168 || equipment.id == 126 ||
+                     equipment.id == 197
+                 ? 43
              : SotnEquipment_IsShield(equipment.id)     ? ShieldFamily(equipment.id)
              : equipment.id == 216                      ? 45
              : equipment.id >= 29 && equipment.id <= 70 ? 21
