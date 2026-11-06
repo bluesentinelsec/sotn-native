@@ -29,6 +29,7 @@ static const Uint32 DIVE_HOLD = 0x8017021cU;   // D_us_8017021C (60)
 static const Uint32 DIVE_GLIDE = 0x80170220U;  // D_us_80170220 (15)
 static const Uint16 SFX_SWEEP = 0x672;         // SFX_NOISE_SWEEP_DOWN_A
 static const Uint16 SFX_WING = 0x6c6;          // SFX_BOSS_WING_FLAP
+static const Uint16 SFX_GIFT = 0x63f;          // SFX_ANIME_SWORD_A
 static const Uint32 CAMERA_LOCKED = 0x08000000U;
 static const Uint32 KEEP_ALIVE = 0x04000000U;
 
@@ -345,8 +346,10 @@ bool SotnSwordRuntime_Init(SotnSwordRuntime *runtime, SotnSwordInput in, Uint16 
 }
 
 // CheckSwordLevel: a level change spawns the missing auras; reaching 50 grants item126.
-static bool CheckLevel(SotnSwordRuntime *r, const SotnSwordSlot *s, SotnSwordInput in)
+static bool CheckLevel(SotnSwordRuntime *r, const SotnSwordSlot *s, SotnSwordInput *input,
+                       SotnSwordEvents *e)
 {
+    const SotnSwordInput in = *input;
     if (!s->step)
         return true;
     r->stats = in.stats;
@@ -359,8 +362,14 @@ static bool CheckLevel(SotnSwordRuntime *r, const SotnSwordSlot *s, SotnSwordInp
         ((row[2] & 1) && !Free(r, SOTN_SWORD_TRAIL, &found) && !Aura(r, SOTN_SWORD_TRAIL)) ||
         ((row[2] & 2) && !Free(r, SOTN_SWORD_HALO, &found) && !Aura(r, SOTN_SWORD_HALO)))
         return false;
+    // AddToInventory(ITEM_SWORD_FAMILIAR, EQUIP_HAND); the castle flag is read again later in
+    // this callback.
     if (r->stats.level == 50 && !in.castle_flag)
-        return SDL_SetError("Sword familiar's level-50 Sword Familiar item gift is not integrated");
+    {
+        e->gift_item = SOTN_SWORD_FAMILIAR_ITEM;
+        e->castle_flag = input->castle_flag = 1;
+        e->castle_flag_write = true;
+    }
     return true;
 }
 // func_us_8017259C: model UVs, CLUT, drawMode and the face index triples.
@@ -430,8 +439,13 @@ static bool Ready(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, bool
         s->camera_y = in.tilemap_y;
         ++s->step;
     }
+    else if (s->identity == SOTN_SWORD_GIFT)
+    {
+        s->flags = 0x04820000U;
+        ++s->step;
+    }
     else
-        return SDL_SetError("Sword familiar's Sword Brothers/gift states are not integrated");
+        return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
     s->kind = s->identity;
     r->entrance_cancel = false;
     return true;
@@ -668,7 +682,7 @@ static bool Valid(SotnSwordInput in, Uint16 follow, bool *out)
 static bool Default(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
                     bool *removed)
 {
-    if (!CheckLevel(r, s, in))
+    if (!CheckLevel(r, s, &in, e))
         return false;
     if (in.castle_flag == 1)
     {
@@ -741,7 +755,7 @@ static bool Default(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, So
 static bool Entrance(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
                      bool *removed)
 {
-    if (!CheckLevel(r, s, in))
+    if (!CheckLevel(r, s, &in, e))
         return false;
     r->entrance_bob = (r->entrance_bob + 16) & 0xfff;
     Sint32 cosine = 0;
@@ -889,7 +903,7 @@ static bool Retarget(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, S
 static bool Circle(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
                    bool *removed)
 {
-    if (!CheckLevel(r, s, in))
+    if (!CheckLevel(r, s, &in, e))
         return false;
     if (in.brothers)
         return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
@@ -1028,7 +1042,7 @@ static bool Steer(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, Sint
 static bool Dive(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
                  bool *removed)
 {
-    if (!CheckLevel(r, s, in))
+    if (!CheckLevel(r, s, &in, e))
         return false;
     if (in.brothers)
         return SDL_SetError("Sword familiar's Sword Brothers state is not integrated");
@@ -1168,6 +1182,97 @@ static bool Dive(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnS
     if (s->step < 5 || r->position[2] < -0x200 || r->position[2] > 0x200)
         return true;
     return Slash(r, s, in, e);
+}
+// func_us_80176270: the level-50 farewell. Two fast passes through the screen, then the card
+// turns off and slots4..7 are destroyed.
+static bool Gift(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, SotnSwordEvents *e,
+                 bool *removed)
+{
+    Sint32 *g = r->gift, sine = 0, cosine = 0;
+    r->position[0] = Long((Uint32)(Pixel(s->x) - 128) << 5);
+    r->position[1] = Long((Uint32)(Pixel(s->y) - 128) << 5);
+    switch (s->step)
+    {
+    case 0:
+        if (!Ready(r, s, in, removed))
+            return false;
+        break;
+    case 1:
+        g[0] = g[1] = 0x1000;
+        g[2] = -0x1000;
+        if (!Sound(e, SFX_GIFT))
+            return false;
+        ++s->step;
+        // fallthrough
+    case 2:
+    case 3: {
+        g[3] = Sub(g[0], r->position[0]);
+        g[4] = Sub(g[1], r->position[1]);
+        g[5] = Sub(g[2], r->position[2]);
+        if (!SotnMath_Atan2Vector(in.executable, g[4], g[3], &s->heading))
+            return false;
+        s->heading = (Sint16)(s->heading & 0xfff);
+        s->yaw = SotnFairy_StepAngle(s->heading, s->yaw_previous, 0x180);
+        s->yaw_previous = s->yaw;
+        if (!Trig(in.executable, s->yaw, &sine, &cosine))
+            return false;
+        g[7] = (Sint32)Asr(Long((Uint32)cosine << 8), 12);
+        g[8] = (Sint32)Asr(Long((Uint32)sine << 8), 12);
+        r->rotation[2] = Word(s->yaw - 0x400);
+        g[3] = Abs(g[3]);
+        g[4] = Abs(g[4]);
+        g[6] = SDL_max(g[3], g[4]);
+        if (!SotnMath_Atan2Vector(in.executable, g[5], g[6], &s->pitch_target))
+            return false;
+        s->pitch_target = (Sint16)(s->pitch_target & 0xfff);
+        s->pitch = SotnFairy_StepAngle(s->pitch_target, s->pitch_previous, 0x40);
+        s->pitch_previous = s->pitch;
+        if (!Trig(in.executable, s->pitch, &sine, NULL))
+            return false;
+        g[9] = (Sint32)Asr(Long((Uint32)sine << 8), 12);
+        r->rotation[0] = s->pitch;
+        for (Uint16 i = 0; i < 3; ++i)
+            r->position[i] = Add(r->position[i], g[7 + i]);
+        g[3] = Sub(g[0], r->position[0]);
+        g[4] = Sub(g[1], r->position[1]);
+        g[5] = Sub(g[2], r->position[2]);
+        const Uint32 sum =
+            (Uint32)g[3] * (Uint32)g[3] + (Uint32)g[4] * (Uint32)g[4] + (Uint32)g[5] * (Uint32)g[5];
+        Uint32 root = 0;
+        if (!SotnMath_Sqrt0(in.executable, sum, &root))
+            return false;
+        g[10] = Long(root);
+        if (g[10] < 0x100)
+        {
+            if (s->step == 2)
+            {
+                r->position[0] = r->position[1] = 0x1000;
+                r->position[2] = -0x1000;
+                g[0] = g[1] = g[2] = -0x1000;
+                s->yaw_previous = 0xa00;
+                s->pitch_previous = 0;
+                if (!Sound(e, SFX_GIFT))
+                    return false;
+            }
+            ++s->step;
+        }
+        break;
+    }
+    case 4:
+        // The card turns off (found only), g_Servant becomes 0 and DestroyEntity clears4..7.
+        e->dismiss = true;
+        SDL_zero(r->slots);
+        return true;
+    default:
+        return SDL_SetError("Sword familiar gift reached an unknown step");
+    }
+    if (!RoomEvents(r, s, in))
+        return false;
+    s->x =
+        Long((Uint32)(Word(r->position[0] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->x & 0xffffU));
+    s->y =
+        Long((Uint32)(Word(r->position[1] / 32 + 128) & 0xffff) << 16 | ((Uint32)s->y & 0xffffU));
+    return Render(r, s->model, in, true);
 }
 // func_us_80176BF8: sixteen additive bands trailing the projected blade edge.
 static bool Trail(SotnSwordRuntime *r, SotnSwordSlot *s, SotnSwordInput in, bool *removed)
@@ -1339,6 +1444,10 @@ bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwo
         if (!Dive(&r, s, in, &e, &removed))
             return false;
         break;
+    case SOTN_SWORD_GIFT:
+        if (!Gift(&r, s, in, &e, &removed))
+            return false;
+        break;
     case SOTN_SWORD_TRAIL:
         if (!Trail(&r, s, in, &removed))
             return false;
@@ -1491,7 +1600,8 @@ bool SotnSwordRuntime_Leases(const SotnSwordRuntime *runtime, SotnSwordLease out
         const SotnSwordSlot *s = &runtime->slots[i];
         const Sint16 part =
             (s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE ||
-             s->identity == SOTN_SWORD_CIRCLE || s->identity == SOTN_SWORD_DIVE)
+             s->identity == SOTN_SWORD_CIRCLE || s->identity == SOTN_SWORD_DIVE ||
+             s->identity == SOTN_SWORD_GIFT)
                 ? (s->kind ? 0 : -1)
             : s->identity == SOTN_SWORD_TRAIL ? (s->step ? 1 : -1)
             : s->identity == SOTN_SWORD_HALO  ? (s->step ? 2 : -1)

@@ -6,13 +6,12 @@ now has a native component (`modules/core/sword_familiar.c`) for its idle side. 
 trail, the level-90 halo, the room-event entity and the narrative sound cursor. Its private model,
 UV, CLUT and event tables are read from the user's `TT_004.BIN`.
 
-The native session owns it through the familiar load boundary (see [Session
-integration](#session-integration)), including its target search and both attacks against real
-enemies. The relic menu does not offer the Sword Card yet. Familiar levels persist in v11 saves
-([native saves](native-saves.md)). Sword Brothers, the level-50 gift and the Sword Familiar item
-follow in later batches. Until then those states fail explicitly instead of degrading. In
-particular, a Sword reaching level 50 stops the game, which is why the menu toggle waits for the
-gift.
+The native session owns it end to end: the relic menu switches the Sword Card, and closing the
+menu summons it (see [Session integration](#session-integration)). It follows, attacks real
+enemies, levels up, gives its level-50 gift and leaves. Familiar levels persist in v11 saves
+([native saves](native-saves.md)), and castle flag 464 records the gift. Sword Brothers and the
+Sword Familiar item's own weapon behaviour follow in later batches. Sword Brothers fails
+explicitly, but no native spell can start it yet. The item is owned but cannot be equipped yet.
 
 ## Behaviour
 
@@ -48,6 +47,15 @@ gift.
   re-checking the target before each pass. It slashes only while its depth is within ±0x200.
   Steering uses `ratan2`, `rcos`/`rsin` speeds of 5/128 or 3/64, pitch steps, and `SquareRoot0`
   of the 3D distance (below 0x200 to arrive).
+- **Level-50 gift** (`CheckSwordLevel`): on reaching level 50 while castle flag 464 is 0, the
+  sword adds the Sword Familiar (item 126) to the hand inventory and sets the flag to 1. The default
+  sword reads that flag in the same update, sets it to 2 and starts its farewell (D5). Attacks
+  continue first and switch to the farewell when they return to the default sword. A Sword summoned
+  after the gift raises the flag to 3 on arrival and 4 with its 0x4FE greeting.
+- **Farewell (D5)**: it plays `0x63F` and turns toward (1, 1, −1) screen-units at 1/16 of `rcos`
+  per update (yaw step 0x180, pitch step 0x40). On arrival it jumps to that corner, plays `0x63F`
+  again and crosses to (−1, −1, −1). Then it turns the card off (found only), clears `g_Servant`
+  and destroys slots 4..7. Unlike the attacks, it does not follow camera scrolls.
 - **Slashes**: the first slash of each swing rolls `rand()%16`; 0 or 1 plays a voice from the
   overlay's table. Every slash then requests two DE hitbox entities from slots 17..46
   (`GetFreeEntity(0x11, 0x2F)`). Each takes the projected blade tip, a 4×4 hitbox and spell 19
@@ -110,6 +118,12 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   - the DE requests.
 
   Sword Brothers stays false because no native spell sets `g_Player.unk70`.
+- **Menu and gift**: the relic menu switches the Sword Card (turning other cards off) and closing
+  it loads the familiar: a switch (load count +1) summons the entrance, an unchanged selection
+  reinitializes as `MENU_SAME_SERVANT`. The gift's item enters the hand inventory; the farewell's
+  dismissal turns the card off, clears the selection and releases the rows, keeping the overlay
+  cached for a later summon. Continue restores an active card as the engine-initialized default
+  sword.
 - **Hitboxes**: each DE request takes the first free shared slot in 17..46, counting other
   owners such as Gas Cloud and Mist. It stores the blade tip in room space (tip plus the Sword's
   camera), its parameter, spell and the familiar's level. A full range creates nothing, as in the
@@ -184,12 +198,29 @@ the Fairy, through one per-familiar profile: card relic 22, stats record 4, the
   DE hitboxes. Enemies take damage, die and award the familiar EXP (0→4). At level 75 the Sword
   dives instead (317 updates, 102 diving hitboxes). This is not menu activation, acquisition or
   route evidence.
+- Public gift tests cover:
+  - the grant only at exactly level 50 with castle flag 0, read again in the same update;
+  - no grant once given;
+  - the farewell's yaw/pitch steps, `rcos/16` speeds and 0x100 arrival;
+  - the corner jump, both sounds, the dismissal and released leases.
+  Relic and menu tests cover the card switch, the exclusion of other cards and the remaining
+  unavailable cards.
+- A private menu probe in Laboratory room 16 uses the actual pause menu, with explicit card,
+  level and protection fixtures:
+  1. Switching the Sword Card on and closing the menu summons it (load count 1, 0x4FB).
+  2. Reopening and closing the menu reinitializes it without a load.
+  3. Reaching level 50 gives one item 126 and sets the castle flag to 2. The farewell then
+     turns the card off and retires every row.
+  4. A re-summon greets with 0x4FE and sets the flag to 4 (load count 2).
+  5. A v11 save and Continue bring the active Sword back as the engine-initialized default.
+  6. Switching it off retires it.
 - The private comparison runs the original `ServantInit`, `UpdateServantDefault`, the entrance,
   trail, halo, event entity, `ProcessSfxState`, the target search, both attacks and each DE
-  hitbox's first update in lockstep with the native component. It uses SLUS
+  hitbox's first update, the level-50 `AddToInventory` gift and the D5 farewell's dismissal
+  (`g_Servant`, card bits, cleared slots) in lockstep with the native component. It uses SLUS
   `rsin`/`rcos`/`ratan2`/`SquareRoot12`/`SquareRoot0`/`CompMatrix` (the square roots' leading-zero
-  count adapted), the libc `rand()` and the private PSY-Z COP2 registers. It covers 12 contexts and
-  13,636 callbacks, including:
+  count adapted), the libc `rand()` and the private PSY-Z COP2 registers. It covers 13 contexts and
+  13,907 callbacks, including 75 farewell updates, one gift and one dismissal, and:
   - 3,372 attack updates and 1,206 hitbox entities;
   - 6 target marks, 19 voices and 35 `rand()` calls;
   - 692,240 row comparisons.

@@ -12,7 +12,8 @@ enum
     SOTN_SWORD_TRAIL_ROWS = 16,
     SOTN_SWORD_HALO_ROWS = 4,
     SOTN_SWORD_CLUT_WORDS = 48,
-    SOTN_SWORD_TARGETS = 128 /**< Stage entity slots64..191 scanned by the target search. */
+    SOTN_SWORD_TARGETS = 128,      /**< Stage entity slots64..191 scanned by the target search. */
+    SOTN_SWORD_FAMILIAR_ITEM = 126 /**< ITEM_SWORD_FAMILIAR, the level-50 hand-item gift. */
 };
 /** Original Sword familiar entity identities (SERVANT_ID 1..13). */
 enum
@@ -71,6 +72,7 @@ typedef struct SotnSwordRuntime
     Sint32 circle[6]; /**< D_us_80178568..7C: circle attack angle, counter, deltas, target. */
     Sint32 dive[14];  /**< D_us_80178580..B4: dive target, deltas, velocity, origin, distance. */
     Sint32 target_cursor; /**< D_us_80178B88: round-robin over already-marked targets. */
+    Sint32 gift[12];      /**< D_us_801785EC..618: the farewell's targets, deltas and speed. */
     Uint32 generation;
     bool initialized;
 } SotnSwordRuntime;
@@ -132,6 +134,8 @@ typedef struct SotnSwordEvents
     SotnSwordHitbox hitboxes[2];       /**< DE requests in order. */
     Uint16 hitbox_count, random_calls; /**< rand() calls this callback consumed. */
     Uint32 random;                     /**< libc rand() state after the callback. */
+    Uint16 gift_item; /**< AddToInventory(ITEM_SWORD_FAMILIAR, EQUIP_HAND) at level 50, or 0. */
+    bool dismiss; /**< The farewell ended: card off (found only), g_Servant 0, slots4..7 gone. */
 } SotnSwordEvents;
 /** @brief Read ServantInit's g_ServantClut (16) and g_SwordClut (32) words for row0xF4.
  * @return Success or SDL error for a malformed private overlay. */
@@ -145,7 +149,7 @@ bool SotnSwordRuntime_Init(SotnSwordRuntime *runtime, SotnSwordInput input, Uint
                            SotnSwordEvents *out);
 /** @brief Run one actual slot4..7 callback in original slot order.
  * @return Success or SDL error preserving runtime/output. The circle (D2) and dive (D3) attacks
- * run; Sword Brothers and the level-50 gift and its item fail explicitly instead of degrading. */
+ * and the level-50 gift and farewell (D5) run; Sword Brothers fails explicitly. */
 bool SotnSwordRuntime_UpdateSlot(SotnSwordRuntime *runtime, Uint16 slot, SotnSwordInput input,
                                  SotnSwordEvents *out);
 /** @brief Apply original camera/player or room-entry translation to entities and their rows.

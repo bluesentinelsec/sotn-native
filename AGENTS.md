@@ -72,8 +72,11 @@ follow), the circle D2 (<70) and dive D3 (>=70) with libc rand, voices (D_us_801
 DE hitboxes per slash from slots17..46 (GetFreeEntity(0x11,0x2F), tips, spell19/20). The session
 commits the marks (generation-checked), voices and DE children (SotnBatRuntime familiar_hitbox:
 first update in slot order = Spell() INT/rand/Mojo * (level*4/95+1), least-used group, 4x4,
-familiar_mask in combat; destroyed next update). Sword Brothers and the level-50 gift fail
-explicitly, so the menu toggle waits for the gift. Square-root oracles: LZC 0x8001721C/0x80016EEC.
+familiar_mask in combat; destroyed next update). Level 50 with castle flag464==0 adds item126
+and sets 1 (read again the same update: D5 farewell, flag 2); D5 dismisses (card found-only,
+g_Servant0, slots cleared, overlay kept). The relic menu switches card22 (other cards off, item126
+unequip) and menu close loads/switches/same-reinits via LoadFamiliar. Item126 is owned but not
+equippable; Sword Brothers fails explicitly. Square-root oracles: LZC 0x8001721C/0x80016EEC.
 
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
@@ -2008,9 +2011,10 @@ original sound requests and checked primitive/tile ownership. Selected NO2 trave
 now runs; explicit placed-door checks are not whole-route/console parity.
 
 The selected [relic pause controls](docs/relic-menu.md) now switch owned Cube of
-Zoe, Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist and Gas Cloud. Preserve found bits, US cursor
+Zoe, Soul of Bat, Gravity Boots, Leap Stone, Jewel of Open, Mist, Power of Mist, Gas Cloud and
+the Sword Card (other cards off; menu close loads the familiar). Preserve found bits, US cursor
 mapping (skip identities 23/24), paused simulation and immediate player snapshots.
-Other abilities and familiars remain unavailable; never grant ownership or reset
+Other abilities and familiar cards remain unavailable; never grant ownership or reset
 transient movement/MP when switching. Version-nine saves retain disabled relics.
 Private grants/transfers are not ordinary acquisition or whole-route parity.
 

@@ -2,7 +2,7 @@
 
 The native pause menu now opens Relics and switches owned Cube of Zoe, Gravity
 Boots, Leap Stone, Jewel of Open, Soul of Bat, Fire of Bat, Echo of Bat, Force of
-Echo, Soul/Power/Skill of Wolf, Mist, Power of Mist and Gas Cloud on or off. Enter/Xbox Start opens or closes
+Echo, Soul/Power/Skill of Wolf, Mist, Power of Mist, Gas Cloud and the Sword Card on or off. Enter/Xbox Start opens or closes
 pause; X/Space/Xbox A selects, and keyboard A/Xbox Y returns. Gameplay and elapsed
 ticks remain paused while the menu owns control; music continues.
 
@@ -11,8 +11,14 @@ column and stops at its ends; left/right changes columns. Original identities
 23/24, the Japanese-exclusive familiar cards, are omitted. Selection survives
 returning to the main pause panel. Unfound relics show no name or icon and cannot
 be activated. Found but unintegrated abilities remain visible and unavailable.
-Familiar activation is deferred with its runtime, mutual exclusion and sword
-familiar equipment effects; the menu never claims to implement those behaviors.
+The Sword Card is the first familiar card the menu switches. As in `dra/menu.c`, switching a card
+turns every other card off. Activating the Sword Card also returns an equipped Sword Familiar (item
+126) to the bag; native hands cannot equip that item yet, so this path is not reachable today.
+When the menu closes, the active card's familiar loads ([Sword familiar](sword-familiar.md)):
+- a different selection switches familiars (load count +1, menu-switch initialization);
+- an unchanged one reinitializes as `MENU_SAME_SERVANT`;
+- none retires the previous familiar.
+Other familiar cards stay visible and unavailable.
 
 A successful switch preserves the found bit and XORs the original active bit.
 The ordinary world owns this state; the player receives its updated validated

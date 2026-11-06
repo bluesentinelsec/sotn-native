@@ -256,6 +256,10 @@ static bool Run(SotnSwordRuntime *r, SotnSwordInput in, SotnSwordEvents *last)
             last->pause_write = true;
             last->pause_allowed = e.pause_allowed;
         }
+        last->sound_count = (Uint16)(last->sound_count + e.sound_count);
+        last->dismiss = last->dismiss || e.dismiss;
+        if (e.gift_item)
+            last->gift_item = e.gift_item;
     }
     return true;
 }
@@ -521,14 +525,9 @@ static bool EventsTest(void)
     in.brothers = false;
     in.castle_flag = 1;
     CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].identity == SOTN_SWORD_GIFT &&
-          e.castle_flag_write && e.castle_flag == 2);
-    before = *r;
-    CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
-    SDL_zerop(r);
-    in = Input(50, 2, 0, 0);
-    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && SotnSwordRuntime_UpdateSlot(r, 4, in, &e));
-    before = *r;
-    CHECK(!SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !SDL_memcmp(r, &before, sizeof(*r)));
+          e.castle_flag_write && e.castle_flag == 2 && !e.gift_item);
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && r->slots[0].step == 1 &&
+          r->slots[0].flags == 0x04820000U);
     CHECK(!SotnSwordRuntime_UpdateSlot(r, 3, in, &e) &&
           !SotnSwordRuntime_UpdateSlot(NULL, 4, in, &e));
     SDL_free(r);
@@ -960,11 +959,85 @@ static bool DiveTest(void)
     SDL_free(r);
     return true;
 }
+// Level 50 with no gift yet: the item and castle flag1 in the same callback, which the default
+// sword reads at once (D5); the farewell's two passes, then the card turns off.
+static bool GiftTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r));
+    CHECK(r != NULL);
+    SotnSwordInput in = Input(49, 2, 0, 0);
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e) && Run(r, in, &e) && Run(r, in, &e));
+    // Already given (castle flag 4): reaching 50 again grants nothing.
+    SotnSwordRuntime *given = SDL_malloc(sizeof(*given));
+    CHECK(given != NULL);
+    *given = *r;
+    SotnSwordInput again = in;
+    again.stats = (SotnFamiliarStats){50, 4900, 2};
+    again.castle_flag = 4;
+    CHECK(SotnSwordRuntime_UpdateSlot(given, 4, again, &e) && !e.gift_item &&
+          !e.castle_flag_write && given->slots[0].identity == SOTN_SWORD_DEFAULT);
+    // Only exactly level 50 gives the gift.
+    given = SDL_malloc(sizeof(*given));
+    CHECK(given != NULL);
+    *given = *r;
+    again.stats = (SotnFamiliarStats){51, 5000, 2};
+    again.castle_flag = 0;
+    CHECK(SotnSwordRuntime_UpdateSlot(given, 4, again, &e) && !e.gift_item &&
+          given->slots[0].identity == SOTN_SWORD_DEFAULT);
+    SDL_free(given);
+    in.stats = (SotnFamiliarStats){50, 4900, 2};
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && e.gift_item == 126 && e.castle_flag_write &&
+          e.castle_flag == 2 && r->slots[0].identity == SOTN_SWORD_GIFT && !r->slots[0].step);
+    in.castle_flag = 2;
+    // The level stays: no second gift.
+    CHECK(SotnSwordRuntime_UpdateSlot(r, 4, in, &e) && !e.gift_item && r->slots[0].step == 1);
+    Uint16 sounds = 0, guard = 0, passes = 0;
+    bool dismissed = false;
+    while (!dismissed && ++guard < 600)
+    {
+        const Uint16 step = r->slots[0].step;
+        const SotnSwordSlot before = r->slots[0];
+        CHECK(Run(r, in, &e));
+        if ((step == 2 || step == 3) && r->slots[0].identity)
+        {
+            const SotnSwordSlot *g = &r->slots[0];
+            SotnMathTrig yaw = {0}, pitch = {0};
+            CHECK(SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, g->yaw, &yaw) &&
+                  SotnMath_Trig((SotnDataView){exe, sizeof(exe)}, g->pitch, &pitch));
+            CHECK(g->yaw == SotnFairy_StepAngle(g->heading, before.yaw_previous, 0x180) &&
+                  g->pitch == SotnFairy_StepAngle(g->pitch_target, before.pitch_previous, 0x40) &&
+                  r->gift[7] == (yaw.cosine * 256) >> 12 && r->gift[8] == (yaw.sine * 256) >> 12 &&
+                  r->gift[9] == (pitch.sine * 256) >> 12 &&
+                  (g->step != step) == (r->gift[10] < 0x100));
+        }
+        sounds += e.sound_count;
+        if (step == 2 && r->slots[0].step == 3)
+        {
+            ++passes;
+            CHECK(r->position[0] == 0x1000 && r->position[2] == -0x1000 && r->gift[0] == -0x1000 &&
+                  r->gift[1] == -0x1000 && r->gift[2] == -0x1000 &&
+                  r->slots[0].yaw_previous == 0xa00 && !r->slots[0].pitch_previous &&
+                  (r->slots[0].x >> 16) == 0x1000 / 32 + 128);
+        }
+        if (step == 1)
+            CHECK(r->gift[0] == 0x1000 && r->gift[2] == -0x1000);
+        dismissed = e.dismiss;
+    }
+    CHECK(dismissed && passes == 1 && sounds >= 2);
+    for (Uint16 i = 0; i < 4; ++i)
+        CHECK(!r->slots[i].identity);
+    SotnSwordLease leases[3] = {0};
+    CHECK(SotnSwordRuntime_Leases(r, leases) && !leases[0].count && !leases[1].count);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     Fixture();
     return InitTest() && EntranceTest() && FollowTest() && EventsTest() && EntranceBandsTest() &&
-                   LifecycleTest() && LeaseTest() && SearchTest() && CircleTest() && DiveTest()
+                   LifecycleTest() && LeaseTest() && SearchTest() && CircleTest() && DiveTest() &&
+                   GiftTest()
                ? 0
                : 1;
 }

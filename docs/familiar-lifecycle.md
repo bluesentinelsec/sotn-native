@@ -2,9 +2,9 @@
 
 The native lifecycle now owns verified US Fairy loading, cached reselection,
 deselection and atomic four-slot retirement through an owned load-boundary API.
-Ordinary relic-menu activation remains disabled until saved progression, remaining
-audio/cutscene lifecycle, whole-pass transactions and
-integrated acceptance are complete. Existing grants, pools and v9 saves are unchanged.
+The relic menu now activates the Sword Card: closing the menu loads, switches or reinitializes
+the active card's familiar through this owner. Other familiar cards, including the Fairy's, stay
+unavailable in the menu. Existing grants and pools are unchanged; v11 saves persist the records.
 
 `SotnLaboratory_SelectFamiliar` accepts original 0, 3 (Fairy, card 20) and 5 ([Sword](sword-familiar.md),
 card 22) in an actual idle menu/load context and requires the selected familiar's found card.

@@ -145,7 +145,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   it through the familiar load API (card22, record4, real row leases). Its component now also
   runs the target search and both attacks (circle below level 70, dive from 70), and the session
   connects their marks, voices and one-update DE hitboxes to native combat and familiar EXP. The
-  relic menu does not offer it yet (the level-50 gift is still missing).
+  relic menu switches the Sword Card; its level-50 gift (item 126, owned but not yet equippable)
+  and farewell run. Sword Brothers and the Sword Familiar weapon remain.
   The [selected load/retirement owner](familiar-lifecycle.md) now provides owned0/3
   resource initialization, root/wings, cached reselection, actual item/rescue producers
   and deselection through a native load-boundary API. Detached graphics/SPU/CD
