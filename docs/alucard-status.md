@@ -140,6 +140,8 @@ needs a source-backed inventory of its remaining branches and an evidence record
   [inventory/translation](familiar-inventory-translation.md),
   [shared cleanup](familiar-rescue-cleanup.md) and
   [FFF/player17 dispatch](fairy-native-dispatch.md) now connect their bound native owners.
+  The [Sword familiar component](sword-familiar.md) reconstructs its init, entrance, follow,
+  GTE model, trail, halo, events and speech; it is not yet selectable or drawn.
   The [selected load/retirement owner](familiar-lifecycle.md) now provides owned0/3
   resource initialization, root/wings, cached reselection, actual item/rescue producers
   and deselection through a native load-boundary API. Detached graphics/SPU/CD

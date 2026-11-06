@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+The [Sword familiar component](docs/sword-familiar.md) (tt_004, card22, servant5, stats4) owns
+ServantInit (48-word CLUT row0xF4), default follow, menu-switch entrance (speech 0x4FB..0x4FF),
+the GTE model (own matrix, CompMatrix (0,0,6500), RTPS (128,128)/H1000, NCLIP, OTZ priorities),
+blade trail (DA), level-90 halo (DB), events (table 0x801719E4, DC) and the DD sound cursor.
+Not yet selectable/drawn; targets, Sword Brothers and the level-50 gift fail explicitly. Oracle
+SquareRoot12 needs the LZC adapter at 0x8001721C (like SquareRoot0).
+
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
 restores them before InitializeFamiliar. Older "v9/v10" notes describe v11's other fields.
