@@ -6,7 +6,7 @@ enum
     SOTN_FAMILIAR_COUNT = 7
 };
 /** @brief Original three signed words, including menu load count, for each familiar.
- * These records grant no card or active familiar. Existing v9 saves do not encode them. */
+ * These records grant no card or active familiar. Ordinary v11 saves encode them. */
 typedef struct SotnFamiliarStats
 {
     Sint32 level, experience, loads;
