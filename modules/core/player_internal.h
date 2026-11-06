@@ -79,6 +79,8 @@ struct SotnPlayer
     SotnPlayerMedicineConsume throwing_consume;
     SotnPlayerThrowingRandom throwing_random;
     void *throwing_context;
+    SotnPlayerSubweaponUse subweapon_use;
+    void *subweapon_context;
     Uint8 throwing_count[2];
     Uint8 special_count[2]; /**< Live children carrying each hand's QCF special equip id. */
     Uint8 special_cross[2]; /**< The same special's live children with the other hand's params. */

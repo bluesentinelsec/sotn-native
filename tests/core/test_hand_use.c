@@ -3,6 +3,7 @@
 // equipped unk17 item (Basilard's 174) without the casting grunt; kind0 airborne variants.
 #include "character_fixture.h"
 #include "player_internal.h"
+#include <sotn/subweapon.h>
 
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -22,6 +23,8 @@ typedef struct Fixture
     Uint16 rolls[4], roll_count, factories, item, swords, consumed;
     Uint32 packed, sword_packed;
     bool allocate;
+    Uint16 subweapon_calls;
+    bool subweapon_handled, subweapon_used;
 } Fixture;
 static void Put16(Uint8 *p, Uint16 value)
 {
@@ -64,6 +67,17 @@ static bool Random(void *context, Uint16 *value)
     if (f->roll_count >= SDL_arraysize(f->rolls))
         return SDL_SetError("Red Rust test exhausted its scripted rand results");
     *value = f->rolls[f->roll_count++];
+    return true;
+}
+static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
+                         Uint16 *animation)
+{
+    (void)source;
+    Fixture *f = context;
+    ++f->subweapon_calls;
+    *handled = f->subweapon_handled;
+    *used = f->subweapon_handled && f->subweapon_used;
+    *animation = *used ? 0xbc : 0;
     return true;
 }
 static void Item(Uint8 *dra, Uint16 id, Uint8 category, Uint8 family, Uint8 kind, Uint8 animation,
@@ -895,6 +909,58 @@ static bool HeartRefresh(Fixture *f)
     }
     return true;
 }
+// func_8010EB5C through a shared-runtime owner: Up+attack spends the use, then func_8010EA54(8)
+// rolls once (grunt below four) and timer ALU_T_USE_SUBWPN holds four; a refused use falls
+// through to the hand attack without a roll; an unhandled id stays with the legacy service.
+static bool SharedSubweapon(Fixture *f)
+{
+    SotnSubweapons *legacy = NULL;
+    for (Uint16 k = 0; k < 4; ++k)
+    {
+        CHECK(Create(f, 26, k == 1 ? 6 : 1, 5, true));
+        CHECK(SotnSubweapons_Create((SotnDataView){f->dra, sizeof(f->dra)}, f->character, f->map,
+                                    &legacy) &&
+              SotnPlayer_SetSubweapons(f->p, legacy) &&
+              SotnPlayer_SetThrowingContext(f->p, Factory, Consume, Random, f, 0, 0) &&
+              SotnPlayer_SetSubweaponContext(f->p, SubweaponUse, f));
+        f->subweapon_handled = k != 3;
+        f->subweapon_used = k < 2;
+        for (Uint16 v = 0; v < 4; ++v)
+            Put16(f->dra + 0xcf60 + v * 2U, (Uint16)(0x6f0 + v));
+        // k3: the legacy service keeps an unhandled dagger (no grunt roll).
+        Uint8 *dagger = f->dra + 0x4a00 + 20;
+        dagger[0] = 7;
+        dagger[2] = 3;
+        dagger[6] = 2;
+        dagger[7] = 4;
+        dagger[10] = 0x5d;
+        dagger[12] = 2;
+        SotnCharacterState c = {0};
+        CHECK(SotnCharacter_Get(f->character, &c, NULL));
+        c.subweapon = 1;
+        c.hearts = 20;
+        c.hearts_max = 99;
+        CHECK(SotnCharacter_Restore(f->character, &c));
+        for (Uint16 i = 0; i < 8; ++i)
+            CHECK(Tick(f, 0));
+        const bool ok = Tick(f, SOTN_BUTTON_UP | SOTN_BUTTON_LEFT_HAND);
+        SotnPlayerState p = {0};
+        CHECK(ok && SotnPlayer_GetState(f->p, &p) && f->subweapon_calls == 1);
+        if (k < 2)
+            CHECK(!f->factories && f->roll_count == 1 && f->p->subweapon_ticks == 4 &&
+                  f->p->animation.id == 0xbc && p.throwing_grunt == (k ? 0 : 0x6f1));
+        else if (k == 3)
+            CHECK(!f->factories && !f->roll_count && f->p->subweapon_ticks == 4 &&
+                  f->p->animation.id == 0x5d && !p.throwing_grunt);
+        else
+            CHECK(f->factories == 1 && f->item == 26 && !f->p->subweapon_ticks &&
+                  !p.throwing_grunt);
+        SotnPlayer_SetSubweapons(f->p, NULL);
+        SotnSubweapons_Destroy(legacy);
+        legacy = NULL;
+    }
+    return true;
+}
 // 6E42C.c both buttons: Mablung124 + Leather5 resolve CheckWeaponCombo to spell203 on the
 // shield's hand; the spell's factory takes <<14 hand bits, ten MP and kind5's grounded stop.
 // A live spell (chain1) or too little MP leaves the left hand's ordinary swing.
@@ -1181,7 +1247,7 @@ int main(void)
          Combo(f, 12, 210, 10) && Combo(f, 7, 205, 20) && Combo(f, 9, 207, 10) &&
          Combo(f, 10, 208, 30) && Combo(f, 13, 211, 30) && Combo(f, 14, 212, 40) &&
          Combo(f, 15, 213, 50) && ShieldRodAttack(f) && Combo(f, 16, 214, 20) &&
-         ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
+         SharedSubweapon(f) && ComboWith(f, 4, 5, 203, 10) && ComboWith(f, 4, 16, 214, 20);
     // Exhausted factories never reach the roll.
     if (ok)
     {

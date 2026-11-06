@@ -794,6 +794,17 @@ bool SotnPlayer_RequestGrab(SotnPlayer *player, SotnPlayerGrab request);
  * @param player Borrowed simulation. @param service Borrowed service. @return Success or SDL error.
  */
 bool SotnPlayer_SetSubweapons(SotnPlayer *player, SotnSubweapons *service);
+/** @brief func_8010EB5C for subweapons owned by the shared player runtime: definition, hearts,
+ * CheckSubwpnChainLimit, heart spending and CreateEntFactoryFromEntity.
+ * @param context Owner. @param source Player at use. @param handled Receives false when the
+ * equipped subweapon still belongs to the legacy service. @param used Receives success; false
+ * permits the ordinary hand attack. @param animation Receives the definition's standing anim.
+ * @return Success or SDL error; the owner restores hearts/factories if the player update fails. */
+typedef bool (*SotnPlayerSubweaponUse)(void *context, SotnPlayerFactorySource source, bool *handled,
+                                       bool *used, Uint16 *animation);
+/** @brief Bind the shared-runtime subweapon owner; NULL keeps only the legacy service.
+ * A handled use also takes func_8010EA54(8)'s grunt roll through the bound throwing random. */
+bool SotnPlayer_SetSubweaponContext(SotnPlayer *player, SotnPlayerSubweaponUse use, void *context);
 
 /** @brief Copy persistent relic ownership into the normal-form simulation.
  * @param player Borrowed simulation. @param world Borrowed progress; only its thirty

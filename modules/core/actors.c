@@ -509,7 +509,7 @@ static bool AttackerFeedback(SotnActors *actors, Uint32 channel, Uint32 wing_sta
                                      actors->bat_runtime->wolf.children[1].generation, flags))
                 return false;
         }
-        else if (child->kind == 45 || child->kind == 26 || child->kind == 27 ||
+        else if (child->subweapon || child->kind == 45 || child->kind == 26 || child->kind == 27 ||
                  (child->magic && (child->kind == 0xe1 || child->kind == 0xf1)) || child->star ||
                  // collision.h writes the attacker's hitFlags unless both it and the
                  // enemy carry FLAG_UNK_100000.
@@ -634,8 +634,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                        actors->bat_runtime->magic_mask || actors->bat_runtime->thrown_mask ||
                        actors->bat_runtime->star_mask || actors->bat_runtime->karma_mask ||
                        actors->bat_runtime->secondary_mask || actors->bat_runtime->familiar_mask ||
-                       actors->bat_runtime->echo_attack || actors->bat_runtime->soul_attack ||
-                       actors->bat_runtime->wolf_mask);
+                       actors->bat_runtime->subweapon_mask || actors->bat_runtime->echo_attack ||
+                       actors->bat_runtime->soul_attack || actors->bat_runtime->wolf_mask);
     const Uint32 total_channels =
         wing ? wing_start + 48U
              : gas_start +
@@ -663,6 +663,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
             const bool selected_karma = (runtime->karma_mask & ((Uint64)1 << index)) != 0;
             const bool selected_secondary = (runtime->secondary_mask & ((Uint64)1 << index)) != 0;
             const bool selected_familiar = (runtime->familiar_mask & ((Uint64)1 << index)) != 0;
+            const bool selected_subweapon = (runtime->subweapon_mask & ((Uint64)1 << index)) != 0;
             const bool selected_star = (runtime->star_mask & ((Uint64)1 << index)) != 0;
             const bool selected_thrown = (runtime->thrown_mask & ((Uint64)1 << index)) != 0;
             const bool selected_axe = (runtime->axe_mask & ((Uint64)1 << index)) != 0;
@@ -674,7 +675,7 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                 !selected_spirit && !selected_hellfire && !selected_soul && !selected_sword &&
                 !selected_hand && !selected_axe && !selected_neutron && !selected_sire &&
                 !selected_pentagram && !selected_magic && !selected_thrown && !selected_star &&
-                !selected_karma && !selected_secondary && !selected_familiar)
+                !selected_karma && !selected_secondary && !selected_familiar && !selected_subweapon)
                 continue;
             if (selected_wolf)
             {
@@ -753,12 +754,16 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                     (selected_familiar &&
                      (!SotnBatRuntime_FamiliarHitboxValid(child, (Uint16)index) ||
                       !child->initialized || child->group < 3 ||
-                      !child->state.familiar.attack.active)))
+                      !child->state.familiar.attack.active)) ||
+                    (selected_subweapon &&
+                     (!child->subweapon || !SotnBatRuntime_SubweaponValid(child, (Uint16)index) ||
+                      !child->state.subweapon.attack.active)))
                     return SDL_SetError("Bat attack lost its actual child or original group");
                 source.x = child->source.x;
                 source.y = child->source.y;
                 source.facing_left = child->source.facing_left;
-                source.attack = selected_familiar    ? child->state.familiar.attack
+                source.attack = selected_subweapon   ? child->state.subweapon.attack
+                                : selected_familiar  ? child->state.familiar.attack
                                 : selected_hand      ? child->state.hand.attack
                                 : selected_secondary ? child->state.secondary.attack
                                 : selected_karma     ? child->state.karma.attack

@@ -1302,6 +1302,13 @@ target_link_libraries(sotn-physical-death-tests PRIVATE sotn-core)
 add_test(NAME player-physical-death COMMAND sotn-physical-death-tests)
 set_tests_properties(player-physical-death PROPERTIES TIMEOUT 20)
 
+add_executable(sotn-vibhuti-tests test_vibhuti.c)
+sotn_configure_c_target(sotn-vibhuti-tests)
+target_include_directories(sotn-vibhuti-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")
+target_link_libraries(sotn-vibhuti-tests PRIVATE sotn-core)
+add_test(NAME subweapon-vibhuti COMMAND sotn-vibhuti-tests)
+set_tests_properties(subweapon-vibhuti PROPERTIES TIMEOUT 20)
+
 add_executable(sotn-thrown-weapon-tests test_thrown_weapon.c)
 sotn_configure_c_target(sotn-thrown-weapon-tests)
 target_include_directories(sotn-thrown-weapon-tests PRIVATE "${PROJECT_SOURCE_DIR}/modules/core")

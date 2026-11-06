@@ -25,5 +25,12 @@ bool SotnPrimitiveSlots_Reserve(SotnPrimitiveSlots *slots, Uint16 count, Uint16 
  * @param indices Borrowed unique occupied row indices, count entries.
  * @return Success or SDL error without mutation for duplicate/free/out-of-range rows.
  * The actual owner still validates generation and commits the resulting pool transaction. */
+/** @brief Plan an original func_800EDB58 contiguous allocation against a copied pool snapshot.
+ * @param slots In/out availability, committed only on complete allocation.
+ * @param count Requested rows, 1..1024. @param indices Caller-owned space for count indices.
+ * @param allocated Receives false when no run of count free rows exists; nothing changes then.
+ * @return Success or SDL error for invalid arguments. Rows are the first free run in order. */
+bool SotnPrimitiveSlots_ReserveContiguous(SotnPrimitiveSlots *slots, Uint16 count, Uint16 *indices,
+                                          bool *allocated);
 bool SotnPrimitiveSlots_Release(SotnPrimitiveSlots *slots, Uint16 count, const Uint16 *indices);
 #endif

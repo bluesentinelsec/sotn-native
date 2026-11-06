@@ -329,7 +329,8 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == 29 || kind == 47 || kind == 30 || kind == 32 || kind == 33 || kind == 65 ||
            kind == 38 || kind == 0xe0 || kind == 0xf0 || kind == 0xe1 || kind == 0xf1 ||
            kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3 || kind == 0xe4 ||
-           kind == 0xf4 || kind == 0xe8 || kind == 0xf8 || kind == 0xe9 || kind == 0xf9;
+           kind == 0xf4 || kind == 0xe8 || kind == 0xf8 || kind == 0xe9 || kind == 0xf9 ||
+           kind == SOTN_VIBHUTI_ENTITY;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {
@@ -457,6 +458,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
             return SDL_SetError("Sire commit lost its actual child/lifecycle ownership");
         if (!SotnBatRuntime_NeutronValid(c, i))
             return SDL_SetError("Neutron commit lost its actual child/lifetime/row ownership");
+        if (!SotnBatRuntime_SubweaponValid(c, i))
+            return SDL_SetError("Subweapon commit lost its actual child/lifetime/row ownership");
         if ((c->kind == 61 &&
              (i < 1 || i > 31 || c->parameter != c->state.spirit.motion.parameter ||
               c->state.spirit.motion.removed ||
@@ -513,7 +516,8 @@ static bool CommitBatPrimitives(SotnActors *s, const SotnBatRuntime *r, bool app
                (c->thrown && (c->kind & 15U) == 0 && c->primitive_count == 1) ||
                (c->star && (c->kind & 15U) == 3 && c->primitive_count == 32) ||
                (c->karma && (c->kind & 15U) == 0 && c->primitive_count == SOTN_KARMA_ROWS) ||
-               (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS))))
+               (c->pentagram && c->primitive_count == SOTN_PENTAGRAM_ROWS) ||
+               (c->subweapon && c->primitive_count == SOTN_VIBHUTI_ROWS))))
             return SDL_SetError("Bat primitive reservation lost its actual initialized child");
         if (c->primitive_count &&
             !PlanRows(s, &used, c->primitives, c->primitive_count, 0, r->wolf_bound))
@@ -660,7 +664,8 @@ bool SotnActors_ClearPlayerRuntime(SotnActors *s, SotnBatRuntime *r)
     next->fire_mask = next->spirit_mask = next->hellfire_mask = next->sword_mask = next->axe_mask =
         0;
     next->neutron_mask = next->sire_mask = next->pentagram_mask = next->magic_mask =
-        next->thrown_mask = next->star_mask = next->karma_mask = next->secondary_mask = 0;
+        next->thrown_mask = next->star_mask = next->karma_mask = next->secondary_mask =
+            next->subweapon_mask = 0;
     next->magic_clear_shield = false;
     next->hand_attack = false;
     next->hand_shield = 0;

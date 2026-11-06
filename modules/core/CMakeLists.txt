@@ -23,6 +23,8 @@ add_library(sotn-core STATIC
   include/sotn/sire.h
   neutron.c
   include/sotn/neutron.h
+  subweapon_entity.c
+  include/sotn/subweapon_entity.h
   food.c
   include/sotn/food.h
   food_popup.c
