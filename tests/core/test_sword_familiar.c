@@ -978,8 +978,6 @@ static bool GiftTest(void)
     CHECK(SotnSwordRuntime_UpdateSlot(given, 4, again, &e) && !e.gift_item &&
           !e.castle_flag_write && given->slots[0].identity == SOTN_SWORD_DEFAULT);
     // Only exactly level 50 gives the gift.
-    given = SDL_malloc(sizeof(*given));
-    CHECK(given != NULL);
     *given = *r;
     again.stats = (SotnFamiliarStats){51, 5000, 2};
     again.castle_flag = 0;
