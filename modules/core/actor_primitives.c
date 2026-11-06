@@ -195,6 +195,121 @@ bool SotnActors_ReleaseFairyEffects(SotnActors *s, const SotnFairyEffectLease le
             s->primitives[leases[i].rows[row]] = (ActorPrimitive){0};
     return true;
 }
+static Uint16 SwordTag(const SotnSwordLease *lease)
+{
+    return (Uint16)(0x9000U | (Uint16)(lease->part << 8) | lease->slot);
+}
+static bool SwordLease(const SotnSwordLease *lease, Uint16 part, SotnPrimitiveSlots *rows)
+{
+    static const Uint16 counts[3] = {SOTN_SWORD_MODEL_ROWS, SOTN_SWORD_TRAIL_ROWS,
+                                     SOTN_SWORD_HALO_ROWS};
+    SotnPrimitiveSlots used = {0};
+    if (!lease || part > 2 ||
+        (lease->count && (lease->part != part || lease->count != counts[part] ||
+                          !lease->generation || lease->slot < 4 || lease->slot > 7)))
+        return SDL_SetError("Sword lease requires its actual part, slot, generation and rows");
+    for (Uint16 i = 0; rows && i < lease->count; ++i)
+    {
+        const Uint16 id = lease->rows[i];
+        if (id >= SOTN_PRIMITIVE_SLOTS || (used.occupied[id / 64U] & ((Uint64)1 << (id % 64U))))
+            return SDL_SetError("Sword lease contains a duplicate or out-of-range row");
+        used.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    }
+    if (rows)
+        *rows = used;
+    return true;
+}
+// Requested leases name their owner and size; the pool chooses their rows.
+bool SotnActors_CommitSwordRows(SotnActors *s, SotnSwordLease leases[3],
+                                const SotnSwordLease wanted[3])
+{
+    if (!s || !leases || !wanted)
+        return SDL_SetError("Sword row commit requires its actual pool and three leases");
+    SotnPrimitiveSlots rows[3] = {0};
+    for (Uint16 i = 0; i < 3; ++i)
+        if (!SwordLease(&leases[i], i, &rows[i]) || !SwordLease(&wanted[i], i, NULL))
+            return false;
+    // The whole previous namespace must match the pool before any row changes owner.
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+    {
+        const ActorPrimitive *p = &s->primitives[id];
+        Uint16 matches = 0;
+        for (Uint16 i = 0; i < 3; ++i)
+            if (rows[i].occupied[id / 64U] & ((Uint64)1 << (id % 64U)))
+            {
+                if (++matches > 1 || p->owner != leases[i].generation ||
+                    p->ability_kind != SwordTag(&leases[i]))
+                    return SDL_SetError("Sword rows are stale or overlap another owner");
+            }
+        if (!matches && (p->ability_kind & 0xf000U) == 0x9000U)
+            return SDL_SetError("Sword namespace contains an unclaimed actual row");
+    }
+    SotnSwordLease next[3] = {{.part = 0}, {.part = 1}, {.part = 2}};
+    bool keep[3] = {0};
+    SotnPrimitiveSlots free_rows = {0};
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS; ++id)
+        if (!s->primitives[id].owner)
+            free_rows.occupied[id / 64U] |= (Uint64)1 << (id % 64U);
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        keep[i] = leases[i].count && wanted[i].count == leases[i].count &&
+                  wanted[i].generation == leases[i].generation && wanted[i].slot == leases[i].slot;
+        if (keep[i])
+            next[i] = leases[i];
+        else
+            for (Uint16 r = 0; r < leases[i].count; ++r)
+                free_rows.occupied[leases[i].rows[r] / 64U] |= (Uint64)1
+                                                               << (leases[i].rows[r] % 64U);
+    }
+    for (Uint16 i = 0; i < 3; ++i)
+    {
+        if (keep[i] || !wanted[i].count)
+            continue;
+        next[i] = wanted[i];
+        Uint16 found = 0;
+        for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS && found < wanted[i].count; ++id)
+            if (free_rows.occupied[id / 64U] & ((Uint64)1 << (id % 64U)))
+            {
+                free_rows.occupied[id / 64U] &= ~((Uint64)1 << (id % 64U));
+                next[i].rows[found++] = id;
+            }
+        if (found < wanted[i].count)
+            return SDL_SetError("Sword familiar rows exceed the actual stage primitive pool");
+    }
+    for (Uint16 i = 0; i < 3; ++i)
+        if (!keep[i])
+            for (Uint16 r = 0; r < leases[i].count; ++r)
+                s->primitives[leases[i].rows[r]] = (ActorPrimitive){0};
+    for (Uint16 i = 0; i < 3; ++i)
+        if (!keep[i])
+            for (Uint16 r = 0; r < next[i].count; ++r)
+                s->primitives[next[i].rows[r]] = (ActorPrimitive){
+                    .owner = next[i].generation, .ability_kind = SwordTag(&next[i])};
+    SDL_memcpy(leases, next, sizeof(next));
+    return true;
+}
+bool SotnActors_SwordRow(const SotnActors *s, const SotnSwordLease *lease, Uint16 index)
+{
+    SotnPrimitiveSlots used = {0};
+    if (!s || !lease || lease->part > 2 || !SwordLease(lease, lease->part, &used) ||
+        index >= lease->count)
+        return SDL_SetError("Sword row read requires its actual lease and bounded index");
+    const ActorPrimitive *p = &s->primitives[lease->rows[index]];
+    if (p->owner != lease->generation || p->ability_kind != SwordTag(lease))
+        return SDL_SetError("Sword row read lost its actual owner generation");
+    return true;
+}
+bool SotnActors_FreeRows(const SotnActors *s, Uint16 count, bool *available)
+{
+    if (!s || !available)
+        return SDL_SetError("Free-row query requires its actual pool and output");
+    Uint16 found = 0;
+    for (Uint16 id = 0; id < SOTN_PRIMITIVE_SLOTS && found < count; ++id)
+        if (!s->primitives[id].owner)
+            ++found;
+    *available = found >= count;
+    return true;
+}
 static bool EchoValid(const SotnBatEcho *echo)
 {
     return echo && echo->phase && echo->phase <= 3 && !echo->removed && echo->priority <= 509;

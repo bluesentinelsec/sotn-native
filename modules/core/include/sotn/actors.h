@@ -12,6 +12,7 @@
 #include <sotn/player.h>
 #include <sotn/primitive_slots.h>
 #include <sotn/stage_route.h>
+#include <sotn/sword_familiar.h>
 #include <sotn/water_volume.h>
 #include <sotn/wolf_runtime.h>
 #include <sotn/world.h>
@@ -206,6 +207,19 @@ bool SotnActors_ValidateFairyEffects(const SotnActors *actors,
  * @return Success or SDL error preserving the whole pool on failure. Other owners retain rows.
  * Caller separately clears actual entities; this performs no audio or overlay-history reset. */
 bool SotnActors_ReleaseFairyEffects(SotnActors *actors, const SotnFairyEffectLease leases[3]);
+/** @brief Reconcile the Sword familiar's three real row leases with its live owners.
+ * @param actors Actual stage pool. @param leases Actual committed model/trail/halo leases,
+ * updated on success. @param wanted SotnSwordRuntime_Leases output (rows ignored).
+ * Validates every previous row/generation and rejects unclaimed Sword rows first; unchanged
+ * owners keep their rows, retired owners release them and new owners take the first free rows.
+ * @return Success or SDL error preserving pool and leases (stale rows or an exhausted pool). */
+bool SotnActors_CommitSwordRows(SotnActors *actors, SotnSwordLease leases[3],
+                                const SotnSwordLease wanted[3]);
+/** @brief Check one real leased Sword row before drawing its retained component packet.
+ * @return Success or SDL error for stale generation, invalid index or a mismatching row. */
+bool SotnActors_SwordRow(const SotnActors *actors, const SotnSwordLease *lease, Uint16 index);
+/** @brief Count free real rows for an original AllocPrimitives request (no mutation). */
+bool SotnActors_FreeRows(const SotnActors *actors, Uint16 count, bool *available);
 /** @brief Atomically commit selected Bat Blink/trail/Echo reservations to the actual pool.
  * @param actors Borrowed session/pool owner. @param runtime Borrowed successful runtime snapshot.
  * @return Success or SDL error without pool mutation on invalid/colliding rows or generations.

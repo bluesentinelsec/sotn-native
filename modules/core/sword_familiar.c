@@ -1003,3 +1003,46 @@ bool SotnSwordRuntime_Clear(SotnSwordRuntime *runtime)
     SDL_memset(runtime->halo, 0, sizeof(runtime->halo));
     return true;
 }
+
+Uint16 SotnSwordRuntime_RowRequest(const SotnSwordRuntime *runtime, Uint16 slot)
+{
+    if (!runtime || !runtime->initialized || slot < 4 || slot > 7)
+        return 0;
+    const SotnSwordSlot *s = &runtime->slots[slot - 4U];
+    if ((s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE) && !s->kind &&
+        !s->step)
+        return SOTN_SWORD_MODEL_ROWS;
+    if (s->identity == SOTN_SWORD_TRAIL && !s->step)
+        return SOTN_SWORD_TRAIL_ROWS;
+    if (s->identity == SOTN_SWORD_HALO && !s->step)
+        return SOTN_SWORD_HALO_ROWS;
+    return 0;
+}
+bool SotnSwordRuntime_Leases(const SotnSwordRuntime *runtime, SotnSwordLease out[3])
+{
+    if (!runtime || !out)
+        return SDL_SetError("Sword lease report requires its actual owner and three parts");
+    SotnSwordLease leases[3] = {0};
+    static const Uint16 counts[3] = {SOTN_SWORD_MODEL_ROWS, SOTN_SWORD_TRAIL_ROWS,
+                                     SOTN_SWORD_HALO_ROWS};
+    for (Uint16 i = 0; runtime->initialized && i < 4; ++i)
+    {
+        const SotnSwordSlot *s = &runtime->slots[i];
+        const Sint16 part =
+            (s->identity == SOTN_SWORD_DEFAULT || s->identity == SOTN_SWORD_ENTRANCE)
+                ? (s->kind ? 0 : -1)
+            : s->identity == SOTN_SWORD_TRAIL ? (s->step ? 1 : -1)
+            : s->identity == SOTN_SWORD_HALO  ? (s->step ? 2 : -1)
+                                              : -1;
+        if (part < 0)
+            continue;
+        if (leases[part].count || !s->generation)
+            return SDL_SetError("Sword familiar part %d has two live row owners", part);
+        leases[part] = (SotnSwordLease){.generation = s->generation,
+                                        .slot = (Uint16)(i + 4U),
+                                        .part = (Uint16)part,
+                                        .count = counts[part]};
+    }
+    SDL_memcpy(out, leases, sizeof(leases));
+    return true;
+}

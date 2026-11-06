@@ -53,7 +53,8 @@ bool SotnLaboratory_CreateStage(const SotnGameData *data, const char *directory,
 bool SotnLaboratory_SetEquipment(SotnLaboratory *laboratory, Uint16 left, Uint16 right);
 /** @brief Commit an owned native familiar selection at its actual menu/load boundary.
  * @param laboratory Actual idle normal session, after the menu closes.
- * @param familiar Original identity0 (none) or3 (US Fairy); other owners remain unavailable.
+ * @param familiar Original identity0 (none),3 (US Fairy) or5 (Sword, card22); other owners
+ * remain unavailable. Selecting another familiar replaces the resident overlay.
  * @return Success or SDL error preserving actual resource/entity/progression owners on failure.
  * Requires a found card. Prepares verified resources, resident graphics/SPU candidates,
  * root/wings and an empty CD owner before actual row retirement and pointer publication.

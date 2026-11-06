@@ -1,4 +1,6 @@
+#include "actors_internal.h"
 #include <SDL3/SDL.h>
+#include <sotn/actors.h>
 #include <sotn/sword_familiar.h>
 #define CHECK(v)                                                                                   \
     do                                                                                             \
@@ -599,11 +601,108 @@ static bool LifecycleTest(void)
     SDL_free(r);
     return true;
 }
+// Row leases: which callbacks reserve, which owners hold, and the real stage-pool commit.
+static bool LeaseTest(void)
+{
+    SotnSwordRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnActors *a = SDL_calloc(1, sizeof(*a));
+    CHECK(r && a);
+    SotnSwordLease want[3] = {0}, leases[3] = {0};
+    CHECK(SotnSwordRuntime_RowRequest(r, 4) == 0 && SotnSwordRuntime_Leases(r, want) &&
+          !want[0].count && !SotnSwordRuntime_Leases(NULL, want));
+    SotnSwordInput in = Input(95, 3, 0, 0);
+    SotnSwordEvents e = {0};
+    CHECK(SotnSwordRuntime_Init(r, in, 0, &e));
+    CHECK(SotnSwordRuntime_RowRequest(r, 4) == 96 && SotnSwordRuntime_RowRequest(r, 5) == 16 &&
+          SotnSwordRuntime_RowRequest(r, 6) == 4 && SotnSwordRuntime_RowRequest(r, 7) == 0 &&
+          SotnSwordRuntime_RowRequest(r, 3) == 0 && SotnSwordRuntime_RowRequest(r, 8) == 0);
+    CHECK(SotnSwordRuntime_Leases(r, want) && !want[0].count && !want[1].count && !want[2].count);
+    CHECK(Run(r, in, &e) && SotnSwordRuntime_RowRequest(r, 4) == 0 &&
+          SotnSwordRuntime_RowRequest(r, 5) == 0 && SotnSwordRuntime_Leases(r, want));
+    CHECK(want[0].count == 96 && want[0].slot == 4 &&
+          want[0].generation == r->slots[0].generation && want[1].count == 16 &&
+          want[1].slot == 5 && want[1].part == 1 && want[2].count == 4 && want[2].slot == 6 &&
+          want[2].generation == r->slots[2].generation);
+    // A second live model owner is not an original lease.
+    SotnSwordRuntime twice = *r;
+    twice.slots[3] = twice.slots[0];
+    CHECK(!SotnSwordRuntime_Leases(&twice, want));
+    CHECK(SotnSwordRuntime_Leases(r, want));
+    // Stage rows 0..2 and a Fairy row stay owned by others.
+    for (Uint16 i = 0; i < 3; ++i)
+        a->primitives[i] = (ActorPrimitive){.owner = 7};
+    a->primitives[3] = (ActorPrimitive){.owner = 9, .ability_kind = 0x85dd};
+    bool free_rows = false;
+    CHECK(SotnActors_FreeRows(a, 1020, &free_rows) && free_rows &&
+          SotnActors_FreeRows(a, 1021, &free_rows) && !free_rows);
+    CHECK(SotnActors_CommitSwordRows(a, leases, want));
+    CHECK(leases[0].count == 96 && leases[0].rows[0] == 4 && leases[0].rows[95] == 99 &&
+          leases[1].rows[0] == 100 && leases[2].rows[3] == 119 &&
+          a->primitives[4].owner == want[0].generation && a->primitives[4].ability_kind == 0x9004 &&
+          a->primitives[100].ability_kind == 0x9105 && a->primitives[119].ability_kind == 0x9206);
+    CHECK(SotnActors_SwordRow(a, &leases[0], 95) && !SotnActors_SwordRow(a, &leases[0], 96) &&
+          SotnActors_SwordRow(a, &leases[2], 0));
+    // Unchanged owners keep their rows; a replaced model takes the first free rows.
+    const SotnSwordLease kept = leases[1];
+    a->primitives[2] = (ActorPrimitive){0};
+    want[0].generation += 50;
+    CHECK(SotnActors_CommitSwordRows(a, leases, want));
+    CHECK(!SDL_memcmp(&kept, &leases[1], sizeof(kept)) && leases[0].rows[0] == 2 &&
+          leases[0].rows[1] == 4 && leases[0].generation == want[0].generation &&
+          !a->primitives[99].owner && a->primitives[98].owner == want[0].generation);
+    // Stale or unclaimed rows fail before any change.
+    SotnActors *copy = SDL_malloc(sizeof(*copy));
+    CHECK(copy != NULL);
+    SotnSwordLease saved[3] = {0};
+    SDL_memcpy(saved, leases, sizeof(saved));
+    a->primitives[leases[1].rows[3]].owner ^= 1;
+    *copy = *a;
+    CHECK(!SotnActors_CommitSwordRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)) &&
+          !SDL_memcmp(saved, leases, sizeof(saved)) && !SotnActors_SwordRow(a, &leases[1], 3));
+    a->primitives[leases[1].rows[3]].owner ^= 1;
+    a->primitives[900] = (ActorPrimitive){.owner = 4, .ability_kind = 0x9107};
+    *copy = *a;
+    CHECK(!SotnActors_CommitSwordRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)));
+    a->primitives[900] = (ActorPrimitive){0};
+    // A malformed request (wrong part size) is rejected.
+    SotnSwordLease bad[3] = {0};
+    SDL_memcpy(bad, want, sizeof(bad));
+    bad[2].count = 5;
+    CHECK(!SotnActors_CommitSwordRows(a, leases, bad));
+    // A retired part releases its rows; a new owner finding too few free rows fails, preserving
+    // the pool and the previous leases.
+    want[2].count = 0;
+    CHECK(SotnActors_CommitSwordRows(a, leases, want) && !leases[2].count &&
+          !a->primitives[116].owner && leases[0].count == 96);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        if (!a->primitives[i].owner && i != 117 && i != 300)
+            a->primitives[i] = (ActorPrimitive){.owner = 7};
+    want[2].count = 4;
+    *copy = *a;
+    SDL_memcpy(saved, leases, sizeof(saved));
+    CHECK(SotnActors_FreeRows(a, 2, &free_rows) && free_rows &&
+          SotnActors_FreeRows(a, 3, &free_rows) && !free_rows);
+    CHECK(!SotnActors_CommitSwordRows(a, leases, want) && !SDL_memcmp(copy, a, sizeof(*a)) &&
+          !SDL_memcmp(saved, leases, sizeof(saved)));
+    // Retirement releases every Sword row and nothing else.
+    SDL_zero(want);
+    want[1].part = 1;
+    want[2].part = 2;
+    CHECK(SotnActors_CommitSwordRows(a, leases, want) && !leases[0].count && !leases[1].count &&
+          !a->primitives[4].owner && a->primitives[3].owner == 9 && a->primitives[0].owner == 7);
+    for (Uint16 i = 0; i < SOTN_PRIMITIVE_SLOTS; ++i)
+        CHECK((a->primitives[i].ability_kind & 0xf000U) != 0x9000U);
+    CHECK(!SotnActors_CommitSwordRows(NULL, leases, want));
+    SDL_free(copy);
+    SDL_free(a);
+    SDL_free(r);
+    return true;
+}
 int main(void)
 {
     Fixture();
     return InitTest() && EntranceTest() && FollowTest() && EventsTest() && EntranceBandsTest() &&
-                   LifecycleTest()
+                   LifecycleTest() && LeaseTest()
                ? 0
                : 1;
 }

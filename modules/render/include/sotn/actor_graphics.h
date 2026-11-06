@@ -207,6 +207,19 @@ bool SotnActorGraphics_LoadFamiliar(SotnActorGraphics *graphics, SotnDataView ov
 bool SotnActorGraphics_PrepareFamiliar(const SotnActorGraphics *graphics, SotnDataView overlay,
                                        SotnDataView textures, Uint32 parts, Uint32 palette,
                                        SotnActorGraphics **out);
+/** @brief Prepare a detached model-familiar candidate (US Sword) without live mutation.
+ * @param graphics Actual owner outside a render target. @param textures Borrowed verified 0x6000
+ * byte FT input, uploaded like every familiar to 0x2C0,0x100 and 0x2C0,0x180.
+ * @param clut ServantInit's words for row0xF4 from x0. @param words Count, 1..256; the rest of
+ * the row keeps its resident colors. @param out Owned candidate or NULL on failure.
+ * @return Success or SDL error. Clears the bank20 sprite binding: models draw GT4 rows only. */
+bool SotnActorGraphics_PrepareFamiliarModel(const SotnActorGraphics *graphics,
+                                            SotnDataView textures, const Uint16 *clut, Uint16 words,
+                                            SotnActorGraphics **out);
+/** @brief Repeat ServantInit's CLUT LoadImage on the live owner (row0xF4 from x0).
+ * @return Success or SDL error for invalid input or an active render target. */
+bool SotnActorGraphics_LoadFamiliarClut(SotnActorGraphics *graphics, const Uint16 *clut,
+                                        Uint16 words);
 /** @brief Release the borrowed familiar sprite binding, retaining original resident VRAM.
  * @param graphics Owned service or NULL. Call before releasing its borrowed overlay. */
 void SotnActorGraphics_ClearFamiliar(SotnActorGraphics *graphics);

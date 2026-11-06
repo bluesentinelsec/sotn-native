@@ -6,8 +6,10 @@ Ordinary relic-menu activation remains disabled until saved progression, remaini
 audio/cutscene lifecycle, whole-pass transactions and
 integrated acceptance are complete. Existing grants, pools and v9 saves are unchanged.
 
-`SotnLaboratory_SelectFamiliar` accepts original0/3 in an actual idle menu/load
-context and requires the found private Fairy card. It validates actual player,
+`SotnLaboratory_SelectFamiliar` accepts original 0, 3 (Fairy, card 20) and 5 ([Sword](sword-familiar.md),
+card 22) in an actual idle menu/load context and requires the selected familiar's found card.
+One servant overlay is resident: selecting another familiar replaces the cached resources and
+starts that overlay's data fresh. It validates actual player,
 control, card/progression and full row ownership before loading. First selection
 opens all four verified resources and prepares detached graphics/SPU candidates,
 and root/wings. The common CD owner is already initialized by native bootstrap.
