@@ -232,7 +232,7 @@ bool SotnEquipment_Read(SotnDataView dra, Uint16 id, SotnEquipment *out)
 {
     if (id == 24 || id == 25 || (id >= 71 && id <= 79) || id == 80 || id == 81 || id == 82 ||
         id == 134 || id == 135 || id == 143 || id == 119 || id == 133 || id == 163 || id == 164 ||
-        id == 165 || id == 136 || id == 137)
+        id == 165 || id == 136 || id == 137 || id == 138)
         return SotnEquipment_ReadThrowing(dra, id, out);
     if (id >= 29 && id <= 70)
         return SotnEquipment_ReadFood(dra, id, out);
@@ -410,8 +410,11 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
     // never consumed.
     const bool knuckle = item == 136 || item == 137;
     const bool kept = rune || chakram || vorpal || yasutsuna || knuckle;
+    // Kind130 Dynamite138 (weapon47, blueprint50) is consumed like the thrown items.
+    const bool dynamite = item == 138;
     const Uint8 *pointer = NULL, *p = NULL;
-    if (!out || (!karma && !magic && !thrown && !star && !kept && (item < 71 || item > 74)))
+    if (!out ||
+        (!karma && !magic && !thrown && !star && !kept && !dynamite && (item < 71 || item > 74)))
         return SDL_SetError("Throwing definition requires an actual supported original item");
     if (!Resolve(dra, 0x800a0000, 0x800a00c0, 4, &pointer) ||
         !Resolve(dra, 0x800a0000, (Uint64)Read32(pointer) + (Uint32)item * 52U, 50, &p))
@@ -432,17 +435,18 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
                                                  : 3
                         : magic  ? 4
                                  : 1;
-    if (p[14] != (yasutsuna                 ? 5
-                  : item == 136             ? 0
-                  : item == 137             ? 3
-                  : rune || chakram         ? 2
-                  : vorpal                  ? 1
-                  : magic || thrown || star ? 8
-                                            : 7) ||
+    if (p[14] != (yasutsuna                             ? 5
+                  : item == 136                         ? 0
+                  : item == 137                         ? 3
+                  : rune || chakram                     ? 2
+                  : vorpal                              ? 1
+                  : magic || thrown || star || dynamite ? 8
+                                                        : 7) ||
         p[15] != (rune                ? (item == 143 ? 14 : 13)
                   : chakram || vorpal ? 12
                   : yasutsuna         ? 53
                   : knuckle           ? 46
+                  : dynamite          ? 47
                   : karma             ? 20
                   : star              ? 15
                   : thrown            ? 16
@@ -466,7 +470,7 @@ static bool ThrowingDefinition(SotnDataView dra, Uint16 item, SotnEquipment *out
                                                              : 0) ||
         p[21] || p[22] != chain || p[23] || p[24] || p[25] != (kept ? 0 : 1) || Read16(p + 36) ||
         Read16(p + 8) > 999 ||
-        Read16(p + 40) != (karma || magic || thrown || star || kept ? 2 : 0x82))
+        Read16(p + 40) != (karma || magic || thrown || star || kept || dynamite ? 2 : 0x82))
         return SDL_SetError("Throwing definition does not match its original owned weapon path");
     *out = (SotnEquipment){.id = item,
                            .family = p[15],
@@ -524,7 +528,7 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
          equipment.id != 24 && equipment.id != 25 && equipment.id != 80 && equipment.id != 81 &&
          equipment.id != 82 && equipment.id != 134 && equipment.id != 135 && equipment.id != 143 &&
          equipment.id != 119 && equipment.id != 133 && equipment.id != 163 && equipment.id != 164 &&
-         equipment.id != 165 && equipment.id != 136 && equipment.id != 137 &&
+         equipment.id != 165 && equipment.id != 136 && equipment.id != 137 && equipment.id != 138 &&
          !SotnEquipment_IsSword0(equipment.id) && !SotnEquipment_IsBasicFist(equipment.id) &&
          !SotnEquipment_IsPlainWeapon(equipment.id) && equipment.id != 123 && equipment.id != 168 &&
          equipment.id != 126 && equipment.id != 197 && equipment.id != 216 && equipment.id != 128 &&
@@ -541,6 +545,7 @@ bool SotnWeapon_Overlay(SotnDataView weapons, SotnEquipment equipment, SotnDataV
              : equipment.id == 133 || equipment.id == 163 || equipment.id == 164 ? 12
              : equipment.id == 165                                               ? 53
              : equipment.id == 136 || equipment.id == 137                        ? 46
+             : equipment.id == 138                                               ? 47
              : SotnEquipment_IsSword0(equipment.id)                              ? 0
              : SotnEquipment_IsBasicFist(equipment.id)                           ? 1
              : SotnEquipment_IsPlainWeapon(equipment.id) ? PlainWeapon(equipment.id).family

@@ -57,6 +57,14 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Dynamite](docs/player-dynamite.md) now owns consumable kind130 item138 through w_047:
+the blueprint50 E0 root LoadImages D_14D000_8017A4A8 into the hand's weapon texture (session
+commit), rolls rand()&7 BEFORE AllocPrimitives(TILE,32) (a declined roll releases the rows reserved
+for its birth callback), arcs/bounces with CheckCollision and one program-BSS stomp, fizzes TILE
+sparks (scratch in x1..x3), then at the fuse's 0x80th update explodes: GT4 rays (world pixels),
+shake6, SetWeaponProperties + func_80118894, 0x3A E1 flames (SetSpriteBank2 0x8017A0D4) while
+b3>0x58; a dud blinks 0x18 updates. Its velocityY is dyn_vy (the union word aliases row0).
+
 Selected [Holbein/Blue knuckles](docs/player-holbein-blue-knuckles.md) now own kind134 items136/137
 through w_046: func_8010DFF0(1,0x20) (afterimage reset, timer15) then the kind129 throw path (chain1,
 never consumed, animation0xD2). Holbein's blueprint50 E0 root (own item, one mandatory GT4, 15x20)

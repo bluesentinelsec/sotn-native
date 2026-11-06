@@ -69,6 +69,18 @@ typedef struct SotnWeaponSecondary
             Sint16 knuckle_pivot_x, knuckle_pivot_y;
             Sint32 arc_start, arc_tail, arc_end, arc_step, arc_radius, arc_bright;
         };
+        /** Weapon47 (Dynamite): thirty-two optional rows kept in world pixels (DRAW_UNK02
+         * follows camera scroll), first TILEs whose x1/x2/x3 words are the original fuse-spark
+         * scratch, then GT4 explosion rays; ext.weapon_047.unk7C fuse, unk84 radius, unk88 v. */
+        struct
+        {
+            SotnPlayerEffectQuad dyn_quads[32];
+            Sint32 dyn_fuse, dyn_radius;
+            Sint32 dyn_vy; /**< velocityY (the shared union word would alias row0). */
+            Uint8 dyn_v;
+            bool dyn_prims; /**< FLAG_HAS_PRIMS: rand()&7 and the allocation succeeded. */
+            bool dyn_gt4;   /**< The explosion converted the TILEs to GT4s. */
+        };
         /** Weapon50 E1 sparkles: eighty GT4 rows kept as centre, UVs and the original prim
          * scratch bytes g0/g1/g2/b0/b1 (rebuilt into packets at draw time). */
         struct
@@ -335,6 +347,9 @@ typedef struct SotnWeaponSecondaryEvents
     Sint32 factory_x[8], factory_y[8];
     Uint8 shake; /**< Weapon30 ShakeCamera request (0: none). */
     Uint8 gold;  /**< Weapon37 coins: g_Status.gold += 1 per pickup (capped at 999999). */
+    /** Weapon47's root: LoadImage of the program's 4x16 D_14D000_8017A4A8 words into the hand's
+     * weapon texture (x0x260, y0x100 or 0x180). */
+    bool load_image;
     /** Weapon30 homing swords: func_80118970 selects (and marks) a target now. */
     bool select_target;
     /** Shield spells: g_unkGraphicsStruct.unk28 (1 enters the spell freeze, 0 leaves it). */
