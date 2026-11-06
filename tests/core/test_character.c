@@ -184,6 +184,54 @@ int main(void)
     progress.records[2] = (SotnFamiliarStats){9, 800, 1};
     CHECK(SotnCharacter_RestoreFamiliars(c, &progress) && SotnCharacter_Get(c, &s, &raised) &&
           raised.attack[0] == familiar.attack[0] + 61 && raised.attack[1] == familiar.attack[1]);
+    // UpdateEquipStatBonuses: Sunstone59 (hours6..17) / Moonstone58 (the rest) add five to every
+    // stat per accessory copy; they need the actual playtime owner.
+    bytes[0x4000 + 58 * 32 + 28] = 3;
+    bytes[0x4000 + 59 * 32 + 28] = 3;
+    SotnCharacter *sun = NULL;
+    SotnCharacterStats unlit = {0}, lit = {0};
+    CHECK(SotnCharacter_Create(dra, &sun) && SotnCharacter_Collect(sun, true, 59) &&
+          SotnCharacter_Collect(sun, true, 59) && SotnCharacter_Collect(sun, true, 58) &&
+          SotnCharacter_Get(sun, &s, &unlit));
+    CHECK(!SotnCharacter_Equip(sun, 5, 59));
+    CHECK(SotnCharacter_SetPlaytime(sun, (SotnPlaytime){.hours = 30}) &&
+          SotnCharacter_Equip(sun, 5, 59) && SotnCharacter_Equip(sun, 6, 59) &&
+          SotnCharacter_Get(sun, &s, &lit));
+    for (Uint32 i = 0; i < 4; ++i)
+        CHECK(lit.bonus[i] == unlit.bonus[i] + 10 &&
+              lit.total[i] == unlit.total[i] + 10 * (i == 1   ? 8
+                                                     : i == 2 ? 4
+                                                              : 1));
+    // Hour 18 (and a negative hour's negative remainder) belongs to the Moonstone.
+    CHECK(SotnCharacter_SetPlaytime(sun, (SotnPlaytime){.hours = 42}) &&
+          SotnCharacter_Get(sun, &s, &lit) && lit.bonus[0] == unlit.bonus[0]);
+    CHECK(SotnCharacter_SetPlaytime(sun, (SotnPlaytime){.hours = 17}) &&
+          SotnCharacter_Get(sun, &s, &lit) && lit.bonus[3] == unlit.bonus[3] + 10);
+    CHECK(SotnCharacter_Equip(sun, 6, 58) && SotnCharacter_Get(sun, &s, &lit) &&
+          lit.bonus[2] == unlit.bonus[2] + 5);
+    // A negative hour keeps C's negative remainder (-7, the Moonstone's), never 9.
+    CHECK(SotnCharacter_Equip(sun, 5, 57));
+    CHECK(SotnCharacter_SetPlaytime(sun, (SotnPlaytime){.hours = -7}) &&
+          SotnCharacter_Get(sun, &s, &lit) && lit.bonus[1] == unlit.bonus[1] + 5);
+    CHECK(SotnCharacter_SetPlaytime(sun, (SotnPlaytime){.hours = 5}) &&
+          SotnCharacter_Get(sun, &s, &lit) && lit.bonus[0] == unlit.bonus[0] + 5);
+    // Active Vlad relics: Tooth STR, Rib CON, Ring INT, Eye LCK +10; Heart curse immunity.
+    SotnCharacterStats vlad = {0};
+    CHECK(!SotnCharacter_SetVladRelics(sun, 32));
+    CHECK(SotnCharacter_SetVladRelics(sun, 2) && SotnCharacter_Get(sun, &s, &vlad) &&
+          vlad.bonus[0] == lit.bonus[0] + 10 && vlad.bonus[1] == lit.bonus[1] &&
+          !(vlad.immunity & 0x100U));
+    CHECK(SotnCharacter_SetVladRelics(sun, 4) && SotnCharacter_Get(sun, &s, &vlad) &&
+          vlad.bonus[1] == lit.bonus[1] + 10 && vlad.total[1] == lit.total[1] + 80);
+    CHECK(SotnCharacter_SetVladRelics(sun, 8) && SotnCharacter_Get(sun, &s, &vlad) &&
+          vlad.bonus[2] == lit.bonus[2] + 10 && vlad.total[2] == lit.total[2] + 40);
+    CHECK(SotnCharacter_SetVladRelics(sun, 16) && SotnCharacter_Get(sun, &s, &vlad) &&
+          vlad.bonus[3] == lit.bonus[3] + 10 && vlad.bonus[0] == lit.bonus[0]);
+    CHECK(SotnCharacter_SetVladRelics(sun, 1) && SotnCharacter_Get(sun, &s, &vlad) &&
+          (vlad.immunity & 0x100U) && vlad.bonus[3] == lit.bonus[3]);
+    CHECK(SotnCharacter_SetVladRelics(sun, 0) && SotnCharacter_Get(sun, &s, &vlad) &&
+          !(vlad.immunity & 0x100U));
+    SotnCharacter_Destroy(sun);
     bytes[0x104] = 0;
     CHECK(!SotnItem_Read(dra, false, 86, &item));
     SotnCharacter_Destroy(c);

@@ -57,6 +57,13 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [stat bonuses](docs/player-stat-bonuses.md): UpdateEquipStatBonuses' Sunstone59 (hours
+6..17 of timerHours % 24, signed remainder) or Moonstone58 adds five to every stat per accessory
+copy; both need the bound playtime owner (like Badelaire). Active Rib/Eye/Tooth/Ring of Vlad
+(relics27/29/26/28, RELIC_FLAG_ACTIVE) add ten CON/LCK/STR/INT before the cap; Heart (25) adds
+CalcDefense's curse immunity. ApplyCharacter syncs the world's active bits every update. No
+relic is granted; Vlad relics have no ordinary producer yet.
+
 Selected [Heart Refresh](docs/player-heart-refresh.md) now owns kind131 item142 through w_044:
 chain0 refuses a second live use per hand; blueprint50, consumption after success, no grunt,
 stand-only animation0xBE. Seventeen screen GT4s over the hand's weapon texture run under
@@ -140,7 +147,7 @@ Selected [Alucart set](docs/player-alucart-set.md): Alucart sword168 runs w_043 
 special), Alucart mail89 is plain armor; IsAlucart (sword+shield167 in hands, mail in armor) adds
 LCK30 before the cap and renames the inventory header. CalcAttack's Shield rod4 +5 beside a
 category9 shield now applies to stats and each swing: SotnCharacter_HandProperties takes the hand.
-Sun/Moonstone and Vlad-relic stat bonuses remain unimplemented. The Sword Familiar126 runs w_043
+Sun/Moonstone and Vlad relics now have their own owner (see the stat-bonus block). The Sword Familiar126 runs w_043
 descriptor2 (green tiles, palette1 = g_WeaponCluts[1]) with ATK + record4 level (CalcAttack and
 swing properties; RestoreFamiliars recalculates); equipping it turns the Sword Card off.
 

@@ -752,7 +752,12 @@ static bool ApplyCharacter(SotnLaboratory *session)
 {
     SotnCharacterState state = {0};
     SotnCharacterStats stats = {0};
-    if (!SotnCharacter_Get(session->character, &state, &stats))
+    // The active bits (RELIC_FLAG_ACTIVE) of the Heart/Tooth/Rib/Ring/Eye of Vlad (relics25..29).
+    Uint8 vlad = 0;
+    for (Uint32 i = 0; i < 5; ++i)
+        vlad |= (Uint8)((session->world.relics[25 + i] & 2U) ? 1U << i : 0U);
+    if (!SotnCharacter_SetVladRelics(session->character, vlad) ||
+        !SotnCharacter_Get(session->character, &state, &stats))
         return false;
     SotnPlayerState current = {0};
     if (!SotnPlayer_GetState(session->player, &current))
