@@ -30,8 +30,8 @@ term; earlier native builds omitted it. Hand properties therefore take the calli
 ## Scope
 
 The Sword Familiar126 now has its own owner (see [Sword familiar](sword-familiar.md#sword-familiar-item)).
-Sun/Moonstone hour bonuses and the Vlad relics' stat bonuses in
-`UpdateEquipStatBonuses` likewise remain unimplemented; those items stay unsupported. Defaults,
+The Sun/Moonstone hour bonuses and the Vlad relics' bonuses now have their own owner (see
+[stat bonuses](player-stat-bonuses.md)). Defaults,
 grants and v10 saves are unchanged. Supplied ownership and positioned-contact fixtures are not
 acquisition or route evidence.
 

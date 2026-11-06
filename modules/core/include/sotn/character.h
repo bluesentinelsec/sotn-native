@@ -140,6 +140,13 @@ bool SotnCharacter_AddMuramasaBlood(SotnCharacter *character);
  * @return Success or SDL error preserving character/stats. Applies bonuses before original
  * clamps and US stone immunity. Enables no item/ability or replacement timer pool. */
 bool SotnCharacter_SetStatBuffMask(SotnCharacter *character, Uint16 mask);
+/** @brief Recalculate derived stats from the active Vlad relics (UpdateEquipStatBonuses and
+ * CalcDefense): Rib/Eye/Tooth/Ring add ten to CON/LCK/STR/INT before the cap; Heart adds curse
+ * immunity.
+ * @param character Actual character. @param mask Bit0 Heart25, bit1 Tooth26, bit2 Rib27, bit3
+ * Ring28, bit4 Eye29 of the world's relic active bits.
+ * @return Success or SDL error preserving character/stats. Grants no relic. */
+bool SotnCharacter_SetVladRelics(SotnCharacter *character, Uint8 mask);
 /** @brief Read a bounded original item definition and encoded name/description.
  * @param dra Borrowed image. @param body Select body versus hand table.
  * @param id Original item ID within that table. @param out Unchanged on failure.

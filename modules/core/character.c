@@ -14,6 +14,8 @@ struct SotnCharacter
     SotnFamiliarProgress familiars;
     Uint16 familiar;
     Uint16 stat_buff_mask;
+    /** Active Vlad relics (bit0 Heart25, bit1 Tooth26, bit2 Rib27, bit3 Ring28, bit4 Eye29). */
+    Uint8 vlad_mask;
     SotnPlaytime playtime;
     bool playtime_bound;
     SotnDataView executable; /**< Borrowed SDK image for Muramasa's signed-range SquareRoot0. */
@@ -267,7 +269,8 @@ static bool ReadOwnedItem(const SotnCharacter *c, bool body, Uint16 id, SotnItem
 {
     if (!SotnItem_Read(c->dra, body, id, out))
         return false;
-    if (!body && id == 125)
+    // Badelaire125 and the Moonstone58/Sunstone59 accessories read the actual playtime hours.
+    if ((!body && id == 125) || (body && (id == 58 || id == 59)))
         out->supported = c->playtime_bound;
     return true;
 }
@@ -301,6 +304,25 @@ static bool Calculate(SotnCharacter *c)
     if ((items[0].category == 5 || items[1].category == 5) &&
         c->state.equipment[0] != c->state.equipment[1])
         return SDL_SetError("Two-hand equipment lost its paired actual slots");
+    // UpdateEquipStatBonuses: each Sunstone59 (hours6..17 of timerHours % 24) or Moonstone58
+    // (the other hours) in an accessory slot adds five to every stat.
+    const Sint32 hour = c->playtime.hours % 24;
+    const Uint16 stone = hour >= 6 && hour < 18 ? 59 : 58;
+    const Sint32 stones =
+        (c->state.equipment[5] == stone ? 1 : 0) + (c->state.equipment[6] == stone ? 1 : 0);
+    for (Uint32 i = 0; i < 4; ++i)
+        bonus[i] += stones * 5;
+    // Active Rib/Eye/Tooth/Ring of Vlad add ten to CON/LCK/STR/INT; Heart grants curse immunity.
+    if (c->vlad_mask & 4U)
+        bonus[1] += 10;
+    if (c->vlad_mask & 16U)
+        bonus[3] += 10;
+    if (c->vlad_mask & 2U)
+        bonus[0] += 10;
+    if (c->vlad_mask & 8U)
+        bonus[2] += 10;
+    if (c->vlad_mask & 1U)
+        result.immunity |= 0x100;
     // IsAlucart: Alucart sword168 and shield167 in the hands with Alucart mail89 add LCK30.
     if ((c->state.equipment[0] == 168 || c->state.equipment[1] == 168) &&
         (c->state.equipment[0] == 167 || c->state.equipment[1] == 167) &&
@@ -529,6 +551,19 @@ bool SotnCharacter_CommitMainLoop(SotnCharacter *c, SotnPlaytime clock, Uint32 r
     if (!SotnCharacter_SetPlaytime(&next, clock))
         return false;
     next.state.random = random;
+    *c = next;
+    return true;
+}
+bool SotnCharacter_SetVladRelics(SotnCharacter *c, Uint8 mask)
+{
+    if (!c || mask > 31)
+        return SDL_SetError("Vlad relics require a character and a five-bit active mask");
+    if (c->vlad_mask == mask)
+        return true;
+    SotnCharacter next = *c;
+    next.vlad_mask = mask;
+    if (!Calculate(&next))
+        return false;
     *c = next;
     return true;
 }
