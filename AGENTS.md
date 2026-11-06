@@ -64,8 +64,12 @@ spent, FACTORY(26) with 8<<9 (missing factory keeps the spend), timer4, func_801
 roll; failed player updates restore hearts/roll/factory. Entity12 (SotnSubweaponEntity, flag
 `subweapon`): func_800EDB58's thirteen contiguous rows (SotnPrimitiveSlots_ReserveContiguous)
 before func_8011A290's roll/group7..10, then 24 particle rolls; cycling 4x4 hitbox on particles
-0..7, hidden rows keep screen position, offscreen cull, room prune. Other subweapons still use
-the old service until moved.
+0..7, hidden rows keep screen position, offscreen cull, room prune. [Rebound Stone](docs/player-rebound-stone.md)
+(subweapon7, entity20, bp24 origin2): sixteen first-free LINE_G2 rows, PLAYER-facing angle roll
+BEFORE func_8011A290 (SotnSubweaponInput.properties runs it inside each callback), embed hold,
+six-step probes/slope reflection table, factory10 profile0 tinks (particle behavior0), screen-window
+or fifteen-bounce exit, 0x40 fade clearing the hitbox at 0x20, additive trail. Other subweapons
+still use the old service until moved.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default

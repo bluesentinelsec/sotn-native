@@ -21,10 +21,10 @@ A rounded mathematical sine reproduces all 1,025 entries of the pinned original
 quarter-wave table in a private comparison, without embedding that table.
 
 This is a selected attack checkpoint, not complete subweapon parity.
-[Vibhuti](player-vibhuti.md) has moved to the shared player runtime (original factory,
-contiguous rows, attack groups and use grunt); the paths above have not moved yet. Cross,
-Bible, rebound stone and agunea can be collected but their attacks warn once and remain
-unintegrated, without spending hearts. Full projectile trails, glass/debris effects,
+[Vibhuti](player-vibhuti.md) and [Rebound Stone](player-rebound-stone.md) have moved to the
+shared player runtime (original factories, rows, attack groups and use grunt); the paths above
+have not moved yet. Cross, Bible and agunea can be collected but their attacks warn once and
+remain unintegrated, without spending hearts. Full projectile trails, glass/debris effects,
 original color modulation, these four paths' throw grunts/shared random consumption, item
 crashes, and all transform/form interactions remain incomplete.
 Texture/palette bytes and flame UV animation data stay in private runtime files.
