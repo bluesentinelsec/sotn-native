@@ -89,7 +89,9 @@ static bool BodySupported(Uint16 id)
            // Brilliant mail20 and Staurolite61 raise subweapon attack (SotnSubweapons_Power).
            id == 20 || id == 61 ||
            // Walk armor19 adds the explored-room count / 60 to defense.
-           id == 19;
+           id == 19 ||
+           // Reverse cloak50 (unreversed lining 0x40B) and Royal cloak53 (0x40D) copy cape colors.
+           id == 50 || id == 53;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {

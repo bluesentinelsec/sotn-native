@@ -57,6 +57,10 @@ D_8017C9A0 BSS segments live in fire_segments, screen words) and every update FA
 hit points (14x14, ten updates). Every shield spell now has its owner.
 Other combos keep the left-hand attack (gap) until their spells exist.
 
+Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
+(operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
+(no config menu). Crystal/Joseph's cloaks remain unsupported.
+
 Selected [Brilliant mail/Staurolite](docs/player-subweapon-gear.md): SotnSubweapons_Power is
 func_800FE3C4's explicit-subweapon attack (Brilliant mail20 +10, then US Staurolite61 x2/x3 for
 the cross4/subweapon12, then one (INT*2 + rand%12)/10 roll), used by every subweapon birth. Both

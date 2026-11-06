@@ -200,6 +200,16 @@ int main(void)
           (mailed.resistance & 0x2000U) && mailed.bonus[0] == lone.bonus[0] + 30 &&
           mailed.bonus[3] == lone.bonus[3] + 5);
     CHECK(SotnCharacter_Equip(c, 5, 57) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 0));
+    // Reverse cloak50 and Royal cloak53 are ordinary cape-slot records (their palettes copy).
+    bytes[0x4000 + 50 * 32 + 28] = 2;
+    bytes[0x4000 + 53 * 32 + 28] = 2;
+    bytes[0x4000 + 53 * 32 + 13] = 8;
+    SotnCharacterStats caped = {0};
+    CHECK(SotnCharacter_Collect(c, true, 50) && SotnCharacter_Collect(c, true, 53) &&
+          SotnCharacter_Get(c, &s, &lone) && SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 50) &&
+          SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 53) && SotnCharacter_Get(c, &s, &caped) &&
+          s.equipment[4] == 53 && caped.bonus[1] == lone.bonus[1] + 8);
+    CHECK(SotnCharacter_Equip(c, SOTN_EQUIP_CAPE, 48));
     // CalcDefense: Walk armor19 adds the explored-room counter / 60.
     SotnCharacterStats walking = {0};
     CHECK(SotnCharacter_Collect(c, true, 19) && SotnCharacter_Equip(c, SOTN_EQUIP_ARMOR, 19) &&
