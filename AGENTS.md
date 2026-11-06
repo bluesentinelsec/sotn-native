@@ -59,7 +59,9 @@ Other combos keep the left-hand attack (gap) until their spells exist.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
-(no config menu). Crystal/Joseph's cloaks remain unsupported.
+(no config menu). Crystal cloak52's 0x410 PAL_UNK_OP3 rotation (SotnAlucard_CrystalTick, reset
+without a copy on change, one pass per TickCape update like Twilight) alternates its colours and
+transparency. Joseph's cloak remains unsupported.
 
 Selected [Brilliant mail/Staurolite](docs/player-subweapon-gear.md): SotnSubweapons_Power is
 func_800FE3C4's explicit-subweapon attack (Brilliant mail20 +10, then US Staurolite61 x2/x3 for

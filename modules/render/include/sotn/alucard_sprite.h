@@ -87,4 +87,11 @@ bool SotnAlucard_CapePalette(SotnDataView dra, Uint16 cape, Uint16 colors[4]);
  * @param target Initialized target index (0/1). @param delay Initialized countdown (0/1).
  * @return Success or SDL error; outputs remain unchanged on invalid data. */
 bool SotnAlucard_TwilightTick(SotnDataView dra, Uint16 colors[4], Uint16 *target, Uint8 *delay);
+/** @brief Run one original palette-job pass of the Crystal cloak's rotation (operation 0x410,
+ * PAL_UNK_OP3): wait out the countdown, else copy the four cape colors of the current source and
+ * advance to the next (wrapping at the list's terminator).
+ * @param dra Borrowed private DRA. @param colors Four owned cape colors.
+ * @param cursor Source index (0 when the job is queued). @param delay Countdown (0 when queued).
+ * @return Success or SDL error; outputs remain unchanged on invalid data. */
+bool SotnAlucard_CrystalTick(SotnDataView dra, Uint16 colors[4], Uint16 *cursor, Uint8 *delay);
 #endif

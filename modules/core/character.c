@@ -94,7 +94,9 @@ static bool BodySupported(Uint16 id)
            id == 50 || id == 53 ||
            // Additive-only records: Fire mail, Mirror cuirass, Dracula tunic, Holy glasses
            // (BO6 reads it in the unintegrated Richter fight), Circlet and Ring of Pales.
-           id == 10 || id == 13 || id == 23 || id == 34 || id == 37 || id == 62;
+           id == 10 || id == 13 || id == 23 || id == 34 || id == 37 || id == 62 ||
+           // Crystal cloak52 rotates its cape colors (operation 0x410) every palette pass.
+           id == 52;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
