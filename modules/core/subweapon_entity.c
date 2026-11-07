@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // dra/84B88.c:EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
-// EntityAguneaHitEnemy, 8A0A4.c:EntitySubwpnBible/EntitySubwpnBibleTrail and rebound_stone.h,
-// sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
-// SDK trigonometry and collision tables remain private runtime inputs.
+// EntityAguneaHitEnemy/EntitySubwpnCrashCross/EntitySubwpnCrashCrossParticles, wolfForm.c:
+// EntityGiantSpinningCross, 7879C.c:func_80119E78, 8A0A4.c:EntitySubwpnBible/
+// EntitySubwpnBibleTrail and rebound_stone.h, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
+// SDK trigonometry, collision tables and the cross model remain private runtime inputs.
+#include "boss_projection.h"
 #include <sotn/combat.h>
 #include <sotn/game_math.h>
 #include <sotn/subweapon_entity.h>
@@ -718,6 +720,312 @@ static void BibleTrail(SotnSubweaponEntity *e)
         break;
     }
 }
+// EntitySubwpnCrashCross: func_8010DFF0(1, 1) runs first every update (the owner applies it).
+// Geometry is in screen words; left/right are only read on step4 updates, which assign them.
+static bool Beam(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                 SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnCrossBeam *b = &next.beam;
+    Uint32 cursor = *random;
+    const Sint16 x = Word(Pixel(e->x) - in.screen_x);
+    Sint16 left = 0, right = 0;
+    switch (e->step)
+    {
+    case 0:
+        next.flags = 0x00800000U; // FLAG_HAS_PRIMS
+        next.y = WithPixel(next.y, in.screen_y + 0x78);
+        b->width = 1;
+        next.priority = 0xc2;
+        if (!in.properties(in.context, &cursor))
+            return false;
+        b->crash = (Uint8)in.crash;
+        out->upload_gradient = true;
+        b->grey = 0x80;
+        b->draw_mode = 0x31;      // DRAW_TPAGE2 | DRAW_TPAGE | DRAW_TRANSP
+        out->sound = 0x6df;       // SFX_CRASH_CROSS
+        out->sound_after = 0x636; // SFX_TELEPORT_BANG_B
+        next.step = 1;
+        out->spell_use_ticks = 4;
+        break;
+    case 1:
+        b->half_height = Word(b->half_height + 3);
+        b->height = (Uint8)(b->height + 6);
+        if ((b->half_height & 0xff) >= 0x70)
+        {
+            out->factories = 2;
+            out->factory_packed[0] = SOTN_GIANT_CROSS_BLUEPRINT;
+            out->factory_argument[0] = (Uint16)(b->crash << 9);
+            out->factory_packed[1] = SOTN_CROSS_PARTICLES_BLUEPRINT;
+            out->factory_x = next.x;
+            out->factory_y = next.y;
+            next.step = 2;
+        }
+        break;
+    case 2:
+        if (!(in.engine_timer & 1U))
+            break;
+        b->half_width = Word(b->half_width + 1);
+        b->width = (Uint8)(b->width + 2);
+        if (b->width >= 0x2c)
+        {
+            next.step = 3;
+            b->hold = 0x80;
+        }
+        break;
+    case 3:
+        b->hold = Add(b->hold, -1);
+        if (!b->hold)
+        {
+            left = Word(x - b->half_width);
+            if (left < 0)
+                left = 0;
+            right = Word(x + b->half_width);
+            if (right > 0xff)
+                right = 0xff;
+            next.step = 4;
+            out->sound = 0x62f; // SFX_WEAPON_APPEAR
+        }
+        break;
+    default: {
+        const Sint32 distance = Word(SDL_abs(x - 0x80));
+        b->half_width = Word(b->half_width + Word(3 * (distance + 0x80) / 112));
+        left = Word(x - b->half_width);
+        right = Word(x + b->half_width);
+        if (right > 0x180 && left < -0x80)
+        {
+            next.removed = true;
+            *e = next;
+            *random = cursor;
+            return true;
+        }
+        break;
+    }
+    }
+    next.hitbox_y = 0;
+    next.hitbox_height = (Uint8)b->half_height;
+    if (next.step == 4)
+    {
+        next.hitbox_width = (Uint8)Asr(right - left, 1);
+        next.hitbox_x = Word(Asr(left + right, 1) - x);
+    }
+    else
+    {
+        next.hitbox_width = (Uint8)b->half_width;
+        next.hitbox_x = 0;
+    }
+    b->x0 = Word(x - b->half_width);
+    b->y0 = Word(Word(Pixel(next.y) - in.screen_y) - b->half_height);
+    b->x1 = Word(b->x0 + b->width);
+    b->y2 = Word(b->y0 + b->height);
+    if (next.step == 4)
+    {
+        if (b->grey < 0xf8)
+            b->grey = (Uint8)(b->grey + 4);
+        b->x0 = left;
+        b->x1 = right;
+        b->draw_mode = 0x35; // adds DRAW_COLORS
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
+static Uint32 Read32(const Uint8 *p)
+{
+    return (Uint32)p[0] | (Uint32)p[1] << 8 | (Uint32)p[2] << 16 | (Uint32)p[3] << 24;
+}
+// D_800B0CB4[row]'s four SVECTOR pointers into D_800B0B34..D_800B0CAC (DRA at 0x800A0000).
+static bool CrossVertices(SotnDataView dra, Uint16 row, Sint16 out[4][3])
+{
+    const size_t table = 0x10cb4U + (size_t)row * 16U;
+    if (row >= SOTN_GIANT_CROSS_ROWS || !dra.bytes || dra.size < table + 16U)
+        return SDL_SetError("Giant cross row %u is outside the private DRA model", row);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const Uint32 address = Read32(dra.bytes + table + i * 4U);
+        if (address < 0x800b0b34U || address > 0x800b0cacU || (address & 7U) != 4U)
+            return SDL_SetError("Giant cross row %u names a vertex outside its private model", row);
+        const Uint8 *v = dra.bytes + (address - 0x800a0000U);
+        for (Uint16 k = 0; k < 3; ++k)
+            out[i][k] = (Sint16)(Uint16)(v[k * 2U] | v[k * 2U + 1U] << 8);
+    }
+    return true;
+}
+bool SotnSubweaponEntity_CrossFace(SotnDataView dra, Uint16 row, Uint8 u[4], Uint8 v[4],
+                                   Uint16 *palette)
+{
+    const size_t at = 0x10f94U + (size_t)row * 5U;
+    if (!u || !v || !palette || row >= SOTN_GIANT_CROSS_ROWS || !dra.bytes || dra.size < at + 5U)
+        return SDL_SetError("Giant cross face %u is outside the private DRA table", row);
+    const Uint8 *c = dra.bytes + at;
+    const Uint8 l = c[0], t = c[1], r = (Uint8)(c[0] + c[2]), b = (Uint8)(c[1] + c[3]);
+    // Each case writes the corners of one mirrored/rotated variant of the rectangle.
+    static const Uint8 corners[8][4] = {{0, 1, 2, 3}, {1, 0, 3, 2}, {2, 3, 0, 1}, {3, 2, 1, 0},
+                                        {3, 1, 2, 0}, {2, 0, 3, 1}, {1, 3, 0, 2}, {0, 2, 1, 3}};
+    const Uint8 cu[4] = {l, r, l, r}, cv[4] = {t, t, b, b};
+    const Uint8 kind = (Uint8)((c[4] & 0xf0U) >> 4);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        const Uint8 corner = corners[kind < 8 ? kind : 0][i];
+        u[i] = cu[corner];
+        v[i] = cv[corner];
+    }
+    *palette = (Uint16)((c[4] & 0xfU) + 0x1a0U);
+    return true;
+}
+bool SotnSubweaponEntity_SparkFace(SotnDataView dra, Uint16 frame, Uint8 u[4], Uint8 v[4])
+{
+    const size_t at = 0xd094U + (size_t)frame * 8U;
+    if (!u || !v || frame >= 6 || !dra.bytes || dra.size < at + 8U)
+        return SDL_SetError("Cross particle frame %u is outside the private DRA table", frame);
+    for (Uint16 i = 0; i < 4; ++i)
+    {
+        u[i] = dra.bytes[at + i * 2U];
+        v[i] = dra.bytes[at + i * 2U + 1U];
+    }
+    return true;
+}
+// EntityGiantSpinningCross: RotMatrix(0, spin, 0x40), TransMatrix of its orbit, SetGeomOffset
+// (posX, 120), SetGeomScreen(320). Each row projects vectors 0/1/3 (RTPT, NCLIP) then 2.
+static bool GiantCross(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                       SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnGiantCross *c = &next.cross;
+    Uint32 cursor = *random;
+    if (!e->step)
+    {
+        c->visible = 0; // tpage 0x1C, DRAW_UNK_100 | DRAW_HIDE
+        if (!in.properties(in.context, &cursor))
+            return false;
+        next.hitbox_height = 0x50;
+        next.hitbox_width = 0xc;
+        next.facing_left = false;
+        next.y = WithPixel(next.y, in.screen_y + 0x160);
+        c->velocity_y = -0x60000;
+        next.flags = 0x04800000U; // KEEP_ALIVE_OFFCAMERA | HAS_PRIMS
+        c->angle = 0;
+        c->spin = 0x400;
+        out->sound = 0x661; // SFX_FIREBALL_SHOT_B
+        next.step = 1;
+        *e = next;
+        *random = cursor;
+        return true;
+    }
+    if (Word(Pixel(e->y) - in.screen_y) < -0x40)
+    {
+        e->removed = true;
+        return true;
+    }
+    if (Word(Pixel(e->y) - in.screen_y) < 0)
+        c->velocity_y = Add(c->velocity_y, -0x8000);
+    next.y = Add(next.y, c->velocity_y);
+    c->angle = Word(c->angle + 0x60);
+    c->spin = Word(c->spin + 0x60);
+    SotnMathTrig t = {0};
+    if (!SotnMath_Trig(in.executable, c->angle, &t))
+        return false;
+    const Sint16 x = Word(Pixel(next.x) - in.screen_x), y = Word(Pixel(next.y) - in.screen_y);
+    const Sint32 transfer[3] = {Asr(-(t.cosine * 0x60), 12), y - 0x80,
+                                Asr(t.sine * 0x60, 12) + 0x180};
+    const Sint16 axis[3] = {0, c->spin, 0x40}, centre[4][3] = {{0}};
+    SotnProjectedPoint p[4] = {{0}};
+    Sint32 z = 0;
+    if (!SotnShieldStar_Project(in.executable, axis, transfer, x, 120, 320, centre, p, &z))
+        return false;
+    next.hitbox_x = Word(Word(p[0].x) - x);
+    next.hitbox_y = Word(Word(p[0].y) - y);
+    c->priority = z < 16 ? 0x1b6 : z > 998 ? 0x10 : (Uint16)(0xd0 - (z - 0x50));
+    c->visible = 0;
+    for (Uint16 row = 0; row < SOTN_GIANT_CROSS_ROWS; ++row)
+    {
+        Sint16 m[4][3] = {{0}};
+        if (!CrossVertices(in.dra, row, m))
+            return false;
+        // RTPT takes vectors 0, 1 and 3; RTPS then vector 2.
+        const Sint16 order[4][3] = {{m[0][0], m[0][1], m[0][2]},
+                                    {m[1][0], m[1][1], m[1][2]},
+                                    {m[3][0], m[3][1], m[3][2]},
+                                    {m[2][0], m[2][1], m[2][2]}};
+        Sint32 depth = 0;
+        if (!SotnShieldStar_Project(in.executable, axis, transfer, x, 120, 320, order, p, &depth))
+            return false;
+        const Sint64 nclip = (Sint64)p[0].x * p[1].y + (Sint64)p[1].x * p[2].y +
+                             (Sint64)p[2].x * p[0].y - (Sint64)p[0].x * p[2].y -
+                             (Sint64)p[1].x * p[0].y - (Sint64)p[2].x * p[1].y;
+        if (nclip < 0)
+            continue;
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            c->x[row][v] = Word(p[v].x);
+            c->y[row][v] = Word(p[v].y);
+        }
+        c->visible |= (Uint64)1 << row;
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
+// EntitySubwpnCrashCrossParticles and func_80119E78. Each born spark takes three rand calls.
+static void Sparks(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random)
+{
+    SotnCrossParticles *s = &e->sparks;
+    if (!e->step)
+    {
+        e->flags = 0x04800000U; // KEEP_ALIVE_OFFCAMERA | HAS_PRIMS
+        s->timer = 192;
+        e->step = 1;
+        return;
+    }
+    s->timer = Word(s->timer - 1);
+    if (!s->timer)
+    {
+        e->removed = true;
+        return;
+    }
+    if (s->timer > 8 && !(s->timer & 3))
+        for (Uint16 i = 0; i < SOTN_CROSS_PARTICLE_ROWS; ++i)
+            if (!s->rows[i].active)
+            {
+                s->rows[i].active = 1;
+                s->rows[i].born = 0;
+                break;
+            }
+    for (Uint16 i = 0; i < SOTN_CROSS_PARTICLE_ROWS; ++i)
+    {
+        SotnCrossParticle *p = &s->rows[i];
+        if (!p->active)
+            continue;
+        if (!p->born)
+        {
+            const Uint16 roll = SotnCombat_Random(random) & 0x3f;
+            p->x = (Uint8)(SotnCombat_Random(random) % 237 + 9);
+            p->y = (Uint8)(0xf0 - (SotnCombat_Random(random) & 0x20));
+            p->frame = p->parity = 0;
+            p->priority = (Uint16)(in.player_priority + roll - 0x20);
+            p->visible = true;
+            p->speed = (Uint8)((roll >> 2) + 4);
+            ++p->born;
+        }
+        else
+        {
+            p->y = (Uint8)(p->y - p->speed);
+            if (p->frame >= 6 || p->y < 24)
+            {
+                p->visible = false;
+                p->active = 0;
+            }
+        }
+        if (p->active)
+        {
+            p->shown = p->frame;
+            p->placed = p->y;
+            ++p->parity;
+            if (!(p->parity & 1))
+                ++p->frame;
+        }
+    }
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
     return id == SOTN_SUBWEAPON_VIBHUTI                           ? SOTN_VIBHUTI_ROWS
@@ -725,6 +1033,9 @@ Uint16 SotnSubweaponEntity_Rows(Uint16 id)
            : id == SOTN_SUBWEAPON_AGUNEA                          ? SOTN_AGUNEA_ROWS
            : id == SOTN_AGUNEA_BOLT                               ? SOTN_AGUNEA_BOLT_ROWS
            : id == SOTN_SUBWEAPON_BIBLE || id == SOTN_BIBLE_TRAIL ? 1
+           : id == SOTN_SUBWEAPON_CROSS                           ? 1
+           : id == SOTN_GIANT_CROSS                               ? SOTN_GIANT_CROSS_ROWS
+           : id == SOTN_CROSS_PARTICLES                           ? SOTN_CROSS_PARTICLE_ROWS
                                                                   : 0;
 }
 bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
@@ -733,10 +1044,15 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
     const bool vibhuti = e && e->id == SOTN_SUBWEAPON_VIBHUTI,
                stone = e && e->id == SOTN_SUBWEAPON_REBOUND_STONE,
                agunea = e && e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e && e->id == SOTN_AGUNEA_BOLT,
-               bible = e && e->id == SOTN_SUBWEAPON_BIBLE, trail = e && e->id == SOTN_BIBLE_TRAIL;
+               bible = e && e->id == SOTN_SUBWEAPON_BIBLE, trail = e && e->id == SOTN_BIBLE_TRAIL,
+               beam = e && e->id == SOTN_SUBWEAPON_CROSS, cross = e && e->id == SOTN_GIANT_CROSS,
+               sparks = e && e->id == SOTN_CROSS_PARTICLES;
     if (!e || !random || !events || e->removed ||
-        (!vibhuti && !stone && !agunea && !bolt && !bible && !trail) ||
-        (!in.properties && !bolt && !trail) ||
+        (!vibhuti && !stone && !agunea && !bolt && !bible && !trail && !beam && !cross &&
+         !sparks) ||
+        (!in.properties && !bolt && !trail && !sparks) || (beam && e->step > 4) ||
+        (cross && e->step > 1) ||
+        (sparks && (e->step > 1 || (e->step && (e->sparks.timer < 1 || e->sparks.timer > 192)))) ||
         (bible && (e->step > 4 || e->bible.mode < 0 || e->bible.mode > 2)) ||
         (trail && e->step > 2) ||
         (vibhuti && (e->step > 1 || (e->step && (!e->timer || e->timer > 0x80)))) ||
@@ -748,6 +1064,7 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
         in.hit_flags > 3 || in.hit_target >= SOTN_STAGE_TARGETS)
         return SDL_SetError("Subweapon callback requires its actual live entity and outputs");
     *events = (SotnSubweaponEvents){0};
+    events->reset_afterimages = beam; // func_8010DFF0(1, 1) precedes the allocation.
     // E_SUBWPN_AGUNEA retires during any transformation (and status 0x10000) before allocating.
     if (agunea && (in.player_status & 0x10007U))
     {
@@ -764,6 +1081,15 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
         BibleTrail(e);
         return true;
     }
+    if (sparks)
+    {
+        Sparks(e, in, random);
+        return true;
+    }
+    if (beam)
+        return Beam(e, in, random, events);
+    if (cross)
+        return GiantCross(e, in, random, events);
     if (bible)
         return Bible(e, in, random, events);
     if (agunea)

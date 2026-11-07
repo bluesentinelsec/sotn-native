@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Selected dra/84B88.c:EntityHellfire LoadImage boundary and flash G4 packet,
-// sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Pixels remain private.
+// Selected dra/84B88.c:EntityHellfire/EntitySubwpnCrashCross LoadImage boundary and flash G4
+// packet, sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5. Pixels remain private.
 #include <sotn/hellfire_graphics.h>
 static Uint16 Read16(const Uint8 *p)
 {
     return (Uint16)(p[0] | (Uint16)p[1] << 8);
 }
-bool SotnHellfireGraphics_Upload(SotnActorGraphics *graphics, SotnDataView dra)
+static bool Upload(SotnActorGraphics *graphics, SotnDataView dra, Uint16 count)
 {
     if (!graphics || !dra.bytes || dra.size < 0x10798)
         return SDL_SetError(
             "Hellfire gradients require their actual texture owner and private image");
     SotnActorTarget rows[2] = {0};
-    for (Uint16 i = 0; i < 2; ++i)
+    for (Uint16 i = 0; i < count; ++i)
     {
         const Uint8 *r = dra.bytes + 0x10788U + i * 8U;
         rows[i] = (SotnActorTarget){.x = Read16(r),
@@ -25,7 +25,7 @@ bool SotnHellfireGraphics_Upload(SotnActorGraphics *graphics, SotnDataView dra)
             return SDL_SetError(
                 "Hellfire gradient row escapes its private pixels or original VRAM");
     }
-    for (Uint16 i = 0; i < 2; ++i)
+    for (Uint16 i = 0; i < count; ++i)
     {
         SotnActorSurface target = {0};
         if (!SotnActorGraphics_BeginTarget(graphics, rows[i], &target))
@@ -37,6 +37,14 @@ bool SotnHellfireGraphics_Upload(SotnActorGraphics *graphics, SotnDataView dra)
             return false;
     }
     return true;
+}
+bool SotnHellfireGraphics_Upload(SotnActorGraphics *graphics, SotnDataView dra)
+{
+    return Upload(graphics, dra, 2);
+}
+bool SotnHellfireGraphics_UploadCross(SotnActorGraphics *graphics, SotnDataView dra)
+{
+    return Upload(graphics, dra, 1);
 }
 bool SotnHellfireGraphics_Flash(SotnActorGraphics *g, const SotnPlayerEffectQuad *p, Sint32 x,
                                 Sint32 y, SotnActorSurface surface)

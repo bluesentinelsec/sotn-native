@@ -1,6 +1,7 @@
 // EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone (dra/84B88.c) and their shared-runtime owner
 // with authored tables only.
 #include "actors_internal.h"
+#include "boss_projection.h"
 #include "character_fixture.h"
 #include <SDL3/SDL.h>
 #include <sotn/combat.h>
@@ -1206,6 +1207,438 @@ static bool BibleRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// EntitySubwpnCrashCross: afterimage reset before the allocation, birth, rise, factories, odd
+// g_Timer widening, hold with clamped edges, spread and retirement.
+static bool Beam(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 40,
+                             .screen_y = 20,
+                             .crash = SOTN_GIANT_CROSS};
+    const SotnSubweaponEntity fresh = {.x = (40 + 10) * 65536 + 0x1234,
+                                       .y = 300 * 65536 + 0x5678,
+                                       .id = SOTN_SUBWEAPON_CROSS,
+                                       .priority = 148};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 9;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == 9 && !rolls &&
+          ev.reset_afterimages && !ev.upload_gradient);
+    in.allocated = true;
+    e = fresh;
+    Uint32 expected = random;
+    (void)SotnCombat_Random(&expected);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && rolls == 1 &&
+          e.step == 1 && e.flags == 0x00800000U && e.y == (20 + 0x78) * 65536 + 0x5678 &&
+          e.x == fresh.x && e.priority == 0xc2 && e.beam.width == 1 && e.beam.grey == 0x80 &&
+          e.beam.draw_mode == 0x31 && e.beam.crash == SOTN_GIANT_CROSS && ev.upload_gradient &&
+          ev.reset_afterimages && ev.sound == 0x6df && ev.sound_after == 0x636 &&
+          ev.spell_use_ticks == 4 && !ev.factories && e.beam.x0 == 10 && e.beam.x1 == 11 &&
+          e.beam.y0 == 0x78 && e.beam.y2 == 0x78 && !e.hitbox_width && !e.hitbox_height);
+    // Rise: three pixels each way per update until the half height's low byte reaches 0x70.
+    for (Uint16 tick = 1; tick <= 38; ++tick)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected &&
+              ev.reset_afterimages && !ev.sound && e.beam.half_height == tick * 3 &&
+              e.beam.height == tick * 6 && e.hitbox_height == tick * 3 && !e.hitbox_x &&
+              e.beam.y0 == 0x78 - tick * 3 && e.beam.y2 == 0x78 + tick * 3 &&
+              e.step == (tick == 38 ? 2 : 1) && ev.factories == (tick == 38 ? 2 : 0));
+    }
+    CHECK(ev.factory_packed[0] == SOTN_GIANT_CROSS_BLUEPRINT &&
+          ev.factory_argument[0] == SOTN_GIANT_CROSS << 9 &&
+          ev.factory_packed[1] == SOTN_CROSS_PARTICLES_BLUEPRINT && !ev.factory_argument[1] &&
+          ev.factory_x == e.x && ev.factory_y == e.y);
+    // Widening only on odd g_Timer frames, to a width of 45 (22 steps).
+    Uint16 steps = 0;
+    for (Uint32 frame = 0; e.step == 2 && frame < 100; ++frame)
+    {
+        const Sint16 before = e.beam.half_width;
+        in.engine_timer = frame;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        CHECK(e.beam.half_width == before + (Sint16)(frame & 1U));
+        steps += (Uint16)(frame & 1U);
+        CHECK(e.hitbox_width == (Uint8)e.beam.half_width && e.beam.x0 == 10 - e.beam.half_width &&
+              e.beam.x1 == e.beam.x0 + e.beam.width);
+    }
+    CHECK(steps == 22 && e.beam.width == 45 && e.beam.half_width == 22 && e.step == 3 &&
+          e.beam.hold == 0x80);
+    // Hold, then the clamped edges (0..32 around x10) on the update that starts the spread.
+    for (Uint16 tick = 1; tick < 0x80; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 3 && !ev.sound &&
+              e.beam.grey == 0x80);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 4 && ev.sound == 0x62f &&
+          e.beam.x0 == 0 && e.beam.x1 == 32 && e.hitbox_width == 16 && e.hitbox_x == 6 &&
+          e.beam.grey == 0x84 && e.beam.draw_mode == 0x35 && e.beam.half_width == 22);
+    // Spread: 3 * (|x - 128| + 128) / 112 = 6 pixels each way per update; the hitbox width is a
+    // byte. It retires once both edges pass (-0x80, 0x180) without updating the hitbox.
+    Uint16 spread = 0;
+    while (!e.removed && spread < 100)
+    {
+        const SotnSubweaponEntity before = e;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        ++spread;
+        if (e.removed)
+        {
+            CHECK(10 + e.beam.half_width > 0x180 && before.hitbox_width == before.hitbox_width &&
+                  e.hitbox_width == before.hitbox_width);
+            break;
+        }
+        CHECK(e.beam.half_width == before.beam.half_width + 6 &&
+              e.beam.x0 == 10 - e.beam.half_width && e.beam.x1 == 10 + e.beam.half_width &&
+              e.hitbox_width == (Uint8)e.beam.half_width && e.hitbox_x == 0 &&
+              e.beam.grey == (before.beam.grey < 0xf8 ? before.beam.grey + 4 : before.beam.grey));
+    }
+    CHECK(e.removed && spread == 59 && e.beam.half_width == 22 + 59 * 6);
+    // Right of centre the step uses the same distance; an unclamped hold end keeps both edges.
+    e = fresh;
+    e.x = (40 + 222) * 65536;
+    e.step = 3;
+    e.beam = (SotnCrossBeam){.half_width = 22,
+                             .half_height = 0x72,
+                             .width = 45,
+                             .height = 228,
+                             .hold = 1,
+                             .grey = 0x80,
+                             .draw_mode = 0x31};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.beam.x0 == 200 && e.beam.x1 == 244 &&
+          e.hitbox_width == 22 && !e.hitbox_x && e.hitbox_height == 0x72);
+    // 3 * (94 + 128) = 666: five pixels (a divisor of 111 would give six).
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.beam.half_width == 27);
+    e.x = (40 + 21) * 65536;
+    e.step = 3;
+    e.beam.half_width = 22;
+    e.beam.hold = 1;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.beam.x0 == 0 && e.beam.x1 == 43 &&
+          e.hitbox_width == 21 && !e.hitbox_x);
+    e.x = (40 + 250) * 65536;
+    e.step = 3;
+    e.beam.half_width = 22;
+    e.beam.hold = 1;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.beam.x0 == 228 && e.beam.x1 == 0xff &&
+          e.hitbox_width == 13 && e.hitbox_x == -9);
+    return true;
+}
+// Authored face A(-200,-1000) B(200,-1000) C(-200,1000) D(200,1000): even rows {A,B,D,C} face the
+// camera, odd rows reverse it; rows store vectors 0, 1, 3, 2.
+static Uint8 *CrossModel(void)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11200);
+    if (!dra)
+        return NULL;
+    const Sint16 corners[4][3] = {
+        {-200, -1000, -4}, {200, -1000, -4}, {-200, 1000, -4}, {200, 1000, -4}};
+    for (Uint16 i = 0; i < 4; ++i)
+        for (Uint16 k = 0; k < 3; ++k)
+            Put16(dra + 0x10b34 + i * 8U + k * 2U, (Uint16)corners[i][k]);
+    const Uint8 order[2][4] = {{0, 1, 3, 2}, {1, 0, 2, 3}};
+    for (Uint16 row = 0; row < SOTN_GIANT_CROSS_ROWS; ++row)
+    {
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            const Uint32 address = 0x800b0b34U + order[row & 1U][v] * 8U;
+            for (Uint16 b = 0; b < 4; ++b)
+                dra[0x10cb4 + row * 16U + v * 4U + b] = (Uint8)(address >> (b * 8U));
+        }
+        Uint8 *face = dra + 0x10f94 + row * 5U;
+        face[0] = 0x38;
+        face[1] = 8;
+        face[2] = face[3] = 16;
+        face[4] = (Uint8)(((row % 13U) << 4) | (row % 16U));
+    }
+    for (Uint16 frame = 0; frame < 6; ++frame)
+        for (Uint16 b = 0; b < 8; ++b)
+            dra[0xd094 + frame * 8U + b] = (Uint8)(frame * 16U + b);
+    return dra;
+}
+// EntityGiantSpinningCross: birth, rise/acceleration, orbit/spin, projected hitbox/priority,
+// face order and NCLIP visibility (hidden faces keep their last words), retirement.
+static bool GiantCross(SotnDataView executable)
+{
+    Uint8 *dra = CrossModel();
+    CHECK(dra);
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .dra = {dra, 0x11200},
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 40,
+                             .screen_y = 20,
+                             .allocated = true};
+    SotnSubweaponEntity e = {.x = (40 + 100) * 65536 + 7,
+                             .y = 50 * 65536 + 9,
+                             .id = SOTN_GIANT_CROSS,
+                             .facing_left = true};
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 5, expected = 5;
+    (void)SotnCombat_Random(&expected);
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected && rolls == 1 &&
+          e.step == 1 && e.flags == 0x04800000U && !e.facing_left &&
+          e.y == (20 + 0x160) * 65536 + 9 && e.cross.velocity_y == -0x60000 && !e.cross.angle &&
+          e.cross.spin == 0x400 && !e.cross.visible && e.hitbox_width == 0xc &&
+          e.hitbox_height == 0x50 && ev.sound == 0x661 && !ev.reset_afterimages);
+    bool seen[2] = {false, false}, kept = false;
+    Uint16 updates = 0;
+    while (!e.removed && updates < 200)
+    {
+        const SotnSubweaponEntity before = e;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected);
+        ++updates;
+        if (e.removed)
+        {
+            CHECK(Whole(before.y) - 20 < -0x40);
+            break;
+        }
+        const Sint32 y = Whole(before.y) - 20;
+        const Sint32 vy = before.cross.velocity_y - (y < 0 ? 0x8000 : 0);
+        CHECK(e.cross.velocity_y == vy && e.y == before.y + vy &&
+              e.cross.angle == (Sint16)(before.cross.angle + 0x60) &&
+              e.cross.spin == (Sint16)(before.cross.spin + 0x60));
+        SotnMathTrig t = {0};
+        CHECK(SotnMath_Trig(executable, e.cross.angle, &t));
+        const Sint16 sy = (Sint16)(Whole(e.y) - 20);
+        const Sint32 transfer[3] = {Floor(-(t.cosine * 0x60), 12), sy - 0x80,
+                                    Floor(t.sine * 0x60, 12) + 0x180};
+        const Sint16 axis[3] = {0, e.cross.spin, 0x40}, centre[4][3] = {{0}};
+        SotnProjectedPoint p[4] = {{0}};
+        Sint32 z = 0;
+        CHECK(SotnShieldStar_Project(executable, axis, transfer, 100, 120, 320, centre, p, &z));
+        CHECK(e.hitbox_x == p[0].x - 100 && e.hitbox_y == p[0].y - sy &&
+              e.cross.priority == (Uint16)(0xd0 - (z - 0x50)));
+        const Sint16 corners[4][3] = {
+            {-200, -1000, -4}, {200, -1000, -4}, {-200, 1000, -4}, {200, 1000, -4}};
+        for (Uint16 row = 0; row < 2; ++row)
+        {
+            const Uint16 o[2][4] = {{0, 1, 2, 3}, {1, 0, 3, 2}};
+            const Sint16 *c0 = corners[o[row][0]], *c1 = corners[o[row][1]],
+                         *c2 = corners[o[row][2]], *c3 = corners[o[row][3]];
+            const Sint16 v[4][3] = {{c0[0], c0[1], c0[2]},
+                                    {c1[0], c1[1], c1[2]},
+                                    {c2[0], c2[1], c2[2]},
+                                    {c3[0], c3[1], c3[2]}};
+            CHECK(SotnShieldStar_Project(executable, axis, transfer, 100, 120, 320, v, p, &z));
+            const Sint64 nclip = (Sint64)p[0].x * p[1].y + (Sint64)p[1].x * p[2].y +
+                                 (Sint64)p[2].x * p[0].y - (Sint64)p[0].x * p[2].y -
+                                 (Sint64)p[1].x * p[0].y - (Sint64)p[2].x * p[1].y;
+            const bool shown = (e.cross.visible >> row) & 1U;
+            CHECK(shown == (nclip >= 0) && ((e.cross.visible >> (row + 2U)) & 1U) == shown);
+            seen[row] |= shown;
+            for (Uint16 k = 0; k < 4; ++k)
+                CHECK(shown ? e.cross.x[row][k] == p[k].x && e.cross.y[row][k] == p[k].y
+                            : e.cross.x[row][k] == before.cross.x[row][k] &&
+                                  e.cross.y[row][k] == before.cross.y[row][k]);
+            kept |= !shown && ((before.cross.visible >> row) & 1U);
+        }
+    }
+    CHECK(e.removed && updates > 60 && updates < 120 && seen[0] && seen[1] && kept);
+    Uint8 u[4] = {0}, v[4] = {0};
+    Uint16 palette = 0;
+    CHECK(SotnSubweaponEntity_CrossFace(in.dra, 4, u, v, &palette) && palette == 0x1a4 &&
+          u[0] == 0x48 && v[0] == 0x18 && u[3] == 0x38 && v[3] == 8 && u[1] == 0x48 && v[1] == 8);
+    CHECK(SotnSubweaponEntity_CrossFace(in.dra, 0, u, v, &palette) && palette == 0x1a0 &&
+          u[0] == 0x38 && v[0] == 8 && u[3] == 0x48 && v[3] == 0x18);
+    // Row12's kind 0xC0 (beyond 0x70) takes the default corners.
+    CHECK(SotnSubweaponEntity_CrossFace(in.dra, 12, u, v, &palette) && palette == 0x1ac &&
+          u[0] == 0x38 && v[0] == 8 && u[1] == 0x48 && v[2] == 0x18);
+    CHECK(!SotnSubweaponEntity_CrossFace(in.dra, SOTN_GIANT_CROSS_ROWS, u, v, &palette) &&
+          SotnSubweaponEntity_SparkFace(in.dra, 5, u, v) && u[0] == 0x50 && v[3] == 0x57 &&
+          !SotnSubweaponEntity_SparkFace(in.dra, 6, u, v));
+    e = (SotnSubweaponEntity){.id = SOTN_GIANT_CROSS, .step = 1, .y = (20 - 0x40) * 65536};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && !e.removed);
+    e = (SotnSubweaponEntity){.id = SOTN_GIANT_CROSS, .step = 1, .y = (20 - 0x41) * 65536};
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed);
+    Put16(dra + 0x10cb4, 0x1234);
+    e = (SotnSubweaponEntity){.id = SOTN_GIANT_CROSS, .step = 1, .y = 100 * 65536};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    SDL_free(dra);
+    return true;
+}
+// EntitySubwpnCrashCrossParticles: 192 updates, a spark every fourth update above eight, three
+// rand calls per spark, rise, frame/size, hide and row reuse.
+static bool Sparks(void)
+{
+    SotnSubweaponInput in = {.player_priority = 0x90, .allocated = true};
+    SotnSubweaponEntity e = {.id = SOTN_CROSS_PARTICLES};
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 77, expected = 77;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 1 && e.flags == 0x04800000U &&
+          e.sparks.timer == 192 && random == 77);
+    Uint16 births = 0, hides = 0, maximum = 0;
+    SotnCrossParticles before = e.sparks;
+    for (Uint16 tick = 1; tick <= 192; ++tick)
+    {
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+        if (tick == 192)
+        {
+            CHECK(e.removed);
+            break;
+        }
+        CHECK(e.sparks.timer == 192 - tick);
+        Uint16 active = 0;
+        for (Uint16 i = 0; i < SOTN_CROSS_PARTICLE_ROWS; ++i)
+        {
+            const SotnCrossParticle *p = &e.sparks.rows[i], *o = &before.rows[i];
+            active += p->active;
+            if (p->active && !o->active)
+            {
+                const Uint16 roll = SotnCombat_Random(&expected) & 0x3f;
+                const Uint8 x = (Uint8)(SotnCombat_Random(&expected) % 237 + 9),
+                            y = (Uint8)(0xf0 - (SotnCombat_Random(&expected) & 0x20));
+                CHECK(p->x == x && p->y == y && p->placed == y && p->shown == 0 && p->parity == 1 &&
+                      !p->frame && p->born == 1 && p->visible && p->speed == (roll >> 2) + 4 &&
+                      p->priority == 0x90 + roll - 0x20);
+                ++births;
+            }
+            else if (o->active)
+            {
+                const Uint8 y = (Uint8)(o->y - o->speed);
+                if (o->frame >= 6 || y < 24)
+                {
+                    CHECK(!p->active && !p->visible && p->y == y);
+                    ++hides;
+                }
+                else
+                    CHECK(p->active && p->visible && p->y == y && p->placed == y &&
+                          p->shown == o->frame && p->parity == o->parity + 1 &&
+                          p->frame == o->frame + (p->parity % 2 == 0));
+            }
+        }
+        CHECK(random == expected);
+        maximum = SDL_max(maximum, active);
+        before = e.sparks;
+    }
+    CHECK(births == 45 && hides >= 40 && maximum >= 3 && maximum <= 5 &&
+          !e.sparks.rows[maximum + 1].born);
+    // A spark landing on line 24 stays; one below it hides.
+    for (Uint16 below = 0; below < 2; ++below)
+    {
+        e = (SotnSubweaponEntity){.id = SOTN_CROSS_PARTICLES, .step = 1};
+        e.sparks.timer = 7;
+        e.sparks.rows[0] = (SotnCrossParticle){.active = 1,
+                                               .born = 1,
+                                               .x = 50,
+                                               .y = (Uint8)(24 - below + 9),
+                                               .speed = 9,
+                                               .frame = 2,
+                                               .visible = true};
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) &&
+              e.sparks.rows[0].visible == !below && e.sparks.rows[0].active == !below &&
+              e.sparks.rows[0].y == 24 - below);
+    }
+    e = (SotnSubweaponEntity){.id = SOTN_CROSS_PARTICLES, .step = 1};
+    CHECK(!SotnSubweaponEntity_Tick(&e, in, &random, &ev));
+    return true;
+}
+// The cross through the shared runtime: blueprint6 beam, its factories, six giant crosses from
+// one screen-anchored 24-update factory, the particles, chain counting and room cleanup.
+static bool CrossRuntime(SotnDataView executable)
+{
+    Uint8 *dra = CrossModel();
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r);
+    TestCharacter_Fill(dra);
+    const Uint16 ids[2] = {SOTN_SUBWEAPON_CROSS, SOTN_GIANT_CROSS};
+    for (Uint16 i = 0; i < 2; ++i)
+    {
+        Uint8 *def = dra + 0x4a00 + ids[i] * 20U;
+        def[0] = i ? 40 : 5;
+        def[2] = i ? 5 : 100;
+        Put16(def + 4, 0x1000);
+        def[6] = 1;
+        def[7] = 0x20;
+        def[8] = 4;
+        def[10] = 0xdc;
+        def[11] = SOTN_CROSS_BLUEPRINT;
+        def[12] = 2;
+        def[14] = 1;
+        def[16] = i ? 0 : SOTN_GIANT_CROSS;
+    }
+    const Uint8 blueprints[3][7] = {
+        {6, 8, 1, 0xc1, 0, 0x12, 0}, {7, 7, 6, 0xc1, 24, 0x12, 0}, {8, 9, 1, 0xc1, 0, 0x02, 0}};
+    for (Uint16 i = 0; i < 3; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 6);
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11200}, &character));
+    actors->dra = (SotnDataView){dra, 0x11200};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .camera_x = 100,
+        .player = {.hp = 70, .x = 180 * 65536, .y = 150 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 180 * 65536, .y = 150 * 65536, .priority = 148},
+              SOTN_CROSS_BLUEPRINT, SOTN_SUBWEAPON_CROSS << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    SotnBatRuntimeChild *b = &r->children[16];
+    CHECK(b->subweapon && b->initialized && b->kind == SOTN_CROSS_ENTITY &&
+          b->primitive_count == 1 && b->group == 7 &&
+          b->state.subweapon.motion.beam.crash == SOTN_GIANT_CROSS && r->cross_upload &&
+          r->afterimage_reset && r->spell_use_ticks == 4 &&
+          SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_CROSS) == 1 &&
+          SotnBatRuntime_SubweaponValid(b, 16) && Whole(b->state.subweapon.motion.y) == 0x78 &&
+          Whole(b->state.subweapon.motion.x) == 180);
+    // The rise lasts 38 updates; the giant cross factory then keeps its screen position while
+    // the camera moves four pixels each update.
+    Uint16 ticks = 0, crosses = 0, previous = 0;
+    Sint32 screen_x[6] = {0};
+    while (ticks++ < 400)
+    {
+        const bool moving = ticks > 20;
+        in.camera_x = moving ? in.camera_x + 4 : in.camera_x;
+        in.screen_shift_x = moving ? -4 : 0;
+        in.engine_timer = ticks;
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+              !r->cross_upload && (b->kind != SOTN_CROSS_ENTITY || r->afterimage_reset));
+        Uint16 live = 0;
+        for (Uint16 i = 16; i < 32; ++i)
+        {
+            const SotnBatRuntimeChild *c = &r->children[i];
+            if (c->kind != SOTN_GIANT_CROSS_ENTITY)
+                continue;
+            ++live;
+            CHECK(SotnBatRuntime_SubweaponValid(c, i) && c->primitive_count == 46 &&
+                  c->primitives[45] == c->primitives[0] + 45 && c->group >= 7 &&
+                  c->state.subweapon.attack.power >= 40 && c->parameter < 6);
+            if (c->state.subweapon.motion.cross.angle == 0x60)
+            {
+                CHECK(crosses < 6 && c->parameter == crosses);
+                screen_x[crosses++] = Whole(c->state.subweapon.motion.x) - in.camera_x;
+            }
+        }
+        if (live > previous && crosses > 1)
+            CHECK(ticks - 39 >= (crosses - 1) * 24);
+        previous = live;
+    }
+    CHECK(crosses == 6 && b->kind != SOTN_CROSS_ENTITY);
+    for (Uint16 i = 0; i < 6; ++i)
+        CHECK(screen_x[i] == 80);
+    CHECK(SotnBatRuntime_SubweaponCount(r, SOTN_SUBWEAPON_CROSS) == 0);
+    // Room entry prunes every cross entity and pending factory.
+    CHECK(SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 180 * 65536, .y = 150 * 65536, .priority = 148},
+              SOTN_CROSS_BLUEPRINT, SOTN_SUBWEAPON_CROSS << 9, &allocated) &&
+          allocated && SotnBatRuntime_PruneSubweapons(r));
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
+        CHECK(!r->children[i].subweapon);
+    for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
+        CHECK(!r->factories[i].cursor.entity_id);
+    SotnCharacter_Destroy(character);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -1233,12 +1666,21 @@ int main(void)
         Put16(bytes + 0x1dbcc + i * 2U, (Uint16)(i * 4U));
         Put16(bytes + 0x22a10 + i * 2U, (Uint16)(i / 2U));
     }
+    // Authored SDK matrix pairs for the giant cross (sine, cosine of angle/4096 turns).
+    for (Uint16 i = 0; i < 4096; ++i)
+    {
+        const double turn = (double)i * SDL_PI_D / 2048.0;
+        Put16(bytes + 0x1ea10 + i * 4U, (Uint16)(Sint16)SDL_lround(SDL_sin(turn) * 4096.0));
+        Put16(bytes + 0x1ea12 + i * 4U, (Uint16)(Sint16)SDL_lround(SDL_cos(turn) * 4096.0));
+    }
     const bool ok =
         Contiguous() && Component((SotnDataView){bytes, 0x23212}) &&
         Stone((SotnDataView){bytes, 0x23212}) && Agunea((SotnDataView){bytes, 0x23212}) &&
         Bolt((SotnDataView){bytes, 0x23212}) && AguneaRuntime((SotnDataView){bytes, 0x23212}) &&
         Bible((SotnDataView){bytes, 0x23212}) && BibleRuntime((SotnDataView){bytes, 0x23212}) &&
-        Runtime((SotnDataView){bytes, 0x23212});
+        Runtime((SotnDataView){bytes, 0x23212}) && Beam((SotnDataView){bytes, 0x23212}) &&
+        Sparks() && GiantCross((SotnDataView){bytes, 0x23212}) &&
+        CrossRuntime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
         return 1;
@@ -1248,6 +1690,9 @@ int main(void)
         "fifteen reflections with tinks, fade-out; runtime factory/group/power/mask/freeze/prune; "
         "Agunea birth/flight/binding/strikes/hearts/exits, lightning growth/flash/fade, runtime "
         "hit target/raw parent/screen rows/blink hold/prune; Bible birth/reveal/exact orbit/"
-        "swing/launch/fall, trail fade, runtime trails/screen anchoring/room retention/cull");
+        "swing/launch/fall, trail fade, runtime trails/screen anchoring/room retention/cull; "
+        "cross beam afterimage/birth/rise/factories/odd widening/clamped hold/spread/cull, giant "
+        "cross rise/orbit/projected hitbox/priority/face order/NCLIP, particles' spark life, "
+        "runtime six screen-anchored crosses/contiguous rows/chain/prune");
     return 0;
 }

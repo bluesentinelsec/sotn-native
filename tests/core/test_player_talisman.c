@@ -297,7 +297,7 @@ static bool Shared(Fixture *f, SotnDataView exe)
     for (Uint16 row = 0; row < SOTN_PRIMITIVE_SLOTS - 16; ++row)
     {
         actors->primitives[row].owner = 2;
-        actors->primitives[row].ability_kind = 9;
+        actors->primitives[row].ability_kind = 0x7f; // no shared-runtime kind
     }
     CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots));
     in.freeze = 0;
@@ -305,7 +305,7 @@ static bool Shared(Fixture *f, SotnDataView exe)
     CHECK(SotnBatRuntime_Tick(r, f->character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
           !r->children[47].kind && r->children[46].kind == 46 &&
           r->children[46].primitive_count == 8 && r->children[45].kind == 11 &&
-          r->children[45].initialized && actors->primitives[0].ability_kind == 9);
+          r->children[45].initialized && actors->primitives[0].ability_kind == 0x7f);
     *r = (SotnBatRuntime){0};
     in.freeze = 0;
     in.player.dodge.applied = true;

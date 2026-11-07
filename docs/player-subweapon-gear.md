@@ -14,9 +14,9 @@ For an explicit subweapon (the path every thrown subweapon entity takes through
 3. One libc roll adds `(INT * 2 + rand() % 12) / 10`.
 
 `SotnSubweapons_Power` reproduces this sequence, and the subweapon owner uses it for every birth.
-Its 16-bit attack wraps like the original's. Staurolite currently has no visible effect: the
-cross and subweapon 12 have no native owner yet, so no live subweapon uses it. It stays
-supported and correct for when they do. Both records otherwise carry ordinary additive fields.
+Its 16-bit attack wraps like the original's. Staurolite now multiplies both attacks of the
+[Cross](player-cross.md): its beam (4) and its giant crosses (12). Both records otherwise carry
+ordinary additive fields.
 
 ## Evidence
 

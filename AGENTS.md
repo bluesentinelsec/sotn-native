@@ -83,7 +83,16 @@ priority, 0x12C launch (KEEP_ALIVE cleared, FIX(+-12)/-12, fall same update, scr
 FACTORY(79) trails (entity44, key SOTN_BIBLE_TRAIL, 0x60 grey -8, eighth-callback retire). US
 var_s4 is read uninitialised (no gameplay-chain writer; boot value): native uses zero. Book/trails
 are screen-anchored (camera delta after callback, NO room rebase) and FLAG_UNK_20000-retained by
-PruneSubweapons. Other subweapons still use the old service until moved.
+PruneSubweapons. [Cross](docs/player-cross.md) (subweapon4, bp6 origin1, 100 hearts): beam entity8
+(func_8010DFF0(1,1) every update even before allocation, one GT4 page0x11C sampling the
+LoadImage(D_800B0788) row (r.cross_upload), timer12, rise to lo-byte 0x70 then FACTORY(7,crash12<<9)
++ FACTORY(8), odd g_Timer widening, 0x80 hold with 0..0xFF clamps, abs-scaled spread, byte
+hitbox width); bp7 releases six giant crosses (entity7, subweaponId12, param0..5, 46 contiguous
+rows, SotnShieldStar_Project RotMatrix/RTPT/NCLIP, rows store vectors0/1/3/2, culled rows keep
+words, centre SZ>>2 priority); bp8 particles (entity9, key SOTN_CROSS_PARTICLES, 64 rows, 3
+rands/spark, func_80119E78). All screen-anchored; rows keep screen words. Subweapon factory
+requests keep the requester's screen position (shift by dx), and initialized non-locked
+factories (bp7) follow the camera. Other subweapons still use the old service until moved.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default
