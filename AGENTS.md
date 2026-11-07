@@ -77,7 +77,13 @@ every12th update jitters (2 rolls) and requests FACTORY(23) lightning (raw paren
 factory subweapon_parent_slot) + BP61/2 outlines + THUNDER_B, first free then five hearts
 (spent from runtime progress). Lightning (entity18, key SOTN_AGUNEA_BOLT, subweaponId0, no
 hitbox/group) grows 40 GT4 rows (page0x1A/palette0x194, row0 screen-anchored) by ratan2, flashes
-0x15F, fades. Other subweapons still use the old service until moved.
+0x15F, fades. [Bible](docs/player-bible.md) (subweapon5, entity43, bp77 origin0): one GT4, flags
+0x04820000, swing +-32, reveal timer4, radius to 0x30, rcos/rsin orbit with tilt swing and +-2
+priority, 0x12C launch (KEEP_ALIVE cleared, FIX(+-12)/-12, fall same update, scrape then swish),
+FACTORY(79) trails (entity44, key SOTN_BIBLE_TRAIL, 0x60 grey -8, eighth-callback retire). US
+var_s4 is read uninitialised (no gameplay-chain writer; boot value): native uses zero. Book/trails
+are screen-anchored (camera delta after callback, NO room rebase) and FLAG_UNK_20000-retained by
+PruneSubweapons. Other subweapons still use the old service until moved.
 
 Selected [Reverse/Royal cloaks](docs/player-cloaks.md): body items50/53 copy their cape colours
 (operations 0x40B/0x40D) through SotnAlucard_CapePalette; the lining setting stays at its default

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // dra/84B88.c:EntitySubwpnThrownVibhuti/EntitySubwpnReboundStone/EntitySubwpnAgunea/
-// EntityAguneaHitEnemy and rebound_stone.h,
+// EntityAguneaHitEnemy, 8A0A4.c:EntitySubwpnBible/EntitySubwpnBibleTrail and rebound_stone.h,
 // sotn-decomp 7bc54d8157b6bed77e6bd15e5db9461a734fe1e5.
 // SDK trigonometry and collision tables remain private runtime inputs.
 #include <sotn/combat.h>
@@ -600,22 +600,145 @@ static bool Bolt(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random)
     *random = cursor;
     return true;
 }
+// EntitySubwpnBible. The US build reads its third rotation term (var_s4) uninitialised: no
+// function on the gameplay call chain (UpdatePlayerEntities up to the SLUS start routine) writes
+// that callee-saved register, so it holds its boot value. Zero, as the PSP/FIX_UB builds
+// initialise it, keeps the book on its visible orbit and is used here.
+static bool Bible(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
+                  SotnSubweaponEvents *out)
+{
+    SotnSubweaponEntity next = *e;
+    SotnBible *b = &next.bible;
+    Uint32 cursor = *random;
+    switch (e->step)
+    {
+    case 0:
+        next.flags = 0x04820000U; // KEEP_ALIVE_OFFCAMERA | HAS_PRIMS | FLAG_UNK_20000
+        b->swing = next.facing_left ? 32 : -32;
+        if (!in.properties(in.context, &cursor))
+            return false;
+        next.hitbox_width = next.hitbox_height = 6;
+        next.step = 1;
+        break;
+    case 1:
+        b->mode = 1;
+        out->use_ticks = 4;
+        next.step = 2;
+        SDL_FALLTHROUGH;
+    case 2:
+        b->count = Word(b->count + 1);
+        b->radius = Word(b->radius + 1);
+        if (b->radius >= 0x30)
+            next.step = 3;
+        break;
+    case 3:
+        b->count = Word(b->count + 1);
+        if (b->count >= 0x12c)
+        {
+            next.flags &= ~0x04000000U;
+            next.velocity_x = next.facing_left ? -0xc0000 : 0xc0000;
+            b->velocity_y = -0xc0000;
+            out->sound = 0x6b2; // SFX_BIBLE_SCRAPE
+            b->mode = 2;
+            next.step = 4;
+        }
+        break;
+    default:
+        break;
+    }
+    if (b->mode == 1)
+    {
+        SotnMathTrig t = {0};
+        if (!SotnMath_Trig(in.executable, b->angle, &t))
+            return false;
+        Sint32 s5 = Asr(t.sine * b->radius, 12), s3 = Asr(t.cosine * b->radius, 12);
+        const Sint32 turned = t.cosine * s5 + t.sine * s3, across = t.cosine * s3 - t.sine * s5;
+        s5 = Asr(turned, 12);
+        s3 = Asr(across, 12);
+        if (!SotnMath_Trig(in.executable, b->tilt, &t))
+            return false;
+        const Sint32 depth = 0; // var_s4: see above
+        const Sint32 x = Asr(t.cosine * s5 + t.sine * depth, 12);
+        const Sint32 tilted = Asr(t.cosine * depth - t.sine * s5, 12);
+        const Sint32 y = next.facing_left ? Asr(t.cosine * tilted + t.sine * s3, 12)
+                                          : Asr(t.cosine * tilted - t.sine * s3, 12);
+        b->angle = (Sint16)((b->angle + (next.facing_left ? 0x80 : -0x80)) & 0xfff);
+        b->tilt = Word(b->tilt + b->swing);
+        if (b->tilt >= 0x200 || b->tilt <= -0x200)
+            b->swing = Word(-b->swing);
+        next.x = WithPixel(next.x, Pixel(in.player_x) + x);
+        next.y = WithPixel(next.y, Pixel(in.player_y) + y);
+        next.priority = (Uint16)(in.player_priority + (s3 < 0 ? 2 : -2));
+    }
+    else if (b->mode == 2)
+    {
+        next.x = Add(next.x, next.velocity_x);
+        next.y = Add(next.y, b->velocity_y);
+        b->velocity_y = Add(b->velocity_y, -0x20000);
+    }
+    if (b->mode)
+    {
+        out->factories = 1;
+        out->factory_packed[0] = SOTN_BIBLE_TRAIL_BLUEPRINT;
+        out->factory_x = next.x;
+        out->factory_y = next.y;
+        if (in.game_timer % 10U == 0)
+        {
+            if (out->sound)
+                out->sound_after = 0x8c3;
+            else
+                out->sound = 0x8c3; // SFX_BIBLE_SUBWPN_SWISH
+        }
+    }
+    *e = next;
+    *random = cursor;
+    return true;
+}
+// EntitySubwpnBibleTrail: one half-transparent quad placed at birth, fading for seven updates.
+static void BibleTrail(SotnSubweaponEntity *e)
+{
+    SotnBibleTrail *t = &e->trail;
+    switch (e->step)
+    {
+    case 0:
+        e->flags = 0x04820000U; // FLAG_UNK_20000 | KEEP_ALIVE_OFFCAMERA | HAS_PRIMS
+        t->x = Pixel(e->x);
+        t->y = Pixel(e->y);
+        t->grey = 0x60;
+        e->step = 1;
+        break;
+    case 1:
+        t->count = Word(t->count + 1);
+        if (t->count > 5)
+            e->step = 2;
+        t->grey = Word(t->grey - 8);
+        break;
+    default:
+        e->removed = true;
+        break;
+    }
+}
 Uint16 SotnSubweaponEntity_Rows(Uint16 id)
 {
-    return id == SOTN_SUBWEAPON_VIBHUTI         ? SOTN_VIBHUTI_ROWS
-           : id == SOTN_SUBWEAPON_REBOUND_STONE ? SOTN_REBOUND_STONE_LINES
-           : id == SOTN_SUBWEAPON_AGUNEA        ? SOTN_AGUNEA_ROWS
-           : id == SOTN_AGUNEA_BOLT             ? SOTN_AGUNEA_BOLT_ROWS
-                                                : 0;
+    return id == SOTN_SUBWEAPON_VIBHUTI                           ? SOTN_VIBHUTI_ROWS
+           : id == SOTN_SUBWEAPON_REBOUND_STONE                   ? SOTN_REBOUND_STONE_LINES
+           : id == SOTN_SUBWEAPON_AGUNEA                          ? SOTN_AGUNEA_ROWS
+           : id == SOTN_AGUNEA_BOLT                               ? SOTN_AGUNEA_BOLT_ROWS
+           : id == SOTN_SUBWEAPON_BIBLE || id == SOTN_BIBLE_TRAIL ? 1
+                                                                  : 0;
 }
 bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uint32 *random,
                               SotnSubweaponEvents *events)
 {
     const bool vibhuti = e && e->id == SOTN_SUBWEAPON_VIBHUTI,
                stone = e && e->id == SOTN_SUBWEAPON_REBOUND_STONE,
-               agunea = e && e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e && e->id == SOTN_AGUNEA_BOLT;
-    if (!e || !random || !events || e->removed || (!vibhuti && !stone && !agunea && !bolt) ||
-        (!in.properties && !bolt) ||
+               agunea = e && e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e && e->id == SOTN_AGUNEA_BOLT,
+               bible = e && e->id == SOTN_SUBWEAPON_BIBLE, trail = e && e->id == SOTN_BIBLE_TRAIL;
+    if (!e || !random || !events || e->removed ||
+        (!vibhuti && !stone && !agunea && !bolt && !bible && !trail) ||
+        (!in.properties && !bolt && !trail) ||
+        (bible && (e->step > 4 || e->bible.mode < 0 || e->bible.mode > 2)) ||
+        (trail && e->step > 2) ||
         (vibhuti && (e->step > 1 || (e->step && (!e->timer || e->timer > 0x80)))) ||
         (stone && (e->step > 2 || (e->step && (e->stone.life < 1 || e->stone.life > 0x40 ||
                                                e->stone.bounces < 0 || e->stone.bounces > 15)))) ||
@@ -636,6 +759,13 @@ bool SotnSubweaponEntity_Tick(SotnSubweaponEntity *e, SotnSubweaponInput in, Uin
         e->removed = true; // Row allocation failure: DestroyEntity before any RNG.
         return true;
     }
+    if (trail)
+    {
+        BibleTrail(e);
+        return true;
+    }
+    if (bible)
+        return Bible(e, in, random, events);
     if (agunea)
         return Agunea(e, in, random, events);
     if (bolt)

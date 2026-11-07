@@ -812,6 +812,142 @@ static bool Bolt(SotnDataView executable)
           !e.bolt.white);
     return true;
 }
+// EntitySubwpnBible/EntitySubwpnBibleTrail: birth, reveal, orbit (exact), swing, launch, fall
+// and the trail's fade.
+static bool Bible(SotnDataView executable)
+{
+    Uint32 rolls = 0;
+    SotnSubweaponInput in = {.executable = executable,
+                             .properties = Roll,
+                             .context = &rolls,
+                             .screen_x = 30,
+                             .screen_y = 10,
+                             .player_priority = 148,
+                             .player_x = 150 * 65536 + 0x4000,
+                             .player_y = 140 * 65536,
+                             .game_timer = 1};
+    const SotnSubweaponEntity fresh = {.x = 152 * 65536 + 0x1234,
+                                       .y = 140 * 65536 + 0x5678,
+                                       .id = SOTN_SUBWEAPON_BIBLE,
+                                       .priority = 148};
+    SotnSubweaponEntity e = fresh;
+    SotnSubweaponEvents ev = {0};
+    Uint32 random = 9;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.removed && random == 9 && !rolls);
+    in.allocated = true;
+    for (Uint16 facing = 0; facing < 2; ++facing)
+    {
+        e = fresh;
+        e.facing_left = facing != 0;
+        Uint32 expected = random;
+        (void)SotnCombat_Random(&expected);
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == expected &&
+              rolls == facing + 1U && e.step == 1 && e.flags == 0x04820000U &&
+              e.bible.swing == (facing ? 32 : -32) && e.hitbox_width == 6 && e.hitbox_height == 6 &&
+              !e.bible.mode && !ev.factories && !ev.sound && !ev.use_ticks && e.x == fresh.x &&
+              e.y == fresh.y);
+    }
+    // Reveal: timer10, then each update orbits (exactly), drops a trail factory and swishes on
+    // multiples of ten.
+    Uint32 held = random;
+    for (Uint16 tick = 0; tick < 0x30; ++tick)
+    {
+        const SotnSubweaponEntity before = e;
+        in.game_timer = tick == 3 ? 20 : 1;
+        in.player_priority = (Uint16)(148 + tick % 3);
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && random == held &&
+              e.bible.mode == 1 && e.bible.count == tick + 1 && e.bible.radius == tick + 1 &&
+              e.step == (tick + 1 >= 0x30 ? 3 : 2) && ev.use_ticks == (tick ? 0 : 4) &&
+              ev.factories == 1 && ev.factory_packed[0] == SOTN_BIBLE_TRAIL_BLUEPRINT &&
+              ev.factory_x == e.x && ev.factory_y == e.y && ev.sound == (tick == 3 ? 0x8c3 : 0) &&
+              !ev.sound_after);
+        // The original orbit with var_s4 zero.
+        SotnMathTrig t = {0}, u = {0};
+        CHECK(SotnMath_Trig(executable, before.bible.angle, &t) &&
+              SotnMath_Trig(executable, before.bible.tilt, &u));
+        const Sint32 r = before.bible.radius + 1;
+        const Sint32 s5 = Floor(t.sine * r, 12), s3 = Floor(t.cosine * r, 12);
+        const Sint32 a5 = Floor(t.cosine * s5 + t.sine * s3, 12),
+                     a3 = Floor(t.cosine * s3 - t.sine * s5, 12);
+        const Sint32 x = Floor(u.cosine * a5, 12), d = Floor(-u.sine * a5, 12);
+        const Sint32 y = Floor(u.cosine * d + (e.facing_left ? 1 : -1) * u.sine * a3, 12);
+        CHECK(Whole(e.x) == 150 + x && Whole(e.y) == 140 + y && (e.x & 0xffff) == 0x1234 &&
+              e.priority == in.player_priority + (a3 < 0 ? 2 : -2) &&
+              e.bible.angle == ((before.bible.angle + 0x80) & 0xfff));
+        const Sint16 tilt = (Sint16)(before.bible.tilt + before.bible.swing);
+        CHECK(e.bible.tilt == tilt &&
+              e.bible.swing ==
+                  (tilt >= 0x200 || tilt <= -0x200 ? -before.bible.swing : before.bible.swing));
+    }
+    // Facing right the orbit turns the other way and the tilt's height term changes sign.
+    {
+        SotnSubweaponEntity right = fresh;
+        Uint32 copy = random;
+        right.facing_left = false;
+        CHECK(SotnSubweaponEntity_Tick(&right, in, &copy, &ev) && right.bible.swing == -32);
+        for (Uint16 tick = 0; tick < 3; ++tick)
+        {
+            const SotnSubweaponEntity before = right;
+            CHECK(SotnSubweaponEntity_Tick(&right, in, &copy, &ev));
+            SotnMathTrig t = {0}, u = {0};
+            CHECK(SotnMath_Trig(executable, before.bible.angle, &t) &&
+                  SotnMath_Trig(executable, before.bible.tilt, &u));
+            const Sint32 r = before.bible.radius + 1;
+            const Sint32 s5 = Floor(t.sine * r, 12), s3 = Floor(t.cosine * r, 12);
+            const Sint32 a5 = Floor(t.cosine * s5 + t.sine * s3, 12),
+                         a3 = Floor(t.cosine * s3 - t.sine * s5, 12);
+            const Sint32 d = Floor(-u.sine * a5, 12);
+            CHECK(Whole(right.x) == 150 + Floor(u.cosine * a5, 12) &&
+                  Whole(right.y) == 140 + Floor(u.cosine * d - u.sine * a3, 12) &&
+                  right.bible.angle == ((before.bible.angle - 0x80) & 0xfff) &&
+                  right.bible.tilt == before.bible.tilt - 32);
+        }
+    }
+    // The swing turns at +-0x200.
+    {
+        SotnSubweaponEntity w = e;
+        Uint32 copy = random;
+        w.bible.tilt = 0x1e0;
+        w.bible.swing = 32;
+        CHECK(SotnSubweaponEntity_Tick(&w, in, &copy, &ev) && w.bible.tilt == 0x200 &&
+              w.bible.swing == -32);
+        w.bible.tilt = -0x1df;
+        w.bible.swing = -32;
+        CHECK(SotnSubweaponEntity_Tick(&w, in, &copy, &ev) && w.bible.tilt == -0x1ff &&
+              w.bible.swing == -32);
+    }
+    // Launch at count 0x12C (facing left): off-camera retirement, FIX(-12)/FIX(-12), the scrape
+    // (and a swish after it on a multiple of ten).
+    e.bible.count = 0x12a;
+    in.game_timer = 1;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 3 && e.bible.mode == 1);
+    in.game_timer = 30;
+    CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 4 && e.bible.mode == 2 &&
+          e.flags == 0x00820000U && e.velocity_x == -0xc0000 && e.bible.velocity_y == -0xe0000 &&
+          ev.sound == 0x6b2 && ev.sound_after == 0x8c3 && ev.factories == 1);
+    // The fall: FIX(2) gravity after each move.
+    for (Uint16 tick = 0; tick < 3; ++tick)
+    {
+        const SotnSubweaponEntity before = e;
+        in.game_timer = 1;
+        CHECK(SotnSubweaponEntity_Tick(&e, in, &random, &ev) && e.step == 4 &&
+              e.x == before.x - 0xc0000 && e.y == before.y + before.bible.velocity_y &&
+              e.bible.velocity_y == before.bible.velocity_y - 0x20000 && ev.factories == 1 &&
+              !ev.sound && random == held);
+    }
+    // The trail: placed once, grey 0x60 fading by eight, retired on its eighth callback.
+    SotnSubweaponEntity t = {
+        .x = 77 * 65536 + 0x8000, .y = 66 * 65536, .id = SOTN_BIBLE_TRAIL, .priority = 140};
+    CHECK(SotnSubweaponEntity_Tick(&t, in, &random, &ev) && t.step == 1 && t.flags == 0x04820000U &&
+          t.trail.x == 77 && t.trail.y == 66 && t.trail.grey == 0x60 && !ev.factories &&
+          !ev.sound && random == held);
+    for (Uint16 tick = 1; tick <= 6; ++tick)
+        CHECK(SotnSubweaponEntity_Tick(&t, in, &random, &ev) && !t.removed &&
+              t.trail.count == tick && t.trail.grey == 0x60 - 8 * tick &&
+              t.step == (tick > 5 ? 2 : 1));
+    CHECK(SotnSubweaponEntity_Tick(&t, in, &random, &ev) && t.removed);
+    return true;
+}
 // Shared runtime: factory/spawn, the hit target, held strikes with their blueprint23 lightning
 // (raw parent slot) and payment, screen-anchored rows, the 0x52 blink hold and room cleanup.
 static bool AguneaRuntime(SotnDataView executable)
@@ -970,6 +1106,106 @@ static bool AguneaRuntime(SotnDataView executable)
     SDL_free(dra);
     return true;
 }
+// Shared runtime: the book's factory/group, its trails, screen anchoring under camera motion,
+// FLAG_UNK_20000 room retention (no room rebase) and the off-camera cull after the launch.
+static bool BibleRuntime(SotnDataView executable)
+{
+    Uint8 *dra = SDL_calloc(1, 0x11000);
+    SotnActors *actors = SDL_calloc(1, sizeof(*actors));
+    SotnBatRuntime *r = SDL_calloc(1, sizeof(*r)), *other = SDL_malloc(sizeof(*r));
+    SotnCharacter *character = NULL;
+    CHECK(dra && actors && r && other);
+    TestCharacter_Fill(dra);
+    Uint8 *def = dra + 0x4a00 + SOTN_SUBWEAPON_BIBLE * 20U;
+    def[0] = 8;
+    def[2] = 5;
+    Put16(def + 4, 0x1000);
+    def[6] = 1;
+    def[7] = 0x18;
+    def[8] = 4;
+    def[10] = 0x5d;
+    def[11] = SOTN_BIBLE_BLUEPRINT;
+    def[12] = 2;
+    def[14] = 1;
+    const Uint8 blueprints[2][7] = {{77, 43, 1, 0xc1, 0, 2, 0}, {79, 44, 1, 0xc1, 0, 0, 0}};
+    for (Uint16 i = 0; i < 2; ++i)
+        SDL_memcpy(dra + 0xd1d4 + blueprints[i][0] * 6U, blueprints[i] + 1, 6);
+    dra[0xd4b8] = 32;
+    dra[0xd4b9] = 63;
+    dra[0xd4b8 + 4] = 32;
+    dra[0xd4b9 + 4] = 47;
+    CHECK(SotnCharacter_Create((SotnDataView){dra, 0x11000}, &character));
+    actors->dra = (SotnDataView){dra, 0x11000};
+    actors->entered = true;
+    SotnBatRuntimeInput in = {
+        .dra = actors->dra,
+        .executable = executable,
+        .food_collision = Map(),
+        .camera_x = 100,
+        .player = {.hp = 70, .x = 200 * 65536, .y = 150 * 65536, .priority = 148}};
+    bool allocated = false;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_RequestSubweapon(
+              r, (SotnPlayerFactorySource){.x = 200 * 65536, .y = 150 * 65536, .priority = 148},
+              SOTN_BIBLE_BLUEPRINT, SOTN_SUBWEAPON_BIBLE << 9, &allocated) &&
+          allocated && SotnBatRuntime_Tick(r, character, in));
+    SotnBatRuntimeChild *c = &r->children[16];
+    CHECK(c->subweapon && c->initialized && c->kind == SOTN_BIBLE_ENTITY &&
+          c->primitive_count == 1 && c->group == 7 && c->state.subweapon.attack.width == 6 &&
+          r->subweapon_mask == (Uint64)1 << 16 && !c->state.subweapon.motion.bible.mode &&
+          SotnBatRuntime_SubweaponValid(c, 16));
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          c->state.subweapon.motion.bible.mode == 1 && r->use_ticks == 4 &&
+          r->factories[0].cursor.blueprint == SOTN_BIBLE_TRAIL_BLUEPRINT);
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in));
+    SotnBatRuntimeChild *t = &r->children[47];
+    CHECK(t->subweapon && t->initialized && t->kind == SOTN_BIBLE_TRAIL_ENTITY &&
+          t->primitive_count == 1 && !t->group && !t->state.subweapon.attack.active &&
+          SotnBatRuntime_SubweaponValid(t, 47) && !(r->subweapon_mask & ((Uint64)1 << 47)) &&
+          SotnActors_CommitBatPrimitives(actors, r));
+    // A camera move of four pixels: the book and its trails keep their screen position.
+    SDL_memcpy(other, r, sizeof(*r));
+    in.camera_x = 104;
+    in.screen_shift_x = -4;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    in.camera_x = 100;
+    in.screen_shift_x = 0;
+    CHECK(SotnBatRuntime_Tick(other, character, in) &&
+          c->state.subweapon.motion.x == other->children[16].state.subweapon.motion.x + 4 * 65536 &&
+          t->state.subweapon.motion.trail.x ==
+              other->children[47].state.subweapon.motion.trail.x + 4);
+    // Room entry: FLAG_UNK_20000 keeps them; no room rebase (screen anchored), pending trail
+    // factories are pruned.
+    const Sint32 bx = c->state.subweapon.motion.x, tx = t->state.subweapon.motion.trail.x;
+    in.entering = true;
+    in.room_shift_x = 64;
+    in.screen_shift_x = 64;
+    CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+          SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r) &&
+          c->kind == SOTN_BIBLE_ENTITY && t->kind == SOTN_BIBLE_TRAIL_ENTITY &&
+          t->state.subweapon.motion.trail.x == tx && SotnBatRuntime_SubweaponValid(c, 16));
+    CHECK(c->state.subweapon.motion.x != bx + 64 * 65536);
+    in.entering = false;
+    in.room_shift_x = in.screen_shift_x = 0;
+    // Launch: the book loses KEEP_ALIVE and is culled once it leaves the screen window.
+    c->state.subweapon.motion.bible.count = 0x12b;
+    c->state.subweapon.motion.step = 3;
+    c->state.subweapon.motion.bible.radius = 0x30;
+    Uint16 ticks = 0;
+    while (c->kind == SOTN_BIBLE_ENTITY && ticks++ < 60)
+        CHECK(SotnActors_PrimitiveSlots(actors, &in.primitive_slots) &&
+              SotnBatRuntime_Tick(r, character, in) && SotnActors_CommitBatPrimitives(actors, r));
+    CHECK(!c->kind && ticks > 5 && ticks < 30);
+    SotnCharacter_Destroy(character);
+    SDL_free(other);
+    SDL_free(r);
+    SDL_free(actors);
+    SDL_free(dra);
+    return true;
+}
 static bool Contiguous(void)
 {
     SotnPrimitiveSlots slots = {0};
@@ -1001,6 +1237,7 @@ int main(void)
         Contiguous() && Component((SotnDataView){bytes, 0x23212}) &&
         Stone((SotnDataView){bytes, 0x23212}) && Agunea((SotnDataView){bytes, 0x23212}) &&
         Bolt((SotnDataView){bytes, 0x23212}) && AguneaRuntime((SotnDataView){bytes, 0x23212}) &&
+        Bible((SotnDataView){bytes, 0x23212}) && BibleRuntime((SotnDataView){bytes, 0x23212}) &&
         Runtime((SotnDataView){bytes, 0x23212});
     SDL_free(bytes);
     if (!ok)
@@ -1010,6 +1247,7 @@ int main(void)
         "hit/expiry hiding, contiguous rows; Rebound Stone birth order, embed hold, flight, "
         "fifteen reflections with tinks, fade-out; runtime factory/group/power/mask/freeze/prune; "
         "Agunea birth/flight/binding/strikes/hearts/exits, lightning growth/flash/fade, runtime "
-        "hit target/raw parent/screen rows/blink hold/prune");
+        "hit target/raw parent/screen rows/blink hold/prune; Bible birth/reveal/exact orbit/"
+        "swing/launch/fall, trail fade, runtime trails/screen anchoring/room retention/cull");
     return 0;
 }
