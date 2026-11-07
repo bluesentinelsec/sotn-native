@@ -35,7 +35,20 @@ enum
     /** Native key for E_SUBWPN_BIBLE_TRAIL (entity 44, blueprint 79, subweaponId zero). */
     SOTN_BIBLE_TRAIL = 0x12c,
     SOTN_BIBLE_TRAIL_BLUEPRINT = 79,
-    SOTN_BIBLE_TRAIL_ENTITY = 44
+    SOTN_BIBLE_TRAIL_ENTITY = 44,
+    SOTN_SUBWEAPON_CROSS = 4,
+    SOTN_CROSS_BLUEPRINT = 6,
+    SOTN_CROSS_ENTITY = 8,
+    /** Subweapon 12, g_SubwpnDefs[4].crashId: EntityGiantSpinningCross's ext.subweaponId. */
+    SOTN_GIANT_CROSS = 12,
+    SOTN_GIANT_CROSS_BLUEPRINT = 7,
+    SOTN_GIANT_CROSS_ENTITY = 7,
+    SOTN_GIANT_CROSS_ROWS = 46, /**< func_800EDB58(PRIM_GT4, LEN(D_800B0CB4)), contiguous. */
+    /** Native key for EntitySubwpnCrashCrossParticles (entity 9, blueprint 8, subweaponId 0). */
+    SOTN_CROSS_PARTICLES = 0x109,
+    SOTN_CROSS_PARTICLES_BLUEPRINT = 8,
+    SOTN_CROSS_PARTICLES_ENTITY = 9,
+    SOTN_CROSS_PARTICLE_ROWS = 64 /**< AllocPrimitives(PRIM_GT4, 64), first free. */
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -119,6 +132,53 @@ typedef struct SotnBibleTrail
     Sint16 grey;  /**< unk7E: 0x60, minus eight per update. */
 } SotnBibleTrail;
 
+/** @brief Original EntitySubwpnCrashCross ext words and its one GT4 row. The beam samples the
+ * uploaded 48x1 gradient as a 15-bit direct page (0x11C, u 1..0x30, v 0xF8). Its row keeps
+ * screen words (x0 = x2, x1 = x3, y0 = y1, y2 = y3): the entity has no FLAG_POS_CAMERA_LOCKED. */
+typedef struct SotnCrossBeam
+{
+    Sint16 half_width;  /**< unk7C. */
+    Sint16 half_height; /**< unk7E; its low byte ends the rise at 0x70. */
+    Uint8 width;        /**< unk80 (u8). */
+    Uint8 height;       /**< unk82 (u8). */
+    Sint32 hold;        /**< unk84 (s32). */
+    Sint16 x0, x1, y0, y2;
+    Uint16 draw_mode; /**< 0x31 (additive), 0x35 with DRAW_COLORS once it spreads. */
+    Uint8 grey;       /**< prim b3; every channel once it spreads (+4 up to 0xF8). */
+    Uint8 crash;      /**< unkB2 from func_8011A290: the definition's crashId. */
+} SotnCrossBeam;
+
+/** @brief Original EntityGiantSpinningCross ext words and its 46 GT4 rows (page 0x1C). Rows are
+ * GTE screen words (x0, x1, x2, x3 = vectors 0, 1, 3, 2); unset bits of visible are DRAW_HIDE. */
+typedef struct SotnGiantCross
+{
+    Sint16 x[SOTN_GIANT_CROSS_ROWS][4], y[SOTN_GIANT_CROSS_ROWS][4];
+    Uint64 visible;  /**< Rows drawn (DRAW_DEFAULT) after the last NCLIP pass. */
+    Uint16 priority; /**< Shared priority of the visible rows, from the centre's depth. */
+    Sint16 angle;    /**< unk7C: orbit angle, +0x60 per update. */
+    Sint16 spin;     /**< unk7E: Y rotation, +0x60 per update. */
+    Sint32 velocity_y;
+} SotnGiantCross;
+
+/** @brief One EntitySubwpnCrashCrossParticles GT4 (page 0x1A, palette 0x1B0, opaque). The
+ * original keeps its state in colour bytes: r0 active, r1 born, g0/g1 screen centre, g3 rise,
+ * b0 frame, b1 parity. A visible row's quad was placed this update by func_80119E78. */
+typedef struct SotnCrossParticle
+{
+    Uint8 active, born, x, y, speed, frame, parity;
+    Uint8 shown;  /**< Frame whose size/UVs func_80119E78 last wrote. */
+    Uint8 placed; /**< Quad centre Y at that call (g1). */
+    bool visible; /**< drawMode DRAW_DEFAULT (false: never placed or DRAW_HIDE). */
+    Uint16 priority;
+} SotnCrossParticle;
+
+/** @brief Original EntitySubwpnCrashCrossParticles: 192 updates of rising sparks. */
+typedef struct SotnCrossParticles
+{
+    SotnCrossParticle rows[SOTN_CROSS_PARTICLE_ROWS];
+    Sint16 timer; /**< ext.timer.t. */
+} SotnCrossParticles;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -137,6 +197,9 @@ typedef struct SotnSubweaponEntity
         SotnAguneaBolt bolt;
         SotnBible bible;
         SotnBibleTrail trail;
+        SotnCrossBeam beam;
+        SotnGiantCross cross;
+        SotnCrossParticles sparks;
     };
 } SotnSubweaponEntity;
 
@@ -148,6 +211,7 @@ typedef bool (*SotnSubweaponProperties)(void *context, Uint32 *random);
 typedef struct SotnSubweaponInput
 {
     SotnDataView executable;    /**< Private SDK rsin/rcos tables. */
+    SotnDataView dra;           /**< Private DRA: the giant cross model and particle UVs. */
     SotnCollisionMap collision; /**< Current room collision (CheckCollision). */
     SotnSubweaponProperties properties;
     void *context;
@@ -168,6 +232,8 @@ typedef struct SotnSubweaponInput
     Uint16 parent_entity;      /**< Raw parent slot's entityId (the bolt's Agunea). */
     Sint32 parent_x, parent_y; /**< Raw parent's room pixel position. */
     Uint32 game_timer;         /**< g_GameTimer: the Bible swishes when it is a multiple of 10. */
+    Uint32 engine_timer;       /**< g_Timer: the cross beam widens on odd frames. */
+    Uint16 crash;              /**< func_8011A290's crashId for this entity's definition. */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */
@@ -177,17 +243,31 @@ typedef struct SotnSubweaponEvents
     Uint16 sound_after; /**< A second PlaySfx later in the same callback. */
     Uint8 use_ticks;
     bool disable_attack; /**< hitboxState = 0. */
-    /** CreateEntFactoryFromEntity(self, factory_packed[i], 0), in order. */
+    /** CreateEntFactoryFromEntity(self, factory_packed[i], factory_argument[i]), in order. */
     Uint8 factories;
     Uint32 factory_packed[2];
+    Uint16 factory_argument[2];
     Sint32 factory_x, factory_y; /**< The entity's 16.16 position at those calls. */
     Uint16 hearts_spent;         /**< g_Status.hearts decrement. */
+    bool reset_afterimages;      /**< func_8010DFF0(1, 1), even before a failed birth. */
+    Uint8 spell_use_ticks;       /**< g_Player.timers[12]. */
+    bool upload_gradient;        /**< LoadImage(&D_800B0788, D_800B06C8): the beam gradient. */
 } SotnSubweaponEvents;
 
 /** @brief Rows a supported subweapon entity leases at birth (zero when unsupported). */
 Uint16 SotnSubweaponEntity_Rows(Uint16 id);
+/** @brief Read a giant cross row's private UVs and palette (D_800B0F94, set at birth).
+ * @param dra Private DRA image. @param row Row 0..45. @param u Receives u0..u3.
+ * @param v Receives v0..v3. @param palette Receives the CLUT. @return Success or SDL error. */
+bool SotnSubweaponEntity_CrossFace(SotnDataView dra, Uint16 row, Uint8 u[4], Uint8 v[4],
+                                   Uint16 *palette);
+/** @brief Read a particle frame's private UVs (D_800AD094, func_80119E78).
+ * @param dra Private DRA image. @param frame Frame 0..5. @param u Receives u0..u3.
+ * @param v Receives v0..v3. @return Success or SDL error. */
+bool SotnSubweaponEntity_SparkFace(SotnDataView dra, Uint16 frame, Uint8 u[4], Uint8 v[4]);
 /** @brief Run one DRA subweapon callback (EntitySubwpnThrownVibhuti, EntitySubwpnReboundStone,
- * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail).
+ * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail,
+ * EntitySubwpnCrashCross, EntityGiantSpinningCross, EntitySubwpnCrashCrossParticles).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth

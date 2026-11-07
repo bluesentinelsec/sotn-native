@@ -1127,7 +1127,8 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea, Bible):
+// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea, Bible,
+// Cross):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1140,7 +1141,8 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
     *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
                progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
                progress.subweapon == SOTN_SUBWEAPON_AGUNEA ||
-               progress.subweapon == SOTN_SUBWEAPON_BIBLE;
+               progress.subweapon == SOTN_SUBWEAPON_BIBLE ||
+               progress.subweapon == SOTN_SUBWEAPON_CROSS;
     *used = false;
     *animation = 0;
     if (!*handled)
@@ -1476,9 +1478,11 @@ static bool TickBlinksWork(SotnLaboratory *s, SotnPlayerState player, bool enter
             !SotnPlayer_CommitHellfire(s->player, s->bat_runtime.hellfire_signal,
                                        s->bat_runtime.hellfire_palette) ||
             (s->bat_runtime.hellfire_upload &&
-             !SotnHellfireGraphics_Upload(s->actor_graphics, s->dra)))
+             !SotnHellfireGraphics_Upload(s->actor_graphics, s->dra)) ||
+            (s->bat_runtime.cross_upload &&
+             !SotnHellfireGraphics_UploadCross(s->actor_graphics, s->dra)))
             return false;
-        s->bat_runtime.hellfire_upload = false;
+        s->bat_runtime.hellfire_upload = s->bat_runtime.cross_upload = false;
         if (s->bat_runtime.freeze_changed &&
             !SotnSceneFreeze_Request(&s->spell_freeze, s->bat_runtime.freeze))
             return false;
@@ -3901,6 +3905,58 @@ static bool DrawOriginalEffectQuad(SotnLaboratory *s, const SotnPlayerEffectQuad
         s->actor_graphics, p, s->draw_target.offset_x + (fixed ? 0 : s->shake.x),
         s->draw_target.offset_y + (fixed ? 0 : s->shake.y), surface);
 }
+// The cross's rows keep original screen words (no DRAW_UNK02 or FLAG_POS_CAMERA_LOCKED).
+// Beam: the uploaded gradient as a 15-bit direct page, additive, grey once it spreads. Giant
+// cross faces: page 0x1C, private UVs/palettes, opaque. Sparks: page 0x1A, palette 0x1B0.
+static bool DrawCrossRow(SotnLaboratory *s, const SotnSubweaponEntity *m, Uint16 row)
+{
+    SotnPlayerEffectQuad q = {0};
+    if (m->id == SOTN_SUBWEAPON_CROSS)
+    {
+        const SotnCrossBeam *b = &m->beam;
+        if (row)
+            return SDL_SetError("Cross beam draw names a row it does not own");
+        q = (SotnPlayerEffectQuad){.x = {b->x0, b->x1, b->x0, b->x1},
+                                   .y = {b->y0, b->y0, b->y2, b->y2},
+                                   .u = {1, 0x30, 1, 0x30},
+                                   .v = {0xf8, 0xf8, 0xf8, 0xf8},
+                                   .red = {b->grey, b->grey, b->grey, b->grey},
+                                   .green = {b->grey, b->grey, b->grey, b->grey},
+                                   .blue = {b->grey, b->grey, b->grey, b->grey},
+                                   .page = 0x11c,
+                                   .priority = m->priority,
+                                   .draw_mode = b->draw_mode};
+    }
+    else if (m->id == SOTN_GIANT_CROSS)
+    {
+        if (row >= SOTN_GIANT_CROSS_ROWS || !((m->cross.visible >> row) & 1U) ||
+            !SotnSubweaponEntity_CrossFace(s->dra, row, q.u, q.v, &q.palette))
+            return SDL_SetError("Giant cross draw lost its visible face %u", row);
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.x[v] = m->cross.x[row][v];
+            q.y[v] = m->cross.y[row][v];
+        }
+        q.page = 0x1c;
+        q.priority = m->cross.priority;
+    }
+    else
+    {
+        const SotnCrossParticle *p = row < SOTN_CROSS_PARTICLE_ROWS ? &m->sparks.rows[row] : NULL;
+        if (!p || !p->visible || !SotnSubweaponEntity_SparkFace(s->dra, p->shown, q.u, q.v))
+            return SDL_SetError("Cross particle draw lost its shown spark %u", row);
+        const Sint16 size = p->shown >= 3 ? 4 : 6;
+        for (Uint16 v = 0; v < 4; ++v)
+        {
+            q.x[v] = (Sint16)(p->x + ((v & 1U) ? size : -size));
+            q.y[v] = (Sint16)(p->placed + ((v & 2U) ? size : -size));
+        }
+        q.page = 0x1a;
+        q.palette = 0x1b0;
+        q.priority = p->priority;
+    }
+    return DrawOriginalEffectQuad(s, &q);
+}
 static bool DrawIceQuad(SotnLaboratory *s, const SotnPlayerEffectQuad *p)
 {
     const bool fixed = (p->draw_mode & 0x2080U) != 0;
@@ -4727,6 +4783,40 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                     .primitive = (Uint16)(owner * 64U),
                                     .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
                 return false;
+            // The cross beam's GT4, a giant cross's visible faces and the particles' shown sparks.
+            if (child->subweapon && child->initialized &&
+                child->state.subweapon.motion.id == SOTN_SUBWEAPON_CROSS &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                    .primitive = (Uint16)(owner * 64U),
+                                    .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                return false;
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_GIANT_CROSS
+                                ? SOTN_GIANT_CROSS_ROWS
+                                : 0;
+                 j > 0; --j)
+                if (((child->state.subweapon.motion.cross.visible >> (j - 1U)) & 1U) &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){.priority = child->state.subweapon.motion.cross.priority,
+                                        .primitive = (Uint16)(owner * 64U + j - 1U),
+                                        .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                    return false;
+            for (Uint16 j = child->subweapon && child->initialized &&
+                                    child->state.subweapon.motion.id == SOTN_CROSS_PARTICLES
+                                ? SOTN_CROSS_PARTICLE_ROWS
+                                : 0;
+                 j > 0; --j)
+                if (child->state.subweapon.motion.sparks.rows[j - 1U].visible &&
+                    !SotnActorOrder_Add(
+                        session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                        (SotnActorDraw){
+                            .priority = child->state.subweapon.motion.sparks.rows[j - 1U].priority,
+                            .primitive = (Uint16)(owner * 64U + j - 1U),
+                            .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                    return false;
             // The lightning's drawn GT4 rows 1..end (row0 stays hidden).
             for (Uint16 j = child->subweapon && child->initialized &&
                                     child->state.subweapon.motion.id == SOTN_AGUNEA_BOLT
@@ -5641,6 +5731,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                     q.y[v] = BlinkWord(cy + ((v & 2U) ? h : -h) - view_y);
                 }
                 if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized &&
+                (m->id == SOTN_SUBWEAPON_CROSS || m->id == SOTN_GIANT_CROSS ||
+                 m->id == SOTN_CROSS_PARTICLES) &&
+                SotnBatRuntime_SubweaponValid(c, index))
+            {
+                if (!DrawCrossRow(session, m, row) ||
                     !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
                                                SOTN_FRAME_PIXELS))
                     return false;

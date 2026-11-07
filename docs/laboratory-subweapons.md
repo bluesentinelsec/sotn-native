@@ -22,10 +22,9 @@ quarter-wave table in a private comparison, without embedding that table.
 
 This is a selected attack checkpoint, not complete subweapon parity.
 [Vibhuti](player-vibhuti.md), [Rebound Stone](player-rebound-stone.md),
-[Agunea](player-agunea.md) and the [Bible](player-bible.md) have moved to the shared player
-runtime (original factories, rows, attack groups and use grunt); the paths above have not moved
-yet. The cross can be collected but its attack warns once and remains unintegrated, without
-spending hearts. Full projectile trails, glass/debris effects,
+[Agunea](player-agunea.md), the [Bible](player-bible.md) and the [Cross](player-cross.md) have
+moved to the shared player runtime (original factories, rows, attack groups and use grunt); the
+paths above have not moved yet. Full projectile trails, glass/debris effects,
 original color modulation, these four paths' throw grunts/shared random consumption, item
 crashes, and all transform/form interactions remain incomplete.
 Texture/palette bytes and flame UV animation data stay in private runtime files.

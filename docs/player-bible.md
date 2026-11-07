@@ -44,8 +44,8 @@ Its grey starts at 0x60 and drops by eight each update; it is destroyed on its e
 The book and its trails have neither `FLAG_POS_CAMERA_LOCKED` nor `DRAW_UNK02`, so they keep
 their screen position while the camera moves, and `FLAG_UNK_20000` keeps them across room
 entry (without the room translation). Pending trail factories are retired on room entry.
-Factory entities themselves have no `FLAG_POS_CAMERA_LOCKED` in the original either; native
-factory sources do not yet follow the camera between request and spawn (one update).
+Factory entities have no `FLAG_POS_CAMERA_LOCKED` before their first update, so a trail factory
+keeps the book's screen position between request and spawn ([Cross](player-cross.md#screen-anchoring)).
 
 ## Validation
 
