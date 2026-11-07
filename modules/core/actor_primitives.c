@@ -331,7 +331,8 @@ static bool BatPrimitiveKind(Uint16 kind)
            kind == 0xe2 || kind == 0xf2 || kind == 0xe3 || kind == 0xf3 || kind == 0xe4 ||
            kind == 0xf4 || kind == 0xe8 || kind == 0xf8 || kind == 0xe9 || kind == 0xf9 ||
            kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY ||
-           kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY;
+           kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY ||
+           kind == SOTN_BIBLE_ENTITY || kind == SOTN_BIBLE_TRAIL_ENTITY;
 }
 static bool WolfPrimitiveKind(Uint16 kind)
 {

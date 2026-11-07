@@ -1127,7 +1127,7 @@ static bool ThrowingFactory(void *context, SotnPlayerFactorySource source, Uint3
                ? SotnBatRuntime_RequestMagicMissile(&s->bat_runtime, source, packed, allocated)
                : SotnBatRuntime_RequestThrowing(&s->bat_runtime, source, packed, item, allocated);
 }
-// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea):
+// func_8010EB5C for subweapons the shared runtime owns (Rebound Stone, Vibhuti, Agunea, Bible):
 // func_800FE3C4's heart check, CheckSubwpnChainLimit over slots32..47, heart spending, then the
 // actual factory.
 static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *handled, bool *used,
@@ -1139,7 +1139,8 @@ static bool SubweaponUse(void *context, SotnPlayerFactorySource source, bool *ha
         return SDL_SetError("Shared subweapon use requires its session and outputs");
     *handled = progress.subweapon == SOTN_SUBWEAPON_VIBHUTI ||
                progress.subweapon == SOTN_SUBWEAPON_REBOUND_STONE ||
-               progress.subweapon == SOTN_SUBWEAPON_AGUNEA;
+               progress.subweapon == SOTN_SUBWEAPON_AGUNEA ||
+               progress.subweapon == SOTN_SUBWEAPON_BIBLE;
     *used = false;
     *animation = 0;
     if (!*handled)
@@ -4715,6 +4716,17 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
                                     .primitive = (Uint16)(owner * 16U),
                                     .kind = SOTN_DRAW_SUBWEAPON_LINE}))
                 return false;
+            // The Bible's book (once shown) and each trail's single GT4.
+            if (child->subweapon && child->initialized &&
+                ((child->state.subweapon.motion.id == SOTN_SUBWEAPON_BIBLE &&
+                  child->state.subweapon.motion.bible.mode) ||
+                 child->state.subweapon.motion.id == SOTN_BIBLE_TRAIL) &&
+                !SotnActorOrder_Add(
+                    session->draw_items, SDL_arraysize(session->draw_items), &draw_count,
+                    (SotnActorDraw){.priority = child->state.subweapon.motion.priority,
+                                    .primitive = (Uint16)(owner * 64U),
+                                    .kind = SOTN_DRAW_SUBWEAPON_QUAD}))
+                return false;
             // The lightning's drawn GT4 rows 1..end (row0 stays hidden).
             for (Uint16 j = child->subweapon && child->initialized &&
                                     child->state.subweapon.motion.id == SOTN_AGUNEA_BOLT
@@ -5600,6 +5612,40 @@ static bool DrawActorsAndPlayer(SotnLaboratory *session, SotnPlayerState player,
         {
             const Uint16 index = command.primitive / 64U, row = command.primitive % 64U;
             const SotnBatRuntimeChild *c = &session->bat_runtime.children[index];
+            const SotnSubweaponEntity *m = &c->state.subweapon.motion;
+            if (index < SOTN_BAT_RUNTIME_SLOTS && c->subweapon && c->initialized && !row &&
+                (m->id == SOTN_SUBWEAPON_BIBLE || m->id == SOTN_BIBLE_TRAIL) &&
+                SotnBatRuntime_SubweaponValid(c, index))
+            {
+                // The book: page 0x1E/palette 0x17F, raw texture (drawMode 0x100), 16x24.
+                // A trail: page 0x1C/palette 0x19D, ABR0 half-transparent grey (0x115), 16x16.
+                const bool book = m->id == SOTN_SUBWEAPON_BIBLE;
+                const Sint64 cx = book ? Pixel(m->x) : m->trail.x,
+                             cy = book ? Pixel(m->y) : m->trail.y;
+                const Sint32 w = 8, h = book ? 12 : 8;
+                const Uint8 grey = book ? 0x80 : (Uint8)m->trail.grey;
+                SotnPlayerEffectQuad q = {
+                    .u = {book ? 0x98 : 0x20, book ? 0xa8 : 0x30, book ? 0x98 : 0x20,
+                          book ? 0xa8 : 0x30},
+                    .v = {book ? 0xd8 : 0, book ? 0xd8 : 0, book ? 0xf0 : 0x10, book ? 0xf0 : 0x10},
+                    .red = {grey, grey, grey, grey},
+                    .green = {grey, grey, grey, grey},
+                    .blue = {grey, grey, grey, grey},
+                    .page = book ? 0x1e : 0x1c,
+                    .palette = book ? 0x17f : 0x19d,
+                    .priority = m->priority,
+                    .draw_mode = book ? 0x100 : 0x115};
+                for (Uint16 v = 0; v < 4; ++v)
+                {
+                    q.x[v] = BlinkWord(cx + ((v & 1U) ? w : -w) - view_x);
+                    q.y[v] = BlinkWord(cy + ((v & 2U) ? h : -h) - view_y);
+                }
+                if (!DrawOriginalEffectQuad(session, &q) ||
+                    !SotnFrameClip_CopyOutside(clip, session->clip_backup, session->frame,
+                                               SOTN_FRAME_PIXELS))
+                    return false;
+                continue;
+            }
             if (index >= SOTN_BAT_RUNTIME_SLOTS || !c->subweapon || !c->initialized ||
                 c->state.subweapon.motion.id != SOTN_AGUNEA_BOLT ||
                 !SotnBatRuntime_SubweaponValid(c, index) || !row ||

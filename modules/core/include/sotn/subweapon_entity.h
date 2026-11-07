@@ -28,7 +28,14 @@ enum
     SOTN_AGUNEA_BOLT_ROWS = 40,    /**< AllocPrimitives(PRIM_GT4, 0x28), first free. */
     SOTN_AGUNEA_FLASH = 0x52002c,  /**< FACTORY(BP_BLINK_WHITE, 0x52). */
     SOTN_AGUNEA_OUTLINE = 0x2003d, /**< FACTORY(BP_61, 2): three light-blue player outlines. */
-    SOTN_AGUNEA_HELD = 0x1080      /**< PAD_UP | PAD_SQUARE (US words). */
+    SOTN_AGUNEA_HELD = 0x1080,     /**< PAD_UP | PAD_SQUARE (US words). */
+    SOTN_SUBWEAPON_BIBLE = 5,
+    SOTN_BIBLE_BLUEPRINT = 77,
+    SOTN_BIBLE_ENTITY = 43,
+    /** Native key for E_SUBWPN_BIBLE_TRAIL (entity 44, blueprint 79, subweaponId zero). */
+    SOTN_BIBLE_TRAIL = 0x12c,
+    SOTN_BIBLE_TRAIL_BLUEPRINT = 79,
+    SOTN_BIBLE_TRAIL_ENTITY = 44
 };
 
 /** @brief One original FakePrim ash TILE. Positions are room-local 16.16 pixels whose whole
@@ -89,6 +96,29 @@ typedef struct SotnAguneaBolt
     bool flashed; /**< step_s. */
 } SotnAguneaBolt;
 
+/** @brief Original E_SUBWPN_BIBLE ext words. The book orbits the player, then flies off in
+ * screen space; it and its one GT4 row (page 0x1E, palette 0x17F, 16x24) keep their screen
+ * position (no FLAG_POS_CAMERA_LOCKED / DRAW_UNK02), so the owner moves them with the camera. */
+typedef struct SotnBible
+{
+    Sint16 count;  /**< unk7C: updates since the orbit began; launch at 0x12C. */
+    Sint16 radius; /**< unk7E: grows to 0x30. */
+    Sint16 angle;  /**< unk80. */
+    Sint16 tilt;   /**< unk82, swinging between about +-0x200. */
+    Sint16 swing;  /**< unk84: +-32. */
+    Sint16 mode;   /**< unk86: 0 hidden, 1 orbit, 2 launched. */
+    Sint32 velocity_y;
+} SotnBible;
+
+/** @brief Original E_SUBWPN_BIBLE_TRAIL: one fading half-transparent GT4 (page 0x1C, palette
+ * 0x19D) placed once at birth around its room pixel position, which keeps its screen position. */
+typedef struct SotnBibleTrail
+{
+    Sint32 x, y;  /**< Quad centre (birth position) in room pixels. */
+    Sint16 count; /**< unk7C. */
+    Sint16 grey;  /**< unk7E: 0x60, minus eight per update. */
+} SotnBibleTrail;
+
 /** @brief One DRA subweapon entity owned by the shared player runtime (slots32..47).
  * Coordinates are room-local 16.16 pixels; zero-initialize before the first callback. */
 typedef struct SotnSubweaponEntity
@@ -105,6 +135,8 @@ typedef struct SotnSubweaponEntity
         SotnReboundStone stone;
         SotnAgunea agunea;
         SotnAguneaBolt bolt;
+        SotnBible bible;
+        SotnBibleTrail trail;
     };
 } SotnSubweaponEntity;
 
@@ -135,12 +167,14 @@ typedef struct SotnSubweaponInput
     Uint16 bolt_cost;          /**< Agunea's five hearts after Heart broach division. */
     Uint16 parent_entity;      /**< Raw parent slot's entityId (the bolt's Agunea). */
     Sint32 parent_x, parent_y; /**< Raw parent's room pixel position. */
+    Uint32 game_timer;         /**< g_GameTimer: the Bible swishes when it is a multiple of 10. */
 } SotnSubweaponInput;
 
 /** @brief Requests for the owner, committed only after a successful callback. */
 typedef struct SotnSubweaponEvents
 {
     Uint16 sound;
+    Uint16 sound_after; /**< A second PlaySfx later in the same callback. */
     Uint8 use_ticks;
     bool disable_attack; /**< hitboxState = 0. */
     /** CreateEntFactoryFromEntity(self, factory_packed[i], 0), in order. */
@@ -153,7 +187,7 @@ typedef struct SotnSubweaponEvents
 /** @brief Rows a supported subweapon entity leases at birth (zero when unsupported). */
 Uint16 SotnSubweaponEntity_Rows(Uint16 id);
 /** @brief Run one DRA subweapon callback (EntitySubwpnThrownVibhuti, EntitySubwpnReboundStone,
- * EntitySubwpnAgunea, EntityAguneaHitEnemy).
+ * EntitySubwpnAgunea, EntityAguneaHitEnemy, EntitySubwpnBible, EntitySubwpnBibleTrail).
  * @param entity Owned state. @param input Actual context; properties is required.
  * @param random Character libc cursor in original order. @param events Receives requests.
  * @return Success or SDL error without mutation. The owner reserves the rows before the birth

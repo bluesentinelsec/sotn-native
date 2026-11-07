@@ -444,13 +444,14 @@ static void PruneRoomFactory(SotnBatRuntime *r, Uint16 blueprint);
 bool SotnBatRuntime_RequestSubweapon(SotnBatRuntime *r, SotnPlayerFactorySource source,
                                      Uint32 packed, Sint16 argument, bool *allocated)
 {
-    // Vibhuti's blueprint26, Rebound Stone's blueprint24 and Agunea's blueprint22 factories are
-    // owned here so far.
+    // Vibhuti's blueprint26, Rebound Stone's blueprint24, Agunea's blueprint22 and the Bible's
+    // blueprint77 factories are owned here so far.
     if (!r || !allocated ||
         !((packed == SOTN_VIBHUTI_BLUEPRINT && argument == SOTN_SUBWEAPON_VIBHUTI << 9) ||
           (packed == SOTN_REBOUND_STONE_BLUEPRINT && argument == SOTN_SUBWEAPON_REBOUND_STONE
                                                                      << 9) ||
-          (packed == SOTN_AGUNEA_BLUEPRINT && argument == SOTN_SUBWEAPON_AGUNEA << 9)))
+          (packed == SOTN_AGUNEA_BLUEPRINT && argument == SOTN_SUBWEAPON_AGUNEA << 9) ||
+          (packed == SOTN_BIBLE_BLUEPRINT && argument == SOTN_SUBWEAPON_BIBLE << 9)))
         return SDL_SetError("Subweapon factory requires a supported actual blueprint/id");
     *allocated = false;
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_FACTORIES; ++i)
@@ -473,12 +474,21 @@ static Uint16 SubweaponEntity(Uint16 id)
            : id == SOTN_SUBWEAPON_REBOUND_STONE ? SOTN_REBOUND_STONE_ENTITY
            : id == SOTN_SUBWEAPON_AGUNEA        ? SOTN_AGUNEA_ENTITY
            : id == SOTN_AGUNEA_BOLT             ? SOTN_AGUNEA_BOLT_ENTITY
+           : id == SOTN_SUBWEAPON_BIBLE         ? SOTN_BIBLE_ENTITY
+           : id == SOTN_BIBLE_TRAIL             ? SOTN_BIBLE_TRAIL_ENTITY
                                                 : 0;
 }
 static bool SubweaponKind(Uint16 kind)
 {
     return kind == SOTN_VIBHUTI_ENTITY || kind == SOTN_REBOUND_STONE_ENTITY ||
-           kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY;
+           kind == SOTN_AGUNEA_ENTITY || kind == SOTN_AGUNEA_BOLT_ENTITY ||
+           kind == SOTN_BIBLE_ENTITY || kind == SOTN_BIBLE_TRAIL_ENTITY;
+}
+// The Bible and its trail have neither FLAG_POS_CAMERA_LOCKED nor DRAW_UNK02 rows: they keep
+// their screen position as the camera moves, and FLAG_UNK_20000 keeps them across rooms.
+static bool SubweaponScreenAnchored(Uint16 id)
+{
+    return id == SOTN_SUBWEAPON_BIBLE || id == SOTN_BIBLE_TRAIL;
 }
 bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
 {
@@ -486,9 +496,10 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
         return !SubweaponKind(c->kind);
     const SotnSubweaponEntity *e = &c->state.subweapon.motion;
     const bool stone = e->id == SOTN_SUBWEAPON_REBOUND_STONE,
-               agunea = e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e->id == SOTN_AGUNEA_BOLT;
-    // The lightning (kind0 range 32..63) never rolls properties: no group, no attack.
-    return index >= 16 && index <= (bolt ? 47 : 31) && SotnSubweaponEntity_Rows(e->id) &&
+               agunea = e->id == SOTN_SUBWEAPON_AGUNEA, bolt = e->id == SOTN_AGUNEA_BOLT,
+               bible = e->id == SOTN_SUBWEAPON_BIBLE, trail = e->id == SOTN_BIBLE_TRAIL;
+    // The lightning and Bible trail (kind0 range 32..63) never roll properties: no group/attack.
+    return index >= 16 && index <= (bolt || trail ? 47 : 31) && SotnSubweaponEntity_Rows(e->id) &&
            c->kind == SubweaponEntity(e->id) && c->generation && !c->bat_generation &&
            !c->parameter && !c->draw_count && !e->removed && c->state.subweapon.hit_flags <= 3 &&
            c->state.subweapon.hit_target < SOTN_STAGE_TARGETS &&
@@ -500,11 +511,14 @@ bool SotnBatRuntime_SubweaponValid(const SotnBatRuntimeChild *c, Uint16 index)
                               : agunea ? e->step >= 1 && e->step <= 4
                               : bolt   ? e->step >= 1 && e->step <= 3 && e->bolt.grey >= 16 &&
                                              e->bolt.end < SOTN_AGUNEA_BOLT_ROWS
+                              : bible  ? e->step >= 1 && e->step <= 4 && e->bible.mode >= 0 &&
+                                             e->bible.mode <= 2
+                              : trail  ? e->step >= 1 && e->step <= 2
                                        : e->step == 1 && e->timer && e->timer <= 0x80) &&
                                  c->primitive_count == SotnSubweaponEntity_Rows(e->id) &&
-                                 (bolt ? !c->group && !c->state.subweapon.attack.active
-                                       : c->group >= 7 && c->group <= 10 &&
-                                             c->state.subweapon.attack.equipment == 0)
+                                 (bolt || trail ? !c->group && !c->state.subweapon.attack.active
+                                                : c->group >= 7 && c->group <= 10 &&
+                                                      c->state.subweapon.attack.equipment == 0)
                            : !e->step && !c->primitive_count && !c->group &&
                                  !c->state.subweapon.attack.active);
 }
@@ -522,9 +536,13 @@ bool SotnBatRuntime_PruneSubweapons(SotnBatRuntime *r)
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
         if (!SotnBatRuntime_SubweaponValid(&r->children[i], i))
             return SDL_SetError("Subweapon room cleanup lost its actual child/row ownership");
+    // func_8011A9D8 keeps FLAG_UNK_20000 entities (the Bible and its trails) across rooms.
     for (Uint16 i = 0; i < SOTN_BAT_RUNTIME_SLOTS; ++i)
-        if (r->children[i].subweapon)
+        if (r->children[i].subweapon && !(r->children[i].initialized &&
+                                          (r->children[i].state.subweapon.motion.flags & 0x20000U)))
             r->children[i] = (SotnBatRuntimeChild){0};
+    PruneRoomFactory(r, SOTN_BIBLE_BLUEPRINT);
+    PruneRoomFactory(r, SOTN_BIBLE_TRAIL_BLUEPRINT);
     PruneRoomFactory(r, SOTN_VIBHUTI_BLUEPRINT);
     PruneRoomFactory(r, SOTN_REBOUND_STONE_BLUEPRINT);
     PruneRoomFactory(r, SOTN_AGUNEA_BLUEPRINT);
@@ -2441,13 +2459,17 @@ static bool Spawn(SotnBatRuntime *r, SotnPlayerFactoryChild child, Uint32 genera
         return SDL_SetError("Agunea lightning requires its actual blueprint23 bolt parent");
     if (c.subweapon)
     {
-        const bool bolt = c.kind == SOTN_AGUNEA_BOLT_ENTITY;
+        const bool bolt = c.kind == SOTN_AGUNEA_BOLT_ENTITY,
+                   trail = c.kind == SOTN_BIBLE_TRAIL_ENTITY;
         const Uint16 id = c.kind == SOTN_VIBHUTI_ENTITY         ? SOTN_SUBWEAPON_VIBHUTI
                           : c.kind == SOTN_REBOUND_STONE_ENTITY ? SOTN_SUBWEAPON_REBOUND_STONE
                           : c.kind == SOTN_AGUNEA_ENTITY        ? SOTN_SUBWEAPON_AGUNEA
+                          : c.kind == SOTN_BIBLE_ENTITY         ? SOTN_SUBWEAPON_BIBLE
+                          : trail                               ? SOTN_BIBLE_TRAIL
                                                                 : SOTN_AGUNEA_BOLT;
-        if (generation || child.slot < 32 || child.slot > (bolt ? 63 : 47) || child.parameter ||
-            child.argument_low || child.argument_high != (bolt ? 0 : id) ||
+        if (generation || child.slot < 32 || child.slot > (bolt || trail ? 63 : 47) ||
+            child.parameter || child.argument_low ||
+            child.argument_high != (bolt || trail ? 0 : id) ||
             (bolt && (subweapon_parent_slot < 32 || subweapon_parent_slot > 47)))
             return SDL_SetError("Subweapon lost its actual slot/parameter/subweapon id");
         c.state.subweapon.parent = subweapon_parent_slot;
@@ -3569,7 +3591,7 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                 c->state.sire.parent.y = FixedShift(c->state.sire.parent.y, in.room_shift_y);
             }
         }
-        else if (c->subweapon)
+        else if (c->subweapon && !SubweaponScreenAnchored(c->state.subweapon.motion.id))
         {
             SotnSubweaponEntity *e = &c->state.subweapon.motion;
             e->x = FixedShift(e->x, in.room_shift_x);
@@ -6247,14 +6269,16 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
                                                   : parent      ? parent->kind
                                                                 : 0),
                         .parent_x = agunea_parent ? Pixel(parent->state.subweapon.motion.x) : 0,
-                        .parent_y = agunea_parent ? Pixel(parent->state.subweapon.motion.y) : 0},
+                        .parent_y = agunea_parent ? Pixel(parent->state.subweapon.motion.y) : 0,
+                        .game_timer = in.game_timer},
                     &progress.random, &events))
                 return false;
             c->state.subweapon.hit_flags = 0;
             if (events.hearts_spent > progress.hearts)
                 return SDL_SetError("Agunea spent more hearts than the character holds");
             progress.hearts = (Uint16)(progress.hearts - events.hearts_spent);
-            if (events.sound && !Sound(&r, events.sound))
+            if ((events.sound && !Sound(&r, events.sound)) ||
+                (events.sound_after && !Sound(&r, events.sound_after)))
                 return false;
             if (events.use_ticks)
                 r.use_ticks = events.use_ticks;
@@ -6301,6 +6325,17 @@ bool SotnBatRuntime_Tick(SotnBatRuntime *runtime, SotnCharacter *character, Sotn
             {
                 e->bolt.x[0][v] = Word(e->bolt.x[0][v] + dx);
                 e->bolt.y[0][v] = Word(e->bolt.y[0][v] + dy);
+            }
+            // The Bible, its row and its trails keep their screen position (room entry too).
+            if (!removed && SubweaponScreenAnchored(e->id))
+            {
+                e->x = FixedShift(e->x, dx);
+                e->y = FixedShift(e->y, dy);
+                if (e->id == SOTN_BIBLE_TRAIL)
+                {
+                    e->trail.x += dx;
+                    e->trail.y += dy;
+                }
             }
             c->source = (SotnPlayerFactorySource){.x = e->x,
                                                   .y = e->y,
