@@ -41,6 +41,7 @@ bool ActorInitialize(SotnActors *actors, Actor *actor, size_t offset)
     actor->attack_element = Read16(enemy.bytes + 8);
     actor->level = Read16(enemy.bytes + 22);
     actor->experience = Read16(enemy.bytes + 24);
+    actor->enemy_definition = (Uint16)(id + 1U);
     actor->enemy.defense = (Sint16)Signed16(enemy.bytes + 10);
     actor->state.hitbox_state = Read16(enemy.bytes + 12);
     actor->enemy.weaknesses = Read16(enemy.bytes + 14);
@@ -993,6 +994,8 @@ static bool Hit(SotnActors *actors, Actor *actor, SotnPlayerState player)
                                         progress.hp_max, progress.mp_max, progress.hearts_max);
                             }
                         }
+                        if (!ActorEnemyDrop(actors, actor, recipient, source.attack.hit_effect))
+                            return false;
                     }
                 }
                 const Uint32 stun_flags = actors->stage_id == 25 && recipient->state.id == 0x22
@@ -1226,7 +1229,10 @@ static bool Prize(SotnActors *actors, Actor *actor, SotnPlayerState player)
         if (col.effects & (SOTN_EFFECT_SOLID | SOTN_EFFECT_SINK | SOTN_EFFECT_SIDE))
             actor->remove = true;
         else
+        {
             ++actor->state.step;
+            ActorDropRecord(actors, actor);
+        }
         if (item == 0)
         {
             actor->fall_speed = -65536;
@@ -1405,6 +1411,7 @@ static bool EquipmentPrize(SotnActors *actors, Actor *actor, SotnPlayerState pla
             actor->remove = true;
         else
         {
+            ActorDropRecord(actors, actor);
             actor->state.step = 2;
             actor->state.hitbox_width = actor->state.hitbox_height = 7;
             actor->timer = 0;

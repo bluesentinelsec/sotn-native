@@ -125,6 +125,15 @@ func_800F27F4 (Faerie/Sprite speech gate only). Every
 subweapon now runs on the shared runtime; the legacy service is removed (subweapon.c keeps the
 definition read, Heart broach cost and func_800FE3C4 power).
 
+Selected [enemy drops](docs/enemy-drops.md): after a kill's EXP, collision.h's drop: root flags
+0x400/0x800 pick g_testCollLuckCutoff; rand()&0xFF < func_800FF460 (cutoff + cutoff*LCK/0x80);
+first free 160..191 (none: no more rolls); Jewel sword hitEffect5 gem table, else func_800FF494
+(rare/uncommon thresholds, Ring of Arcana75 per copy, prize rand()%28 index); Paranthropus Varda
+-> Turquoise before game clear; born at the hit part, vy FIX(-3.5), raw 3 prize / 0xA equipment
+(item-0x80). All on the libc combat cursor. Drops record g_testCollEnemyLookup's rare flag in
+castle flags 0x1B0.. at step 1. Per-overlay tables at each g_testCollLuckCutoff (pattern-checked;
+lookup -0x320, prize +0x34, gems +0x74).
+
 Selected [Secret boots](docs/player-secret-boots.md) (accessory88): before afterimage sampling, a
 living, untransformed, unrotated, unstuck, non-Axe player sets ENTITY_SCALEY with scaleY 0x110 and
 rotPivotY 0x18 (flag reset each update; scale/pivot retained until AluInit). func_800EB758 scales
@@ -150,7 +159,7 @@ stone contacts lose petrification but still damage; fire contacts take the immun
 oracle (4,000 contexts) matches defense and all four element masks. Walk armor19 adds the world's
 explored-room counter (g_RoomCount = SotnWorldState.rooms, synced every update) / 60. Second
 additive batch 10/13/23/34/37/62 is supported (Holy glasses' BO6 Richter check is unintegrated).
-Other unsupported body items keep special owners pending.
+Other unsupported body items keep special owners pending (Ring of Arcana75 now has its drop owner).
 
 Selected [stat bonuses](docs/player-stat-bonuses.md): UpdateEquipStatBonuses' Sunstone59 (hours
 6..17 of timerHours % 24, signed remainder) or Moonstone58 adds five to every stat per accessory

@@ -381,6 +381,9 @@ add_library(sotn-core STATIC
   entrance_death.c
   include/sotn/dialogue.h
   combat.c
+  enemy_drop.c
+  include/sotn/enemy_drop.h
+  actor_enemy_drop.c
   shield.c
   include/sotn/shield.h
   equipment.c

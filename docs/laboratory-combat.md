@@ -7,6 +7,7 @@ hand cooldown groups and rendering. Alucard sword TILEs and shield knock-away no
 run. Alucard shield's displayed attack stays zero. The
 [milestone checklist](alucard-status.md) records current availability; the older
 checkpoint sections below retain their original scope and evidence boundaries.
+Killed enemies now roll the original [item drops](enemy-drops.md).
 
 ## Empty-hand attack dependency
 

@@ -100,7 +100,9 @@ static bool BodySupported(Uint16 id)
            // Joseph's cloak55 copies g_JosephsCloakColors (0x411) at their default settings.
            id == 55 ||
            // Secret boots88 stretch the normal body to scaleY 0x110 (player draw flags).
-           id == 88;
+           id == 88 ||
+           // Ring of Arcana75 raises enemy item drop rates (SotnEnemyDrop_Kind).
+           id == 75;
 }
 bool SotnItem_Read(SotnDataView dra, bool body, Uint16 id, SotnItem *out)
 {
