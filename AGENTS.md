@@ -246,6 +246,15 @@ weapon (see the Alucart block). Sword Brothers (spell7, step39 on the Summon han
 outline 0x170028, unk70 pulse on cast and combo completion) drives D4 (billboard, 64 copies,
 ring) and its DF (spell7 global 0x82, zero size, nine updates). Square-root oracles: LZC 0x8001721C/0x80016EEC.
 
+The [Ghost familiar component](docs/ghost-familiar.md) (tt_001, card19, servant2, record1)
+reconstructs ServantInit (256+32-word CLUT copied past both tables, including live event words),
+follow/bob/pulse, FindValidTarget (48px in front, shielded targets at levels1..39, marks and
+round-robin cursor), the approach and attack (ring 0xDA at delay-30, GetServantStats spell17,
+spell18 soul steal from level70, one-update 8x8 hitbox), confusion while bat/Axe Armor (0xDB
+question marks at 0x801705A8 offsets, rise, park), the spike-room event (0xDF15) and DRA
+UpdateAnim. Child links are raw slots; CreateChildEntity's full-slot NULL never matches. Not yet
+loaded, ticked, drawn, offered by the relic menu or connected to combat.
+
 Ordinary [saves](docs/native-saves.md) are now v11: the seven familiar records (level/EXP/loads,
 3636..3719, level = EXP/100+1) persist; v10 and older migrate to level-1 records. Continue
 restores them before InitializeFamiliar. Older "v9/v10" notes describe v11's other fields.
